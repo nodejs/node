@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -6,8 +6,9 @@
 
 """Unit tests for the input.py file."""
 
-import gyp.input
 import unittest
+
+import gyp.input
 
 
 class TestFindCycles(unittest.TestCase):

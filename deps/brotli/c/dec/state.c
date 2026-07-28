@@ -4,19 +4,34 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./state.h"
+#include "state.h"
 
-#include <stdlib.h>  /* free, malloc */
-
-#include <brotli/types.h>
-#include "./huffman.h"
+#include "../common/dictionary.h"
+#include "../common/platform.h"
+#include "huffman.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
+#ifdef BROTLI_REPORTING
+/* When BROTLI_REPORTING is defined extra reporting module have to be linked. */
+void BrotliDecoderOnStart(const BrotliDecoderState* s);
+void BrotliDecoderOnFinish(const BrotliDecoderState* s);
+#define BROTLI_DECODER_ON_START(s) BrotliDecoderOnStart(s);
+#define BROTLI_DECODER_ON_FINISH(s) BrotliDecoderOnFinish(s);
+#else
+#if !defined(BROTLI_DECODER_ON_START)
+#define BROTLI_DECODER_ON_START(s) (void)(s);
+#endif
+#if !defined(BROTLI_DECODER_ON_FINISH)
+#define BROTLI_DECODER_ON_FINISH(s) (void)(s);
+#endif
+#endif
+
 BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
+  BROTLI_DECODER_ON_START(s);
   if (!alloc_func) {
     s->alloc_func = BrotliDefaultAllocFunc;
     s->free_func = BrotliDefaultFreeFunc;
@@ -42,6 +57,7 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
   s->pos = 0;
   s->rb_roundtrips = 0;
   s->partial_pos_out = 0;
+  s->used_input = 0;
 
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
@@ -81,17 +97,23 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
 
   s->mtf_upper_bound = 63;
 
-  s->dictionary = BrotliGetDictionary();
-  s->transforms = BrotliGetTransforms();
+  s->compound_dictionary = NULL;
+  s->dictionary =
+      BrotliSharedDictionaryCreateInstance(alloc_func, free_func, opaque);
+  if (!s->dictionary) return BROTLI_FALSE;
+
+  s->metadata_start_func = NULL;
+  s->metadata_chunk_func = NULL;
+  s->metadata_callback_opaque = 0;
 
   return BROTLI_TRUE;
 }
 
 void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   s->meta_block_remaining_len = 0;
-  s->block_length[0] = 1U << 24;
-  s->block_length[1] = 1U << 24;
-  s->block_length[2] = 1U << 24;
+  s->block_length[0] = BROTLI_BLOCK_SIZE_CAP;
+  s->block_length[1] = BROTLI_BLOCK_SIZE_CAP;
+  s->block_length[2] = BROTLI_BLOCK_SIZE_CAP;
   s->num_block_types[0] = 1;
   s->num_block_types[1] = 1;
   s->num_block_types[2] = 1;
@@ -129,13 +151,18 @@ void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
 void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
   BrotliDecoderStateCleanupAfterMetablock(s);
 
+  BROTLI_DECODER_ON_FINISH(s);
+
+  BROTLI_DECODER_FREE(s, s->compound_dictionary);
+  BrotliSharedDictionaryDestroyInstance(s->dictionary);
+  s->dictionary = NULL;
   BROTLI_DECODER_FREE(s, s->ringbuffer);
   BROTLI_DECODER_FREE(s, s->block_type_trees);
 }
 
 BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
-    HuffmanTreeGroup* group, uint32_t alphabet_size_max,
-    uint32_t alphabet_size_limit, uint32_t ntrees) {
+    HuffmanTreeGroup* group, brotli_reg_t alphabet_size_max,
+    brotli_reg_t alphabet_size_limit, brotli_reg_t ntrees) {
   /* 376 = 256 (1-st level table) + 4 + 7 + 15 + 31 + 63 (2-nd level mix-tables)
      This number is discovered "unlimited" "enough" calculator; it is actually
      a wee bigger than required in several cases (especially for alphabets with
@@ -150,7 +177,7 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
   group->alphabet_size_limit = (uint16_t)alphabet_size_limit;
   group->num_htrees = (uint16_t)ntrees;
   group->htrees = p;
-  group->codes = (HuffmanCode*)(&p[ntrees]);
+  group->codes = p ? (HuffmanCode*)(&p[ntrees]) : NULL;
   return !!p;
 }
 

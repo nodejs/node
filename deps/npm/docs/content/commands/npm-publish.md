@@ -7,98 +7,235 @@ description: Publish a package
 ### Synopsis
 
 ```bash
-npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>] [--otp otpcode] [--dry-run]
-
-Publishes '.' if no argument supplied
-Sets tag 'latest' if no --tag specified
+npm publish <package-spec>
 ```
 
 ### Description
 
 Publishes a package to the registry so that it can be installed by name.
 
-By default npm will publish to the public registry. This can be overridden
-by specifying a different default registry or using a
-[`scope`](/using-npm/scope) in the name (see
-[`package.json`](/configuring-npm/package-json)).
+### Examples
 
-* `<folder>`: A folder containing a package.json file
+Publish the package in the current directory:
 
-* `<tarball>`: A url or file path to a gzipped tar archive containing a
-  single folder with a package.json file inside.
+```bash
+npm publish
+```
 
-* `[--tag <tag>]`: Registers the published package with the given tag, such
-  that `npm install <name>@<tag>` will install this version.  By default,
-  `npm publish` updates and `npm install` installs the `latest` tag. See
-  [`npm-dist-tag`](npm-dist-tag) for details about tags.
+Publish a specific workspace:
 
-* `[--access <public|restricted>]`: Tells the registry whether this package
-  should be published as public or restricted. Only applies to scoped
-  packages, which default to `restricted`.  If you don't have a paid
-  account, you must publish with `--access public` to publish scoped
-  packages.
+```bash
+npm publish --workspace=<workspace-name>
+```
 
-* `[--otp <otpcode>]`: If you have two-factor authentication enabled in
-  `auth-and-writes` mode then you can provide a code from your
-  authenticator with this. If you don't include this and you're running
-  from a TTY then you'll be prompted.
+Publish multiple workspaces:
 
-* `[--dry-run]`: As of `npm@6`, does everything publish would do except
-  actually publishing to the registry. Reports the details of what would
-  have been published.
+```bash
+npm publish --workspace=workspace-a --workspace=workspace-b
+```
 
-The publish will fail if the package name and version combination already
-exists in the specified registry.
+Publish all workspaces:
 
-Once a package is published with a given name and version, that specific
-name and version combination can never be used again, even if it is removed
-with [`npm unpublish`](/commands/npm-unpublish).
+```bash
+npm publish --workspaces
+```
 
-As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the
-tarball will be submitted to the registry during publication. Subsequent
-installs will use the strongest supported algorithm to verify downloads.
+By default npm will publish to the public registry.
+This can be overridden by specifying a different default registry or using a [`scope`](/using-npm/scope) in the name, combined with a scope-configured registry (see [`package.json`](/configuring-npm/package-json)).
 
-Similar to `--dry-run` see [`npm pack`](/commands/npm-pack), which figures
-out the files to be included and packs them into a tarball to be uploaded
-to the registry.
+
+A `package` is interpreted the same way as other commands (like `npm install`) and can be:
+
+* a) a folder containing a program described by a [`package.json`](/configuring-npm/package-json) file
+* b) a gzipped tarball containing (a)
+* c) a url that resolves to (b)
+* d) a `<name>@<version>` that is published on the registry (see [`registry`](/using-npm/registry)) with (c)
+* e) a `<name>@<tag>` (see [`npm dist-tag`](/commands/npm-dist-tag)) that points to (d)
+* f) a `<name>` that has a "latest" tag satisfying (e)
+* g) a `<git remote url>` that resolves to (a)
+
+If either (a) or (b) is specified as a relative path, it should begin with an explicit `./` prefix.
+
+The publish will fail if the package name and version combination already exists in the specified registry.
+
+Once a package is published with a given name and version, that specific name and version combination can never be used again, even if it is removed with [`npm unpublish`](/commands/npm-unpublish).
+
+As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the tarball will be submitted to the registry during publication.
+Subsequent installs will use the strongest supported algorithm to verify downloads.
+
+Similar to `--dry-run` see [`npm pack`](/commands/npm-pack), which figures out the files to be included and packs them into a tarball to be uploaded to the registry.
 
 ### Files included in package
 
-To see what will be included in your package, run `npx npm-packlist`.  All
-files are included by default, with the following exceptions:
+To see what will be included in your package, run `npm pack --dry-run`.
+All files are included by default, with the following exceptions:
 
-- Certain files that are relevant to package installation and distribution
-  are always included.  For example, `package.json`, `README.md`,
+- Certain files that are relevant to package installation and distribution are always included.
+For example, `package.json`, `README.md`,
   `LICENSE`, and so on.
 
-- If there is a "files" list in
-  [`package.json`](/configuring-npm/package-json), then only the files
-  specified will be included.  (If directories are specified, then they
-  will be walked recursively and their contents included, subject to the
-  same ignore rules.)
+- If there is a "files" list in [`package.json`](/configuring-npm/package-json), then only the files specified will be included.
+ (If directories are specified, then they will be walked recursively and their contents included, subject to the same ignore rules.)
 
-- If there is a `.gitignore` or `.npmignore` file, then ignored files in
-  that and all child directories will be excluded from the package.  If
-  _both_ files exist, then the `.gitignore` is ignored, and only the
+- If there is a `.gitignore` or `.npmignore` file, then ignored files in that and all child directories will be excluded from the package.
+  If _both_ files exist, then the `.gitignore` is ignored, and only the
   `.npmignore` is used.
 
-  `.npmignore` files follow the [same pattern
-  rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring)
-  as `.gitignore` files
+  `.npmignore` files follow the [same pattern rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring) as `.gitignore` files
 
-- If the file matches certain patterns, then it will _never_ be included,
-  unless explicitly added to the `"files"` list in `package.json`, or
-  un-ignored with a `!` rule in a `.npmignore` or `.gitignore` file.
+- If the file matches certain patterns, then it will _never_ be included, unless explicitly added to the `"files"` list in `package.json`, or un-ignored with a `!` rule in a `.npmignore` or `.gitignore` file.
 
 - Symbolic links are never included in npm packages.
 
 
-See [`developers`](/using-npm/developers) for full details on what's
-included in the published package, as well as details on how the package is
-built.
+See [`developers`](/using-npm/developers) for full details on what's included in the published package, as well as details on how the package is built.
+
+See [`package.json`](/configuring-npm/package-json) for more info on what can and can't be ignored.
+
+### Configuration
+
+#### `tag`
+
+* Default: "latest"
+* Type: String
+
+If you ask npm to install a package and don't tell it a specific version,
+then it will install the specified tag.
+
+It is the tag added to the package@version specified in the `npm dist-tag
+add` command, if no explicit tag is given.
+
+When used by the `npm diff` command, this is the tag used to fetch the
+tarball that will be compared with the local files by default.
+
+If used in the `npm publish` command, this is the tag that will be added to
+the package submitted to the registry.
+
+
+
+#### `access`
+
+* Default: 'public' for new packages, existing packages it will not change the
+  current level
+* Type: null, "restricted", "public", or "private"
+
+If you do not want your scoped package to be publicly viewable (and
+installable) set `--access=restricted`.
+
+Unscoped packages cannot be set to `restricted`.
+
+Note: This defaults to not changing the current access level for existing
+packages. Specifying a value of `restricted` or `public` during publish will
+change the access for an existing package the same way that `npm access set
+status` would.
+
+The value `private` is an alias for `restricted`.
+
+
+
+#### `dry-run`
+
+* Default: false
+* Type: Boolean
+
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, `install`, `update`,
+`dedupe`, `uninstall`, as well as `pack` and `publish`.
+
+Note: This is NOT honored by other network related commands, eg `dist-tags`,
+`owner`, etc.
+
+
+
+#### `otp`
+
+* Default: null
+* Type: null or String
+
+This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with `npm access`.
+
+If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.
+
+
+
+#### `workspace`
+
+* Default:
+* Type: String (can be set multiple times)
+
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
+
+Valid values for the `workspace` config are either:
+
+* Workspace names
+* Path to a workspace directory
+* Path to a parent workspace directory (will result in selecting all
+  workspaces within that folder)
+
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
+
+This value is not exported to the environment for child processes.
+
+#### `workspaces`
+
+* Default: null
+* Type: null or Boolean
+
+Set to true to run the command in the context of **all** configured
+workspaces.
+
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
+
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
+
+This value is not exported to the environment for child processes.
+
+#### `include-workspace-root`
+
+* Default: false
+* Type: Boolean
+
+Include the workspace root when workspaces are enabled for a command.
+
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
+
+This value is not exported to the environment for child processes.
+
+#### `provenance`
+
+* Default: false
+* Type: Boolean
+
+When publishing from a supported cloud CI/CD system, the package will be
+publicly linked to where it was built and published from.
+
+This config cannot be used with: `provenance-file`
+
+#### `provenance-file`
+
+* Default: null
+* Type: Path
+
+When publishing, the provenance bundle at the given path will be used.
+
+This config cannot be used with: `provenance`
 
 ### See Also
 
+* [package spec](/using-npm/package-spec)
 * [npm-packlist package](http://npm.im/npm-packlist)
 * [npm registry](/using-npm/registry)
 * [npm scope](/using-npm/scope)

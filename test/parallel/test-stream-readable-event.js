@@ -37,11 +37,11 @@ const Readable = require('stream').Readable;
   // This triggers a 'readable' event, which is lost.
   r.push(Buffer.from('blerg'));
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(() => {
     // We're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall());
-  }, 1);
+  }), 1);
 }
 
 {
@@ -57,11 +57,11 @@ const Readable = require('stream').Readable;
   // This triggers a 'readable' event, which is lost.
   r.push(Buffer.from('bl'));
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(() => {
     // Assert we're testing what we think we are
     assert(r._readableState.reading);
     r.on('readable', common.mustCall());
-  }, 1);
+  }), 1);
 }
 
 {
@@ -77,11 +77,11 @@ const Readable = require('stream').Readable;
   r.push(Buffer.from('blerg'));
   r.push(null);
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(() => {
     // Assert we're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall());
-  }, 1);
+  }), 1);
 }
 
 {

@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * RC4 low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/rc4.h>
 #include "rc4_local.h"
@@ -19,7 +25,7 @@
  */
 
 void RC4(RC4_KEY *key, size_t len, const unsigned char *indata,
-         unsigned char *outdata)
+    unsigned char *outdata)
 {
     register RC4_INT *d;
     register RC4_INT x, y, tx, ty;
@@ -29,13 +35,13 @@ void RC4(RC4_KEY *key, size_t len, const unsigned char *indata,
     y = key->y;
     d = key->data;
 
-#define LOOP(in,out) \
-                x=((x+1)&0xff); \
-                tx=d[x]; \
-                y=(tx+y)&0xff; \
-                d[x]=ty=d[y]; \
-                d[y]=tx; \
-                (out) = d[(tx+ty)&0xff]^ (in);
+#define LOOP(in, out)     \
+    x = ((x + 1) & 0xff); \
+    tx = d[x];            \
+    y = (tx + y) & 0xff;  \
+    d[x] = ty = d[y];     \
+    d[y] = tx;            \
+    (out) = d[(tx + ty) & 0xff] ^ (in);
 
     i = len >> 3;
     if (i) {
@@ -76,8 +82,7 @@ void RC4(RC4_KEY *key, size_t len, const unsigned char *indata,
             if (--i == 0)
                 break;
             LOOP(indata[6], outdata[6]);
-            if (--i == 0)
-                break;
+            break;
         }
     }
     key->x = x;

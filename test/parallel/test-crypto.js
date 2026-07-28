@@ -25,16 +25,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.expectWarning({
-  DeprecationWarning: [
-    ['crypto.createCipher is deprecated.', 'DEP0106']
-  ]
-});
-
 const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL3 } = require('../common/crypto');
 
 // Test Certificates
 const certPfx = fixtures.readKey('rsa_cert.pfx');
@@ -67,7 +62,7 @@ assert.throws(() => {
   // Throws general Error, so there is no opensslErrorStack property.
   return err instanceof Error &&
          err.name === 'Error' &&
-         /^Error: mac verify failure$/.test(err) &&
+         /^Error: (mac verify failure|INCORRECT_PASSWORD)$/.test(err) &&
          !('opensslErrorStack' in err);
 });
 
@@ -77,7 +72,7 @@ assert.throws(() => {
   // Throws general Error, so there is no opensslErrorStack property.
   return err instanceof Error &&
          err.name === 'Error' &&
-         /^Error: mac verify failure$/.test(err) &&
+         /^Error: (mac verify failure|INCORRECT_PASSWORD)$/.test(err) &&
          !('opensslErrorStack' in err);
 });
 
@@ -87,7 +82,7 @@ assert.throws(() => {
   // Throws general Error, so there is no opensslErrorStack property.
   return err instanceof Error &&
          err.name === 'Error' &&
-         /^Error: not enough data$/.test(err) &&
+         /^Error: (not enough data|BAD_PKCS12_DATA)$/.test(err) &&
          !('opensslErrorStack' in err);
 });
 
@@ -121,6 +116,19 @@ function validateList(list) {
 const cryptoCiphers = crypto.getCiphers();
 assert(crypto.getCiphers().includes('aes-128-cbc'));
 validateList(cryptoCiphers);
+// Make sure all of the ciphers are supported by OpenSSL
+for (const algo of cryptoCiphers) {
+  const { ivLength, keyLength, mode } = crypto.getCipherInfo(algo);
+  let options;
+  if (mode === 'ccm')
+    options = { authTagLength: 8 };
+  else if (mode === 'ocb' || algo === 'chacha20-poly1305')
+    options = { authTagLength: 16 };
+  crypto.createCipheriv(algo,
+                        crypto.randomBytes(keyLength),
+                        crypto.randomBytes(ivLength || 0),
+                        options);
+}
 
 // Assume that we have at least AES256-SHA.
 const tlsCiphers = tls.getCiphers();
@@ -137,9 +145,20 @@ assert(crypto.getHashes().includes('sha1'));
 assert(crypto.getHashes().includes('sha256'));
 assert(!crypto.getHashes().includes('SHA1'));
 assert(!crypto.getHashes().includes('SHA256'));
-assert(crypto.getHashes().includes('RSA-SHA1'));
-assert(!crypto.getHashes().includes('rsa-sha1'));
+if (!process.features.openssl_is_boringssl) {
+  assert(crypto.getHashes().includes('RSA-SHA1'));
+  assert(!crypto.getHashes().includes('rsa-sha1'));
+}
 validateList(crypto.getHashes());
+// Make sure all of the hashes are supported by OpenSSL
+for (const algo of crypto.getHashes()) {
+  try {
+    crypto.createHash(algo);
+  } catch (err) {
+    if (err?.code !== 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH') throw err;
+    crypto.createHash(algo, { outputLength: 0 });
+  }
+}
 
 // Assume that we have at least secp384r1.
 assert.notStrictEqual(crypto.getCurves().length, 0);
@@ -168,24 +187,6 @@ const encodingError = {
            " Received 'hex'",
 };
 
-// Regression tests for https://github.com/nodejs/node-v0.x-archive/pull/5725:
-// hex input that's not a power of two should throw, not assert in C++ land.
-['createCipher', 'createDecipher'].forEach((funcName) => {
-  assert.throws(
-    () => crypto[funcName]('aes192', 'test').update('0', 'hex'),
-    (error) => {
-      assert.ok(!('opensslErrorStack' in error));
-      if (common.hasFipsCrypto) {
-        return error instanceof Error &&
-               error.name === 'Error' &&
-               /^Error: not supported in FIPS mode$/.test(error);
-      }
-      assert.throws(() => { throw error; }, encodingError);
-      return true;
-    }
-  );
-});
-
 assert.throws(
   () => crypto.createHash('sha1').update('0', 'hex'),
   (error) => {
@@ -212,46 +213,77 @@ assert.throws(() => {
     'eKN7LggbF3Dk5wIQN6SL+fQ5H/+7NgARsVBp0QIRANxYRukavs4QvuyNhMx+vrkCEQCbf6j/',
     'Ig6/HueCK/0Jkmp+',
     '-----END RSA PRIVATE KEY-----',
-    ''
+    '',
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
-  assert.ok(!('opensslErrorStack' in err));
-  assert.throws(() => { throw err; }, {
-    name: 'Error',
-    message: /routines:RSA_sign:digest too big for rsa key$/,
-    library: 'rsa routines',
-    function: 'RSA_sign',
-    reason: 'digest too big for rsa key',
-    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY'
-  });
+  if (process.features.openssl_is_boringssl) {
+    // BoringSSL rejects the tiny RSA key while decoding it, before signing.
+    assert.throws(() => { throw err; }, {
+      name: 'Error',
+      message: 'error:06000066:public key routines:OPENSSL_internal:' +
+               'DECODE_ERROR',
+      library: 'public key routines',
+      function: 'OPENSSL_internal',
+      reason: 'DECODE_ERROR',
+      code: 'ERR_OSSL_EVP_DECODE_ERROR'
+    });
+    assert(Array.isArray(err.opensslErrorStack));
+    assert(err.opensslErrorStack.length > 0);
+  } else {
+    if (!hasOpenSSL3)
+      assert.ok(!('opensslErrorStack' in err));
+    assert.throws(() => { throw err; }, hasOpenSSL3 ? {
+      name: 'Error',
+      message: 'error:02000070:rsa routines::digest too big for rsa key',
+      library: 'rsa routines',
+    } : {
+      name: 'Error',
+      message: /routines:RSA_sign:digest too big for rsa key$/,
+      library: /rsa routines/i,
+      function: 'RSA_sign',
+      reason: /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i,
+      code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY'
+    });
+  }
   return true;
 });
 
-assert.throws(() => {
+if (!hasOpenSSL3) {
   // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
   // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
   // instead of
   // -----BEGIN RSA PRIVATE KEY----- and -----END RSA PRIVATE KEY-----
   const sha1_privateKey = fixtures.readKey('rsa_private_pkcs8_bad.pem',
                                            'ascii');
-  // This would inject errors onto OpenSSL's error stack
-  crypto.createSign('sha1').sign(sha1_privateKey);
-}, (err) => {
-  // Do the standard checks, but then do some custom checks afterwards.
-  assert.throws(() => { throw err; }, {
-    message: 'error:0D0680A8:asn1 encoding routines:asn1_check_tlen:wrong tag',
-    library: 'asn1 encoding routines',
-    function: 'asn1_check_tlen',
-    reason: 'wrong tag',
-    code: 'ERR_OSSL_ASN1_WRONG_TAG',
-  });
-  // Throws crypto error, so there is an opensslErrorStack property.
-  // The openSSL stack should have content.
-  assert(Array.isArray(err.opensslErrorStack));
-  assert(err.opensslErrorStack.length > 0);
-  return true;
-});
+
+  if (process.features.openssl_is_boringssl) {
+    // BoringSSL accepts the PKCS#8 payload despite the legacy PEM label.
+    const signature = crypto.createSign('sha1').sign(sha1_privateKey);
+    assert(Buffer.isBuffer(signature));
+    assert.strictEqual(signature.length, 256);
+  } else {
+    assert.throws(() => {
+      // This would inject errors onto OpenSSL's error stack
+      crypto.createSign('sha1').sign(sha1_privateKey);
+    }, (err) => {
+      // Do the standard checks, but then do some custom checks afterwards.
+      assert.throws(() => { throw err; }, {
+        message: 'error:0D0680A8:asn1 encoding routines:asn1_check_tlen:' +
+                 'wrong tag',
+        library: 'asn1 encoding routines',
+        function: 'asn1_check_tlen',
+        reason: 'wrong tag',
+        code: 'ERR_OSSL_ASN1_WRONG_TAG',
+      });
+      // Throws crypto error, so there is an opensslErrorStack property.
+      // The openSSL stack should have content.
+      assert(Array.isArray(err.opensslErrorStack));
+      assert(err.opensslErrorStack.length > 0);
+      return true;
+    });
+  }
+}
 
 // Make sure memory isn't released before being returned
 console.log(crypto.randomBytes(16));
@@ -273,9 +305,12 @@ function testEncoding(options, assertionHash) {
   const hash = crypto.createHash('sha256', options);
   let hashValue = '';
 
-  hash.on('data', (data) => {
+  hash.on('data', common.mustCall((data) => {
+    // The defaultEncoding has no effect on the hash value. It only affects data
+    // consumed by the Hash transform stream.
+    assert(Buffer.isBuffer(data));
     hashValue += data.toString('hex');
-  });
+  }));
 
   hash.on('end', common.mustCall(() => {
     assert.strictEqual(hashValue, assertionHash);
@@ -283,6 +318,8 @@ function testEncoding(options, assertionHash) {
 
   hash.write('öäü');
   hash.end();
+
+  assert.strictEqual(hash._writableState.defaultEncoding, options?.defaultEncoding ?? 'utf8');
 }
 
 // Hash of "öäü" in utf8 format

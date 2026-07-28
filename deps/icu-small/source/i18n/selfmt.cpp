@@ -41,7 +41,7 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(SelectFormat)
 
-static const UChar SELECT_KEYWORD_OTHER[] = {LOW_O, LOW_T, LOW_H, LOW_E, LOW_R, 0};
+static const char16_t SELECT_KEYWORD_OTHER[] = {LOW_O, LOW_T, LOW_H, LOW_E, LOW_R, 0};
 
 SelectFormat::SelectFormat(const UnicodeString& pat,
                            UErrorCode& status) : msgPattern(status) {
@@ -61,7 +61,7 @@ SelectFormat::applyPattern(const UnicodeString& newPattern, UErrorCode& status) 
       return;
     }
 
-    msgPattern.parseSelectStyle(newPattern, NULL, status);
+    msgPattern.parseSelectStyle(newPattern, nullptr, status);
     if (U_FAILURE(status)) {
         msgPattern.clear();
     }
@@ -129,7 +129,7 @@ int32_t SelectFormat::findSubMessage(const MessagePattern& pattern, int32_t part
     if (U_FAILURE(ec)) {
         return 0;
     }
-    UnicodeString other(FALSE, SELECT_KEYWORD_OTHER, 5);
+    UnicodeString other(false, SELECT_KEYWORD_OTHER, 5);
     int32_t count = pattern.countParts();
     int32_t msgStart=0;
     // Iterate over (ARG_SELECTOR, message) pairs until ARG_LIMIT or end of select-only pattern.
@@ -164,19 +164,19 @@ SelectFormat::operator=(const SelectFormat& other) {
     return *this;
 }
 
-UBool
+bool
 SelectFormat::operator==(const Format& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
     if (!Format::operator==(other)) {
-        return FALSE;
+        return false;
     }
-    const SelectFormat& o = (const SelectFormat&)other;
+    const SelectFormat& o = static_cast<const SelectFormat&>(other);
     return msgPattern == o.msgPattern;
 }
 
-UBool
+bool
 SelectFormat::operator!=(const Format& other) const {
     return  !operator==(other);
 }

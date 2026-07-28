@@ -36,23 +36,26 @@ void FinalizeModule(void* data) {
   g_modules_finalized += static_cast<int>(reinterpret_cast<intptr_t>(data));
 }
 
-void RunInStore(Store* store, ZoneBuffer* wire_bytes, int iterations) {
-  size_t size = wire_bytes->end() - wire_bytes->begin();
+void RunInStore(Store* store, base::Vector<const uint8_t> wire_bytes,
+                int iterations) {
   vec<byte_t> binary = vec<byte_t>::make(
-      size, reinterpret_cast<byte_t*>(const_cast<byte*>(wire_bytes->begin())));
+      wire_bytes.size(),
+      reinterpret_cast<byte_t*>(const_cast<uint8_t*>(wire_bytes.begin())));
   own<Module> module = Module::make(store, binary);
   module->set_host_info(reinterpret_cast<void*>(kModuleMagic), &FinalizeModule);
   for (int iteration = 0; iteration < iterations; iteration++) {
     void* finalizer_data = reinterpret_cast<void*>(iteration);
-    own<Instance> instance = Instance::make(store, module.get(), nullptr);
+    vec<Extern*> imports = vec<Extern*>::make_uninitialized();
+    own<Instance> instance =
+        Instance::make(store, module.get(), imports, nullptr);
     EXPECT_NE(nullptr, instance.get());
     instance->set_host_info(finalizer_data, &FinalizeInstance);
 
     own<Func> func = instance->exports()[0]->func()->copy();
     ASSERT_NE(func, nullptr);
     func->set_host_info(finalizer_data, &FinalizeFunction);
-    Val args[] = {Val::i32(iteration)};
-    Val results[1];
+    vec<Val> args = vec<Val>::make(Val::i32(iteration));
+    vec<Val> results = vec<Val>::make_uninitialized(1);
     func->call(args, results);
     EXPECT_EQ(iteration, results[0].i32());
 
@@ -65,8 +68,9 @@ void RunInStore(Store* store, ZoneBuffer* wire_bytes, int iterations) {
 
 TEST_F(WasmCapiTest, InstanceFinalization) {
   // Add a dummy function: f(x) { return x; }
-  byte code[] = {WASM_RETURN1(WASM_GET_LOCAL(0))};
-  AddExportedFunction(CStrVector("f"), code, sizeof(code), wasm_i_i_sig());
+  uint8_t code[] = {WASM_RETURN(WASM_LOCAL_GET(0))};
+  AddExportedFunction(base::CStrVector("f"), code, sizeof(code),
+                      wasm_i_i_sig());
   Compile();
   g_instances_finalized = 0;
   g_functions_finalized = 0;
@@ -96,7 +100,7 @@ TEST_F(WasmCapiTest, InstanceFinalization) {
 
 namespace {
 
-own<Trap> CapiFunction(void* env, const Val args[], Val results[]) {
+own<Trap> CapiFunction(void* env, const vec<Val>& args, vec<Val>& results) {
   int offset = static_cast<int>(reinterpret_cast<intptr_t>(env));
   results[0] = Val::i32(offset + args[0].i32());
   return nullptr;
@@ -117,8 +121,9 @@ void FinalizeHostData(void* data) {
 }  // namespace
 
 TEST_F(WasmCapiTest, CapiFunctionLifetimes) {
-  uint32_t func_index = builder()->AddImport(CStrVector("f"), wasm_i_i_sig());
-  builder()->ExportImportedFunction(CStrVector("f"), func_index);
+  uint32_t func_index =
+      builder()->AddImport(base::CStrVector("f"), wasm_i_i_sig());
+  builder()->ExportImportedFunction(base::CStrVector("f"), func_index);
   Compile();
   own<Instance> instance;
   void* kHostData = reinterpret_cast<void*>(1234);
@@ -126,13 +131,13 @@ TEST_F(WasmCapiTest, CapiFunctionLifetimes) {
   {
     // Test that the own<> pointers for Func and FuncType can go out of scope
     // without affecting the ability of the Func to be called later.
-    own<FuncType> capi_func_type =
-        FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::I32)),
-                       ownvec<ValType>::make(ValType::make(::wasm::I32)));
+    own<FuncType> capi_func_type = FuncType::make(
+        ownvec<ValType>::make(ValType::make(::wasm::ValKind::I32)),
+        ownvec<ValType>::make(ValType::make(::wasm::ValKind::I32)));
     own<Func> capi_func =
         Func::make(store(), capi_func_type.get(), &CapiFunction,
                    reinterpret_cast<void*>(base_summand));
-    Extern* imports[] = {capi_func.get()};
+    vec<Extern*> imports = vec<Extern*>::make(capi_func.get());
     instance = Instance::make(store(), module(), imports);
     // TODO(jkummerow): It may or may not be desirable to be able to set
     // host data even here and have it survive the import/export dance.
@@ -143,8 +148,8 @@ TEST_F(WasmCapiTest, CapiFunctionLifetimes) {
     ownvec<Extern> exports = instance->exports();
     Func* exported_func = exports[0]->func();
     constexpr int kArg = 123;
-    Val args[] = {Val::i32(kArg)};
-    Val results[1];
+    vec<Val> args = vec<Val>::make(Val::i32(kArg));
+    vec<Val> results = vec<Val>::make_uninitialized(1);
     exported_func->call(args, results);
     EXPECT_EQ(base_summand + kArg, results[0].i32());
     // Host data should survive destruction of the own<> pointer.
@@ -155,6 +160,7 @@ TEST_F(WasmCapiTest, CapiFunctionLifetimes) {
     Func* exported_func = exports[0]->func();
     EXPECT_EQ(kHostData, exported_func->get_host_info());
   }
+
   // Test that a Func can have its own internal metadata, an {env}, and
   // separate {host info}, without any of that interfering with each other.
   g_host_data_finalized = 0;
@@ -162,17 +168,17 @@ TEST_F(WasmCapiTest, CapiFunctionLifetimes) {
   base_summand = 23;
   constexpr int kFinalizerData = 345;
   {
-    own<FuncType> capi_func_type =
-        FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::I32)),
-                       ownvec<ValType>::make(ValType::make(::wasm::I32)));
+    own<FuncType> capi_func_type = FuncType::make(
+        ownvec<ValType>::make(ValType::make(::wasm::ValKind::I32)),
+        ownvec<ValType>::make(ValType::make(::wasm::ValKind::I32)));
     own<Func> capi_func = Func::make(
         store(), capi_func_type.get(), &CapiFunction,
         reinterpret_cast<void*>(base_summand), &FinalizeCapiFunction);
     capi_func->set_host_info(reinterpret_cast<void*>(kFinalizerData),
                              &FinalizeHostData);
     constexpr int kArg = 19;
-    Val args[] = {Val::i32(kArg)};
-    Val results[1];
+    vec<Val> args = vec<Val>::make(Val::i32(kArg));
+    vec<Val> results = vec<Val>::make_uninitialized(1);
     capi_func->call(args, results);
     EXPECT_EQ(base_summand + kArg, results[0].i32());
   }

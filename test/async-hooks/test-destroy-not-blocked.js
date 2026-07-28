@@ -13,17 +13,17 @@ const { createHook, AsyncResource } = require('async_hooks');
 const resType = 'MyResource';
 let activeId = -1;
 createHook({
-  init(id, type) {
+  init: common.mustCallAtLeast((id, type) => {
     if (type === resType) {
       assert.strictEqual(activeId, -1);
       activeId = id;
     }
-  },
+  }),
   destroy(id) {
     if (activeId === id) {
       activeId = -1;
     }
-  }
+  },
 }).enable();
 
 function testNextTick() {
@@ -33,7 +33,7 @@ function testNextTick() {
   res.emitDestroy();
   // nextTick has higher prio than emit destroy
   process.nextTick(common.mustCall(() =>
-    assert.strictEqual(activeId, res.asyncId()))
+    assert.strictEqual(activeId, res.asyncId())),
   );
 }
 
@@ -44,7 +44,7 @@ function testQueueMicrotask() {
   res.emitDestroy();
   // queueMicrotask has higher prio than emit destroy
   queueMicrotask(common.mustCall(() =>
-    assert.strictEqual(activeId, res.asyncId()))
+    assert.strictEqual(activeId, res.asyncId())),
   );
 }
 
@@ -54,7 +54,7 @@ function testImmediate() {
   assert.strictEqual(activeId, res.asyncId());
   res.emitDestroy();
   setImmediate(common.mustCall(() =>
-    assert.strictEqual(activeId, -1))
+    assert.strictEqual(activeId, -1)),
   );
 }
 
@@ -64,9 +64,9 @@ function testPromise() {
   assert.strictEqual(activeId, res.asyncId());
   res.emitDestroy();
   // Promise has higher prio than emit destroy
-  Promise.resolve().then(common.mustCall(() =>
-    assert.strictEqual(activeId, res.asyncId()))
-  );
+  Promise.resolve().then(common.mustCall(() => {
+    assert.strictEqual(activeId, res.asyncId());
+  }));
 }
 
 async function testAwait() {
@@ -94,4 +94,4 @@ testNextTick();
 tick(2, testQueueMicrotask);
 tick(4, testImmediate);
 tick(6, testPromise);
-tick(8, () => testAwait().then(common.mustCall()));
+tick(8, common.mustCall(() => testAwait().then(common.mustCall())));

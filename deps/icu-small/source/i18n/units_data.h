@@ -11,27 +11,12 @@
 
 #include "charstr.h"
 #include "cmemory.h"
+#include "fixedstring.h"
 #include "unicode/stringpiece.h"
 #include "unicode/uobject.h"
 
 U_NAMESPACE_BEGIN
 namespace units {
-
-/**
- * Looks up the unit category of a base unit identifier.
- *
- * Only supports base units, other units must be resolved to base units before
- * passing to this function.
- *
- * Categories are found in `unitQuantities` in the `units` resource (see
- * `units.txt`).
- *
- * TODO(hugovdm): if we give units_data.cpp access to the functionality of
- * `extractCompoundBaseUnit` which is currently in units_converter.cpp, we could
- * support all units for which there is a category. Does it make sense to move
- * that function to units_data.cpp?
- */
-CharString U_I18N_API getUnitCategory(const char *baseUnitIdentifier, UErrorCode &status);
 
 /**
  * Encapsulates "convertUnits" information from units resources, specifying how
@@ -42,38 +27,27 @@ CharString U_I18N_API getUnitCategory(const char *baseUnitIdentifier, UErrorCode
  * precision conversion - going from feet to inches should cancel out the
  * `ft_to_m` constant.
  */
-class U_I18N_API ConversionRateInfo : public UMemory {
+class ConversionRateInfo : public UMemory {
   public:
     ConversionRateInfo() {}
     ConversionRateInfo(StringPiece sourceUnit, StringPiece baseUnit, StringPiece factor,
                        StringPiece offset, UErrorCode &status)
-        : sourceUnit(), baseUnit(), factor(), offset() {
-        this->sourceUnit.append(sourceUnit, status);
-        this->baseUnit.append(baseUnit, status);
-        this->factor.append(factor, status);
-        this->offset.append(offset, status);
+        : sourceUnit(sourceUnit), baseUnit(baseUnit), factor(factor), offset(offset),
+          specialMappingName(), systems() {
+        if (this->sourceUnit.isEmpty() != sourceUnit.empty() ||
+            this->baseUnit.isEmpty() != baseUnit.empty() ||
+            this->factor.isEmpty() != factor.empty() ||
+            this->offset.isEmpty() != offset.empty()) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+        }
     }
-    CharString sourceUnit;
-    CharString baseUnit;
-    CharString factor;
-    CharString offset;
+    FixedString sourceUnit;
+    FixedString baseUnit;
+    FixedString factor;
+    FixedString offset;
+    FixedString specialMappingName; // the name of a special mapping used instead of factor + optional offset.
+    FixedString systems;
 };
-
-} // namespace units
-
-// Export explicit template instantiations of MaybeStackArray, MemoryPool and
-// MaybeStackVector. This is required when building DLLs for Windows. (See
-// datefmt.h, collationiterator.h, erarules.h and others for similar examples.)
-//
-// Note: These need to be outside of the units namespace, or Clang will generate
-// a compile error.
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<units::ConversionRateInfo*, 8>;
-template class U_I18N_API MemoryPool<units::ConversionRateInfo, 8>;
-template class U_I18N_API MaybeStackVector<units::ConversionRateInfo, 8>;
-#endif
-
-namespace units {
 
 /**
  * Returns ConversionRateInfo for all supported conversions.
@@ -86,7 +60,7 @@ void U_I18N_API getAllConversionRates(MaybeStackVector<ConversionRateInfo> &resu
 /**
  * Contains all the supported conversion rates.
  */
-class U_I18N_API ConversionRates {
+class ConversionRates {
   public:
     /**
      * Constructor
@@ -109,12 +83,18 @@ class U_I18N_API ConversionRates {
 
 // Encapsulates unitPreferenceData information from units resources, specifying
 // a sequence of output unit preferences.
-struct U_I18N_API UnitPreference : public UMemory {
+struct UnitPreference : public UMemory {
     // Set geq to 1.0 by default
     UnitPreference() : geq(1.0) {}
-    CharString unit;
+    FixedString unit;
     double geq;
     UnicodeString skeleton;
+
+    UnitPreference(const UnitPreference &other) {
+        this->unit = other.unit;
+        this->geq = other.geq;
+        this->skeleton = other.skeleton;
+    }
 };
 
 /**
@@ -125,7 +105,7 @@ struct U_I18N_API UnitPreference : public UMemory {
  * UnitPreferenceMetadata lives in the anonymous namespace, because it should
  * only be useful to internal code and unit testing code.
  */
-class U_I18N_API UnitPreferenceMetadata : public UMemory {
+class UnitPreferenceMetadata : public UMemory {
   public:
     UnitPreferenceMetadata() {}
     // Constructor, makes copies of the parameters passed to it.
@@ -152,36 +132,17 @@ class U_I18N_API UnitPreferenceMetadata : public UMemory {
                       bool *foundRegion) const;
 };
 
-} // namespace units
-
-// Export explicit template instantiations of MaybeStackArray, MemoryPool and
-// MaybeStackVector. This is required when building DLLs for Windows. (See
-// datefmt.h, collationiterator.h, erarules.h and others for similar examples.)
-//
-// Note: These need to be outside of the units namespace, or Clang will generate
-// a compile error.
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<units::UnitPreferenceMetadata*, 8>;
-template class U_I18N_API MemoryPool<units::UnitPreferenceMetadata, 8>;
-template class U_I18N_API MaybeStackVector<units::UnitPreferenceMetadata, 8>;
-template class U_I18N_API MaybeStackArray<units::UnitPreference*, 8>;
-template class U_I18N_API MemoryPool<units::UnitPreference, 8>;
-template class U_I18N_API MaybeStackVector<units::UnitPreference, 8>;
-#endif
-
-namespace units {
-
 /**
  * Unit Preferences information for various locales and usages.
  */
-class U_I18N_API UnitPreferences {
+class U_I18N_API_CLASS UnitPreferences {
   public:
     /**
      * Constructor, loads all the preference data.
      *
      * @param status Receives status.
      */
-    UnitPreferences(UErrorCode &status);
+    U_I18N_API UnitPreferences(UErrorCode& status);
 
     /**
      * Returns the set of unit preferences in the particular category that best
@@ -205,12 +166,11 @@ class U_I18N_API UnitPreferences {
      * @param preferenceCount The number of unit preferences that belong to the
      * result set.
      * @param status Receives status.
-     *
-     * TODO(hugovdm): maybe replace `UnitPreference **&outPreferences` with a slice class?
      */
-    void getPreferencesFor(StringPiece category, StringPiece usage, StringPiece region,
-                           const UnitPreference *const *&outPreferences, int32_t &preferenceCount,
-                           UErrorCode &status) const;
+    U_I18N_API MaybeStackVector<UnitPreference> getPreferencesFor(StringPiece category,
+                                                                  StringPiece usage,
+                                                                  const Locale& locale,
+                                                                  UErrorCode& status) const;
 
   protected:
     // Metadata about the sets of preferences, this is the index for looking up

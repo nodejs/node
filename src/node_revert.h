@@ -11,12 +11,12 @@
  * a given LTS or Stable may be added to this list, and only with TSC
  * consensus.
  *
- * For *master* this list should always be empty!
+ * For *main* this list should always be empty!
  **/
 namespace node {
 
-#define SECURITY_REVERSIONS(XX)                                            \
-//  XX(CVE_2016_PEND, "CVE-2016-PEND", "Vulnerability Title")
+#define SECURITY_REVERSIONS(XX)                                                \
+  //  XX(CVE_2016_PEND, "CVE-2016-PEND", "Vulnerability Title")
 
 enum reversion {
 #define V(code, ...) SECURITY_REVERT_##code,
@@ -28,6 +28,12 @@ namespace per_process {
 extern unsigned int reverted_cve;
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+// MSVC C4065: switch statement contains 'default' but no 'case' labels
+#pragma warning(disable : 4065)
+#endif
+
 inline const char* RevertMessage(const reversion cve) {
 #define V(code, label, msg) case SECURITY_REVERT_##code: return label ": " msg;
   switch (cve) {
@@ -37,6 +43,10 @@ inline const char* RevertMessage(const reversion cve) {
   }
 #undef V
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 inline void Revert(const reversion cve) {
   per_process::reverted_cve |= 1 << cve;

@@ -3,14 +3,16 @@
 const common = require('../common');
 
 if (common.isWindows) {
-  common.skip('vcbuild.bat doesn\'t build the n-api benchmarks yet');
+  common.skip('vcbuild.bat doesn\'t build the Node-API benchmarks yet');
 }
 
-if (!common.isMainThread) {
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) {
   common.skip('addons are not supported in workers');
 }
 
-if (process.features.debug) {
+if (common.isDebug) {
   common.skip('benchmark does not work with debug build yet');
 }
 const runBenchmark = require('../common/benchmark');

@@ -1,7 +1,7 @@
 /*
- * Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -14,43 +14,40 @@
 #include "apps.h"
 #include "progs.h"
 
-#ifndef OPENSSL_NO_CMS
-
-# include <openssl/crypto.h>
-# include <openssl/pem.h>
-# include <openssl/err.h>
-# include <openssl/x509_vfy.h>
-# include <openssl/x509v3.h>
-# include <openssl/cms.h>
+#include <openssl/crypto.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
+#include <openssl/x509_vfy.h>
+#include <openssl/x509v3.h>
+#include <openssl/cms.h>
 
 static int save_certs(char *signerfile, STACK_OF(X509) *signers);
 static int cms_cb(int ok, X509_STORE_CTX *ctx);
 static void receipt_request_print(CMS_ContentInfo *cms);
-static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING)
-                                                *rr_to, int rr_allorfirst, STACK_OF(OPENSSL_STRING)
-                                                *rr_from);
+static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING) *rr_to, int rr_allorfirst,
+    STACK_OF(OPENSSL_STRING) *rr_from);
 static int cms_set_pkey_param(EVP_PKEY_CTX *pctx,
-                              STACK_OF(OPENSSL_STRING) *param);
+    STACK_OF(OPENSSL_STRING) *param);
 
-# define SMIME_OP        0x10
-# define SMIME_IP        0x20
-# define SMIME_SIGNERS   0x40
-# define SMIME_ENCRYPT           (1 | SMIME_OP)
-# define SMIME_DECRYPT           (2 | SMIME_IP)
-# define SMIME_SIGN              (3 | SMIME_OP | SMIME_SIGNERS)
-# define SMIME_VERIFY            (4 | SMIME_IP)
-# define SMIME_CMSOUT            (5 | SMIME_IP | SMIME_OP)
-# define SMIME_RESIGN            (6 | SMIME_IP | SMIME_OP | SMIME_SIGNERS)
-# define SMIME_DATAOUT           (7 | SMIME_IP)
-# define SMIME_DATA_CREATE       (8 | SMIME_OP)
-# define SMIME_DIGEST_VERIFY     (9 | SMIME_IP)
-# define SMIME_DIGEST_CREATE     (10 | SMIME_OP)
-# define SMIME_UNCOMPRESS        (11 | SMIME_IP)
-# define SMIME_COMPRESS          (12 | SMIME_OP)
-# define SMIME_ENCRYPTED_DECRYPT (13 | SMIME_IP)
-# define SMIME_ENCRYPTED_ENCRYPT (14 | SMIME_OP)
-# define SMIME_SIGN_RECEIPT      (15 | SMIME_IP | SMIME_OP)
-# define SMIME_VERIFY_RECEIPT    (16 | SMIME_IP)
+#define SMIME_OP 0x100
+#define SMIME_IP 0x200
+#define SMIME_SIGNERS 0x400
+#define SMIME_ENCRYPT (1 | SMIME_OP)
+#define SMIME_DECRYPT (2 | SMIME_IP)
+#define SMIME_SIGN (3 | SMIME_OP | SMIME_SIGNERS)
+#define SMIME_VERIFY (4 | SMIME_IP)
+#define SMIME_RESIGN (5 | SMIME_IP | SMIME_OP | SMIME_SIGNERS)
+#define SMIME_SIGN_RECEIPT (6 | SMIME_IP | SMIME_OP)
+#define SMIME_VERIFY_RECEIPT (7 | SMIME_IP)
+#define SMIME_DIGEST_CREATE (8 | SMIME_OP)
+#define SMIME_DIGEST_VERIFY (9 | SMIME_IP)
+#define SMIME_COMPRESS (10 | SMIME_OP)
+#define SMIME_UNCOMPRESS (11 | SMIME_IP)
+#define SMIME_ENCRYPTED_ENCRYPT (12 | SMIME_OP)
+#define SMIME_ENCRYPTED_DECRYPT (13 | SMIME_IP)
+#define SMIME_DATA_CREATE (14 | SMIME_OP)
+#define SMIME_DATA_OUT (15 | SMIME_IP)
+#define SMIME_CMSOUT (16 | SMIME_IP | SMIME_OP)
 
 static int verify_err = 0;
 
@@ -63,170 +60,337 @@ struct cms_key_param_st {
 };
 
 typedef enum OPTION_choice {
-    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
-    OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_ENCRYPT,
-    OPT_DECRYPT, OPT_SIGN, OPT_SIGN_RECEIPT, OPT_RESIGN,
-    OPT_VERIFY, OPT_VERIFY_RETCODE, OPT_VERIFY_RECEIPT,
-    OPT_CMSOUT, OPT_DATA_OUT, OPT_DATA_CREATE, OPT_DIGEST_VERIFY,
-    OPT_DIGEST_CREATE, OPT_COMPRESS, OPT_UNCOMPRESS,
-    OPT_ED_DECRYPT, OPT_ED_ENCRYPT, OPT_DEBUG_DECRYPT, OPT_TEXT,
-    OPT_ASCIICRLF, OPT_NOINTERN, OPT_NOVERIFY, OPT_NOCERTS,
-    OPT_NOATTR, OPT_NODETACH, OPT_NOSMIMECAP, OPT_BINARY, OPT_KEYID,
-    OPT_NOSIGS, OPT_NO_CONTENT_VERIFY, OPT_NO_ATTR_VERIFY, OPT_INDEF,
-    OPT_NOINDEF, OPT_CRLFEOL, OPT_NOOUT, OPT_RR_PRINT,
-    OPT_RR_ALL, OPT_RR_FIRST, OPT_RCTFORM, OPT_CERTFILE, OPT_CAFILE,
-    OPT_CAPATH, OPT_NOCAPATH, OPT_NOCAFILE,OPT_CONTENT, OPT_PRINT,
-    OPT_SECRETKEY, OPT_SECRETKEYID, OPT_PWRI_PASSWORD, OPT_ECONTENT_TYPE,
-    OPT_PASSIN, OPT_TO, OPT_FROM, OPT_SUBJECT, OPT_SIGNER, OPT_RECIP,
-    OPT_CERTSOUT, OPT_MD, OPT_INKEY, OPT_KEYFORM, OPT_KEYOPT, OPT_RR_FROM,
-    OPT_RR_TO, OPT_AES128_WRAP, OPT_AES192_WRAP, OPT_AES256_WRAP,
-    OPT_3DES_WRAP, OPT_ENGINE,
+    OPT_COMMON,
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_IN,
+    OPT_OUT,
+    OPT_ENCRYPT,
+    OPT_DECRYPT,
+    OPT_SIGN,
+    OPT_CADES,
+    OPT_SIGN_RECEIPT,
+    OPT_RESIGN,
+    OPT_VERIFY,
+    OPT_VERIFY_RETCODE,
+    OPT_VERIFY_RECEIPT,
+    OPT_CMSOUT,
+    OPT_DATA_OUT,
+    OPT_DATA_CREATE,
+    OPT_DIGEST_VERIFY,
+    OPT_DIGEST,
+    OPT_DIGEST_CREATE,
+    OPT_COMPRESS,
+    OPT_UNCOMPRESS,
+    OPT_ED_DECRYPT,
+    OPT_ED_ENCRYPT,
+    OPT_DEBUG_DECRYPT,
+    OPT_TEXT,
+    OPT_ASCIICRLF,
+    OPT_NOINTERN,
+    OPT_NOVERIFY,
+    OPT_NOCERTS,
+    OPT_NOATTR,
+    OPT_NODETACH,
+    OPT_NOSMIMECAP,
+    OPT_NO_SIGNING_TIME,
+    OPT_BINARY,
+    OPT_KEYID,
+    OPT_NOSIGS,
+    OPT_NO_CONTENT_VERIFY,
+    OPT_NO_ATTR_VERIFY,
+    OPT_INDEF,
+    OPT_NOINDEF,
+    OPT_CRLFEOL,
+    OPT_NOOUT,
+    OPT_RR_PRINT,
+    OPT_RR_ALL,
+    OPT_RR_FIRST,
+    OPT_RCTFORM,
+    OPT_CERTFILE,
+    OPT_CAFILE,
+    OPT_CAPATH,
+    OPT_CASTORE,
+    OPT_NOCAPATH,
+    OPT_NOCAFILE,
+    OPT_NOCASTORE,
+    OPT_CONTENT,
+    OPT_PRINT,
+    OPT_NAMEOPT,
+    OPT_SECRETKEY,
+    OPT_SECRETKEYID,
+    OPT_PWRI_PASSWORD,
+    OPT_ECONTENT_TYPE,
+    OPT_PASSIN,
+    OPT_TO,
+    OPT_FROM,
+    OPT_SUBJECT,
+    OPT_SIGNER,
+    OPT_RECIP,
+    OPT_CERTSOUT,
+    OPT_MD,
+    OPT_INKEY,
+    OPT_KEYFORM,
+    OPT_KEYOPT,
+    OPT_RR_FROM,
+    OPT_RR_TO,
+    OPT_AES128_WRAP,
+    OPT_AES192_WRAP,
+    OPT_AES256_WRAP,
+    OPT_3DES_WRAP,
+    OPT_WRAP,
+    OPT_ENGINE,
     OPT_R_ENUM,
+    OPT_PROV_ENUM,
+    OPT_CONFIG,
     OPT_V_ENUM,
-    OPT_CIPHER
+    OPT_CIPHER,
+    OPT_ORIGINATOR
 } OPTION_CHOICE;
 
 const OPTIONS cms_options[] = {
-    {OPT_HELP_STR, 1, '-', "Usage: %s [options] cert.pem...\n"},
-    {OPT_HELP_STR, 1, '-',
-        "  cert.pem... recipient certs for encryption\n"},
-    {OPT_HELP_STR, 1, '-', "Valid options are:\n"},
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"inform", OPT_INFORM, 'c', "Input format SMIME (default), PEM or DER"},
-    {"outform", OPT_OUTFORM, 'c',
-     "Output format SMIME (default), PEM or DER"},
-    {"in", OPT_IN, '<', "Input file"},
-    {"out", OPT_OUT, '>', "Output file"},
-    {"encrypt", OPT_ENCRYPT, '-', "Encrypt message"},
-    {"decrypt", OPT_DECRYPT, '-', "Decrypt encrypted message"},
-    {"sign", OPT_SIGN, '-', "Sign message"},
-    {"sign_receipt", OPT_SIGN_RECEIPT, '-', "Generate a signed receipt for the message"},
-    {"resign", OPT_RESIGN, '-', "Resign a signed message"},
-    {"verify", OPT_VERIFY, '-', "Verify signed message"},
-    {"verify_retcode", OPT_VERIFY_RETCODE, '-'},
-    {"verify_receipt", OPT_VERIFY_RECEIPT, '<'},
-    {"cmsout", OPT_CMSOUT, '-', "Output CMS structure"},
-    {"data_out", OPT_DATA_OUT, '-'},
-    {"data_create", OPT_DATA_CREATE, '-'},
-    {"digest_verify", OPT_DIGEST_VERIFY, '-'},
-    {"digest_create", OPT_DIGEST_CREATE, '-'},
-    {"compress", OPT_COMPRESS, '-'},
-    {"uncompress", OPT_UNCOMPRESS, '-'},
-    {"EncryptedData_decrypt", OPT_ED_DECRYPT, '-'},
-    {"EncryptedData_encrypt", OPT_ED_ENCRYPT, '-'},
-    {"debug_decrypt", OPT_DEBUG_DECRYPT, '-'},
-    {"text", OPT_TEXT, '-', "Include or delete text MIME headers"},
-    {"asciicrlf", OPT_ASCIICRLF, '-'},
-    {"nointern", OPT_NOINTERN, '-',
-     "Don't search certificates in message for signer"},
-    {"noverify", OPT_NOVERIFY, '-', "Don't verify signers certificate"},
-    {"nocerts", OPT_NOCERTS, '-',
-     "Don't include signers certificate when signing"},
-    {"noattr", OPT_NOATTR, '-', "Don't include any signed attributes"},
-    {"nodetach", OPT_NODETACH, '-', "Use opaque signing"},
-    {"nosmimecap", OPT_NOSMIMECAP, '-', "Omit the SMIMECapabilities attribute"},
-    {"binary", OPT_BINARY, '-', "Don't translate message to text"},
-    {"keyid", OPT_KEYID, '-', "Use subject key identifier"},
-    {"nosigs", OPT_NOSIGS, '-', "Don't verify message signature"},
-    {"no_content_verify", OPT_NO_CONTENT_VERIFY, '-'},
-    {"no_attr_verify", OPT_NO_ATTR_VERIFY, '-'},
-    {"stream", OPT_INDEF, '-', "Enable CMS streaming"},
-    {"indef", OPT_INDEF, '-', "Same as -stream"},
-    {"noindef", OPT_NOINDEF, '-', "Disable CMS streaming"},
-    {"crlfeol", OPT_CRLFEOL, '-', "Use CRLF as EOL termination instead of CR only" },
-    {"noout", OPT_NOOUT, '-', "For the -cmsout operation do not output the parsed CMS structure"},
-    {"receipt_request_print", OPT_RR_PRINT, '-', "Print CMS Receipt Request" },
-    {"receipt_request_all", OPT_RR_ALL, '-'},
-    {"receipt_request_first", OPT_RR_FIRST, '-'},
-    {"rctform", OPT_RCTFORM, 'F', "Receipt file format"},
-    {"certfile", OPT_CERTFILE, '<', "Other certificates file"},
-    {"CAfile", OPT_CAFILE, '<', "Trusted certificates file"},
-    {"CApath", OPT_CAPATH, '/', "trusted certificates directory"},
-    {"no-CAfile", OPT_NOCAFILE, '-',
-     "Do not load the default certificates file"},
-    {"no-CApath", OPT_NOCAPATH, '-',
-     "Do not load certificates from the default certificates directory"},
-    {"content", OPT_CONTENT, '<',
-     "Supply or override content for detached signature"},
-    {"print", OPT_PRINT, '-',
-     "For the -cmsout operation print out all fields of the CMS structure"},
-    {"secretkey", OPT_SECRETKEY, 's'},
-    {"secretkeyid", OPT_SECRETKEYID, 's'},
-    {"pwri_password", OPT_PWRI_PASSWORD, 's'},
-    {"econtent_type", OPT_ECONTENT_TYPE, 's'},
-    {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
-    {"to", OPT_TO, 's', "To address"},
-    {"from", OPT_FROM, 's', "From address"},
-    {"subject", OPT_SUBJECT, 's', "Subject"},
-    {"signer", OPT_SIGNER, 's', "Signer certificate file"},
-    {"recip", OPT_RECIP, '<', "Recipient cert file for decryption"},
-    {"certsout", OPT_CERTSOUT, '>', "Certificate output file"},
-    {"md", OPT_MD, 's', "Digest algorithm to use when signing or resigning"},
-    {"inkey", OPT_INKEY, 's',
-     "Input private key (if not signer or recipient)"},
-    {"keyform", OPT_KEYFORM, 'f', "Input private key format (PEM or ENGINE)"},
-    {"keyopt", OPT_KEYOPT, 's', "Set public key parameters as n:v pairs"},
-    {"receipt_request_from", OPT_RR_FROM, 's'},
-    {"receipt_request_to", OPT_RR_TO, 's'},
-    {"", OPT_CIPHER, '-', "Any supported cipher"},
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options] [cert...]\n" },
+    { "help", OPT_HELP, '-', "Display this summary" },
+
+    OPT_SECTION("General"),
+    { "in", OPT_IN, '<', "Input file" },
+    { "out", OPT_OUT, '>', "Output file" },
+    OPT_CONFIG_OPTION,
+
+    OPT_SECTION("Operation"),
+    { "encrypt", OPT_ENCRYPT, '-', "Encrypt message" },
+    { "decrypt", OPT_DECRYPT, '-', "Decrypt encrypted message" },
+    { "sign", OPT_SIGN, '-', "Sign message" },
+    { "verify", OPT_VERIFY, '-', "Verify signed message" },
+    { "resign", OPT_RESIGN, '-', "Resign a signed message" },
+    { "sign_receipt", OPT_SIGN_RECEIPT, '-',
+        "Generate a signed receipt for a message" },
+    { "verify_receipt", OPT_VERIFY_RECEIPT, '<',
+        "Verify receipts; exit if receipt signatures do not verify" },
+    { "digest", OPT_DIGEST, 's', "Sign a pre-computed digest in hex notation" },
+    { "digest_create", OPT_DIGEST_CREATE, '-',
+        "Create a CMS \"DigestedData\" object" },
+    { "digest_verify", OPT_DIGEST_VERIFY, '-',
+        "Verify a CMS \"DigestedData\" object and output it" },
+    { "compress", OPT_COMPRESS, '-', "Create a CMS \"CompressedData\" object" },
+    { "uncompress", OPT_UNCOMPRESS, '-',
+        "Uncompress a CMS \"CompressedData\" object" },
+    { "EncryptedData_encrypt", OPT_ED_ENCRYPT, '-',
+        "Create CMS \"EncryptedData\" object using symmetric key" },
+    { "EncryptedData_decrypt", OPT_ED_DECRYPT, '-',
+        "Decrypt CMS \"EncryptedData\" object using symmetric key" },
+    { "data_create", OPT_DATA_CREATE, '-', "Create a CMS \"Data\" object" },
+    { "data_out", OPT_DATA_OUT, '-', "Copy CMS \"Data\" object to output" },
+    { "cmsout", OPT_CMSOUT, '-', "Output CMS structure" },
+
+    OPT_SECTION("File format"),
+    { "inform", OPT_INFORM, 'c', "Input format SMIME (default), PEM or DER" },
+    { "outform", OPT_OUTFORM, 'c',
+        "Output format SMIME (default), PEM or DER" },
+    { "rctform", OPT_RCTFORM, 'F', "Receipt file format" },
+    { "stream", OPT_INDEF, '-', "Enable CMS streaming" },
+    { "indef", OPT_INDEF, '-', "Same as -stream" },
+    { "noindef", OPT_NOINDEF, '-', "Disable CMS streaming" },
+    { "binary", OPT_BINARY, '-',
+        "Treat input as binary: do not translate to canonical form" },
+    { "crlfeol", OPT_CRLFEOL, '-',
+        "Use CRLF as EOL termination instead of LF only" },
+    { "asciicrlf", OPT_ASCIICRLF, '-',
+        "Perform CRLF canonicalisation when signing" },
+
+    OPT_SECTION("Keys and passwords"),
+    { "pwri_password", OPT_PWRI_PASSWORD, 's',
+        "Specific password for recipient" },
+    { "secretkey", OPT_SECRETKEY, 's',
+        "Use specified hex-encoded key to decrypt/encrypt recipients or content" },
+    { "secretkeyid", OPT_SECRETKEYID, 's',
+        "Identity of the -secretkey for CMS \"KEKRecipientInfo\" object" },
+    { "inkey", OPT_INKEY, 's',
+        "Input private key (if not signer or recipient)" },
+    { "passin", OPT_PASSIN, 's', "Input file pass phrase source" },
+    { "keyopt", OPT_KEYOPT, 's', "Set public key parameters as n:v pairs" },
+    { "keyform", OPT_KEYFORM, 'f',
+        "Input private key format (ENGINE, other values ignored)" },
+#ifndef OPENSSL_NO_ENGINE
+    { "engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device" },
+#endif
+    OPT_PROV_OPTIONS,
     OPT_R_OPTIONS,
+
+    OPT_SECTION("Encryption and decryption"),
+    { "originator", OPT_ORIGINATOR, 's', "Originator certificate file" },
+    { "recip", OPT_RECIP, '<', "Recipient cert file" },
+    { "cert...", OPT_PARAM, '.',
+        "Recipient certs (optional; used only when encrypting)" },
+    { "", OPT_CIPHER, '-',
+        "The encryption algorithm to use (any supported cipher)" },
+    { "wrap", OPT_WRAP, 's',
+        "Key wrap algorithm to use when encrypting with key agreement" },
+    { "aes128-wrap", OPT_AES128_WRAP, '-', "Use AES128 to wrap key" },
+    { "aes192-wrap", OPT_AES192_WRAP, '-', "Use AES192 to wrap key" },
+    { "aes256-wrap", OPT_AES256_WRAP, '-', "Use AES256 to wrap key" },
+    { "des3-wrap", OPT_3DES_WRAP, '-', "Use 3DES-EDE to wrap key" },
+    { "debug_decrypt", OPT_DEBUG_DECRYPT, '-',
+        "Disable MMA protection, return error if no recipient found (see doc)" },
+
+    OPT_SECTION("Signing"),
+    { "md", OPT_MD, 's', "Digest algorithm to use" },
+    { "signer", OPT_SIGNER, 's', "Signer certificate input file" },
+    { "certfile", OPT_CERTFILE, '<',
+        "Extra signer and intermediate CA certificates to include when signing" },
+    { OPT_MORE_STR, 0, 0,
+        "or to use as preferred signer certs and for chain building when verifying" },
+    { "cades", OPT_CADES, '-',
+        "Include signingCertificate attribute (CAdES-BES)" },
+    { "nodetach", OPT_NODETACH, '-', "Use opaque signing" },
+    { "nocerts", OPT_NOCERTS, '-',
+        "Don't include signer's certificate when signing" },
+    { "noattr", OPT_NOATTR, '-', "Don't include any signed attributes" },
+    { "nosmimecap", OPT_NOSMIMECAP, '-', "Omit the SMIMECapabilities attribute" },
+    { "no_signing_time", OPT_NO_SIGNING_TIME, '-',
+        "Omit the signing time attribute" },
+    { "receipt_request_all", OPT_RR_ALL, '-',
+        "When signing, create a receipt request for all recipients" },
+    { "receipt_request_first", OPT_RR_FIRST, '-',
+        "When signing, create a receipt request for first recipient" },
+    { "receipt_request_from", OPT_RR_FROM, 's',
+        "Create signed receipt request with specified email address" },
+    { "receipt_request_to", OPT_RR_TO, 's',
+        "Create signed receipt targeted to specified address" },
+
+    OPT_SECTION("Verification"),
+    { "signer", OPT_DUP, 's', "Signer certificate(s) output file" },
+    { "content", OPT_CONTENT, '<',
+        "Supply or override content for detached signature" },
+    { "no_content_verify", OPT_NO_CONTENT_VERIFY, '-',
+        "Do not verify signed content signatures" },
+    { "no_attr_verify", OPT_NO_ATTR_VERIFY, '-',
+        "Do not verify signed attribute signatures" },
+    { "nosigs", OPT_NOSIGS, '-', "Don't verify message signature" },
+    { "noverify", OPT_NOVERIFY, '-', "Don't verify signers certificate" },
+    { "nointern", OPT_NOINTERN, '-',
+        "Don't search certificates in message for signer" },
+    { "cades", OPT_DUP, '-', "Check signingCertificate (CAdES-BES)" },
+    { "verify_retcode", OPT_VERIFY_RETCODE, '-',
+        "Exit non-zero on verification failure" },
+    { "CAfile", OPT_CAFILE, '<', "Trusted certificates file" },
+    { "CApath", OPT_CAPATH, '/', "Trusted certificates directory" },
+    { "CAstore", OPT_CASTORE, ':', "Trusted certificates store URI" },
+    { "no-CAfile", OPT_NOCAFILE, '-',
+        "Do not load the default certificates file" },
+    { "no-CApath", OPT_NOCAPATH, '-',
+        "Do not load certificates from the default certificates directory" },
+    { "no-CAstore", OPT_NOCASTORE, '-',
+        "Do not load certificates from the default certificates store" },
+
+    OPT_SECTION("Output"),
+    { "keyid", OPT_KEYID, '-', "Use subject key identifier" },
+    { "econtent_type", OPT_ECONTENT_TYPE, 's', "OID for external content" },
+    { "text", OPT_TEXT, '-', "Include or delete text MIME headers" },
+    { "certsout", OPT_CERTSOUT, '>', "Certificate output file" },
+    { "to", OPT_TO, 's', "To address" },
+    { "from", OPT_FROM, 's', "From address" },
+    { "subject", OPT_SUBJECT, 's', "Subject" },
+
+    OPT_SECTION("Printing"),
+    { "noout", OPT_NOOUT, '-',
+        "For the -cmsout operation do not output the parsed CMS structure" },
+    { "print", OPT_PRINT, '-',
+        "For the -cmsout operation print out all fields of the CMS structure" },
+    { "nameopt", OPT_NAMEOPT, 's',
+        "For the -print option specifies various strings printing options" },
+    { "receipt_request_print", OPT_RR_PRINT, '-', "Print CMS Receipt Request" },
+
     OPT_V_OPTIONS,
-    {"aes128-wrap", OPT_AES128_WRAP, '-', "Use AES128 to wrap key"},
-    {"aes192-wrap", OPT_AES192_WRAP, '-', "Use AES192 to wrap key"},
-    {"aes256-wrap", OPT_AES256_WRAP, '-', "Use AES256 to wrap key"},
-# ifndef OPENSSL_NO_DES
-    {"des3-wrap", OPT_3DES_WRAP, '-', "Use 3DES-EDE to wrap key"},
-# endif
-# ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device"},
-# endif
-    {NULL}
+    { NULL }
 };
+
+static CMS_ContentInfo *load_content_info(int informat, BIO *in, int flags,
+    BIO **indata, const char *name)
+{
+    CMS_ContentInfo *ret, *ci;
+
+    ret = CMS_ContentInfo_new_ex(app_get0_libctx(), app_get0_propq());
+    if (ret == NULL) {
+        BIO_printf(bio_err, "Error allocating CMS_contentinfo\n");
+        return NULL;
+    }
+    switch (informat) {
+    case FORMAT_SMIME:
+        ci = SMIME_read_CMS_ex(in, flags, indata, &ret);
+        break;
+    case FORMAT_PEM:
+        ci = PEM_read_bio_CMS(in, &ret, NULL, NULL);
+        break;
+    case FORMAT_ASN1:
+        ci = d2i_CMS_bio(in, &ret);
+        break;
+    default:
+        BIO_printf(bio_err, "Bad input format for %s\n", name);
+        goto err;
+    }
+    if (ci == NULL) {
+        BIO_printf(bio_err, "Error reading %s Content Info\n", name);
+        goto err;
+    }
+    return ret;
+err:
+    CMS_ContentInfo_free(ret);
+    return NULL;
+}
 
 int cms_main(int argc, char **argv)
 {
+    CONF *conf = NULL;
     ASN1_OBJECT *econtent_type = NULL;
     BIO *in = NULL, *out = NULL, *indata = NULL, *rctin = NULL;
     CMS_ContentInfo *cms = NULL, *rcms = NULL;
     CMS_ReceiptRequest *rr = NULL;
     ENGINE *e = NULL;
     EVP_PKEY *key = NULL;
-    const EVP_CIPHER *cipher = NULL, *wrap_cipher = NULL;
-    const EVP_MD *sign_md = NULL;
+    EVP_CIPHER *cipher = NULL, *wrap_cipher = NULL;
+    EVP_MD *sign_md = NULL;
     STACK_OF(OPENSSL_STRING) *rr_to = NULL, *rr_from = NULL;
     STACK_OF(OPENSSL_STRING) *sksigners = NULL, *skkeys = NULL;
-    STACK_OF(X509) *encerts = NULL, *other = NULL;
-    X509 *cert = NULL, *recip = NULL, *signer = NULL;
+    STACK_OF(X509) *encerts = sk_X509_new_null(), *other = NULL;
+    X509 *cert = NULL, *recip = NULL, *signer = NULL, *originator = NULL;
     X509_STORE *store = NULL;
-    X509_VERIFY_PARAM *vpm = NULL;
+    X509_VERIFY_PARAM *vpm = X509_VERIFY_PARAM_new();
     char *certfile = NULL, *keyfile = NULL, *contfile = NULL;
-    const char *CAfile = NULL, *CApath = NULL;
-    char *certsoutfile = NULL;
-    int noCAfile = 0, noCApath = 0;
+    const char *CAfile = NULL, *CApath = NULL, *CAstore = NULL;
+    char *certsoutfile = NULL, *digestname = NULL, *wrapname = NULL;
+    int noCAfile = 0, noCApath = 0, noCAstore = 0;
+    char *digesthex = NULL;
+    unsigned char *digestbin = NULL;
+    long digestlen = 0;
     char *infile = NULL, *outfile = NULL, *rctfile = NULL;
-    char *passinarg = NULL, *passin = NULL, *signerfile = NULL, *recipfile = NULL;
+    char *passinarg = NULL, *passin = NULL, *signerfile = NULL;
+    char *originatorfile = NULL, *recipfile = NULL, *ciphername = NULL;
     char *to = NULL, *from = NULL, *subject = NULL, *prog;
     cms_key_param *key_first = NULL, *key_param = NULL;
-    int flags = CMS_DETACHED, noout = 0, print = 0, keyidx = -1, vpmtouched = 0;
+    int flags = CMS_DETACHED, binary_files = 0;
+    int noout = 0, print = 0, keyidx = -1, vpmtouched = 0;
     int informat = FORMAT_SMIME, outformat = FORMAT_SMIME;
     int operation = 0, ret = 1, rr_print = 0, rr_allorfirst = -1;
-    int verify_retcode = 0, rctformat = FORMAT_SMIME, keyform = FORMAT_PEM;
+    int verify_retcode = 0, rctformat = FORMAT_SMIME, keyform = FORMAT_UNDEF;
     size_t secret_keylen = 0, secret_keyidlen = 0;
     unsigned char *pwri_pass = NULL, *pwri_tmp = NULL;
     unsigned char *secret_key = NULL, *secret_keyid = NULL;
     long ltmp;
     const char *mime_eol = "\n";
     OPTION_CHOICE o;
+    OSSL_LIB_CTX *libctx = app_get0_libctx();
 
-    if ((vpm = X509_VERIFY_PARAM_new()) == NULL)
-        return 1;
+    if (encerts == NULL || vpm == NULL)
+        goto end;
 
+    opt_set_unknown_name("cipher");
     prog = opt_init(argc, argv, cms_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -244,6 +408,7 @@ int cms_main(int argc, char **argv)
         case OPT_OUT:
             outfile = opt_arg();
             break;
+
         case OPT_ENCRYPT:
             operation = SMIME_ENCRYPT;
             break;
@@ -253,36 +418,30 @@ int cms_main(int argc, char **argv)
         case OPT_SIGN:
             operation = SMIME_SIGN;
             break;
-        case OPT_SIGN_RECEIPT:
-            operation = SMIME_SIGN_RECEIPT;
+        case OPT_VERIFY:
+            operation = SMIME_VERIFY;
             break;
         case OPT_RESIGN:
             operation = SMIME_RESIGN;
             break;
-        case OPT_VERIFY:
-            operation = SMIME_VERIFY;
-            break;
-        case OPT_VERIFY_RETCODE:
-            verify_retcode = 1;
+        case OPT_SIGN_RECEIPT:
+            operation = SMIME_SIGN_RECEIPT;
             break;
         case OPT_VERIFY_RECEIPT:
             operation = SMIME_VERIFY_RECEIPT;
             rctfile = opt_arg();
             break;
-        case OPT_CMSOUT:
-            operation = SMIME_CMSOUT;
-            break;
-        case OPT_DATA_OUT:
-            operation = SMIME_DATAOUT;
-            break;
-        case OPT_DATA_CREATE:
-            operation = SMIME_DATA_CREATE;
-            break;
-        case OPT_DIGEST_VERIFY:
-            operation = SMIME_DIGEST_VERIFY;
+        case OPT_VERIFY_RETCODE:
+            verify_retcode = 1;
             break;
         case OPT_DIGEST_CREATE:
             operation = SMIME_DIGEST_CREATE;
+            break;
+        case OPT_DIGEST:
+            digesthex = opt_arg();
+            break;
+        case OPT_DIGEST_VERIFY:
+            operation = SMIME_DIGEST_VERIFY;
             break;
         case OPT_COMPRESS:
             operation = SMIME_COMPRESS;
@@ -290,12 +449,22 @@ int cms_main(int argc, char **argv)
         case OPT_UNCOMPRESS:
             operation = SMIME_UNCOMPRESS;
             break;
-        case OPT_ED_DECRYPT:
-            operation = SMIME_ENCRYPTED_DECRYPT;
-            break;
         case OPT_ED_ENCRYPT:
             operation = SMIME_ENCRYPTED_ENCRYPT;
             break;
+        case OPT_ED_DECRYPT:
+            operation = SMIME_ENCRYPTED_DECRYPT;
+            break;
+        case OPT_DATA_CREATE:
+            operation = SMIME_DATA_CREATE;
+            break;
+        case OPT_DATA_OUT:
+            operation = SMIME_DATA_OUT;
+            break;
+        case OPT_CMSOUT:
+            operation = SMIME_CMSOUT;
+            break;
+
         case OPT_DEBUG_DECRYPT:
             flags |= CMS_DEBUG_DECRYPT;
             break;
@@ -323,8 +492,14 @@ int cms_main(int argc, char **argv)
         case OPT_NOSMIMECAP:
             flags |= CMS_NOSMIMECAP;
             break;
+        case OPT_NO_SIGNING_TIME:
+            flags |= CMS_NO_SIGNING_TIME;
+            break;
         case OPT_BINARY:
             flags |= CMS_BINARY;
+            break;
+        case OPT_CADES:
+            flags |= CMS_CADES;
             break;
         case OPT_KEYID:
             flags |= CMS_USE_KEYID;
@@ -361,14 +536,9 @@ int cms_main(int argc, char **argv)
             rr_allorfirst = 1;
             break;
         case OPT_RCTFORM:
-            if (rctformat == FORMAT_SMIME)
-                rcms = SMIME_read_CMS(rctin, NULL);
-            else if (rctformat == FORMAT_PEM)
-                rcms = PEM_read_bio_CMS(rctin, NULL, NULL, NULL);
-            else if (rctformat == FORMAT_ASN1)
-                if (!opt_format(opt_arg(),
-                                OPT_FMT_PEMDER | OPT_FMT_SMIME, &rctformat))
-                    goto opthelp;
+            if (!opt_format(opt_arg(),
+                    OPT_FMT_PEMDER | OPT_FMT_SMIME, &rctformat))
+                goto opthelp;
             break;
         case OPT_CERTFILE:
             certfile = opt_arg();
@@ -379,11 +549,17 @@ int cms_main(int argc, char **argv)
         case OPT_CAPATH:
             CApath = opt_arg();
             break;
+        case OPT_CASTORE:
+            CAstore = opt_arg();
+            break;
         case OPT_NOCAFILE:
             noCAfile = 1;
             break;
         case OPT_NOCAPATH:
             noCApath = 1;
+            break;
+        case OPT_NOCASTORE:
+            noCAstore = 1;
             break;
         case OPT_IN:
             infile = opt_arg();
@@ -395,21 +571,27 @@ int cms_main(int argc, char **argv)
             if (rr_from == NULL
                 && (rr_from = sk_OPENSSL_STRING_new_null()) == NULL)
                 goto end;
-            sk_OPENSSL_STRING_push(rr_from, opt_arg());
+            if (sk_OPENSSL_STRING_push(rr_from, opt_arg()) <= 0)
+                goto end;
             break;
         case OPT_RR_TO:
             if (rr_to == NULL
                 && (rr_to = sk_OPENSSL_STRING_new_null()) == NULL)
                 goto end;
-            sk_OPENSSL_STRING_push(rr_to, opt_arg());
+            if (sk_OPENSSL_STRING_push(rr_to, opt_arg()) <= 0)
+                goto end;
             break;
         case OPT_PRINT:
             noout = print = 1;
             break;
+        case OPT_NAMEOPT:
+            if (!set_nameopt(opt_arg()))
+                goto opthelp;
+            break;
         case OPT_SECRETKEY:
             if (secret_key != NULL) {
                 BIO_printf(bio_err, "Invalid key (supplied twice) %s\n",
-                           opt_arg());
+                    opt_arg());
                 goto opthelp;
             }
             secret_key = OPENSSL_hexstr2buf(opt_arg(), &ltmp);
@@ -422,7 +604,7 @@ int cms_main(int argc, char **argv)
         case OPT_SECRETKEYID:
             if (secret_keyid != NULL) {
                 BIO_printf(bio_err, "Invalid id (supplied twice) %s\n",
-                           opt_arg());
+                    opt_arg());
                 goto opthelp;
             }
             secret_keyid = OPENSSL_hexstr2buf(opt_arg(), &ltmp);
@@ -438,7 +620,7 @@ int cms_main(int argc, char **argv)
         case OPT_ECONTENT_TYPE:
             if (econtent_type != NULL) {
                 BIO_printf(bio_err, "Invalid OID (supplied twice) %s\n",
-                           opt_arg());
+                    opt_arg());
                 goto opthelp;
             }
             econtent_type = OBJ_txt2obj(opt_arg(), 0);
@@ -466,8 +648,7 @@ int cms_main(int argc, char **argv)
             certsoutfile = opt_arg();
             break;
         case OPT_MD:
-            if (!opt_md(opt_arg(), &sign_md))
-                goto end;
+            digestname = opt_arg();
             break;
         case OPT_SIGNER:
             /* If previous -signer argument add signer to list */
@@ -475,16 +656,21 @@ int cms_main(int argc, char **argv)
                 if (sksigners == NULL
                     && (sksigners = sk_OPENSSL_STRING_new_null()) == NULL)
                     goto end;
-                sk_OPENSSL_STRING_push(sksigners, signerfile);
+                if (sk_OPENSSL_STRING_push(sksigners, signerfile) <= 0)
+                    goto end;
                 if (keyfile == NULL)
                     keyfile = signerfile;
                 if (skkeys == NULL
                     && (skkeys = sk_OPENSSL_STRING_new_null()) == NULL)
                     goto end;
-                sk_OPENSSL_STRING_push(skkeys, keyfile);
+                if (sk_OPENSSL_STRING_push(skkeys, keyfile) <= 0)
+                    goto end;
                 keyfile = NULL;
             }
             signerfile = opt_arg();
+            break;
+        case OPT_ORIGINATOR:
+            originatorfile = opt_arg();
             break;
         case OPT_INKEY:
             /* If previous -inkey argument add signer to list */
@@ -496,12 +682,14 @@ int cms_main(int argc, char **argv)
                 if (sksigners == NULL
                     && (sksigners = sk_OPENSSL_STRING_new_null()) == NULL)
                     goto end;
-                sk_OPENSSL_STRING_push(sksigners, signerfile);
+                if (sk_OPENSSL_STRING_push(sksigners, signerfile) <= 0)
+                    goto end;
                 signerfile = NULL;
                 if (skkeys == NULL
                     && (skkeys = sk_OPENSSL_STRING_new_null()) == NULL)
                     goto end;
-                sk_OPENSSL_STRING_push(skkeys, keyfile);
+                if (sk_OPENSSL_STRING_push(skkeys, keyfile) <= 0)
+                    goto end;
             }
             keyfile = opt_arg();
             break;
@@ -511,26 +699,24 @@ int cms_main(int argc, char **argv)
             break;
         case OPT_RECIP:
             if (operation == SMIME_ENCRYPT) {
-                if (encerts == NULL && (encerts = sk_X509_new_null()) == NULL)
-                    goto end;
-                cert = load_cert(opt_arg(), FORMAT_PEM,
-                                 "recipient certificate file");
+                cert = load_cert(opt_arg(), FORMAT_UNDEF,
+                    "recipient certificate file");
                 if (cert == NULL)
                     goto end;
-                sk_X509_push(encerts, cert);
+                if (!sk_X509_push(encerts, cert))
+                    goto end;
                 cert = NULL;
             } else {
                 recipfile = opt_arg();
             }
             break;
         case OPT_CIPHER:
-            if (!opt_cipher(opt_unknown(), &cipher))
-                goto end;
+            ciphername = opt_unknown();
             break;
         case OPT_KEYOPT:
             keyidx = -1;
             if (operation == SMIME_ENCRYPT) {
-                if (encerts != NULL)
+                if (sk_X509_num(encerts) > 0)
                     keyidx += sk_X509_num(encerts);
             } else {
                 if (keyfile != NULL || signerfile != NULL)
@@ -557,7 +743,8 @@ int cms_main(int argc, char **argv)
                     key_param->next = nparam;
                 key_param = nparam;
             }
-            sk_OPENSSL_STRING_push(key_param->param, opt_arg());
+            if (sk_OPENSSL_STRING_push(key_param->param, opt_arg()) <= 0)
+                goto end;
             break;
         case OPT_V_CASES:
             if (!opt_verify(o, vpm))
@@ -568,23 +755,41 @@ int cms_main(int argc, char **argv)
             if (!opt_rand(o))
                 goto end;
             break;
-        case OPT_3DES_WRAP:
-# ifndef OPENSSL_NO_DES
-            wrap_cipher = EVP_des_ede3_wrap();
-# endif
+        case OPT_PROV_CASES:
+            if (!opt_provider(o))
+                goto end;
+            break;
+        case OPT_CONFIG:
+            conf = app_load_config_modules(opt_arg());
+            if (conf == NULL)
+                goto end;
+            break;
+        case OPT_WRAP:
+            wrapname = opt_arg();
             break;
         case OPT_AES128_WRAP:
-            wrap_cipher = EVP_aes_128_wrap();
-            break;
         case OPT_AES192_WRAP:
-            wrap_cipher = EVP_aes_192_wrap();
-            break;
         case OPT_AES256_WRAP:
-            wrap_cipher = EVP_aes_256_wrap();
+        case OPT_3DES_WRAP:
+            wrapname = opt_flag() + 1;
             break;
         }
     }
-    argc = opt_num_rest();
+    if (!app_RAND_load())
+        goto end;
+
+    if (digestname != NULL) {
+        if (!opt_md(digestname, &sign_md))
+            goto end;
+    }
+    if (!opt_cipher_any(ciphername, &cipher))
+        goto end;
+    if (wrapname != NULL) {
+        if (!opt_cipher_any(wrapname, &wrap_cipher))
+            goto end;
+    }
+
+    /* Remaining args are files to process. */
     argv = opt_rest();
 
     if ((rr_allorfirst != -1 || rr_from != NULL) && rr_to == NULL) {
@@ -601,6 +806,20 @@ int cms_main(int argc, char **argv)
         goto opthelp;
     }
 
+    if ((flags & CMS_CADES) != 0) {
+        if ((flags & CMS_NOATTR) != 0) {
+            BIO_puts(bio_err, "Incompatible options: "
+                              "CAdES requires signed attributes\n");
+            goto opthelp;
+        }
+        if (operation == SMIME_VERIFY
+            && (flags & (CMS_NO_SIGNER_CERT_VERIFY | CMS_NO_ATTR_VERIFY)) != 0) {
+            BIO_puts(bio_err, "Incompatible options: CAdES validation requires"
+                              " certs and signed attributes validations\n");
+            goto opthelp;
+        }
+    }
+
     if (operation & SMIME_SIGNERS) {
         if (keyfile != NULL && signerfile == NULL) {
             BIO_puts(bio_err, "Illegal -inkey without -signer\n");
@@ -611,12 +830,14 @@ int cms_main(int argc, char **argv)
             if (sksigners == NULL
                 && (sksigners = sk_OPENSSL_STRING_new_null()) == NULL)
                 goto end;
-            sk_OPENSSL_STRING_push(sksigners, signerfile);
+            if (sk_OPENSSL_STRING_push(sksigners, signerfile) <= 0)
+                goto end;
             if (skkeys == NULL && (skkeys = sk_OPENSSL_STRING_new_null()) == NULL)
                 goto end;
             if (keyfile == NULL)
                 keyfile = signerfile;
-            sk_OPENSSL_STRING_push(skkeys, keyfile);
+            if (sk_OPENSSL_STRING_push(skkeys, keyfile) <= 0)
+                goto end;
         }
         if (sksigners == NULL) {
             BIO_printf(bio_err, "No signer certificate specified\n");
@@ -628,12 +849,12 @@ int cms_main(int argc, char **argv)
         if (recipfile == NULL && keyfile == NULL
             && secret_key == NULL && pwri_pass == NULL) {
             BIO_printf(bio_err,
-                       "No recipient certificate or key specified\n");
+                "No recipient certificate or key specified\n");
             goto opthelp;
         }
     } else if (operation == SMIME_ENCRYPT) {
         if (*argv == NULL && secret_key == NULL
-            && pwri_pass == NULL && encerts == NULL) {
+            && pwri_pass == NULL && sk_X509_num(encerts) <= 0) {
             BIO_printf(bio_err, "No recipient(s) certificate(s) specified\n");
             goto opthelp;
         }
@@ -649,70 +870,85 @@ int cms_main(int argc, char **argv)
 
     ret = 2;
 
-    if (!(operation & SMIME_SIGNERS))
+    if ((operation & SMIME_SIGNERS) == 0) {
+        if ((flags & CMS_DETACHED) == 0)
+            BIO_printf(bio_err,
+                "Warning: -nodetach option is ignored for non-signing operation\n");
+
         flags &= ~CMS_DETACHED;
+    }
+    if ((operation & SMIME_IP) == 0 && contfile != NULL)
+        BIO_printf(bio_err,
+            "Warning: -contfile option is ignored for the given operation\n");
+    if (operation != SMIME_ENCRYPT && *argv != NULL)
+        BIO_printf(bio_err,
+            "Warning: recipient certificate file parameters ignored for operation other than -encrypt\n");
 
-    if (!(operation & SMIME_OP))
-        if (flags & CMS_BINARY)
+    if ((flags & CMS_BINARY) != 0) {
+        if (!(operation & SMIME_OP))
             outformat = FORMAT_BINARY;
-
-    if (!(operation & SMIME_IP))
-        if (flags & CMS_BINARY)
+        if (!(operation & SMIME_IP))
             informat = FORMAT_BINARY;
+        if ((operation & SMIME_SIGNERS) != 0 && (flags & CMS_DETACHED) != 0)
+            binary_files = 1;
+        if ((operation & SMIME_IP) != 0 && contfile == NULL)
+            binary_files = 1;
+    }
 
     if (operation == SMIME_ENCRYPT) {
-        if (!cipher) {
-# ifndef OPENSSL_NO_DES
-            cipher = EVP_des_ede3_cbc();
-# else
-            BIO_printf(bio_err, "No cipher selected\n");
-            goto end;
-# endif
-        }
-
+        if (!cipher)
+            cipher = (EVP_CIPHER *)EVP_aes_256_cbc();
         if (secret_key && !secret_keyid) {
             BIO_printf(bio_err, "No secret key id\n");
             goto end;
         }
 
-        if (*argv && encerts == NULL)
-            if ((encerts = sk_X509_new_null()) == NULL)
+        for (; *argv != NULL; argv++) {
+            cert = load_cert(*argv, FORMAT_UNDEF,
+                "recipient certificate file");
+            if (cert == NULL)
                 goto end;
-        while (*argv) {
-            if ((cert = load_cert(*argv, FORMAT_PEM,
-                                  "recipient certificate file")) == NULL)
+            if (!sk_X509_push(encerts, cert))
                 goto end;
-            sk_X509_push(encerts, cert);
             cert = NULL;
-            argv++;
         }
     }
 
     if (certfile != NULL) {
-        if (!load_certs(certfile, &other, FORMAT_PEM, NULL,
-                        "certificate file")) {
+        if (!load_certs(certfile, 0, &other, NULL, "certificate file")) {
             ERR_print_errors(bio_err);
             goto end;
         }
     }
 
     if (recipfile != NULL && (operation == SMIME_DECRYPT)) {
-        if ((recip = load_cert(recipfile, FORMAT_PEM,
-                               "recipient certificate file")) == NULL) {
+        if ((recip = load_cert(recipfile, FORMAT_UNDEF,
+                 "recipient certificate file"))
+            == NULL) {
+            ERR_print_errors(bio_err);
+            goto end;
+        }
+    }
+
+    if (originatorfile != NULL) {
+        if ((originator = load_cert(originatorfile, FORMAT_UNDEF,
+                 "originator certificate file"))
+            == NULL) {
             ERR_print_errors(bio_err);
             goto end;
         }
     }
 
     if (operation == SMIME_SIGN_RECEIPT) {
-        if ((signer = load_cert(signerfile, FORMAT_PEM,
-                                "receipt signer certificate file")) == NULL) {
+        if ((signer = load_cert(signerfile, FORMAT_UNDEF,
+                 "receipt signer certificate file"))
+            == NULL) {
             ERR_print_errors(bio_err);
             goto end;
         }
     }
 
-    if (operation == SMIME_DECRYPT) {
+    if ((operation == SMIME_DECRYPT) || (operation == SMIME_ENCRYPT)) {
         if (keyfile == NULL)
             keyfile = recipfile;
     } else if ((operation == SMIME_SIGN) || (operation == SMIME_SIGN_RECEIPT)) {
@@ -723,31 +959,41 @@ int cms_main(int argc, char **argv)
     }
 
     if (keyfile != NULL) {
-        key = load_key(keyfile, keyform, 0, passin, e, "signing key file");
+        key = load_key(keyfile, keyform, 0, passin, e, "signing key");
         if (key == NULL)
             goto end;
     }
 
-    in = bio_open_default(infile, 'r', informat);
-    if (in == NULL)
-        goto end;
+    if (digesthex != NULL) {
+        if (operation != SMIME_SIGN) {
+            BIO_printf(bio_err,
+                "Cannot use -digest for non-signing operation\n");
+            goto end;
+        }
+        if (infile != NULL
+            || (flags & CMS_DETACHED) == 0
+            || (flags & CMS_STREAM) != 0) {
+            BIO_printf(bio_err,
+                "Cannot use -digest when -in, -nodetach or streaming is used\n");
+            goto end;
+        }
+        digestbin = OPENSSL_hexstr2buf(digesthex, &digestlen);
+        if (digestbin == NULL) {
+            BIO_printf(bio_err,
+                "Invalid hex value after -digest\n");
+            goto end;
+        }
+    } else {
+        in = bio_open_default(infile, 'r',
+            binary_files ? FORMAT_BINARY : informat);
+        if (in == NULL)
+            goto end;
+    }
 
     if (operation & SMIME_IP) {
-        if (informat == FORMAT_SMIME) {
-            cms = SMIME_read_CMS(in, &indata);
-        } else if (informat == FORMAT_PEM) {
-            cms = PEM_read_bio_CMS(in, NULL, NULL, NULL);
-        } else if (informat == FORMAT_ASN1) {
-            cms = d2i_CMS_bio(in, NULL);
-        } else {
-            BIO_printf(bio_err, "Bad input format for CMS file\n");
+        cms = load_content_info(informat, in, flags, &indata, "SMIME");
+        if (cms == NULL)
             goto end;
-        }
-
-        if (cms == NULL) {
-            BIO_printf(bio_err, "Error reading S/MIME message\n");
-            goto end;
-        }
         if (contfile != NULL) {
             BIO_free(indata);
             if ((indata = BIO_new_file(contfile, "rb")) == NULL) {
@@ -760,44 +1006,36 @@ int cms_main(int argc, char **argv)
             allcerts = CMS_get1_certs(cms);
             if (!save_certs(certsoutfile, allcerts)) {
                 BIO_printf(bio_err,
-                           "Error writing certs to %s\n", certsoutfile);
+                    "Error writing certs to %s\n", certsoutfile);
                 ret = 5;
                 goto end;
             }
-            sk_X509_pop_free(allcerts, X509_free);
+            OSSL_STACK_OF_X509_free(allcerts);
         }
     }
 
     if (rctfile != NULL) {
         char *rctmode = (rctformat == FORMAT_ASN1) ? "rb" : "r";
+
         if ((rctin = BIO_new_file(rctfile, rctmode)) == NULL) {
             BIO_printf(bio_err, "Can't open receipt file %s\n", rctfile);
             goto end;
         }
 
-        if (rctformat == FORMAT_SMIME) {
-            rcms = SMIME_read_CMS(rctin, NULL);
-        } else if (rctformat == FORMAT_PEM) {
-            rcms = PEM_read_bio_CMS(rctin, NULL, NULL, NULL);
-        } else if (rctformat == FORMAT_ASN1) {
-            rcms = d2i_CMS_bio(rctin, NULL);
-        } else {
-            BIO_printf(bio_err, "Bad input format for receipt\n");
+        rcms = load_content_info(rctformat, rctin, 0, NULL, "receipt");
+        if (rcms == NULL)
             goto end;
-        }
-
-        if (rcms == NULL) {
-            BIO_printf(bio_err, "Error reading receipt\n");
-            goto end;
-        }
     }
 
-    out = bio_open_default(outfile, 'w', outformat);
+    out = bio_open_default(outfile, 'w',
+        binary_files ? FORMAT_BINARY : outformat);
     if (out == NULL)
         goto end;
 
     if ((operation == SMIME_VERIFY) || (operation == SMIME_VERIFY_RECEIPT)) {
-        if ((store = setup_verify(CAfile, CApath, noCAfile, noCApath)) == NULL)
+        if ((store = setup_verify(CAfile, noCAfile, CApath, noCApath,
+                 CAstore, noCAstore))
+            == NULL)
             goto end;
         X509_STORE_set_verify_cb(store, cms_cb);
         if (vpmtouched)
@@ -807,50 +1045,61 @@ int cms_main(int argc, char **argv)
     ret = 3;
 
     if (operation == SMIME_DATA_CREATE) {
-        cms = CMS_data_create(in, flags);
+        cms = CMS_data_create_ex(in, flags, libctx, app_get0_propq());
     } else if (operation == SMIME_DIGEST_CREATE) {
-        cms = CMS_digest_create(in, sign_md, flags);
+        cms = CMS_digest_create_ex(in, sign_md, flags, libctx, app_get0_propq());
     } else if (operation == SMIME_COMPRESS) {
         cms = CMS_compress(in, -1, flags);
     } else if (operation == SMIME_ENCRYPT) {
         int i;
         flags |= CMS_PARTIAL;
-        cms = CMS_encrypt(NULL, in, cipher, flags);
+        cms = CMS_encrypt_ex(NULL, in, cipher, flags, libctx, app_get0_propq());
         if (cms == NULL)
             goto end;
         for (i = 0; i < sk_X509_num(encerts); i++) {
             CMS_RecipientInfo *ri;
             cms_key_param *kparam;
-            int tflags = flags;
+            int tflags = flags | CMS_KEY_PARAM;
+            /* This flag enforces allocating the EVP_PKEY_CTX for the recipient here */
+            EVP_PKEY_CTX *pctx;
             X509 *x = sk_X509_value(encerts, i);
+            int res;
+
             for (kparam = key_first; kparam; kparam = kparam->next) {
                 if (kparam->idx == i) {
-                    tflags |= CMS_KEY_PARAM;
                     break;
                 }
             }
-            ri = CMS_add1_recipient_cert(cms, x, tflags);
+            ri = CMS_add1_recipient(cms, x, key, originator, tflags);
             if (ri == NULL)
                 goto end;
-            if (kparam != NULL) {
-                EVP_PKEY_CTX *pctx;
-                pctx = CMS_RecipientInfo_get0_pkey_ctx(ri);
+
+            pctx = CMS_RecipientInfo_get0_pkey_ctx(ri);
+            if (pctx != NULL && kparam != NULL) {
                 if (!cms_set_pkey_param(pctx, kparam->param))
                     goto end;
             }
+
+            res = EVP_PKEY_CTX_ctrl(pctx, -1, -1,
+                EVP_PKEY_CTRL_CIPHER,
+                EVP_CIPHER_get_nid(cipher), NULL);
+            if (res <= 0 && res != -2)
+                goto end;
+
             if (CMS_RecipientInfo_type(ri) == CMS_RECIPINFO_AGREE
-                && wrap_cipher) {
+                && wrap_cipher != NULL) {
                 EVP_CIPHER_CTX *wctx;
                 wctx = CMS_RecipientInfo_kari_get0_ctx(ri);
-                EVP_EncryptInit_ex(wctx, wrap_cipher, NULL, NULL, NULL);
+                if (EVP_EncryptInit_ex(wctx, wrap_cipher, NULL, NULL, NULL) != 1)
+                    goto end;
             }
         }
 
         if (secret_key != NULL) {
             if (!CMS_add0_recipient_key(cms, NID_undef,
-                                        secret_key, secret_keylen,
-                                        secret_keyid, secret_keyidlen,
-                                        NULL, NULL, NULL))
+                    secret_key, secret_keylen,
+                    secret_keyid, secret_keyidlen,
+                    NULL, NULL, NULL))
                 goto end;
             /* NULL these because call absorbs them */
             secret_key = NULL;
@@ -861,18 +1110,26 @@ int cms_main(int argc, char **argv)
             if (pwri_tmp == NULL)
                 goto end;
             if (CMS_add0_recipient_password(cms,
-                                            -1, NID_undef, NID_undef,
-                                            pwri_tmp, -1, NULL) == NULL)
+                    -1, NID_undef, NID_undef,
+                    pwri_tmp, -1, NULL)
+                == NULL)
                 goto end;
             pwri_tmp = NULL;
         }
         if (!(flags & CMS_STREAM)) {
-            if (!CMS_final(cms, in, NULL, flags))
+            if (!CMS_final(cms, in, NULL, flags)) {
+                if (originator != NULL
+                    && ERR_GET_REASON(ERR_peek_error())
+                        == CMS_R_ERROR_UNSUPPORTED_STATIC_KEY_AGREEMENT) {
+                    BIO_printf(bio_err, "Cannot use originator for encryption\n");
+                    goto end;
+                }
                 goto end;
+            }
         }
     } else if (operation == SMIME_ENCRYPTED_ENCRYPT) {
-        cms = CMS_EncryptedData_encrypt(in, cipher,
-                                        secret_key, secret_keylen, flags);
+        cms = CMS_EncryptedData_encrypt_ex(in, cipher, secret_key,
+            secret_keylen, flags, libctx, app_get0_propq());
 
     } else if (operation == SMIME_SIGN_RECEIPT) {
         CMS_ContentInfo *srcms = NULL;
@@ -890,29 +1147,27 @@ int cms_main(int argc, char **argv)
     } else if (operation & SMIME_SIGNERS) {
         int i;
         /*
-         * If detached data content we enable streaming if S/MIME output
-         * format.
+         * If detached data content and not signing pre-computed digest, we
+         * enable streaming if S/MIME output format.
          */
         if (operation == SMIME_SIGN) {
 
-            if (flags & CMS_DETACHED) {
+            if ((flags & CMS_DETACHED) != 0 && digestbin == NULL) {
                 if (outformat == FORMAT_SMIME)
                     flags |= CMS_STREAM;
             }
             flags |= CMS_PARTIAL;
-            cms = CMS_sign(NULL, NULL, other, in, flags);
+            cms = CMS_sign_ex(NULL, NULL, other, in, flags, libctx, app_get0_propq());
             if (cms == NULL)
                 goto end;
             if (econtent_type != NULL)
                 CMS_set1_eContentType(cms, econtent_type);
 
-            if (rr_to != NULL) {
-                rr = make_receipt_request(rr_to, rr_allorfirst, rr_from);
-                if (rr == NULL) {
-                    BIO_puts(bio_err,
-                             "Signed Receipt Request Creation Error\n");
-                    goto end;
-                }
+            if (rr_to != NULL
+                && ((rr = make_receipt_request(rr_to, rr_allorfirst, rr_from))
+                    == NULL)) {
+                BIO_puts(bio_err, "Signed Receipt Request Creation Error\n");
+                goto end;
             }
         } else {
             flags |= CMS_REUSE_DIGEST;
@@ -924,16 +1179,17 @@ int cms_main(int argc, char **argv)
             signerfile = sk_OPENSSL_STRING_value(sksigners, i);
             keyfile = sk_OPENSSL_STRING_value(skkeys, i);
 
-            signer = load_cert(signerfile, FORMAT_PEM, "signer certificate");
+            signer = load_cert(signerfile, FORMAT_UNDEF, "signer certificate");
             if (signer == NULL) {
                 ret = 2;
                 goto end;
             }
-            key = load_key(keyfile, keyform, 0, passin, e, "signing key file");
+            key = load_key(keyfile, keyform, 0, passin, e, "signing key");
             if (key == NULL) {
                 ret = 2;
                 goto end;
             }
+
             for (kparam = key_first; kparam; kparam = kparam->next) {
                 if (kparam->idx == i) {
                     tflags |= CMS_KEY_PARAM;
@@ -957,7 +1213,12 @@ int cms_main(int argc, char **argv)
             key = NULL;
         }
         /* If not streaming or resigning finalize structure */
-        if ((operation == SMIME_SIGN) && !(flags & CMS_STREAM)) {
+        if (operation == SMIME_SIGN && digestbin != NULL
+            && (flags & CMS_STREAM) == 0) {
+            /* Use pre-computed digest instead of content */
+            if (!CMS_final_digest(cms, digestbin, digestlen, NULL, flags))
+                goto end;
+        } else if (operation == SMIME_SIGN && (flags & CMS_STREAM) == 0) {
             if (!CMS_final(cms, in, NULL, flags))
                 goto end;
         }
@@ -975,15 +1236,15 @@ int cms_main(int argc, char **argv)
 
         if (secret_key != NULL) {
             if (!CMS_decrypt_set1_key(cms,
-                                      secret_key, secret_keylen,
-                                      secret_keyid, secret_keyidlen)) {
+                    secret_key, secret_keylen,
+                    secret_keyid, secret_keyidlen)) {
                 BIO_puts(bio_err, "Error decrypting CMS using secret key\n");
                 goto end;
             }
         }
 
         if (key != NULL) {
-            if (!CMS_decrypt_set1_pkey(cms, key, recip)) {
+            if (!CMS_decrypt_set1_pkey_and_peer(cms, key, recip, originator)) {
                 BIO_puts(bio_err, "Error decrypting CMS using private key\n");
                 goto end;
             }
@@ -1000,7 +1261,7 @@ int cms_main(int argc, char **argv)
             BIO_printf(bio_err, "Error decrypting CMS structure\n");
             goto end;
         }
-    } else if (operation == SMIME_DATAOUT) {
+    } else if (operation == SMIME_DATA_OUT) {
         if (!CMS_data(cms, out, flags))
             goto end;
     } else if (operation == SMIME_UNCOMPRESS) {
@@ -1015,23 +1276,25 @@ int cms_main(int argc, char **argv)
         }
     } else if (operation == SMIME_ENCRYPTED_DECRYPT) {
         if (!CMS_EncryptedData_decrypt(cms, secret_key, secret_keylen,
-                                       indata, out, flags))
+                indata, out, flags))
             goto end;
     } else if (operation == SMIME_VERIFY) {
         if (CMS_verify(cms, other, store, indata, out, flags) > 0) {
-            BIO_printf(bio_err, "Verification successful\n");
+            BIO_printf(bio_err, "%s Verification successful\n",
+                (flags & CMS_CADES) != 0 ? "CAdES" : "CMS");
         } else {
-            BIO_printf(bio_err, "Verification failure\n");
+            BIO_printf(bio_err, "%s Verification failure\n",
+                (flags & CMS_CADES) != 0 ? "CAdES" : "CMS");
             if (verify_retcode)
                 ret = verify_err + 32;
             goto end;
         }
         if (signerfile != NULL) {
-            STACK_OF(X509) *signers;
-            signers = CMS_get0_signers(cms);
+            STACK_OF(X509) *signers = CMS_get0_signers(cms);
+
             if (!save_certs(signerfile, signers)) {
                 BIO_printf(bio_err,
-                           "Error writing signers to %s\n", signerfile);
+                    "Error writing signers to %s\n", signerfile);
                 ret = 5;
                 goto end;
             }
@@ -1049,8 +1312,19 @@ int cms_main(int argc, char **argv)
         }
     } else {
         if (noout) {
-            if (print)
-                CMS_ContentInfo_print_ctx(out, cms, 0, NULL);
+            if (print) {
+                ASN1_PCTX *pctx = NULL;
+                if (get_nameopt() != XN_FLAG_ONELINE) {
+                    pctx = ASN1_PCTX_new();
+                    if (pctx != NULL) { /* Print anyway if malloc failed */
+                        ASN1_PCTX_set_flags(pctx, ASN1_PCTX_FLAGS_SHOW_ABSENT);
+                        ASN1_PCTX_set_str_flags(pctx, get_nameopt());
+                        ASN1_PCTX_set_nm_flags(pctx, get_nameopt());
+                    }
+                }
+                CMS_ContentInfo_print_ctx(out, cms, 0, pctx);
+                ASN1_PCTX_free(pctx);
+            }
         } else if (outformat == FORMAT_SMIME) {
             if (to)
                 BIO_printf(out, "To: %s%s", to, mime_eol);
@@ -1071,16 +1345,17 @@ int cms_main(int argc, char **argv)
             goto end;
         }
         if (ret <= 0) {
+            BIO_printf(bio_err, "Error writing CMS output\n");
             ret = 6;
             goto end;
         }
     }
     ret = 0;
- end:
+end:
     if (ret)
         ERR_print_errors(bio_err);
-    sk_X509_pop_free(encerts, X509_free);
-    sk_X509_pop_free(other, X509_free);
+    OSSL_STACK_OF_X509_free(encerts);
+    OSSL_STACK_OF_X509_free(other);
     X509_VERIFY_PARAM_free(vpm);
     sk_OPENSSL_STRING_free(sksigners);
     sk_OPENSSL_STRING_free(skkeys);
@@ -1102,7 +1377,11 @@ int cms_main(int argc, char **argv)
     X509_free(cert);
     X509_free(recip);
     X509_free(signer);
+    X509_free(originator);
     EVP_PKEY_free(key);
+    EVP_CIPHER_free(cipher);
+    EVP_CIPHER_free(wrap_cipher);
+    EVP_MD_free(sign_md);
     CMS_ContentInfo_free(cms);
     CMS_ContentInfo_free(rcms);
     release_engine(e);
@@ -1110,7 +1389,9 @@ int cms_main(int argc, char **argv)
     BIO_free(in);
     BIO_free(indata);
     BIO_free_all(out);
+    OPENSSL_free(digestbin);
     OPENSSL_free(passin);
+    NCONF_free(conf);
     return ret;
 }
 
@@ -1146,7 +1427,6 @@ static int cms_cb(int ok, X509_STORE_CTX *ctx)
     policies_print(ctx);
 
     return ok;
-
 }
 
 static void gnames_stack_print(STACK_OF(GENERAL_NAMES) *gns)
@@ -1190,7 +1470,7 @@ static void receipt_request_print(CMS_ContentInfo *cms)
             const char *id;
             int idlen;
             CMS_ReceiptRequest_get0_values(rr, &scid, &allorfirst,
-                                           &rlist, &rto);
+                &rlist, &rto);
             BIO_puts(bio_err, "  Signed Content ID:\n");
             idlen = ASN1_STRING_length(scid);
             id = (const char *)ASN1_STRING_get0_data(scid);
@@ -1240,19 +1520,19 @@ static STACK_OF(GENERAL_NAMES) *make_names_stack(STACK_OF(OPENSSL_STRING) *ns)
 
     return ret;
 
- err:
+err:
     sk_GENERAL_NAMES_pop_free(ret, GENERAL_NAMES_free);
     GENERAL_NAMES_free(gens);
     GENERAL_NAME_free(gen);
     return NULL;
 }
 
-static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING)
-                                                *rr_to, int rr_allorfirst, STACK_OF(OPENSSL_STRING)
-                                                *rr_from)
+static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING) *rr_to, int rr_allorfirst,
+    STACK_OF(OPENSSL_STRING) *rr_from)
 {
     STACK_OF(GENERAL_NAMES) *rct_to = NULL, *rct_from = NULL;
     CMS_ReceiptRequest *rr;
+
     rct_to = make_names_stack(rr_to);
     if (rct_to == NULL)
         goto err;
@@ -1263,16 +1543,19 @@ static CMS_ReceiptRequest *make_receipt_request(STACK_OF(OPENSSL_STRING)
     } else {
         rct_from = NULL;
     }
-    rr = CMS_ReceiptRequest_create0(NULL, -1, rr_allorfirst, rct_from,
-                                    rct_to);
+    rr = CMS_ReceiptRequest_create0_ex(NULL, -1, rr_allorfirst, rct_from,
+        rct_to, app_get0_libctx());
+    if (rr == NULL)
+        goto err;
     return rr;
- err:
+err:
     sk_GENERAL_NAMES_pop_free(rct_to, GENERAL_NAMES_free);
+    sk_GENERAL_NAMES_pop_free(rct_from, GENERAL_NAMES_free);
     return NULL;
 }
 
 static int cms_set_pkey_param(EVP_PKEY_CTX *pctx,
-                              STACK_OF(OPENSSL_STRING) *param)
+    STACK_OF(OPENSSL_STRING) *param)
 {
     char *keyopt;
     int i;
@@ -1288,5 +1571,3 @@ static int cms_set_pkey_param(EVP_PKEY_CTX *pctx,
     }
     return 1;
 }
-
-#endif

@@ -1,9 +1,9 @@
 .text	
 .align	16
 
-.globl	md5_block_asm_data_order
-.type	md5_block_asm_data_order,@function
-md5_block_asm_data_order:
+.globl	ossl_md5_block_asm_data_order
+.type	ossl_md5_block_asm_data_order,@function
+ossl_md5_block_asm_data_order:
 .cfi_startproc	
 	pushq	%rbp
 .cfi_adjust_cfa_offset	8
@@ -201,7 +201,7 @@ md5_block_asm_data_order:
 	leal	-165796510(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	24(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -212,7 +212,7 @@ md5_block_asm_data_order:
 	leal	-1069501632(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	44(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -223,7 +223,7 @@ md5_block_asm_data_order:
 	leal	643717713(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	0(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -234,7 +234,7 @@ md5_block_asm_data_order:
 	leal	-373897302(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	20(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
@@ -245,7 +245,7 @@ md5_block_asm_data_order:
 	leal	-701558691(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	40(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -256,7 +256,7 @@ md5_block_asm_data_order:
 	leal	38016083(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	60(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -267,7 +267,7 @@ md5_block_asm_data_order:
 	leal	-660478335(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	16(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -278,7 +278,7 @@ md5_block_asm_data_order:
 	leal	-405537848(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	36(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
@@ -289,7 +289,7 @@ md5_block_asm_data_order:
 	leal	568446438(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	56(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -300,7 +300,7 @@ md5_block_asm_data_order:
 	leal	-1019803690(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	12(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -311,7 +311,7 @@ md5_block_asm_data_order:
 	leal	-187363961(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	32(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -322,7 +322,7 @@ md5_block_asm_data_order:
 	leal	1163531501(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	52(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
@@ -333,7 +333,7 @@ md5_block_asm_data_order:
 	leal	-1444681467(%rax,%r10,1),%eax
 	andl	%ecx,%r11d
 	movl	8(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%eax
 	movl	%ecx,%r11d
 	addl	%r12d,%eax
 	movl	%ecx,%r12d
@@ -344,7 +344,7 @@ md5_block_asm_data_order:
 	leal	-51403784(%rdx,%r10,1),%edx
 	andl	%ebx,%r11d
 	movl	28(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%edx
 	movl	%ebx,%r11d
 	addl	%r12d,%edx
 	movl	%ebx,%r12d
@@ -355,7 +355,7 @@ md5_block_asm_data_order:
 	leal	1735328473(%rcx,%r10,1),%ecx
 	andl	%eax,%r11d
 	movl	48(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ecx
 	movl	%eax,%r11d
 	addl	%r12d,%ecx
 	movl	%eax,%r12d
@@ -366,7 +366,7 @@ md5_block_asm_data_order:
 	leal	-1926607734(%rbx,%r10,1),%ebx
 	andl	%edx,%r11d
 	movl	20(%rsi),%r10d
-	orl	%r11d,%r12d
+	addl	%r11d,%ebx
 	movl	%edx,%r11d
 	addl	%r12d,%ebx
 	movl	%edx,%r12d
@@ -680,4 +680,25 @@ md5_block_asm_data_order:
 .Lepilogue:
 	.byte	0xf3,0xc3
 .cfi_endproc	
-.size	md5_block_asm_data_order,.-md5_block_asm_data_order
+.size	ossl_md5_block_asm_data_order,.-ossl_md5_block_asm_data_order
+	.section ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 3
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 3
+4:

@@ -10,32 +10,31 @@ namespace wasm {
 
 namespace {
 
-own<Trap> DummyCallback(const Val args[], Val results[]) { return nullptr; }
+own<Trap> DummyCallback(const vec<Val>& args, vec<Val>& results) {
+  return nullptr;
+}
 
 }  // namespace
 
 TEST_F(WasmCapiTest, StartupErrors) {
   FunctionSig sig(0, 0, nullptr);
-  byte code[] = {WASM_UNREACHABLE};
   WasmFunctionBuilder* start_func = builder()->AddFunction(&sig);
-  start_func->EmitCode(code, static_cast<uint32_t>(sizeof(code)));
-  start_func->Emit(kExprEnd);
+  start_func->EmitCode({WASM_UNREACHABLE, WASM_END});
   builder()->MarkStartFunction(start_func);
-  builder()->AddImport(CStrVector("dummy"), &sig);
+  builder()->AddImport(base::CStrVector("dummy"), &sig);
   Compile();
   own<Trap> trap;
 
   // Try to make an Instance with non-matching imports.
   own<Func> bad_func = Func::make(store(), cpp_i_i_sig(), DummyCallback);
-  Extern* bad_imports[] = {bad_func.get()};
+  vec<Extern*> bad_imports = vec<Extern*>::make(bad_func.get());
   own<Instance> instance =
       Instance::make(store(), module(), bad_imports, &trap);
   EXPECT_EQ(nullptr, instance);
   EXPECT_NE(nullptr, trap);
   EXPECT_STREQ(
-      "Uncaught LinkError: instantiation: Import #0 module=\"\" "
-      "function=\"dummy\" "
-      "error: imported function does not match the expected type",
+      "Uncaught LinkError: instantiation: Import #0 \"\" \"dummy\": "
+      "imported function does not match the expected type",
       trap->message().get());
   EXPECT_EQ(nullptr, trap->origin());
   // Don't crash if there is no {trap}.
@@ -46,7 +45,7 @@ TEST_F(WasmCapiTest, StartupErrors) {
   own<FuncType> good_sig =
       FuncType::make(ownvec<ValType>::make(), ownvec<ValType>::make());
   own<Func> good_func = Func::make(store(), good_sig.get(), DummyCallback);
-  Extern* good_imports[] = {good_func.get()};
+  vec<Extern*> good_imports = vec<Extern*>::make(good_func.get());
   instance = Instance::make(store(), module(), good_imports, &trap);
   EXPECT_EQ(nullptr, instance);
   EXPECT_NE(nullptr, trap);

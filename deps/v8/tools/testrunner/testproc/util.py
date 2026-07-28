@@ -1,12 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2020 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import heapq
+import logging
 import os
 import platform
-import random
+import re
 import signal
 import subprocess
 
@@ -23,14 +24,18 @@ def list_processes_linux():
     return []
   try:
     cmd = 'pgrep -fa %s' % OUT_DIR
-    output = subprocess.check_output(cmd, shell=True) or ''
+    output = subprocess.check_output(cmd, shell=True, text=True) or ''
     processes = [
       (int(line.split()[0]), line[line.index(OUT_DIR):])
       for line in output.splitlines()
     ]
     # Filter strange process with name as out dir.
     return [p for p in processes if p[1] != OUT_DIR]
-  except:
+  except subprocess.CalledProcessError as e:
+    # Return code 1 means no processes found.
+    if e.returncode != 1:
+      # TODO(https://crbug.com/v8/13101): Remove after investigation.
+      logging.exception('Fetching process list failed.')
     return []
 
 
@@ -43,10 +48,34 @@ def kill_processes_linux():
     return
   for pid, cmd in list_processes_linux():
     try:
-      print('Attempting to kill %d - %s' % (pid, cmd))
+      logging.warning('Attempting to kill %d - %s', pid, cmd)
       os.kill(pid, signal.SIGKILL)
     except:
-      pass
+      logging.exception('Failed to kill process')
+
+
+def base_test_record(test, result, run):
+  record = {
+      'expected': test.expected_outcomes,
+      'flags': result.cmd.args,
+      'framework_name': test.framework_name,
+      'name': test.full_name,
+      'random_seed': test.random_seed,
+      'run': run + 1,
+      'shard_id': test.shard_id,
+      'shard_count': test.shard_count,
+      'target_name': test.shell,
+      'variant': test.variant,
+      'variant_flags': test.variant_flags,
+  }
+  if result.output:
+    record.update(
+        exit_code=result.output.exit_code,
+        duration=result.output.duration,
+        max_rss=result.output.stats.max_rss,
+        max_vms=result.output.stats.max_vms,
+    )
+  return record
 
 
 class FixedSizeTopList():

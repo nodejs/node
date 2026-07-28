@@ -21,10 +21,10 @@ let responses = 0;
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: Infinity,
-  maxSockets: 1
+  maxSockets: 1,
 });
 
-const verifyRequest = (idx) => (res) => {
+const verifyRequest = common.mustCall((idx) => common.mustCall((res) => {
   reqAsyncIds[idx] = res.socket[async_id_symbol];
   assert.ok(reqAsyncIds[idx] > 0, `${reqAsyncIds[idx]} > 0`);
   if (socket) {
@@ -34,7 +34,7 @@ const verifyRequest = (idx) => (res) => {
     socket = res.socket;
   }
 
-  res.on('data', common.mustCallAtLeast(() => {}));
+  res.on('data', common.mustCallAtLeast());
   res.on('end', common.mustCall(() => {
     if (++responses === 2) {
       // Clean up to let the event loop stop.
@@ -42,7 +42,7 @@ const verifyRequest = (idx) => (res) => {
       agent.destroy();
     }
   }));
-};
+}), 2);
 
 const server = http.createServer(common.mustCall((req, res) => {
   req.once('data', common.mustCallAtLeast(() => {
@@ -58,14 +58,14 @@ const server = http.createServer(common.mustCall((req, res) => {
 
   // First request.
   const r1 = http.request({
-    agent, port, method: 'POST'
-  }, common.mustCall(verifyRequest(0)));
+    agent, port, method: 'POST',
+  }, verifyRequest(0));
   r1.end(payload);
 
   // Second request. Sent in parallel with the first one.
   const r2 = http.request({
-    agent, port, method: 'POST'
-  }, common.mustCall(verifyRequest(1)));
+    agent, port, method: 'POST',
+  }, verifyRequest(1));
   r2.end(payload);
 }));
 

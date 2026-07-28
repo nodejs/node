@@ -7,9 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/v8-initialization.h"
+#include "include/v8-snapshot.h"
 #include "src/base/file-utils.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/flags/flags.h"
 #include "src/utils/utils.h"
 
@@ -42,7 +45,7 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
 
   CHECK(blob_file);
 
-  FILE* file = fopen(blob_file, "rb");
+  FILE* file = base::Fopen(blob_file, "rb");
   if (!file) {
     PrintF(stderr, "Failed to open startup resource '%s'.\n", blob_file);
     return;
@@ -55,7 +58,7 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
   startup_data->data = new char[startup_data->raw_size];
   int read_size = static_cast<int>(fread(const_cast<char*>(startup_data->data),
                                          1, startup_data->raw_size, file));
-  fclose(file);
+  base::Fclose(file);
 
   if (startup_data->raw_size == read_size) {
     (*setter_fn)(startup_data);
@@ -75,11 +78,6 @@ void LoadFromFile(const char* snapshot_blob) {
 void InitializeExternalStartupData(const char* directory_path) {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   const char* snapshot_name = "snapshot_blob.bin";
-#ifdef V8_MULTI_SNAPSHOTS
-  if (!FLAG_untrusted_code_mitigations) {
-    snapshot_name = "snapshot_blob_trusted.bin";
-  }
-#endif
   std::unique_ptr<char[]> snapshot =
       base::RelativePath(directory_path, snapshot_name);
   LoadFromFile(snapshot.get());

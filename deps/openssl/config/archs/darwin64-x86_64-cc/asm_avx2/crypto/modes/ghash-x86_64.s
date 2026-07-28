@@ -6,6 +6,7 @@
 .p2align	4
 _gcm_gmult_4bit:
 
+.byte	243,15,30,250
 	pushq	%rbx
 
 	pushq	%rbp
@@ -111,6 +112,7 @@ L$gmult_epilogue:
 .p2align	4
 _gcm_ghash_4bit:
 
+.byte	243,15,30,250
 	pushq	%rbx
 
 	pushq	%rbp
@@ -694,6 +696,7 @@ L$ghash_epilogue:
 .p2align	4
 _gcm_init_clmul:
 
+.byte	243,15,30,250
 L$_init_clmul:
 	movdqu	(%rsi),%xmm2
 	pshufd	$78,%xmm2,%xmm2
@@ -852,6 +855,7 @@ L$_init_clmul:
 .p2align	4
 _gcm_gmult_clmul:
 
+.byte	243,15,30,250
 L$_gmult_clmul:
 	movdqu	(%rdi),%xmm0
 	movdqa	L$bswap_mask(%rip),%xmm5
@@ -905,6 +909,7 @@ L$_gmult_clmul:
 .p2align	5
 _gcm_ghash_clmul:
 
+.byte	243,15,30,250
 L$_ghash_clmul:
 	movdqa	L$bswap_mask(%rip),%xmm10
 
@@ -1290,6 +1295,7 @@ L$done:
 .p2align	5
 _gcm_init_avx:
 
+.byte	243,15,30,250
 	vzeroupper
 
 	vmovdqu	(%rsi),%xmm2
@@ -1399,6 +1405,7 @@ L$init_start_avx:
 .p2align	5
 _gcm_gmult_avx:
 
+.byte	243,15,30,250
 	jmp	L$_gmult_clmul
 
 
@@ -1407,6 +1414,7 @@ _gcm_gmult_avx:
 .p2align	5
 _gcm_ghash_avx:
 
+.byte	243,15,30,250
 	vzeroupper
 
 	vmovdqu	(%rdi),%xmm10
@@ -1780,6 +1788,7 @@ L$tail_no_xor_avx:
 	.byte	0xf3,0xc3
 
 
+.section	__DATA,__const
 .p2align	6
 L$bswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -1833,3 +1842,4 @@ L$rem_8bit:
 
 .byte	71,72,65,83,72,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .p2align	6
+.text

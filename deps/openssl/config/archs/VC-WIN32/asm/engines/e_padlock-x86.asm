@@ -70,6 +70,8 @@ _padlock_key_bswap:
 L$_padlock_key_bswap_begin:
 	mov	edx,DWORD [4+esp]
 	mov	ecx,DWORD [240+edx]
+	inc	ecx
+	shl	ecx,2
 L$003bswap_loop:
 	mov	eax,DWORD [edx]
 	bswap	eax

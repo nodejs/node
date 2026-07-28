@@ -6,18 +6,18 @@
 #define V8_TORQUE_DECLARABLE_H_
 
 #include <cassert>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 class Scope;
 class Namespace;
@@ -35,6 +35,8 @@ struct QualifiedName {
         name(std::move(name)) {}
   explicit QualifiedName(std::string name)
       : QualifiedName({}, std::move(name)) {}
+
+  static QualifiedName Parse(std::string_view qualified_name);
 
   bool HasNamespaceQualification() const {
     return !namespace_qualification.empty();
@@ -256,7 +258,7 @@ class Value : public Declarable {
  private:
   const Type* type_;
   Identifier* name_;
-  base::Optional<VisitResult> value_;
+  std::optional<VisitResult> value_;
 };
 
 class NamespaceConstant : public Value {
@@ -291,6 +293,12 @@ class ExternConstant : public Value {
   }
 };
 
+enum class OutputType {
+  kCSA,
+  kCC,
+  kCCDebug,
+};
+
 class Callable : public Scope {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Callable, callable)
@@ -306,15 +314,45 @@ class Callable : public Scope {
   }
   void IncrementReturns() { ++returns_; }
   bool HasReturns() const { return returns_; }
-  base::Optional<Statement*> body() const { return body_; }
+  std::optional<Statement*> body() const { return body_; }
   bool IsExternal() const { return !body_.has_value(); }
-  virtual bool ShouldBeInlined() const { return false; }
-  virtual bool ShouldGenerateExternalCode() const { return !ShouldBeInlined(); }
+  virtual bool ShouldBeInlined(OutputType output_type) const {
+    // C++ output doesn't support exiting to labels, so functions with labels in
+    // the signature must be inlined.
+    return output_type == OutputType::kCC && !signature().labels.empty();
+  }
+  bool ShouldGenerateExternalCode(OutputType output_type) const {
+    return !ShouldBeInlined(output_type);
+  }
+
+  static std::string PrefixNameForCCOutput(const std::string& name) {
+    // If a Torque macro requires a C++ runtime function to be generated, then
+    // the generated function begins with this prefix to avoid any naming
+    // collisions with the generated CSA function for the same macro.
+    return "TqRuntime" + name;
+  }
+
+  static std::string PrefixNameForCCDebugOutput(const std::string& name) {
+    // If a Torque macro requires a C++ runtime function to be generated, then
+    // the generated function begins with this prefix to avoid any naming
+    // collisions with the generated CSA function for the same macro.
+    return "TqDebug" + name;
+  }
+
+  // Name to use in runtime C++ code.
+  virtual std::string CCName() const {
+    return PrefixNameForCCOutput(ExternalName());
+  }
+
+  // Name to use in debug C++ code.
+  virtual std::string CCDebugName() const {
+    return PrefixNameForCCDebugOutput(ExternalName());
+  }
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,
            std::string readable_name, Signature signature,
-           base::Optional<Statement*> body)
+           std::optional<Statement*> body)
       : Scope(kind),
         external_name_(std::move(external_name)),
 
@@ -330,13 +368,13 @@ class Callable : public Scope {
   std::string readable_name_;
   Signature signature_;
   size_t returns_;
-  base::Optional<Statement*> body_;
+  std::optional<Statement*> body_;
 };
 
 class Macro : public Callable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Macro, macro)
-  bool ShouldBeInlined() const override {
+  bool ShouldBeInlined(OutputType output_type) const override {
     for (const LabelDeclaration& label : signature().labels) {
       for (const Type* type : label.types) {
         if (type->StructSupertype()) return true;
@@ -345,16 +383,20 @@ class Macro : public Callable {
     // Intrinsics that are used internally in Torque and implemented as torque
     // code should be inlined and not generate C++ definitions.
     if (ReadableName()[0] == '%') return true;
-    return Callable::ShouldBeInlined();
+    return Callable::ShouldBeInlined(output_type);
   }
 
   void SetUsed() { used_ = true; }
   bool IsUsed() const { return used_; }
+  void SetSupportsTSA(bool supports_tsa = true) {
+    supports_tsa_ = supports_tsa;
+  }
+  bool SupportsTSA() const { return supports_tsa_; }
 
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
         std::string readable_name, const Signature& signature,
-        base::Optional<Statement*> body)
+        std::optional<Statement*> body)
       : Callable(kind, std::move(external_name), std::move(readable_name),
                  signature, body),
         used_(false) {
@@ -365,6 +407,7 @@ class Macro : public Callable {
 
  private:
   bool used_;
+  bool supports_tsa_ = false;
 };
 
 class ExternMacro : public Macro {
@@ -375,12 +418,22 @@ class ExternMacro : public Macro {
     return external_assembler_name_;
   }
 
+  std::string CCName() const override {
+    return "TorqueRuntimeMacroShims::" + external_assembler_name() +
+           "::" + ExternalName();
+  }
+
+  std::string CCDebugName() const override {
+    return "TorqueDebugMacroShims::" + external_assembler_name() +
+           "::" + ExternalName();
+  }
+
  private:
   friend class Declarations;
   ExternMacro(const std::string& name, std::string external_assembler_name,
               Signature signature)
       : Macro(Declarable::kExternMacro, name, name, std::move(signature),
-              base::nullopt),
+              std::nullopt),
         external_assembler_name_(std::move(external_assembler_name)) {}
 
   std::string external_assembler_name_;
@@ -390,11 +443,23 @@ class TorqueMacro : public Macro {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(TorqueMacro, TorqueMacro)
   bool IsExportedToCSA() const { return exported_to_csa_; }
+  std::string CCName() const override {
+    // Exported functions must have unique and C++-friendly readable names, so
+    // prefer those wherever possible.
+    return PrefixNameForCCOutput(IsExportedToCSA() ? ReadableName()
+                                                   : ExternalName());
+  }
+  std::string CCDebugName() const override {
+    // Exported functions must have unique and C++-friendly readable names, so
+    // prefer those wherever possible.
+    return PrefixNameForCCDebugOutput(IsExportedToCSA() ? ReadableName()
+                                                        : ExternalName());
+  }
 
  protected:
   TorqueMacro(Declarable::Kind kind, std::string external_name,
               std::string readable_name, const Signature& signature,
-              base::Optional<Statement*> body, bool is_user_defined,
+              std::optional<Statement*> body, bool is_user_defined,
               bool exported_to_csa)
       : Macro(kind, std::move(external_name), std::move(readable_name),
               signature, body),
@@ -405,7 +470,7 @@ class TorqueMacro : public Macro {
  private:
   friend class Declarations;
   TorqueMacro(std::string external_name, std::string readable_name,
-              const Signature& signature, base::Optional<Statement*> body,
+              const Signature& signature, std::optional<Statement*> body,
               bool is_user_defined, bool exported_to_csa)
       : TorqueMacro(Declarable::kTorqueMacro, std::move(external_name),
                     std::move(readable_name), signature, body, is_user_defined,
@@ -417,8 +482,8 @@ class TorqueMacro : public Macro {
 class Method : public TorqueMacro {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Method, Method)
-  bool ShouldBeInlined() const override {
-    return Macro::ShouldBeInlined() ||
+  bool ShouldBeInlined(OutputType output_type) const override {
+    return Macro::ShouldBeInlined(output_type) ||
            signature()
                .parameter_types.types[signature().implicit_count]
                ->IsStructType();
@@ -438,22 +503,44 @@ class Method : public TorqueMacro {
 class Builtin : public Callable {
  public:
   enum Kind { kStub, kFixedArgsJavaScript, kVarArgsJavaScript };
+  enum class Flag {
+    kNone = 0,
+    kCustomInterfaceDescriptor = 1 << 0,
+    kSupportsTSA = 1 << 1
+  };
+  using Flags = base::Flags<Flag>;
   DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin)
   Kind kind() const { return kind_; }
+  Flags flags() const { return flags_; }
+  std::optional<std::string> use_counter_name() const {
+    return use_counter_name_;
+  }
   bool IsStub() const { return kind_ == kStub; }
   bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
   bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
+  bool IsJavaScript() const {
+    return IsVarArgsJavaScript() || IsFixedArgsJavaScript();
+  }
+  bool HasCustomInterfaceDescriptor() const {
+    return flags_ & Flag::kCustomInterfaceDescriptor;
+  }
+  bool SupportsTSA() const { return flags_ & Flag::kSupportsTSA; }
 
  private:
   friend class Declarations;
   Builtin(std::string external_name, std::string readable_name,
-          Builtin::Kind kind, const Signature& signature,
-          base::Optional<Statement*> body)
+          Builtin::Kind kind, Flags flags, const Signature& signature,
+          std::optional<std::string> use_counter_name,
+          std::optional<Statement*> body)
       : Callable(Declarable::kBuiltin, std::move(external_name),
                  std::move(readable_name), signature, body),
-        kind_(kind) {}
+        kind_(kind),
+        flags_(flags),
+        use_counter_name_(use_counter_name) {}
 
   Kind kind_;
+  Flags flags_;
+  std::optional<std::string> use_counter_name_;
 };
 
 class RuntimeFunction : public Callable {
@@ -464,7 +551,7 @@ class RuntimeFunction : public Callable {
   friend class Declarations;
   RuntimeFunction(const std::string& name, const Signature& signature)
       : Callable(Declarable::kRuntimeFunction, name, name, signature,
-                 base::nullopt) {}
+                 std::nullopt) {}
 };
 
 class Intrinsic : public Callable {
@@ -474,7 +561,7 @@ class Intrinsic : public Callable {
  private:
   friend class Declarations;
   Intrinsic(std::string name, const Signature& signature)
-      : Callable(Declarable::kIntrinsic, name, name, signature, base::nullopt) {
+      : Callable(Declarable::kIntrinsic, name, name, signature, std::nullopt) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for intrinsics.");
     }
@@ -483,7 +570,7 @@ class Intrinsic : public Callable {
 
 class TypeConstraint {
  public:
-  base::Optional<std::string> IsViolated(const Type*) const;
+  std::optional<std::string> IsViolated(const Type*) const;
 
   static TypeConstraint Unconstrained() { return {}; }
   static TypeConstraint SubtypeConstraint(const Type* upper_bound) {
@@ -493,10 +580,10 @@ class TypeConstraint {
   }
 
  private:
-  base::Optional<const Type*> upper_bound;
+  std::optional<const Type*> upper_bound;
 };
 
-base::Optional<std::string> FindConstraintViolation(
+std::optional<std::string> FindConstraintViolation(
     const std::vector<const Type*>& types,
     const std::vector<TypeConstraint>& constraints);
 
@@ -519,11 +606,11 @@ class GenericDeclarable : public Declarable {
     }
     specializations_[type_arguments] = specialization;
   }
-  base::Optional<SpecializationType> GetSpecialization(
+  std::optional<SpecializationType> GetSpecialization(
       const TypeVector& type_arguments) const {
     auto it = specializations_.find(type_arguments);
     if (it != specializations_.end()) return it->second;
-    return base::nullopt;
+    return std::nullopt;
   }
 
   using iterator = typename Map::const_iterator;
@@ -555,7 +642,7 @@ class GenericDeclarable : public Declarable {
   std::string name_;
   DeclarationType generic_declaration_;
   Map specializations_;
-  base::Optional<std::vector<TypeConstraint>> constraints_;
+  std::optional<std::vector<TypeConstraint>> constraints_;
 };
 
 class GenericCallable
@@ -563,11 +650,11 @@ class GenericCallable
  public:
   DECLARE_DECLARABLE_BOILERPLATE(GenericCallable, generic_callable)
 
-  base::Optional<Statement*> CallableBody();
+  std::optional<Statement*> CallableBody();
 
   TypeArgumentInference InferSpecializationTypes(
       const TypeVector& explicit_specialization_types,
-      const std::vector<base::Optional<const Type*>>& arguments);
+      const std::vector<std::optional<const Type*>>& arguments);
 
  private:
   friend class Declarations;
@@ -624,8 +711,8 @@ class TypeAlias : public Declarable {
         declaration_position_(declaration_position) {}
 
   mutable bool being_resolved_ = false;
-  mutable base::Optional<TypeDeclaration*> delayed_;
-  mutable base::Optional<const Type*> type_;
+  mutable std::optional<TypeDeclaration*> delayed_;
+  mutable std::optional<const Type*> type_;
   bool redeclaration_;
   const SourcePosition declaration_position_;
 };
@@ -637,8 +724,6 @@ std::ostream& operator<<(std::ostream& os, const GenericCallable& g);
 
 #undef DECLARE_DECLARABLE_BOILERPLATE
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque
 
 #endif  // V8_TORQUE_DECLARABLE_H_

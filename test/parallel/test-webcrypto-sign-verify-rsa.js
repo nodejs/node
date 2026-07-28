@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const rsa_pkcs = require('../fixtures/crypto/rsa_pkcs');
 const rsa_pss = require('../fixtures/crypto/rsa_pss');
@@ -17,13 +17,14 @@ async function testVerify({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
     noVerifyPublicKey,
     privateKey,
     hmacKey,
-    rsaKeys
+    ecdsaKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -54,7 +55,7 @@ async function testVerify({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   assert(await subtle.verify(algorithm, publicKey, signature, plaintext));
@@ -81,12 +82,12 @@ async function testVerify({
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.verify(algorithm, hmacKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
-    subtle.verify(algorithm, rsaKeys.publicKey, signature, plaintext), {
-      message: /Unable to use this key to verify/
+    subtle.verify(algorithm, ecdsaKeys.publicKey, signature, plaintext), {
+      message: /Key algorithm mismatch/
     });
 
   // Test failure when signature is altered
@@ -111,19 +112,14 @@ async function testVerify({
   // Test failure when wrong hash is used
   {
     const otherhash = hash === 'SHA-1' ? 'SHA-256' : 'SHA-1';
-    assert(!(await subtle.verify({
-      ...algorithm,
-      hash: otherhash
-    }, publicKey, signature, copy)));
+    const keyWithOtherHash = await subtle.importKey(
+      'spki',
+      publicKeyBuffer,
+      { name: algorithm.name, hash: otherhash },
+      false,
+      ['verify']);
+    assert(!(await subtle.verify(algorithm, keyWithOtherHash, signature, plaintext)));
   }
-
-  await assert.rejects(
-    subtle.verify(
-      { ...algorithm, hash: 'sha256' },
-      publicKey,
-      signature,
-      copy),
-    { message: /Unrecognized name/ });
 }
 
 async function testSign({
@@ -132,13 +128,13 @@ async function testSign({
   publicKeyBuffer,
   privateKeyBuffer,
   signature,
-  plaintext }) {
+  plaintext,
+}) {
   const [
     publicKey,
-    noSignPrivateKey,
     privateKey,
     hmacKey,
-    rsaKeys,
+    ecdsaKeys,
   ] = await Promise.all([
     subtle.importKey(
       'spki',
@@ -146,12 +142,6 @@ async function testSign({
       { name: algorithm.name, hash },
       false,
       ['verify']),
-    subtle.importKey(
-      'pkcs8',
-      privateKeyBuffer,
-      { name: algorithm.name, hash },
-      false,
-      [ /* No usages */ ]),
     subtle.importKey(
       'pkcs8',
       privateKeyBuffer,
@@ -169,7 +159,7 @@ async function testSign({
         hash: 'SHA-256',
       },
       false,
-      ['sign'])
+      ['sign']),
   ]);
 
   {
@@ -192,21 +182,44 @@ async function testSign({
       message: /Unable to use this key to sign/
     });
 
-  // Test failure when no sign usage
-  await assert.rejects(
-    subtle.sign(algorithm, noSignPrivateKey, plaintext), {
-      message: /Unable to use this key to sign/
-    });
-
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign(algorithm, hmacKey, plaintext), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
-    subtle.sign(algorithm, rsaKeys.privateKey, plaintext), {
-      message: /Unable to use this key to sign/
+    subtle.sign(algorithm, ecdsaKeys.privateKey, plaintext), {
+      message: /Key algorithm mismatch/
+    });
+}
+
+async function testSaltLength(keyLength, hash, hLen) {
+  const { publicKey, privateKey } = await subtle.generateKey({
+    name: 'RSA-PSS',
+    modulusLength: keyLength,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash,
+  }, false, ['sign', 'verify']);
+
+  const data = Buffer.from('Hello, world!');
+  const max = keyLength / 8 - hLen - 2;
+
+  const signature = await subtle.sign({ name: 'RSA-PSS', saltLength: max }, privateKey, data);
+  await assert.rejects(
+    subtle.sign({ name: 'RSA-PSS', saltLength: max + 1 }, privateKey, data), (err) => {
+      assert.strictEqual(err.name, 'OperationError');
+      assert.strictEqual(err.cause?.code, 'ERR_OUT_OF_RANGE');
+      assert.strictEqual(err.cause?.message, `The value of "algorithm.saltLength" is out of range. It must be >= 0 && <= ${max}. Received ${max + 1}`);
+      return true;
+    });
+  await subtle.verify({ name: 'RSA-PSS', saltLength: max }, publicKey, signature, data);
+  await assert.rejects(
+    subtle.verify({ name: 'RSA-PSS', saltLength: max + 1 }, publicKey, signature, data), (err) => {
+      assert.strictEqual(err.name, 'OperationError');
+      assert.strictEqual(err.cause?.code, 'ERR_OUT_OF_RANGE');
+      assert.strictEqual(err.cause?.message, `The value of "algorithm.saltLength" is out of range. It must be >= 0 && <= ${max}. Received ${max + 1}`);
+      return true;
     });
 }
 
@@ -221,6 +234,22 @@ async function testSign({
     variations.push(testVerify(vector));
     variations.push(testSign(vector));
   });
+
+  for (const keyLength of [1024, 2048]) {
+    for (const [hash, hLen] of [
+      ['SHA-1', 20],
+      ['SHA-256', 32],
+      ['SHA-384', 48],
+      ['SHA-512', 64],
+      ...(!process.features.openssl_is_boringssl ? [
+        ['SHA3-256', 32],
+        ['SHA3-384', 48],
+        ['SHA3-512', 64],
+      ] : []),
+    ]) {
+      variations.push(testSaltLength(keyLength, hash, hLen));
+    }
+  }
 
   await Promise.all(variations);
 })().then(common.mustCall());

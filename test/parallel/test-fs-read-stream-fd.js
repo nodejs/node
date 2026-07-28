@@ -23,9 +23,8 @@
 const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
-const file = path.join(tmpdir.path, '/read_stream_fd_test.txt');
+const file = tmpdir.resolve('read_stream_fd_test.txt');
 const input = 'hello world';
 
 let output = '';
@@ -34,6 +33,8 @@ fs.writeFileSync(file, input);
 
 const fd = fs.openSync(file, 'r');
 const stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
+
+assert.strictEqual(stream.path, undefined);
 
 stream.on('data', common.mustCallAtLeast((data) => {
   output += data;

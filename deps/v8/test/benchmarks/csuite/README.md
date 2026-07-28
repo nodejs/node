@@ -14,7 +14,7 @@ runs, by default they are:
 
 Say you want to see how much optimization buys you:
 
-    ./csuite.py kraken baseline ~/src/v8/out/d8 -x="--noopt"
+    ./csuite.py kraken baseline ~/src/v8/out/d8 -x="--noturbofan"
     ./csuite.py kraken compare ~/src/v8/out/d8
 
 

@@ -86,7 +86,6 @@ function checkPrototypeChain(object, constructors) {
   var strict_func = new A("'use strict';");
   assertNull(sloppy_func.caller);
   assertThrows("strict_f.caller");
-  assertNull(Object.getOwnPropertyDescriptor(sloppy_func, "caller").value);
   assertEquals(undefined, Object.getOwnPropertyDescriptor(strict_func, "caller"));
 
   function CheckFunction(func) {

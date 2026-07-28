@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kSequenceLength = 8192;
 const kNumberOfWorkers = 4;
@@ -15,22 +13,26 @@ const kSequenceStartAddress = 32;
 function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
     builder) {
     let loadMemOpcode = kTrapUnreachable;
+    let alignLog2;
     switch (size) {
         case 32:
             loadMemOpcode = kExprI32LoadMem;
+            alignLog2 = 2;
             break;
         case 16:
             loadMemOpcode = kExprI32LoadMem16U;
+            alignLog2 = 1;
             break;
         case 8:
             loadMemOpcode = kExprI32LoadMem8U;
+            alignLog2 = 0;
             break;
         default:
             throw "!";
     }
     const kArgMemoryCell = 0; // target for atomic ops
     const kArgSequencePtr = 1; // address of sequence
-    const kArgSeqenceLength = 2; // lenght of sequence
+    const kArgSeqenceLength = 2; // length of sequence
     const kArgWorkerId = 3; // id of this worker
     const kArgBitMask = 4; // mask to extract worker id from value
     const kLocalCurrentOffset = 5; // current position in sequence in bytes
@@ -43,20 +45,20 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
         kExprI32Mul,
         kExprLocalSet, kArgSeqenceLength,
         // Outer block so we have something to jump for return.
-        ...[kExprBlock, kWasmStmt,
+        ...[kExprBlock, kWasmVoid,
             // Set counter to 0.
             kExprI32Const, 0,
             kExprLocalSet, kLocalCurrentOffset,
             // Outer loop until maxcount.
-            ...[kExprLoop, kWasmStmt,
+            ...[kExprLoop, kWasmVoid,
                 // Find the next value to wait for.
-                ...[kExprLoop, kWasmStmt,
+                ...[kExprLoop, kWasmVoid,
                     // Check end of sequence.
                     kExprLocalGet, kLocalCurrentOffset,
                     kExprLocalGet, kArgSeqenceLength,
                     kExprI32Eq,
                     kExprBrIf, 2, // return
-                    ...[kExprBlock, kWasmStmt,
+                    ...[kExprBlock, kWasmVoid,
                         // Load next value.
                         kExprLocalGet, kArgSequencePtr,
                         kExprLocalGet, kLocalCurrentOffset,
@@ -95,7 +97,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
                 loadMemOpcode, 0, 0,
                 kExprLocalSet, kLocalNextValue,
                 // Hammer on memory until value found.
-                ...[kExprLoop, kWasmStmt,
+                ...[kExprLoop, kWasmVoid,
                     // Load address.
                     kExprLocalGet, kArgMemoryCell,
                     // Load expected value.
@@ -103,7 +105,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
                     // Load updated value.
                     kExprLocalGet, kLocalNextValue,
                     // Try update.
-                    kAtomicPrefix, compareExchangeOpcode, 0, 0,
+                    kAtomicPrefix, compareExchangeOpcode, alignLog2, 0,
                     // Load expected value.
                     kExprLocalGet, kLocalExpectedValue,
                     // Spin if not what expected.
@@ -142,7 +144,7 @@ function spawnWorker(module, memory, address, sequence) {
     let workers = [];
     for (let i = 0; i < kNumberOfWorkers; i++) {
         let worker = new Worker(
-            `onmessage = function(msg) {
+            `onmessage = function({data:msg}) {
                 this.instance = new WebAssembly.Instance(msg.module,
                     {m: {imported_mem: msg.memory}});
                 instance.exports.worker(msg.address, msg.sequence,

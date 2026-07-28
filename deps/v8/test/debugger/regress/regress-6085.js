@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This test fails without defeating TDZ check elision because 'return x;'
+// below, without a ThrowReferenceErrorIfHole bytecode, becomes a return
+// position breakpoint. Return position breakpoints can only inspect the
+// function scope because their source position is always at the end of the
+// function.
+
 function* serialize() {
   debugger;
   switch (0) {
     case 0:
-      let x = 1;
+      let x = 1;  // Defeat TDZ check elision
+    case 1:
       return x;  // Check scopes
   }
 }
@@ -28,7 +35,7 @@ function listener(event, exec_state, event_data, data) {
       }
       scopes_checked = true;
     }
-    if (step_count++ < 3) exec_state.prepareStep(Debug.StepAction.StepNext);
+    if (step_count++ < 3) exec_state.prepareStep(Debug.StepAction.StepOver);
   } catch (e) {
     exception = e;
     print(e, e.stack);

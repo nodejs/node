@@ -1,4 +1,6 @@
-.text
+#include "arm_arch.h"
+
+.section	__TEXT,__const
 
 .align	8	// strategic alignment and padding that allows to use
 		// address value as loop termination condition...
@@ -30,11 +32,14 @@ iotas:
 .quad	0x0000000080000001
 .quad	0x8000000080008008
 
+.text
+
 
 .align	5
 KeccakF1600_int:
-	adr	x28,iotas
-.long	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
+	adrp	x28,iotas@PAGE
+	add	x28,x28,iotas@PAGEOFF
 	stp	x28,x30,[sp,#16]		// 32 bytes on top are mine
 	b	Loop
 .align	4
@@ -198,14 +203,14 @@ Loop:
 	bne	Loop
 
 	ldr	x30,[sp,#24]
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 
 
 .align	5
 KeccakF1600:
-.long	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -255,7 +260,7 @@ KeccakF1600:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 
@@ -263,7 +268,7 @@ KeccakF1600:
 
 .align	5
 _SHA3_absorb:
-.long	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -497,14 +502,14 @@ Labsorbed:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .globl	_SHA3_squeeze
 
 .align	5
 _SHA3_squeeze:
-.long	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-48]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -514,6 +519,8 @@ _SHA3_squeeze:
 	mov	x20,x1
 	mov	x21,x2
 	mov	x22,x3
+	cmp	w4, #0				// w4 = 'next' argument
+	bne	Lnext_block
 
 Loop_squeeze:
 	ldr	x4,[x0],#8
@@ -528,7 +535,7 @@ Loop_squeeze:
 
 	subs	x3,x3,#8
 	bhi	Loop_squeeze
-
+Lnext_block:
 	mov	x0,x19
 	bl	KeccakF1600
 	mov	x0,x19
@@ -567,28 +574,29 @@ Lsqueeze_done:
 	ldp	x19,x20,[sp,#16]
 	ldp	x21,x22,[sp,#32]
 	ldp	x29,x30,[sp],#48
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 
 .align	5
 KeccakF1600_ce:
-	mov	x9,#12
-	adr	x10,iotas
+	mov	x9,#24
+	adrp	x10,iotas@PAGE
+	add	x10,x10,iotas@PAGEOFF
 	b	Loop_ce
 .align	4
 Loop_ce:
 	////////////////////////////////////////////////// Theta
-.long	0xce052819	//eor3 v25.16b,v0.16b,v5.16b,v10.16b
-.long	0xce062c3a	//eor3 v26.16b,v1.16b,v6.16b,v11.16b
-.long	0xce07305b	//eor3 v27.16b,v2.16b,v7.16b,v12.16b
-.long	0xce08347c	//eor3 v28.16b,v3.16b,v8.16b,v13.16b
-.long	0xce09389d	//eor3 v29.16b,v4.16b,v9.16b,v14.16b
-.long	0xce0f5339	//eor3 v25.16b,v25.16b,   v15.16b,v20.16b
-.long	0xce10575a	//eor3 v26.16b,v26.16b,   v16.16b,v21.16b
-.long	0xce115b7b	//eor3 v27.16b,v27.16b,   v17.16b,v22.16b
-.long	0xce125f9c	//eor3 v28.16b,v28.16b,   v18.16b,v23.16b
-.long	0xce1363bd	//eor3 v29.16b,v29.16b,   v19.16b,v24.16b
+.long	0xce0f2a99	//eor3 v25.16b,v20.16b,v15.16b,v10.16b
+.long	0xce102eba	//eor3 v26.16b,v21.16b,v16.16b,v11.16b
+.long	0xce1132db	//eor3 v27.16b,v22.16b,v17.16b,v12.16b
+.long	0xce1236fc	//eor3 v28.16b,v23.16b,v18.16b,v13.16b
+.long	0xce133b1d	//eor3 v29.16b,v24.16b,v19.16b,v14.16b
+.long	0xce050339	//eor3 v25.16b,v25.16b,   v5.16b,v0.16b
+.long	0xce06075a	//eor3 v26.16b,v26.16b,   v6.16b,v1.16b
+.long	0xce070b7b	//eor3 v27.16b,v27.16b,   v7.16b,v2.16b
+.long	0xce080f9c	//eor3 v28.16b,v28.16b,   v8.16b,v3.16b
+.long	0xce0913bd	//eor3 v29.16b,v29.16b,   v9.16b,v4.16b
 
 .long	0xce7b8f3e	//rax1 v30.16b,v25.16b,v27.16b			// D[1]
 .long	0xce7c8f5f	//rax1 v31.16b,v26.16b,v28.16b			// D[2]
@@ -597,13 +605,15 @@ Loop_ce:
 .long	0xce7a8fbd	//rax1 v29.16b,v29.16b,v26.16b			// D[0]
 
 	////////////////////////////////////////////////// Theta+Rho+Pi
-.long	0xce9e50d9	//xar v25.16b,   v6.16b,v30.16b,#64-44	// C[0]=A[0][1]
+.long	0xce9efc39	//xar v25.16b,   v1.16b,v30.16b,#64-1 // C[0]=A[2][0]
+
+.long	0xce9e50c1	//xar v1.16b,v6.16b,v30.16b,#64-44
 .long	0xce9cb126	//xar v6.16b,v9.16b,v28.16b,#64-20
 .long	0xce9f0ec9	//xar v9.16b,v22.16b,v31.16b,#64-61
 .long	0xce9c65d6	//xar v22.16b,v14.16b,v28.16b,#64-39
 .long	0xce9dba8e	//xar v14.16b,v20.16b,v29.16b,#64-18
 
-.long	0xce9f0854	//xar v20.16b,v2.16b,v31.16b,#64-62
+.long	0xce9f085a	//xar v26.16b,   v2.16b,v31.16b,#64-62 // C[1]=A[4][0]
 
 .long	0xce9f5582	//xar v2.16b,v12.16b,v31.16b,#64-43
 .long	0xce9b9dac	//xar v12.16b,v13.16b,v27.16b,#64-25
@@ -613,145 +623,57 @@ Loop_ce:
 
 .long	0xce9c948f	//xar v15.16b,v4.16b,v28.16b,#64-27
 
-	eor	v0.16b,v0.16b,v29.16b
-	ldr	x11,[x10],#8
-
-.long	0xce9bae5a	//xar v26.16b,   v18.16b,v27.16b,#64-21	// C[1]=A[0][3]
-.long	0xce9fc632	//xar v18.16b,v17.16b,v31.16b,#64-15
-.long	0xce9ed971	//xar v17.16b,v11.16b,v30.16b,#64-10
-.long	0xce9fe8eb	//xar v11.16b,v7.16b,v31.16b,#64-6
-.long	0xce9df547	//xar v7.16b,v10.16b,v29.16b,#64-3
-
-.long	0xce9efc2a	//xar v10.16b,v1.16b,v30.16b,#64-1	// *
-
-.long	0xce9ccb04	//xar v4.16b,v24.16b,v28.16b,#64-14
+.long	0xce9ccb1c	//xar v28.16b,   v24.16b,v28.16b,#64-14 // D[4]=A[0][4]
 .long	0xce9efab8	//xar v24.16b,v21.16b,v30.16b,#64-2
-.long	0xce9b2515	//xar v21.16b,v8.16b,v27.16b,#64-55
-.long	0xce9e4e08	//xar v8.16b,v16.16b,v30.16b,#64-45
+.long	0xce9b2508	//xar v8.16b,v8.16b,v27.16b,#64-55 // A[1][3]=A[4][1]
+.long	0xce9e4e04	//xar v4.16b,v16.16b,v30.16b,#64-45 // A[0][4]=A[1][3]
 .long	0xce9d70b0	//xar v16.16b,v5.16b,v29.16b,#64-36
 
-.long	0xce9b907b	//xar v27.16b,   v3.16b,v27.16b,#64-28	// C[2]=A[1][0]
+.long	0xce9b9065	//xar v5.16b,v3.16b,v27.16b,#64-28
+
+	eor	v0.16b,v0.16b,v29.16b
+
+.long	0xce9bae5b	//xar v27.16b,   v18.16b,v27.16b,#64-21 // D[3]=A[0][3]
+.long	0xce9fc623	//xar v3.16b,v17.16b,v31.16b,#64-15 // A[0][3]=A[3][3]
+.long	0xce9ed97e	//xar v30.16b,   v11.16b,v30.16b,#64-10 // D[1]=A[3][2]
+.long	0xce9fe8ff	//xar v31.16b,   v7.16b,v31.16b,#64-6 // D[2]=A[2][1]
+.long	0xce9df55d	//xar v29.16b,   v10.16b,v29.16b,#64-3 // D[0]=A[1][2]
 
 	////////////////////////////////////////////////// Chi+Iota
-	dup	v31.2d,x11				// borrow C[6]
-.long	0xce22641c	//bcax v28.16b,   v0.16b,v2.16b,v25.16b	// *
-.long	0xce3a0b21	//bcax v1.16b,v25.16b,   v26.16b,   v2.16b	// *
-.long	0xce246842	//bcax v2.16b,v2.16b,v4.16b,v26.16b
-.long	0xce201343	//bcax v3.16b,v26.16b,   v0.16b,v4.16b
-.long	0xce390084	//bcax v4.16b,v4.16b,v25.16b,   v0.16b
+.long	0xce362354	//bcax v20.16b,v26.16b,   v22.16b,v8.16b	// A[1][3]=A[4][1]
+.long	0xce375915	//bcax v21.16b,v8.16b,v23.16b,v22.16b	// A[1][3]=A[4][1]
+.long	0xce385ed6	//bcax v22.16b,v22.16b,v24.16b,v23.16b
+.long	0xce3a62f7	//bcax v23.16b,v23.16b,v26.16b,   v24.16b
+.long	0xce286b18	//bcax v24.16b,v24.16b,v8.16b,v26.16b	// A[1][3]=A[4][1]
 
-.long	0xce271b65	//bcax v5.16b,v27.16b,   v7.16b,v6.16b	// *
-.long	0xce281cd9	//bcax v25.16b,   v6.16b,v8.16b,v7.16b	// *
-.long	0xce2920e7	//bcax v7.16b,v7.16b,v9.16b,v8.16b
-.long	0xce3b2508	//bcax v8.16b,v8.16b,v27.16b,   v9.16b
-.long	0xce266d29	//bcax v9.16b,v9.16b,v6.16b,v27.16b
+	ld1r	{v26.2d},[x10],#8
 
-	eor	v0.16b,v28.16b,v31.16b			// Iota
-
-.long	0xce2c2d5a	//bcax v26.16b,   v10.16b,v12.16b,v11.16b	// *
-.long	0xce2d317b	//bcax v27.16b,   v11.16b,v13.16b,v12.16b	// *
-.long	0xce2e358c	//bcax v12.16b,v12.16b,v14.16b,v13.16b
-.long	0xce2a39ad	//bcax v13.16b,v13.16b,v10.16b,v14.16b
-.long	0xce2b29ce	//bcax v14.16b,v14.16b,v11.16b,v10.16b
-
-.long	0xce3141fc	//bcax v28.16b,   v15.16b,v17.16b,v16.16b	// *
-.long	0xce32461d	//bcax v29.16b,   v16.16b,v18.16b,v17.16b	// *
-.long	0xce334a31	//bcax v17.16b,v17.16b,v19.16b,v18.16b
-.long	0xce2f4e52	//bcax v18.16b,v18.16b,v15.16b,v19.16b
+.long	0xce330fd1	//bcax v17.16b,v30.16b,   v19.16b,v3.16b	// A[0][3]=A[3][3]
+.long	0xce2f4c72	//bcax v18.16b,v3.16b,v15.16b,v19.16b	// A[0][3]=A[3][3]
 .long	0xce303e73	//bcax v19.16b,v19.16b,v16.16b,v15.16b
+.long	0xce3e41ef	//bcax v15.16b,v15.16b,v30.16b,   v16.16b
+.long	0xce237a10	//bcax v16.16b,v16.16b,v3.16b,v30.16b	// A[0][3]=A[3][3]
 
-.long	0xce36569e	//bcax v30.16b,   v20.16b,v22.16b,v21.16b	// *
-.long	0xce375abf	//bcax v31.16b,   v21.16b,v23.16b,v22.16b	// *
-.long	0xce385ed6	//bcax v22.16b,v22.16b,v24.16b,v23.16b
-.long	0xce3462f7	//bcax v23.16b,v23.16b,v20.16b,v24.16b
-.long	0xce355318	//bcax v24.16b,v24.16b,v21.16b,v20.16b
-	////////////////////////////////////////////////// Theta
-.long	0xce056806	//eor3 v6.16b,v0.16b,v5.16b,v26.16b
-.long	0xce196c2a	//eor3 v10.16b,v1.16b,v25.16b,v27.16b
-.long	0xce07304b	//eor3 v11.16b,v2.16b,v7.16b,v12.16b
-.long	0xce08346f	//eor3 v15.16b,v3.16b,v8.16b,v13.16b
-.long	0xce093890	//eor3 v16.16b,v4.16b,v9.16b,v14.16b
-.long	0xce1c78c6	//eor3 v6.16b,v6.16b,   v28.16b,v30.16b
-.long	0xce1d7d4a	//eor3 v10.16b,v10.16b,   v29.16b,v31.16b
-.long	0xce11596b	//eor3 v11.16b,v11.16b,   v17.16b,v22.16b
-.long	0xce125def	//eor3 v15.16b,v15.16b,   v18.16b,v23.16b
-.long	0xce136210	//eor3 v16.16b,v16.16b,   v19.16b,v24.16b
-
-.long	0xce6b8cd4	//rax1 v20.16b,v6.16b,v11.16b			// D[1]
-.long	0xce6f8d55	//rax1 v21.16b,v10.16b,v15.16b			// D[2]
-.long	0xce708d6b	//rax1 v11.16b,v11.16b,v16.16b			// D[3]
-.long	0xce668def	//rax1 v15.16b,v15.16b,v6.16b			// D[4]
-.long	0xce6a8e10	//rax1 v16.16b,v16.16b,v10.16b			// D[0]
-
-	////////////////////////////////////////////////// Theta+Rho+Pi
-.long	0xce945326	//xar v6.16b,   v25.16b,v20.16b,#64-44	// C[0]=A[0][1]
-.long	0xce8fb139	//xar v25.16b,v9.16b,v15.16b,#64-20
-.long	0xce950ec9	//xar v9.16b,v22.16b,v21.16b,#64-61
-.long	0xce8f65d6	//xar v22.16b,v14.16b,v15.16b,#64-39
-.long	0xce90bbce	//xar v14.16b,v30.16b,v16.16b,#64-18
-
-.long	0xce95085e	//xar v30.16b,v2.16b,v21.16b,#64-62
-
-.long	0xce955582	//xar v2.16b,v12.16b,v21.16b,#64-43
-.long	0xce8b9dac	//xar v12.16b,v13.16b,v11.16b,#64-25
-.long	0xce8fe26d	//xar v13.16b,v19.16b,v15.16b,#64-8
-.long	0xce8b22f3	//xar v19.16b,v23.16b,v11.16b,#64-56
-.long	0xce905f97	//xar v23.16b,v28.16b,v16.16b,#64-41
-
-.long	0xce8f949c	//xar v28.16b,v4.16b,v15.16b,#64-27
-
-	eor	v0.16b,v0.16b,v16.16b
-	ldr	x11,[x10],#8
-
-.long	0xce8bae4a	//xar v10.16b,   v18.16b,v11.16b,#64-21	// C[1]=A[0][3]
-.long	0xce95c632	//xar v18.16b,v17.16b,v21.16b,#64-15
-.long	0xce94db71	//xar v17.16b,v27.16b,v20.16b,#64-10
-.long	0xce95e8fb	//xar v27.16b,v7.16b,v21.16b,#64-6
-.long	0xce90f747	//xar v7.16b,v26.16b,v16.16b,#64-3
-
-.long	0xce94fc3a	//xar v26.16b,v1.16b,v20.16b,#64-1	// *
-
-.long	0xce8fcb04	//xar v4.16b,v24.16b,v15.16b,#64-14
-.long	0xce94fbf8	//xar v24.16b,v31.16b,v20.16b,#64-2
-.long	0xce8b251f	//xar v31.16b,v8.16b,v11.16b,#64-55
-.long	0xce944fa8	//xar v8.16b,v29.16b,v20.16b,#64-45
-.long	0xce9070bd	//xar v29.16b,v5.16b,v16.16b,#64-36
-
-.long	0xce8b906b	//xar v11.16b,   v3.16b,v11.16b,#64-28	// C[2]=A[1][0]
-
-	////////////////////////////////////////////////// Chi+Iota
-	dup	v21.2d,x11				// borrow C[6]
-.long	0xce22180f	//bcax v15.16b,   v0.16b,v2.16b,v6.16b	// *
-.long	0xce2a08c1	//bcax v1.16b,v6.16b,   v10.16b,   v2.16b	// *
-.long	0xce242842	//bcax v2.16b,v2.16b,v4.16b,v10.16b
-.long	0xce201143	//bcax v3.16b,v10.16b,   v0.16b,v4.16b
-.long	0xce260084	//bcax v4.16b,v4.16b,v6.16b,   v0.16b
-
-.long	0xce276565	//bcax v5.16b,v11.16b,   v7.16b,v25.16b	// *
-.long	0xce281f26	//bcax v6.16b,   v25.16b,v8.16b,v7.16b	// *
-.long	0xce2920e7	//bcax v7.16b,v7.16b,v9.16b,v8.16b
-.long	0xce2b2508	//bcax v8.16b,v8.16b,v11.16b,   v9.16b
-.long	0xce392d29	//bcax v9.16b,v9.16b,v25.16b,v11.16b
-
-	eor	v0.16b,v15.16b,v21.16b			// Iota
-
-.long	0xce2c6f4a	//bcax v10.16b,   v26.16b,v12.16b,v27.16b	// *
-.long	0xce2d336b	//bcax v11.16b,   v27.16b,v13.16b,v12.16b	// *
+.long	0xce2c7f2a	//bcax v10.16b,v25.16b,   v12.16b,v31.16b
+.long	0xce2d33eb	//bcax v11.16b,v31.16b,   v13.16b,v12.16b
 .long	0xce2e358c	//bcax v12.16b,v12.16b,v14.16b,v13.16b
-.long	0xce3a39ad	//bcax v13.16b,v13.16b,v26.16b,v14.16b
-.long	0xce3b69ce	//bcax v14.16b,v14.16b,v27.16b,v26.16b
+.long	0xce3939ad	//bcax v13.16b,v13.16b,v25.16b,   v14.16b
+.long	0xce3f65ce	//bcax v14.16b,v14.16b,v31.16b,   v25.16b
 
-.long	0xce31778f	//bcax v15.16b,   v28.16b,v17.16b,v29.16b	// *
-.long	0xce3247b0	//bcax v16.16b,   v29.16b,v18.16b,v17.16b	// *
-.long	0xce334a31	//bcax v17.16b,v17.16b,v19.16b,v18.16b
-.long	0xce3c4e52	//bcax v18.16b,v18.16b,v28.16b,v19.16b
-.long	0xce3d7273	//bcax v19.16b,v19.16b,v29.16b,v28.16b
+.long	0xce2913a7	//bcax v7.16b,v29.16b,   v9.16b,v4.16b	// A[0][4]=A[1][3]
+.long	0xce252488	//bcax v8.16b,v4.16b,v5.16b,v9.16b	// A[0][4]=A[1][3]
+.long	0xce261529	//bcax v9.16b,v9.16b,v6.16b,v5.16b
+.long	0xce3d18a5	//bcax v5.16b,v5.16b,v29.16b,   v6.16b
+.long	0xce2474c6	//bcax v6.16b,v6.16b,v4.16b,v29.16b	// A[0][4]=A[1][3]
 
-.long	0xce367fd4	//bcax v20.16b,   v30.16b,v22.16b,v31.16b	// *
-.long	0xce375bf5	//bcax v21.16b,   v31.16b,v23.16b,v22.16b	// *
-.long	0xce385ed6	//bcax v22.16b,v22.16b,v24.16b,v23.16b
-.long	0xce3e62f7	//bcax v23.16b,v23.16b,v30.16b,v24.16b
-.long	0xce3f7b18	//bcax v24.16b,v24.16b,v31.16b,v30.16b
+.long	0xce207363	//bcax v3.16b,v27.16b,   v0.16b,v28.16b
+.long	0xce210384	//bcax v4.16b,v28.16b,   v1.16b,v0.16b
+.long	0xce220400	//bcax v0.16b,v0.16b,v2.16b,v1.16b
+.long	0xce3b0821	//bcax v1.16b,v1.16b,v27.16b,   v2.16b
+.long	0xce3c6c42	//bcax v2.16b,v2.16b,v28.16b,   v27.16b
+
+	eor	v0.16b,v0.16b,v26.16b
+
 	subs	x9,x9,#1
 	bne	Loop_ce
 
@@ -761,7 +683,7 @@ Loop_ce:
 
 .align	5
 KeccakF1600_cext:
-.long	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#16]		// per ABI requirement
@@ -802,14 +724,14 @@ KeccakF1600_cext:
 	ldp	d12,d13,[sp,#48]
 	ldp	d14,d15,[sp,#64]
 	ldr	x29,[sp],#80
-.long	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .globl	_SHA3_absorb_cext
 
 .align	5
 _SHA3_absorb_cext:
-.long	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#16]		// per ABI requirement
@@ -1025,14 +947,14 @@ Labsorbed_ce:
 	ldp	d12,d13,[sp,#48]
 	ldp	d14,d15,[sp,#64]
 	ldp	x29,x30,[sp],#80
-.long	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .globl	_SHA3_squeeze_cext
 
 .align	5
 _SHA3_squeeze_cext:
-.long	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	mov	x9,x0
@@ -1088,7 +1010,7 @@ Lsqueeze_tail_ce:
 
 Lsqueeze_done_ce:
 	ldr	x29,[sp],#16
-.long	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .byte	75,101,99,99,97,107,45,49,54,48,48,32,97,98,115,111,114,98,32,97,110,100,32,115,113,117,101,101,122,101,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0

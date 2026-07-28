@@ -1,4 +1,3 @@
-// Flags: --experimental-wasi-unstable-preview1
 'use strict';
 
 const common = require('../common');
@@ -19,23 +18,23 @@ const bytecode = new Uint8Array([
   0x64, 0x75, 0x63, 0x65, 0x72, 0x73, 0x01, 0x0c, 0x70, 0x72, 0x6f, 0x63,
   0x65, 0x73, 0x73, 0x65, 0x64, 0x2d, 0x62, 0x79, 0x01, 0x05, 0x63, 0x6c,
   0x61, 0x6e, 0x67, 0x0f, 0x31, 0x30, 0x2e, 0x30, 0x2e, 0x30, 0x2d, 0x34,
-  0x75, 0x62, 0x75, 0x6e, 0x74, 0x75, 0x31
+  0x75, 0x62, 0x75, 0x6e, 0x74, 0x75, 0x31,
 ]);
 
 // Do not use isMainThread so that this test itself can be run inside a Worker.
 if (!process.env.HAS_STARTED_WORKER) {
   process.env.HAS_STARTED_WORKER = 1;
   const worker = new Worker(__filename);
-  worker.once('message', (message) => {
+  worker.once('message', common.mustCall((message) => {
     assert.strictEqual(message, 'start');
     setTimeout(() => worker.terminate(), common.platformTimeout(50));
-  });
+  }));
 } else {
   go();
 }
 
 async function go() {
-  const wasi = new WASI({ returnOnExit: true });
+  const wasi = new WASI({ version: 'preview1', returnOnExit: true });
   const imports = { wasi_snapshot_preview1: wasi.wasiImport };
   const module = await WebAssembly.compile(bytecode);
   const instance = await WebAssembly.instantiate(module, imports);

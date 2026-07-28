@@ -14,7 +14,7 @@
 #if U_SHOW_CPLUSPLUS_API
 
 /**
- * \file
+ * \file 
  * \brief C++ API: RFC2445 VTIMEZONE support
  */
 
@@ -72,7 +72,7 @@ public:
       *semantically equal.
      * @stable ICU 3.8
      */
-    virtual UBool operator==(const TimeZone& that) const;
+    virtual bool operator==(const TimeZone& that) const override;
 
     /**
      * Return true if the given <code>TimeZone</code> objects are
@@ -82,13 +82,13 @@ public:
      * semantically unequal.
      * @stable ICU 3.8
      */
-    virtual UBool operator!=(const TimeZone& that) const;
+    virtual bool operator!=(const TimeZone& that) const;
 
     /**
      * Create a <code>VTimeZone</code> instance by the time zone ID.
      * @param ID The time zone ID, such as America/New_York
      * @return A <code>VTimeZone</code> object initialized by the time zone ID,
-     * or NULL when the ID is unknown.
+     * or nullptr when the ID is unknown.
      * @stable ICU 3.8
      */
     static VTimeZone* createVTimeZoneByID(const UnicodeString& ID);
@@ -105,11 +105,11 @@ public:
 
     /**
      * Create a <code>VTimeZone</code> instance by RFC2445 VTIMEZONE data
-     *
+     * 
      * @param vtzdata The string including VTIMEZONE data block
      * @param status Output param to filled in with a success or an error.
      * @return A <code>VTimeZone</code> initialized by the VTIMEZONE data or
-     * NULL if failed to load the rule from the VTIMEZONE data.
+     * nullptr if failed to load the rule from the VTIMEZONE data.
      * @stable ICU 3.8
      */
     static VTimeZone* createVTimeZone(const UnicodeString& vtzdata, UErrorCode& status);
@@ -157,7 +157,7 @@ public:
     void write(UnicodeString& result, UErrorCode& status) const;
 
     /**
-     * Writes RFC2445 VTIMEZONE data for this time zone applicalbe
+     * Writes RFC2445 VTIMEZONE data for this time zone applicable
      * for dates after the specified start time.
      * @param start The start date.
      * @param result Output param to filled in with the VTIMEZONE data.
@@ -167,7 +167,7 @@ public:
     void write(UDate start, UnicodeString& result, UErrorCode& status) const;
 
     /**
-     * Writes RFC2445 VTIMEZONE data applicalbe for the specified date.
+     * Writes RFC2445 VTIMEZONE data applicable for the specified date.
      * Some common iCalendar implementations can only handle a single time
      * zone property or a pair of standard and daylight time properties using
      * BYDAY rule with day of week (such as BYDAY=1SUN).  This method produce
@@ -187,7 +187,7 @@ public:
      * @return   A new copy of this TimeZone object.
      * @stable ICU 3.8
      */
-    virtual VTimeZone* clone() const;
+    virtual VTimeZone* clone() const override;
 
     /**
      * Returns the TimeZone's adjusted GMT offset (i.e., the number of milliseconds to add
@@ -214,7 +214,7 @@ public:
      * @stable ICU 3.8
      */
     virtual int32_t getOffset(uint8_t era, int32_t year, int32_t month, int32_t day,
-                              uint8_t dayOfWeek, int32_t millis, UErrorCode& status) const;
+                              uint8_t dayOfWeek, int32_t millis, UErrorCode& status) const override;
 
     /**
      * Gets the time zone offset, for current date, modified in case of
@@ -237,7 +237,7 @@ public:
      */
     virtual int32_t getOffset(uint8_t era, int32_t year, int32_t month, int32_t day,
                            uint8_t dayOfWeek, int32_t millis,
-                           int32_t monthLength, UErrorCode& status) const;
+                           int32_t monthLength, UErrorCode& status) const override;
 
     /**
      * Returns the time zone raw and GMT offset for the given moment
@@ -262,7 +262,16 @@ public:
      * @stable ICU 3.8
      */
     virtual void getOffset(UDate date, UBool local, int32_t& rawOffset,
-                           int32_t& dstOffset, UErrorCode& ec) const;
+                           int32_t& dstOffset, UErrorCode& ec) const override;
+
+    /**
+     * Get time zone offsets from local wall time.
+     * @stable ICU 69
+     */
+    virtual void getOffsetFromLocal(
+        UDate date, UTimeZoneLocalOption nonExistingTimeOpt,
+        UTimeZoneLocalOption duplicatedTimeOpt,
+        int32_t& rawOffset, int32_t& dstOffset, UErrorCode& status) const override;
 
     /**
      * Sets the TimeZone's raw GMT offset (i.e., the number of milliseconds to add
@@ -271,7 +280,7 @@ public:
      * @param offsetMillis  The new raw GMT offset for this time zone.
      * @stable ICU 3.8
      */
-    virtual void setRawOffset(int32_t offsetMillis);
+    virtual void setRawOffset(int32_t offsetMillis) override;
 
     /**
      * Returns the TimeZone's raw GMT offset (i.e., the number of milliseconds to add
@@ -280,7 +289,7 @@ public:
      * @return   The TimeZone's raw GMT offset.
      * @stable ICU 3.8
      */
-    virtual int32_t getRawOffset(void) const;
+    virtual int32_t getRawOffset() const override;
 
     /**
      * Queries if this time zone uses daylight savings time.
@@ -288,7 +297,7 @@ public:
      * false, otherwise.
      * @stable ICU 3.8
      */
-    virtual UBool useDaylightTime(void) const;
+    virtual UBool useDaylightTime() const override;
 
 #ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
@@ -304,7 +313,7 @@ public:
      * false, otherwise.
      * @deprecated ICU 2.4. Use Calendar::inDaylightTime() instead.
      */
-    virtual UBool inDaylightTime(UDate date, UErrorCode& status) const;
+    virtual UBool inDaylightTime(UDate date, UErrorCode& status) const override;
 #endif  // U_FORCE_HIDE_DEPRECATED_API
 
     /**
@@ -315,7 +324,7 @@ public:
      * with the possible exception of the ID
      * @stable ICU 3.8
      */
-    virtual UBool hasSameRules(const TimeZone& other) const;
+    virtual UBool hasSameRules(const TimeZone& other) const override;
 
     /**
      * Gets the first time zone transition after the base time.
@@ -325,7 +334,7 @@ public:
      * @return  true if the transition is found.
      * @stable ICU 3.8
      */
-    virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
+    virtual UBool getNextTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const override;
 
     /**
      * Gets the most recent time zone transition before the base time.
@@ -335,7 +344,7 @@ public:
      * @return  true if the transition is found.
      * @stable ICU 3.8
      */
-    virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const;
+    virtual UBool getPreviousTransition(UDate base, UBool inclusive, TimeZoneTransition& result) const override;
 
     /**
      * Returns the number of <code>TimeZoneRule</code>s which represents time transitions,
@@ -345,12 +354,12 @@ public:
      * @return The number of <code>TimeZoneRule</code>s representing time transitions.
      * @stable ICU 3.8
      */
-    virtual int32_t countTransitionRules(UErrorCode& status) const;
+    virtual int32_t countTransitionRules(UErrorCode& status) const override;
 
     /**
      * Gets the <code>InitialTimeZoneRule</code> and the set of <code>TimeZoneRule</code>
      * which represent time transitions for this time zone.  On successful return,
-     * the argument initial points to non-NULL <code>InitialTimeZoneRule</code> and
+     * the argument initial points to non-nullptr <code>InitialTimeZoneRule</code> and
      * the array trsrules is filled with 0 or multiple <code>TimeZoneRule</code>
      * instances up to the size specified by trscount.  The results are referencing the
      * rule instance held by this time zone instance.  Therefore, after this time zone
@@ -364,7 +373,7 @@ public:
      * @stable ICU 3.8
      */
     virtual void getTimeZoneRules(const InitialTimeZoneRule*& initial,
-        const TimeZoneRule* trsrules[], int32_t& trscount, UErrorCode& status) const;
+        const TimeZoneRule* trsrules[], int32_t& trscount, UErrorCode& status) const override;
 
 private:
     enum { DEFAULT_VTIMEZONE_LINES = 100 };
@@ -373,7 +382,6 @@ private:
      * Default constructor.
      */
     VTimeZone();
-    static VTimeZone* createVTimeZone(VTZReader* reader);
     void write(VTZWriter& writer, UErrorCode& status) const;
     void write(UDate start, VTZWriter& writer, UErrorCode& status) const;
     void writeSimple(UDate time, VTZWriter& writer, UErrorCode& status) const;
@@ -437,7 +445,7 @@ public:
      * @return          The class ID for all objects of this class.
      * @stable ICU 3.8
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns a unique class ID POLYMORPHICALLY. Pure virtual override. This
@@ -450,7 +458,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID() const override;
 };
 
 U_NAMESPACE_END

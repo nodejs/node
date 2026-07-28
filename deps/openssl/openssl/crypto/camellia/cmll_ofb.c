@@ -1,11 +1,17 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * Camellia low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/camellia.h>
 #include <openssl/modes.h>
@@ -16,9 +22,9 @@
  * used is contained in *num;
  */
 void Camellia_ofb128_encrypt(const unsigned char *in, unsigned char *out,
-                             size_t length, const CAMELLIA_KEY *key,
-                             unsigned char *ivec, int *num)
+    size_t length, const CAMELLIA_KEY *key,
+    unsigned char *ivec, int *num)
 {
     CRYPTO_ofb128_encrypt(in, out, length, key, ivec, num,
-                          (block128_f) Camellia_encrypt);
+        (block128_f)Camellia_encrypt);
 }

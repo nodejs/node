@@ -4,15 +4,28 @@
 
 #include "src/inspector/inspected-context.h"
 
+#include "include/v8-context.h"
+#include "include/v8-inspector.h"
+#include "include/v8-platform.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console.h"
 #include "src/inspector/v8-inspector-impl.h"
 
-#include "include/v8-inspector.h"
-
 namespace v8_inspector {
+
+// ContextCollected callbacks may invoke JS which cannot run from inside the GC.
+class InspectedContext::ContextCollectedCallbacks final : public v8::Task {
+ public:
+  explicit ContextCollectedCallbacks(InspectedContext::WeakCallbackData* data);
+  ~ContextCollectedCallbacks();
+
+  void Run() override;
+
+ private:
+  std::unique_ptr<InspectedContext::WeakCallbackData> data_;
+};
 
 class InspectedContext::WeakCallbackData {
  public:
@@ -27,17 +40,10 @@ class InspectedContext::WeakCallbackData {
     // InspectedContext is alive here because weak handler is still alive.
     data.GetParameter()->m_context->m_weakCallbackData = nullptr;
     data.GetParameter()->m_context->m_context.Reset();
-    data.SetSecondPassCallback(&callContextCollected);
-  }
-
-  static void callContextCollected(
-      const v8::WeakCallbackInfo<WeakCallbackData>& data) {
-    // InspectedContext can be dead here since anything can happen between first
-    // and second pass callback.
-    WeakCallbackData* callbackData = data.GetParameter();
-    callbackData->m_inspector->contextCollected(callbackData->m_groupId,
-                                                callbackData->m_contextId);
-    delete callbackData;
+    v8::debug::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(data.GetIsolate())
+        ->PostTask(
+            std::make_unique<ContextCollectedCallbacks>(data.GetParameter()));
   }
 
  private:
@@ -45,33 +51,54 @@ class InspectedContext::WeakCallbackData {
   V8InspectorImpl* m_inspector;
   int m_groupId;
   int m_contextId;
+
+  friend class InspectedContext::ContextCollectedCallbacks;
 };
+
+InspectedContext::ContextCollectedCallbacks::ContextCollectedCallbacks(
+    InspectedContext::WeakCallbackData* data)
+    : data_(data) {}
+
+InspectedContext::ContextCollectedCallbacks::~ContextCollectedCallbacks() =
+    default;
+
+void InspectedContext::ContextCollectedCallbacks::Run() {
+  data_->m_inspector->contextCollected(data_->m_groupId, data_->m_contextId);
+}
 
 InspectedContext::InspectedContext(V8InspectorImpl* inspector,
                                    const V8ContextInfo& info, int contextId)
     : m_inspector(inspector),
-      m_context(info.context->GetIsolate(), info.context),
+      m_context(inspector->isolate(), info.context),
       m_contextId(contextId),
       m_contextGroupId(info.contextGroupId),
       m_origin(toString16(info.origin)),
       m_humanReadableName(toString16(info.humanReadableName)),
-      m_auxData(toString16(info.auxData)) {
+      m_auxData(toString16(info.auxData)),
+      m_uniqueId(internal::V8DebuggerId::generate(inspector)) {
   v8::debug::SetContextId(info.context, contextId);
   m_weakCallbackData =
       new WeakCallbackData(this, m_inspector, m_contextGroupId, m_contextId);
   m_context.SetWeak(m_weakCallbackData,
                     &InspectedContext::WeakCallbackData::resetContext,
                     v8::WeakCallbackType::kParameter);
-  if (!info.hasMemoryOnConsole) return;
+
   v8::Context::Scope contextScope(info.context);
-  v8::HandleScope handleScope(info.context->GetIsolate());
+  v8::HandleScope handleScope(inspector->isolate());
   v8::Local<v8::Object> global = info.context->Global();
   v8::Local<v8::Value> console;
-  if (global->Get(info.context, toV8String(m_inspector->isolate(), "console"))
-          .ToLocal(&console) &&
-      console->IsObject()) {
-    m_inspector->console()->installMemoryGetter(
-        info.context, v8::Local<v8::Object>::Cast(console));
+  if (!global->Get(info.context, toV8String(inspector->isolate(), "console"))
+           .ToLocal(&console) ||
+      !console->IsObject()) {
+    return;
+  }
+
+  m_inspector->console()->installAsyncStackTaggingAPI(info.context,
+                                                      console.As<v8::Object>());
+
+  if (info.hasMemoryOnConsole) {
+    m_inspector->console()->installMemoryGetter(info.context,
+                                                console.As<v8::Object>());
   }
 }
 
@@ -125,12 +152,15 @@ void InspectedContext::discardInjectedScript(int sessionId) {
 bool InspectedContext::addInternalObject(v8::Local<v8::Object> object,
                                          V8InternalValueType type) {
   if (m_internalObjects.IsEmpty()) {
-    m_internalObjects.Reset(isolate(), v8::debug::WeakMap::New(isolate()));
+    m_internalObjects.Reset(isolate(),
+                            v8::debug::EphemeronTable::New(isolate()));
   }
-  return !m_internalObjects.Get(isolate())
-              ->Set(m_context.Get(isolate()), object,
-                    v8::Integer::New(isolate(), static_cast<int>(type)))
-              .IsEmpty();
+  v8::Local<v8::debug::EphemeronTable> new_map =
+      m_internalObjects.Get(isolate())->Set(
+          isolate(), object,
+          v8::Integer::New(isolate(), static_cast<int>(type)));
+  m_internalObjects.Reset(isolate(), new_map);
+  return true;
 }
 
 V8InternalValueType InspectedContext::getInternalType(
@@ -138,7 +168,7 @@ V8InternalValueType InspectedContext::getInternalType(
   if (m_internalObjects.IsEmpty()) return V8InternalValueType::kNone;
   v8::Local<v8::Value> typeValue;
   if (!m_internalObjects.Get(isolate())
-           ->Get(m_context.Get(isolate()), object)
+           ->Get(isolate(), object)
            .ToLocal(&typeValue) ||
       !typeValue->IsUint32()) {
     return V8InternalValueType::kNone;

@@ -9,12 +9,12 @@ const assert = require('assert');
 const cluster = require('cluster');
 const debuggerPort = common.PORT;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   function test(execArgv) {
 
-    cluster.setupMaster({
+    cluster.setupPrimary({
       execArgv: execArgv,
-      stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe'],
     });
 
     const worker = cluster.fork();

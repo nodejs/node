@@ -7,19 +7,30 @@
 
 #include <atomic>
 #include <memory>
+#include <numeric>
+#include <optional>
 
+#include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
+#include "src/heap/allocation-observer.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/heap.h"
+#include "src/heap/memory-chunk.h"
+#include "src/heap/normal-page.h"
+#include "src/heap/paged-spaces.h"
 #include "src/heap/spaces.h"
-#include "src/logging/log.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {
 
 class Heap;
-class MemoryChunk;
+class MutablePage;
+class SemiSpaceNewSpace;
 
 enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 
@@ -29,120 +40,75 @@ enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 // A SemiSpace is a contiguous chunk of memory holding page-like memory chunks.
 // The mark-compact collector  uses the memory of the first page in the from
 // space as a marking stack when tracing live objects.
-class SemiSpace : public Space {
+class SemiSpace final : public Space {
  public:
   using iterator = PageIterator;
   using const_iterator = ConstPageIterator;
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
-  SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, new NoFreeList()),
-        current_capacity_(0),
-        maximum_capacity_(0),
-        minimum_capacity_(0),
-        age_mark_(kNullAddress),
-        committed_(false),
-        id_(semispace),
-        current_page_(nullptr),
-        pages_used_(0) {}
+  SemiSpace(Heap* heap, SemiSpaceId semispace);
+  V8_EXPORT_PRIVATE ~SemiSpace();
 
-  inline bool Contains(HeapObject o) const;
-  inline bool Contains(Object o) const;
-  inline bool ContainsSlow(Address a) const;
+  bool ContainsSlow(Address address) const;
 
-  void SetUp(size_t initial_capacity, size_t maximum_capacity);
-  void TearDown();
-
-  bool Commit();
-  bool Uncommit();
-  bool is_committed() { return committed_; }
-
-  // Grow the semispace to the new capacity.  The new capacity requested must
-  // be larger than the current capacity and less than the maximum capacity.
-  bool GrowTo(size_t new_capacity);
-
-  // Shrinks the semispace to the new capacity.  The new capacity requested
-  // must be more than the amount of used memory in the semispace and less
-  // than the current capacity.
-  bool ShrinkTo(size_t new_capacity);
-
-  bool EnsureCurrentCapacity();
-
-  Address space_end() { return memory_chunk_list_.back()->area_end(); }
+  void Uncommit();
+  bool IsCommitted() const { return !memory_chunk_list_.Empty(); }
 
   // Returns the start address of the first page of the space.
-  Address space_start() {
-    DCHECK_NE(memory_chunk_list_.front(), nullptr);
-    return memory_chunk_list_.front()->area_start();
+  Address space_start() const {
+    const NormalPage* page = first_page();
+    return page ? page->area_start() : kNullAddress;
   }
 
-  Page* current_page() { return current_page_; }
-  int pages_used() { return pages_used_; }
+  NormalPage* current_page() const { return current_page_; }
 
   // Returns the start address of the current page of the space.
-  Address page_low() { return current_page_->area_start(); }
+  Address page_low() const { return current_page_->area_start(); }
 
   // Returns one past the end address of the current page of the space.
-  Address page_high() { return current_page_->area_end(); }
+  Address page_high() const { return current_page_->area_end(); }
 
-  bool AdvancePage() {
-    Page* next_page = current_page_->next_page();
-    // We cannot expand if we reached the maximum number of pages already. Note
-    // that we need to account for the next page already for this check as we
-    // could potentially fill the whole page after advancing.
-    const bool reached_max_pages = (pages_used_ + 1) == max_pages();
-    if (next_page == nullptr || reached_max_pages) {
-      return false;
-    }
-    current_page_ = next_page;
-    pages_used_++;
-    return true;
-  }
+  bool AdvancePage(size_t target_capacity);
 
-  // Resets the space to using the first page.
-  void Reset();
+  void RemovePage(NormalPage* page);
+  void MovePageToTheEnd(NormalPage* page);
 
-  void RemovePage(Page* page);
-  void PrependPage(Page* page);
-
-  Page* InitializePage(MemoryChunk* chunk);
-
-  // Age mark accessors.
-  Address age_mark() { return age_mark_; }
-  void set_age_mark(Address mark);
+  NormalPage* InitializePage(MutablePage* chunk) final;
 
   // Returns the current capacity of the semispace.
-  size_t current_capacity() { return current_capacity_; }
+  size_t current_capacity() const { return current_capacity_; }
+  // Returns the current capacity of the semispace using an atomic load.
+  size_t current_capacity_safe() const {
+    return base::AsAtomicWord::Relaxed_Load(&current_capacity_);
+  }
 
-  // Returns the maximum capacity of the semispace.
-  size_t maximum_capacity() { return maximum_capacity_; }
-
-  // Returns the initial capacity of the semispace.
-  size_t minimum_capacity() { return minimum_capacity_; }
-
-  SemiSpaceId id() { return id_; }
+  SemiSpaceId id() const { return id_; }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory() override;
+  size_t CommittedPhysicalMemory() const final;
 
   // If we don't have these here then SemiSpace will be abstract.  However
   // they should never be called:
 
-  size_t Size() override { UNREACHABLE(); }
+  size_t Size() const final { UNREACHABLE(); }
 
-  size_t SizeOfObjects() override { return Size(); }
+  size_t SizeOfObjects() const final { return Size(); }
 
-  size_t Available() override { UNREACHABLE(); }
+  size_t Available() const final { UNREACHABLE(); }
 
-  Page* first_page() { return reinterpret_cast<Page*>(Space::first_page()); }
-  Page* last_page() { return reinterpret_cast<Page*>(Space::last_page()); }
-
-  const Page* first_page() const {
-    return reinterpret_cast<const Page*>(Space::first_page());
+  NormalPage* first_page() final {
+    return SbxCast<NormalPage>(memory_chunk_list_.front());
   }
-  const Page* last_page() const {
-    return reinterpret_cast<const Page*>(Space::last_page());
+  NormalPage* last_page() final {
+    return SbxCast<NormalPage>(memory_chunk_list_.back());
+  }
+
+  const NormalPage* first_page() const final {
+    return reinterpret_cast<const NormalPage*>(memory_chunk_list_.front());
+  }
+  const NormalPage* last_page() const final {
+    return reinterpret_cast<const NormalPage*>(memory_chunk_list_.back());
   }
 
   iterator begin() { return iterator(first_page()); }
@@ -151,10 +117,10 @@ class SemiSpace : public Space {
   const_iterator begin() const { return const_iterator(first_page()); }
   const_iterator end() const { return const_iterator(nullptr); }
 
-  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
+  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) final;
 
 #ifdef DEBUG
-  V8_EXPORT_PRIVATE void Print() override;
+  V8_EXPORT_PRIVATE void Print() final;
   // Validate a range of of addresses in a SemiSpace.
   // The "from" address must be on a page prior to the "to" address,
   // in the linked page order, or it must be earlier on the same page.
@@ -165,62 +131,108 @@ class SemiSpace : public Space {
 #endif
 
 #ifdef VERIFY_HEAP
-  virtual void Verify();
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
+    UNREACHABLE();
+  }
+  void VerifyPages() const;
 #endif
 
+  void AddRangeToActiveSystemPages(Address start, Address end);
+
+  void MoveQuarantinedPage(NormalPage* metadata);
+
  private:
+  bool AllocateFreshPage();
+
   void RewindPages(int num_pages);
 
-  inline int max_pages() {
-    return static_cast<int>(current_capacity_ / Page::kPageSize);
-  }
+  // Iterates all pages and properly initializes page flags for this space.
+  void FixPagesFlags();
 
-  // Copies the flags into the masked positions on all pages in the space.
-  void FixPagesFlags(intptr_t flags, intptr_t flag_mask);
+  void IncrementCommittedPhysicalMemory(size_t increment_value);
+  void DecrementCommittedPhysicalMemory(size_t decrement_value);
+
+  void ShrinkCapacityTo(size_t capacity);
+  void Reset();
 
   // The currently committed space capacity.
-  size_t current_capacity_;
-
-  // The maximum capacity that can be used by this space. A space cannot grow
-  // beyond that size.
-  size_t maximum_capacity_;
-
-  // The minimum capacity for the space. A space cannot shrink below this size.
-  size_t minimum_capacity_;
-
-  // Used to govern object promotion during mark-compact collection.
-  Address age_mark_;
-
-  bool committed_;
+  size_t current_capacity_ = 0;
+  size_t committed_physical_memory_ = 0;
   SemiSpaceId id_;
+  NormalPage* current_page_ = nullptr;
 
-  Page* current_page_;
+  // The number of quarantined pages in this space. Those pages are at the front
+  // of memory_chunk_list_.
+  size_t quarantined_pages_count_ = 0;
 
-  int pages_used_;
-
-  friend class NewSpace;
+  friend class SemiSpaceNewSpace;
   friend class SemiSpaceObjectIterator;
 };
 
 // A SemiSpaceObjectIterator is an ObjectIterator that iterates over the active
-// semispace of the heap's new space.  It iterates over the objects in the
-// semispace from a given start address (defaulting to the bottom of the
-// semispace) to the top of the semispace.  New objects allocated after the
-// iterator is created are not iterated.
+// semispace of the heap's new space.
 class SemiSpaceObjectIterator : public ObjectIterator {
  public:
-  // Create an iterator over the allocated objects in the given to-space.
-  explicit SemiSpaceObjectIterator(NewSpace* space);
+  // Create an iterator over the objects in the given to-space.
+  inline explicit SemiSpaceObjectIterator(const SemiSpaceNewSpace* space);
 
-  inline HeapObject Next() override;
+  inline Tagged<HeapObject> Next() final;
 
  private:
-  void Initialize(Address start, Address end);
+  const NormalPage* current_page_;
+  Address current_object_;
+};
 
-  // The current iteration point.
-  Address current_;
-  // The end of iteration.
-  Address limit_;
+class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
+ public:
+  using iterator = PageIterator;
+  using const_iterator = ConstPageIterator;
+
+  explicit NewSpace(Heap* heap);
+
+  base::Mutex* mutex() { return &mutex_; }
+
+  virtual bool Contains(Tagged<HeapObject> object) const = 0;
+  virtual bool ContainsSlow(Address a) const = 0;
+
+  // Promotes a young generation page to the old generation.
+  //
+  // Does not clear `will_be_promoted()` to allow for different collector
+  // handling.
+  void PromotePageToOldSpace(NormalPage* page, FreeMode free_mode);
+
+  virtual size_t Capacity() const = 0;
+  virtual size_t TotalCapacity() const = 0;
+  virtual size_t MinimumCapacity() const = 0;
+  virtual size_t MaximumCapacity() const = 0;
+  virtual size_t AllocatedSinceLastGC() const = 0;
+
+  // Grow the capacity of the space.
+  virtual void Grow(size_t new_capacity) = 0;
+
+  virtual void MakeIterable() = 0;
+
+  virtual iterator begin() = 0;
+  virtual iterator end() = 0;
+
+  virtual const_iterator begin() const = 0;
+  virtual const_iterator end() const = 0;
+
+  virtual Address first_allocatable_address() const = 0;
+
+  virtual void GarbageCollectionPrologue() {}
+  virtual void GarbageCollectionEpilogue() = 0;
+
+  virtual bool IsPromotionCandidate(const MutablePage* page) const = 0;
+
+  virtual void GrowToMaximumCapacityForTesting() = 0;
+
+ protected:
+  static const int kAllocationBufferParkingThreshold = 4 * KB;
+
+  base::Mutex mutex_;
+
+  virtual void RemovePage(NormalPage* page) = 0;
 };
 
 // -----------------------------------------------------------------------------
@@ -229,195 +241,117 @@ class SemiSpaceObjectIterator : public ObjectIterator {
 // The new space consists of a contiguous pair of semispaces.  It simply
 // forwards most functions to the appropriate semispace.
 
-class V8_EXPORT_PRIVATE NewSpace
-    : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
+class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
+  using ParkedAllocationBuffer = std::pair<int, Address>;
+  using ParkedAllocationBuffersVector = std::vector<ParkedAllocationBuffer>;
+
  public:
-  using iterator = PageIterator;
-  using const_iterator = ConstPageIterator;
+  static SemiSpaceNewSpace* From(NewSpace* space) {
+    DCHECK(!v8_flags.minor_ms);
+    return static_cast<SemiSpaceNewSpace*>(space);
+  }
 
-  NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
-           size_t initial_semispace_capacity, size_t max_semispace_capacity);
+  SemiSpaceNewSpace(Heap* heap, size_t initial_semispace_capacity,
+                    size_t min_semispace_capacity_,
+                    size_t max_semispace_capacity);
 
-  ~NewSpace() override { TearDown(); }
+  ~SemiSpaceNewSpace() final = default;
 
-  inline bool ContainsSlow(Address a) const;
-  inline bool Contains(Object o) const;
-  inline bool Contains(HeapObject o) const;
-
-  // Tears down the space.  Heap memory was not allocated by the space, so it
-  // is not deallocated here.
-  void TearDown();
-
-  // Flip the pair of spaces.
-  void Flip();
+  bool Contains(Tagged<HeapObject> object) const final;
+  bool ContainsSlow(Address a) const final;
 
   // Grow the capacity of the semispaces.  Assumes that they are not at
   // their maximum capacity.
-  void Grow();
+  void Grow(size_t new_capacity) final;
 
   // Shrink the capacity of the semispaces.
-  void Shrink();
+  void Shrink(size_t new_capacity);
 
   // Return the allocated bytes in the active semispace.
-  size_t Size() final {
-    DCHECK_GE(top(), to_space_.page_low());
-    return to_space_.pages_used() *
-               MemoryChunkLayout::AllocatableMemoryInDataPage() +
-           static_cast<size_t>(top() - to_space_.page_low());
-  }
+  size_t Size() const final;
 
-  size_t SizeOfObjects() final { return Size(); }
+  size_t SizeOfObjects() const final { return Size(); }
 
   // Return the allocatable capacity of a semispace.
-  size_t Capacity() {
-    SLOW_DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
-    return (to_space_.current_capacity() / Page::kPageSize) *
+  size_t Capacity() const final {
+    size_t actual_capacity =
+        std::max(to_space_.current_capacity(), target_capacity_);
+    return (actual_capacity / NormalPage::kPageSize) *
+           MemoryChunkLayout::AllocatableMemoryInDataPage();
+  }
+
+  // Return the capacity of pages currently used for allocations. This is
+  // a capped overapproximation of the size of objects.
+  size_t CurrentCapacitySafe() const {
+    return (to_space_.current_capacity_safe() / NormalPage::kPageSize) *
            MemoryChunkLayout::AllocatableMemoryInDataPage();
   }
 
   // Return the current size of a semispace, allocatable and non-allocatable
   // memory.
-  size_t TotalCapacity() {
-    DCHECK(to_space_.current_capacity() == from_space_.current_capacity());
-    return to_space_.current_capacity();
-  }
+  size_t TotalCapacity() const final { return target_capacity_; }
 
   // Committed memory for NewSpace is the committed memory of both semi-spaces
   // combined.
-  size_t CommittedMemory() final {
+  size_t CommittedMemory() const final {
     return from_space_.CommittedMemory() + to_space_.CommittedMemory();
   }
 
-  size_t MaximumCommittedMemory() final {
+  size_t MaximumCommittedMemory() const final {
     return from_space_.MaximumCommittedMemory() +
            to_space_.MaximumCommittedMemory();
   }
 
   // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory() final;
+  size_t CommittedPhysicalMemory() const final;
 
   // Return the available bytes without growing.
-  size_t Available() final {
-    DCHECK_GE(Capacity(), Size());
-    return Capacity() - Size();
+  size_t Available() const final;
+
+  bool ReachedTargetCapacity() const {
+    return to_space_.current_capacity_ >= target_capacity_;
   }
 
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer)
-      return heap()->YoungArrayBufferBytes();
-    DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes(type));
-    return to_space_.ExternalBackingStoreBytes(type);
-  }
+  size_t AllocatedSinceLastGC() const final;
 
-  size_t ExternalBackingStoreBytes() {
-    size_t result = 0;
-    for (int i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-      result +=
-          ExternalBackingStoreBytes(static_cast<ExternalBackingStoreType>(i));
-    }
-    return result;
-  }
-
-  size_t AllocatedSinceLastGC() {
-    const Address age_mark = to_space_.age_mark();
-    DCHECK_NE(age_mark, kNullAddress);
-    DCHECK_NE(top(), kNullAddress);
-    Page* const age_mark_page = Page::FromAllocationAreaAddress(age_mark);
-    Page* const last_page = Page::FromAllocationAreaAddress(top());
-    Page* current_page = age_mark_page;
-    size_t allocated = 0;
-    if (current_page != last_page) {
-      DCHECK_EQ(current_page, age_mark_page);
-      DCHECK_GE(age_mark_page->area_end(), age_mark);
-      allocated += age_mark_page->area_end() - age_mark;
-      current_page = current_page->next_page();
-    } else {
-      DCHECK_GE(top(), age_mark);
-      return top() - age_mark;
-    }
-    while (current_page != last_page) {
-      DCHECK_NE(current_page, age_mark_page);
-      allocated += MemoryChunkLayout::AllocatableMemoryInDataPage();
-      current_page = current_page->next_page();
-    }
-    DCHECK_GE(top(), current_page->area_start());
-    allocated += top() - current_page->area_start();
-    DCHECK_LE(allocated, Size());
-    return allocated;
-  }
-
-  void MovePageFromSpaceToSpace(Page* page) {
-    DCHECK(page->IsFromPage());
-    from_space_.RemovePage(page);
-    to_space_.PrependPage(page);
-  }
-
-  bool Rebalance();
+  void GrowToMaximumCapacityForTesting() final;
 
   // Return the maximum capacity of a semispace.
-  size_t MaximumCapacity() {
-    DCHECK(to_space_.maximum_capacity() == from_space_.maximum_capacity());
-    return to_space_.maximum_capacity();
-  }
+  size_t MaximumCapacity() const final { return maximum_capacity_; }
 
-  bool IsAtMaximumCapacity() { return TotalCapacity() == MaximumCapacity(); }
-
-  // Returns the initial capacity of a semispace.
-  size_t InitialTotalCapacity() {
-    DCHECK(to_space_.minimum_capacity() == from_space_.minimum_capacity());
-    return to_space_.minimum_capacity();
-  }
-
-  void VerifyTop();
-
-  Address original_top_acquire() {
-    return original_top_.load(std::memory_order_acquire);
-  }
-  Address original_limit_relaxed() {
-    return original_limit_.load(std::memory_order_relaxed);
-  }
+  // Returns the minimum capacity of a semispace.
+  size_t MinimumCapacity() const final { return minimum_capacity_; }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
-  Address first_allocatable_address() { return to_space_.space_start(); }
+  Address first_allocatable_address() const final {
+    return to_space_.space_start();
+  }
 
   // Get the age mark of the inactive semispace.
-  Address age_mark() { return from_space_.age_mark(); }
-  // Set the age mark in the active semispace.
-  void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
+  Address age_mark() const { return age_mark_; }
 
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
-              AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
-      int size_in_bytes, AllocationAlignment alignment,
-      AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Reset the allocation pointer to the beginning of the active semispace.
-  void ResetLinearAllocationArea();
-
-  // When inline allocation stepping is active, either because of incremental
-  // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
-  // inline allocation every once in a while. This is done by setting
-  // allocation_info_.limit to be lower than the actual limit and and increasing
-  // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
-
-  inline bool ToSpaceContainsSlow(Address a) const;
-  inline bool ToSpaceContains(Object o) const;
-  inline bool FromSpaceContains(Object o) const;
+  // Sets the age mark to the current top pointer. It also sets proper page
+  // flags for all pages before the age mark.
+  void SetAgeMarkAndBelowAgeMarkPageFlags();
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
   // are no pages, or the current page is already empty), or true
   // if successful.
   bool AddFreshPage();
-  bool AddFreshPageSynchronized();
+
+  bool AddParkedAllocationBuffer(int size_in_bytes,
+                                 AllocationAlignment alignment);
+
+  void ResetParkedAllocationBuffers();
 
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
-  virtual void Verify(Isolate* isolate);
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
+
+  // VerifyObjects verifies all objects in the active semi space.
+  void VerifyObjects(Isolate* isolate, SpaceVerificationVisitor* visitor) const;
 #endif
 
 #ifdef DEBUG
@@ -425,90 +359,357 @@ class V8_EXPORT_PRIVATE NewSpace
   void Print() override { to_space_.Print(); }
 #endif
 
-  // Return whether the operation succeeded.
-  bool CommitFromSpaceIfNeeded() {
-    if (from_space_.is_committed()) return true;
-    return from_space_.Commit();
+  void MakeIterable() override;
+
+  void MakeAllPagesInFromSpaceIterable();
+  void MakeUnusedPagesInToSpaceIterable();
+
+  NormalPage* first_page() final { return to_space_.first_page(); }
+  NormalPage* last_page() final { return to_space_.last_page(); }
+
+  const NormalPage* first_page() const final { return to_space_.first_page(); }
+  const NormalPage* last_page() const final { return to_space_.last_page(); }
+
+  iterator begin() final { return to_space_.begin(); }
+  iterator end() final { return to_space_.end(); }
+
+  const_iterator begin() const final { return to_space_.begin(); }
+  const_iterator end() const final { return to_space_.end(); }
+
+  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) final;
+
+  SemiSpace& from_space() { return from_space_; }
+  const SemiSpace& from_space() const { return from_space_; }
+  SemiSpace& to_space() { return to_space_; }
+  const SemiSpace& to_space() const { return to_space_; }
+
+  // Used for conservative stack scanning to determine if a page with pinned
+  // objects should remain in new space or move to old space.
+  bool ShouldPageBePromoted(const MemoryChunk* chunk) const;
+
+  V8_INLINE bool ShouldBePromoted(Address object) const;
+
+  // Invoked at the beginning of a GC to swap from- and to-space.
+  void SwapSemiSpaces();
+
+  void GarbageCollectionPrologue() final;
+  void GarbageCollectionEpilogue() final;
+
+  void ZapUnusedMemory();
+
+  bool IsPromotionCandidate(const MutablePage* page) const final;
+
+  AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
+
+  int GetSpaceRemainingOnCurrentPageForTesting();
+  void FillCurrentPageForTesting();
+
+  void MoveQuarantinedPage(NormalPage* metadata);
+  size_t QuarantinedSize() const { return quarantined_size_; }
+  size_t QuarantinedPageCount() const {
+    return to_space_.quarantined_pages_count_;
+  }
+  void SetQuarantinedSize(size_t quarantined_size) {
+    quarantined_size_ = quarantined_size;
   }
 
-  bool UncommitFromSpace() {
-    if (!from_space_.is_committed()) return true;
-    return from_space_.Uncommit();
-  }
+  V8_INLINE bool IsAddressBelowAgeMark(Address address) const;
 
-  bool IsFromSpaceCommitted() { return from_space_.is_committed(); }
+ private:
+  bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
 
   SemiSpace* active_space() { return &to_space_; }
 
-  Page* first_page() { return to_space_.first_page(); }
-  Page* last_page() { return to_space_.last_page(); }
+  std::optional<std::pair<Address, Address>> Allocate(
+      int size_in_bytes, AllocationAlignment alignment);
 
-  iterator begin() { return to_space_.begin(); }
-  iterator end() { return to_space_.end(); }
+  std::optional<std::pair<Address, Address>> AllocateOnNewPageBeyondCapacity(
+      int size_in_bytes, AllocationAlignment alignment);
 
-  const_iterator begin() const { return to_space_.begin(); }
-  const_iterator end() const { return to_space_.end(); }
+  // Removes a page from the space. Assumes the page is in the `from_space` semi
+  // space.
+  void RemovePage(NormalPage* page) final;
 
-  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) override;
+  // Frees the given memory region. Will be resuable for allocation if this was
+  // the last allocation.
+  void Free(Address start, Address end);
 
-  SemiSpace& from_space() { return from_space_; }
-  SemiSpace& to_space() { return to_space_; }
-
-  void MoveOriginalTopForward() {
-    DCHECK_GE(top(), original_top_);
-    DCHECK_LE(top(), original_limit_);
-    original_top_.store(top(), std::memory_order_release);
+  void ResetAllocationTopToCurrentPageStart() {
+    allocation_top_ =
+        to_space_.current_page() ? to_space_.page_low() : kNullAddress;
   }
 
-  void MaybeFreeUnusedLab(LinearAllocationArea info);
+  void SetAllocationTop(Address top) { allocation_top_ = top; }
 
- private:
-  // Update linear allocation area to match the current to-space page.
-  void UpdateLinearAllocationArea();
+  V8_INLINE void IncrementAllocationTop(Address new_top);
 
-  base::Mutex mutex_;
+  V8_INLINE void DecrementAllocationTop(Address new_top);
 
-  // The top and the limit at the time of setting the linear allocation area.
-  // These values can be accessed by background tasks.
-  std::atomic<Address> original_top_;
-  std::atomic<Address> original_limit_;
+  Address allocation_top() const { return allocation_top_; }
 
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
-  VirtualMemory reservation_;
 
-  // Internal allocation methods.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
-                      AllocationAlignment alignment, AllocationOrigin origin);
+  // Bump pointer for allocation. to_space_.page_low() <= allocation_top_ <=
+  // to_space.page_high() always holds.
+  Address allocation_top_ = kNullAddress;
 
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
+  ParkedAllocationBuffersVector parked_allocation_buffers_;
 
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
+  // Current overall size of objects that were quarantined in the last GC.
+  size_t quarantined_size_ = 0;
 
-  V8_WARN_UNUSED_RESULT AllocationResult
-  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
-                     AllocationOrigin origin = AllocationOrigin::kRuntime);
+  // Size right after the last GC. Used for computing `AllocatedSinceLastGC()`.
+  size_t size_after_last_gc_ = 0;
 
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
+  // The minimum semi space capacity. A semi space cannot shrink below this
+  // size.
+  const size_t minimum_capacity_ = 0;
 
-  bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
-  bool SupportsAllocationObserver() override { return true; }
+  // The maximum capacity of a semi space. A space cannot grow beyond that size.
+  const size_t maximum_capacity_ = 0;
+
+  // Used to govern object promotion during mark-compact collection.
+  Address age_mark_ = kNullAddress;
+
+  // The target capacity of a semi space.
+  size_t target_capacity_ = 0;
 
   friend class SemiSpaceObjectIterator;
+  friend class SemiSpaceNewSpaceAllocatorPolicy;
+};
+
+// -----------------------------------------------------------------------------
+// PagedNewSpace
+
+class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
+ public:
+  // Creates an old space object. The constructor does not allocate pages
+  // from OS.
+  explicit PagedSpaceForNewSpace(Heap* heap, size_t initial_capacity,
+                                 size_t min_capacity, size_t max_capacity);
+
+  void TearDown() { PagedSpaceBase::TearDown(); }
+
+  // Grow the capacity of the space.
+  void Grow(size_t new_capacity);
+  void GrowToMaximumCapacityForTesting();
+
+  // Shrink the capacity of the space.
+  bool StartShrinking(size_t new_target_capacity);
+  void FinishShrinking();
+
+  size_t AllocatedSinceLastGC() const;
+
+  // Return the minimum capacity of the space.
+  size_t MinimumCapacity() const { return min_capacity_; }
+
+  // Return the maximum capacity of the space.
+  size_t MaximumCapacity() const { return max_capacity_; }
+
+  size_t TotalCapacity() const { return target_capacity_; }
+
+  // Return the address of the first allocatable address in the active
+  // semispace. This may be the address where the first object resides.
+  Address first_allocatable_address() const {
+    return first_page()->area_start();
+  }
+
+  // Reset the allocation pointer.
+  void GarbageCollectionEpilogue() {
+    size_at_last_gc_ = Size();
+    last_lab_page_ = nullptr;
+  }
+
+  NormalPage* InitializePage(MutablePage* chunk) final;
+
+  size_t AddPage(NormalPage* page) final;
+  void RemovePage(NormalPage* page) final;
+  void RemovePageFromSpace(NormalPage* page) final;
+
+#ifdef VERIFY_HEAP
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
+#endif  // VERIFY_HEAP
+
+  void MakeIterable() { free_list()->RepairLists(heap()); }
+
+  bool ShouldReleaseEmptyPage() const;
+
+  // Allocates pages as long as current capacity is below the target capacity.
+  void AllocatePageUpToCapacityForTesting();
+
+  bool IsPromotionCandidate(const MutablePage* page) const;
+
+  // Return the available bytes without growing.
+  size_t Available() const final;
+
+  size_t UsableCapacity() const {
+    DCHECK_LE(free_list_->wasted_bytes(), current_capacity_);
+    return current_capacity_ - free_list_->wasted_bytes();
+  }
+
+  AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final {
+    UNREACHABLE();
+  }
+
+ private:
+  bool AllocatePage();
+
+  const size_t min_capacity_;
+  const size_t max_capacity_;
+  size_t target_capacity_ = 0;
+  size_t current_capacity_ = 0;
+
+  NormalPage* last_lab_page_ = nullptr;
+
+  friend class PagedNewSpaceAllocatorPolicy;
+};
+
+// TODO(v8:12612): PagedNewSpace is a bridge between the NewSpace interface and
+// the PagedSpaceForNewSpace implementation. Once we settle on a single new
+// space implementation, we can merge these 3 classes into 1.
+class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
+ public:
+  static PagedNewSpace* From(NewSpace* space) {
+    DCHECK(v8_flags.minor_ms);
+    return static_cast<PagedNewSpace*>(space);
+  }
+
+  PagedNewSpace(Heap* heap, size_t initial_capacity, size_t min_capacity,
+                size_t max_capacity);
+
+  ~PagedNewSpace() final;
+
+  bool Contains(Tagged<HeapObject> object) const final;
+  bool ContainsSlow(Address a) const final {
+    return paged_space_.ContainsSlow(a);
+  }
+
+  // Grow the capacity of the space.
+  void Grow(size_t new_capacity) final { paged_space_.Grow(new_capacity); }
+
+  // Shrink the capacity of the space.
+  bool StartShrinking(size_t new_target_capacity) {
+    return paged_space_.StartShrinking(new_target_capacity);
+  }
+  void FinishShrinking() { paged_space_.FinishShrinking(); }
+
+  // Return the allocated bytes in the active space.
+  size_t Size() const final { return paged_space_.Size(); }
+
+  size_t SizeOfObjects() const final { return paged_space_.SizeOfObjects(); }
+
+  // Return the allocatable capacity of the space.
+  size_t Capacity() const final { return paged_space_.Capacity(); }
+
+  // Return the current size of the space, allocatable and non-allocatable
+  // memory.
+  size_t TotalCapacity() const final { return paged_space_.TotalCapacity(); }
+
+  // Committed memory for PagedNewSpace.
+  size_t CommittedMemory() const final {
+    return paged_space_.CommittedMemory();
+  }
+
+  size_t MaximumCommittedMemory() const final {
+    return paged_space_.MaximumCommittedMemory();
+  }
+
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory() const final {
+    return paged_space_.CommittedPhysicalMemory();
+  }
+
+  // Return the available bytes without growing.
+  size_t Available() const final { return paged_space_.Available(); }
+
+  size_t AllocatedSinceLastGC() const final {
+    return paged_space_.AllocatedSinceLastGC();
+  }
+
+  // Return the maximum capacity of the space.
+  size_t MinimumCapacity() const final {
+    return paged_space_.MinimumCapacity();
+  }
+
+  // Return the maximum capacity of the space.
+  size_t MaximumCapacity() const final {
+    return paged_space_.MaximumCapacity();
+  }
+
+  // Return the address of the first allocatable address in the active
+  // semispace. This may be the address where the first object resides.
+  Address first_allocatable_address() const final {
+    return paged_space_.first_allocatable_address();
+  }
+
+#ifdef VERIFY_HEAP
+  // Verify the active semispace.
+  void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final {
+    paged_space_.Verify(isolate, visitor);
+  }
+#endif
+
+#ifdef DEBUG
+  // Print the active semispace.
+  void Print() final { paged_space_.Print(); }
+#endif
+
+  NormalPage* first_page() final { return paged_space_.first_page(); }
+  NormalPage* last_page() final { return paged_space_.last_page(); }
+
+  const NormalPage* first_page() const final {
+    return paged_space_.first_page();
+  }
+  const NormalPage* last_page() const final { return paged_space_.last_page(); }
+
+  iterator begin() final { return paged_space_.begin(); }
+  iterator end() final { return paged_space_.end(); }
+
+  const_iterator begin() const final { return paged_space_.begin(); }
+  const_iterator end() const final { return paged_space_.end(); }
+
+  std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) final {
+    return paged_space_.GetObjectIterator(heap);
+  }
+
+  void GarbageCollectionEpilogue() final {
+    paged_space_.GarbageCollectionEpilogue();
+  }
+
+  bool IsPromotionCandidate(const MutablePage* page) const final {
+    return paged_space_.IsPromotionCandidate(page);
+  }
+
+  void GrowToMaximumCapacityForTesting() final {
+    paged_space_.GrowToMaximumCapacityForTesting();
+  }
+
+  PagedSpaceForNewSpace* paged_space() { return &paged_space_; }
+  const PagedSpaceForNewSpace* paged_space() const { return &paged_space_; }
+
+  void MakeIterable() override { paged_space_.MakeIterable(); }
+
+  // All operations on `memory_chunk_list_` should go through `paged_space_`.
+  heap::List<MutablePage>& memory_chunk_list() final { UNREACHABLE(); }
+
+  bool ShouldReleaseEmptyPage() {
+    return paged_space_.ShouldReleaseEmptyPage();
+  }
+
+  AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
+
+ private:
+  void RemovePage(NormalPage* page) final { paged_space_.RemovePage(page); }
+
+  PagedSpaceForNewSpace paged_space_;
 };
 
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
-#define DCHECK_SEMISPACE_ALLOCATION_INFO(info, space) \
-  SLOW_DCHECK((space).page_low() <= (info).top() &&   \
-              (info).top() <= (space).page_high() &&  \
-              (info).limit() <= (space).page_high())
+#define DCHECK_SEMISPACE_ALLOCATION_TOP(top, space) \
+  SLOW_DCHECK((space).page_low() <= (top) && (top) <= (space).page_high())
 
 }  // namespace internal
 }  // namespace v8

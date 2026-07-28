@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -21,7 +21,6 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
 {
     TXT_DB *ret = NULL;
     int esc = 0;
-    long ln = 0;
     int i, add, n;
     int size = BUFSIZE;
     int offset = 0;
@@ -61,7 +60,6 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
         }
         buf->data[offset] = '\0';
         BIO_gets(in, &(buf->data[offset]), size - offset);
-        ln++;
         if (buf->data[offset] == '\0')
             break;
         if ((offset == 0) && (buf->data[0] == '#'))
@@ -80,7 +78,6 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
         p += add;
         n = 0;
         pp[n++] = p;
-        i = 0;
         f = buf->data;
 
         esc = 0;
@@ -116,7 +113,7 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
     }
     BUF_MEM_free(buf);
     return ret;
- err:
+err:
     BUF_MEM_free(buf);
     if (ret != NULL) {
         sk_OPENSSL_PSTRING_free(ret->data);
@@ -128,7 +125,7 @@ TXT_DB *TXT_DB_read(BIO *in, int num)
 }
 
 OPENSSL_STRING *TXT_DB_get_by_index(TXT_DB *db, int idx,
-                                    OPENSSL_STRING *value)
+    OPENSSL_STRING *value)
 {
     OPENSSL_STRING *ret;
     LHASH_OF(OPENSSL_STRING) *lh;
@@ -147,8 +144,8 @@ OPENSSL_STRING *TXT_DB_get_by_index(TXT_DB *db, int idx,
     return ret;
 }
 
-int TXT_DB_create_index(TXT_DB *db, int field, int (*qual) (OPENSSL_STRING *),
-                        OPENSSL_LH_HASHFUNC hash, OPENSSL_LH_COMPFUNC cmp)
+int TXT_DB_create_index(TXT_DB *db, int field, int (*qual)(OPENSSL_STRING *),
+    OPENSSL_LH_HASHFUNC hash, OPENSSL_LH_COMPFUNC cmp)
 {
     LHASH_OF(OPENSSL_STRING) *idx;
     OPENSSL_STRING *r, *k;
@@ -229,7 +226,7 @@ long TXT_DB_write(BIO *out, TXT_DB *db)
         tot += j;
     }
     ret = tot;
- err:
+err:
     BUF_MEM_free(buf);
     return ret;
 }
@@ -241,7 +238,7 @@ int TXT_DB_insert(TXT_DB *db, OPENSSL_STRING *row)
 
     for (i = 0; i < db->num_fields; i++) {
         if (db->index[i] != NULL) {
-            if ((db->qual[i] != NULL) && (db->qual[i] (row) == 0))
+            if ((db->qual[i] != NULL) && (db->qual[i](row) == 0))
                 continue;
             r = lh_OPENSSL_STRING_retrieve(db->index[i], row);
             if (r != NULL) {
@@ -255,7 +252,7 @@ int TXT_DB_insert(TXT_DB *db, OPENSSL_STRING *row)
 
     for (i = 0; i < db->num_fields; i++) {
         if (db->index[i] != NULL) {
-            if ((db->qual[i] != NULL) && (db->qual[i] (row) == 0))
+            if ((db->qual[i] != NULL) && (db->qual[i](row) == 0))
                 continue;
             (void)lh_OPENSSL_STRING_insert(db->index[i], row);
             if (lh_OPENSSL_STRING_retrieve(db->index[i], row) == NULL)
@@ -266,16 +263,16 @@ int TXT_DB_insert(TXT_DB *db, OPENSSL_STRING *row)
         goto err1;
     return 1;
 
- err1:
+err1:
     db->error = DB_ERROR_MALLOC;
     while (i-- > 0) {
         if (db->index[i] != NULL) {
-            if ((db->qual[i] != NULL) && (db->qual[i] (row) == 0))
+            if ((db->qual[i] != NULL) && (db->qual[i](row) == 0))
                 continue;
             (void)lh_OPENSSL_STRING_delete(db->index[i], row);
         }
     }
- err:
+err:
     return 0;
 }
 
@@ -300,7 +297,7 @@ void TXT_DB_free(TXT_DB *db)
              */
             p = sk_OPENSSL_PSTRING_value(db->data, i);
             max = p[db->num_fields]; /* last address */
-            if (max == NULL) {  /* new row */
+            if (max == NULL) { /* new row */
                 for (n = 0; n < db->num_fields; n++)
                     OPENSSL_free(p[n]);
             } else {

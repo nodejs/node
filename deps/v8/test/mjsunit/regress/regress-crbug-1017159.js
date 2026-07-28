@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax
 
 function* foo() {
-  __v_1 = foo.x;   // LdaNamedProperty
+  __v_1 = foo.x;   // GetNamedProperty
   for (;;) {
     try {
       yield;

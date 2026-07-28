@@ -10,7 +10,7 @@
 
 #include <array>
 
-#include "include/cppgc/internal/process-heap.h"
+#include "include/cppgc/internal/write-barrier.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
@@ -28,7 +28,8 @@ namespace internal {
 // - kAllocationGranularity
 //
 // ObjectStartBitmap supports concurrent reads from multiple threads but
-// only a single mutator thread can write to it.
+// only a single mutator thread can write to it. ObjectStartBitmap relies on
+// being allocated inside the same normal page.
 class V8_EXPORT_PRIVATE ObjectStartBitmap {
  public:
   // Granularity of addresses added to the bitmap.
@@ -39,24 +40,20 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
     return kReservedForBitmap * kBitsPerCell;
   }
 
-  explicit inline ObjectStartBitmap(Address offset);
+  inline ObjectStartBitmap();
 
-  // Finds an object header based on a
+  // Finds an object header based on an
   // address_maybe_pointing_to_the_middle_of_object. Will search for an object
   // start in decreasing address order.
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline HeapObjectHeader* FindHeader(
       ConstAddress address_maybe_pointing_to_the_middle_of_object) const;
 
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline void SetBit(ConstAddress);
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline void ClearBit(ConstAddress);
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline bool CheckBit(ConstAddress) const;
 
   // Iterates all object starts recorded in the bitmap.
@@ -70,12 +67,15 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   // Clear the object start bitmap.
   inline void Clear();
 
+  // Marks the bitmap as fully populated. Unpopulated bitmaps are in an
+  // inconsistent state and must be populated before they can be used to find
+  // object headers.
+  inline void MarkAsFullyPopulated();
+
  private:
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline void store(size_t cell_index, uint8_t value);
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline uint8_t load(size_t cell_index) const;
 
   static constexpr size_t kBitsPerCell = sizeof(uint8_t) * CHAR_BIT;
@@ -88,22 +88,38 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
 
   inline void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
 
-  Address offset_;
+  // `fully_populated_` is used to denote that the bitmap is populated with all
+  // currently allocated objects on the page and is in a consistent state. It is
+  // used to guard against using the bitmap for finding headers during
+  // concurrent sweeping.
+  //
+  // Although this flag can be used by both the main thread and concurrent
+  // sweeping threads, it is not atomic. The flag should never be accessed by
+  // multiple threads at the same time. If data races are observed on this flag,
+  // it likely means that the bitmap is queried while concurrent sweeping is
+  // active, which is not supported and should be avoided.
+  bool fully_populated_ = false;
   // The bitmap contains a bit for every kGranularity aligned address on a
   // a NormalPage, i.e., for a page of size kBlinkPageSize.
   std::array<uint8_t, kReservedForBitmap> object_start_bit_map_;
 };
 
-ObjectStartBitmap::ObjectStartBitmap(Address offset) : offset_(offset) {
+ObjectStartBitmap::ObjectStartBitmap() {
   Clear();
+  MarkAsFullyPopulated();
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 HeapObjectHeader* ObjectStartBitmap::FindHeader(
     ConstAddress address_maybe_pointing_to_the_middle_of_object) const {
-  DCHECK_LE(offset_, address_maybe_pointing_to_the_middle_of_object);
-  size_t object_offset =
-      address_maybe_pointing_to_the_middle_of_object - offset_;
+  DCHECK(fully_populated_);
+  const size_t page_base = reinterpret_cast<uintptr_t>(
+                               address_maybe_pointing_to_the_middle_of_object) &
+                           kPageBaseMask;
+  DCHECK_EQ(page_base, reinterpret_cast<uintptr_t>(this) & kPageBaseMask);
+  size_t object_offset = reinterpret_cast<uintptr_t>(
+                             address_maybe_pointing_to_the_middle_of_object) &
+                         kPageOffsetMask;
   size_t object_start_number = object_offset / kAllocationGranularity;
   size_t cell_index = object_start_number / kBitsPerCell;
   DCHECK_GT(object_start_bit_map_.size(), cell_index);
@@ -117,10 +133,10 @@ HeapObjectHeader* ObjectStartBitmap::FindHeader(
   object_start_number =
       (cell_index * kBitsPerCell) + (kBitsPerCell - 1) - leading_zeroes;
   object_offset = object_start_number * kAllocationGranularity;
-  return reinterpret_cast<HeapObjectHeader*>(object_offset + offset_);
+  return reinterpret_cast<HeapObjectHeader*>(page_base + object_offset);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void ObjectStartBitmap::SetBit(ConstAddress header_address) {
   size_t cell_index, object_bit;
   ObjectStartIndexAndBit(header_address, &cell_index, &object_bit);
@@ -129,7 +145,7 @@ void ObjectStartBitmap::SetBit(ConstAddress header_address) {
               static_cast<uint8_t>(load(cell_index) | (1 << object_bit)));
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void ObjectStartBitmap::ClearBit(ConstAddress header_address) {
   size_t cell_index, object_bit;
   ObjectStartIndexAndBit(header_address, &cell_index, &object_bit);
@@ -137,36 +153,38 @@ void ObjectStartBitmap::ClearBit(ConstAddress header_address) {
               static_cast<uint8_t>(load(cell_index) & ~(1 << object_bit)));
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool ObjectStartBitmap::CheckBit(ConstAddress header_address) const {
   size_t cell_index, object_bit;
   ObjectStartIndexAndBit(header_address, &cell_index, &object_bit);
   return load<mode>(cell_index) & (1 << object_bit);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void ObjectStartBitmap::store(size_t cell_index, uint8_t value) {
-  if (mode == HeapObjectHeader::AccessMode::kNonAtomic) {
+  if (mode == AccessMode::kNonAtomic) {
     object_start_bit_map_[cell_index] = value;
     return;
   }
-  v8::base::AsAtomicPtr(&object_start_bit_map_[cell_index])
-      ->store(value, std::memory_order_release);
+  std::atomic_ref<uint8_t>(object_start_bit_map_[cell_index])
+      .store(value, std::memory_order_release);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 uint8_t ObjectStartBitmap::load(size_t cell_index) const {
-  if (mode == HeapObjectHeader::AccessMode::kNonAtomic) {
+  if (mode == AccessMode::kNonAtomic) {
     return object_start_bit_map_[cell_index];
   }
-  return v8::base::AsAtomicPtr(&object_start_bit_map_[cell_index])
-      ->load(std::memory_order_acquire);
+  return std::atomic_ref<uint8_t>(
+             const_cast<uint8_t&>(object_start_bit_map_[cell_index]))
+      .load(std::memory_order_acquire);
 }
 
 void ObjectStartBitmap::ObjectStartIndexAndBit(ConstAddress header_address,
                                                size_t* cell_index,
                                                size_t* bit) const {
-  const size_t object_offset = header_address - offset_;
+  const size_t object_offset =
+      reinterpret_cast<size_t>(header_address) & kPageOffsetMask;
   DCHECK(!(object_offset & kAllocationMask));
   const size_t object_start_number = object_offset / kAllocationGranularity;
   *cell_index = object_start_number / kBitsPerCell;
@@ -176,6 +194,8 @@ void ObjectStartBitmap::ObjectStartIndexAndBit(ConstAddress header_address,
 
 template <typename Callback>
 inline void ObjectStartBitmap::Iterate(Callback callback) const {
+  const Address page_base = reinterpret_cast<Address>(
+      reinterpret_cast<uintptr_t>(this) & kPageBaseMask);
   for (size_t cell_index = 0; cell_index < kReservedForBitmap; cell_index++) {
     if (!object_start_bit_map_[cell_index]) continue;
 
@@ -185,7 +205,7 @@ inline void ObjectStartBitmap::Iterate(Callback callback) const {
       const size_t object_start_number =
           (cell_index * kBitsPerCell) + trailing_zeroes;
       const Address object_address =
-          offset_ + (kAllocationGranularity * object_start_number);
+          page_base + (kAllocationGranularity * object_start_number);
       callback(object_address);
       // Clear current object bit in temporary value to advance iteration.
       value &= ~(1 << (object_start_number & kCellMask));
@@ -193,7 +213,13 @@ inline void ObjectStartBitmap::Iterate(Callback callback) const {
   }
 }
 
+void ObjectStartBitmap::MarkAsFullyPopulated() {
+  DCHECK(!fully_populated_);
+  fully_populated_ = true;
+}
+
 void ObjectStartBitmap::Clear() {
+  fully_populated_ = false;
   std::fill(object_start_bit_map_.begin(), object_start_bit_map_.end(), 0);
 }
 
@@ -202,51 +228,41 @@ void ObjectStartBitmap::Clear() {
 class V8_EXPORT_PRIVATE PlatformAwareObjectStartBitmap
     : public ObjectStartBitmap {
  public:
-  explicit inline PlatformAwareObjectStartBitmap(Address offset);
-
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline void SetBit(ConstAddress);
-  template <
-      HeapObjectHeader::AccessMode = HeapObjectHeader::AccessMode::kNonAtomic>
+  template <AccessMode = AccessMode::kNonAtomic>
   inline void ClearBit(ConstAddress);
 
  private:
-  template <HeapObjectHeader::AccessMode>
+  template <AccessMode>
   static bool ShouldForceNonAtomic();
 };
 
-PlatformAwareObjectStartBitmap::PlatformAwareObjectStartBitmap(Address offset)
-    : ObjectStartBitmap(offset) {}
-
 // static
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 bool PlatformAwareObjectStartBitmap::ShouldForceNonAtomic() {
-#if defined(V8_TARGET_ARCH_ARM)
+#if defined(V8_HOST_ARCH_ARM)
   // Use non-atomic accesses on ARMv7 when marking is not active.
-  if (mode == HeapObjectHeader::AccessMode::kAtomic) {
-    if (V8_LIKELY(!ProcessHeap::IsAnyIncrementalOrConcurrentMarking()))
-      return true;
+  if (mode == AccessMode::kAtomic) {
+    if (V8_LIKELY(!WriteBarrier::IsEnabled())) return true;
   }
-#endif  // defined(V8_TARGET_ARCH_ARM)
+#endif  // defined(V8_HOST_ARCH_ARM)
   return false;
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void PlatformAwareObjectStartBitmap::SetBit(ConstAddress header_address) {
   if (ShouldForceNonAtomic<mode>()) {
-    ObjectStartBitmap::SetBit<HeapObjectHeader::AccessMode::kNonAtomic>(
-        header_address);
+    ObjectStartBitmap::SetBit<AccessMode::kNonAtomic>(header_address);
     return;
   }
   ObjectStartBitmap::SetBit<mode>(header_address);
 }
 
-template <HeapObjectHeader::AccessMode mode>
+template <AccessMode mode>
 void PlatformAwareObjectStartBitmap::ClearBit(ConstAddress header_address) {
   if (ShouldForceNonAtomic<mode>()) {
-    ObjectStartBitmap::ClearBit<HeapObjectHeader::AccessMode::kNonAtomic>(
-        header_address);
+    ObjectStartBitmap::ClearBit<AccessMode::kNonAtomic>(header_address);
     return;
   }
   ObjectStartBitmap::ClearBit<mode>(header_address);

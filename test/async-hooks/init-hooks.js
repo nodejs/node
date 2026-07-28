@@ -1,9 +1,10 @@
 'use strict';
 // Flags: --expose-gc
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
+const { isMainThread } = require('worker_threads');
 const util = require('util');
 const print = process._rawDebug;
 
@@ -27,7 +28,7 @@ class ActivityCollector {
     ondestroy,
     onpromiseResolve,
     logid = null,
-    logtype = null
+    logtype = null,
   } = {}) {
     this._start = start;
     this._allowNoInit = allowNoInit;
@@ -49,7 +50,7 @@ class ActivityCollector {
       before: this._before.bind(this),
       after: this._after.bind(this),
       destroy: this._destroy.bind(this),
-      promiseResolve: this._promiseResolve.bind(this)
+      promiseResolve: this._promiseResolve.bind(this),
     });
   }
 
@@ -146,7 +147,7 @@ class ActivityCollector {
 
   _stamp(h, hook) {
     if (h == null) return;
-    if (h[hook] == null) h[hook] = [];
+    h[hook] ??= [];
     const time = process.hrtime(this._start);
     h[hook].push((time[0] * 1e9) + time[1]);
   }
@@ -161,16 +162,13 @@ class ActivityCollector {
         const stub = { uid, type: 'Unknown', handleIsObject: true, handle: {} };
         this._activities.set(uid, stub);
         return stub;
-      } else if (!common.isMainThread) {
+      } else if (!isMainThread) {
         // Worker threads start main script execution inside of an AsyncWrap
         // callback, so we don't yield errors for these.
         return null;
       }
       const err = new Error(`Found a handle whose ${hook}` +
                             ' hook was invoked but not its init hook');
-      // Don't throw if we see invocations due to an assertion in a test
-      // failing since we want to list the assertion failure instead
-      if (/process\._fatalException/.test(err.stack)) return null;
       throw err;
     }
     return h;
@@ -184,7 +182,7 @@ class ActivityCollector {
       // In some cases (e.g. Timeout) the handle is a function, thus the usual
       // `typeof handle === 'object' && handle !== null` check can't be used.
       handleIsObject: handle instanceof Object,
-      handle
+      handle,
     };
     this._stamp(activity, 'init');
     this._activities.set(uid, activity);
@@ -195,28 +193,28 @@ class ActivityCollector {
   _before(uid) {
     const h = this._getActivity(uid, 'before');
     this._stamp(h, 'before');
-    this._maybeLog(uid, h && h.type, 'before');
+    this._maybeLog(uid, h?.type, 'before');
     this.onbefore(uid);
   }
 
   _after(uid) {
     const h = this._getActivity(uid, 'after');
     this._stamp(h, 'after');
-    this._maybeLog(uid, h && h.type, 'after');
+    this._maybeLog(uid, h?.type, 'after');
     this.onafter(uid);
   }
 
   _destroy(uid) {
     const h = this._getActivity(uid, 'destroy');
     this._stamp(h, 'destroy');
-    this._maybeLog(uid, h && h.type, 'destroy');
+    this._maybeLog(uid, h?.type, 'destroy');
     this.ondestroy(uid);
   }
 
   _promiseResolve(uid) {
     const h = this._getActivity(uid, 'promiseResolve');
     this._stamp(h, 'promiseResolve');
-    this._maybeLog(uid, h && h.type, 'promiseResolve');
+    this._maybeLog(uid, h?.type, 'promiseResolve');
     this.onpromiseResolve(uid);
   }
 
@@ -236,7 +234,7 @@ exports = module.exports = function initHooks({
   onpromiseResolve,
   allowNoInit,
   logid,
-  logtype
+  logtype,
 } = {}) {
   return new ActivityCollector(process.hrtime(), {
     oninit,
@@ -246,6 +244,6 @@ exports = module.exports = function initHooks({
     onpromiseResolve,
     allowNoInit,
     logid,
-    logtype
+    logtype,
   });
 };

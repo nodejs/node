@@ -3,8 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_util.h"
 #include "async_wrap.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
@@ -26,11 +27,12 @@ namespace crypto {
 
 struct PBKDF2Config final : public MemoryRetainer {
   CryptoJobMode mode;
+  KeyObjectData key;
   ByteSource pass;
   ByteSource salt;
   int32_t iterations;
   int32_t length;
-  const EVP_MD* digest = nullptr;
+  ncrypto::Digest digest;
 
   PBKDF2Config() = default;
 
@@ -39,8 +41,8 @@ struct PBKDF2Config final : public MemoryRetainer {
   PBKDF2Config& operator=(PBKDF2Config&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(PBKDF2Config);
-  SET_SELF_SIZE(PBKDF2Config);
+  SET_MEMORY_INFO_NAME(PBKDF2Config)
+  SET_SELF_SIZE(PBKDF2Config)
 };
 
 struct PBKDF2Traits final {
@@ -49,22 +51,21 @@ struct PBKDF2Traits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_PBKDF2REQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       PBKDF2Config* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const PBKDF2Config& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const PBKDF2Config& params,
+                         ByteSource* out,
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const PBKDF2Config& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const PBKDF2Config& params,
+                                                ByteSource* out);
 };
 
 using PBKDF2Job = DeriveBitsJob<PBKDF2Traits>;

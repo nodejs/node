@@ -7,11 +7,12 @@
 // https://tc39.es/ecma262/#sec-promise-jobs
 namespace promise {
 extern macro IsJSPromiseMap(Map): bool;
+extern macro NeedsAnyPromiseHooks(): bool;
 
 // https://tc39.es/ecma262/#sec-promiseresolvethenablejob
-transitioning builtin
-PromiseResolveThenableJob(implicit context: Context)(
-    promiseToResolve: JSPromise, thenable: JSReceiver, then: JSAny): JSAny {
+transitioning builtin PromiseResolveThenableJob(
+    implicit context: Context)(promiseToResolve: JSPromise,
+    thenable: JSReceiver, then: JSAny): JSAny {
   // We can use a simple optimization here if we know that {then} is the
   // initial Promise.prototype.then method, and {thenable} is a JSPromise
   // whose
@@ -25,7 +26,7 @@ PromiseResolveThenableJob(implicit context: Context)(
   const promiseThen = *NativeContextSlot(ContextSlot::PROMISE_THEN_INDEX);
   const thenableMap = thenable.map;
   if (TaggedEqual(then, promiseThen) && IsJSPromiseMap(thenableMap) &&
-      !IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() &&
+      !NeedsAnyPromiseHooks() &&
       IsPromiseSpeciesLookupChainIntact(nativeContext, thenableMap)) {
     // We know that the {thenable} is a JSPromise, which doesn't require
     // any special treatment and that {then} corresponds to the initial
@@ -65,7 +66,7 @@ PromiseResolveThenableJob(implicit context: Context)(
     try {
       return Call(
           context, UnsafeCast<Callable>(then), thenable, resolve, reject);
-    } catch (e) {
+    } catch (e, _message) {
       return Call(context, UnsafeCast<Callable>(reject), Undefined, e);
     }
   }

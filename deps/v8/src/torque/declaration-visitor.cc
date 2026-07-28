@@ -4,14 +4,15 @@
 
 #include "src/torque/declaration-visitor.h"
 
+#include <optional>
+
 #include "src/torque/ast.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/server-data.h"
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 Namespace* GetOrCreateNamespace(const std::string& name) {
   std::vector<Namespace*> existing_namespaces = FilterDeclarables<Namespace>(
@@ -57,16 +58,24 @@ void DeclarationVisitor::Visit(Declaration* decl) {
   }
 }
 
-Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
-                                           std::string external_name,
-                                           std::string readable_name,
-                                           Signature signature,
-                                           base::Optional<Statement*> body) {
+Builtin* DeclarationVisitor::CreateBuiltin(
+    BuiltinDeclaration* decl, std::string external_name,
+    std::string readable_name, Signature signature,
+    std::optional<std::string> use_counter_name,
+    std::optional<Statement*> body) {
   const bool javascript = decl->javascript_linkage;
   const bool varargs = decl->parameters.has_varargs;
   Builtin::Kind kind = !javascript ? Builtin::kStub
                                    : varargs ? Builtin::kVarArgsJavaScript
                                              : Builtin::kFixedArgsJavaScript;
+  bool has_custom_interface_descriptor = false;
+  bool supports_tsa = false;
+  if (decl->kind == AstNode::Kind::kTorqueBuiltinDeclaration) {
+    has_custom_interface_descriptor =
+        static_cast<TorqueBuiltinDeclaration*>(decl)
+            ->has_custom_interface_descriptor;
+    supports_tsa = static_cast<TorqueBuiltinDeclaration*>(decl)->supports_tsa;
+  }
 
   if (varargs && !javascript) {
     Error("Rest parameters require ", decl->name,
@@ -78,50 +87,88 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
       Error("Return type of JavaScript-linkage builtins has to be JSAny.")
           .Position(decl->return_type->pos);
     }
-    for (size_t i = signature.implicit_count;
-         i < signature.parameter_types.types.size(); ++i) {
-      const Type* parameter_type = signature.parameter_types.types[i];
-      if (!TypeOracle::GetJSAnyType()->IsSubtypeOf(parameter_type)) {
-        Error(
-            "Parameters of JavaScript-linkage builtins have to be a supertype "
-            "of JSAny.")
-            .Position(decl->parameters.types[i]->pos);
+    // Validate the parameter types. In general, for JS builtins the parameters
+    // must all be tagged values (JSAny). However, we currently allow declaring
+    // "extern javascript" builtins with any parameter types. The reason is
+    // that those are typically used for tailcalls, in which case we typically
+    // need to supply the implicit parameters of the JS calling convention
+    // (target, receiver, argc, etc.). It would probablu be nicer if we could
+    // instead declare these parameters as js-implicit (like we do for
+    // torque-defined javascript builtins) and then allow explicitly supplying
+    // the implicit arguments during tailscalls. It's unclear though if that's
+    // worth the effort. In particular, calls and tailcalls to javascript
+    // builtins will emit CSA::CallJSBuiltin and CSA::TailCallJSBuiltin calls
+    // which will validate the parameter types at C++ compile time.
+    if (decl->kind != AstNode::Kind::kExternalBuiltinDeclaration) {
+      for (size_t i = signature.implicit_count;
+           i < signature.parameter_types.types.size(); ++i) {
+        const Type* parameter_type = signature.parameter_types.types[i];
+        if (!TypeOracle::GetJSAnyType()->IsSubtypeOf(parameter_type)) {
+          Error(
+              "Parameters of JavaScript-linkage builtins have to be a "
+              "supertype "
+              "of JSAny.")
+              .Position(decl->parameters.types[i]->pos);
+        }
       }
     }
   }
 
   for (size_t i = 0; i < signature.types().size(); ++i) {
-    if (signature.types()[i]->StructSupertype()) {
+    const Type* parameter_type = signature.types()[i];
+    if (parameter_type->StructSupertype()) {
       Error("Builtin do not support structs as arguments, but argument ",
             signature.parameter_names[i], " has type ", *signature.types()[i],
             ".");
     }
+    if (parameter_type->IsFloat32() || parameter_type->IsFloat64()) {
+      if (!has_custom_interface_descriptor) {
+        Error("Builtin ", external_name,
+              " needs a custom interface descriptor, "
+              "because it uses type ",
+              *parameter_type, " for argument ", signature.parameter_names[i],
+              ". One reason being "
+              "that the default descriptor defines xmm0 to be the first "
+              "floating point argument register, which is current used as "
+              "scratch on ia32 and cannot be allocated.");
+      }
+    }
   }
 
-  if (signature.return_type->StructSupertype()) {
-    Error("Builtins cannot return structs, but the return type is ",
-          *signature.return_type, ".");
+  if (signature.return_type->StructSupertype() && javascript) {
+    Error(
+        "Builtins with JS linkage cannot return structs, but the return type "
+        "is ",
+        *signature.return_type, ".");
   }
 
   if (signature.return_type == TypeOracle::GetVoidType()) {
     Error("Builtins cannot have return type void.");
   }
 
-  return Declarations::CreateBuiltin(std::move(external_name),
-                                     std::move(readable_name), kind,
-                                     std::move(signature), body);
+  Builtin::Flags flags = Builtin::Flag::kNone;
+  if (has_custom_interface_descriptor)
+    flags |= Builtin::Flag::kCustomInterfaceDescriptor;
+  if (supports_tsa) flags |= Builtin::Flag::kSupportsTSA;
+  Builtin* builtin = Declarations::CreateBuiltin(
+      std::move(external_name), std::move(readable_name), kind, flags,
+      std::move(signature), std::move(use_counter_name), body);
+  // TODO(v8:12261): Recheck this.
+  // builtin->SetIdentifierPosition(decl->name->pos);
+  return builtin;
 }
 
 void DeclarationVisitor::Visit(ExternalBuiltinDeclaration* decl) {
-  Declarations::Declare(
-      decl->name->value,
-      CreateBuiltin(decl, decl->name->value, decl->name->value,
-                    TypeVisitor::MakeSignature(decl), base::nullopt));
+  Builtin* builtin = CreateBuiltin(decl, decl->name->value, decl->name->value,
+                                   TypeVisitor::MakeSignature(decl),
+                                   std::nullopt, std::nullopt);
+  builtin->SetIdentifierPosition(decl->name->pos);
+  Declarations::Declare(decl->name->value, builtin);
 }
 
 void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
   Signature signature = TypeVisitor::MakeSignature(decl);
-  if (signature.parameter_types.types.size() == 0) {
+  if (signature.parameter_types.types.empty()) {
     ReportError(
         "Missing parameters for runtime function, at least the context "
         "parameter is required.");
@@ -139,7 +186,7 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
     ReportError(
         "runtime functions can only return strong tagged values, but "
         "found type ",
-        signature.return_type);
+        *signature.return_type);
   }
   for (const Type* parameter_type : signature.parameter_types.types) {
     if (!parameter_type->IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
@@ -150,29 +197,54 @@ void DeclarationVisitor::Visit(ExternalRuntimeDeclaration* decl) {
     }
   }
 
-  Declarations::DeclareRuntimeFunction(decl->name->value, signature);
+  RuntimeFunction* function =
+      Declarations::DeclareRuntimeFunction(decl->name->value, signature);
+  function->SetIdentifierPosition(decl->name->pos);
+  function->SetPosition(decl->pos);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddFunctionDefinition(function);
+  }
 }
 
 void DeclarationVisitor::Visit(ExternalMacroDeclaration* decl) {
-  Declarations::DeclareMacro(
+  Macro* macro = Declarations::DeclareMacro(
       decl->name->value, true, decl->external_assembler_name,
-      TypeVisitor::MakeSignature(decl), base::nullopt, decl->op);
+      TypeVisitor::MakeSignature(decl), std::nullopt, decl->op);
+  macro->SetIdentifierPosition(decl->name->pos);
+  macro->SetPosition(decl->pos);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddFunctionDefinition(macro);
+  }
 }
 
 void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl) {
-  Declarations::Declare(
-      decl->name->value,
-      CreateBuiltin(decl, decl->name->value, decl->name->value,
-                    TypeVisitor::MakeSignature(decl), decl->body));
+  Signature signature = TypeVisitor::MakeSignature(decl);
+  if (decl->use_counter_name &&
+      (signature.types().empty() ||
+       (signature.types()[0] != TypeOracle::GetNativeContextType() &&
+        signature.types()[0] != TypeOracle::GetContextType()))) {
+    ReportError(
+        "@incrementUseCounter requires the builtin's first parameter to be of "
+        "type Context or NativeContext, but found type ",
+        *signature.types()[0]);
+  }
+  auto builtin = CreateBuiltin(decl, decl->name->value, decl->name->value,
+                               signature, decl->use_counter_name, decl->body);
+  builtin->SetIdentifierPosition(decl->name->pos);
+  builtin->SetPosition(decl->pos);
+  Declarations::Declare(decl->name->value, builtin);
 }
 
 void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl) {
   Macro* macro = Declarations::DeclareMacro(
-      decl->name->value, decl->export_to_csa, base::nullopt,
+      decl->name->value, decl->export_to_csa, std::nullopt,
       TypeVisitor::MakeSignature(decl), decl->body, decl->op);
-  // TODO(szuend): Set identifier_position to decl->name->pos once all callable
-  // names are changed from std::string to Identifier*.
+  macro->SetIdentifierPosition(decl->name->pos);
   macro->SetPosition(decl->pos);
+  if (decl->supports_tsa) macro->SetSupportsTSA(true);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddFunctionDefinition(macro);
+  }
 }
 
 void DeclarationVisitor::Visit(IntrinsicDeclaration* decl) {
@@ -181,8 +253,11 @@ void DeclarationVisitor::Visit(IntrinsicDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(ConstDeclaration* decl) {
-  Declarations::DeclareNamespaceConstant(
+  auto constant = Declarations::DeclareNamespaceConstant(
       decl->name, TypeVisitor::ComputeType(decl->type), decl->expression);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddConstantDefinition(constant);
+  }
 }
 
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
@@ -218,7 +293,7 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
 
   if (matching_generic == nullptr) {
     std::stringstream stream;
-    if (generic_list.size() == 0) {
+    if (generic_list.empty()) {
       stream << "no generic defined with the name " << decl->name;
       ReportError(stream.str());
     }
@@ -258,11 +333,15 @@ void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
     ReportError(stream.str());
   }
 
-  Declarations::DeclareExternConstant(decl->name, type, decl->literal);
+  ExternConstant* constant =
+      Declarations::DeclareExternConstant(decl->name, type, decl->literal);
+  if (GlobalContext::collect_kythe_data()) {
+    KytheData::AddConstantDefinition(constant);
+  }
 }
 
 void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
-  GlobalContext::AddCppInclude(decl->include_path);
+  GlobalContext::AddCppInclude(decl->include_path, decl->include_selector);
 }
 
 void DeclarationVisitor::DeclareSpecializedTypes(
@@ -298,7 +377,7 @@ Signature DeclarationVisitor::MakeSpecializedSignature(
 
 Callable* DeclarationVisitor::SpecializeImplicit(
     const SpecializationKey<GenericCallable>& key) {
-  base::Optional<Statement*> body = key.generic->CallableBody();
+  std::optional<Statement*> body = key.generic->CallableBody();
   if (!body && IntrinsicDeclaration::DynamicCast(key.generic->declaration()) ==
                    nullptr) {
     ReportError("missing specialization of ", key.generic->name(),
@@ -308,7 +387,7 @@ Callable* DeclarationVisitor::SpecializeImplicit(
   SpecializationRequester requester{CurrentSourcePosition::Get(),
                                     CurrentScope::Get(), ""};
   CurrentScope::Scope generic_scope(key.generic->ParentScope());
-  Callable* result = Specialize(key, key.generic->declaration(), base::nullopt,
+  Callable* result = Specialize(key, key.generic->declaration(), std::nullopt,
                                 body, CurrentSourcePosition::Get());
   result->SetIsUserDefined(false);
   requester.name = result->ReadableName();
@@ -321,8 +400,8 @@ Callable* DeclarationVisitor::SpecializeImplicit(
 Callable* DeclarationVisitor::Specialize(
     const SpecializationKey<GenericCallable>& key,
     CallableDeclaration* declaration,
-    base::Optional<const SpecializationDeclaration*> explicit_specialization,
-    base::Optional<Statement*> body, SourcePosition position) {
+    std::optional<const SpecializationDeclaration*> explicit_specialization,
+    std::optional<Statement*> body, SourcePosition position) {
   CurrentSourcePosition::Scope pos_scope(position);
   size_t generic_parameter_count = key.generic->generic_parameters().size();
   if (generic_parameter_count != key.specialized_types.size()) {
@@ -365,9 +444,16 @@ Callable* DeclarationVisitor::Specialize(
         Declarations::CreateIntrinsic(declaration->name->value, type_signature);
   } else {
     BuiltinDeclaration* builtin = BuiltinDeclaration::cast(declaration);
-    callable =
-        CreateBuiltin(builtin, GlobalContext::MakeUniqueName(generated_name),
-                      readable_name.str(), type_signature, *body);
+    std::optional<std::string> use_counter_name;
+    if (TorqueBuiltinDeclaration* torque_builtin =
+            TorqueBuiltinDeclaration::DynamicCast(builtin)) {
+      use_counter_name = torque_builtin->use_counter_name;
+    } else {
+      use_counter_name = std::nullopt;
+    }
+    callable = CreateBuiltin(
+        builtin, GlobalContext::MakeUniqueName(generated_name),
+        readable_name.str(), type_signature, use_counter_name, *body);
   }
   key.generic->AddSpecialization(key.specialized_types, callable);
   return callable;
@@ -385,6 +471,4 @@ void PredeclarationVisitor::ResolvePredeclarations() {
   }
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

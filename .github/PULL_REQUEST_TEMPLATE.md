@@ -1,25 +1,22 @@
 <!--
-Thank you for your pull request. Please provide a description above and review
-the requirements below.
+If you are submitting a pull request for the first time,
+check out the guide for first-time contributors for tips and answers to FAQs:
+https://github.com/nodejs/node/blob/HEAD/doc/contributing/first-contributions.md
 
-Bug fixes and new features should include tests and possibly benchmarks.
+Before submitting a pull request, please read:
 
-Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
--->
+- the CONTRIBUTING guide at https://github.com/nodejs/node/blob/HEAD/CONTRIBUTING.md
+- the commit message formatting guidelines at
+  https://github.com/nodejs/node/blob/HEAD/doc/contributing/pull-requests.md#commit-message-guidelines
 
-#### Related Issues
+For code changes:
+1. Include tests for any bug fixes or new features.
+2. Update documentation if relevant.
+3. Ensure that `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes.
 
-Fixes: https://github.com/nodejs/node/issues/<issue_number>
+If you believe this PR should be highlighted in the Node.js CHANGELOG
+please add the `notable-change` label.
 
-##### Checklist
-<!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
-
-- [ ] `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes
-- [ ] tests and/or benchmarks are included
-- [ ] documentation is changed or added
-- [ ] commit message follows [commit guidelines](https://github.com/nodejs/node/blob/master/doc/guides/contributing/pull-requests.md#commit-message-guidelines)
-
-<!--
 Developer's Certificate of Origin 1.1
 
 By making a contribution to this project, I certify that:

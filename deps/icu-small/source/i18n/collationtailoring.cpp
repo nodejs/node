@@ -33,20 +33,20 @@
 U_NAMESPACE_BEGIN
 
 CollationTailoring::CollationTailoring(const CollationSettings *baseSettings)
-        : data(NULL), settings(baseSettings),
+        : data(nullptr), settings(baseSettings),
           actualLocale(""),
-          ownedData(NULL),
-          builder(NULL), memory(NULL), bundle(NULL),
-          trie(NULL), unsafeBackwardSet(NULL),
-          maxExpansions(NULL) {
-    if(baseSettings != NULL) {
+          ownedData(nullptr),
+          builder(nullptr), memory(nullptr), bundle(nullptr),
+          trie(nullptr), unsafeBackwardSet(nullptr),
+          maxExpansions(nullptr) {
+    if(baseSettings != nullptr) {
         U_ASSERT(baseSettings->reorderCodesLength == 0);
-        U_ASSERT(baseSettings->reorderTable == NULL);
+        U_ASSERT(baseSettings->reorderTable == nullptr);
         U_ASSERT(baseSettings->minHighNoReorder == 0);
     } else {
         settings = new CollationSettings();
     }
-    if(settings != NULL) {
+    if(settings != nullptr) {
         settings->addRef();
     }
     rules.getTerminatedBuffer();  // ensure NUL-termination
@@ -68,18 +68,18 @@ CollationTailoring::~CollationTailoring() {
 
 UBool
 CollationTailoring::ensureOwnedData(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
-    if(ownedData == NULL) {
+    if(U_FAILURE(errorCode)) { return false; }
+    if(ownedData == nullptr) {
         const Normalizer2Impl *nfcImpl = Normalizer2Factory::getNFCImpl(errorCode);
-        if(U_FAILURE(errorCode)) { return FALSE; }
+        if(U_FAILURE(errorCode)) { return false; }
         ownedData = new CollationData(*nfcImpl);
-        if(ownedData == NULL) {
+        if(ownedData == nullptr) {
             errorCode = U_MEMORY_ALLOCATION_ERROR;
-            return FALSE;
+            return false;
         }
     }
     data = ownedData;
-    return TRUE;
+    return true;
 }
 
 void
@@ -101,7 +101,7 @@ CollationTailoring::setVersion(const UVersionInfo baseVersion, const UVersionInf
 
 int32_t
 CollationTailoring::getUCAVersion() const {
-    return ((int32_t)version[1] << 4) | (version[2] >> 6);
+    return (static_cast<int32_t>(version[1]) << 4) | (version[2] >> 6);
 }
 
 CollationCacheEntry::~CollationCacheEntry() {

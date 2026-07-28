@@ -27,6 +27,7 @@ const net = require('net');
 const server = net.createServer(common.mustCall(function(socket) {
   assert.strictEqual(socket.localAddress, common.localhostIPv4);
   assert.strictEqual(socket.localPort, this.address().port);
+  assert.strictEqual(socket.localFamily, this.address().family);
   socket.on('end', function() {
     server.close();
   });

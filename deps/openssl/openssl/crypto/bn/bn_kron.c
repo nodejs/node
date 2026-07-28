@@ -1,7 +1,7 @@
 /*
  * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -11,13 +11,13 @@
 #include "bn_local.h"
 
 /* least significant word */
-#define BN_lsw(n) (((n)->top == 0) ? (BN_ULONG) 0 : (n)->d[0])
+#define BN_lsw(n) (((n)->top == 0) ? (BN_ULONG)0 : (n)->d[0])
 
 /* Returns -2 for errors because both -1 and 0 are valid results. */
 int BN_kronecker(const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
 {
     int i;
-    int ret = -2;               /* avoid 'uninitialized' warning */
+    int ret = -2; /* avoid 'uninitialized' warning */
     int err = 0;
     BIGNUM *A, *B, *tmp;
     /*-
@@ -131,7 +131,7 @@ int BN_kronecker(const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
         B = tmp;
         tmp->neg = 0;
     }
- end:
+end:
     BN_CTX_end(ctx);
     if (err)
         return -2;

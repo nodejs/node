@@ -1,9 +1,11 @@
 Name: jsoncpp
 URL: https://github.com/open-source-parsers/jsoncpp
 Version: f572e8e42e22cfcf5ab0aea26574f408943edfa4
+Update Mechanism: Manual
 License: MIT
 License File: LICENSE
 Security Critical: yes
+Shipped: yes
 
 Description:
 JsonCpp is used by multiple projects for parsing and generating JSON data. This

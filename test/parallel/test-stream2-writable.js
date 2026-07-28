@@ -22,8 +22,7 @@
 'use strict';
 
 const common = require('../common');
-const W = require('_stream_writable');
-const D = require('_stream_duplex');
+const { Writable: W, Duplex: D } = require('stream');
 const assert = require('assert');
 
 class TestWriter extends W {
@@ -141,10 +140,7 @@ for (let i = 0; i < chunks.length; i++) {
       'utf-16le',
       undefined ];
 
-  tw.on('finish', function() {
-    // Got the expected chunks
-    assert.deepStrictEqual(tw.buffer, chunks);
-  });
+  tw.on('finish', common.mustNotCall());
 
   chunks.forEach(function(chunk, i) {
     const enc = encodings[i % encodings.length];
@@ -160,11 +156,11 @@ for (let i = 0; i < chunks.length; i++) {
     decodeStrings: false
   });
 
-  tw._write = function(chunk, encoding, cb) {
+  tw._write = common.mustCallAtLeast(function(chunk, encoding, cb) {
     assert.strictEqual(typeof chunk, 'string');
     chunk = Buffer.from(chunk, encoding);
     return TestWriter.prototype._write.call(this, chunk, encoding, cb);
-  };
+  });
 
   const encodings =
     [ 'hex',
@@ -180,10 +176,7 @@ for (let i = 0; i < chunks.length; i++) {
       'utf-16le',
       undefined ];
 
-  tw.on('finish', function() {
-    // Got the expected chunks
-    assert.deepStrictEqual(tw.buffer, chunks);
-  });
+  tw.on('finish', common.mustNotCall());
 
   chunks.forEach(function(chunk, i) {
     const enc = encodings[i % encodings.length];
@@ -195,9 +188,9 @@ for (let i = 0; i < chunks.length; i++) {
 {
   // Verify write callbacks
   const callbacks = chunks.map(function(chunk, i) {
-    return [i, function() {
+    return [i, common.mustSucceed(() => {
       callbacks._called[i] = chunk;
-    }];
+    })];
   }).reduce(function(set, x) {
     set[`callback-${x[0]}`] = x[1];
     return set;
@@ -226,7 +219,9 @@ for (let i = 0; i < chunks.length; i++) {
 {
   // Verify end() callback
   const tw = new TestWriter();
-  tw.end(common.mustCall());
+  tw.end(common.mustCall(function(err) {
+    assert.strictEqual(err, null);
+  }));
 }
 
 const helloWorldBuffer = Buffer.from('hello world');
@@ -234,7 +229,9 @@ const helloWorldBuffer = Buffer.from('hello world');
 {
   // Verify end() callback with chunk
   const tw = new TestWriter();
-  tw.end(helloWorldBuffer, common.mustCall());
+  tw.end(helloWorldBuffer, common.mustCall(function(err) {
+    assert.strictEqual(err, null);
+  }));
 }
 
 {
@@ -305,10 +302,10 @@ const helloWorldBuffer = Buffer.from('hello world');
     assert.strictEqual(msg.toString(), 'this is the end');
   });
   let gotError = false;
-  w.on('error', function(er) {
+  w.on('error', common.mustCall((er) => {
     gotError = true;
     assert.strictEqual(er.message, 'write after end');
-  });
+  }));
   w.end('this is the end');
   w.end('and so is this');
   process.nextTick(common.mustCall(function() {
@@ -320,7 +317,7 @@ const helloWorldBuffer = Buffer.from('hello world');
   // Verify stream doesn't end while writing
   const w = new W();
   let wrote = false;
-  w._write = function(chunk, e, cb) {
+  w._write = common.mustCall(function(chunk, e, cb) {
     assert.strictEqual(this.writing, undefined);
     wrote = true;
     this.writing = true;
@@ -328,7 +325,7 @@ const helloWorldBuffer = Buffer.from('hello world');
       this.writing = false;
       cb();
     }, 1);
-  };
+  });
   w.on('finish', common.mustCall(function() {
     assert.strictEqual(wrote, true);
     assert.strictEqual(this.writing, false);

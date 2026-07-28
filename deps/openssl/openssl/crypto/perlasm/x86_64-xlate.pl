@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -83,6 +83,10 @@ my $PTR=" PTR";
 my $nasmref=2.03;
 my $nasm=0;
 
+# GNU as indicator, as opposed to $gas, which indicates acceptable
+# syntax
+my $gnuas=0;
+
 if    ($flavour eq "mingw64")	{ $gas=1; $elf=0; $win64=1;
 				  $prefix=`echo __USER_LABEL_PREFIX__ | $ENV{CC} -E -P -`;
 				  $prefix =~ s|\R$||; # Better chomp
@@ -100,11 +104,139 @@ elsif (!$gas)
     $elf=0;
     $decor="\$L\$";
 }
+# Find out if we're using GNU as
+elsif (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
+		=~ /GNU assembler version ([2-9]\.[0-9]+)/)
+{
+    $gnuas=1;
+}
+elsif (`$ENV{CC} --version 2>/dev/null`
+		=~ /(clang .*|Intel.*oneAPI .*)/)
+{
+    $gnuas=1;
+}
+elsif (`$ENV{CC} -V 2>/dev/null`
+		=~ /nvc .*/)
+{
+    $gnuas=1;
+}
+
+my $cet_property;
+if ($flavour =~ /elf/) {
+	# Always generate .note.gnu.property section for ELF outputs to
+	# mark Intel CET support since all input files must be marked
+	# with Intel CET support in order for linker to mark output with
+	# Intel CET support.
+	my $p2align=3; $p2align=2 if ($flavour eq "elf32");
+	my $section='.note.gnu.property, #alloc';
+	$section='".note.gnu.property", "a"' if $gnuas;
+	$cet_property = <<_____;
+	.section $section
+	.p2align $p2align
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align $p2align
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align $p2align
+4:
+_____
+}
 
 my $current_segment;
+#
+# I could not find equivalent of .previous directive for MASM (Microsoft
+# assembler ML). Using of .previous got introduced to .pl files with
+# placing of various constants into .rodata sections (segments).
+# Each .rodata section is terminated by .previous directive which
+# restores the preceding section to .rodata:
+#
+# .text
+# 	; this is is the text section/segment
+# .rodata
+#	; constant definitions go here
+# .previous
+#	; the .text section which precedes .rodata got restored here
+#
+# The equivalent form for masm reads as follows:
+#
+# .text$	SEGMENT ALIGN(256) 'CODE'
+# 	; this is is the text section/segment
+# .text$	ENDS
+# .rdata	SEGMENT READONLY ALIGN(64)
+#	; constant definitions go here
+# .rdata$	ENDS
+# .text$	SEGMENT ALIGN(256) 'CODE'
+#	; text section follows
+# .text$	ENDS
+#
+# The .previous directive typically terminates .roadata segments/sections which
+# hold definitions of constants. In order to place constants into .rdata
+# segments when using masm we need to introduce a segment_stack array so we can
+# emit proper ENDS directive whenever we see .previous.
+#
+# The code is tailored to work current set of .pl/asm files. There are some
+# inconsistencies. For example .text section is the first section in all those
+# files except ecp_nistz256. So we need to take that into account.
+#
+#	; stack is empty
+# .text
+#	; push '.text ' section twice, the stack looks as
+#	; follows:
+#	;	('.text', '.text')
+# .rodata
+#	; pop() so we can generate proper 'ENDS' for masm.
+#	; stack looks like:
+#	; 	('.text')
+#	; push '.rodata', so we can create corresponding ENDS for masm.
+#	; stack looks like:
+#	;	('.rodata', '.text')
+# .previous
+#	; pop() '.rodata' from stack, so we create '.rodata ENDS'
+#	; in masm flavour. For nasm flavour we just pop() because
+#	; nasm does not use .rodata ENDS to close the current section
+#	; the stack content is like this:
+#	;	('.text', '.text')
+#	; pop() again to find a previous section we need to restore.
+#	; Depending on flavour we either generate .section .text
+#	; or .text SEGMENT. The stack looks like:
+#	; ('.text')
+#
+my @segment_stack = ();
 my $current_function;
 my %globals;
 
+{ package vex_prefix;	# pick up vex prefixes, example: {vex} vpmadd52luq m256, %ymm, %ymm
+    sub re {
+	my ($class, $line) = @_;
+	my $self = {};
+	my $ret;
+
+	if ($$line =~ /(^\{vex\})/) {
+	    bless $self,$class;
+	    $self->{value} = $1;
+	    $ret = $self;
+	    $$line = substr($$line,@+[0]); $$line =~ s/^\s+//;
+	}
+	$ret;
+	}
+    sub out {
+	my $self = shift;
+	$self->{value};
+	}
+}
 { package opcode;	# pick up opcodes
     sub re {
 	my	($class, $line) = @_;
@@ -531,8 +663,7 @@ my %globals;
 	);
 
     # Following constants are defined in x86_64 ABI supplement, for
-    # example available at https://www.uclibc.org/docs/psABI-x86_64.pdf,
-    # see section 3.7 "Stack Unwind Algorithm".
+    # example available at https://gitlab.com/x86-psABIs/x86-64-ABI.
     my %DW_reg_idx = (
 	"%rax"=>0,  "%rdx"=>1,  "%rcx"=>2,  "%rbx"=>3,
 	"%rsi"=>4,  "%rdi"=>5,  "%rbp"=>6,  "%rsp"=>7,
@@ -762,7 +893,7 @@ my %globals;
 				    }
 				    last;
 				  };
-		/\.rva|\.long|\.quad/
+		/\.rva|\.long|\.quad|\.byte/
 			    && do { $$line =~ s/([_a-z][_a-z0-9]*)/$globals{$1} or $1/gei;
 				    $$line =~ s/\.L/$decor/g;
 				    last;
@@ -790,19 +921,63 @@ my %globals;
 		} elsif (!$elf && $dir =~ /\.align/) {
 		    $self->{value} = ".p2align\t" . (log($$line)/log(2));
 		} elsif ($dir eq ".section") {
-		    $current_segment=$$line;
+		    #
+		    # get rid off align option, it's not supported/tolerated
+		    # by gcc. openssl project introduced the option as an aid
+		    # to deal with nasm/masm assembly.
+		    #
+		    $self->{value} =~ s/(.+)\s+align\s*=.*$/$1/;
+                    $current_segment = pop(@segment_stack);
+                    if (not $current_segment) {
+                        # if no previous section is defined, then assume .text
+                        # so code does not land in .data section by accident.
+                        # this deals with inconsistency of perl-assembly files.
+                        push(@segment_stack, ".text");
+                    }
+		    #
+		    # $$line may still contains align= option. We do care
+		    # about section type here.
+		    #
+		    $current_segment = $$line;
+		    $current_segment =~ s/([^\s]+).*$/$1/;
+                    push(@segment_stack, $current_segment);
+		    if (!$elf && $current_segment eq ".rodata") {
+			if	($flavour eq "macosx") { $self->{value} = ".section\t__DATA,__const"; }
+			elsif	($flavour eq "mingw64")	{ $self->{value} = ".section\t.rodata"; }
+		    }
 		    if (!$elf && $current_segment eq ".init") {
 			if	($flavour eq "macosx")	{ $self->{value} = ".mod_init_func"; }
 			elsif	($flavour eq "mingw64")	{ $self->{value} = ".section\t.ctors"; }
 		    }
 		} elsif ($dir =~ /\.(text|data)/) {
+                    $current_segment = pop(@segment_stack);
+                    if (not $current_segment) {
+                        # if no previous section is defined, then assume .text
+                        # so code does not land in .data section by accident.
+                        # this deals with inconsistency of perl-assembly files.
+                        push(@segment_stack, ".text");
+                    }
 		    $current_segment=".$1";
+		    push(@segment_stack, $current_segment);
 		} elsif ($dir =~ /\.hidden/) {
 		    if    ($flavour eq "macosx")  { $self->{value} = ".private_extern\t$prefix$$line"; }
 		    elsif ($flavour eq "mingw64") { $self->{value} = ""; }
 		} elsif ($dir =~ /\.comm/) {
 		    $self->{value} = "$dir\t$prefix$$line";
 		    $self->{value} =~ s|,([0-9]+),([0-9]+)$|",$1,".log($2)/log(2)|e if ($flavour eq "macosx");
+		} elsif ($dir =~ /\.previous/) {
+                    pop(@segment_stack); #pop ourselves
+                    # just peek at the top of the stack here
+                    $current_segment = @segment_stack[0];
+                    if (not $current_segment) {
+                        # if no previous segment was defined assume .text so
+                        # the code does not accidentally land in .data section.
+                        $current_segment = ".text";
+                        push(@segment_stack, $current_segment);
+                    }
+                    if ($flavour eq "mingw64" || $flavour eq "macosx") {
+		        $self->{value} = $current_segment;
+                    }
 		}
 		$$line = "";
 		return $self;
@@ -812,10 +987,21 @@ my %globals;
 	    SWITCH: for ($dir) {
 		/\.text/    && do { my $v=undef;
 				    if ($nasm) {
+					$current_segment = pop(@segment_stack);
+					if (not $current_segment) {
+					    push(@segment_stack, ".text");
+				        }
 					$v="section	.text code align=64\n";
+					$current_segment = ".text";
+					push(@segment_stack, $current_segment);
 				    } else {
+					$current_segment = pop(@segment_stack);
+					if (not $current_segment) {
+					    push(@segment_stack, ".text\$");
+				        }
 					$v="$current_segment\tENDS\n" if ($current_segment);
 					$current_segment = ".text\$";
+					push(@segment_stack, $current_segment);
 					$v.="$current_segment\tSEGMENT ";
 					$v.=$masm>=$masmref ? "ALIGN(256)" : "PAGE";
 					$v.=" 'CODE'";
@@ -827,36 +1013,76 @@ my %globals;
 				    if ($nasm) {
 					$v="section	.data data align=8\n";
 				    } else {
+					$current_segment = pop(@segment_stack);
 					$v="$current_segment\tENDS\n" if ($current_segment);
 					$current_segment = "_DATA";
+					push(@segment_stack, $current_segment);
 					$v.="$current_segment\tSEGMENT";
 				    }
 				    $self->{value} = $v;
 				    last;
 				  };
 		/\.section/ && do { my $v=undef;
-				    $$line =~ s/([^,]*).*/$1/;
+				    my $align=undef;
+				    #
+				    # $$line may currently contain something like this
+				    #	.rodata align = 64
+				    # align part is optional
+				    #
+				    $align = $$line;
+				    $align =~ s/(.*)(align\s*=\s*\d+$)/$2/;
+				    $$line =~ s/(.*)(\s+align\s*=\s*\d+$)/$1/;
+				    $$line =~ s/,.*//;
 				    $$line = ".CRT\$XCU" if ($$line eq ".init");
+				    $$line = ".rdata" if ($$line eq ".rodata");
 				    if ($nasm) {
+					$current_segment = pop(@segment_stack);
+					if (not $current_segment) {
+					    #
+					    # This is a hack which deals with ecp_nistz256-x86_64.pl,
+					    # The precomputed curve is stored in the first section
+					    # in .asm file. Pushing extra .text section here
+					    # allows our poor man's solution to stick to assumption
+					    # .text section is always the first.
+					    #
+					    push(@segment_stack, ".text");
+					}
 					$v="section	$$line";
-					if ($$line=~/\.([px])data/) {
-					    $v.=" rdata align=";
-					    $v.=$1 eq "p"? 4 : 8;
+					if ($$line=~/\.([prx])data/) {
+					    if ($align =~ /align\s*=\s*(\d+)/) {
+						$v.= " rdata align=$1" ;
+					    } else {
+						$v.=" rdata align=";
+						$v.=$1 eq "p"? 4 : 8;
+					    }
 					} elsif ($$line=~/\.CRT\$/i) {
 					    $v.=" rdata align=8";
 					}
 				    } else {
+					$current_segment = pop(@segment_stack);
+					if (not $current_segment) {
+					    #
+					    # same hack for masm to keep ecp_nistz256-x86_64.pl
+					    # happy.
+					    #
+					    push(@segment_stack, ".text\$");
+				        }
 					$v="$current_segment\tENDS\n" if ($current_segment);
 					$v.="$$line\tSEGMENT";
-					if ($$line=~/\.([px])data/) {
+					if ($$line=~/\.([prx])data/) {
 					    $v.=" READONLY";
-					    $v.=" ALIGN(".($1 eq "p" ? 4 : 8).")" if ($masm>=$masmref);
+					    if ($align =~ /align\s*=\s*(\d+)$/) {
+						$v.=" ALIGN($1)" if ($masm>=$masmref);
+					    } else {
+						$v.=" ALIGN(".($1 eq "p" ? 4 : 8).")" if ($masm>=$masmref);
+					    }
 					} elsif ($$line=~/\.CRT\$/i) {
 					    $v.=" READONLY ";
 					    $v.=$masm>=$masmref ? "ALIGN(8)" : "DWORD";
 					}
 				    }
 				    $current_segment = $$line;
+				    push(@segment_stack, $$line);
 				    $self->{value} = $v;
 				    last;
 				  };
@@ -919,14 +1145,44 @@ my %globals;
 				    if ($nasm) {
 					$v.="common	$prefix@str[0] @str[1]";
 				    } else {
+					$current_segment = pop(@segment_stack);;
 					$v="$current_segment\tENDS\n" if ($current_segment);
 					$current_segment = "_DATA";
+					push(@segment_stack, $current_segment);
 					$v.="$current_segment\tSEGMENT\n";
 					$v.="COMM	@str[0]:DWORD:".@str[1]/4;
 				    }
 				    $self->{value} = $v;
 				    last;
 				  };
+		/^.previous/ && do {
+				    my $v=undef;
+				    if ($nasm) {
+					pop(@segment_stack); # pop ourselves, we don't need to emit END directive
+					# pop section so we can emit proper .section name.
+					$current_segment = pop(@segment_stack);
+					$v="section $current_segment";
+					# Hack again:
+					# push section/segment to stack. The .previous is currently paired
+					# with .rodata only. We have to keep extra '.text' on stack for
+					# situation where there is for example .pdata section 'terminated'
+					# by new '.text' section.
+					#
+					push(@segment_stack, $current_segment);
+				    } else {
+					$current_segment = pop(@segment_stack);
+					$v="$current_segment\tENDS\n" if ($current_segment);
+					$current_segment = pop(@segment_stack);
+					if ($current_segment =~ /\.text\$/) {
+					    $v.="$current_segment\tSEGMENT ";
+					    $v.=$masm>=$masmref ? "ALIGN(256)" : "PAGE";
+					    $v.=" 'CODE'";
+					    push(@segment_stack, $current_segment);
+					}
+				    }
+				    $self->{value} = $v;
+				    last;
+				    };
 	    }
 	    $$line = "";
 	}
@@ -1151,14 +1407,18 @@ while(defined(my $line=<>)) {
 
     $line =~ s|[#!].*$||;	# get rid of asm-style comments...
     $line =~ s|/\*.*\*/||;	# ... and C-style comments...
-    $line =~ s|^\s+||;		# ... and skip white spaces in beginning
+    $line =~ s|^\s+||;		# ... and skip whitespaces in beginning
     $line =~ s|\s+$||;		# ... and at the end
 
     if (my $label=label->re(\$line))	{ print $label->out(); }
 
     if (my $directive=directive->re(\$line)) {
 	printf "%s",$directive->out();
-    } elsif (my $opcode=opcode->re(\$line)) {
+    } else {
+	if (my $vex_prefix=vex_prefix->re(\$line)) {
+	printf "%s",$vex_prefix->out();
+	}
+	if (my $opcode=opcode->re(\$line)) {
 	my $asm = eval("\$".$opcode->mnemonic());
 
 	if ((ref($asm) eq 'CODE') && scalar(my @bytes=&$asm($line))) {
@@ -1208,15 +1468,17 @@ while(defined(my $line=<>)) {
 	} else {
 	    printf "\t%s",$opcode->out();
 	}
+	}
     }
 
     print $line,"\n";
 }
 
+print "$cet_property"			if ($cet_property);
 print "\n$current_segment\tENDS\n"	if ($current_segment && $masm);
 print "END\n"				if ($masm);
 
-close STDOUT or die "error closing STDOUT: $!";
+close STDOUT or die "error closing STDOUT: $!;"
 
 #################################################
 # Cross-reference x86_64 ABI "card"

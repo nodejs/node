@@ -77,7 +77,6 @@ function TestInvalidCalls(m) {
   assertThrows(function () { m.set(null, 0) }, TypeError);
   assertThrows(function () { m.set(0, 0) }, TypeError);
   assertThrows(function () { m.set('a-key', 0) }, TypeError);
-  assertThrows(function () { m.set(Symbol(), 0) }, TypeError);
 }
 TestInvalidCalls(new WeakMap);
 
@@ -1465,3 +1464,30 @@ TestConstructorOrderOfAdderIterator(Map, 'set');
 TestConstructorOrderOfAdderIterator(Set, 'add');
 TestConstructorOrderOfAdderIterator(WeakMap, 'set');
 TestConstructorOrderOfAdderIterator(WeakSet, 'add');
+
+function TestSetCopyConstructor() {
+  const arr = new Array(1000).fill(0).map((_, i) => i);
+  const c = new Set(arr);
+  const d = new Set(c);
+  assertEquals(c.size, d.size);
+  for (const v of c) {
+    assertTrue(d.has(v));
+  }
+}
+TestSetCopyConstructor();
+
+function TestSetIteratorExhaustedFromSetCtor() {
+  const set = new Set([1, 2, 3]);
+  const iter = set[Symbol.iterator]();
+  new Set(iter);
+  assertTrue(iter.next().done);
+}
+TestSetIteratorExhaustedFromSetCtor();
+
+function TestSetIteratorExhaustedFromList() {
+  const set = new Set([1, 2, 3]);
+  const iter = set[Symbol.iterator]();
+  new Set([...iter]);
+  assertTrue(iter.next().done);
+}
+TestSetIteratorExhaustedFromList();

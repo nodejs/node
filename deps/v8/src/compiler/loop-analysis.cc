@@ -5,10 +5,12 @@
 #include "src/compiler/loop-analysis.h"
 
 #include "src/codegen/tick-counter.h"
-#include "src/compiler/graph.h"
+#include "src/compiler/all-nodes.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -25,7 +27,8 @@ namespace compiler {
 // Temporary information for each node during marking.
 struct NodeInfo {
   Node* node;
-  NodeInfo* next;       // link in chaining loop members
+  NodeInfo* next;  // link in chaining loop members
+  bool backwards_visited;
 };
 
 
@@ -37,7 +40,6 @@ struct TempLoopInfo {
   NodeInfo* body_list;
   LoopTree::Loop* loop;
 };
-
 
 // Encapsulation of the loop finding algorithm.
 // -----------------------------------------------------------------------------
@@ -53,15 +55,17 @@ struct TempLoopInfo {
 // 1 bit per loop per node per direction are required during the marking phase.
 // To handle nested loops correctly, the algorithm must filter some reachability
 // marks on edges into/out-of the loop header nodes.
+// Note: this algorithm assumes there are no unreachable loop header nodes
+// (including loop phis).
 class LoopFinderImpl {
  public:
-  LoopFinderImpl(Graph* graph, LoopTree* loop_tree, TickCounter* tick_counter,
+  LoopFinderImpl(TFGraph* graph, LoopTree* loop_tree, TickCounter* tick_counter,
                  Zone* zone)
       : zone_(zone),
         end_(graph->end()),
         queue_(zone),
         queued_(graph, 2),
-        info_(graph->NodeCount(), {nullptr, nullptr}, zone),
+        info_(graph->NodeCount(), {nullptr, nullptr, false}, zone),
         loops_(zone),
         loop_num_(graph->NodeCount(), -1, zone),
         loop_tree_(loop_tree),
@@ -192,7 +196,7 @@ class LoopFinderImpl {
     while (!queue_.empty()) {
       tick_counter_->TickAndMaybeEnterSafepoint();
       Node* node = queue_.front();
-      info(node);
+      info(node).backwards_visited = true;
       queue_.pop_front();
       queued_.Set(node, false);
 
@@ -224,10 +228,18 @@ class LoopFinderImpl {
         Node* input = node->InputAt(i);
         if (IsBackedge(node, i)) {
           // Only propagate the loop mark on backedges.
-          if (SetBackwardMark(input, loop_num)) Queue(input);
+          if (SetBackwardMark(input, loop_num) ||
+              !info(input).backwards_visited) {
+            Queue(input);
+          }
         } else {
           // Entry or normal edge. Propagate all marks except loop_num.
-          if (PropagateBackwardMarks(node, input, loop_num)) Queue(input);
+          // TODO(manoskouk): Add test that needs backwards_visited to function
+          // correctly, probably using wasm loop unrolling when it is available.
+          if (PropagateBackwardMarks(node, input, loop_num) ||
+              !info(input).backwards_visited) {
+            Queue(input);
+          }
         }
       }
     }
@@ -281,7 +293,7 @@ class LoopFinderImpl {
   void ResizeBackwardMarks() {
     int new_width = width_ + 1;
     int max = num_nodes();
-    uint32_t* new_backward = zone_->NewArray<uint32_t>(new_width * max);
+    uint32_t* new_backward = zone_->AllocateArray<uint32_t>(new_width * max);
     memset(new_backward, 0, new_width * max * sizeof(uint32_t));
     if (width_ > 0) {  // copy old matrix data.
       for (int i = 0; i < max; i++) {
@@ -296,7 +308,7 @@ class LoopFinderImpl {
 
   void ResizeForwardMarks() {
     int max = num_nodes();
-    forward_ = zone_->NewArray<uint32_t>(width_ * max);
+    forward_ = zone_->AllocateArray<uint32_t>(width_ * max);
     memset(forward_, 0, width_ * max * sizeof(uint32_t));
   }
 
@@ -521,25 +533,238 @@ class LoopFinderImpl {
   }
 };
 
-LoopTree* LoopFinder::BuildLoopTree(Graph* graph, TickCounter* tick_counter,
+LoopTree* LoopFinder::BuildLoopTree(TFGraph* graph, TickCounter* tick_counter,
                                     Zone* zone) {
   LoopTree* loop_tree =
       graph->zone()->New<LoopTree>(graph->NodeCount(), graph->zone());
   LoopFinderImpl finder(graph, loop_tree, tick_counter, zone);
   finder.Run();
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     finder.Print();
   }
   return loop_tree;
 }
 
-Node* LoopTree::HeaderNode(Loop* loop) {
+#if V8_ENABLE_WEBASSEMBLY
+// static
+ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
+    Node* loop_header, AllNodes& all_nodes, Zone* zone, size_t max_size,
+    Purpose purpose) {
+  auto* visited = zone->New<ZoneUnorderedSet<Node*>>(zone);
+  std::vector<Node*> queue;
+
+  DCHECK_EQ(loop_header->opcode(), IrOpcode::kLoop);
+
+  queue.push_back(loop_header);
+  visited->insert(loop_header);
+
+#define ENQUEUE_USES(use_name, condition)             \
+  for (Node * use_name : node->uses()) {              \
+    if (condition && visited->count(use_name) == 0) { \
+      visited->insert(use_name);                      \
+      queue.push_back(use_name);                      \
+    }                                                 \
+  }
+  bool has_instruction_worth_peeling = false;
+  while (!queue.empty()) {
+    Node* node = queue.back();
+    queue.pop_back();
+    if (node->opcode() == IrOpcode::kEnd) {
+      // We reached the end of the graph. The end node is not part of the loop.
+      visited->erase(node);
+      continue;
+    }
+    if (visited->size() > max_size) return nullptr;
+    switch (node->opcode()) {
+      case IrOpcode::kLoop:
+        // Found nested loop.
+        if (node != loop_header) return nullptr;
+        ENQUEUE_USES(use, true);
+        break;
+      case IrOpcode::kLoopExit:
+        // Found nested loop.
+        if (node->InputAt(1) != loop_header) return nullptr;
+        // LoopExitValue/Effect uses are inside the loop. The rest are not.
+        ENQUEUE_USES(use, (use->opcode() == IrOpcode::kLoopExitEffect ||
+                           use->opcode() == IrOpcode::kLoopExitValue))
+        break;
+      case IrOpcode::kLoopExitEffect:
+      case IrOpcode::kLoopExitValue:
+        if (NodeProperties::GetControlInput(node)->InputAt(1) != loop_header) {
+          // Found nested loop.
+          return nullptr;
+        }
+        // All uses are outside the loop, do nothing.
+        break;
+      // If unrolling, call nodes are considered to have unbounded size,
+      // i.e. >max_size, with the exception of certain wasm builtins.
+      case IrOpcode::kTailCall:
+      case IrOpcode::kJSWasmCall:
+      case IrOpcode::kJSCall:
+        if (purpose == Purpose::kLoopUnrolling) return nullptr;
+        ENQUEUE_USES(use, true)
+        break;
+      case IrOpcode::kCall: {
+        if (purpose == Purpose::kLoopPeeling) {
+          ENQUEUE_USES(use, true);
+          break;
+        }
+        Node* callee = node->InputAt(0);
+        if (callee->opcode() != IrOpcode::kRelocatableInt32Constant &&
+            callee->opcode() != IrOpcode::kRelocatableInt64Constant) {
+          return nullptr;
+        }
+        Builtin builtin = static_cast<Builtin>(
+            OpParameter<RelocatablePtrConstantInfo>(callee->op()).value());
+        constexpr Builtin unrollable_builtins[] = {
+            // Exists in every stack check.
+            Builtin::kWasmStackGuard,
+            // Fast table operations.
+            Builtin::kWasmTableGet, Builtin::kWasmTableSet,
+            Builtin::kWasmTableGetFuncRef, Builtin::kWasmTableSetFuncRef,
+            Builtin::kWasmTableGrow,
+            // Atomics.
+            Builtin::kWasmI32AtomicWait, Builtin::kWasmI64AtomicWait,
+            // Exceptions.
+            Builtin::kWasmAllocateFixedArray, Builtin::kWasmThrow,
+            Builtin::kWasmRethrow, Builtin::kWasmRethrowExplicitContext,
+            // Fast wasm-gc operations.
+            Builtin::kWasmRefFunc,
+            // While a built-in call, this is the slow path, so it should not
+            // prevent loop unrolling for stringview_wtf16.get_codeunit.
+            Builtin::kWasmStringViewWtf16GetCodeUnit};
+        if (std::count(std::begin(unrollable_builtins),
+                       std::end(unrollable_builtins), builtin) == 0) {
+          return nullptr;
+        }
+        ENQUEUE_USES(use, true)
+        break;
+      }
+      case IrOpcode::kWasmStructGet: {
+        // When a chained load occurs in the loop, assume that peeling might
+        // help.
+        Node* object = node->InputAt(0);
+        if (object->opcode() == IrOpcode::kWasmStructGet &&
+            visited->find(object) != visited->end()) {
+          has_instruction_worth_peeling = true;
+        }
+        ENQUEUE_USES(use, true);
+        break;
+      }
+      case IrOpcode::kWasmArrayGet:
+        // Rationale for array.get: loops that contain an array.get also
+        // contain a bounds check, which needs to load the array's length,
+        // which benefits from load elimination after peeling.
+      case IrOpcode::kStringPrepareForGetCodeunit:
+        // Rationale for PrepareForGetCodeunit: this internal operation is
+        // specifically designed for being hoisted out of loops.
+        has_instruction_worth_peeling = true;
+        [[fallthrough]];
+      default:
+        ENQUEUE_USES(use, true)
+        break;
+    }
+  }
+
+  // Check that there is no floating control other than direct nodes to start().
+  // We do this by checking that all non-start control inputs of loop nodes are
+  // also in the loop.
+  // TODO(manoskouk): This is a safety check. Consider making it DEBUG-only when
+  // we are confident there is no incompatible floating control generated in
+  // wasm.
+  for (Node* node : *visited) {
+    // The loop header is allowed to point outside the loop.
+    if (node == loop_header) continue;
+
+    if (!all_nodes.IsLive(node)) continue;
+
+    for (Edge edge : node->input_edges()) {
+      Node* input = edge.to();
+      if (NodeProperties::IsControlEdge(edge) && visited->count(input) == 0 &&
+          input->opcode() != IrOpcode::kStart) {
+        FATAL(
+            "Floating control detected in wasm turbofan graph: Node #%d:%s is "
+            "inside loop headed by #%d, but its control dependency #%d:%s is "
+            "outside",
+            node->id(), node->op()->mnemonic(), loop_header->id(), input->id(),
+            input->op()->mnemonic());
+      }
+    }
+  }
+
+  // Only peel functions containing instructions for which loop peeling is known
+  // to be useful. TODO(14034): Add more instructions to get more benefits out
+  // of loop peeling.
+  if (purpose == Purpose::kLoopPeeling && !has_instruction_worth_peeling) {
+    return nullptr;
+  }
+  return visited;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+bool LoopFinder::HasMarkedExits(LoopTree* loop_tree,
+                                const LoopTree::Loop* loop) {
+  // Look for returns and if projections that are outside the loop but whose
+  // control input is inside the loop.
+  Node* loop_node = loop_tree->GetLoopControl(loop);
+  for (Node* node : loop_tree->LoopNodes(loop)) {
+    for (Node* use : node->uses()) {
+      if (!loop_tree->Contains(loop, use)) {
+        bool unmarked_exit;
+        switch (node->opcode()) {
+          case IrOpcode::kLoopExit:
+            unmarked_exit = (node->InputAt(1) != loop_node);
+            break;
+          case IrOpcode::kLoopExitValue:
+          case IrOpcode::kLoopExitEffect:
+            unmarked_exit = (node->InputAt(1)->InputAt(1) != loop_node);
+            break;
+          default:
+            unmarked_exit = (use->opcode() != IrOpcode::kTerminate);
+        }
+        if (unmarked_exit) {
+          if (v8_flags.trace_turbo_loop) {
+            PrintF(
+                "Cannot peel loop %i. Loop exit without explicit mark: Node %i "
+                "(%s) is inside loop, but its use %i (%s) is outside.\n",
+                loop_node->id(), node->id(), node->op()->mnemonic(), use->id(),
+                use->op()->mnemonic());
+          }
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+Node* LoopTree::HeaderNode(const Loop* loop) {
   Node* first = *HeaderNodes(loop).begin();
   if (first->opcode() == IrOpcode::kLoop) return first;
   DCHECK(IrOpcode::IsPhiOpcode(first->opcode()));
   Node* header = NodeProperties::GetControlInput(first);
   DCHECK_EQ(IrOpcode::kLoop, header->opcode());
   return header;
+}
+
+Node* NodeCopier::map(Node* node, uint32_t copy_index) {
+  DCHECK_LT(copy_index, copy_count_);
+  if (node_map_.Get(node) == 0) return node;
+  return copies_->at(node_map_.Get(node) + copy_index);
+}
+
+void NodeCopier::Insert(Node* original, const NodeVector& new_copies) {
+  DCHECK_EQ(new_copies.size(), copy_count_);
+  node_map_.Set(original, copies_->size() + 1);
+  copies_->push_back(original);
+  copies_->insert(copies_->end(), new_copies.begin(), new_copies.end());
+}
+
+void NodeCopier::Insert(Node* original, Node* copy) {
+  DCHECK_EQ(copy_count_, 1);
+  node_map_.Set(original, copies_->size() + 1);
+  copies_->push_back(original);
+  copies_->push_back(copy);
 }
 
 }  // namespace compiler

@@ -28,7 +28,7 @@
  */
 #include "uv.h"
 
-/* Copies up to |n-1| bytes from |d| to |s| and always zero-terminates
+/* Copies up to |n-1| bytes from |s| to |d| and always zero-terminates
  * the result, except when |n==0|. Returns the number of bytes copied
  * or UV_E2BIG if |d| is too small.
  *

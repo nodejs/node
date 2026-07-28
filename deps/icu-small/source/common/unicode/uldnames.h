@@ -48,11 +48,11 @@ typedef enum {
  */
 struct ULocaleDisplayNames;
 
-/**
- * C typedef for struct ULocaleDisplayNames.
- * @stable ICU 4.4
+/** 
+ * C typedef for struct ULocaleDisplayNames. 
+ * @stable ICU 4.4 
  */
-typedef struct ULocaleDisplayNames ULocaleDisplayNames;
+typedef struct ULocaleDisplayNames ULocaleDisplayNames;  
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -62,9 +62,9 @@ typedef struct ULocaleDisplayNames ULocaleDisplayNames;
  * dialectHandling.  The usual value for dialectHandling is
  * ULOC_STANDARD_NAMES.
  *
- * @param locale the display locale
- * @param dialectHandling how to select names for locales
- * @return a ULocaleDisplayNames instance
+ * @param locale the display locale 
+ * @param dialectHandling how to select names for locales 
+ * @return a ULocaleDisplayNames instance 
  * @param pErrorCode the status code
  * @stable ICU 4.4
  */
@@ -106,7 +106,7 @@ U_NAMESPACE_END
  * Returns the locale used to determine the display names. This is
  * not necessarily the same locale passed to {@link #uldn_open}.
  * @param ldn the LocaleDisplayNames instance
- * @return the display locale
+ * @return the display locale 
  * @stable ICU 4.4
  */
 U_CAPI const char * U_EXPORT2
@@ -275,14 +275,14 @@ uldn_keyValueDisplayName(const ULocaleDisplayNames *ldn,
 * Returns an instance of LocaleDisplayNames that returns names formatted
 * for the provided locale, using the provided UDisplayContext settings.
 *
-* @param locale The display locale
+* @param locale The display locale 
 * @param contexts List of one or more context settings (e.g. for dialect
 *               handling, capitalization, etc.
 * @param length Number of items in the contexts list
 * @param pErrorCode Pointer to UErrorCode input/output status. If at entry this indicates
 *               a failure status, the function will do nothing; otherwise this will be
-*               updated with any new status from the function.
-* @return a ULocaleDisplayNames instance
+*               updated with any new status from the function. 
+* @return a ULocaleDisplayNames instance 
 * @stable ICU 51
 */
 U_CAPI ULocaleDisplayNames * U_EXPORT2
@@ -295,7 +295,7 @@ uldn_openForContext(const char * locale, UDisplayContext *contexts,
 * @param type the UDisplayContextType whose value to return
 * @param pErrorCode Pointer to UErrorCode input/output status. If at entry this indicates
 *               a failure status, the function will do nothing; otherwise this will be
-*               updated with any new status from the function.
+*               updated with any new status from the function. 
 * @return the UDisplayContextValue for the specified type.
 * @stable ICU 51
 */

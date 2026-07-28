@@ -21,9 +21,10 @@ void CallWithString(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 1 && args[0]->IsString());
   if (args.Length() == 1 && args[0]->IsString()) {
     Local<String> str = args[0].As<String>();
-    const int32_t length = str->Utf8Length(args.GetIsolate()) + 1;
+    const size_t length = str->Utf8LengthV2(args.GetIsolate()) + 1;
     char* buf = new char[length];
-    str->WriteUtf8(args.GetIsolate(), buf, length);
+    str->WriteUtf8V2(
+        args.GetIsolate(), buf, length, String::WriteFlags::kNullTerminate);
     delete[] buf;
   }
 }

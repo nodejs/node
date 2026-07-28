@@ -4,6 +4,8 @@
 
 #include "src/base/region-allocator.h"
 
+#include <iterator>
+
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -41,6 +43,8 @@ RegionAllocator::RegionAllocator(Address memory_region_begin,
 }
 
 RegionAllocator::~RegionAllocator() {
+  // TODO(chromium:1218005) either (D)CHECK that all allocated regions have
+  // been freed again (and thus merged into a single region) or do that now.
   for (Region* region : all_regions_) {
     delete region;
   }
@@ -71,6 +75,23 @@ RegionAllocator::Region* RegionAllocator::FreeListFindRegion(size_t size) {
   return iter == free_regions_.end() ? nullptr : *iter;
 }
 
+RegionAllocator::Region* RegionAllocator::FreeListFindLargestRegion(
+    size_t size) const {
+  Region* region = nullptr;
+  for (Region* free_region : free_regions_) {
+    if (free_region->size() < size) continue;
+    if (!region || free_region->size() > region->size()) {
+      region = free_region;
+    }
+  }
+  return region;
+}
+
+size_t RegionAllocator::GetLargestFreeRegionSize() const {
+  Region* region = FreeListFindLargestRegion(0);
+  return region != nullptr ? region->size() : 0;
+}
+
 void RegionAllocator::FreeListRemoveRegion(Region* region) {
   DCHECK(region->is_free());
   auto iter = free_regions_.find(region);
@@ -86,6 +107,8 @@ RegionAllocator::Region* RegionAllocator::Split(Region* region,
   DCHECK(IsAligned(new_size, page_size_));
   DCHECK_NE(new_size, 0);
   DCHECK_GT(region->size(), new_size);
+
+  if (on_split_) on_split_(region->begin(), new_size);
 
   // Create new region and put it to the lists after the |region|.
   DCHECK(!region->is_excluded());
@@ -112,6 +135,9 @@ void RegionAllocator::Merge(AllRegionsSet::iterator prev_iter,
   Region* prev = *prev_iter;
   Region* next = *next_iter;
   DCHECK_EQ(prev->end(), next->begin());
+
+  if (on_merge_) on_merge_(prev->begin(), prev->size() + next->size());
+
   prev->set_size(prev->size() + next->size());
 
   all_regions_.erase(next_iter);  // prev_iter stays valid.
@@ -121,11 +147,20 @@ void RegionAllocator::Merge(AllRegionsSet::iterator prev_iter,
   delete next;
 }
 
-RegionAllocator::Address RegionAllocator::AllocateRegion(size_t size) {
+RegionAllocator::Address RegionAllocator::AllocateRegion(
+    size_t size, AllocationStrategy allocation_strategy) {
   DCHECK_NE(size, 0);
   DCHECK(IsAligned(size, page_size_));
 
-  Region* region = FreeListFindRegion(size);
+  Region* region = nullptr;
+
+  if (allocation_strategy == AllocationStrategy::kFirstFit) {
+    region = FreeListFindRegion(size);
+  } else {
+    DCHECK_EQ(allocation_strategy, AllocationStrategy::kLargestFit);
+    region = FreeListFindLargestRegion(size);
+  }
+
   if (region == nullptr) return kAllocationFailure;
 
   if (region->size() != size) {
@@ -167,8 +202,14 @@ bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size,
   DCHECK_NE(region_state, RegionState::kFree);
 
   Address requested_end = requested_address + size;
-  DCHECK_LE(requested_end, end());
 
+  // Fail if the region would outgrow the total reservation or the addition
+  // overflows.
+  if (requested_end > end() || requested_end < requested_address) {
+    return false;
+  }
+
+  DCHECK_LE(requested_end, end());
   Region* region;
   {
     AllRegionsSet::iterator region_iter = FindRegion(requested_address);
@@ -198,6 +239,66 @@ bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size,
   FreeListRemoveRegion(region);
   region->set_state(region_state);
   return true;
+}
+
+RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
+    size_t size, size_t alignment) {
+  DCHECK(IsAligned(size, page_size_));
+  DCHECK(IsAligned(alignment, page_size_));
+  DCHECK_GE(alignment, page_size_);
+
+  const size_t padded_size = size + alignment - page_size_;
+  Region* region = FreeListFindRegion(padded_size);
+  if (region == nullptr) {
+    // In case we are out of space we might still fit an allocation without
+    // padding and the result might still satisfy our alignment requirements.
+    region = FreeListFindRegion(size);
+  }
+  if (region == nullptr) return kAllocationFailure;
+
+  if (!IsAligned(region->begin(), alignment)) {
+    size_t start = RoundUp(region->begin(), alignment);
+    if (start + size > region->end()) {
+      return kAllocationFailure;
+    }
+    region = Split(region, start - region->begin());
+    DCHECK_EQ(region->begin(), start);
+    DCHECK(IsAligned(region->begin(), alignment));
+  }
+
+  if (region->size() != size) {
+    Split(region, size);
+  }
+  DCHECK(IsAligned(region->begin(), alignment));
+  DCHECK_EQ(region->size(), size);
+
+  // Mark region as used.
+  FreeListRemoveRegion(region);
+  region->set_state(RegionState::kAllocated);
+  return region->begin();
+}
+
+RegionAllocator::Address RegionAllocator::AllocateRegion(Address hint,
+                                                         size_t size,
+                                                         size_t alignment) {
+  DCHECK(IsAligned(alignment, page_size()));
+  DCHECK(IsAligned(hint, alignment));
+
+  if (hint && contains(hint, size)) {
+    if (AllocateRegionAt(hint, size)) {
+      return hint;
+    }
+  }
+
+  Address address;
+  if (alignment <= page_size()) {
+    // TODO(chromium:1218005): Consider using randomized version here.
+    address = AllocateRegion(size);
+  } else {
+    address = AllocateAlignedRegion(size, alignment);
+  }
+
+  return address;
 }
 
 size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
@@ -250,6 +351,33 @@ size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
   }
   FreeListAddRegion(region);
   return size;
+}
+
+bool RegionAllocator::TryGrowRegion(Address address, size_t new_size) {
+  DCHECK(IsAligned(new_size, page_size_));
+
+  AllRegionsSet::iterator region_iter = FindRegion(address);
+  if (region_iter == all_regions_.end()) {
+    return false;
+  }
+  Region* region = *region_iter;
+  if (region->begin() != address || !region->is_allocated()) {
+    return false;
+  }
+
+  // The region must not be in the free list.
+  DCHECK_EQ(free_regions_.find(*region_iter), free_regions_.end());
+  DCHECK_LT(region->size(), new_size);
+
+  if (!AllocateRegionAt(region->end(), new_size - region->size())) {
+    return false;
+  }
+
+  AllRegionsSet::iterator new_region_iter = std::next(region_iter);
+  DCHECK_NE(new_region_iter, all_regions_.end());
+
+  Merge(region_iter, new_region_iter);
+  return true;
 }
 
 size_t RegionAllocator::CheckRegion(Address address) {

@@ -2,7 +2,7 @@
 const { mustCall } = require('../common');
 
 const http = require('http');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 const server = http.createServer(mustCall((req, res) => {
   res.flushHeaders();
@@ -14,7 +14,7 @@ server.listen(0, mustCall(() => {
   }, mustCall(() => {
     const { socket } = req;
     socket.emit('agentRemove');
-    strictEqual(socket._httpMessage, req);
+    assert.strictEqual(socket._httpMessage, req);
     socket.destroy();
     server.close();
   }));

@@ -22,19 +22,19 @@ writer1._write = common.mustCall(function(chunk, encoding, cb) {
   process.nextTick(cb);
 }, 1);
 
-writer1.once('chunk-received', () => {
+writer1.once('chunk-received', common.mustCallAtLeast(() => {
   assert.strictEqual(
     reader._readableState.awaitDrainWriters.size,
     0,
     'awaitDrain initial value should be 0, actual is ' +
-    reader._readableState.awaitDrainWriters
+    reader._readableState.awaitDrainWriters.size
   );
   setImmediate(() => {
     // This one should *not* get through to writer1 because writer2 is not
     // "done" processing.
     reader.push(buffer);
   });
-});
+}));
 
 // A "slow" consumer:
 writer2._write = common.mustCall((chunk, encoding, cb) => {

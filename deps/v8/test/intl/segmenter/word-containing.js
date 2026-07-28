@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-segmenter
-
 const segmenter = new Intl.Segmenter(undefined, {granularity: 'word'});
 const waving_hand_light_skin_tone = "\uD83D\uDC4B\uD83C\uDFFB";
 const man_light_skin_tone_red_hair =

@@ -25,6 +25,8 @@ namespace internal {
 class AllocationProfile : public v8::AllocationProfile {
  public:
   AllocationProfile() = default;
+  AllocationProfile(const AllocationProfile&) = delete;
+  AllocationProfile& operator=(const AllocationProfile&) = delete;
 
   v8::AllocationProfile::Node* GetRootNode() override {
     return nodes_.size() == 0 ? nullptr : &nodes_.front();
@@ -39,8 +41,6 @@ class AllocationProfile : public v8::AllocationProfile {
   std::vector<v8::AllocationProfile::Sample> samples_;
 
   friend class SamplingHeapProfiler;
-
-  DISALLOW_COPY_AND_ASSIGN(AllocationProfile);
 };
 
 class SamplingHeapProfiler {
@@ -55,6 +55,8 @@ class SamplingHeapProfiler {
           script_position_(start_position),
           name_(name),
           id_(id) {}
+    AllocationNode(const AllocationNode&) = delete;
+    AllocationNode& operator=(const AllocationNode&) = delete;
 
     AllocationNode* FindChildNode(FunctionId id) {
       auto it = children_.find(id);
@@ -95,8 +97,6 @@ class SamplingHeapProfiler {
     bool pinned_ = false;
 
     friend class SamplingHeapProfiler;
-
-    DISALLOW_COPY_AND_ASSIGN(AllocationNode);
   };
 
   struct Sample {
@@ -107,19 +107,20 @@ class SamplingHeapProfiler {
           global(reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_),
           profiler(profiler_),
           sample_id(sample_id) {}
+    Sample(const Sample&) = delete;
+    Sample& operator=(const Sample&) = delete;
     const size_t size;
     AllocationNode* const owner;
     Global<Value> global;
     SamplingHeapProfiler* const profiler;
     const uint64_t sample_id;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(Sample);
   };
 
   SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
                        int stack_depth, v8::HeapProfiler::SamplingFlags flags);
   ~SamplingHeapProfiler();
+  SamplingHeapProfiler(const SamplingHeapProfiler&) = delete;
+  SamplingHeapProfiler& operator=(const SamplingHeapProfiler&) = delete;
 
   v8::AllocationProfile* GetAllocationProfile();
   StringsStorage* names() const { return names_; }
@@ -193,8 +194,6 @@ class SamplingHeapProfiler {
   const int stack_depth_;
   const uint64_t rate_;
   v8::HeapProfiler::SamplingFlags flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(SamplingHeapProfiler);
 };
 
 }  // namespace internal

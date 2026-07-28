@@ -14,7 +14,7 @@ console.log('validateHeaderName');
   'user-agent',
   'USER-AGENT',
   'User-Agent',
-  'x-forwarded-for'
+  'x-forwarded-for',
 ].forEach((name) => {
   console.log('does not throw for "%s"', name);
   validateHeaderName(name);

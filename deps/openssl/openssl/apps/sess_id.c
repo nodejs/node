@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -19,23 +19,34 @@
 #include <openssl/ssl.h>
 
 typedef enum OPTION_choice {
-    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
-    OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT,
-    OPT_TEXT, OPT_CERT, OPT_NOOUT, OPT_CONTEXT
+    OPT_COMMON,
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_IN,
+    OPT_OUT,
+    OPT_TEXT,
+    OPT_CERT,
+    OPT_NOOUT,
+    OPT_CONTEXT
 } OPTION_CHOICE;
 
 const OPTIONS sess_id_options[] = {
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"inform", OPT_INFORM, 'F', "Input format - default PEM (DER or PEM)"},
-    {"outform", OPT_OUTFORM, 'f',
-     "Output format - default PEM (PEM, DER or NSS)"},
-    {"in", OPT_IN, 's', "Input file - default stdin"},
-    {"out", OPT_OUT, '>', "Output file - default stdout"},
-    {"text", OPT_TEXT, '-', "Print ssl session id details"},
-    {"cert", OPT_CERT, '-', "Output certificate "},
-    {"noout", OPT_NOOUT, '-', "Don't output the encoded session info"},
-    {"context", OPT_CONTEXT, 's', "Set the session ID context"},
-    {NULL}
+    OPT_SECTION("General"),
+    { "help", OPT_HELP, '-', "Display this summary" },
+    { "context", OPT_CONTEXT, 's', "Set the session ID context" },
+
+    OPT_SECTION("Input"),
+    { "in", OPT_IN, 's', "Input file - default stdin" },
+    { "inform", OPT_INFORM, 'F', "Input format - default PEM (DER or PEM)" },
+
+    OPT_SECTION("Output"),
+    { "out", OPT_OUT, '>', "Output file - default stdout" },
+    { "outform", OPT_OUTFORM, 'f',
+        "Output format - default PEM (PEM, DER or NSS)" },
+    { "text", OPT_TEXT, '-', "Print ssl session id details" },
+    { "cert", OPT_CERT, '-', "Output certificate " },
+    { "noout", OPT_NOOUT, '-', "Don't output the encoded session info" },
+    { NULL }
 };
 
 static SSL_SESSION *load_sess_id(char *file, int format);
@@ -55,7 +66,7 @@ int sess_id_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -68,7 +79,7 @@ int sess_id_main(int argc, char **argv)
             break;
         case OPT_OUTFORM:
             if (!opt_format(opt_arg(), OPT_FMT_PEMDER | OPT_FMT_NSS,
-                            &outformat))
+                    &outformat))
                 goto opthelp;
             break;
         case OPT_IN:
@@ -91,8 +102,9 @@ int sess_id_main(int argc, char **argv)
             break;
         }
     }
-    argc = opt_num_rest();
-    if (argc != 0)
+
+    /* No extra arguments. */
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     x = load_sess_id(infile, informat);
@@ -108,7 +120,7 @@ int sess_id_main(int argc, char **argv)
             goto end;
         }
         if (!SSL_SESSION_set1_id_context(x, (unsigned char *)context,
-                                         ctx_len)) {
+                ctx_len)) {
             BIO_printf(bio_err, "Error setting id context\n");
             goto end;
         }
@@ -161,7 +173,7 @@ int sess_id_main(int argc, char **argv)
         }
     }
     ret = 0;
- end:
+end:
     BIO_free_all(out);
     SSL_SESSION_free(x);
     return ret;
@@ -185,7 +197,7 @@ static SSL_SESSION *load_sess_id(char *infile, int format)
         goto end;
     }
 
- end:
+end:
     BIO_free(in);
     return x;
 }

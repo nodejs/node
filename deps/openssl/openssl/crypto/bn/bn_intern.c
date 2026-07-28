@@ -1,7 +1,7 @@
 /*
- * Copyright 2014-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -29,30 +29,28 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
 
     if (BN_is_zero(scalar)) {
         r = OPENSSL_malloc(1);
-        if (r == NULL) {
-            BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_MALLOC_FAILURE);
+        if (r == NULL)
             goto err;
-        }
         r[0] = 0;
         *ret_len = 1;
         return r;
     }
 
-    if (w <= 0 || w > 7) {      /* 'signed char' can represent integers with
-                                 * absolute values less than 2^7 */
-        BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+    if (w <= 0 || w > 7) { /* 'signed char' can represent integers with
+                            * absolute values less than 2^7 */
+        ERR_raise(ERR_LIB_BN, ERR_R_INTERNAL_ERROR);
         goto err;
     }
-    bit = 1 << w;               /* at most 128 */
-    next_bit = bit << 1;        /* at most 256 */
-    mask = next_bit - 1;        /* at most 255 */
+    bit = 1 << w; /* at most 128 */
+    next_bit = bit << 1; /* at most 256 */
+    mask = next_bit - 1; /* at most 255 */
 
     if (BN_is_negative(scalar)) {
         sign = -1;
     }
 
     if (scalar->d == NULL || scalar->top == 0) {
-        BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+        ERR_raise(ERR_LIB_BN, ERR_R_INTERNAL_ERROR);
         goto err;
     }
 
@@ -62,10 +60,8 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
                                   * (*ret_len will be set to the actual length, i.e. at most
                                   * BN_num_bits(scalar) + 1)
                                   */
-    if (r == NULL) {
-        BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_MALLOC_FAILURE);
+    if (r == NULL)
         goto err;
-    }
     window_val = scalar->d[0] & mask;
     j = 0;
     while ((window_val != 0) || (j + w + 1 < len)) { /* if j+w+1 >= len,
@@ -81,7 +77,7 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
             if (window_val & bit) {
                 digit = window_val - next_bit; /* -2^w < digit < 0 */
 
-#if 1                           /* modified wNAF */
+#if 1 /* modified wNAF */
                 if (j + w + 1 >= len) {
                     /*
                      * Special case for generating modified wNAFs:
@@ -98,7 +94,7 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
             }
 
             if (digit <= -bit || digit >= bit || !(digit & 1)) {
-                BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+                ERR_raise(ERR_LIB_BN, ERR_R_INTERNAL_ERROR);
                 goto err;
             }
 
@@ -110,7 +106,7 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
              */
             if (window_val != 0 && window_val != next_bit
                 && window_val != bit) {
-                BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+                ERR_raise(ERR_LIB_BN, ERR_R_INTERNAL_ERROR);
                 goto err;
             }
         }
@@ -121,19 +117,19 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
         window_val += bit * BN_is_bit_set(scalar, j + w);
 
         if (window_val > next_bit) {
-            BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+            ERR_raise(ERR_LIB_BN, ERR_R_INTERNAL_ERROR);
             goto err;
         }
     }
 
     if (j > len + 1) {
-        BNerr(BN_F_BN_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+        ERR_raise(ERR_LIB_BN, ERR_R_INTERNAL_ERROR);
         goto err;
     }
     *ret_len = j;
     return r;
 
- err:
+err:
     OPENSSL_free(r);
     return NULL;
 }
@@ -188,7 +184,7 @@ void bn_set_static_words(BIGNUM *a, const BN_ULONG *words, int size)
 int bn_set_words(BIGNUM *a, const BN_ULONG *words, int num_words)
 {
     if (bn_wexpand(a, num_words) == NULL) {
-        BNerr(BN_F_BN_SET_WORDS, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BN, ERR_R_BN_LIB);
         return 0;
     }
 

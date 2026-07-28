@@ -1,40 +1,38 @@
 'use strict';
 
-// Flags: --experimental-wasi-unstable-preview1
-
 require('../common');
 const assert = require('assert');
 const { WASI } = require('wasi');
 
 // If args is undefined, it should default to [] and should not throw.
-new WASI({});
+new WASI({ version: 'preview1' });
 
 // If args is not an Array and not undefined, it should throw.
-assert.throws(() => { new WASI({ args: 'fhqwhgads' }); },
+assert.throws(() => { new WASI({ version: 'preview1', args: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bargs\b/ });
 
 // If env is not an Object and not undefined, it should throw.
-assert.throws(() => { new WASI({ env: 'fhqwhgads' }); },
+assert.throws(() => { new WASI({ version: 'preview1', env: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\benv\b/ });
 
 // If preopens is not an Object and not undefined, it should throw.
-assert.throws(() => { new WASI({ preopens: 'fhqwhgads' }); },
+assert.throws(() => { new WASI({ version: 'preview1', preopens: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bpreopens\b/ });
 
 // If returnOnExit is not a boolean and not undefined, it should throw.
-assert.throws(() => { new WASI({ returnOnExit: 'fhqwhgads' }); },
+assert.throws(() => { new WASI({ version: 'preview1', returnOnExit: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\breturnOnExit\b/ });
 
 // If stdin is not an int32 and not undefined, it should throw.
-assert.throws(() => { new WASI({ stdin: 'fhqwhgads' }); },
+assert.throws(() => { new WASI({ version: 'preview1', stdin: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bstdin\b/ });
 
 // If stdout is not an int32 and not undefined, it should throw.
-assert.throws(() => { new WASI({ stdout: 'fhqwhgads' }); },
+assert.throws(() => { new WASI({ version: 'preview1', stdout: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bstdout\b/ });
 
 // If stderr is not an int32 and not undefined, it should throw.
-assert.throws(() => { new WASI({ stderr: 'fhqwhgads' }); },
+assert.throws(() => { new WASI({ version: 'preview1', stderr: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\bstderr\b/ });
 
 // If options is provided, but not an object, the constructor should throw.
@@ -45,5 +43,17 @@ assert.throws(() => { new WASI({ stderr: 'fhqwhgads' }); },
 
 // Verify that exceptions thrown from the binding layer are handled.
 assert.throws(() => {
-  new WASI({ preopens: { '/sandbox': '__/not/real/path' } });
+  new WASI({ version: 'preview1', preopens: { '/sandbox': '__/not/real/path' } });
 }, { code: 'UVWASI_ENOENT', message: /uvwasi_init/ });
+
+// If version is not a string, it should throw
+assert.throws(() => { new WASI({ version: { x: 'y' } }); },
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bversion\b/ });
+
+// If version is not specified, it should throw.
+assert.throws(() => { new WASI(); },
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bversion\b/ });
+
+// If version is an unsupported version, it should throw
+assert.throws(() => { new WASI({ version: 'not_a_version' }); },
+              { code: 'ERR_INVALID_ARG_VALUE', message: /\bversion\b/ });

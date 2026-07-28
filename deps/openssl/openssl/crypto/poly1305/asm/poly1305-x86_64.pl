@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -63,9 +63,10 @@
 # (***)	strangely enough performance seems to vary from core to core,
 #	listed result is best case;
 
-$flavour = shift;
-$output  = shift;
-if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 
@@ -94,7 +95,8 @@ if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|.*based on LLVM) ([0
 	$avx = ($2>=3.0) + ($2>3.0);
 }
 
-open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 my ($ctx,$inp,$len,$padbit)=("%rdi","%rsi","%rdx","%rcx");
@@ -193,7 +195,7 @@ $code.=<<___	if ($avx>1);
 	bt	\$`5+32`,%r9		# AVX2?
 	cmovc	%rax,%r10
 ___
-$code.=<<___	if ($avx>3);
+$code.=<<___	if ($avx>3 && !$win64);
 	mov	\$`(1<<31|1<<21|1<<16)`,%rax
 	shr	\$32,%r9
 	and	%rax,%r9
@@ -227,6 +229,7 @@ $code.=<<___;
 .align	32
 poly1305_blocks:
 .cfi_startproc
+	endbranch
 .Lblocks:
 	shr	\$4,$len
 	jz	.Lno_data		# too short
@@ -301,6 +304,7 @@ $code.=<<___;
 .align	32
 poly1305_emit:
 .cfi_startproc
+	endbranch
 .Lemit:
 	mov	0($ctx),%r8	# load hash value
 	mov	8($ctx),%r9
@@ -522,6 +526,7 @@ __poly1305_init_avx:
 .align	32
 poly1305_blocks_avx:
 .cfi_startproc
+	endbranch
 	mov	20($ctx),%r8d		# is_base2_26
 	cmp	\$128,$len
 	jae	.Lblocks_avx
@@ -1382,6 +1387,7 @@ $code.=<<___;
 .align	32
 poly1305_emit_avx:
 .cfi_startproc
+	endbranch
 	cmpl	\$0,20($ctx)	# is_base2_26?
 	je	.Lemit
 
@@ -1446,6 +1452,7 @@ $code.=<<___;
 .align	32
 poly1305_blocks_avx2:
 .cfi_startproc
+	endbranch
 	mov	20($ctx),%r8d		# is_base2_26
 	cmp	\$128,$len
 	jae	.Lblocks_avx2
@@ -2142,6 +2149,7 @@ $code.=<<___;
 .align	32
 poly1305_blocks_avx512:
 .cfi_startproc
+	endbranch
 .Lblocks_avx512:
 	mov		\$15,%eax
 	kmovw		%eax,%k2
@@ -2722,7 +2730,7 @@ $code.=<<___;
 .cfi_endproc
 .size	poly1305_blocks_avx512,.-poly1305_blocks_avx512
 ___
-if ($avx>3) {
+if ($avx>3 && !$win64) {
 ########################################################################
 # VPMADD52 version using 2^44 radix.
 #
@@ -2806,6 +2814,7 @@ $code.=<<___;
 .align	32
 poly1305_blocks_vpmadd52:
 .cfi_startproc
+	endbranch
 	shr	\$4,$len
 	jz	.Lno_data_vpmadd52		# too short
 
@@ -3739,6 +3748,7 @@ $code.=<<___;
 .align	32
 poly1305_emit_base2_44:
 .cfi_startproc
+	endbranch
 	mov	0($ctx),%r8	# load hash value
 	mov	8($ctx),%r9
 	mov	16($ctx),%r10
@@ -3774,6 +3784,7 @@ poly1305_emit_base2_44:
 ___
 }	}	}
 $code.=<<___;
+.section .rodata align=64
 .align	64
 .Lconst:
 .Lmask24:
@@ -3805,6 +3816,7 @@ $code.=<<___;
 .Lx_mask42:
 .quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
 .quad	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
+.previous
 ___
 }
 $code.=<<___;

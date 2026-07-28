@@ -50,7 +50,7 @@ function validate() {
 {
   // Test with a file argument.
   const file = process.report.writeReport('custom-name-1.json');
-  const absolutePath = path.join(tmpdir.path, file);
+  const absolutePath = tmpdir.resolve(file);
   assert.strictEqual(helper.findReports(process.pid, tmpdir.path).length, 0);
   assert.strictEqual(file, 'custom-name-1.json');
   helper.validate(absolutePath);
@@ -61,7 +61,7 @@ function validate() {
   // Test with file and error arguments.
   const file = process.report.writeReport('custom-name-2.json',
                                           new Error('test error'));
-  const absolutePath = path.join(tmpdir.path, file);
+  const absolutePath = tmpdir.resolve(file);
   assert.strictEqual(helper.findReports(process.pid, tmpdir.path).length, 0);
   assert.strictEqual(file, 'custom-name-2.json');
   helper.validate(absolutePath);
@@ -117,7 +117,7 @@ function validate() {
 
 {
   // Test the case where the report file cannot be opened.
-  const reportDir = path.join(tmpdir.path, 'does', 'not', 'exist');
+  const reportDir = tmpdir.resolve('does', 'not', 'exist');
   const args = [`--report-directory=${reportDir}`,
                 '-e',
                 'process.report.writeReport()'];

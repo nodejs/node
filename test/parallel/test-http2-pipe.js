@@ -7,24 +7,23 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
-const path = require('path');
 
 // Piping should work as expected with createWriteStream
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const loc = fixtures.path('person-large.jpg');
-const fn = path.join(tmpdir.path, 'http2-url-tests.js');
+const fn = tmpdir.resolve('http2-url-tests.js');
 
 const server = http2.createServer();
 
 server.on('stream', common.mustCall((stream) => {
   const dest = stream.pipe(fs.createWriteStream(fn));
 
-  dest.on('finish', () => {
+  dest.on('finish', common.mustCall(() => {
     assert.strictEqual(fs.readFileSync(loc).length,
                        fs.readFileSync(fn).length);
-  });
+  }));
   stream.respond();
   stream.end();
 }));

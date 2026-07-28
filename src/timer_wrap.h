@@ -16,7 +16,9 @@ class TimerWrap final : public MemoryRetainer {
  public:
   using TimerCb = std::function<void()>;
 
-  TimerWrap(Environment* env, const TimerCb& fn);
+  template <typename... Args>
+  explicit inline TimerWrap(Environment* env, Args&&... args);
+
   TimerWrap(const TimerWrap&) = delete;
 
   inline Environment* env() const { return env_; }
@@ -32,7 +34,7 @@ class TimerWrap final : public MemoryRetainer {
   void Ref();
   void Unref();
 
-  SET_NO_MEMORY_INFO();
+  SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(TimerWrap)
   SET_SELF_SIZE(TimerWrap)
 
@@ -50,15 +52,16 @@ class TimerWrap final : public MemoryRetainer {
 
 class TimerWrapHandle : public MemoryRetainer  {
  public:
-  TimerWrapHandle(
-      Environment* env,
-      const TimerWrap::TimerCb& fn);
+  template <typename... Args>
+  explicit inline TimerWrapHandle(Environment* env, Args&&... args);
 
   TimerWrapHandle(const TimerWrapHandle&) = delete;
 
   ~TimerWrapHandle() { Close(); }
 
   void Update(uint64_t interval, uint64_t repeat = 0);
+
+  inline operator bool() const { return timer_ != nullptr; }
 
   void Ref();
   void Unref();

@@ -26,7 +26,7 @@
 require('../common');
 const fs = require('fs');
 const assert = require('assert');
-const { fixturesDir } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 
 let counter = 0;
 
@@ -47,7 +47,7 @@ fs.stat = function() {
 };
 
 // Load the module 'a' and 'http' once. It should become cached.
-require(`${fixturesDir}/a`);
+require(`${fixtures.fixturesDir}/a`);
 require('../fixtures/a.js');
 require('./../fixtures/a.js');
 require('http');
@@ -58,7 +58,7 @@ const counterBefore = counter;
 // Now load the module a bunch of times with equivalent paths.
 // stat should not be called.
 for (let i = 0; i < 100; i++) {
-  require(`${fixturesDir}/a`);
+  require(`${fixtures.fixturesDir}/a`);
   require('../fixtures/a.js');
   require('./../fixtures/a.js');
 }

@@ -1,10 +1,9 @@
 {
   "targets": [
     {
-      "target_name": "binding",
+      "target_name": "7_factory_wrap",
       "sources": [
-        "../entry_point.c",
-        "binding.cc",
+        "7_factory_wrap.cc",
         "myobject.cc"
       ]
     }

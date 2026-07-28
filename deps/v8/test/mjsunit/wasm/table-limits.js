@@ -4,7 +4,7 @@
 
 // Flags: --wasm-max-table-size=10
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // With the flags we set the maximum table size to 10, so 11 is out-of-bounds.
 const oob = 11;
@@ -27,9 +27,12 @@ const oob = 11;
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(oob);
+
+  const err_msg = `WebAssembly.Module(): initial table size \
+(11 elements) is larger than implementation limit (10 elements) @+13`;
   assertThrows(
     () => builder.instantiate(),
-    RangeError, /is larger than implementation limit/);
+    WebAssembly.CompileError, err_msg);
 })();
 
 (function TestDecodeTableMaximumAboveTheLimit() {

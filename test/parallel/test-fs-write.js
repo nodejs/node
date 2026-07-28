@@ -23,26 +23,42 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const fn = path.join(tmpdir.path, 'write.txt');
-const fn2 = path.join(tmpdir.path, 'write2.txt');
-const fn3 = path.join(tmpdir.path, 'write3.txt');
-const fn4 = path.join(tmpdir.path, 'write4.txt');
+const fn = tmpdir.resolve('write.txt');
+const fn2 = tmpdir.resolve('write2.txt');
+const fn3 = tmpdir.resolve('write3.txt');
+const fn4 = tmpdir.resolve('write4.txt');
 const expected = 'ümlaut.';
 const constants = fs.constants;
 
-const { externalizeString, isOneByteString } = global;
+const {
+  createExternalizableString,
+  createExternalizableTwoByteString,
+  externalizeString,
+  isOneByteString,
+} = globalThis;
+
+assert.notStrictEqual(createExternalizableString, undefined);
+assert.notStrictEqual(createExternalizableTwoByteString, undefined);
+assert.notStrictEqual(externalizeString, undefined);
+assert.notStrictEqual(isOneByteString, undefined);
 
 // Account for extra globals exposed by --expose_externalize_string.
-common.allowGlobals(externalizeString, isOneByteString, global.x);
+common.allowGlobals(
+  createExternalizableString,
+  createExternalizableTwoByteString,
+  externalizeString,
+  isOneByteString,
+  globalThis.x,
+);
 
 {
-  const expected = 'ümlaut sechzig';  // Must be a unique string.
+  // Must be a unique string.
+  const expected = createExternalizableString('ümlaut sechzig');
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), true);
   const fd = fs.openSync(fn, 'w');
@@ -52,7 +68,8 @@ common.allowGlobals(externalizeString, isOneByteString, global.x);
 }
 
 {
-  const expected = 'ümlaut neunzig';  // Must be a unique string.
+  // Must be a unique string.
+  const expected = createExternalizableString('ümlaut neunzig');
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), true);
   const fd = fs.openSync(fn, 'w');
@@ -62,7 +79,8 @@ common.allowGlobals(externalizeString, isOneByteString, global.x);
 }
 
 {
-  const expected = 'Zhōngwén 1';  // Must be a unique string.
+  // Must be a unique string.
+  const expected = createExternalizableString('Zhōngwén 1');
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), false);
   const fd = fs.openSync(fn, 'w');
@@ -72,7 +90,8 @@ common.allowGlobals(externalizeString, isOneByteString, global.x);
 }
 
 {
-  const expected = 'Zhōngwén 2';  // Must be a unique string.
+  // Must be a unique string.
+  const expected = createExternalizableString('Zhōngwén 2');
   externalizeString(expected);
   assert.strictEqual(isOneByteString(expected), false);
   const fd = fs.openSync(fn, 'w');
@@ -125,17 +144,6 @@ fs.open(fn3, 'w', 0o644, common.mustSucceed((fd) => {
   fs.write(fd, expected, done);
 }));
 
-fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
-  const done = common.mustSucceed((written) => {
-    assert.strictEqual(written, Buffer.byteLength(expected));
-    fs.closeSync(fd);
-  });
-
-  const data = {
-    toString() { return expected; }
-  };
-  fs.write(fd, data, done);
-}));
 
 [false, 'test', {}, [], null, undefined].forEach((i) => {
   assert.throws(
@@ -154,7 +162,14 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
   );
 });
 
-[false, 5, {}, [], null, undefined].forEach((data) => {
+[
+  false, 5, {}, [], null, undefined, true, 5n, () => {}, Symbol(), new Map(),
+  new String('notPrimitive'),
+  { [Symbol.toPrimitive]: (hint) => 'amObject' },
+  { toString() { return 'amObject'; } },
+  Promise.resolve('amPromise'),
+  common.mustNotCall(),
+].forEach((data) => {
   assert.throws(
     () => fs.write(1, data, common.mustNotCall()),
     {
@@ -170,3 +185,31 @@ fs.open(fn4, 'w', 0o644, common.mustSucceed((fd) => {
     }
   );
 });
+
+{
+  // Regression test for https://github.com/nodejs/node/issues/38168
+  const fd = fs.openSync(fn4, 'w');
+
+  assert.throws(
+    () => fs.writeSync(fd, 'abc', 0, 'hex'),
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /'encoding' is invalid for data of length 3/
+    }
+  );
+
+  assert.throws(
+    () => fs.writeSync(fd, 'abc', 0, 'hex', common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /'encoding' is invalid for data of length 3/
+    }
+  );
+
+  assert.strictEqual(fs.writeSync(fd, 'abcd', 0, 'hex'), 2);
+
+  fs.write(fd, 'abcd', 0, 'hex', common.mustSucceed((written) => {
+    assert.strictEqual(written, 2);
+    fs.closeSync(fd);
+  }));
+}

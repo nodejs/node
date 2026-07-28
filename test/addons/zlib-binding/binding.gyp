@@ -3,7 +3,7 @@
     {
       'target_name': 'binding',
       'conditions': [
-        ['OS=="aix"', {
+        ['OS in "aix os400"', {
           'variables': {
             # Used to differentiate `AIX` and `OS400`(IBM i).
             'aix_variant_name': '<!(uname -s)',

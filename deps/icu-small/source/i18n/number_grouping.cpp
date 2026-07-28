@@ -18,7 +18,7 @@ namespace {
 int16_t getMinGroupingForLocale(const Locale& locale) {
     // TODO: Cache this?
     UErrorCode localStatus = U_ZERO_ERROR;
-    LocalUResourceBundlePointer bundle(ures_open(NULL, locale.getName(), &localStatus));
+    LocalUResourceBundlePointer bundle(ures_open(nullptr, locale.getName(), &localStatus));
     int32_t resultLen = 0;
     const char16_t* result = ures_getStringByKeyWithFallback(
         bundle.getAlias(),
@@ -47,7 +47,7 @@ Grouper Grouper::forStrategy(UNumberGroupingStrategy grouping) {
     case UNUM_GROUPING_THOUSANDS:
         return {3, 3, 1, grouping};
     default:
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -78,7 +78,7 @@ void Grouper::setLocaleData(const impl::ParsedPatternInfo &patternInfo, const Lo
     auto grouping2 = static_cast<int16_t> ((patternInfo.positive.groupingSizes >> 16) & 0xffff);
     auto grouping3 = static_cast<int16_t> ((patternInfo.positive.groupingSizes >> 32) & 0xffff);
     if (grouping2 == -1) {
-        grouping1 = fGrouping1 == -4 ? (short) 3 : (short) -1;
+        grouping1 = fGrouping1 == -4 ? static_cast<short>(3) : static_cast<short>(-1);
     }
     if (grouping3 == -1) {
         grouping2 = grouping1;

@@ -6,6 +6,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(V8_OS_STARBOARD)
+#include "starboard/system.h"
+#endif  //  V8_OS_STARBOARD
 
 #include <algorithm>
 #include <new>
@@ -14,6 +17,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
+#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace base {
@@ -50,21 +54,24 @@ RandomNumberGenerator::RandomNumberGenerator() {
   DCHECK_EQ(0, result);
   result = rand_s(&second_half);
   DCHECK_EQ(0, result);
+  USE(result);
   SetSeed((static_cast<int64_t>(first_half) << 32) + second_half);
-#elif V8_OS_MACOSX || V8_OS_FREEBSD || V8_OS_OPENBSD
+#elif V8_OS_DARWIN || V8_OS_FREEBSD || V8_OS_OPENBSD
   // Despite its prefix suggests it is not RC4 algorithm anymore.
   // It always succeeds while having decent performance and
   // no file descriptor involved.
   int64_t seed;
   arc4random_buf(&seed, sizeof(seed));
   SetSeed(seed);
+#elif V8_OS_STARBOARD
+  SetSeed(SbSystemGetRandomUInt64());
 #else
   // Gather entropy from /dev/urandom if available.
-  FILE* fp = fopen("/dev/urandom", "rb");
+  FILE* fp = base::Fopen("/dev/urandom", "rb");
   if (fp != nullptr) {
     int64_t seed;
     size_t n = fread(&seed, sizeof(seed), 1, fp);
-    fclose(fp);
+    base::Fclose(fp);
     if (n == 1) {
       SetSeed(seed);
       return;
@@ -80,8 +87,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
   // which provides reasonable entropy, see:
   // https://code.google.com/p/v8/issues/detail?id=2905
   int64_t seed = Time::NowFromSystemTime().ToInternalValue() << 24;
-  seed ^= TimeTicks::HighResolutionNow().ToInternalValue() << 16;
-  seed ^= TimeTicks::Now().ToInternalValue() << 8;
+  seed ^= TimeTicks::Now().ToInternalValue();
   SetSeed(seed);
 #endif  // V8_OS_CYGWIN || V8_OS_WIN
 }
@@ -106,14 +112,12 @@ int RandomNumberGenerator::NextInt(int max) {
 
 
 double RandomNumberGenerator::NextDouble() {
-  XorShift128(&state0_, &state1_);
-  return ToDouble(state0_);
+  return ToDouble(XorShift128(&state0_, &state1_));
 }
 
 
 int64_t RandomNumberGenerator::NextInt64() {
-  XorShift128(&state0_, &state1_);
-  return bit_cast<int64_t>(state0_ + state1_);
+  return base::bit_cast<int64_t>(XorShift128(&state0_, &state1_));
 }
 
 
@@ -206,14 +210,14 @@ std::vector<uint64_t> RandomNumberGenerator::NextSampleSlow(
 int RandomNumberGenerator::Next(int bits) {
   DCHECK_LT(0, bits);
   DCHECK_GE(32, bits);
-  XorShift128(&state0_, &state1_);
-  return static_cast<int>((state0_ + state1_) >> (64 - bits));
+  uint64_t random = XorShift128(&state0_, &state1_);
+  return static_cast<int>(random >> (64 - bits));
 }
 
 
 void RandomNumberGenerator::SetSeed(int64_t seed) {
   initial_seed_ = seed;
-  state0_ = MurmurHash3(bit_cast<uint64_t>(seed));
+  state0_ = MurmurHash3(base::bit_cast<uint64_t>(seed));
   state1_ = MurmurHash3(~state0_);
   CHECK(state0_ != 0 || state1_ != 0);
 }

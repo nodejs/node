@@ -12,16 +12,17 @@
 
 #include "../common/context.h"
 #include "../common/platform.h"
-#include <brotli/types.h>
-#include "./block_splitter.h"
-#include "./command.h"
-#include "./histogram.h"
-#include "./memory.h"
-#include "./quality.h"
+#include "block_splitter.h"
+#include "command.h"
+#include "histogram.h"
+#include "memory.h"
+#include "params.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+#define BROTLI_MAX_STATIC_CONTEXTS 13
 
 typedef struct MetaBlockSplit {
   BlockSplit literal_split;
@@ -95,8 +96,8 @@ BROTLI_INTERNAL void BrotliBuildMetaBlockGreedy(
 BROTLI_INTERNAL void BrotliOptimizeHistograms(uint32_t num_distance_codes,
                                               MetaBlockSplit* mb);
 
-BROTLI_INTERNAL void BrotliInitDistanceParams(BrotliEncoderParams* params,
-    uint32_t npostfix, uint32_t ndirect);
+BROTLI_INTERNAL void BrotliInitDistanceParams(BrotliDistanceParams* params,
+    uint32_t npostfix, uint32_t ndirect, BROTLI_BOOL large_window);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

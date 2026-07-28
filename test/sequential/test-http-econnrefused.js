@@ -32,8 +32,7 @@ const common = require('../common');
 const http = require('http');
 const assert = require('assert');
 
-
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   let body = '';
 
   req.setEncoding('utf8');
@@ -41,12 +40,12 @@ const server = http.createServer(function(req, res) {
     body += chunk;
   });
 
-  req.on('end', function() {
+  req.on('end', common.mustCall(() => {
     assert.strictEqual(body, 'PING');
-    res.writeHead(200);
+    res.writeHead(200, { 'Connection': 'close' });
     res.end('PONG');
-  });
-});
+  }));
+}));
 
 
 server.on('listening', pingping);
@@ -74,26 +73,26 @@ function afterPing(result) {
   const successRE = /success/;
   switch (responses.length) {
     case 2:
-      assert.ok(ECONNREFUSED_RE.test(responses[0]));
-      assert.ok(ECONNREFUSED_RE.test(responses[1]));
+      assert.match(responses[0], ECONNREFUSED_RE);
+      assert.match(responses[1], ECONNREFUSED_RE);
       serverOn();
       break;
 
     case 4:
-      assert.ok(successRE.test(responses[2]));
-      assert.ok(successRE.test(responses[3]));
+      assert.match(responses[2], successRE);
+      assert.match(responses[3], successRE);
       serverOff();
       break;
 
     case 6:
-      assert.ok(ECONNREFUSED_RE.test(responses[4]));
-      assert.ok(ECONNREFUSED_RE.test(responses[5]));
+      assert.match(responses[4], ECONNREFUSED_RE);
+      assert.match(responses[5], ECONNREFUSED_RE);
       serverOn();
       break;
 
     case 8:
-      assert.ok(successRE.test(responses[6]));
-      assert.ok(successRE.test(responses[7]));
+      assert.match(responses[6], successRE);
+      assert.match(responses[7], successRE);
       server.close();
       // We should go to process.on('exit') from here.
       break;
@@ -107,10 +106,10 @@ function ping() {
   const opt = {
     port: common.PORT,
     path: '/ping',
-    method: 'POST'
+    method: 'POST',
   };
 
-  const req = http.request(opt, function(res) {
+  const req = http.request(opt, common.mustCallAtLeast((res) => {
     let body = '';
 
     res.setEncoding('utf8');
@@ -118,25 +117,28 @@ function ping() {
       body += chunk;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       assert.strictEqual(body, 'PONG');
       assert.ok(!hadError);
       gotEnd = true;
       afterPing('success');
-    });
-  });
+    }));
+  }, 0));
 
   req.end('PING');
 
   let gotEnd = false;
   let hadError = false;
 
-  req.on('error', function(error) {
+  req.on('error', common.mustCallAtLeast((error) => {
     console.log(`Error making ping req: ${error}`);
     hadError = true;
     assert.ok(!gotEnd);
-    afterPing(error.message);
-  });
+
+    // Family autoselection might be skipped if only a single address is returned by DNS.
+    const actualError = Array.isArray(error.errors) ? error.errors[0] : error;
+    afterPing(actualError.message);
+  }, 0));
 }
 
 

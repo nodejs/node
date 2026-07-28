@@ -15,7 +15,7 @@ const options = {
 
 const server = tls.createServer(options, function(s) {
   s.end('hello');
-}).listen(0, function() {
+}).listen(0, common.mustCall(function() {
   const opts = {
     port: this.address().port,
     rejectUnauthorized: false
@@ -29,4 +29,4 @@ const server = tls.createServer(options, function(s) {
   const client = tls.connect(opts, function() {
     client.end();
   });
-});
+}));

@@ -1,47 +1,45 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-# include <stdio.h>
-# include "internal/cryptlib.h"
-# include <openssl/conf.h>
-# include <openssl/asn1.h>
-# include <openssl/ocsp.h>
-# include "ocsp_local.h"
-# include <openssl/x509v3.h>
-# include "../x509v3/ext_dat.h"
+#include <stdio.h>
+#include "internal/cryptlib.h"
+#include <openssl/conf.h>
+#include <openssl/asn1.h>
+#include <openssl/ocsp.h>
+#include "ocsp_local.h"
+#include <openssl/x509v3.h>
+#include "../x509/ext_dat.h"
 
 /*
  * OCSP extensions and a couple of CRL entry extensions
  */
 
 static int i2r_ocsp_crlid(const X509V3_EXT_METHOD *method, void *nonce,
-                          BIO *out, int indent);
+    BIO *out, int indent);
 static int i2r_ocsp_acutoff(const X509V3_EXT_METHOD *method, void *nonce,
-                            BIO *out, int indent);
-static int i2r_object(const X509V3_EXT_METHOD *method, void *obj, BIO *out,
-                      int indent);
+    BIO *out, int indent);
 
 static void *ocsp_nonce_new(void);
-static int i2d_ocsp_nonce(void *a, unsigned char **pp);
+static int i2d_ocsp_nonce(const void *a, unsigned char **pp);
 static void *d2i_ocsp_nonce(void *a, const unsigned char **pp, long length);
 static void ocsp_nonce_free(void *a);
 static int i2r_ocsp_nonce(const X509V3_EXT_METHOD *method, void *nonce,
-                          BIO *out, int indent);
+    BIO *out, int indent);
 
 static int i2r_ocsp_nocheck(const X509V3_EXT_METHOD *method,
-                            void *nocheck, BIO *out, int indent);
+    void *nocheck, BIO *out, int indent);
 static void *s2i_ocsp_nocheck(const X509V3_EXT_METHOD *method,
-                              X509V3_CTX *ctx, const char *str);
+    X509V3_CTX *ctx, const char *str);
 static int i2r_ocsp_serviceloc(const X509V3_EXT_METHOD *method, void *in,
-                               BIO *bp, int ind);
+    BIO *bp, int ind);
 
-const X509V3_EXT_METHOD v3_ocsp_crlid = {
+const X509V3_EXT_METHOD ossl_v3_ocsp_crlid = {
     NID_id_pkix_OCSP_CrlID, 0, ASN1_ITEM_ref(OCSP_CRLID),
     0, 0, 0, 0,
     0, 0,
@@ -50,7 +48,7 @@ const X509V3_EXT_METHOD v3_ocsp_crlid = {
     NULL
 };
 
-const X509V3_EXT_METHOD v3_ocsp_acutoff = {
+const X509V3_EXT_METHOD ossl_v3_ocsp_acutoff = {
     NID_id_pkix_OCSP_archiveCutoff, 0, ASN1_ITEM_ref(ASN1_GENERALIZEDTIME),
     0, 0, 0, 0,
     0, 0,
@@ -59,25 +57,7 @@ const X509V3_EXT_METHOD v3_ocsp_acutoff = {
     NULL
 };
 
-const X509V3_EXT_METHOD v3_crl_invdate = {
-    NID_invalidity_date, 0, ASN1_ITEM_ref(ASN1_GENERALIZEDTIME),
-    0, 0, 0, 0,
-    0, 0,
-    0, 0,
-    i2r_ocsp_acutoff, 0,
-    NULL
-};
-
-const X509V3_EXT_METHOD v3_crl_hold = {
-    NID_hold_instruction_code, 0, ASN1_ITEM_ref(ASN1_OBJECT),
-    0, 0, 0, 0,
-    0, 0,
-    0, 0,
-    i2r_object, 0,
-    NULL
-};
-
-const X509V3_EXT_METHOD v3_ocsp_nonce = {
+const X509V3_EXT_METHOD ossl_v3_ocsp_nonce = {
     NID_id_pkix_OCSP_Nonce, 0, NULL,
     ocsp_nonce_new,
     ocsp_nonce_free,
@@ -89,7 +69,7 @@ const X509V3_EXT_METHOD v3_ocsp_nonce = {
     NULL
 };
 
-const X509V3_EXT_METHOD v3_ocsp_nocheck = {
+const X509V3_EXT_METHOD ossl_v3_ocsp_nocheck = {
     NID_id_pkix_OCSP_noCheck, 0, ASN1_ITEM_ref(ASN1_NULL),
     0, 0, 0, 0,
     0, s2i_ocsp_nocheck,
@@ -98,7 +78,7 @@ const X509V3_EXT_METHOD v3_ocsp_nocheck = {
     NULL
 };
 
-const X509V3_EXT_METHOD v3_ocsp_serviceloc = {
+const X509V3_EXT_METHOD ossl_v3_ocsp_serviceloc = {
     NID_id_pkix_OCSP_serviceLocator, 0, ASN1_ITEM_ref(OCSP_SERVICELOC),
     0, 0, 0, 0,
     0, 0,
@@ -108,7 +88,7 @@ const X509V3_EXT_METHOD v3_ocsp_serviceloc = {
 };
 
 static int i2r_ocsp_crlid(const X509V3_EXT_METHOD *method, void *in, BIO *bp,
-                          int ind)
+    int ind)
 {
     OCSP_CRLID *a = in;
     if (a->crlUrl) {
@@ -136,26 +116,16 @@ static int i2r_ocsp_crlid(const X509V3_EXT_METHOD *method, void *in, BIO *bp,
             goto err;
     }
     return 1;
- err:
+err:
     return 0;
 }
 
 static int i2r_ocsp_acutoff(const X509V3_EXT_METHOD *method, void *cutoff,
-                            BIO *bp, int ind)
+    BIO *bp, int ind)
 {
     if (BIO_printf(bp, "%*s", ind, "") <= 0)
         return 0;
     if (!ASN1_GENERALIZEDTIME_print(bp, cutoff))
-        return 0;
-    return 1;
-}
-
-static int i2r_object(const X509V3_EXT_METHOD *method, void *oid, BIO *bp,
-                      int ind)
-{
-    if (BIO_printf(bp, "%*s", ind, "") <= 0)
-        return 0;
-    if (i2a_ASN1_OBJECT(bp, oid) <= 0)
         return 0;
     return 1;
 }
@@ -170,9 +140,9 @@ static void *ocsp_nonce_new(void)
     return ASN1_OCTET_STRING_new();
 }
 
-static int i2d_ocsp_nonce(void *a, unsigned char **pp)
+static int i2d_ocsp_nonce(const void *a, unsigned char **pp)
 {
-    ASN1_OCTET_STRING *os = a;
+    const ASN1_OCTET_STRING *os = a;
     if (pp) {
         memcpy(*pp, os->data, os->length);
         *pp += os->length;
@@ -200,10 +170,10 @@ static void *d2i_ocsp_nonce(void *a, const unsigned char **pp, long length)
         *pos = os;
     return os;
 
- err:
+err:
     if ((pos == NULL) || (*pos != os))
         ASN1_OCTET_STRING_free(os);
-    OCSPerr(OCSP_F_D2I_OCSP_NONCE, ERR_R_MALLOC_FAILURE);
+    ERR_raise(ERR_LIB_OCSP, ERR_R_ASN1_LIB);
     return NULL;
 }
 
@@ -213,7 +183,7 @@ static void ocsp_nonce_free(void *a)
 }
 
 static int i2r_ocsp_nonce(const X509V3_EXT_METHOD *method, void *nonce,
-                          BIO *out, int indent)
+    BIO *out, int indent)
 {
     if (BIO_printf(out, "%*s", indent, "") <= 0)
         return 0;
@@ -225,19 +195,19 @@ static int i2r_ocsp_nonce(const X509V3_EXT_METHOD *method, void *nonce,
 /* Nocheck is just a single NULL. Don't print anything and always set it */
 
 static int i2r_ocsp_nocheck(const X509V3_EXT_METHOD *method, void *nocheck,
-                            BIO *out, int indent)
+    BIO *out, int indent)
 {
     return 1;
 }
 
 static void *s2i_ocsp_nocheck(const X509V3_EXT_METHOD *method,
-                              X509V3_CTX *ctx, const char *str)
+    X509V3_CTX *ctx, const char *str)
 {
     return ASN1_NULL_new();
 }
 
 static int i2r_ocsp_serviceloc(const X509V3_EXT_METHOD *method, void *in,
-                               BIO *bp, int ind)
+    BIO *bp, int ind)
 {
     int i;
     OCSP_SERVICELOC *a = in;
@@ -259,6 +229,6 @@ static int i2r_ocsp_serviceloc(const X509V3_EXT_METHOD *method, void *in,
             goto err;
     }
     return 1;
- err:
+err:
     return 0;
 }

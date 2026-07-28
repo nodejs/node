@@ -1,8 +1,14 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: ⁉️ Need help with Node.js?
+  - name: ⁉️ Need general help with Node.js?
     url: https://github.com/nodejs/help
     about: Please file an issue in our help repo.
+  - name: 📦 Have an issue with npm?
+    url: https://github.com/npm/cli/issues
+    about: npm has a separate issue tracker.
+  - name: 📡 Have an issue with undici? (`WebSocket`, `fetch`, etc.)
+    url: https://github.com/nodejs/undici/issues
+    about: Undici has a separate issue tracker.
   - name: 🌐 Found a problem with nodejs.org beyond the API reference docs?
     url: https://github.com/nodejs/nodejs.org/issues/new/choose
     about: Please file an issue in the Node.js website repo.

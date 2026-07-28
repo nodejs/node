@@ -39,14 +39,14 @@ const spdyDict = Buffer.from([
   'ndayTuesdayWednesdayThursdayFridaySaturdaySundayJanFebMarAprMayJunJulAugSe',
   'pOctNovDecchunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplic',
   'ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1',
-  '.1statusversionurl\0'
+  '.1statusversionurl\0',
 ].join(''));
 
 const input = [
   'HTTP/1.1 200 Ok',
   'Server: node.js',
   'Content-Length: 0',
-  ''
+  '',
 ].join('\r\n');
 
 function basicDictionaryTest(spdyDict) {

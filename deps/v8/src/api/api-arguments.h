@@ -5,8 +5,9 @@
 #ifndef V8_API_API_ARGUMENTS_H_
 #define V8_API_API_ARGUMENTS_H_
 
-#include "src/api/api.h"
-#include "src/debug/debug.h"
+#include "include/v8-template.h"
+#include "src/base/small-vector.h"
+#include "src/builtins/builtins-utils.h"
 #include "src/execution/isolate.h"
 #include "src/objects/slots.h"
 #include "src/objects/visitors.h"
@@ -14,172 +15,347 @@
 namespace v8 {
 namespace internal {
 
-// Custom arguments replicate a small segment of stack that can be
-// accessed through an Arguments object the same way the actual stack
-// can.
-class CustomArgumentsBase : public Relocatable {
- protected:
-  explicit inline CustomArgumentsBase(Isolate* isolate);
-};
-
-template <typename T>
-class CustomArguments : public CustomArgumentsBase {
- public:
-  static const int kReturnValueOffset = T::kReturnValueIndex;
-
-  ~CustomArguments() override;
-
-  inline void IterateInstance(RootVisitor* v) override {
-    v->VisitRootPointers(Root::kRelocatable, nullptr, slot_at(0),
-                         slot_at(T::kArgsLength));
-  }
-
- protected:
-  explicit inline CustomArguments(Isolate* isolate)
-      : CustomArgumentsBase(isolate) {}
-
-  template <typename V>
-  Handle<V> GetReturnValue(Isolate* isolate);
-
-  inline Isolate* isolate() {
-    return reinterpret_cast<Isolate*>((*slot_at(T::kIsolateIndex)).ptr());
-  }
-
-  inline FullObjectSlot slot_at(int index) {
-    // This allows index == T::kArgsLength so "one past the end" slots
-    // can be retrieved for iterating purposes.
-    DCHECK_LE(static_cast<unsigned>(index),
-              static_cast<unsigned>(T::kArgsLength));
-    return FullObjectSlot(values_ + index);
-  }
-  Address values_[T::kArgsLength];
-};
-
-// Note: Calling args.Call() sets the return value on args. For multiple
-// Call()'s, a new args should be used every time.
-class PropertyCallbackArguments
-    : public CustomArguments<PropertyCallbackInfo<Value> > {
+// This class also serves as a side effects detection scope (JavaScript code
+// execution). It is used for ensuring correctness of the interceptor callback
+// implementations. The idea is that the interceptor callback that does not
+// intercept an operation must not produce side effects. If the callback
+// signals that it has handled the operation (by either returning a respective
+// result or by throwing an exception) then the AcceptSideEffects() method
+// must be called to "accept" the side effects that have happened during the
+// lifetime of the PropertyCallbackArguments object.
+class PropertyCallbackArguments final : public Relocatable {
  public:
   using T = PropertyCallbackInfo<Value>;
   using Super = CustomArguments<T>;
-  static const int kArgsLength = T::kArgsLength;
-  static const int kThisIndex = T::kThisIndex;
-  static const int kHolderIndex = T::kHolderIndex;
-  static const int kDataIndex = T::kDataIndex;
-  static const int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
-  static const int kIsolateIndex = T::kIsolateIndex;
-  static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
+  static constexpr int kMandatoryArgsLength = T::kMandatoryArgsLength;
+  static constexpr int kFullArgsLength = T::kFullArgsLength;
+  static constexpr int kMandatoryApiArgsLength = T::kMandatoryApiArgsLength;
+  static constexpr int kFullApiArgsLength = T::kFullApiArgsLength;
 
-  PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
-                            JSObject holder, Maybe<ShouldThrow> should_throw);
+  static constexpr int kGetterApiArgsLength = T::kMandatoryApiArgsLength;
+  static constexpr int kSetterApiArgsLength = T::kFullApiArgsLength;
 
-  // -------------------------------------------------------------------------
-  // Accessor Callbacks
-  // Also used for AccessorSetterCallback.
-  inline Handle<Object> CallAccessorSetter(Handle<AccessorInfo> info,
-                                           Handle<Name> name,
-                                           Handle<Object> value);
-  // Also used for AccessorGetterCallback, AccessorNameGetterCallback.
-  inline Handle<Object> CallAccessorGetter(Handle<AccessorInfo> info,
-                                           Handle<Name> name);
+  static constexpr int kFrameTypeIndex = T::kFrameTypeIndex;
+  static constexpr int kCallbackInfoIndex = T::kCallbackInfoIndex;
+  static constexpr int kHolderIndex = T::kHolderIndex;
+  static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kReturnValueIndex = T::kReturnValueIndex;
+  static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
+  static constexpr int kPropertyKeyIndex = T::kPropertyKeyIndex;
+  static constexpr int kValueIndex = T::kValueIndex;
 
-  // -------------------------------------------------------------------------
-  // Named Interceptor Callbacks
-  inline Handle<Object> CallNamedQuery(Handle<InterceptorInfo> interceptor,
-                                       Handle<Name> name);
-  inline Handle<Object> CallNamedGetter(Handle<InterceptorInfo> interceptor,
-                                        Handle<Name> name);
-  inline Handle<Object> CallNamedSetter(Handle<InterceptorInfo> interceptor,
-                                        Handle<Name> name,
-                                        Handle<Object> value);
-  inline Handle<Object> CallNamedDefiner(Handle<InterceptorInfo> interceptor,
-                                         Handle<Name> name,
-                                         const v8::PropertyDescriptor& desc);
-  inline Handle<Object> CallNamedDeleter(Handle<InterceptorInfo> interceptor,
-                                         Handle<Name> name);
-  inline Handle<Object> CallNamedDescriptor(Handle<InterceptorInfo> interceptor,
-                                            Handle<Name> name);
-  inline Handle<JSObject> CallNamedEnumerator(
-      Handle<InterceptorInfo> interceptor);
+  // Helper for converting Api arguments indices to [0..kFullApiArgsLength)
+  // value.
+  static constexpr uint32_t ApiArgIndex(uint32_t index) {
+    DCHECK_GE(index, T::kFirstApiArgumentIndex);
+    return index - T::kFirstApiArgumentIndex;
+  }
 
-  // -------------------------------------------------------------------------
-  // Indexed Interceptor Callbacks
-  inline Handle<Object> CallIndexedQuery(Handle<InterceptorInfo> interceptor,
-                                         uint32_t index);
-  inline Handle<Object> CallIndexedGetter(Handle<InterceptorInfo> interceptor,
-                                          uint32_t index);
-  inline Handle<Object> CallIndexedSetter(Handle<InterceptorInfo> interceptor,
-                                          uint32_t index, Handle<Object> value);
-  inline Handle<Object> CallIndexedDefiner(Handle<InterceptorInfo> interceptor,
-                                           uint32_t index,
-                                           const v8::PropertyDescriptor& desc);
-  inline Handle<Object> CallIndexedDeleter(Handle<InterceptorInfo> interceptor,
-                                           uint32_t index);
-  inline Handle<Object> CallIndexedDescriptor(
-      Handle<InterceptorInfo> interceptor, uint32_t index);
-  inline Handle<JSObject> CallIndexedEnumerator(
-      Handle<InterceptorInfo> interceptor);
-
- private:
-  /*
-   * The following Call functions wrap the calling of all callbacks to handle
-   * calling either the old or the new style callbacks depending on which one
-   * has been registered.
-   * For old callbacks which return an empty handle, the ReturnValue is checked
-   * and used if it's been set to anything inside the callback.
-   * New style callbacks always use the return value.
-   */
-  inline Handle<JSObject> CallPropertyEnumerator(
-      Handle<InterceptorInfo> interceptor);
-
-  inline Handle<Object> BasicCallIndexedGetterCallback(
-      IndexedPropertyGetterCallback f, uint32_t index, Handle<Object> info);
-  inline Handle<Object> BasicCallNamedGetterCallback(
-      GenericNamedPropertyGetterCallback f, Handle<Name> name,
-      Handle<Object> info, Handle<Object> receiver = Handle<Object>());
-
-  inline JSObject holder();
-  inline Object receiver();
+  // This constructor leaves kPropertyKeyIndex, kReturnValueIndex and
+  // kCallbackInfoIndex slots uninitialized in order to let them be
+  // initialized by the subsequent CallXXX(..) and avoid double initialization.
+  // As a consequence, there must be no GC call between this constructor and
+  // CallXXX(..). In debug mode these slots are zapped, so GC should be able
+  // to detect misuse of this object.
+  inline PropertyCallbackArguments(Isolate* isolate, Tagged<JSObject> holder);
+  inline PropertyCallbackArguments(Isolate* isolate, Tagged<JSObject> holder,
+                                   Maybe<ShouldThrow> should_throw);
+  inline ~PropertyCallbackArguments();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
   // same prev_ pointer.
-  DISALLOW_COPY_AND_ASSIGN(PropertyCallbackArguments);
+  PropertyCallbackArguments(const PropertyCallbackArguments&) = delete;
+  PropertyCallbackArguments& operator=(const PropertyCallbackArguments&) =
+      delete;
+
+  // -------------------------------------------------------------------------
+  // Accessor Callbacks
+
+  // Returns the result of [[Get]] operation or throws an exception.
+  // In case of exception empty handle is returned.
+  // TODO(ishell, 328490288): stop returning empty handles.
+  inline DirectHandle<JSAny> CallAccessorGetter(Isolate* isolate,
+                                                DirectHandle<AccessorInfo> info,
+                                                DirectHandle<Name> name);
+  // Returns the result of [[Set]] operation or throws an exception.
+  V8_WARN_UNUSED_RESULT
+  inline bool CallAccessorSetter(Isolate* isolate,
+                                 DirectHandle<AccessorInfo> info,
+                                 DirectHandle<Name> name,
+                                 DirectHandle<Object> value);
+
+  // -------------------------------------------------------------------------
+  // Named Interceptor Callbacks
+
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
+  inline DirectHandle<Object> CallNamedQuery(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
+  inline DirectHandle<JSAny> CallNamedGetter(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
+
+  // Calls Setter/Definer/Deleter callback and returns whether the request
+  // was intercepted.
+  // Pending exception handling and interpretation of the result should be
+  // done by the caller using GetBooleanReturnValue(..).
+  inline v8::Intercepted CallNamedSetter(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name, DirectHandle<Object> value);
+  inline v8::Intercepted CallNamedDefiner(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name, const v8::PropertyDescriptor& desc);
+  inline v8::Intercepted CallNamedDeleter(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
+
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
+  inline Handle<JSAny> CallNamedDescriptor(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      DirectHandle<Name> name);
+  // Returns JSArray-like object with property names or undefined.
+  inline DirectHandle<JSObjectOrUndefined> CallNamedEnumerator(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
+
+  // -------------------------------------------------------------------------
+  // Indexed Interceptor Callbacks
+
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
+  inline DirectHandle<Object> CallIndexedQuery(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
+  inline DirectHandle<JSAny> CallIndexedGetter(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
+
+  // Calls Setter/Definer/Deleter callback and returns whether the request
+  // was intercepted.
+  // Pending exception handling and interpretation of the result should be
+  // done by the caller using GetBooleanReturnValue(..).
+  inline v8::Intercepted CallIndexedSetter(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index, DirectHandle<Object> value);
+  inline v8::Intercepted CallIndexedDefiner(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index, const v8::PropertyDescriptor& desc);
+  inline v8::Intercepted CallIndexedDeleter(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
+
+  // Empty handle means that the request was not intercepted.
+  // Pending exception handling should be done by the caller.
+  inline Handle<JSAny> CallIndexedDescriptor(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor,
+      uint32_t index);
+  // Returns JSArray-like object with property names or undefined.
+  inline DirectHandle<JSObjectOrUndefined> CallIndexedEnumerator(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
+
+  // Accept potential JavaScript side effects that might occur during life
+  // time of this object.
+  inline void AcceptSideEffects() {
+#ifdef DEBUG
+    javascript_execution_counter_ = 0;
+#endif  // DEBUG
+  }
+
+  // Converts the result of Setter/Definer/Deleter interceptor callback to
+  // Maybe<InterceptorResult>.
+  // Currently, in certain scenarios the actual boolean result returned by
+  // the Setter/Definer operation is ignored and thus we don't need to process
+  // the actual return value.
+  inline Maybe<InterceptorResult> GetBooleanReturnValue(
+      Isolate* isolate, v8::Intercepted intercepted,
+      const char* callback_kind_for_error_message,
+      bool ignore_return_value = false);
+
+  // TODO(ishell): cleanup this hack by embedding the PropertyCallbackInfo
+  // into PropertyCallbackArguments object.
+  template <typename T>
+  const v8::PropertyCallbackInfo<T>& GetPropertyCallbackInfo() {
+    return *(reinterpret_cast<PropertyCallbackInfo<T>*>(&values_[0]));
+  }
+
+  // Forwards ShouldThrowOnError() request to the underlying
+  // v8::PropertyCallbackInfo<> object.
+  bool ShouldThrowOnError() {
+    return GetPropertyCallbackInfo<Value>().ShouldThrowOnError();
+  }
+
+  // Returns AccessorInfo stored in v8::PropertyCallbackInfo<T>.
+  template <typename T>
+  static DirectHandle<AccessorInfo> GetAccessorInfo(
+      const PropertyCallbackInfo<T>& info) {
+    return Cast<AccessorInfo>(
+        DirectHandle<Object>::FromSlot(&info.args_[kCallbackInfoIndex]));
+  }
+
+  // Returns InterceptorInfo stored in v8::PropertyCallbackInfo<T>.
+  template <typename T>
+  static DirectHandle<InterceptorInfo> GetInterceptorInfo(
+      const PropertyCallbackInfo<T>& info) {
+    return Cast<InterceptorInfo>(
+        DirectHandle<Object>::FromSlot(&info.args_[kCallbackInfoIndex]));
+  }
+
+  // Returns whether given v8::PropertyCallbackInfo<T> object is named/indexed.
+  template <typename T>
+  static bool IsNamed(const PropertyCallbackInfo<T>& info) {
+    return info.IsNamed();
+  }
+
+  // Returns property name stored in v8::PropertyCallbackInfo<T> (for named
+  // accessors/interceptors).
+  template <typename T>
+  static DirectHandle<Name> GetPropertyName(
+      const PropertyCallbackInfo<T>& info) {
+    DCHECK(info.IsNamed());
+    return Cast<Name>(
+        DirectHandle<Object>::FromSlot(&info.args_[kPropertyKeyIndex]));
+  }
+
+  // Returns property index stored in v8::PropertyCallbackInfo<T> (for indexed
+  // interceptors).
+  template <typename T>
+  static uint32_t GetPropertyIndex(const PropertyCallbackInfo<T>& info) {
+    DCHECK(!info.IsNamed());
+    return static_cast<uint32_t>(info.args_[kPropertyKeyIndex]);
+  }
+
+  // Returns true if it's an arguments object for named callback, otherwise
+  // it's one for an indexed callback.
+  inline bool is_named() const;
+
+  // Set property key and a respective frame type (named vs. indexed).
+  inline void set_property_key(Tagged<Name> name);
+  inline void set_property_key(uint32_t index);
+
+  inline DirectHandle<JSObject> holder() const;
+
+ private:
+  inline void Initialize(Isolate* isolate, Tagged<JSObject> holder);
+  // Returns JSArray-like object with property names or undefined.
+  inline DirectHandle<JSObjectOrUndefined> CallPropertyEnumerator(
+      Isolate* isolate, DirectHandle<InterceptorInfo> interceptor);
+
+  void IterateInstance(RootVisitor* v) override;
+
+  template <typename V>
+  Handle<V> GetReturnValue() const;
+
+  inline FullObjectSlot slot_at(int index) const {
+    // This allows index == kFullArgsLength so "one past the end" slots
+    // can be retrieved for iterating purposes.
+    DCHECK_LE(static_cast<unsigned>(index),
+              static_cast<unsigned>(kFullArgsLength));
+    return FullObjectSlot(values_ + index);
+  }
+
+#ifdef DEBUG
+  // Used for checking that the way this object was constructed matches the
+  // following CallXxx(..).
+  const bool is_setter_definer_deleter_;
+
+  // This stores current value of Isolate::javascript_execution_counter().
+  // It's used for detecting whether JavaScript code was executed between
+  // PropertyCallbackArguments's constructor and destructor.
+  uint32_t javascript_execution_counter_ = 0;
+#endif  // DEBUG
+
+  Address values_[kFullArgsLength];
 };
 
-class FunctionCallbackArguments
-    : public CustomArguments<FunctionCallbackInfo<Value> > {
+class FunctionCallbackArguments : public Relocatable {
  public:
   using T = FunctionCallbackInfo<Value>;
   using Super = CustomArguments<T>;
-  static const int kArgsLength = T::kArgsLength;
-  static const int kHolderIndex = T::kHolderIndex;
-  static const int kDataIndex = T::kDataIndex;
-  static const int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
-  static const int kIsolateIndex = T::kIsolateIndex;
-  static const int kNewTargetIndex = T::kNewTargetIndex;
+  static constexpr int kArgsLength = T::kArgsLength;
 
-  FunctionCallbackArguments(Isolate* isolate, Object data, HeapObject callee,
-                            Object holder, HeapObject new_target, Address* argv,
-                            int argc);
+  // Frame arguments block, the values are located on stack in the frame.
+  static constexpr int kArgcIndex = T::kArgcIndex;
+  static constexpr int kNewTargetIndex = T::kNewTargetIndex;
+  static constexpr int kFrameSPIndex = T::kFrameSPIndex;
+  static constexpr int kFrameTypeIndex = T::kFrameTypeIndex;
 
-  /*
-   * The following Call function wraps the calling of all callbacks to handle
-   * calling either the old or the new style callbacks depending on which one
-   * has been registered.
-   * For old callbacks which return an empty handle, the ReturnValue is checked
-   * and used if it's been set to anything inside the callback.
-   * New style callbacks always use the return value.
-   */
-  inline Handle<Object> Call(CallHandlerInfo handler);
+  // Api arguments block, the values are located on stack right above PC.
+  static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kReturnValueIndex = T::kReturnValueIndex;
+  static constexpr int kContextIndex = T::kContextIndex;
+  static constexpr int kTargetIndex = T::kTargetIndex;
+  static constexpr int kApiArgsLength = T::kApiArgsLength;
+
+  // JS arguments block, follows Api arguments.
+  static constexpr int kReceiverIndex = T::kReceiverIndex;
+  static constexpr int kFirstJSArgumentIndex = T::kFirstJSArgumentIndex;
+
+  // Helper for converting Api arguments indices to [0..kApiArgsLength) value.
+  static constexpr uint32_t ApiArgIndex(uint32_t index) {
+    DCHECK_GE(index, T::kFirstApiArgumentIndex);
+    return index - T::kFirstApiArgumentIndex;
+  }
+
+  // Arguments for [[Call]] operation.
+  template <typename ArgT>
+  inline FunctionCallbackArguments(Isolate* isolate,
+                                   Tagged<FunctionTemplateInfo> target,
+                                   Tagged<Object> receiver,
+                                   const base::Vector<const ArgT> args);
+  // Arguments for [[Construct]] operation.
+  template <typename ArgT>
+  inline FunctionCallbackArguments(Isolate* isolate,
+                                   Tagged<FunctionTemplateInfo> target,
+                                   Tagged<HeapObject> new_target,
+                                   Tagged<Object> receiver,
+                                   const base::Vector<const ArgT> args);
+  inline ~FunctionCallbackArguments();
+
+  // Performs [[Call]] of [[Construct]] operation for a given function
+  // and new_target.
+  // Exception is supposed to be checked by the caller.
+  // It explicitly returns raw value in order to enforce the caller to create
+  // a handle if necessary.
+  inline Tagged<JSAny> CallOrConstruct(Isolate* isolate,
+                                       Tagged<FunctionTemplateInfo> function,
+                                       bool is_construct);
+
+  // Unofficial way of getting target FunctionTemplateInfo from
+  // v8::FunctionCallbackInfo<T>.
+  template <typename T>
+  static Tagged<Object> GetTarget(const FunctionCallbackInfo<T>& info) {
+    return Tagged<Object>(info.values_[kTargetIndex]);
+  }
 
  private:
-  inline JSObject holder();
+  template <bool is_construct, typename ArgT>
+    requires(std::is_same_v<ArgT, DirectHandle<Object>> ||
+             std::is_same_v<ArgT, Address>)
+  inline void Initialize(Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+                         Tagged<Object> new_target, Tagged<Object> receiver,
+                         const base::Vector<const ArgT> args);
 
-  internal::Address* argv_;
-  int argc_;
+  inline FullObjectSlot slot_at(uint32_t index) const {
+    // Shift index to accommodate for unconditionally allocated "optional" part.
+    index += T::kOptionalArgsLength;
+    // This allows index == values_.size() so "one past the end" slots
+    // can be retrieved for iterating purposes.
+    DCHECK_LE(index, values_.size());
+    // Don't use operator[] because it doesn't allow one past end index.
+    return FullObjectSlot(&values_.data()[index]);
+  }
+
+  void IterateInstance(RootVisitor* v) override;
+
+  // This default size is enough for passing up to 4 JS arguments.
+  base::SmallVector<Address, 16> values_;
 };
+
+static_assert(BuiltinArguments::kNumExtraArgs ==
+              BuiltinExitFrameConstants::kNumExtraArgs);
+static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
+              BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
 
 }  // namespace internal
 }  // namespace v8

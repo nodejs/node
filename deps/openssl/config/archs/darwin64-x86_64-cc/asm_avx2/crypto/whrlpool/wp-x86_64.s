@@ -608,6 +608,7 @@ L$epilogue:
 
 
 
+.section	__DATA,__const
 .p2align	6
 
 L$table:

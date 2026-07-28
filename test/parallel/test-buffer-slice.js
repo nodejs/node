@@ -59,7 +59,7 @@ const expectedSameBufs = [
   [buf.slice('-10', '-5'), Buffer.from('01234', 'utf8')],
   [buf.slice('-10', '-0'), Buffer.from('', 'utf8')],
   [buf.slice('111'), Buffer.from('', 'utf8')],
-  [buf.slice('0', '-111'), Buffer.from('', 'utf8')]
+  [buf.slice('0', '-111'), Buffer.from('', 'utf8')],
 ];
 
 for (let i = 0, s = buf.toString(); i < buf.length; ++i) {
@@ -71,9 +71,9 @@ for (let i = 0, s = buf.toString(); i < buf.length; ++i) {
   );
 }
 
-expectedSameBufs.forEach(([buf1, buf2]) => {
+for (const [buf1, buf2] of expectedSameBufs) {
   assert.strictEqual(Buffer.compare(buf1, buf2), 0);
-});
+}
 
 const utf16Buf = Buffer.from('0123456789', 'utf16le');
 assert.deepStrictEqual(utf16Buf.slice(0, 6), Buffer.from('012', 'utf16le'));
@@ -114,13 +114,13 @@ assert.strictEqual(Buffer.from('hello', 'utf8').slice(0, 0).length, 0);
 {
   const buf = Buffer.from([
     1, 29, 0, 0, 1, 143, 216, 162, 92, 254, 248, 63, 0,
-    0, 0, 18, 184, 6, 0, 175, 29, 0, 8, 11, 1, 0, 0
+    0, 0, 18, 184, 6, 0, 175, 29, 0, 8, 11, 1, 0, 0,
   ]);
   const chunk1 = Buffer.from([
-    1, 29, 0, 0, 1, 143, 216, 162, 92, 254, 248, 63, 0
+    1, 29, 0, 0, 1, 143, 216, 162, 92, 254, 248, 63, 0,
   ]);
   const chunk2 = Buffer.from([
-    0, 0, 18, 184, 6, 0, 175, 29, 0, 8, 11, 1, 0, 0
+    0, 0, 18, 184, 6, 0, 175, 29, 0, 8, 11, 1, 0, 0,
   ]);
   const middle = buf.length / 2;
 

@@ -22,6 +22,7 @@ generateKeyPair('rsa', {
     format: 'pem'
   }
 }, (err/* , publicKey, privateKey */) => {
+  // eslint-disable-next-line node-core/must-call-assert
   assert.ifError(err);
 });
 

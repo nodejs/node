@@ -4,16 +4,18 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread)
+if (!isMainThread) {
   common.skip('Worker bootstrapping works differently -> different timing');
+}
 
 const async_hooks = require('async_hooks');
 
 const seenEvents = [];
 
 const p = new Promise((resolve) => resolve(1));
-p.then(() => seenEvents.push('then'));
+p.then(() => seenEvents.push('then')).then(common.mustCall());
 
 const hooks = async_hooks.createHook({
   init: common.mustNotCall(),
@@ -30,8 +32,8 @@ const hooks = async_hooks.createHook({
   })
 });
 
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.deepStrictEqual(seenEvents, ['before', 'then', 'after']);
-});
+}));
 
 hooks.enable(); // After `setImmediate` in order to not catch its init event.

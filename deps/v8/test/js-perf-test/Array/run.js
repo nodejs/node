@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-load('../base.js');
+d8.file.execute('../base.js');
 
 let array;
 // Initialize func variable to ensure the first test doesn't benefit from
@@ -12,16 +12,38 @@ let this_arg;
 let result;
 const array_size = 100;
 const max_index = array_size - 1;
+// Matches what {FastSetup} below produces.
+const max_index_value = `value ${max_index}`;
 
 // newClosure is a handy function to get a fresh
 // closure unpolluted by IC feedback for a 2nd-order array builtin
 // test.
+
+let cache_break = 0;
+
+var __sequence = 0;
+// Allocate arrays without AllocationSites.
+function make_array_string(literal) {
+  __sequence = __sequence + 1;
+  return "/* " + __sequence + " */  " + literal;
+}
+function make_array(literal) {
+  return eval(make_array_string(literal));
+}
+
 function newClosure(name, generic = false) {
   if (generic) {
     return new Function(
-      `result = Array.prototype.${name}.call(array, func, this_arg);`);
+      `
+      // ${cache_break++}
+      result = Array.prototype.${name}.call(array, func, this_arg);
+      `);
   }
-  return new Function(`result = array.${name}(func, this_arg);`);
+  return new Function(
+      `
+      // ${cache_break++}
+      result = array.${name}(func, this_arg);
+      `);
 }
 
 function MakeHoley(array) {
@@ -32,40 +54,52 @@ function MakeHoley(array) {
 }
 
 function SmiSetup() {
-  array = Array.from({ length: array_size }, (_, i) => i);
+  array = make_array('[]');
+  for (let i = 0; i < array_size; i++) array.push(i);
+  // TODO(v8:10105): May still create holey arrays (allocation sites?).
+  // assert(%HasFastPackedElements(array));
   assert(%HasSmiElements(array));
 }
 
 function HoleySmiSetup() {
-  SmiSetup();
+  array = make_array('[]');
+  for (let i = 0; i < array_size; i++) array.push(i);
   MakeHoley(array);
   assert(%HasSmiElements(array));
 }
 
 function DoubleSetup() {
-  array = Array.from({ length: array_size }, (_, i) => i + 0.5);
+  array = make_array('[]');
+  for (let i = 0; i < array_size; i++) array.push(i + 0.5);
+  // TODO(v8:10105): May still create holey arrays (allocation sites?).
+  // assert(%HasFastPackedElements(array));
   assert(%HasDoubleElements(array));
 }
 
 function HoleyDoubleSetup() {
-  DoubleSetup();
+  array = make_array('[]');
+  for (let i = 0; i < array_size; i++) array.push(i + 0.5);
   MakeHoley(array);
   assert(%HasDoubleElements(array));
 }
 
 function FastSetup() {
-  array = Array.from({ length: array_size }, (_, i) => `value ${i}`);
+  array = make_array('[]');
+  for (let i = 0; i < array_size; i++) array.push(`value ${i}`);
+  // TODO(v8:10105): May still create holey arrays (allocation sites?).
+  // assert(%HasFastPackedElements(array));
   assert(%HasObjectElements(array));
 }
 
 function HoleyFastSetup() {
-  FastSetup();
+  array = make_array('[]');
+  for (let i = 0; i < array_size; i++) array.push(`value ${i}`);
   MakeHoley(array);
   assert(%HasObjectElements(array));
 }
 
 function DictionarySetup() {
-  array = [];
+  array = make_array('[]');
   // Add a large index to force dictionary elements.
   array[2**30] = 10;
   // Spread out {array_size} elements.
@@ -110,23 +144,24 @@ function DefineHigherOrderTests(tests) {
 }
 
 // Higher-order Array builtins.
-load('filter.js');
-load('map.js');
-load('every.js');
-load('some.js');
-load('for-each.js');
-load('reduce.js');
-load('reduce-right.js');
-load('find.js');
-load('find-index.js');
+d8.file.execute('filter.js');
+d8.file.execute('map.js');
+d8.file.execute('every.js');
+d8.file.execute('some.js');
+d8.file.execute('for-each.js');
+d8.file.execute('reduce.js');
+d8.file.execute('reduce-right.js');
+d8.file.execute('find.js');
+d8.file.execute('find-index.js');
 
 // Other Array builtins.
-load('from.js');
-load('of.js');
-load('join.js');
-load('to-string.js');
-load('slice.js');
-load('copy-within.js');
+d8.file.execute('from.js');
+d8.file.execute('of.js');
+d8.file.execute('join.js');
+d8.file.execute('to-string.js');
+d8.file.execute('slice.js');
+d8.file.execute('copy-within.js');
+d8.file.execute('at.js');
 
 var success = true;
 

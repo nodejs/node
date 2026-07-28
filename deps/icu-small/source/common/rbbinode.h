@@ -46,21 +46,21 @@ class RBBINode : public UMemory {
             opLParen
         };
 
-        enum OpPrecedence {
+        enum OpPrecedence {      
             precZero,
             precStart,
             precLParen,
             precOpOr,
             precOpCat
         };
-
+            
         NodeType      fType;
         RBBINode      *fParent;
         RBBINode      *fLeftChild;
         RBBINode      *fRightChild;
         UnicodeSet    *fInputSet;           // For uset nodes only.
         OpPrecedence  fPrecedence;          // For binary ops only.
-
+        
         UnicodeString fText;                // Text corresponding to this node.
                                             //   May be lazily evaluated when (if) needed
                                             //   for some node types.
@@ -71,7 +71,7 @@ class RBBINode : public UMemory {
         int           fLastPos;             //  Last position in the rule source string
                                             //    of any text associated with this node.
                                             //    If there's a right child, this will be the same
-                                            //    as that child's last postion.
+                                            //    as that child's last position.
 
         UBool         fNullable;            // See Aho.
         int32_t       fVal;                 // For leafChar nodes, the value.
@@ -91,13 +91,14 @@ class RBBINode : public UMemory {
         UVector       *fFollowPos;
 
 
-        RBBINode(NodeType t);
-        RBBINode(const RBBINode &other);
+        RBBINode(NodeType t, UErrorCode& status);
+        RBBINode(const RBBINode &other, UErrorCode& status);
         ~RBBINode();
-
-        RBBINode    *cloneTree();
-        RBBINode    *flattenVariables();
-        void         flattenSets();
+        static void  NRDeleteNode(RBBINode *node);
+        
+        RBBINode    *cloneTree(UErrorCode &status, int depth=0);
+        RBBINode    *flattenVariables(UErrorCode &status, int depth=0);
+        void         flattenSets(UErrorCode &status, int depth=0);
         void         findNodes(UVector *dest, RBBINode::NodeType kind, UErrorCode &status);
 
 #ifdef RBBI_DEBUG
@@ -108,7 +109,7 @@ class RBBINode : public UMemory {
 
     private:
         RBBINode &operator = (const RBBINode &other); // No defs.
-        UBool operator == (const RBBINode &other);    // Private, so these functions won't accidently be used.
+        bool operator == (const RBBINode &other);     // Private, so these functions won't accidentally be used.
 
 #ifdef RBBI_DEBUG
     public:
@@ -117,10 +118,11 @@ class RBBINode : public UMemory {
 };
 
 #ifdef RBBI_DEBUG
-U_CFUNC void
+U_CFUNC void 
 RBBI_DEBUG_printUnicodeString(const UnicodeString &s, int minWidth=0);
 #endif
 
 U_NAMESPACE_END
 
 #endif
+

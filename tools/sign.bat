@@ -1,15 +1,29 @@
 @echo off
 
-set timeservers=(http://timestamp.globalsign.com/scripts/timestamp.dll http://timestamp.comodoca.com/authenticode http://timestamp.verisign.com/scripts/timestamp.dll http://tsa.starfieldtech.com)
+@REM From June 2025, we started using Azure Trusted Signing for code signing.
+@REM Release CI machines are configured to have it in the PATH so this can be used safely.
 
-for %%s in %timeservers% do (
-    signtool sign /a /d "Node.js" /du "https://nodejs.org" /t %%s %1
-    if not ERRORLEVEL 1 (
-        echo Successfully signed %1 using timeserver %%s
-        exit /b 0
-    )
-    echo Signing %1 failed using %%s
+where signtool >nul 2>&1
+if errorlevel 1 (
+    echo signtool not found in PATH.
+    exit /b 1
 )
 
-echo Could not sign %1 using any available timeserver
+if "%AZURE_SIGN_DLIB_PATH%"=="" (
+    echo AZURE_SIGN_DLIB_PATH is not set.
+    exit /b 1
+)
+
+if "%AZURE_SIGN_METADATA_PATH%"=="" (
+    echo AZURE_SIGN_METADATA_PATH is not set.
+    exit /b 1
+)
+
+
+signtool sign /d "Node.js" /tr "http://timestamp.acs.microsoft.com" /td sha256 /fd sha256 /v /dlib %AZURE_SIGN_DLIB_PATH% /dmdf %AZURE_SIGN_METADATA_PATH% %1
+if not ERRORLEVEL 1 (
+    echo Successfully signed %1 using signtool
+    exit /b 0
+)
+echo Could not sign %1 using signtool
 exit /b 1

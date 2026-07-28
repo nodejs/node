@@ -9,7 +9,6 @@
 #include "src/codegen/arm64/decoder-arm64.h"
 #include "src/codegen/arm64/instructions-arm64.h"
 #include "src/common/globals.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -72,6 +71,7 @@ class V8_EXPORT_PRIVATE DisassemblingDecoder : public DecoderVisitor {
 
   void ResetOutput();
   void AppendToOutput(const char* string, ...);
+  void DisassembleNEONPolynomialMul(Instruction* instr);
 
   char* buffer_;
   uint32_t buffer_pos_;

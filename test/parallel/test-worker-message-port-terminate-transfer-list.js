@@ -18,6 +18,7 @@ if (!process.env.HAS_STARTED_WORKER) {
 
   // Make sure we don’t end up running JS after the infinite loop is broken.
   port1.postMessage({}, {
+    // eslint-disable-next-line require-yield
     transfer: (function*() { while (true); })()
   });
 

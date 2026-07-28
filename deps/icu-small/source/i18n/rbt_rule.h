@@ -108,7 +108,7 @@ private:
     UnicodeFunctor** segments;
 
     /**
-     * The number of elements in segments[] or zero if segments is NULL.
+     * The number of elements in segments[] or zero if segments is nullptr.
      */
     int32_t segmentsCount;
 
@@ -172,7 +172,7 @@ public:
      *                       segments, or null if there are none.  The array itself is adopted,
      *                       but the pointers within it are not.
      * @param segsCount      number of elements in segs[].
-     * @param anchorStart    true if the the rule is anchored on the left to
+     * @param anchorStart    true if the rule is anchored on the left to
      *                       the context start.
      * @param anchorEnd      true if the rule is anchored on the right to the
      *                       context limit.
@@ -217,7 +217,7 @@ public:
      * anchors work.
      * @return    the preceding context length.
      */
-    virtual int32_t getContextLength(void) const;
+    virtual int32_t getContextLength() const;
 
     /**
      * Internal method.  Returns 8-bit index value for this rule.
@@ -261,10 +261,10 @@ public:
      * context and key characters match, but the text is not long
      * enough to match all of them.  A full match means all context
      * and key characters match.
-     *
+     * 
      * If a full match is obtained, perform a replacement, update pos,
      * and return U_MATCH.  Otherwise both text and pos are unchanged.
-     *
+     * 
      * @param text the text
      * @param pos the position indices
      * @param incremental if true, test for partial matches that may

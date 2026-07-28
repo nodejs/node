@@ -13,17 +13,17 @@ const str = 'GET / HTTP/1.1\r\n' +
 
 const server = http.createServer(common.mustNotCall());
 server.on('clientError', common.mustCall((err) => {
-  assert(/^Parse Error/.test(err.message));
+  assert.match(err.message, /^Parse Error/);
   assert.strictEqual(err.code, 'HPE_LF_EXPECTED');
   server.close();
 }));
-server.listen(0, () => {
-  const client = net.connect({ port: server.address().port }, () => {
+server.listen(0, common.mustCall(() => {
+  const client = net.connect({ port: server.address().port }, common.mustCall(() => {
     client.on('data', common.mustNotCall());
     client.on('end', common.mustCall(() => {
       server.close();
     }));
     client.write(str);
     client.end();
-  });
-});
+  }));
+}));

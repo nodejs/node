@@ -5,10 +5,10 @@ const zlib = require('zlib');
 const bench = common.createBenchmark(main, {
   type: [
     'Deflate', 'DeflateRaw', 'Inflate', 'InflateRaw', 'Gzip', 'Gunzip', 'Unzip',
-    'BrotliCompress', 'BrotliDecompress',
+    'BrotliCompress', 'BrotliDecompress', 'ZstdCompress', 'ZstdDecompress',
   ],
   options: ['true', 'false'],
-  n: [5e5]
+  n: [5e5],
 });
 
 function main({ n, type, options }) {

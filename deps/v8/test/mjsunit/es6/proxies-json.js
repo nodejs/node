@@ -455,13 +455,13 @@ for (var i in log) assertSame(target, log[i][1]);
 
 assertEquals(4, log[0].length);
 assertEquals("apply", log[0][0]);
-assertEquals(["0", true], log[0][3]);
+assertEquals(["0", true, {source:"true"}], log[0][3]);
 assertEquals(4, log[1].length);
 assertEquals("apply", log[1][0]);
-assertEquals(["1", false], log[1][3]);
+assertEquals(["1", false, {source:"false"}], log[1][3]);
 assertEquals(4, log[2].length);
 assertEquals("apply", log[2][0]);
-assertEquals(["", [42, 42]], log[2][3]);
+assertEquals(["", [42, 42], {}], log[2][3]);
 
 
 // Reviver plants a non-arraylike proxy into a yet-to-be-visited property

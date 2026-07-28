@@ -3,11 +3,10 @@ const common = require('../common');
 
 // Simulate `cat readfile.js | node readfile.js`
 
-if (common.isWindows || common.isAIX)
+if (common.isWindows || common.isAIX || common.isIBMi)
   common.skip(`No /dev/stdin on ${process.platform}.`);
 
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {
@@ -17,18 +16,16 @@ if (process.argv[2] === 'child') {
 
 const tmpdir = require('../common/tmpdir');
 
-const filename = path.join(tmpdir.path, '/readfilesync_pipe_large_test.txt');
+const filename = tmpdir.resolve('readfilesync_pipe_large_test.txt');
 const dataExpected = 'a'.repeat(999999);
 tmpdir.refresh();
 fs.writeFileSync(filename, dataExpected);
 
 const exec = require('child_process').exec;
-const f = JSON.stringify(__filename);
-const node = JSON.stringify(process.execPath);
-const cmd = `cat ${filename} | ${node} ${f} child`;
+const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" "${__filename}" child < "${filename}"`;
 exec(
   cmd,
-  { maxBuffer: 1000000 },
+  { ...opts, maxBuffer: 1_000_000 },
   common.mustSucceed((stdout, stderr) => {
     assert.strictEqual(stdout, dataExpected);
     assert.strictEqual(stderr, '');

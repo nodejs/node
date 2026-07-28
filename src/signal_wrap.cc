@@ -22,7 +22,8 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
-#include "node_process.h"
+#include "node_external_reference.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -33,9 +34,9 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 void DecreaseSignalHandlerCount(int signum);
@@ -52,20 +53,22 @@ class SignalWrap : public HandleWrap {
                          Local<Context> context,
                          void* priv) {
     Environment* env = Environment::GetCurrent(context);
-    Local<FunctionTemplate> constructor = env->NewFunctionTemplate(New);
+    Isolate* isolate = env->isolate();
+    Local<FunctionTemplate> constructor = NewFunctionTemplate(isolate, New);
     constructor->InstanceTemplate()->SetInternalFieldCount(
         SignalWrap::kInternalFieldCount);
-    Local<String> signalString =
-        FIXED_ONE_BYTE_STRING(env->isolate(), "Signal");
-    constructor->SetClassName(signalString);
     constructor->Inherit(HandleWrap::GetConstructorTemplate(env));
 
-    env->SetProtoMethod(constructor, "start", Start);
-    env->SetProtoMethod(constructor, "stop", Stop);
+    SetProtoMethod(isolate, constructor, "start", Start);
+    SetProtoMethod(isolate, constructor, "stop", Stop);
 
-    target->Set(env->context(), signalString,
-                constructor->GetFunction(env->context()).ToLocalChecked())
-                .Check();
+    SetConstructorFunction(context, target, "Signal", constructor);
+  }
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    registry->Register(New);
+    registry->Register(Start);
+    registry->Register(Stop);
   }
 
   SET_NO_MEMORY_INFO()
@@ -101,7 +104,7 @@ class SignalWrap : public HandleWrap {
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
     Environment* env = wrap->env();
     int signum;
     if (!args[0]->Int32Value(env->context()).To(&signum)) return;
@@ -139,7 +142,7 @@ class SignalWrap : public HandleWrap {
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
     SignalWrap* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
     if (wrap->active_)  {
       wrap->active_ = false;
@@ -159,7 +162,7 @@ class SignalWrap : public HandleWrap {
 
 void DecreaseSignalHandlerCount(int signum) {
   Mutex::ScopedLock lock(handled_signals_mutex);
-  int new_handler_count = --handled_signals[signum];
+  int64_t new_handler_count = --handled_signals[signum];
   CHECK_GE(new_handler_count, 0);
   if (new_handler_count == 0)
     handled_signals.erase(signum);
@@ -167,9 +170,10 @@ void DecreaseSignalHandlerCount(int signum) {
 
 bool HasSignalJSHandler(int signum) {
   Mutex::ScopedLock lock(handled_signals_mutex);
-  return handled_signals.find(signum) != handled_signals.end();
+  return handled_signals.contains(signum);
 }
 }  // namespace node
 
-
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(signal_wrap, node::SignalWrap::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(signal_wrap, node::SignalWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(signal_wrap,
+                                node::SignalWrap::RegisterExternalReferences)

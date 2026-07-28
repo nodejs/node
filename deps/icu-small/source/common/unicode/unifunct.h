@@ -19,10 +19,10 @@
 #include "unicode/uobject.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Unicode Functor
  */
-
+ 
 U_NAMESPACE_BEGIN
 
 class UnicodeMatcher;
@@ -83,7 +83,7 @@ public:
      * @return          The class ID for all objects of this class.
      * @stable ICU 2.0
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns a unique class ID <b>polymorphically</b>.  This method
@@ -93,14 +93,14 @@ public:
      *
      * <p>Concrete subclasses of UnicodeFunctor should use the macro
      *    UOBJECT_DEFINE_RTTI_IMPLEMENTATION from uobject.h to
-     *    provide definitios getStaticClassID and getDynamicClassID.
+     *    provide definitions getStaticClassID and getDynamicClassID.
      *
      * @return The class ID for this object. All objects of a given
      * class have the same class ID.  Objects of other classes have
      * different class IDs.
      * @stable ICU 2.4
      */
-    virtual UClassID getDynamicClassID(void) const = 0;
+    virtual UClassID getDynamicClassID() const override = 0;
 
     /**
      * Set the data object associated with this functor.  The data

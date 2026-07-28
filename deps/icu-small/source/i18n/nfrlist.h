@@ -38,8 +38,8 @@ protected:
     uint32_t fCount;
     uint32_t fCapacity;
 public:
-    NFRuleList(uint32_t capacity = 10)
-        : fStuff(capacity ? (NFRule**)uprv_malloc(capacity * sizeof(NFRule*)) : NULL)
+    NFRuleList(uint32_t capacity = 10) 
+        : fStuff(capacity ? static_cast<NFRule**>(uprv_malloc(capacity * sizeof(NFRule*))) : nullptr)
         , fCount(0)
         , fCapacity(capacity) {}
     ~NFRuleList() {
@@ -50,11 +50,11 @@ public:
             uprv_free(fStuff);
         }
     }
-    NFRule* operator[](uint32_t index) const { return fStuff != NULL ? fStuff[index] : NULL; }
+    NFRule* operator[](uint32_t index) const { return fStuff != nullptr ? fStuff[index] : nullptr; }
     NFRule* remove(uint32_t index) {
-	if (fStuff == NULL) {
-		return NULL;
-	}
+    	if (fStuff == nullptr) {
+    		return nullptr;
+    	}
         NFRule* result = fStuff[index];
         fCount -= 1;
         for (uint32_t i = index; i < fCount; ++i) { // assumes small arrays
@@ -65,27 +65,27 @@ public:
     void add(NFRule* thing) {
         if (fCount == fCapacity) {
             fCapacity += 10;
-            fStuff = (NFRule**)uprv_realloc(fStuff, fCapacity * sizeof(NFRule*)); // assume success
+            fStuff = static_cast<NFRule**>(uprv_realloc(fStuff, fCapacity * sizeof(NFRule*))); // assume success
         }
-        if (fStuff != NULL) {
-		fStuff[fCount++] = thing;
+        if (fStuff != nullptr) {
+        	fStuff[fCount++] = thing;
         } else {
-		fCapacity = 0;
-		fCount = 0;
+        	fCapacity = 0;
+        	fCount = 0;
         }
     }
     uint32_t size() const { return fCount; }
-    NFRule* last() const { return (fCount > 0 && fStuff != NULL) ? fStuff[fCount-1] : NULL; }
+    NFRule* last() const { return (fCount > 0 && fStuff != nullptr) ? fStuff[fCount-1] : nullptr; }
     NFRule** release() {
-        add(NULL); // ensure null termination
+        add(nullptr); // ensure null termination
         NFRule** result = fStuff;
-        fStuff = NULL;
+        fStuff = nullptr;
         fCount = 0;
         fCapacity = 0;
         return result;
     }
     void deleteAll() {
-        NFRule** tmp = NULL;
+        NFRule** tmp = nullptr;
         int32_t size = fCount;
         if (size > 0) {
             tmp = release();

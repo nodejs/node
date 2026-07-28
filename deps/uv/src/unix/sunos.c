@@ -148,13 +148,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct port_event events[1024];
   struct port_event* pe;
   struct timespec spec;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
   sigset_t* pset;
   sigset_t set;
   uint64_t base;
   uint64_t diff;
-  uint64_t idle_poll;
   unsigned int nfds;
   unsigned int i;
   int saved_errno;
@@ -167,16 +166,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int reset_timeout;
 
   if (loop->nfds == 0) {
-    assert(QUEUE_EMPTY(&loop->watcher_queue));
+    assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
+  while (!uv__queue_empty(&loop->watcher_queue)) {
+    q = uv__queue_head(&loop->watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
 
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
 
     if (port_associate(loop->backend_fd,
@@ -211,12 +210,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   }
 
   for (;;) {
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
     if (timeout != -1) {
       spec.tv_sec = timeout / 1000;
       spec.tv_nsec = (timeout % 1000) * 1000000;
@@ -228,17 +221,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     nfds = 1;
     saved_errno = 0;
 
-    if (pset != NULL)
-      pthread_sigmask(SIG_BLOCK, pset, NULL);
-
+    uv__io_poll_prepare(loop, pset, timeout);
     err = port_getn(loop->backend_fd,
                     events,
                     ARRAY_SIZE(events),
                     &nfds,
                     timeout == -1 ? NULL : &spec);
-
-    if (pset != NULL)
-      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
+    uv__io_poll_check(loop, pset);
 
     if (err) {
       /* Work around another kernel bug: port_getn() may return events even
@@ -251,12 +240,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         abort();
       }
     }
-
-    /* Update loop->time unconditionally. It's tempting to skip the update when
-     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
-     * operating system didn't reschedule our process while in the syscall.
-     */
-    SAVE_ERRNO(uv__update_time(loop));
 
     if (events[0].portev_source == 0) {
       if (reset_timeout != 0) {
@@ -308,7 +291,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         have_signals = 1;
       } else {
         uv__metrics_update_idle_time(loop);
-        w->cb(loop, w, pe->portev_events);
+        uv__io_cb(loop, w, pe->portev_events);
       }
 
       nevents++;
@@ -317,18 +300,20 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;  /* Disabled by callback. */
 
       /* Events Ports operates in oneshot mode, rearm timer on next run. */
-      if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue))
-        QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+      if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue))
+        uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }
 
+    uv__metrics_inc_events(loop, nevents);
     if (reset_timeout != 0) {
       timeout = user_timeout;
       reset_timeout = 0;
+      uv__metrics_inc_events_waiting(loop, nevents);
     }
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     loop->watchers[loop->nwatchers] = NULL;
@@ -412,7 +397,12 @@ uint64_t uv_get_total_memory(void) {
 
 
 uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+  return uv__get_rlimit_max_memory();
+}
+
+
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
 }
 
 
@@ -424,7 +414,7 @@ void uv_loadavg(double avg[3]) {
 #if defined(PORT_SOURCE_FILE)
 
 static int uv__fs_event_rearm(uv_fs_event_t *handle) {
-  if (handle->fd == -1)
+  if (handle->fd == PORT_DELETED)
     return UV_EBADF;
 
   if (port_associate(handle->loop->fs_fd,
@@ -440,9 +430,7 @@ static int uv__fs_event_rearm(uv_fs_event_t *handle) {
 }
 
 
-static void uv__fs_event_read(uv_loop_t* loop,
-                              uv__io_t* w,
-                              unsigned int revents) {
+void uv__fs_event_read(uv_loop_t* loop, uv__io_t* w, unsigned int revents) {
   uv_fs_event_t *handle = NULL;
   timespec_t timeout;
   port_event_t pe;
@@ -474,6 +462,12 @@ static void uv__fs_event_read(uv_loop_t* loop,
 
     handle = (uv_fs_event_t*) pe.portev_user;
     assert((r == 0) && "unexpected port_get() error");
+
+    if (uv__is_closing(handle)) {
+      uv__handle_stop(handle);
+      uv__make_close_pending((uv_handle_t*) handle);
+      break;
+    }
 
     events = 0;
     if (pe.portev_events & (FILE_ATTRIB | FILE_MODIFIED))
@@ -534,20 +528,29 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   }
 
   if (first_run) {
-    uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
-    uv__io_start(handle->loop, &handle->loop->fs_event_watcher, POLLIN);
+    err = uv__io_init_start(handle->loop,
+                             &handle->loop->fs_event_watcher,
+                             UV__FS_EVENT_READ,
+                             portfd,
+                             POLLIN);
+    if (err)
+      uv__handle_stop(handle);
+
+    return err;
   }
 
   return 0;
 }
 
 
-int uv_fs_event_stop(uv_fs_event_t* handle) {
+static int uv__fs_event_stop(uv_fs_event_t* handle) {
+  int ret = 0;
+
   if (!uv__is_active(handle))
     return 0;
 
-  if (handle->fd == PORT_FIRED || handle->fd == PORT_LOADED) {
-    port_dissociate(handle->loop->fs_fd,
+  if (handle->fd == PORT_LOADED) {
+    ret = port_dissociate(handle->loop->fs_fd,
                     PORT_SOURCE_FILE,
                     (uintptr_t) &handle->fo);
   }
@@ -556,13 +559,28 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   uv__free(handle->path);
   handle->path = NULL;
   handle->fo.fo_name = NULL;
-  uv__handle_stop(handle);
+  if (ret == 0)
+    uv__handle_stop(handle);
 
+  return ret;
+}
+
+int uv_fs_event_stop(uv_fs_event_t* handle) {
+  (void) uv__fs_event_stop(handle);
   return 0;
 }
 
 void uv__fs_event_close(uv_fs_event_t* handle) {
-  uv_fs_event_stop(handle);
+  /*
+   * If we were unable to dissociate the port here, then it is most likely
+   * that there is a pending queued event. When this happens, we don't want
+   * to complete the close as it will free the underlying memory for the
+   * handle, causing a use-after-free problem when the event is processed.
+   * We defer the final cleanup until after the event is consumed in
+   * uv__fs_event_read().
+   */
+  if (uv__fs_event_stop(handle) == 0)
+    uv__make_close_pending((uv_handle_t*) handle);
 }
 
 #else /* !defined(PORT_SOURCE_FILE) */
@@ -797,6 +815,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   uv_interface_address_t* address;
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
+  size_t namelen;
+  char* name;
 
   *count = 0;
   *addresses = NULL;
@@ -805,9 +825,11 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return UV__ERR(errno);
 
   /* Count the number of interfaces */
+  namelen = 0;
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent))
       continue;
+    namelen += strlen(ent->ifa_name) + 1;
     (*count)++;
   }
 
@@ -816,19 +838,22 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return 0;
   }
 
-  *addresses = uv__malloc(*count * sizeof(**addresses));
-  if (!(*addresses)) {
+  *addresses = uv__calloc(1, *count * sizeof(**addresses) + namelen);
+  if (*addresses == NULL) {
     freeifaddrs(addrs);
     return UV_ENOMEM;
   }
 
+  name = (char*) &(*addresses)[*count];
   address = *addresses;
 
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent))
       continue;
 
-    address->name = uv__strdup(ent->ifa_name);
+    namelen = strlen(ent->ifa_name) + 1;
+    address->name = memcpy(name, ent->ifa_name, namelen);
+    name += namelen;
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -855,13 +880,13 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 }
 #endif  /* SUNOS_NO_IFADDRS */
 
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
-  int i;
 
-  for (i = 0; i < count; i++) {
-    uv__free(addresses[i].name);
-  }
-
-  uv__free(addresses);
+#if !defined(_POSIX_VERSION) || _POSIX_VERSION < 200809L
+size_t strnlen(const char* s, size_t maxlen) {
+  const char* end;
+  end = memchr(s, '\0', maxlen);
+  if (end == NULL)
+    return maxlen;
+  return end - s;
 }
+#endif

@@ -35,7 +35,7 @@ var workerScript =
 // context.
    foo = 100;
    var c = 0;
-   onmessage = function(m) {
+   onmessage = function({data:m}) {
      switch (c++) {
        case 0:
          if (m !== undefined) throw new Error('undefined');
@@ -82,8 +82,16 @@ var workerScript =
            if (t[i] !== i)
              throw new Error('ArrayBuffer transfer value ' + i);
          break;
+      case 10:
+        if (JSON.stringify(m) !== '{"foo":{},"err":{}}')
+          throw new Error('Object ' + JSON.stringify(m));
+        break;
+      case 11:
+        if (m.message != "message")
+          throw new Error('Error ' + JSON.stringify(m));
+        break;
      }
-     if (c == 10) {
+     if (c == 12) {
        postMessage('DONE');
      }
    };`;
@@ -162,6 +170,13 @@ if (this.Worker) {
 
   assertEquals("undefined", typeof foo);
 
+  // Transfer Error
+  const err = new Error();
+  w.postMessage({ foo: err, err })
+
+  // Transfer single Error
+  w.postMessage(new Error("message"))
+
   // Read a message from the worker.
   assertEquals("DONE", w.getMessage());
 
@@ -173,4 +188,10 @@ if (this.Worker) {
   var w2 = new Worker('', {type: 'string'});
   var msg = w2.getMessage();
   assertEquals(undefined, msg);
+
+  // Test close (should send termination to worker isolate).
+  var close_worker = new Worker(
+      "postMessage('one'); close(); while(true) { postMessage('two'); }",
+      {type: "string"})
+  assertEquals("one", close_worker.getMessage());
 }

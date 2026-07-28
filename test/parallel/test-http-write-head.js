@@ -51,6 +51,12 @@ const s = http.createServer(common.mustCall((req, res) => {
     }
   );
 
+  assert.throws(() => {
+    res.writeHead(200, ['invalid', 'headers', 'args']);
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE'
+  });
+
   res.writeHead(200, { Test: '2' });
 
   assert.throws(() => {
@@ -58,7 +64,6 @@ const s = http.createServer(common.mustCall((req, res) => {
   }, {
     code: 'ERR_HTTP_HEADERS_SENT',
     name: 'Error',
-    message: 'Cannot render headers after they are sent to the client'
   });
 
   res.end();
@@ -74,5 +79,28 @@ function runTest() {
       s.close();
     }));
     response.resume();
+  }));
+}
+
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.writeHead(220, [ 'test', '1' ]); // 220 is not a standard status code
+    assert.strictEqual(res.statusMessage, 'unknown');
+
+    assert.throws(() => res.writeHead(200, [ 'test2', '2' ]), {
+      code: 'ERR_HTTP_HEADERS_SENT',
+      name: 'Error',
+    });
+    res.end();
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    http.get({ port: server.address().port }, common.mustCall((res) => {
+      assert.strictEqual(res.headers.test, '1');
+      assert.strictEqual('test2' in res.headers, false);
+      res.resume().on('end', common.mustCall(() => {
+        server.close();
+      }));
+    }));
   }));
 }

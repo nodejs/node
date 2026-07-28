@@ -23,7 +23,7 @@ U_NAMESPACE_BEGIN
 
 static const uint16_t commonChars_sjis [] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0x8140, 0x8141, 0x8142, 0x8145, 0x815b, 0x8169, 0x816a, 0x8175, 0x8176, 0x82a0,
 0x82a2, 0x82a4, 0x82a9, 0x82aa, 0x82ab, 0x82ad, 0x82af, 0x82b1, 0x82b3, 0x82b5,
@@ -34,7 +34,7 @@ static const uint16_t commonChars_sjis [] = {
 
 static const uint16_t commonChars_euc_jp[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xa1a1, 0xa1a2, 0xa1a3, 0xa1a6, 0xa1bc, 0xa1ca, 0xa1cb, 0xa1d6, 0xa1d7, 0xa4a2,
 0xa4a4, 0xa4a6, 0xa4a8, 0xa4aa, 0xa4ab, 0xa4ac, 0xa4ad, 0xa4af, 0xa4b1, 0xa4b3,
@@ -49,7 +49,7 @@ static const uint16_t commonChars_euc_jp[] = {
 
 static const uint16_t commonChars_euc_kr[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xb0a1, 0xb0b3, 0xb0c5, 0xb0cd, 0xb0d4, 0xb0e6, 0xb0ed, 0xb0f8, 0xb0fa, 0xb0fc,
 0xb1b8, 0xb1b9, 0xb1c7, 0xb1d7, 0xb1e2, 0xb3aa, 0xb3bb, 0xb4c2, 0xb4cf, 0xb4d9,
@@ -64,7 +64,7 @@ static const uint16_t commonChars_euc_kr[] = {
 
 static const uint16_t commonChars_big5[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xa140, 0xa141, 0xa142, 0xa143, 0xa147, 0xa149, 0xa175, 0xa176, 0xa440, 0xa446,
 0xa447, 0xa448, 0xa451, 0xa454, 0xa457, 0xa464, 0xa46a, 0xa46c, 0xa477, 0xa4a3,
@@ -79,7 +79,7 @@ static const uint16_t commonChars_big5[] = {
 
 static const uint16_t commonChars_gb_18030[] = {
 // TODO:  This set of data comes from the character frequency-
-//        of-occurence analysis tool.  The data needs to be moved
+//        of-occurrence analysis tool.  The data needs to be moved
 //        into a resource and loaded from there.
 0xa1a1, 0xa1a2, 0xa1a3, 0xa1a4, 0xa1b0, 0xa1b1, 0xa1f1, 0xa1f3, 0xa3a1, 0xa3ac,
 0xa3ba, 0xb1a8, 0xb1b8, 0xb1be, 0xb2bb, 0xb3c9, 0xb3f6, 0xb4f3, 0xb5bd, 0xb5c4,
@@ -114,8 +114,8 @@ static int32_t binarySearch(const uint16_t *array, int32_t len, uint16_t value)
     return -1;
 }
 
-IteratedChar::IteratedChar() :
-charValue(0), index(-1), nextIndex(0), error(FALSE), done(FALSE)
+IteratedChar::IteratedChar() : 
+charValue(0), index(-1), nextIndex(0), error(false), done(false)
 {
     // nothing else to do.
 }
@@ -125,14 +125,14 @@ charValue(0), index(-1), nextIndex(0), error(FALSE), done(FALSE)
     charValue = 0;
     index     = -1;
     nextIndex = 0;
-    error     = FALSE;
-    done      = FALSE;
+    error     = false;
+    done      = false;
 }*/
 
 int32_t IteratedChar::nextByte(InputText *det)
 {
     if (nextIndex >= det->fRawLength) {
-        done = TRUE;
+        done = true;
 
         return -1;
     }
@@ -146,7 +146,6 @@ CharsetRecog_mbcs::~CharsetRecog_mbcs()
 }
 
 int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars[], int32_t commonCharsLen) const {
-    int32_t singleByteCharCount = 0;
     int32_t doubleByteCharCount = 0;
     int32_t commonCharCount     = 0;
     int32_t badCharCount        = 0;
@@ -160,12 +159,10 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         if (iter.error) {
             badCharCount++;
         } else {
-            if (iter.charValue <= 0xFF) {
-                singleByteCharCount++;
-            } else {
+            if (iter.charValue > 0xFF) {
                 doubleByteCharCount++;
 
-                if (commonChars != 0) {
+                if (commonChars != nullptr) {
                     if (binarySearch(commonChars, commonCharsLen, static_cast<uint16_t>(iter.charValue)) >= 0){
                         commonCharCount += 1;
                     }
@@ -186,7 +183,7 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         if (doubleByteCharCount == 0 && totalCharCount < 10) {
             // There weren't any multibyte sequences, and there was a low density of non-ASCII single bytes.
             // We don't have enough data to have any confidence.
-            // Statistical analysis of single byte non-ASCII charcters would probably help here.
+            // Statistical analysis of single byte non-ASCII characters would probably help here.
             confidence = 0;
         }
         else {
@@ -208,8 +205,8 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         return confidence;
     }
 
-    if (commonChars == 0) {
-        // We have no statistics on frequently occuring characters.
+    if (commonChars == nullptr) {
+        // We have no statistics on frequently occurring characters.
         //  Assess confidence purely on having a reasonable number of
         //  multi-byte characters (the more the better)
         confidence = 30 + doubleByteCharCount - 20*badCharCount;
@@ -219,12 +216,12 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         }
     } else {
         //
-        // Frequency of occurence statistics exist.
+        // Frequency of occurrence statistics exist.
         //
 
-        double maxVal = log((double)doubleByteCharCount / 4); /*(float)?*/
+        double maxVal = log(static_cast<double>(doubleByteCharCount) / 4); /*(float)?*/
         double scaleFactor = 90.0 / maxVal;
-        confidence = (int32_t)(log((double)commonCharCount+1) * scaleFactor + 10.0);
+        confidence = static_cast<int32_t>(log(static_cast<double>(commonCharCount) + 1) * scaleFactor + 10.0);
 
         confidence = min(confidence, 100);
     }
@@ -243,16 +240,16 @@ CharsetRecog_sjis::~CharsetRecog_sjis()
 
 UBool CharsetRecog_sjis::nextChar(IteratedChar* it, InputText* det) const {
     it->index = it->nextIndex;
-    it->error = FALSE;
+    it->error = false;
 
     int32_t firstByte = it->charValue = it->nextByte(det);
 
     if (firstByte < 0) {
-        return FALSE;
+        return false;
     }
 
     if (firstByte <= 0x7F || (firstByte > 0xA0 && firstByte <= 0xDF)) {
-        return TRUE;
+        return true;
     }
 
     int32_t secondByte = it->nextByte(det);
@@ -263,10 +260,10 @@ UBool CharsetRecog_sjis::nextChar(IteratedChar* it, InputText* det) const {
 
     if (! ((secondByte >= 0x40 && secondByte <= 0x7F) || (secondByte >= 0x80 && secondByte <= 0xFE))) {
         // Illegal second byte value.
-        it->error = TRUE;
+        it->error = true;
     }
 
-    return TRUE;
+    return true;
 }
 
 UBool CharsetRecog_sjis::match(InputText* det, CharsetMatch *results) const {
@@ -296,17 +293,17 @@ UBool CharsetRecog_euc::nextChar(IteratedChar* it, InputText* det) const {
     int32_t thirdByte  = 0;
 
     it->index = it->nextIndex;
-    it->error = FALSE;
+    it->error = false;
     firstByte = it->charValue = it->nextByte(det);
 
     if (firstByte < 0) {
         // Ran off the end of the input data
-        return FALSE;
+        return false;
     }
 
     if (firstByte <= 0x8D) {
         // single byte char
-        return TRUE;
+        return true;
     }
 
     secondByte = it->nextByte(det);
@@ -318,10 +315,10 @@ UBool CharsetRecog_euc::nextChar(IteratedChar* it, InputText* det) const {
     if (firstByte >= 0xA1 && firstByte <= 0xFE) {
         // Two byte Char
         if (secondByte < 0xA1) {
-            it->error = TRUE;
+            it->error = true;
         }
 
-        return TRUE;
+        return true;
     }
 
     if (firstByte == 0x8E) {
@@ -332,10 +329,10 @@ UBool CharsetRecog_euc::nextChar(IteratedChar* it, InputText* det) const {
         // Treat it like EUC-JP.  If the data really was EUC-TW, the following two
         //   bytes will look like a well formed 2 byte char.
         if (secondByte < 0xA1) {
-            it->error = TRUE;
+            it->error = true;
         }
 
-        return TRUE;
+        return true;
     }
 
     if (firstByte == 0x8F) {
@@ -346,11 +343,11 @@ UBool CharsetRecog_euc::nextChar(IteratedChar* it, InputText* det) const {
 
         if (thirdByte < 0xa1) {
             // Bad second byte or ran off the end of the input data with a non-ASCII first byte.
-            it->error = TRUE;
+            it->error = true;
         }
     }
 
-    return TRUE;
+    return true;
 
 }
 
@@ -408,16 +405,16 @@ UBool CharsetRecog_big5::nextChar(IteratedChar* it, InputText* det) const
     int32_t firstByte;
 
     it->index = it->nextIndex;
-    it->error = FALSE;
+    it->error = false;
     firstByte = it->charValue = it->nextByte(det);
 
     if (firstByte < 0) {
-        return FALSE;
+        return false;
     }
 
     if (firstByte <= 0x7F || firstByte == 0xFF) {
         // single byte character.
-        return TRUE;
+        return true;
     }
 
     int32_t secondByte = it->nextByte(det);
@@ -427,10 +424,10 @@ UBool CharsetRecog_big5::nextChar(IteratedChar* it, InputText* det) const
     // else we'll handle the error later.
 
     if (secondByte < 0x40 || secondByte == 0x7F || secondByte == 0xFF) {
-        it->error = TRUE;
+        it->error = true;
     }
 
-    return TRUE;
+    return true;
 }
 
 const char *CharsetRecog_big5::getName() const
@@ -462,17 +459,17 @@ UBool CharsetRecog_gb_18030::nextChar(IteratedChar* it, InputText* det) const {
     int32_t fourthByte = 0;
 
     it->index = it->nextIndex;
-    it->error = FALSE;
+    it->error = false;
     firstByte = it->charValue = it->nextByte(det);
 
     if (firstByte < 0) {
         // Ran off the end of the input data
-        return FALSE;
+        return false;
     }
 
     if (firstByte <= 0x80) {
         // single byte char
-        return TRUE;
+        return true;
     }
 
     secondByte = it->nextByte(det);
@@ -484,7 +481,7 @@ UBool CharsetRecog_gb_18030::nextChar(IteratedChar* it, InputText* det) const {
     if (firstByte >= 0x81 && firstByte <= 0xFE) {
         // Two byte Char
         if ((secondByte >= 0x40 && secondByte <= 0x7E) || (secondByte >=80 && secondByte <= 0xFE)) {
-            return TRUE;
+            return true;
         }
 
         // Four byte char
@@ -497,16 +494,16 @@ UBool CharsetRecog_gb_18030::nextChar(IteratedChar* it, InputText* det) const {
                 if (fourthByte >= 0x30 && fourthByte <= 0x39) {
                     it->charValue = (it->charValue << 16) | (thirdByte << 8) | fourthByte;
 
-                    return TRUE;
+                    return true;
                 }
             }
         }
 
         // Something wasn't valid, or we ran out of data (-1).
-        it->error = TRUE;
+        it->error = true;
     }
 
-    return TRUE;
+    return true;
 }
 
 const char *CharsetRecog_gb_18030::getName() const

@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 *******************************************************************************
 *
 *   Copyright (C) 1999-2014, International Business Machines
@@ -84,7 +84,7 @@ public:
 private:
     /** @return number of usable byte values for byte idx */
     inline int32_t countBytes(int32_t idx) const {
-        return (int32_t)(maxBytes[idx] - minBytes[idx] + 1);
+        return static_cast<int32_t>(maxBytes[idx] - minBytes[idx] + 1);
     }
 
     uint32_t incWeight(uint32_t weight, int32_t length) const;

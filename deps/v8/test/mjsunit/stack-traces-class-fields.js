@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-class-fields
 
 // Utility function for testing that the expected strings occur
 // in the stack trace produced when running the given function.
@@ -43,13 +42,13 @@ function testClassConstruction() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at <static_fields_initializer>
+//     at <static_initializer>
 //     at testClassConstruction
 //     at testTrace
 testTrace(
   "during class construction",
   testClassConstruction,
-  ["thrower", "<static_fields_initializer>"],
+  ["thrower", "<static_initializer>"],
   ["anonymous"]
 );
 
@@ -75,16 +74,13 @@ function testClassInstantiation() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_members_initializer>
+//     at <instance_members_initializer>
 //     at new X
 //     at testClassInstantiation
 //     at testTrace
 testTrace(
-  "during class instantiation",
-  testClassInstantiation,
-  ["thrower", "X.<instance_members_initializer>", "new X"],
-  ["anonymous"]
-);
+    'during class instantiation', testClassInstantiation,
+    ['thrower', '<instance_members_initializer>', 'new X'], ['anonymous']);
 
 function testClassInstantiationWithSuper() {
   class Base {}
@@ -98,16 +94,14 @@ function testClassInstantiationWithSuper() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_members_initializer>
+//     at <instance_members_initializer>
 //     at new X
 //     at testClassInstantiation
 //     at testTrace
 testTrace(
-  "during class instantiation with super",
-  testClassInstantiationWithSuper,
-  ["thrower", "X.<instance_members_initializer>", "new X"],
-  ["Base", "anonymous"]
-);
+    'during class instantiation with super', testClassInstantiationWithSuper,
+    ['thrower', '<instance_members_initializer>', 'new X'],
+    ['Base', 'anonymous']);
 
 function testClassInstantiationWithSuper2() {
   class Base {}
@@ -124,16 +118,14 @@ function testClassInstantiationWithSuper2() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_members_initializer>
+//     at <instance_members_initializer>
 //     at new X
 //     at testClassInstantiation
 //     at testTrace
 testTrace(
-  "during class instantiation with super2",
-  testClassInstantiationWithSuper2,
-  ["thrower", "X.<instance_members_initializer>", "new X"],
-  ["Base", "anonymous"]
-);
+    'during class instantiation with super2', testClassInstantiationWithSuper2,
+    ['thrower', '<instance_members_initializer>', 'new X'],
+    ['Base', 'anonymous']);
 
 function testClassInstantiationWithSuper3() {
   class Base {
@@ -151,17 +143,15 @@ function testClassInstantiationWithSuper3() {
 
 // ReferenceError: FAIL is not defined
 //     at thrower
-//     at X.<instance_members_initializer>
+//     at <instance_members_initializer>
 //     at new Base
 //     at new X
 //     at testClassInstantiationWithSuper3
 //     at testTrace
 testTrace(
-  "during class instantiation with super3",
-  testClassInstantiationWithSuper3,
-  ["thrower", "X.<instance_members_initializer>", "new Base", "new X"],
-  ["anonymous"]
-);
+    'during class instantiation with super3', testClassInstantiationWithSuper3,
+    ['thrower', '<instance_members_initializer>', 'new Base', 'new X'],
+    ['anonymous']);
 
 function testClassFieldCall() {
   class X {
@@ -192,13 +182,13 @@ function testStaticClassFieldCall() {
 }
 
 // ReferenceError: FAIL is not defined
-//     at Function.thrower [as x]
+//     at X.thrower [as x]
 //     at testStaticClassFieldCall
 //     at testTrace
 testTrace(
   "during static class field call",
   testStaticClassFieldCall,
-  ["Function.thrower"],
+  ["X.thrower"],
   ["anonymous"]
 );
 
@@ -235,12 +225,12 @@ function testStaticClassFieldCallWithFNI() {
 }
 
 // ReferenceError: FAIL is not defined
-//     at Function.x
+//     at X.x
 //     at testStaticClassFieldCallWithFNI
 //     at testTrace
 testTrace(
   "during static class field call with FNI",
   testStaticClassFieldCallWithFNI,
-  ["Function.x"],
+  ["X.x"],
   ["anonymous"]
 );

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Check that even though we schedule and break on function entry, we still
+// pause on the first breakable position.
 
 var Debug = debug.Debug;
 var exception = null;
@@ -16,8 +18,8 @@ function listener(event, exec_state, event_data, data) {
   }
 }
 
-function f() {     // BREAK
-  return 1;
+function f() {
+  return 1;        // BREAK
 }
 
 Debug.setListener(listener);

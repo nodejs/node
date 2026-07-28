@@ -5,10 +5,15 @@
 
 #if !UCONFIG_NO_FORMATTING
 
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cstring.h"
+#include "measunit_impl.h"
 #include "number_decimalquantity.h"
 #include "resource.h"
 #include "uassert.h"
+#include "ulocimp.h"
+#include "unicode/locid.h"
 #include "unicode/unistr.h"
 #include "unicode/ures.h"
 #include "units_data.h"
@@ -59,7 +64,7 @@ class ConversionRateDataSink : public ResourceSink {
      * @param noFallback Ignored.
      * @param status The standard ICU error code output parameter.
      */
-    void put(const char *source, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) {
+    void put(const char *source, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) override {
         if (U_FAILURE(status)) { return; }
         if (uprv_strcmp(source, "convertUnits") != 0) {
             // This is very strict, however it is the cheapest way to be sure
@@ -76,6 +81,8 @@ class ConversionRateDataSink : public ResourceSink {
             UnicodeString baseUnit = ICU_Utility::makeBogusString();
             UnicodeString factor = ICU_Utility::makeBogusString();
             UnicodeString offset = ICU_Utility::makeBogusString();
+            UnicodeString special = ICU_Utility::makeBogusString();
+            UnicodeString systems = ICU_Utility::makeBogusString();
             for (int32_t i = 0; unitTable.getKeyAndValue(i, key, value); i++) {
                 if (uprv_strcmp(key, "target") == 0) {
                     baseUnit = value.getUnicodeString(status);
@@ -83,10 +90,14 @@ class ConversionRateDataSink : public ResourceSink {
                     factor = value.getUnicodeString(status);
                 } else if (uprv_strcmp(key, "offset") == 0) {
                     offset = value.getUnicodeString(status);
+                } else if (uprv_strcmp(key, "special") == 0) {
+                    special = value.getUnicodeString(status); // the name of a special mapping used instead of factor + optional offset.
+                } else if (uprv_strcmp(key, "systems") == 0) {
+                    systems = value.getUnicodeString(status);
                 }
             }
             if (U_FAILURE(status)) { return; }
-            if (baseUnit.isBogus() || factor.isBogus()) {
+            if (baseUnit.isBogus() || (factor.isBogus() && special.isBogus())) {
                 // We could not find a usable conversion rate: bad resource.
                 status = U_MISSING_RESOURCE_ERROR;
                 return;
@@ -98,14 +109,27 @@ class ConversionRateDataSink : public ResourceSink {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 return;
             } else {
-                cr->sourceUnit.append(srcUnit, status);
-                cr->baseUnit.appendInvariantChars(baseUnit, status);
-                cr->factor.appendInvariantChars(factor, status);
-                trimSpaces(cr->factor, status);
-                if (!offset.isBogus()) cr->offset.appendInvariantChars(offset, status);
+                cr->sourceUnit = srcUnit;
+                if (cr->sourceUnit.isEmpty() != (*srcUnit == '\0')) {
+                    status = U_MEMORY_ALLOCATION_ERROR;
+                }
+                copyInvariantChars(baseUnit, cr->baseUnit, status);
+                if (U_SUCCESS(status) && !factor.isBogus()) {
+                    CharString tmp;
+                    tmp.appendInvariantChars(factor, status);
+                    trimSpaces(tmp, status);
+                    if (U_SUCCESS(status)) {
+                        cr->factor = tmp.toStringPiece();
+                        if (cr->factor.isEmpty() != tmp.isEmpty()) {
+                            status = U_MEMORY_ALLOCATION_ERROR;
+                        }
+                    }
+                }
+                if (!offset.isBogus()) { copyInvariantChars(offset, cr->offset, status); }
+                if (!special.isBogus()) { copyInvariantChars(special, cr->specialMappingName, status); }
+                copyInvariantChars(systems, cr->systems, status);
             }
         }
-        return;
     }
 
   private:
@@ -146,7 +170,7 @@ class UnitPreferencesSink : public ResourceSink {
      * @param status The standard ICU error code output parameter. Note: if an
      * error is returned, outPrefs and outMetadata may be inconsistent.
      */
-    void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) {
+    void put(const char *key, ResourceValue &value, UBool /*noFallback*/, UErrorCode &status) override {
         if (U_FAILURE(status)) { return; }
         if (uprv_strcmp(key, "unitPreferenceData") != 0) {
             // This is very strict, however it is the cheapest way to be sure
@@ -202,12 +226,10 @@ class UnitPreferencesSink : public ResourceSink {
                         if (U_FAILURE(status)) { return; }
                         for (int32_t i = 0; unitPref.getKeyAndValue(i, key, value); ++i) {
                             if (uprv_strcmp(key, "unit") == 0) {
-                                int32_t length;
-                                const UChar *u = value.getString(length, status);
-                                up->unit.appendInvariantChars(u, length, status);
+                                copyInvariantChars(value.getUnicodeString(status), up->unit, status);
                             } else if (uprv_strcmp(key, "geq") == 0) {
                                 int32_t length;
-                                const UChar *g = value.getString(length, status);
+                                const char16_t *g = value.getString(length, status);
                                 CharString geq;
                                 geq.appendInvariantChars(g, length, status);
                                 DecimalQuantity dq;
@@ -282,6 +304,10 @@ int32_t getPreferenceMetadataIndex(const MaybeStackVector<UnitPreferenceMetadata
     if (U_FAILURE(status)) { return -1; }
     if (idx >= 0) { return idx; }
     if (!foundCategory) {
+        // TODO: failures can happen if units::getUnitCategory returns a category
+        // that does not appear in unitPreferenceData. Do we want a unit test that
+        // checks unitPreferenceData has full coverage of categories? Or just trust
+        // CLDR?
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return -1;
     }
@@ -360,32 +386,9 @@ int32_t UnitPreferenceMetadata::compareTo(const UnitPreferenceMetadata &other, b
     return cmp;
 }
 
-CharString U_I18N_API getUnitCategory(const char *baseUnitIdentifier, UErrorCode &status) {
-    CharString result;
-    LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
-    LocalUResourceBundlePointer unitQuantities(
-        ures_getByKey(unitsBundle.getAlias(), "unitQuantities", NULL, &status));
-    int32_t categoryLength;
-    if (U_FAILURE(status)) { return result; }
-    const UChar *uCategory =
-        ures_getStringByKey(unitQuantities.getAlias(), baseUnitIdentifier, &categoryLength, &status);
-    if (U_FAILURE(status)) {
-        // TODO(CLDR-13787,hugovdm): special-casing the consumption-inverse
-        // case. Once CLDR-13787 is clarified, this should be generalised (or
-        // possibly removed):
-        if (uprv_strcmp(baseUnitIdentifier, "meter-per-cubic-meter") == 0) {
-            status = U_ZERO_ERROR;
-            result.append("consumption-inverse", status);
-            return result;
-        }
-    }
-    result.appendInvariantChars(uCategory, categoryLength, status);
-    return result;
-}
-
 // TODO: this may be unnecessary. Fold into ConversionRates class? Or move to anonymous namespace?
 void U_I18N_API getAllConversionRates(MaybeStackVector<ConversionRateInfo> &result, UErrorCode &status) {
-    LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
+    LocalUResourceBundlePointer unitsBundle(ures_openDirect(nullptr, "units", &status));
     ConversionRateDataSink sink(&result);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "convertUnits", sink, status);
 }
@@ -393,33 +396,128 @@ void U_I18N_API getAllConversionRates(MaybeStackVector<ConversionRateInfo> &resu
 const ConversionRateInfo *ConversionRates::extractConversionInfo(StringPiece source,
                                                                  UErrorCode &status) const {
     for (size_t i = 0, n = conversionInfo_.length(); i < n; ++i) {
-        if (conversionInfo_[i]->sourceUnit.toStringPiece() == source) return conversionInfo_[i];
+        if (uprv_strncmp(conversionInfo_[i]->sourceUnit.data(), source.data(), source.size()) == 0) {
+            return conversionInfo_[i];
+        }
     }
 
     status = U_INTERNAL_PROGRAM_ERROR;
     return nullptr;
 }
 
-U_I18N_API UnitPreferences::UnitPreferences(UErrorCode &status) {
-    LocalUResourceBundlePointer unitsBundle(ures_openDirect(NULL, "units", &status));
+UnitPreferences::UnitPreferences(UErrorCode& status) {
+    LocalUResourceBundlePointer unitsBundle(ures_openDirect(nullptr, "units", &status));
     UnitPreferencesSink sink(&unitPrefs_, &metadata_);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "unitPreferenceData", sink, status);
 }
 
-// TODO: make outPreferences const?
-//
-// TODO: consider replacing `UnitPreference **&outPreferences` with slice class
-// of some kind.
-void U_I18N_API UnitPreferences::getPreferencesFor(StringPiece category, StringPiece usage,
-                                                   StringPiece region,
-                                                   const UnitPreference *const *&outPreferences,
-                                                   int32_t &preferenceCount, UErrorCode &status) const {
-    int32_t idx = getPreferenceMetadataIndex(&metadata_, category, usage, region, status);
-    if (U_FAILURE(status)) { return; }
+CharString getKeyWordValue(const Locale &locale, StringPiece kw, UErrorCode &status) {
+    if (U_FAILURE(status)) { return {}; }
+    auto result = locale.getKeywordValue<CharString>(kw, status);
+    if (U_SUCCESS(status) && result.isEmpty()) {
+        status = U_MISSING_RESOURCE_ERROR;
+    }
+    return result;
+}
+
+MaybeStackVector<UnitPreference> UnitPreferences::getPreferencesFor(StringPiece category,
+                                                                    StringPiece usage,
+                                                                    const Locale& locale,
+                                                                    UErrorCode& status) const {
+    MaybeStackVector<UnitPreference> result;
+
+    // TODO: remove this once all the categories are allowed.
+    // WARNING: when this is removed please make sure to keep the "fahrenhe" => "fahrenheit" mapping
+    UErrorCode internalMuStatus = U_ZERO_ERROR;
+    if (category.compare("temperature") == 0) {
+        CharString localeUnitCharString = getKeyWordValue(locale, "mu", internalMuStatus);
+        if (U_SUCCESS(internalMuStatus)) {
+            // The value for -u-mu- is `fahrenhe`, but CLDR and everything else uses `fahrenheit`
+            if (localeUnitCharString == "fahrenhe") {
+                localeUnitCharString = CharString("fahrenheit", status);
+            }
+            // TODO: use the unit category as Java especially when all the categories are allowed..
+            if (localeUnitCharString == "celsius"
+                || localeUnitCharString == "fahrenheit"
+                || localeUnitCharString == "kelvin"
+            ) {
+                UnitPreference unitPref;
+                unitPref.unit = localeUnitCharString.toStringPiece();
+                if (unitPref.unit.isEmpty() != localeUnitCharString.isEmpty()) {
+                    status = U_MISSING_RESOURCE_ERROR;
+                    return result;
+                }
+                result.emplaceBackAndCheckErrorCode(status, unitPref);
+                return result;
+            }
+        }
+    }
+
+    CharString region = ulocimp_getRegionForSupplementalData(locale.getName(), true, status);
+
+    // Check the locale system tag, e.g `ms=metric`.
+    UErrorCode internalMeasureTagStatus = U_ZERO_ERROR;
+    CharString localeSystem = getKeyWordValue(locale, "measure", internalMeasureTagStatus);
+    bool isLocaleSystem = false;
+    if (U_SUCCESS(internalMeasureTagStatus) && (localeSystem == "metric" || localeSystem == "ussystem" || localeSystem == "uksystem")) {
+        isLocaleSystem = true;
+    }
+
+    int32_t idx =
+        getPreferenceMetadataIndex(&metadata_, category, usage, region.toStringPiece(), status);
+    if (U_FAILURE(status)) {
+        return result;
+    }
+
     U_ASSERT(idx >= 0); // Failures should have been taken care of by `status`.
     const UnitPreferenceMetadata *m = metadata_[idx];
-    outPreferences = unitPrefs_.getAlias() + m->prefsOffset;
-    preferenceCount = m->prefsCount;
+        
+    if (isLocaleSystem) {
+        // if the locale ID specifies a measurment system, check if ALL of the units we got back
+        // are members of that system (or are "metric_adjacent", which we consider to match all
+        // the systems)
+        bool unitsMatchSystem = true;
+        ConversionRates rates(status);
+        for (int32_t i = 0; unitsMatchSystem && i < m->prefsCount; i++) {
+            const UnitPreference& unitPref = *(unitPrefs_[i + m->prefsOffset]);
+            MeasureUnitImpl measureUnit = MeasureUnitImpl::forIdentifier(unitPref.unit.data(), status);
+            for (int32_t j = 0; unitsMatchSystem && j < measureUnit.singleUnits.length(); j++) {
+                const SingleUnitImpl* singleUnit = measureUnit.singleUnits[j];
+                const ConversionRateInfo* rateInfo = rates.extractConversionInfo(singleUnit->getSimpleUnitID(), status);
+                const char* systems = rateInfo->systems.data();
+                // "metric-adjacent" is considered to match all the locale systems
+                if (uprv_strstr(systems, "metric_adjacent") == nullptr) {
+                    if (uprv_strstr(systems, localeSystem.data()) == nullptr) {
+                        unitsMatchSystem = false;
+                    }
+                }
+            }
+        }
+        
+        // if any of the units we got back above don't match the mearurement system the locale ID asked for,
+        // throw out the region and just load the units for the base region for the requested measurement system
+        if (!unitsMatchSystem) {
+            region.clear();
+            if (localeSystem == "ussystem") {
+                region.append("US", status);
+            } else if (localeSystem == "uksystem") {
+                region.append("GB", status);
+            } else {
+                region.append("001", status);
+            }
+            idx = getPreferenceMetadataIndex(&metadata_, category, usage, region.toStringPiece(), status);
+            if (U_FAILURE(status)) {
+                return result;
+            }
+            
+            m = metadata_[idx];
+        }
+    }
+        
+    for (int32_t i = 0; i < m->prefsCount; i++) {
+        result.emplaceBackAndCheckErrorCode(status, *(unitPrefs_[i + m->prefsOffset]));
+    }
+    return result;
 }
 
 } // namespace units

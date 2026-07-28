@@ -23,19 +23,21 @@ const depth = ({
   getChildren,
   tree,
 }) => {
-  if (!leave)
+  if (!leave) {
     return depthDescent({ visit, filter, getChildren, tree })
+  }
 
-  if (seen.has(tree))
+  if (seen.has(tree)) {
     return seen.get(tree)
+  }
 
   seen.set(tree, null)
 
   const visitNode = () => {
     const res = visit ? visit(tree) : tree
     if (isPromise(res)) {
-      const fullResult = res.then(res => {
-        seen.set(tree, res)
+      const fullResult = res.then(resThen => {
+        seen.set(tree, resThen)
         return kidNodes()
       })
       seen.set(tree, fullResult)
@@ -51,9 +53,9 @@ const depth = ({
     return isPromise(kids) ? kids.then(processKids) : processKids(kids)
   }
 
-  const processKids = kidNodes => {
-    const kids = (kidNodes || []).filter(filter).map(kid =>
-      depth({visit, leave, filter, seen, getChildren, tree: kid}))
+  const processKids = nodes => {
+    const kids = (nodes || []).filter(filter).map(kid =>
+      depth({ visit, leave, filter, seen, getChildren, tree: kid }))
     return kids.some(isPromise)
       ? Promise.all(kids).then(leaveNode)
       : leaveNode(kids)

@@ -4,10 +4,11 @@
 
 #include "src/compiler/raw-machine-assembler.h"
 
+#include <optional>
+
 #include "src/base/small-vector.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
 #include "src/heap/factory-inl.h"
 
@@ -16,10 +17,9 @@ namespace internal {
 namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(
-    Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+    Isolate* isolate, TFGraph* graph, CallDescriptor* call_descriptor,
     MachineRepresentation word, MachineOperatorBuilder::Flags flags,
-    MachineOperatorBuilder::AlignmentRequirements alignment_requirements,
-    PoisoningMitigationLevel poisoning_level)
+    MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
     : isolate_(isolate),
       graph_(graph),
       schedule_(zone()->New<Schedule>(zone())),
@@ -28,10 +28,10 @@ RawMachineAssembler::RawMachineAssembler(
       common_(zone()),
       simplified_(zone()),
       call_descriptor_(call_descriptor),
+      dynamic_js_parameter_count_(nullptr),
       target_parameter_(nullptr),
       parameters_(parameter_count(), zone()),
-      current_block_(schedule()->start()),
-      poisoning_level_(poisoning_level) {
+      current_block_(schedule()->start()) {
   int param_count = static_cast<int>(parameter_count());
   // Add an extra input for the JSFunction parameter to the start node.
   graph->SetStart(graph->NewNode(common_.Start(param_count + 1)));
@@ -52,7 +52,7 @@ void RawMachineAssembler::SetCurrentExternalSourcePosition(
   int file_id =
       isolate()->LookupOrAddExternallyCompiledFilename(file_and_line.first);
   SourcePosition p = SourcePosition::External(file_and_line.second, file_id);
-  DCHECK(p.ExternalLine() == file_and_line.second);
+  DCHECK_EQ(p.ExternalLine(), file_and_line.second);
   source_positions()->SetCurrentPosition(p);
 }
 
@@ -80,25 +80,23 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
              : RelocatableInt32Constant(static_cast<int>(value), rmode);
 }
 
-Node* RawMachineAssembler::OptimizedAllocate(
-    Node* size, AllocationType allocation,
-    AllowLargeObjects allow_large_objects) {
-  return AddNode(
-      simplified()->AllocateRaw(Type::Any(), allocation, allow_large_objects),
-      size);
+Node* RawMachineAssembler::OptimizedAllocate(Node* size,
+                                             AllocationType allocation) {
+  return AddNode(simplified()->AllocateRaw(Type::Any(), allocation), size);
 }
 
 Schedule* RawMachineAssembler::ExportForTest() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
-  if (FLAG_trace_turbo_scheduler) {
+  if (v8_flags.trace_turbo_scheduler) {
     PrintF("--- RAW SCHEDULE -------------------------------------------\n");
     StdoutStream{} << *schedule_;
   }
   schedule_->EnsureCFGWellFormedness();
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
+  Scheduler::GenerateDominatorTree(schedule_);
   schedule_->PropagateDeferredMark();
-  if (FLAG_trace_turbo_scheduler) {
+  if (v8_flags.trace_turbo_scheduler) {
     PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");
     StdoutStream{} << *schedule_;
   }
@@ -109,17 +107,17 @@ Schedule* RawMachineAssembler::ExportForTest() {
   return schedule;
 }
 
-Graph* RawMachineAssembler::ExportForOptimization() {
+TFGraph* RawMachineAssembler::ExportForOptimization() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
-  if (FLAG_trace_turbo_scheduler) {
+  if (v8_flags.trace_turbo_scheduler) {
     PrintF("--- RAW SCHEDULE -------------------------------------------\n");
     StdoutStream{} << *schedule_;
   }
   schedule_->EnsureCFGWellFormedness();
   OptimizeControlFlow(schedule_, graph(), common());
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
-  if (FLAG_trace_turbo_scheduler) {
+  if (v8_flags.trace_turbo_scheduler) {
     PrintF("--- SCHEDULE BEFORE GRAPH CREATION -------------------------\n");
     StdoutStream{} << *schedule_;
   }
@@ -129,7 +127,8 @@ Graph* RawMachineAssembler::ExportForOptimization() {
   return graph();
 }
 
-void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule, Graph* graph,
+void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule,
+                                              TFGraph* graph,
                                               CommonOperatorBuilder* common) {
   for (bool changed = true; changed;) {
     changed = false;
@@ -192,12 +191,12 @@ void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule, Graph* graph,
         false_block->ClearPredecessors();
 
         size_t arity = block->PredecessorCount();
-        for (size_t i = 0; i < arity; ++i) {
-          BasicBlock* predecessor = block->PredecessorAt(i);
+        for (size_t j = 0; j < arity; ++j) {
+          BasicBlock* predecessor = block->PredecessorAt(j);
           predecessor->ClearSuccessors();
           if (block->deferred()) predecessor->set_deferred(true);
           Node* branch_clone = graph->CloneNode(branch);
-          int phi_input = static_cast<int>(i);
+          int phi_input = static_cast<int>(j);
           NodeProperties::ReplaceValueInput(
               branch_clone, NodeProperties::GetValueInput(phi, phi_input), 0);
           BasicBlock* new_true_block = schedule->NewBasicBlock();
@@ -384,6 +383,7 @@ Node* RawMachineAssembler::CreateNodeFromPredecessors(
     return sidetable[predecessors.front()->id().ToSize()];
   }
   std::vector<Node*> inputs;
+  inputs.reserve(predecessors.size());
   for (BasicBlock* predecessor : predecessors) {
     inputs.push_back(sidetable[predecessor->id().ToSize()]);
   }
@@ -410,6 +410,7 @@ void RawMachineAssembler::MakePhiBinary(Node* phi, int split_point,
     left_input = NodeProperties::GetValueInput(phi, 0);
   } else {
     std::vector<Node*> inputs;
+    inputs.reserve(left_input_count);
     for (int i = 0; i < left_input_count; ++i) {
       inputs.push_back(NodeProperties::GetValueInput(phi, i));
     }
@@ -470,7 +471,7 @@ void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
         return;
       case IrOpcode::kIfTrue: {
         Node* branch = NodeProperties::GetControlInput(control_node);
-        BranchHint hint = BranchOperatorInfoOf(branch->op()).hint;
+        BranchHint hint = BranchHintOf(branch->op());
         if (hint == BranchHint::kTrue) {
           // The other possibility is also deferred, so the responsible branch
           // has to be before.
@@ -483,7 +484,7 @@ void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
       }
       case IrOpcode::kIfFalse: {
         Node* branch = NodeProperties::GetControlInput(control_node);
-        BranchHint hint = BranchOperatorInfoOf(branch->op()).hint;
+        BranchHint hint = BranchHintOf(branch->op());
         if (hint == BranchHint::kFalse) {
           // The other possibility is also deferred, so the responsible branch
           // has to be before.
@@ -514,11 +515,10 @@ void RawMachineAssembler::MarkControlDeferred(Node* control_node) {
     }
   }
 
-  BranchOperatorInfo info = BranchOperatorInfoOf(responsible_branch->op());
-  if (info.hint == new_branch_hint) return;
-  NodeProperties::ChangeOp(
-      responsible_branch,
-      common()->Branch(new_branch_hint, info.is_safety_check));
+  BranchHint hint = BranchHintOf(responsible_branch->op());
+  if (hint == new_branch_hint) return;
+  NodeProperties::ChangeOp(responsible_branch,
+                           common()->Branch(new_branch_hint));
 }
 
 Node* RawMachineAssembler::TargetParameter() {
@@ -531,20 +531,17 @@ Node* RawMachineAssembler::Parameter(size_t index) {
   return parameters_[index];
 }
 
-
 void RawMachineAssembler::Goto(RawMachineLabel* label) {
   DCHECK(current_block_ != schedule()->end());
   schedule()->AddGoto(CurrentBlock(), Use(label));
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
-                                 RawMachineLabel* false_val) {
+                                 RawMachineLabel* false_val,
+                                 BranchHint branch_hint) {
   DCHECK(current_block_ != schedule()->end());
-  Node* branch = MakeNode(
-      common()->Branch(BranchHint::kNone, IsSafetyCheck::kNoSafetyCheck), 1,
-      &condition);
+  Node* branch = MakeNode(common()->Branch(branch_hint), 1, &condition);
   BasicBlock* true_block = schedule()->NewBasicBlock();
   BasicBlock* false_block = schedule()->NewBasicBlock();
   schedule()->AddBranch(CurrentBlock(), branch, true_block, false_block);
@@ -573,15 +570,15 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
   DCHECK_NE(schedule()->end(), current_block_);
   size_t succ_count = case_count + 1;
   Node* switch_node = MakeNode(common()->Switch(succ_count), 1, &index);
-  BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
-  for (size_t index = 0; index < case_count; ++index) {
-    int32_t case_value = case_values[index];
+  BasicBlock** succ_blocks = zone()->AllocateArray<BasicBlock*>(succ_count);
+  for (size_t i = 0; i < case_count; ++i) {
+    int32_t case_value = case_values[i];
     BasicBlock* case_block = schedule()->NewBasicBlock();
     Node* case_node =
         graph()->NewNode(common()->IfValue(case_value), switch_node);
     schedule()->AddNode(case_block, case_node);
-    schedule()->AddGoto(case_block, Use(case_labels[index]));
-    succ_blocks[index] = case_block;
+    schedule()->AddGoto(case_block, Use(case_labels[i]));
+    succ_blocks[i] = case_block;
   }
   BasicBlock* default_block = schedule()->NewBasicBlock();
   Node* default_node = graph()->NewNode(common()->IfDefault(), switch_node);
@@ -632,6 +629,21 @@ void RawMachineAssembler::Return(int count, Node* vs[]) {
 }
 
 void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
+  // PopAndReturn is supposed to be used ONLY in CSA/Torque builtins for
+  // dropping ALL JS arguments that are currently located on the stack.
+  // The check below ensures that there are no directly accessible stack
+  // parameters from current builtin, which implies that the builtin with
+  // JS calling convention (TFJ) was created with kDontAdaptArgumentsSentinel.
+  // This simplifies semantics of this instruction because in case of presence
+  // of directly accessible stack parameters it's impossible to distinguish
+  // the following cases:
+  // 1) stack parameter is included in JS arguments (and therefore it will be
+  //    dropped as a part of 'pop' number of arguments),
+  // 2) stack parameter is NOT included in JS arguments (and therefore it should
+  //    be dropped in ADDITION to the 'pop' number of arguments).
+  // Additionally, in order to simplify assembly code, PopAndReturn is also
+  // not allowed in builtins with stub linkage and parameters on stack.
+  CHECK_EQ(call_descriptor()->ParameterSlotCount(), 0);
   Node* values[] = {pop, value};
   Node* ret = MakeNode(common()->Return(1), 2, values);
   schedule()->AddReturn(CurrentBlock(), ret);
@@ -661,8 +673,8 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3,
   current_block_ = nullptr;
 }
 
-void RawMachineAssembler::AbortCSAAssert(Node* message) {
-  AddNode(machine()->AbortCSAAssert(), message);
+void RawMachineAssembler::AbortCSADcheck(Node* message) {
+  AddNode(machine()->AbortCSADcheck(), message);
 }
 
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
@@ -673,9 +685,19 @@ void RawMachineAssembler::Unreachable() {
   current_block_ = nullptr;
 }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void RawMachineAssembler::EnterSandbox() {
+  AddNode(machine()->SwitchSandboxMode(CodeSandboxingMode::kSandboxed));
+}
+
+void RawMachineAssembler::ExitSandbox() {
+  AddNode(machine()->SwitchSandboxMode(CodeSandboxingMode::kUnsandboxed));
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 void RawMachineAssembler::Comment(const std::string& msg) {
   size_t length = msg.length() + 1;
-  char* zone_buffer = zone()->NewArray<char>(length);
+  char* zone_buffer = zone()->AllocateArray<char>(length);
   MemCopy(zone_buffer, msg.c_str(), length);
   AddNode(machine()->Comment(zone_buffer));
 }
@@ -716,23 +738,28 @@ namespace {
 enum FunctionDescriptorMode { kHasFunctionDescriptor, kNoFunctionDescriptor };
 
 Node* CallCFunctionImpl(
-    RawMachineAssembler* rasm, Node* function, MachineType return_type,
+    RawMachineAssembler* rasm, Node* function,
+    std::optional<MachineType> return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args,
     bool caller_saved_regs, SaveFPRegsMode mode,
     FunctionDescriptorMode no_function_descriptor) {
   static constexpr std::size_t kNumCArgs = 10;
 
-  MachineSignature::Builder builder(rasm->zone(), 1, args.size());
-  builder.AddReturn(return_type);
+  MachineSignature::Builder builder(rasm->zone(), return_type ? 1 : 0,
+                                    args.size());
+  if (return_type) {
+    builder.AddReturn(*return_type);
+  }
   for (const auto& arg : args) builder.AddParam(arg.first);
 
-  bool caller_saved_fp_regs = caller_saved_regs && (mode == kSaveFPRegs);
+  bool caller_saved_fp_regs =
+      caller_saved_regs && (mode == SaveFPRegsMode::kSave);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   if (caller_saved_regs) flags |= CallDescriptor::kCallerSavedRegisters;
   if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
   if (no_function_descriptor) flags |= CallDescriptor::kNoFunctionDescriptor;
   auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build(), flags);
+      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Get(), flags);
 
   base::SmallVector<Node*, kNumCArgs> nodes(args.size() + 1);
   nodes[0] = function;
@@ -748,17 +775,17 @@ Node* CallCFunctionImpl(
 }  // namespace
 
 Node* RawMachineAssembler::CallCFunction(
-    Node* function, MachineType return_type,
+    Node* function, std::optional<MachineType> return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
   return CallCFunctionImpl(this, function, return_type, args, false,
-                           kDontSaveFPRegs, kHasFunctionDescriptor);
+                           SaveFPRegsMode::kIgnore, kHasFunctionDescriptor);
 }
 
 Node* RawMachineAssembler::CallCFunctionWithoutFunctionDescriptor(
     Node* function, MachineType return_type,
     std::initializer_list<RawMachineAssembler::CFunctionArg> args) {
   return CallCFunctionImpl(this, function, return_type, args, false,
-                           kDontSaveFPRegs, kNoFunctionDescriptor);
+                           SaveFPRegsMode::kIgnore, kNoFunctionDescriptor);
 }
 
 Node* RawMachineAssembler::CallCFunctionWithCallerSavedRegisters(
@@ -821,7 +848,7 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 
 Node* RawMachineAssembler::Phi(MachineRepresentation rep, int input_count,
                                Node* const* inputs) {
-  Node** buffer = zone()->NewArray<Node*>(input_count + 1);
+  Node** buffer = zone()->AllocateArray<Node*>(input_count + 1);
   std::copy(inputs, inputs + input_count, buffer);
   buffer[input_count] = graph()->start();
   return AddNode(common()->Phi(rep, input_count), input_count + 1, buffer);

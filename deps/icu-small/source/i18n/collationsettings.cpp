@@ -30,10 +30,10 @@ U_NAMESPACE_BEGIN
 CollationSettings::CollationSettings(const CollationSettings &other)
         : SharedObject(other),
           options(other.options), variableTop(other.variableTop),
-          reorderTable(NULL),
+          reorderTable(nullptr),
           minHighNoReorder(other.minHighNoReorder),
-          reorderRanges(NULL), reorderRangesLength(0),
-          reorderCodes(NULL), reorderCodesLength(0), reorderCodesCapacity(0),
+          reorderRanges(nullptr), reorderRangesLength(0),
+          reorderCodes(nullptr), reorderCodesLength(0), reorderCodesCapacity(0),
           fastLatinOptions(other.fastLatinOptions) {
     UErrorCode errorCode = U_ZERO_ERROR;
     copyReorderingFrom(other, errorCode);
@@ -48,15 +48,15 @@ CollationSettings::~CollationSettings() {
     }
 }
 
-UBool
+bool
 CollationSettings::operator==(const CollationSettings &other) const {
-    if(options != other.options) { return FALSE; }
-    if((options & ALTERNATE_MASK) != 0 && variableTop != other.variableTop) { return FALSE; }
-    if(reorderCodesLength != other.reorderCodesLength) { return FALSE; }
+    if(options != other.options) { return false; }
+    if((options & ALTERNATE_MASK) != 0 && variableTop != other.variableTop) { return false; }
+    if(reorderCodesLength != other.reorderCodesLength) { return false; }
     for(int32_t i = 0; i < reorderCodesLength; ++i) {
-        if(reorderCodes[i] != other.reorderCodes[i]) { return FALSE; }
+        if(reorderCodes[i] != other.reorderCodes[i]) { return false; }
     }
-    return TRUE;
+    return true;
 }
 
 int32_t
@@ -72,10 +72,10 @@ CollationSettings::hashCode() const {
 
 void
 CollationSettings::resetReordering() {
-    // When we turn off reordering, we want to set a NULL permutation
+    // When we turn off reordering, we want to set a nullptr permutation
     // rather than a no-op permutation.
     // Keep the memory via reorderCodes and its capacity.
-    reorderTable = NULL;
+    reorderTable = nullptr;
     minHighNoReorder = 0;
     reorderRangesLength = 0;
     reorderCodesLength = 0;
@@ -86,7 +86,7 @@ CollationSettings::aliasReordering(const CollationData &data, const int32_t *cod
                                    const uint32_t *ranges, int32_t rangesLength,
                                    const uint8_t *table, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return; }
-    if(table != NULL &&
+    if(table != nullptr &&
             (rangesLength == 0 ?
                     !reorderTableHasSplitBytes(table) :
                     rangesLength >= 2 &&
@@ -111,7 +111,7 @@ CollationSettings::aliasReordering(const CollationData &data, const int32_t *cod
         if(firstSplitByteRangeIndex == rangesLength) {
             U_ASSERT(!reorderTableHasSplitBytes(table));
             minHighNoReorder = 0;
-            reorderRanges = NULL;
+            reorderRanges = nullptr;
             reorderRangesLength = 0;
         } else {
             U_ASSERT(table[ranges[firstSplitByteRangeIndex] >> 24] == 0);
@@ -158,9 +158,9 @@ CollationSettings::setReordering(const CollationData &data,
     int32_t firstSplitByteRangeIndex = -1;
     for(int32_t i = 0; i < rangesLength; ++i) {
         uint32_t pair = ranges[i];
-        int32_t limit1 = (int32_t)(pair >> 24);
+        int32_t limit1 = static_cast<int32_t>(pair >> 24);
         while(b < limit1) {
-            table[b] = (uint8_t)(b + pair);
+            table[b] = static_cast<uint8_t>(b + pair);
             ++b;
         }
         // Check the second byte of the limit.
@@ -173,7 +173,7 @@ CollationSettings::setReordering(const CollationData &data,
         }
     }
     while(b <= 0xff) {
-        table[b] = (uint8_t)b;
+        table[b] = static_cast<uint8_t>(b);
         ++b;
     }
     if(firstSplitByteRangeIndex < 0) {
@@ -200,8 +200,8 @@ CollationSettings::setReorderArrays(const int32_t *codes, int32_t codesLength,
     } else {
         // Allocate one memory block for the codes, the ranges, and the 16-aligned table.
         int32_t capacity = (totalLength + 3) & ~3;  // round up to a multiple of 4 ints
-        ownedCodes = (int32_t *)uprv_malloc(capacity * 4 + 256);
-        if(ownedCodes == NULL) {
+        ownedCodes = static_cast<int32_t*>(uprv_malloc(capacity * 4 + 256));
+        if(ownedCodes == nullptr) {
             resetReordering();
             errorCode = U_MEMORY_ALLOCATION_ERROR;
             return;
@@ -248,10 +248,10 @@ CollationSettings::reorderTableHasSplitBytes(const uint8_t table[256]) {
     U_ASSERT(table[0] == 0);
     for(int32_t i = 1; i < 256; ++i) {
         if(table[i] == 0) {
-            return TRUE;
+            return true;
         }
     }
-    return FALSE;
+    return false;
 }
 
 uint32_t

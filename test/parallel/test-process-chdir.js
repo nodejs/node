@@ -4,9 +4,11 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread)
+if (!isMainThread) {
   common.skip('process.chdir is not available in Workers');
+}
 
 const tmpdir = require('../common/tmpdir');
 
@@ -23,7 +25,7 @@ if (process.versions.icu) {
   // ICU is unavailable, use characters that can't be decomposed
   dirName = 'weird \ud83d\udc04 characters \ud83d\udc05';
 }
-const dir = path.resolve(tmpdir.path, dirName);
+const dir = tmpdir.resolve(dirName);
 
 // Make sure that the tmp directory is clean
 tmpdir.refresh();

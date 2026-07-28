@@ -18,7 +18,7 @@ void GetFreeCallCount(const FunctionCallbackInfo<Value>& args) {
 void Initialize(Local<Object> exports,
                 Local<Value> module,
                 Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   NODE_SET_METHOD(exports, "getFreeCallCount", GetFreeCallCount);
 
   char* data = new char;

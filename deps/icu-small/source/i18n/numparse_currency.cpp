@@ -42,7 +42,7 @@ CombinedCurrencyMatcher::CombinedCurrencyMatcher(const CurrencySymbols& currency
 
     // TODO: Figure out how to make this faster and re-enable.
     // Computing the "lead code points" set for fastpathing is too slow to use in production.
-    // See http://bugs.icu-project.org/trac/ticket/13584
+    // See https://unicode-org.atlassian.net/browse/ICU-13584
 //    // Compute the full set of characters that could be the first in a currency to allow for
 //    // efficient smoke test.
 //    fLeadCodePoints.add(fCurrency1.char32At(0));

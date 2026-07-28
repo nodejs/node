@@ -3,7 +3,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   extraSize: [1, 256, 4 * 256],
-  n: [8e5]
+  n: [8e5],
 });
 
 function main({ n, extraSize }) {

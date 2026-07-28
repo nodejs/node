@@ -1,4 +1,4 @@
-.text	
+.section	.rodata
 .globl	ecp_nistz256_precomputed
 .type	ecp_nistz256_precomputed,@object
 .align	4096
@@ -2376,6 +2376,7 @@ ecp_nistz256_precomputed:
 
 
 
+.section	.rodata
 .align	64
 .Lpoly:
 .quad	0xffffffffffffffff, 0x00000000ffffffff, 0x0000000000000000, 0xffffffff00000001
@@ -2398,6 +2399,7 @@ ecp_nistz256_precomputed:
 .quad	0xf3b9cac2fc632551, 0xbce6faada7179e84, 0xffffffffffffffff, 0xffffffff00000000
 .LordK:
 .quad	0xccd1c8aaee00bc4f
+.previous	
 
 .globl	ecp_nistz256_mul_by_2
 .type	ecp_nistz256_mul_by_2,@function
@@ -7341,3 +7343,24 @@ ecp_nistz256_point_add_affinex:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	ecp_nistz256_point_add_affinex,.-ecp_nistz256_point_add_affinex
+	.section ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 3
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 3
+4:

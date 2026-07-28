@@ -59,11 +59,11 @@ server.listen(0, common.mustCall(() => {
     socket.on('end', common.mustCall(() => {
       assert.strictEqual(message, 'Hello');
 
-      setTimeout(() => {
+      setTimeout(common.mustCall(() => {
         assert(socket.writable);
         assert(socket.write('Bye'));
         socket.end();
-      }, 50);
+      }), 50);
     }));
 
     socket.write('Hello');

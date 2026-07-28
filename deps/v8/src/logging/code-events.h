@@ -5,15 +5,17 @@
 #ifndef V8_LOGGING_CODE_EVENTS_H_
 #define V8_LOGGING_CODE_EVENTS_H_
 
-#include <unordered_set>
+#include <vector>
 
 #include "src/base/platform/mutex.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/code.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/name.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -25,214 +27,285 @@ class String;
 
 namespace wasm {
 class WasmCode;
-using WasmName = Vector<const char>;
+using WasmName = base::Vector<const char>;
 }  // namespace wasm
 
-#define LOG_EVENTS_LIST(V)                             \
-  V(CODE_CREATION_EVENT, code-creation)                \
-  V(CODE_DISABLE_OPT_EVENT, code-disable-optimization) \
-  V(CODE_MOVE_EVENT, code-move)                        \
-  V(CODE_DELETE_EVENT, code-delete)                    \
-  V(CODE_MOVING_GC, code-moving-gc)                    \
-  V(SHARED_FUNC_MOVE_EVENT, sfi-move)                  \
-  V(SNAPSHOT_CODE_NAME_EVENT, snapshot-code-name)      \
-  V(TICK_EVENT, tick)
+#define LOG_EVENT_LIST(V)                         \
+  V(kCodeCreation, "code-creation")               \
+  V(kCodeDisableOpt, "code-disable-optimization") \
+  V(kCodeMove, "code-move")                       \
+  V(kCodeDeopt, "code-deopt")                     \
+  V(kCodeDelete, "code-delete")                   \
+  V(kCodeMovingGC, "code-moving-gc")              \
+  V(kSharedFuncMove, "sfi-move")                  \
+  V(kSnapshotCodeName, "snapshot-code-name")      \
+  V(kTick, "tick")
 
-#define TAGS_LIST(V)                               \
-  V(BUILTIN_TAG, Builtin)                          \
-  V(CALLBACK_TAG, Callback)                        \
-  V(EVAL_TAG, Eval)                                \
-  V(FUNCTION_TAG, Function)                        \
-  V(INTERPRETED_FUNCTION_TAG, InterpretedFunction) \
-  V(HANDLER_TAG, Handler)                          \
-  V(BYTECODE_HANDLER_TAG, BytecodeHandler)         \
-  V(LAZY_COMPILE_TAG, LazyCompile)                 \
-  V(REG_EXP_TAG, RegExp)                           \
-  V(SCRIPT_TAG, Script)                            \
-  V(STUB_TAG, Stub)                                \
-  V(NATIVE_FUNCTION_TAG, Function)                 \
-  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)          \
-  V(NATIVE_SCRIPT_TAG, Script)
-// Note that 'NATIVE_' cases for functions and scripts are mapped onto
+#define CODE_TYPE_LIST(V)              \
+  V(kBuiltin, Builtin)                 \
+  V(kCallback, Callback)               \
+  V(kEval, Eval)                       \
+  V(kFunction, JS)                     \
+  V(kHandler, Handler)                 \
+  V(kBytecodeHandler, BytecodeHandler) \
+  V(kRegExp, RegExp)                   \
+  V(kScript, Script)                   \
+  V(kStub, Stub)                       \
+  V(kNativeFunction, JS)               \
+  V(kNativeScript, Script)
+// Note that 'Native' cases for functions and scripts are mapped onto
 // original tags when writing to the log.
 
-#define LOG_EVENTS_AND_TAGS_LIST(V) \
-  LOG_EVENTS_LIST(V)                \
-  TAGS_LIST(V)
+#define PROFILE(the_isolate, Call) (the_isolate)->logger()->Call;
 
-#define PROFILE(the_isolate, Call) (the_isolate)->code_event_dispatcher()->Call;
-
-class CodeEventListener {
+class LogEventListener {
  public:
 #define DECLARE_ENUM(enum_item, _) enum_item,
-  enum LogEventsAndTags {
-    LOG_EVENTS_AND_TAGS_LIST(DECLARE_ENUM) NUMBER_OF_LOG_EVENTS
-  };
+  enum class Event : uint8_t { LOG_EVENT_LIST(DECLARE_ENUM) kLength };
+  enum class CodeTag : uint8_t { CODE_TYPE_LIST(DECLARE_ENUM) kLength };
 #undef DECLARE_ENUM
 
-  virtual ~CodeEventListener() = default;
+  virtual ~LogEventListener() = default;
 
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  virtual void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
                                const char* name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
-                               Handle<Name> name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
-                               Handle<SharedFunctionInfo> shared,
-                               Handle<Name> script_name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
-                               Handle<SharedFunctionInfo> shared,
-                               Handle<Name> script_name, int line,
+  virtual void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                               DirectHandle<Name> name) = 0;
+  virtual void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                               DirectHandle<SharedFunctionInfo> shared,
+                               DirectHandle<Name> script_name) = 0;
+  virtual void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                               DirectHandle<SharedFunctionInfo> shared,
+                               DirectHandle<Name> script_name, int line,
                                int column) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                               wasm::WasmName name) = 0;
+#if V8_ENABLE_WEBASSEMBLY
+  virtual void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
+                               wasm::WasmName name, std::string_view source_url,
+                               int code_offset, int script_id) = 0;
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-  virtual void CallbackEvent(Handle<Name> name, Address entry_point) = 0;
-  virtual void GetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
-  virtual void SetterCallbackEvent(Handle<Name> name, Address entry_point) = 0;
-  virtual void RegExpCodeCreateEvent(Handle<AbstractCode> code,
-                                     Handle<String> source) = 0;
+  virtual void CallbackEvent(DirectHandle<Name> name, Address entry_point) = 0;
+  virtual void GetterCallbackEvent(DirectHandle<Name> name,
+                                   Address entry_point) = 0;
+  virtual void SetterCallbackEvent(DirectHandle<Name> name,
+                                   Address entry_point) = 0;
+  virtual void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                                     DirectHandle<String> source,
+                                     RegExpFlags flags) = 0;
   // Not handlified as this happens during GC. No allocation allowed.
-  virtual void CodeMoveEvent(AbstractCode from, AbstractCode to) = 0;
+  virtual void CodeMoveEvent(Tagged<InstructionStream> from,
+                             Tagged<InstructionStream> to) = 0;
+  virtual void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                                 Tagged<BytecodeArray> to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
+  virtual void NativeContextMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
-  virtual void CodeDisableOptEvent(Handle<AbstractCode> code,
-                                   Handle<SharedFunctionInfo> shared) = 0;
-  virtual void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                              Address pc, int fp_to_sp_delta,
-                              bool reuse_code) = 0;
+  virtual void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                                   DirectHandle<SharedFunctionInfo> shared) = 0;
+  virtual void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind,
+                              Address pc, int fp_to_sp_delta) = 0;
   // These events can happen when 1. an assumption made by optimized code fails
   // or 2. a weakly embedded object dies.
-  virtual void CodeDependencyChangeEvent(Handle<Code> code,
-                                         Handle<SharedFunctionInfo> shared,
-                                         const char* reason) = 0;
+  virtual void CodeDependencyChangeEvent(
+      DirectHandle<Code> code, DirectHandle<SharedFunctionInfo> shared,
+      const char* reason) = 0;
+  // Called during GC shortly after any weak references to code objects are
+  // cleared.
+  virtual void WeakCodeClearEvent() = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
+  virtual bool allows_code_compaction() { return true; }
 };
 
-// Dispatches code events to a set of registered listeners.
-class CodeEventDispatcher : public CodeEventListener {
+// Dispatches events to a set of registered listeners.
+class Logger {
  public:
-  using LogEventsAndTags = CodeEventListener::LogEventsAndTags;
+  using Event = LogEventListener::Event;
+  using CodeTag = LogEventListener::CodeTag;
 
-  CodeEventDispatcher() = default;
+  Logger() = default;
+  Logger(const Logger&) = delete;
+  Logger& operator=(const Logger&) = delete;
 
-  bool AddListener(CodeEventListener* listener) {
-    base::MutexGuard guard(&mutex_);
-    return listeners_.insert(listener).second;
+  bool AddListener(LogEventListener* listener) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    auto position = std::find(listeners_.begin(), listeners_.end(), listener);
+    if (position != listeners_.end()) return false;
+    // Add the listener to the end and update the element
+    listeners_.push_back(listener);
+    return true;
   }
-  void RemoveListener(CodeEventListener* listener) {
-    base::MutexGuard guard(&mutex_);
-    listeners_.erase(listener);
+
+  bool RemoveListener(LogEventListener* listener) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    auto position = std::find(listeners_.begin(), listeners_.end(), listener);
+    if (position == listeners_.end()) return false;
+    listeners_.erase(position);
+    return true;
   }
-  bool IsListeningToCodeEvents() {
-    for (auto it : listeners_) {
-      if (it->is_listening_to_code_events()) {
-        return true;
-      }
+
+  bool is_listening_to_code_events() {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      if (listener->is_listening_to_code_events()) return true;
     }
     return false;
   }
 
-  void DispatchEventToListeners(
-      std::function<void(CodeEventListener*)> callback) {
-    base::MutexGuard guard(&mutex_);
-    for (CodeEventListener* listener : listeners_) {
-      callback(listener);
+  bool allows_code_compaction() {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      if (!listener->allows_code_compaction()) return false;
+    }
+    return true;
+  }
+
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       const char* comment) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->CodeCreateEvent(tag, code, comment);
     }
   }
 
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
-                       const char* comment) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeCreateEvent(tag, code, comment);
-    });
-  }
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
-                       Handle<Name> name) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<Name> name) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, name);
-    });
+    }
   }
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> name) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> name) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, shared, name);
-    });
+    }
   }
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared, Handle<Name> source,
-                       int line, int column) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> source, int line, int column) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, shared, source, line, column);
-    });
+    }
   }
-  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeCreateEvent(tag, code, name);
-    });
+
+#if V8_ENABLE_WEBASSEMBLY
+  void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
+                       wasm::WasmName name, const char* source_url,
+                       int code_offset, int script_id) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->CodeCreateEvent(tag, code, name, source_url, code_offset,
+                                script_id);
+    }
   }
-  void CallbackEvent(Handle<Name> name, Address entry_point) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  void CallbackEvent(DirectHandle<Name> name, Address entry_point) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->CallbackEvent(name, entry_point);
-    });
+    }
   }
-  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void GetterCallbackEvent(DirectHandle<Name> name, Address entry_point) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->GetterCallbackEvent(name, entry_point);
-    });
+    }
   }
-  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void SetterCallbackEvent(DirectHandle<Name> name, Address entry_point) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->SetterCallbackEvent(name, entry_point);
-    });
+    }
   }
-  void RegExpCodeCreateEvent(Handle<AbstractCode> code,
-                             Handle<String> source) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->RegExpCodeCreateEvent(code, source);
-    });
+
+  void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                             DirectHandle<String> source, RegExpFlags flags) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->RegExpCodeCreateEvent(code, source, flags);
+    }
   }
-  void CodeMoveEvent(AbstractCode from, AbstractCode to) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->CodeMoveEvent(from, to);
-    });
+    }
   }
-  void SharedFunctionInfoMoveEvent(Address from, Address to) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from, Tagged<BytecodeArray> to) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->BytecodeMoveEvent(from, to);
+    }
+  }
+
+  void SharedFunctionInfoMoveEvent(Address from, Address to) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->SharedFunctionInfoMoveEvent(from, to);
-    });
+    }
   }
-  void CodeMovingGCEvent() override {
-    DispatchEventToListeners(
-        [](CodeEventListener* listener) { listener->CodeMovingGCEvent(); });
+
+  void NativeContextMoveEvent(Address from, Address to) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->NativeContextMoveEvent(from, to);
+    }
   }
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void CodeMovingGCEvent() {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->CodeMovingGCEvent();
+    }
+  }
+
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->CodeDisableOptEvent(code, shared);
-    });
+    }
   }
-  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta, bool reuse_code) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
-      listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta, reuse_code);
-    });
+
+  void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
+                      int fp_to_sp_delta) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->CodeDeoptEvent(code, kind, pc, fp_to_sp_delta);
+    }
   }
-  void CodeDependencyChangeEvent(Handle<Code> code,
-                                 Handle<SharedFunctionInfo> sfi,
-                                 const char* reason) override {
-    DispatchEventToListeners([=](CodeEventListener* listener) {
+
+  void CodeDependencyChangeEvent(DirectHandle<Code> code,
+                                 DirectHandle<SharedFunctionInfo> sfi,
+                                 const char* reason) {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
       listener->CodeDependencyChangeEvent(code, sfi, reason);
-    });
+    }
+  }
+
+  void WeakCodeClearEvent() {
+    base::RecursiveMutexGuard guard(&mutex_);
+    for (auto listener : listeners_) {
+      listener->WeakCodeClearEvent();
+    }
   }
 
  private:
-  std::unordered_set<CodeEventListener*> listeners_;
-  base::Mutex mutex_;
-
-  DISALLOW_COPY_AND_ASSIGN(CodeEventDispatcher);
+  std::vector<LogEventListener*> listeners_;
+  base::RecursiveMutex mutex_;
 };
 
 }  // namespace internal

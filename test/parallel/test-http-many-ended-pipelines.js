@@ -20,15 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-
-// No warnings should happen!
-const trace = console.trace;
-console.trace = function() {
-  trace.apply(console, arguments);
-  throw new Error('no tracing should happen here');
-};
-
+const common = require('../common');
+const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
@@ -48,9 +41,17 @@ const server = http.createServer(function(req, res) {
   req.socket.destroy();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const client = net.connect({ port: this.address().port,
                                allowHalfOpen: true });
+
+  client.on('error', common.mustCallAtLeast((err) => {
+    // The socket might be destroyed by the other peer while data is still
+    // being written. The `'EPIPE'` and `'ECONNABORTED'` codes might also be
+    // valid but they have not been seen yet.
+    assert.strictEqual(err.code, 'ECONNRESET');
+  }, 0));
+
   for (let i = 0; i < numRequests; i++) {
     client.write('GET / HTTP/1.1\r\n' +
                  'Host: some.host.name\r\n' +
@@ -58,4 +59,6 @@ server.listen(0, function() {
   }
   client.end();
   client.pipe(process.stdout);
-});
+}));
+
+process.on('warning', common.mustNotCall());

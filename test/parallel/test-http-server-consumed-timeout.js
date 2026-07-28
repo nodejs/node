@@ -7,7 +7,7 @@ const http = require('http');
 
 const durationBetweenIntervals = [];
 let timeoutTooShort = false;
-const TIMEOUT = common.platformTimeout(200);
+const TIMEOUT = common.platformTimeout(1000);
 const INTERVAL = Math.floor(TIMEOUT / 8);
 
 runTest(TIMEOUT);
@@ -15,15 +15,13 @@ runTest(TIMEOUT);
 function runTest(timeoutDuration) {
   let intervalWasInvoked = false;
   let newTimeoutDuration = 0;
-  const closeCallback = (err) => {
-    assert.ifError(err);
-    if (newTimeoutDuration) {
-      runTest(newTimeoutDuration);
-    }
-  };
 
-  const server = http.createServer((req, res) => {
-    server.close(common.mustCall(closeCallback));
+  const server = http.createServer(common.mustCallAtLeast((req, res) => {
+    server.close(common.mustSucceed(() => {
+      if (newTimeoutDuration) {
+        runTest(newTimeoutDuration);
+      }
+    }));
 
     res.writeHead(200);
     res.flushHeaders();
@@ -55,12 +53,13 @@ function runTest(timeoutDuration) {
     req.once('end', () => {
       res.end();
     });
-  });
+  }));
 
   server.listen(0, common.mustCall(() => {
     const req = http.request({
       port: server.address().port,
-      method: 'POST'
+      method: 'POST',
+      agent: false,
     }, () => {
       let lastIntervalTimestamp = Date.now();
       const interval = setInterval(() => {

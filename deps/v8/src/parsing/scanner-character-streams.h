@@ -7,17 +7,14 @@
 
 #include <memory>
 
-#include "include/v8.h"  // for v8::ScriptCompiler
+#include "include/v8-script.h"  // for v8::ScriptCompiler
 #include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
 class Utf16CharacterStream;
 class RuntimeCallStats;
-class String;
 
 class V8_EXPORT_PRIVATE ScannerStream {
  public:

@@ -4,12 +4,10 @@
 
 #include "src/wasm/wasm-result.h"
 
+#include "src/base/strings.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap.h"
 #include "src/objects/objects.h"
-
-#include "src/base/platform/platform.h"
 
 namespace v8 {
 namespace internal {
@@ -28,9 +26,10 @@ void VPrintFToString(std::string* str, size_t str_offset, const char* format,
     str->resize(len);
     va_list args_copy;
     va_copy(args_copy, args);
-    int written = VSNPrintF(Vector<char>(&str->front() + str_offset,
-                                         static_cast<int>(len - str_offset)),
-                            format, args_copy);
+    int written =
+        base::VSNPrintF(base::Vector<char>(&str->front() + str_offset,
+                                           static_cast<int>(len - str_offset)),
+                        format, args_copy);
     va_end(args_copy);
     if (written < 0) continue;  // not enough space.
     str->resize(str_offset + written);
@@ -105,8 +104,8 @@ void ErrorThrower::RuntimeError(const char* format, ...) {
   va_end(arguments);
 }
 
-Handle<Object> ErrorThrower::Reify() {
-  Handle<JSFunction> constructor;
+DirectHandle<JSObject> ErrorThrower::Reify() {
+  DirectHandle<JSFunction> constructor;
   switch (error_type_) {
     case kNone:
       UNREACHABLE();
@@ -126,9 +125,10 @@ Handle<Object> ErrorThrower::Reify() {
       constructor = isolate_->wasm_runtime_error_function();
       break;
   }
-  Handle<String> message = isolate_->factory()
-                               ->NewStringFromUtf8(VectorOf(error_msg_))
-                               .ToHandleChecked();
+  DirectHandle<String> message =
+      isolate_->factory()
+          ->NewStringFromUtf8(base::VectorOf(error_msg_))
+          .ToHandleChecked();
   Reset();
   return isolate_->factory()->NewError(constructor, message);
 }
@@ -138,36 +138,11 @@ void ErrorThrower::Reset() {
   error_msg_.clear();
 }
 
-ErrorThrower::ErrorThrower(ErrorThrower&& other) V8_NOEXCEPT
-    : isolate_(other.isolate_),
-      context_(other.context_),
-      error_type_(other.error_type_),
-      error_msg_(std::move(other.error_msg_)) {
-  other.error_type_ = kNone;
-}
-
 ErrorThrower::~ErrorThrower() {
-  if (error() && !isolate_->has_pending_exception()) {
-    // We don't want to mix pending exceptions and scheduled exceptions, hence
-    // an existing exception should be pending, never scheduled.
-    DCHECK(!isolate_->has_scheduled_exception());
-    isolate_->Throw(*Reify());
-  }
-}
+  if (!error() || isolate_->has_exception()) return;
 
-ScheduledErrorThrower::~ScheduledErrorThrower() {
-  // There should never be both a pending and a scheduled exception.
-  DCHECK(!isolate()->has_scheduled_exception() ||
-         !isolate()->has_pending_exception());
-  // Don't throw another error if there is already a scheduled error.
-  if (isolate()->has_scheduled_exception()) {
-    Reset();
-  } else if (isolate()->has_pending_exception()) {
-    Reset();
-    isolate()->OptionalRescheduleException(false);
-  } else if (error()) {
-    isolate()->ScheduleThrow(*Reify());
-  }
+  HandleScope handle_scope{isolate_};
+  isolate_->Throw(*Reify());
 }
 
 }  // namespace wasm

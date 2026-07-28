@@ -45,11 +45,11 @@ const int32_t SCRIPT_PROPS[] = {
     // Begin copy-paste output from
     // tools/trunk/unicode/py/parsescriptmetadata.py
     0x0040 | RECOMMENDED,  // Zyyy
-    0x0308 | RECOMMENDED,  // Zinh
+    0x030F | RECOMMENDED,  // Zinh
     0x0628 | RECOMMENDED | RTL,  // Arab
     0x0531 | RECOMMENDED | CASED,  // Armn
     0x0995 | RECOMMENDED,  // Beng
-    0x3105 | RECOMMENDED | LB_LETTERS,  // Bopo
+    0x3105 | LIMITED_USE | LB_LETTERS,  // Bopo
     0x13C4 | LIMITED_USE | CASED,  // Cher
     0x03E2 | EXCLUSION | CASED,  // Copt
     0x042F | RECOMMENDED | CASED,  // Cyrl
@@ -223,7 +223,7 @@ const int32_t SCRIPT_PROPS[] = {
     0x11A5C | EXCLUSION,  // Soyo
     0x11A0B | EXCLUSION,  // Zanb
     0x1180B | EXCLUSION,  // Dogr
-    0x11D71 | LIMITED_USE,  // Gong
+    0x11D71 | EXCLUSION,  // Gong
     0x11EE5 | EXCLUSION,  // Maka
     0x16E40 | EXCLUSION | CASED,  // Medf
     0x10D12 | LIMITED_USE | RTL,  // Rohg
@@ -237,6 +237,25 @@ const int32_t SCRIPT_PROPS[] = {
     0x1190C | EXCLUSION,  // Diak
     0x18C65 | EXCLUSION | LB_LETTERS,  // Kits
     0x10E88 | EXCLUSION | RTL,  // Yezi
+    0x12FE5 | EXCLUSION,  // Cpmn
+    0x10F7C | EXCLUSION | RTL,  // Ougr
+    0x16ABC | EXCLUSION,  // Tnsa
+    0x1E290 | EXCLUSION,  // Toto
+    0x10582 | EXCLUSION | CASED,  // Vith
+    0x11F1B | EXCLUSION | LB_LETTERS,  // Kawi
+    0x1E4E6 | EXCLUSION,  // Nagm
+    0,
+    0x10D5D | EXCLUSION | RTL | CASED,  // Gara
+    0x1611C | EXCLUSION,  // Gukh
+    0x16D45 | EXCLUSION,  // Krai
+    0x1E5D0 | EXCLUSION,  // Onao
+    0x11BC4 | EXCLUSION,  // Sunu
+    0x105C2 | EXCLUSION,  // Todr
+    0x11392 | EXCLUSION,  // Tutg
+    0x16EA1 | EXCLUSION | CASED,  // Berf
+    0x10950 | EXCLUSION | RTL,  // Sidt
+    0x1E6D5 | EXCLUSION | LB_LETTERS,  // Tayo
+    0x11DC6 | EXCLUSION,  // Tols
     // End copy-paste from parsescriptmetadata.py
 };
 
@@ -251,9 +270,9 @@ int32_t getScriptProps(UScriptCode script) {
 }  // namespace
 
 U_CAPI int32_t U_EXPORT2
-uscript_getSampleString(UScriptCode script, UChar *dest, int32_t capacity, UErrorCode *pErrorCode) {
+uscript_getSampleString(UScriptCode script, char16_t *dest, int32_t capacity, UErrorCode *pErrorCode) {
     if(U_FAILURE(*pErrorCode)) { return 0; }
-    if(capacity < 0 || (capacity > 0 && dest == NULL)) {
+    if(capacity < 0 || (capacity > 0 && dest == nullptr)) {
         *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }

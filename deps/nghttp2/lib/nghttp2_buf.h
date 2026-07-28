@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -99,7 +99,7 @@ void nghttp2_buf_free(nghttp2_buf *buf, nghttp2_mem *mem);
  * |new_cap|. If extensions took place, buffer pointers in |buf| will
  * change.
  *
- * This function returns 0 if it succeeds, or one of the followings
+ * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGHTTP2_ERR_NOMEM
@@ -349,7 +349,7 @@ int nghttp2_bufs_orb_hold(nghttp2_bufs *bufs, uint8_t b);
  * NGHTTP2_ERR_NOMEM
  *     Out of memory
  */
-ssize_t nghttp2_bufs_remove(nghttp2_bufs *bufs, uint8_t **out);
+nghttp2_ssize nghttp2_bufs_remove(nghttp2_bufs *bufs, uint8_t **out);
 
 /*
  * Copies all data stored in |bufs| to |out|.  This function assumes
@@ -409,4 +409,4 @@ int nghttp2_bufs_next_present(nghttp2_bufs *bufs);
  */
 size_t nghttp2_bufs_len(nghttp2_bufs *bufs);
 
-#endif /* NGHTTP2_BUF_H */
+#endif /* !defined(NGHTTP2_BUF_H) */

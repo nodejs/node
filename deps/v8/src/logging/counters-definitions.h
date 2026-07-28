@@ -5,20 +5,21 @@
 #ifndef V8_LOGGING_COUNTERS_DEFINITIONS_H_
 #define V8_LOGGING_COUNTERS_DEFINITIONS_H_
 
+#include "include/v8-internal.h"
+
 namespace v8 {
 namespace internal {
 
+// Generic range histograms.
+// HR(name, caption, min, max, num_buckets)
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
-  /* Generic range histograms: HR(name, caption, min, max, num_buckets) */     \
-  HR(background_marking, V8.GCBackgroundMarking, 0, 10000, 101)                \
-  HR(background_scavenger, V8.GCBackgroundScavenger, 0, 10000, 101)            \
-  HR(background_sweeping, V8.GCBackgroundSweeping, 0, 10000, 101)              \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 9, 9)              \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
-  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 22, 23)     \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0,             \
+     kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 22, 23)                   \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0,                           \
+     kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(gc_finalize_clear, V8.GCFinalizeMC.Clear, 0, 10000, 101)                  \
   HR(gc_finalize_epilogue, V8.GCFinalizeMC.Epilogue, 0, 10000, 101)            \
   HR(gc_finalize_evacuate, V8.GCFinalizeMC.Evacuate, 0, 10000, 101)            \
@@ -28,13 +29,6 @@ namespace internal {
   HR(gc_finalize_sweep, V8.GCFinalizeMC.Sweep, 0, 10000, 101)                  \
   HR(gc_scavenger_scavenge_main, V8.GCScavenger.ScavengeMain, 0, 10000, 101)   \
   HR(gc_scavenger_scavenge_roots, V8.GCScavenger.ScavengeRoots, 0, 10000, 101) \
-  HR(gc_mark_compactor, V8.GCMarkCompactor, 0, 10000, 101)                     \
-  HR(gc_marking_sum, V8.GCMarkingSum, 0, 10000, 101)                           \
-  /* Range and bucket matches BlinkGC.MainThreadMarkingThroughput. */          \
-  HR(gc_main_thread_marking_throughput, V8.GCMainThreadMarkingThroughput, 0,   \
-     100000, 50)                                                               \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 22, 23)                          \
-  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
   /* Asm/Wasm. */                                                              \
   HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 1000000, \
      51)                                                                       \
@@ -45,102 +39,201 @@ namespace internal {
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
      13)                                                                       \
   HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)     \
-  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)    \
-  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51)  \
+  HR(wasm_asm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.asm,      \
+     100 * KB, GB, 51)                                                         \
+  HR(wasm_wasm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.wasm,    \
+     100 * KB, GB, 51)                                                         \
   HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)        \
   HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
-  HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,    \
-     51)                                                                       \
-  HR(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm, 1, 2 << 16,  \
-     51)                                                                       \
-  HR(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm, 1, 2 << 16,  \
-     51)                                                                       \
-  HR(wasm_compile_function_peak_memory_bytes,                                  \
-     V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
+  HR(wasm_compile_huge_function_peak_memory_bytes,                             \
+     V8.WasmCompileHugeFunctionPeakMemoryBytes, 1, GB, 51)                     \
   HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
-  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 20,   \
-     21)                                                                       \
+  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 21,   \
+     22)                                                                       \
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
-  HR(wasm_address_space_usage_mb, V8.WasmAddressSpaceUsageMiB, 0, 1 << 20,     \
-     128)                                                                      \
-  /* committed code size per module, collected on GC */                        \
+  /* Committed code size per module, collected on GC. */                       \
+  /* Older histogram, in MiB (0..1024MB). */                                   \
   HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
-  /* code size per module after baseline compilation */                        \
-  HR(wasm_module_code_size_mb_after_baseline,                                  \
-     V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
-  /* code size per module after top-tier compilation */                        \
-  HR(wasm_module_code_size_mb_after_top_tier, V8.WasmModuleCodeSizeTopTierMiB, \
-     0, 1024, 64)                                                              \
-  /* percent of freed code size per module, collected on GC */                 \
+  /* Newer histogram, in KiB (0..100MB). */                                    \
+  HR(wasm_module_code_size_kb, V8.WasmModuleCodeSizeKiB, 0, 1024 * 100, 101)   \
+  /* Metadata size per module, collected on GC. */                             \
+  HR(wasm_module_metadata_size_kb, V8.WasmModuleMetadataSizeKiB, 0,            \
+     1024 * 100, 101)                                                          \
+  /* Metadata of the whole Wasm engine, collected on GC. */                    \
+  HR(wasm_engine_metadata_size_kb, V8.WasmEngineMetadataSizeKiB, 0,            \
+     1024 * 100, 101)                                                          \
+  /* Percent of freed code size per module, collected on GC. */                \
   HR(wasm_module_freed_code_size_percent, V8.WasmModuleCodeSizePercentFreed,   \
      0, 100, 32)                                                               \
-  /* number of code GCs triggered per native module, collected on code GC */   \
+  /* Number of code GCs triggered per native module, collected on code GC. */  \
   HR(wasm_module_num_triggered_code_gcs,                                       \
      V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
-  /* number of code spaces reserved per wasm module */                         \
+  /* Number of code spaces reserved per wasm module. */                        \
   HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
-  /* number of live modules per isolate */                                     \
+  /* Number of deopts triggered in webassembly code. */                        \
+  HR(wasm_deopts_executed, V8.WasmDeoptsExecutedCount, 0, 10000, 51)           \
+  HR(wasm_deopts_per_function, V8.WasmDeoptsPerFunction, 0, 500, 21)           \
+  /* Number of live modules per isolate. */                                    \
   HR(wasm_modules_per_isolate, V8.WasmModulesPerIsolate, 1, 1024, 30)          \
-  /* number of live modules per engine (i.e. whole process) */                 \
+  /* Number of live modules per engine (i.e. whole process). */                \
   HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
-  /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
+  /* Bailout reason if Liftoff failed, or {kSuccess} (per function). */        \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
-  /* Ticks observed in a single Turbofan compilation, in 1K */                 \
+  /* Support for PKEYs/PKU by testing result of pkey_alloc(). */               \
+  HR(wasm_memory_protection_keys_support, V8.WasmMemoryProtectionKeysSupport,  \
+     0, 1, 2)                                                                  \
+  /* Ticks observed in a single Turbofan compilation, in 1K. */                \
   HR(turbofan_ticks, V8.TurboFan1KTicks, 0, 100000, 200)                       \
-  /* Backtracks observed in a single regexp interpreter execution */           \
+  /* Backtracks observed in a single regexp interpreter execution. */          \
   /* The maximum of 100M backtracks takes roughly 2 seconds on my machine. */  \
-  HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)
+  HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)                 \
+  /* Number of times a cache event is triggered for a wasm module. */          \
+  HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
+  /* Number of in-use external pointers in the external pointer table. */      \
+  /* Counted after sweeping the table at the end of mark-compact GC. */        \
+  HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
+     kMaxExternalPointers, 101)                                                \
+  HR(code_pointers_count, V8.SandboxedCodePointersCount, 0, kMaxCodePointers,  \
+     101)                                                                      \
+  HR(trusted_pointers_count, V8.SandboxedTrustedPointersCount, 0,              \
+     kMaxTrustedPointers, 101)                                                 \
+  HR(cppheap_pointers_count, V8.SandboxedCppHeapPointersCount, 0,              \
+     kMaxCppHeapPointers, 101)                                                 \
+  HR(js_dispatch_table_entries_count, V8.JSDispatchTableEntriesCount, 0,       \
+     kMaxJSDispatchEntries, 101)                                               \
+  /* Outcome of external pointer table compaction: kSuccess, */                \
+  /* kPartialSuccessor kAbortedDuringSweeping. See */                          \
+  /* ExternalPointerTable::TableCompactionOutcome enum for more details. */    \
+  HR(external_pointer_table_compaction_outcome,                                \
+     V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)                        \
+  HR(wasm_compilation_method, V8.WasmCompilationMethod, 0, 4, 5)               \
+  HR(asmjs_instantiate_result, V8.AsmjsInstantiateResult, 0, 1, 2)
 
-#define HISTOGRAM_TIMER_LIST(HT)                                               \
-  /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
-  /* Garbage collection timers. */                                             \
-  HT(gc_context, V8.GCContext, 10000,                                          \
-     MILLISECOND) /* GC context cleanup time */                                \
-  HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)          \
-  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)      \
-  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,        \
-     MILLISECOND)                                                              \
-  HT(gc_incremental_marking_finalize, V8.GCIncrementalMarkingFinalize, 10000,  \
-     MILLISECOND)                                                              \
-  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
-     MILLISECOND)                                                              \
-  /* Compilation times. */                                                     \
-  HT(collect_source_positions, V8.CollectSourcePositions, 1000000,             \
-     MICROSECOND)                                                              \
-  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
-  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \
-  /* Serialization as part of compilation (code caching) */                    \
-  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND)  \
-  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,          \
-     MICROSECOND)                                                              \
-  /* Total compilation time incl. caching/parsing */                           \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)       \
-  /* Total JavaScript execution time (including callbacks and runtime calls */ \
-  HT(execute, V8.Execute, 1000000, MICROSECOND)
+#if V8_ENABLE_DRUMBRAKE
+#define HISTOGRAM_RANGE_LIST_SLOW(HR)                                         \
+  /* Percentage (*1000) of time spent running Wasm jitted code. */            \
+  HR(wasm_jit_execution_ratio, V8.JitWasmExecutionPercentage, 0, 100000, 101) \
+  HR(wasm_jit_execution_too_slow, V8.JitWasmExecutionTooSlow, 0, 100000, 101) \
+  /* Percentage (*1000) of time spent running in the Wasm interpreter. */     \
+  HR(wasm_jitless_execution_ratio, V8.JitlessWasmExecutionPercentage, 0,      \
+     100000, 101)                                                             \
+  HR(wasm_jitless_execution_too_slow, V8.JitlessWasmExecutionTooSlow, 0,      \
+     100000, 101)
+#endif  // V8_ENABLE_DRUMBRAKE
 
+// Like TIMED_HISTOGRAM_LIST, but allows the use of NestedTimedHistogramScope.
+// HT(name, caption, max, unit)
+#define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
+  /* Garbage collection timers. */                                            \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
+  HT(gc_incremental_marking_start, V8.GCIncrementalMarkingStart, 10000,       \
+     MILLISECOND)                                                             \
+  HT(gc_minor_incremental_marking_start, V8.GCMinorIncrementalMarkingStart,   \
+     10000, MILLISECOND)                                                      \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,           \
+     MILLISECOND)                                                             \
+  /* Compilation times. */                                                    \
+  HT(collect_source_positions, V8.CollectSourcePositions, 1000000,            \
+     MICROSECOND)                                                             \
+  HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                   \
+  HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)          \
+  /* Serialization as part of compilation (code caching). */                  \
+  HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND) \
+  HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
+     MICROSECOND)                                                             \
+  /* Snapshot. */                                                             \
+  HT(snapshot_decompress, V8.SnapshotDecompressMicroSeconds, 1000000,         \
+     MICROSECOND)                                                             \
+  HT(snapshot_deserialize_rospace, V8.SnapshotDeserializeRoSpaceMicroSeconds, \
+     1000000, MICROSECOND)                                                    \
+  HT(snapshot_deserialize_isolate, V8.SnapshotDeserializeIsolateMicroSeconds, \
+     1000000, MICROSECOND)                                                    \
+  HT(snapshot_deserialize_context, V8.SnapshotDeserializeContextMicroSeconds, \
+     1000000, MICROSECOND)                                                    \
+  /* ... and also see compile_deserialize above. */                           \
+  /* Total compilation time incl. caching/parsing. */                         \
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
+
+#define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                                \
+  /* Total V8 time (including JS and runtime calls, exluding callbacks). */ \
+  HT(execute, V8.ExecuteMicroSeconds, 1000000, MICROSECOND)
+
+// Timer histograms, thread safe: HT(name, caption, max, unit)
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
-  /* Timer histograms, thread safe: HT(name, caption, max, unit) */            \
   /* Garbage collection timers. */                                             \
-  HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
-  HT(gc_compactor_background, V8.GCCompactorBackground, 10000, MILLISECOND)    \
-  HT(gc_compactor_foreground, V8.GCCompactorForeground, 10000, MILLISECOND)    \
-  HT(gc_finalize, V8.GCFinalizeMC, 10000, MILLISECOND)                         \
-  HT(gc_finalize_background, V8.GCFinalizeMCBackground, 10000, MILLISECOND)    \
-  HT(gc_finalize_foreground, V8.GCFinalizeMCForeground, 10000, MILLISECOND)    \
-  HT(gc_finalize_measure_memory, V8.GCFinalizeMCMeasureMemory, 10000,          \
+  HT(gc_finalize_incremental_regular,                                          \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.Regular, 10000,          \
      MILLISECOND)                                                              \
-  HT(gc_finalize_reduce_memory, V8.GCFinalizeMCReduceMemory, 10000,            \
+  HT(gc_finalize_incremental_regular_foreground,                               \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.Regular.Foreground,      \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_regular_background,                               \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.Regular.Background,      \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_reducing,                                  \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.ReduceMemory, 10000,     \
      MILLISECOND)                                                              \
-  HT(gc_finalize_reduce_memory_background,                                     \
-     V8.GCFinalizeMCReduceMemoryBackground, 10000, MILLISECOND)                \
-  HT(gc_finalize_reduce_memory_foreground,                                     \
-     V8.GCFinalizeMCReduceMemoryForeground, 10000, MILLISECOND)                \
-  HT(gc_scavenger, V8.GCScavenger, 10000, MILLISECOND)                         \
-  HT(gc_scavenger_background, V8.GCScavengerBackground, 10000, MILLISECOND)    \
-  HT(gc_scavenger_foreground, V8.GCScavengerForeground, 10000, MILLISECOND)    \
-  HT(time_to_safepoint, V8.TimeToSafepoint, 10000, MILLISECOND)                \
+  HT(gc_finalize_incremental_memory_reducing_foreground,                       \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.ReduceMemory.Foreground, \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_reducing_background,                       \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.ReduceMemory.Background, \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_measure,                                   \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.MeasureMemory, 10000,    \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_incremental_memory_measure_foreground,                        \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.MeasureMemory            \
+         .Foreground,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_incremental_memory_measure_background,                        \
+     V8.GC.Event.MainThread.Full.Finalize.Incremental.MeasureMemory            \
+         .Background,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_regular,                                      \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.Regular, 10000,       \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_non_incremental_regular_foreground,                           \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.Regular.Foreground,   \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_regular_background,                           \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.Regular.Background,   \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_reducing,                              \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.ReduceMemory, 10000,  \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_non_incremental_memory_reducing_foreground,                   \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.ReduceMemory          \
+         .Foreground,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_reducing_background,                   \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.ReduceMemory          \
+         .Background,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_measure,                               \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.MeasureMemory, 10000, \
+     MILLISECOND)                                                              \
+  HT(gc_finalize_non_incremental_memory_measure_foreground,                    \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.MeasureMemory         \
+         .Foreground,                                                          \
+     10000, MILLISECOND)                                                       \
+  HT(gc_finalize_non_incremental_memory_measure_background,                    \
+     V8.GC.Event.MainThread.Full.Finalize.NonIncremental.MeasureMemory         \
+         .Background,                                                          \
+     10000, MILLISECOND)                                                       \
   HT(measure_memory_delay_ms, V8.MeasureMemoryDelayMilliseconds, 100000,       \
      MILLISECOND)                                                              \
+  HT(gc_time_to_global_safepoint, V8.GC.TimeToGlobalSafepoint, 10000000,       \
+     MICROSECOND)                                                              \
+  HT(gc_time_to_safepoint, V8.GC.TimeToSafepoint, 10000000, MICROSECOND)       \
+  HT(gc_time_to_collection_on_background, V8.GC.TimeToCollectionOnBackground,  \
+     10000000, MICROSECOND)                                                    \
+  /* Maglev timers. */                                                         \
+  HT(maglev_optimize_prepare, V8.MaglevOptimizePrepare, 100000, MICROSECOND)   \
+  HT(maglev_optimize_execute, V8.MaglevOptimizeExecute, 100000, MICROSECOND)   \
+  HT(maglev_optimize_finalize, V8.MaglevOptimizeFinalize, 100000, MICROSECOND) \
+  HT(maglev_optimize_total_time, V8.MaglevOptimizeTotalTime, 1000000,          \
+     MICROSECOND)                                                              \
   /* TurboFan timers. */                                                       \
   HT(turbofan_optimize_prepare, V8.TurboFanOptimizePrepare, 1000000,           \
      MICROSECOND)                                                              \
@@ -177,18 +270,22 @@ namespace internal {
      V8.WasmCompileModuleStreamingMicroSeconds, 100000000, MICROSECOND)        \
   HT(wasm_streaming_finish_wasm_module_time,                                   \
      V8.WasmFinishModuleStreamingMicroSeconds, 100000000, MICROSECOND)         \
-  HT(wasm_tier_up_module_time, V8.WasmTierUpModuleMicroSeconds, 100000000,     \
-     MICROSECOND)                                                              \
+  HT(wasm_deserialization_time, V8.WasmDeserializationTimeMilliSeconds, 10000, \
+     MILLISECOND)                                                              \
   HT(wasm_compile_asm_function_time, V8.WasmCompileFunctionMicroSeconds.asm,   \
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
      1000000, MICROSECOND)                                                     \
-  HT(liftoff_compile_time, V8.LiftoffCompileMicroSeconds, 10000000,            \
-     MICROSECOND)                                                              \
+  HT(wasm_compile_huge_function_time, V8.WasmCompileHugeFunctionMilliSeconds,  \
+     100000, MILLISECOND)                                                      \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
      V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
+     MICROSECOND)                                                              \
+  HT(wasm_compile_after_deserialize,                                           \
+     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)         \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
@@ -212,7 +309,10 @@ namespace internal {
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
   HT(compile_function_on_background,                                           \
-     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)
+     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
+  HT(deserialize_script_on_background,                                         \
+     V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread, 1000000,      \
+     MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
@@ -234,67 +334,28 @@ namespace internal {
   HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
   HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
 
-// WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
-// Intellisense to crash.  It was broken into two macros (each of length 40
-// lines) rather than one macro (of length about 80 lines) to work around
-// this problem.  Please avoid using recursive macros of this length when
-// possible.
-#define STATS_COUNTER_LIST_1(SC)                                   \
-  /* Global Handle Count*/                                         \
-  SC(global_handles, V8.GlobalHandles)                             \
-  SC(maps_normalized, V8.MapsNormalized)                           \
-  SC(maps_created, V8.MapsCreated)                                 \
-  SC(elements_transitions, V8.ObjectElementsTransitions)           \
-  SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)         \
-  SC(elements_to_dictionary, V8.ObjectElementsToDictionary)        \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)                     \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                 \
-  SC(objs_since_last_full, V8.ObjsSinceLastFull)                   \
-  SC(string_table_capacity, V8.StringTableCapacity)                \
-  SC(number_of_symbols, V8.NumberOfSymbols)                        \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)            \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)              \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses)          \
-  /* Amount of evaled source code. */                              \
-  SC(total_eval_size, V8.TotalEvalSize)                            \
-  /* Amount of loaded source code. */                              \
-  SC(total_load_size, V8.TotalLoadSize)                            \
-  /* Amount of parsed source code. */                              \
-  SC(total_parse_size, V8.TotalParseSize)                          \
-  /* Amount of source code skipped over using preparsing. */       \
-  SC(total_preparse_skipped, V8.TotalPreparseSkipped)              \
-  /* Amount of compiled source code. */                            \
-  SC(total_compile_size, V8.TotalCompileSize)                      \
-  /* Number of contexts created from scratch. */                   \
-  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch) \
-  /* Number of contexts created by context snapshot. */            \
-  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)   \
-  /* Number of code objects found from pc. */                      \
-  SC(pc_to_code, V8.PcToCode)                                      \
-  SC(pc_to_code_cached, V8.PcToCodeCached)                         \
-  /* The store-buffer implementation of the write barrier. */      \
-  SC(store_buffer_overflows, V8.StoreBufferOverflows)
-
-#define STATS_COUNTER_LIST_2(SC)                                               \
-  /* Amount of (JS) compiled code. */                                          \
-  SC(total_compiled_code_size, V8.TotalCompiledCodeSize)                       \
+#define STATS_COUNTER_LIST(SC)                                                 \
+  /* Global handle count. */                                                   \
+  SC(global_handles, V8.GlobalHandles)                                         \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                                 \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)                          \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)                      \
+  /* Number of times the cache contained a reusable Script but not */          \
+  /* the root SharedFunctionInfo. */                                           \
+  SC(compilation_cache_partial_hits, V8.CompilationCachePartialHits)           \
+  SC(deopts, V8.Deopts)                                                        \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                             \
+  SC(objs_since_last_full, V8.ObjsSinceLastFull)                               \
   SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \
   SC(gc_compactor_caused_by_promoted_data, V8.GCCompactorCausedByPromotedData) \
   SC(gc_compactor_caused_by_oldspace_exhaustion,                               \
      V8.GCCompactorCausedByOldspaceExhaustion)                                 \
-  SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                            \
-  SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)                  \
-  SC(cow_arrays_converted, V8.COWArraysConverted)                              \
-  SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
-  SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
-  SC(string_add_runtime, V8.StringAddRuntime)                                  \
-  SC(sub_string_runtime, V8.SubStringRuntime)                                  \
+  SC(maps_created, V8.MapsCreated)                                             \
+  SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
-  SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
-  SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                              \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                         \
@@ -310,33 +371,24 @@ namespace internal {
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
-  /* Total code size (including metadata) of baseline code or bytecode. */     \
-  SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
-  /* Total count of functions compiled using the baseline compiler. */         \
-  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
-
-#define STATS_COUNTER_TS_LIST(SC)                                    \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)            \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                             \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions) \
-  SC(liftoff_compiled_functions, V8.LiftoffCompiledFunctions)        \
-  SC(liftoff_unsupported_functions, V8.LiftoffUnsupportedFunctions)
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)                      \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                                       \
+  SC(wasm_deopt_data_size, V8.WasmDeoptDataBytes)                              \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)           \
+  SC(wasm_compiled_export_wrapper, V8.WasmCompiledExportWrappers)
 
 // List of counters that can be incremented from generated code. We need them in
 // a separate list to be able to relocate them.
-#define STATS_COUNTER_NATIVE_CODE_LIST(SC)                         \
-  /* Number of write barriers executed at runtime. */              \
-  SC(write_barriers, V8.WriteBarriers)                             \
-  SC(constructed_objects, V8.ConstructedObjects)                   \
-  SC(fast_new_closure_total, V8.FastNewClosureTotal)               \
-  SC(regexp_entry_native, V8.RegExpEntryNative)                    \
-  SC(string_add_native, V8.StringAddNative)                        \
-  SC(sub_string_native, V8.SubStringNative)                        \
-  SC(ic_keyed_load_generic_smi, V8.ICKeyedLoadGenericSmi)          \
-  SC(ic_keyed_load_generic_symbol, V8.ICKeyedLoadGenericSymbol)    \
-  SC(ic_keyed_load_generic_slow, V8.ICKeyedLoadGenericSlow)        \
-  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes) \
-  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)
+#define STATS_COUNTER_NATIVE_CODE_LIST(SC)                                \
+  /* Number of write barriers executed at runtime. */                     \
+  SC(write_barriers, V8.WriteBarriers)                                    \
+  SC(regexp_entry_native, V8.RegExpEntryNative)                           \
+  SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)        \
+  SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)        \
+  SC(number_string_cache_smi_probes, V8.NumberStringCacheSmiProbes)       \
+  SC(number_string_cache_smi_misses, V8.NumberStringCacheSmiMisses)       \
+  SC(number_string_cache_double_probes, V8.NumberStringCacheDoubleProbes) \
+  SC(number_string_cache_double_misses, V8.NumberStringCacheDoubleMisses)
 
 }  // namespace internal
 }  // namespace v8

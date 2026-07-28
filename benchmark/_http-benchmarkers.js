@@ -5,18 +5,23 @@ const path = require('path');
 const fs = require('fs');
 
 const requirementsURL =
-  'https://github.com/nodejs/node/blob/master/benchmark/writing-and-running-benchmarks.md#http-benchmark-requirements';
+  'https://github.com/nodejs/node/blob/HEAD/doc/contributing/writing-and-running-benchmarks.md#http-benchmark-requirements';
 
 // The port used by servers and wrk
 exports.PORT = Number(process.env.PORT) || 12346;
 
 class AutocannonBenchmarker {
   constructor() {
+    const shell = (process.platform === 'win32');
     this.name = 'autocannon';
-    this.executable =
-      process.platform === 'win32' ? 'autocannon.cmd' : 'autocannon';
-    const result = child_process.spawnSync(this.executable, ['-h']);
-    this.present = !(result.error && result.error.code === 'ENOENT');
+    this.opts = { shell };
+    this.executable = shell ? 'autocannon.cmd' : 'autocannon';
+    const result = child_process.spawnSync(this.executable, ['-h'], this.opts);
+    if (shell) {
+      this.present = (result.status === 0);
+    } else {
+      this.present = !(result.error && result.error.code === 'ENOENT');
+    }
   }
 
   create(options) {
@@ -27,10 +32,15 @@ class AutocannonBenchmarker {
       '-n',
     ];
     for (const field in options.headers) {
-      args.push('-H', `${field}=${options.headers[field]}`);
+      if (this.opts.shell) {
+        args.push('-H', `'${field}=${options.headers[field]}'`);
+      } else {
+        args.push('-H', `${field}=${options.headers[field]}`);
+      }
     }
-    args.push(`http://127.0.0.1:${options.port}${options.path}`);
-    const child = child_process.spawn(this.executable, args);
+    const scheme = options.scheme || 'http';
+    args.push(`${scheme}://127.0.0.1:${options.port}${options.path}`);
+    const child = child_process.spawn(this.executable, args, this.opts);
     return child;
   }
 
@@ -60,11 +70,12 @@ class WrkBenchmarker {
     const duration = typeof options.duration === 'number' ?
       Math.max(options.duration, 1) :
       options.duration;
+    const scheme = options.scheme || 'http';
     const args = [
       '-d', duration,
       '-c', options.connections,
-      '-t', Math.min(options.connections, require('os').cpus().length || 8),
-      `http://127.0.0.1:${options.port}${options.path}`,
+      '-t', Math.min(options.connections, require('os').availableParallelism() || 8),
+      `${scheme}://127.0.0.1:${options.port}${options.path}`,
     ];
     for (const field in options.headers) {
       args.push('-H', `${field}: ${options.headers[field]}`);
@@ -90,8 +101,8 @@ class WrkBenchmarker {
  */
 class TestDoubleBenchmarker {
   constructor(type) {
-    // `type` is the type of benchmarker. Possible values are 'http' and
-    // 'http2'.
+    // `type` is the type of benchmarker. Possible values are 'http', 'https',
+    // and 'http2'.
     this.name = `test-double-${type}`;
     this.executable = path.resolve(__dirname, '_test-double-benchmarker.js');
     this.present = fs.existsSync(this.executable);
@@ -99,11 +110,12 @@ class TestDoubleBenchmarker {
   }
 
   create(options) {
-    process.env.duration = process.env.duration || options.duration || 5;
+    process.env.duration ||= options.duration || 5;
 
+    const scheme = options.scheme || 'http';
     const env = {
-      test_url: `http://127.0.0.1:${options.port}${options.path}`,
-      ...process.env
+      test_url: `${scheme}://127.0.0.1:${options.port}${options.path}`,
+      ...process.env,
     };
 
     const child = child_process.fork(this.executable,
@@ -170,7 +182,7 @@ class H2LoadBenchmarker {
   }
 
   processResults(output) {
-    const rex = /(\d+(?:\.\d+)) req\/s/;
+    const rex = /(\d+\.\d+) req\/s/;
     return rex.exec(output)[1];
   }
 }
@@ -179,6 +191,7 @@ const http_benchmarkers = [
   new WrkBenchmarker(),
   new AutocannonBenchmarker(),
   new TestDoubleBenchmarker('http'),
+  new TestDoubleBenchmarker('https'),
   new TestDoubleBenchmarker('http2'),
   new H2LoadBenchmarker(),
 ];
@@ -199,7 +212,7 @@ exports.run = function(options, callback) {
     connections: 100,
     duration: 5,
     benchmarker: exports.default_http_benchmarker,
-    ...options
+    ...options,
   };
   if (!options.benchmarker) {
     callback(new Error('Could not locate required http benchmarker. See ' +
@@ -218,7 +231,7 @@ exports.run = function(options, callback) {
     return;
   }
 
-  const benchmarker_start = process.hrtime();
+  const benchmarker_start = process.hrtime.bigint();
 
   const child = benchmarker.create(options);
 
@@ -229,7 +242,7 @@ exports.run = function(options, callback) {
   child.stdout.on('data', (chunk) => stdout += chunk);
 
   child.once('close', (code) => {
-    const elapsed = process.hrtime(benchmarker_start);
+    const benchmark_end = process.hrtime.bigint();
     if (code) {
       let error_message = `${options.benchmarker} failed with ${code}.`;
       if (stdout !== '') {
@@ -246,6 +259,7 @@ exports.run = function(options, callback) {
       return;
     }
 
+    const elapsed = benchmark_end - benchmarker_start;
     callback(null, code, options.benchmarker, result, elapsed);
   });
 

@@ -3,10 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "base_object.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
-#include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
 
@@ -14,26 +13,25 @@ namespace node {
 namespace crypto {
 static const unsigned int kNoDsaSignature = static_cast<unsigned int>(-1);
 
-enum DSASigEnc {
-  kSigEncDER, kSigEncP1363
-};
+enum class DSASigEnc { DER, P1363, Invalid };
 
 class SignBase : public BaseObject {
  public:
-  typedef enum {
-    kSignOk,
-    kSignUnknownDigest,
-    kSignInit,
-    kSignNotInitialised,
-    kSignUpdate,
-    kSignPrivateKey,
-    kSignPublicKey,
-    kSignMalformedSignature
-  } Error;
+  enum class Error {
+    Ok,
+    UnknownDigest,
+    Init,
+    NotInitialised,
+    Update,
+    PrivateKey,
+    PublicKey,
+    MalformedSignature,
+    ContextUnsupported,
+  };
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
 
-  Error Init(const char* sign_type);
+  Error Init(const char* digest);
   Error Update(const char* data, size_t len);
 
   // TODO(joyeecheung): track the memory used by OpenSSL types
@@ -42,28 +40,27 @@ class SignBase : public BaseObject {
   SET_SELF_SIZE(SignBase)
 
  protected:
-  EVPMDPointer mdctx_;
+  ncrypto::EVPMDCtxPointer mdctx_;
 };
 
-class Sign : public SignBase {
+class Sign final : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   struct SignResult {
     Error error;
-    AllocatedBuffer signature;
+    std::unique_ptr<v8::BackingStore> signature;
 
-    explicit SignResult(
-        Error err,
-        AllocatedBuffer&& sig = AllocatedBuffer())
-      : error(err), signature(std::move(sig)) {}
+    inline explicit SignResult(
+        Error err, std::unique_ptr<v8::BackingStore>&& sig = nullptr)
+        : error(err), signature(std::move(sig)) {}
   };
 
-  SignResult SignFinal(
-      const ManagedEVPPKey& pkey,
-      int padding,
-      const v8::Maybe<int>& saltlen,
-      DSASigEnc dsa_sig_enc);
+  SignResult SignFinal(const ncrypto::EVPKeyPointer& pkey,
+                       int padding,
+                       std::optional<int> saltlen,
+                       DSASigEnc dsa_sig_enc);
 
   static void SignSync(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -76,14 +73,15 @@ class Sign : public SignBase {
   Sign(Environment* env, v8::Local<v8::Object> wrap);
 };
 
-class Verify : public SignBase {
+class Verify final : public SignBase {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
-  Error VerifyFinal(const ManagedEVPPKey& key,
+  Error VerifyFinal(const ncrypto::EVPKeyPointer& key,
                     const ByteSource& sig,
                     int padding,
-                    const v8::Maybe<int>& saltlen,
+                    std::optional<int> saltlen,
                     bool* verify_result);
 
   static void VerifySync(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -98,25 +96,25 @@ class Verify : public SignBase {
 };
 
 struct SignConfiguration final : public MemoryRetainer {
-  enum Mode {
-    kSign,
-    kVerify
-  };
+  enum class Mode { Sign, Verify };
   enum Flags {
     kHasNone = 0,
     kHasSaltLength = 1,
-    kHasPadding = 2
+    kHasPadding = 2,
+    kHasContextString = 4
   };
 
   CryptoJobMode job_mode;
   Mode mode;
-  std::shared_ptr<KeyObjectData> key;
+  KeyObjectData key;
   ByteSource data;
   ByteSource signature;
-  const EVP_MD* digest = nullptr;
+  ncrypto::Digest digest;
   int flags = SignConfiguration::kHasNone;
   int padding = 0;
   int salt_length = 0;
+  DSASigEnc dsa_encoding = DSASigEnc::DER;
+  ByteSource context_string;
 
   SignConfiguration() = default;
 
@@ -125,35 +123,32 @@ struct SignConfiguration final : public MemoryRetainer {
   SignConfiguration& operator=(SignConfiguration&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(SignConfiguration);
-  SET_SELF_SIZE(SignConfiguration);
+  SET_MEMORY_INFO_NAME(SignConfiguration)
+  SET_SELF_SIZE(SignConfiguration)
 };
 
 struct SignTraits final {
   using AdditionalParameters = SignConfiguration;
   static constexpr const char* JobName = "SignJob";
 
-// TODO(@jasnell): Sign request vs. Verify request
-
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_SIGNREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       SignConfiguration* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const SignConfiguration& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const SignConfiguration& params,
+                         ByteSource* out,
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const SignConfiguration& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const SignConfiguration& params,
+                                                ByteSource* out);
 };
 
 using SignJob = DeriveBitsJob<SignTraits>;

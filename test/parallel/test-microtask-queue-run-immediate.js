@@ -24,6 +24,7 @@ require('../common');
 const assert = require('assert');
 
 function enqueueMicrotask(fn) {
+  // eslint-disable-next-line node-core/must-call-assert
   Promise.resolve().then(fn);
 }
 

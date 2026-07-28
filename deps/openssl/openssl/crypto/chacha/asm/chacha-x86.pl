@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
 # Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -40,8 +40,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 push(@INC,"${dir}","${dir}../../perlasm");
 require "x86asm.pl";
 
-$output=pop;
-open STDOUT,">$output";
+$output = pop and open STDOUT,">$output";
 
 &asm_init($ARGV[0],$ARGV[$#ARGV] eq "386");
 
@@ -50,12 +49,12 @@ for (@ARGV) { $xmm=1 if (/-DOPENSSL_IA32_SSE2/); }
 
 $ymm=1 if ($xmm &&
 		`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-			=~ /GNU assembler version ([2-9]\.[0-9]+)/ &&
-		($gasver=$1)>=2.19);	# first version supporting AVX
+			=~ /GNU assembler version ([0-9]+)\.([0-9]+)/ &&
+		($gasver = $1 + $2/100.0) >= 2.19);	# first version supporting AVX
 
 $ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32n" &&
-		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/ &&
-		$1>=2.03);	# first version supporting AVX
+		`nasm -v 2>&1` =~ /NASM version ([0-9]+)\.([0-9]+)/ &&
+		$1 + $2/100.0 >= 2.03);	# first version supporting AVX
 
 $ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32" &&
 		`ml 2>&1` =~ /Version ([0-9]+)\./ &&

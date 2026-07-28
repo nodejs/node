@@ -39,7 +39,7 @@ static const int64_t timeScaleTable[UDTS_MAX_SCALE][UTSV_MAX_SCALE_VALUE] = {
 U_CAPI int64_t U_EXPORT2
 utmscale_getTimeScaleValue(UDateTimeScale timeScale, UTimeScaleValue value, UErrorCode *status)
 {
-    if (status == NULL || U_FAILURE(*status)) {
+    if (status == nullptr || U_FAILURE(*status)) {
         return 0;
     }
 
@@ -54,11 +54,10 @@ utmscale_getTimeScaleValue(UDateTimeScale timeScale, UTimeScaleValue value, UErr
 }
 
 U_CAPI int64_t U_EXPORT2
-utmscale_fromInt64(int64_t otherTime, UDateTimeScale timeScale, UErrorCode *status)
-{
+utmscale_fromInt64(int64_t otherTime, UDateTimeScale timeScale, UErrorCode *status) UPRV_NO_SANITIZE_UNDEFINED {
     const int64_t *data;
-
-    if (status == NULL || U_FAILURE(*status)) {
+    
+    if (status == nullptr || U_FAILURE(*status)) {
         return 0;
     }
 
@@ -73,16 +72,15 @@ utmscale_fromInt64(int64_t otherTime, UDateTimeScale timeScale, UErrorCode *stat
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
-
+    
     return (otherTime + data[UTSV_EPOCH_OFFSET_VALUE]) * data[UTSV_UNITS_VALUE];
 }
 
 U_CAPI int64_t U_EXPORT2
-utmscale_toInt64(int64_t universalTime, UDateTimeScale timeScale, UErrorCode *status)
-{
+utmscale_toInt64(int64_t universalTime, UDateTimeScale timeScale, UErrorCode *status) UPRV_NO_SANITIZE_UNDEFINED {
     const int64_t *data;
-
-    if (status == NULL || U_FAILURE(*status)) {
+    
+    if (status == nullptr || U_FAILURE(*status)) {
         return 0;
     }
 
@@ -97,19 +95,19 @@ utmscale_toInt64(int64_t universalTime, UDateTimeScale timeScale, UErrorCode *st
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
-
+    
     if (universalTime < 0) {
         if (universalTime < data[UTSV_MIN_ROUND_VALUE]) {
             return (universalTime + data[UTSV_UNITS_ROUND_VALUE]) / data[UTSV_UNITS_VALUE] - data[UTSV_EPOCH_OFFSET_PLUS_1_VALUE];
         }
-
+        
         return (universalTime - data[UTSV_UNITS_ROUND_VALUE]) / data[UTSV_UNITS_VALUE] - data[UTSV_EPOCH_OFFSET_VALUE];
     }
-
+    
     if (universalTime > data[UTSV_MAX_ROUND_VALUE]) {
         return (universalTime - data[UTSV_UNITS_ROUND_VALUE]) / data[UTSV_UNITS_VALUE] - data[UTSV_EPOCH_OFFSET_MINUS_1_VALUE];
     }
-
+    
     return (universalTime + data[UTSV_UNITS_ROUND_VALUE]) / data[UTSV_UNITS_VALUE] - data[UTSV_EPOCH_OFFSET_VALUE];
 }
 

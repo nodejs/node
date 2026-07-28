@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --turbofan
 
 deopt_trigger = 0;
 side_effect = 0;
@@ -52,8 +52,6 @@ function test(a, b, c, d, e, v) {
   // this point.
   side_effect++;
   // The following field of the global object will be deleted to force a deopt.
-  // If we use type feedback to deopt, then tests ran with --stress-opt will
-  // not deopt after a few iteration.
   // If we use %DeoptimizeFunction, all values will be on the frame due to the
   // call and we will not exercise the translation mechanism handling fp
   // registers.
@@ -87,5 +85,5 @@ assertOptimized(test);
 // By deleting the field we are forcing the code to deopt when the field is
 // read on next execution.
 delete deopt_trigger;
-test(10.0, 20.0, 30.0, 40.0, 50.0, 1.5);
 assertUnoptimized(test);
+test(10.0, 20.0, 30.0, 40.0, 50.0, 1.5);

@@ -35,14 +35,21 @@
 #ifndef V8_CODEGEN_ASSEMBLER_H_
 #define V8_CODEGEN_ASSEMBLER_H_
 
+#include <algorithm>
 #include <forward_list>
+#include <map>
 #include <memory>
+#include <ostream>
+#include <type_traits>
 #include <unordered_map>
+#include <variant>
 
+#include "src/base/macros.h"
 #include "src/base/memory.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/external-reference.h"
+#include "src/codegen/label.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/reloc-info.h"
 #include "src/common/globals.h"
@@ -50,6 +57,8 @@
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects.h"
+#include "src/sandbox/indirect-pointer-tag.h"
+#include "src/utils/ostreams.h"
 
 namespace v8 {
 
@@ -64,61 +73,100 @@ using base::WriteUnalignedValue;
 
 // Forward declarations.
 class EmbeddedData;
-class InstructionStream;
+class OffHeapInstructionStream;
 class Isolate;
 class SCTableReference;
 class SourcePosition;
 class StatsCounter;
-class StringConstantBase;
+class Label;
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
 
-class JumpOptimizationInfo {
+struct JumpOptimizationInfo {
  public:
-  bool is_collecting() const { return stage_ == kCollection; }
-  bool is_optimizing() const { return stage_ == kOptimization; }
+  struct JumpInfo {
+    int pos;
+    int opcode_size;
+    // target_address-address_after_jmp_instr, 0 when distance not bind.
+    int distance;
+  };
+
+  bool is_collecting() const { return stage == kCollection; }
+  bool is_optimizing() const { return stage == kOptimization; }
   void set_optimizing() {
     DCHECK(is_optimizable());
-    stage_ = kOptimization;
+    stage = kOptimization;
   }
 
-  bool is_optimizable() const { return optimizable_; }
+  bool is_optimizable() const { return optimizable; }
   void set_optimizable() {
     DCHECK(is_collecting());
-    optimizable_ = true;
+    optimizable = true;
+  }
+
+  int MaxAlignInRange(int from, int to) {
+    int max_align = 0;
+
+    auto it = align_pos_size.upper_bound(from);
+
+    while (it != align_pos_size.end()) {
+      if (it->first <= to) {
+        max_align = std::max(max_align, it->second);
+        it++;
+      } else {
+        break;
+      }
+    }
+    return max_align;
+  }
+
+  // Debug
+  void Print() {
+    std::cout << "align_pos_size:" << std::endl;
+    for (auto p : align_pos_size) {
+      std::cout << "{" << p.first << "," << p.second << "}"
+                << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "may_optimizable_farjmp:" << std::endl;
+
+    for (auto p : may_optimizable_farjmp) {
+      const auto& jmp_info = p.second;
+      printf("{postion:%d, opcode_size:%d, distance:%d, dest:%d}\n",
+             jmp_info.pos, jmp_info.opcode_size, jmp_info.distance,
+             jmp_info.pos + jmp_info.opcode_size + 4 + jmp_info.distance);
+    }
+    std::cout << std::endl;
   }
 
   // Used to verify the instruction sequence is always the same in two stages.
-  size_t hash_code() const { return hash_code_; }
-  void set_hash_code(size_t hash_code) { hash_code_ = hash_code; }
+  enum { kCollection, kOptimization } stage = kCollection;
 
-  std::vector<uint32_t>& farjmp_bitmap() { return farjmp_bitmap_; }
+  size_t hash_code = 0u;
 
- private:
-  enum { kCollection, kOptimization } stage_ = kCollection;
-  bool optimizable_ = false;
-  std::vector<uint32_t> farjmp_bitmap_;
-  size_t hash_code_ = 0u;
+  // {position: align_size}
+  std::map<int, int> align_pos_size;
+
+  int farjmp_num = 0;
+  // For collecting stage, should contains all far jump information after
+  // collecting.
+  std::vector<JumpInfo> farjmps;
+
+  bool optimizable = false;
+  // {index: JumpInfo}
+  std::map<int, JumpInfo> may_optimizable_farjmp;
+
+  // For label binding.
+  std::map<Label*, std::vector<int>> label_farjmp_maps;
 };
 
-class HeapObjectRequest {
+class HeapNumberRequest {
  public:
-  explicit HeapObjectRequest(double heap_number, int offset = -1);
-  explicit HeapObjectRequest(const StringConstantBase* string, int offset = -1);
+  explicit HeapNumberRequest(double heap_number, int offset = -1);
 
-  enum Kind { kHeapNumber, kStringConstant };
-  Kind kind() const { return kind_; }
-
-  double heap_number() const {
-    DCHECK_EQ(kind(), kHeapNumber);
-    return value_.heap_number;
-  }
-
-  const StringConstantBase* string() const {
-    DCHECK_EQ(kind(), kStringConstant);
-    return value_.string;
-  }
+  double heap_number() const { return value_; }
 
   // The code buffer offset at the time of the request.
   int offset() const {
@@ -132,13 +180,7 @@ class HeapObjectRequest {
   }
 
  private:
-  Kind kind_;
-
-  union {
-    double heap_number;
-    const StringConstantBase* string;
-  } value_;
-
+  double value_;
   int offset_;
 };
 
@@ -147,53 +189,135 @@ class HeapObjectRequest {
 
 enum class CodeObjectRequired { kNo, kYes };
 
+enum class BuiltinCallJumpMode {
+  // The builtin entry point address is embedded into the instruction stream as
+  // an absolute address.
+  kAbsolute,
+  // Generate builtin calls/jumps using PC-relative instructions. This mode
+  // assumes that the target is guaranteed to be within the
+  // kMaxPCRelativeCodeRangeInMB distance.
+  kPCRelative,
+  // Generate builtin calls/jumps as an indirect instruction which loads the
+  // target address from the builtins entry point table.
+  kIndirect,
+  // Same as kPCRelative but used only for generating embedded builtins.
+  // Currently we use RelocInfo::RUNTIME_ENTRY for generating kPCRelative but
+  // it's not supported yet for mksnapshot yet because of various reasons:
+  // 1) we encode the target as an offset from the code range which is not
+  // always available (32-bit architectures don't have it),
+  // 2) serialization of RelocInfo::RUNTIME_ENTRY is not implemented yet.
+  // TODO(v8:11527): Address the reasons above and remove the kForMksnapshot in
+  // favor of kPCRelative or kIndirect.
+  kForMksnapshot,
+};
+
 struct V8_EXPORT_PRIVATE AssemblerOptions {
   // Recording reloc info for external references and off-heap targets is
   // needed whenever code is serialized, e.g. into the snapshot or as a Wasm
   // module. This flag allows this reloc info to be disabled for code that
   // will not survive process destruction.
   bool record_reloc_info_for_serialization = true;
-  // Recording reloc info can be disabled wholesale. This is needed when the
-  // assembler is used on existing code directly (e.g. JumpTableAssembler)
-  // without any buffer to hold reloc information.
-  bool disable_reloc_info_for_patching = false;
-  // Enables access to exrefs by computing a delta from the root array.
-  // Only valid if code will not survive the process.
-  bool enable_root_array_delta_access = false;
+  // Enables root-relative access to arbitrary untagged addresses (usually
+  // external references). Only valid if code will not survive the process.
+  bool enable_root_relative_access = false;
   // Enables specific assembler sequences only used for the simulator.
-  bool enable_simulator_code = false;
+  bool enable_simulator_code = USE_SIMULATOR_BOOL;
   // Enables use of isolate-independent constants, indirected through the
   // root array.
   // (macro assembler feature).
   bool isolate_independent_code = false;
-  // Enables the use of isolate-independent builtins through an off-heap
-  // trampoline. (macro assembler feature).
-  bool inline_offheap_trampolines = true;
-  // On some platforms, all code is within a given range in the process,
-  // and the start of this range is configured here.
-  Address code_range_start = 0;
-  // Enable pc-relative calls/jumps on platforms that support it. When setting
-  // this flag, the code range must be small enough to fit all offsets into
-  // the instruction immediates.
-  bool use_pc_relative_calls_and_jumps = false;
+
+  // Defines how builtin calls and tail calls should be generated.
+  BuiltinCallJumpMode builtin_call_jump_mode = BuiltinCallJumpMode::kAbsolute;
+  // Mksnapshot ensures that the code range is small enough to guarantee that
+  // PC-relative call/jump instructions can be used for builtin to builtin
+  // calls/tail calls. The embedded builtins blob generator also ensures that.
+  // However, there are serializer tests, where we force isolate creation at
+  // runtime and at this point, Code space isn't restricted to a size s.t.
+  // PC-relative calls may be used. So, we fall back to an indirect mode.
+  // TODO(v8:11527): remove once kForMksnapshot is removed.
+  bool use_pc_relative_calls_and_jumps_for_mksnapshot = false;
+
+  // On some platforms, all code is created within a certain address range in
+  // the process, and the base of this code range is configured here.
+  Address code_range_base = 0;
   // Enables the collection of information useful for the generation of unwind
   // info. This is useful in some platform (Win64) where the unwind info depends
   // on a function prologue/epilogue.
   bool collect_win64_unwind_info = false;
+  // Whether to emit code comments.
+  bool emit_code_comments = v8_flags.code_comments;
+
+  bool is_wasm = false;
 
   static AssemblerOptions Default(Isolate* isolate);
 };
 
+// Wrapper around an optional Zone*. If the zone isn't present, the
+// AccountingAllocator* may be used to create a fresh one.
+//
+// This is useful for assemblers that want to Zone-allocate temporay data,
+// without forcing all users to have to create a Zone before using the
+// assembler.
+using MaybeAssemblerZone = std::variant<Zone*, AccountingAllocator*>;
+
 class AssemblerBuffer {
  public:
   virtual ~AssemblerBuffer() = default;
-  virtual byte* start() const = 0;
+  virtual uint8_t* start() const = 0;
   virtual int size() const = 0;
   // Return a grown copy of this buffer. The contained data is uninitialized.
   // The data in {this} will still be read afterwards (until {this} is
   // destructed), but not written.
   virtual std::unique_ptr<AssemblerBuffer> Grow(int new_size)
       V8_WARN_UNUSED_RESULT = 0;
+};
+
+// Describes a HeapObject slot containing a pointer to another HeapObject. Such
+// a slot can either contain a direct/tagged pointer, or an indirect pointer
+// (i.e. an index into a pointer table, which then contains the actual pointer
+// to the object) together with a specific IndirectPointerTag.
+class SlotDescriptor {
+ public:
+  bool contains_direct_pointer() const {
+    return indirect_pointer_tag_ == kIndirectPointerNullTag;
+  }
+
+  bool contains_indirect_pointer() const {
+    return indirect_pointer_tag_ != kIndirectPointerNullTag;
+  }
+
+  IndirectPointerTag indirect_pointer_tag() const {
+    DCHECK(contains_indirect_pointer());
+    return indirect_pointer_tag_;
+  }
+
+  static SlotDescriptor ForDirectPointerSlot() {
+    return SlotDescriptor(kIndirectPointerNullTag);
+  }
+
+  static SlotDescriptor ForIndirectPointerSlot(IndirectPointerTag tag) {
+    return SlotDescriptor(tag);
+  }
+
+  static SlotDescriptor ForTrustedPointerSlot(IndirectPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+    return ForIndirectPointerSlot(tag);
+#else
+    return ForDirectPointerSlot();
+#endif
+  }
+
+  static SlotDescriptor ForCodePointerSlot() {
+    return ForTrustedPointerSlot(kCodeIndirectPointerTag);
+  }
+
+ private:
+  explicit SlotDescriptor(IndirectPointerTag tag)
+      : indirect_pointer_tag_(tag) {}
+
+  // If the tag is null, this object describes a direct pointer slot.
+  IndirectPointerTag indirect_pointer_tag_;
 };
 
 // Allocate an AssemblerBuffer which uses an existing buffer. This buffer cannot
@@ -214,9 +338,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   const AssemblerOptions& options() const { return options_; }
 
-  bool emit_debug_code() const { return emit_debug_code_; }
-  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
-
   bool predictable_code_size() const { return predictable_code_size_; }
   void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
@@ -226,6 +347,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
   // Features are usually enabled by CpuFeatureScope, which also asserts that
   // the features are supported before they are enabled.
+  // IMPORTANT:  IsEnabled() should only be used by DCHECKs. For real feature
+  // detection, use IsSupported().
   bool IsEnabled(CpuFeature f) {
     return (enabled_cpu_features_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
@@ -234,8 +357,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   }
 
   bool is_constant_pool_available() const {
-    if (FLAG_enable_embedded_constant_pool) {
-      return constant_pool_available_;
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
+      // We need to disable constant pool here for embeded builtins
+      // because the metadata section is not adjacent to instructions.
+      // We also need to disable it on Wasm as the constant pool register is not
+      // yet handled during stack switching.
+      return constant_pool_available_ && !options().isolate_independent_code &&
+             !options().is_wasm;
     } else {
       // Embedded constant pool not supported on this architecture.
       UNREACHABLE();
@@ -253,22 +381,34 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
-  static void QuietNaN(HeapObject nan) {}
+  static void QuietNaN(Tagged<HeapObject> nan) {}
 
   int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
-  int pc_offset_for_safepoint() {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
-    // Mips needs it's own implementation to avoid trampoline's influence.
-    UNREACHABLE();
-#else
-    return pc_offset();
-#endif
-  }
+  Address current_pc() const { return reinterpret_cast<Address>(pc_); }
 
-  byte* buffer_start() const { return buffer_->start(); }
+  void skip_bytes(int num_bytes) { pc_ += num_bytes; }
+
+// MIPS, LOONG, and RISC-V need to use their own implementations to avoid the
+// influence of branch trampolines. They provide their implementations in the
+// architecture-specific assembler subclasses.
+#if !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_LOONG64) && \
+    !defined(V8_TARGET_ARCH_RISCV32) && !defined(V8_TARGET_ARCH_RISCV64)
+  int pc_offset_for_safepoint() const { return pc_offset(); }
+#endif
+
+  uint8_t* buffer_start() const { return buffer_->start(); }
   int buffer_size() const { return buffer_->size(); }
   int instruction_size() const { return pc_offset(); }
+
+  std::unique_ptr<AssemblerBuffer> ReleaseBuffer() {
+    std::unique_ptr<AssemblerBuffer> buffer = std::move(buffer_);
+    DCHECK_NULL(buffer_);
+    // Reset fields to prevent accidental further modifications of the buffer.
+    buffer_start_ = nullptr;
+    pc_ = nullptr;
+    return buffer;
+  }
 
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
@@ -279,11 +419,55 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  void RecordComment(const char* msg) {
-    if (FLAG_code_comments) {
-      code_comments_writer_.Add(pc_offset(), std::string(msg));
+  V8_INLINE void RecordComment(std::string_view comment,
+                               SourceLocation loc = SourceLocation::Current()) {
+    // Set explicit dependency on --code-comments for dead-code elimination in
+    // release builds.
+    if (V8_LIKELY(!v8_flags.code_comments)) return;
+    if (options().emit_code_comments) {
+      std::string comment_str(comment);
+      if (loc) {
+        comment_str += " - " + loc.ToString();
+      }
+
+      code_comments_writer_.Add(pc_offset(), std::move(comment_str));
     }
   }
+
+#ifdef V8_CODE_COMMENTS
+  class CodeComment {
+   public:
+    // `comment` can either be a value convertible to std::string, or a function
+    // that returns a value convertible to std::string which is invoked lazily
+    // when code comments are enabled.
+    template <typename CommentGen>
+    V8_NODISCARD CodeComment(Assembler* assembler, CommentGen&& comment,
+                             SourceLocation loc = SourceLocation::Current())
+        : assembler_(assembler) {
+      if (!v8_flags.code_comments) return;
+      if constexpr (std::is_invocable_v<CommentGen>) {
+        Open(comment(), loc);
+      } else {
+        Open(comment, loc);
+      }
+    }
+    ~CodeComment() {
+      if (!v8_flags.code_comments) return;
+      Close();
+    }
+    static const int kIndentWidth = 2;
+
+   private:
+    int depth() const;
+    void Open(const std::string& comment, SourceLocation loc);
+    void Close();
+    Assembler* assembler_;
+  };
+#else  // V8_CODE_COMMENTS
+  class CodeComment {
+    V8_NODISCARD CodeComment(Assembler*, const std::string&) {}
+  };
+#endif
 
   // The minimum buffer size. Should be at least two times the platform-specific
   // {Assembler::kGap}.
@@ -293,29 +477,35 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // generated code.
   static constexpr int kDefaultBufferSize = 4 * KB;
 
+  void RecordJSDispatchHandle(JSDispatchHandle handle, uint16_t argument_count);
+  const std::vector<std::pair<JSDispatchHandle, uint16_t>>&
+  js_dispatch_handles() const {
+    return js_dispatch_handles_;
+  }
+
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the
   // offset at which it is stored.
-  int AddCodeTarget(Handle<Code> target);
-  Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
+  int AddCodeTarget(IndirectHandle<Code> target);
+  IndirectHandle<Code> GetCodeTarget(intptr_t code_target_index) const;
 
   // Add 'object' to the {embedded_objects_} vector and return the index at
   // which it is stored.
   using EmbeddedObjectIndex = size_t;
-  EmbeddedObjectIndex AddEmbeddedObject(Handle<HeapObject> object);
-  Handle<HeapObject> GetEmbeddedObject(EmbeddedObjectIndex index) const;
+  EmbeddedObjectIndex AddEmbeddedObject(IndirectHandle<HeapObject> object);
+  IndirectHandle<HeapObject> GetEmbeddedObject(EmbeddedObjectIndex index) const;
 
   // The buffer into which code and relocation info are generated.
   std::unique_ptr<AssemblerBuffer> buffer_;
   // Cached from {buffer_->start()}, for faster access.
-  byte* buffer_start_;
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
+  uint8_t* buffer_start_;
+  std::forward_list<HeapNumberRequest> heap_number_requests_;
   // The program counter, which points into the buffer above and moves forward.
   // TODO(jkummerow): This should probably have type {Address}.
-  byte* pc_;
+  uint8_t* pc_;
 
   void set_constant_pool_available(bool available) {
-    if (FLAG_enable_embedded_constant_pool) {
+    if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
       constant_pool_available_ = available;
     } else {
       // Embedded constant pool not supported on this architecture.
@@ -323,18 +513,22 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  // {RequestHeapObject} records the need for a future heap number allocation,
+  // {RequestHeapNumber} records the need for a future heap number allocation,
   // code stub generation or string allocation. After code assembly, each
-  // platform's {Assembler::AllocateAndInstallRequestedHeapObjects} will
+  // platform's {Assembler::AllocateAndInstallRequestedHeapNumbers} will
   // allocate these objects and place them where they are expected (determined
   // by the pc offset associated with each request).
-  void RequestHeapObject(HeapObjectRequest request);
+  void RequestHeapNumber(HeapNumberRequest request);
+
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  virtual void PatchInHeapNumberRequest(Address pc,
+                                        Handle<HeapNumber> object) = 0;
 
   bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
-    DCHECK(!RelocInfo::IsNone(rmode));
-    if (options().disable_reloc_info_for_patching) return false;
+    DCHECK(!RelocInfo::IsNoInfo(rmode));
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
-        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
+        !options().record_reloc_info_for_serialization &&
+        !v8_flags.debug_code && !v8_flags.slow_debug_code) {
       return false;
     }
     return true;
@@ -349,24 +543,26 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // guaranteed to fit in the instruction's offset field. We keep track of the
   // code handles we encounter in calls in this vector, and encode the index of
   // the code handle in the vector instead.
-  std::vector<Handle<Code>> code_targets_;
+  std::vector<IndirectHandle<Code>> code_targets_;
 
   // If an assembler needs a small number to refer to a heap object handle
   // (for example, because there are only 32bit available on a 64bit arch), the
   // assembler adds the object into this vector using AddEmbeddedObject, and
   // may then refer to the heap object using the handle's index in this vector.
-  std::vector<Handle<HeapObject>> embedded_objects_;
+  std::vector<IndirectHandle<HeapObject>> embedded_objects_;
 
   // Embedded objects are deduplicated based on handle location. This is a
   // compromise that is almost as effective as deduplication based on actual
   // heap object addresses maintains GC safety.
-  std::unordered_map<Handle<HeapObject>, EmbeddedObjectIndex,
-                     Handle<HeapObject>::hash, Handle<HeapObject>::equal_to>
+  std::unordered_map<IndirectHandle<HeapObject>, EmbeddedObjectIndex,
+                     IndirectHandle<HeapObject>::hash,
+                     IndirectHandle<HeapObject>::equal_to>
       embedded_objects_map_;
+
+  std::vector<std::pair<JSDispatchHandle, uint16_t>> js_dispatch_handles_;
 
   const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;
-  bool emit_debug_code_;
   bool predictable_code_size_;
 
   // Indicates whether the constant pool can be accessed, which is only possible
@@ -375,27 +571,17 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   JumpOptimizationInfo* jump_optimization_info_;
 
+#ifdef V8_CODE_COMMENTS
+  int comment_depth_ = 0;
+#endif
+
   // Constant pool.
   friend class FrameAndConstantPoolScope;
   friend class ConstantPoolUnavailableScope;
 };
 
-// Avoids emitting debug code during the lifetime of this scope object.
-class DontEmitDebugCodeScope {
- public:
-  explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
-      : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
-    assembler_->set_emit_debug_code(false);
-  }
-  ~DontEmitDebugCodeScope() { assembler_->set_emit_debug_code(old_value_); }
-
- private:
-  AssemblerBase* assembler_;
-  bool old_value_;
-};
-
 // Enable a specified feature within a scope.
-class V8_EXPORT_PRIVATE CpuFeatureScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,
@@ -413,11 +599,33 @@ class V8_EXPORT_PRIVATE CpuFeatureScope {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
-  ~CpuFeatureScope() {  // NOLINT (modernize-use-equals-default)
+  ~CpuFeatureScope() {
     // Define a destructor to avoid unused variable warnings.
   }
 #endif
 };
+
+#ifdef V8_CODE_COMMENTS
+#define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, "")
+#define ASM_CODE_COMMENT_STRING(asm, comment) \
+  AssemblerBase::CodeComment UNIQUE_IDENTIFIER(asm_code_comment)(asm, comment)
+#else
+#define ASM_CODE_COMMENT(asm)
+#define ASM_CODE_COMMENT_STRING(asm, ...)
+#endif
+
+// Use this macro to mark functions that are only defined if
+// V8_ENABLE_DEBUG_CODE is set, and are a no-op otherwise.
+// Use like:
+//   void AssertMyCondition() NOOP_UNLESS_DEBUG_CODE;
+#ifdef V8_ENABLE_DEBUG_CODE
+#define NOOP_UNLESS_DEBUG_CODE
+#else
+#define NOOP_UNLESS_DEBUG_CODE                                        \
+  { static_assert(v8_flags.debug_code.value() == false); }            \
+  /* Dummy static_assert to swallow the semicolon after this macro */ \
+  static_assert(true)
+#endif
 
 }  // namespace internal
 }  // namespace v8

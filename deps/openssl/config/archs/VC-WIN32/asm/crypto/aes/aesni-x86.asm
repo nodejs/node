@@ -1918,7 +1918,7 @@ db	102,15,56,220,249
 	movdqu	[esi*1+edi-32],xmm6
 	movdqu	[esi*1+edi-16],xmm7
 	cmp	esi,eax
-	jb	NEAR L$077grandloop
+	jbe	NEAR L$077grandloop
 L$076short:
 	add	eax,96
 	sub	eax,esi
@@ -2311,7 +2311,7 @@ db	102,15,56,222,249
 	pxor	xmm1,xmm7
 	movdqu	[esi*1+edi-16],xmm7
 	cmp	esi,eax
-	jb	NEAR L$087grandloop
+	jbe	NEAR L$087grandloop
 L$086short:
 	add	eax,96
 	sub	eax,esi
@@ -3199,4 +3199,4 @@ db	83,45,78,73,44,32,67,82,89,80,84,79,71,65,77,83
 db	32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115
 db	115,108,46,111,114,103,62,0
 segment	.bss
-common	_OPENSSL_ia32cap_P 16
+common	_OPENSSL_ia32cap_P 40

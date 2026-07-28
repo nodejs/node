@@ -8,7 +8,7 @@ test (foo.js:12:2)
 
 (anonymous) (timeout1.js:0:8)
 
-foo (timeout2.js:2:2)
+foo (timeout2.js:19:2)
 
 (anonymous) (timeout3.js:0:8)
 
@@ -28,9 +28,9 @@ test (foo.js:13:0)
 
 (anonymous) (timeout1.js:0:35)
 
-foo (timeout2.js:2:2)
+foo (timeout2.js:19:2)
 
-foo (timeout2.js:2:12)
+foo (timeout2.js:19:12)
 
 (anonymous) (timeout3.js:0:8)
 
@@ -61,9 +61,9 @@ test (foo.js:13:0)
 
 (anonymous) (timeout1.js:0:35)
 
-foo (timeout2.js:2:2)
+foo (timeout2.js:19:2)
 
-foo (timeout2.js:2:12)
+foo (timeout2.js:19:12)
 
 (anonymous) (timeout3.js:0:8)
 

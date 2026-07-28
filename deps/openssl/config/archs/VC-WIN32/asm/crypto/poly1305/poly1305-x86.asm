@@ -1900,4 +1900,4 @@ db	60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111
 db	114,103,62,0
 align	4
 segment	.bss
-common	_OPENSSL_ia32cap_P 16
+common	_OPENSSL_ia32cap_P 40

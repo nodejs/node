@@ -2,8 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const Readable = require('_stream_readable');
-const Writable = require('_stream_writable');
+const { Readable, Writable } = require('stream');
 
 // Pipe should pause temporarily if writable needs drain.
 {

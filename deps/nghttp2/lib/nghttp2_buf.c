@@ -61,7 +61,7 @@ int nghttp2_buf_reserve(nghttp2_buf *buf, size_t new_cap, nghttp2_mem *mem) {
     return 0;
   }
 
-  new_cap = nghttp2_max(new_cap, cap * 2);
+  new_cap = nghttp2_max_size(new_cap, cap * 2);
 
   ptr = nghttp2_mem_realloc(mem, buf->begin, new_cap);
   if (ptr == NULL) {
@@ -82,8 +82,10 @@ void nghttp2_buf_reset(nghttp2_buf *buf) {
 }
 
 void nghttp2_buf_wrap_init(nghttp2_buf *buf, uint8_t *begin, size_t len) {
-  buf->begin = buf->pos = buf->last = buf->mark = begin;
-  buf->end = begin + len;
+  buf->begin = buf->pos = buf->last = buf->mark = buf->end = begin;
+  if (len) {
+    buf->end += len;
+  }
 }
 
 static int buf_chain_new(nghttp2_buf_chain **chain, size_t chunk_length,
@@ -341,7 +343,7 @@ int nghttp2_bufs_add(nghttp2_bufs *bufs, const void *data, size_t len) {
   while (len) {
     buf = &bufs->cur->buf;
 
-    nwrite = nghttp2_min(nghttp2_buf_avail(buf), len);
+    nwrite = nghttp2_min_size(nghttp2_buf_avail(buf), len);
     if (nwrite == 0) {
       rv = bufs_alloc_chain(bufs);
       if (rv != 0) {
@@ -428,7 +430,7 @@ int nghttp2_bufs_orb_hold(nghttp2_bufs *bufs, uint8_t b) {
   return 0;
 }
 
-ssize_t nghttp2_bufs_remove(nghttp2_bufs *bufs, uint8_t **out) {
+nghttp2_ssize nghttp2_bufs_remove(nghttp2_bufs *bufs, uint8_t **out) {
   size_t len;
   nghttp2_buf_chain *chain;
   nghttp2_buf *buf;
@@ -460,7 +462,7 @@ ssize_t nghttp2_bufs_remove(nghttp2_bufs *bufs, uint8_t **out) {
 
   *out = res;
 
-  return (ssize_t)len;
+  return (nghttp2_ssize)len;
 }
 
 size_t nghttp2_bufs_remove_copy(nghttp2_bufs *bufs, uint8_t *out) {

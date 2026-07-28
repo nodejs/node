@@ -118,7 +118,7 @@ CollationData::getSingleCE(UChar32 c, UErrorCode &errorCode) const {
 uint32_t
 CollationData::getFirstPrimaryForGroup(int32_t script) const {
     int32_t index = getScriptIndex(script);
-    return index == 0 ? 0 : (uint32_t)scriptStarts[index] << 16;
+    return index == 0 ? 0 : static_cast<uint32_t>(scriptStarts[index]) << 16;
 }
 
 uint32_t
@@ -205,7 +205,7 @@ CollationData::getEquivalentScripts(int32_t script,
 void
 CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
                                  UVector32 &ranges, UErrorCode &errorCode) const {
-    makeReorderRanges(reorder, length, FALSE, ranges, errorCode);
+    makeReorderRanges(reorder, length, false, ranges, errorCode);
 }
 
 void
@@ -251,14 +251,14 @@ CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
     for(int32_t i = 0; i < length; ++i) {
         int32_t reorderCode = reorder[i] - UCOL_REORDER_CODE_FIRST;
         if(0 <= reorderCode && reorderCode < MAX_NUM_SPECIAL_REORDER_CODES) {
-            specials |= (uint32_t)1 << reorderCode;
+            specials |= static_cast<uint32_t>(1) << reorderCode;
         }
     }
 
     // Start the reordering with the special low reorder codes that do not occur in the input.
     for(int32_t i = 0; i < MAX_NUM_SPECIAL_REORDER_CODES; ++i) {
         int32_t index = scriptsIndex[numScripts + i];
-        if(index != 0 && (specials & ((uint32_t)1 << i)) == 0) {
+        if (index != 0 && (specials & (static_cast<uint32_t>(1) << i)) == 0) {
             lowStart = addLowScriptRange(table, index, lowStart);
         }
     }
@@ -277,12 +277,12 @@ CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
 
     // Reorder according to the input scripts, continuing from the bottom of the primary range.
     int32_t originalLength = length;  // length will be decremented if "others" is in the list.
-    UBool hasReorderToEnd = FALSE;
+    UBool hasReorderToEnd = false;
     for(int32_t i = 0; i < length;) {
         int32_t script = reorder[i++];
         if(script == USCRIPT_UNKNOWN) {
             // Put the remaining scripts at the top.
-            hasReorderToEnd = TRUE;
+            hasReorderToEnd = true;
             while(i < length) {
                 script = reorder[--length];
                 if(script == USCRIPT_UNKNOWN ||  // Must occur at most once.
@@ -329,7 +329,7 @@ CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
     if(lowStart > highLimit) {
         if((lowStart - (skippedReserved & 0xff00)) <= highLimit) {
             // Try not skipping the before-Latin reserved range.
-            makeReorderRanges(reorder, originalLength, TRUE, ranges, errorCode);
+            makeReorderRanges(reorder, originalLength, true, ranges, errorCode);
             return;
         }
         // We need more primary lead bytes than available, despite the reserved ranges.
@@ -354,7 +354,7 @@ CollationData::makeReorderRanges(const int32_t *reorder, int32_t length,
             ++i;
         }
         if(offset != 0 || i < scriptStartsLength - 1) {
-            ranges.addElement(((int32_t)scriptStarts[i] << 16) | (offset & 0xffff), errorCode);
+            ranges.addElement((static_cast<int32_t>(scriptStarts[i]) << 16) | (offset & 0xffff), errorCode);
         }
         if(i == scriptStartsLength - 1) { break; }
         offset = nextOffset;
@@ -367,7 +367,7 @@ CollationData::addLowScriptRange(uint8_t table[], int32_t index, int32_t lowStar
     if((start & 0xff) < (lowStart & 0xff)) {
         lowStart += 0x100;
     }
-    table[index] = (uint8_t)(lowStart >> 8);
+    table[index] = static_cast<uint8_t>(lowStart >> 8);
     int32_t limit = scriptStarts[index + 1];
     lowStart = ((lowStart & 0xff00) + ((limit & 0xff00) - (start & 0xff00))) | (limit & 0xff);
     return lowStart;
@@ -381,7 +381,7 @@ CollationData::addHighScriptRange(uint8_t table[], int32_t index, int32_t highLi
     }
     int32_t start = scriptStarts[index];
     highLimit = ((highLimit & 0xff00) - ((limit & 0xff00) - (start & 0xff00))) | (start & 0xff);
-    table[index] = (uint8_t)(highLimit >> 8);
+    table[index] = static_cast<uint8_t>(highLimit >> 8);
     return highLimit;
 }
 

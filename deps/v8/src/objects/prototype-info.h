@@ -16,17 +16,43 @@
 namespace v8 {
 namespace internal {
 
+class PrototypeSharedClosureInfo;
+
+#include "torque-generated/src/objects/prototype-info-tq.inc"
+
 // Container for metadata stored on each prototype map.
 class PrototypeInfo
     : public TorqueGeneratedPrototypeInfo<PrototypeInfo, Struct> {
  public:
+  // Cached most commonly used load-non-existent handlers.
+  enum CachedHandlerIndex {
+    // No access check, no lookup on receiver.
+    kLoadNonExistentHandlerDefault = 0,
+    kLoadNonExistentHandlerWithLookupOnReceiver,
+
+    kCachedHandlerCount,
+  };
+
+  static constexpr int kSize =
+      kCachedHandlerOffset + kCachedHandlerCount * kTaggedSize;
+
   static const int UNREGISTERED = -1;
 
-  // [object_create_map]: A field caching the map for Object.create(prototype).
-  static inline void SetObjectCreateMap(Handle<PrototypeInfo> info,
-                                        Handle<Map> map);
-  inline Map ObjectCreateMap();
-  inline bool HasObjectCreateMap();
+  // For caching derived maps for Object.create, Reflect.construct and proxies.
+  DECL_GETTER(derived_maps, Tagged<HeapObject>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(derived_maps, Tagged<HeapObject>)
+
+  static inline void SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
+                                        DirectHandle<Map> map,
+                                        Isolate* isolate);
+  inline Tagged<MaybeObject> ObjectCreateMap(AcquireLoadTag);
+  inline Tagged<MaybeObject> ObjectCreateMap();
+
+  static inline void AddDerivedMap(DirectHandle<PrototypeInfo> info,
+                                   DirectHandle<Map> to, Isolate* isolate);
+  inline Tagged<MaybeObject> GetDerivedMap(DirectHandle<Map> from);
+
+  static inline bool IsPrototypeInfoFast(Tagged<Object> object);
 
   DECL_BOOLEAN_ACCESSORS(should_be_fast_map)
 
@@ -48,21 +74,23 @@ class V8_EXPORT_PRIVATE PrototypeUsers : public WeakArrayList {
  public:
   static Handle<WeakArrayList> Add(Isolate* isolate,
                                    Handle<WeakArrayList> array,
-                                   Handle<Map> value, int* assigned_index);
+                                   DirectHandle<Map> value,
+                                   int* assigned_index);
 
-  static inline void MarkSlotEmpty(WeakArrayList array, int index);
+  static inline void MarkSlotEmpty(Tagged<WeakArrayList> array, int index);
 
   // The callback is called when a weak pointer to HeapObject "object" is moved
   // from index "from_index" to index "to_index" during compaction. The callback
   // must not cause GC.
-  using CompactionCallback = void (*)(HeapObject object, int from_index,
+  using CompactionCallback = void (*)(Tagged<HeapObject> object, int from_index,
                                       int to_index);
-  static WeakArrayList Compact(
-      Handle<WeakArrayList> array, Heap* heap, CompactionCallback callback,
+  static Tagged<WeakArrayList> Compact(
+      DirectHandle<WeakArrayList> array, Heap* heap,
+      CompactionCallback callback,
       AllocationType allocation = AllocationType::kYoung);
 
 #ifdef VERIFY_HEAP
-  static void Verify(WeakArrayList array);
+  static void Verify(Tagged<WeakArrayList> array);
 #endif  // VERIFY_HEAP
 
   static const int kEmptySlotIndex = 0;
@@ -71,10 +99,11 @@ class V8_EXPORT_PRIVATE PrototypeUsers : public WeakArrayList {
   static const int kNoEmptySlotsMarker = 0;
 
  private:
-  static inline Smi empty_slot_index(WeakArrayList array);
-  static inline void set_empty_slot_index(WeakArrayList array, int index);
+  static inline Tagged<Smi> empty_slot_index(Tagged<WeakArrayList> array);
+  static inline void set_empty_slot_index(Tagged<WeakArrayList> array,
+                                          int index);
 
-  static void ScanForEmptySlots(WeakArrayList array);
+  static void ScanForEmptySlots(Tagged<WeakArrayList> array);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeUsers);
 };

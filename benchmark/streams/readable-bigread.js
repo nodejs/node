@@ -4,7 +4,7 @@ const common = require('../common');
 const Readable = require('stream').Readable;
 
 const bench = common.createBenchmark(main, {
-  n: [1e3]
+  n: [1e3],
 });
 
 function main({ n }) {
@@ -15,7 +15,7 @@ function main({ n }) {
 
   bench.start();
   for (let k = 0; k < n; ++k) {
-    for (let i = 0; i < 1e4; ++i)
+    for (let i = 0; i < 1e3; ++i)
       s.push(b);
     while (s.read(128));
   }

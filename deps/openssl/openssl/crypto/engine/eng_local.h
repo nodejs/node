@@ -1,45 +1,39 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #ifndef OSSL_CRYPTO_ENGINE_ENG_LOCAL_H
-# define OSSL_CRYPTO_ENGINE_ENG_LOCAL_H
+#define OSSL_CRYPTO_ENGINE_ENG_LOCAL_H
 
-# include "internal/cryptlib.h"
-# include "crypto/engine.h"
-# include "internal/thread_once.h"
-# include "internal/refcount.h"
+#include <openssl/trace.h>
+#include "internal/cryptlib.h"
+#include "crypto/engine.h"
+#include "internal/thread_once.h"
+#include "internal/refcount.h"
 
 extern CRYPTO_RWLOCK *global_engine_lock;
 
 /*
- * If we compile with this symbol defined, then both reference counts in the
- * ENGINE structure will be monitored with a line of output on stderr for
- * each change. This prints the engine's pointer address (truncated to
- * unsigned int), "struct" or "funct" to indicate the reference type, the
- * before and after reference count, and the file:line-number pair. The
- * "engine_ref_debug" statements must come *after* the change.
+ * This prints the engine's pointer address, "struct" or "funct" to
+ * indicate the reference type, the before and after reference count, and
+ * the file:line-number pair. The "ENGINE_REF_PRINT" statements must come
+ * *after* the change.
  */
-# ifdef ENGINE_REF_COUNT_DEBUG
-
-#  define engine_ref_debug(e, isfunct, diff) \
-        fprintf(stderr, "engine: %08x %s from %d to %d (%s:%d)\n", \
-                (unsigned int)(e), (isfunct ? "funct" : "struct"), \
-                ((isfunct) ? ((e)->funct_ref - (diff)) : ((e)->struct_ref - (diff))), \
-                ((isfunct) ? (e)->funct_ref : (e)->struct_ref), \
-                (OPENSSL_FILE), (OPENSSL_LINE))
-
-# else
-
-#  define engine_ref_debug(e, isfunct, diff)
-
-# endif
+#define ENGINE_REF_PRINT(e, isfunct, diff)                \
+    OSSL_TRACE6(ENGINE_REF_COUNT,                         \
+        "engine: %p %s from %d to %d (%s:%d)\n",          \
+        (void *)(e), (isfunct ? "funct" : "struct"),      \
+        ((isfunct)                                        \
+                ? ((e)->funct_ref - (diff))               \
+                : (eng_struct_ref(e) - (diff))),          \
+        ((isfunct) ? (e)->funct_ref : eng_struct_ref(e)), \
+        (OPENSSL_FILE), (OPENSSL_LINE))
 
 /*
  * Any code that will need cleanup operations should use these functions to
@@ -47,24 +41,16 @@ extern CRYPTO_RWLOCK *global_engine_lock;
  * callbacks in order. NB: both the "add" functions assume the engine lock to
  * already be held (in "write" mode).
  */
-typedef void (ENGINE_CLEANUP_CB) (void);
+typedef void(ENGINE_CLEANUP_CB)(void);
 typedef struct st_engine_cleanup_item {
     ENGINE_CLEANUP_CB *cb;
 } ENGINE_CLEANUP_ITEM;
 DEFINE_STACK_OF(ENGINE_CLEANUP_ITEM)
-void engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb);
-void engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb);
+int engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb);
+int engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb);
 
 /* We need stacks of ENGINEs for use in eng_table.c */
 DEFINE_STACK_OF(ENGINE)
-
-/*
- * If this symbol is defined then engine_table_select(), the function that is
- * used by RSA, DSA (etc) code to select registered ENGINEs, cache defaults
- * and functional references (etc), will display debugging summaries to
- * stderr.
- */
-/* #define ENGINE_TABLE_DEBUG */
 
 /*
  * This represents an implementation table. Dependent code should instantiate
@@ -72,21 +58,16 @@ DEFINE_STACK_OF(ENGINE)
  */
 typedef struct st_engine_table ENGINE_TABLE;
 int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
-                          ENGINE *e, const int *nids, int num_nids,
-                          int setdefault);
+    ENGINE *e, const int *nids, int num_nids,
+    int setdefault);
 void engine_table_unregister(ENGINE_TABLE **table, ENGINE *e);
 void engine_table_cleanup(ENGINE_TABLE **table);
-# ifndef ENGINE_TABLE_DEBUG
-ENGINE *engine_table_select(ENGINE_TABLE **table, int nid);
-# else
-ENGINE *engine_table_select_tmp(ENGINE_TABLE **table, int nid, const char *f,
-                                int l);
-#  define engine_table_select(t,n) engine_table_select_tmp(t,n,OPENSSL_FILE,OPENSSL_LINE)
-# endif
-typedef void (engine_table_doall_cb) (int nid, STACK_OF(ENGINE) *sk,
-                                      ENGINE *def, void *arg);
+ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
+    const char *f, int l);
+typedef void(engine_table_doall_cb)(int nid, STACK_OF(ENGINE) *sk,
+    ENGINE *def, void *arg);
 void engine_table_doall(ENGINE_TABLE *table, engine_table_doall_cb *cb,
-                        void *arg);
+    void *arg);
 
 /*
  * Internal versions of API functions that have control over locking. These
@@ -117,6 +98,11 @@ void engine_pkey_asn1_meths_free(ENGINE *e);
 /* Once initialisation function */
 extern CRYPTO_ONCE engine_lock_init;
 DECLARE_RUN_ONCE(do_engine_lock_init)
+
+typedef void (*ENGINE_DYNAMIC_ID)(void);
+int engine_add_dynamic_id(ENGINE *e, ENGINE_DYNAMIC_ID dynamic_id,
+    int not_locked);
+void engine_remove_dynamic_id(ENGINE *e, int not_locked);
 
 /*
  * This is a structure for storing implementations of various crypto
@@ -162,10 +148,22 @@ struct engine_st {
     /* Used to maintain the linked-list of engines. */
     struct engine_st *prev;
     struct engine_st *next;
+    /* Used to maintain the linked-list of dynamic engines. */
+    struct engine_st *prev_dyn;
+    struct engine_st *next_dyn;
+    ENGINE_DYNAMIC_ID dynamic_id;
 };
 
 typedef struct st_engine_pile ENGINE_PILE;
 
-DEFINE_LHASH_OF(ENGINE_PILE);
+DEFINE_LHASH_OF_EX(ENGINE_PILE);
 
-#endif                          /* OSSL_CRYPTO_ENGINE_ENG_LOCAL_H */
+static ossl_unused ossl_inline int eng_struct_ref(ENGINE *e)
+{
+    int res;
+
+    CRYPTO_GET_REF(&e->struct_ref, &res);
+    return res;
+}
+
+#endif /* OSSL_CRYPTO_ENGINE_ENG_LOCAL_H */

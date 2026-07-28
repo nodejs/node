@@ -29,8 +29,7 @@ server.listen(common.mustCall(() => {
   const req = client.request({});
   req.on('response', common.mustCall((headers, flags) => {
     console.log(headers);
-    server.close(common.mustCall(() => {
-    }));
+    server.close(common.mustCall());
   }));
   req.on('end', common.mustCall(() => {
     client.close();

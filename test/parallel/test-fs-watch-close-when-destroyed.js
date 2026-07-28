@@ -5,15 +5,21 @@
 
 const common = require('../common');
 
+// fs-watch on folders have limited capability in AIX.
+// The testcase makes use of folder watching, and causes
+// hang. This behavior is documented. Skip this for AIX.
+
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
+
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
-const path = require('path');
 
 tmpdir.refresh();
-const root = path.join(tmpdir.path, 'watched-directory');
+const root = tmpdir.resolve('watched-directory');
 fs.mkdirSync(root);
 
 const watcher = fs.watch(root, { persistent: false, recursive: false });
@@ -37,6 +43,6 @@ watcher.addListener('change', () => {
 fs.rmdirSync(root);
 // Wait for the listener to hit
 setTimeout(
-  common.mustCall(() => {}),
+  common.mustCall(),
   common.platformTimeout(100)
 );

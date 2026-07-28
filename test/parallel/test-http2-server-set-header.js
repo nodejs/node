@@ -27,11 +27,11 @@ server.listen(0, common.mustCall(() => {
 
   let data = '';
   req.on('data', (d) => data += d);
-  req.on('end', () => {
+  req.on('end', common.mustCall(() => {
     assert.strictEqual(body, data);
     server.close();
     client.close();
-  });
+  }));
   req.end();
 }));
 

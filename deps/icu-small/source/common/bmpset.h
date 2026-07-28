@@ -48,14 +48,14 @@ public:
      * It must be s<limit and spanCondition==0 or 1.
      * @return The string pointer which limits the span.
      */
-    const UChar *span(const UChar *s, const UChar *limit, USetSpanCondition spanCondition) const;
+    const char16_t *span(const char16_t *s, const char16_t *limit, USetSpanCondition spanCondition) const;
 
     /*
      * Span the trailing substring for which each character c has spanCondition==contains(c).
      * It must be s<limit and spanCondition==0 or 1.
      * @return The string pointer which starts the span.
      */
-    const UChar *spanBack(const UChar *s, const UChar *limit, USetSpanCondition spanCondition) const;
+    const char16_t *spanBack(const char16_t *s, const char16_t *limit, USetSpanCondition spanCondition) const;
 
     /*
      * Span the initial substring for which each character c has spanCondition==contains(c).
@@ -156,7 +156,7 @@ private:
 };
 
 inline UBool BMPSet::containsSlow(UChar32 c, int32_t lo, int32_t hi) const {
-    return (UBool)(findCodePoint(c, lo, hi) & 1);
+    return findCodePoint(c, lo, hi) & 1;
 }
 
 U_NAMESPACE_END

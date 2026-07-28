@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle, getRandomValues } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const kTests = [
   {
@@ -48,7 +48,7 @@ async function prepareKeys() {
     kTests.map(async ({ namedCurve, size, pkcs8, spki, result }) => {
       const [
         privateKey,
-        publicKey
+        publicKey,
       ] = await Promise.all([
         subtle.importKey(
           'pkcs8',
@@ -67,7 +67,7 @@ async function prepareKeys() {
             namedCurve
           },
           true,
-          ['deriveKey', 'deriveBits'])
+          []),
       ]);
       keys[namedCurve] = {
         privateKey,
@@ -103,6 +103,25 @@ async function prepareKeys() {
       }
 
       {
+        // Non-multiple of 8 derived HMAC key length
+        const key = await subtle.deriveKey({
+          name: 'ECDH',
+          public: publicKey
+        }, privateKey, {
+          name: 'HMAC',
+          hash: 'SHA-256',
+          length: 9
+        }, true, ['sign', 'verify']);
+
+        const raw = await subtle.exportKey('raw', key);
+        const expected = Buffer.from(result.slice(0, 4), 'hex');
+        expected[1] &= 0b10000000;
+
+        assert.strictEqual(key.algorithm.length, 9);
+        assert.deepStrictEqual(Buffer.from(raw), expected);
+      }
+
+      {
         // Case insensitivity
         const key = await subtle.deriveKey({
           name: 'eCdH',
@@ -127,7 +146,7 @@ async function prepareKeys() {
         { name: 'ECDH' },
         keys['P-384'].privateKey,
         ...otherArgs),
-      { code: 'ERR_INVALID_ARG_TYPE' });
+      { code: 'ERR_MISSING_OPTION' });
   }
 
   {
@@ -164,7 +183,7 @@ async function prepareKeys() {
         namedCurve: 'P-521'
       },
       false,
-      ['verify']);
+      ['sign', 'verify']);
 
     await assert.rejects(
       subtle.deriveKey(
@@ -174,7 +193,7 @@ async function prepareKeys() {
         },
         keys['P-521'].privateKey,
         ...otherArgs),
-      { message: /Keys must be ECDH keys/ });
+      { message: 'key algorithm mismatch' });
   }
 
   {
@@ -208,7 +227,7 @@ async function prepareKeys() {
         },
         keys['P-521'].publicKey,
         ...otherArgs),
-      { message: /baseKey must be a private key/ });
+      { name: 'InvalidAccessError' });
   }
 
   {
@@ -221,12 +240,12 @@ async function prepareKeys() {
         },
         keys['P-521'].publicKey,
         ...otherArgs),
-      { message: /algorithm\.public must be a public key/ });
+      { name: 'InvalidAccessError' });
   }
 
   {
     // Public is a secret key
-    const keyData = getRandomValues(new Uint8Array(32));
+    const keyData = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const key = await subtle.importKey(
       'raw',
       keyData,
@@ -241,6 +260,6 @@ async function prepareKeys() {
         },
         keys['P-521'].publicKey,
         ...otherArgs),
-      { message: /algorithm\.public must be a public key/ });
+      { name: 'InvalidAccessError' });
   }
 })().then(common.mustCall());

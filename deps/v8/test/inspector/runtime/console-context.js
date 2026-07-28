@@ -11,9 +11,14 @@ InspectorTest.runAsyncTestSuite([
       expression: 'console.context'});
     InspectorTest.logMessage(result);
 
+    // Enumerate the methods alpha-sorted to make the test
+    // independent of the (unspecified) enumeration order
+    // of console.context() methods.
     InspectorTest.log('console.context() methods:');
-    var {result:{result:{value}}} = await Protocol.Runtime.evaluate({
-      expression: 'Object.keys(console.context())', returnByValue: true});
+    var {result: {result: {value}}} = await Protocol.Runtime.evaluate({
+      expression: 'Object.keys(console.context()).sort()',
+      returnByValue: true
+    });
     InspectorTest.logMessage(value);
   },
 
@@ -101,6 +106,34 @@ InspectorTest.runAsyncTestSuite([
     var {params:{args}} = await Protocol.Runtime.onceConsoleAPICalled();
     InspectorTest.logMessage(args);
     await Protocol.Runtime.evaluate({expression: 'console.clear()'});
+    await Protocol.Runtime.disable();
+  },
+
+  async function testConsoleTimeInDifferentConsoleContexts() {
+    await Protocol.Runtime.enable();
+    await Protocol.Runtime.evaluate({
+      expression: `globalThis.context = console.context('named-context')`,
+    });
+    utils.setCurrentTimeMSForTest(0.0);
+    await Protocol.Runtime.evaluate({
+      expression: `context.time('foo'); console.time('foo');`,
+    });
+    utils.setCurrentTimeMSForTest(1.0);
+    await Promise.all([
+      Protocol.Runtime.evaluate({
+        expression: `console.timeEnd('foo')`,
+      }),
+      Protocol.Runtime.onceConsoleAPICalled().then(
+          ({params: {args}}) => InspectorTest.logMessage(args)),
+    ]);
+    utils.setCurrentTimeMSForTest(2.0);
+    await Promise.all([
+      Protocol.Runtime.evaluate({
+        expression: `context.timeEnd('foo')`,
+      }),
+      Protocol.Runtime.onceConsoleAPICalled().then(
+          ({params: {args}}) => InspectorTest.logMessage(args)),
+    ]);
     await Protocol.Runtime.disable();
   }
 ]);

@@ -6,7 +6,7 @@
 #define V8_COMPILER_COMMON_OPERATOR_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -15,7 +15,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
-class Graph;
+class TFGraph;
 class MachineOperatorBuilder;
 class Operator;
 
@@ -24,9 +24,10 @@ class Operator;
 class V8_EXPORT_PRIVATE CommonOperatorReducer final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  CommonOperatorReducer(Editor* editor, Graph* graph, JSHeapBroker* broker,
+  CommonOperatorReducer(Editor* editor, TFGraph* graph, JSHeapBroker* broker,
                         CommonOperatorBuilder* common,
-                        MachineOperatorBuilder* machine, Zone* temp_zone);
+                        MachineOperatorBuilder* machine, Zone* temp_zone,
+                        BranchSemantics default_branch_semantics);
   ~CommonOperatorReducer() final = default;
 
   const char* reducer_name() const override { return "CommonOperatorReducer"; }
@@ -43,22 +44,32 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSwitch(Node* node);
   Reduction ReduceStaticAssert(Node* node);
+  Reduction ReduceTrapConditional(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);
 
-  Graph* graph() const { return graph_; }
+  // Helper to determine if conditions are true or false.
+  Decision DecideCondition(Node* const cond, BranchSemantics branch_semantics);
+  BranchSemantics BranchSemanticsOf(const Node* branch) {
+    BranchSemantics bs = BranchParametersOf(branch->op()).semantics();
+    if (bs != BranchSemantics::kUnspecified) return bs;
+    return default_branch_semantics_;
+  }
+
+  TFGraph* graph() const { return graph_; }
   JSHeapBroker* broker() const { return broker_; }
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   Node* dead() const { return dead_; }
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   JSHeapBroker* const broker_;
   CommonOperatorBuilder* const common_;
   MachineOperatorBuilder* const machine_;
   Node* const dead_;
   Zone* zone_;
+  BranchSemantics default_branch_semantics_;
 };
 
 }  // namespace compiler

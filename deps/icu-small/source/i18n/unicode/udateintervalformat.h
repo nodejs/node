@@ -48,7 +48,7 @@
  * - The skeleton MMMd will produce
  *   for en_US, "Mar 4-8"
  *   for en_GB, "4-8 Mar"
- *
+ * 
  * Note:  the "-" characters in the above sample output will actually be
  * Unicode 2013, EN_DASH, in all but the last example.
  *
@@ -252,7 +252,6 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
                 UErrorCode*     status);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Formats a date/time range using the conventions established for the
  * UDateIntervalFormat object.
@@ -267,7 +266,7 @@ udtitvfmt_format(const UDateIntervalFormat* formatter,
  *            formatting operation.
  * @param status
  *            A pointer to a UErrorCode to receive any errors.
- * @draft ICU 67
+ * @stable ICU 67
  */
 U_CAPI void U_EXPORT2
 udtitvfmt_formatToResult(
@@ -291,7 +290,7 @@ udtitvfmt_formatToResult(
  *            formatting operation.
  * @param status
  *            A pointer to a UErrorCode to receive any errors.
- * @draft ICU 67
+ * @stable ICU 67
  */
 
 U_CAPI void U_EXPORT2
@@ -301,9 +300,7 @@ udtitvfmt_formatCalendarToResult(
                 UCalendar*      toCalendar,
                 UFormattedDateInterval* result,
                 UErrorCode*     status);
-#endif /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Set a particular UDisplayContext value in the formatter, such as
  * UDISPCTX_CAPITALIZATION_FOR_STANDALONE. This causes the formatted
@@ -313,7 +310,7 @@ udtitvfmt_formatCalendarToResult(
  * @param formatter The formatter for which to set a UDisplayContext value.
  * @param value The UDisplayContext value to set.
  * @param status A pointer to an UErrorCode to receive any errors
- * @draft ICU 68
+ * @stable ICU 68
  */
 U_CAPI void U_EXPORT2
 udtitvfmt_setContext(UDateIntervalFormat* formatter, UDisplayContext value, UErrorCode* status);
@@ -325,12 +322,10 @@ udtitvfmt_setContext(UDateIntervalFormat* formatter, UDisplayContext value, UErr
  * @param type The UDisplayContextType whose value to return
  * @param status A pointer to an UErrorCode to receive any errors
  * @return The UDisplayContextValue for the specified type.
- * @draft ICU 68
+ * @stable ICU 68
  */
 U_CAPI UDisplayContext U_EXPORT2
 udtitvfmt_getContext(const UDateIntervalFormat* formatter, UDisplayContextType type, UErrorCode* status);
-
-#endif /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

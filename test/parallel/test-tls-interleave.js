@@ -48,9 +48,9 @@ const server = tls.createServer(options, function(c) {
   });
 }).listen(0, common.mustCall(function() {
   const connectOpts = { rejectUnauthorized: false };
-  const c = tls.connect(this.address().port, connectOpts, function() {
+  const c = tls.connect(this.address().port, connectOpts, common.mustCall(function() {
     c.write('some client data');
-    c.on('readable', function() {
+    c.on('readable', common.mustCallAtLeast(() => {
       let data = c.read();
       if (data === null)
         return;
@@ -65,8 +65,8 @@ const server = tls.createServer(options, function(c) {
           server.close();
         }
       }
-    });
-  });
+    }));
+  }));
 }));
 
 

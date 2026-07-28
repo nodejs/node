@@ -5,8 +5,11 @@
 #ifndef V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 #define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
+#include <optional>
+
 #include "src/compiler/js-heap-broker.h"
-#include "src/objects/objects.h"
+#include "src/objects/contexts.h"
+#include "src/objects/property-cell.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -28,7 +31,7 @@ class SlackTrackingPrediction {
 class CompilationDependency;
 
 // Collects and installs dependencies of the code that is being generated.
-class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
+class V8_EXPORT CompilationDependencies : public ZoneObject {
  public:
   CompilationDependencies(JSHeapBroker* broker, Zone* zone);
 
@@ -36,30 +39,38 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   // Return the initial map of {function} and record the assumption that it
   // stays the initial map.
-  MapRef DependOnInitialMap(const JSFunctionRef& function);
+  MapRef DependOnInitialMap(JSFunctionRef function);
 
   // Return the "prototype" property of the given function and record the
   // assumption that it doesn't change.
-  ObjectRef DependOnPrototypeProperty(const JSFunctionRef& function);
+  HeapObjectRef DependOnPrototypeProperty(JSFunctionRef function);
 
   // Record the assumption that {map} stays stable.
-  void DependOnStableMap(const MapRef& map);
+  void DependOnStableMap(MapRef map);
 
-  // Record the assumption that {target_map} can be transitioned to, i.e., that
-  // it does not become deprecated.
-  void DependOnTransition(const MapRef& target_map);
+  // Record the assumption that slack tracking for {map} doesn't change during
+  // compilation. This gives no guarantees about slack tracking changes after
+  // the compilation is finished (ie, it Validates the dependency, but doesn't
+  // Install anything).
+  void DependOnNoSlackTrackingChange(MapRef map);
+
+  // Depend on the fact that accessing property |property_name| from
+  // |receiver_map| yields the constant value |constant|, which is held by
+  // |holder|. Therefore, must be invalidated if |property_name| is added to any
+  // of the objects between receiver and |holder| on the prototype chain, b) any
+  // of the objects on the prototype chain up to |holder| change prototypes, or
+  // c) the value of |property_name| in |holder| changes.
+  // If PropertyKind is kData, |constant| is the value of the property in
+  // question. In case of PropertyKind::kAccessor, |constant| is the accessor
+  // function (i.e., getter or setter) itself, not the overall AccessorPair.
+  void DependOnConstantInDictionaryPrototypeChain(MapRef receiver_map,
+                                                  NameRef property_name,
+                                                  ObjectRef constant,
+                                                  PropertyKind kind);
 
   // Return the pretenure mode of {site} and record the assumption that it does
   // not change.
-  AllocationType DependOnPretenureMode(const AllocationSiteRef& site);
-
-  // Record the assumption that the field representation of a field does not
-  // change. The field is identified by the arguments.
-  void DependOnFieldRepresentation(const MapRef& map, InternalIndex descriptor);
-
-  // Record the assumption that the field type of a field does not change. The
-  // field is identified by the arguments.
-  void DependOnFieldType(const MapRef& map, InternalIndex descriptor);
+  AllocationType DependOnPretenureMode(AllocationSiteRef site);
 
   // Return a field's constness and, if kConst, record the assumption that it
   // remains kConst. The field is identified by the arguments.
@@ -68,39 +79,82 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // kConst if the map is stable (and register stability dependency in that
   // case).  This is to ensure that fast elements kind transitions cannot be
   // used to mutate fields without deoptimization of the dependent code.
-  PropertyConstness DependOnFieldConstness(const MapRef& map,
+  PropertyConstness DependOnFieldConstness(MapRef map, MapRef owner,
                                            InternalIndex descriptor);
+  std::optional<CompilationDependency const*>
+  FieldConstnessDependencyOffTheRecord(MapRef map, MapRef owner,
+                                       InternalIndex descriptor);
 
   // Record the assumption that neither {cell}'s {CellType} changes, nor the
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
-  void DependOnGlobalProperty(const PropertyCellRef& cell);
+  void DependOnGlobalProperty(PropertyCellRef cell);
+
+  // Record a property assumption in the script context slot.
+  bool DependOnContextCell(ContextRef script_context, size_t index,
+                           ContextCell::State state, JSHeapBroker* broker);
+  bool DependOnContextCell(ContextCellRef slot, ContextCell::State state);
+
+  // Record the assumption that respective contexts do not have context
+  // extension, if true.
+  bool DependOnEmptyContextExtension(ScopeInfoRef scope_info);
 
   // Return the validity of the given protector and, if true, record the
   // assumption that the protector remains valid.
-  bool DependOnProtector(const PropertyCellRef& cell);
+  bool DependOnProtector(PropertyCellRef cell);
 
   // Convenience wrappers around {DependOnProtector}.
   bool DependOnArrayBufferDetachingProtector();
   bool DependOnArrayIteratorProtector();
   bool DependOnArraySpeciesProtector();
   bool DependOnNoElementsProtector();
+  bool DependOnNoDateTimeConfigurationChangeProtector();
   bool DependOnPromiseHookProtector();
   bool DependOnPromiseSpeciesProtector();
   bool DependOnPromiseThenProtector();
+  bool DependOnMegaDOMProtector();
+  bool DependOnNoProfilingProtector();
+  bool DependOnNoUndetectableObjectsProtector();
+  bool DependOnStringWrapperToPrimitiveProtector();
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
-  void DependOnElementsKind(const AllocationSiteRef& site);
+  void DependOnElementsKind(AllocationSiteRef site);
+
+  // Check that an object slot will not change during compilation.
+  void DependOnObjectSlotValue(HeapObjectRef object, int offset,
+                               ObjectRef value);
+
+  void DependOnOwnConstantElement(JSObjectRef holder, uint32_t index,
+                                  ObjectRef element);
+
+  // Record the assumption that the {value} read from {holder} at {index} on the
+  // background thread is the correct value for a given property.
+  void DependOnOwnConstantDataProperty(JSObjectRef holder, MapRef map,
+                                       FieldIndex index, ObjectRef value);
+  void DependOnOwnConstantDoubleProperty(JSObjectRef holder, MapRef map,
+                                         FieldIndex index, Float64 value);
+
+  // Record the assumption that the {value} read from {holder} at {index} on the
+  // background thread is the correct value for a given dictionary property.
+  void DependOnOwnConstantDictionaryProperty(JSObjectRef holder,
+                                             InternalIndex index,
+                                             ObjectRef value);
 
   // For each given map, depend on the stability of (the maps of) all prototypes
   // up to (and including) the {last_prototype}.
-  template <class MapContainer>
   void DependOnStablePrototypeChains(
-      MapContainer const& receiver_maps, WhereToStart start,
-      base::Optional<JSObjectRef> last_prototype =
-          base::Optional<JSObjectRef>());
+      ZoneVector<MapRef> const& receiver_maps, WhereToStart start,
+      OptionalJSObjectRef last_prototype = OptionalJSObjectRef());
+
+  // For the given map, depend on the stability of (the maps of) all prototypes
+  // up to (and including) the {last_prototype}.
+  void DependOnStablePrototypeChain(
+      MapRef receiver_maps, WhereToStart start,
+      OptionalJSObjectRef last_prototype = OptionalJSObjectRef());
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
-  void DependOnElementsKinds(const AllocationSiteRef& site);
+  void DependOnElementsKinds(AllocationSiteRef site);
+
+  void DependOnConsistentJSFunctionView(JSFunctionRef function);
 
   // Predict the final instance size for {function}'s initial map and record
   // the assumption that this prediction is correct. In addition, register
@@ -108,29 +162,59 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // predicted minimum slack instance size count (wrapped together with
   // the corresponding in-object property count for convenience).
   SlackTrackingPrediction DependOnInitialMapInstanceSizePrediction(
-      const JSFunctionRef& function);
+      JSFunctionRef function);
+
+  // Records {dependency} if not null.
+  void RecordDependency(CompilationDependency const* dependency);
 
   // The methods below allow for gathering dependencies without actually
-  // recording them. They can be recorded at a later time (or they can be
-  // ignored). For example,
-  //   DependOnTransition(map);
-  // is equivalent to:
-  //   RecordDependency(TransitionDependencyOffTheRecord(map));
-  void RecordDependency(CompilationDependency const* dependency);
-  CompilationDependency const* TransitionDependencyOffTheRecord(
-      const MapRef& target_map) const;
-  CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
-  CompilationDependency const* FieldTypeDependencyOffTheRecord(
-      const MapRef& map, InternalIndex descriptor) const;
+  // recording them. They can be recorded at a later time via RecordDependency
+  // (or they can be ignored).
 
-  // Exposed only for testing purposes.
-  bool AreValid() const;
+  // Gather the assumption that {target_map} can be transitioned to, i.e., that
+  // it does not become deprecated.
+  CompilationDependency const* TransitionDependencyOffTheRecord(
+      MapRef target_map) const;
+
+  // Gather the assumption that the field representation of a field does not
+  // change. The field is identified by the arguments.
+  CompilationDependency const* FieldRepresentationDependencyOffTheRecord(
+      MapRef map, MapRef owner, InternalIndex descriptor,
+      Representation representation) const;
+  void DependOnFieldRepresentation(MapRef map, MapRef owner,
+                                   InternalIndex descriptor,
+                                   Representation representation);
+
+  // Gather the assumption that the field type of a field does not change. The
+  // field is identified by the arguments.
+  CompilationDependency const* FieldTypeDependencyOffTheRecord(
+      MapRef map, MapRef owner, InternalIndex descriptor,
+      ObjectRef /* Contains a FieldType underneath. */ type) const;
+
+#ifdef DEBUG
+  static bool IsFieldRepresentationDependencyOnMap(
+      const CompilationDependency* dep, const Handle<Map>& receiver_map);
+#endif  // DEBUG
+
+  struct CompilationDependencyHash {
+    size_t operator()(const CompilationDependency* dep) const;
+  };
+  struct CompilationDependencyEqual {
+    bool operator()(const CompilationDependency* lhs,
+                    const CompilationDependency* rhs) const;
+  };
 
  private:
+  bool PrepareInstall();
+  bool PrepareInstallPredictable();
+
+  using CompilationDependencySet =
+      ZoneUnorderedSet<const CompilationDependency*, CompilationDependencyHash,
+                       CompilationDependencyEqual>;
+
   Zone* const zone_;
   JSHeapBroker* const broker_;
-  ZoneForwardList<CompilationDependency const*> dependencies_;
+  CompilationDependencySet dependencies_;
 };
 
 }  // namespace compiler

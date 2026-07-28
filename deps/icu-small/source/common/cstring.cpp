@@ -17,7 +17,7 @@
 *   Date        Name        Description
 *   6/18/98     hshih       Created
 *   09/08/98    stephen     Added include for ctype, for Mac Port
-*   11/15/99    helena      Integrated S/390 IEEE changes.
+*   11/15/99    helena      Integrated S/390 IEEE changes. 
 ******************************************************************************
 */
 
@@ -126,7 +126,7 @@ T_CString_toLowerCase(char* str)
 
     if (str) {
         do
-            *str = (char)uprv_tolower(*str);
+            *str = uprv_tolower(*str);
         while (*(str++));
     }
 
@@ -140,7 +140,7 @@ T_CString_toUpperCase(char* str)
 
     if (str) {
         do
-            *str = (char)uprv_toupper(*str);
+            *str = uprv_toupper(*str);
         while (*(str++));
     }
 
@@ -161,15 +161,15 @@ T_CString_integerToString(char* buffer, int32_t v, int32_t radix)
     uint8_t   digit;
     int32_t   length = 0;
     uint32_t  uval;
-
+    
     U_ASSERT(radix>=2 && radix<=16);
     uval = (uint32_t) v;
     if(v<0 && radix == 10) {
         /* Only in base 10 do we conside numbers to be signed. */
-        uval = (uint32_t)(-v);
+        uval = (uint32_t)(-v); 
         buffer[length++] = '-';
     }
-
+    
     tbx = sizeof(tbuf)-1;
     tbuf[tbx] = 0;   /* We are generating the digits backwards.  Null term the end. */
     do {
@@ -177,7 +177,7 @@ T_CString_integerToString(char* buffer, int32_t v, int32_t radix)
         tbuf[--tbx] = (char)(T_CString_itosOffset(digit));
         uval  = uval / radix;
     } while (uval != 0);
-
+    
     /* copy converted number into user buffer  */
     uprv_strcpy(buffer+length, tbuf+tbx);
     length += sizeof(tbuf) - tbx -1;
@@ -189,7 +189,7 @@ T_CString_integerToString(char* buffer, int32_t v, int32_t radix)
 /*
  * Takes a int64_t and fills in  a char* string with that number "radix"-based.
  * Writes at most 21: chars ("-9223372036854775807" plus NUL).
- * Returns the length of the string, not including the terminating NULL.
+ * Returns the length of the string, not including the terminating NUL.
  */
 U_CAPI int32_t U_EXPORT2
 T_CString_int64ToString(char* buffer, int64_t v, uint32_t radix)
@@ -199,15 +199,15 @@ T_CString_int64ToString(char* buffer, int64_t v, uint32_t radix)
     uint8_t   digit;
     int32_t   length = 0;
     uint64_t  uval;
-
+    
     U_ASSERT(radix>=2 && radix<=16);
     uval = (uint64_t) v;
     if(v<0 && radix == 10) {
         /* Only in base 10 do we conside numbers to be signed. */
-        uval = (uint64_t)(-v);
+        uval = (uint64_t)(-v); 
         buffer[length++] = '-';
     }
-
+    
     tbx = sizeof(tbuf)-1;
     tbuf[tbx] = 0;   /* We are generating the digits backwards.  Null term the end. */
     do {
@@ -215,7 +215,7 @@ T_CString_int64ToString(char* buffer, int64_t v, uint32_t radix)
         tbuf[--tbx] = (char)(T_CString_itosOffset(digit));
         uval  = uval / radix;
     } while (uval != 0);
-
+    
     /* copy converted number into user buffer  */
     uprv_strcpy(buffer+length, tbuf+tbx);
     length += sizeof(tbuf) - tbx -1;
@@ -233,16 +233,16 @@ T_CString_stringToInteger(const char *integerString, int32_t radix)
 
 U_CAPI int U_EXPORT2
 uprv_stricmp(const char *str1, const char *str2) {
-    if(str1==NULL) {
-        if(str2==NULL) {
+    if(str1==nullptr) {
+        if(str2==nullptr) {
             return 0;
         } else {
             return -1;
         }
-    } else if(str2==NULL) {
+    } else if(str2==nullptr) {
         return 1;
     } else {
-        /* compare non-NULL strings lexically with lowercase */
+        /* compare non-nullptr strings lexically with lowercase */
         int rc;
         unsigned char c1, c2;
 
@@ -272,16 +272,16 @@ uprv_stricmp(const char *str1, const char *str2) {
 
 U_CAPI int U_EXPORT2
 uprv_strnicmp(const char *str1, const char *str2, uint32_t n) {
-    if(str1==NULL) {
-        if(str2==NULL) {
+    if(str1==nullptr) {
+        if(str2==nullptr) {
             return 0;
         } else {
             return -1;
         }
-    } else if(str2==NULL) {
+    } else if(str2==nullptr) {
         return 1;
     } else {
-        /* compare non-NULL strings lexically with lowercase */
+        /* compare non-nullptr strings lexically with lowercase */
         int rc;
         unsigned char c1, c2;
 
@@ -331,7 +331,7 @@ uprv_strndup(const char *src, int32_t n) {
         dup = uprv_strdup(src);
     } else {
         dup = (char*)uprv_malloc(n+1);
-        if (dup) {
+        if (dup) { 
             uprv_memcpy(dup, src, n);
             dup[n] = 0;
         }

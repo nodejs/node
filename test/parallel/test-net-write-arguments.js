@@ -23,7 +23,7 @@ assert.throws(() => {
   +Infinity,
   -Infinity,
   [],
-  {}
+  {},
 ].forEach((value) => {
   const socket = net.Stream({ highWaterMark: 0 });
   // We need to check the callback since 'error' will only
@@ -34,6 +34,6 @@ assert.throws(() => {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "chunk" argument must be of type string or an instance of ' +
-              `Buffer or Uint8Array.${common.invalidArgTypeHelper(value)}`
+              `Buffer, TypedArray, or DataView.${common.invalidArgTypeHelper(value)}`
   });
 });

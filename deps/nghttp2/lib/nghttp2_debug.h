@@ -27,17 +27,17 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
 #ifdef DEBUGBUILD
 #  define DEBUGF(...) nghttp2_debug_vprintf(__VA_ARGS__)
 void nghttp2_debug_vprintf(const char *format, ...);
-#else
+#else /* !defined(DEBUGBUILD) */
 #  define DEBUGF(...)                                                          \
     do {                                                                       \
     } while (0)
-#endif
+#endif /* !defined(DEBUGBUILD) */
 
-#endif /* NGHTTP2_DEBUG_H */
+#endif /* !defined(NGHTTP2_DEBUG_H) */

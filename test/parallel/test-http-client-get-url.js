@@ -24,7 +24,6 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const url = require('url');
-const URL = url.URL;
 const testPath = '/foo?bar';
 
 const server = http.createServer(common.mustCall((req, res) => {

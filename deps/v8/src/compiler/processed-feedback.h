@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_PROCESSED_FEEDBACK_H_
 #define V8_COMPILER_PROCESSED_FEEDBACK_H_
 
-#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 
 namespace v8 {
@@ -13,6 +12,7 @@ namespace internal {
 namespace compiler {
 
 class BinaryOperationFeedback;
+class TypeOfOpFeedback;
 class CallFeedback;
 class CompareOperationFeedback;
 class ElementAccessFeedback;
@@ -20,7 +20,7 @@ class ForInFeedback;
 class GlobalAccessFeedback;
 class InstanceOfFeedback;
 class LiteralFeedback;
-class MinimorphicLoadPropertyAccessFeedback;
+class MegaDOMPropertyAccessFeedback;
 class NamedAccessFeedback;
 class RegExpLiteralFeedback;
 class TemplateObjectFeedback;
@@ -36,8 +36,9 @@ class ProcessedFeedback : public ZoneObject {
     kForIn,
     kGlobalAccess,
     kInstanceOf,
+    kTypeOf,
     kLiteral,
-    kMinimorphicPropertyAccess,
+    kMegaDOMPropertyAccess,
     kNamedAccess,
     kRegExpLiteral,
     kTemplateObject,
@@ -48,6 +49,7 @@ class ProcessedFeedback : public ZoneObject {
   bool IsInsufficient() const { return kind() == kInsufficient; }
 
   BinaryOperationFeedback const& AsBinaryOperation() const;
+  TypeOfOpFeedback const& AsTypeOf() const;
   CallFeedback const& AsCall() const;
   CompareOperationFeedback const& AsCompareOperation() const;
   ElementAccessFeedback const& AsElementAccess() const;
@@ -55,8 +57,7 @@ class ProcessedFeedback : public ZoneObject {
   GlobalAccessFeedback const& AsGlobalAccess() const;
   InstanceOfFeedback const& AsInstanceOf() const;
   NamedAccessFeedback const& AsNamedAccess() const;
-  MinimorphicLoadPropertyAccessFeedback const& AsMinimorphicPropertyAccess()
-      const;
+  MegaDOMPropertyAccessFeedback const& AsMegaDOMPropertyAccess() const;
   LiteralFeedback const& AsLiteral() const;
   RegExpLiteralFeedback const& AsRegExpLiteral() const;
   TemplateObjectFeedback const& AsTemplateObject() const;
@@ -91,10 +92,10 @@ class GlobalAccessFeedback : public ProcessedFeedback {
   int slot_index() const;
   bool immutable() const;
 
-  base::Optional<ObjectRef> GetConstantHint() const;
+  OptionalObjectRef GetConstantHint(JSHeapBroker* broker) const;
 
  private:
-  base::Optional<ObjectRef> const cell_or_context_;
+  OptionalObjectRef const cell_or_context_;
   int const index_and_immutable_;
 };
 
@@ -107,18 +108,23 @@ class KeyedAccessMode {
   bool IsStore() const;
   KeyedAccessLoadMode load_mode() const;
   KeyedAccessStoreMode store_mode() const;
+  // This is a hint indicating that the keyed IC was not in "elements mode".
+  // There may well be keys of any kind (string, integer, string representation
+  // of an integer, or "JSAny", really) that will need to be handled.
+  bool string_keys() const { return string_keys_; }
 
  private:
   AccessMode const access_mode_;
-  union LoadStoreMode {
-    LoadStoreMode(KeyedAccessLoadMode load_mode);
-    LoadStoreMode(KeyedAccessStoreMode store_mode);
-    KeyedAccessLoadMode load_mode;
-    KeyedAccessStoreMode store_mode;
-  } const load_store_mode_;
+  union {
+    KeyedAccessLoadMode load_mode_;    // If IsLoad().
+    KeyedAccessStoreMode store_mode_;  // If IsStore().
+  };
+  bool string_keys_;
 
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode);
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode,
+                  bool string_keys);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode,
+                  bool string_keys);
 };
 
 class ElementAccessFeedback : public ProcessedFeedback {
@@ -131,7 +137,7 @@ class ElementAccessFeedback : public ProcessedFeedback {
   // A transition group is a target and a possibly empty set of sources that can
   // transition to the target. It is represented as a non-empty vector with the
   // target at index 0.
-  using TransitionGroup = ZoneVector<Handle<Map>>;
+  using TransitionGroup = ZoneVector<MapRef>;
   ZoneVector<TransitionGroup> const& transition_groups() const;
 
   bool HasOnlyStringMaps(JSHeapBroker* broker) const;
@@ -153,7 +159,11 @@ class ElementAccessFeedback : public ProcessedFeedback {
   // [e0, e1]                           [e0, e1]
   //
   ElementAccessFeedback const& Refine(
-      ZoneVector<Handle<Map>> const& inferred_maps, Zone* zone) const;
+      JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const;
+  ElementAccessFeedback const& Refine(
+      JSHeapBroker* broker, ZoneRefSet<Map> const& inferred_maps,
+      bool always_keep_group_target = true) const;
+  NamedAccessFeedback const& Refine(JSHeapBroker* broker, NameRef name) const;
 
  private:
   KeyedAccessMode const keyed_mode_;
@@ -162,55 +172,62 @@ class ElementAccessFeedback : public ProcessedFeedback {
 
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
-  NamedAccessFeedback(NameRef const& name, ZoneVector<Handle<Map>> const& maps,
-                      FeedbackSlotKind slot_kind);
+  NamedAccessFeedback(JSHeapBroker* broker, NameRef name,
+                      ZoneVector<MapRef> const& maps,
+                      FeedbackSlotKind slot_kind,
+                      bool has_deprecated_map_without_migration_target = false);
 
-  NameRef const& name() const { return name_; }
-  ZoneVector<Handle<Map>> const& maps() const { return maps_; }
+  NameRef name() const { return name_; }
+  NameRef original_name_maybe_thin() const { return original_name_maybe_thin_; }
+  ZoneVector<MapRef> const& maps() const { return maps_; }
+  bool has_deprecated_map_without_migration_target() const {
+    return has_deprecated_map_without_migration_target_;
+  }
 
  private:
+  // The unpacked name of the property. If the original name was a ThinString,
+  // this will be the actual underlying string. Used for optimizations that
+  // care about the string's content and require IsUniqueName.
   NameRef const name_;
-  ZoneVector<Handle<Map>> const maps_;
+  // The original name of the property, which could be a ThinString. This is
+  // crucial for checks that rely on object identity.
+  NameRef const original_name_maybe_thin_;
+  ZoneVector<MapRef> const maps_;
+  bool has_deprecated_map_without_migration_target_;
 };
 
-class MinimorphicLoadPropertyAccessFeedback : public ProcessedFeedback {
+class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
  public:
-  MinimorphicLoadPropertyAccessFeedback(NameRef const& name,
-                                        FeedbackSlotKind slot_kind,
-                                        Handle<Object> handler,
-                                        MaybeHandle<Map> maybe_map,
-                                        bool has_migration_target_maps);
+  MegaDOMPropertyAccessFeedback(FunctionTemplateInfoRef info_ref,
+                                FeedbackSlotKind slot_kind);
 
-  NameRef const& name() const { return name_; }
-  bool is_monomorphic() const { return !maybe_map_.is_null(); }
-  Handle<Object> handler() const { return handler_; }
-  MaybeHandle<Map> map() const { return maybe_map_; }
-  bool has_migration_target_maps() const { return has_migration_target_maps_; }
+  FunctionTemplateInfoRef info() const { return info_; }
 
  private:
-  NameRef const name_;
-  Handle<Object> const handler_;
-  MaybeHandle<Map> const maybe_map_;
-  bool const has_migration_target_maps_;
+  FunctionTemplateInfoRef const info_;
 };
 
 class CallFeedback : public ProcessedFeedback {
  public:
-  CallFeedback(base::Optional<HeapObjectRef> target, float frequency,
-               SpeculationMode mode, FeedbackSlotKind slot_kind)
+  CallFeedback(OptionalHeapObjectRef target, float frequency,
+               SpeculationMode mode, CallFeedbackContent call_feedback_content,
+               FeedbackSlotKind slot_kind)
       : ProcessedFeedback(kCall, slot_kind),
         target_(target),
         frequency_(frequency),
-        mode_(mode) {}
+        mode_(mode),
+        content_(call_feedback_content) {}
 
-  base::Optional<HeapObjectRef> target() const { return target_; }
+  OptionalHeapObjectRef target() const { return target_; }
   float frequency() const { return frequency_; }
   SpeculationMode speculation_mode() const { return mode_; }
+  CallFeedbackContent call_feedback_content() const { return content_; }
 
  private:
-  base::Optional<HeapObjectRef> const target_;
+  OptionalHeapObjectRef const target_;
   float const frequency_;
   SpeculationMode const mode_;
+  CallFeedbackContent const content_;
 };
 
 template <class T, ProcessedFeedback::Kind K>
@@ -220,6 +237,9 @@ class SingleValueFeedback : public ProcessedFeedback {
       : ProcessedFeedback(K, slot_kind), value_(value) {
     DCHECK(
         (K == kBinaryOperation && slot_kind == FeedbackSlotKind::kBinaryOp) ||
+        (K == kBinaryOperation &&
+         slot_kind == FeedbackSlotKind::kStringAddAndInternalize) ||
+        (K == kTypeOf && slot_kind == FeedbackSlotKind::kTypeOf) ||
         (K == kCompareOperation && slot_kind == FeedbackSlotKind::kCompareOp) ||
         (K == kForIn && slot_kind == FeedbackSlotKind::kForIn) ||
         (K == kInstanceOf && slot_kind == FeedbackSlotKind::kInstanceOf) ||
@@ -234,8 +254,14 @@ class SingleValueFeedback : public ProcessedFeedback {
 };
 
 class InstanceOfFeedback
-    : public SingleValueFeedback<base::Optional<JSObjectRef>,
+    : public SingleValueFeedback<OptionalJSObjectRef,
                                  ProcessedFeedback::kInstanceOf> {
+  using SingleValueFeedback::SingleValueFeedback;
+};
+
+class TypeOfOpFeedback
+    : public SingleValueFeedback<TypeOfFeedback::Result,
+                                 ProcessedFeedback::kTypeOf> {
   using SingleValueFeedback::SingleValueFeedback;
 };
 
@@ -246,7 +272,7 @@ class LiteralFeedback
 };
 
 class RegExpLiteralFeedback
-    : public SingleValueFeedback<JSRegExpRef,
+    : public SingleValueFeedback<RegExpBoilerplateDescriptionRef,
                                  ProcessedFeedback::kRegExpLiteral> {
   using SingleValueFeedback::SingleValueFeedback;
 };

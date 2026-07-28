@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 
-const Readable = require('_stream_readable');
+const { Readable } = require('stream');
 const EE = require('events').EventEmitter;
 
 const oldStream = new EE();

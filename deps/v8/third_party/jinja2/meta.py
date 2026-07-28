@@ -1,39 +1,36 @@
-# -*- coding: utf-8 -*-
+"""Functions that expose information about templates that might be
+interesting for introspection.
 """
-    jinja2.meta
-    ~~~~~~~~~~~
+import typing as t
 
-    This module implements various functions that exposes information about
-    templates that might be interesting for various kinds of applications.
+from . import nodes
+from .compiler import CodeGenerator
+from .compiler import Frame
 
-    :copyright: (c) 2017 by the Jinja Team, see AUTHORS for more details.
-    :license: BSD, see LICENSE for more details.
-"""
-from jinja2 import nodes
-from jinja2.compiler import CodeGenerator
-from jinja2._compat import string_types, iteritems
+if t.TYPE_CHECKING:
+    from .environment import Environment
 
 
 class TrackingCodeGenerator(CodeGenerator):
     """We abuse the code generator for introspection."""
 
-    def __init__(self, environment):
-        CodeGenerator.__init__(self, environment, '<introspection>',
-                               '<introspection>')
-        self.undeclared_identifiers = set()
+    def __init__(self, environment: "Environment") -> None:
+        super().__init__(environment, "<introspection>", "<introspection>")
+        self.undeclared_identifiers: t.Set[str] = set()
 
-    def write(self, x):
+    def write(self, x: str) -> None:
         """Don't write."""
 
-    def enter_frame(self, frame):
+    def enter_frame(self, frame: Frame) -> None:
         """Remember all undeclared identifiers."""
-        CodeGenerator.enter_frame(self, frame)
-        for _, (action, param) in iteritems(frame.symbols.loads):
-            if action == 'resolve':
+        super().enter_frame(frame)
+
+        for _, (action, param) in frame.symbols.loads.items():
+            if action == "resolve" and param not in self.environment.globals:
                 self.undeclared_identifiers.add(param)
 
 
-def find_undeclared_variables(ast):
+def find_undeclared_variables(ast: nodes.Template) -> t.Set[str]:
     """Returns a set of all variables in the AST that will be looked up from
     the context at runtime.  Because at compile time it's not known which
     variables will be used depending on the path the execution takes at
@@ -42,7 +39,7 @@ def find_undeclared_variables(ast):
     >>> from jinja2 import Environment, meta
     >>> env = Environment()
     >>> ast = env.parse('{% set foo = 42 %}{{ bar + foo }}')
-    >>> meta.find_undeclared_variables(ast) == set(['bar'])
+    >>> meta.find_undeclared_variables(ast) == {'bar'}
     True
 
     .. admonition:: Implementation
@@ -52,12 +49,16 @@ def find_undeclared_variables(ast):
        :exc:`TemplateAssertionError` during compilation and as a matter of
        fact this function can currently raise that exception as well.
     """
-    codegen = TrackingCodeGenerator(ast.environment)
+    codegen = TrackingCodeGenerator(ast.environment)  # type: ignore
     codegen.visit(ast)
     return codegen.undeclared_identifiers
 
 
-def find_referenced_templates(ast):
+_ref_types = (nodes.Extends, nodes.FromImport, nodes.Import, nodes.Include)
+_RefType = t.Union[nodes.Extends, nodes.FromImport, nodes.Import, nodes.Include]
+
+
+def find_referenced_templates(ast: nodes.Template) -> t.Iterator[t.Optional[str]]:
     """Finds all the referenced templates from the AST.  This will return an
     iterator over all the hardcoded template extensions, inclusions and
     imports.  If dynamic inheritance or inclusion is used, `None` will be
@@ -72,16 +73,19 @@ def find_referenced_templates(ast):
     This function is useful for dependency tracking.  For example if you want
     to rebuild parts of the website after a layout template has changed.
     """
-    for node in ast.find_all((nodes.Extends, nodes.FromImport, nodes.Import,
-                              nodes.Include)):
-        if not isinstance(node.template, nodes.Const):
+    template_name: t.Any
+
+    for node in ast.find_all(_ref_types):
+        template: nodes.Expr = node.template  # type: ignore
+
+        if not isinstance(template, nodes.Const):
             # a tuple with some non consts in there
-            if isinstance(node.template, (nodes.Tuple, nodes.List)):
-                for template_name in node.template.items:
+            if isinstance(template, (nodes.Tuple, nodes.List)):
+                for template_name in template.items:
                     # something const, only yield the strings and ignore
                     # non-string consts that really just make no sense
                     if isinstance(template_name, nodes.Const):
-                        if isinstance(template_name.value, string_types):
+                        if isinstance(template_name.value, str):
                             yield template_name.value
                     # something dynamic in there
                     else:
@@ -91,15 +95,16 @@ def find_referenced_templates(ast):
                 yield None
             continue
         # constant is a basestring, direct template name
-        if isinstance(node.template.value, string_types):
-            yield node.template.value
+        if isinstance(template.value, str):
+            yield template.value
         # a tuple or list (latter *should* not happen) made of consts,
         # yield the consts that are strings.  We could warn here for
         # non string values
-        elif isinstance(node, nodes.Include) and \
-             isinstance(node.template.value, (tuple, list)):
-            for template_name in node.template.value:
-                if isinstance(template_name, string_types):
+        elif isinstance(node, nodes.Include) and isinstance(
+            template.value, (tuple, list)
+        ):
+            for template_name in template.value:
+                if isinstance(template_name, str):
                     yield template_name
         # something else we don't care about, we could warn here
         else:

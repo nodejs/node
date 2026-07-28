@@ -36,16 +36,17 @@ function testWithJSMarshaller({
   quitAfter,
   abort,
   maxQueueSize,
-  launchSecondary }) {
+  launchSecondary,
+}) {
   return new Promise((resolve) => {
     const array = [];
     binding[threadStarter](function testCallback(value) {
       array.push(value);
       if (array.length === quitAfter) {
         setImmediate(() => {
-          binding.StopThread(common.mustCall(() => {
+          binding.StopThread(() => {
             resolve(array);
-          }), !!abort);
+          }, !!abort);
         });
       }
     }, !!abort, !!launchSecondary, maxQueueSize);
@@ -62,7 +63,7 @@ function testUnref(queueSize) {
   return new Promise((resolve, reject) => {
     let output = '';
     const child = fork(__filename, ['child', queueSize], {
-      stdio: [process.stdin, 'pipe', process.stderr, 'ipc']
+      stdio: [process.stdin, 'pipe', process.stderr, 'ipc'],
     });
     child.on('close', (code) => {
       if (code === 0) {
@@ -78,19 +79,19 @@ function testUnref(queueSize) {
 
 new Promise(function testWithoutJSMarshaller(resolve) {
   let callCount = 0;
-  binding.StartThreadNoNative(function testCallback() {
+  binding.StartThreadNoNative(common.mustCallAtLeast(function testCallback() {
     callCount++;
 
     // The default call-into-JS implementation passes no arguments.
     assert.strictEqual(arguments.length, 0);
     if (callCount === binding.ARRAY_LENGTH) {
       setImmediate(() => {
-        binding.StopThread(common.mustCall(() => {
+        binding.StopThread(() => {
           resolve();
-        }), false);
+        }, false);
       });
     }
-  }, false /* abort */, false /* launchSecondary */, binding.MAX_QUEUE_SIZE);
+  }), false /* abort */, false /* launchSecondary */, binding.MAX_QUEUE_SIZE);
 })
 
 // Start the thread in blocking mode, and assert that all values are passed.
@@ -98,7 +99,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -109,7 +110,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNoJsFunc',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -118,7 +119,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: 0,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -127,7 +128,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNonblocking',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: binding.ARRAY_LENGTH
+  quitAfter: binding.ARRAY_LENGTH,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -136,7 +137,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: 1
+  quitAfter: 1,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -145,7 +146,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThread',
   maxQueueSize: 0,
-  quitAfter: 1
+  quitAfter: 1,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -154,7 +155,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 .then(() => testWithJSMarshaller({
   threadStarter: 'StartThreadNonblocking',
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  quitAfter: 1
+  quitAfter: 1,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -165,7 +166,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThread',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  launchSecondary: true
+  launchSecondary: true,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -176,7 +177,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThreadNonblocking',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  launchSecondary: true
+  launchSecondary: true,
 }))
 .then((result) => assert.deepStrictEqual(result, expectedArray))
 
@@ -186,7 +187,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThread',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  abort: true
+  abort: true,
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
 
@@ -196,7 +197,7 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThread',
   quitAfter: 1,
   maxQueueSize: 0,
-  abort: true
+  abort: true,
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
 
@@ -206,12 +207,23 @@ new Promise(function testWithoutJSMarshaller(resolve) {
   threadStarter: 'StartThreadNonblocking',
   quitAfter: 1,
   maxQueueSize: binding.MAX_QUEUE_SIZE,
-  abort: true
+  abort: true,
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
+
+// Make sure that threadsafe function isn't stalled when we hit
+// `kMaxIterationCount` in `src/node_api.cc`
+.then(() => testWithJSMarshaller({
+  threadStarter: 'StartThreadNonblocking',
+  maxQueueSize: binding.ARRAY_LENGTH >>> 1,
+  quitAfter: binding.ARRAY_LENGTH,
+}))
+.then((result) => assert.deepStrictEqual(result, expectedArray))
 
 // Start a child process to test rapid teardown
 .then(() => testUnref(binding.MAX_QUEUE_SIZE))
 
 // Start a child process with an infinite queue to test rapid teardown
-.then(() => testUnref(0));
+.then(() => testUnref(0))
+
+.then(common.mustCall());

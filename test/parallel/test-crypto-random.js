@@ -28,12 +28,10 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const cryptop = require('crypto').webcrypto;
 const { kMaxLength } = require('buffer');
-const { inspect } = require('util');
 
-const kMaxUint32 = Math.pow(2, 32) - 1;
-const kMaxPossibleLength = Math.min(kMaxLength, kMaxUint32);
+const kMaxInt32 = 2 ** 31 - 1;
+const kMaxPossibleLength = Math.min(kMaxLength, kMaxInt32);
 
 common.expectWarning('DeprecationWarning',
                      'crypto.pseudoRandomBytes is deprecated.', 'DEP0115');
@@ -51,7 +49,7 @@ common.expectWarning('DeprecationWarning',
       assert.throws(() => f(value, common.mustNotCall()), errObj);
     });
 
-    [-1, NaN, 2 ** 32].forEach((value) => {
+    [-1, NaN, 2 ** 32, 2 ** 31].forEach((value) => {
       const errObj = {
         code: 'ERR_OUT_OF_RANGE',
         name: 'RangeError',
@@ -93,7 +91,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
     new Float32Array(10),
     new Float64Array(10),
-    new DataView(new ArrayBuffer(10))
+    new DataView(new ArrayBuffer(10)),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
     crypto.randomFillSync(buf);
@@ -108,7 +106,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
-    cryptop.getRandomValues(buf);
+    globalThis.crypto.getRandomValues(buf);
     const after = Buffer.from(buf.buffer).toString('hex');
     assert.notStrictEqual(before, after);
   });
@@ -117,7 +115,7 @@ common.expectWarning('DeprecationWarning',
 {
   [
     new ArrayBuffer(10),
-    new SharedArrayBuffer(10)
+    new SharedArrayBuffer(10),
   ].forEach((buf) => {
     const before = Buffer.from(buf).toString('hex');
     crypto.randomFillSync(buf);
@@ -150,7 +148,7 @@ common.expectWarning('DeprecationWarning',
     new Uint32Array(10),
     new Float32Array(10),
     new Float64Array(10),
-    new DataView(new ArrayBuffer(10))
+    new DataView(new ArrayBuffer(10)),
   ].forEach((buf) => {
     const before = Buffer.from(buf.buffer).toString('hex');
     crypto.randomFill(buf, common.mustSucceed((buf) => {
@@ -163,7 +161,7 @@ common.expectWarning('DeprecationWarning',
 {
   [
     new ArrayBuffer(10),
-    new SharedArrayBuffer(10)
+    new SharedArrayBuffer(10),
   ].forEach((buf) => {
     const before = Buffer.from(buf).toString('hex');
     crypto.randomFill(buf, common.mustSucceed((buf) => {
@@ -223,7 +221,7 @@ common.expectWarning('DeprecationWarning',
 {
   [
     Buffer.alloc(10),
-    new Uint8Array(new Array(10).fill(0))
+    new Uint8Array(new Array(10).fill(0)),
   ].forEach((buf) => {
     const len = Buffer.byteLength(buf);
     assert.strictEqual(len, 10, `Expected byteLength of 10, got ${len}`);
@@ -320,9 +318,8 @@ assert.throws(
   assert.throws(
     () => crypto.randomFill(buf, 0, 10, i),
     {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     });
 });
 
@@ -330,9 +327,8 @@ assert.throws(
   assert.throws(
     () => crypto.randomBytes(1, i),
     {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     }
   );
 });
@@ -341,7 +337,6 @@ assert.throws(
   const desc = Object.getOwnPropertyDescriptor(crypto, f);
   assert.ok(desc);
   assert.strictEqual(desc.configurable, true);
-  assert.strictEqual(desc.writable, true);
   assert.strictEqual(desc.enumerable, false);
 });
 
@@ -518,10 +513,16 @@ assert.throws(
 
   [true, NaN, null, {}, [], 10].forEach((i) => {
     const cbError = {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     };
     assert.throws(() => crypto.randomInt(0, 1, i), cbError);
   });
+}
+
+{
+  // Verify that it doesn't throw or abort
+  crypto.randomFill(new Uint16Array(10), 0, common.mustSucceed());
+  crypto.randomFill(new Uint32Array(10), 0, common.mustSucceed());
+  crypto.randomFill(new Uint32Array(10), 0, 1, common.mustSucceed());
 }

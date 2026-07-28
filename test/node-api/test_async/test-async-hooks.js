@@ -29,7 +29,7 @@ async_hooks.createHook({
     if (testId === id) {
       events.push({ type: 'destroy', id });
     }
-  }
+  },
 }).enable();
 
 const resource = { foo: 'foo' };
@@ -55,6 +55,6 @@ process.on('exit', () => {
     { type: 'before', id: testId },
     { type: 'complete' },
     { type: 'after', id: testId },
-    { type: 'destroy', id: testId }
+    { type: 'destroy', id: testId },
   ]);
 });

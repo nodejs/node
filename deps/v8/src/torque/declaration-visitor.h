@@ -5,18 +5,17 @@
 #ifndef V8_TORQUE_DECLARATION_VISITOR_H_
 #define V8_TORQUE_DECLARATION_VISITOR_H_
 
-#include <set>
+#include <optional>
 #include <string>
 
 #include "src/base/macros.h"
 #include "src/torque/declarations.h"
 #include "src/torque/global-context.h"
+#include "src/torque/kythe-data.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 Namespace* GetOrCreateNamespace(const std::string& name);
 
@@ -35,10 +34,22 @@ class PredeclarationVisitor {
     for (Declaration* child : decl->declarations) Predeclare(child);
   }
   static void Predeclare(TypeDeclaration* decl) {
-    Declarations::PredeclareTypeAlias(decl->name, decl, false);
+    TypeAlias* alias =
+        Declarations::PredeclareTypeAlias(decl->name, decl, false);
+    alias->SetPosition(decl->pos);
+    alias->SetIdentifierPosition(decl->name->pos);
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddTypeDefinition(alias);
+    }
   }
   static void Predeclare(StructDeclaration* decl) {
-    Declarations::PredeclareTypeAlias(decl->name, decl, false);
+    TypeAlias* alias =
+        Declarations::PredeclareTypeAlias(decl->name, decl, false);
+    alias->SetPosition(decl->pos);
+    alias->SetIdentifierPosition(decl->name->pos);
+    if (GlobalContext::collect_kythe_data()) {
+      KytheData::AddTypeDefinition(alias);
+    }
   }
   static void Predeclare(GenericTypeDeclaration* generic_decl) {
     Declarations::DeclareGenericType(generic_decl->declaration->name->value,
@@ -74,7 +85,8 @@ class DeclarationVisitor {
   static Builtin* CreateBuiltin(BuiltinDeclaration* decl,
                                 std::string external_name,
                                 std::string readable_name, Signature signature,
-                                base::Optional<Statement*> body);
+                                std::optional<std::string> use_counter_name,
+                                std::optional<Statement*> body);
 
   static void Visit(ExternalBuiltinDeclaration* decl);
   static void Visit(ExternalRuntimeDeclaration* decl);
@@ -101,16 +113,14 @@ class DeclarationVisitor {
   static Callable* Specialize(
       const SpecializationKey<GenericCallable>& key,
       CallableDeclaration* declaration,
-      base::Optional<const SpecializationDeclaration*> explicit_specialization,
-      base::Optional<Statement*> body, SourcePosition position);
+      std::optional<const SpecializationDeclaration*> explicit_specialization,
+      std::optional<Statement*> body, SourcePosition position);
 
  private:
   static void DeclareSpecializedTypes(
       const SpecializationKey<GenericCallable>& key);
 };
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque
 
 #endif  // V8_TORQUE_DECLARATION_VISITOR_H_

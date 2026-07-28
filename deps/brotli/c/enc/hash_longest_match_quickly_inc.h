@@ -49,7 +49,7 @@ static void FN(Initialize)(
   self->common = common;
 
   BROTLI_UNUSED(params);
-  self->buckets_ = (uint32_t*)common->extra;
+  self->buckets_ = (uint32_t*)common->extra[0];
 }
 
 static void FN(Prepare)(
@@ -80,13 +80,13 @@ static void FN(Prepare)(
   }
 }
 
-static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
+static BROTLI_INLINE void FN(HashMemAllocInBytes)(
     const BrotliEncoderParams* params, BROTLI_BOOL one_shot,
-    size_t input_size) {
+    size_t input_size, size_t* alloc_size) {
   BROTLI_UNUSED(params);
   BROTLI_UNUSED(one_shot);
   BROTLI_UNUSED(input_size);
-  return sizeof(uint32_t) * BUCKET_SIZE;
+  alloc_size[0] = sizeof(uint32_t) * BUCKET_SIZE;
 }
 
 /* Look at 5 bytes at &data[ix & mask].
@@ -155,6 +155,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   const size_t best_len_in = out->len;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+  /* TODO: compare 4 bytes at once (and set the minimum best len to 4) */
   int compare_char = data[cur_ix_masked + best_len_in];
   size_t key = FN(HashBytes)(&data[cur_ix_masked]);
   size_t key_out;
@@ -163,6 +164,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   size_t best_len = best_len_in;
   size_t cached_backward = (size_t)distance_cache[0];
   size_t prev_ix = cur_ix - cached_backward;
+
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
+
   out->len_code_delta = 0;
   if (prev_ix < cur_ix) {
     prev_ix &= (uint32_t)ring_buffer_mask;

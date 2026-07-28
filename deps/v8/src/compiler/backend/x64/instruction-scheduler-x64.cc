@@ -13,6 +13,8 @@ bool InstructionScheduler::SchedulerSupported() { return true; }
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
+    case kX64TraceInstruction:
+      return kHasSideEffect;
     case kX64Add:
     case kX64Add32:
     case kX64And:
@@ -35,6 +37,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Imul32:
     case kX64ImulHigh32:
     case kX64UmulHigh32:
+    case kX64ImulHigh64:
+    case kX64UmulHigh64:
     case kX64Not:
     case kX64Not32:
     case kX64Neg:
@@ -62,8 +66,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat32Sub:
     case kSSEFloat32Mul:
     case kSSEFloat32Div:
-    case kSSEFloat32Abs:
-    case kSSEFloat32Neg:
     case kSSEFloat32Sqrt:
     case kSSEFloat32Round:
     case kSSEFloat32ToFloat64:
@@ -73,8 +75,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64Mul:
     case kSSEFloat64Div:
     case kSSEFloat64Mod:
-    case kSSEFloat64Abs:
-    case kSSEFloat64Neg:
     case kSSEFloat64Sqrt:
     case kSSEFloat64Round:
     case kSSEFloat32Max:
@@ -82,6 +82,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat32Min:
     case kSSEFloat64Min:
     case kSSEFloat64ToFloat32:
+    case kSSEFloat64ToFloat16RawBits:
+    case kSSEFloat16RawBitsToFloat64:
     case kSSEFloat32ToInt32:
     case kSSEFloat32ToUint32:
     case kSSEFloat64ToInt32:
@@ -114,10 +116,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXFloat64Sub:
     case kAVXFloat64Mul:
     case kAVXFloat64Div:
-    case kAVXFloat64Abs:
-    case kAVXFloat64Neg:
-    case kAVXFloat32Abs:
-    case kAVXFloat32Neg:
+    case kX64Float64Abs:
+    case kX64Float64Neg:
+    case kX64Float32Abs:
+    case kX64Float32Neg:
     case kX64BitcastFI:
     case kX64BitcastDL:
     case kX64BitcastIF:
@@ -126,185 +128,183 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Lea:
     case kX64Dec32:
     case kX64Inc32:
-    case kX64F64x2Splat:
-    case kX64F64x2ExtractLane:
-    case kX64F64x2ReplaceLane:
-    case kX64F64x2Abs:
-    case kX64F64x2Neg:
-    case kX64F64x2Sqrt:
-    case kX64F64x2Add:
-    case kX64F64x2Sub:
-    case kX64F64x2Mul:
-    case kX64F64x2Div:
-    case kX64F64x2Min:
-    case kX64F64x2Max:
-    case kX64F64x2Eq:
-    case kX64F64x2Ne:
-    case kX64F64x2Lt:
-    case kX64F64x2Le:
+    case kX64Pinsrb:
+    case kX64Pinsrw:
+    case kX64Pinsrd:
+    case kX64Pinsrq:
+    case kX64Cvttps2dq:
+    case kX64Cvttpd2dq:
+    case kX64I32x4TruncF64x2UZero:
+    case kX64I32x4TruncF32x4U:
+    case kX64I32x8TruncF32x8U:
+    case kX64FSplat:
+    case kX64FExtractLane:
+    case kX64FReplaceLane:
+    case kX64FAbs:
+    case kX64FNeg:
+    case kX64FSqrt:
+    case kX64FAdd:
+    case kX64FSub:
+    case kX64FMul:
+    case kX64FDiv:
+    case kX64FMin:
+    case kX64FMax:
+    case kX64FEq:
+    case kX64FNe:
+    case kX64FLt:
+    case kX64FLe:
     case kX64F64x2Qfma:
     case kX64F64x2Qfms:
-    case kX64F64x2Pmin:
-    case kX64F64x2Pmax:
+    case kX64F64x4Qfma:
+    case kX64F64x4Qfms:
+    case kX64Minpd:
+    case kX64Maxpd:
+    case kX64F32x8Pmin:
+    case kX64F32x8Pmax:
+    case kX64F64x4Pmin:
+    case kX64F64x4Pmax:
     case kX64F64x2Round:
-    case kX64F32x4Splat:
-    case kX64F32x4ExtractLane:
-    case kX64F32x4ReplaceLane:
+    case kX64F64x2ConvertLowI32x4S:
+    case kX64F64x4ConvertI32x4S:
+    case kX64F64x2ConvertLowI32x4U:
+    case kX64F64x2PromoteLowF32x4:
     case kX64F32x4SConvertI32x4:
+    case kX64F32x8SConvertI32x8:
     case kX64F32x4UConvertI32x4:
-    case kX64F32x4RecipApprox:
-    case kX64F32x4RecipSqrtApprox:
-    case kX64F32x4Abs:
-    case kX64F32x4Neg:
-    case kX64F32x4Sqrt:
-    case kX64F32x4Add:
-    case kX64F32x4AddHoriz:
-    case kX64F32x4Sub:
-    case kX64F32x4Mul:
-    case kX64F32x4Div:
-    case kX64F32x4Min:
-    case kX64F32x4Max:
-    case kX64F32x4Eq:
-    case kX64F32x4Ne:
-    case kX64F32x4Lt:
-    case kX64F32x4Le:
+    case kX64F32x8UConvertI32x8:
     case kX64F32x4Qfma:
     case kX64F32x4Qfms:
-    case kX64F32x4Pmin:
-    case kX64F32x4Pmax:
+    case kX64F32x8Qfma:
+    case kX64F32x8Qfms:
+    case kX64Minps:
+    case kX64Maxps:
     case kX64F32x4Round:
-    case kX64I64x2Splat:
-    case kX64I64x2ExtractLane:
-    case kX64I64x2ReplaceLane:
-    case kX64I64x2Neg:
-    case kX64I64x2Shl:
-    case kX64I64x2ShrS:
-    case kX64I64x2Add:
-    case kX64I64x2Sub:
-    case kX64I64x2Mul:
-    case kX64I64x2MinS:
-    case kX64I64x2MaxS:
-    case kX64I64x2Eq:
-    case kX64I64x2Ne:
-    case kX64I64x2GtS:
-    case kX64I64x2GeS:
-    case kX64I64x2ShrU:
-    case kX64I64x2MinU:
-    case kX64I64x2MaxU:
-    case kX64I64x2GtU:
-    case kX64I64x2GeU:
-    case kX64I32x4Splat:
-    case kX64I32x4ExtractLane:
-    case kX64I32x4ReplaceLane:
+    case kX64F32x8Round:
+    case kX64F32x4DemoteF64x2Zero:
+    case kX64F32x4DemoteF64x4:
+    case kX64F16x8Round:
+    case kX64I16x8SConvertF16x8:
+    case kX64I16x8UConvertF16x8:
+    case kX64F16x8SConvertI16x8:
+    case kX64F16x8UConvertI16x8:
+    case kX64F16x8DemoteF32x4Zero:
+    case kX64F16x8DemoteF64x2Zero:
+    case kX64F32x4PromoteLowF16x8:
+    case kX64F16x8Qfma:
+    case kX64F16x8Qfms:
+    case kX64Minph:
+    case kX64Maxph:
+    case kX64ISplat:
+    case kX64IExtractLane:
+    case kX64IAbs:
+    case kX64INeg:
+    case kX64IBitMask:
+    case kX64IShl:
+    case kX64IShrS:
+    case kX64IAdd:
+    case kX64ISub:
+    case kX64IMul:
+    case kX64IEq:
+    case kX64IGtS:
+    case kX64IGeS:
+    case kX64INe:
+    case kX64IShrU:
+    case kX64I64x2ExtMulLowI32x4S:
+    case kX64I64x2ExtMulHighI32x4S:
+    case kX64I64x4ExtMulI32x4S:
+    case kX64I64x2ExtMulLowI32x4U:
+    case kX64I64x2ExtMulHighI32x4U:
+    case kX64I64x4ExtMulI32x4U:
+    case kX64I64x2SConvertI32x4Low:
+    case kX64I64x2SConvertI32x4High:
+    case kX64I64x4SConvertI32x4:
+    case kX64I64x2UConvertI32x4Low:
+    case kX64I64x2UConvertI32x4High:
+    case kX64I64x4UConvertI32x4:
     case kX64I32x4SConvertF32x4:
+    case kX64I32x8SConvertF32x8:
     case kX64I32x4SConvertI16x8Low:
     case kX64I32x4SConvertI16x8High:
-    case kX64I32x4Neg:
-    case kX64I32x4Shl:
-    case kX64I32x4ShrS:
-    case kX64I32x4Add:
-    case kX64I32x4AddHoriz:
-    case kX64I32x4Sub:
-    case kX64I32x4Mul:
-    case kX64I32x4MinS:
-    case kX64I32x4MaxS:
-    case kX64I32x4Eq:
-    case kX64I32x4Ne:
-    case kX64I32x4GtS:
-    case kX64I32x4GeS:
+    case kX64I32x8SConvertI16x8:
+    case kX64IMinS:
+    case kX64IMaxS:
     case kX64I32x4UConvertF32x4:
+    case kX64I32x8UConvertF32x8:
     case kX64I32x4UConvertI16x8Low:
     case kX64I32x4UConvertI16x8High:
-    case kX64I32x4ShrU:
-    case kX64I32x4MinU:
-    case kX64I32x4MaxU:
-    case kX64I32x4GtU:
-    case kX64I32x4GeU:
-    case kX64I32x4Abs:
-    case kX64I32x4BitMask:
+    case kX64I32x8UConvertI16x8:
+    case kX64IMinU:
+    case kX64IMaxU:
+    case kX64IGtU:
+    case kX64IGeU:
     case kX64I32x4DotI16x8S:
-    case kX64I16x8Splat:
-    case kX64I16x8ExtractLaneU:
-    case kX64I16x8ExtractLaneS:
-    case kX64I16x8ReplaceLane:
+    case kX64I32x8DotI16x16S:
+    case kX64I32x4DotI8x16I7x16AddS:
+    case kX64I32x8DotI8x32I7x32AddS:
+    case kX64I32x4ExtMulLowI16x8S:
+    case kX64I32x4ExtMulHighI16x8S:
+    case kX64I32x8ExtMulI16x8S:
+    case kX64I32x4ExtMulLowI16x8U:
+    case kX64I32x4ExtMulHighI16x8U:
+    case kX64I32x8ExtMulI16x8U:
+    case kX64I32x4ExtAddPairwiseI16x8S:
+    case kX64I32x8ExtAddPairwiseI16x16S:
+    case kX64I32x4ExtAddPairwiseI16x8U:
+    case kX64I32x8ExtAddPairwiseI16x16U:
+    case kX64I32x4TruncSatF64x2SZero:
+    case kX64I32x4TruncSatF64x2UZero:
+    case kX64I32X4ShiftZeroExtendI8x16:
+    case kX64IExtractLaneS:
     case kX64I16x8SConvertI8x16Low:
     case kX64I16x8SConvertI8x16High:
-    case kX64I16x8Neg:
-    case kX64I16x8Shl:
-    case kX64I16x8ShrS:
+    case kX64I16x16SConvertI8x16:
     case kX64I16x8SConvertI32x4:
-    case kX64I16x8Add:
-    case kX64I16x8AddSaturateS:
-    case kX64I16x8AddHoriz:
-    case kX64I16x8Sub:
-    case kX64I16x8SubSaturateS:
-    case kX64I16x8Mul:
-    case kX64I16x8MinS:
-    case kX64I16x8MaxS:
-    case kX64I16x8Eq:
-    case kX64I16x8Ne:
-    case kX64I16x8GtS:
-    case kX64I16x8GeS:
+    case kX64I16x16SConvertI32x8:
+    case kX64IAddSatS:
+    case kX64ISubSatS:
     case kX64I16x8UConvertI8x16Low:
     case kX64I16x8UConvertI8x16High:
+    case kX64I16x16UConvertI8x16:
     case kX64I16x8UConvertI32x4:
-    case kX64I16x8ShrU:
-    case kX64I16x8AddSaturateU:
-    case kX64I16x8SubSaturateU:
-    case kX64I16x8MinU:
-    case kX64I16x8MaxU:
-    case kX64I16x8GtU:
-    case kX64I16x8GeU:
-    case kX64I16x8RoundingAverageU:
-    case kX64I16x8Abs:
-    case kX64I16x8BitMask:
-    case kX64I8x16Splat:
-    case kX64I8x16ExtractLaneU:
-    case kX64I8x16ExtractLaneS:
-    case kX64I8x16ReplaceLane:
+    case kX64I16x16UConvertI32x8:
+    case kX64IAddSatU:
+    case kX64ISubSatU:
+    case kX64IRoundingAverageU:
+    case kX64I16x8ExtMulLowI8x16S:
+    case kX64I16x8ExtMulHighI8x16S:
+    case kX64I16x16ExtMulI8x16S:
+    case kX64I16x8ExtMulLowI8x16U:
+    case kX64I16x8ExtMulHighI8x16U:
+    case kX64I16x16ExtMulI8x16U:
+    case kX64I16x8ExtAddPairwiseI8x16S:
+    case kX64I16x16ExtAddPairwiseI8x32S:
+    case kX64I16x8ExtAddPairwiseI8x16U:
+    case kX64I16x16ExtAddPairwiseI8x32U:
+    case kX64I16x8Q15MulRSatS:
+    case kX64I16x8RelaxedQ15MulRS:
+    case kX64I16x8DotI8x16I7x16S:
+    case kX64I16x16DotI8x32I7x32S:
     case kX64I8x16SConvertI16x8:
-    case kX64I8x16Neg:
-    case kX64I8x16Shl:
-    case kX64I8x16ShrS:
-    case kX64I8x16Add:
-    case kX64I8x16AddSaturateS:
-    case kX64I8x16Sub:
-    case kX64I8x16SubSaturateS:
-    case kX64I8x16Mul:
-    case kX64I8x16MinS:
-    case kX64I8x16MaxS:
-    case kX64I8x16Eq:
-    case kX64I8x16Ne:
-    case kX64I8x16GtS:
-    case kX64I8x16GeS:
+    case kX64I8x32SConvertI16x16:
     case kX64I8x16UConvertI16x8:
-    case kX64I8x16AddSaturateU:
-    case kX64I8x16SubSaturateU:
-    case kX64I8x16ShrU:
-    case kX64I8x16MinU:
-    case kX64I8x16MaxU:
-    case kX64I8x16GtU:
-    case kX64I8x16GeU:
-    case kX64I8x16RoundingAverageU:
-    case kX64I8x16Abs:
-    case kX64I8x16BitMask:
-    case kX64S128And:
-    case kX64S128Or:
-    case kX64S128Xor:
-    case kX64S128Not:
-    case kX64S128Select:
+    case kX64I8x32UConvertI16x16:
+    case kX64SAnd:
+    case kX64SOr:
+    case kX64SXor:
+    case kX64SNot:
+    case kX64SSelect:
     case kX64S128Const:
-    case kX64S128Zero:
-    case kX64S128AllOnes:
-    case kX64S128AndNot:
-    case kX64V64x2AnyTrue:
-    case kX64V64x2AllTrue:
-    case kX64V32x4AnyTrue:
-    case kX64V32x4AllTrue:
-    case kX64V16x8AnyTrue:
-    case kX64V16x8AllTrue:
+    case kX64S256Const:
+    case kX64SZero:
+    case kX64SAllOnes:
+    case kX64SAndNot:
+    case kX64IAllTrue:
     case kX64I8x16Swizzle:
+    case kX64Vpshufd:
     case kX64I8x16Shuffle:
+    case kX64I8x16Popcnt:
+    case kX64Shufps:
+    case kX64S32x4Rotate:
     case kX64S32x4Swizzle:
     case kX64S32x4Shuffle:
     case kX64S16x8Blend:
@@ -321,17 +321,23 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S32x4UnpackHigh:
     case kX64S16x8UnpackHigh:
     case kX64S8x16UnpackHigh:
+    case kX64S32x8UnpackHigh:
     case kX64S64x2UnpackLow:
     case kX64S32x4UnpackLow:
     case kX64S16x8UnpackLow:
     case kX64S8x16UnpackLow:
+    case kX64S32x8UnpackLow:
     case kX64S8x16TransposeLow:
     case kX64S8x16TransposeHigh:
     case kX64S8x8Reverse:
     case kX64S8x4Reverse:
     case kX64S8x2Reverse:
-    case kX64V8x16AnyTrue:
-    case kX64V8x16AllTrue:
+    case kX64V128AnyTrue:
+    case kX64Blendvpd:
+    case kX64Blendvps:
+    case kX64Pblendvb:
+    case kX64ExtractF128:
+    case kX64InsertI128:
       return (instr->addressing_mode() == kMode_None)
                  ? kNoOpcodeFlags
                  : kIsLoadOperation | kHasSideEffect;
@@ -359,8 +365,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kX64Movb:
     case kX64Movw:
+    case kX64S128Store32Lane:
+    case kX64S128Store64Lane:
       return kHasSideEffect;
 
+    case kX64Pextrb:
+    case kX64Pextrw:
     case kX64Movl:
       if (instr->HasOutput()) {
         DCHECK_LE(1, instr->InputCount());
@@ -371,25 +381,39 @@ int InstructionScheduler::GetTargetInstructionFlags(
       }
 
     case kX64MovqDecompressTaggedSigned:
-    case kX64MovqDecompressTaggedPointer:
-    case kX64MovqDecompressAnyTagged:
+    case kX64MovqDecompressTagged:
+    case kX64MovqDecompressProtected:
     case kX64MovqCompressTagged:
+    case kX64MovqStoreIndirectPointer:
+    case kX64MovqDecodeSandboxedPointer:
+    case kX64MovqEncodeSandboxedPointer:
     case kX64Movq:
     case kX64Movsd:
     case kX64Movss:
+    case kX64Movsh:
     case kX64Movdqu:
-    case kX64S8x16LoadSplat:
-    case kX64S16x8LoadSplat:
-    case kX64S32x4LoadSplat:
-    case kX64S64x2LoadSplat:
-    case kX64I16x8Load8x8S:
-    case kX64I16x8Load8x8U:
-    case kX64I32x4Load16x4S:
-    case kX64I32x4Load16x4U:
-    case kX64I64x2Load32x2S:
-    case kX64I64x2Load32x2U:
-    case kX64S128LoadMem32Zero:
-    case kX64S128LoadMem64Zero:
+    case kX64Movdqu256:
+    case kX64S128Load8Splat:
+    case kX64S256Load8Splat:
+    case kX64S128Load16Splat:
+    case kX64S256Load16Splat:
+    case kX64S128Load32Splat:
+    case kX64S256Load32Splat:
+    case kX64S128Load64Splat:
+    case kX64S256Load64Splat:
+    case kX64S128Load8x8S:
+    case kX64S128Load8x8U:
+    case kX64S128Load16x4S:
+    case kX64S128Load16x4U:
+    case kX64S128Load32x2S:
+    case kX64S128Load32x2U:
+    case kX64S256Load8x16S:
+    case kX64S256Load8x16U:
+    case kX64S256Load8x8U:
+    case kX64S256Load16x8S:
+    case kX64S256Load16x8U:
+    case kX64S256Load32x4S:
+    case kX64S256Load32x4U:
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
     case kX64Peek:
@@ -403,43 +427,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64LFence:
       return kHasSideEffect;
 
-    case kX64Word64AtomicLoadUint8:
-    case kX64Word64AtomicLoadUint16:
-    case kX64Word64AtomicLoadUint32:
-    case kX64Word64AtomicLoadUint64:
-      return kIsLoadOperation;
-
-    case kX64Word64AtomicStoreWord8:
-    case kX64Word64AtomicStoreWord16:
-    case kX64Word64AtomicStoreWord32:
     case kX64Word64AtomicStoreWord64:
-    case kX64Word64AtomicAddUint8:
-    case kX64Word64AtomicAddUint16:
-    case kX64Word64AtomicAddUint32:
     case kX64Word64AtomicAddUint64:
-    case kX64Word64AtomicSubUint8:
-    case kX64Word64AtomicSubUint16:
-    case kX64Word64AtomicSubUint32:
     case kX64Word64AtomicSubUint64:
-    case kX64Word64AtomicAndUint8:
-    case kX64Word64AtomicAndUint16:
-    case kX64Word64AtomicAndUint32:
     case kX64Word64AtomicAndUint64:
-    case kX64Word64AtomicOrUint8:
-    case kX64Word64AtomicOrUint16:
-    case kX64Word64AtomicOrUint32:
     case kX64Word64AtomicOrUint64:
-    case kX64Word64AtomicXorUint8:
-    case kX64Word64AtomicXorUint16:
-    case kX64Word64AtomicXorUint32:
     case kX64Word64AtomicXorUint64:
-    case kX64Word64AtomicExchangeUint8:
-    case kX64Word64AtomicExchangeUint16:
-    case kX64Word64AtomicExchangeUint32:
     case kX64Word64AtomicExchangeUint64:
-    case kX64Word64AtomicCompareExchangeUint8:
-    case kX64Word64AtomicCompareExchangeUint16:
-    case kX64Word64AtomicCompareExchangeUint32:
     case kX64Word64AtomicCompareExchangeUint64:
       return kHasSideEffect;
 
@@ -463,18 +457,20 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kX64Imul32:
     case kX64ImulHigh32:
     case kX64UmulHigh32:
+    case kX64ImulHigh64:
+    case kX64UmulHigh64:
+    case kX64Float32Abs:
+    case kX64Float32Neg:
+    case kX64Float64Abs:
+    case kX64Float64Neg:
     case kSSEFloat32Cmp:
     case kSSEFloat32Add:
     case kSSEFloat32Sub:
-    case kSSEFloat32Abs:
-    case kSSEFloat32Neg:
     case kSSEFloat64Cmp:
     case kSSEFloat64Add:
     case kSSEFloat64Sub:
     case kSSEFloat64Max:
     case kSSEFloat64Min:
-    case kSSEFloat64Abs:
-    case kSSEFloat64Neg:
       return 3;
     case kSSEFloat32Mul:
     case kSSEFloat32ToFloat64:
@@ -503,6 +499,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kSSEFloat64ToInt64:
     case kSSEFloat32ToUint64:
     case kSSEFloat64ToUint64:
+    case kSSEFloat64ToFloat16RawBits:
+    case kSSEFloat16RawBitsToFloat64:
       return 10;
     case kSSEFloat64Mod:
       return 50;

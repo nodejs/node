@@ -26,11 +26,11 @@
 
 U_NAMESPACE_BEGIN
 
-static UInitOnce gICUInitOnce = U_INITONCE_INITIALIZER;
+static UInitOnce gICUInitOnce {};
 
 static UBool U_CALLCONV uinit_cleanup() {
     gICUInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 static void U_CALLCONV

@@ -27,7 +27,7 @@
 
 // Test Math.sin and Math.cos.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --turbofan
 
 assertEquals("-Infinity", String(1/Math.sin(-0)));
 assertEquals(1, Math.cos(-0));

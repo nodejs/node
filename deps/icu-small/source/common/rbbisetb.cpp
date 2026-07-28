@@ -74,7 +74,7 @@ RBBISetBuilder::~RBBISetBuilder()
     RangeDescriptor   *nextRangeDesc;
 
     // Walk through & delete the linked list of RangeDescriptors
-    for (nextRangeDesc = fRangeList; nextRangeDesc!=NULL;) {
+    for (nextRangeDesc = fRangeList; nextRangeDesc!=nullptr;) {
         RangeDescriptor *r = nextRangeDesc;
         nextRangeDesc      = r->fNext;
         delete r;
@@ -104,7 +104,7 @@ void RBBISetBuilder::buildRanges() {
     //  that is in no sets.
     //
     fRangeList                = new RangeDescriptor(*fStatus); // will check for status here
-    if (fRangeList == NULL) {
+    if (fRangeList == nullptr) {
         *fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -120,8 +120,8 @@ void RBBISetBuilder::buildRanges() {
     //
     int  ni;
     for (ni=0; ; ni++) {        // Loop over each of the UnicodeSets encountered in the input rules
-        usetNode = (RBBINode *)this->fRB->fUSetNodes->elementAt(ni);
-        if (usetNode==NULL) {
+        usetNode = static_cast<RBBINode*>(this->fRB->fUSetNodes->elementAt(ni));
+        if (usetNode==nullptr) {
             break;
         }
 
@@ -251,8 +251,8 @@ void RBBISetBuilder::buildRanges() {
     UnicodeString eofString(u"eof");
     UnicodeString bofString(u"bof");
     for (ni=0; ; ni++) {        // Loop over each of the UnicodeSets encountered in the input rules
-        usetNode = (RBBINode *)this->fRB->fUSetNodes->elementAt(ni);
-        if (usetNode==NULL) {
+        usetNode = static_cast<RBBINode*>(this->fRB->fUSetNodes->elementAt(ni));
+        if (usetNode==nullptr) {
             break;
         }
         UnicodeSet      *inputSet = usetNode->fInputSet;
@@ -261,7 +261,7 @@ void RBBISetBuilder::buildRanges() {
         }
         if (inputSet->contains(bofString)) {
             addValToSet(usetNode, 2);
-            fSawBOF = TRUE;
+            fSawBOF = true;
         }
     }
 
@@ -328,9 +328,10 @@ int32_t RBBISetBuilder::getTrieSize()  {
             UCPTRIE_TYPE_FAST,
             use8Bits ? UCPTRIE_VALUE_BITS_8 : UCPTRIE_VALUE_BITS_16,
             fStatus);
-        fTrieSize = ucptrie_toBinary(fTrie, nullptr, 0, fStatus);
-        if (*fStatus == U_BUFFER_OVERFLOW_ERROR) {
-            *fStatus = U_ZERO_ERROR;
+        UErrorCode bufferStatus = *fStatus;
+        fTrieSize = ucptrie_toBinary(fTrie, nullptr, 0, &bufferStatus);
+        if (bufferStatus != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(bufferStatus)) {
+            *fStatus = bufferStatus;
         }
     }
     return fTrieSize;
@@ -369,28 +370,36 @@ void  RBBISetBuilder::addValToSets(UVector *sets, uint32_t val) {
     int32_t       ix;
 
     for (ix=0; ix<sets->size(); ix++) {
-        RBBINode *usetNode = (RBBINode *)sets->elementAt(ix);
+        RBBINode* usetNode = static_cast<RBBINode*>(sets->elementAt(ix));
         addValToSet(usetNode, val);
     }
 }
 
 void  RBBISetBuilder::addValToSet(RBBINode *usetNode, uint32_t val) {
-    RBBINode *leafNode = new RBBINode(RBBINode::leafChar);
-    if (leafNode == NULL) {
+    RBBINode *leafNode = new RBBINode(RBBINode::leafChar, *fStatus);
+    if (U_FAILURE(*fStatus)) {
+        delete leafNode;
+        return;
+    }
+    if (leafNode == nullptr) {
         *fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
-    leafNode->fVal = (unsigned short)val;
-    if (usetNode->fLeftChild == NULL) {
+    leafNode->fVal = static_cast<unsigned short>(val);
+    if (usetNode->fLeftChild == nullptr) {
         usetNode->fLeftChild = leafNode;
         leafNode->fParent    = usetNode;
     } else {
         // There are already input symbols present for this set.
         // Set up an OR node, with the previous stuff as the left child
         //   and the new value as the right child.
-        RBBINode *orNode = new RBBINode(RBBINode::opOr);
-        if (orNode == NULL) {
+        RBBINode *orNode = new RBBINode(RBBINode::opOr, *fStatus);
+        if (orNode == nullptr) {
             *fStatus = U_MEMORY_ALLOCATION_ERROR;
+        }
+        if (U_FAILURE(*fStatus)) {
+            delete orNode;
+            delete leafNode;
             return;
         }
         orNode->fLeftChild  = usetNode->fLeftChild;
@@ -436,12 +445,12 @@ UBool  RBBISetBuilder::sawBOF() const {
 //------------------------------------------------------------------------
 //
 //   getFirstChar      Given a runtime RBBI character category, find
-//                     the first UChar32 that is in the set of chars
+//                     the first UChar32 that is in the set of chars 
 //                     in the category.
 //------------------------------------------------------------------------
 UChar32  RBBISetBuilder::getFirstChar(int32_t category) const {
     RangeDescriptor   *rlRange;
-    UChar32            retVal = (UChar32)-1;
+    UChar32 retVal = static_cast<UChar32>(-1);
     for (rlRange = fRangeList; rlRange!=nullptr; rlRange=rlRange->fNext) {
         if (rlRange->fNum == category) {
             retVal = rlRange->fStartChar;
@@ -507,9 +516,9 @@ void RBBISetBuilder::printRangeGroups() {
                 RBBINode       *usetNode    = (RBBINode *)rlRange->fIncludesSets->elementAt(i);
                 UnicodeString   setName = UNICODE_STRING("anon", 4);
                 RBBINode       *setRef = usetNode->fParent;
-                if (setRef != NULL) {
+                if (setRef != nullptr) {
                     RBBINode *varRef = setRef->fParent;
-                    if (varRef != NULL  &&  varRef->fType == RBBINode::varRef) {
+                    if (varRef != nullptr  &&  varRef->fType == RBBINode::varRef) {
                         setName = varRef->fText;
                     }
                 }
@@ -551,16 +560,16 @@ void RBBISetBuilder::printSets() {
         UnicodeString    setName;
 
         usetNode = (RBBINode *)fRB->fUSetNodes->elementAt(i);
-        if (usetNode == NULL) {
+        if (usetNode == nullptr) {
             break;
         }
 
         RBBIDebugPrintf("%3d    ", i);
         setName = UNICODE_STRING("anonymous", 9);
         setRef = usetNode->fParent;
-        if (setRef != NULL) {
+        if (setRef != nullptr) {
             varRef = setRef->fParent;
-            if (varRef != NULL  &&  varRef->fType == RBBINode::varRef) {
+            if (varRef != nullptr  &&  varRef->fType == RBBINode::varRef) {
                 setName = varRef->fText;
             }
         }
@@ -568,8 +577,8 @@ void RBBISetBuilder::printSets() {
         RBBIDebugPrintf("   ");
         RBBI_DEBUG_printUnicodeString(usetNode->fText);
         RBBIDebugPrintf("\n");
-        if (usetNode->fLeftChild != NULL) {
-            RBBINode::printTree(usetNode->fLeftChild, TRUE);
+        if (usetNode->fLeftChild != nullptr) {
+            RBBINode::printTree(usetNode->fLeftChild, true);
         }
     }
     RBBIDebugPrintf("\n");
@@ -674,7 +683,7 @@ void RangeDescriptor::split(UChar32 where, UErrorCode &status) {
 bool RangeDescriptor::isDictionaryRange() {
     static const char16_t *dictionary = u"dictionary";
     for (int32_t i=0; i<fIncludesSets->size(); i++) {
-        RBBINode *usetNode  = (RBBINode *)fIncludesSets->elementAt(i);
+        RBBINode* usetNode = static_cast<RBBINode*>(fIncludesSets->elementAt(i));
         RBBINode *setRef = usetNode->fParent;
         if (setRef != nullptr) {
             RBBINode *varRef = setRef->fParent;

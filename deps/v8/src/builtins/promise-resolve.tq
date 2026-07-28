@@ -5,17 +5,15 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace runtime {
-extern transitioning runtime
-ResolvePromise(implicit context: Context)(JSPromise, JSAny): JSAny;
+extern transitioning runtime ResolvePromise(
+    implicit context: Context)(JSPromise, JSAny): JSAny;
 }
 
 namespace promise {
-extern macro ConstructorStringConstant(): String;
 const kConstructorString: String = ConstructorStringConstant();
 
 // https://tc39.es/ecma262/#sec-promise.resolve
-transitioning javascript builtin
-PromiseResolveTrampoline(
+transitioning javascript builtin PromiseResolveTrampoline(
     js-implicit context: NativeContext, receiver: JSAny)(value: JSAny): JSAny {
   // 1. Let C be the this value.
   // 2. If Type(C) is not Object, throw a TypeError exception.
@@ -26,11 +24,11 @@ PromiseResolveTrampoline(
   return PromiseResolve(receiver, value);
 }
 
-transitioning builtin
-PromiseResolve(implicit context: Context)(
-    constructor: JSReceiver, value: JSAny): JSAny {
+transitioning builtin PromiseResolve(
+    implicit context: Context)(constructor: JSReceiver, value: JSAny): JSAny {
   const nativeContext = LoadNativeContext(context);
-  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
+  const promiseFun = *NativeContextSlot(
+      nativeContext, ContextSlot::PROMISE_FUNCTION_INDEX);
   try {
     // Check if {value} is a JSPromise.
     const value = Cast<JSPromise>(value) otherwise NeedToAllocate;
@@ -40,7 +38,8 @@ PromiseResolve(implicit context: Context)(
     // intact, as that guards the lookup path for "constructor" on
     // JSPromise instances which have the (initial) Promise.prototype.
     const promisePrototype =
-        *NativeContextSlot(ContextSlot::PROMISE_PROTOTYPE_INDEX);
+        *NativeContextSlot(
+        nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX);
     // Check that Torque load elimination works.
     static_assert(nativeContext == LoadNativeContext(context));
     if (value.map.prototype != promisePrototype) {
@@ -78,6 +77,7 @@ PromiseResolve(implicit context: Context)(
 }
 
 extern macro IsJSReceiverMap(Map): bool;
+extern macro JSAnyIsNotPrimitiveMap(Map): bool;
 
 extern macro IsPromiseThenProtectorCellInvalid(): bool;
 
@@ -86,9 +86,8 @@ extern macro ThenStringConstant(): String;
 const kThenString: String = ThenStringConstant();
 
 // https://tc39.es/ecma262/#sec-promise-resolve-functions
-transitioning builtin
-ResolvePromise(implicit context: Context)(
-    promise: JSPromise, resolution: JSAny): JSAny {
+transitioning builtin ResolvePromise(
+    implicit context: Context)(promise: JSPromise, resolution: JSAny): JSAny {
   // 7. If SameValue(resolution, promise) is true, then
   // If promise hook is enabled or the debugger is active, let
   // the runtime handle this operation, which greatly reduces
@@ -97,7 +96,7 @@ ResolvePromise(implicit context: Context)(
   // We also let the runtime handle it if promise == resolution.
   // We can use pointer comparison here, since the {promise} is guaranteed
   // to be a JSPromise inside this function and thus is reference comparable.
-  if (IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+  if (IsIsolatePromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
       TaggedEqual(promise, resolution))
     deferred {
       return runtime::ResolvePromise(promise, resolution);
@@ -113,7 +112,7 @@ ResolvePromise(implicit context: Context)(
 
     const heapResolution = UnsafeCast<HeapObject>(resolution);
     const resolutionMap = heapResolution.map;
-    if (!IsJSReceiverMap(resolutionMap)) {
+    if (!JSAnyIsNotPrimitiveMap(resolutionMap)) {
       return FulfillPromise(promise, resolution);
     }
 
@@ -136,10 +135,11 @@ ResolvePromise(implicit context: Context)(
       // ensures that the intrinsic %ObjectPrototype% doesn't contain any
       // "then" property. This helps to avoid negative lookups on iterator
       // results from async generators.
-      assert(IsJSReceiverMap(resolutionMap));
-      assert(!IsPromiseThenProtectorCellInvalid());
+      dcheck(IsJSReceiverMap(resolutionMap));
+      dcheck(!IsPromiseThenProtectorCellInvalid());
       if (resolutionMap ==
-          *NativeContextSlot(ContextSlot::ITERATOR_RESULT_MAP_INDEX)) {
+          *NativeContextSlot(
+              nativeContext, ContextSlot::ITERATOR_RESULT_MAP_INDEX)) {
         return FulfillPromise(promise, resolution);
       } else {
         goto Slow;
@@ -147,10 +147,11 @@ ResolvePromise(implicit context: Context)(
     }
 
     const promisePrototype =
-        *NativeContextSlot(ContextSlot::PROMISE_PROTOTYPE_INDEX);
+        *NativeContextSlot(
+        nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX);
     if (resolutionMap.prototype == promisePrototype) {
       // The {resolution} is a native Promise in this case.
-      then = *NativeContextSlot(ContextSlot::PROMISE_THEN_INDEX);
+      then = *NativeContextSlot(nativeContext, ContextSlot::PROMISE_THEN_INDEX);
       // Check that Torque load elimination works.
       static_assert(nativeContext == LoadNativeContext(context));
       goto Enqueue;
@@ -161,7 +162,7 @@ ResolvePromise(implicit context: Context)(
     // 10. If then is an abrupt completion, then
     try {
       then = GetProperty(resolution, kThenString);
-    } catch (e) {
+    } catch (e, _message) {
       // a. Return RejectPromise(promise, then.[[Value]]).
       return RejectPromise(promise, e, False);
     }

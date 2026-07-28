@@ -6,8 +6,9 @@
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
-#include "src/common/globals.h"
 #include "src/compiler/node-marker.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -17,9 +18,10 @@ class TickCounter;
 
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class JSHeapBroker;
 class Node;
+class ObserveNodeManager;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
@@ -58,7 +60,7 @@ class V8_EXPORT_PRIVATE Reducer {
   virtual const char* reducer_name() const = 0;
 
   // Try to reduce a node if possible.
-  virtual Reduction Reduce(Node* node) = 0;
+  Reduction Reduce(Node* node, ObserveNodeManager* observe_node_manager);
 
   // Invoked by the {GraphReducer} when all nodes are done.  Can be used to
   // do additional reductions at the end, which in turn can cause a new round
@@ -69,6 +71,9 @@ class V8_EXPORT_PRIVATE Reducer {
   static Reduction NoChange() { return Reduction(); }
   static Reduction Replace(Node* node) { return Reduction(node); }
   static Reduction Changed(Node* node) { return Reduction(node); }
+
+ private:
+  virtual Reduction Reduce(Node* node) = 0;
 };
 
 
@@ -83,6 +88,7 @@ class AdvancedReducer : public Reducer {
 
     // Replace {node} with {replacement}.
     virtual void Replace(Node* node, Node* replacement) = 0;
+    virtual void Replace(Node* node, Node* replacement, NodeId max_id) = 0;
     // Revisit the {node} again later.
     virtual void Revisit(Node* node) = 0;
     // Replace value uses of {node} with {value} and effect uses of {node} with
@@ -103,6 +109,9 @@ class AdvancedReducer : public Reducer {
     DCHECK_NOT_NULL(editor_);
     editor_->Replace(node, replacement);
   }
+  void Replace(Node* node, Node* replacement, NodeId max_id) {
+    return editor_->Replace(node, replacement, max_id);
+  }
   void Revisit(Node* node) {
     DCHECK_NOT_NULL(editor_);
     editor_->Revisit(node);
@@ -121,9 +130,15 @@ class AdvancedReducer : public Reducer {
   }
 
   // Relax the control uses of {node} by immediately replacing them with the
-  // control input to {node}.
-  void RelaxControls(Node* node) {
-    ReplaceWithValue(node, node, node, nullptr);
+  // either the given {control} node, or the control input to {node}.
+  void RelaxControls(Node* node, Node* control = nullptr) {
+    ReplaceWithValue(node, node, node, control);
+  }
+
+  void MergeControlToEnd(TFGraph* graph, CommonOperatorBuilder* common,
+                         Node* node) {
+    NodeProperties::MergeControlToEnd(graph, common, node);
+    Revisit(graph->end());
   }
 
  private:
@@ -135,11 +150,15 @@ class AdvancedReducer : public Reducer {
 class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
-  GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
-               JSHeapBroker* broker, Node* dead = nullptr);
+  GraphReducer(Zone* zone, TFGraph* graph, TickCounter* tick_counter,
+               JSHeapBroker* broker, Node* dead = nullptr,
+               ObserveNodeManager* observe_node_manager = nullptr);
   ~GraphReducer() override;
 
-  Graph* graph() const { return graph_; }
+  GraphReducer(const GraphReducer&) = delete;
+  GraphReducer& operator=(const GraphReducer&) = delete;
+
+  TFGraph* graph() const { return graph_; }
 
   void AddReducer(Reducer* reducer);
 
@@ -172,7 +191,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   // Replace all uses of {node} with {replacement} if the id of {replacement} is
   // less than or equal to {max_id}. Otherwise, replace all uses of {node} whose
   // id is less than or equal to {max_id} with the {replacement}.
-  void Replace(Node* node, Node* replacement, NodeId max_id);
+  void Replace(Node* node, Node* replacement, NodeId max_id) final;
 
   // Node stack operations.
   void Pop();
@@ -182,7 +201,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   bool Recurse(Node* node);
   void Revisit(Node* node) final;
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   Node* const dead_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;
@@ -190,8 +209,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   ZoneStack<NodeState> stack_;
   TickCounter* const tick_counter_;
   JSHeapBroker* const broker_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphReducer);
+  ObserveNodeManager* const observe_node_manager_;
 };
 
 }  // namespace compiler

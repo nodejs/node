@@ -7,80 +7,74 @@ description: Add a registry user account
 ### Synopsis
 
 ```bash
-npm adduser [--registry=url] [--scope=@orgname] [--always-auth] [--auth-type=legacy]
+npm adduser
 
-aliases: login, add-user
+alias: add-user
 ```
+
+Note: This command is unaware of workspaces.
 
 ### Description
 
-Create or verify a user named `<username>` in the specified registry, and
-save the credentials to the `.npmrc` file. If no registry is specified,
-the default registry will be used (see [`config`](/using-npm/config)).
+Create a new user in the specified registry, and save the credentials to the `.npmrc` file.
+If no registry is specified, the default registry will be used (see [`registry`](/using-npm/registry)).
 
-The username, password, and email are read in from prompts.
+When you run `npm adduser`, the CLI automatically generates a legacy token of `publish` type.
+For more information, see [About legacy tokens](/about-access-tokens#about-legacy-tokens).
 
-To reset your password, go to <https://www.npmjs.com/forgot>
-
-To change your email address, go to <https://www.npmjs.com/email-edit>
-
-You may use this command multiple times with the same user account to
-authorize on a new machine.  When authenticating on a new machine,
-the username, password and email address must all match with
-your existing record.
-
-`npm login` is an alias to `adduser` and behaves exactly the same way.
+When using `legacy` for your `auth-type`, the username, password, and email are read in from prompts.
 
 ### Configuration
 
-#### registry
+#### `registry`
 
-Default: https://registry.npmjs.org/
+* Default: "https://registry.npmjs.org/"
+* Type: URL
 
-The base URL of the npm package registry. If `scope` is also specified,
-this registry will only be used for packages with that scope. `scope` defaults
-to the scope of the project directory you're currently in, if any. See [`scope`](/using-npm/scope).
+The base URL of the npm registry.
 
-#### scope
 
-Default: none
 
-If specified, the user and login credentials given will be associated
-with the specified scope. See [`scope`](/using-npm/scope). You can use both at the same time,
-e.g.
+#### `scope`
 
-```bash
-npm adduser --registry=http://myregistry.example.com --scope=@myco
+* Default: the scope of the current project, if any, or ""
+* Type: String
+
+Associate an operation with a scope for a scoped registry.
+
+Useful when logging in to or out of a private registry:
+
+```
+# log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
 ```
 
-This will set a registry for the given scope and login or create a user for
-that registry at the same time.
+This will cause `@mycorp` to be mapped to the registry for future
+installation of packages specified according to the pattern
+`@mycorp/package`.
 
-#### always-auth
+This will also cause `npm init` to create a scoped package.
 
-Default: false
-
-If specified, save configuration indicating that all requests to the given
-registry should include authorization information. Useful for private
-registries. Can be used with `--registry` and / or `--scope`, e.g.
-
-```bash
-npm adduser --registry=http://private-registry.example.com --always-auth
+```
+# accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
 ```
 
-This will ensure that all requests to that registry (including for tarballs)
-include an authorization header. This setting may be necessary for use with
-private registries where metadata and package tarballs are stored on hosts with
-different hostnames. See `always-auth` in [`config`](/using-npm/config) for more details on always-auth. Registry-specific configuration of `always-auth` takes precedence over any global configuration.
 
-#### auth-type
 
-* Default: `'legacy'`
-* Type: `'legacy'`, `'sso'`, `'saml'`, `'oauth'`
+#### `auth-type`
 
-What authentication strategy to use with `adduser`/`login`. Some npm registries
-(for example, npmE) might support alternative auth strategies besides classic
-username/password entry in legacy npm.
+* Default: "web"
+* Type: "legacy" or "web"
+
+What authentication strategy to use with `login`. Note that if an `otp`
+config is given, this value will always be set to `legacy`.
+
+
 
 ### See Also
 
@@ -89,3 +83,5 @@ username/password entry in legacy npm.
 * [npmrc](/configuring-npm/npmrc)
 * [npm owner](/commands/npm-owner)
 * [npm whoami](/commands/npm-whoami)
+* [npm token](/commands/npm-token)
+* [npm profile](/commands/npm-profile)

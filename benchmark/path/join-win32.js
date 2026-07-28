@@ -6,7 +6,7 @@ const bench = common.createBenchmark(main, {
   paths: [
     ['C:\\foo', 'bar', '', 'baz\\asdf', 'quux', '..'].join('|'),
   ],
-  n: [1e5]
+  n: [1e5],
 });
 
 function main({ n, paths }) {
@@ -16,8 +16,8 @@ function main({ n, paths }) {
 
   bench.start();
   for (let i = 0; i < n; i++) {
-    if (i % 3 === 0) {
-      copy[1] = `${orig}${i}`;
+    if (i % 5 === 0) {
+      copy[1] = `${orig}\\${i}`;
       win32.join(...copy);
     } else {
       win32.join(...args);

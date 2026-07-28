@@ -16,7 +16,7 @@
 *   created by: Markus W. Scherer
 *
 *	6/25/08 - Added Cygwin specific code in uprv_mkdir - Brian Rower
-*
+*	
 *   This file contains utility functions for ICU tools like genccode.
 */
 
@@ -30,6 +30,8 @@
 
 #include <stdio.h>
 #include <sys/stat.h>
+#include <fstream>
+#include <time.h>
 #include "unicode/utypes.h"
 
 #ifndef U_TOOLUTIL_IMPLEMENTATION
@@ -64,10 +66,13 @@
 
 #include "unicode/errorcode.h"
 #include "unicode/putil.h"
+#include "unicode/uchar.h"
+#include "unicode/umutablecptrie.h"
+#include "unicode/ucptrie.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "toolutil.h"
-#include "unicode/ucal.h"
+#include "uassert.h"
 
 U_NAMESPACE_BEGIN
 
@@ -81,24 +86,82 @@ void IcuToolErrorCode::handleFailure() const {
     exit(errorCode);
 }
 
+namespace toolutil {
+
+void setCPTrieBit(UMutableCPTrie *mutableCPTrie,
+                  UChar32 start, UChar32 end, int32_t shift, bool on, UErrorCode &errorCode) {
+    uint32_t mask = U_MASK(shift);
+    uint32_t value = on ? mask : 0;
+    setCPTrieBits(mutableCPTrie, start, end, mask, value, errorCode);
+}
+
+void setCPTrieBits(UMutableCPTrie *mutableCPTrie,
+                   UChar32 start, UChar32 end, uint32_t mask, uint32_t value,
+                   UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) { return; }
+    // The value must not have any bits set outside of the mask.
+    if ((value & ~mask) != 0) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+
+    if (start == end) {
+        uint32_t oldValue = umutablecptrie_get(mutableCPTrie, start);
+        uint32_t newValue = (oldValue & ~mask) | value;
+        if (newValue != oldValue) {
+            umutablecptrie_set(mutableCPTrie, start, newValue, &errorCode);
+        }
+        return;
+    }
+    while (start <= end && U_SUCCESS(errorCode)) {
+        uint32_t oldValue;
+        UChar32 rangeEnd = umutablecptrie_getRange(
+            mutableCPTrie, start, UCPMAP_RANGE_NORMAL, 0, nullptr, nullptr, &oldValue);
+        if (rangeEnd > end) {
+            rangeEnd = end;
+        }
+        uint32_t newValue = (oldValue & ~mask) | value;
+        if (newValue != oldValue) {
+            umutablecptrie_setRange(mutableCPTrie, start, rangeEnd, newValue, &errorCode);
+        }
+        start = rangeEnd + 1;
+    }
+}
+
+int32_t getCPTrieSize(UMutableCPTrie *mt, UCPTrieType type, UCPTrieValueWidth valueWidth) {
+    UErrorCode errorCode = U_ZERO_ERROR;
+    UCPTrie *cpTrie = umutablecptrie_buildImmutable(mt, type, valueWidth, &errorCode);
+    if (U_FAILURE(errorCode)) {
+        fprintf(stderr,
+                "toolutil/getCPTrieSize error: umutablecptrie_buildImmutable() failed: %s\n",
+                u_errorName(errorCode));
+        return -1;
+    }
+    uint8_t block[100000];
+    int32_t size = ucptrie_toBinary(cpTrie, block, sizeof(block), &errorCode);
+    ucptrie_close(cpTrie);
+    if (U_FAILURE(errorCode) && errorCode != U_BUFFER_OVERFLOW_ERROR) {
+        fprintf(stderr,
+                "toolutil/getCPTrieSize error: ucptrie_toBinary() failed: %s (length %ld)\n",
+                u_errorName(errorCode), static_cast<long>(size));
+        return -1;
+    }
+    U_ASSERT((size & 3) == 0);  // multiple of 4 bytes
+    return size;
+}
+
+}  // toolutil
+
 U_NAMESPACE_END
 
 static int32_t currentYear = -1;
 
 U_CAPI int32_t U_EXPORT2 getCurrentYear() {
-#if !UCONFIG_NO_FORMATTING
-    UErrorCode status=U_ZERO_ERROR;
-    UCalendar *cal = NULL;
-
     if(currentYear == -1) {
-        cal = ucal_open(NULL, -1, NULL, UCAL_TRADITIONAL, &status);
-        ucal_setMillis(cal, ucal_getNow(), &status);
-        currentYear = ucal_get(cal, UCAL_YEAR, &status);
-        ucal_close(cal);
+        time_t now = time(nullptr);
+        tm *fields = gmtime(&now);
+        currentYear = 1900 + fields->tm_year;
     }
-#else
-    /* No formatting- no way to set the current year. */
-#endif
     return currentYear;
 }
 
@@ -128,8 +191,8 @@ getLongPathname(const char *pathname) {
 
 U_CAPI const char * U_EXPORT2
 findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) {
-  if(U_FAILURE(*status)) return NULL;
-  const char *resultPtr = NULL;
+  if(U_FAILURE(*status)) return nullptr;
+  const char *resultPtr = nullptr;
   int32_t resultLen = 0;
 
   const char *basename=uprv_strrchr(path, U_FILE_SEP_CHAR);
@@ -157,7 +220,7 @@ findDirname(const char *path, char *buffer, int32_t bufLen, UErrorCode* status) 
     return buffer;
   } else {
     *status = U_BUFFER_OVERFLOW_ERROR;
-    return NULL;
+    return nullptr;
   }
 }
 
@@ -174,7 +237,7 @@ findBasename(const char *filename) {
     }
 #endif
 
-    if(basename!=NULL) {
+    if(basename!=nullptr) {
         return basename+1;
     } else {
         return filename;
@@ -211,12 +274,44 @@ U_CAPI UBool U_EXPORT2
 uprv_fileExists(const char *file) {
   struct stat stat_buf;
   if (stat(file, &stat_buf) == 0) {
-    return TRUE;
+    return true;
   } else {
-    return FALSE;
+    return false;
   }
 }
 #endif
+
+U_CAPI int32_t U_EXPORT2
+uprv_compareGoldenFiles(
+        const char* buffer, int32_t bufferLen,
+        const char* goldenFilePath,
+        bool overwrite) {
+
+    if (overwrite) {
+        std::ofstream ofs;
+        ofs.open(goldenFilePath);
+        ofs.write(buffer, bufferLen);
+        ofs.close();
+        return -1;
+    }
+
+    std::ifstream ifs(goldenFilePath, std::ifstream::in);
+    int32_t pos = 0;
+    char c;
+    while (ifs.get(c) && pos < bufferLen) {
+        if (c != buffer[pos]) {
+            // Files differ at this position
+            break;
+        }
+        pos++;
+    }
+    if (pos == bufferLen && ifs.eof()) {
+        // Files are same lengths
+        pos = -1;
+    }
+    ifs.close();
+    return pos;
+}
 
 /*U_CAPI UDate U_EXPORT2
 uprv_getModificationDate(const char *pathname, UErrorCode *status)
@@ -226,7 +321,7 @@ uprv_getModificationDate(const char *pathname, UErrorCode *status)
     }
     //  TODO: handle case where stat is not available
     struct stat st;
-
+    
     if(stat(pathname,&st) != 0)
     {
         *status = U_FILE_ACCESS_ERROR;
@@ -254,7 +349,7 @@ utm_open(const char *name, int32_t initialCapacity, int32_t maxCapacity, int32_t
     }
 
     mem=(UToolMemory *)uprv_malloc(sizeof(UToolMemory)+initialCapacity*size);
-    if(mem==NULL) {
+    if(mem==nullptr) {
         fprintf(stderr, "error: %s - out of memory\n", name);
         exit(U_MEMORY_ALLOCATION_ERROR);
     }
@@ -270,7 +365,7 @@ utm_open(const char *name, int32_t initialCapacity, int32_t maxCapacity, int32_t
 
 U_CAPI void U_EXPORT2
 utm_close(UToolMemory *mem) {
-    if(mem!=NULL) {
+    if(mem!=nullptr) {
         if(mem->array!=mem->staticArray) {
             uprv_free(mem->array);
         }
@@ -297,7 +392,7 @@ utm_hasCapacity(UToolMemory *mem, int32_t capacity) {
 
         if(mem->maxCapacity<capacity) {
             fprintf(stderr, "error: %s - trying to use more than maxCapacity=%ld units\n",
-                    mem->name, (long)mem->maxCapacity);
+                    mem->name, static_cast<long>(mem->maxCapacity));
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
 
@@ -312,26 +407,26 @@ utm_hasCapacity(UToolMemory *mem, int32_t capacity) {
 
         if(mem->array==mem->staticArray) {
             mem->array=uprv_malloc(newCapacity*mem->size);
-            if(mem->array!=NULL) {
+            if(mem->array!=nullptr) {
                 uprv_memcpy(mem->array, mem->staticArray, (size_t)mem->idx*mem->size);
             }
         } else {
             mem->array=uprv_realloc(mem->array, newCapacity*mem->size);
         }
 
-        if(mem->array==NULL) {
+        if(mem->array==nullptr) {
             fprintf(stderr, "error: %s - out of memory\n", mem->name);
             exit(U_MEMORY_ALLOCATION_ERROR);
         }
         mem->capacity=newCapacity;
     }
 
-    return TRUE;
+    return true;
 }
 
 U_CAPI void * U_EXPORT2
 utm_alloc(UToolMemory *mem) {
-    char *p=NULL;
+    char *p=nullptr;
     int32_t oldIndex=mem->idx;
     int32_t newIndex=oldIndex+1;
     if(utm_hasCapacity(mem, newIndex)) {
@@ -344,7 +439,7 @@ utm_alloc(UToolMemory *mem) {
 
 U_CAPI void * U_EXPORT2
 utm_allocN(UToolMemory *mem, int32_t n) {
-    char *p=NULL;
+    char *p=nullptr;
     int32_t oldIndex=mem->idx;
     int32_t newIndex=oldIndex+n;
     if(utm_hasCapacity(mem, newIndex)) {

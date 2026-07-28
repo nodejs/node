@@ -14,7 +14,7 @@ const messages = [
   Buffer.from('First message to send'),
   Buffer.from('Second message to send'),
   Buffer.from('Third message to send'),
-  Buffer.from('Fourth message to send')
+  Buffer.from('Fourth message to send'),
 ];
 const workers = {};
 const listeners = 3;
@@ -63,7 +63,7 @@ function launchChildProcess() {
     }
   });
 
-  worker.on('message', function(msg) {
+  worker.on('message', common.mustCallAtLeast((msg) => {
     if (msg.listening) {
       listening += 1;
 
@@ -88,7 +88,7 @@ function launchChildProcess() {
         console.error('[PARENT] All workers have received the ' +
                       'required number of messages. Will now compare.');
 
-        Object.keys(workers).forEach(function(pid) {
+        for (const pid of Object.keys(workers)) {
           const worker = workers[pid];
 
           let count = 0;
@@ -106,14 +106,14 @@ function launchChildProcess() {
                         worker.pid, count);
 
           assert.strictEqual(count, messages.length);
-        });
+        }
 
         clearTimeout(timer);
         console.error('[PARENT] Success');
         killChildren(workers);
       }
     }
-  });
+  }));
 }
 
 function killChildren(children) {
@@ -164,7 +164,9 @@ if (process.argv[2] !== 'child') {
     const buf = messages[i++];
 
     if (!buf) {
-      try { sendSocket.close(); } catch {}
+      try { sendSocket.close(); } catch {
+        // Continue regardless of error.
+      }
       return;
     }
 
@@ -174,13 +176,12 @@ if (process.argv[2] !== 'child') {
       buf.length,
       common.PORT,
       GROUP_ADDRESS,
-      function(err) {
-        assert.ifError(err);
+      common.mustSucceed(() => {
         console.error('[PARENT] sent "%s" to %s:%s',
                       buf.toString(),
                       GROUP_ADDRESS, common.PORT);
         process.nextTick(sendSocket.sendNext);
-      }
+      }),
     );
   };
 }
@@ -189,7 +190,7 @@ if (process.argv[2] === 'child') {
   const receivedMessages = [];
   const listenSocket = dgram.createSocket({
     type: 'udp6',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('listening', function() {

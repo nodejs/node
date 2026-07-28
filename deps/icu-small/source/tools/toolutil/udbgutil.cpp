@@ -16,6 +16,8 @@
 #include "unicode/ucnv.h"
 #include "unicode/unistr.h"
 #include "cstr.h"
+#include "mutex.h"
+#include "umutex.h"
 
 /*
 To add a new enum type
@@ -107,6 +109,7 @@ static const Field names_UCalendarDateFields[] =
     FIELD_NAME_STR( LEN_UCAL, UCAL_JULIAN_DAY ),
     FIELD_NAME_STR( LEN_UCAL, UCAL_MILLISECONDS_IN_DAY ),
     FIELD_NAME_STR( LEN_UCAL, UCAL_IS_LEAP_MONTH ),
+    FIELD_NAME_STR( LEN_UCAL, UCAL_ORDINAL_MONTH ),
 };
 
 
@@ -233,13 +236,13 @@ static const Field names_UDebugEnumType[] =
 #define COUNT_FAIL_CASE(x) case UDBG_##x: return -1;
 
 #define FIELD_CASE(x)  case UDBG_##x: return names_##x;
-#define FIELD_FAIL_CASE(x) case UDBG_##x: return NULL;
+#define FIELD_FAIL_CASE(x) case UDBG_##x: return nullptr;
 
 // low level
 
 /**
  * @param type type of item
- * @param actual TRUE: for the actual enum's type (UCAL_FIELD_COUNT, etc), or FALSE for the string count
+ * @param actual true: for the actual enum's type (UCAL_FIELD_COUNT, etc), or false for the string count
  */
 static int32_t _udbg_enumCount(UDebugEnumType type, UBool actual) {
 	switch(type) {
@@ -281,28 +284,28 @@ static const Field* _udbg_enumFields(UDebugEnumType type) {
         FIELD_CASE(UColAttributeValue)
 #endif
 	default:
-		return NULL;
+		return nullptr;
 	}
 }
 
 // implementation
 
 int32_t  udbg_enumCount(UDebugEnumType type) {
-	return _udbg_enumCount(type, FALSE);
+	return _udbg_enumCount(type, false);
 }
 
 int32_t  udbg_enumExpectedCount(UDebugEnumType type) {
-	return _udbg_enumCount(type, TRUE);
+	return _udbg_enumCount(type, true);
 }
 
 const char *  udbg_enumName(UDebugEnumType type, int32_t field) {
 	if(field<0 ||
-				field>=_udbg_enumCount(type,FALSE)) { // also will catch unsupported items
-		return NULL;
+				field>=_udbg_enumCount(type,false)) { // also will catch unsupported items
+		return nullptr;
 	} else {
 		const Field *fields = _udbg_enumFields(type);
-		if(fields == NULL) {
-			return NULL;
+		if(fields == nullptr) {
+			return nullptr;
 		} else {
 			return fields[field].str + fields[field].prefix;
 		}
@@ -311,11 +314,11 @@ const char *  udbg_enumName(UDebugEnumType type, int32_t field) {
 
 int32_t  udbg_enumArrayValue(UDebugEnumType type, int32_t field) {
 	if(field<0 ||
-				field>=_udbg_enumCount(type,FALSE)) { // also will catch unsupported items
+				field>=_udbg_enumCount(type,false)) { // also will catch unsupported items
 		return -1;
 	} else {
 		const Field *fields = _udbg_enumFields(type);
-		if(fields == NULL) {
+		if(fields == nullptr) {
 			return -1;
 		} else {
 			return fields[field].num;
@@ -324,18 +327,18 @@ int32_t  udbg_enumArrayValue(UDebugEnumType type, int32_t field) {
 }
 
 int32_t udbg_enumByName(UDebugEnumType type, const char *value) {
-    if(type<0||type>=_udbg_enumCount(UDBG_UDebugEnumType, TRUE)) {
+    if(type<0||type>=_udbg_enumCount(UDBG_UDebugEnumType, true)) {
         return -1; // type out of range
     }
 	const Field *fields = _udbg_enumFields(type);
-    if (fields != NULL) {
-        for(int32_t field = 0;field<_udbg_enumCount(type, FALSE);field++) {
+    if (fields != nullptr) {
+        for(int32_t field = 0;field<_udbg_enumCount(type, false);field++) {
             if(!strcmp(value, fields[field].str + fields[field].prefix)) {
                 return fields[field].num;
             }
         }
         // try with the prefix
-        for(int32_t field = 0;field<_udbg_enumCount(type, FALSE);field++) {
+        for(int32_t field = 0;field<_udbg_enumCount(type, false);field++) {
             if(!strcmp(value, fields[field].str)) {
                 return fields[field].num;
             }
@@ -349,7 +352,7 @@ int32_t udbg_enumByName(UDebugEnumType type, const char *value) {
 /**
  * Print the current platform
  */
-U_CAPI const char *udbg_getPlatform(void)
+U_CAPI const char *udbg_getPlatform()
 {
 #if U_PLATFORM_USES_ONLY_WIN32_API
     return "Windows";
@@ -398,10 +401,10 @@ paramEmpty(const USystemParams * /* param */, char *target, int32_t targetCapaci
 
 U_CAPI  int32_t
 paramStatic(const USystemParams *param, char *target, int32_t targetCapacity, UErrorCode *status) {
-  if(param->paramStr==NULL) return paramEmpty(param,target,targetCapacity,status);
+  if(param->paramStr==nullptr) return paramEmpty(param,target,targetCapacity,status);
   if(U_FAILURE(*status))return 0;
   int32_t len = static_cast<int32_t>(uprv_strlen(param->paramStr));
-  if(target!=NULL) {
+  if(target!=nullptr) {
     uprv_strncpy(target,param->paramStr,uprv_min(len,targetCapacity));
   }
   return u_terminateChars(target, targetCapacity, len, status);
@@ -410,17 +413,17 @@ paramStatic(const USystemParams *param, char *target, int32_t targetCapacity, UE
 static const char *nullString = "(null)";
 
 static int32_t stringToStringBuffer(char *target, int32_t targetCapacity, const char *str, UErrorCode *status) {
-  if(str==NULL) str=nullString;
+  if(str==nullptr) str=nullString;
 
   int32_t len = static_cast<int32_t>(uprv_strlen(str));
   if (U_SUCCESS(*status)) {
-    if(target!=NULL) {
+    if(target!=nullptr) {
       uprv_strncpy(target,str,uprv_min(len,targetCapacity));
     }
   } else {
     const char *s = u_errorName(*status);
     len = static_cast<int32_t>(uprv_strlen(s));
-    if(target!=NULL) {
+    if(target!=nullptr) {
       uprv_strncpy(target,s,uprv_min(len,targetCapacity));
     }
   }
@@ -437,7 +440,7 @@ static int32_t integerToStringBuffer(char *target, int32_t targetCapacity, int32
 U_CAPI  int32_t
 paramInteger(const USystemParams *param, char *target, int32_t targetCapacity, UErrorCode *status) {
   if(U_FAILURE(*status))return 0;
-  if(param->paramStr==NULL || param->paramStr[0]=='d') {
+  if(param->paramStr==nullptr || param->paramStr[0]=='d') {
     return integerToStringBuffer(target,targetCapacity,param->paramInt, 10,status);
   } else if(param->paramStr[0]=='x') {
     return integerToStringBuffer(target,targetCapacity,param->paramInt, 16,status);
@@ -472,7 +475,7 @@ paramCldrVersion(const USystemParams * /* param */, char *target, int32_t target
 U_CAPI  int32_t
 paramTimezoneDefault(const USystemParams * /* param */, char *target, int32_t targetCapacity, UErrorCode *status) {
   if(U_FAILURE(*status))return 0;
-  UChar buf[100];
+  char16_t buf[100];
   char buf2[100];
   int32_t len;
 
@@ -490,7 +493,7 @@ U_CAPI  int32_t
 paramLocaleDefaultBcp47(const USystemParams * /* param */, char *target, int32_t targetCapacity, UErrorCode *status) {
   if(U_FAILURE(*status))return 0;
   const char *def = uloc_getDefault();
-  return uloc_toLanguageTag(def,target,targetCapacity,FALSE,status);
+  return uloc_toLanguageTag(def,target,targetCapacity,false,status);
 }
 
 
@@ -517,20 +520,20 @@ static const USystemParams systemParams[] = {
   { "version",      paramStatic, U_ICU_VERSION,0 },
   { "version.unicode", paramStatic, U_UNICODE_VERSION,0 },
   { "platform.number", paramInteger, "d",U_PLATFORM},
-  { "platform.type", paramPlatform, NULL ,0},
-  { "locale.default", paramLocaleDefault, NULL, 0},
-  { "locale.default.bcp47", paramLocaleDefaultBcp47, NULL, 0},
+  { "platform.type", paramPlatform, nullptr ,0},
+  { "locale.default", paramLocaleDefault, nullptr, 0},
+  { "locale.default.bcp47", paramLocaleDefaultBcp47, nullptr, 0},
 #if !UCONFIG_NO_CONVERSION
-  { "converter.default", paramConverterDefault, NULL, 0},
+  { "converter.default", paramConverterDefault, nullptr, 0},
 #endif
   { "icudata.name", paramStatic, U_ICUDATA_NAME, 0},
-  { "icudata.path", paramIcudataPath, NULL, 0},
+  { "icudata.path", paramIcudataPath, nullptr, 0},
 
-  { "cldr.version", paramCldrVersion, NULL, 0},
+  { "cldr.version", paramCldrVersion, nullptr, 0},
 
 #if !UCONFIG_NO_FORMATTING
-  { "tz.version", paramTimezoneVersion, NULL, 0},
-  { "tz.default", paramTimezoneDefault, NULL, 0},
+  { "tz.version", paramTimezoneVersion, nullptr, 0},
+  { "tz.default", paramTimezoneDefault, nullptr, 0},
 #endif
 
   { "cpu.bits",       paramInteger, "d", (sizeof(void*))*8},
@@ -561,16 +564,16 @@ static const USystemParams systemParams[] = {
 #define U_SYSPARAM_COUNT UPRV_LENGTHOF(systemParams)
 
 U_CAPI const char *udbg_getSystemParameterNameByIndex(int32_t i) {
-  if(i>=0 && i < (int32_t)U_SYSPARAM_COUNT) {
+  if (i >= 0 && i < U_SYSPARAM_COUNT) {
     return systemParams[i].paramName;
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 
 
 U_CAPI int32_t udbg_getSystemParameterValueByIndex(int32_t i, char *buffer, int32_t bufferCapacity, UErrorCode *status) {
-  if(i>=0 && i< (int32_t)U_SYSPARAM_COUNT) {
+  if (i >= 0 && i < U_SYSPARAM_COUNT) {
     return systemParams[i].paramFunction(&(systemParams[i]),buffer,bufferCapacity,status);
   } else {
     return 0;
@@ -582,7 +585,7 @@ U_CAPI void udbg_writeIcuInfo(FILE *out) {
   /* todo: API for writing DTD? */
   fprintf(out, " <icuSystemParams type=\"icu4c\">\n");
   const char *paramName;
-  for(int32_t i=0;(paramName=udbg_getSystemParameterNameByIndex(i))!=NULL;i++) {
+  for(int32_t i=0;(paramName=udbg_getSystemParameterNameByIndex(i))!=nullptr;i++) {
     UErrorCode status2 = U_ZERO_ERROR;
     udbg_getSystemParameterValueByIndex(i, str,2000,&status2);
     if(U_SUCCESS(status2)) {
@@ -607,11 +610,13 @@ U_CAPI void udbg_writeIcuInfo(FILE *out) {
 #include <ostream>
 #include <iostream>
 
+static icu::UMutex gKnownIssuesLock;
+
 class KnownIssues {
 public:
   KnownIssues();
   ~KnownIssues();
-  void add(const char *ticket, const char *where, const UChar *msg, UBool *firstForTicket, UBool *firstForWhere);
+  void add(const char *ticket, const char *where, const char16_t *msg, UBool *firstForTicket, UBool *firstForWhere);
   void add(const char *ticket, const char *where, const char *msg, UBool *firstForTicket, UBool *firstForWhere);
   UBool print();
 private:
@@ -646,24 +651,25 @@ static std::string mapTicketId(const char *ticketStr) {
   return ticket;
 }
 
-void KnownIssues::add(const char *ticketStr, const char *where, const UChar *msg, UBool *firstForTicket, UBool *firstForWhere)
+void KnownIssues::add(const char *ticketStr, const char *where, const char16_t *msg, UBool *firstForTicket, UBool *firstForWhere)
 {
   const std::string ticket = mapTicketId(ticketStr);
+  icu::Mutex mutex(&gKnownIssuesLock);
   if(fTable.find(ticket) == fTable.end()) {
-    if(firstForTicket!=NULL) *firstForTicket = TRUE;
+    if(firstForTicket!=nullptr) *firstForTicket = true;
     fTable[ticket] = std::map < std::string, std::set < std::string > >();
   } else {
-    if(firstForTicket!=NULL) *firstForTicket = FALSE;
+    if(firstForTicket!=nullptr) *firstForTicket = false;
   }
-  if(where==NULL) return;
+  if(where==nullptr) return;
 
   if(fTable[ticket].find(where) == fTable[ticket].end()) {
-    if(firstForWhere!=NULL) *firstForWhere = TRUE;
+    if(firstForWhere!=nullptr) *firstForWhere = true;
     fTable[ticket][where] = std::set < std::string >();
   } else {
-    if(firstForWhere!=NULL) *firstForWhere = FALSE;
+    if(firstForWhere!=nullptr) *firstForWhere = false;
   }
-  if(msg==NULL || !*msg) return;
+  if(msg==nullptr || !*msg) return;
 
   const icu::UnicodeString ustr(msg);
 
@@ -673,21 +679,22 @@ void KnownIssues::add(const char *ticketStr, const char *where, const UChar *msg
 void KnownIssues::add(const char *ticketStr, const char *where, const char *msg, UBool *firstForTicket, UBool *firstForWhere)
 {
   const std::string ticket = mapTicketId(ticketStr);
+  icu::Mutex mutex(&gKnownIssuesLock);
   if(fTable.find(ticket) == fTable.end()) {
-    if(firstForTicket!=NULL) *firstForTicket = TRUE;
+    if(firstForTicket!=nullptr) *firstForTicket = true;
     fTable[ticket] = std::map < std::string, std::set < std::string > >();
   } else {
-    if(firstForTicket!=NULL) *firstForTicket = FALSE;
+    if(firstForTicket!=nullptr) *firstForTicket = false;
   }
-  if(where==NULL) return;
+  if(where==nullptr) return;
 
   if(fTable[ticket].find(where) == fTable[ticket].end()) {
-    if(firstForWhere!=NULL) *firstForWhere = TRUE;
+    if(firstForWhere!=nullptr) *firstForWhere = true;
     fTable[ticket][where] = std::set < std::string >();
   } else {
-    if(firstForWhere!=NULL) *firstForWhere = FALSE;
+    if(firstForWhere!=nullptr) *firstForWhere = false;
   }
-  if(msg==NULL || !*msg) return;
+  if(msg==nullptr || !*msg) return;
 
   std::string str(msg);
   fTable[ticket][where].insert(str);
@@ -695,8 +702,9 @@ void KnownIssues::add(const char *ticketStr, const char *where, const char *msg,
 
 UBool KnownIssues::print()
 {
+  icu::Mutex mutex(&gKnownIssuesLock);
   if(fTable.empty()) {
-    return FALSE;
+    return false;
   }
 
   std::cout << "KNOWN ISSUES" << std::endl;
@@ -723,13 +731,13 @@ UBool KnownIssues::print()
       }
     }
   }
-  return TRUE;
+  return true;
 }
 
-U_CAPI void *udbg_knownIssue_openU(void *ptr, const char *ticket, char *where, const UChar *msg, UBool *firstForTicket,
+U_CAPI void *udbg_knownIssue_openU(void *ptr, const char *ticket, char *where, const char16_t *msg, UBool *firstForTicket,
                                    UBool *firstForWhere) {
   KnownIssues *t = static_cast<KnownIssues*>(ptr);
-  if(t==NULL) {
+  if(t==nullptr) {
     t = new KnownIssues();
   }
 
@@ -741,7 +749,7 @@ U_CAPI void *udbg_knownIssue_openU(void *ptr, const char *ticket, char *where, c
 U_CAPI void *udbg_knownIssue_open(void *ptr, const char *ticket, char *where, const char *msg, UBool *firstForTicket,
                                    UBool *firstForWhere) {
   KnownIssues *t = static_cast<KnownIssues*>(ptr);
-  if(t==NULL) {
+  if(t==nullptr) {
     t = new KnownIssues();
   }
 
@@ -752,11 +760,11 @@ U_CAPI void *udbg_knownIssue_open(void *ptr, const char *ticket, char *where, co
 
 U_CAPI UBool udbg_knownIssue_print(void *ptr) {
   KnownIssues *t = static_cast<KnownIssues*>(ptr);
-  if(t==NULL) {
-    return FALSE;
+  if(t==nullptr) {
+    return false;
   } else {
     t->print();
-    return TRUE;
+    return true;
   }
 }
 

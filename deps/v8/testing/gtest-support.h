@@ -36,21 +36,20 @@ GET_TYPE_NAME(double)
 // |var| while inside the loop body.
 #define TRACED_FOREACH(_type, _var, _container)                          \
   for (_type const _var : _container)                                    \
-    for (bool _done = false; !_done;)                                    \
+    for (bool _var##_done = false; !_var##_done;)                        \
       for (SCOPED_TRACE(::testing::Message() << #_var << " = " << _var); \
-           !_done; _done = true)
-
+           !_var##_done; _var##_done = true)
 
 // TRACED_FORRANGE(type, var, low, high) expands to a loop that assigns |var|
 // every value in the range |low| to (including) |high| and adds a
 // SCOPED_TRACE() message for the |var| while inside the loop body.
 // TODO(bmeurer): Migrate to C++11 once we're ready.
 #define TRACED_FORRANGE(_type, _var, _low, _high)                          \
-  for (_type _i = _low; _i <= _high; ++_i)                                 \
-    for (bool _done = false; !_done;)                                      \
-      for (_type const _var = _i; !_done;)                                 \
+  for (_type _var##_i = _low; _var##_i <= _high; ++_var##_i)               \
+    for (bool _var##_done = false; !_var##_done;)                          \
+      for (_type const _var = _var##_i; !_var##_done;)                     \
         for (SCOPED_TRACE(::testing::Message() << #_var << " = " << _var); \
-             !_done; _done = true)
+             !_var##_done; _var##_done = true)
 
 }  // namespace internal
 }  // namespace testing

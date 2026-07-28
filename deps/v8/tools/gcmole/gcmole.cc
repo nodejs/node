@@ -27,15 +27,6 @@
 
 // This is clang plugin used by gcmole tool. See README for more details.
 
-#include "clang/AST/AST.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/Mangle.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/StmtVisitor.h"
-#include "clang/Frontend/FrontendPluginRegistry.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "llvm/Support/raw_ostream.h"
-
 #include <bitset>
 #include <fstream>
 #include <iostream>
@@ -43,10 +34,28 @@
 #include <set>
 #include <stack>
 
+#include "clang/AST/APValue.h"
+#include "clang/AST/AST.h"
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
+#include "clang/AST/Mangle.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/StmtVisitor.h"
+#include "clang/AST/TemplateBase.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/FrontendPluginRegistry.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/LineIterator.h"
+#include "llvm/Support/raw_ostream.h"
+
 namespace {
 
 bool g_tracing_enabled = false;
 bool g_dead_vars_analysis = false;
+bool g_verbose = false;
+bool g_print_gc_call_chain = false;
 
 #define TRACE(str)                   \
   do {                               \
@@ -77,25 +86,20 @@ typedef std::set<MangledName> CalleesSet;
 typedef std::map<MangledName, MangledName> CalleesMap;
 
 static bool GetMangledName(clang::MangleContext* ctx,
-                           const clang::NamedDecl* decl,
-                           MangledName* result) {
-  if (!llvm::isa<clang::CXXConstructorDecl>(decl) &&
-      !llvm::isa<clang::CXXDestructorDecl>(decl)) {
-    llvm::SmallVector<char, 512> output;
-    llvm::raw_svector_ostream out(output);
-    ctx->mangleName(decl, out);
-    *result = out.str().str();
-    return true;
-  }
-
-  return false;
+                           const clang::NamedDecl* decl, MangledName* result) {
+  if (llvm::isa<clang::CXXConstructorDecl>(decl)) return false;
+  if (llvm::isa<clang::CXXDestructorDecl>(decl)) return false;
+  if (llvm::isa<clang::CXXDeductionGuideDecl>(decl)) return false;
+  llvm::SmallVector<char, 512> output;
+  llvm::raw_svector_ostream out(output);
+  ctx->mangleName(decl, out);
+  *result = out.str().str();
+  return true;
 }
-
 
 static bool InV8Namespace(const clang::NamedDecl* decl) {
   return decl->getQualifiedNameAsString().compare(0, 4, "v8::") == 0;
 }
-
 
 static std::string EXTERNAL("EXTERNAL");
 static std::string STATE_TAG("enum v8::internal::StateTag");
@@ -103,7 +107,8 @@ static std::string STATE_TAG("enum v8::internal::StateTag");
 static bool IsExternalVMState(const clang::ValueDecl* var) {
   const clang::EnumConstantDecl* enum_constant =
       llvm::dyn_cast<clang::EnumConstantDecl>(var);
-  if (enum_constant != NULL && enum_constant->getNameAsString() == EXTERNAL) {
+  if (enum_constant != nullptr &&
+      enum_constant->getNameAsString() == EXTERNAL) {
     clang::QualType type = enum_constant->getType();
     return (type.getAsString() == STATE_TAG);
   }
@@ -111,15 +116,12 @@ static bool IsExternalVMState(const clang::ValueDecl* var) {
   return false;
 }
 
-
 struct Resolver {
   explicit Resolver(clang::ASTContext& ctx)
-      : ctx_(ctx), decl_ctx_(ctx.getTranslationUnitDecl()) {
-  }
+      : ctx_(ctx), decl_ctx_(ctx.getTranslationUnitDecl()) {}
 
   Resolver(clang::ASTContext& ctx, clang::DeclContext* decl_ctx)
-      : ctx_(ctx), decl_ctx_(decl_ctx) {
-  }
+      : ctx_(ctx), decl_ctx_(decl_ctx) {}
 
   clang::DeclarationName ResolveName(const char* n) {
     clang::IdentifierInfo* ident = &ctx_.Idents.get(n);
@@ -130,9 +132,9 @@ struct Resolver {
     return Resolver(ctx_, Resolve<clang::NamespaceDecl>(n));
   }
 
-  template<typename T>
+  template <typename T>
   T* Resolve(const char* n) {
-    if (decl_ctx_ == NULL) return NULL;
+    if (decl_ctx_ == nullptr) return nullptr;
 
     clang::DeclContext::lookup_result result =
         decl_ctx_->lookup(ResolveName(n));
@@ -140,72 +142,34 @@ struct Resolver {
     clang::DeclContext::lookup_iterator end = result.end();
     for (clang::DeclContext::lookup_iterator i = result.begin(); i != end;
          i++) {
-      if (llvm::isa<T>(*i)) {
-        return llvm::cast<T>(*i);
-      } else {
-        llvm::errs() << "Didn't match declaration template against "
-                     << (*i)->getNameAsString() << "\n";
+      clang::NamedDecl* decl = *i;
+
+      // Try to strip off any type aliases.
+      const clang::TypeAliasDecl* type_alias_decl =
+          llvm::dyn_cast_or_null<clang::TypeAliasDecl>(decl);
+      if (type_alias_decl) {
+        clang::QualType underlying_type = type_alias_decl->getUnderlyingType();
+        clang::QualType desugared_type = underlying_type.getDesugaredType(ctx_);
+        clang::TagDecl* tag_decl = desugared_type->getAsTagDecl();
+        if (!tag_decl) {
+          llvm::errs() << "Couldn't resolve target decl of type alias "
+                       << decl->getNameAsString() << "\n";
+          decl->dump();
+          return nullptr;
+        }
+        decl = tag_decl;
       }
+
+      if (llvm::isa<T>(decl)) {
+        return llvm::cast<T>(decl);
+      }
+
+      llvm::errs() << "Didn't match declaration template for " << n
+                   << " against " << decl->getNameAsString() << "\n";
+      decl->dump();
     }
 
-    return NULL;
-  }
-
-  clang::CXXRecordDecl* ResolveTemplate(const char* n) {
-    clang::NamedDecl* initial_template = Resolve<clang::NamedDecl>(n);
-    if (!initial_template) return NULL;
-
-    clang::NamedDecl* underlying_template =
-        initial_template->getUnderlyingDecl();
-    if (!underlying_template) {
-      llvm::errs() << "Couldn't resolve underlying template\n";
-      return NULL;
-    }
-    const clang::TypeAliasDecl* type_alias_decl =
-        llvm::dyn_cast_or_null<clang::TypeAliasDecl>(underlying_template);
-    if (!type_alias_decl) {
-      llvm::errs() << "Couldn't resolve TypeAliasDecl\n";
-      return NULL;
-    }
-    const clang::Type* type = type_alias_decl->getTypeForDecl();
-    if (!type) {
-      llvm::errs() << "Couldn't resolve TypeAliasDecl to Type\n";
-      return NULL;
-    }
-    const clang::TypedefType* typedef_type =
-        llvm::dyn_cast_or_null<clang::TypedefType>(type);
-    if (!typedef_type) {
-      llvm::errs() << "Couldn't resolve TypedefType\n";
-      return NULL;
-    }
-    const clang::TypedefNameDecl* typedef_name_decl = typedef_type->getDecl();
-    if (!typedef_name_decl) {
-      llvm::errs() << "Couldn't resolve TypedefType to TypedefNameDecl\n";
-      return NULL;
-    }
-
-    clang::QualType underlying_type = typedef_name_decl->getUnderlyingType();
-    if (!llvm::isa<clang::TemplateSpecializationType>(underlying_type)) {
-      llvm::errs() << "Couldn't resolve TemplateSpecializationType\n";
-      return NULL;
-    }
-
-    const clang::TemplateSpecializationType* templ_specialization_type =
-        llvm::cast<clang::TemplateSpecializationType>(underlying_type);
-    if (!llvm::isa<clang::RecordType>(templ_specialization_type->desugar())) {
-      llvm::errs() << "Couldn't resolve RecordType\n";
-      return NULL;
-    }
-
-    const clang::RecordType* record_type =
-        llvm::cast<clang::RecordType>(templ_specialization_type->desugar());
-    clang::CXXRecordDecl* record_decl =
-        llvm::dyn_cast_or_null<clang::CXXRecordDecl>(record_type->getDecl());
-    if (!record_decl) {
-      llvm::errs() << "Couldn't resolve CXXRecordDecl\n";
-      return NULL;
-    }
-    return record_decl;
+    return nullptr;
   }
 
  private:
@@ -213,60 +177,55 @@ struct Resolver {
   clang::DeclContext* decl_ctx_;
 };
 
-
 class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
  public:
-  explicit CalleesPrinter(clang::MangleContext* ctx) : ctx_(ctx) {
-  }
+  explicit CalleesPrinter(clang::MangleContext* ctx) : ctx_(ctx) {}
 
   virtual bool VisitCallExpr(clang::CallExpr* expr) {
     const clang::FunctionDecl* callee = expr->getDirectCallee();
-    if (callee != NULL) AnalyzeFunction(callee);
+    if (callee != nullptr) AnalyzeFunction(callee);
     return true;
   }
 
   virtual bool VisitDeclRefExpr(clang::DeclRefExpr* expr) {
     // If function mentions EXTERNAL VMState add artificial garbage collection
     // mark.
-    if (IsExternalVMState(expr->getDecl()))
+    if (IsExternalVMState(expr->getDecl())) {
       AddCallee("CollectGarbage", "CollectGarbage");
+    }
     return true;
   }
 
   void AnalyzeFunction(const clang::FunctionDecl* f) {
+    if (!InV8Namespace(f)) return;
     MangledName name;
-    if (InV8Namespace(f) && GetMangledName(ctx_, f, &name)) {
-      const std::string& function = f->getNameAsString();
-      AddCallee(name, function);
+    if (!GetMangledName(ctx_, f, &name)) return;
+    const std::string& function = f->getNameAsString();
+    AddCallee(name, function);
 
-      const clang::FunctionDecl* body = NULL;
-      if (f->hasBody(body) && !Analyzed(name)) {
-        EnterScope(name);
-        TraverseStmt(body->getBody());
-        LeaveScope();
-      }
+    const clang::FunctionDecl* body = nullptr;
+    if (f->hasBody(body) && !Analyzed(name)) {
+      EnterScope(name);
+      TraverseStmt(body->getBody());
+      LeaveScope();
     }
   }
 
-  typedef std::map<MangledName, CalleesSet* > Callgraph;
+  typedef std::map<MangledName, CalleesSet*> Callgraph;
 
-  bool Analyzed(const MangledName& name) {
-    return callgraph_[name] != NULL;
-  }
+  bool Analyzed(const MangledName& name) { return callgraph_[name] != nullptr; }
 
   void EnterScope(const MangledName& name) {
     CalleesSet* callees = callgraph_[name];
 
-    if (callees == NULL) {
+    if (callees == nullptr) {
       callgraph_[name] = callees = new CalleesSet();
     }
 
     scopes_.push(callees);
   }
 
-  void LeaveScope() {
-    scopes_.pop();
-  }
+  void LeaveScope() { scopes_.pop(); }
 
   void AddCallee(const MangledName& name, const MangledName& function) {
     if (!scopes_.empty()) scopes_.top()->insert(name);
@@ -275,14 +234,12 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
 
   void PrintCallGraph() {
     for (Callgraph::const_iterator i = callgraph_.begin(), e = callgraph_.end();
-         i != e;
-         ++i) {
+         i != e; ++i) {
       std::cout << i->first << "," << mangled_to_function_[i->first] << "\n";
 
       CalleesSet* callees = i->second;
       for (CalleesSet::const_iterator j = callees->begin(), e = callees->end();
-           j != e;
-           ++j) {
+           j != e; ++j) {
         std::cout << "\t" << *j << "," << mangled_to_function_[*j] << "\n";
       }
     }
@@ -291,27 +248,27 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
  private:
   clang::MangleContext* ctx_;
 
-  std::stack<CalleesSet* > scopes_;
+  std::stack<CalleesSet*> scopes_;
   Callgraph callgraph_;
   CalleesMap mangled_to_function_;
 };
-
 
 class FunctionDeclarationFinder
     : public clang::ASTConsumer,
       public clang::RecursiveASTVisitor<FunctionDeclarationFinder> {
  public:
-  explicit FunctionDeclarationFinder(clang::DiagnosticsEngine& d,
-                                     clang::SourceManager& sm,
-                                     const std::vector<std::string>& args)
-      : d_(d), sm_(sm) {}
+  explicit FunctionDeclarationFinder(
+      clang::DiagnosticsEngine& diagnostics_engine,
+      clang::SourceManager& source_manager,
+      const std::vector<std::string>& args)
+      : diagnostics_engine_(diagnostics_engine),
+        source_manager_(source_manager) {}
 
-  virtual void HandleTranslationUnit(clang::ASTContext &ctx) {
-    mangle_context_ = clang::ItaniumMangleContext::create(ctx, d_);
+  void HandleTranslationUnit(clang::ASTContext& ctx) override {
+    mangle_context_ =
+        clang::ItaniumMangleContext::create(ctx, diagnostics_engine_);
     callees_printer_ = new CalleesPrinter(mangle_context_);
-
     TraverseDecl(ctx.getTranslationUnitDecl());
-
     callees_printer_->PrintCallGraph();
   }
 
@@ -321,8 +278,8 @@ class FunctionDeclarationFinder
   }
 
  private:
-  clang::DiagnosticsEngine& d_;
-  clang::SourceManager& sm_;
+  clang::DiagnosticsEngine& diagnostics_engine_;
+  clang::SourceManager& source_manager_;
   clang::MangleContext* mangle_context_;
 
   CalleesPrinter* callees_printer_;
@@ -331,14 +288,56 @@ class FunctionDeclarationFinder
 static bool gc_suspects_loaded = false;
 static CalleesSet gc_suspects;
 static CalleesSet gc_functions;
-static bool whitelist_loaded = false;
-static CalleesSet suspects_whitelist;
+
+static bool allowlist_loaded = false;
+static CalleesSet suspects_allowlist;
+
+static bool gc_causes_loaded = false;
+static std::map<MangledName, std::vector<MangledName>> gc_causes;
+
+static void LoadGCCauses() {
+  if (gc_causes_loaded) return;
+  std::ifstream fin("gccauses");
+  std::string mangled, function;
+
+  if (!fin.is_open()) {
+    std::cerr << "failed to open gccauses" << std::endl;
+    std::abort();
+  }
+
+  while (!fin.eof()) {
+    std::getline(fin, mangled, ',');
+    std::getline(fin, function);
+    if (mangled.empty()) break;
+    std::string parent = mangled;
+    // start,nested
+    std::getline(fin, mangled, ',');
+    assert(mangled.compare("start") == 0);
+    std::getline(fin, function);
+    assert(function.compare("nested") == 0);
+    while (true) {
+      std::getline(fin, mangled, ',');
+      std::getline(fin, function);
+      if (mangled.compare("end") == 0) {
+        assert(function.compare("nested") == 0);
+        break;
+      }
+      gc_causes[parent].push_back(mangled);
+    }
+  }
+  gc_causes_loaded = true;
+}
 
 static void LoadGCSuspects() {
   if (gc_suspects_loaded) return;
 
   std::ifstream fin("gcsuspects");
   std::string mangled, function;
+
+  if (!fin.is_open()) {
+    std::cerr << "failed to open gcsuspects" << std::endl;
+    std::abort();
+  }
 
   while (!fin.eof()) {
     std::getline(fin, mangled, ',');
@@ -350,55 +349,53 @@ static void LoadGCSuspects() {
   gc_suspects_loaded = true;
 }
 
-static void LoadSuspectsWhitelist() {
-  if (whitelist_loaded) return;
+static void LoadSuspectsAllowList() {
+  if (allowlist_loaded) return;
 
-  std::ifstream fin("tools/gcmole/suspects.whitelist");
+  // TODO(cbruni): clean up once fully migrated
+  std::ifstream fin("tools/gcmole/suspects.allowlist");
   std::string s;
 
-  while (fin >> s) suspects_whitelist.insert(s);
+  if (!fin.is_open()) {
+    std::cerr << "failed to open suspects.allowlist" << std::endl;
+    std::abort();
+  }
 
-  whitelist_loaded = true;
+  while (fin >> s) suspects_allowlist.insert(s);
+
+  allowlist_loaded = true;
 }
 
 // Looks for exact match of the mangled name.
-static bool KnownToCauseGC(clang::MangleContext* ctx,
-                           const clang::FunctionDecl* decl) {
+static bool IsKnownToCauseGC(clang::MangleContext* ctx,
+                             const clang::FunctionDecl* decl) {
   LoadGCSuspects();
-
   if (!InV8Namespace(decl)) return false;
-
-  if (suspects_whitelist.find(decl->getNameAsString()) !=
-      suspects_whitelist.end()) {
+  if (suspects_allowlist.find(decl->getNameAsString()) !=
+      suspects_allowlist.end()) {
     return false;
   }
-
   MangledName name;
   if (GetMangledName(ctx, decl, &name)) {
     return gc_suspects.find(name) != gc_suspects.end();
   }
-
   return false;
 }
 
 // Looks for partial match of only the function name.
-static bool SuspectedToCauseGC(clang::MangleContext* ctx,
-                               const clang::FunctionDecl* decl) {
+static bool IsSuspectedToCauseGC(clang::MangleContext* ctx,
+                                 const clang::FunctionDecl* decl) {
   LoadGCSuspects();
-
   if (!InV8Namespace(decl)) return false;
-
-  LoadSuspectsWhitelist();
-  if (suspects_whitelist.find(decl->getNameAsString()) !=
-      suspects_whitelist.end()) {
+  LoadSuspectsAllowList();
+  if (suspects_allowlist.find(decl->getNameAsString()) !=
+      suspects_allowlist.end()) {
     return false;
   }
-
   if (gc_functions.find(decl->getNameAsString()) != gc_functions.end()) {
     TRACE_LLVM_DECL("Suspected by ", decl);
     return true;
   }
-
   return false;
 }
 
@@ -421,11 +418,11 @@ class ExprEffect {
   bool hasRawUse() { return (effect_ & kRawUse) != 0; }
   void setRawUse() { effect_ |= kRawUse; }
 
-  static ExprEffect None() { return ExprEffect(kNoEffect, NULL); }
+  static ExprEffect None() { return ExprEffect(kNoEffect, nullptr); }
   static ExprEffect NoneWithEnv(Environment* env) {
     return ExprEffect(kNoEffect, env);
   }
-  static ExprEffect RawUse() { return ExprEffect(kRawUse, NULL); }
+  static ExprEffect RawUse() { return ExprEffect(kRawUse, nullptr); }
 
   static ExprEffect Merge(ExprEffect a, ExprEffect b);
   static ExprEffect MergeSeq(ExprEffect a, ExprEffect b);
@@ -435,22 +432,18 @@ class ExprEffect {
     return reinterpret_cast<Environment*>(effect_ & ~kAllEffects);
   }
 
-  static ExprEffect GC() {
-    return ExprEffect(kCausesGC, NULL);
-  }
+  static ExprEffect GC() { return ExprEffect(kCausesGC, nullptr); }
 
  private:
   ExprEffect(int effect, Environment* env)
-      : effect_((effect & kAllEffects) |
-                reinterpret_cast<intptr_t>(env)) { }
+      : effect_((effect & kAllEffects) | reinterpret_cast<intptr_t>(env)) {}
 
   intptr_t effect_;
 };
 
-
-const std::string BAD_EXPR_MSG("Possible problem with evaluation order.");
-const std::string DEAD_VAR_MSG("Possibly dead variable.");
-
+const std::string BAD_EXPR_MSG(
+    "Possible problem with evaluation order with interleaved GCs.");
+const std::string DEAD_VAR_MSG("Possibly stale variable due to GCs.");
 
 class Environment {
  public:
@@ -462,8 +455,7 @@ class Environment {
     return env;
   }
 
-  static Environment Merge(const Environment& l,
-                           const Environment& r) {
+  static Environment Merge(const Environment& l, const Environment& r) {
     Environment out(l);
     out &= r;
     return out;
@@ -535,8 +527,7 @@ class Environment {
   }
 
  private:
-  Environment(const Environment& l, int code)
-      : live_(l.live_) {
+  Environment(const Environment& l, int code) : live_(l.live_) {
     set_live(code);
   }
 
@@ -588,10 +579,9 @@ class Environment {
   friend class CallProps;
 };
 
-
 class CallProps {
  public:
-  CallProps() : env_(NULL) { }
+  CallProps() : env_(nullptr) {}
 
   void SetEffect(int arg, ExprEffect in) {
     if (in.hasGC()) {
@@ -599,8 +589,8 @@ class CallProps {
     }
     if (in.hasRawDef()) raw_def_.set(arg);
     if (in.hasRawUse()) raw_use_.set(arg);
-    if (in.env() != NULL) {
-      if (env_ == NULL) {
+    if (in.env() != nullptr) {
+      if (env_ == nullptr) {
         env_ = in.env();
       } else {
         *env_ |= *in.env();
@@ -610,22 +600,16 @@ class CallProps {
 
   ExprEffect ComputeCumulativeEffect(bool result_is_raw) {
     ExprEffect out = ExprEffect::NoneWithEnv(env_);
-    if (gc_.any()) {
-      out.setGC();
-    }
+    if (gc_.any()) out.setGC();
     if (raw_use_.any()) out.setRawUse();
     if (result_is_raw) out.setRawDef();
     return out;
   }
 
   bool IsSafe() {
-    if (!gc_.any()) {
-      return true;
-    }
+    if (!gc_.any()) return true;
     std::bitset<kMaxNumberOfArguments> raw = (raw_def_ | raw_use_);
-    if (!raw.any()) {
-      return true;
-    }
+    if (!raw.any()) return true;
     bool result = gc_.count() == 1 && !((raw ^ gc_).any());
     return result;
   }
@@ -638,66 +622,64 @@ class CallProps {
   Environment* env_;
 };
 
-
 Environment::SymbolTable Environment::symbol_table_;
 std::vector<Environment*> Environment::envs_;
 
 ExprEffect ExprEffect::Merge(ExprEffect a, ExprEffect b) {
   Environment* a_env = a.env();
   Environment* b_env = b.env();
-  Environment* out = NULL;
-  if (a_env != NULL && b_env != NULL) {
+  Environment* out = nullptr;
+  if (a_env != nullptr && b_env != nullptr) {
     out = Environment::Allocate(*a_env);
     *out &= *b_env;
   }
   return ExprEffect(a.effect_ | b.effect_, out);
 }
 
-
 ExprEffect ExprEffect::MergeSeq(ExprEffect a, ExprEffect b) {
-  Environment* a_env = b.hasGC() ? NULL : a.env();
+  Environment* a_env = b.hasGC() ? nullptr : a.env();
   Environment* b_env = b.env();
-  Environment* out = (b_env == NULL) ? a_env : b_env;
-  if (a_env != NULL && b_env != NULL) {
+  Environment* out = (b_env == nullptr) ? a_env : b_env;
+  if (a_env != nullptr && b_env != nullptr) {
     out = Environment::Allocate(*b_env);
     *out |= *a_env;
   }
   return ExprEffect(a.effect_ | b.effect_, out);
 }
 
-
 ExprEffect ExprEffect::Define(const std::string& name) {
   Environment* e = env();
-  if (e == NULL) {
+  if (e == nullptr) {
     e = Environment::Allocate(Environment());
   }
   e->MDefine(name);
   return ExprEffect(effect_, e);
 }
 
-
-static std::string THIS ("this");
-
+static std::string THIS("this");
 
 class FunctionAnalyzer {
  public:
-  FunctionAnalyzer(clang::MangleContext* ctx, clang::CXXRecordDecl* object_decl,
-                   clang::CXXRecordDecl* maybe_object_decl,
+  FunctionAnalyzer(clang::MangleContext* ctx,
+                   clang::CXXRecordDecl* heap_object_decl,
                    clang::CXXRecordDecl* smi_decl,
-                   clang::CXXRecordDecl* no_gc_decl,
-                   clang::CXXRecordDecl* no_gc_or_safepoint_decl,
-                   clang::CXXRecordDecl* no_heap_access_decl,
+                   clang::CXXRecordDecl* tagged_index_decl,
+                   clang::CXXRecordDecl* cleared_weak_value_decl,
+                   clang::ClassTemplateDecl* tagged_decl,
+                   clang::CXXRecordDecl* no_gc_mole_decl,
+                   clang::CXXRecordDecl* conservative_pinning_scope_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
       : ctx_(ctx),
-        object_decl_(object_decl),
-        maybe_object_decl_(maybe_object_decl),
+        heap_object_decl_(heap_object_decl),
         smi_decl_(smi_decl),
-        no_gc_decl_(no_gc_decl),
-        no_gc_or_safepoint_decl_(no_gc_or_safepoint_decl),
-        no_heap_access_decl_(no_heap_access_decl),
+        tagged_index_decl_(tagged_index_decl),
+        cleared_weak_value_decl_(cleared_weak_value_decl),
+        tagged_decl_(tagged_decl),
+        no_gc_mole_decl_(no_gc_mole_decl),
+        conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
         d_(d),
         sm_(sm),
-        block_(NULL) {}
+        block_(nullptr) {}
 
   // --------------------------------------------------------------------------
   // Expressions
@@ -707,7 +689,7 @@ class FunctionAnalyzer {
 #define VISIT(type)                                                         \
   do {                                                                      \
     clang::type* concrete_expr = llvm::dyn_cast_or_null<clang::type>(expr); \
-    if (concrete_expr != NULL) {                                            \
+    if (concrete_expr != nullptr) {                                         \
       return Visit##type(concrete_expr, env);                               \
     }                                                                       \
   } while (0);
@@ -774,12 +756,12 @@ class FunctionAnalyzer {
     return ExprEffect::None();
   }
 
-#define DECL_VISIT_EXPR(type)                                           \
-  ExprEffect Visit##type (clang::type* expr, const Environment& env)
+#define DECL_VISIT_EXPR(type) \
+  ExprEffect Visit##type(clang::type* expr, const Environment& env)
 
-#define IGNORE_EXPR(type)                                               \
-  ExprEffect Visit##type (clang::type* expr, const Environment& env) {  \
-    return ExprEffect::None();                                          \
+#define IGNORE_EXPR(type)                                             \
+  ExprEffect Visit##type(clang::type* expr, const Environment& env) { \
+    return ExprEffect::None();                                        \
   }
 
   IGNORE_EXPR(AddrLabelExpr);
@@ -817,7 +799,8 @@ class FunctionAnalyzer {
   IGNORE_EXPR(OverloadExpr);
 
   DECL_VISIT_EXPR(CXXThisExpr) {
-    return Use(expr, expr->getType(), THIS, env);
+    return Use(expr, expr->getType(), THIS,
+               clang::FullSourceLoc(expr->getLocation(), sm_), env);
   }
 
   DECL_VISIT_EXPR(AbstractConditionalOperator) {
@@ -864,20 +847,14 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_EXPR(MaterializeTemporaryExpr) {
-    return VisitExpr(expr->GetTemporaryExpr(), env);
+    return VisitExpr(expr->getSubExpr(), env);
   }
 
-  DECL_VISIT_EXPR(CXXConstructExpr) {
-    return VisitArguments<>(expr, env);
-  }
+  DECL_VISIT_EXPR(CXXConstructExpr) { return VisitArguments<>(expr, env); }
 
-  DECL_VISIT_EXPR(CXXDefaultArgExpr) {
-    return VisitExpr(expr->getExpr(), env);
-  }
+  DECL_VISIT_EXPR(CXXDefaultArgExpr) { return VisitExpr(expr->getExpr(), env); }
 
-  DECL_VISIT_EXPR(CXXDeleteExpr) {
-    return VisitExpr(expr->getArgument(), env);
-  }
+  DECL_VISIT_EXPR(CXXDeleteExpr) { return VisitExpr(expr->getArgument(), env); }
 
   DECL_VISIT_EXPR(CXXNewExpr) { return VisitExpr(expr->getInitializer(), env); }
 
@@ -885,9 +862,7 @@ class FunctionAnalyzer {
     return VisitExpr(expr->getSubExpr(), env);
   }
 
-  DECL_VISIT_EXPR(CXXThrowExpr) {
-    return VisitExpr(expr->getSubExpr(), env);
-  }
+  DECL_VISIT_EXPR(CXXThrowExpr) { return VisitExpr(expr->getSubExpr(), env); }
 
   DECL_VISIT_EXPR(ImplicitCastExpr) {
     return VisitExpr(expr->getSubExpr(), env);
@@ -899,17 +874,13 @@ class FunctionAnalyzer {
     return Sequential(expr, expr->getNumInits(), expr->getInits(), env);
   }
 
-  DECL_VISIT_EXPR(MemberExpr) {
-    return VisitExpr(expr->getBase(), env);
-  }
+  DECL_VISIT_EXPR(MemberExpr) { return VisitExpr(expr->getBase(), env); }
 
   DECL_VISIT_EXPR(OpaqueValueExpr) {
     return VisitExpr(expr->getSourceExpr(), env);
   }
 
-  DECL_VISIT_EXPR(ParenExpr) {
-    return VisitExpr(expr->getSubExpr(), env);
-  }
+  DECL_VISIT_EXPR(ParenExpr) { return VisitExpr(expr->getSubExpr(), env); }
 
   DECL_VISIT_EXPR(ParenListExpr) {
     return Parallel(expr, expr->getNumExprs(), expr->getExprs(), env);
@@ -939,26 +910,19 @@ class FunctionAnalyzer {
     return VisitExpr(expr->getArgumentExpr(), env);
   }
 
-  DECL_VISIT_EXPR(CastExpr) {
-    return VisitExpr(expr->getSubExpr(), env);
-  }
+  DECL_VISIT_EXPR(CastExpr) { return VisitExpr(expr->getSubExpr(), env); }
 
-  DECL_VISIT_EXPR(DeclRefExpr) {
-    return Use(expr, expr->getDecl(), env);
-  }
+  DECL_VISIT_EXPR(DeclRefExpr) { return Use(expr, expr->getDecl(), env); }
 
   // Represents a node in the AST {parent} whose children {exprs} have
   // undefined order of evaluation, e.g. array subscript or a binary operator.
   ExprEffect Parallel(clang::Expr* parent, int n, clang::Expr** exprs,
                       const Environment& env) {
     CallProps props;
-
     for (int i = 0; i < n; ++i) {
       props.SetEffect(i, VisitExpr(exprs[i], env));
     }
-
     if (!props.IsSafe()) ReportUnsafe(parent, BAD_EXPR_MSG);
-
     return props.ComputeCumulativeEffect(
         RepresentsRawPointerType(parent->getType()));
   }
@@ -982,36 +946,32 @@ class FunctionAnalyzer {
   // and if it's a raw heap object type, we do the following:
   // 1. If it got stale due to GC since its declaration, we report it as such.
   // 2. Mark its raw usage in the ExprEffect returned by this function.
-  ExprEffect Use(const clang::Expr* parent,
-                 const clang::QualType& var_type,
-                 const std::string& var_name,
+  ExprEffect Use(const clang::Expr* parent, const clang::QualType& var_type,
+                 const std::string& var_name, clang::FullSourceLoc var_location,
                  const Environment& env) {
-    if (RepresentsRawPointerType(var_type)) {
-      // We currently care only about our internal pointer types and not about
-      // raw C++ pointers, because normally special care is taken when storing
-      // raw pointers to the managed heap. Furthermore, checking for raw
-      // pointers produces too many false positives in the dead variable
-      // analysis.
-      if (IsInternalPointerType(var_type) && !env.IsAlive(var_name) &&
-          !HasActiveGuard() && g_dead_vars_analysis) {
-        ReportUnsafe(parent, DEAD_VAR_MSG);
-      }
-      return ExprEffect::RawUse();
-    }
-    return ExprEffect::None();
+    if (!g_dead_vars_analysis) return ExprEffect::None();
+    if (!RepresentsRawPointerType(var_type)) return ExprEffect::None();
+    // We currently care only about our internal pointer types and not about
+    // raw C++ pointers, because normally special care is taken when storing
+    // raw pointers to the managed heap. Furthermore, checking for raw
+    // pointers produces too many false positives in the dead variable
+    // analysis.
+    if (!IsInternalPointerType(var_type)) return ExprEffect::None();
+    if (env.IsAlive(var_name)) return ExprEffect::None();
+    if (HasActiveGuard()) return ExprEffect::None();
+    if (HasActiveConservativePinning(var_location)) return ExprEffect::None();
+    ReportUnsafe(parent, DEAD_VAR_MSG);
+    return ExprEffect::RawUse();
   }
 
-  ExprEffect Use(const clang::Expr* parent,
-                 const clang::ValueDecl* var,
+  ExprEffect Use(const clang::Expr* parent, const clang::ValueDecl* var,
                  const Environment& env) {
-    if (IsExternalVMState(var)) {
-      return ExprEffect::GC();
-    }
-    return Use(parent, var->getType(), var->getNameAsString(), env);
+    if (IsExternalVMState(var)) return ExprEffect::GC();
+    return Use(parent, var->getType(), var->getNameAsString(),
+               clang::FullSourceLoc(var->getLocation(), sm_), env);
   }
 
-
-  template<typename ExprType>
+  template <typename ExprType>
   ExprEffect VisitArguments(ExprType* call, const Environment& env) {
     CallProps props;
     VisitArguments<>(call, &props, env);
@@ -1020,9 +980,8 @@ class FunctionAnalyzer {
         RepresentsRawPointerType(call->getType()));
   }
 
-  template<typename ExprType>
-  void VisitArguments(ExprType* call,
-                      CallProps* props,
+  template <typename ExprType>
+  void VisitArguments(ExprType* call, CallProps* props,
                       const Environment& env) {
     for (unsigned arg = 0; arg < call->getNumArgs(); arg++) {
       props->SetEffect(arg + 1, VisitExpr(call->getArg(arg), env));
@@ -1032,13 +991,12 @@ class FunctionAnalyzer {
   // After visiting the receiver and the arguments of the {call} node, this
   // function might report a GC-unsafe usage (due to the undefined evaluation
   // order of the receiver and the rest of the arguments).
-  ExprEffect VisitCallExpr(clang::CallExpr* call,
-                           const Environment& env) {
+  ExprEffect VisitCallExpr(clang::CallExpr* call, const Environment& env) {
     CallProps props;
 
     clang::CXXMemberCallExpr* memcall =
         llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(call);
-    if (memcall != NULL) {
+    if (memcall != nullptr) {
       clang::Expr* receiver = memcall->getImplicitObjectArgument();
       props.SetEffect(0, VisitExpr(receiver, env));
     }
@@ -1046,7 +1004,7 @@ class FunctionAnalyzer {
     std::string var_name;
     clang::CXXOperatorCallExpr* opcall =
         llvm::dyn_cast_or_null<clang::CXXOperatorCallExpr>(call);
-    if (opcall != NULL && opcall->isAssignmentOp() &&
+    if (opcall != nullptr && opcall->isAssignmentOp() &&
         IsRawPointerVar(opcall->getArg(0), &var_name)) {
       // TODO(gcmole): We are treating all assignment operator calls with
       // the left hand side looking like {raw_pointer_var} as safe independent
@@ -1064,37 +1022,40 @@ class FunctionAnalyzer {
         RepresentsRawPointerType(call->getType()));
 
     clang::FunctionDecl* callee = call->getDirectCallee();
-    if (callee != NULL) {
-      if (KnownToCauseGC(ctx_, callee)) {
-        out.setGC();
-      }
+    if (callee == nullptr) return out;
 
-      // Support for virtual methods that might be GC suspects.
-      clang::CXXMethodDecl* method =
-          llvm::dyn_cast_or_null<clang::CXXMethodDecl>(callee);
-      if (method != NULL && method->isVirtual()) {
-        clang::CXXMemberCallExpr* memcall =
-            llvm::dyn_cast_or_null<clang::CXXMemberCallExpr>(call);
-        if (memcall != NULL) {
-          clang::CXXMethodDecl* target = method->getDevirtualizedMethod(
-              memcall->getImplicitObjectArgument(), false);
-          if (target != NULL) {
-            if (KnownToCauseGC(ctx_, target)) {
-              out.setGC();
-            }
-          } else {
-            // According to the documentation, {getDevirtualizedMethod} might
-            // return NULL, in which case we still want to use the partial
-            // match of the {method}'s name against the GC suspects in order
-            // to increase coverage.
-            if (SuspectedToCauseGC(ctx_, method)) {
-              out.setGC();
-            }
-          }
-        }
-      }
+    if (IsKnownToCauseGC(ctx_, callee)) {
+      out.setGC();
+      scopes_.back().SetGCCauseLocation(
+          clang::FullSourceLoc(call->getExprLoc(), sm_), callee);
     }
 
+    // Support for virtual methods that might be GC suspects.
+    if (memcall == nullptr) return out;
+    clang::CXXMethodDecl* method =
+        llvm::dyn_cast_or_null<clang::CXXMethodDecl>(callee);
+    if (method == nullptr) return out;
+    if (!method->isVirtual()) return out;
+
+    clang::CXXMethodDecl* target = method->getDevirtualizedMethod(
+        memcall->getImplicitObjectArgument(), false);
+    if (target != nullptr) {
+      if (IsKnownToCauseGC(ctx_, target)) {
+        out.setGC();
+        scopes_.back().SetGCCauseLocation(
+            clang::FullSourceLoc(call->getExprLoc(), sm_), target);
+      }
+    } else {
+      // According to the documentation, {getDevirtualizedMethod} might
+      // return nullptr, in which case we still want to use the partial
+      // match of the {method}'s name against the GC suspects in order
+      // to increase coverage.
+      if (IsSuspectedToCauseGC(ctx_, method)) {
+        out.setGC();
+        scopes_.back().SetGCCauseLocation(
+            clang::FullSourceLoc(call->getExprLoc(), sm_), method);
+      }
+    }
     return out;
   }
 
@@ -1106,7 +1067,7 @@ class FunctionAnalyzer {
 #define VISIT(type)                                                         \
   do {                                                                      \
     clang::type* concrete_stmt = llvm::dyn_cast_or_null<clang::type>(stmt); \
-    if (concrete_stmt != NULL) {                                            \
+    if (concrete_stmt != nullptr) {                                         \
       return Visit##type(concrete_stmt, env);                               \
     }                                                                       \
   } while (0);
@@ -1139,12 +1100,12 @@ class FunctionAnalyzer {
     return env;
   }
 
-#define DECL_VISIT_STMT(type)                                           \
-  Environment Visit##type (clang::type* stmt, const Environment& env)
+#define DECL_VISIT_STMT(type) \
+  Environment Visit##type(clang::type* stmt, const Environment& env)
 
-#define IGNORE_STMT(type)                                               \
-  Environment Visit##type (clang::type* stmt, const Environment& env) { \
-    return env;                                                         \
+#define IGNORE_STMT(type)                                              \
+  Environment Visit##type(clang::type* stmt, const Environment& env) { \
+    return env;                                                        \
   }
 
   IGNORE_STMT(IndirectGotoStmt);
@@ -1161,8 +1122,7 @@ class FunctionAnalyzer {
 
   class Block {
    public:
-    Block(const Environment& in,
-          FunctionAnalyzer* owner)
+    Block(const Environment& in, FunctionAnalyzer* owner)
         : in_(in),
           out_(Environment::Unreachable()),
           changed_(false),
@@ -1170,9 +1130,7 @@ class FunctionAnalyzer {
       parent_ = owner_->EnterBlock(this);
     }
 
-    ~Block() {
-      owner_->LeaveBlock(parent_);
-    }
+    ~Block() { owner_->LeaveBlock(parent_); }
 
     void MergeIn(const Environment& env) {
       Environment old_in = in_;
@@ -1181,20 +1139,14 @@ class FunctionAnalyzer {
     }
 
     bool changed() {
-      if (changed_) {
-        changed_ = false;
-        return true;
-      }
-      return false;
+      if (!changed_) return false;
+      changed_ = false;
+      return true;
     }
 
-    const Environment& in() {
-      return in_;
-    }
+    const Environment& in() { return in_; }
 
-    const Environment& out() {
-      return out_;
-    }
+    const Environment& out() { return out_; }
 
     void MergeOut(const Environment& env) {
       out_ = Environment::Merge(out_, env);
@@ -1223,7 +1175,6 @@ class FunctionAnalyzer {
       MergeIn(out());
     }
 
-
    private:
     Environment in_;
     Environment out_;
@@ -1231,7 +1182,6 @@ class FunctionAnalyzer {
     FunctionAnalyzer* owner_;
     Block* parent_;
   };
-
 
   DECL_VISIT_STMT(BreakStmt) {
     block_->MergeOut(env);
@@ -1244,11 +1194,10 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(CompoundStmt) {
-    scopes_.push_back(GCGuard(stmt, false));
+    scopes_.push_back(GCScope());
     Environment out = env;
     clang::CompoundStmt::body_iterator end = stmt->body_end();
-    for (clang::CompoundStmt::body_iterator s = stmt->body_begin();
-         s != end;
+    for (clang::CompoundStmt::body_iterator s = stmt->body_begin(); s != end;
          ++s) {
       out = VisitStmt(*s, out);
     }
@@ -1257,7 +1206,7 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(WhileStmt) {
-    Block block (env, this);
+    Block block(env, this);
     do {
       block.Loop(stmt->getCond(), stmt->getBody());
     } while (block.changed());
@@ -1265,7 +1214,18 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(DoStmt) {
-    Block block (env, this);
+    Block block(env, this);
+
+    // Special case `do { ... } while (false);`, which is known to only run
+    // once, and is used in our (D)CHECK macros.
+    if (auto* literal_cond =
+            llvm::dyn_cast<clang::CXXBoolLiteralExpr>(stmt->getCond())) {
+      if (literal_cond->getValue() == false) {
+        block.Loop(stmt->getBody(), stmt->getCond());
+        return block.out();
+      }
+    }
+
     do {
       block.Loop(stmt->getBody(), stmt->getCond());
     } while (block.changed());
@@ -1273,24 +1233,23 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(ForStmt) {
-    Block block (VisitStmt(stmt->getInit(), env), this);
+    Block block(VisitStmt(stmt->getInit(), env), this);
     do {
-      block.Loop(stmt->getCond(),
-                 stmt->getBody(),
-                 stmt->getInc());
+      block.Loop(stmt->getCond(), stmt->getBody(), stmt->getInc());
     } while (block.changed());
     return block.out();
   }
 
   DECL_VISIT_STMT(IfStmt) {
-    Environment cond_out = VisitStmt(stmt->getCond(), env);
+    Environment init_out = VisitStmt(stmt->getInit(), env);
+    Environment cond_out = VisitStmt(stmt->getCond(), init_out);
     Environment then_out = VisitStmt(stmt->getThen(), cond_out);
     Environment else_out = VisitStmt(stmt->getElse(), cond_out);
     return Environment::Merge(then_out, else_out);
   }
 
   DECL_VISIT_STMT(SwitchStmt) {
-    Block block (env, this);
+    Block block(env, this);
     block.Sequential(stmt->getCond(), stmt->getBody());
     return block.out();
   }
@@ -1312,8 +1271,8 @@ class FunctionAnalyzer {
   }
 
   const clang::TagType* ToTagType(const clang::Type* t) {
-    if (t == NULL) {
-      return NULL;
+    if (t == nullptr) {
+      return nullptr;
     } else if (llvm::isa<clang::TagType>(t)) {
       return llvm::cast<clang::TagType>(t);
     } else if (llvm::isa<clang::SubstTemplateTypeParmType>(t)) {
@@ -1321,7 +1280,7 @@ class FunctionAnalyzer {
                            ->getReplacementType()
                            .getTypePtr());
     } else {
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -1332,35 +1291,56 @@ class FunctionAnalyzer {
 
   const clang::CXXRecordDecl* GetDefinitionOrNull(
       const clang::CXXRecordDecl* record) {
-    if (record == NULL) {
-      return NULL;
-    }
-
-    if (!InV8Namespace(record)) return NULL;
-
-    if (!record->hasDefinition()) {
-      return NULL;
-    }
-
+    assert(record);
+    if (!InV8Namespace(record)) return nullptr;
+    if (!record->hasDefinition()) return nullptr;
     return record->getDefinition();
   }
 
   bool IsDerivedFromInternalPointer(const clang::CXXRecordDecl* record) {
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-    if (!definition) {
-      return false;
+    if (record == nullptr) return false;
+    if (!InV8Namespace(record)) return false;
+    auto* specialization =
+        llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record);
+    if (specialization) {
+      auto* template_decl =
+          specialization->getSpecializedTemplate()->getCanonicalDecl();
+      if (template_decl == tagged_decl_) {
+        auto& template_args = specialization->getTemplateArgs();
+        if (template_args.size() != 1) {
+          llvm::errs() << "v8::internal::Tagged<T> should have exactly one "
+                          "template argument\n";
+          specialization->dump(llvm::errs());
+          return false;
+        }
+        if (template_args[0].getKind() != clang::TemplateArgument::Type) {
+          llvm::errs()
+              << "v8::internal::Tagged<T>, T should be a type argument\n";
+          specialization->dump(llvm::errs());
+          return false;
+        }
+
+        auto* tagged_type_record =
+            template_args[0].getAsType()->getAsCXXRecordDecl();
+        return tagged_type_record != smi_decl_ &&
+               tagged_type_record != tagged_index_decl_ &&
+               tagged_type_record != cleared_weak_value_decl_;
+      }
     }
 
-    bool result = (IsDerivedFrom(record, object_decl_) &&
-                   !IsDerivedFrom(record, smi_decl_)) ||
-                  IsDerivedFrom(record, maybe_object_decl_);
-    return result;
+    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
+    if (!definition) return false;
+    if (IsDerivedFrom(record, heap_object_decl_)) {
+      return true;
+    }
+    return false;
   }
 
   bool IsRawPointerType(const clang::PointerType* type) {
     const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
     bool result = IsDerivedFromInternalPointer(record);
-    TRACE("is raw " << result << " " << record->getNameAsString());
+    TRACE("is raw " << result << " "
+                    << (record ? record->getNameAsString() : "nullptr"));
     return result;
   }
 
@@ -1375,17 +1355,13 @@ class FunctionAnalyzer {
   // such. For V8 that means Object and MaybeObject instances.
   bool RepresentsRawPointerType(clang::QualType qtype) {
     // Not yet assigned pointers can't get moved by the GC.
-    if (qtype.isNull()) {
-      return false;
-    }
+    if (qtype.isNull()) return false;
     // nullptr can't get moved by the GC.
-    if (qtype->isNullPtrType()) {
-      return false;
-    }
+    if (qtype->isNullPtrType()) return false;
 
     const clang::PointerType* pointer_type =
         llvm::dyn_cast_or_null<clang::PointerType>(qtype.getTypePtrOrNull());
-    if (pointer_type != NULL) {
+    if (pointer_type != nullptr) {
       return IsRawPointerType(pointer_type);
     } else {
       return IsInternalPointerType(qtype);
@@ -1393,36 +1369,33 @@ class FunctionAnalyzer {
   }
 
   bool IsGCGuard(clang::QualType qtype) {
-    if (qtype.isNull()) {
-      return false;
-    }
-    if (qtype->isNullPtrType()) {
-      return false;
-    }
+    return IsSameType(qtype, no_gc_mole_decl_);
+  }
 
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-
-    if (!definition) {
-      return false;
-    }
-
-    return (no_gc_decl_ && IsDerivedFrom(definition, no_gc_decl_)) ||
-           (no_gc_or_safepoint_decl_ &&
-            IsDerivedFrom(definition, no_gc_or_safepoint_decl_)) ||
-           (no_heap_access_decl_ &&
-            IsDerivedFrom(definition, no_heap_access_decl_));
+  bool IsConservativePinningScope(clang::QualType qtype) {
+    return IsSameType(qtype, conservative_pinning_scope_decl_);
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
     if (clang::VarDecl* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
       Environment out = var->hasInit() ? VisitStmt(var->getInit(), env) : env;
 
-      if (RepresentsRawPointerType(var->getType())) {
+      clang::QualType var_type = var->getType();
+      if (llvm::dyn_cast<clang::ParmVarDecl>(decl) &&
+          var_type->isReferenceType()) {
+        var_type = var_type->getAs<clang::ReferenceType>()->getPointeeType();
+      }
+
+      if (RepresentsRawPointerType(var_type)) {
         out = out.Define(var->getNameAsString());
       }
-      if (IsGCGuard(var->getType())) {
-        scopes_.back().has_guard = true;
+      if (IsGCGuard(var_type)) {
+        scopes_.back().guard_location =
+            clang::FullSourceLoc(decl->getLocation(), sm_);
+      }
+      if (IsConservativePinningScope(var_type)) {
+        scopes_.back().conservative_pinning_scope_location =
+            clang::FullSourceLoc(decl->getLocation(), sm_);
       }
 
       return out;
@@ -1434,33 +1407,32 @@ class FunctionAnalyzer {
   DECL_VISIT_STMT(DeclStmt) {
     Environment out = env;
     clang::DeclStmt::decl_iterator end = stmt->decl_end();
-    for (clang::DeclStmt::decl_iterator decl = stmt->decl_begin();
-         decl != end;
+    for (clang::DeclStmt::decl_iterator decl = stmt->decl_begin(); decl != end;
          ++decl) {
       out = VisitDecl(*decl, out);
     }
     return out;
   }
 
-
-  void DefineParameters(const clang::FunctionDecl* f,
-                        Environment* env) {
-    env->MDefine(THIS);
+  void DefineAndVisitParameters(const clang::FunctionDecl* f,
+                                Environment& env) {
+    env.MDefine(THIS);
     clang::FunctionDecl::param_const_iterator end = f->param_end();
     for (clang::FunctionDecl::param_const_iterator p = f->param_begin();
-         p != end;
-         ++p) {
-      env->MDefine((*p)->getNameAsString());
+         p != end; ++p) {
+      env.MDefine((*p)->getNameAsString());
+      VisitDecl(*p, env);
     }
   }
 
-
   void AnalyzeFunction(const clang::FunctionDecl* f) {
-    const clang::FunctionDecl* body = NULL;
+    const clang::FunctionDecl* body = nullptr;
     if (f->hasBody(body)) {
       Environment env;
-      DefineParameters(body, &env);
+      scopes_.push_back(GCScope());
+      DefineAndVisitParameters(body, env);
       VisitStmt(body->getBody(), env);
+      scopes_.pop_back();
       Environment::ClearSymbolTable();
     }
   }
@@ -1471,46 +1443,129 @@ class FunctionAnalyzer {
     return parent;
   }
 
-  void LeaveBlock(Block* block) {
-    block_ = block;
-  }
+  void LeaveBlock(Block* block) { block_ = block; }
 
   bool HasActiveGuard() {
-    for (auto s : scopes_) {
-      if (s.has_guard) return true;
+    for (const auto& s : scopes_) {
+      if (s.IsBeforeGCCause()) return true;
+    }
+    return false;
+  }
+
+  bool HasActiveConservativePinning(
+      const clang::FullSourceLoc decl_location) const {
+    for (const auto& s : scopes_) {
+      if (s.IsAfterConservativePinningScope(decl_location)) return true;
     }
     return false;
   }
 
  private:
-  void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
-    d_.Report(clang::FullSourceLoc(expr->getExprLoc(), sm_),
-              d_.getCustomDiagID(clang::DiagnosticsEngine::Warning, "%0"))
-        << msg;
+  bool IsSameType(clang::QualType qtype, clang::CXXRecordDecl* decl) {
+    if (!decl) return false;
+    if (qtype.isNull() || qtype->isNullPtrType()) return false;
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    if (!record) return false;
+
+    return record->getCanonicalDecl() == decl->getCanonicalDecl();
   }
 
+  void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
+    clang::SourceLocation error_loc =
+        clang::FullSourceLoc(expr->getExprLoc(), sm_);
+    d_.Report(error_loc,
+              d_.getCustomDiagID(clang::DiagnosticsEngine::Warning, "%0"))
+        << msg;
+    // Find the relevant GC scope (see HasActiveGuard).
+    const GCScope* pscope = nullptr;
+    for (const auto& s : scopes_) {
+      if (!s.IsBeforeGCCause() && s.gccause_location.isValid()) {
+        pscope = &s;
+        break;
+      }
+    }
+    if (!pscope) {
+      d_.Report(error_loc,
+                d_.getCustomDiagID(clang::DiagnosticsEngine::Note,
+                                   "Could not find GC source location."));
+      return;
+    }
+    const GCScope& scope = *pscope;
+    d_.Report(scope.gccause_location,
+              d_.getCustomDiagID(clang::DiagnosticsEngine::Note,
+                                 "Call might cause unexpected GC."));
+    clang::FunctionDecl* gccause_decl = scope.gccause_decl;
+    d_.Report(
+        clang::FullSourceLoc(gccause_decl->getBeginLoc(), sm_),
+        d_.getCustomDiagID(clang::DiagnosticsEngine::Note, "GC call here."));
+
+    if (!g_print_gc_call_chain) return;
+    // TODO(cbruni, v8::10009): print call-chain to gc with proper source
+    // positions.
+    LoadGCCauses();
+    MangledName name;
+    if (!GetMangledName(ctx_, gccause_decl, &name)) return;
+    std::cout << "Potential GC call chain:\n";
+    std::set<MangledName> stack;
+    while (true) {
+      if (!stack.insert(name).second) break;
+      std::cout << "\t" << name << "\n";
+      auto next = gc_causes.find(name);
+      if (next == gc_causes.end()) break;
+      std::vector<MangledName> calls = next->second;
+      for (MangledName call : calls) {
+        name = call;
+        if (stack.find(call) != stack.end()) break;
+      }
+    }
+  }
 
   clang::MangleContext* ctx_;
-  clang::CXXRecordDecl* object_decl_;
-  clang::CXXRecordDecl* maybe_object_decl_;
+  clang::CXXRecordDecl* heap_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
-  clang::CXXRecordDecl* no_gc_decl_;
-  clang::CXXRecordDecl* no_gc_or_safepoint_decl_;
-  clang::CXXRecordDecl* no_heap_access_decl_;
+  clang::CXXRecordDecl* tagged_index_decl_;
+  clang::CXXRecordDecl* cleared_weak_value_decl_;
+  clang::ClassTemplateDecl* tagged_decl_;
+  clang::CXXRecordDecl* no_gc_mole_decl_;
+  clang::CXXRecordDecl* conservative_pinning_scope_decl_;
 
   clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
 
   Block* block_;
 
-  struct GCGuard {
-    clang::CompoundStmt* stmt = NULL;
-    bool has_guard = false;
+  struct GCScope {
+    clang::FullSourceLoc guard_location;
+    clang::FullSourceLoc gccause_location;
+    clang::FullSourceLoc conservative_pinning_scope_location;
+    clang::FunctionDecl* gccause_decl;
 
-    GCGuard(clang::CompoundStmt* stmt_, bool has_guard_)
-        : stmt(stmt_), has_guard(has_guard_) {}
+    // We're only interested in guards that are declared before any further GC
+    // causing calls (see TestGuardedDeadVarAnalysisMidFunction for example).
+    bool IsBeforeGCCause() const {
+      if (!guard_location.isValid()) return false;
+      if (!gccause_location.isValid()) return true;
+      return guard_location.isBeforeInTranslationUnitThan(gccause_location);
+    }
+
+    bool IsAfterConservativePinningScope(
+        const clang::FullSourceLoc decl_location) const {
+      if (!conservative_pinning_scope_location.isValid()) return false;
+      return conservative_pinning_scope_location.isBeforeInTranslationUnitThan(
+          decl_location);
+    }
+
+    // After we set the first GC cause in the scope, we don't need the later
+    // ones.
+    void SetGCCauseLocation(clang::FullSourceLoc gccause_location_,
+                            clang::FunctionDecl* decl) {
+      if (gccause_location.isValid()) return;
+      gccause_location = gccause_location_;
+      gccause_decl = decl;
+    }
   };
-  std::vector<GCGuard> scopes_;
+  std::vector<GCScope> scopes_;
 };
 
 class ProblemsFinder : public clang::ASTConsumer,
@@ -1523,93 +1578,101 @@ class ProblemsFinder : public clang::ASTConsumer,
       if (args[i] == "--dead-vars") {
         g_dead_vars_analysis = true;
       }
-      if (args[i] == "--verbose") {
-        g_tracing_enabled = true;
-      }
+      if (args[i] == "--verbose-trace") g_tracing_enabled = true;
+      if (args[i] == "--verbose") g_verbose = true;
     }
   }
 
   bool TranslationUnitIgnored() {
     if (!ignored_files_loaded_) {
-      std::ifstream fin("tools/gcmole/ignored_files");
-      std::string s;
-      while (fin >> s) ignored_files_.insert(s);
+      auto fileOrError =
+          llvm::MemoryBuffer::getFile("tools/gcmole/ignored_files");
+      if (auto error = fileOrError.getError()) {
+        llvm::errs() << "Failed to open ignored_files file\n";
+        std::terminate();
+      }
+      for (llvm::line_iterator it(*fileOrError->get()); !it.is_at_end(); ++it) {
+        ignored_files_.insert(*it);
+      }
       ignored_files_loaded_ = true;
     }
 
     clang::FileID main_file_id = sm_.getMainFileID();
-    std::string filename = sm_.getFileEntryForID(main_file_id)->getName().str();
+    llvm::StringRef filename =
+        sm_.getFileEntryForID(main_file_id)->tryGetRealPathName();
 
-    bool result = ignored_files_.find(filename) != ignored_files_.end();
+    bool result = ignored_files_.contains(filename);
     if (result) {
       llvm::outs() << "Ignoring file " << filename << "\n";
     }
     return result;
   }
 
-  virtual void HandleTranslationUnit(clang::ASTContext &ctx) {
-    if (TranslationUnitIgnored()) {
-      return;
-    }
+  void HandleTranslationUnit(clang::ASTContext& ctx) override {
+    if (TranslationUnitIgnored()) return;
 
     Resolver r(ctx);
 
-    // It is a valid situation that no_gc_decl == NULL when the
-    // DisallowHeapAllocation is not included and can't be resolved.
-    // This is gracefully handled in the FunctionAnalyzer later.
-    clang::CXXRecordDecl* no_gc_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .ResolveTemplate("DisallowHeapAllocation");
+    // It is a valid situation that no_gc_mole_decl == nullptr when
+    // DisableGCMole is not included and can't be resolved. This is gracefully
+    // handled in the FunctionAnalyzer later.
+    auto v8_internal = r.ResolveNamespace("v8").ResolveNamespace("internal");
+    clang::CXXRecordDecl* no_gc_mole_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("DisableGCMole");
 
-    clang::CXXRecordDecl* no_gc_or_safepoint_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .ResolveTemplate("DisallowGarbageCollection");
+    clang::CXXRecordDecl* conservative_pinning_scope_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ConservativePinningScope");
 
-    clang::CXXRecordDecl* no_heap_access_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .Resolve<clang::CXXRecordDecl>("DisallowHeapAccess");
-
-    clang::CXXRecordDecl* object_decl =
-        r.ResolveNamespace("v8").ResolveNamespace("internal").
-            Resolve<clang::CXXRecordDecl>("Object");
-
-    clang::CXXRecordDecl* maybe_object_decl =
-        r.ResolveNamespace("v8")
-            .ResolveNamespace("internal")
-            .Resolve<clang::CXXRecordDecl>("MaybeObject");
+    clang::CXXRecordDecl* heap_object_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("HeapObject");
 
     clang::CXXRecordDecl* smi_decl =
-        r.ResolveNamespace("v8").ResolveNamespace("internal").
-            Resolve<clang::CXXRecordDecl>("Smi");
+        v8_internal.Resolve<clang::CXXRecordDecl>("Smi");
 
-    if (object_decl != NULL) object_decl = object_decl->getDefinition();
+    clang::CXXRecordDecl* tagged_index_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("TaggedIndex");
 
-    if (maybe_object_decl != NULL)
-      maybe_object_decl = maybe_object_decl->getDefinition();
+    clang::CXXRecordDecl* cleared_weak_value_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ClearedWeakValue");
 
-    if (smi_decl != NULL) smi_decl = smi_decl->getDefinition();
+    clang::ClassTemplateDecl* tagged_decl =
+        v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
 
-    if (no_heap_access_decl != NULL)
-      no_heap_access_decl = no_heap_access_decl->getDefinition();
+    if (heap_object_decl != nullptr) {
+      heap_object_decl = heap_object_decl->getDefinition();
+    }
 
-    if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
+    if (smi_decl != nullptr) {
+      smi_decl = smi_decl->getDefinition();
+    }
+
+    if (tagged_index_decl != nullptr) {
+      tagged_index_decl = tagged_index_decl->getDefinition();
+    }
+
+    if (tagged_decl != nullptr) {
+      tagged_decl = tagged_decl->getCanonicalDecl();
+    }
+
+    if (heap_object_decl != nullptr && smi_decl != nullptr &&
+        tagged_index_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
-          clang::ItaniumMangleContext::create(ctx, d_), object_decl,
-          maybe_object_decl, smi_decl, no_gc_decl, no_gc_or_safepoint_decl,
-          no_heap_access_decl, d_, sm_);
+          clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
+          smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
+          no_gc_mole_decl, conservative_pinning_scope_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
-    } else {
-      if (object_decl == NULL) {
-        llvm::errs() << "Failed to resolve v8::internal::Object\n";
+    } else if (g_verbose) {
+      if (heap_object_decl == nullptr) {
+        llvm::errs() << "Failed to resolve v8::internal::HeapObject\n";
       }
-      if (maybe_object_decl == NULL) {
-        llvm::errs() << "Failed to resolve v8::internal::MaybeObject\n";
-      }
-      if (smi_decl == NULL) {
+      if (smi_decl == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::Smi\n";
+      }
+      if (tagged_index_decl == nullptr) {
+        llvm::errs() << "Failed to resolve v8::internal::TaggedIndex\n";
+      }
+      if (tagged_decl == nullptr) {
+        llvm::errs() << "Failed to resolve v8::internal::Tagged<T>\n";
       }
     }
   }
@@ -1634,42 +1697,39 @@ class ProblemsFinder : public clang::ASTConsumer,
   clang::SourceManager& sm_;
 
   bool ignored_files_loaded_ = false;
-  std::set<std::string> ignored_files_;
+  llvm::StringSet<> ignored_files_;
 
   FunctionAnalyzer* function_analyzer_;
 };
 
-
-template<typename ConsumerType>
+template <typename ConsumerType>
 class Action : public clang::PluginASTAction {
  protected:
-  virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
-      clang::CompilerInstance& CI, llvm::StringRef InFile) {
+  std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
+      clang::CompilerInstance& CI, llvm::StringRef InFile) override {
     return std::unique_ptr<clang::ASTConsumer>(
         new ConsumerType(CI.getDiagnostics(), CI.getSourceManager(), args_));
   }
 
-  bool ParseArgs(const clang::CompilerInstance &CI,
-                 const std::vector<std::string>& args) {
+  bool ParseArgs(const clang::CompilerInstance& CI,
+                 const std::vector<std::string>& args) override {
     args_ = args;
     return true;
   }
 
-  void PrintHelp(llvm::raw_ostream& ros) {
-  }
+  void PrintHelp(llvm::raw_ostream& ros) {}
+
  private:
   std::vector<std::string> args_;
 };
 
+}  // namespace
 
-}
+static clang::FrontendPluginRegistry::Add<Action<ProblemsFinder>> FindProblems(
+    "find-problems", "Find GC-unsafe places.");
 
-static clang::FrontendPluginRegistry::Add<Action<ProblemsFinder> >
-FindProblems("find-problems", "Find GC-unsafe places.");
-
-static clang::FrontendPluginRegistry::Add<
-  Action<FunctionDeclarationFinder> >
-DumpCallees("dump-callees", "Dump callees for each function.");
+static clang::FrontendPluginRegistry::Add<Action<FunctionDeclarationFinder>>
+    DumpCallees("dump-callees", "Dump callees for each function.");
 
 #undef TRACE
 #undef TRACE_LLVM_TYPE

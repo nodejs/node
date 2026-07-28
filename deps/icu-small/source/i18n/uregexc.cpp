@@ -8,7 +8,7 @@
 *   file name:   regexc.cpp
 *   description: The purpose of this function is to separate the codepage
 *       conversion from the rest of the uregex_ API. This can removes any
-*       dependency on codepage conversion, which reduces the overhead of
+*       dependency on codepage conversion, which reduces the overhead of 
 */
 
 #include "unicode/uregex.h"
@@ -29,11 +29,11 @@ uregex_openC( const char           *pattern,
                     UParseError    *pe,
                     UErrorCode     *status) {
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
-    if (pattern == NULL) {
+    if (pattern == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
 
     UnicodeString patString(pattern);

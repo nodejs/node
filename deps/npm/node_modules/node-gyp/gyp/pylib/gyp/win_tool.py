@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -9,18 +9,15 @@
 These functions are executed via gyp-win-tool when using the ninja generator.
 """
 
-from __future__ import print_function
-
 import os
 import re
 import shutil
-import subprocess
 import stat
 import string
+import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PY3 = bytes != str
 
 # A regex matching an argument corresponding to the output filename passed to
 # link.exe.
@@ -29,18 +26,17 @@ _LINK_EXE_OUT_ARG = re.compile("/OUT:(?P<out>.+)$", re.IGNORECASE)
 
 def main(args):
     executor = WinTool()
-    exit_code = executor.Dispatch(args)
-    if exit_code is not None:
+    if (exit_code := executor.Dispatch(args)) is not None:
         sys.exit(exit_code)
 
 
-class WinTool(object):
+class WinTool:
     """This class performs all the Windows tooling steps. The methods can either
-  be executed directly, or dispatched from an argument list."""
+    be executed directly, or dispatched from an argument list."""
 
     def _UseSeparateMspdbsrv(self, env, args):
         """Allows to use a unique instance of mspdbsrv.exe per linker instead of a
-    shared one."""
+        shared one."""
         if len(args) < 1:
             raise Exception("Not enough arguments")
 
@@ -117,9 +113,9 @@ class WinTool(object):
 
     def ExecLinkWrapper(self, arch, use_separate_mspdbsrv, *args):
         """Filter diagnostic output from link that looks like:
-    '   Creating library ui.dll.lib and object ui.dll.exp'
-    This happens when there are exports from the dll or exe.
-    """
+        '   Creating library ui.dll.lib and object ui.dll.exp'
+        This happens when there are exports from the dll or exe.
+        """
         env = self._GetEnv(arch)
         if use_separate_mspdbsrv == "True":
             self._UseSeparateMspdbsrv(env, args)
@@ -141,9 +137,7 @@ class WinTool(object):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
-        out, _ = link.communicate()
-        if PY3:
-            out = out.decode("utf-8")
+        out = link.communicate()[0].decode("utf-8")
         for line in out.splitlines():
             if (
                 not line.startswith("   Creating library ")
@@ -163,10 +157,10 @@ class WinTool(object):
         mt,
         rc,
         intermediate_manifest,
-        *manifests
+        *manifests,
     ):
         """A wrapper for handling creating a manifest resource and then executing
-    a link command."""
+        a link command."""
         # The 'normal' way to do manifests is to have link generate a manifest
         # based on gathering dependencies from the object files, then merge that
         # manifest with other manifests supplied as sources, convert the merged
@@ -223,17 +217,17 @@ class WinTool(object):
             our_manifest = "%(out)s.manifest" % variables
             # Load and normalize the manifests. mt.exe sometimes removes whitespace,
             # and sometimes doesn't unfortunately.
-            with open(our_manifest, "r") as our_f:
-                with open(assert_manifest, "r") as assert_f:
-                    our_data = our_f.read().translate(None, string.whitespace)
-                    assert_data = assert_f.read().translate(None, string.whitespace)
+            with open(our_manifest) as our_f, open(assert_manifest) as assert_f:
+                translator = str.maketrans("", "", string.whitespace)
+                our_data = our_f.read().translate(translator)
+                assert_data = assert_f.read().translate(translator)
             if our_data != assert_data:
                 os.unlink(out)
 
                 def dump(filename):
                     print(filename, file=sys.stderr)
                     print("-----", file=sys.stderr)
-                    with open(filename, "r") as f:
+                    with open(filename) as f:
                         print(f.read(), file=sys.stderr)
                         print("-----", file=sys.stderr)
 
@@ -250,15 +244,13 @@ class WinTool(object):
 
     def ExecManifestWrapper(self, arch, *args):
         """Run manifest tool with environment set. Strip out undesirable warning
-    (some XML blocks are recognized by the OS loader, but not the manifest
-    tool)."""
+        (some XML blocks are recognized by the OS loader, but not the manifest
+        tool)."""
         env = self._GetEnv(arch)
         popen = subprocess.Popen(
             args, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        out, _ = popen.communicate()
-        if PY3:
-            out = out.decode("utf-8")
+        out = popen.communicate()[0].decode("utf-8")
         for line in out.splitlines():
             if line and "manifest authoring warning 81010002" not in line:
                 print(line)
@@ -266,8 +258,8 @@ class WinTool(object):
 
     def ExecManifestToRc(self, arch, *args):
         """Creates a resource file pointing a SxS assembly manifest.
-    |args| is tuple containing path to resource file, path to manifest file
-    and resource name which can be "1" (for executables) or "2" (for DLLs)."""
+        |args| is tuple containing path to resource file, path to manifest file
+        and resource name which can be "1" (for executables) or "2" (for DLLs)."""
         manifest_path, resource_path, resource_name = args
         with open(resource_path, "w") as output:
             output.write(
@@ -277,8 +269,8 @@ class WinTool(object):
 
     def ExecMidlWrapper(self, arch, outdir, tlb, h, dlldata, iid, proxy, idl, *flags):
         """Filter noisy filenames output from MIDL compile step that isn't
-    quietable via command line flags.
-    """
+        quietable via command line flags.
+        """
         args = (
             ["midl", "/nologo"]
             + list(flags)
@@ -302,16 +294,14 @@ class WinTool(object):
         popen = subprocess.Popen(
             args, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        out, _ = popen.communicate()
-        if PY3:
-            out = out.decode("utf-8")
+        out = popen.communicate()[0].decode("utf-8")
         # Filter junk out of stdout, and write filtered versions. Output we want
         # to filter is pairs of lines that look like this:
         # Processing C:\Program Files (x86)\Microsoft SDKs\...\include\objidl.idl
         # objidl.idl
         lines = out.splitlines()
         prefixes = ("Processing ", "64 bit Processing ")
-        processing = set(os.path.basename(x) for x in lines if x.startswith(prefixes))
+        processing = {os.path.basename(x) for x in lines if x.startswith(prefixes)}
         for line in lines:
             if not line.startswith(prefixes) and line not in processing:
                 print(line)
@@ -323,9 +313,7 @@ class WinTool(object):
         popen = subprocess.Popen(
             args, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        out, _ = popen.communicate()
-        if PY3:
-            out = out.decode("utf-8")
+        out = popen.communicate()[0].decode("utf-8")
         for line in out.splitlines():
             if (
                 not line.startswith("Copyright (C) Microsoft Corporation")
@@ -338,14 +326,12 @@ class WinTool(object):
 
     def ExecRcWrapper(self, arch, *args):
         """Filter logo banner from invocations of rc.exe. Older versions of RC
-    don't support the /nologo flag."""
+        don't support the /nologo flag."""
         env = self._GetEnv(arch)
         popen = subprocess.Popen(
             args, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
-        out, _ = popen.communicate()
-        if PY3:
-            out = out.decode("utf-8")
+        out = popen.communicate()[0].decode("utf-8")
         for line in out.splitlines():
             if (
                 not line.startswith("Microsoft (R) Windows (R) Resource Compiler")
@@ -357,7 +343,7 @@ class WinTool(object):
 
     def ExecActionWrapper(self, arch, rspfile, *dir):
         """Runs an action command line from a response file using the environment
-    for |arch|. If |dir| is supplied, use that as the working directory."""
+        for |arch|. If |dir| is supplied, use that as the working directory."""
         env = self._GetEnv(arch)
         # TODO(scottmg): This is a temporary hack to get some specific variables
         # through to actions that are set after gyp-time. http://crbug.com/333738.
@@ -370,7 +356,7 @@ class WinTool(object):
 
     def ExecClCompile(self, project_dir, selected_files):
         """Executed by msvs-ninja projects when the 'ClCompile' target is used to
-    build selected C/C++ files."""
+        build selected C/C++ files."""
         project_dir = os.path.relpath(project_dir, BASE_DIR)
         selected_files = selected_files.split(";")
         ninja_targets = [

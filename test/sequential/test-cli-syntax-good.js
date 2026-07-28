@@ -5,30 +5,26 @@ const assert = require('assert');
 const { exec } = require('child_process');
 const fixtures = require('../common/fixtures');
 
-const node = process.execPath;
-
 // Test both sets of arguments that check syntax
 const syntaxArgs = [
-  ['-c'],
-  ['--check']
+  '-c',
+  '--check',
 ];
 
 // Test good syntax with and without shebang
 [
   'syntax/good_syntax.js',
   'syntax/good_syntax',
+  'syntax/good_syntax.mjs',
   'syntax/good_syntax_shebang.js',
   'syntax/good_syntax_shebang',
-  'syntax/illegal_if_not_wrapped.js'
+  'syntax/illegal_if_not_wrapped.js',
 ].forEach(function(file) {
   file = fixtures.path(file);
 
   // Loop each possible option, `-c` or `--check`
-  syntaxArgs.forEach(function(args) {
-    const _args = args.concat(file);
-
-    const cmd = [node, ..._args].join(' ');
-    exec(cmd, common.mustCall((err, stdout, stderr) => {
+  syntaxArgs.forEach(function(flag) {
+    exec(...common.escapePOSIXShell`"${process.execPath}" ${flag} "${file}"`, common.mustCall((err, stdout, stderr) => {
       if (err) {
         console.log('-- stdout --');
         console.log(stdout);

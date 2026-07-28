@@ -1,3 +1,5 @@
+// Flags: --pending-deprecation
+
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -20,7 +22,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
+
+const punycodeWarning =
+  'The `punycode` module is deprecated. Please use a userland alternative ' +
+  'instead.';
+common.expectWarning('DeprecationWarning', punycodeWarning, 'DEP0040');
+
 const punycode = require('punycode');
 const assert = require('assert');
 
@@ -55,7 +63,7 @@ assert.throws(() => {
 }, /^RangeError: Illegal input >= 0x80 \(not a basic code point\)$/);
 assert.throws(() => {
   punycode.decode('あ');
-}, /^RangeError: Overflow: input needs wider integers to process$/);
+}, /^RangeError: Invalid input$/);
 
 // http://tools.ietf.org/html/rfc3492#section-7.1
 const tests = [
@@ -194,7 +202,7 @@ const tests = [
     encoded: '-> $1.00 <--',
     decoded: '\u002D\u003E\u0020\u0024\u0031\u002E\u0030\u0030\u0020\u003C' +
       '\u002D'
-  }
+  },
 ];
 
 let errors = 0;
@@ -207,21 +215,21 @@ const handleError = (error, name) => {
 
 const regexNonASCII = /[^\x20-\x7E]/;
 const testBattery = {
-  encode: (test) => assert.strictEqual(
+  encode: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.encode(test.decoded),
     test.encoded
-  ),
-  decode: (test) => assert.strictEqual(
+  )),
+  decode: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.decode(test.encoded),
     test.decoded
-  ),
-  toASCII: (test) => assert.strictEqual(
+  )),
+  toASCII: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.toASCII(test.decoded),
     regexNonASCII.test(test.decoded) ?
       `xn--${test.encoded}` :
       test.decoded
-  ),
-  toUnicode: (test) => assert.strictEqual(
+  )),
+  toUnicode: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.toUnicode(
       regexNonASCII.test(test.decoded) ?
         `xn--${test.encoded}` :
@@ -230,7 +238,7 @@ const testBattery = {
     regexNonASCII.test(test.decoded) ?
       test.decoded.toLowerCase() :
       test.decoded
-  )
+  ))
 };
 
 tests.forEach((testCase) => {

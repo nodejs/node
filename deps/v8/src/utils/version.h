@@ -7,13 +7,16 @@
 
 #include <cstdint>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 
 namespace v8 {
-namespace internal {
 
+namespace base {
 template <typename T>
 class Vector;
+}  // namespace base
+
+namespace internal {
 
 class V8_EXPORT Version {
  public:
@@ -30,10 +33,10 @@ class V8_EXPORT Version {
   }
 
   // Calculate the V8 version string.
-  static void GetString(Vector<char> str);
+  static void GetString(base::Vector<char> str);
 
   // Calculate the SONAME for the V8 shared library.
-  static void GetSONAME(Vector<char> str);
+  static void GetSONAME(base::Vector<char> str);
 
   static const char* GetVersion() { return version_string_; }
 

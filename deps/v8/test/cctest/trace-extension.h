@@ -28,10 +28,13 @@
 #ifndef V8_TEST_CCTEST_TRACE_EXTENSION_H_
 #define V8_TEST_CCTEST_TRACE_EXTENSION_H_
 
-#include "include/v8.h"
-#include "src/common/globals.h"
+#include "include/v8-extension.h"
 
 namespace v8 {
+
+template <typename T>
+class FunctionCallbackInfo;
+
 namespace internal {
 
 struct TickSample;
@@ -41,15 +44,15 @@ class TraceExtension : public v8::Extension {
   TraceExtension() : v8::Extension("v8/trace", kSource) { }
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override;
-  static void Trace(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void JSEntrySP(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void JSEntrySPLevel2(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Trace(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void JSTrace(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void JSEntrySP(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void JSEntrySPLevel2(const v8::FunctionCallbackInfo<v8::Value>& info);
   static Address GetJsEntrySp();
   static void InitTraceEnv(TickSample* sample);
   static void DoTrace(Address fp);
  private:
-  static Address GetFP(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static Address GetFP(const v8::FunctionCallbackInfo<v8::Value>& info);
   static const char* kSource;
 };
 

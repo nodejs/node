@@ -1,2 +1,0 @@
-Test Counters collection using Profiler.getCounters.
-PASSED

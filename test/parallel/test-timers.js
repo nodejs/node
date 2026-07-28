@@ -48,7 +48,7 @@ const inputs = [
   1,
   1.0,
   2147483648,     // Browser behavior: timeouts > 2^31-1 run on next tick
-  12345678901234  // ditto
+  12345678901234,  // ditto
 ];
 
 const timeouts = [];
@@ -79,3 +79,8 @@ setTimeout(common.mustCall(() => {
 // Test 10 ms timeout separately.
 setTimeout(common.mustCall(), 10);
 setInterval(common.mustCall(function() { clearInterval(this); }), 10);
+
+// Test no timeout separately
+setTimeout(common.mustCall());
+// eslint-disable-next-line no-restricted-syntax
+setInterval(common.mustCall(function() { clearInterval(this); }));

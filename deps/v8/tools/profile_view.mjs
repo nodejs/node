@@ -47,12 +47,12 @@ export function ViewBuilder(samplingRate) {
  */
 ViewBuilder.prototype.buildView = function(
     callTree, opt_bottomUpViewWeights) {
-  var head;
-  var samplingRate = this.samplingRate;
-  var createViewNode = this.createViewNode;
+  let head;
+  const samplingRate = this.samplingRate;
+  const createViewNode = this.createViewNode;
   callTree.traverse(function(node, viewParent) {
-    var totalWeight = node.totalWeight * samplingRate;
-    var selfWeight = node.selfWeight * samplingRate;
+    const totalWeight = node.totalWeight * samplingRate;
+    let selfWeight = node.selfWeight * samplingRate;
     if (opt_bottomUpViewWeights === true) {
       if (viewParent === head) {
         selfWeight = totalWeight;
@@ -60,7 +60,7 @@ ViewBuilder.prototype.buildView = function(
         selfWeight = 0;
       }
     }
-    var viewNode = createViewNode(node.label, totalWeight, selfWeight, head);
+    const viewNode = createViewNode(node.label, totalWeight, selfWeight, head);
     if (viewParent) {
       viewParent.addChild(viewNode);
     } else {
@@ -68,7 +68,7 @@ ViewBuilder.prototype.buildView = function(
     }
     return viewNode;
   });
-  var view = this.createView(head);
+  const view = this.createView(head);
   return view;
 };
 
@@ -79,9 +79,7 @@ ViewBuilder.prototype.buildView = function(
  * @param {ProfileView.Node} head View head node.
  * @return {ProfileView} Profile view.
  */
-ViewBuilder.prototype.createView = function(head) {
-  return new ProfileView(head);
-};
+ViewBuilder.prototype.createView = head => new ProfileView(head);
 
 
 /**
@@ -96,11 +94,11 @@ ViewBuilder.prototype.createView = function(head) {
  * @param {ProfileView.Node} head Profile view head.
  * @return {ProfileView.Node} Profile view node.
  */
-ViewBuilder.prototype.createViewNode = function(
-    funcName, totalTime, selfTime, head) {
-  return new ProfileView.Node(
-      funcName, totalTime, selfTime, head);
-};
+ViewBuilder.prototype.createViewNode = (
+    funcName, totalTime, selfTime, head) =>
+  new ProfileView.Node(
+      funcName, totalTime, selfTime, head)
+;
 
 
 /**
@@ -135,10 +133,10 @@ ProfileView.prototype.sort = function(sortFunc) {
  * @param {function(ProfileView.Node)} f Visitor function.
  */
 ProfileView.prototype.traverse = function(f) {
-  var nodesToTraverse = new ConsArray();
+  const nodesToTraverse = new ConsArray();
   nodesToTraverse.concat([this.head]);
   while (!nodesToTraverse.atEnd()) {
-    var node = nodesToTraverse.next();
+    const node = nodesToTraverse.next();
     f(node);
     nodesToTraverse.concat(node.children);
   }

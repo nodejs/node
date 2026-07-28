@@ -1,25 +1,19 @@
-import '../common/index.mjs';
-import { path } from '../common/fixtures.mjs';
-import { strictEqual, ok } from 'assert';
-import { spawn } from 'child_process';
+import { spawnPromisified } from '../common/index.mjs';
+import * as fixtures from '../common/fixtures.mjs';
+import assert from 'node:assert';
+import { execPath } from 'node:process';
+import { describe, it } from 'node:test';
 
-const child = spawn(process.execPath, [
-  '--experimental-import-meta-resolve',
-  path('/es-modules/import-resolve-exports.mjs')
-]);
 
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
-});
-child.on('close', (code, signal) => {
-  strictEqual(code, 0);
-  strictEqual(signal, null);
-  ok(!stderr.toString().includes(
-    'ExperimentalWarning: The ESM module loader is experimental'
-  ));
-  ok(!stderr.toString().includes(
-    'ExperimentalWarning: Conditional exports'
-  ));
+describe('ESM: experimental warning for import.meta.resolve', { concurrency: !process.env.TEST_PARALLEL }, () => {
+  it('should not warn when caught', async () => {
+    const { code, signal, stderr } = await spawnPromisified(execPath, [
+      '--experimental-import-meta-resolve',
+      fixtures.path('es-modules/import-resolve-exports.mjs'),
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
 });

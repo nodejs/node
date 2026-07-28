@@ -33,22 +33,22 @@ static uint8_t *
 u_writeDiff(int32_t diff, uint8_t *p) {
     if(diff>=SLOPE_REACH_NEG_1) {
         if(diff<=SLOPE_REACH_POS_1) {
-            *p++=(uint8_t)(SLOPE_MIDDLE+diff);
+            *p++ = static_cast<uint8_t>(SLOPE_MIDDLE + diff);
         } else if(diff<=SLOPE_REACH_POS_2) {
-            *p++=(uint8_t)(SLOPE_START_POS_2+(diff/SLOPE_TAIL_COUNT));
-            *p++=(uint8_t)(SLOPE_MIN+diff%SLOPE_TAIL_COUNT);
+            *p++ = static_cast<uint8_t>(SLOPE_START_POS_2 + (diff / SLOPE_TAIL_COUNT));
+            *p++ = static_cast<uint8_t>(SLOPE_MIN + diff % SLOPE_TAIL_COUNT);
         } else if(diff<=SLOPE_REACH_POS_3) {
-            p[2]=(uint8_t)(SLOPE_MIN+diff%SLOPE_TAIL_COUNT);
+            p[2] = static_cast<uint8_t>(SLOPE_MIN + diff % SLOPE_TAIL_COUNT);
             diff/=SLOPE_TAIL_COUNT;
-            p[1]=(uint8_t)(SLOPE_MIN+diff%SLOPE_TAIL_COUNT);
-            *p=(uint8_t)(SLOPE_START_POS_3+(diff/SLOPE_TAIL_COUNT));
+            p[1] = static_cast<uint8_t>(SLOPE_MIN + diff % SLOPE_TAIL_COUNT);
+            *p = static_cast<uint8_t>(SLOPE_START_POS_3 + (diff / SLOPE_TAIL_COUNT));
             p+=3;
         } else {
-            p[3]=(uint8_t)(SLOPE_MIN+diff%SLOPE_TAIL_COUNT);
+            p[3] = static_cast<uint8_t>(SLOPE_MIN + diff % SLOPE_TAIL_COUNT);
             diff/=SLOPE_TAIL_COUNT;
-            p[2]=(uint8_t)(SLOPE_MIN+diff%SLOPE_TAIL_COUNT);
+            p[2] = static_cast<uint8_t>(SLOPE_MIN + diff % SLOPE_TAIL_COUNT);
             diff/=SLOPE_TAIL_COUNT;
-            p[1]=(uint8_t)(SLOPE_MIN+diff%SLOPE_TAIL_COUNT);
+            p[1] = static_cast<uint8_t>(SLOPE_MIN + diff % SLOPE_TAIL_COUNT);
             *p=SLOPE_MAX;
             p+=4;
         }
@@ -57,22 +57,22 @@ u_writeDiff(int32_t diff, uint8_t *p) {
 
         if(diff>=SLOPE_REACH_NEG_2) {
             NEGDIVMOD(diff, SLOPE_TAIL_COUNT, m);
-            *p++=(uint8_t)(SLOPE_START_NEG_2+diff);
-            *p++=(uint8_t)(SLOPE_MIN+m);
+            *p++ = static_cast<uint8_t>(SLOPE_START_NEG_2 + diff);
+            *p++ = static_cast<uint8_t>(SLOPE_MIN + m);
         } else if(diff>=SLOPE_REACH_NEG_3) {
             NEGDIVMOD(diff, SLOPE_TAIL_COUNT, m);
-            p[2]=(uint8_t)(SLOPE_MIN+m);
+            p[2] = static_cast<uint8_t>(SLOPE_MIN + m);
             NEGDIVMOD(diff, SLOPE_TAIL_COUNT, m);
-            p[1]=(uint8_t)(SLOPE_MIN+m);
-            *p=(uint8_t)(SLOPE_START_NEG_3+diff);
+            p[1] = static_cast<uint8_t>(SLOPE_MIN + m);
+            *p = static_cast<uint8_t>(SLOPE_START_NEG_3 + diff);
             p+=3;
         } else {
             NEGDIVMOD(diff, SLOPE_TAIL_COUNT, m);
-            p[3]=(uint8_t)(SLOPE_MIN+m);
+            p[3] = static_cast<uint8_t>(SLOPE_MIN + m);
             NEGDIVMOD(diff, SLOPE_TAIL_COUNT, m);
-            p[2]=(uint8_t)(SLOPE_MIN+m);
+            p[2] = static_cast<uint8_t>(SLOPE_MIN + m);
             NEGDIVMOD(diff, SLOPE_TAIL_COUNT, m);
-            p[1]=(uint8_t)(SLOPE_MIN+m);
+            p[1] = static_cast<uint8_t>(SLOPE_MIN + m);
             *p=SLOPE_MIN;
             p+=4;
         }
@@ -98,7 +98,7 @@ u_writeDiff(int32_t diff, uint8_t *p) {
  * NFD text - there are never Hangul characters included.
  */
 U_CFUNC UChar32
-u_writeIdenticalLevelRun(UChar32 prev, const UChar *s, int32_t length, icu::ByteSink &sink) {
+u_writeIdenticalLevelRun(UChar32 prev, const char16_t *s, int32_t length, icu::ByteSink &sink) {
     char scratch[64];
     int32_t capacity;
 

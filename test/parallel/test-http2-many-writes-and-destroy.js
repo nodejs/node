@@ -7,10 +7,13 @@ const http2 = require('http2');
 
 {
   const server = http2.createServer((req, res) => {
+    // Peer destroys mid-stream, so we see errors here:
+    req.on('error', () => {});
+    res.on('error', () => {});
     req.pipe(res);
   });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const url = `http://localhost:${server.address().port}`;
     const client = http2.connect(url);
     const req = client.request({ ':method': 'POST' });
@@ -26,5 +29,5 @@ const http2 = require('http2');
     }));
 
     req.once('data', common.mustCall(() => req.destroy()));
-  });
+  }));
 }

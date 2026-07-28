@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Blob and File reference URL Test(2)</title>
+    <link rel=help href="http://dev.w3.org/2006/webapi/FileAPI/#convenienceAPI">
+    <link rel=author title="Breezewish" href="mailto:me@breeswish.org">
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+    <form name="upload">
+        <input type="file" id="fileChooser"><br><input type="button" id="start" value="start">
+    </form>
+
+    <div>
+        <p>Test steps:</p>
+        <ol>
+            <li>Download the <a href="support/file_test2.txt">file</a>.</li>
+            <li>Select the file in the file inputbox.</li>
+            <li>Delete the file.</li>
+            <li>Click the 'start' button.</li>
+        </ol>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+
+        var fileChooser = document.querySelector('#fileChooser');
+
+        setup({explicit_done: true});
+        setup({explicit_timeout: true});
+
+        on_event(document.querySelector('#start'), 'click', function() {
+
+            async_test(function(t) {
+
+                var url = URL.createObjectURL(fileChooser.files[0]);
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.onreadystatechange = t.step_func(function() {
+                    switch (xhr.readyState) {
+                    case xhr.DONE:
+                        assert_equals(xhr.status, 500, 'status code should be 500.');
+                        t.done();
+                        return;
+                    }
+                });
+
+                xhr.send();
+
+            }, 'Check whether the browser response 500 in XHR if the selected file which File/Blob URL refered is not found');
+
+            done();
+
+        });
+
+    </script>
+</body>
+</html>

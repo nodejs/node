@@ -5,209 +5,172 @@
 #ifndef INCLUDE_V8_CPPGC_H_
 #define INCLUDE_V8_CPPGC_H_
 
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "cppgc/common.h"
+#include "cppgc/custom-space.h"
+#include "cppgc/heap-statistics.h"
 #include "cppgc/visitor.h"
-#include "v8-internal.h"  // NOLINT(build/include_directory)
-#include "v8.h"  // NOLINT(build/include_directory)
+#include "v8-internal.h"       // NOLINT(build/include_directory)
+#include "v8-platform.h"       // NOLINT(build/include_directory)
+#include "v8-traced-handle.h"  // NOLINT(build/include_directory)
+
+namespace cppgc {
+class AllocationHandle;
+class HeapHandle;
+}  // namespace cppgc
 
 namespace v8 {
 
-class Isolate;
-template <typename T>
-class JSMember;
+class Object;
 
 namespace internal {
-
-class JSMemberBaseExtractor;
-
-class V8_EXPORT JSMemberBase {
- public:
-  /**
-   * Returns true if the reference is empty, i.e., has not been assigned
-   * object.
-   */
-  bool IsEmpty() const { return val_ == nullptr; }
-
-  /**
-   * Clears the reference. IsEmpty() will return true after this call.
-   */
-  inline void Reset();
-
- private:
-  static internal::Address* New(v8::Isolate* isolate,
-                                internal::Address* object_slot,
-                                internal::Address** this_slot);
-  static void Delete(internal::Address* object);
-  static void Copy(const internal::Address* const* from_slot,
-                   internal::Address** to_slot);
-  static void Move(internal::Address** from_slot, internal::Address** to_slot);
-
-  JSMemberBase() = default;
-
-  JSMemberBase(v8::Isolate* isolate, internal::Address* object_slot)
-      : val_(New(isolate, object_slot, &val_)) {}
-
-  inline JSMemberBase& CopyImpl(const JSMemberBase& other);
-  inline JSMemberBase& MoveImpl(JSMemberBase&& other);
-
-  // val_ points to a GlobalHandles node.
-  internal::Address* val_ = nullptr;
-
-  template <typename T>
-  friend class v8::JSMember;
-  friend class v8::internal::JSMemberBaseExtractor;
-};
-
-JSMemberBase& JSMemberBase::CopyImpl(const JSMemberBase& other) {
-  if (this != &other) {
-    Reset();
-    if (!other.IsEmpty()) {
-      Copy(&other.val_, &val_);
-    }
-  }
-  return *this;
-}
-
-JSMemberBase& JSMemberBase::MoveImpl(JSMemberBase&& other) {
-  if (this != &other) {
-    // No call to Reset() as Move() will conditionally reset itself when needed,
-    // and otherwise reuse the internal meta data.
-    Move(&other.val_, &val_);
-  }
-  return *this;
-}
-
-void JSMemberBase::Reset() {
-  if (IsEmpty()) return;
-  Delete(val_);
-  val_ = nullptr;
-}
-
+class CppHeap;
 }  // namespace internal
 
-/**
- * A traced handle without destructor that clears the handle. The handle may
- * only be used in GarbageCollected objects and must be processed in a Trace()
- * method.
- */
-template <typename T>
-class V8_EXPORT JSMember : public internal::JSMemberBase {
-  static_assert(std::is_base_of<v8::Value, T>::value,
-                "JSMember only supports references to v8::Value");
+class CustomSpaceStatisticsReceiver;
 
- public:
-  JSMember() = default;
+struct V8_EXPORT CppHeapCreateParams {
+  explicit CppHeapCreateParams(
+      std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces)
+      : custom_spaces(std::move(custom_spaces)) {}
 
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember(Isolate* isolate, Local<U> that)
-      : internal::JSMemberBase(isolate,
-                               reinterpret_cast<internal::Address*>(*that)) {}
+  CppHeapCreateParams(const CppHeapCreateParams&) = delete;
+  CppHeapCreateParams& operator=(const CppHeapCreateParams&) = delete;
 
-  JSMember(const JSMember& other) { CopyImpl(other); }
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember(const JSMember<U>& other) {  // NOLINT
-    CopyImpl(other);
-  }
-
-  JSMember(JSMember&& other) { MoveImpl(std::move(other)); }
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember(JSMember<U>&& other) {  // NOLINT
-    MoveImpl(std::move(other));
-  }
-
-  JSMember& operator=(const JSMember& other) { return CopyImpl(other); }
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember& operator=(const JSMember<U>& other) {
-    return CopyImpl(other);
-  }
-
-  JSMember& operator=(JSMember&& other) { return MoveImpl(other); }
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  JSMember& operator=(JSMember<U>&& other) {
-    return MoveImpl(other);
-  }
-
-  T* operator->() const { return reinterpret_cast<T*>(val_); }
-  T* operator*() const { return reinterpret_cast<T*>(val_); }
-
-  using internal::JSMemberBase::Reset;
-
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
-  void Set(v8::Isolate* isolate, Local<U> that) {
-    Reset();
-    val_ = New(isolate, reinterpret_cast<internal::Address*>(*that), &val_);
-  }
+  std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
+  /**
+   * Specifies which kind of marking are supported by the heap. The type may be
+   * further reduced via runtime flags when attaching the heap to an Isolate.
+   */
+  cppgc::Heap::MarkingType marking_support =
+      cppgc::Heap::MarkingType::kIncrementalAndConcurrent;
+  /**
+   * Specifies which kind of sweeping is supported by the heap. The type may be
+   * further reduced via runtime flags when attaching the heap to an Isolate.
+   */
+  cppgc::Heap::SweepingType sweeping_support =
+      cppgc::Heap::SweepingType::kIncrementalAndConcurrent;
 };
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator==(const JSMember<T1>& lhs, const JSMember<T2>& rhs) {
-  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(*lhs);
-  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(*rhs);
-  if (a == nullptr) return b == nullptr;
-  if (b == nullptr) return false;
-  return *a == *b;
-}
+/**
+ * A heap for allocating managed C++ objects.
+ *
+ * Similar to v8::Isolate, the heap may only be accessed from one thread at a
+ * time. The heap may be used from different threads using the
+ * v8::Locker/v8::Unlocker APIs which is different from generic Oilpan.
+ */
+class V8_EXPORT CppHeap {
+ public:
+  static std::unique_ptr<CppHeap> Create(v8::Platform* platform,
+                                         const CppHeapCreateParams& params);
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator!=(const JSMember<T1>& lhs, const JSMember<T2>& rhs) {
-  return !(lhs == rhs);
-}
+  virtual ~CppHeap() = default;
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator==(const JSMember<T1>& lhs, const Local<T2>& rhs) {
-  v8::internal::Address* a = reinterpret_cast<v8::internal::Address*>(*lhs);
-  v8::internal::Address* b = reinterpret_cast<v8::internal::Address*>(*rhs);
-  if (a == nullptr) return b == nullptr;
-  if (b == nullptr) return false;
-  return *a == *b;
-}
+  /**
+   * \returns the opaque handle for allocating objects using
+   * `MakeGarbageCollected()`.
+   */
+  cppgc::AllocationHandle& GetAllocationHandle();
 
-template <typename T1, typename T2,
-          typename = std::enable_if_t<std::is_base_of<T2, T1>::value ||
-                                      std::is_base_of<T1, T2>::value>>
-inline bool operator==(const Local<T1>& lhs, const JSMember<T2> rhs) {
-  return rhs == lhs;
-}
+  /**
+   * \returns the opaque heap handle which may be used to refer to this heap in
+   *   other APIs. Valid as long as the underlying `CppHeap` is alive.
+   */
+  cppgc::HeapHandle& GetHeapHandle();
 
-template <typename T1, typename T2>
-inline bool operator!=(const JSMember<T1>& lhs, const T2& rhs) {
-  return !(lhs == rhs);
-}
+  /**
+   * Terminate clears all roots and performs multiple garbage collections to
+   * reclaim potentially newly created objects in destructors.
+   *
+   * After this call, object allocation is prohibited.
+   */
+  V8_DEPRECATED("Terminate gets automatically called in the CppHeap destructor")
+  void Terminate();
 
-template <typename T1, typename T2>
-inline bool operator!=(const T1& lhs, const JSMember<T2>& rhs) {
-  return !(lhs == rhs);
-}
+  /**
+   * \param detail_level specifies whether should return detailed
+   *   statistics or only brief summary statistics.
+   * \returns current CppHeap statistics regarding memory consumption
+   *   and utilization.
+   */
+  cppgc::HeapStatistics CollectStatistics(
+      cppgc::HeapStatistics::DetailLevel detail_level);
+
+  /**
+   * Collects statistics for the given spaces and reports them to the receiver.
+   *
+   * \param custom_spaces a collection of custom space indices.
+   * \param receiver an object that gets the results.
+   */
+  void CollectCustomSpaceStatisticsAtLastGC(
+      std::vector<cppgc::CustomSpaceIndex> custom_spaces,
+      std::unique_ptr<CustomSpaceStatisticsReceiver> receiver);
+
+  /**
+   * Enables a detached mode that allows testing garbage collection using
+   * `cppgc::testing` APIs. Once used, the heap cannot be attached to an
+   * `Isolate` anymore.
+   */
+  void EnableDetachedGarbageCollectionsForTesting();
+
+  /**
+   * Performs a stop-the-world garbage collection for testing purposes.
+   *
+   * \param stack_state The stack state to assume for the garbage collection.
+   */
+  void CollectGarbageForTesting(cppgc::EmbedderStackState stack_state);
+
+  /**
+   * Performs a stop-the-world minor garbage collection for testing purposes.
+   *
+   * \param stack_state The stack state to assume for the garbage collection.
+   */
+  void CollectGarbageInYoungGenerationForTesting(
+      cppgc::EmbedderStackState stack_state);
+
+ private:
+  CppHeap() = default;
+
+  friend class internal::CppHeap;
+};
 
 class JSVisitor : public cppgc::Visitor {
  public:
   explicit JSVisitor(cppgc::Visitor::Key key) : cppgc::Visitor(key) {}
+  ~JSVisitor() override = default;
 
-  template <typename T>
-  void Trace(const JSMember<T>& ref) {
-    if (ref.IsEmpty()) return;
+  void Trace(const TracedReferenceBase& ref) {
+    if (ref.IsEmptyThreadSafe()) return;
     Visit(ref);
   }
 
  protected:
   using cppgc::Visitor::Visit;
 
-  virtual void Visit(const internal::JSMemberBase& ref) {}
+  virtual void Visit(const TracedReferenceBase& ref) {}
+};
+
+/**
+ * Provided as input to `CppHeap::CollectCustomSpaceStatisticsAtLastGC()`.
+ *
+ * Its method is invoked with the results of the statistic collection.
+ */
+class CustomSpaceStatisticsReceiver {
+ public:
+  virtual ~CustomSpaceStatisticsReceiver() = default;
+  /**
+   * Reports the size of a space at the last GC. It is called for each space
+   * that was requested in `CollectCustomSpaceStatisticsAtLastGC()`.
+   *
+   * \param space_index The index of the space.
+   * \param bytes The total size of live objects in the space at the last GC.
+   *    It is zero if there was no GC yet.
+   */
+  virtual void AllocatedBytes(cppgc::CustomSpaceIndex space_index,
+                              size_t bytes) = 0;
 };
 
 }  // namespace v8
@@ -215,9 +178,14 @@ class JSVisitor : public cppgc::Visitor {
 namespace cppgc {
 
 template <typename T>
-struct TraceTrait<v8::JSMember<T>> {
-  static void Trace(Visitor* visitor, const v8::JSMember<T>* self) {
-    static_cast<v8::JSVisitor*>(visitor)->Trace(*self);
+struct TraceTrait<v8::TracedReference<T>> {
+  static cppgc::TraceDescriptor GetTraceDescriptor(const void* self) {
+    return {nullptr, Trace};
+  }
+
+  static void Trace(Visitor* visitor, const void* self) {
+    static_cast<v8::JSVisitor*>(visitor)->Trace(
+        *static_cast<const v8::TracedReference<T>*>(self));
   }
 };
 

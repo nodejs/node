@@ -10,8 +10,8 @@
 #include "unicode/uniset.h"
 #include "numparse_types.h"
 
-U_NAMESPACE_BEGIN namespace numparse {
-namespace impl {
+U_NAMESPACE_BEGIN
+namespace numparse::impl {
 
 using ::icu::number::impl::Grouper;
 
@@ -39,7 +39,7 @@ class DecimalMatcher : public NumberParseMatcher, public UMemory {
     bool groupingDisabled;
 
     // Fraction grouping parsing is disabled for now but could be enabled later.
-    // See http://bugs.icu-project.org/trac/ticket/10794
+    // See https://unicode-org.atlassian.net/browse/ICU-10794
     // bool fractionGrouping;
 
     /** If true, do not accept numbers in the fraction */
@@ -61,15 +61,14 @@ class DecimalMatcher : public NumberParseMatcher, public UMemory {
     // Make this class the owner of a few objects that could be allocated.
     // The first three LocalPointers are used for assigning ownership only.
     LocalPointer<const UnicodeSet> fLocalDecimalUniSet;
+    LocalPointer<const UnicodeSet> fLocalGroupingUniSet;
     LocalPointer<const UnicodeSet> fLocalSeparatorSet;
     LocalArray<const UnicodeString> fLocalDigitStrings;
 
     bool validateGroup(int32_t sepType, int32_t count, bool isPrimary) const;
 };
 
-
-} // namespace impl
-} // namespace numparse
+} // namespace numparse::impl
 U_NAMESPACE_END
 
 #endif //__NUMPARSE_DECIMAL_H__

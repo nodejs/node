@@ -1,17 +1,23 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+/*
+ * RC2 low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
+
 #include <openssl/rc2.h>
 #include "rc2_local.h"
 
 void RC2_cbc_encrypt(const unsigned char *in, unsigned char *out, long length,
-                     RC2_KEY *ks, unsigned char *iv, int encrypt)
+    RC2_KEY *ks, unsigned char *iv, int encrypt)
 {
     register unsigned long tin0, tin1;
     register unsigned long tout0, tout1, xor0, xor1;
@@ -93,11 +99,11 @@ void RC2_encrypt(unsigned long *d, RC2_KEY *key)
     unsigned long l;
 
     l = d[0];
-    x0 = (RC2_INT) l & 0xffff;
-    x1 = (RC2_INT) (l >> 16L);
+    x0 = (RC2_INT)l & 0xffff;
+    x1 = (RC2_INT)(l >> 16L);
     l = d[1];
-    x2 = (RC2_INT) l & 0xffff;
-    x3 = (RC2_INT) (l >> 16L);
+    x2 = (RC2_INT)l & 0xffff;
+    x3 = (RC2_INT)(l >> 16L);
 
     n = 3;
     i = 5;
@@ -125,10 +131,8 @@ void RC2_encrypt(unsigned long *d, RC2_KEY *key)
         }
     }
 
-    d[0] =
-        (unsigned long)(x0 & 0xffff) | ((unsigned long)(x1 & 0xffff) << 16L);
-    d[1] =
-        (unsigned long)(x2 & 0xffff) | ((unsigned long)(x3 & 0xffff) << 16L);
+    d[0] = (unsigned long)(x0 & 0xffff) | ((unsigned long)(x1 & 0xffff) << 16L);
+    d[1] = (unsigned long)(x2 & 0xffff) | ((unsigned long)(x3 & 0xffff) << 16L);
 }
 
 void RC2_decrypt(unsigned long *d, RC2_KEY *key)
@@ -139,11 +143,11 @@ void RC2_decrypt(unsigned long *d, RC2_KEY *key)
     unsigned long l;
 
     l = d[0];
-    x0 = (RC2_INT) l & 0xffff;
-    x1 = (RC2_INT) (l >> 16L);
+    x0 = (RC2_INT)l & 0xffff;
+    x1 = (RC2_INT)(l >> 16L);
     l = d[1];
-    x2 = (RC2_INT) l & 0xffff;
-    x3 = (RC2_INT) (l >> 16L);
+    x2 = (RC2_INT)l & 0xffff;
+    x3 = (RC2_INT)(l >> 16L);
 
     n = 3;
     i = 5;
@@ -172,8 +176,6 @@ void RC2_decrypt(unsigned long *d, RC2_KEY *key)
         }
     }
 
-    d[0] =
-        (unsigned long)(x0 & 0xffff) | ((unsigned long)(x1 & 0xffff) << 16L);
-    d[1] =
-        (unsigned long)(x2 & 0xffff) | ((unsigned long)(x3 & 0xffff) << 16L);
+    d[0] = (unsigned long)(x0 & 0xffff) | ((unsigned long)(x1 & 0xffff) << 16L);
+    d[1] = (unsigned long)(x2 & 0xffff) | ((unsigned long)(x3 & 0xffff) << 16L);
 }

@@ -1,9 +1,16 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testPskTls13Unsupported();
+  return;
+}
+
+const { hasOpenSSL } = require('../common/crypto');
 const assert = require('assert');
 const tls = require('tls');
 
@@ -16,11 +23,11 @@ const TEST_DATA = 'x';
 
 const serverOptions = {
   ciphers: CIPHERS,
-  pskCallback(socket, id) {
+  pskCallback: common.mustCallAtLeast((socket, id) => {
     assert.ok(socket instanceof tls.TLSSocket);
     assert.ok(typeof id === 'string');
     return USERS[id];
-  },
+  }),
 };
 
 function test(secret, opts, error) {
@@ -49,16 +56,12 @@ function test(secret, opts, error) {
     } else {
       const client = tls.connect(options, common.mustNotCall());
       client.on('error', common.mustCall((err) => {
-        assert.strictEqual(err.message, error);
+        assert.strictEqual(err.code, error);
         server.close();
       }));
     }
   }));
 }
-
-const DISCONNECT_MESSAGE =
-  'Client network socket disconnected before ' +
-  'secure TLS connection was established';
 
 test({ psk: USERS.UserA, identity: 'UserA' });
 test({ psk: USERS.UserA, identity: 'UserA' }, { maxVersion: 'TLSv1.2' });
@@ -66,7 +69,13 @@ test({ psk: USERS.UserA, identity: 'UserA' }, { minVersion: 'TLSv1.3' });
 test({ psk: USERS.UserB, identity: 'UserB' });
 test({ psk: USERS.UserB, identity: 'UserB' }, { minVersion: 'TLSv1.3' });
 // Unrecognized user should fail handshake
-test({ psk: USERS.UserB, identity: 'UserC' }, {}, DISCONNECT_MESSAGE);
+const expectedHandshakeErr = hasOpenSSL(4, 0) ?
+  'ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE' : hasOpenSSL(3, 2) ?
+    'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
+test({ psk: USERS.UserB, identity: 'UserC' }, {}, expectedHandshakeErr);
 // Recognized user but incorrect secret should fail handshake
-test({ psk: USERS.UserA, identity: 'UserB' }, {}, DISCONNECT_MESSAGE);
+const expectedIllegalParameterErr = hasOpenSSL(3, 4) ? 'ERR_SSL_TLSV1_ALERT_DECRYPT_ERROR' :
+  hasOpenSSL(3, 2) ?
+    'ERR_SSL_SSL/TLS_ALERT_ILLEGAL_PARAMETER' : 'ERR_SSL_SSLV3_ALERT_ILLEGAL_PARAMETER';
+test({ psk: USERS.UserA, identity: 'UserB' }, {}, expectedIllegalParameterErr);
 test({ psk: USERS.UserB, identity: 'UserB' });

@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-mac.h"
 
+#include "src/objects/instruction-stream.h"
+
 namespace v8 {
 namespace internal {
 
@@ -27,8 +29,6 @@ const char* DirectiveAsString(DataDirective directive) {
 
 void PlatformEmbeddedFileWriterMac::SectionText() { fprintf(fp_, ".text\n"); }
 
-void PlatformEmbeddedFileWriterMac::SectionData() { fprintf(fp_, ".data\n"); }
-
 void PlatformEmbeddedFileWriterMac::SectionRoData() {
   fprintf(fp_, ".const_data\n");
 }
@@ -42,13 +42,6 @@ void PlatformEmbeddedFileWriterMac::DeclareUint32(const char* name,
   Newline();
 }
 
-void PlatformEmbeddedFileWriterMac::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  DeclareLabel(name);
-  fprintf(fp_, "  %s _%s\n", DirectiveAsString(PointerSizeDirective()), target);
-}
-
 void PlatformEmbeddedFileWriterMac::DeclareSymbolGlobal(const char* name) {
   // TODO(jgruber): Investigate switching to .globl. Using .private_extern
   // prevents something along the compilation chain from messing with the
@@ -58,10 +51,26 @@ void PlatformEmbeddedFileWriterMac::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToCodeAlignment() {
-  fprintf(fp_, ".balign 32\n");
+#if V8_TARGET_ARCH_ARM64
+  // ARM64 macOS has a 16kiB page size. Since we want to remap it on the heap,
+  // needs to be page-aligned.
+  fprintf(fp_, ".balign 16384\n");
+#else
+  fprintf(fp_, ".balign %d\n", static_cast<int>(kCodeAlignment));
+#endif
+}
+
+void PlatformEmbeddedFileWriterMac::AlignToPageSizeIfNeeded() {
+#if V8_TARGET_ARCH_ARM64
+  // ARM64 macOS has a 16kiB page size. Since we want to remap builtins on the
+  // heap, make sure that the trailing part of the page doesn't contain anything
+  // dangerous.
+  fprintf(fp_, ".balign 16384\n");
+#endif
 }
 
 void PlatformEmbeddedFileWriterMac::AlignToDataAlignment() {
+  static_assert(8 >= InstructionStream::kMetadataAlignment);
   fprintf(fp_, ".balign 8\n");
 }
 
@@ -81,10 +90,6 @@ void PlatformEmbeddedFileWriterMac::SourceInfo(int fileid, const char* filename,
 // TODO(mmarchini): investigate emitting size annotations for OS X
 void PlatformEmbeddedFileWriterMac::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
-  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
-    DeclareSymbolGlobal(name);
-  }
-
   DeclareLabel(name);
 
   // TODO(mvstanton): Investigate the proper incantations to mark the label as

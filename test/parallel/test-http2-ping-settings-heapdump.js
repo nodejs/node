@@ -30,8 +30,7 @@ for (const variant of ['ping', 'settings']) {
   }));
 
   server.listen(0, common.mustCall(() => {
-    const client = http2.connect(`http://localhost:${server.address().port}`,
-                                 common.mustCall());
+    const client = http2.connect(`http://localhost:${server.address().port}`, common.mustCall());
     client.on('error', (err) => {
       // We destroy the session so it's possible to get ECONNRESET here.
       if (err.code !== 'ECONNRESET')

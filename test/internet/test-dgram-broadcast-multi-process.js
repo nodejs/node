@@ -84,7 +84,7 @@ if (process.argv[2] !== 'child') {
       worker.messagesReceived = [];
 
       // Handle the death of workers
-      worker.on('exit', (code, signal) => {
+      worker.on('exit', common.mustCall((code, signal) => {
         // Don't consider this the true death if the worker
         // has finished successfully
         // or if the exit code is 0
@@ -108,9 +108,9 @@ if (process.argv[2] !== 'child') {
 
           process.exit(1);
         }
-      });
+      }));
 
-      worker.on('message', (msg) => {
+      worker.on('message', common.mustCallAtLeast((msg) => {
         if (msg.listening) {
           listening += 1;
 
@@ -134,7 +134,7 @@ if (process.argv[2] !== 'child') {
                           'required number of ' +
                           'messages. Will now compare.');
 
-            Object.keys(workers).forEach((pid) => {
+            for (const pid of Object.keys(workers)) {
               const worker = workers[pid];
 
               let count = 0;
@@ -153,20 +153,20 @@ if (process.argv[2] !== 'child') {
                             count);
 
               assert.strictEqual(count, messages.length);
-            });
+            }
 
             clearTimeout(timer);
             console.error('[PARENT] Success');
             killSubprocesses(workers);
           }
         }
-      });
+      }));
     })(x);
   }
 
   const sendSocket = dgram.createSocket({
     type: 'udp4',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   // Bind the address explicitly for sending
@@ -184,7 +184,9 @@ if (process.argv[2] !== 'child') {
     const buf = messages[i++];
 
     if (!buf) {
-      try { sendSocket.close(); } catch {}
+      try { sendSocket.close(); } catch {
+        // Continue regardless of error.
+      }
       return;
     }
 
@@ -194,14 +196,13 @@ if (process.argv[2] !== 'child') {
       buf.length,
       common.PORT,
       LOCAL_BROADCAST_HOST,
-      (err) => {
-        assert.ifError(err);
+      common.mustSucceed(() => {
         console.error('[PARENT] sent %s to %s:%s',
                       util.inspect(buf.toString()),
                       LOCAL_BROADCAST_HOST, common.PORT);
 
         process.nextTick(sendSocket.sendNext);
-      }
+      }),
     );
   };
 
@@ -217,7 +218,7 @@ if (process.argv[2] === 'child') {
   const receivedMessages = [];
   const listenSocket = dgram.createSocket({
     type: 'udp4',
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('message', (buf, rinfo) => {

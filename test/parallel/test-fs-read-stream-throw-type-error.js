@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
@@ -14,11 +14,11 @@ fs.createReadStream(example, null);
 fs.createReadStream(example, 'utf8');
 fs.createReadStream(example, { encoding: 'utf8' });
 
-const createReadStreamErr = (path, opt, error) => {
+const createReadStreamErr = common.mustCallAtLeast((path, opt, error) => {
   assert.throws(() => {
     fs.createReadStream(path, opt);
   }, error);
-};
+});
 
 const typeError = {
   code: 'ERR_INVALID_ARG_TYPE',
@@ -43,7 +43,7 @@ const rangeError = {
 [
   { start: 'invalid' },
   { end: 'invalid' },
-  { start: 'invalid', end: 'invalid' }
+  { start: 'invalid', end: 'invalid' },
 ].forEach((opts) => createReadStreamErr(example, opts, typeError));
 
 // Case 2: Should throw RangeError if either start or end is NaN
@@ -71,7 +71,7 @@ createReadStreamErr(example, { start: 5, end: 1 }, rangeError);
 const NOT_SAFE_INTEGER = 2 ** 53;
 [
   { start: NOT_SAFE_INTEGER, end: Infinity },
-  { start: 0, end: NOT_SAFE_INTEGER }
+  { start: 0, end: NOT_SAFE_INTEGER },
 ].forEach((opts) =>
   createReadStreamErr(example, opts, rangeError)
 );

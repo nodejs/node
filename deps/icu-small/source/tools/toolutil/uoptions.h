@@ -57,7 +57,7 @@ struct UOption {
     void *context;          /* parameter for the function */
     char shortName;         /* 'f' for -f */
     char hasArg;            /* enum value: option takes no/requires/may have argument */
-    char doesOccur;         /* boolean for "this one occured" */
+    char doesOccur;         /* boolean for "this one occurred" */
 };
 
 /* macro for an entry in a declaration of UOption[] */
@@ -130,7 +130,7 @@ struct UOption {
  * where the error was detected.
  *
  * The OS/400 compiler requires that argv either be "char* argv[]",
- * or "const char* const argv[]", and it will not accept,
+ * or "const char* const argv[]", and it will not accept, 
  * "const char* argv[]" as a definition for main().
  *
  * @param argv This parameter is modified

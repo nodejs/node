@@ -31,7 +31,7 @@ assert.strictEqual(parser.test_type, DummyParser.REQUEST);
 if (process.argv[2] !== 'child') {
   // Also test in a child process with IPC (specific case of https://github.com/nodejs/node/issues/23716)
   const child = spawn(process.execPath, [
-    '--expose-internals', __filename, 'child'
+    '--expose-internals', __filename, 'child',
   ], {
     stdio: ['inherit', 'inherit', 'inherit', 'ipc']
   });

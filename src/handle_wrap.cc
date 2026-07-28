@@ -31,6 +31,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -38,7 +39,7 @@ using v8::Value;
 
 void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   if (IsAlive(wrap))
     uv_ref(wrap->GetHandle());
@@ -47,7 +48,7 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
 
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   if (IsAlive(wrap))
     uv_unref(wrap->GetHandle());
@@ -56,14 +57,14 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 
 void HandleWrap::HasRef(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   args.GetReturnValue().Set(HasRef(wrap));
 }
 
 
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
   wrap->Close(args[0]);
 }
@@ -85,7 +86,16 @@ void HandleWrap::Close(Local<Value> close_callback) {
 
 
 void HandleWrap::OnGCCollect() {
-  Close();
+  // When all references to a HandleWrap are lost and the object is supposed to
+  // be destroyed, we first call Close() to clean up the underlying libuv
+  // handle. The OnClose callback then acquires and destroys another reference
+  // to that object, and when that reference is lost, we perform the default
+  // action (i.e. destroying `this`).
+  if (state_ != kClosed) {
+    Close();
+  } else {
+    BaseObject::OnGCCollect();
+  }
 }
 
 
@@ -139,23 +149,30 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   wrap->handle_wrap_queue_.Remove();
 
   if (!wrap->persistent().IsEmpty() &&
-      wrap->object()->Has(env->context(), env->handle_onclose_symbol())
-      .FromMaybe(false)) {
+      wrap->object()
+          ->Has(env->context(), env->handle_onclose_symbol())
+          .FromMaybe(false)) {
     wrap->MakeCallback(env->handle_onclose_symbol(), 0, nullptr);
   }
 }
-
 Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(Environment* env) {
-  Local<FunctionTemplate> tmpl = env->handle_wrap_ctor_template();
+  return GetConstructorTemplate(env->isolate_data());
+}
+
+Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl = isolate_data->handle_wrap_ctor_template();
   if (tmpl.IsEmpty()) {
-    tmpl = env->NewFunctionTemplate(nullptr);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HandleWrap"));
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    env->SetProtoMethod(tmpl, "close", HandleWrap::Close);
-    env->SetProtoMethodNoSideEffect(tmpl, "hasRef", HandleWrap::HasRef);
-    env->SetProtoMethod(tmpl, "ref", HandleWrap::Ref);
-    env->SetProtoMethod(tmpl, "unref", HandleWrap::Unref);
-    env->set_handle_wrap_ctor_template(tmpl);
+    Isolate* isolate = isolate_data->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->SetClassName(
+        FIXED_ONE_BYTE_STRING(isolate_data->isolate(), "HandleWrap"));
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+    SetProtoMethod(isolate, tmpl, "close", HandleWrap::Close);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "hasRef", HandleWrap::HasRef);
+    SetProtoMethod(isolate, tmpl, "ref", HandleWrap::Ref);
+    SetProtoMethod(isolate, tmpl, "unref", HandleWrap::Unref);
+    isolate_data->set_handle_wrap_ctor_template(tmpl);
   }
   return tmpl;
 }
@@ -170,5 +187,5 @@ void HandleWrap::RegisterExternalReferences(
 
 }  // namespace node
 
-NODE_MODULE_EXTERNAL_REFERENCE(handle_wrap,
-                               node::HandleWrap::RegisterExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(handle_wrap,
+                                node::HandleWrap::RegisterExternalReferences)

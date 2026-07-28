@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-simd
-
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(16, 32, false);
+builder.addMemory(16, 32);
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 // Generate function 1 (out of 4).
 builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
@@ -30,7 +28,7 @@ builder.addFunction(undefined, 0 /* sig */).addBodyWithEnd([
   0x04, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // i8x16.shuffle
   kSimdPrefix, kExprI8x16LeU,  // i8x16.le_u
-  kSimdPrefix, kExprV8x16AnyTrue,  // v8x16.any_true
+  kSimdPrefix, kExprV128AnyTrue,  // v128.any_true
   kExprMemoryGrow, 0x00,  // memory.grow
   kExprDrop,
   kExprEnd,  // end @233

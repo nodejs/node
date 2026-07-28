@@ -21,12 +21,18 @@ const agentKey = fs.readFileSync(fixture.path('/keys/agent1-key.pem'));
 const agentCert = fs.readFileSync(fixture.path('/keys/agent1-cert.pem'));
 const agentCa = fs.readFileSync(fixture.path('/keys/ca1-cert.pem'));
 
+common.expectWarning({
+  DeprecationWarning: {
+    DEP0183: 'OpenSSL engine-based APIs are deprecated.',
+  },
+});
+
 const serverOptions = {
   key: agentKey,
   cert: agentCert,
   ca: agentCa,
   requestCert: true,
-  rejectUnauthorized: true
+  rejectUnauthorized: true,
 };
 
 const server = https.createServer(serverOptions, common.mustCall((req, res) => {
@@ -40,7 +46,7 @@ const server = https.createServer(serverOptions, common.mustCall((req, res) => {
     path: '/test',
     clientCertEngine: engine,  // `engine` will provide key+cert
     rejectUnauthorized: false, // Prevent failing on self-signed certificates
-    headers: {}
+    headers: {},
   };
 
   const req = https.request(clientOptions, common.mustCall((response) => {

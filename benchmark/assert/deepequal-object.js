@@ -4,14 +4,20 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [5e3],
-  size: [1e2, 1e3, 5e4],
-  strict: [0, 1],
-  method: ['deepEqual', 'notDeepEqual'],
+  n: [50, 2e2],
+  size: [1e2, 1e4],
+  method: ['deepEqual', 'notDeepEqual', 'deepStrictEqual', 'notDeepStrictEqual'],
+}, {
+  combinationFilter: (p) => {
+    return p.size === 1e4 && p.n === 50 ||
+           p.size === 1e3 && p.n === 2e2 ||
+           p.size === 1e2 && p.n === 2e3 ||
+           p.size === 1;
+  },
 });
 
-function createObj(source, add = '') {
-  return source.map((n) => ({
+function createObj(size, add = '') {
+  return Array.from({ length: size }, (n) => ({
     foo: 'yarp',
     nope: {
       bar: `123${add}`,
@@ -23,24 +29,15 @@ function createObj(source, add = '') {
   }));
 }
 
-function main({ size, n, method, strict }) {
-  // TODO: Fix this "hack". `n` should not be manipulated.
-  n = Math.min(Math.ceil(n / size), 20);
-
-  const source = Array.apply(null, Array(size));
-  const actual = createObj(source);
-  const expected = createObj(source);
-  const expectedWrong = createObj(source, '4');
-
-  if (strict) {
-    method = method.replace('eep', 'eepStrict');
-  }
+function main({ size, n, method }) {
   const fn = assert[method];
-  const value2 = method.includes('not') ? expectedWrong : expected;
+
+  const actual = createObj(size);
+  const expected = method.includes('not') ? createObj(size, '4') : createObj(size);
 
   bench.start();
   for (let i = 0; i < n; ++i) {
-    fn(actual, value2);
+    fn(actual, expected);
   }
   bench.end(n);
 }

@@ -1,14 +1,13 @@
 'use strict';
 
-if (!process.features.inspector) return;
-
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { spawnSync } = require('child_process');
+
+common.skipIfInspectorDisabled();
 
 tmpdir.refresh();
 const intervals = 40;
@@ -32,7 +31,7 @@ const intervals = 40;
 
   let coverages = [];
   for (const coverageFile of coverageFiles) {
-    const coverage = require(path.join(tmpdir.path, coverageFile));
+    const coverage = require(tmpdir.resolve(coverageFile));
     for (const result of coverage.result) {
       if (result.url.includes('/interval')) {
         coverages.push({

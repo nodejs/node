@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -7,8 +6,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 
-const { internalBinding } = require('internal/test/binding');
-if (typeof internalBinding('crypto').ScryptJob !== 'function')
+if (typeof crypto.scrypt !== 'function' || typeof crypto.scryptSync !== 'function')
   common.skip('no scrypt support');
 
 const good = [
@@ -24,7 +22,7 @@ const good = [
   },
   // Test vectors from https://tools.ietf.org/html/rfc7914#page-13 that
   // should pass.  Note that the test vector with N=1048576 is omitted
-  // because it takes too long to complete and uses over 1 GB of memory.
+  // because it takes too long to complete and uses over 1 GiB of memory.
   {
     pass: '',
     salt: '',
@@ -93,13 +91,17 @@ const good = [
   },
 ];
 
-// Test vectors that should fail.
+// Test vectors that contain invalid parameters.
 const bad = [
   { N: 1, p: 1, r: 1 },         // N < 2
   { N: 3, p: 1, r: 1 },         // Not power of 2.
-  { N: 1, cost: 1 },            // Both N and cost
-  { p: 1, parallelization: 1 }, // Both p and parallelization
-  { r: 1, blockSize: 1 }        // Both r and blocksize
+];
+
+// Test vectors that contain incompatible options.
+const incompatibleOptions = [
+  { N: 1, cost: 1 },             // Both N and cost
+  { p: 1, parallelization: 1 },  // Both p and parallelization
+  { r: 1, blockSize: 1 },        // Both r and blocksize
 ];
 
 // Test vectors where 128*N*r exceeds maxmem.
@@ -143,6 +145,18 @@ const badargs = [
     args: ['', '', -42],
     expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
   },
+  {
+    args: ['', '', 2 ** 31],
+    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+  },
+  {
+    args: ['', '', 2147485780],
+    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+  },
+  {
+    args: ['', '', 2 ** 32],
+    expected: { code: 'ERR_OUT_OF_RANGE', message: /"keylen"/ },
+  },
 ];
 
 for (const options of good) {
@@ -164,9 +178,24 @@ for (const options of bad) {
                 expected);
 }
 
+for (const options of incompatibleOptions) {
+  const [short, long] = Object.keys(options).sort((a, b) => a.length - b.length);
+  const expected = {
+    message: `Option "${short}" cannot be used in combination with option "${long}"`,
+    code: 'ERR_INCOMPATIBLE_OPTION_PAIR',
+  };
+  assert.throws(() => crypto.scrypt('pass', 'salt', 1, options, () => {}),
+                expected);
+  assert.throws(() => crypto.scryptSync('pass', 'salt', 1, options),
+                expected);
+}
+
 for (const options of toobig) {
   const expected = {
-    message: /Invalid scrypt param/
+    message: process.features.openssl_is_boringssl ?
+      /Invalid scrypt params:.*(INVALID_PARAMETERS|MEMORY_LIMIT_EXCEEDED)/ :
+      /Invalid scrypt params:.*memory limit exceeded/,
+    code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS',
   };
   assert.throws(() => crypto.scrypt('pass', 'salt', 1, options, () => {}),
                 expected);
@@ -184,30 +213,13 @@ for (const options of toobig) {
   }));
 }
 
-{
-  const defaultEncoding = crypto.DEFAULT_ENCODING;
-  const defaults = { N: 16384, p: 1, r: 8 };
-  const expected = crypto.scryptSync('pass', 'salt', 1, defaults);
-
-  const testEncoding = 'latin1';
-  crypto.DEFAULT_ENCODING = testEncoding;
-  const actual = crypto.scryptSync('pass', 'salt', 1);
-  assert.deepStrictEqual(actual, expected.toString(testEncoding));
-
-  crypto.scrypt('pass', 'salt', 1, common.mustSucceed((actual) => {
-    assert.deepStrictEqual(actual, expected.toString(testEncoding));
-  }));
-
-  crypto.DEFAULT_ENCODING = defaultEncoding;
-}
-
 for (const { args, expected } of badargs) {
   assert.throws(() => crypto.scrypt(...args), expected);
   assert.throws(() => crypto.scryptSync(...args), expected);
 }
 
 {
-  const expected = { code: 'ERR_INVALID_CALLBACK' };
+  const expected = { code: 'ERR_INVALID_ARG_TYPE' };
   assert.throws(() => crypto.scrypt('', '', 42, null), expected);
   assert.throws(() => crypto.scrypt('', '', 42, {}, null), expected);
   assert.throws(() => crypto.scrypt('', '', 42, {}), expected);
@@ -259,6 +271,33 @@ for (const { args, expected } of badargs) {
   [
     ['N', 16384], ['cost', 16384],
     ['r', 8], ['blockSize', 8],
-    ['p', 1], ['parallelization', 1]
+    ['p', 1], ['parallelization', 1],
   ].forEach((arg) => testParameter(...arg));
+}
+
+// `-0` keylen must not abort the process via the native binding's
+// IsInt32() assertion. Assert that `-0` produces the same outcome as
+// `+0` (which differs by OpenSSL build).
+{
+  let posError;
+  let posResult;
+  try {
+    posResult = crypto.scryptSync('', '', 0);
+  } catch (err) {
+    posError = err;
+  }
+  let negError;
+  let negResult;
+  try {
+    negResult = crypto.scryptSync('', '', -0);
+  } catch (err) {
+    negError = err;
+  }
+  if (posError !== undefined) {
+    assert.strictEqual(negError?.message, posError.message);
+  } else {
+    assert.deepStrictEqual(negResult, posResult);
+  }
+
+  crypto.scrypt('', '', -0, common.mustCall());
 }

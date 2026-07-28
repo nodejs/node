@@ -16,12 +16,12 @@ server.on('connection', mustCall((socket) => {
     name: 'Error',
     message: 'Parse Error: Invalid method encountered',
     code: 'HPE_INVALID_METHOD',
-    bytesParsed: 0,
+    bytesParsed: 1,
     rawPacket: Buffer.from('FOO /\r\n')
   }));
 }));
 
-server.listen(0, () => {
+server.listen(0, mustCall(() => {
   const chunks = [];
   const socket = createConnection({
     allowHalfOpen: true,
@@ -44,4 +44,4 @@ server.listen(0, () => {
 
     server.close();
   }));
-});
+}));

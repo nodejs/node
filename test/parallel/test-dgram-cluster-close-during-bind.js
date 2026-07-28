@@ -7,7 +7,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   cluster.fork();
 } else {
   // When the socket attempts to bind, it requests a handle from the cluster.

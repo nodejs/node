@@ -13,7 +13,8 @@ if (process.argv[2] === 'child') {
   const expectedStdout = `${stdoutData}\n`;
   const expectedStderr = `${stderrData}\n`;
   function run(options, callback) {
-    const cmd = `"${process.execPath}" "${__filename}" child`;
+    const [cmd, opts] = common.escapePOSIXShell`"${process.execPath}" "${__filename}" child`;
+    options = { ...options, env: { ...opts?.env, ...options.env } };
 
     cp.exec(cmd, options, common.mustSucceed((stdout, stderr) => {
       callback(stdout, stderr);
@@ -21,28 +22,28 @@ if (process.argv[2] === 'child') {
   }
 
   // Test default encoding, which should be utf8.
-  run({}, (stdout, stderr) => {
+  run({}, common.mustCall((stdout, stderr) => {
     assert.strictEqual(typeof stdout, 'string');
     assert.strictEqual(typeof stderr, 'string');
     assert.strictEqual(stdout, expectedStdout);
     assert.strictEqual(stderr, expectedStderr);
-  });
+  }));
 
   // Test explicit utf8 encoding.
-  run({ encoding: 'utf8' }, (stdout, stderr) => {
+  run({ encoding: 'utf8' }, common.mustCall((stdout, stderr) => {
     assert.strictEqual(typeof stdout, 'string');
     assert.strictEqual(typeof stderr, 'string');
     assert.strictEqual(stdout, expectedStdout);
     assert.strictEqual(stderr, expectedStderr);
-  });
+  }));
 
   // Test cases that result in buffer encodings.
   [undefined, null, 'buffer', 'invalid'].forEach((encoding) => {
-    run({ encoding }, (stdout, stderr) => {
+    run({ encoding }, common.mustCall((stdout, stderr) => {
       assert(stdout instanceof Buffer);
       assert(stdout instanceof Buffer);
       assert.strictEqual(stdout.toString(), expectedStdout);
       assert.strictEqual(stderr.toString(), expectedStderr);
-    });
+    }));
   });
 }

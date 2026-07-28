@@ -8,10 +8,10 @@ const { Session } = require('inspector');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { isMainThread, parentPort, Worker, workerData } =
-    require('worker_threads');
+  require('worker_threads');
 
-if (!workerData) {
-  common.skipIfWorker();
+if (!workerData && !isMainThread) {
+  common.skip('This test only works on a main thread');
 }
 
 function toDebug() {
@@ -100,18 +100,29 @@ async function ensureListenerDoesNotInterrupt(session) {
 }
 
 async function main() {
+  assert.throws(
+    () => {
+      const session = new Session();
+      session.connectToMainThread();
+    },
+    {
+      code: 'ERR_INSPECTOR_NOT_WORKER',
+      name: 'Error',
+      message: 'Current thread is not a worker'
+    }
+  );
   const sharedBuffer = new SharedArrayBuffer(1);
   const arrayBuffer = new Uint8Array(sharedBuffer);
   arrayBuffer[0] = 1;
   const worker = await startWorker(false, sharedBuffer);
-  worker.onConsoleRequest.then(doConsoleLog.bind(null, arrayBuffer));
+  worker.onConsoleRequest.then(doConsoleLog.bind(null, arrayBuffer)).then(common.mustCall());
   assert.strictEqual(toDebug(), 400);
   assert.deepStrictEqual(await worker.onMessagesSent, [
     'Debugger.enable',
     'Runtime.enable',
     'Debugger.setBreakpointByUrl',
     'Debugger.evaluateOnCallFrame',
-    'Debugger.resume'
+    'Debugger.resume',
   ]);
 }
 
@@ -121,6 +132,16 @@ async function childMain() {
   await (await startWorker(true)).onMessagesSent;
   const session = new Session();
   session.connectToMainThread();
+  assert.throws(
+    () => {
+      session.connectToMainThread();
+    },
+    {
+      code: 'ERR_INSPECTOR_ALREADY_CONNECTED',
+      name: 'Error',
+      message: 'The inspector session is already connected'
+    }
+  );
   await post(session, 'Debugger.enable');
   await post(session, 'Runtime.enable');
   await post(session, 'Debugger.setBreakpointByUrl', {
@@ -137,9 +158,9 @@ async function childMain() {
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   const { result: { value } } =
-      await post(session,
-                 'Debugger.evaluateOnCallFrame',
-                 { callFrameId, expression: 'a * 100' });
+    await post(session,
+               'Debugger.evaluateOnCallFrame',
+               { callFrameId, expression: 'a * 100' });
   assert.strictEqual(value, 100);
   await post(session, 'Debugger.resume');
   await ensureListenerDoesNotInterrupt(session);

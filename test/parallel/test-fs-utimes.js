@@ -39,7 +39,7 @@ function stat_resource(resource, statSync = fs.statSync) {
   const stats = fs.fstatSync(resource);
   // Ensure mtime has been written to disk
   // except for directories on AIX where it cannot be synced
-  if (common.isAIX && stats.isDirectory())
+  if ((common.isAIX || common.isIBMi) && stats.isDirectory())
     return stats;
   fs.fsyncSync(resource);
   return fs.fstatSync(resource);
@@ -63,11 +63,16 @@ function expect_ok(syscall, resource, err, atime, mtime, statSync) {
   const mtime_diff = check_mtime(resource, mtime, statSync);
   assert(
     // Check up to single-second precision.
-    // Sub-second precision is OS and fs dependant.
+    // Sub-second precision is OS and fs dependent.
     !err && (mtime_diff < 2) || err && err.code === 'ENOSYS',
     `FAILED: expect_ok ${util.inspect(arguments)}
      check_mtime: ${mtime_diff}`
   );
+}
+
+function getExpectedMtime(mtime) {
+  // Negative numeric timestamps are normalized to "now" at call time.
+  return fs._toUnixTimestamp(mtime);
 }
 
 const stats = fs.statSync(tmpdir.path);
@@ -98,11 +103,13 @@ function runTests(iter) {
   //
   // test async code paths
   //
+  const expectedUtimesMtime = getExpectedMtime(mtime);
   fs.utimes(pathType(tmpdir.path), atime, mtime, common.mustCall((err) => {
-    expect_ok('utimes', tmpdir.path, err, atime, mtime);
+    expect_ok('utimes', tmpdir.path, err, atime, expectedUtimesMtime);
 
+    const expectedLutimesMtime = getExpectedMtime(mtime);
     fs.lutimes(pathType(lpath), atime, mtime, common.mustCall((err) => {
-      expect_ok('lutimes', lpath, err, atime, mtime, fs.lstatSync);
+      expect_ok('lutimes', lpath, err, atime, expectedLutimesMtime, fs.lstatSync);
 
       fs.utimes(pathType('foobarbaz'), atime, mtime, common.mustCall((err) => {
         expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
@@ -114,8 +121,9 @@ function runTests(iter) {
           fd = fs.openSync(tmpdir.path, 'r');
         }
 
+        const expectedFutimesMtime = getExpectedMtime(mtime);
         fs.futimes(fd, atime, mtime, common.mustCall((err) => {
-          expect_ok('futimes', fd, err, atime, mtime);
+          expect_ok('futimes', fd, err, atime, expectedFutimesMtime);
 
           syncTests();
 
@@ -129,17 +137,20 @@ function runTests(iter) {
   // test synchronized code paths, these functions throw on failure
   //
   function syncTests() {
+    const expectedUtimesMtime = getExpectedMtime(mtime);
     fs.utimesSync(pathType(tmpdir.path), atime, mtime);
-    expect_ok('utimesSync', tmpdir.path, undefined, atime, mtime);
+    expect_ok('utimesSync', tmpdir.path, undefined, atime, expectedUtimesMtime);
 
+    const expectedLutimesMtime = getExpectedMtime(mtime);
     fs.lutimesSync(pathType(lpath), atime, mtime);
-    expect_ok('lutimesSync', lpath, undefined, atime, mtime, fs.lstatSync);
+    expect_ok('lutimesSync', lpath, undefined, atime, expectedLutimesMtime, fs.lstatSync);
 
     // Some systems don't have futimes
     // if there's an error, it should be ENOSYS
     try {
+      const expectedFutimesMtime = getExpectedMtime(mtime);
       fs.futimesSync(fd, atime, mtime);
-      expect_ok('futimesSync', fd, undefined, atime, mtime);
+      expect_ok('futimesSync', fd, undefined, atime, expectedFutimesMtime);
     } catch (ex) {
       expect_errno('futimesSync', fd, ex, 'ENOSYS');
     }
@@ -154,37 +165,6 @@ function runTests(iter) {
 
     err = undefined;
   }
-}
-
-// Ref: https://github.com/nodejs/node/issues/13255
-const path = `${tmpdir.path}/test-utimes-precision`;
-fs.writeFileSync(path, '');
-
-// Test Y2K38 for all platforms [except 'arm', 'OpenBSD', 'SunOS' and 'IBMi']
-if (!process.arch.includes('arm') &&
-  !common.isOpenBSD && !common.isSunOS && !common.isIBMi) {
-  const Y2K38_mtime = 2 ** 31;
-  fs.utimesSync(path, Y2K38_mtime, Y2K38_mtime);
-  const Y2K38_stats = fs.statSync(path);
-  assert.strictEqual(Y2K38_stats.mtime.getTime() / 1000, Y2K38_mtime);
-}
-
-if (common.isWindows) {
-  // This value would get converted to (double)1713037251359.9998
-  const truncate_mtime = 1713037251360;
-  fs.utimesSync(path, truncate_mtime / 1000, truncate_mtime / 1000);
-  const truncate_stats = fs.statSync(path);
-  assert.strictEqual(truncate_stats.mtime.getTime(), truncate_mtime);
-
-  // test Y2K38 for windows
-  // This value if treaded as a `signed long` gets converted to -2135622133469.
-  // POSIX systems stores timestamps in {long t_sec, long t_usec}.
-  // NTFS stores times in nanoseconds in a single `uint64_t`, so when libuv
-  // calculates (long)`uv_timespec_t.tv_sec` we get 2's complement.
-  const overflow_mtime = 2159345162531;
-  fs.utimesSync(path, overflow_mtime / 1000, overflow_mtime / 1000);
-  const overflow_stats = fs.statSync(path);
-  assert.strictEqual(overflow_stats.mtime.getTime(), overflow_mtime);
 }
 
 const expectTypeError = {

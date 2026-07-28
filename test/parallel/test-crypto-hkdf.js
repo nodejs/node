@@ -13,8 +13,14 @@ const {
   hkdfSync,
   getHashes
 } = require('crypto');
+const { hasOpenSSL3 } = require('../common/crypto');
 
 {
+  assert.throws(() => hkdf(), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /The "digest" argument must be of type string/
+  });
+
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf(i, 'a'), {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -29,11 +35,11 @@ const {
   [1, {}, [], false, Infinity].forEach((i) => {
     assert.throws(() => hkdf('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "key" argument must be /
+      message: /^The "ikm" argument must be /
     });
     assert.throws(() => hkdfSync('sha256', i), {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /^The "key" argument must be /
+      message: /^The "ikm" argument must be /
     });
   });
 
@@ -113,11 +119,16 @@ const {
     });
 }
 
-[
+const algorithms = [
   ['sha256', 'secret', 'salt', 'info', 10],
+  ['sha256', '', '', '', 10],
+  ['sha256', '', 'salt', '', 10],
   ['sha512', 'secret', 'salt', '', 15],
-  ['whirlpool', 'secret', '', 'info', 20],
-].forEach(([ hash, secret, salt, info, length ]) => {
+];
+if (!hasOpenSSL3 && !process.features.openssl_is_boringssl)
+  algorithms.push(['whirlpool', 'secret', '', 'info', 20]);
+
+algorithms.forEach(([ hash, secret, salt, info, length ]) => {
   {
     const syncResult = hkdfSync(hash, secret, salt, info, length);
     assert(syncResult instanceof ArrayBuffer);
@@ -204,11 +215,11 @@ const {
   }
 });
 
-{
+
+if (!hasOpenSSL3) {
   const kKnownUnsupported = ['shake128', 'shake256'];
-  getHashes()
-    .filter((hash) => !kKnownUnsupported.includes(hash))
-    .forEach((hash) => {
-      assert(hkdfSync(hash, 'key', 'salt', 'info', 5));
-    });
+  for (const hash of getHashes()) {
+    if (kKnownUnsupported.includes(hash)) continue;
+    assert(hkdfSync(hash, 'key', 'salt', 'info', 5));
+  }
 }

@@ -39,12 +39,18 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepWord32";
     case MachineRepresentation::kWord64:
       return "kRepWord64";
+    case MachineRepresentation::kFloat16:
+      return "kRepFloat16";
+    case MachineRepresentation::kFloat16RawBits:
+      return "kRepFloat16RawBits";
     case MachineRepresentation::kFloat32:
       return "kRepFloat32";
     case MachineRepresentation::kFloat64:
       return "kRepFloat64";
     case MachineRepresentation::kSimd128:
       return "kRepSimd128";
+    case MachineRepresentation::kSimd256:
+      return "kRepSimd256";
     case MachineRepresentation::kTaggedSigned:
       return "kRepTaggedSigned";
     case MachineRepresentation::kTaggedPointer:
@@ -55,6 +61,14 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepCompressedPointer";
     case MachineRepresentation::kCompressed:
       return "kRepCompressed";
+    case MachineRepresentation::kProtectedPointer:
+      return "kRepProtectedPointer";
+    case MachineRepresentation::kIndirectPointer:
+      return "kRepIndirectPointer";
+    case MachineRepresentation::kMapWord:
+      return "kRepMapWord";
+    case MachineRepresentation::kSandboxedPointer:
+      return "kRepSandboxedPointer";
   }
   UNREACHABLE();
 }
@@ -73,8 +87,14 @@ std::ostream& operator<<(std::ostream& os, MachineSemantic type) {
       return os << "kTypeInt64";
     case MachineSemantic::kUint64:
       return os << "kTypeUint64";
+    case MachineSemantic::kSignedBigInt64:
+      return os << "kTypeSignedBigInt64";
+    case MachineSemantic::kUnsignedBigInt64:
+      return os << "kTypeUnsignedBigInt64";
     case MachineSemantic::kNumber:
       return os << "kTypeNumber";
+    case MachineSemantic::kHoleyFloat64:
+      return os << "kTypeHoleyFloat64";
     case MachineSemantic::kAny:
       return os << "kTypeAny";
   }
@@ -91,7 +111,6 @@ std::ostream& operator<<(std::ostream& os, MachineType type) {
   } else {
     return os << type.representation() << "|" << type.semantic();
   }
-  return os;
 }
 
 }  // namespace internal

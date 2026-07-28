@@ -5,44 +5,33 @@
 #ifndef V8_LOGGING_LOG_INL_H_
 #define V8_LOGGING_LOG_INL_H_
 
-#include "src/execution/isolate.h"
 #include "src/logging/log.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
 
-CodeEventListener::LogEventsAndTags Logger::ToNativeByScript(
-    CodeEventListener::LogEventsAndTags tag, Script script) {
-  if (script.type() != Script::TYPE_NATIVE) return tag;
+LogEventListener::CodeTag V8FileLogger::ToNativeByScript(
+    LogEventListener::CodeTag tag, Tagged<Script> script) {
+  if (script->type() != Script::Type::kNative) return tag;
   switch (tag) {
-    case CodeEventListener::FUNCTION_TAG:
-      return CodeEventListener::NATIVE_FUNCTION_TAG;
-    case CodeEventListener::LAZY_COMPILE_TAG:
-      return CodeEventListener::NATIVE_LAZY_COMPILE_TAG;
-    case CodeEventListener::SCRIPT_TAG:
-      return CodeEventListener::NATIVE_SCRIPT_TAG;
+    case LogEventListener::CodeTag::kFunction:
+      return LogEventListener::CodeTag::kNativeFunction;
+    case LogEventListener::CodeTag::kScript:
+      return LogEventListener::CodeTag::kNativeScript;
     default:
       return tag;
   }
 }
 
-void Logger::CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
-                             bool expose_to_api) {
-  if (isolate->event_logger()) {
-    if (isolate->event_logger() == DefaultEventLoggerSentinel) {
-      LOG(isolate, TimerEvent(se, name));
-    } else if (expose_to_api) {
-      isolate->event_logger()(name, se);
-    }
-  }
-}
-
 template <class TimerEvent>
-void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
-  Logger::CallEventLogger(isolate_, TimerEvent::name(), se,
-                          TimerEvent::expose_to_api());
+void TimerEventScope<TimerEvent>::LogTimerEvent(v8::LogEventStatus se) {
+  V8FileLogger::CallEventLogger(isolate_, TimerEvent::name(), se,
+                                TimerEvent::expose_to_api());
 }
 
 }  // namespace internal

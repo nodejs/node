@@ -40,7 +40,7 @@ if (cluster.isWorker) {
   function maybeReply() {
     if (!socket || !message) return;
 
-    // Tell master using TCP socket that a message is received.
+    // Tell primary using TCP socket that a message is received.
     socket.write(JSON.stringify({
       code: 'received message',
       echo: message
@@ -60,15 +60,15 @@ if (cluster.isWorker) {
     maybeReply();
   });
 
-  server.listen(0, '127.0.0.1');
-} else if (cluster.isMaster) {
+  server.listen(0);
+} else if (cluster.isPrimary) {
 
   const checks = {
     global: {
       'receive': false,
       'correct': false
     },
-    master: {
+    primary: {
       'receive': false,
       'correct': false
     },
@@ -101,19 +101,19 @@ if (cluster.isWorker) {
 
   // When a IPC message is received from the worker
   worker.on('message', function(message) {
-    check('master', message === 'message from worker');
+    check('primary', message === 'message from worker');
   });
-  cluster.on('message', function(worker_, message) {
+  cluster.on('message', common.mustCall((worker_, message) => {
     assert.strictEqual(worker_, worker);
     check('global', message === 'message from worker');
-  });
+  }));
 
   // When a TCP server is listening in the worker connect to it
-  worker.on('listening', function(address) {
+  worker.on('listening', common.mustCall((address) => {
 
     client = net.connect(address.port, function() {
       // Send message to worker.
-      worker.send('message from master');
+      worker.send('message from primary');
     });
 
     client.on('data', function(data) {
@@ -121,7 +121,7 @@ if (cluster.isWorker) {
       data = JSON.parse(data.toString());
 
       if (data.code === 'received message') {
-        check('worker', data.echo === 'message from master');
+        check('worker', data.echo === 'message from primary');
       } else {
         throw new Error(`wrong TCP message received: ${data}`);
       }
@@ -135,12 +135,12 @@ if (cluster.isWorker) {
     worker.on('exit', common.mustCall(function() {
       process.exit(0);
     }));
-  });
+  }));
 
   process.once('exit', function() {
-    forEach(checks, function(check, type) {
+    for (const [type, check] of Object.entries(checks)) {
       assert.ok(check.receive, `The ${type} did not receive any message`);
       assert.ok(check.correct, `The ${type} did not get the correct message`);
-    });
+    }
   });
 }

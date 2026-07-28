@@ -2,17 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/logging/counters.h"
-#include "src/objects/elements.h"
 #include "src/objects/keys.h"
 #include "src/objects/module.h"
 #include "src/objects/objects-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -23,116 +18,127 @@ namespace {
 // that contains all enumerable properties of the {receiver} and its prototypes
 // have none, the map of the {receiver}. This is used to speed up the check for
 // deletions during a for-in.
-MaybeHandle<HeapObject> Enumerate(Isolate* isolate,
-                                  Handle<JSReceiver> receiver) {
+MaybeDirectHandle<HeapObject> Enumerate(Isolate* isolate,
+                                        DirectHandle<JSReceiver> receiver) {
   JSObject::MakePrototypesFast(receiver, kStartAtReceiver, isolate);
   FastKeyAccumulator accumulator(isolate, receiver,
                                  KeyCollectionMode::kIncludePrototypes,
                                  ENUMERABLE_STRINGS, true);
   // Test if we have an enum cache for {receiver}.
   if (!accumulator.is_receiver_simple_enum()) {
-    Handle<FixedArray> keys;
+    DirectHandle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, keys,
         accumulator.GetKeys(accumulator.may_have_elements()
                                 ? GetKeysConversion::kConvertToString
-                                : GetKeysConversion::kNoNumbers),
-        HeapObject);
+                                : GetKeysConversion::kNoNumbers));
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;
   }
-  DCHECK(!receiver->IsJSModuleNamespace());
-  return handle(receiver->map(), isolate);
+  DCHECK(!IsJSModuleNamespace(*receiver));
+  return direct_handle(receiver->map(), isolate);
 }
 
 // This is a slight modification of JSReceiver::HasProperty, dealing with
 // the oddities of JSProxy and JSModuleNamespace in for-in filter.
-MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
-                                          Handle<JSReceiver> receiver,
-                                          Handle<Object> key) {
+MaybeDirectHandle<Object> HasEnumerableProperty(
+    Isolate* isolate, DirectHandle<JSReceiver> receiver,
+    DirectHandle<Object> key) {
   bool success = false;
   Maybe<PropertyAttributes> result = Just(ABSENT);
-  LookupIterator::Key lookup_key(isolate, key, &success);
+  PropertyKey lookup_key(isolate, key, &success);
   if (!success) return isolate->factory()->undefined_value();
   LookupIterator it(isolate, receiver, lookup_key);
-  for (; it.IsFound(); it.Next()) {
+  for (;; it.Next()) {
     switch (it.state()) {
-      case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY: {
         // For proxies we have to invoke the [[GetOwnProperty]] trap.
         result = JSProxy::GetPropertyAttributes(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() == ABSENT) {
           // Continue lookup on the proxy's prototype.
-          Handle<JSProxy> proxy = it.GetHolder<JSProxy>();
-          Handle<Object> prototype;
+          DirectHandle<JSProxy> proxy = it.GetHolder<JSProxy>();
+          DirectHandle<Object> prototype;
           ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
-                                     JSProxy::GetPrototype(proxy), Object);
-          if (prototype->IsNull(isolate)) {
+                                     JSProxy::GetPrototype(proxy));
+          if (IsNull(*prototype, isolate)) {
             return isolate->factory()->undefined_value();
           }
           // We already have a stack-check in JSProxy::GetPrototype.
-          return HasEnumerableProperty(
-              isolate, Handle<JSReceiver>::cast(prototype), key);
+          return HasEnumerableProperty(isolate, Cast<JSReceiver>(prototype),
+                                       key);
         } else if (result.FromJust() & DONT_ENUM) {
           return isolate->factory()->undefined_value();
         } else {
           return it.GetName();
         }
       }
+      case LookupIterator::MODULE_NAMESPACE: {
+#ifdef DEBUG
+        DirectHandle<JSModuleNamespace> ns = it.GetHolder<JSModuleNamespace>();
+        if (IsJSDeferredModuleNamespace(*ns)) {
+          DCHECK_EQ(ns->module()->status(), Module::kEvaluated);
+        }
+#endif
+        continue;
+      }
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+      case LookupIterator::WASM_OBJECT:
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() != ABSENT) return it.GetName();
         continue;
       }
       case LookupIterator::ACCESS_CHECK: {
         if (it.HasAccess()) continue;
         result = JSObject::GetPropertyAttributesWithFailedAccessCheck(&it);
-        if (result.IsNothing()) return MaybeHandle<Object>();
+        if (result.IsNothing()) return MaybeDirectHandle<Object>();
         if (result.FromJust() != ABSENT) return it.GetName();
         return isolate->factory()->undefined_value();
       }
-      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         // TypedArray out-of-bounds access.
         return isolate->factory()->undefined_value();
       case LookupIterator::ACCESSOR: {
-        if (it.GetHolder<Object>()->IsJSModuleNamespace()) {
+        if (IsJSModuleNamespace(*it.GetHolder<Object>())) {
           result = JSModuleNamespace::GetPropertyAttributes(&it);
-          if (result.IsNothing()) return MaybeHandle<Object>();
+          if (result.IsNothing()) return MaybeDirectHandle<Object>();
           DCHECK_EQ(0, result.FromJust() & DONT_ENUM);
         }
         return it.GetName();
       }
       case LookupIterator::DATA:
         return it.GetName();
+      case LookupIterator::NOT_FOUND:
+        return isolate->factory()->undefined_value();
     }
+    UNREACHABLE();
   }
-  return isolate->factory()->undefined_value();
 }
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_ForInEnumerate) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(0);
   RETURN_RESULT_OR_FAILURE(isolate, Enumerate(isolate, receiver));
 }
-
 
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<Object> result;
+  DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(0);
+  DirectHandle<Object> key = args.at(1);
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, HasEnumerableProperty(isolate, receiver, key));
-  return isolate->heap()->ToBoolean(!result->IsUndefined(isolate));
+  return ReadOnlyRoots(isolate).boolean_value(!IsUndefined(*result, isolate));
 }
 
 }  // namespace internal

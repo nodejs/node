@@ -46,7 +46,7 @@
 //              source form of the state transition table for the RBBI rule parser.
 //
 //------------------------------------------------------------------------------
-static const UChar gRuleSet_rule_char_pattern[]       = {
+static const char16_t gRuleSet_rule_char_pattern[]       = {
  // Characters that may appear as literals in patterns without escaping or quoting.
  //   [    ^      [    \     p     {      Z     }     \     u    0      0    2      0
     0x5b, 0x5e, 0x5b, 0x5c, 0x70, 0x7b, 0x5a, 0x7d, 0x5c, 0x75, 0x30, 0x30, 0x32, 0x30,
@@ -55,19 +55,19 @@ static const UChar gRuleSet_rule_char_pattern[]       = {
  //   {     L     }    ]     -     [      \     p     {     N    }      ]     ]
     0x7b, 0x4c, 0x7d, 0x5d, 0x2d, 0x5b, 0x5c, 0x70, 0x7b, 0x4e, 0x7d, 0x5d, 0x5d, 0};
 
-static const UChar gRuleSet_name_char_pattern[]       = {
+static const char16_t gRuleSet_name_char_pattern[]       = {
 //    [    _      \    p     {     L      }     \     p     {    N      }     ]
     0x5b, 0x5f, 0x5c, 0x70, 0x7b, 0x4c, 0x7d, 0x5c, 0x70, 0x7b, 0x4e, 0x7d, 0x5d, 0};
 
-static const UChar gRuleSet_digit_char_pattern[] = {
+static const char16_t gRuleSet_digit_char_pattern[] = {
 //    [    0      -    9     ]
     0x5b, 0x30, 0x2d, 0x39, 0x5d, 0};
 
-static const UChar gRuleSet_name_start_char_pattern[] = {
+static const char16_t gRuleSet_name_start_char_pattern[] = {
 //    [    _      \    p     {     L      }     ]
     0x5b, 0x5f, 0x5c, 0x70, 0x7b, 0x4c, 0x7d, 0x5d, 0 };
 
-static const UChar kAny[] = {0x61, 0x6e, 0x79, 0x00};  // "any"
+static const char16_t kAny[] = {0x61, 0x6e, 0x79, 0x00};  // "any"
 
 
 U_CDECL_BEGIN
@@ -92,23 +92,23 @@ RBBIRuleScanner::RBBIRuleScanner(RBBIRuleBuilder *rb)
     fRB                 = rb;
     fScanIndex          = 0;
     fNextIndex          = 0;
-    fQuoteMode          = FALSE;
+    fQuoteMode          = false;
     fLineNum            = 1;
     fCharNum            = 0;
     fLastChar           = 0;
-
-    fStateTable         = NULL;
+    
+    fStateTable         = nullptr;
     fStack[0]           = 0;
     fStackPtr           = 0;
-    fNodeStack[0]       = NULL;
+    fNodeStack[0]       = nullptr;
     fNodeStackPtr       = 0;
 
-    fReverseRule        = FALSE;
-    fLookAheadRule      = FALSE;
-    fNoChainInRule      = FALSE;
+    fReverseRule        = false;
+    fLookAheadRule      = false;
+    fNoChainInRule      = false;
 
-    fSymbolTable        = NULL;
-    fSetTable           = NULL;
+    fSymbolTable        = nullptr;
+    fSetTable           = nullptr;
     fRuleNum            = 0;
     fOptionStart        = 0;
 
@@ -146,11 +146,11 @@ RBBIRuleScanner::RBBIRuleScanner(RBBIRuleBuilder *rb)
     }
 
     fSymbolTable = new RBBISymbolTable(this, rb->fRules, *rb->fStatus);
-    if (fSymbolTable == NULL) {
+    if (fSymbolTable == nullptr) {
         *rb->fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
-    fSetTable    = uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, NULL, rb->fStatus);
+    fSetTable    = uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, nullptr, rb->fStatus);
     if (U_FAILURE(*rb->fStatus)) {
         return;
     }
@@ -166,16 +166,16 @@ RBBIRuleScanner::RBBIRuleScanner(RBBIRuleBuilder *rb)
 //------------------------------------------------------------------------------
 RBBIRuleScanner::~RBBIRuleScanner() {
     delete fSymbolTable;
-    if (fSetTable != NULL) {
+    if (fSetTable != nullptr) {
          uhash_close(fSetTable);
-         fSetTable = NULL;
+         fSetTable = nullptr;
 
     }
 
 
     // Node Stack.
     //   Normally has one entry, which is the entire parse tree for the rules.
-    //   If errors occured, there may be additional subtrees left on the stack.
+    //   If errors occurred, there may be additional subtrees left on the stack.
     while (fNodeStackPtr > 0) {
         delete fNodeStack[fNodeStackPtr];
         fNodeStackPtr--;
@@ -199,9 +199,9 @@ RBBIRuleScanner::~RBBIRuleScanner() {
 //------------------------------------------------------------------------------
 UBool RBBIRuleScanner::doParseActions(int32_t action)
 {
-    RBBINode *n       = NULL;
+    RBBINode *n       = nullptr;
 
-    UBool   returnVal = TRUE;
+    UBool   returnVal = true;
 
     switch (action) {
 
@@ -213,7 +213,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doNoChain:
         // Scanned a '^' while on the rule start state.
-        fNoChainInRule = TRUE;
+        fNoChainInRule = true;
         break;
 
 
@@ -284,11 +284,14 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doEndAssign:
         {
-            // We have reached the end of an assignement statement.
+            // We have reached the end of an assignment statement.
             //   Current scan char is the ';' that terminates the assignment.
 
             // Terminate expression, leaves expression parse tree rooted in TOS node.
             fixOpStack(RBBINode::precStart);
+            if (U_FAILURE(*fRB->fStatus)) {
+                break;
+            }
 
             RBBINode *startExprNode  = fNodeStack[fNodeStackPtr-2];
             RBBINode *varRefNode     = fNodeStack[fNodeStackPtr-1];
@@ -312,6 +315,11 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
                 UErrorCode t = *fRB->fStatus;
                 *fRB->fStatus = U_ZERO_ERROR;
                 error(t);
+                // When adding $variableRef to the symbol table fail, Delete
+                // both nodes because deleting varRefNode will not delete
+                // RHSExprNode internally.
+                delete RHSExprNode;
+                delete varRefNode;
             }
 
             // Clean up the stack.
@@ -345,7 +353,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             catNode->fRightChild      = endNode;
             fNodeStack[fNodeStackPtr] = catNode;
             endNode->fVal             = fRuleNum;
-            endNode->fLookAheadEnd    = TRUE;
+            endNode->fLookAheadEnd    = true;
             thisRule                  = catNode;
 
             // TODO: Disable chaining out of look-ahead (hard break) rules.
@@ -354,13 +362,13 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         }
 
         // Mark this node as being the root of a rule.
-        thisRule->fRuleRoot = TRUE;
+        thisRule->fRuleRoot = true;
 
         // Flag if chaining into this rule is wanted.
-        //
+        //    
         if (fRB->fChainRules &&         // If rule chaining is enabled globally via !!chain
                 !fNoChainInRule) {      //     and no '^' chain-in inhibit was on this rule
-            thisRule->fChainIn = TRUE;
+            thisRule->fChainIn = true;
         }
 
 
@@ -374,8 +382,8 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         //
         RBBINode **destRules = (fReverseRule? &fRB->fSafeRevTree : fRB->fDefaultTree);
 
-        if (*destRules != NULL) {
-            // This is not the first rule encounted.
+        if (*destRules != nullptr) {
+            // This is not the first rule encountered.
             // OR previous stuff  (from *destRules)
             // with the current rule expression (on the Node Stack)
             //  with the resulting OR expression going to *destRules
@@ -398,9 +406,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             // Just move its parse tree from the stack to *destRules.
             *destRules = fNodeStack[fNodeStackPtr];
         }
-        fReverseRule   = FALSE;   // in preparation for the next rule.
-        fLookAheadRule = FALSE;
-        fNoChainInRule = FALSE;
+        fReverseRule   = false;   // in preparation for the next rule.
+        fLookAheadRule = false;
+        fNoChainInRule = false;
         fNodeStackPtr  = 0;
         }
         break;
@@ -408,7 +416,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doRuleError:
         error(U_BRK_RULE_SYNTAX);
-        returnVal = FALSE;
+        returnVal = false;
         break;
 
 
@@ -484,7 +492,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             if (U_FAILURE(*fRB->fStatus)) {
                 break;
             }
-            findSetFor(UnicodeString(TRUE, kAny, 3), n);
+            findSetFor(UnicodeString(true, kAny, 3), n);
             n->fFirstPos = fScanIndex;
             n->fLastPos  = fNextIndex;
             fRB->fRules.extractBetween(n->fFirstPos, n->fLastPos, n->fText);
@@ -501,7 +509,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         n->fFirstPos = fScanIndex;
         n->fLastPos  = fNextIndex;
         fRB->fRules.extractBetween(n->fFirstPos, n->fLastPos, n->fText);
-        fLookAheadRule = TRUE;
+        fLookAheadRule = true;
         break;
 
 
@@ -522,7 +530,13 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             n = fNodeStack[fNodeStackPtr];
             uint32_t v = u_charDigitValue(fC.fChar);
             U_ASSERT(v < 10);
-            n->fVal = n->fVal*10 + v;
+            int64_t updated = static_cast<int64_t>(n->fVal)*10 + v;
+            // Avoid overflow n->fVal
+            if (updated > INT32_MAX) {
+                error(U_BRK_RULE_SYNTAX);
+                break;
+            }
+            n->fVal = static_cast<int32_t>(updated);
             break;
         }
 
@@ -534,7 +548,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doTagExpectedError:
         error(U_BRK_MALFORMED_RULE_TAG);
-        returnVal = FALSE;
+        returnVal = false;
         break;
 
     case doOptionStart:
@@ -546,9 +560,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         {
             UnicodeString opt(fRB->fRules, fOptionStart, fScanIndex-fOptionStart);
             if (opt == UNICODE_STRING("chain", 5)) {
-                fRB->fChainRules = TRUE;
-            } else if (opt == UNICODE_STRING("LBCMNoChain", 11)) {
-                fRB->fLBCMNoChain = TRUE;
+                fRB->fChainRules = true;
             } else if (opt == UNICODE_STRING("forward", 7)) {
                 fRB->fDefaultTree   = &fRB->fForwardTree;
             } else if (opt == UNICODE_STRING("reverse", 7)) {
@@ -558,7 +570,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
             } else if (opt == UNICODE_STRING("safe_reverse", 12)) {
                 fRB->fDefaultTree   = &fRB->fSafeRevTree;
             } else if (opt == UNICODE_STRING("lookAheadHardBreak", 18)) {
-                fRB->fLookAheadHardBreak = TRUE;
+                fRB->fLookAheadHardBreak = true;
             } else if (opt == UNICODE_STRING("quoted_literals_only", 20)) {
                 fRuleSets[kRuleSet_rule_char-128].clear();
             } else if (opt == UNICODE_STRING("unquoted_literals",  17)) {
@@ -570,7 +582,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
         break;
 
     case doReverseDir:
-        fReverseRule = TRUE;
+        fReverseRule = true;
         break;
 
     case doStartVariableName:
@@ -583,7 +595,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doEndVariableName:
         n = fNodeStack[fNodeStackPtr];
-        if (n==NULL || n->fType != RBBINode::varRef) {
+        if (n==nullptr || n->fType != RBBINode::varRef) {
             error(U_BRK_INTERNAL_ERROR);
             break;
         }
@@ -598,9 +610,9 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doCheckVarDef:
         n = fNodeStack[fNodeStackPtr];
-        if (n->fLeftChild == NULL) {
+        if (n->fLeftChild == nullptr) {
             error(U_BRK_UNDEFINED_VARIABLE);
-            returnVal = FALSE;
+            returnVal = false;
         }
         break;
 
@@ -609,11 +621,11 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     case doRuleErrorAssignExpr:
         error(U_BRK_ASSIGN_ERROR);
-        returnVal = FALSE;
+        returnVal = false;
         break;
 
     case doExit:
-        returnVal = FALSE;
+        returnVal = false;
         break;
 
     case doScanUnicodeSet:
@@ -622,7 +634,7 @@ UBool RBBIRuleScanner::doParseActions(int32_t action)
 
     default:
         error(U_BRK_INTERNAL_ERROR);
-        returnVal = FALSE;
+        returnVal = false;
         break;
     }
     return returnVal && U_SUCCESS(*fRB->fStatus);
@@ -736,8 +748,8 @@ void RBBIRuleScanner::findSetFor(const UnicodeString &s, RBBINode *node, Unicode
     // First check whether we've already cached a set for this string.
     // If so, just use the cached set in the new node.
     //   delete any set provided by the caller, since we own it.
-    el = (RBBISetTableEl *)uhash_get(fSetTable, &s);
-    if (el != NULL) {
+    el = static_cast<RBBISetTableEl*>(uhash_get(fSetTable, &s));
+    if (el != nullptr) {
         delete setToAdopt;
         node->fLeftChild = el->val;
         U_ASSERT(node->fLeftChild->fType == RBBINode::uset);
@@ -747,7 +759,7 @@ void RBBIRuleScanner::findSetFor(const UnicodeString &s, RBBINode *node, Unicode
     // Haven't seen this set before.
     // If the caller didn't provide us with a prebuilt set,
     //   create a new UnicodeSet now.
-    if (setToAdopt == NULL) {
+    if (setToAdopt == nullptr) {
         if (s.compare(kAny, -1) == 0) {
             setToAdopt = new UnicodeSet(0x000000, 0x10ffff);
         } else {
@@ -755,15 +767,25 @@ void RBBIRuleScanner::findSetFor(const UnicodeString &s, RBBINode *node, Unicode
             c = s.char32At(0);
             setToAdopt = new UnicodeSet(c, c);
         }
+        if (setToAdopt == nullptr) {
+            error(U_MEMORY_ALLOCATION_ERROR);
+            return;
+        }
     }
 
     //
     // Make a new uset node to refer to this UnicodeSet
     // This new uset node becomes the child of the caller's setReference node.
     //
-    RBBINode *usetNode    = new RBBINode(RBBINode::uset);
-    if (usetNode == NULL) {
-        error(U_MEMORY_ALLOCATION_ERROR);
+    UErrorCode localStatus = U_ZERO_ERROR;
+    RBBINode *usetNode    = new RBBINode(RBBINode::uset, localStatus);
+    if (usetNode == nullptr) {
+        localStatus = U_MEMORY_ALLOCATION_ERROR;
+    }
+    if (U_FAILURE(localStatus)) {
+        delete usetNode;
+        error(localStatus);
+        delete setToAdopt;
         return;
     }
     usetNode->fInputSet   = setToAdopt;
@@ -781,16 +803,16 @@ void RBBIRuleScanner::findSetFor(const UnicodeString &s, RBBINode *node, Unicode
     //
     // Add the new set to the set hash table.
     //
-    el      = (RBBISetTableEl *)uprv_malloc(sizeof(RBBISetTableEl));
+    el = static_cast<RBBISetTableEl*>(uprv_malloc(sizeof(RBBISetTableEl)));
     UnicodeString *tkey = new UnicodeString(s);
-    if (tkey == NULL || el == NULL || setToAdopt == NULL) {
+    if (tkey == nullptr || el == nullptr || setToAdopt == nullptr) {
         // Delete to avoid memory leak
         delete tkey;
-        tkey = NULL;
+        tkey = nullptr;
         uprv_free(el);
-        el = NULL;
+        el = nullptr;
         delete setToAdopt;
-        setToAdopt = NULL;
+        setToAdopt = nullptr;
 
         error(U_MEMORY_ALLOCATION_ERROR);
         return;
@@ -798,8 +820,6 @@ void RBBIRuleScanner::findSetFor(const UnicodeString &s, RBBINode *node, Unicode
     el->key = tkey;
     el->val = usetNode;
     uhash_put(fSetTable, el->key, el, fRB->fStatus);
-
-    return;
 }
 
 
@@ -809,15 +829,15 @@ void RBBIRuleScanner::findSetFor(const UnicodeString &s, RBBINode *node, Unicode
 //     Numeric because there is no portable way to enter them as literals.
 //     (Think EBCDIC).
 //
-static const UChar      chCR        = 0x0d;      // New lines, for terminating comments.
-static const UChar      chLF        = 0x0a;
-static const UChar      chNEL       = 0x85;      //    NEL newline variant
-static const UChar      chLS        = 0x2028;    //    Unicode Line Separator
-static const UChar      chApos      = 0x27;      //  single quote, for quoted chars.
-static const UChar      chPound     = 0x23;      // '#', introduces a comment.
-static const UChar      chBackSlash = 0x5c;      // '\'  introduces a char escape
-static const UChar      chLParen    = 0x28;
-static const UChar      chRParen    = 0x29;
+static const char16_t   chCR        = 0x0d;      // New lines, for terminating comments.
+static const char16_t   chLF        = 0x0a;
+static const char16_t   chNEL       = 0x85;      //    NEL newline variant
+static const char16_t   chLS        = 0x2028;    //    Unicode Line Separator
+static const char16_t   chApos      = 0x27;      //  single quote, for quoted chars.
+static const char16_t   chPound     = 0x23;      // '#', introduces a comment.
+static const char16_t   chBackSlash = 0x5c;      // '\'  introduces a char escape
+static const char16_t   chLParen    = 0x28;
+static const char16_t   chRParen    = 0x29;
 
 
 //------------------------------------------------------------------------------
@@ -853,9 +873,13 @@ UChar32  RBBIRuleScanner::nextCharLL() {
     UChar32  ch;
 
     if (fNextIndex >= fRB->fRules.length()) {
-        return (UChar32)-1;
+        return static_cast<UChar32>(-1);
     }
     ch         = fRB->fRules.char32At(fNextIndex);
+    if (U_IS_SURROGATE(ch)) {
+        error(U_ILLEGAL_CHAR_FOUND);
+        return U_SENTINEL;
+    }
     fNextIndex = fRB->fRules.moveIndex32(fNextIndex, 1);
 
     if (ch == chCR ||
@@ -868,7 +892,7 @@ UChar32  RBBIRuleScanner::nextCharLL() {
         fCharNum=0;
         if (fQuoteMode) {
             error(U_BRK_NEW_LINE_IN_QUOTED_STRING);
-            fQuoteMode = FALSE;
+            fQuoteMode = false;
         }
     }
     else {
@@ -897,7 +921,7 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
 
     fScanIndex = fNextIndex;
     c.fChar    = nextCharLL();
-    c.fEscaped = FALSE;
+    c.fEscaped = false;
 
     //
     //  check for '' sequence.
@@ -906,7 +930,7 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
     if (c.fChar == chApos) {
         if (fRB->fRules.char32At(fNextIndex) == chApos) {
             c.fChar    = nextCharLL();        // get nextChar officially so character counts
-            c.fEscaped = TRUE;                //   stay correct.
+            c.fEscaped = true;                //   stay correct.
         }
         else
         {
@@ -914,18 +938,21 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
             //   Toggle quoting mode.
             //   Return either '('  or ')', because quotes cause a grouping of the quoted text.
             fQuoteMode = !fQuoteMode;
-            if (fQuoteMode == TRUE) {
+            if (fQuoteMode) {
                 c.fChar = chLParen;
             } else {
                 c.fChar = chRParen;
             }
-            c.fEscaped = FALSE;      // The paren that we return is not escaped.
+            c.fEscaped = false;      // The paren that we return is not escaped.
             return;
         }
     }
 
+    if (c.fChar == static_cast<UChar32>(-1)) {
+        return;
+    }
     if (fQuoteMode) {
-        c.fEscaped = TRUE;
+        c.fEscaped = true;
     }
     else
     {
@@ -940,7 +967,7 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
             int32_t commentStart = fScanIndex;
             for (;;) {
                 c.fChar = nextCharLL();
-                if (c.fChar == (UChar32)-1 ||  // EOF
+                if (c.fChar == static_cast<UChar32>(-1) || // EOF
                     c.fChar == chCR     ||
                     c.fChar == chLF     ||
                     c.fChar == chNEL    ||
@@ -950,7 +977,7 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
                 fRB->fStrippedRules.setCharAt(i, u' ');
             }
         }
-        if (c.fChar == (UChar32)-1) {
+        if (c.fChar == static_cast<UChar32>(-1)) {
             return;
         }
 
@@ -959,7 +986,7 @@ void RBBIRuleScanner::nextChar(RBBIRuleChar &c) {
         //  Use UnicodeString::unescapeAt() to handle them.
         //
         if (c.fChar == chBackSlash) {
-            c.fEscaped = TRUE;
+            c.fEscaped = true;
             int32_t startX = fNextIndex;
             c.fChar = fRB->fRules.unescapeAt(fNextIndex);
             if (fNextIndex == startX) {
@@ -993,7 +1020,7 @@ void RBBIRuleScanner::parse() {
     // Main loop for the rule parsing state machine.
     //   Runs once per state transition.
     //   Each time through optionally performs, depending on the state table,
-    //      - an advance to the the next input char
+    //      - an advance to the next input char
     //      - an action to be performed.
     //      - pushing or popping a state to/from the local state return stack.
     //
@@ -1028,7 +1055,7 @@ void RBBIRuleScanner::parse() {
             #ifdef RBBI_DEBUG
                 if (fRB->fDebugEnv && uprv_strstr(fRB->fDebugEnv, "scan")) { RBBIDebugPrintf("."); fflush(stdout);}
             #endif
-            if (tableEl->fCharClass < 127 && fC.fEscaped == FALSE &&   tableEl->fCharClass == fC.fChar) {
+            if (tableEl->fCharClass < 127 && fC.fEscaped == false &&   tableEl->fCharClass == fC.fChar) {
                 // Table row specified an individual character, not a set, and
                 //   the input character is not escaped, and
                 //   the input character matched it.
@@ -1047,14 +1074,14 @@ void RBBIRuleScanner::parse() {
                 // Table row specified "escaped P" and the char is either 'p' or 'P'.
                 break;
             }
-            if (tableEl->fCharClass == 252 && fC.fChar == (UChar32)-1)  {
+            if (tableEl->fCharClass == 252 && fC.fChar == static_cast<UChar32>(-1)) {
                 // Table row specified eof and we hit eof on the input.
                 break;
             }
 
             if (tableEl->fCharClass >= 128 && tableEl->fCharClass < 240 &&   // Table specs a char class &&
-                fC.fEscaped == FALSE &&                                      //   char is not escaped &&
-                fC.fChar != (UChar32)-1) {                                   //   char is not EOF
+                fC.fEscaped == false &&                                      //   char is not escaped &&
+                fC.fChar != static_cast<UChar32>(-1)) {                      //   char is not EOF
                 U_ASSERT((tableEl->fCharClass-128) < UPRV_LENGTHOF(fRuleSets));
                 if (fRuleSets[tableEl->fCharClass-128].contains(fC.fChar)) {
                     // Table row specified a character class, or set of characters,
@@ -1072,7 +1099,7 @@ void RBBIRuleScanner::parse() {
         // We've found the row of the state table that matches the current input
         //   character from the rules string.
         // Perform any action specified  by this row in the state table.
-        if (doParseActions((int32_t)tableEl->fAction) == FALSE) {
+        if (doParseActions(static_cast<int32_t>(tableEl->fAction)) == false) {
             // Break out of the state machine loop if the
             //   the action signalled some kind of error, or
             //   the action was to exit, occurs on normal end-of-rules-input.
@@ -1112,10 +1139,10 @@ void RBBIRuleScanner::parse() {
     if (U_FAILURE(*fRB->fStatus)) {
         return;
     }
-
+    
     // If there are no forward rules set an error.
     //
-    if (fRB->fForwardTree == NULL) {
+    if (fRB->fForwardTree == nullptr) {
         error(U_BRK_RULE_SYNTAX);
         return;
     }
@@ -1129,13 +1156,13 @@ void RBBIRuleScanner::parse() {
     if (fRB->fDebugEnv && uprv_strstr(fRB->fDebugEnv, "symbols")) {fSymbolTable->rbbiSymtablePrint();}
     if (fRB->fDebugEnv && uprv_strstr(fRB->fDebugEnv, "ptree")) {
         RBBIDebugPrintf("Completed Forward Rules Parse Tree...\n");
-        RBBINode::printTree(fRB->fForwardTree, TRUE);
+        RBBINode::printTree(fRB->fForwardTree, true);
         RBBIDebugPrintf("\nCompleted Reverse Rules Parse Tree...\n");
-        RBBINode::printTree(fRB->fReverseTree, TRUE);
+        RBBINode::printTree(fRB->fReverseTree, true);
         RBBIDebugPrintf("\nCompleted Safe Point Forward Rules Parse Tree...\n");
-        RBBINode::printTree(fRB->fSafeFwdTree, TRUE);
+        RBBINode::printTree(fRB->fSafeFwdTree, true);
         RBBIDebugPrintf("\nCompleted Safe Point Reverse Rules Parse Tree...\n");
-        RBBINode::printTree(fRB->fSafeRevTree, TRUE);
+        RBBINode::printTree(fRB->fSafeRevTree, true);
     }
 #endif
 }
@@ -1150,7 +1177,7 @@ void RBBIRuleScanner::parse() {
 void RBBIRuleScanner::printNodeStack(const char *title) {
     int i;
     RBBIDebugPrintf("%s.  Dumping node stack...\n", title);
-    for (i=fNodeStackPtr; i>0; i--) {RBBINode::printTree(fNodeStack[i], TRUE);}
+    for (i=fNodeStackPtr; i>0; i--) {RBBINode::printTree(fNodeStack[i], true);}
 }
 #endif
 
@@ -1165,16 +1192,16 @@ void RBBIRuleScanner::printNodeStack(const char *title) {
 //------------------------------------------------------------------------------
 RBBINode  *RBBIRuleScanner::pushNewNode(RBBINode::NodeType  t) {
     if (U_FAILURE(*fRB->fStatus)) {
-        return NULL;
+        return nullptr;
     }
     if (fNodeStackPtr >= kStackSize - 1) {
         error(U_BRK_RULE_SYNTAX);
         RBBIDebugPuts("RBBIRuleScanner::pushNewNode - stack overflow.");
-        return NULL;
+        return nullptr;
     }
     fNodeStackPtr++;
-    fNodeStack[fNodeStackPtr] = new RBBINode(t);
-    if (fNodeStack[fNodeStackPtr] == NULL) {
+    fNodeStack[fNodeStackPtr] = new RBBINode(t, *fRB->fStatus);
+    if (fNodeStack[fNodeStackPtr] == nullptr) {
         *fRB->fStatus = U_MEMORY_ALLOCATION_ERROR;
     }
     return fNodeStack[fNodeStackPtr];
@@ -1197,7 +1224,6 @@ RBBINode  *RBBIRuleScanner::pushNewNode(RBBINode::NodeType  t) {
 //
 //------------------------------------------------------------------------------
 void RBBIRuleScanner::scanSet() {
-    UnicodeSet    *uset;
     ParsePosition  pos;
     int            startPos;
     int            i;
@@ -1209,42 +1235,44 @@ void RBBIRuleScanner::scanSet() {
     pos.setIndex(fScanIndex);
     startPos = fScanIndex;
     UErrorCode localStatus = U_ZERO_ERROR;
-    uset = new UnicodeSet();
-    if (uset == NULL) {
-        localStatus = U_MEMORY_ALLOCATION_ERROR;
-    } else {
-        uset->applyPatternIgnoreSpace(fRB->fRules, pos, fSymbolTable, localStatus);
+    LocalPointer<UnicodeSet> uset(new UnicodeSet(), localStatus);
+    if (U_FAILURE(localStatus)) {
+        error(localStatus);
+        return;
     }
+    uset->applyPatternIgnoreSpace(fRB->fRules, pos, fSymbolTable, localStatus);
     if (U_FAILURE(localStatus)) {
         //  TODO:  Get more accurate position of the error from UnicodeSet's return info.
         //         UnicodeSet appears to not be reporting correctly at this time.
         #ifdef RBBI_DEBUG
-            RBBIDebugPrintf("UnicodeSet parse postion.ErrorIndex = %d\n", pos.getIndex());
+            RBBIDebugPrintf("UnicodeSet parse position.ErrorIndex = %d\n", pos.getIndex());
         #endif
         error(localStatus);
-        delete uset;
         return;
     }
 
     // Verify that the set contains at least one code point.
     //
-    U_ASSERT(uset!=NULL);
-    if (uset->isEmpty()) {
+    U_ASSERT(uset.isValid());
+    UnicodeSet tempSet(*uset);
+    // Use tempSet to handle the case that the UnicodeSet contains
+    // only string element, such as [{ab}] and treat it as empty set.
+    tempSet.removeAllStrings();
+    if (tempSet.isEmpty()) {
         // This set is empty.
         //  Make it an error, because it almost certainly is not what the user wanted.
         //  Also, avoids having to think about corner cases in the tree manipulation code
         //   that occurs later on.
         error(U_BRK_RULE_EMPTY_SET);
-        delete uset;
         return;
     }
 
 
-    // Advance the RBBI parse postion over the UnicodeSet pattern.
+    // Advance the RBBI parse position over the UnicodeSet pattern.
     //   Don't just set fScanIndex because the line/char positions maintained
     //   for error reporting would be thrown off.
     i = pos.getIndex();
-    for (;;) {
+    for (;U_SUCCESS(*fRB->fStatus);) {
         if (fNextIndex >= i) {
             break;
         }
@@ -1263,11 +1291,11 @@ void RBBIRuleScanner::scanSet() {
         fRB->fRules.extractBetween(n->fFirstPos, n->fLastPos, n->fText);
         //  findSetFor() serves several purposes here:
         //     - Adopts storage for the UnicodeSet, will be responsible for deleting.
-        //     - Mantains collection of all sets in use, needed later for establishing
+        //     - Maintains collection of all sets in use, needed later for establishing
         //          character categories for run time engine.
         //     - Eliminates mulitiple instances of the same set.
         //     - Creates a new uset node if necessary (if this isn't a duplicate.)
-        findSetFor(n->fText, n, uset);
+        findSetFor(n->fText, n, uset.orphan());
     }
 
 }

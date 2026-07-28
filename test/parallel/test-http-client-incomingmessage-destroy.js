@@ -16,10 +16,17 @@ function onUncaught(error) {
 
 process.on('uncaughtException', common.mustCall(onUncaught));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   get({
     port: server.address().port
   }, common.mustCall((res) => {
-    res.destroy(new Error('Destroy test'));
+    const err = new Error('Destroy test');
+    assert.strictEqual(res.errored, null);
+    res.destroy(err);
+    assert.strictEqual(res.closed, false);
+    assert.strictEqual(res.errored, err);
+    res.on('close', common.mustCall(() => {
+      assert.strictEqual(res.closed, true);
+    }));
   }));
-});
+}));

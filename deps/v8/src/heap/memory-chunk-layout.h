@@ -5,87 +5,67 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 #define V8_HEAP_MEMORY_CHUNK_LAYOUT_H_
 
-#include "src/heap/heap.h"
-#include "src/heap/list.h"
-#include "src/heap/slot-set.h"
+#include "src/common/globals.h"
+#include "src/heap/memory-chunk.h"
+#include "src/objects/instruction-stream.h"
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/heap/object-start-bitmap.h"
-#endif
+namespace v8::internal {
 
-namespace v8 {
-namespace internal {
-
-class Bitmap;
-class CodeObjectRegistry;
-class FreeListCategory;
-class Heap;
-class TypedSlotsSet;
-class SlotSet;
-
-enum RememberedSetType {
-  OLD_TO_NEW,
-  OLD_TO_OLD,
-  NUMBER_OF_REMEMBERED_SET_TYPES
-};
-
-class V8_EXPORT_PRIVATE MemoryChunkLayout {
+class V8_EXPORT_PRIVATE MemoryChunkLayout final {
  public:
-  static const int kNumSets = NUMBER_OF_REMEMBERED_SET_TYPES;
-  static const int kNumTypes = ExternalBackingStoreType::kNumTypes;
-#define FIELD(Type, Name) \
-  k##Name##Offset, k##Name##End = k##Name##Offset + sizeof(Type) - 1
-  enum Header {
-    // BasicMemoryChunk fields:
-    FIELD(size_t, Size),
-    FIELD(uintptr_t, Flags),
-    FIELD(Heap*, Heap),
-    FIELD(Address, AreaStart),
-    FIELD(Address, AreaEnd),
-    FIELD(size_t, AllocatedBytes),
-    FIELD(size_t, WastedMemory),
-    FIELD(std::atomic<intptr_t>, HighWaterMark),
-    FIELD(Address, Owner),
-    FIELD(VirtualMemory, Reservation),
-    // MemoryChunk fields:
-    FIELD(SlotSet* [kNumSets], SlotSet),
-    FIELD(std::atomic<size_t>, ProgressBar),
-    FIELD(std::atomic<intptr_t>, LiveByteCount),
-    FIELD(SlotSet*, SweepingSlotSet),
-    FIELD(TypedSlotsSet* [kNumSets], TypedSlotSet),
-    FIELD(void* [kNumSets], InvalidatedSlots),
-    FIELD(base::Mutex*, Mutex),
-    FIELD(std::atomic<intptr_t>, ConcurrentSweeping),
-    FIELD(base::Mutex*, PageProtectionChangeMutex),
-    FIELD(uintptr_t, WriteUnprotectCounter),
-    FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
-    FIELD(heap::ListNode<MemoryChunk>, ListNode),
-    FIELD(FreeListCategory**, Categories),
-    FIELD(std::atomic<intptr_t>, YoungGenerationLiveByteCount),
-    FIELD(Bitmap*, YoungGenerationBitmap),
-    FIELD(CodeObjectRegistry*, CodeObjectRegistry),
-    FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    FIELD(ObjectStartBitmap, ObjectStartBitmap),
-#endif
-    kMarkingBitmapOffset,
-    kMemoryChunkHeaderSize = kMarkingBitmapOffset,
-    kMemoryChunkHeaderStart = kSlotSetOffset,
-    kBasicMemoryChunkHeaderSize = kMemoryChunkHeaderStart,
-    kBasicMemoryChunkHeaderStart = 0,
-  };
-  static size_t CodePageGuardStartOffset();
-  static size_t CodePageGuardSize();
-  static intptr_t ObjectStartOffsetInCodePage();
-  static intptr_t ObjectEndOffsetInCodePage();
-  static size_t AllocatableMemoryInCodePage();
-  static intptr_t ObjectStartOffsetInDataPage();
-  static size_t AllocatableMemoryInDataPage();
-  static size_t ObjectStartOffsetInMemoryChunk(AllocationSpace space);
-  static size_t AllocatableMemoryInMemoryChunk(AllocationSpace space);
+  // Code pages have padding on the first page for code alignment, so the
+  // ObjectStartOffset will not be page aligned.
+  static constexpr intptr_t ObjectStartOffsetInCodePage() {
+    // The instruction stream data (so after the header) should be aligned to
+    // kCodeAlignment.
+    return RoundUp(sizeof(MemoryChunk) + InstructionStream::kHeaderSize,
+                   kCodeAlignment) -
+           InstructionStream::kHeaderSize;
+  }
+
+  static constexpr size_t AllocatableMemoryInCodePage() {
+    return kRegularPageSize - ObjectStartOffsetInCodePage();
+  }
+
+  static constexpr size_t ObjectStartOffsetInDataPage() {
+    return RoundUp(sizeof(MemoryChunk),
+                   ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
+  }
+
+  static constexpr size_t AllocatableMemoryInDataPage() {
+    constexpr size_t kAllocatableMemoryInDataPage =
+        kRegularPageSize - ObjectStartOffsetInDataPage();
+    static_assert(kMaxRegularHeapObjectSize <= kAllocatableMemoryInDataPage);
+    return kAllocatableMemoryInDataPage;
+  }
+
+  static constexpr size_t ObjectStartOffsetInMemoryChunk(
+      AllocationSpace space) {
+    if (IsAnyCodeSpace(space)) {
+      return ObjectStartOffsetInCodePage();
+    }
+    // Read-only pages use the same layout as regular pages.
+    return ObjectStartOffsetInDataPage();
+  }
+
+  static constexpr size_t AllocatableMemoryInMemoryChunk(
+      AllocationSpace space) {
+    DCHECK_NE(space, CODE_LO_SPACE);
+    if (space == CODE_SPACE) {
+      return AllocatableMemoryInCodePage();
+    }
+    // Read-only pages use the same layout as regular pages.
+    return AllocatableMemoryInDataPage();
+  }
+
+  static constexpr int MaxRegularCodeObjectSize() {
+    constexpr int kMaxRegularCodeObjectSize = static_cast<int>(
+        RoundDown(AllocatableMemoryInCodePage() / 2, kTaggedSize));
+    static_assert(kMaxRegularCodeObjectSize <= kMaxRegularHeapObjectSize);
+    return kMaxRegularCodeObjectSize;
+  }
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_MEMORY_CHUNK_LAYOUT_H_

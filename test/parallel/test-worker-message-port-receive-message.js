@@ -10,13 +10,13 @@ const message2 = { foo: 'bar' };
 
 // Make sure receiveMessageOnPort() works in a FIFO way, the same way it does
 // when we’re using events.
-assert.deepStrictEqual(receiveMessageOnPort(port2), undefined);
+assert.strictEqual(receiveMessageOnPort(port2), undefined);
 port1.postMessage(message1);
 port1.postMessage(message2);
 assert.deepStrictEqual(receiveMessageOnPort(port2), { message: message1 });
 assert.deepStrictEqual(receiveMessageOnPort(port2), { message: message2 });
-assert.deepStrictEqual(receiveMessageOnPort(port2), undefined);
-assert.deepStrictEqual(receiveMessageOnPort(port2), undefined);
+assert.strictEqual(receiveMessageOnPort(port2), undefined);
+assert.strictEqual(receiveMessageOnPort(port2), undefined);
 
 // Make sure message handlers aren’t called.
 port2.on('message', common.mustNotCall());

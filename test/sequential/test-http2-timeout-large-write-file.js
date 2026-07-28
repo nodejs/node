@@ -6,7 +6,6 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const http2 = require('http2');
-const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -30,27 +29,27 @@ let offsetTimeout = common.platformTimeout(100);
 let didReceiveData = false;
 
 const content = Buffer.alloc(writeSize, 0x44);
-const filepath = path.join(tmpdir.path, 'http2-large-write.tmp');
+const filepath = tmpdir.resolve('http2-large-write.tmp');
 fs.writeFileSync(filepath, content, 'binary');
 const fd = fs.openSync(filepath, 'r');
 process.on('beforeExit', () => fs.closeSync(fd));
 
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 });
 server.on('stream', common.mustCall((stream) => {
   stream.respondWithFD(fd, {
     'Content-Type': 'application/octet-stream',
     'Content-Length': content.length.toString(),
-    'Vary': 'Accept-Encoding'
+    'Vary': 'Accept-Encoding',
   });
   stream.end();
 }));
 server.setTimeout(serverTimeout);
-server.on('timeout', () => {
+server.on('timeout', common.mustCallAtLeast(() => {
   assert.ok(!didReceiveData, 'Should not timeout');
-});
+}, 0));
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`,

@@ -12,19 +12,24 @@ javascript builtin FunctionPrototypeHasInstance(
   return OrdinaryHasInstance(context, receiver, value);
 }
 
-extern transitioning builtin
-FunctionPrototypeBind(implicit context: Context)(
-    JSFunction, JSAny, int32): JSAny;
+// These are technically all js-implicit parameters, but we don't currently
+// support supplying these in tail calls (where we have to supply them).
+extern transitioning javascript builtin FunctionPrototypeBind(
+    js-implicit context: Context)(JSFunction, JSAny, int32,
+    DispatchHandle): JSAny;
 
-const kLengthDescriptorIndex:
-    constexpr int32 generates 'JSFunction::kLengthDescriptorIndex';
-const kNameDescriptorIndex:
-    constexpr int32 generates 'JSFunction::kNameDescriptorIndex';
-const kMinDescriptorsForFastBind:
-    constexpr int31 generates 'JSFunction::kMinDescriptorsForFastBind';
+const kLengthDescriptorIndex: constexpr int32
+    generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex'
+    ;
+const kNameDescriptorIndex: constexpr int32
+    generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex';
+const kMinDescriptorsForFastBindAndWrap: constexpr int31
+    generates 'JSFunction::kMinDescriptorsForFastBindAndWrap';
+const kCodeMaxArguments: constexpr intptr generates 'Code::kMaxArguments';
 
-macro CheckAccessor(implicit context: Context)(
-    array: DescriptorArray, index: constexpr int32, name: Name) labels Slow {
+macro CheckAccessor(
+    implicit context: Context)(array: DescriptorArray, index: constexpr int32,
+    name: Name): void labels Slow {
   const descriptor: DescriptorEntry = array.descriptors[index];
   const key: Name|Undefined = descriptor.key;
   if (!TaggedEqual(key, name)) goto Slow;
@@ -34,14 +39,15 @@ macro CheckAccessor(implicit context: Context)(
 }
 
 // ES6 section 19.2.3.2 Function.prototype.bind
-transitioning javascript builtin
-FastFunctionPrototypeBind(
+transitioning javascript builtin FastFunctionPrototypeBind(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {
-  const argc: intptr = arguments.length;
+  const argc: intptr = arguments.actual_count;
   try {
     typeswitch (receiver) {
-      case (fn: JSFunction|JSBoundFunction): {
+      case (fn: JSFunction|JSBoundFunction|JSWrappedFunction): {
+        if (argc >= kCodeMaxArguments) goto Slow;
+
         // Disallow binding of slow-mode functions. We need to figure out
         // whether the length and name property are in the original state.
         Comment('Disallow binding of slow-mode functions');
@@ -52,11 +58,12 @@ FastFunctionPrototypeBind(
         // the actual value on the object changes.
 
         if (fn.map.bit_field3.number_of_own_descriptors <
-            kMinDescriptorsForFastBind) {
+            kMinDescriptorsForFastBindAndWrap) {
           goto Slow;
         }
 
-        const descriptors: DescriptorArray = fn.map.instance_descriptors;
+        const descriptors: DescriptorArray =
+            UnsafeCast<DescriptorArray>(fn.map.instance_descriptors);
         CheckAccessor(
             descriptors, kLengthDescriptorIndex, LengthStringConstant())
             otherwise Slow;
@@ -68,10 +75,9 @@ FastFunctionPrototypeBind(
 
         const boundFunctionMap: Map =
             IsConstructor(fn) ?
+            *NativeContextSlot(ContextSlot::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX) :
             *NativeContextSlot(
-                ContextSlot::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX) :
-            *NativeContextSlot(ContextSlot::
-                                    BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX);
+                ContextSlot::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX);
 
         // Verify that prototype matches that of the target bound function.
 
@@ -103,7 +109,8 @@ FastFunctionPrototypeBind(
     }
   } label Slow {
     tail FunctionPrototypeBind(
-        LoadTargetFromFrame(), newTarget, Convert<int32>(argc));
+        LoadTargetFromFrame(), newTarget, Convert<int32>(argc),
+        kInvalidDispatchHandle);
   }
 }
 }  // namespace function

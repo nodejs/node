@@ -4,7 +4,12 @@
 
 #include "src/objects/visitors.h"
 
-#include "src/codegen/reloc-info.h"
+#include "src/codegen/reloc-info-inl.h"
+
+#ifdef DEBUG
+#include "src/objects/instruction-stream-inl.h"
+#include "src/objects/smi.h"
+#endif  // DEBUG
 
 namespace v8 {
 namespace internal {
@@ -20,12 +25,15 @@ const char* RootVisitor::RootName(Root root) {
       break;
   }
   UNREACHABLE();
-  return nullptr;
 }
 
-void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
+void ObjectVisitor::VisitRelocInfo(Tagged<InstructionStream> host,
+                                   RelocIterator* it) {
+  // RelocInfo iteration is only valid for fully-initialized InstructionStream
+  // objects. Callers must ensure this.
+  DCHECK(host->IsFullyInitialized());
   for (; !it->done(); it->next()) {
-    it->rinfo()->Visit(this);
+    it->rinfo()->Visit(host, this);
   }
 }
 

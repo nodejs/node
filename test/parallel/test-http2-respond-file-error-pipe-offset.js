@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 if (common.isWindows)
   common.skip('no mkfifo on Windows');
 const child_process = require('child_process');
-const path = require('path');
 const fs = require('fs');
 const http2 = require('http2');
 const assert = require('assert');
@@ -14,7 +13,7 @@ const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const pipeName = path.join(tmpdir.path, 'pipe');
+const pipeName = tmpdir.resolve('pipe');
 
 const mkfifo = child_process.spawnSync('mkfifo', [ pipeName ]);
 if (mkfifo.error && mkfifo.error.code === 'ENOENT') {
@@ -40,7 +39,7 @@ server.on('stream', (stream) => {
     statCheck: common.mustNotCall()
   });
 });
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
 
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
@@ -54,7 +53,7 @@ server.listen(0, () => {
     server.close();
   }));
   req.end();
-});
+}));
 
 fs.writeFile(pipeName, 'Hello, world!\n', common.mustCall((err) => {
   // It's possible for the reading end of the pipe to get the expected error

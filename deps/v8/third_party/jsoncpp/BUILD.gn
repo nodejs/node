@@ -21,9 +21,7 @@ source_set("jsoncpp") {
   sources = [
     "generated/version.h",
     "source/include/json/assertions.h",
-    "source/include/json/autolink.h",
     "source/include/json/config.h",
-    "source/include/json/features.h",
     "source/include/json/forwards.h",
     "source/include/json/json.h",
     "source/include/json/reader.h",
@@ -47,4 +45,8 @@ source_set("jsoncpp") {
   if (!is_win || is_clang) {
     cflags_cc = [ "-Wno-implicit-fallthrough" ]
   }
+
+  # TODO(https://github.com/open-source-parsers/jsoncpp/pull/1612): Remove this
+  # when the PR is merged.
+  use_libcxx_modules = false
 }

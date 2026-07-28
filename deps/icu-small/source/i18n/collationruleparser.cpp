@@ -34,13 +34,14 @@
 #include "cstring.h"
 #include "patternprops.h"
 #include "uassert.h"
+#include "ulocimp.h"
 #include "uvectr32.h"
 
 U_NAMESPACE_BEGIN
 
 namespace {
 
-static const UChar BEFORE[] = { 0x5b, 0x62, 0x65, 0x66, 0x6f, 0x72, 0x65, 0 };  // "[before"
+const char16_t BEFORE[] = { 0x5b, 0x62, 0x65, 0x66, 0x6f, 0x72, 0x65, 0 };  // "[before"
 const int32_t BEFORE_LENGTH = 7;
 
 }  // namespace
@@ -58,9 +59,9 @@ CollationRuleParser::Importer::~Importer() {}
 CollationRuleParser::CollationRuleParser(const CollationData *base, UErrorCode &errorCode)
         : nfd(*Normalizer2::getNFDInstance(errorCode)),
           nfc(*Normalizer2::getNFCInstance(errorCode)),
-          rules(NULL), baseData(base), settings(NULL),
-          parseError(NULL), errorReason(NULL),
-          sink(NULL), importer(NULL),
+          rules(nullptr), baseData(base), settings(nullptr),
+          parseError(nullptr), errorReason(nullptr),
+          sink(nullptr), importer(nullptr),
           ruleIndex(0) {
 }
 
@@ -75,13 +76,13 @@ CollationRuleParser::parse(const UnicodeString &ruleString,
     if(U_FAILURE(errorCode)) { return; }
     settings = &outSettings;
     parseError = outParseError;
-    if(parseError != NULL) {
+    if(parseError != nullptr) {
         parseError->line = 0;
         parseError->offset = -1;
         parseError->preContext[0] = 0;
         parseError->postContext[0] = 0;
     }
-    errorReason = NULL;
+    errorReason = nullptr;
     parse(ruleString, errorCode);
 }
 
@@ -92,7 +93,7 @@ CollationRuleParser::parse(const UnicodeString &ruleString, UErrorCode &errorCod
     ruleIndex = 0;
 
     while(ruleIndex < rules->length()) {
-        UChar c = rules->charAt(ruleIndex);
+        char16_t c = rules->charAt(ruleIndex);
         if(PatternProps::isWhiteSpace(c)) {
             ++ruleIndex;
             continue;
@@ -128,7 +129,7 @@ CollationRuleParser::parse(const UnicodeString &ruleString, UErrorCode &errorCod
 void
 CollationRuleParser::parseRuleChain(UErrorCode &errorCode) {
     int32_t resetStrength = parseResetAndPosition(errorCode);
-    UBool isFirstRelation = TRUE;
+    UBool isFirstRelation = true;
     for(;;) {
         int32_t result = parseRelationOperator(errorCode);
         if(U_FAILURE(errorCode)) { return; }
@@ -165,7 +166,7 @@ CollationRuleParser::parseRuleChain(UErrorCode &errorCode) {
             parseStarredCharacters(strength, i, errorCode);
         }
         if(U_FAILURE(errorCode)) { return; }
-        isFirstRelation = FALSE;
+        isFirstRelation = false;
     }
 }
 
@@ -174,7 +175,7 @@ CollationRuleParser::parseResetAndPosition(UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return UCOL_DEFAULT; }
     int32_t i = skipWhiteSpace(ruleIndex + 1);
     int32_t j;
-    UChar c;
+    char16_t c;
     int32_t resetStrength;
     if(rules->compare(i, BEFORE_LENGTH, BEFORE, 0, BEFORE_LENGTH) == 0 &&
             (j = i + BEFORE_LENGTH) < rules->length() &&
@@ -211,7 +212,7 @@ CollationRuleParser::parseRelationOperator(UErrorCode &errorCode) {
     if(ruleIndex >= rules->length()) { return UCOL_DEFAULT; }
     int32_t strength;
     int32_t i = ruleIndex;
-    UChar c = rules->charAt(i++);
+    char16_t c = rules->charAt(i++);
     switch(c) {
     case 0x3c:  // '<'
         if(i < rules->length() && rules->charAt(i) == 0x3c) {  // <<
@@ -262,7 +263,7 @@ CollationRuleParser::parseRelationStrings(int32_t strength, int32_t i, UErrorCod
     UnicodeString prefix, str, extension;
     i = parseTailoringString(i, str, errorCode);
     if(U_FAILURE(errorCode)) { return; }
-    UChar next = (i < rules->length()) ? rules->charAt(i) : 0;
+    char16_t next = (i < rules->length()) ? rules->charAt(i) : 0;
     if(next == 0x7c) {  // '|' separates the context prefix from the string.
         prefix = str;
         i = parseTailoringString(i + 1, str, errorCode);
@@ -377,7 +378,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
             if(c == 0x27) {  // apostrophe
                 if(i < rules->length() && rules->charAt(i) == 0x27) {
                     // Double apostrophe, encodes a single one.
-                    raw.append((UChar)0x27);
+                    raw.append(static_cast<char16_t>(0x27));
                     ++i;
                     continue;
                 }
@@ -397,7 +398,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
                             break;
                         }
                     }
-                    raw.append((UChar)c);
+                    raw.append(static_cast<char16_t>(c));
                 }
             } else if(c == 0x5c) {  // backslash
                 if(i == rules->length()) {
@@ -417,7 +418,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
             --i;
             break;
         } else {
-            raw.append((UChar)c);
+            raw.append(static_cast<char16_t>(c));
         }
     }
     for(int32_t j = 0; j < raw.length();) {
@@ -437,7 +438,7 @@ CollationRuleParser::parseString(int32_t i, UnicodeString &raw, UErrorCode &erro
 
 namespace {
 
-static const char *const positions[] = {
+const char* const positions[] = {
     "first tertiary ignorable",
     "last tertiary ignorable",
     "first secondary ignorable",
@@ -465,16 +466,16 @@ CollationRuleParser::parseSpecialPosition(int32_t i, UnicodeString &str, UErrorC
         ++j;
         for(int32_t pos = 0; pos < UPRV_LENGTHOF(positions); ++pos) {
             if(raw == UnicodeString(positions[pos], -1, US_INV)) {
-                str.setTo((UChar)POS_LEAD).append((UChar)(POS_BASE + pos));
+                str.setTo(POS_LEAD).append(static_cast<char16_t>(POS_BASE + pos));
                 return j;
             }
         }
         if(raw == UNICODE_STRING_SIMPLE("top")) {
-            str.setTo((UChar)POS_LEAD).append((UChar)(POS_BASE + LAST_REGULAR));
+            str.setTo(POS_LEAD).append(static_cast<char16_t>(POS_BASE + LAST_REGULAR));
             return j;
         }
         if(raw == UNICODE_STRING_SIMPLE("variable top")) {
-            str.setTo((UChar)POS_LEAD).append((UChar)(POS_BASE + LAST_VARIABLE));
+            str.setTo(POS_LEAD).append(static_cast<char16_t>(POS_BASE + LAST_VARIABLE));
             return j;
         }
     }
@@ -506,14 +507,14 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
             return;
         }
         UnicodeString v;
-        int32_t valueIndex = raw.lastIndexOf((UChar)0x20);
+        int32_t valueIndex = raw.lastIndexOf(static_cast<char16_t>(0x20));
         if(valueIndex >= 0) {
             v.setTo(raw, valueIndex + 1);
             raw.truncate(valueIndex);
         }
         if(raw == UNICODE_STRING_SIMPLE("strength") && v.length() == 1) {
             int32_t value = UCOL_DEFAULT;
-            UChar c = v.charAt(0);
+            char16_t c = v.charAt(0);
             if(0x31 <= c && c <= 0x34) {  // 1..4
                 value = UCOL_PRIMARY + (c - 0x31);
             } else if(c == 0x49) {  // 'I'
@@ -604,48 +605,49 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
             lang.appendInvariantChars(v, errorCode);
             if(errorCode == U_MEMORY_ALLOCATION_ERROR) { return; }
             // BCP 47 language tag -> ICU locale ID
-            char localeID[ULOC_FULLNAME_CAPACITY];
             int32_t parsedLength;
-            int32_t length = uloc_forLanguageTag(lang.data(), localeID, ULOC_FULLNAME_CAPACITY,
-                                                 &parsedLength, &errorCode);
-            if(U_FAILURE(errorCode) ||
-                    parsedLength != lang.length() || length >= ULOC_FULLNAME_CAPACITY) {
+            CharString localeID = ulocimp_forLanguageTag(lang.data(), -1, &parsedLength, errorCode);
+            if(U_FAILURE(errorCode) || parsedLength != lang.length()) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);
                 return;
             }
             // localeID minus all keywords
-            char baseID[ULOC_FULLNAME_CAPACITY];
-            length = uloc_getBaseName(localeID, baseID, ULOC_FULLNAME_CAPACITY, &errorCode);
-            if(U_FAILURE(errorCode) || length >= ULOC_KEYWORDS_CAPACITY) {
+            CharString baseID = ulocimp_getBaseName(localeID.toStringPiece(), errorCode);
+            if (U_FAILURE(errorCode)) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);
                 return;
             }
-            if(length == 0) {
-                uprv_strcpy(baseID, "root");
-            } else if(*baseID == '_') {
-                uprv_memmove(baseID + 3, baseID, length + 1);
-                uprv_memcpy(baseID, "und", 3);
+            if (baseID.isEmpty()) {
+                baseID.copyFrom("root", errorCode);
+            } else if (baseID[0] == '_') {
+                // CharString doesn't have any insert() method, only append().
+                constexpr char und[] = "und";
+                constexpr int32_t length = sizeof und - 1;
+                int32_t dummy;
+                char* tail = baseID.getAppendBuffer(length, length, dummy, errorCode);
+                char* head = baseID.data();
+                uprv_memmove(head + length, head, baseID.length());
+                uprv_memcpy(head, und, length);
+                baseID.append(tail, length, errorCode);
             }
             // @collation=type, or length=0 if not specified
-            char collationType[ULOC_KEYWORDS_CAPACITY];
-            length = uloc_getKeywordValue(localeID, "collation",
-                                          collationType, ULOC_KEYWORDS_CAPACITY,
-                                          &errorCode);
-            if(U_FAILURE(errorCode) || length >= ULOC_KEYWORDS_CAPACITY) {
+            CharString collationType = ulocimp_getKeywordValue(localeID.data(), "collation", errorCode);
+            if(U_FAILURE(errorCode)) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);
                 return;
             }
-            if(importer == NULL) {
+            if(importer == nullptr) {
                 setParseError("[import langTag] is not supported", errorCode);
             } else {
                 UnicodeString importedRules;
-                importer->getRules(baseID, length > 0 ? collationType : "standard",
+                importer->getRules(baseID.data(),
+                                   !collationType.isEmpty() ? collationType.data() : "standard",
                                    importedRules, errorReason, errorCode);
                 if(U_FAILURE(errorCode)) {
-                    if(errorReason == NULL) {
+                    if(errorReason == nullptr) {
                         errorReason = "[import langTag] failed";
                     }
                     setErrorContext();
@@ -655,7 +657,7 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
                 int32_t outerRuleIndex = ruleIndex;
                 parse(importedRules, errorCode);
                 if(U_FAILURE(errorCode)) {
-                    if(parseError != NULL) {
+                    if(parseError != nullptr) {
                         parseError->offset = outerRuleIndex;
                     }
                 }
@@ -698,7 +700,7 @@ CollationRuleParser::parseReordering(const UnicodeString &raw, UErrorCode &error
     CharString word;
     while(i < raw.length()) {
         ++i;  // skip the word-separating space
-        int32_t limit = raw.indexOf((UChar)0x20, i);
+        int32_t limit = raw.indexOf(static_cast<char16_t>(0x20), i);
         if(limit < 0) { limit = raw.length(); }
         word.clear().appendInvariantChars(raw.tempSubStringBetween(i, limit), errorCode);
         if(U_FAILURE(errorCode)) { return; }
@@ -756,7 +758,7 @@ CollationRuleParser::parseUnicodeSet(int32_t i, UnicodeSet &set, UErrorCode &err
             setParseError("unbalanced UnicodeSet pattern brackets", errorCode);
             return j;
         }
-        UChar c = rules->charAt(j++);
+        char16_t c = rules->charAt(j++);
         if(c == 0x5b) {  // '['
             ++level;
         } else if(c == 0x5d) {  // ']'
@@ -779,12 +781,12 @@ CollationRuleParser::parseUnicodeSet(int32_t i, UnicodeSet &set, UErrorCode &err
 
 int32_t
 CollationRuleParser::readWords(int32_t i, UnicodeString &raw) const {
-    static const UChar sp = 0x20;
+    static const char16_t sp = 0x20;
     raw.remove();
     i = skipWhiteSpace(i);
     for(;;) {
         if(i >= rules->length()) { return 0; }
-        UChar c = rules->charAt(i);
+        char16_t c = rules->charAt(i);
         if(isSyntaxChar(c) && c != 0x2d && c != 0x5f) {  // syntax except -_
             if(raw.isEmpty()) { return i; }
             if(raw.endsWith(&sp, 1)) {  // remove trailing space
@@ -806,7 +808,7 @@ int32_t
 CollationRuleParser::skipComment(int32_t i) const {
     // skip to past the newline
     while(i < rules->length()) {
-        UChar c = rules->charAt(i++);
+        char16_t c = rules->charAt(i++);
         // LF or FF or CR or NEL or LS or PS
         if(c == 0xa || c == 0xc || c == 0xd || c == 0x85 || c == 0x2028 || c == 0x2029) {
             // Unicode Newline Guidelines: "A readline function should stop at NLF, LS, FF, or PS."
@@ -825,12 +827,12 @@ CollationRuleParser::setParseError(const char *reason, UErrorCode &errorCode) {
     // rather than U_PARSE_ERROR;
     errorCode = U_INVALID_FORMAT_ERROR;
     errorReason = reason;
-    if(parseError != NULL) { setErrorContext(); }
+    if(parseError != nullptr) { setErrorContext(); }
 }
 
 void
 CollationRuleParser::setErrorContext() {
-    if(parseError == NULL) { return; }
+    if(parseError == nullptr) { return; }
 
     // Note: This relies on the calling code maintaining the ruleIndex
     // at a position that is useful for debugging.

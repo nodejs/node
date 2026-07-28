@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -7,12 +7,9 @@
 """Unit tests for the MSVSSettings.py file."""
 
 import unittest
-import gyp.MSVSSettings as MSVSSettings
+from io import StringIO
 
-try:
-    from StringIO import StringIO  # Python 2
-except ImportError:
-    from io import StringIO  # Python 3
+from gyp import MSVSSettings
 
 
 class TestSequenceFunctions(unittest.TestCase):
@@ -1146,47 +1143,47 @@ class TestSequenceFunctions(unittest.TestCase):
     def testConvertToMSBuildSettings_actual(self):
         """Tests the conversion of an actual project.
 
-    A VS2008 project with most of the options defined was created through the
-    VS2008 IDE.  It was then converted to VS2010.  The tool settings found in
-    the .vcproj and .vcxproj files were converted to the two dictionaries
-    msvs_settings and expected_msbuild_settings.
+        A VS2008 project with most of the options defined was created through the
+        VS2008 IDE.  It was then converted to VS2010.  The tool settings found in
+        the .vcproj and .vcxproj files were converted to the two dictionaries
+        msvs_settings and expected_msbuild_settings.
 
-    Note that for many settings, the VS2010 converter adds macros like
-    %(AdditionalIncludeDirectories) to make sure than inherited values are
-    included.  Since the Gyp projects we generate do not use inheritance,
-    we removed these macros.  They were:
-        ClCompile:
-            AdditionalIncludeDirectories:  ';%(AdditionalIncludeDirectories)'
-            AdditionalOptions:  ' %(AdditionalOptions)'
-            AdditionalUsingDirectories:  ';%(AdditionalUsingDirectories)'
-            DisableSpecificWarnings: ';%(DisableSpecificWarnings)',
-            ForcedIncludeFiles:  ';%(ForcedIncludeFiles)',
-            ForcedUsingFiles:  ';%(ForcedUsingFiles)',
-            PreprocessorDefinitions:  ';%(PreprocessorDefinitions)',
-            UndefinePreprocessorDefinitions:
-                ';%(UndefinePreprocessorDefinitions)',
-        Link:
-            AdditionalDependencies:  ';%(AdditionalDependencies)',
-            AdditionalLibraryDirectories:  ';%(AdditionalLibraryDirectories)',
-            AdditionalManifestDependencies:
-                ';%(AdditionalManifestDependencies)',
-            AdditionalOptions:  ' %(AdditionalOptions)',
-            AddModuleNamesToAssembly:  ';%(AddModuleNamesToAssembly)',
-            AssemblyLinkResource:  ';%(AssemblyLinkResource)',
-            DelayLoadDLLs:  ';%(DelayLoadDLLs)',
-            EmbedManagedResourceFile:  ';%(EmbedManagedResourceFile)',
-            ForceSymbolReferences:  ';%(ForceSymbolReferences)',
-            IgnoreSpecificDefaultLibraries:
-                ';%(IgnoreSpecificDefaultLibraries)',
-        ResourceCompile:
-            AdditionalIncludeDirectories:  ';%(AdditionalIncludeDirectories)',
-            AdditionalOptions:  ' %(AdditionalOptions)',
-            PreprocessorDefinitions:  ';%(PreprocessorDefinitions)',
-        Manifest:
-            AdditionalManifestFiles:  ';%(AdditionalManifestFiles)',
-            AdditionalOptions:  ' %(AdditionalOptions)',
-            InputResourceManifests:  ';%(InputResourceManifests)',
-    """
+        Note that for many settings, the VS2010 converter adds macros like
+        %(AdditionalIncludeDirectories) to make sure than inherited values are
+        included.  Since the Gyp projects we generate do not use inheritance,
+        we removed these macros.  They were:
+            ClCompile:
+                AdditionalIncludeDirectories:  ';%(AdditionalIncludeDirectories)'
+                AdditionalOptions:  ' %(AdditionalOptions)'
+                AdditionalUsingDirectories:  ';%(AdditionalUsingDirectories)'
+                DisableSpecificWarnings: ';%(DisableSpecificWarnings)',
+                ForcedIncludeFiles:  ';%(ForcedIncludeFiles)',
+                ForcedUsingFiles:  ';%(ForcedUsingFiles)',
+                PreprocessorDefinitions:  ';%(PreprocessorDefinitions)',
+                UndefinePreprocessorDefinitions:
+                    ';%(UndefinePreprocessorDefinitions)',
+            Link:
+                AdditionalDependencies:  ';%(AdditionalDependencies)',
+                AdditionalLibraryDirectories:  ';%(AdditionalLibraryDirectories)',
+                AdditionalManifestDependencies:
+                    ';%(AdditionalManifestDependencies)',
+                AdditionalOptions:  ' %(AdditionalOptions)',
+                AddModuleNamesToAssembly:  ';%(AddModuleNamesToAssembly)',
+                AssemblyLinkResource:  ';%(AssemblyLinkResource)',
+                DelayLoadDLLs:  ';%(DelayLoadDLLs)',
+                EmbedManagedResourceFile:  ';%(EmbedManagedResourceFile)',
+                ForceSymbolReferences:  ';%(ForceSymbolReferences)',
+                IgnoreSpecificDefaultLibraries:
+                    ';%(IgnoreSpecificDefaultLibraries)',
+            ResourceCompile:
+                AdditionalIncludeDirectories:  ';%(AdditionalIncludeDirectories)',
+                AdditionalOptions:  ' %(AdditionalOptions)',
+                PreprocessorDefinitions:  ';%(PreprocessorDefinitions)',
+            Manifest:
+                AdditionalManifestFiles:  ';%(AdditionalManifestFiles)',
+                AdditionalOptions:  ' %(AdditionalOptions)',
+                InputResourceManifests:  ';%(InputResourceManifests)',
+        """
         msvs_settings = {
             "VCCLCompilerTool": {
                 "AdditionalIncludeDirectories": "dir1",
@@ -1349,8 +1346,7 @@ class TestSequenceFunctions(unittest.TestCase):
                 "EmbedManifest": "false",
                 "GenerateCatalogFiles": "true",
                 "InputResourceManifests": "asfsfdafs",
-                "ManifestResourceFile":
-                    "$(IntDir)\\$(TargetFileName).embed.manifest.resfdsf",
+                "ManifestResourceFile": "$(IntDir)\\$(TargetFileName).embed.manifest.resfdsf",  # noqa: E501
                 "OutputManifestFile": "$(TargetPath).manifestdfs",
                 "RegistrarScriptFile": "sdfsfd",
                 "ReplacementsFile": "sdffsd",
@@ -1534,8 +1530,7 @@ class TestSequenceFunctions(unittest.TestCase):
                 "LinkIncremental": "",
             },
             "ManifestResourceCompile": {
-                "ResourceOutputFileName":
-                    "$(IntDir)$(TargetFileName).embed.manifest.resfdsf"
+                "ResourceOutputFileName": "$(IntDir)$(TargetFileName).embed.manifest.resfdsf"  # noqa: E501
             },
         }
         self.maxDiff = 9999  # on failure display a long diff

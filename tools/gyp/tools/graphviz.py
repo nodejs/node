@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -7,8 +7,6 @@
 """Using the JSON dumped by the dump-dependency-json generator,
 generate input suitable for graphviz to render a dependency graph of
 targets."""
-
-from __future__ import print_function
 
 import collections
 import json
@@ -23,7 +21,7 @@ def ParseTarget(target):
 
 def LoadEdges(filename, targets):
     """Load the edges map from the dump file, and filter it to only
-  show targets in |targets| and their depedendents."""
+    show targets in |targets| and their depedendents."""
 
     file = open("dump.json")
     edges = json.load(file)
@@ -44,12 +42,12 @@ def LoadEdges(filename, targets):
 
 def WriteGraph(edges):
     """Print a graphviz graph to stdout.
-  |edges| is a map of target to a list of other targets it depends on."""
+    |edges| is a map of target to a list of other targets it depends on."""
 
     # Bucket targets by file.
     files = collections.defaultdict(list)
     for src, dst in edges.items():
-        build_file, target_name, toolset = ParseTarget(src)
+        build_file, target_name, _toolset = ParseTarget(src)
         files[build_file].append(src)
 
     print("digraph D {")
@@ -64,24 +62,22 @@ def WriteGraph(edges):
             # If there's only one node for this file, simplify
             # the display by making it a box without an internal node.
             target = targets[0]
-            build_file, target_name, toolset = ParseTarget(target)
-            print(
-                '  "%s" [shape=box, label="%s\\n%s"]' % (target, filename, target_name)
-            )
+            build_file, target_name, _toolset = ParseTarget(target)
+            print(f'  "{target}" [shape=box, label="{filename}\\n{target_name}"]')
         else:
             # Group multiple nodes together in a subgraph.
             print('  subgraph "cluster_%s" {' % filename)
             print('    label = "%s"' % filename)
             for target in targets:
-                build_file, target_name, toolset = ParseTarget(target)
-                print('    "%s" [label="%s"]' % (target, target_name))
+                build_file, target_name, _toolset = ParseTarget(target)
+                print(f'    "{target}" [label="{target_name}"]')
             print("  }")
 
     # Now that we've placed all the nodes within subgraphs, output all
     # the edges between nodes.
     for src, dsts in edges.items():
         for dst in dsts:
-            print('  "%s" -> "%s"' % (src, dst))
+            print(f'  "{src}" -> "{dst}"')
 
     print("}")
 

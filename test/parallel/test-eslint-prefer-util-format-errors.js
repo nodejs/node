@@ -3,21 +3,22 @@
 /* eslint-disable no-template-curly-in-string */
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
-const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
+const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-util-format-errors');
 
-new RuleTester({ parserOptions: { ecmaVersion: 6 } })
+new RuleTester()
   .run('prefer-util-format-errors', rule, {
     valid: [
       'E(\'ABC\', \'abc\');',
       'E(\'ABC\', (arg1, arg2) => `${arg2}${arg1}`);',
       'E(\'ABC\', (arg1, arg2) => `${arg1}{arg2.something}`);',
-      'E(\'ABC\', (arg1, arg2) => fn(arg1, arg2));'
+      'E(\'ABC\', (arg1, arg2) => fn(arg1, arg2));',
     ],
     invalid: [
       {
@@ -26,6 +27,6 @@ new RuleTester({ parserOptions: { ecmaVersion: 6 } })
           message: 'Please use a printf-like formatted string that ' +
                    'util.format can consume.'
         }]
-      }
+      },
     ]
   });

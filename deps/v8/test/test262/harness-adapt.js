@@ -81,15 +81,6 @@ var ES5Harness = (function() {
   }
 })();
 
-function $DONE(arg){
-    if (arg) {
-        print('FAILED! Error: ' + arg);
-        quit(1);
-    }
-
-    quit(0);
-};
-
 function RealmOperators(realm) {
   let $262 = {
     evalScript(script) {

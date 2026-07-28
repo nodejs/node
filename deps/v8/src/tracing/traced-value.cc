@@ -5,12 +5,9 @@
 #include "src/tracing/traced-value.h"
 
 #include "src/base/platform/platform.h"
+#include "src/base/vector.h"
 #include "src/numbers/conversions.h"
-#include "src/utils/vector.h"
-
-#ifdef V8_USE_PERFETTO
-#include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
-#endif
+#include "src/tracing/perfetto-sdk.h"
 
 namespace v8 {
 namespace tracing {
@@ -92,11 +89,17 @@ void TracedValue::SetInteger(const char* name, int value) {
   data_ += std::to_string(value);
 }
 
+void TracedValue::SetUnsignedInteger(const char* name, uint64_t value) {
+  DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
+  WriteName(name);
+  data_ += std::to_string(value);
+}
+
 void TracedValue::SetDouble(const char* name, double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
-  i::EmbeddedVector<char, 100> buffer;
-  data_ += DoubleToCString(value, buffer);
+  base::EmbeddedVector<char, 100> buffer;
+  data_ += internal::DoubleToStringView(value, buffer);
 }
 
 void TracedValue::SetBoolean(const char* name, bool value) {
@@ -144,8 +147,8 @@ void TracedValue::AppendInteger(int value) {
 void TracedValue::AppendDouble(double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();
-  i::EmbeddedVector<char, 100> buffer;
-  data_ += DoubleToCString(value, buffer);
+  base::EmbeddedVector<char, 100> buffer;
+  data_ += internal::DoubleToStringView(value, buffer);
 }
 
 void TracedValue::AppendBoolean(bool value) {

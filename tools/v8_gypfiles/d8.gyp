@@ -6,6 +6,8 @@
   'variables': {
     'V8_ROOT': '../../deps/v8',
     'v8_code': 1,
+    # Enable support for Intel VTune. Supported on ia32/x64 only
+    'v8_enable_vtunejit%': 0,
     'v8_enable_i18n_support%': 1,
   },
   'includes': ['toolchain.gypi', 'features.gypi'],
@@ -14,10 +16,12 @@
       'target_name': 'd8',
       'type': 'executable',
       'dependencies': [
+        'abseil.gyp:abseil',
         'v8.gyp:v8',
         'v8.gyp:v8_libbase',
         'v8.gyp:v8_libplatform',
         'v8.gyp:generate_bytecode_builtins_list',
+        'v8.gyp:fp16',
       ],
       # Generated source files need this explicitly:
       'include_dirs+': [
@@ -26,15 +30,7 @@
         '<(SHARED_INTERMEDIATE_DIR)',
       ],
       'sources': [
-        '<(V8_ROOT)/src/d8/async-hooks-wrapper.cc',
-        '<(V8_ROOT)/src/d8/async-hooks-wrapper.h',
-        '<(V8_ROOT)/src/d8/d8-console.cc',
-        '<(V8_ROOT)/src/d8/d8-console.h',
-        '<(V8_ROOT)/src/d8/d8-js.cc',
-        '<(V8_ROOT)/src/d8/d8-platforms.cc',
-        '<(V8_ROOT)/src/d8/d8-platforms.h',
-        '<(V8_ROOT)/src/d8/d8.cc',
-        '<(V8_ROOT)/src/d8/d8.h',
+        '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_executable.\\"d8\\".*?sources = ")',
       ],
       'conditions': [
         [ 'want_separate_host_toolset==1', {
@@ -45,21 +41,15 @@
         }],
         ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
            or OS=="openbsd" or OS=="solaris" or OS=="android" \
-           or OS=="qnx" or OS=="aix")', {
+           or OS=="qnx" or OS=="aix" or OS=="os400" or OS=="openharmony")', {
              'sources': [ '<(V8_ROOT)/src/d8/d8-posix.cc', ]
            }],
         [ 'OS=="win"', {
           'sources': [ '<(V8_ROOT)/src/d8/d8-windows.cc', ]
         }],
-        [ 'component!="shared_library"', {
-          'conditions': [
-            [ 'v8_postmortem_support==1', {
-              'xcode_settings': {
-                'OTHER_LDFLAGS': [
-                   '-Wl,-force_load,<(PRODUCT_DIR)/libv8_base.a'
-                ],
-              },
-            }],
+        ['v8_enable_vtunejit==1', {
+          'dependencies': [
+            'v8vtune.gyp:v8_vtune',
           ],
         }],
         ['v8_enable_i18n_support==1', {
@@ -72,6 +62,20 @@
           'dependencies': [
             '<(icu_gyp_path):icudata',
           ],
+        }],
+        # Avoid excessive LTO
+        ['enable_lto=="true"', {
+          'ldflags': [ '-fno-lto' ],
+        }],
+        ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+          },
         }],
       ],
     },

@@ -1,26 +1,41 @@
 #include "crypto/crypto_dh.h"
-#include "crypto/crypto_keys.h"
-#include "crypto/crypto_groups.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "ncrypto.h"
+#include "node_errors.h"
+#ifndef OPENSSL_IS_BORINGSSL
+#include "openssl/bnerr.h"
+#endif
+#include "openssl/dh.h"
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::DataPointer;
+using ncrypto::DHPointer;
+using ncrypto::EVPKeyCtxPointer;
+using ncrypto::EVPKeyPointer;
+using v8::ArrayBuffer;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::ConstructorBehavior;
+using v8::Context;
 using v8::DontDelete;
 using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::HandleScope;
 using v8::Int32;
-using v8::Just;
+using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -31,377 +46,348 @@ using v8::String;
 using v8::Value;
 
 namespace crypto {
-namespace {
-static void ZeroPadDiffieHellmanSecret(size_t remainder_size,
-                                       char* data,
-                                       size_t length) {
-  // DH_size returns number of bytes in a prime number.
-  // DH_compute_key returns number of bytes in a remainder of exponent, which
-  // may have less bytes than a prime number. Therefore add 0-padding to the
-  // allocated buffer.
-  const size_t prime_size = length;
-  if (remainder_size != prime_size) {
-    CHECK_LT(remainder_size, prime_size);
-    const size_t padding = prime_size - remainder_size;
-    memmove(data + padding, data, remainder_size);
-    memset(data, 0, padding);
-  }
-}
-static void ZeroPadDiffieHellmanSecret(size_t remainder_size,
-                                       AllocatedBuffer* ret) {
-  ZeroPadDiffieHellmanSecret(remainder_size, ret->data(), ret->size());
-}
-}  // namespace
-
-DiffieHellman::DiffieHellman(Environment* env, Local<Object> wrap)
-    : BaseObject(env, wrap), verifyError_(0) {
+DiffieHellman::DiffieHellman(Environment* env, Local<Object> wrap, DHPointer dh)
+    : BaseObject(env, wrap), dh_(std::move(dh)) {
   MakeWeak();
-}
-
-void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
-  auto make = [&] (Local<String> name, FunctionCallback callback) {
-    Local<FunctionTemplate> t = env->NewFunctionTemplate(callback);
-
-    const PropertyAttribute attributes =
-        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-
-    t->InstanceTemplate()->SetInternalFieldCount(
-        DiffieHellman::kInternalFieldCount);
-    t->Inherit(BaseObject::GetConstructorTemplate(env));
-
-    env->SetProtoMethod(t, "generateKeys", GenerateKeys);
-    env->SetProtoMethod(t, "computeSecret", ComputeSecret);
-    env->SetProtoMethodNoSideEffect(t, "getPrime", GetPrime);
-    env->SetProtoMethodNoSideEffect(t, "getGenerator", GetGenerator);
-    env->SetProtoMethodNoSideEffect(t, "getPublicKey", GetPublicKey);
-    env->SetProtoMethodNoSideEffect(t, "getPrivateKey", GetPrivateKey);
-    env->SetProtoMethod(t, "setPublicKey", SetPublicKey);
-    env->SetProtoMethod(t, "setPrivateKey", SetPrivateKey);
-
-    Local<FunctionTemplate> verify_error_getter_templ =
-        FunctionTemplate::New(env->isolate(),
-                              DiffieHellman::VerifyErrorGetter,
-                              Local<Value>(),
-                              Signature::New(env->isolate(), t),
-                              /* length */ 0,
-                              ConstructorBehavior::kThrow,
-                              SideEffectType::kHasNoSideEffect);
-
-    t->InstanceTemplate()->SetAccessorProperty(
-        env->verify_error_string(),
-        verify_error_getter_templ,
-        Local<FunctionTemplate>(),
-        attributes);
-
-    target->Set(env->context(),
-                name,
-                t->GetFunction(env->context()).ToLocalChecked()).Check();
-  };
-
-  make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
-  make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
-       DiffieHellmanGroup);
-
-  env->SetMethodNoSideEffect(target, "statelessDH", DiffieHellman::Stateless);
-  DHKeyPairGenJob::Initialize(env, target);
-  DHKeyExportJob::Initialize(env, target);
-  DHBitsJob::Initialize(env, target);
-}
-
-bool DiffieHellman::Init(int primeLength, int g) {
-  dh_.reset(DH_new());
-  if (!DH_generate_parameters_ex(dh_.get(), primeLength, g, nullptr))
-    return false;
-  return VerifyContext();
 }
 
 void DiffieHellman::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("dh", dh_ ? kSizeOf_DH : 0);
 }
 
-bool DiffieHellman::Init(const char* p, int p_len, int g) {
-  dh_.reset(DH_new());
-  if (p_len <= 0) {
-    BNerr(BN_F_BN_GENERATE_PRIME_EX, BN_R_BITS_TOO_SMALL);
-    return false;
+namespace {
+MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
+  struct Flag {
+    bool secure;
+  };
+#ifdef V8_ENABLE_SANDBOX
+  auto backing = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      data.size(),
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!backing) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return MaybeLocal<Value>();
   }
-  if (g <= 1) {
-    DHerr(DH_F_DH_BUILTIN_GENPARAMS, DH_R_BAD_GENERATOR);
-    return false;
+  if (data.size() > 0) {
+    memcpy(backing->Data(), data.get(), data.size());
   }
-  BIGNUM* bn_p =
-      BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, nullptr);
-  BIGNUM* bn_g = BN_new();
-  if (!BN_set_word(bn_g, g) ||
-      !DH_set0_pqg(dh_.get(), bn_p, nullptr, bn_g)) {
-    BN_free(bn_p);
-    BN_free(bn_g);
-    return false;
-  }
-  return VerifyContext();
+#else
+  auto backing = ArrayBuffer::NewBackingStore(
+      data.get(),
+      data.size(),
+      [](void* data, size_t len, void* ptr) {
+        std::unique_ptr<Flag> flag(static_cast<Flag*>(ptr));
+        DataPointer free_me(data, len, flag->secure);
+      },
+      new Flag{data.isSecure()});
+  data.release();
+#endif  // V8_ENABLE_SANDBOX
+
+  auto ab = ArrayBuffer::New(env->isolate(), std::move(backing));
+  return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>());
 }
 
-bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
-  dh_.reset(DH_new());
-  if (p_len <= 0) {
-    BNerr(BN_F_BN_GENERATE_PRIME_EX, BN_R_BITS_TOO_SMALL);
-    return false;
-  }
-  if (g_len <= 0) {
-    DHerr(DH_F_DH_BUILTIN_GENPARAMS, DH_R_BAD_GENERATOR);
-    return false;
-  }
-  BIGNUM* bn_g =
-      BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, nullptr);
-  if (BN_is_zero(bn_g) || BN_is_one(bn_g)) {
-    BN_free(bn_g);
-    DHerr(DH_F_DH_BUILTIN_GENPARAMS, DH_R_BAD_GENERATOR);
-    return false;
-  }
-  BIGNUM* bn_p =
-      BN_bin2bn(reinterpret_cast<const unsigned char*>(p), p_len, nullptr);
-  if (!DH_set0_pqg(dh_.get(), bn_p, nullptr, bn_g)) {
-    BN_free(bn_p);
-    BN_free(bn_g);
-    return false;
-  }
-  return VerifyContext();
+void PutDhError(int reason) {
+#ifdef OPENSSL_IS_BORINGSSL
+  OPENSSL_PUT_ERROR(DH, reason);
+#elif NCRYPTO_USE_OPENSSL3_PROVIDER
+  ERR_raise(ERR_LIB_DH, reason);
+#else
+  ERR_put_error(ERR_LIB_DH, 0, reason, __FILE__, __LINE__);
+#endif
 }
 
-inline const modp_group* FindDiffieHellmanGroup(const char* name) {
-  for (const modp_group& group : modp_groups) {
-    if (StringEqualNoCase(name, group.name))
-      return &group;
-  }
-  return nullptr;
+#if defined(OPENSSL_IS_BORINGSSL) || !NCRYPTO_USE_OPENSSL3_PROVIDER
+void PutBnError(int reason) {
+#ifdef OPENSSL_IS_BORINGSSL
+  OPENSSL_PUT_ERROR(BN, reason);
+#else
+  ERR_put_error(ERR_LIB_BN, 0, reason, __FILE__, __LINE__);
+#endif
 }
+#endif
 
-void DiffieHellman::DiffieHellmanGroup(
-    const FunctionCallbackInfo<Value>& args) {
+void DiffieHellmanGroup(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  DiffieHellman* diffieHellman = new DiffieHellman(env, args.This());
-
   CHECK_EQ(args.Length(), 1);
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "Group name");
-
-  bool initialized = false;
-
   const node::Utf8Value group_name(env->isolate(), args[0]);
-  const modp_group* group = FindDiffieHellmanGroup(*group_name);
-  if (group == nullptr)
-    return THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
 
-  initialized = diffieHellman->Init(group->prime,
-                                    group->prime_size,
-                                    group->gen);
-  if (!initialized)
-    THROW_ERR_CRYPTO_INITIALIZATION_FAILED(env);
+  DHPointer dh = DHPointer::FromGroup(group_name.ToStringView());
+  if (!dh) {
+    return THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
+  }
+
+  new DiffieHellman(env, args.This(), std::move(dh));
 }
 
-
-void DiffieHellman::New(const FunctionCallbackInfo<Value>& args) {
+void New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  DiffieHellman* diffieHellman =
-      new DiffieHellman(env, args.This());
-  bool initialized = false;
 
-  if (args.Length() == 2) {
-    if (args[0]->IsInt32()) {
-      if (args[1]->IsInt32()) {
-        initialized = diffieHellman->Init(args[0].As<Int32>()->Value(),
-                                          args[1].As<Int32>()->Value());
-      }
-    } else {
-      ArrayBufferOrViewContents<char> arg0(args[0]);
-      if (UNLIKELY(!arg0.CheckSizeInt32()))
-        return THROW_ERR_OUT_OF_RANGE(env, "prime is too big");
-      if (args[1]->IsInt32()) {
-        initialized = diffieHellman->Init(arg0.data(),
-                                          arg0.size(),
-                                          args[1].As<Int32>()->Value());
-      } else {
-        ArrayBufferOrViewContents<char> arg1(args[1]);
-        if (UNLIKELY(!arg1.CheckSizeInt32()))
-          return THROW_ERR_OUT_OF_RANGE(env, "generator is too big");
-        initialized = diffieHellman->Init(arg0.data(), arg0.size(),
-                                          arg1.data(), arg1.size());
-      }
+  if (args.Length() != 2) {
+    return THROW_ERR_MISSING_ARGS(env, "Constructor must have two arguments");
+  }
+
+  if (args[0]->IsInt32()) {
+    int32_t bits = args[0].As<Int32>()->Value();
+    if (bits < 2) {
+#ifndef OPENSSL_IS_BORINGSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+      PutDhError(DH_R_MODULUS_TOO_SMALL);
+#else
+      PutBnError(BN_R_BITS_TOO_SMALL);
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+#else   // OPENSSL_IS_BORINGSSL
+      PutBnError(BN_R_BITS_TOO_SMALL);
+#endif  // OPENSSL_IS_BORINGSSL
+      return ThrowCryptoError(env, ERR_get_error(), "Invalid prime length");
+    }
+
+    // If the first argument is an Int32 then we are generating a new
+    // prime and then using that to generate the Diffie-Hellman parameters.
+    // The second argument must be an Int32 as well.
+    if (!args[1]->IsInt32()) {
+      return THROW_ERR_INVALID_ARG_TYPE(env,
+                                        "Second argument must be an int32");
+    }
+    int32_t generator = args[1].As<Int32>()->Value();
+    if (generator < 2) {
+      PutDhError(DH_R_BAD_GENERATOR);
+      return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
+    }
+
+    auto dh = DHPointer::New(bits, generator);
+    if (!dh) {
+      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid DH parameters");
+    }
+    new DiffieHellman(env, args.This(), std::move(dh));
+    return;
+  }
+
+  // The first argument must be an ArrayBuffer or ArrayBufferView with the
+  // prime, and the second argument must be an int32 with the generator
+  // or an ArrayBuffer or ArrayBufferView with the generator.
+
+  ArrayBufferOrViewContents<char> arg0(args[0]);
+  if (!arg0.CheckSizeInt32()) [[unlikely]]
+    return THROW_ERR_OUT_OF_RANGE(env, "prime is too big");
+
+  BignumPointer bn_p(reinterpret_cast<uint8_t*>(arg0.data()), arg0.size());
+  BignumPointer bn_g;
+  if (!bn_p) {
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid prime");
+  }
+
+  if (args[1]->IsInt32()) {
+    int32_t generator = args[1].As<Int32>()->Value();
+    if (generator < 2) {
+      PutDhError(DH_R_BAD_GENERATOR);
+      return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
+    }
+    bn_g = BignumPointer::New();
+    if (!bn_g.setWord(generator)) {
+      PutDhError(DH_R_BAD_GENERATOR);
+      return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
+    }
+  } else {
+    ArrayBufferOrViewContents<char> arg1(args[1]);
+    if (!arg1.CheckSizeInt32()) [[unlikely]]
+      return THROW_ERR_OUT_OF_RANGE(env, "generator is too big");
+    bn_g = BignumPointer(reinterpret_cast<uint8_t*>(arg1.data()), arg1.size());
+    if (!bn_g) {
+      PutDhError(DH_R_BAD_GENERATOR);
+      return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
+    }
+    if (bn_g.getWord().has_value() && bn_g.getWord().value() < 2) {
+      PutDhError(DH_R_BAD_GENERATOR);
+      return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
     }
   }
 
-  if (!initialized) {
-    return ThrowCryptoError(env, ERR_get_error(), "Initialization failed");
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (BN_num_bits(bn_p.get()) >= 512 && BN_cmp(bn_g.get(), bn_p.get()) >= 0) {
+    PutDhError(DH_R_BAD_GENERATOR);
+    return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
+  }
+#endif
+
+  auto dh = DHPointer::New(std::move(bn_p), std::move(bn_g));
+  if (!dh) {
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid DH parameters");
+  }
+  new DiffieHellman(env, args.This(), std::move(dh));
+}
+
+void GenerateKeys(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DiffieHellman* diffieHellman;
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
+
+  auto dp = dh.generateKeys();
+  if (!dp) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Key generation failed");
+  }
+
+  Local<Value> buffer;
+  if (DataPointerToBuffer(env, std::move(dp)).ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
   }
 }
 
-
-void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
+void GetPrime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
   DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
 
-  if (!DH_generate_key(diffieHellman->dh_.get())) {
-    return ThrowCryptoError(env, ERR_get_error(), "Key generation failed");
+  auto dp = dh.getPrime();
+  if (!dp) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(env, "p is null");
   }
-
-  const BIGNUM* pub_key;
-  DH_get0_key(diffieHellman->dh_.get(), &pub_key, nullptr);
-  const int size = BN_num_bytes(pub_key);
-  CHECK_GE(size, 0);
-  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
-  CHECK_EQ(size,
-           BN_bn2binpad(
-               pub_key, reinterpret_cast<unsigned char*>(data.data()), size));
-  args.GetReturnValue().Set(data.ToBuffer().FromMaybe(Local<Value>()));
+  Local<Value> buffer;
+  if (DataPointerToBuffer(env, std::move(dp)).ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
+  }
 }
 
-
-void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
-                             const BIGNUM* (*get_field)(const DH*),
-                             const char* err_if_null) {
+void GetGenerator(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
-  DiffieHellman* dh;
-  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
-
-  const BIGNUM* num = get_field(dh->dh_.get());
-  if (num == nullptr)
-    return THROW_ERR_CRYPTO_INVALID_STATE(env, err_if_null);
-
-  const int size = BN_num_bytes(num);
-  CHECK_GE(size, 0);
-  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
-  CHECK_EQ(
-      size,
-      BN_bn2binpad(num, reinterpret_cast<unsigned char*>(data.data()), size));
-  args.GetReturnValue().Set(data.ToBuffer().FromMaybe(Local<Value>()));
-}
-
-void DiffieHellman::GetPrime(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, [](const DH* dh) -> const BIGNUM* {
-    const BIGNUM* p;
-    DH_get0_pqg(dh, &p, nullptr, nullptr);
-    return p;
-  }, "p is null");
-}
-
-void DiffieHellman::GetGenerator(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, [](const DH* dh) -> const BIGNUM* {
-    const BIGNUM* g;
-    DH_get0_pqg(dh, nullptr, nullptr, &g);
-    return g;
-  }, "g is null");
-}
-
-void DiffieHellman::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, [](const DH* dh) -> const BIGNUM* {
-    const BIGNUM* pub_key;
-    DH_get0_key(dh, &pub_key, nullptr);
-    return pub_key;
-  }, "No public key - did you forget to generate one?");
-}
-
-void DiffieHellman::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  GetField(args, [](const DH* dh) -> const BIGNUM* {
-    const BIGNUM* priv_key;
-    DH_get0_key(dh, nullptr, &priv_key);
-    return priv_key;
-  }, "No private key - did you forget to generate one?");
-}
-
-void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
 
-  ClearErrorOnReturn clear_error_on_return;
+  auto dp = dh.getGenerator();
+  if (!dp) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(env, "g is null");
+  }
+  Local<Value> buffer;
+  if (DataPointerToBuffer(env, std::move(dp)).ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
+  }
+}
+
+void GetPublicKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DiffieHellman* diffieHellman;
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
+
+  auto dp = dh.getPublicKey();
+  if (!dp) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(
+        env, "No public key - did you forget to generate one?");
+  }
+  Local<Value> buffer;
+  if (DataPointerToBuffer(env, std::move(dp)).ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
+  }
+}
+
+void GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DiffieHellman* diffieHellman;
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
+
+  auto dp = dh.getPrivateKey();
+  if (!dp) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(
+        env, "No private key - did you forget to generate one?");
+  }
+  Local<Value> buffer;
+  if (DataPointerToBuffer(env, std::move(dp)).ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
+  }
+}
+
+void ComputeSecret(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DiffieHellman* diffieHellman;
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
 
   CHECK_EQ(args.Length(), 1);
   ArrayBufferOrViewContents<unsigned char> key_buf(args[0]);
-  if (UNLIKELY(!key_buf.CheckSizeInt32()))
+  if (!key_buf.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "secret is too big");
-  BignumPointer key(BN_bin2bn(key_buf.data(), key_buf.size(), nullptr));
+  BignumPointer key(key_buf.data(), key_buf.size());
 
-  AllocatedBuffer ret =
-      AllocatedBuffer::AllocateManaged(env, DH_size(diffieHellman->dh_.get()));
-
-  int size = DH_compute_key(reinterpret_cast<unsigned char*>(ret.data()),
-                            key.get(),
-                            diffieHellman->dh_.get());
-
-  if (size == -1) {
-    int checkResult;
-    int checked;
-
-    checked = DH_check_pub_key(diffieHellman->dh_.get(),
-                               key.get(),
-                               &checkResult);
-
-    if (!checked) {
-      return ThrowCryptoError(env, ERR_get_error(), "Invalid Key");
-    } else if (checkResult) {
-      if (checkResult & DH_CHECK_PUBKEY_TOO_SMALL) {
-        return THROW_ERR_CRYPTO_INVALID_KEYLEN(env,
-            "Supplied key is too small");
-      } else if (checkResult & DH_CHECK_PUBKEY_TOO_LARGE) {
-        return THROW_ERR_CRYPTO_INVALID_KEYLEN(env,
-            "Supplied key is too large");
-      }
-    }
-
-    return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
+  switch (dh.checkPublicKey(key)) {
+    case DHPointer::CheckPublicKeyResult::CHECK_FAILED:
+      return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env,
+                                              "Unspecified validation error");
+#ifndef OPENSSL_IS_BORINGSSL
+    case DHPointer::CheckPublicKeyResult::TOO_SMALL:
+      return THROW_ERR_CRYPTO_INVALID_KEYLEN(env, "Supplied key is too small");
+    case DHPointer::CheckPublicKeyResult::TOO_LARGE:
+      return THROW_ERR_CRYPTO_INVALID_KEYLEN(env, "Supplied key is too large");
+#endif
+    case DHPointer::CheckPublicKeyResult::INVALID:
+      return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env, "Supplied key is invalid");
+    case DHPointer::CheckPublicKeyResult::NONE:
+      break;
   }
 
-  CHECK_GE(size, 0);
-  ZeroPadDiffieHellmanSecret(static_cast<size_t>(size), &ret);
+  if (!dh.hasPrivateKey()) {
+    return THROW_ERR_CRYPTO_INVALID_STATE(
+        env, "Cannot compute shared secret without a private key");
+  }
 
-  args.GetReturnValue().Set(ret.ToBuffer().FromMaybe(Local<Value>()));
+  auto dp = dh.computeSecret(key);
+
+  Local<Value> buffer;
+  if (DataPointerToBuffer(env, std::move(dp)).ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
+  }
 }
 
-void DiffieHellman::SetKey(const FunctionCallbackInfo<Value>& args,
-                           int (*set_field)(DH*, BIGNUM*), const char* what) {
+void SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  DiffieHellman* dh;
-  ASSIGN_OR_RETURN_UNWRAP(&dh, args.Holder());
+  DiffieHellman* diffieHellman;
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
   CHECK_EQ(args.Length(), 1);
   ArrayBufferOrViewContents<unsigned char> buf(args[0]);
-  if (UNLIKELY(!buf.CheckSizeInt32()))
+  if (!buf.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "buf is too big");
-  BIGNUM* num = BN_bin2bn(buf.data(), buf.size(), nullptr);
-  CHECK_NOT_NULL(num);
-  CHECK_EQ(1, set_field(dh->dh_.get(), num));
+  BignumPointer num(buf.data(), buf.size());
+  CHECK(num);
+  CHECK(dh.setPublicKey(std::move(num)));
 }
 
-void DiffieHellman::SetPublicKey(const FunctionCallbackInfo<Value>& args) {
-  SetKey(args,
-         [](DH* dh, BIGNUM* num) { return DH_set0_key(dh, num, nullptr); },
-         "Public key");
-}
-
-void DiffieHellman::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
-  SetKey(args,
-         [](DH* dh, BIGNUM* num) { return DH_set0_key(dh, nullptr, num); },
-         "Private key");
-}
-
-void DiffieHellman::VerifyErrorGetter(const FunctionCallbackInfo<Value>& args) {
-  HandleScope scope(args.GetIsolate());
-
+void SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   DiffieHellman* diffieHellman;
-  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.Holder());
-
-  args.GetReturnValue().Set(diffieHellman->verifyError_);
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+  DHPointer& dh = *diffieHellman;
+  CHECK_EQ(args.Length(), 1);
+  ArrayBufferOrViewContents<unsigned char> buf(args[0]);
+  if (!buf.CheckSizeInt32()) [[unlikely]]
+    return THROW_ERR_OUT_OF_RANGE(env, "buf is too big");
+  BignumPointer num(buf.data(), buf.size());
+  CHECK(num);
+  CHECK(dh.setPrivateKey(std::move(num)));
 }
 
-bool DiffieHellman::VerifyContext() {
-  int codes;
-  if (!DH_check(dh_.get(), &codes))
-    return false;
-  verifyError_ = codes;
-  return true;
+void Check(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  DiffieHellman* diffieHellman;
+  ASSIGN_OR_RETURN_UNWRAP(&diffieHellman, args.This());
+
+  DHPointer& dh = *diffieHellman;
+  auto result = dh.check();
+  if (result == DHPointer::CheckResult::CHECK_FAILED) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Checking DH parameters failed");
+  }
+
+  args.GetReturnValue().Set(static_cast<int>(result));
 }
+
+}  // namespace
 
 // The input arguments to DhKeyPairGenJob can vary
 //   1. CryptoJobMode
@@ -417,7 +403,7 @@ bool DiffieHellman::VerifyContext() {
 //   * Private type
 //   * Cipher
 //   * Passphrase
-Maybe<bool> DhKeyGenTraits::AdditionalConfig(
+Maybe<void> DhKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -426,33 +412,32 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
 
   if (args[*offset]->IsString()) {
     Utf8Value group_name(env->isolate(), args[*offset]);
-    const modp_group* group = FindDiffieHellmanGroup(*group_name);
-    if (group == nullptr) {
+    auto group = DHPointer::FindGroup(group_name.ToStringView());
+    if (!group) {
       THROW_ERR_CRYPTO_UNKNOWN_DH_GROUP(env);
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
-    params->params.prime_fixed_value = BignumPointer(
-        BN_bin2bn(reinterpret_cast<const unsigned char*>(group->prime),
-                  group->prime_size, nullptr));
-    params->params.generator = group->gen;
+    static constexpr int kStandardizedGenerator = 2;
+
+    params->params.prime = std::move(group);
+    params->params.generator = kStandardizedGenerator;
     *offset += 1;
   } else {
     if (args[*offset]->IsInt32()) {
       int size = args[*offset].As<Int32>()->Value();
       if (size < 0) {
         THROW_ERR_OUT_OF_RANGE(env, "Invalid prime size");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
-      params->params.prime_size = size;
+      params->params.prime = size;
     } else {
       ArrayBufferOrViewContents<unsigned char> input(args[*offset]);
-      if (UNLIKELY(!input.CheckSizeInt32())) {
+      if (!input.CheckSizeInt32()) [[unlikely]] {
         THROW_ERR_OUT_OF_RANGE(env, "prime is too big");
-        return Nothing<bool>();
+        return Nothing<void>();
       }
-      params->params.prime_fixed_value = BignumPointer(
-          BN_bin2bn(input.data(), input.size(), nullptr));
+      params->params.prime = BignumPointer(input.data(), input.size());
     }
 
     CHECK(args[*offset + 1]->IsInt32());
@@ -460,217 +445,158 @@ Maybe<bool> DhKeyGenTraits::AdditionalConfig(
     *offset += 2;
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 EVPKeyCtxPointer DhKeyGenTraits::Setup(DhKeyPairGenConfig* params) {
   EVPKeyPointer key_params;
-  if (params->params.prime_fixed_value) {
-    DHPointer dh(DH_new());
-    if (!dh)
-      return EVPKeyCtxPointer();
+  if (BignumPointer* prime_fixed_value =
+          std::get_if<BignumPointer>(&params->params.prime)) {
+    auto prime = prime_fixed_value->clone();
+    auto bn_g = BignumPointer::New();
+    if (!prime || !bn_g || !bn_g.setWord(params->params.generator)) {
+      return {};
+    }
+    auto dh = DHPointer::New(std::move(prime), std::move(bn_g));
+    if (!dh) return {};
 
-    BIGNUM* prime = params->params.prime_fixed_value.get();
-    BignumPointer bn_g(BN_new());
-    if (!BN_set_word(bn_g.get(), params->params.generator) ||
-        !DH_set0_pqg(dh.get(), prime, nullptr, bn_g.get()))
-      return EVPKeyCtxPointer();
-
-    params->params.prime_fixed_value.release();
-    bn_g.release();
-
-    key_params = EVPKeyPointer(EVP_PKEY_new());
-    CHECK(key_params);
-    EVP_PKEY_assign_DH(key_params.get(), dh.release());
-  } else {
-    EVPKeyCtxPointer param_ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_DH, nullptr));
-    EVP_PKEY* raw_params = nullptr;
-    if (!param_ctx ||
-        EVP_PKEY_paramgen_init(param_ctx.get()) <= 0 ||
-        EVP_PKEY_CTX_set_dh_paramgen_prime_len(
-            param_ctx.get(),
-            params->params.prime_size) <= 0 ||
-        EVP_PKEY_CTX_set_dh_paramgen_generator(
-            param_ctx.get(),
-            params->params.generator) <= 0 ||
-        EVP_PKEY_paramgen(param_ctx.get(), &raw_params) <= 0) {
-      return EVPKeyCtxPointer();
+    key_params = EVPKeyPointer::NewDH(std::move(dh));
+  } else if (int* prime_size = std::get_if<int>(&params->params.prime)) {
+    auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DH);
+#ifndef OPENSSL_IS_BORINGSSL
+    if (!param_ctx.initForParamgen() ||
+        !param_ctx.setDhParameters(*prime_size, params->params.generator)) {
+      return {};
     }
 
-    key_params = EVPKeyPointer(raw_params);
+    key_params = param_ctx.paramgen();
+#else
+    return {};
+#endif
+  } else {
+    UNREACHABLE();
   }
 
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(key_params.get(), nullptr));
-  if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0)
-    return EVPKeyCtxPointer();
+  if (!key_params) return {};
+
+  EVPKeyCtxPointer ctx = key_params.newCtx();
+  if (!ctx.initForKeygen()) return {};
 
   return ctx;
 }
 
-Maybe<bool> DHKeyExportTraits::AdditionalConfig(
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    DHKeyExportConfig* params) {
-  return Just(true);
-}
-
-WebCryptoKeyExportStatus DHKeyExportTraits::DoExport(
-    std::shared_ptr<KeyObjectData> key_data,
-    WebCryptoKeyFormat format,
-    const DHKeyExportConfig& params,
-    ByteSource* out) {
-  CHECK_NE(key_data->GetKeyType(), kKeyTypeSecret);
-
-  switch (format) {
-    case kWebCryptoKeyFormatPKCS8:
-      if (key_data->GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data.get(), out);
-    case kWebCryptoKeyFormatSPKI:
-      if (key_data->GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data.get(), out);
-    default:
-      UNREACHABLE();
-  }
-}
-
-namespace {
-AllocatedBuffer StatelessDiffieHellman(
-    Environment* env,
-    ManagedEVPPKey our_key,
-    ManagedEVPPKey their_key) {
-  size_t out_size;
-
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(our_key.get(), nullptr));
-  if (!ctx ||
-      EVP_PKEY_derive_init(ctx.get()) <= 0 ||
-      EVP_PKEY_derive_set_peer(ctx.get(), their_key.get()) <= 0 ||
-      EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
-    return AllocatedBuffer();
-
-  AllocatedBuffer result = AllocatedBuffer::AllocateManaged(env, out_size);
-  CHECK_NOT_NULL(result.data());
-
-  unsigned char* data = reinterpret_cast<unsigned char*>(result.data());
-  if (EVP_PKEY_derive(ctx.get(), data, &out_size) <= 0)
-    return AllocatedBuffer();
-
-  ZeroPadDiffieHellmanSecret(out_size, &result);
-  return result;
-}
-
-// The version of StatelessDiffieHellman that returns an AllocatedBuffer
-// is not threadsafe because of the AllocatedBuffer allocation of a
-// v8::BackingStore (it'll cause much crashing if we call it from a
-// libuv worker thread). This version allocates a ByteSource instead,
-// which we can convert into a v8::BackingStore later.
-// TODO(@jasnell): Eliminate the code duplication between these two
-// versions of the function.
-ByteSource StatelessDiffieHellmanThreadsafe(
-    Environment* env,
-    ManagedEVPPKey our_key,
-    ManagedEVPPKey their_key) {
-  size_t out_size;
-
-  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(our_key.get(), nullptr));
-  if (!ctx ||
-      EVP_PKEY_derive_init(ctx.get()) <= 0 ||
-      EVP_PKEY_derive_set_peer(ctx.get(), their_key.get()) <= 0 ||
-      EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
-    return ByteSource();
-
-  char* buf = MallocOpenSSL<char>(out_size);
-  ByteSource out = ByteSource::Allocated(buf, out_size);
-
-  if (EVP_PKEY_derive(
-          ctx.get(),
-          reinterpret_cast<unsigned char*>(buf),
-          &out_size) <= 0) {
-    return ByteSource();
-  }
-
-  ZeroPadDiffieHellmanSecret(out_size, buf, out.size());
-  return out;
-}
-}  // namespace
-
-void DiffieHellman::Stateless(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject() && args[1]->IsObject());
-  KeyObjectHandle* our_key_object;
-  ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
-  CHECK_EQ(our_key_object->Data()->GetKeyType(), kKeyTypePrivate);
-  KeyObjectHandle* their_key_object;
-  ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
-  CHECK_NE(their_key_object->Data()->GetKeyType(), kKeyTypeSecret);
-
-  ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
-  ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
-
-  AllocatedBuffer out = StatelessDiffieHellman(env, our_key, their_key);
-  if (out.size() == 0)
-    return ThrowCryptoError(env, ERR_get_error(), "diffieHellman failed");
-
-  args.GetReturnValue().Set(out.ToBuffer().FromMaybe(Local<Value>()));
-}
-
-Maybe<bool> DHBitsTraits::AdditionalConfig(
+Maybe<void> DHBitsTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     DHBitsConfig* params) {
-  Environment* env = Environment::GetCurrent(args);
+  auto public_key = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  if (!public_key) [[unlikely]]
+    return Nothing<void>();
 
-  CHECK(args[offset]->IsObject());  // public key
-  CHECK(args[offset + 1]->IsObject());  // private key
+  auto private_key = KeyObjectData::GetPrivateKeyFromJs(args, &offset, true);
+  if (!private_key) [[unlikely]]
+    return Nothing<void>();
 
-  KeyObjectHandle* private_key;
-  KeyObjectHandle* public_key;
+  params->public_key = std::move(public_key);
+  params->private_key = std::move(private_key);
 
-  ASSIGN_OR_RETURN_UNWRAP(&public_key, args[offset], Nothing<bool>());
-  ASSIGN_OR_RETURN_UNWRAP(&private_key, args[offset + 1], Nothing<bool>());
+  return JustVoid();
+}
 
-  if (private_key->Data()->GetKeyType() != kKeyTypePrivate ||
-      public_key->Data()->GetKeyType() != kKeyTypePublic) {
-    THROW_ERR_CRYPTO_INVALID_KEYTYPE(env);
-    return Nothing<bool>();
+MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,
+                                             const DHBitsConfig& params,
+                                             ByteSource* out) {
+  return out->ToArrayBuffer(env);
+}
+
+bool DHBitsTraits::DeriveBits(Environment* env,
+                              const DHBitsConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
+  auto dp = DHPointer::stateless(params.private_key.GetAsymmetricKey(),
+                                 params.public_key.GetAsymmetricKey());
+  if (!dp) {
+    return false;
   }
 
-  params->public_key = public_key->Data();
-  params->private_key = private_key->Data();
-
-  return Just(true);
-}
-
-Maybe<bool> DHBitsTraits::EncodeOutput(
-    Environment* env,
-    const DHBitsConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
-}
-
-bool DHBitsTraits::DeriveBits(
-    Environment* env,
-    const DHBitsConfig& params,
-    ByteSource* out) {
-  *out = StatelessDiffieHellmanThreadsafe(
-      env,
-      params.private_key->GetAsymmetricKey(),
-      params.public_key->GetAsymmetricKey());
+  *out = ByteSource::Allocated(dp.release());
+  CHECK(!out->empty());
   return true;
 }
 
-Maybe<bool> GetDhKeyDetail(
-    Environment* env,
-    std::shared_ptr<KeyObjectData> key,
-    Local<Object> target) {
-  ManagedEVPPKey pkey = key->GetAsymmetricKey();
-  CHECK_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_DH);
-  return Just(true);
+bool GetDhKeyDetail(Environment* env,
+                    const KeyObjectData& key,
+                    Local<Object> target) {
+  CHECK_EQ(key.GetAsymmetricKey().id(), EVP_PKEY_DH);
+  return true;
+}
+
+void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  auto make = [&](Local<String> name, FunctionCallback callback) {
+    Local<FunctionTemplate> t = NewFunctionTemplate(isolate, callback);
+
+    const PropertyAttribute attributes =
+        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
+
+    t->InstanceTemplate()->SetInternalFieldCount(
+        DiffieHellman::kInternalFieldCount);
+
+    SetProtoMethod(isolate, t, "generateKeys", GenerateKeys);
+    SetProtoMethod(isolate, t, "computeSecret", ComputeSecret);
+    SetProtoMethodNoSideEffect(isolate, t, "getPrime", GetPrime);
+    SetProtoMethodNoSideEffect(isolate, t, "getGenerator", GetGenerator);
+    SetProtoMethodNoSideEffect(isolate, t, "getPublicKey", GetPublicKey);
+    SetProtoMethodNoSideEffect(isolate, t, "getPrivateKey", GetPrivateKey);
+    SetProtoMethod(isolate, t, "setPublicKey", SetPublicKey);
+    SetProtoMethod(isolate, t, "setPrivateKey", SetPrivateKey);
+
+    Local<FunctionTemplate> verify_error_getter_templ =
+        FunctionTemplate::New(isolate,
+                              Check,
+                              Local<Value>(),
+                              Signature::New(env->isolate(), t),
+                              /* length */ 0,
+                              ConstructorBehavior::kThrow,
+                              SideEffectType::kHasNoSideEffect);
+
+    t->InstanceTemplate()->SetAccessorProperty(env->verify_error_string(),
+                                               verify_error_getter_templ,
+                                               Local<FunctionTemplate>(),
+                                               attributes);
+
+    SetConstructorFunction(context, target, name, t);
+  };
+
+  make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellman"), New);
+  make(FIXED_ONE_BYTE_STRING(env->isolate(), "DiffieHellmanGroup"),
+       DiffieHellmanGroup);
+
+  DHKeyPairGenJob::Initialize(env, target);
+  DHBitsJob::Initialize(env, target);
+}
+
+void DiffieHellman::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(DiffieHellmanGroup);
+
+  registry->Register(GenerateKeys);
+  registry->Register(ComputeSecret);
+  registry->Register(GetPrime);
+  registry->Register(GetGenerator);
+  registry->Register(GetPublicKey);
+  registry->Register(GetPrivateKey);
+  registry->Register(SetPublicKey);
+  registry->Register(SetPrivateKey);
+
+  registry->Register(Check);
+
+  DHKeyPairGenJob::RegisterExternalReferences(registry);
+  DHBitsJob::RegisterExternalReferences(registry);
 }
 
 }  // namespace crypto

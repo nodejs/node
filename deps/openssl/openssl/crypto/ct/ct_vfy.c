@@ -1,7 +1,7 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -98,23 +98,20 @@ int SCT_CTX_verify(const SCT_CTX *sctx, const SCT *sct)
     EVP_MD_CTX *ctx = NULL;
     int ret = 0;
 
-    if (!SCT_is_complete(sct) || sctx->pkey == NULL ||
-        sct->entry_type == CT_LOG_ENTRY_TYPE_NOT_SET ||
-        (sct->entry_type == CT_LOG_ENTRY_TYPE_PRECERT && sctx->ihash == NULL)) {
-        CTerr(CT_F_SCT_CTX_VERIFY, CT_R_SCT_NOT_SET);
+    if (!SCT_is_complete(sct) || sctx->pkey == NULL || sct->entry_type == CT_LOG_ENTRY_TYPE_NOT_SET || (sct->entry_type == CT_LOG_ENTRY_TYPE_PRECERT && sctx->ihash == NULL)) {
+        ERR_raise(ERR_LIB_CT, CT_R_SCT_NOT_SET);
         return 0;
     }
     if (sct->version != SCT_VERSION_V1) {
-        CTerr(CT_F_SCT_CTX_VERIFY, CT_R_SCT_UNSUPPORTED_VERSION);
+        ERR_raise(ERR_LIB_CT, CT_R_SCT_UNSUPPORTED_VERSION);
         return 0;
     }
-    if (sct->log_id_len != sctx->pkeyhashlen ||
-        memcmp(sct->log_id, sctx->pkeyhash, sctx->pkeyhashlen) != 0) {
-        CTerr(CT_F_SCT_CTX_VERIFY, CT_R_SCT_LOG_ID_MISMATCH);
+    if (sct->log_id_len != sctx->pkeyhashlen || memcmp(sct->log_id, sctx->pkeyhash, sctx->pkeyhashlen) != 0) {
+        ERR_raise(ERR_LIB_CT, CT_R_SCT_LOG_ID_MISMATCH);
         return 0;
     }
     if (sct->timestamp > sctx->epoch_time_in_ms) {
-        CTerr(CT_F_SCT_CTX_VERIFY, CT_R_SCT_FUTURE_TIMESTAMP);
+        ERR_raise(ERR_LIB_CT, CT_R_SCT_FUTURE_TIMESTAMP);
         return 0;
     }
 
@@ -122,7 +119,8 @@ int SCT_CTX_verify(const SCT_CTX *sctx, const SCT *sct)
     if (ctx == NULL)
         goto end;
 
-    if (!EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, sctx->pkey))
+    if (!EVP_DigestVerifyInit_ex(ctx, NULL, "SHA2-256", sctx->libctx,
+            sctx->propq, sctx->pkey, NULL))
         goto end;
 
     if (!sct_ctx_update(ctx, sctx, sct))
@@ -132,7 +130,7 @@ int SCT_CTX_verify(const SCT_CTX *sctx, const SCT *sct)
     ret = EVP_DigestVerifyFinal(ctx, sct->sig, sct->sig_len);
     /* If ret < 0 some other error: fall through without setting error */
     if (ret == 0)
-        CTerr(CT_F_SCT_CTX_VERIFY, CT_R_SCT_INVALID_SIGNATURE);
+        ERR_raise(ERR_LIB_CT, CT_R_SCT_INVALID_SIGNATURE);
 
 end:
     EVP_MD_CTX_free(ctx);

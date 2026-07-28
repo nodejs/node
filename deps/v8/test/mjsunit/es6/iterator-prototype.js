@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 var arrayIteratorPrototype = [].entries().__proto__;
 var iteratorPrototype = arrayIteratorPrototype.__proto__;
 
 assertSame(Object.prototype, Object.getPrototypeOf(iteratorPrototype));
 assertTrue(Object.isExtensible(iteratorPrototype));
-assertSame(0, Object.getOwnPropertyNames(iteratorPrototype).length);
-assertSame(1, Object.getOwnPropertySymbols(iteratorPrototype).length);
+assertSame(12, Object.getOwnPropertyNames(iteratorPrototype).length);
+assertSame(3, Object.getOwnPropertySymbols(iteratorPrototype).length);
 assertSame(Symbol.iterator,
              Object.getOwnPropertySymbols(iteratorPrototype)[0]);
 

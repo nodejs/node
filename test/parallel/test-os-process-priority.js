@@ -73,7 +73,7 @@ assert.strictEqual(typeof PRIORITY_HIGHEST, 'number');
   3.14,
   2 ** 32,
   PRIORITY_HIGHEST - 1,
-  PRIORITY_LOW + 1
+  PRIORITY_LOW + 1,
 ].forEach((priority) => {
   assert.throws(() => {
     os.setPriority(0, priority);
@@ -107,6 +107,14 @@ for (let i = PRIORITY_HIGHEST; i <= PRIORITY_LOW; i++) {
   // Specifying the actual pid works.
   os.setPriority(process.pid, i);
   checkPriority(process.pid, i);
+}
+
+{
+  assert.throws(() => { os.getPriority(-1); }, {
+    code: 'ERR_SYSTEM_ERROR',
+    message: /A system error occurred: uv_os_getpriority returned /,
+    name: 'SystemError'
+  });
 }
 
 

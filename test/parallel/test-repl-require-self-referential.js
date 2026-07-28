@@ -4,9 +4,13 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const { spawn } = require('child_process');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread)
+common.skipIfInspectorDisabled();
+
+if (!isMainThread) {
   common.skip('process.chdir is not available in Workers');
+}
 
 const selfRefModule = fixtures.path('self_ref_module');
 const child = spawn(process.execPath,
@@ -21,5 +25,4 @@ child.on('exit', common.mustCall(() => {
 }));
 
 child.stdin.write('require("self_ref");\n');
-child.stdin.write('.exit');
-child.stdin.end();
+child.stdin.write('.exit\n');

@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-reftypes
-
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function dummy_func(val) {
   let builder = new WasmModuleBuilder();
@@ -25,7 +23,7 @@ function testGrowInternalExternRefTable(table_index) {
   const initial_size = 5;
   // Add 10 tables, we only test one.
   for (let i = 0; i < 10; ++i) {
-    builder.addTable(kWasmExternRef, initial_size).index;
+    builder.addTable(kWasmExternRef, initial_size);
   }
   builder.addFunction('grow', kSig_i_ri)
     .addBody([kExprLocalGet, 0,
@@ -93,7 +91,7 @@ function testGrowInternalAnyFuncTable(table_index) {
   assertTraps(kTrapFuncSigMismatch, () => instance.exports.call(size - 2));
   function growAndCheck(element, grow_by) {
     assertEquals(size, instance.exports.size());
-    assertTraps(kTrapFuncInvalid, () => instance.exports.call(size));
+    assertTraps(kTrapTableOutOfBounds, () => instance.exports.call(size));
     assertEquals(size, instance.exports.grow(dummy_func(element), grow_by));
     for (let i = 0; i < grow_by; ++i) {
       assertEquals(element, instance.exports.call(size + i));
@@ -130,7 +128,7 @@ testGrowInternalAnyFuncTable(9);
   const table = new WebAssembly.Table({element: "externref", initial: size});
 
   const instance = builder.instantiate({imp: {table: table}});
-  assertEquals(null, table.get(size - 2));
+  assertEquals(undefined, table.get(size - 2));
 
   function growAndCheck(element, grow_by) {
     assertEquals(size, instance.exports.size());

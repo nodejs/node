@@ -45,43 +45,46 @@ public:
     };
 
     static void makeRules(UnicodeString& definition,
-                          NFRuleSet* ruleSet,
-                          const NFRule* predecessor,
-                          const RuleBasedNumberFormat* rbnf,
+                          NFRuleSet* ruleSet, 
+                          const NFRule* predecessor, 
+                          const RuleBasedNumberFormat* rbnf, 
                           NFRuleList& ruleList,
                           UErrorCode& status);
 
     NFRule(const RuleBasedNumberFormat* rbnf, const UnicodeString &ruleText, UErrorCode &status);
     ~NFRule();
 
-    UBool operator==(const NFRule& rhs) const;
-    UBool operator!=(const NFRule& rhs) const { return !operator==(rhs); }
+    bool operator==(const NFRule& rhs) const;
+    bool operator!=(const NFRule& rhs) const { return !operator==(rhs); }
 
-    ERuleType getType() const { return (ERuleType)(baseValue <= kNoBase ? (ERuleType)baseValue : kOtherRule); }
-    void setType(ERuleType ruleType) { baseValue = (int32_t)ruleType; }
+    ERuleType getType() const { return (baseValue <= kNoBase ? static_cast<ERuleType>(baseValue) : kOtherRule); }
+    void setType(ERuleType ruleType) { baseValue = static_cast<int32_t>(ruleType); }
 
     int64_t getBaseValue() const { return baseValue; }
     void setBaseValue(int64_t value, UErrorCode& status);
 
-    UChar getDecimalPoint() const { return decimalPoint; }
+    char16_t getDecimalPoint() const { return decimalPoint; }
 
     int64_t getDivisor() const;
+    
+    bool hasModulusSubstitution() const;
 
     void doFormat(int64_t number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
     void doFormat(double  number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
 
-    UBool doParse(const UnicodeString& text,
-                  ParsePosition& pos,
-                  UBool isFractional,
+    UBool doParse(const UnicodeString& text, 
+                  ParsePosition& pos, 
+                  UBool isFractional, 
                   double upperBound,
                   uint32_t nonNumericalExecutedRuleMask,
+                  int32_t recursionCount,
                   Formattable& result) const;
 
     UBool shouldRollBack(int64_t number) const;
 
     void _appendRuleText(UnicodeString& result) const;
 
-    int32_t findTextLenient(const UnicodeString& str, const UnicodeString& key,
+    int32_t findTextLenient(const UnicodeString& str, const UnicodeString& key, 
                      int32_t startingAt, int32_t* resultCount) const;
 
     void setDecimalFormatSymbols(const DecimalFormatSymbols &newSymbols, UErrorCode& status);
@@ -90,25 +93,26 @@ private:
     void parseRuleDescriptor(UnicodeString& descriptor, UErrorCode& status);
     void extractSubstitutions(const NFRuleSet* ruleSet, const UnicodeString &ruleText, const NFRule* predecessor, UErrorCode& status);
     NFSubstitution* extractSubstitution(const NFRuleSet* ruleSet, const NFRule* predecessor, UErrorCode& status);
-
+    
     int16_t expectedExponent() const;
     int32_t indexOfAnyRulePrefix() const;
     double matchToDelimiter(const UnicodeString& text, int32_t startPos, double baseValue,
-                            const UnicodeString& delimiter, ParsePosition& pp, const NFSubstitution* sub,
+                            const UnicodeString& delimiter, ParsePosition& pp, const NFSubstitution* sub, 
                             uint32_t nonNumericalExecutedRuleMask,
+                            int32_t recursionCount,
                             double upperBound) const;
     void stripPrefix(UnicodeString& text, const UnicodeString& prefix, ParsePosition& pp) const;
 
     int32_t prefixLength(const UnicodeString& str, const UnicodeString& prefix, UErrorCode& status) const;
     UBool allIgnorable(const UnicodeString& str, UErrorCode& status) const;
-    int32_t findText(const UnicodeString& str, const UnicodeString& key,
+    int32_t findText(const UnicodeString& str, const UnicodeString& key, 
                      int32_t startingAt, int32_t* resultCount) const;
 
 private:
     int64_t baseValue;
     int32_t radix;
     int16_t exponent;
-    UChar decimalPoint;
+    char16_t decimalPoint;
     UnicodeString fRuleText;
     NFSubstitution* sub1;
     NFSubstitution* sub2;
@@ -117,6 +121,9 @@ private:
 
     NFRule(const NFRule &other); // forbid copying of this class
     NFRule &operator=(const NFRule &other); // forbid copying of this class
+    
+    // TODO: temporary hack to allow MultiplierSubstitution to get to formatter's rounding mode
+    friend class MultiplierSubstitution;
 };
 
 U_NAMESPACE_END
@@ -126,3 +133,4 @@ U_NAMESPACE_END
 
 // NFRULE_H
 #endif
+

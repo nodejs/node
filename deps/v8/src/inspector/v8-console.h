@@ -5,14 +5,23 @@
 #ifndef V8_INSPECTOR_V8_CONSOLE_H_
 #define V8_INSPECTOR_V8_CONSOLE_H_
 
-#include "src/base/macros.h"
+#include <map>
 
-#include "include/v8.h"
+#include "include/v8-array-buffer.h"
+#include "include/v8-external.h"
+#include "include/v8-local-handle.h"
+#include "src/base/macros.h"
 #include "src/debug/interface-types.h"
+
+namespace v8 {
+class ObjectTemplate;
+class Set;
+}  // namespace v8
 
 namespace v8_inspector {
 
 class InspectedContext;
+class TaskInfo;
 class V8InspectorImpl;
 
 // Console API
@@ -23,13 +32,22 @@ class V8Console : public v8::debug::ConsoleDelegate {
                                              int sessionId);
   void installMemoryGetter(v8::Local<v8::Context> context,
                            v8::Local<v8::Object> console);
+  void installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Object> console);
+  void cancelConsoleTask(TaskInfo* taskInfo);
 
-  class CommandLineAPIScope {
+  std::map<void*, std::unique_ptr<TaskInfo>>& AllConsoleTasksForTest() {
+    return m_tasks;
+  }
+
+  class V8_NODISCARD CommandLineAPIScope {
    public:
     CommandLineAPIScope(v8::Local<v8::Context>,
                         v8::Local<v8::Object> commandLineAPI,
                         v8::Local<v8::Object> global);
     ~CommandLineAPIScope();
+    CommandLineAPIScope(const CommandLineAPIScope&) = delete;
+    CommandLineAPIScope& operator=(const CommandLineAPIScope&) = delete;
 
    private:
     static void accessorGetterCallback(
@@ -38,18 +56,31 @@ class V8Console : public v8::debug::ConsoleDelegate {
                                        v8::Local<v8::Value>,
                                        const v8::PropertyCallbackInfo<void>&);
 
-    v8::Local<v8::Context> m_context;
-    v8::Local<v8::Object> m_commandLineAPI;
-    v8::Local<v8::Object> m_global;
-    v8::Local<v8::Set> m_installedMethods;
-    v8::Local<v8::ArrayBuffer> m_thisReference;
+    v8::Local<v8::Context> context() const { return m_context.Get(m_isolate); }
+    v8::Local<v8::Object> commandLineAPI() const {
+      return m_commandLineAPI.Get(m_isolate);
+    }
+    v8::Local<v8::Object> global() const { return m_global.Get(m_isolate); }
+    v8::Local<v8::PrimitiveArray> installedMethods() const {
+      return m_installedMethods.Get(m_isolate);
+    }
+    v8::Local<v8::ArrayBuffer> thisReference() const {
+      return m_thisReference.Get(m_isolate);
+    }
 
-    DISALLOW_COPY_AND_ASSIGN(CommandLineAPIScope);
+    v8::Isolate* m_isolate;
+    v8::Global<v8::Context> m_context;
+    v8::Global<v8::Object> m_commandLineAPI;
+    v8::Global<v8::Object> m_global;
+    v8::Global<v8::PrimitiveArray> m_installedMethods;
+    v8::Global<v8::ArrayBuffer> m_thisReference;
   };
 
   explicit V8Console(V8InspectorImpl* inspector);
 
  private:
+  friend class TaskInfo;
+
   void Debug(const v8::debug::ConsoleCallArguments&,
              const v8::debug::ConsoleContext& consoleContext) override;
   void Error(const v8::debug::ConsoleCallArguments&,
@@ -97,8 +128,8 @@ class V8Console : public v8::debug::ConsoleDelegate {
 
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    V8Console* console =
-        static_cast<V8Console*>(info.Data().As<v8::External>()->Value());
+    V8Console* console = static_cast<V8Console*>(
+        info.Data().As<v8::External>()->Value(kV8ConsoleTag));
     (console->*func)(info);
   }
   using CommandLineAPIData = std::pair<V8Console*, int>;
@@ -122,6 +153,9 @@ class V8Console : public v8::debug::ConsoleDelegate {
   // https://groups.google.com/a/chromium.org/d/msg/blink-dev/g5YRCGpC9vs/b4OJz71NmPwJ
   void memoryGetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   void memorySetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  void createTask(const v8::FunctionCallbackInfo<v8::Value>&);
+  void runTask(const v8::FunctionCallbackInfo<v8::Value>&);
 
   // CommandLineAPI
   void keysCallback(const v8::FunctionCallbackInfo<v8::Value>&, int sessionId);
@@ -165,7 +199,66 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void queryObjectsCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             int sessionId);
 
+  // This tag value has been picked arbitrarily between 0 and
+  // V8_EXTERNAL_POINTER_TAG_COUNT.
+  constexpr static v8::ExternalPointerTypeTag kV8ConsoleTag = 10;
+
+  // Lazily creates m_taskInfoKey and returns a local handle to it. We can't
+  // initialize m_taskInfoKey in the constructor as it would be part of
+  // Chromium's context snapshot.
+  v8::Local<v8::Private> taskInfoKey();
+
+  // Lazily creates m_taskTemplate and returns a local handle to it.
+  // Similarly to m_taskInfoKey, we can't create the template upfront as to not
+  // be part of Chromium's context snapshot.
+  v8::Local<v8::ObjectTemplate> taskTemplate();
+
   V8InspectorImpl* m_inspector;
+
+  // All currently alive tasks. We mark tasks immediately as weak when created
+  // but we need the finalizer to cancel the task when GC cleans them up.
+  std::map<void*, std::unique_ptr<TaskInfo>> m_tasks;
+
+  // We use a private symbol to stash the `TaskInfo` as an v8::External on the
+  // JS task objects created by `console.createTask`.
+  v8::Global<v8::Private> m_taskInfoKey;
+
+  // We cache the task template for the async stack tagging API for faster
+  // instantiation. Use `taskTemplate()` to retrieve the lazily created
+  // template.
+  v8::Global<v8::ObjectTemplate> m_taskTemplate;
+};
+
+/**
+ * Each JS task object created via `console.createTask` has a corresponding
+ * `TaskInfo` object on the C++ side (in a 1:1 relationship).
+ *
+ * The `TaskInfo` holds on weakly to the JS task object.
+ * The JS task objects uses a private symbol to store a pointer to the
+ * `TaskInfo` object (via v8::External).
+ *
+ * The `TaskInfo` objects holds all the necessary information we need to
+ * properly cancel the corresponding async task then the JS task object
+ * gets GC'ed.
+ */
+class TaskInfo {
+ public:
+  TaskInfo(v8::Isolate* isolate, V8Console* console,
+           v8::Local<v8::Object> task);
+
+  // For these task IDs we duplicate the ID logic from blink and use even
+  // pointers compared to the odd IDs we use for promises. This guarantees that
+  // we don't have any conflicts between task IDs.
+  void* Id() const {
+    return reinterpret_cast<void*>(reinterpret_cast<intptr_t>(this) << 1);
+  }
+
+  // After calling `Cancel` the `TaskInfo` instance is destroyed.
+  void Cancel() { m_console->cancelConsoleTask(this); }
+
+ private:
+  v8::Global<v8::Object> m_task;
+  V8Console* m_console = nullptr;
 };
 
 }  // namespace v8_inspector

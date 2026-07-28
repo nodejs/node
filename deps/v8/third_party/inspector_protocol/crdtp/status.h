@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,7 +46,7 @@ enum class Error {
   CBOR_INVALID_STRING16 = 0x14,
   CBOR_INVALID_BINARY = 0x15,
   CBOR_UNSUPPORTED_VALUE = 0x16,
-  CBOR_NO_INPUT = 0x17,
+  CBOR_UNEXPECTED_EOF_IN_ENVELOPE = 0x17,
   CBOR_INVALID_START_BYTE = 0x18,
   CBOR_UNEXPECTED_EOF_EXPECTED_VALUE = 0x19,
   CBOR_UNEXPECTED_EOF_IN_ARRAY = 0x1a,
@@ -77,6 +77,8 @@ enum class Error {
   BINDINGS_STRING_VALUE_EXPECTED = 0x34,
   BINDINGS_STRING8_VALUE_EXPECTED = 0x35,
   BINDINGS_BINARY_VALUE_EXPECTED = 0x36,
+  BINDINGS_DICTIONARY_VALUE_EXPECTED = 0x37,
+  BINDINGS_INVALID_BASE64_STRING = 0x38,
 };
 
 // A status value with position that can be copied. The default status
@@ -113,20 +115,23 @@ class StatusOr {
   explicit StatusOr(const Status& status) : status_(status) {}
 
   bool ok() const { return status_.ok(); }
-  T& operator*() & {
+  const Status& status() const { return status_; }
+  T& operator*() & { return value(); }
+  const T& operator*() const& { return value(); }
+  T&& operator*() && { return value(); }
+
+  T& value() & {
     assert(ok());
     return value_;
   }
-  const T& operator*() const& { return value(); }
-  T&& operator*() && { return value(); }
-  const Status& status() const { return status_; }
-
-  T& value() & { return *this; }
   T&& value() && {
     assert(ok());
     return std::move(value_);
   }
-  const T& value() const& { return *this; }
+  const T& value() const& {
+    assert(ok());
+    return value_;
+  }
 
  private:
   Status status_;

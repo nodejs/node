@@ -28,24 +28,22 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-// TODO(7748): Once we have a story for JS interaction of structs/arrays, this
-// function should become independent of module. Remove 'module' parameter in
-// this function as well as all transitive callees that no longer need it
-// (In essence, revert
-// https://chromium-review.googlesource.com/c/v8/v8/+/2413251).
-bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
-                             const WasmFeatures& enabled_features) {
-  if (!enabled_features.has_mv() && sig->return_count() > 1) {
-    return false;
-  }
+bool IsJSCompatibleSignature(const CanonicalSig* sig) {
   for (auto type : sig->all()) {
-    // TODO(7748): Allow structs, arrays, rtts and i31s when their
-    //             JS-interaction is decided on.
-    if ((type == kWasmI64 && !enabled_features.has_bigint()) ||
-        type == kWasmS128 || type.is_reference_to(HeapType::kI31) ||
-        (type.has_index() && !module->has_signature(type.ref_index())) ||
-        type.is_rtt()) {
-      return false;
+    if (type == kWasmS128) return false;
+    if (type.is_ref() && !type.has_index()) {
+      switch (type.generic_kind()) {
+        case GenericKind::kStringViewWtf8:
+        case GenericKind::kStringViewWtf16:
+        case GenericKind::kStringViewIter:
+        case GenericKind::kExn:
+        case GenericKind::kNoExn:
+        case GenericKind::kCont:
+        case GenericKind::kNoCont:
+          return false;
+        default:
+          break;
+      }
     }
   }
   return true;

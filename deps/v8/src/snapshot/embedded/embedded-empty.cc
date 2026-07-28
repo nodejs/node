@@ -6,26 +6,22 @@
 
 #include <cstdint>
 
-#include "src/base/macros.h"
-
-extern "C" const uint8_t* v8_Default_embedded_blob_code_;
+extern "C" const uint8_t v8_Default_embedded_blob_code_[];
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Default_embedded_blob_metadata_;
-extern "C" uint32_t v8_Default_embedded_blob_metadata_size_;
+extern "C" const uint8_t v8_Default_embedded_blob_data_[];
+extern "C" uint32_t v8_Default_embedded_blob_data_size_;
 
-const uint8_t* v8_Default_embedded_blob_code_ = nullptr;
+const uint8_t v8_Default_embedded_blob_code_[1] = {0};
 uint32_t v8_Default_embedded_blob_code_size_ = 0;
-const uint8_t* v8_Default_embedded_blob_metadata_ = nullptr;
-uint32_t v8_Default_embedded_blob_metadata_size_ = 0;
+const uint8_t v8_Default_embedded_blob_data_[1] = {0};
+uint32_t v8_Default_embedded_blob_data_size_ = 0;
 
-#ifdef V8_MULTI_SNAPSHOTS
-extern "C" const uint8_t* v8_Trusted_embedded_blob_code_;
-extern "C" uint32_t v8_Trusted_embedded_blob_code_size_;
-extern "C" const uint8_t* v8_Trusted_embedded_blob_metadata_;
-extern "C" uint32_t v8_Trusted_embedded_blob_metadata_size_;
-
-const uint8_t* v8_Trusted_embedded_blob_code_ = nullptr;
-uint32_t v8_Trusted_embedded_blob_code_size_ = 0;
-const uint8_t* v8_Trusted_embedded_blob_metadata_ = nullptr;
-uint32_t v8_Trusted_embedded_blob_metadata_size_ = 0;
-#endif
+#if V8_ENABLE_DRUMBRAKE
+#include "src/wasm/interpreter/instruction-handlers.h"
+typedef void (*fun_ptr)();
+#define V(name)                       \
+  extern "C" fun_ptr Builtins_##name; \
+  fun_ptr Builtins_##name = nullptr;
+FOREACH_LOAD_STORE_INSTR_HANDLER(V)
+#undef V
+#endif  // V8_ENABLE_DRUMBRAKE

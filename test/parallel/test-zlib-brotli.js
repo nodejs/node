@@ -71,3 +71,24 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
     message: 'Initialization failed'
   });
 }
+
+{
+  // Test options.flush range
+  assert.throws(() => {
+    zlib.brotliCompressSync('', { flush: zlib.constants.Z_FINISH });
+  }, {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "options.flush" is out of range. It must be >= 0 ' +
+      'and <= 3. Received 4',
+  });
+
+  assert.throws(() => {
+    zlib.brotliCompressSync('', { finishFlush: zlib.constants.Z_FINISH });
+  }, {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "options.finishFlush" is out of range. It must be ' +
+      '>= 0 and <= 3. Received 4',
+  });
+}

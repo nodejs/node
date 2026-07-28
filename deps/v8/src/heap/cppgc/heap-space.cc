@@ -14,17 +14,22 @@
 namespace cppgc {
 namespace internal {
 
-BaseSpace::BaseSpace(RawHeap* heap, size_t index, PageType type)
-    : heap_(heap), index_(index), type_(type) {}
+BaseSpace::BaseSpace(RawHeap* heap, size_t index, PageType type,
+                     bool is_compactable)
+    : heap_(heap), index_(index), type_(type), is_compactable_(is_compactable) {
+  USE(is_compactable_);
+}
+
+BaseSpace::~BaseSpace() = default;
 
 void BaseSpace::AddPage(BasePage* page) {
-  v8::base::LockGuard<v8::base::Mutex> lock(&pages_mutex_);
+  v8::base::MutexGuard lock(&pages_mutex_);
   DCHECK_EQ(pages_.cend(), std::find(pages_.cbegin(), pages_.cend(), page));
   pages_.push_back(page);
 }
 
 void BaseSpace::RemovePage(BasePage* page) {
-  v8::base::LockGuard<v8::base::Mutex> lock(&pages_mutex_);
+  v8::base::MutexGuard lock(&pages_mutex_);
   auto it = std::find(pages_.cbegin(), pages_.cend(), page);
   DCHECK_NE(pages_.cend(), it);
   pages_.erase(it);
@@ -36,11 +41,12 @@ BaseSpace::Pages BaseSpace::RemoveAllPages() {
   return pages;
 }
 
-NormalPageSpace::NormalPageSpace(RawHeap* heap, size_t index)
-    : BaseSpace(heap, index, PageType::kNormal) {}
+NormalPageSpace::NormalPageSpace(RawHeap* heap, size_t index,
+                                 bool is_compactable)
+    : BaseSpace(heap, index, PageType::kNormal, is_compactable) {}
 
 LargePageSpace::LargePageSpace(RawHeap* heap, size_t index)
-    : BaseSpace(heap, index, PageType::kLarge) {}
+    : BaseSpace(heap, index, PageType::kLarge, false /* is_compactable */) {}
 
 }  // namespace internal
 }  // namespace cppgc

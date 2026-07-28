@@ -8,6 +8,11 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testRenegotiationUnsupported();
+  return;
+}
+
 const tls = require('tls');
 
 // Renegotiation as a protocol feature was dropped after TLS1.2.
@@ -61,12 +66,12 @@ server.listen(0, common.mustCall(() => {
     });
 
     assert.throws(() => client.renegotiate({}, false), {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
     });
 
     assert.throws(() => client.renegotiate({}, null), {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
     });
 
@@ -88,9 +93,7 @@ server.listen(0, common.mustCall(() => {
       }));
     }));
     assert.strictEqual(ok, true);
-    client.on('secureConnect', common.mustCall(() => {
-    }));
-    client.on('secure', common.mustCall(() => {
-    }));
+    client.on('secureConnect', common.mustCall());
+    client.on('secure', common.mustCall());
   }));
 }));

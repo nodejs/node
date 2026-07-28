@@ -5,44 +5,39 @@
 #include "src/runtime/runtime.h"
 
 #include "src/base/hashmap.h"
-#include "src/codegen/reloc-info.h"
 #include "src/execution/isolate.h"
-#include "src/handles/handles-inl.h"
-#include "src/heap/heap.h"
-#include "src/objects/contexts.h"
-#include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/strings/string-hasher-inl.h"
 
 namespace v8 {
 namespace internal {
 
 // Header of runtime functions.
-#define F(name, number_of_args, result_size)                    \
+#define F(name, number_of_args, result_size, ...)               \
   Address Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 #undef F
 
-#define P(name, number_of_args, result_size)                       \
+#define P(name, number_of_args, result_size, ...)                  \
   ObjectPair Runtime_##name(int args_length, Address* args_object, \
                             Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
 
-#define F(name, number_of_args, result_size)                                  \
-  {                                                                           \
-    Runtime::k##name, Runtime::RUNTIME, #name, FUNCTION_ADDR(Runtime_##name), \
-        number_of_args, result_size                                           \
-  }                                                                           \
-  ,
+// clang-format off
+#define F(name, number_of_args, result_size, ...) \
+  {                                                          \
+      Runtime::k##name, Runtime::RUNTIME,                    \
+      #name,        FUNCTION_ADDR(Runtime_##name),           \
+      number_of_args,   result_size},
 
-
-#define I(name, number_of_args, result_size)                       \
-  {                                                                \
-    Runtime::kInline##name, Runtime::INLINE, "_" #name,            \
-        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size \
-  }                                                                \
-  ,
+#define I(name, number_of_args, result_size, ...) \
+  {                                                          \
+      Runtime::kInline##name, Runtime::INLINE,               \
+      "_" #name,        FUNCTION_ADDR(Runtime_##name),       \
+      number_of_args,   result_size},
+// clang-format on
 
 static const Runtime::Function kIntrinsicFunctions[] = {
     FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)};
@@ -65,14 +60,12 @@ struct IntrinsicFunctionIdentifier {
     const IntrinsicFunctionIdentifier* rhs =
         static_cast<IntrinsicFunctionIdentifier*>(key2);
     if (lhs->length_ != rhs->length_) return false;
-    return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs->data_),
-                                reinterpret_cast<const uint8_t*>(rhs->data_),
-                                rhs->length_) == 0;
+    return CompareCharsEqual(lhs->data_, rhs->data_, rhs->length_);
   }
 
   uint32_t Hash() {
-    return StringHasher::HashSequentialString<uint8_t>(
-        data_, length_, v8::internal::kZeroHashSeed);
+    return StringHasher::HashSequentialString<uint8_t>(data_, length_,
+                                                       HashSeed::Default());
   }
 
   const unsigned char* data_;
@@ -105,8 +98,6 @@ bool Runtime::NeedsExactContext(FunctionId id) {
       // us to usually eliminate the catch context for the implicit
       // try-catch in async function.
       return false;
-    case Runtime::kAddPrivateField:
-    case Runtime::kAddPrivateBrand:
     case Runtime::kCreatePrivateAccessors:
     case Runtime::kCopyDataProperties:
     case Runtime::kCreateDataProperty:
@@ -115,8 +106,9 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kLoadPrivateGetter:
     case Runtime::kLoadPrivateSetter:
     case Runtime::kReThrow:
+    case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
-    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowTargetNonFunction:
     case Runtime::kThrowCalledNonCallable:
     case Runtime::kThrowConstAssignError:
     case Runtime::kThrowConstructorNonCallableError:
@@ -139,8 +131,11 @@ bool Runtime::NeedsExactContext(FunctionId id) {
     case Runtime::kThrowThrowMethodMissing:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowUnsupportedSuperError:
+    case Runtime::kTerminateExecution:
+#if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return false;
     default:
       return true;
@@ -155,8 +150,9 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSuperAlreadyCalledError:
     case Runtime::kThrowSuperNotCalled:
     case Runtime::kReThrow:
+    case Runtime::kReThrowWithMessage:
     case Runtime::kThrow:
-    case Runtime::kThrowApplyNonFunction:
+    case Runtime::kThrowTargetNonFunction:
     case Runtime::kThrowCalledNonCallable:
     case Runtime::kThrowConstructedNonConstructable:
     case Runtime::kThrowConstructorReturnedNonObject:
@@ -174,8 +170,13 @@ bool Runtime::IsNonReturning(FunctionId id) {
     case Runtime::kThrowSymbolAsyncIteratorInvalid:
     case Runtime::kThrowTypeError:
     case Runtime::kThrowConstAssignError:
+    case Runtime::kTerminateExecution:
+#if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+    case Runtime::kThrowWasmJSPISuspendError:
+    case Runtime::kThrowWasmFXSuspendError:
+#endif  // V8_ENABLE_WEBASSEMBLY
       return true;
     default:
       return false;
@@ -186,36 +187,142 @@ bool Runtime::MayAllocate(FunctionId id) {
   switch (id) {
     case Runtime::kCompleteInobjectSlackTracking:
     case Runtime::kCompleteInobjectSlackTrackingForMap:
+    case Runtime::kGlobalPrint:
       return false;
     default:
       return true;
   }
 }
 
-bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
-  CHECK(FLAG_fuzzing);
+bool Runtime::IsEnabledForFuzzing(FunctionId id) {
+  CHECK(v8_flags.fuzzing);
+
+  // In general, all runtime functions meant for testing should also be exposed
+  // to the fuzzers. That way, the fuzzers are able to import and mutate
+  // regression tests that use those functions. Internal runtime functions
+  // (which are e.g. only called from other builtins, etc.) should not directly
+  // be exposed as they are not meant to be called directly from JavaScript.
+  // However, exceptions exist: some test functions cannot be used for certain
+  // types of fuzzing (e.g. differential fuzzing), or would cause false
+  // positive crashes and therefore should not be exposed to fuzzers at all.
+
+  // For differential fuzzing, only a handful of functions are allowed,
+  // everything else is disabled. Many runtime functions are unsuited for
+  // differential fuzzing as they for example expose internal engine state
+  // (e.g. functions such as %HasFastProperties). To avoid having to maintain a
+  // large denylist of such functions, we instead use an allowlist for
+  // differential fuzzing.
+  bool is_differential_fuzzing =
+      v8_flags.allow_natives_for_differential_fuzzing;
+  if (is_differential_fuzzing) {
+    switch (id) {
+      case Runtime::kArrayBufferDetach:
+      case Runtime::kDeoptimizeFunction:
+      case Runtime::kDeoptimizeNow:
+      case Runtime::kDisableOptimizationFinalization:
+      case Runtime::kEnableCodeLoggingForTesting:
+      case Runtime::kFinalizeOptimization:
+      case Runtime::kGetUndetectable:
+      case Runtime::kNeverOptimizeFunction:
+      case Runtime::kOptimizeFunctionOnNextCall:
+      case Runtime::kOptimizeMaglevOnNextCall:
+      case Runtime::kOptimizeOsr:
+      case Runtime::kPrepareFunctionForOptimization:
+      case Runtime::kPretenureAllocationSite:
+      case Runtime::kSetAllocationTimeout:
+      case Runtime::kSetForceSlowPath:
+      case Runtime::kSimulateNewspaceFull:
+      case Runtime::kWaitForBackgroundOptimization:
+      case Runtime::kSetBatterySaverMode:
+      case Runtime::kSetPriorityBestEffort:
+      case Runtime::kSetPriorityUserVisible:
+      case Runtime::kSetPriorityUserBlocking:
+      case Runtime::kIsEfficiencyModeEnabled:
+      case Runtime::kBaselineOsr:
+      case Runtime::kCompileBaseline:
+#if V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
+      case Runtime::kWasmGenerateRandomModule:
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
+#if V8_ENABLE_WEBASSEMBLY
+      case Runtime::kWasmArray:
+      case Runtime::kWasmStruct:
+      case Runtime::kWasmTierUpFunction:
+      case Runtime::kWasmTriggerTierUpForTesting:
+#endif  // V8_ENABLE_WEBASSEMBLY
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
+  // Runtime functions disabled for all/most types of fuzzing.
+  // These are mainly functions that are not fuzzing-safe and therefore would
+  // cause false-positive crashes (e.g. %AbortJS).
   switch (id) {
-    // Runtime functions allowlisted for all fuzzers. Only add functions that
-    // help increase coverage.
+    case Runtime::kAbort:
+    case Runtime::kAbortCSADcheck:
+    case Runtime::kAbortJS:
+    case Runtime::kSystemBreak:
+    case Runtime::kBenchMaglev:
+    case Runtime::kBenchTurbofan:
+    case Runtime::kDebugPrintPtr:
+    case Runtime::kDisassembleFunction:
+    case Runtime::kGetFunctionForCurrentFrame:
+    case Runtime::kGetCallable:
+    case Runtime::kGetAbstractModuleSource:
+    case Runtime::kTurbofanStaticAssert:
+    case Runtime::kClearFunctionFeedback:
+    case Runtime::kStringIsFlat:
+    case Runtime::kGetInitializerFunction:
+    case Runtime::kArrayBufferDetachForceWasm:
+#ifdef V8_ENABLE_WEBASSEMBLY
+    case Runtime::kWasmTraceEnter:
+    case Runtime::kWasmTraceExit:
+    case Runtime::kWasmTraceMemory:
+    case Runtime::kWasmTraceGlobal:
+    case Runtime::kCheckIsOnCentralStack:
+    case Runtime::kSetWasmInstantiateControls:
+    case Runtime::kFreezeWasmLazyCompilation:
+#endif  // V8_ENABLE_WEBASSEMBLY
+    // TODO(353685107): investigate whether these should be exposed to fuzzers.
+    case Runtime::kConstructDouble:
+    // TODO(353971258): investigate whether this should be exposed to fuzzers.
+    case Runtime::kSerializeDeserializeNow:
+    // TODO(353928347): investigate whether this should be exposed to fuzzers.
+    case Runtime::kCompleteInobjectSlackTracking:
+    // TODO(354310130): investigate whether this should be exposed to fuzzers.
+    case Runtime::kForceFlush:
+      return false;
+
+    case Runtime::kLeakHole:
+      return v8_flags.hole_fuzzing;
+
+    case Runtime::kGetBytecode:
+    case Runtime::kInstallBytecode:
+      // These are designed for sandbox fuzzing, specifically of the bytecode
+      // verifier. They are not safe to be used during regular fuzzing as
+      // * %GetBytecode exposes the objects in the BytecodeArray's constant
+      //   pool (which may be internal objects such as ScopeInfo) to the caller
+      // * %InstallBytecode allows installing manipulated bytecode that has
+      //   only been checked for sandbox safety, not general correctness.
+      return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
+
+    default:
+      break;
+  }
+
+  // The default case: test functions are exposed, everything else is not.
+  switch (id) {
+    // Functions used in testing and outside
     case Runtime::kArrayBufferDetach:
-    case Runtime::kDeoptimizeFunction:
-    case Runtime::kDeoptimizeNow:
-    case Runtime::kEnableCodeLoggingForTesting:
-    case Runtime::kGetUndetectable:
-    case Runtime::kNeverOptimizeFunction:
-    case Runtime::kOptimizeFunctionOnNextCall:
-    case Runtime::kOptimizeOsr:
-    case Runtime::kPrepareFunctionForOptimization:
-    case Runtime::kSetAllocationTimeout:
-    case Runtime::kSimulateNewspaceFull:
-      return true;
-    // Runtime functions only permitted for non-differential fuzzers.
-    // This list may contain functions performing extra checks or returning
-    // different values in the context of different flags passed to V8.
-    case Runtime::kGetOptimizationStatus:
-    case Runtime::kHeapObjectVerify:
-    case Runtime::kIsBeingInterpreted:
-      return !FLAG_allow_natives_for_differential_fuzzing;
+#define F(name, nargs, ressize, ...) case k##name:
+#define I(name, nargs, ressize, ...) case kInline##name:
+    FOR_EACH_INTRINSIC_TEST(F, I)
+    IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
+#undef I
+#undef F
+    return true;
     default:
       return false;
   }
@@ -277,6 +384,7 @@ std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
   return os << Runtime::FunctionForId(id)->name;
 }
 
+int g_num_isolates_for_testing = 1;
 
 }  // namespace internal
 }  // namespace v8

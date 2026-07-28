@@ -5,17 +5,23 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
-const { inspect } = require('util');
+let client;
 
 const server = h2.createServer();
-server.on('stream', (stream) => {
-  stream.on('close', common.mustCall());
-  stream.respond();
-  stream.end('ok');
-});
+server.on('stream', common.mustCall((stream) => {
+  stream.on('close', common.mustCall(() => {
+    client.close();
+    server.close();
+  }));
+  stream.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
+  }));
+}));
 
 server.listen(0, common.mustCall(() => {
-  const client = h2.connect(`http://localhost:${server.address().port}`);
+  client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
   const closeCode = 1;
 
@@ -35,8 +41,7 @@ server.listen(0, common.mustCall(() => {
       () => req.close(closeCode, notFunction),
       {
         name: 'TypeError',
-        code: 'ERR_INVALID_CALLBACK',
-        message: `Callback must be a function. Received ${inspect(notFunction)}`
+        code: 'ERR_INVALID_ARG_TYPE',
       }
     );
     assert.strictEqual(req.closed, false);
@@ -54,8 +59,6 @@ server.listen(0, common.mustCall(() => {
   req.on('close', common.mustCall(() => {
     assert.strictEqual(req.destroyed, true);
     assert.strictEqual(req.rstCode, closeCode);
-    server.close();
-    client.close();
   }));
 
   req.on('error', common.expectsError({
@@ -68,9 +71,9 @@ server.listen(0, common.mustCall(() => {
   // RST_STREAM frame before it ever has a chance to reply.
   req.on('response', common.mustNotCall());
 
-  // The `end` event should still fire as we close the readable stream by
-  // pushing a `null` chunk.
-  req.on('end', common.mustCall());
+  // Any non-clean local close triggers an 'error', and the readable's
+  // errored state blocks 'end' - matching HTTP/1 ECONNRESET behaviour.
+  req.on('end', common.mustNotCall());
 
   req.resume();
   req.end();

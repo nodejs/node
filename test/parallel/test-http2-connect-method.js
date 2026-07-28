@@ -6,7 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const net = require('net');
 const http2 = require('http2');
-const { URL } = require('url');
 
 const {
   HTTP2_HEADER_METHOD,
@@ -52,7 +51,7 @@ server.listen(0, common.mustCall(() => {
     });
   }));
 
-  proxy.listen(0, () => {
+  proxy.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${proxy.address().port}`);
 
     // Confirm that :authority is required and :scheme & :path are forbidden
@@ -105,5 +104,5 @@ server.listen(0, common.mustCall(() => {
       server.close();
     }));
     req.end('hello');
-  });
+  }));
 }));

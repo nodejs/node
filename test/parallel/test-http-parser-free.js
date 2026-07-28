@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
@@ -32,12 +32,12 @@ const server = http.createServer(function(req, res) {
 
 const countdown = new Countdown(N, () => server.close());
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   http.globalAgent.maxSockets = 1;
   let parser;
   for (let i = 0; i < N; ++i) {
     (function makeRequest(i) {
-      const req = http.get({ port: server.address().port }, function(res) {
+      const req = http.get({ port: server.address().port }, common.mustCall((res) => {
         if (!parser) {
           parser = req.parser;
         } else {
@@ -46,7 +46,7 @@ server.listen(0, function() {
 
         countdown.dec();
         res.resume();
-      });
+      }));
     })(i);
   }
-});
+}));

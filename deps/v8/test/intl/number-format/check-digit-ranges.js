@@ -36,7 +36,7 @@ assertThrows('Intl.NumberFormat(undefined, {minimumIntegerDigits: -Infinity})');
 assertThrows('Intl.NumberFormat(undefined, {minimumIntegerDigits: x})');
 
 assertThrows('Intl.NumberFormat(undefined, {minimumFractionDigits: -1})');
-assertThrows('Intl.NumberFormat(undefined, {maximumFractionDigits: 21})');
+assertThrows('Intl.NumberFormat(undefined, {maximumFractionDigits: 101})');
 
 assertThrows('Intl.NumberFormat(undefined, {minimumSignificantDigits: 0})');
 assertThrows('Intl.NumberFormat(undefined, {minimumSignificantDigits: 22})');
@@ -50,7 +50,7 @@ assertDoesNotThrow('Intl.NumberFormat(undefined, {minimumIntegerDigits: 1})');
 assertDoesNotThrow('Intl.NumberFormat(undefined, {minimumIntegerDigits: 21})');
 
 assertDoesNotThrow('Intl.NumberFormat(undefined, {minimumFractionDigits: 0})');
-assertDoesNotThrow('Intl.NumberFormat(undefined, {minimumFractionDigits: 20})');
+assertDoesNotThrow('Intl.NumberFormat(undefined, {minimumFractionDigits: 100})');
 
 assertDoesNotThrow('Intl.NumberFormat(undefined, ' +
     '{minimumSignificantDigits: 1})');

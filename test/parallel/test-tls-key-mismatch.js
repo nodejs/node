@@ -22,15 +22,20 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL3 } = require('../common/crypto');
 
 const assert = require('assert');
 const tls = require('tls');
-const errorMessageRegex =
-  /^Error: error:0B080074:x509 certificate routines:X509_check_private_key:key values mismatch$/;
+const errorMessageRegex = process.features.openssl_is_boringssl ?
+  /^Error: error:0b000074:X\.509 certificate routines:OPENSSL_internal:KEY_VALUES_MISMATCH$/ :
+  hasOpenSSL3 ?
+    /^Error: error:05800074:x509 certificate routines::key values mismatch$/ :
+    /^Error: error:0B080074:x509 certificate routines:X509_check_private_key:key values mismatch$/;
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),

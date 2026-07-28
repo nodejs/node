@@ -21,6 +21,8 @@ class V8ConsoleAgentImpl : public protocol::Console::Backend {
   V8ConsoleAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*,
                      protocol::DictionaryValue* state);
   ~V8ConsoleAgentImpl() override;
+  V8ConsoleAgentImpl(const V8ConsoleAgentImpl&) = delete;
+  V8ConsoleAgentImpl& operator=(const V8ConsoleAgentImpl&) = delete;
 
   Response enable() override;
   Response disable() override;
@@ -39,8 +41,6 @@ class V8ConsoleAgentImpl : public protocol::Console::Backend {
   protocol::DictionaryValue* m_state;
   protocol::Console::Frontend m_frontend;
   bool m_enabled;
-
-  DISALLOW_COPY_AND_ASSIGN(V8ConsoleAgentImpl);
 };
 
 }  // namespace v8_inspector

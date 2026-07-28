@@ -26,8 +26,8 @@ UCharsTrie::Iterator::Iterator(ConstChar16Ptr trieUChars, int32_t maxStringLengt
         : uchars_(trieUChars),
           pos_(uchars_), initialPos_(uchars_),
           remainingMatchLength_(-1), initialRemainingMatchLength_(-1),
-          skipValue_(FALSE),
-          maxLength_(maxStringLength), value_(0), stack_(NULL) {
+          skipValue_(false),
+          maxLength_(maxStringLength), value_(0), stack_(nullptr) {
     if(U_FAILURE(errorCode)) {
         return;
     }
@@ -38,7 +38,7 @@ UCharsTrie::Iterator::Iterator(ConstChar16Ptr trieUChars, int32_t maxStringLengt
     // via the UnicodeString and UVector32 implementations, so this additional
     // cost is minimal.
     stack_=new UVector32(errorCode);
-    if(stack_==NULL) {
+    if(stack_==nullptr) {
         errorCode=U_MEMORY_ALLOCATION_ERROR;
     }
 }
@@ -48,8 +48,8 @@ UCharsTrie::Iterator::Iterator(const UCharsTrie &trie, int32_t maxStringLength,
         : uchars_(trie.uchars_), pos_(trie.pos_), initialPos_(trie.pos_),
           remainingMatchLength_(trie.remainingMatchLength_),
           initialRemainingMatchLength_(trie.remainingMatchLength_),
-          skipValue_(FALSE),
-          maxLength_(maxStringLength), value_(0), stack_(NULL) {
+          skipValue_(false),
+          maxLength_(maxStringLength), value_(0), stack_(nullptr) {
     if(U_FAILURE(errorCode)) {
         return;
     }
@@ -57,7 +57,7 @@ UCharsTrie::Iterator::Iterator(const UCharsTrie &trie, int32_t maxStringLength,
     if(U_FAILURE(errorCode)) {
         return;
     }
-    if(stack_==NULL) {
+    if(stack_==nullptr) {
         errorCode=U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -82,7 +82,7 @@ UCharsTrie::Iterator &
 UCharsTrie::Iterator::reset() {
     pos_=initialPos_;
     remainingMatchLength_=initialRemainingMatchLength_;
-    skipValue_=FALSE;
+    skipValue_=false;
     int32_t length=remainingMatchLength_+1;  // Remaining match length.
     if(maxLength_>0 && length>maxLength_) {
         length=maxLength_;
@@ -95,17 +95,17 @@ UCharsTrie::Iterator::reset() {
 }
 
 UBool
-UCharsTrie::Iterator::hasNext() const { return pos_!=NULL || !stack_->isEmpty(); }
+UCharsTrie::Iterator::hasNext() const { return pos_!=nullptr || !stack_->isEmpty(); }
 
 UBool
 UCharsTrie::Iterator::next(UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
-    const UChar *pos=pos_;
-    if(pos==NULL) {
+    const char16_t *pos=pos_;
+    if(pos==nullptr) {
         if(stack_->isEmpty()) {
-            return FALSE;
+            return false;
         }
         // Pop the state off the stack and continue with the next outbound edge of
         // the branch node.
@@ -114,11 +114,11 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
         pos=uchars_+stack_->elementAti(stackSize-2);
         stack_->setSize(stackSize-2);
         str_.truncate(length&0xffff);
-        length=(int32_t)((uint32_t)length>>16);
+        length = static_cast<int32_t>(static_cast<uint32_t>(length) >> 16);
         if(length>1) {
             pos=branchNext(pos, length, errorCode);
-            if(pos==NULL) {
-                return TRUE;  // Reached a final value.
+            if(pos==nullptr) {
+                return true;  // Reached a final value.
             }
         } else {
             str_.append(*pos++);
@@ -135,26 +135,26 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
             if(skipValue_) {
                 pos=skipNodeValue(pos, node);
                 node&=kNodeTypeMask;
-                skipValue_=FALSE;
+                skipValue_=false;
             } else {
                 // Deliver value for the string so far.
-                UBool isFinal=(UBool)(node>>15);
+                UBool isFinal = static_cast<UBool>(node >> 15);
                 if(isFinal) {
                     value_=readValue(pos, node&0x7fff);
                 } else {
                     value_=readNodeValue(pos, node);
                 }
                 if(isFinal || (maxLength_>0 && str_.length()==maxLength_)) {
-                    pos_=NULL;
+                    pos_=nullptr;
                 } else {
                     // We cannot skip the value right here because it shares its
                     // lead unit with a match node which we have to evaluate
                     // next time.
                     // Instead, keep pos_ on the node lead unit itself.
                     pos_=pos-1;
-                    skipValue_=TRUE;
+                    skipValue_=true;
                 }
-                return TRUE;
+                return true;
             }
         }
         if(maxLength_>0 && str_.length()==maxLength_) {
@@ -165,8 +165,8 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
                 node=*pos++;
             }
             pos=branchNext(pos, node+1, errorCode);
-            if(pos==NULL) {
-                return TRUE;  // Reached a final value.
+            if(pos==nullptr) {
+                return true;  // Reached a final value.
             }
         } else {
             // Linear-match node, append length units to str_.
@@ -182,12 +182,12 @@ UCharsTrie::Iterator::next(UErrorCode &errorCode) {
 }
 
 // Branch node, needs to take the first outbound edge and push state for the rest.
-const UChar *
-UCharsTrie::Iterator::branchNext(const UChar *pos, int32_t length, UErrorCode &errorCode) {
+const char16_t *
+UCharsTrie::Iterator::branchNext(const char16_t *pos, int32_t length, UErrorCode &errorCode) {
     while(length>kMaxBranchLinearSubNodeLength) {
         ++pos;  // ignore the comparison unit
         // Push state for the greater-or-equal edge.
-        stack_->addElement((int32_t)(skipDelta(pos)-uchars_), errorCode);
+        stack_->addElement(static_cast<int32_t>(skipDelta(pos) - uchars_), errorCode);
         stack_->addElement(((length-(length>>1))<<16)|str_.length(), errorCode);
         // Follow the less-than edge.
         length>>=1;
@@ -195,18 +195,18 @@ UCharsTrie::Iterator::branchNext(const UChar *pos, int32_t length, UErrorCode &e
     }
     // List of key-value pairs where values are either final values or jump deltas.
     // Read the first (key, value) pair.
-    UChar trieUnit=*pos++;
+    char16_t trieUnit=*pos++;
     int32_t node=*pos++;
-    UBool isFinal=(UBool)(node>>15);
+    UBool isFinal = static_cast<UBool>(node >> 15);
     int32_t value=readValue(pos, node&=0x7fff);
     pos=skipValue(pos, node);
-    stack_->addElement((int32_t)(pos-uchars_), errorCode);
+    stack_->addElement(static_cast<int32_t>(pos - uchars_), errorCode);
     stack_->addElement(((length-1)<<16)|str_.length(), errorCode);
     str_.append(trieUnit);
     if(isFinal) {
-        pos_=NULL;
+        pos_=nullptr;
         value_=value;
-        return NULL;
+        return nullptr;
     } else {
         return pos+value;
     }

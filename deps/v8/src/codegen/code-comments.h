@@ -17,7 +17,7 @@ namespace internal {
 
 class Assembler;
 
-// Code comments section layout:
+// InstructionStream comments section layout:
 // byte count              content
 // ------------------------------------------------------------------------
 // 4                       size as uint32_t (only for a check)
@@ -61,9 +61,6 @@ class V8_EXPORT_PRIVATE CodeCommentsIterator {
   uint32_t code_comments_size_;
   Address current_entry_;
 };
-
-void PrintCodeCommentsSection(std::ostream& out, Address code_comments_start,
-                              uint32_t code_comments_size);
 
 }  // namespace internal
 }  // namespace v8

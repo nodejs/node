@@ -9,6 +9,10 @@ node_root  = os.path.normpath(os.path.join(script_dir, os.pardir))
 sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
 import gyp
 
+# Add search path for `pymod_do_main` first to avoid depending on
+# load order of gyp files.
+sys.path.insert(0, os.path.join(node_root, 'tools', 'v8_gypfiles'))
+
 # Directory within which we want all generated files (including Makefiles)
 # to be written.
 output_dir = os.path.join(os.path.abspath(node_root), 'out')
@@ -21,16 +25,12 @@ def run_gyp(args):
   args.append(os.path.join(a_path, 'node.gyp'))
   common_fn = os.path.join(a_path, 'common.gypi')
   options_fn = os.path.join(a_path, 'config.gypi')
-  options_fips_fn = os.path.join(a_path, 'config_fips.gypi')
 
   if os.path.exists(common_fn):
     args.extend(['-I', common_fn])
 
   if os.path.exists(options_fn):
     args.extend(['-I', options_fn])
-
-  if os.path.exists(options_fips_fn):
-    args.extend(['-I', options_fips_fn])
 
   args.append('--depth=' + node_root)
 

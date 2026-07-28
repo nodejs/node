@@ -23,7 +23,7 @@
 #include "unicode/udat.h"
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Compatibility APIs for measure formatting.
  */
 
@@ -40,10 +40,10 @@ enum UMeasureFormatWidth {
     // Wide, short, and narrow must be first and in this order.
     /**
      * Spell out measure units.
-     * @stable ICU 53
+     * @stable ICU 53 
      */
     UMEASFMT_WIDTH_WIDE,
-
+ 
     /**
      * Abbreviate measure units.
      * @stable ICU 53
@@ -72,7 +72,7 @@ enum UMeasureFormatWidth {
 #endif  // U_HIDE_DEPRECATED_API
 };
 /** @stable ICU 53 */
-typedef enum UMeasureFormatWidth UMeasureFormatWidth;
+typedef enum UMeasureFormatWidth UMeasureFormatWidth; 
 
 U_NAMESPACE_BEGIN
 
@@ -91,7 +91,8 @@ class DateFormat;
 /**
  * <p><strong>IMPORTANT:</strong> New users are strongly encouraged to see if
  * numberformatter.h fits their use case.  Although not deprecated, this header
- * is provided for backwards compatibility only.
+ * is provided for backwards compatibility only, and has much more limited
+ * capabilities.
  *
  * @see Format
  * @author Alan Liu
@@ -147,13 +148,13 @@ class U_I18N_API MeasureFormat : public Format {
      * Return true if given Format objects are semantically equal.
      * @stable ICU 53
      */
-    virtual UBool operator==(const Format &other) const;
+    virtual bool operator==(const Format &other) const override;
 
     /**
      * Clones this object polymorphically.
      * @stable ICU 53
      */
-    virtual MeasureFormat *clone() const;
+    virtual MeasureFormat *clone() const override;
 
     /**
      * Formats object to produce a string.
@@ -163,7 +164,7 @@ class U_I18N_API MeasureFormat : public Format {
             const Formattable &obj,
             UnicodeString &appendTo,
             FieldPosition &pos,
-            UErrorCode &status) const;
+            UErrorCode &status) const override;
 
 #ifndef U_FORCE_HIDE_DRAFT_API
     /**
@@ -175,7 +176,7 @@ class U_I18N_API MeasureFormat : public Format {
     virtual void parseObject(
             const UnicodeString &source,
             Formattable &reslt,
-            ParsePosition &pos) const;
+            ParsePosition &pos) const override;
 #endif  // U_FORCE_HIDE_DRAFT_API
 
     /**
@@ -243,7 +244,7 @@ class U_I18N_API MeasureFormat : public Format {
      * {@link icu::number::NumberFormatter} instead of NumberFormat.
      * @param locale desired locale
      * @param ec input-output error code
-     * @return a formatter object, or NULL upon error
+     * @return a formatter object, or nullptr upon error
      * @stable ICU 3.0
      */
     static MeasureFormat* U_EXPORT2 createCurrencyFormat(const Locale& locale,
@@ -256,7 +257,7 @@ class U_I18N_API MeasureFormat : public Format {
      * <strong>NOTE:</strong> New users are strongly encouraged to use
      * {@link icu::number::NumberFormatter} instead of NumberFormat.
      * @param ec input-output error code
-     * @return a formatter object, or NULL upon error
+     * @return a formatter object, or nullptr upon error
      * @stable ICU 3.0
      */
     static MeasureFormat* U_EXPORT2 createCurrencyFormat(UErrorCode& ec);
@@ -272,7 +273,7 @@ class U_I18N_API MeasureFormat : public Format {
      * @return          The class ID for all objects of this class.
      * @stable ICU 53
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns a unique class ID POLYMORPHICALLY. Pure virtual override. This
@@ -285,7 +286,7 @@ class U_I18N_API MeasureFormat : public Format {
      *                  other classes have different class IDs.
      * @stable ICU 53
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID() const override;
 
  protected:
     /**
@@ -294,7 +295,7 @@ class U_I18N_API MeasureFormat : public Format {
      */
     MeasureFormat();
 
-#ifndef U_HIDE_INTERNAL_API
+#ifndef U_HIDE_INTERNAL_API 
 
     /**
      * ICU use only.
@@ -359,7 +360,7 @@ class U_I18N_API MeasureFormat : public Format {
     const MeasureFormatCacheData *cache;
     const SharedNumberFormat *numberFormat;
     const SharedPluralRules *pluralRules;
-    UMeasureFormatWidth fWidth;
+    UMeasureFormatWidth fWidth;    
 
     // Declared outside of MeasureFormatSharedData because ListFormatter
     // objects are relatively cheap to copy; therefore, they don't need to be

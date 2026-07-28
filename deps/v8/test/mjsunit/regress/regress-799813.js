@@ -9,8 +9,9 @@ function testAdvanceLastIndex(initial_last_index_value,
   let final_last_index_value;
 
   var customRegexp = {
-    get global() { return true; },
-    get unicode() { return true; },
+    get flags() {
+      return 'gu'
+    },
     get lastIndex() {
       return initial_last_index_value;
     },

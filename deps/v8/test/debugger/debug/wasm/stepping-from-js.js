@@ -6,7 +6,7 @@
 // A similar test exists as an inspector test already, but inspector tests are
 // not run concurrently in multiple isolates (see `run-tests.py --isolates`).
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 const imp_fun = builder.addImport('imp', 'ort', kSig_i_v);
@@ -36,7 +36,13 @@ const expected_breaks = [
   `imported:${import_line_nr + 1}:2`,   // debugger;
   `imported:${import_line_nr + 2}:2`,   // return 7;
   `imported:${import_line_nr + 2}:11`,  // return 7;
-  'sub:1:58', 'sub:1:60', 'sub:1:62', 'sub:1:63', 'main:1:72'
+  '$main:1:68',                         // i32.const 3
+  '$main:1:70',                         // call 'sub'
+  '$sub:1:58',                          // local.get i0
+  '$sub:1:60',                          // local.get i1
+  '$sub:1:62',                          // i32.sub
+  '$sub:1:63',                          // end
+  '$main:1:72'                          // end
 ];
 let error;
 function onBreak(event, exec_state, data) {
@@ -54,7 +60,7 @@ function onBreak(event, exec_state, data) {
     assertTrue(expected_breaks.length > 0, 'expecting more breaks');
     const expected_pos = expected_breaks.shift();
     assertEquals(expected_pos, pos);
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    exec_state.prepareStep(Debug.StepAction.StepInto);
   } catch (e) {
     if (!error) error = e;
   }

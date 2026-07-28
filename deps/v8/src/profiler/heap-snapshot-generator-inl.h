@@ -6,6 +6,7 @@
 #define V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_INL_H_
 
 #include "src/profiler/heap-snapshot-generator.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-hasher-inl.h"
@@ -55,8 +56,7 @@ Isolate* HeapEntry::isolate() const { return snapshot_->profiler()->isolate(); }
 uint32_t HeapSnapshotJSONSerializer::StringHash(const void* string) {
   const char* s = reinterpret_cast<const char*>(string);
   int len = static_cast<int>(strlen(s));
-  return StringHasher::HashSequentialString(s, len,
-                                            v8::internal::kZeroHashSeed);
+  return StringHasher::HashSequentialString(s, len, HashSeed::Default());
 }
 
 int HeapSnapshotJSONSerializer::to_node_index(const HeapEntry* e) {
@@ -64,7 +64,9 @@ int HeapSnapshotJSONSerializer::to_node_index(const HeapEntry* e) {
 }
 
 int HeapSnapshotJSONSerializer::to_node_index(int entry_index) {
-  return entry_index * kNodeFieldsCount;
+  return entry_index * (trace_function_count_
+                            ? kNodeFieldsCountWithTraceNodeId
+                            : kNodeFieldsCountWithoutTraceNodeId);
 }
 
 }  // namespace internal

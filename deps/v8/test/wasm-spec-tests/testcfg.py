@@ -2,45 +2,82 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
-
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
-proposal_flags = [{
-                    'name': 'reference-types',
-                    'flags': ['--experimental-wasm-reftypes',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'js-types',
-                    'flags': ['--experimental-wasm-type-reflection',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'tail-call',
-                    'flags': ['--experimental-wasm-return-call',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'simd',
-                    'flags': ['--experimental-wasm-simd',
-                              '--wasm-staging']
-                  },
-                  ]
+# We use the 'wasm-3.0' branch on the main spec repo, so enable all proposals
+# that were merged into that branch.
+default_flags = ['--experimental-wasm-exnref']
+
+proposal_flags = [
+    {
+        'name': 'js-types',
+        'flags': ['--experimental-wasm-type-reflection']
+    },
+    {
+        'name': 'tail-call',
+        'flags': []
+    },
+    {
+        'name':
+            'memory64',
+        'flags': [
+            # The memory64 repository is rebased on the upstream 'wasm-3.0'
+            # branch, which contains exnref.
+            '--experimental-wasm-exnref'
+        ]
+    },
+    {
+        'name': 'extended-const',
+        'flags': []
+    },
+    {
+        'name': 'function-references',
+        'flags': []
+    },
+    {
+        'name': 'gc',
+        'flags': []
+    },
+    {
+        'name': 'multi-memory',
+        'flags': ['--experimental-wasm-multi-memory']
+    },
+    {
+        'name': 'exception-handling',
+        # This flag enables the *new* exception handling proposal. The legacy
+        # proposal is enabled by default.
+        'flags': ['--experimental-wasm-exnref']
+    },
+    {
+        'name':
+            'js-promise-integration',
+        'flags': [
+            '--experimental-wasm-jspi',
+            # The jspi repository is rebased on the upstream 'wasm-3.0'
+            # branch, which contains exnref.
+            '--experimental-wasm-exnref'
+        ]
+    },
+    {
+        'name': 'stack-switching',
+        'flags': ['--experimental-wasm-wasmfx']
+    },
+    {
+        'name': 'custom-descriptors',
+        'flags': ['--experimental-wasm-custom-descriptors']
+    }
+]
+
 
 class TestLoader(testsuite.JSTestLoader):
   pass
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
-    self.test_root = os.path.join(self.root, "tests")
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
+    self.test_root = self.root / "tests"
     self._test_loader.test_root = self.test_root
 
   def _test_loader_class(self):
@@ -51,14 +88,10 @@ class TestSuite(testsuite.TestSuite):
 
 class TestCase(testcase.D8TestCase):
   def _get_files_params(self):
-    return [os.path.join(self.suite.test_root, self.path + self._get_suffix())]
+    return [self.suite.test_root / self.path_js]
 
   def _get_source_flags(self):
     for proposal in proposal_flags:
-      if os.sep.join(['proposals', proposal['name']]) in self.path:
+      if f"proposals/{proposal['name']}" in self.name:
         return proposal['flags']
-    return []
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+    return default_flags

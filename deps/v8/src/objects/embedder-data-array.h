@@ -8,13 +8,14 @@
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/heap-object.h"
-#include "torque-generated/class-definitions.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#include "torque-generated/src/objects/embedder-data-array-tq.inc"
 
 // This is a storage array for embedder data fields stored in native context.
 // It's basically an "array of EmbedderDataSlots".
@@ -32,8 +33,8 @@ class EmbedderDataArray
   }
 
   // Returns a grown copy if the index is bigger than the array's length.
-  static Handle<EmbedderDataArray> EnsureCapacity(
-      Isolate* isolate, Handle<EmbedderDataArray> array, int index);
+  static DirectHandle<EmbedderDataArray> EnsureCapacity(
+      Isolate* isolate, DirectHandle<EmbedderDataArray> array, int index);
 
   // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
@@ -55,7 +56,7 @@ class EmbedderDataArray
       (kMaxSize - kHeaderSize) / kEmbedderDataSlotSize;
 
  private:
-  STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
+  static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
   TQ_OBJECT_CONSTRUCTORS(EmbedderDataArray)
 };

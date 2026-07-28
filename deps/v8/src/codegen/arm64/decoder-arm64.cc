@@ -60,9 +60,7 @@ void DispatchingDecoderVisitor::RemoveVisitor(DecoderVisitor* visitor) {
 
 #define DEFINE_VISITOR_CALLERS(A)                                \
   void DispatchingDecoderVisitor::Visit##A(Instruction* instr) { \
-    if (!(instr->Mask(A##FMask) == A##Fixed)) {                  \
-      DCHECK(instr->Mask(A##FMask) == A##Fixed);                 \
-    }                                                            \
+    DCHECK_EQ(instr->Mask(A##FMask), A##Fixed);                  \
     std::list<DecoderVisitor*>::iterator it;                     \
     for (it = visitors_.begin(); it != visitors_.end(); it++) {  \
       (*it)->Visit##A(instr);                                    \

@@ -25,13 +25,13 @@ const preamble = Buffer.from([
   0xa0, 0xe4, 0x1d, 0x13, 0x9d, 0x09, 0xb8, 0xf0, 0x1e, 0x07, 0x53,
   0x03, 0x2a, 0x2f, 0x2a, 0x90, 0x7a, 0x8a, 0xaa, 0x69, 0xd2, 0x9a,
   0xc4, 0xc0, 0x57, 0x0b, 0xcb, 0x87, 0x0f, 0x0d, 0x83, 0x08, 0x00,
-  0x0f
+  0x0f,
 ]);
 
 const data = Buffer.from([
   0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d,
   0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a, 0x68, 0x65, 0x6c,
-  0x6c, 0x6f, 0x0a, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a
+  0x6c, 0x6f, 0x0a, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x0a,
 ]);
 
 // This is testing the case of a misbehaving client that is not paying
@@ -47,36 +47,45 @@ const data = Buffer.from([
 // Bad client! Bad!
 //
 // Fortunately, nghttp2 handles this situation for us by keeping track
-// of the flow control window and responding with a FLOW_CONTROL_ERROR
-// causing the stream to get shut down...
-//
-// At least, that's what is supposed to happen.
+// of the flow control window and sending GOAWAY to end the session.
 
 let client;
 
 const server = h2.createServer({ settings: { initialWindowSize: 36 } });
-server.on('stream', (stream) => {
+
+server.on('session', common.mustCall((session) => {
+  session.on('error', common.expectsError({
+    code: 'ERR_HTTP2_ERROR',
+    name: 'Error',
+    message: 'Protocol error'
+  }));
+}));
+
+server.on('stream', common.mustCall((stream) => {
   // Set the high water mark to zero, since otherwise we still accept
   // reads from the source stream (if we can consume them).
   stream._readableState.highWaterMark = 0;
   stream.pause();
   stream.on('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
+    code: 'ERR_HTTP2_ERROR',
     name: 'Error',
-    message: 'Stream closed with error code NGHTTP2_FLOW_CONTROL_ERROR'
+    message: 'Protocol error'
   }));
   stream.on('close', common.mustCall(() => {
     server.close();
     client.destroy();
   }));
   stream.on('end', common.mustNotCall());
-});
+}));
 
-server.listen(0, () => {
-  client = net.connect(server.address().port, () => {
+server.listen(0, common.mustCall(() => {
+  client = net.connect(server.address().port, common.mustCall(() => {
     client.write(preamble);
     client.write(data);
     client.write(data);
     client.write(data);
-  });
-});
+
+    // TCP connection is closed by the server
+    client.on('close', common.mustCall());
+  }));
+}));

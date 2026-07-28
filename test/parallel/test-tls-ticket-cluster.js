@@ -24,6 +24,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testTls13SessionTicketSemanticsDiffer();
+  return;
+}
+
 const assert = require('assert');
 const tls = require('tls');
 const cluster = require('cluster');
@@ -32,20 +37,21 @@ const fixtures = require('../common/fixtures');
 const workerCount = 4;
 const expectedReqCount = 16;
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
+  let listeningCount = 0;
   let reusedCount = 0;
   let reqCount = 0;
   let lastSession = null;
-  let shootOnce = false;
   let workerPort = null;
 
   function shoot() {
-    console.error('[master] connecting', workerPort, 'session?', !!lastSession);
+    console.error('[primary] connecting',
+                  workerPort, 'session?', !!lastSession);
     const c = tls.connect(workerPort, {
       session: lastSession,
       rejectUnauthorized: false
     }, () => {
-      c.end();
+      c.on('end', c.end);
     }).on('close', () => {
       // Wait for close to shoot off another connection. We don't want to shoot
       // until a new session is allocated, if one will be. The new session is
@@ -58,10 +64,10 @@ if (cluster.isMaster) {
       } else {
         shoot();
       }
-    }).once('session', (session) => {
+    }).once('session', common.mustCallAtLeast((session) => {
       assert(!lastSession);
       lastSession = session;
-    });
+    }, 0));
 
     c.resume(); // See close_notify comment in server
   }
@@ -69,18 +75,17 @@ if (cluster.isMaster) {
   function fork() {
     const worker = cluster.fork();
     worker.on('message', ({ msg, port }) => {
-      console.error('[master] got %j', msg);
+      console.error('[primary] got %j', msg);
       if (msg === 'reused') {
         ++reusedCount;
-      } else if (msg === 'listening' && !shootOnce) {
-        workerPort = port || workerPort;
-        shootOnce = true;
+      } else if (msg === 'listening' && ++listeningCount === workerCount) {
+        workerPort = port;
         shoot();
       }
     });
 
     worker.on('exit', () => {
-      console.error('[master] worker died');
+      console.error('[primary] worker died');
     });
   }
   for (let i = 0; i < workerCount; i++) {

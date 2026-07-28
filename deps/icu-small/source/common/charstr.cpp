@@ -14,6 +14,8 @@
 *   created by: Markus W. Scherer
 */
 
+#include <cstdlib>
+
 #include "unicode/utypes.h"
 #include "unicode/putil.h"
 #include "charstr.h"
@@ -24,12 +26,12 @@
 
 U_NAMESPACE_BEGIN
 
-CharString::CharString(CharString&& src) U_NOEXCEPT
+CharString::CharString(CharString&& src) noexcept
         : buffer(std::move(src.buffer)), len(src.len) {
     src.len = 0;  // not strictly necessary because we make no guarantees on the source string
 }
 
-CharString& CharString::operator=(CharString&& src) U_NOEXCEPT {
+CharString& CharString::operator=(CharString&& src) noexcept {
     buffer = std::move(src.buffer);
     len = src.len;
     src.len = 0;  // not strictly necessary because we make no guarantees on the source string
@@ -65,6 +67,15 @@ CharString &CharString::copyFrom(const CharString &s, UErrorCode &errorCode) {
         len=s.len;
         uprv_memcpy(buffer.getAlias(), s.buffer.getAlias(), len+1);
     }
+    return *this;
+}
+
+CharString &CharString::copyFrom(StringPiece s, UErrorCode &errorCode) {
+    if (U_FAILURE(errorCode)) {
+        return *this;
+    }
+    len = 0;
+    append(s, errorCode);
     return *this;
 }
 
@@ -111,7 +122,7 @@ CharString &CharString::append(const char *s, int32_t sLength, UErrorCode &error
     if(U_FAILURE(errorCode)) {
         return *this;
     }
-    if(sLength<-1 || (s==NULL && sLength!=0)) {
+    if(sLength<-1 || (s==nullptr && sLength!=0)) {
         errorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return *this;
     }
@@ -141,13 +152,45 @@ CharString &CharString::append(const char *s, int32_t sLength, UErrorCode &error
     return *this;
 }
 
+CharString &CharString::appendNumber(int64_t number, UErrorCode &status) {
+    if (number < 0) {
+        this->append('-', status);
+        if (U_FAILURE(status)) {
+            return *this;
+        }
+    }
+
+    if (number == 0) {
+        this->append('0', status);
+        return *this;
+    }
+
+    int32_t numLen = 0;
+    while (number != 0) {
+        int32_t residue = number % 10;
+        number /= 10;
+        this->append(std::abs(residue) + '0', status);
+        numLen++;
+        if (U_FAILURE(status)) {
+            return *this;
+        }
+    }
+
+    int32_t start = this->length() - numLen, end = this->length() - 1;
+    while(start < end) {
+        std::swap(this->data()[start++], this->data()[end--]);
+    }
+
+    return *this;
+}
+
 char *CharString::getAppendBuffer(int32_t minCapacity,
                                   int32_t desiredCapacityHint,
                                   int32_t &resultCapacity,
                                   UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
         resultCapacity=0;
-        return NULL;
+        return nullptr;
     }
     int32_t appendCapacity=buffer.getCapacity()-len-1;  // -1 for NUL
     if(appendCapacity>=minCapacity) {
@@ -159,14 +202,14 @@ char *CharString::getAppendBuffer(int32_t minCapacity,
         return buffer.getAlias()+len;
     }
     resultCapacity=0;
-    return NULL;
+    return nullptr;
 }
 
 CharString &CharString::appendInvariantChars(const UnicodeString &s, UErrorCode &errorCode) {
     return appendInvariantChars(s.getBuffer(), s.length(), errorCode);
 }
 
-CharString &CharString::appendInvariantChars(const UChar* uchars, int32_t ucharsLen, UErrorCode &errorCode) {
+CharString &CharString::appendInvariantChars(const char16_t* uchars, int32_t ucharsLen, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
         return *this;
     }
@@ -186,20 +229,20 @@ UBool CharString::ensureCapacity(int32_t capacity,
                                  int32_t desiredCapacityHint,
                                  UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     if(capacity>buffer.getCapacity()) {
         if(desiredCapacityHint==0) {
             desiredCapacityHint=capacity+buffer.getCapacity();
         }
-        if( (desiredCapacityHint<=capacity || buffer.resize(desiredCapacityHint, len+1)==NULL) &&
-            buffer.resize(capacity, len+1)==NULL
+        if( (desiredCapacityHint<=capacity || buffer.resize(desiredCapacityHint, len+1)==nullptr) &&
+            buffer.resize(capacity, len+1)==nullptr
         ) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 CharString &CharString::appendPathPart(StringPiece s, UErrorCode &errorCode) {

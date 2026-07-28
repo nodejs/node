@@ -17,7 +17,6 @@ namespace compiler {
 
 // Forward declarations.
 class BasicBlock;
-class BasicBlockInstrumentor;
 class Node;
 
 using BasicBlockVector = ZoneVector<BasicBlock*>;
@@ -56,6 +55,8 @@ class V8_EXPORT_PRIVATE BasicBlock final
   };
 
   BasicBlock(Zone* zone, Id id);
+  BasicBlock(const BasicBlock&) = delete;
+  BasicBlock& operator=(const BasicBlock&) = delete;
 
   Id id() const { return id_; }
 #if DEBUG
@@ -156,6 +157,11 @@ class V8_EXPORT_PRIVATE BasicBlock final
 
   NodeVector* nodes() { return &nodes_; }
 
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  uint64_t pgo_execution_count() { return pgo_execution_count_; }
+  void set_pgo_execution_count(uint64_t count) { pgo_execution_count_ = count; }
+#endif
+
   // Loop membership helpers.
   inline bool IsLoopHeader() const { return loop_end_ != nullptr; }
   bool LoopContains(BasicBlock* block) const;
@@ -186,9 +192,10 @@ class V8_EXPORT_PRIVATE BasicBlock final
 #if DEBUG
   AssemblerDebugInfo debug_info_;
 #endif
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  uint64_t pgo_execution_count_;
+#endif
   Id id_;
-
-  DISALLOW_COPY_AND_ASSIGN(BasicBlock);
 };
 
 std::ostream& operator<<(std::ostream&, const BasicBlock&);
@@ -202,6 +209,8 @@ std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
 class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Schedule(Zone* zone, size_t node_count_hint = 0);
+  Schedule(const Schedule&) = delete;
+  Schedule& operator=(const Schedule&) = delete;
 
   // Return the block which contains {node}, if any.
   BasicBlock* block(Node* node) const;
@@ -278,7 +287,6 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
  private:
   friend class GraphAssembler;
   friend class Scheduler;
-  friend class BasicBlockInstrumentor;
   friend class RawMachineAssembler;
 
   // For CSA/Torque: Ensure properties of the CFG assumed by further stages.
@@ -307,8 +315,6 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
   BasicBlockVector rpo_order_;        // Reverse-post-order block list.
   BasicBlock* start_;
   BasicBlock* end_;
-
-  DISALLOW_COPY_AND_ASSIGN(Schedule);
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const Schedule&);

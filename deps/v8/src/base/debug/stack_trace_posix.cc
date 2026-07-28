@@ -33,7 +33,7 @@
 #include <cxxabi.h>
 #include <execinfo.h>
 #endif
-#if V8_OS_MACOSX
+#if V8_OS_DARWIN
 #include <AvailabilityMacros.h>
 #endif
 
@@ -41,6 +41,7 @@
 #include "src/base/free_deleter.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/memory-protection-key.h"
 
 namespace v8 {
 namespace base {
@@ -124,6 +125,11 @@ class BacktraceOutputHandler {
  public:
   virtual void HandleOutput(const char* output) = 0;
 
+  // If this output handler writes directly to a file descriptor, this file
+  // descriptor can be exposed by overwriting this method. That is in turn
+  // useful for ProcessBacktrace which can then use backtrace_symbols_fd.
+  virtual int OutputFileDescriptor() const { return 0; }
+
  protected:
   virtual ~BacktraceOutputHandler() = default;
 };
@@ -154,7 +160,7 @@ void ProcessBacktrace(void* const* trace, size_t size,
   if (in_signal_handler == 0) {
     std::unique_ptr<char*, FreeDeleter> trace_symbols(
         backtrace_symbols(trace, static_cast<int>(size)));
-    if (trace_symbols.get()) {
+    if (trace_symbols) {
       for (size_t i = 0; i < size; ++i) {
         std::string trace_symbol = trace_symbols.get()[i];
         DemangleSymbols(&trace_symbol);
@@ -165,6 +171,14 @@ void ProcessBacktrace(void* const* trace, size_t size,
 
       printed = true;
     }
+  } else if (handler->OutputFileDescriptor() != 0) {
+    // In this case, we can use backtrace_symbols_fd to write directly to the
+    // output file descriptor. This isn't quite as nice as we don't control the
+    // formatting and because mangled function names will be used, but still
+    // better than just raw addresses (which are also included in this output).
+    backtrace_symbols_fd(trace, static_cast<int>(size),
+                         handler->OutputFileDescriptor());
+    printed = true;
   }
 
   if (!printed) {
@@ -191,6 +205,10 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // Record the fact that we are in the signal handler now, so that the rest
   // of StackTrace can behave in an async-signal-safe manner.
   in_signal_handler = 1;
+
+#if V8_HAS_PKU_SUPPORT
+  MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
+#endif
 
   PrintToStderr("Received signal ");
   char buf[1024] = {0};
@@ -267,6 +285,9 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
   PrintBacktraceOutputHandler() = default;
+  PrintBacktraceOutputHandler(const PrintBacktraceOutputHandler&) = delete;
+  PrintBacktraceOutputHandler& operator=(const PrintBacktraceOutputHandler&) =
+      delete;
 
   void HandleOutput(const char* output) override {
     // NOTE: This code MUST be async-signal safe (it's used by in-process
@@ -274,20 +295,20 @@ class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
     PrintToStderr(output);
   }
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(PrintBacktraceOutputHandler);
+  int OutputFileDescriptor() const override { return STDERR_FILENO; }
 };
 
 class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
  public:
   explicit StreamBacktraceOutputHandler(std::ostream* os) : os_(os) {}
+  StreamBacktraceOutputHandler(const StreamBacktraceOutputHandler&) = delete;
+  StreamBacktraceOutputHandler& operator=(const StreamBacktraceOutputHandler&) =
+      delete;
 
   void HandleOutput(const char* output) override { (*os_) << output; }
 
  private:
   std::ostream* os_;
-
-  DISALLOW_COPY_AND_ASSIGN(StreamBacktraceOutputHandler);
 };
 
 void WarmUpBacktrace() {
@@ -340,7 +361,11 @@ bool EnableInProcessStackDumping() {
 
   struct sigaction action;
   memset(&action, 0, sizeof(action));
-  action.sa_flags = SA_RESETHAND | SA_SIGINFO;
+  // Use SA_ONSTACK so that iff an alternate stack has been registered, the
+  // handler will run on that stack instead of the default stack. This can be
+  // useful for example if the stack pointer gets corrupted or in case of stack
+  // overflows, since that might prevent the handler from running properly.
+  action.sa_flags = SA_RESETHAND | SA_SIGINFO | SA_ONSTACK;
   action.sa_sigaction = &StackDumpSignalHandler;
   sigemptyset(&action.sa_mask);
 

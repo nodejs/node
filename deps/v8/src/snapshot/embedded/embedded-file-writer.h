@@ -10,8 +10,11 @@
 #include <cstring>
 #include <memory>
 
+#include "src/base/platform/wrappers.h"
+#include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-file-writer-interface.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 #if defined(V8_OS_WIN64)
@@ -20,37 +23,6 @@
 
 namespace v8 {
 namespace internal {
-
-static constexpr char kDefaultEmbeddedVariant[] = "Default";
-
-struct LabelInfo {
-  int offset;
-  std::string name;
-};
-
-// Detailed source-code information about builtins can only be obtained by
-// registration on the isolate during compilation.
-class EmbeddedFileWriterInterface {
- public:
-  // We maintain a database of filenames to synthetic IDs.
-  virtual int LookupOrAddExternallyCompiledFilename(const char* filename) = 0;
-  virtual const char* GetExternallyCompiledFilename(int index) const = 0;
-  virtual int GetExternallyCompiledFilenameCount() const = 0;
-
-  // The isolate will call the method below just prior to replacing the
-  // compiled builtin Code objects with trampolines.
-  virtual void PrepareBuiltinSourcePositionMap(Builtins* builtins) = 0;
-
-  virtual void PrepareBuiltinLabelInfoMap(int create_offset, int invoke_offset,
-                                          int arguments_adaptor_offset) = 0;
-
-#if defined(V8_OS_WIN64)
-  virtual void SetBuiltinUnwindData(
-      int builtin_index,
-      const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) = 0;
-#endif  // V8_OS_WIN64
-};
-
 // Generates the embedded.S file which is later compiled into the final v8
 // binary. Its contents are exported through two symbols:
 //
@@ -68,15 +40,12 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
   void PrepareBuiltinSourcePositionMap(Builtins* builtins) override;
 
-  void PrepareBuiltinLabelInfoMap(int create_offset, int invoke_create,
-                                  int arguments_adaptor_offset) override;
-
 #if defined(V8_OS_WIN64)
   void SetBuiltinUnwindData(
-      int builtin_index,
+      Builtin builtin,
       const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) override {
-    DCHECK_LT(builtin_index, Builtins::builtin_count);
-    unwind_infos_[builtin_index] = unwinding_info;
+    DCHECK_LT(static_cast<int>(builtin), Builtins::kBuiltinCount);
+    unwind_infos_[static_cast<int>(builtin)] = unwinding_info;
   }
 #endif  // V8_OS_WIN64
 
@@ -109,15 +78,16 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
     WriteFilePrologue(writer.get());
     WriteExternalFilenames(writer.get());
-    WriteMetadataSection(writer.get(), blob);
-    WriteInstructionStreams(writer.get(), blob);
+    WriteDataSection(writer.get(), blob);
+    WriteCodeSection(writer.get(), blob);
     WriteFileEpilogue(writer.get(), blob);
 
-    fclose(fp);
+    base::Fclose(fp);
   }
 
   static FILE* GetFileDescriptorOrDie(const char* filename) {
-    FILE* fp = v8::base::OS::FOpen(filename, "wb");
+    FILE* fp = v8::base::OS::FOpen(filename, "w");
+
     if (fp == nullptr) {
       i::PrintF("Unable to open file \"%s\" for writing.\n", filename);
       exit(1);
@@ -153,54 +123,44 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   // Fairly arbitrary but should fit all symbol names.
   static constexpr int kTemporaryStringLength = 256;
 
-  std::string EmbeddedBlobCodeDataSymbol() const {
-    i::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_code_data_symbol;
-    i::SNPrintF(embedded_blob_code_data_symbol,
-                "v8_%s_embedded_blob_code_data_", embedded_variant_);
-    return std::string{embedded_blob_code_data_symbol.begin()};
+  std::string EmbeddedBlobCodeSymbol() const {
+    base::EmbeddedVector<char, kTemporaryStringLength>
+        embedded_blob_code_symbol;
+    base::SNPrintF(embedded_blob_code_symbol, "v8_%s_embedded_blob_code_",
+                   embedded_variant_);
+    return std::string{embedded_blob_code_symbol.begin()};
   }
 
-  std::string EmbeddedBlobMetadataDataSymbol() const {
-    i::EmbeddedVector<char, kTemporaryStringLength>
-        embedded_blob_metadata_data_symbol;
-    i::SNPrintF(embedded_blob_metadata_data_symbol,
-                "v8_%s_embedded_blob_metadata_data_", embedded_variant_);
-    return std::string{embedded_blob_metadata_data_symbol.begin()};
+  std::string EmbeddedBlobDataSymbol() const {
+    base::EmbeddedVector<char, kTemporaryStringLength>
+        embedded_blob_data_symbol;
+    base::SNPrintF(embedded_blob_data_symbol, "v8_%s_embedded_blob_data_",
+                   embedded_variant_);
+    return std::string{embedded_blob_data_symbol.begin()};
   }
 
-  void WriteMetadataSection(PlatformEmbeddedFileWriterBase* w,
-                            const i::EmbeddedData* blob) const {
-    w->Comment("The embedded blob metadata starts here.");
+  void WriteDataSection(PlatformEmbeddedFileWriterBase* w,
+                        const i::EmbeddedData* blob) const {
+    w->Comment("The embedded blob data section starts here.");
     w->SectionRoData();
     w->AlignToDataAlignment();
-    w->DeclareLabel(EmbeddedBlobMetadataDataSymbol().c_str());
+    w->DeclareSymbolGlobal(EmbeddedBlobDataSymbol().c_str());
+    w->DeclareLabelProlog(EmbeddedBlobDataSymbol().c_str());
+    w->DeclareLabel(EmbeddedBlobDataSymbol().c_str());
 
-    WriteBinaryContentsAsInlineAssembly(w, blob->metadata(),
-                                        blob->metadata_size());
+    WriteBinaryContentsAsInlineAssembly(w, blob->data(), blob->data_size());
+    w->DeclareLabelEpilogue();
+    w->Newline();
   }
 
   void WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
-                    const i::EmbeddedData* blob, const int builtin_id) const;
+                    const i::EmbeddedData* blob, const Builtin builtin) const;
 
   void WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
                           std::string name) const;
 
-  void WriteInstructionStreams(PlatformEmbeddedFileWriterBase* w,
-                               const i::EmbeddedData* blob) const {
-    w->Comment("The embedded blob data starts here. It contains the builtin");
-    w->Comment("instruction streams.");
-    w->SectionText();
-    w->AlignToCodeAlignment();
-    w->DeclareLabel(EmbeddedBlobCodeDataSymbol().c_str());
-
-    for (int i = 0; i < i::Builtins::builtin_count; i++) {
-      if (!blob->ContainsBuiltin(i)) continue;
-
-      WriteBuiltin(w, blob, i);
-    }
-    w->Newline();
-  }
+  void WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
+                        const i::EmbeddedData* blob) const;
 
   void WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
                          const i::EmbeddedData* blob) const;
@@ -223,11 +183,11 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
   }
 
  private:
-  std::vector<byte> source_positions_[Builtins::builtin_count];
-  std::vector<LabelInfo> label_info_[Builtins::builtin_count];
+  std::vector<uint8_t> source_positions_[Builtins::kBuiltinCount];
+  std::vector<LabelInfo> label_info_[Builtins::kBuiltinCount];
 
 #if defined(V8_OS_WIN64)
-  win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::builtin_count];
+  win64_unwindinfo::BuiltinUnwindInfo unwind_infos_[Builtins::kBuiltinCount];
 #endif  // V8_OS_WIN64
 
   std::map<const char*, int> external_filenames_;

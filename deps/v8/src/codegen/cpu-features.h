@@ -20,12 +20,19 @@ enum CpuFeature {
   SSE3,
   SAHF,
   AVX,
+  AVX2,
+  AVX_VNNI,
+  AVX_VNNI_INT8,
   FMA3,
   BMI1,
   BMI2,
   LZCNT,
   POPCNT,
-  ATOM,
+  INTEL_ATOM,
+  INTEL_JCC_ERRATUM_MITIGATION,
+  CETSS,
+  F16C,
+  APX_F,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.
@@ -41,8 +48,23 @@ enum CpuFeature {
 
 #elif V8_TARGET_ARCH_ARM64
   JSCVT,
+  DOTPROD,
+  // Large System Extension, include atomic operations on memory: CAS, LDADD,
+  // STADD, SWP, etc.
+  LSE,
+  // A form of PMULL{2} with a 128-bit (1Q) result.
+  PMULL1Q,
+  // Half-precision NEON ops support.
+  FP16,
+  SHA3,
+  // Hinted Conditional Branches
+  HBC,
+  // Common short sequence compression instructions
+  CSSC,
+  // Standardization of memory operations
+  MOPS,
 
-#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#elif V8_TARGET_ARCH_MIPS64
   FPU,
   FP64FPU,
   MIPSr1,
@@ -50,13 +72,15 @@ enum CpuFeature {
   MIPSr6,
   MIPS_SIMD,  // MSA instructions
 
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_LOONG64
   FPU,
-  FPR_GPR_MOV,
-  LWSYNC,
-  ISELECT,
-  VSX,
-  MODULO,
+  LSX,
+  LASX,
+
+#elif V8_TARGET_ARCH_PPC64
+  PPC_9_PLUS,
+  PPC_10_PLUS,
+  PPC_11_PLUS,
 
 #elif V8_TARGET_ARCH_S390X
   FPU,
@@ -66,11 +90,26 @@ enum CpuFeature {
   VECTOR_FACILITY,
   VECTOR_ENHANCE_FACILITY_1,
   VECTOR_ENHANCE_FACILITY_2,
+  VECTOR_ENHANCE_FACILITY_3,
   MISC_INSTR_EXT2,
+  MISC_INSTR_EXT4,
+
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+  FPU,
+  FP64FPU,
+  RISCV_SIMD,
+  ZBA,
+  ZBB,
+  ZBS,
+  ZFH,
+  ZICOND,
+  ZICFISS,
 #endif
 
   NUMBER_OF_CPU_FEATURES
 };
+
+using CpuFeatureSet = base::EnumSet<CpuFeature, unsigned>;
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a CpuFeatureScope before use.
@@ -83,25 +122,31 @@ enum CpuFeature {
 //   }
 class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
  public:
+  CpuFeatures(const CpuFeatures&) = delete;
+  CpuFeatures& operator=(const CpuFeatures&) = delete;
+
   static void Probe(bool cross_compile) {
-    STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
+    static_assert(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
     if (initialized_) return;
     initialized_ = true;
     ProbeImpl(cross_compile);
   }
 
-  static unsigned SupportedFeatures() {
+  static CpuFeatureSet SupportedFeatures() {
     Probe(false);
     return supported_;
   }
 
-  static bool IsSupported(CpuFeature f) {
-    return (supported_ & (1u << f)) != 0;
-  }
+  static bool IsSupported(CpuFeature f) { return supported_.contains(f); }
+
+  static void SetSupported(CpuFeature f) { supported_.Add(f); }
+  static void SetSupported(CpuFeatureSet f_set) { supported_.Add(f_set); }
+  static void SetUnsupported(CpuFeature f) { supported_.Remove(f); }
+  static void SetUnsupported(CpuFeatureSet f_set) { supported_.Remove(f_set); }
+
+  static bool SupportsWasmSimd128();
 
   static inline bool SupportsOptimizer();
-
-  static inline bool SupportsWasmSimd128();
 
   static inline unsigned icache_line_size() {
     DCHECK_NE(icache_line_size_, 0);
@@ -111,6 +156,11 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   static inline unsigned dcache_line_size() {
     DCHECK_NE(dcache_line_size_, 0);
     return dcache_line_size_;
+  }
+
+  static inline unsigned vlen() {
+    DCHECK_NE(vlen_, 0);
+    return vlen_;
   }
 
   static void PrintTarget();
@@ -125,11 +175,17 @@ class V8_EXPORT_PRIVATE CpuFeatures : public AllStatic {
   // Platform-dependent implementation.
   static void ProbeImpl(bool cross_compile);
 
-  static unsigned supported_;
+  static base::EnumSet<CpuFeature, unsigned> supported_;
   static unsigned icache_line_size_;
   static unsigned dcache_line_size_;
   static bool initialized_;
-  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  static bool supports_wasm_simd_128_;
+  static bool supports_cetss_;
+  // VLEN is the length in bits of the vector registers on RISC-V.
+  static unsigned vlen_;
 };
 
 }  // namespace internal

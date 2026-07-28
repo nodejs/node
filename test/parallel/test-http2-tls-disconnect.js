@@ -21,7 +21,7 @@ const server = http2.createSecureServer({ key, cert }, (request, response) => {
 server.listen(0, () => {
   const proc = child_process.spawn('h2load', [
     '-n', '1000',
-    `https://localhost:${server.address().port}/`
+    `https://localhost:${server.address().port}/`,
   ]);
   proc.on('error', (err) => {
     if (err.code === 'ENOENT')

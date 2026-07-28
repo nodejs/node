@@ -27,13 +27,12 @@ const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const { addLibraryPath } = require('../common/shared-lib-util');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const { fork } = require('child_process');
 
 const msg = { test: 'this' };
 const nodePath = process.execPath;
-const copyPath = path.join(tmpdir.path, 'node-copy.exe');
+const copyPath = tmpdir.resolve('node-copy.exe');
 
 addLibraryPath(process.env);
 

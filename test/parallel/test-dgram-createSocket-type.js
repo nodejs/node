@@ -11,13 +11,13 @@ const invalidTypes = [
   true,
   false,
   null,
-  undefined
+  undefined,
 ];
 const validTypes = [
   'udp4',
   'udp6',
   { type: 'udp4' },
-  { type: 'udp6' }
+  { type: 'udp6' },
 ];
 const errMessage = /^Bad socket type specified\. Valid types are: udp4, udp6$/;
 
@@ -58,4 +58,17 @@ validTypes.forEach((validType) => {
                 `was ${socket.getRecvBufferSize()}`);
     socket.close();
   }));
+}
+
+{
+  [
+    { type: 'udp4', recvBufferSize: 'invalid' },
+    { type: 'udp4', sendBufferSize: 'invalid' },
+  ].forEach((options) => {
+    assert.throws(() => {
+      dgram.createSocket(options);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
 }

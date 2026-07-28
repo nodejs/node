@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * DES low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include "des_local.h"
 
@@ -15,12 +21,12 @@
  * used is contained in *num;
  */
 void DES_ede3_ofb64_encrypt(register const unsigned char *in,
-                            register unsigned char *out, long length,
-                            DES_key_schedule *k1, DES_key_schedule *k2,
-                            DES_key_schedule *k3, DES_cblock *ivec, int *num)
+    register unsigned char *out, long length,
+    DES_key_schedule *k1, DES_key_schedule *k2,
+    DES_key_schedule *k3, DES_cblock *ivec, int *num)
 {
     register DES_LONG v0, v1;
-    register int n = *num;
+    register int n = *num & 0x07;
     register long l = length;
     DES_cblock d;
     register char *dp;

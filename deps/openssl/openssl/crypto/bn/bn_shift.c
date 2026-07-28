@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -83,7 +83,7 @@ int BN_lshift(BIGNUM *r, const BIGNUM *a, int n)
     int ret;
 
     if (n < 0) {
-        BNerr(BN_F_BN_LSHIFT, BN_R_INVALID_SHIFT);
+        ERR_raise(ERR_LIB_BN, BN_R_INVALID_SHIFT);
         return 0;
     }
 
@@ -120,8 +120,8 @@ int bn_lshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n)
     if (a->top != 0) {
         lb = (unsigned int)n % BN_BITS2;
         rb = BN_BITS2 - lb;
-        rb %= BN_BITS2;            /* say no to undefined behaviour */
-        rmask = (BN_ULONG)0 - rb;  /* rmask = 0 - (rb != 0) */
+        rb %= BN_BITS2; /* say no to undefined behaviour */
+        rmask = (BN_ULONG)0 - rb; /* rmask = 0 - (rb != 0) */
         rmask |= rmask >> 8;
         f = &(a->d[0]);
         t = &(r->d[nw]);
@@ -152,9 +152,12 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
     int ret = 0;
 
     if (n < 0) {
-        BNerr(BN_F_BN_RSHIFT, BN_R_INVALID_SHIFT);
+        ERR_raise(ERR_LIB_BN, BN_R_INVALID_SHIFT);
         return 0;
     }
+
+    bn_check_top(r);
+    bn_check_top(a);
 
     ret = bn_rshift_fixed_top(r, a, n);
 
@@ -177,9 +180,6 @@ int bn_rshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n)
     BN_ULONG *t, *f;
     BN_ULONG l, m, mask;
 
-    bn_check_top(r);
-    bn_check_top(a);
-
     assert(n >= 0);
 
     nw = n / BN_BITS2;
@@ -191,8 +191,8 @@ int bn_rshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n)
 
     rb = (unsigned int)n % BN_BITS2;
     lb = BN_BITS2 - rb;
-    lb %= BN_BITS2;            /* say no to undefined behaviour */
-    mask = (BN_ULONG)0 - lb;   /* mask = 0 - (lb != 0) */
+    lb %= BN_BITS2; /* say no to undefined behaviour */
+    mask = (BN_ULONG)0 - lb; /* mask = 0 - (lb != 0) */
     mask |= mask >> 8;
     top = a->top - nw;
     if (r != a && bn_wexpand(r, top) == NULL)

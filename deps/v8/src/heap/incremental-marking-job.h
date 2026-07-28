@@ -5,52 +5,47 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 #define V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 
-#include "src/tasks/cancelable-task.h"
+#include <optional>
 
-namespace v8 {
-namespace internal {
+#include "include/v8-platform.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
+
+namespace v8::internal {
 
 class Heap;
 class Isolate;
 
 // The incremental marking job uses platform tasks to perform incremental
-// marking steps. The job posts a foreground task that makes a small (~1ms)
-// step and posts another task until the marking is completed.
+// marking actions (start, step, finalize). The job posts regular foreground
+// tasks or delayed foreground tasks if marking progress allows.
 class IncrementalMarkingJob final {
  public:
-  enum class TaskType { kNormal, kDelayed };
+  explicit IncrementalMarkingJob(Heap* heap);
 
-  IncrementalMarkingJob() V8_NOEXCEPT = default;
+  IncrementalMarkingJob(const IncrementalMarkingJob&) = delete;
+  IncrementalMarkingJob& operator=(const IncrementalMarkingJob&) = delete;
 
-  void Start(Heap* heap);
+  // Schedules a task. Safe to be called from any thread.
+  void ScheduleTask();
 
-  void ScheduleTask(Heap* heap, TaskType task_type = TaskType::kNormal);
+  // Returns a weighted average of time to task. For delayed tasks the time to
+  // task is only recorded after the initial delay. In case a task is currently
+  // running, it is added to the average.
+  std::optional<v8::base::TimeDelta> AverageTimeToTask() const;
 
-  double CurrentTimeToTask(Heap* heap) const;
+  std::optional<v8::base::TimeDelta> CurrentTimeToTask() const;
 
  private:
   class Task;
-  static constexpr double kDelayInSeconds = 10.0 / 1000.0;
 
-  bool IsTaskPending(TaskType task_type) const {
-    return task_type == TaskType::kNormal ? normal_task_pending_
-                                          : delayed_task_pending_;
-  }
-
-  void SetTaskPending(TaskType task_type, bool value) {
-    if (task_type == TaskType::kNormal) {
-      normal_task_pending_ = value;
-    } else {
-      delayed_task_pending_ = value;
-    }
-  }
-
-  base::Mutex mutex_;
-  double scheduled_time_ = 0.0;
-  bool normal_task_pending_ = false;
-  bool delayed_task_pending_ = false;
+  Heap* const heap_;
+  const std::shared_ptr<v8::TaskRunner> user_visible_task_runner_;
+  mutable base::Mutex mutex_;
+  v8::base::TimeTicks scheduled_time_;
+  bool pending_task_ = false;
 };
-}  // namespace internal
-}  // namespace v8
+
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_INCREMENTAL_MARKING_JOB_H_

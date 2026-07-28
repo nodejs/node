@@ -34,7 +34,7 @@ function listener(event, exec_state, event_data, data) {
     break_break_point_hit_count++;
     // Continue stepping until returned to bottom frame.
     if (exec_state.frameCount() > 1) {
-      exec_state.prepareStep(Debug.StepAction.StepIn);
+      exec_state.prepareStep(Debug.StepAction.StepInto);
     }
   }
 };

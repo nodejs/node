@@ -13,6 +13,7 @@ const sinon = require('sinon');
 const common = require('../mutators/common.js');
 const helpers = require('./helpers.js');
 const random = require('../random.js');
+const scriptMutator = require('../script_mutator.js');
 const sourceHelpers = require('../source_helpers.js');
 const tryCatch = require('../mutators/try_catch.js');
 
@@ -61,9 +62,9 @@ describe('Try catch', () => {
     sandbox.stub(random, 'random').callsFake(() => { return 0.01; });
     const source = loadSource();
 
-    // Fake source fraction 0.1 (i.e. the second of 10 files).
+    // Fake source fraction 0.2 (i.e. the third of 10 files).
     // Probability for skipping is 0.02.
-    common.setSourceLoc(source, 1, 10);
+    common.setSourceLoc(source, 2, 10);
 
     testTryCatch(source, 'try_catch_nothing_expected.js');
   });
@@ -81,5 +82,43 @@ describe('Try catch', () => {
     common.setSourceLoc(source, 9, 10);
 
     testTryCatch(source, 'try_catch_alternate_expected.js');
+  });
+
+  // Uses permissive try-catch wrapper.
+  it('wraps with permissive try-catch', () => {
+    helpers.deterministicRandom(sandbox);
+    sandbox.stub(tryCatch, 'PERMISSIVE_WRAPPER_PROB').value(1.0);
+    testTryCatch(loadSource(), 'try_catch_permissive_expected.js');
+  });
+
+  // General distribution with pseudo-random execution.
+  it('distributes', () => {
+    helpers.deterministicRandom(sandbox);
+
+    sandbox.stub(sourceHelpers, 'loadResource').callsFake(() => {
+      return helpers.loadTestData('differential_fuzz/fake_resource.js');
+    });
+
+    // Zero settings for all mutators (try-catch always runs).
+    const settings = scriptMutator.defaultSettings();
+    for (const key of Object.keys(settings)) {
+      settings[key] = 0.0;
+    }
+
+    const inputs = [
+        'try_catch_distribution.js',
+        'try_catch_distribution.js',
+        'try_catch_distribution.js',
+        'try_catch_distribution.js',
+        'try_catch_distribution.js',
+        'try_catch_distribution.js',
+    ];
+
+    const sources = inputs.map(input => helpers.loadTestData(input));
+    const mutator = new scriptMutator.ScriptMutator(settings, helpers.DB_DIR);
+    const mutated = mutator.mutateMultiple(sources);
+
+    helpers.assertExpectedResult(
+        'try_catch_distribution_expected.js', mutated.code);
   });
 });

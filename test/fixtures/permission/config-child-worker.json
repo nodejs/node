@@ -1,0 +1,6 @@
+{
+    "permission": {
+        "allow-child-process": true,
+        "allow-worker": true
+    }
+}

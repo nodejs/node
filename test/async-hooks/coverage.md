@@ -3,7 +3,7 @@
 Showing which kind of async resource is covered by which test:
 
 | Resource Type       | Test                                    |
-|---------------------|-----------------------------------------|
+| ------------------- | --------------------------------------- |
 | CONNECTION          | test-connection.ssl.js                  |
 | FSEVENTWRAP         | test-fseventwrap.js                     |
 | FSREQCALLBACK       | test-fsreqcallback-{access,readFile}.js |

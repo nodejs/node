@@ -20,9 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
-const R = require('_stream_readable');
-const W = require('_stream_writable');
+const common = require('../common');
+const { Readable: R, Writable: W } = require('stream');
 const assert = require('assert');
 
 let ondataCalled = 0;
@@ -44,11 +43,11 @@ class TestReader extends R {
 }
 
 const reader = new TestReader();
-setImmediate(function() {
+setImmediate(common.mustCall(() => {
   assert.strictEqual(ondataCalled, 1);
   console.log('ok');
   reader.push(null);
-});
+}));
 
 class TestWriter extends W {
   constructor() {

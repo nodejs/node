@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-private-methods
 // This tests that empty inner classes don't assign private brands of outer
 // classes in their instances after scope chain deserialization.
 

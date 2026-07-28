@@ -23,30 +23,36 @@ const dnsPromises = dns.promises;
   assert.throws(() => dnsPromises.lookup(1, {}), err);
 }
 
+{
+  const err = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    name: 'TypeError',
+    message: /The argument 'hostname' must be a string without null bytes\./,
+  };
+
+  assert.throws(() => dns.lookup('127.0.0.1\u0000.allowed.example', {}), err);
+  assert.throws(() => dnsPromises.lookup('127.0.0.1\u0000.allowed.example', {}), err);
+}
+
 // This also verifies different expectWarning notations.
 common.expectWarning({
   // For 'internal/test/binding' module.
   'internal/test/binding': [
-    'These APIs are for internal testing only. Do not use them.'
+    'These APIs are for internal testing only. Do not use them.',
   ],
-  // For calling `dns.lookup` with falsy `hostname`.
-  'DeprecationWarning': {
-    DEP0118: 'The provided hostname "false" is not a valid ' +
-      'hostname, and is supported in the dns module solely for compatibility.'
-  }
 });
 
 assert.throws(() => {
   dns.lookup(false, 'cb');
 }, {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 });
 
 assert.throws(() => {
   dns.lookup(false, 'options', 'cb');
 }, {
-  code: 'ERR_INVALID_CALLBACK',
+  code: 'ERR_INVALID_ARG_TYPE',
   name: 'TypeError'
 });
 
@@ -69,14 +75,15 @@ assert.throws(() => {
 }
 
 {
+  const family = 20;
   const err = {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: "The argument 'family' must be one of: 0, 4, 6. Received 20"
+    message: `The property 'options.family' must be one of: 0, 4, 6. Received ${family}`
   };
   const options = {
     hints: 0,
-    family: 20,
+    family,
     all: false
   };
 
@@ -86,15 +93,71 @@ assert.throws(() => {
   }, err);
 }
 
+[1, 0n, 1n, '', '0', Symbol(), true, false, {}, [], () => {}]
+  .forEach((family) => {
+    const err = { code: 'ERR_INVALID_ARG_VALUE' };
+    const options = { family };
+    assert.throws(() => { dnsPromises.lookup(false, options); }, err);
+    assert.throws(() => {
+      dns.lookup(false, options, common.mustNotCall());
+    }, err);
+  });
+[0n, 1n, '', '0', Symbol(), true, false].forEach((family) => {
+  const err = { code: 'ERR_INVALID_ARG_TYPE' };
+  assert.throws(() => { dnsPromises.lookup(false, family); }, err);
+  assert.throws(() => {
+    dns.lookup(false, family, common.mustNotCall());
+  }, err);
+});
+assert.throws(() => dnsPromises.lookup(false, () => {}),
+              { code: 'ERR_INVALID_ARG_TYPE' });
+
+[0n, 1n, '', '0', Symbol(), true, false, {}, [], () => {}].forEach((hints) => {
+  const err = { code: 'ERR_INVALID_ARG_TYPE' };
+  const options = { hints };
+  assert.throws(() => { dnsPromises.lookup(false, options); }, err);
+  assert.throws(() => {
+    dns.lookup(false, options, common.mustNotCall());
+  }, err);
+});
+
+[0, 1, 0n, 1n, '', '0', Symbol(), {}, [], () => {}].forEach((all) => {
+  const err = { code: 'ERR_INVALID_ARG_TYPE' };
+  const options = { all };
+  assert.throws(() => { dnsPromises.lookup(false, options); }, err);
+  assert.throws(() => {
+    dns.lookup(false, options, common.mustNotCall());
+  }, err);
+});
+
+[0, 1, 0n, 1n, '', '0', Symbol(), {}, [], () => {}].forEach((verbatim) => {
+  const err = { code: 'ERR_INVALID_ARG_TYPE' };
+  const options = { verbatim };
+  assert.throws(() => { dnsPromises.lookup(false, options); }, err);
+  assert.throws(() => {
+    dns.lookup(false, options, common.mustNotCall());
+  }, err);
+});
+
+[0, 1, 0n, 1n, '', '0', Symbol(), {}, [], () => {}].forEach((order) => {
+  const err = { code: 'ERR_INVALID_ARG_VALUE' };
+  const options = { order };
+  assert.throws(() => { dnsPromises.lookup(false, options); }, err);
+  assert.throws(() => {
+    dns.lookup(false, options, common.mustNotCall());
+  }, err);
+});
+
 (async function() {
   let res;
 
-  res = await dnsPromises.lookup(false, {
+  await assert.rejects(dnsPromises.lookup(false, {
     hints: 0,
     family: 0,
     all: true
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
   });
-  assert.deepStrictEqual(res, []);
 
   res = await dnsPromises.lookup('127.0.0.1', {
     hints: 0,
@@ -111,14 +174,13 @@ assert.throws(() => {
   assert.deepStrictEqual(res, { address: '127.0.0.1', family: 4 });
 })().then(common.mustCall());
 
-dns.lookup(false, {
+assert.throws(() => dns.lookup(false, {
   hints: 0,
   family: 0,
   all: true
-}, common.mustSucceed((result, addressType) => {
-  assert.deepStrictEqual(result, []);
-  assert.strictEqual(addressType, undefined);
-}));
+}, common.mustNotCall()), {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
 dns.lookup('127.0.0.1', {
   hints: 0,
@@ -137,7 +199,7 @@ dns.lookup('127.0.0.1', {
   family: 4,
   all: false
 }, common.mustSucceed((result, addressType) => {
-  assert.deepStrictEqual(result, '127.0.0.1');
+  assert.strictEqual(result, '127.0.0.1');
   assert.strictEqual(addressType, 4);
 }));
 
@@ -158,4 +220,4 @@ tickValue = 1;
 
 // Should fail due to stub.
 assert.rejects(dnsPromises.lookup('example.com'),
-               { code: 'ENOMEM', hostname: 'example.com' });
+               { code: 'ENOMEM', hostname: 'example.com' }).then(common.mustCall());

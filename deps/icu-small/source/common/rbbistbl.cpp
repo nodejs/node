@@ -41,12 +41,12 @@ U_CDECL_END
 U_NAMESPACE_BEGIN
 
 RBBISymbolTable::RBBISymbolTable(RBBIRuleScanner *rs, const UnicodeString &rules, UErrorCode &status)
-    :fRules(rules), fRuleScanner(rs), ffffString(UChar(0xffff))
+    : fRules(rules), fRuleScanner(rs), ffffString(static_cast<char16_t>(0xffff))
 {
-    fHashTable       = NULL;
-    fCachedSetLookup = NULL;
-
-    fHashTable = uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, NULL, &status);
+    fHashTable       = nullptr;
+    fCachedSetLookup = nullptr;
+    
+    fHashTable = uhash_open(uhash_hashUnicodeString, uhash_compareUnicodeString, nullptr, &status);
     // uhash_open checks status
     if (U_FAILURE(status)) {
         return;
@@ -63,7 +63,7 @@ RBBISymbolTable::~RBBISymbolTable()
 
 
 //
-//  RBBISymbolTable::lookup       This function from the abstract symbol table inteface
+//  RBBISymbolTable::lookup       This function from the abstract symbol table interface
 //                                looks up a variable name and returns a UnicodeString
 //                                containing the substitution text.
 //
@@ -76,11 +76,11 @@ const UnicodeString  *RBBISymbolTable::lookup(const UnicodeString& s) const
     RBBINode              *exprNode;
     RBBINode              *usetNode;
     const UnicodeString   *retString;
-    RBBISymbolTable       *This = (RBBISymbolTable *)this;   // cast off const
+    RBBISymbolTable       *This = const_cast<RBBISymbolTable*>(this); // cast off const
 
-    el = (RBBISymbolTableEntry *)uhash_get(fHashTable, &s);
-    if (el == NULL) {
-        return NULL;
+    el = static_cast<RBBISymbolTableEntry*>(uhash_get(fHashTable, &s));
+    if (el == nullptr) {
+        return nullptr;
     }
 
     varRefNode = el->val;
@@ -98,7 +98,7 @@ const UnicodeString  *RBBISymbolTable::lookup(const UnicodeString& s) const
         // The variable refers to something other than just a set.
         // return the original source string for the expression
         retString = &exprNode->fText;
-        This->fCachedSetLookup = NULL;
+        This->fCachedSetLookup = nullptr;
     }
     return retString;
 }
@@ -118,11 +118,11 @@ const UnicodeString  *RBBISymbolTable::lookup(const UnicodeString& s) const
 //    and we just need to remember what set to return between these two calls.
 const UnicodeFunctor *RBBISymbolTable::lookupMatcher(UChar32 ch) const
 {
-    UnicodeSet *retVal = NULL;
-    RBBISymbolTable *This = (RBBISymbolTable *)this;   // cast off const
+    UnicodeSet *retVal = nullptr;
+    RBBISymbolTable *This = const_cast<RBBISymbolTable*>(this); // cast off const
     if (ch == 0xffff) {
         retVal = fCachedSetLookup;
-        This->fCachedSetLookup = 0;
+        This->fCachedSetLookup = nullptr;
     }
     return retVal;
 }
@@ -144,7 +144,7 @@ UnicodeString   RBBISymbolTable::parseReference(const UnicodeString& text,
     int32_t i = start;
     UnicodeString result;
     while (i < limit) {
-        UChar c = text.charAt(i);
+        char16_t c = text.charAt(i);
         if ((i==start && !u_isIDStart(c)) || !u_isIDPart(c)) {
             break;
         }
@@ -163,15 +163,15 @@ UnicodeString   RBBISymbolTable::parseReference(const UnicodeString& text,
 //
 // RBBISymbolTable::lookupNode      Given a key (a variable name), return the
 //                                  corresponding RBBI Node.  If there is no entry
-//                                  in the table for this name, return NULL.
+//                                  in the table for this name, return nullptr.
 //
 RBBINode       *RBBISymbolTable::lookupNode(const UnicodeString &key) const{
 
-    RBBINode             *retNode = NULL;
+    RBBINode             *retNode = nullptr;
     RBBISymbolTableEntry *el;
 
-    el = (RBBISymbolTableEntry *)uhash_get(fHashTable, &key);
-    if (el != NULL) {
+    el = static_cast<RBBISymbolTableEntry*>(uhash_get(fHashTable, &key));
+    if (el != nullptr) {
         retNode = el->val;
     }
     return retNode;
@@ -190,14 +190,14 @@ void            RBBISymbolTable::addEntry  (const UnicodeString &key, RBBINode *
     if (U_FAILURE(err)) {
         return;
     }
-    e = (RBBISymbolTableEntry *)uhash_get(fHashTable, &key);
-    if (e != NULL) {
+    e = static_cast<RBBISymbolTableEntry*>(uhash_get(fHashTable, &key));
+    if (e != nullptr) {
         err = U_BRK_VARIABLE_REDFINITION;
         return;
     }
 
     e = new RBBISymbolTableEntry;
-    if (e == NULL) {
+    if (e == nullptr) {
         err = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -207,7 +207,7 @@ void            RBBISymbolTable::addEntry  (const UnicodeString &key, RBBINode *
 }
 
 
-RBBISymbolTableEntry::RBBISymbolTableEntry() : UMemory(), key(), val(NULL) {}
+RBBISymbolTableEntry::RBBISymbolTableEntry() : UMemory(), key(), val(nullptr) {}
 
 RBBISymbolTableEntry::~RBBISymbolTableEntry() {
     // The "val" of a symbol table entry is a variable reference node.
@@ -215,7 +215,7 @@ RBBISymbolTableEntry::~RBBISymbolTableEntry() {
     // Unlike other node types, children of variable reference nodes are not
     //    automatically recursively deleted.  We do it manually here.
     delete val->fLeftChild;
-    val->fLeftChild = NULL;
+    val->fLeftChild = nullptr;
 
     delete  val;
 
@@ -233,10 +233,10 @@ void RBBISymbolTable::rbbiSymtablePrint() const {
            "-------------------------------------------------------------------\n");
 
     int32_t pos = UHASH_FIRST;
-    const UHashElement  *e   = NULL;
+    const UHashElement  *e   = nullptr;
     for (;;) {
         e = uhash_nextElement(fHashTable,  &pos);
-        if (e == NULL ) {
+        if (e == nullptr ) {
             break;
         }
         RBBISymbolTableEntry  *s   = (RBBISymbolTableEntry *)e->value.pointer;
@@ -249,13 +249,13 @@ void RBBISymbolTable::rbbiSymtablePrint() const {
     pos = -1;
     for (;;) {
         e = uhash_nextElement(fHashTable,  &pos);
-        if (e == NULL ) {
+        if (e == nullptr ) {
             break;
         }
         RBBISymbolTableEntry  *s   = (RBBISymbolTableEntry *)e->value.pointer;
         RBBIDebugPrintf("%s\n", CStr(s->key)());
-        RBBINode::printTree(s->val, TRUE);
-        RBBINode::printTree(s->val->fLeftChild, FALSE);
+        RBBINode::printTree(s->val, true);
+        RBBINode::printTree(s->val->fLeftChild, false);
         RBBIDebugPrintf("\n");
     }
 }

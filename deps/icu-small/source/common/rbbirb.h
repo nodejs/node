@@ -54,8 +54,8 @@ public:                                       //   of these structs for each ent
     ~RBBISymbolTableEntry();
 
 private:
-    RBBISymbolTableEntry(const RBBISymbolTableEntry &other); // forbid copying of this class
-    RBBISymbolTableEntry &operator=(const RBBISymbolTableEntry &other); // forbid copying of this class
+    RBBISymbolTableEntry(const RBBISymbolTableEntry &other) = delete; // forbid copying of this class
+    RBBISymbolTableEntry &operator=(const RBBISymbolTableEntry &other) = delete; // forbid copying of this class
 };
 
 
@@ -73,10 +73,10 @@ private:
 
 public:
     //  API inherited from class SymbolTable
-    virtual const UnicodeString*  lookup(const UnicodeString& s) const;
-    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const;
+    virtual const UnicodeString*  lookup(const UnicodeString& s) const override;
+    virtual const UnicodeFunctor* lookupMatcher(UChar32 ch) const override;
     virtual UnicodeString parseReference(const UnicodeString& text,
-                                         ParsePosition& pos, int32_t limit) const;
+                                         ParsePosition& pos, int32_t limit) const override;
 
     //  Additional Functions
     RBBISymbolTable(RBBIRuleScanner *, const UnicodeString &fRules, UErrorCode &status);
@@ -91,7 +91,7 @@ public:
     // A do-nothing inline function for non-debug builds.  Member funcs can't be empty
     //  or the call sites won't compile.
     int32_t fFakeField;
-    #define rbbiSymtablePrint() fFakeField=0;
+    #define rbbiSymtablePrint() fFakeField=0; 
 #endif
 
 private:
@@ -159,9 +159,6 @@ public:
     UBool                         fChainRules;       // True for chained Unicode TR style rules.
                                                      // False for traditional regexp rules.
 
-    UBool                         fLBCMNoChain;      // True:  suppress chaining of rules on
-                                                     //   chars with LineBreak property == CM.
-
     UBool                         fLookAheadHardBreak;  // True:  Look ahead matches cause an
                                                      // immediate break, no continuing for the
                                                      // longest match.
@@ -177,8 +174,8 @@ public:
     RBBIDataHeader                *flattenData();    // Create the flattened (runtime format)
                                                      // data tables..
 private:
-    RBBIRuleBuilder(const RBBIRuleBuilder &other); // forbid copying of this class
-    RBBIRuleBuilder &operator=(const RBBIRuleBuilder &other); // forbid copying of this class
+    RBBIRuleBuilder(const RBBIRuleBuilder &other) = delete; // forbid copying of this class
+    RBBIRuleBuilder &operator=(const RBBIRuleBuilder &other) = delete; // forbid copying of this class
 };
 
 
@@ -223,7 +220,7 @@ typedef std::pair<int32_t, int32_t> IntPair;
 #define RBBIDebugPrintf printf
 #define RBBIDebugPuts puts
 #else
-#undef RBBIDebugPrintf
+#undef RBBIDebugPrintf 
 #define RBBIDebugPuts(arg)
 #endif
 
@@ -232,3 +229,6 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_BREAK_ITERATION */
 
 #endif
+
+
+

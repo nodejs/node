@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -70,9 +70,10 @@
 #	Cortex-Mx, x>=3. Otherwise, non-NEON results for NEON-capable
 #	processors are presented mostly for reference purposes.
 
-$flavour = shift;
-if ($flavour=~/\w[\w\-]*\.\w+$/) { $output=$flavour; undef $flavour; }
-else { while (($output=shift) && ($output!~/\w[\w\-]*\.\w+$/)) {} }
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 if ($flavour && $flavour ne "void") {
     $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
@@ -80,9 +81,10 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open STDOUT,"| \"$^X\" $xlate $flavour $output";
+    open STDOUT,"| \"$^X\" $xlate $flavour \"$output\""
+        or die "can't call $xlate: $!";
 } else {
-    open STDOUT,">$output";
+    $output and open STDOUT,">$output";
 }
 
 my @C = map("r$_",(0..9));
@@ -113,14 +115,14 @@ my @T = map([ 8*$_, 8*($_+1), 8*($_+2), 8*($_+3), 8*($_+4) ], (30,35,40,45,50));
 $code.=<<___;
 #include "arm_arch.h"
 
-.text
-
 #if defined(__thumb2__)
 .syntax	unified
 .thumb
 #else
 .code	32
 #endif
+
+.text
 
 .type	iotas32, %object
 .align	5
@@ -691,7 +693,14 @@ ___
 $code.=<<___;
 	blo	.Lround2x
 
+#if __ARM_ARCH__>=5
 	ldr	pc,[sp,#440]
+#else
+	ldr	lr,[sp,#440]
+	tst	lr,#1
+	moveq	pc,lr		@ be binary compatible with V4, yet
+	bx	lr		@ interoperable with Thumb ISA:-)
+#endif
 .size	KeccakF1600_int,.-KeccakF1600_int
 
 .type	KeccakF1600, %function
@@ -730,7 +739,14 @@ KeccakF1600:
 	stmia	@E[1], {@C[0]-@C[9]}
 
 	add	sp,sp,#440+20
+#if __ARM_ARCH__>=5
 	ldmia	sp!,{r4-r11,pc}
+#else
+	ldmia	sp!,{r4-r11,lr}
+	tst	lr,#1
+	moveq	pc,lr		@ be binary compatible with V4, yet
+	bx	lr		@ interoperable with Thumb ISA:-)
+#endif
 .size	KeccakF1600,.-KeccakF1600
 ___
 { my ($A_flat,$inp,$len,$bsz) = map("r$_",(10..12,14));
@@ -905,11 +921,26 @@ SHA3_absorb:
 .Labsorb_abort:
 	add	sp,sp,#456+32
 	mov	r0,$len			@ return value
+#if __ARM_ARCH__>=5
 	ldmia	sp!,{r4-r12,pc}
+#else
+	ldmia	sp!,{r4-r12,lr}
+	tst	lr,#1
+	moveq	pc,lr		@ be binary compatible with V4, yet
+	bx	lr		@ interoperable with Thumb ISA:-)
+#endif
 .size	SHA3_absorb,.-SHA3_absorb
 ___
 }
-{ my ($out,$len,$A_flat,$bsz) = map("r$_", (4,5,10,12));
+
+{ my ($out,$len,$A_flat,$bsz,$next) = map("r$_", (4,5,10,12,0));
+
+
+# void SHA3_squeeze(uint64_t A[5][5],
+#                   unsigned char *out, size_t len, size_t r, int next)
+#
+# The first 4 parameters are passed in via r0..r3,
+# next is passed on the stack [sp, #0]
 
 $code.=<<___;
 .global	SHA3_squeeze
@@ -922,6 +953,7 @@ SHA3_squeeze:
 	mov	$out,r1
 	mov	$len,r2
 	mov	$bsz,r3
+	ldr	$next, [sp, #40]  @ next is after the 10 pushed registers (10*4)
 
 #ifdef	__thumb2__
 	mov	r9,#0x00ff00ff
@@ -943,6 +975,8 @@ SHA3_squeeze:
 	stmdb	sp!,{r6-r9}
 
 	mov	r14,$A_flat
+	cmp	$next, #1
+	beq	.Lnext_block
 	b	.Loop_squeeze
 
 .align	4
@@ -1014,7 +1048,7 @@ SHA3_squeeze:
 
 	subs	$bsz,$bsz,#8		@ bsz -= 8
 	bhi	.Loop_squeeze
-
+.Lnext_block:
 	mov	r0,r14			@ original $A_flat
 
 	bl	KeccakF1600
@@ -1055,7 +1089,14 @@ SHA3_squeeze:
 .align	4
 .Lsqueeze_done:
 	add	sp,sp,#24
+#if __ARM_ARCH__>=5
 	ldmia	sp!,{r4-r10,pc}
+#else
+	ldmia	sp!,{r4-r10,lr}
+	tst	lr,#1
+	moveq	pc,lr		@ be binary compatible with V4, yet
+	bx	lr		@ interoperable with Thumb ISA:-)
+#endif
 .size	SHA3_squeeze,.-SHA3_squeeze
 ___
 }
@@ -1265,7 +1306,7 @@ KeccakF1600_neon:
 	subs	r3, r3, #1
 	bne	.Loop_neon
 
-	bx	lr
+	ret
 .size	KeccakF1600_neon,.-KeccakF1600_neon
 
 .global	SHA3_absorb_neon

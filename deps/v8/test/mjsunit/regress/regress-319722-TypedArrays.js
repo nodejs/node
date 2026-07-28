@@ -25,26 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nostress-opt --allow-natives-syntax --mock-arraybuffer-allocator
+// Flags: --allow-natives-syntax --mock-arraybuffer-allocator --external-memory-max-reasonable-size=0
 
 let kArrayBufferByteLengthLimit = %ArrayBufferMaxByteLength() + 1;
-let kTypedArrayLengthLimit = %TypedArrayMaxLength() + 1;
 
 function TestArray(constr, elementSize) {
-  assertEquals(kArrayBufferByteLengthLimit % elementSize, 0);
-  let bufferSizeLength = kArrayBufferByteLengthLimit / elementSize;
+  assertEquals(elementSize, constr.BYTES_PER_ELEMENT);
+  let ta_limit = Math.ceil(kArrayBufferByteLengthLimit / elementSize);
 
-  let minUnallocatableSize =
-      kTypedArrayLengthLimit < bufferSizeLength
-        ? kTypedArrayLengthLimit
-        : bufferSizeLength;
-
-  assertThrows(function() {
-    new constr(minUnallocatableSize);
-  }, RangeError);
+  assertThrows(() => new constr(ta_limit), RangeError);
 
   // This one must succeed.
-  new constr(minUnallocatableSize - 1);
+  new constr(ta_limit - 1);
 }
 
 TestArray(Uint8Array, 1);

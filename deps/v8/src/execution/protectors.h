@@ -18,13 +18,19 @@ class Protectors : public AllStatic {
 #define DECLARED_PROTECTORS_ON_ISOLATE(V)                                     \
   V(ArrayBufferDetaching, ArrayBufferDetachingProtector,                      \
     array_buffer_detaching_protector)                                         \
-  V(ArrayConstructor, ArrayConstructorProtector, array_constructor_protector) \
   V(ArrayIteratorLookupChain, ArrayIteratorProtector,                         \
     array_iterator_protector)                                                 \
   V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
   V(IsConcatSpreadableLookupChain, IsConcatSpreadableProtector,               \
     is_concat_spreadable_protector)                                           \
+  V(NoDateTimeConfigurationChange, NoDateTimeConfigurationChangeProtector,    \
+    no_date_time_configuration_change_protector)                              \
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
+                                                                              \
+  V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \
+  V(NoProfiling, NoProfilingProtector, no_profiling_protector)                \
+  V(NoUndetectableObjects, NoUndetectableObjectsProtector,                    \
+    no_undetectable_objects_protector)                                        \
                                                                               \
   /* The MapIterator protector protects the original iteration behaviors   */ \
   /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \
@@ -38,6 +44,17 @@ class Protectors : public AllStatic {
   /*   property holder is the %IteratorPrototype%. Note that this also     */ \
   /*   invalidates the SetIterator protector (see below).                  */ \
   V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
+  /* String.prototype.{matchAll|replace|split} looks up                    */ \
+  /* Symbol.{matchAll|replace|split} (aka @@matchAll, @@replace @split) on */ \
+  /* the search term to check if it is regexp-like.                        */ \
+  /* This protector ensures the prototype chain of String.prototype and    */ \
+  /* Number.prototype does not contain Symbol.{matchAll|replace|split}.    */ \
+  /* It enables a fast-path for String.prototype.{matchAll|replace|split}  */ \
+  /* by ensuring that                                                      */ \
+  /* the implicit wrapper object for strings and numbers do not contain    */ \
+  /* the property Symbol.{matchAll|replace|split}.                         */ \
+  V(NumberStringNotRegexpLike, NumberStringNotRegexpLikeProtector,            \
+    number_string_not_regexp_like_protector)                                  \
   V(RegExpSpeciesLookupChain, RegExpSpeciesProtector,                         \
     regexp_species_protector)                                                 \
   V(PromiseHook, PromiseHookProtector, promise_hook_protector)                \
@@ -78,6 +95,10 @@ class Protectors : public AllStatic {
     string_iterator_protector)                                                \
   V(StringLengthOverflowLookupChain, StringLengthProtector,                   \
     string_length_protector)                                                  \
+  /* This protects the ToPrimitive conversion of string wrappers (with the */ \
+  /* default type hint NUMBER). */                                            \
+  V(StringWrapperToPrimitive, StringWrapperToPrimitiveProtector,              \
+    string_wrapper_to_primitive_protector)                                    \
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 

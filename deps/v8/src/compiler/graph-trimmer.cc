@@ -4,17 +4,16 @@
 
 #include "src/compiler/graph-trimmer.h"
 
-#include "src/compiler/graph.h"
+#include "src/compiler/turbofan-graph.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-GraphTrimmer::GraphTrimmer(Zone* zone, Graph* graph)
+GraphTrimmer::GraphTrimmer(Zone* zone, TFGraph* graph)
     : graph_(graph), is_live_(graph, 2), live_(zone) {
   live_.reserve(graph->NodeCount());
 }
-
 
 GraphTrimmer::~GraphTrimmer() = default;
 
@@ -33,7 +32,7 @@ void GraphTrimmer::TrimGraph() {
     for (Edge edge : live->use_edges()) {
       Node* const user = edge.from();
       if (!IsLive(user)) {
-        if (FLAG_trace_turbo_trimming) {
+        if (v8_flags.trace_turbo_trimming) {
           StdoutStream{} << "DeadLink: " << *user << "(" << edge.index()
                          << ") -> " << *live << std::endl;
         }

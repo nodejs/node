@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noopt
+// Flags: --noturbofan
 Debug = debug.Debug
 
 var exception = null;
@@ -38,7 +38,7 @@ function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
       if (state < 4) {
-        exec_state.prepareStep(Debug.StepAction.StepIn);
+        exec_state.prepareStep(Debug.StepAction.StepInto);
         state++;
       } else {
         assertTrue(event_data.sourceLineText().indexOf("Expected to step") > 0,

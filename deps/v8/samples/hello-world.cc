@@ -7,7 +7,12 @@
 #include <string.h>
 
 #include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "include/v8-context.h"
+#include "include/v8-initialization.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-primitive.h"
+#include "include/v8-script.h"
 
 int main(int argc, char* argv[]) {
   // Initialize V8.
@@ -93,7 +98,7 @@ int main(int argc, char* argv[]) {
   // Dispose the isolate and tear down V8.
   isolate->Dispose();
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
+  v8::V8::DisposePlatform();
   delete create_params.array_buffer_allocator;
   return 0;
 }

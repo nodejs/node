@@ -11,38 +11,23 @@
 #include "uv_mapping.h"
 
 
-#define UVWASI__WIN_TIME_AND_RETURN(handle, time)                             \
+#define UVWASI__WIN_TIME_AND_RETURN(handle, get_times, time)                  \
   do {                                                                        \
     FILETIME create;                                                          \
     FILETIME exit;                                                            \
     FILETIME system;                                                          \
     FILETIME user;                                                            \
-    SYSTEMTIME sys_system;                                                    \
-    SYSTEMTIME sys_user;                                                      \
-    if (0 == GetProcessTimes((handle), &create, &exit, &system, &user)) {     \
+    if (0 == get_times((handle), &create, &exit, &system, &user)) {           \
       return uvwasi__translate_uv_error(                                      \
         uv_translate_sys_error(GetLastError())                                \
       );                                                                      \
     }                                                                         \
                                                                               \
-    if (0 == FileTimeToSystemTime(&system, &sys_system)) {                    \
-      return uvwasi__translate_uv_error(                                      \
-        uv_translate_sys_error(GetLastError())                                \
-      );                                                                      \
-    }                                                                         \
-                                                                              \
-    if (0 == FileTimeToSystemTime(&user, &sys_user)) {                        \
-      return uvwasi__translate_uv_error(                                      \
-        uv_translate_sys_error(GetLastError())                                \
-      );                                                                      \
-    }                                                                         \
-                                                                              \
-    (time) = (((sys_system.wHour * 3600) + (sys_system.wMinute * 60) +        \
-              sys_system.wSecond) * NANOS_PER_SEC) +                          \
-             (sys_system.wMilliseconds * 1000000) +                           \
-             (((sys_user.wHour * 3600) + (sys_user.wMinute * 60) +            \
-              sys_user.wSecond) * NANOS_PER_SEC) +                            \
-             (sys_user.wMilliseconds * 1000000);                              \
+    /* FILETIME times are in units of 100 nanoseconds */                      \
+    (time) = (((uvwasi_timestamp_t)                                           \
+               system.dwHighDateTime << 32 | system.dwLowDateTime) * 100 +    \
+              ((uvwasi_timestamp_t)                                           \
+               user.dwHighDateTime << 32 | user.dwLowDateTime) * 100);        \
     return UVWASI_ESUCCESS;                                                   \
   } while (0)
 
@@ -52,7 +37,7 @@
     struct timespec ts;                                                       \
     if (0 != clock_gettime((clk), &ts))                                       \
       return uvwasi__translate_uv_error(uv_translate_sys_error(errno));       \
-    (time) = (ts.tv_sec * NANOS_PER_SEC) + ts.tv_nsec;                        \
+    (time) = ((uvwasi_timestamp_t)(ts.tv_sec) * NANOS_PER_SEC) + ts.tv_nsec;  \
     return UVWASI_ESUCCESS;                                                   \
   } while (0)
 
@@ -62,9 +47,9 @@
     struct rusage ru;                                                         \
     if (0 != getrusage((who), &ru))                                           \
       return uvwasi__translate_uv_error(uv_translate_sys_error(errno));       \
-    (time) = (ru.ru_utime.tv_sec * NANOS_PER_SEC) +                           \
+    (time) = ((uvwasi_timestamp_t)(ru.ru_utime.tv_sec) * NANOS_PER_SEC) +     \
              (ru.ru_utime.tv_usec * 1000) +                                   \
-             (ru.ru_stime.tv_sec * NANOS_PER_SEC) +                           \
+             ((uvwasi_timestamp_t)(ru.ru_stime.tv_sec) * NANOS_PER_SEC) +     \
              (ru.ru_stime.tv_usec * 1000);                                    \
     return UVWASI_ESUCCESS;                                                   \
   } while (0)
@@ -83,9 +68,9 @@
                                     &count)) {                                \
       return UVWASI_ENOSYS;                                                   \
     }                                                                         \
-    (time) = (info.user_time.seconds * NANOS_PER_SEC) +                       \
+    (time) = ((uvwasi_timestamp_t)(info.user_time.seconds) * NANOS_PER_SEC) + \
              (info.user_time.microseconds * 1000) +                           \
-             (info.system_time.seconds * NANOS_PER_SEC) +                     \
+             ((uvwasi_timestamp_t)(info.system_time.seconds) * NANOS_PER_SEC) + \
              (info.system_time.microseconds * 1000);                          \
     return UVWASI_ESUCCESS;                                                   \
   } while (0)
@@ -109,7 +94,7 @@
     if (0 != clock_getres((clk), &ts))                                        \
       (time) = 1000000;                                                       \
     else                                                                      \
-      (time) = (ts.tv_sec * NANOS_PER_SEC) + ts.tv_nsec;                      \
+      (time) = ((uvwasi_timestamp_t)(ts.tv_sec) * NANOS_PER_SEC) + ts.tv_nsec; \
     return UVWASI_ESUCCESS;                                                   \
   } while (0)
 
@@ -137,7 +122,7 @@ uvwasi_errno_t uvwasi__clock_gettime_realtime(uvwasi_timestamp_t* time) {
 
 uvwasi_errno_t uvwasi__clock_gettime_process_cputime(uvwasi_timestamp_t* time) {
 #if defined(_WIN32)
-  UVWASI__WIN_TIME_AND_RETURN(GetCurrentProcess(), *time);
+  UVWASI__WIN_TIME_AND_RETURN(GetCurrentProcess(), GetProcessTimes, *time);
 #elif defined(CLOCK_PROCESS_CPUTIME_ID) && \
       !defined(__APPLE__)               && \
       !defined(__sun)
@@ -150,7 +135,7 @@ uvwasi_errno_t uvwasi__clock_gettime_process_cputime(uvwasi_timestamp_t* time) {
 
 uvwasi_errno_t uvwasi__clock_gettime_thread_cputime(uvwasi_timestamp_t* time) {
 #if defined(_WIN32)
-  UVWASI__WIN_TIME_AND_RETURN(GetCurrentThread(), *time);
+  UVWASI__WIN_TIME_AND_RETURN(GetCurrentThread(), GetThreadTimes, *time);
 #elif defined(__APPLE__)
   UVWASI__OSX_THREADTIME_AND_RETURN(*time);
 #elif defined(CLOCK_THREAD_CPUTIME_ID) && !defined(__sun) && !defined(__PASE__)

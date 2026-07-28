@@ -32,56 +32,56 @@ U_NAMESPACE_BEGIN
 
 // Unicode character/code point constants ---------------------------------- ***
 
-static const UChar u_pound=0x23;
-static const UChar u_apos=0x27;
-static const UChar u_plus=0x2B;
-static const UChar u_comma=0x2C;
-static const UChar u_minus=0x2D;
-static const UChar u_dot=0x2E;
-static const UChar u_colon=0x3A;
-static const UChar u_lessThan=0x3C;
-static const UChar u_equal=0x3D;
-static const UChar u_A=0x41;
-static const UChar u_C=0x43;
-static const UChar u_D=0x44;
-static const UChar u_E=0x45;
-static const UChar u_H=0x48;
-static const UChar u_I=0x49;
-static const UChar u_L=0x4C;
-static const UChar u_N=0x4E;
-static const UChar u_O=0x4F;
-static const UChar u_P=0x50;
-static const UChar u_R=0x52;
-static const UChar u_S=0x53;
-static const UChar u_T=0x54;
-static const UChar u_U=0x55;
-static const UChar u_Z=0x5A;
-static const UChar u_a=0x61;
-static const UChar u_c=0x63;
-static const UChar u_d=0x64;
-static const UChar u_e=0x65;
-static const UChar u_f=0x66;
-static const UChar u_h=0x68;
-static const UChar u_i=0x69;
-static const UChar u_l=0x6C;
-static const UChar u_n=0x6E;
-static const UChar u_o=0x6F;
-static const UChar u_p=0x70;
-static const UChar u_r=0x72;
-static const UChar u_s=0x73;
-static const UChar u_t=0x74;
-static const UChar u_u=0x75;
-static const UChar u_z=0x7A;
-static const UChar u_leftCurlyBrace=0x7B;
-static const UChar u_pipe=0x7C;
-static const UChar u_rightCurlyBrace=0x7D;
-static const UChar u_lessOrEqual=0x2264;  // U+2264 is <=
+static const char16_t u_pound=0x23;
+static const char16_t u_apos=0x27;
+static const char16_t u_plus=0x2B;
+static const char16_t u_comma=0x2C;
+static const char16_t u_minus=0x2D;
+static const char16_t u_dot=0x2E;
+static const char16_t u_colon=0x3A;
+static const char16_t u_lessThan=0x3C;
+static const char16_t u_equal=0x3D;
+static const char16_t u_A=0x41;
+static const char16_t u_C=0x43;
+static const char16_t u_D=0x44;
+static const char16_t u_E=0x45;
+static const char16_t u_H=0x48;
+static const char16_t u_I=0x49;
+static const char16_t u_L=0x4C;
+static const char16_t u_N=0x4E;
+static const char16_t u_O=0x4F;
+static const char16_t u_P=0x50;
+static const char16_t u_R=0x52;
+static const char16_t u_S=0x53;
+static const char16_t u_T=0x54;
+static const char16_t u_U=0x55;
+static const char16_t u_Z=0x5A;
+static const char16_t u_a=0x61;
+static const char16_t u_c=0x63;
+static const char16_t u_d=0x64;
+static const char16_t u_e=0x65;
+static const char16_t u_f=0x66;
+static const char16_t u_h=0x68;
+static const char16_t u_i=0x69;
+static const char16_t u_l=0x6C;
+static const char16_t u_n=0x6E;
+static const char16_t u_o=0x6F;
+static const char16_t u_p=0x70;
+static const char16_t u_r=0x72;
+static const char16_t u_s=0x73;
+static const char16_t u_t=0x74;
+static const char16_t u_u=0x75;
+static const char16_t u_z=0x7A;
+static const char16_t u_leftCurlyBrace=0x7B;
+static const char16_t u_pipe=0x7C;
+static const char16_t u_rightCurlyBrace=0x7D;
+static const char16_t u_lessOrEqual=0x2264;  // U+2264 is <=
 
-static const UChar kOffsetColon[]={  // "offset:"
+static const char16_t kOffsetColon[]={  // "offset:"
     u_o, u_f, u_f, u_s, u_e, u_t, u_colon
 };
 
-static const UChar kOther[]={  // "other"
+static const char16_t kOther[]={  // "other"
     u_o, u_t, u_h, u_e, u_r
 };
 
@@ -97,9 +97,9 @@ public:
     UBool ensureCapacityForOneMore(int32_t oldLength, UErrorCode &errorCode);
     UBool equals(const MessagePatternList<T, stackCapacity> &other, int32_t length) const {
         for(int32_t i=0; i<length; ++i) {
-            if(a[i]!=other.a[i]) { return FALSE; }
+            if(a[i]!=other.a[i]) { return false; }
         }
-        return TRUE;
+        return true;
     }
 
     MaybeStackArray<T, stackCapacity> a;
@@ -112,7 +112,7 @@ MessagePatternList<T, stackCapacity>::copyFrom(
         int32_t length,
         UErrorCode &errorCode) {
     if(U_SUCCESS(errorCode) && length>0) {
-        if(length>a.getCapacity() && NULL==a.resize(length)) {
+        if(length>a.getCapacity() && nullptr==a.resize(length)) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -124,13 +124,13 @@ template<typename T, int32_t stackCapacity>
 UBool
 MessagePatternList<T, stackCapacity>::ensureCapacityForOneMore(int32_t oldLength, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
-    if(a.getCapacity()>oldLength || a.resize(2*oldLength, oldLength)!=NULL) {
-        return TRUE;
+    if(a.getCapacity()>oldLength || a.resize(2*oldLength, oldLength)!=nullptr) {
+        return true;
     }
     errorCode=U_MEMORY_ALLOCATION_ERROR;
-    return FALSE;
+    return false;
 }
 
 // MessagePatternList specializations -------------------------------------- ***
@@ -145,25 +145,25 @@ class MessagePatternPartsList : public MessagePatternList<MessagePattern::Part, 
 
 MessagePattern::MessagePattern(UErrorCode &errorCode)
         : aposMode(UCONFIG_MSGPAT_DEFAULT_APOSTROPHE_MODE),
-          partsList(NULL), parts(NULL), partsLength(0),
-          numericValuesList(NULL), numericValues(NULL), numericValuesLength(0),
-          hasArgNames(FALSE), hasArgNumbers(FALSE), needsAutoQuoting(FALSE) {
+          partsList(nullptr), parts(nullptr), partsLength(0),
+          numericValuesList(nullptr), numericValues(nullptr), numericValuesLength(0),
+          hasArgNames(false), hasArgNumbers(false), needsAutoQuoting(false) {
     init(errorCode);
 }
 
 MessagePattern::MessagePattern(UMessagePatternApostropheMode mode, UErrorCode &errorCode)
         : aposMode(mode),
-          partsList(NULL), parts(NULL), partsLength(0),
-          numericValuesList(NULL), numericValues(NULL), numericValuesLength(0),
-          hasArgNames(FALSE), hasArgNumbers(FALSE), needsAutoQuoting(FALSE) {
+          partsList(nullptr), parts(nullptr), partsLength(0),
+          numericValuesList(nullptr), numericValues(nullptr), numericValuesLength(0),
+          hasArgNames(false), hasArgNumbers(false), needsAutoQuoting(false) {
     init(errorCode);
 }
 
 MessagePattern::MessagePattern(const UnicodeString &pattern, UParseError *parseError, UErrorCode &errorCode)
         : aposMode(UCONFIG_MSGPAT_DEFAULT_APOSTROPHE_MODE),
-          partsList(NULL), parts(NULL), partsLength(0),
-          numericValuesList(NULL), numericValues(NULL), numericValuesLength(0),
-          hasArgNames(FALSE), hasArgNumbers(FALSE), needsAutoQuoting(FALSE) {
+          partsList(nullptr), parts(nullptr), partsLength(0),
+          numericValuesList(nullptr), numericValues(nullptr), numericValuesLength(0),
+          hasArgNames(false), hasArgNumbers(false), needsAutoQuoting(false) {
     if(init(errorCode)) {
         parse(pattern, parseError, errorCode);
     }
@@ -172,21 +172,21 @@ MessagePattern::MessagePattern(const UnicodeString &pattern, UParseError *parseE
 UBool
 MessagePattern::init(UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     partsList=new MessagePatternPartsList();
-    if(partsList==NULL) {
+    if(partsList==nullptr) {
         errorCode=U_MEMORY_ALLOCATION_ERROR;
-        return FALSE;
+        return false;
     }
     parts=partsList->a.getAlias();
-    return TRUE;
+    return true;
 }
 
 MessagePattern::MessagePattern(const MessagePattern &other)
         : UObject(other), aposMode(other.aposMode), msg(other.msg),
-          partsList(NULL), parts(NULL), partsLength(0),
-          numericValuesList(NULL), numericValues(NULL), numericValuesLength(0),
+          partsList(nullptr), parts(nullptr), partsLength(0),
+          numericValuesList(nullptr), numericValues(nullptr), numericValuesLength(0),
           hasArgNames(other.hasArgNames), hasArgNumbers(other.hasArgNumbers),
           needsAutoQuoting(other.needsAutoQuoting) {
     UErrorCode errorCode=U_ZERO_ERROR;
@@ -215,46 +215,46 @@ MessagePattern::operator=(const MessagePattern &other) {
 UBool
 MessagePattern::copyStorage(const MessagePattern &other, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
-    parts=NULL;
+    parts=nullptr;
     partsLength=0;
-    numericValues=NULL;
+    numericValues=nullptr;
     numericValuesLength=0;
-    if(partsList==NULL) {
+    if(partsList==nullptr) {
         partsList=new MessagePatternPartsList();
-        if(partsList==NULL) {
+        if(partsList==nullptr) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
-            return FALSE;
+            return false;
         }
         parts=partsList->a.getAlias();
     }
     if(other.partsLength>0) {
         partsList->copyFrom(*other.partsList, other.partsLength, errorCode);
         if(U_FAILURE(errorCode)) {
-            return FALSE;
+            return false;
         }
         parts=partsList->a.getAlias();
         partsLength=other.partsLength;
     }
     if(other.numericValuesLength>0) {
-        if(numericValuesList==NULL) {
+        if(numericValuesList==nullptr) {
             numericValuesList=new MessagePatternDoubleList();
-            if(numericValuesList==NULL) {
+            if(numericValuesList==nullptr) {
                 errorCode=U_MEMORY_ALLOCATION_ERROR;
-                return FALSE;
+                return false;
             }
             numericValues=numericValuesList->a.getAlias();
         }
         numericValuesList->copyFrom(
             *other.numericValuesList, other.numericValuesLength, errorCode);
         if(U_FAILURE(errorCode)) {
-            return FALSE;
+            return false;
         }
         numericValues=numericValuesList->a.getAlias();
         numericValuesLength=other.numericValuesLength;
     }
-    return TRUE;
+    return true;
 }
 
 MessagePattern::~MessagePattern() {
@@ -303,16 +303,16 @@ void
 MessagePattern::clear() {
     // Mostly the same as preParse().
     msg.remove();
-    hasArgNames=hasArgNumbers=FALSE;
-    needsAutoQuoting=FALSE;
+    hasArgNames=hasArgNumbers=false;
+    needsAutoQuoting=false;
     partsLength=0;
     numericValuesLength=0;
 }
 
-UBool
+bool
 MessagePattern::operator==(const MessagePattern &other) const {
     if(this==&other) {
-        return TRUE;
+        return true;
     }
     return
         aposMode==other.aposMode &&
@@ -351,7 +351,7 @@ MessagePattern::autoQuoteApostropheDeep() const {
     for(int32_t i=count; i>0;) {
         const Part &part=getPart(--i);
         if(part.getType()==UMSGPAT_PART_TYPE_INSERT_CHAR) {
-           modified.insert(part.index, (UChar)part.value);
+           modified.insert(part.index, static_cast<char16_t>(part.value));
         }
     }
     return modified;
@@ -387,10 +387,10 @@ MessagePattern::getPluralOffset(int32_t pluralStart) const {
 
 // MessagePattern::Part ---------------------------------------------------- ***
 
-UBool
+bool
 MessagePattern::Part::operator==(const Part &other) const {
     if(this==&other) {
-        return TRUE;
+        return true;
     }
     return
         type==other.type &&
@@ -407,25 +407,25 @@ MessagePattern::preParse(const UnicodeString &pattern, UParseError *parseError, 
     if(U_FAILURE(errorCode)) {
         return;
     }
-    if(parseError!=NULL) {
+    if(parseError!=nullptr) {
         parseError->line=0;
         parseError->offset=0;
         parseError->preContext[0]=0;
         parseError->postContext[0]=0;
     }
     msg=pattern;
-    hasArgNames=hasArgNumbers=FALSE;
-    needsAutoQuoting=FALSE;
+    hasArgNames=hasArgNumbers=false;
+    needsAutoQuoting=false;
     partsLength=0;
     numericValuesLength=0;
 }
 
 void
 MessagePattern::postParse() {
-    if(partsList!=NULL) {
+    if(partsList!=nullptr) {
         parts=partsList->a.getAlias();
     }
-    if(numericValuesList!=NULL) {
+    if(numericValuesList!=nullptr) {
         numericValues=numericValuesList->a.getAlias();
     }
 }
@@ -437,7 +437,7 @@ MessagePattern::parseMessage(int32_t index, int32_t msgStartLength,
     if(U_FAILURE(errorCode)) {
         return 0;
     }
-    if(nestingLevel>Part::MAX_VALUE) {
+    if(nestingLevel>Part::MAX_NESTED_LEVELS) {
         errorCode=U_INDEX_OUTOFBOUNDS_ERROR;
         return 0;
     }
@@ -451,14 +451,14 @@ MessagePattern::parseMessage(int32_t index, int32_t msgStartLength,
         if(index>=msg.length()) {
             break;
         }
-        UChar c=msg.charAt(index++);
+        char16_t c=msg.charAt(index++);
         if(c==u_apos) {
             if(index==msg.length()) {
-                // The apostrophe is the last character in the pattern.
+                // The apostrophe is the last character in the pattern. 
                 // Add a Part for auto-quoting.
                 addPart(UMSGPAT_PART_TYPE_INSERT_CHAR, index, 0,
                         u_apos, errorCode);  // value=char to be inserted
-                needsAutoQuoting=TRUE;
+                needsAutoQuoting=true;
             } else {
                 c=msg.charAt(index);
                 if(c==u_apos) {
@@ -491,7 +491,7 @@ MessagePattern::parseMessage(int32_t index, int32_t msgStartLength,
                             // Add a Part for auto-quoting.
                             addPart(UMSGPAT_PART_TYPE_INSERT_CHAR, index, 0,
                                     u_apos, errorCode);  // value=char to be inserted
-                            needsAutoQuoting=TRUE;
+                            needsAutoQuoting=true;
                             break;
                         }
                     }
@@ -500,7 +500,7 @@ MessagePattern::parseMessage(int32_t index, int32_t msgStartLength,
                     // Add a Part for auto-quoting.
                     addPart(UMSGPAT_PART_TYPE_INSERT_CHAR, index, 0,
                             u_apos, errorCode);  // value=char to be inserted
-                    needsAutoQuoting=TRUE;
+                    needsAutoQuoting=true;
                 }
             }
         } else if(UMSGPAT_ARG_TYPE_HAS_PLURAL_STYLE(parentType) && c==u_pound) {
@@ -560,7 +560,7 @@ MessagePattern::parseArg(int32_t index, int32_t argStartLength, int32_t nestingL
             errorCode=U_INDEX_OUTOFBOUNDS_ERROR;
             return 0;
         }
-        hasArgNumbers=TRUE;
+        hasArgNumbers=true;
         addPart(UMSGPAT_PART_TYPE_ARG_NUMBER, nameIndex, length, number, errorCode);
     } else if(number==UMSGPAT_ARG_NAME_NOT_NUMBER) {
         int32_t length=index-nameIndex;
@@ -569,7 +569,7 @@ MessagePattern::parseArg(int32_t index, int32_t argStartLength, int32_t nestingL
             errorCode=U_INDEX_OUTOFBOUNDS_ERROR;
             return 0;
         }
-        hasArgNames=TRUE;
+        hasArgNames=true;
         addPart(UMSGPAT_PART_TYPE_ARG_NAME, nameIndex, length, 0, errorCode);
     } else {  // number<-1 (ARG_NAME_NOT_VALID)
         setParseError(parseError, nameIndex);  // Bad argument syntax.
@@ -582,7 +582,7 @@ MessagePattern::parseArg(int32_t index, int32_t argStartLength, int32_t nestingL
         errorCode=U_UNMATCHED_BRACES;
         return 0;
     }
-    UChar c=msg.charAt(index);
+    char16_t c=msg.charAt(index);
     if(c==u_rightCurlyBrace) {
         // all done
     } else if(c!=u_comma) {
@@ -628,7 +628,7 @@ MessagePattern::parseArg(int32_t index, int32_t argStartLength, int32_t nestingL
             }
         }
         // change the ARG_START type from NONE to argType
-        partsList->a[argStart].value=(int16_t)argType;
+        partsList->a[argStart].value = static_cast<int16_t>(argType);
         if(argType==UMSGPAT_ARG_TYPE_SIMPLE) {
             addPart(UMSGPAT_PART_TYPE_ARG_TYPE, typeIndex, length, 0, errorCode);
         }
@@ -663,7 +663,7 @@ MessagePattern::parseSimpleStyle(int32_t index, UParseError *parseError, UErrorC
     int32_t start=index;
     int32_t nestedBraces=0;
     while(index<msg.length()) {
-        UChar c=msg.charAt(index++);
+        char16_t c=msg.charAt(index++);
         if(c==u_apos) {
             // Treat apostrophe as quoting but include it in the style part.
             // Find the end of the quoted literal text.
@@ -727,7 +727,7 @@ MessagePattern::parseChoiceStyle(int32_t index, int32_t nestingLevel,
             errorCode=U_INDEX_OUTOFBOUNDS_ERROR;
             return 0;
         }
-        parseDouble(numberIndex, index, TRUE, parseError, errorCode);  // adds ARG_INT or ARG_DOUBLE
+        parseDouble(numberIndex, index, true, parseError, errorCode);  // adds ARG_INT or ARG_DOUBLE
         if(U_FAILURE(errorCode)) {
             return 0;
         }
@@ -738,7 +738,7 @@ MessagePattern::parseChoiceStyle(int32_t index, int32_t nestingLevel,
             errorCode=U_PATTERN_SYNTAX_ERROR;
             return 0;
         }
-        UChar c=msg.charAt(index);
+        char16_t c=msg.charAt(index);
         if(!(c==u_pound || c==u_lessThan || c==u_lessOrEqual)) {  // U+2264 is <=
             setParseError(parseError, start);  // Expected choice separator (#<\u2264) instead of c.
             errorCode=U_PATTERN_SYNTAX_ERROR;
@@ -774,8 +774,8 @@ MessagePattern::parsePluralOrSelectStyle(UMessagePatternArgType argType,
         return 0;
     }
     int32_t start=index;
-    UBool isEmpty=TRUE;
-    UBool hasOther=FALSE;
+    UBool isEmpty=true;
+    UBool hasOther=false;
     for(;;) {
         // First, collect the selector looking for a small set of terminators.
         // It would be a little faster to consider the syntax of each possible
@@ -811,7 +811,7 @@ MessagePattern::parsePluralOrSelectStyle(UMessagePatternArgType argType,
                 return 0;
             }
             addPart(UMSGPAT_PART_TYPE_ARG_SELECTOR, selectorIndex, length, 0, errorCode);
-            parseDouble(selectorIndex+1, index, FALSE,
+            parseDouble(selectorIndex+1, index, false,
                         parseError, errorCode);  // adds ARG_INT or ARG_DOUBLE
         } else {
             index=skipIdentifier(index);
@@ -845,12 +845,12 @@ MessagePattern::parsePluralOrSelectStyle(UMessagePatternArgType argType,
                     errorCode=U_INDEX_OUTOFBOUNDS_ERROR;
                     return 0;
                 }
-                parseDouble(valueIndex, index, FALSE,
+                parseDouble(valueIndex, index, false,
                             parseError, errorCode);  // adds ARG_INT or ARG_DOUBLE
                 if(U_FAILURE(errorCode)) {
                     return 0;
                 }
-                isEmpty=FALSE;
+                isEmpty=false;
                 continue;  // no message fragment after the offset
             } else {
                 // normal selector word
@@ -861,7 +861,7 @@ MessagePattern::parsePluralOrSelectStyle(UMessagePatternArgType argType,
                 }
                 addPart(UMSGPAT_PART_TYPE_ARG_SELECTOR, selectorIndex, length, 0, errorCode);
                 if(0==msg.compare(selectorIndex, length, kOther, 0, 5)) {
-                    hasOther=TRUE;
+                    hasOther=true;
                 }
             }
         }
@@ -880,7 +880,7 @@ MessagePattern::parsePluralOrSelectStyle(UMessagePatternArgType argType,
         if(U_FAILURE(errorCode)) {
             return 0;
         }
-        isEmpty=FALSE;
+        isEmpty=false;
     }
 }
 
@@ -895,17 +895,17 @@ MessagePattern::parseArgNumber(const UnicodeString &s, int32_t start, int32_t li
     int32_t number;
     // Defer numeric errors until we know there are only digits.
     UBool badNumber;
-    UChar c=s.charAt(start++);
+    char16_t c=s.charAt(start++);
     if(c==0x30) {
         if(start==limit) {
             return 0;
         } else {
             number=0;
-            badNumber=TRUE;  // leading zero
+            badNumber=true;  // leading zero
         }
     } else if(0x31<=c && c<=0x39) {
         number=c-0x30;
-        badNumber=FALSE;
+        badNumber=false;
     } else {
         return UMSGPAT_ARG_NAME_NOT_NUMBER;
     }
@@ -913,9 +913,10 @@ MessagePattern::parseArgNumber(const UnicodeString &s, int32_t start, int32_t li
         c=s.charAt(start++);
         if(0x30<=c && c<=0x39) {
             if(number>=INT32_MAX/10) {
-                badNumber=TRUE;  // overflow
+                badNumber=true;  // overflow
+            } else {
+                number=number*10+(c-0x30);
             }
-            number=number*10+(c-0x30);
         } else {
             return UMSGPAT_ARG_NAME_NOT_NUMBER;
         }
@@ -941,7 +942,7 @@ MessagePattern::parseDouble(int32_t start, int32_t limit, UBool allowInfinity,
         int32_t value=0;
         int32_t isNegative=0;  // not boolean so that we can easily add it to value
         int32_t index=start;
-        UChar c=msg.charAt(index++);
+        char16_t c=msg.charAt(index++);
         if(c==u_minus) {
             isNegative=1;
             if(index==limit) {
@@ -980,13 +981,13 @@ MessagePattern::parseDouble(int32_t start, int32_t limit, UBool allowInfinity,
         }
         // Let Double.parseDouble() throw a NumberFormatException.
         char numberChars[128];
-        int32_t capacity=(int32_t)sizeof(numberChars);
+        int32_t capacity = static_cast<int32_t>(sizeof(numberChars));
         int32_t length=limit-start;
         if(length>=capacity) {
             break;  // number too long
         }
         msg.extract(start, length, numberChars, capacity, US_INV);
-        if((int32_t)uprv_strlen(numberChars)<length) {
+        if (static_cast<int32_t>(uprv_strlen(numberChars)) < length) {
             break;  // contains non-invariant character that was turned into NUL
         }
         char *end;
@@ -999,30 +1000,29 @@ MessagePattern::parseDouble(int32_t start, int32_t limit, UBool allowInfinity,
     }
     setParseError(parseError, start /*, limit*/);  // Bad syntax for numeric value.
     errorCode=U_PATTERN_SYNTAX_ERROR;
-    return;
 }
 
 int32_t
 MessagePattern::skipWhiteSpace(int32_t index) {
-    const UChar *s=msg.getBuffer();
+    const char16_t *s=msg.getBuffer();
     int32_t msgLength=msg.length();
-    const UChar *t=PatternProps::skipWhiteSpace(s+index, msgLength-index);
-    return (int32_t)(t-s);
+    const char16_t *t=PatternProps::skipWhiteSpace(s+index, msgLength-index);
+    return static_cast<int32_t>(t - s);
 }
 
 int32_t
 MessagePattern::skipIdentifier(int32_t index) {
-    const UChar *s=msg.getBuffer();
+    const char16_t *s=msg.getBuffer();
     int32_t msgLength=msg.length();
-    const UChar *t=PatternProps::skipIdentifier(s+index, msgLength-index);
-    return (int32_t)(t-s);
+    const char16_t *t=PatternProps::skipIdentifier(s+index, msgLength-index);
+    return static_cast<int32_t>(t - s);
 }
 
 int32_t
 MessagePattern::skipDouble(int32_t index) {
     int32_t msgLength=msg.length();
     while(index<msgLength) {
-        UChar c=msg.charAt(index);
+        char16_t c=msg.charAt(index);
         // U+221E: Allow the infinity symbol, for ChoiceFormat patterns.
         if((c<0x30 && c!=u_plus && c!=u_minus && c!=u_dot) || (c>0x39 && c!=u_e && c!=u_E && c!=0x221e)) {
             break;
@@ -1039,7 +1039,7 @@ MessagePattern::isArgTypeChar(UChar32 c) {
 
 UBool
 MessagePattern::isChoice(int32_t index) {
-    UChar c;
+    char16_t c;
     return
         ((c=msg.charAt(index++))==u_c || c==u_C) &&
         ((c=msg.charAt(index++))==u_h || c==u_H) &&
@@ -1051,7 +1051,7 @@ MessagePattern::isChoice(int32_t index) {
 
 UBool
 MessagePattern::isPlural(int32_t index) {
-    UChar c;
+    char16_t c;
     return
         ((c=msg.charAt(index++))==u_p || c==u_P) &&
         ((c=msg.charAt(index++))==u_l || c==u_L) &&
@@ -1063,7 +1063,7 @@ MessagePattern::isPlural(int32_t index) {
 
 UBool
 MessagePattern::isSelect(int32_t index) {
-    UChar c;
+    char16_t c;
     return
         ((c=msg.charAt(index++))==u_s || c==u_S) &&
         ((c=msg.charAt(index++))==u_e || c==u_E) &&
@@ -1075,7 +1075,7 @@ MessagePattern::isSelect(int32_t index) {
 
 UBool
 MessagePattern::isOrdinal(int32_t index) {
-    UChar c;
+    char16_t c;
     return
         ((c=msg.charAt(index++))==u_o || c==u_O) &&
         ((c=msg.charAt(index++))==u_r || c==u_R) &&
@@ -1106,8 +1106,8 @@ MessagePattern::addPart(UMessagePatternPartType type, int32_t index, int32_t len
         Part &part=partsList->a[partsLength++];
         part.type=type;
         part.index=index;
-        part.length=(uint16_t)length;
-        part.value=(int16_t)value;
+        part.length = static_cast<uint16_t>(length);
+        part.value = static_cast<int16_t>(value);
         part.limitPartIndex=0;
     }
 }
@@ -1127,9 +1127,9 @@ MessagePattern::addArgDoublePart(double numericValue, int32_t start, int32_t len
         return;
     }
     int32_t numericIndex=numericValuesLength;
-    if(numericValuesList==NULL) {
+    if(numericValuesList==nullptr) {
         numericValuesList=new MessagePatternDoubleList();
-        if(numericValuesList==NULL) {
+        if(numericValuesList==nullptr) {
             errorCode=U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -1147,7 +1147,7 @@ MessagePattern::addArgDoublePart(double numericValue, int32_t start, int32_t len
 
 void
 MessagePattern::setParseError(UParseError *parseError, int32_t index) {
-    if(parseError==NULL) {
+    if(parseError==nullptr) {
         return;
     }
     parseError->offset=index;

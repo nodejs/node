@@ -3,12 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/simplified-operator-reducer.h"
+
 #include "src/codegen/tick-counter.h"
-#include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/types.h"
 #include "src/numbers/conversions-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -35,7 +33,8 @@ class SimplifiedOperatorReducerTest : public GraphTest {
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, simplified(),
                     &machine);
     GraphReducer graph_reducer(zone(), graph(), tick_counter(), broker());
-    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, broker());
+    SimplifiedOperatorReducer reducer(&graph_reducer, &jsgraph, broker(),
+                                      BranchSemantics::kJS);
     return reducer.Reduce(node);
   }
 
@@ -95,8 +94,8 @@ const int32_t kInt32Values[] = {
 
 const double kNaNs[] = {-std::numeric_limits<double>::quiet_NaN(),
                         std::numeric_limits<double>::quiet_NaN(),
-                        bit_cast<double>(uint64_t{0x7FFFFFFFFFFFFFFF}),
-                        bit_cast<double>(uint64_t{0xFFFFFFFFFFFFFFFF})};
+                        base::bit_cast<double>(uint64_t{0x7FFFFFFFFFFFFFFF}),
+                        base::bit_cast<double>(uint64_t{0xFFFFFFFFFFFFFFFF})};
 
 const CheckForMinusZeroMode kCheckForMinusZeroModes[] = {
     CheckForMinusZeroMode::kDontCheckForMinusZero,
@@ -325,16 +324,15 @@ TEST_F(SimplifiedOperatorReducerTest,
   EXPECT_EQ(param0, reduction.replacement());
 }
 
-
 // -----------------------------------------------------------------------------
-// TruncateTaggedToWord32
+// TruncateNumberOrOddballToWord32
 
 TEST_F(SimplifiedOperatorReducerTest,
        TruncateTaggedToWord3WithChangeFloat64ToTagged) {
   Node* param0 = Parameter(0);
   TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
     Reduction reduction = Reduce(graph()->NewNode(
-        simplified()->TruncateTaggedToWord32(),
+        simplified()->TruncateNumberOrOddballToWord32(),
         graph()->NewNode(simplified()->ChangeFloat64ToTagged(mode), param0)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsTruncateFloat64ToWord32(param0));
@@ -344,7 +342,7 @@ TEST_F(SimplifiedOperatorReducerTest,
 TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
   TRACED_FOREACH(double, n, kFloat64Values) {
     Reduction reduction = Reduce(graph()->NewNode(
-        simplified()->TruncateTaggedToWord32(), NumberConstant(n)));
+        simplified()->TruncateNumberOrOddballToWord32(), NumberConstant(n)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsInt32Constant(DoubleToInt32(n)));
   }
@@ -387,7 +385,7 @@ TEST_F(SimplifiedOperatorReducerTest, CheckHeapObjectWithHeapConstant) {
       factory()->empty_string(), factory()->null_value(),
       factory()->species_symbol(), factory()->undefined_value()};
   TRACED_FOREACH(Handle<HeapObject>, object, kHeapObjects) {
-    Node* value = HeapConstant(object);
+    Node* value = HeapConstantNoHole(object);
     Reduction reduction = Reduce(graph()->NewNode(
         simplified()->CheckHeapObject(), value, effect, control));
     ASSERT_TRUE(reduction.Changed());
@@ -483,8 +481,8 @@ TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithHeapConstant) {
       factory()->empty_string(), factory()->null_value(),
       factory()->species_symbol(), factory()->undefined_value()};
   TRACED_FOREACH(Handle<HeapObject>, o, kHeapObjects) {
-    Reduction reduction =
-        Reduce(graph()->NewNode(simplified()->ObjectIsSmi(), HeapConstant(o)));
+    Reduction reduction = Reduce(
+        graph()->NewNode(simplified()->ObjectIsSmi(), HeapConstantNoHole(o)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsFalseConstant());
   }

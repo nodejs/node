@@ -22,8 +22,7 @@
 'use strict';
 
 const common = require('../common');
-const Readable = require('_stream_readable');
-const Writable = require('_stream_writable');
+const { Readable, Writable } = require('stream');
 const assert = require('assert');
 
 function toArray(callback) {
@@ -61,7 +60,7 @@ function fromArray(list) {
 
   assert.deepStrictEqual(v1, { one: '1' });
   assert.deepStrictEqual(v2, { two: '2' });
-  assert.deepStrictEqual(v3, null);
+  assert.strictEqual(v3, null);
 }
 
 {
@@ -71,7 +70,7 @@ function fromArray(list) {
   r.pipe(toArray(common.mustCall(function(list) {
     assert.deepStrictEqual(list, [
       { one: '1' },
-      { two: '2' }
+      { two: '2' },
     ]);
   })));
 }
@@ -96,7 +95,7 @@ function fromArray(list) {
   r.pipe(toArray(common.mustCall(function(list) {
     assert.deepStrictEqual(list, [
       { one: '1' },
-      { two: '2' }
+      { two: '2' },
     ]);
   })));
 }
@@ -115,7 +114,7 @@ function fromArray(list) {
   r.pipe(toArray(common.mustCall(function(list) {
     assert.deepStrictEqual(list, [
       { one: '1' },
-      { two: '2' }
+      { two: '2' },
     ]);
   })));
 }
@@ -217,10 +216,10 @@ function fromArray(list) {
   // Verify that objects can be written to stream
   const w = new Writable({ objectMode: true });
 
-  w._write = function(chunk, encoding, cb) {
+  w._write = common.mustCall(function(chunk, encoding, cb) {
     assert.deepStrictEqual(chunk, { foo: 'bar' });
     cb();
-  };
+  });
 
   w.on('finish', common.mustCall());
   w.write({ foo: 'bar' });
@@ -280,14 +279,14 @@ function fromArray(list) {
   });
   let called = false;
 
-  w._write = function(chunk, encoding, cb) {
+  w._write = common.mustCall(function(chunk, encoding, cb) {
     assert.strictEqual(chunk, 'foo');
 
     process.nextTick(function() {
       called = true;
       cb();
     });
-  };
+  });
 
   w.on('finish', common.mustCall(function() {
     assert.strictEqual(called, true);

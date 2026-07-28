@@ -49,11 +49,19 @@
  */
 enum {
     /**
-     * Default options value: None of the other options are set.
+     * Default options value: UTS #46 nontransitional processing.
      * For use in static worker and factory methods.
+     *
+     * Since ICU 76, this is the same as
+     * UIDNA_NONTRANSITIONAL_TO_ASCII | UIDNA_NONTRANSITIONAL_TO_UNICODE,
+     * corresponding to Unicode 15.1 UTS #46 deprecating transitional processing.
+     * (These options are ignored by the IDNA2003 implementation.)
+     *
+     * Before ICU 76, this constant did not set any of the options.
+     *
      * @stable ICU 2.6
      */
-    UIDNA_DEFAULT=0,
+    UIDNA_DEFAULT=0x30,
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * Option to allow unassigned code points in domain names and labels.
@@ -91,19 +99,27 @@ enum {
     /**
      * IDNA option for nontransitional processing in ToASCII().
      * For use in static worker and factory methods.
+     *
      * <p>By default, ToASCII() uses transitional processing.
+     * Unicode 15.1 UTS #46 deprecated transitional processing.
+     *
      * <p>This option is ignored by the IDNA2003 implementation.
      * (This is only relevant for compatibility of newer IDNA implementations with IDNA2003.)
      * @stable ICU 4.6
+     * @see UIDNA_DEFAULT
      */
     UIDNA_NONTRANSITIONAL_TO_ASCII=0x10,
     /**
      * IDNA option for nontransitional processing in ToUnicode().
      * For use in static worker and factory methods.
+     *
      * <p>By default, ToUnicode() uses transitional processing.
+     * Unicode 15.1 UTS #46 deprecated transitional processing.
+     *
      * <p>This option is ignored by the IDNA2003 implementation.
      * (This is only relevant for compatibility of newer IDNA implementations with IDNA2003.)
      * @stable ICU 4.6
+     * @see UIDNA_DEFAULT
      */
     UIDNA_NONTRANSITIONAL_TO_UNICODE=0x20,
     /**
@@ -134,6 +150,8 @@ typedef struct UIDNA UIDNA;  /**< C typedef for struct UIDNA. @stable ICU 4.6 */
  * For details about the UTS #46 implementation see the IDNA C++ class in idna.h.
  *
  * @param options Bit set to modify the processing and error checking.
+ *                These should include UIDNA_DEFAULT, or
+ *                UIDNA_NONTRANSITIONAL_TO_ASCII | UIDNA_NONTRANSITIONAL_TO_UNICODE.
  *                See option bit set values in uidna.h.
  * @param pErrorCode Standard ICU error code. Its input value must
  *                  pass the U_SUCCESS() test, or else the function returns
@@ -542,7 +560,7 @@ enum {
  * and are designed to be chainable, i.e., applying ToASCII or ToUnicode operations
  * multiple times to an input string will yield the same result as applying the operation
  * once.
- * ToUnicode(ToUnicode(ToUnicode...(ToUnicode(string)))) == ToUnicode(string)
+ * ToUnicode(ToUnicode(ToUnicode...(ToUnicode(string)))) == ToUnicode(string) 
  * ToASCII(ToASCII(ToASCII...(ToASCII(string))) == ToASCII(string).
  *
  * @param src               Input UChar array containing label in Unicode.
@@ -553,18 +571,18 @@ enum {
  *
  *  - UIDNA_DEFAULT             Use default options, i.e., do not process unassigned code points
  *                              and do not use STD3 ASCII rules
- *                              If unassigned code points are found the operation fails with
+ *                              If unassigned code points are found the operation fails with 
  *                              U_UNASSIGNED_ERROR error code.
  *
  *  - UIDNA_ALLOW_UNASSIGNED    Unassigned values can be converted to ASCII for query operations
- *                              If this option is set, the unassigned code points are in the input
+ *                              If this option is set, the unassigned code points are in the input 
  *                              are treated as normal Unicode code points.
  *
  *  - UIDNA_USE_STD3_RULES      Use STD3 ASCII rules for host name syntax restrictions
- *                              If this option is set and the input does not satisfy STD3 rules,
+ *                              If this option is set and the input does not satisfy STD3 rules,  
  *                              the operation will fail with U_IDNA_STD3_ASCII_RULES_ERROR
  *
- * @param parseError        Pointer to UParseError struct to receive information on position
+ * @param parseError        Pointer to UParseError struct to receive information on position 
  *                          of error if an error is encountered. Can be NULL.
  * @param status            ICU in/out error code parameter.
  *                          U_INVALID_CHAR_FOUND if src contains
@@ -577,7 +595,7 @@ enum {
  * @deprecated ICU 55 Use UTS #46 instead via uidna_openUTS46() or class IDNA.
  */
 U_DEPRECATED int32_t U_EXPORT2
-uidna_toASCII(const UChar* src, int32_t srcLength,
+uidna_toASCII(const UChar* src, int32_t srcLength, 
               UChar* dest, int32_t destCapacity,
               int32_t options,
               UParseError* parseError,
@@ -598,21 +616,21 @@ uidna_toASCII(const UChar* src, int32_t srcLength,
  *
  *  - UIDNA_DEFAULT             Use default options, i.e., do not process unassigned code points
  *                              and do not use STD3 ASCII rules
- *                              If unassigned code points are found the operation fails with
+ *                              If unassigned code points are found the operation fails with 
  *                              U_UNASSIGNED_ERROR error code.
  *
  *  - UIDNA_ALLOW_UNASSIGNED      Unassigned values can be converted to ASCII for query operations
- *                              If this option is set, the unassigned code points are in the input
- *                              are treated as normal Unicode code points. <b> Note: </b> This option is
- *                              required on toUnicode operation because the RFC mandates
+ *                              If this option is set, the unassigned code points are in the input 
+ *                              are treated as normal Unicode code points. <b> Note: </b> This option is 
+ *                              required on toUnicode operation because the RFC mandates 
  *                              verification of decoded ACE input by applying toASCII and comparing
  *                              its output with source
  *
  *  - UIDNA_USE_STD3_RULES      Use STD3 ASCII rules for host name syntax restrictions
- *                              If this option is set and the input does not satisfy STD3 rules,
+ *                              If this option is set and the input does not satisfy STD3 rules,  
  *                              the operation will fail with U_IDNA_STD3_ASCII_RULES_ERROR
  *
- * @param parseError        Pointer to UParseError struct to receive information on position
+ * @param parseError        Pointer to UParseError struct to receive information on position 
  *                          of error if an error is encountered. Can be NULL.
  * @param status            ICU in/out error code parameter.
  *                          U_INVALID_CHAR_FOUND if src contains
@@ -634,14 +652,14 @@ uidna_toUnicode(const UChar* src, int32_t srcLength,
 
 /**
  * IDNA2003: Convenience function that implements the IDNToASCII operation as defined in the IDNA RFC.
- * This operation is done on complete domain names, e.g: "www.example.com".
- * It is important to note that this operation can fail. If it fails, then the input
+ * This operation is done on complete domain names, e.g: "www.example.com". 
+ * It is important to note that this operation can fail. If it fails, then the input 
  * domain name cannot be used as an Internationalized Domain Name and the application
  * should have methods defined to deal with the failure.
  *
  * <b>Note:</b> IDNA RFC specifies that a conformant application should divide a domain name
- * into separate labels, decide whether to apply allowUnassigned and useSTD3ASCIIRules on each,
- * and then convert. This function does not offer that level of granularity. The options once
+ * into separate labels, decide whether to apply allowUnassigned and useSTD3ASCIIRules on each, 
+ * and then convert. This function does not offer that level of granularity. The options once  
  * set will apply to all labels in the domain name
  *
  * @param src               Input UChar array containing IDN in Unicode.
@@ -652,18 +670,18 @@ uidna_toUnicode(const UChar* src, int32_t srcLength,
  *
  *  - UIDNA_DEFAULT             Use default options, i.e., do not process unassigned code points
  *                              and do not use STD3 ASCII rules
- *                              If unassigned code points are found the operation fails with
+ *                              If unassigned code points are found the operation fails with 
  *                              U_UNASSIGNED_CODE_POINT_FOUND error code.
  *
  *  - UIDNA_ALLOW_UNASSIGNED    Unassigned values can be converted to ASCII for query operations
- *                              If this option is set, the unassigned code points are in the input
+ *                              If this option is set, the unassigned code points are in the input 
  *                              are treated as normal Unicode code points.
  *
  *  - UIDNA_USE_STD3_RULES      Use STD3 ASCII rules for host name syntax restrictions
- *                              If this option is set and the input does not satisfy STD3 rules,
+ *                              If this option is set and the input does not satisfy STD3 rules,  
  *                              the operation will fail with U_IDNA_STD3_ASCII_RULES_ERROR
  *
- * @param parseError        Pointer to UParseError struct to receive information on position
+ * @param parseError        Pointer to UParseError struct to receive information on position 
  *                          of error if an error is encountered. Can be NULL.
  * @param status            ICU in/out error code parameter.
  *                          U_INVALID_CHAR_FOUND if src contains
@@ -684,11 +702,11 @@ uidna_IDNToASCII(  const UChar* src, int32_t srcLength,
 
 /**
  * IDNA2003: Convenience function that implements the IDNToUnicode operation as defined in the IDNA RFC.
- * This operation is done on complete domain names, e.g: "www.example.com".
+ * This operation is done on complete domain names, e.g: "www.example.com". 
  *
  * <b>Note:</b> IDNA RFC specifies that a conformant application should divide a domain name
- * into separate labels, decide whether to apply allowUnassigned and useSTD3ASCIIRules on each,
- * and then convert. This function does not offer that level of granularity. The options once
+ * into separate labels, decide whether to apply allowUnassigned and useSTD3ASCIIRules on each, 
+ * and then convert. This function does not offer that level of granularity. The options once  
  * set will apply to all labels in the domain name
  *
  * @param src               Input UChar array containing IDN in ASCII (ACE encoded) form.
@@ -699,18 +717,18 @@ uidna_IDNToASCII(  const UChar* src, int32_t srcLength,
  *
  *  - UIDNA_DEFAULT             Use default options, i.e., do not process unassigned code points
  *                              and do not use STD3 ASCII rules
- *                              If unassigned code points are found the operation fails with
+ *                              If unassigned code points are found the operation fails with 
  *                              U_UNASSIGNED_CODE_POINT_FOUND error code.
  *
  *  - UIDNA_ALLOW_UNASSIGNED    Unassigned values can be converted to ASCII for query operations
- *                              If this option is set, the unassigned code points are in the input
+ *                              If this option is set, the unassigned code points are in the input 
  *                              are treated as normal Unicode code points.
  *
  *  - UIDNA_USE_STD3_RULES      Use STD3 ASCII rules for host name syntax restrictions
- *                              If this option is set and the input does not satisfy STD3 rules,
+ *                              If this option is set and the input does not satisfy STD3 rules,  
  *                              the operation will fail with U_IDNA_STD3_ASCII_RULES_ERROR
  *
- * @param parseError        Pointer to UParseError struct to receive information on position
+ * @param parseError        Pointer to UParseError struct to receive information on position 
  *                          of error if an error is encountered. Can be NULL.
  * @param status            ICU in/out error code parameter.
  *                          U_INVALID_CHAR_FOUND if src contains
@@ -732,10 +750,10 @@ uidna_IDNToUnicode(  const UChar* src, int32_t srcLength,
 /**
  * IDNA2003: Compare two IDN strings for equivalence.
  * This function splits the domain names into labels and compares them.
- * According to IDN RFC, whenever two labels are compared, they are
- * considered equal if and only if their ASCII forms (obtained by
+ * According to IDN RFC, whenever two labels are compared, they are 
+ * considered equal if and only if their ASCII forms (obtained by 
  * applying toASCII) match using an case-insensitive ASCII comparison.
- * Two domain names are considered a match if and only if all labels
+ * Two domain names are considered a match if and only if all labels 
  * match regardless of whether label separators match.
  *
  * @param s1                First source string.
@@ -747,15 +765,15 @@ uidna_IDNToUnicode(  const UChar* src, int32_t srcLength,
  *
  *  - UIDNA_DEFAULT             Use default options, i.e., do not process unassigned code points
  *                              and do not use STD3 ASCII rules
- *                              If unassigned code points are found the operation fails with
+ *                              If unassigned code points are found the operation fails with 
  *                              U_UNASSIGNED_CODE_POINT_FOUND error code.
  *
  *  - UIDNA_ALLOW_UNASSIGNED    Unassigned values can be converted to ASCII for query operations
- *                              If this option is set, the unassigned code points are in the input
+ *                              If this option is set, the unassigned code points are in the input 
  *                              are treated as normal Unicode code points.
  *
  *  - UIDNA_USE_STD3_RULES      Use STD3 ASCII rules for host name syntax restrictions
- *                              If this option is set and the input does not satisfy STD3 rules,
+ *                              If this option is set and the input does not satisfy STD3 rules,  
  *                              the operation will fail with U_IDNA_STD3_ASCII_RULES_ERROR
  *
  * @param status            ICU error code in/out parameter.

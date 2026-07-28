@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>DOMException-throwing tests</title>
+<link rel=author title="Aryeh Gregor" href=ayg@aryeh.name>
+<div id=log></div>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script>
+/**
+ * This file just picks one case where browsers are supposed to throw an
+ * exception, and tests the heck out of whether it meets the spec.  In the
+ * future, all these checks should be in assert_throws_dom(), but we don't want
+ * every browser failing every assert_throws_dom() check until they fix every
+ * single bug in their exception-throwing.
+ *
+ * We don't go out of our way to test everything that's already tested by
+ * interfaces.html, like whether all constants are present on the object, but
+ * some things are duplicated.
+ */
+setup({explicit_done: true});
+
+function testException(exception, global, desc) {
+  test(function() {
+    assert_equals(global.Object.getPrototypeOf(exception),
+                  global.DOMException.prototype);
+  }, desc + "Object.getPrototypeOf(exception) === DOMException.prototype");
+
+
+  test(function() {
+    assert_false(exception.hasOwnProperty("name"));
+  }, desc + "exception.hasOwnProperty(\"name\")");
+  test(function() {
+    assert_false(exception.hasOwnProperty("message"));
+  }, desc + "exception.hasOwnProperty(\"message\")");
+
+  test(function() {
+    assert_equals(exception.name, "HierarchyRequestError");
+  }, desc + "exception.name === \"HierarchyRequestError\"");
+
+  test(function() {
+    assert_equals(exception.code, global.DOMException.HIERARCHY_REQUEST_ERR);
+  }, desc + "exception.code === DOMException.HIERARCHY_REQUEST_ERR");
+
+  test(function() {
+    assert_equals(global.Object.prototype.toString.call(exception),
+                  "[object DOMException]");
+  }, desc + "Object.prototype.toString.call(exception) === \"[object DOMException]\"");
+}
+
+
+// Test in current window
+var exception = null;
+try {
+  // This should throw a HierarchyRequestError in every browser since the
+  // Stone Age, so we're really only testing exception-throwing details.
+  document.documentElement.appendChild(document);
+} catch(e) {
+  exception = e;
+}
+testException(exception, window, "");
+
+// Test in iframe
+var iframe = document.createElement("iframe");
+iframe.src = "about:blank";
+iframe.onload = function() {
+  var exception = null;
+  try {
+    iframe.contentDocument.documentElement.appendChild(iframe.contentDocument);
+  } catch(e) {
+    exception = e;
+  }
+  testException(exception, iframe.contentWindow, "In iframe: ");
+
+  document.body.removeChild(iframe);
+  done();
+};
+document.body.appendChild(iframe);
+</script>

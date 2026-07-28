@@ -22,7 +22,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { inspect } = require('util');
 const N = 2;
 
 function cb() {
@@ -43,9 +42,8 @@ process.on('exit', function() {
   assert.throws(
     () => process.nextTick(i),
     {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: `Callback must be a function. Received ${inspect(i)}`
     }
   );
 });

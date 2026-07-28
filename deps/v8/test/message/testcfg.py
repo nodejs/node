@@ -25,11 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
-import re
-
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
 from testrunner.outproc import message
 
@@ -54,18 +50,10 @@ class TestCase(testcase.D8TestCase):
     self._source_flags = self._parse_source_flags(source)
 
   def _parse_source_files(self, source):
-    files = []
-    files.append(self._get_source_path())
-    return files
+    return [self._get_source_path()]
 
   def _expected_fail(self):
-    path = self.path
-    while path:
-      head, tail = os.path.split(path)
-      if tail == 'fail':
-        return True
-      path = head
-    return False
+    return 'fail' in self.path.parts
 
   def _get_cmd_params(self):
     params = super(TestCase, self)._get_cmd_params()
@@ -78,13 +66,13 @@ class TestCase(testcase.D8TestCase):
     return self._source_flags
 
   def _get_source_path(self):
-    base_path = os.path.join(self.suite.root, self.path)
     # Try .js first, and fall back to .mjs.
     # TODO(v8:9406): clean this up by never separating the path from
     # the extension in the first place.
-    if os.path.exists(base_path + self._get_suffix()):
-      return base_path + self._get_suffix()
-    return base_path + '.mjs'
+    js_path = self.suite.root / self.path_js
+    if js_path.exists():
+      return js_path
+    return self.suite.root / self.path_mjs
 
   def skip_predictable(self):
     # Message tests expected to fail don't print allocation output for
@@ -94,9 +82,7 @@ class TestCase(testcase.D8TestCase):
   @property
   def output_proc(self):
     return message.OutProc(self.expected_outcomes,
-                           os.path.join(self.suite.root, self.path),
-                           self._expected_fail())
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+                           self.suite.root / self.path,
+                           self._expected_fail(),
+                           self.suite.root / self.path_and_suffix('.out'),
+                           self.test_config.regenerate_expected_files)

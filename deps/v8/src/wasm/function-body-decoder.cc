@@ -4,12 +4,10 @@
 
 #include "src/wasm/function-body-decoder.h"
 
-#include "src/flags/flags.h"
-#include "src/handles/handles.h"
-#include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -19,295 +17,96 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
-                      const byte* start, const byte* end) {
-  WasmFeatures no_features = WasmFeatures::None();
-  Zone* zone = decls->type_list.get_allocator().zone();
-  WasmDecoder<Decoder::kValidate> decoder(zone, nullptr, enabled, &no_features,
-                                          nullptr, start, end, 0);
-  uint32_t length;
-  if (!decoder.DecodeLocals(decoder.pc(), &length, 0)) {
-    decls->encoded_size = 0;
+template <typename ValidationTag>
+bool DecodeLocalDecls(WasmEnabledFeatures enabled, BodyLocalDecls* decls,
+                      const WasmModule* module, bool is_shared,
+                      const uint8_t* start, const uint8_t* end, Zone* zone) {
+  if constexpr (ValidationTag::validate) DCHECK_NOT_NULL(module);
+  WasmDetectedFeatures unused_detected_features;
+  constexpr FixedSizeSignature<ValueType, 0, 0> kNoSig;
+  WasmDecoder<ValidationTag> decoder(zone, module, enabled,
+                                     &unused_detected_features, &kNoSig,
+                                     is_shared, start, end);
+  decls->encoded_size = decoder.DecodeLocals(decoder.pc());
+  if (ValidationTag::validate && decoder.failed()) {
+    DCHECK_EQ(0, decls->encoded_size);
     return false;
   }
   DCHECK(decoder.ok());
-  decls->encoded_size = length;
-  // Copy the decoded locals types into {decls->type_list}.
-  DCHECK(decls->type_list.empty());
-  decls->type_list = std::move(decoder.local_types_);
+  // Copy the decoded locals types into {decls->local_types}.
+  DCHECK_NULL(decls->local_types);
+  decls->num_locals = decoder.num_locals_;
+  decls->local_types = decoder.local_types_;
   return true;
 }
 
-BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
-                                   BodyLocalDecls* decls)
-    : Decoder(start, end) {
-  if (decls != nullptr) {
-    if (DecodeLocalDecls(WasmFeatures::All(), decls, start, end)) {
-      pc_ += decls->encoded_size;
-      if (pc_ > end_) pc_ = end_;
-    }
-  }
+void DecodeLocalDecls(WasmEnabledFeatures enabled, BodyLocalDecls* decls,
+                      const uint8_t* start, const uint8_t* end, Zone* zone) {
+  constexpr WasmModule* kNoModule = nullptr;
+  DecodeLocalDecls<Decoder::NoValidationTag>(enabled, decls, kNoModule, false,
+                                             start, end, zone);
 }
 
-DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                            const WasmFeatures& enabled,
-                            const WasmModule* module, WasmFeatures* detected,
-                            const FunctionBody& body) {
-  Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder<Decoder::kValidate, EmptyInterface> decoder(
-      &zone, module, enabled, detected, body);
+bool ValidateAndDecodeLocalDeclsForTesting(WasmEnabledFeatures enabled,
+                                           BodyLocalDecls* decls,
+                                           const WasmModule* module,
+                                           bool is_shared, const uint8_t* start,
+                                           const uint8_t* end, Zone* zone) {
+  return DecodeLocalDecls<Decoder::FullValidationTag>(
+      enabled, decls, module, is_shared, start, end, zone);
+}
+
+BytecodeIterator::BytecodeIterator(const uint8_t* start, const uint8_t* end)
+    : Decoder(start, end) {}
+
+BytecodeIterator::BytecodeIterator(const uint8_t* start, const uint8_t* end,
+                                   BodyLocalDecls* decls, Zone* zone)
+    : Decoder(start, end) {
+  DCHECK_NOT_NULL(decls);
+  DCHECK_NOT_NULL(zone);
+  DecodeLocalDecls(WasmEnabledFeatures::All(), decls, start, end, zone);
+  pc_ += decls->encoded_size;
+  if (pc_ > end_) pc_ = end_;
+}
+
+DecodeResult ValidateFunctionBody(Zone* zone, WasmEnabledFeatures enabled,
+                                  const WasmModule* module,
+                                  WasmDetectedFeatures* detected,
+                                  const FunctionBody& body) {
+  // Asm.js functions should never be validated; they are valid by design.
+  DCHECK_EQ(kWasmOrigin, module->origin);
+  WasmFullDecoder<Decoder::FullValidationTag, EmptyInterface> decoder(
+      zone, module, enabled, detected, body);
   decoder.Decode();
   return decoder.toResult(nullptr);
 }
 
-unsigned OpcodeLength(const byte* pc, const byte* end) {
-  WasmFeatures no_features = WasmFeatures::None();
+unsigned OpcodeLength(const uint8_t* pc, const uint8_t* end) {
+  WasmDetectedFeatures unused_detected_features;
   Zone* no_zone = nullptr;
   WasmModule* no_module = nullptr;
   FunctionSig* no_sig = nullptr;
-  WasmDecoder<Decoder::kNoValidate> decoder(no_zone, no_module, no_features,
-                                            &no_features, no_sig, pc, end, 0);
-  return WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, pc);
+  constexpr bool kIsShared = false;
+  WasmDecoder<Decoder::NoValidationTag> decoder(
+      no_zone, no_module, WasmEnabledFeatures::All(), &unused_detected_features,
+      no_sig, kIsShared, pc, end, 0);
+  return WasmDecoder<Decoder::NoValidationTag>::OpcodeLength(&decoder, pc);
 }
 
-std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
-                                          const FunctionSig* sig,
-                                          const byte* pc, const byte* end) {
-  WasmFeatures unused_detected_features = WasmFeatures::None();
-  Zone* no_zone = nullptr;
-  WasmDecoder<Decoder::kNoValidate> decoder(
-      no_zone, module, WasmFeatures::All(), &unused_detected_features, sig, pc,
-      end);
-  return decoder.StackEffect(pc);
-}
+bool CheckHardwareSupportsSimd() { return CpuFeatures::SupportsWasmSimd128(); }
 
-void PrintRawWasmCode(const byte* start, const byte* end) {
-  AccountingAllocator allocator;
-  PrintRawWasmCode(&allocator, FunctionBody{nullptr, 0, start, end}, nullptr,
-                   kPrintLocals);
-}
-
-namespace {
-const char* RawOpcodeName(WasmOpcode opcode) {
-  switch (opcode) {
-#define DECLARE_NAME_CASE(name, opcode, sig) \
-  case kExpr##name:                          \
-    return "kExpr" #name;
-    FOREACH_OPCODE(DECLARE_NAME_CASE)
-#undef DECLARE_NAME_CASE
-    default:
-      break;
-  }
-  return "Unknown";
-}
-const char* PrefixName(WasmOpcode prefix_opcode) {
-  switch (prefix_opcode) {
-#define DECLARE_PREFIX_CASE(name, opcode) \
-  case k##name##Prefix:                   \
-    return "k" #name "Prefix";
-    FOREACH_PREFIX(DECLARE_PREFIX_CASE)
-#undef DECLARE_PREFIX_CASE
-    default:
-      return "Unknown prefix";
-  }
-}
-}  // namespace
-
-bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const WasmModule* module, PrintLocals print_locals) {
-  StdoutStream os;
-  return PrintRawWasmCode(allocator, body, module, print_locals, os);
-}
-
-bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const WasmModule* module, PrintLocals print_locals,
-                      std::ostream& os, std::vector<int>* line_numbers) {
-  Zone zone(allocator, ZONE_NAME);
-  WasmFeatures unused_detected_features = WasmFeatures::None();
-  WasmDecoder<Decoder::kNoValidate> decoder(&zone, module, WasmFeatures::All(),
-                                            &unused_detected_features, body.sig,
-                                            body.start, body.end);
-  int line_nr = 0;
-  constexpr int kNoByteCode = -1;
-
-  // Print the function signature.
-  if (body.sig) {
-    os << "// signature: " << *body.sig << std::endl;
-    if (line_numbers) line_numbers->push_back(kNoByteCode);
-    ++line_nr;
-  }
-
-  // Print the local declarations.
-  BodyLocalDecls decls(&zone);
-  BytecodeIterator i(body.start, body.end, &decls);
-  if (body.start != i.pc() && print_locals == kPrintLocals) {
-    os << "// locals:";
-    if (!decls.type_list.empty()) {
-      ValueType type = decls.type_list[0];
-      uint32_t count = 0;
-      for (size_t pos = 0; pos < decls.type_list.size(); ++pos) {
-        if (decls.type_list[pos] == type) {
-          ++count;
-        } else {
-          os << " " << count << " " << type.name();
-          type = decls.type_list[pos];
-          count = 1;
-        }
-      }
-      os << " " << count << " " << type.name();
-    }
-    os << std::endl;
-    if (line_numbers) line_numbers->push_back(kNoByteCode);
-    ++line_nr;
-
-    for (const byte* locals = body.start; locals < i.pc(); locals++) {
-      os << (locals == body.start ? "0x" : " 0x") << AsHex(*locals, 2) << ",";
-    }
-    os << std::endl;
-    if (line_numbers) line_numbers->push_back(kNoByteCode);
-    ++line_nr;
-  }
-
-  os << "// body:" << std::endl;
-  if (line_numbers) line_numbers->push_back(kNoByteCode);
-  ++line_nr;
-  unsigned control_depth = 0;
-  for (; i.has_next(); i.next()) {
-    unsigned length =
-        WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, i.pc());
-
-    unsigned offset = 1;
-    WasmOpcode opcode = i.current();
-    WasmOpcode prefix = kExprUnreachable;
-    bool has_prefix = WasmOpcodes::IsPrefixOpcode(opcode);
-    if (has_prefix) {
-      prefix = i.current();
-      opcode = i.prefixed_opcode();
-      offset = 2;
-    }
-    if (line_numbers) line_numbers->push_back(i.position());
-    if (opcode == kExprElse || opcode == kExprCatch) {
-      control_depth--;
-    }
-
-    int num_whitespaces = control_depth < 32 ? 2 * control_depth : 64;
-
-    // 64 whitespaces
-    const char* padding =
-        "                                                                ";
-    os.write(padding, num_whitespaces);
-
-    if (has_prefix) {
-      os << PrefixName(prefix) << ", ";
-    }
-
-    os << RawOpcodeName(opcode) << ",";
-
-    if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
-        opcode == kExprTry) {
-      DCHECK_EQ(2, length);
-
-      // TODO(7748) Update this for gc and ref types if needed
-      switch (i.pc()[1]) {
-#define CASE_LOCAL_TYPE(local_name, type_name) \
-  case k##local_name##Code:                    \
-    os << " kWasm" #type_name ",";             \
-    break;
-
-        CASE_LOCAL_TYPE(I32, I32)
-        CASE_LOCAL_TYPE(I64, I64)
-        CASE_LOCAL_TYPE(F32, F32)
-        CASE_LOCAL_TYPE(F64, F64)
-        CASE_LOCAL_TYPE(S128, S128)
-        CASE_LOCAL_TYPE(Void, Stmt)
-        default:
-          os << " 0x" << AsHex(i.pc()[1], 2) << ",";
-          break;
-      }
-#undef CASE_LOCAL_TYPE
-    } else {
-      for (unsigned j = offset; j < length; ++j) {
-        os << " 0x" << AsHex(i.pc()[j], 2) << ",";
-      }
-    }
-
-    os << "  // " << WasmOpcodes::OpcodeName(opcode);
-
-    switch (opcode) {
-      case kExprElse:
-      case kExprCatch:
-        os << " @" << i.pc_offset();
-        control_depth++;
-        break;
-      case kExprLoop:
-      case kExprIf:
-      case kExprBlock:
-      case kExprTry: {
-        BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
-                                                     i.pc() + 1);
-        os << " @" << i.pc_offset();
-        if (decoder.Complete(imm)) {
-          for (uint32_t i = 0; i < imm.out_arity(); i++) {
-            os << " " << imm.out_type(i).name();
-          }
-        }
-        control_depth++;
-        break;
-      }
-      case kExprEnd:
-        os << " @" << i.pc_offset();
-        control_depth--;
-        break;
-      case kExprBr: {
-        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
-        os << " depth=" << imm.depth;
-        break;
-      }
-      case kExprBrIf: {
-        BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
-        os << " depth=" << imm.depth;
-        break;
-      }
-      case kExprBrTable: {
-        BranchTableImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
-        os << " entries=" << imm.table_count;
-        break;
-      }
-      case kExprCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
-                                                        i.pc() + 1);
-        os << " sig #" << imm.sig_index;
-        if (decoder.Complete(imm)) {
-          os << ": " << *imm.sig;
-        }
-        break;
-      }
-      case kExprCallFunction: {
-        CallFunctionImmediate<Decoder::kNoValidate> imm(&i, i.pc() + 1);
-        os << " function #" << imm.index;
-        if (decoder.Complete(imm)) {
-          os << ": " << *imm.sig;
-        }
-        break;
-      }
-      default:
-        break;
-    }
-    os << std::endl;
-    ++line_nr;
-  }
-  DCHECK(!line_numbers || line_numbers->size() == static_cast<size_t>(line_nr));
-
-  return decoder.ok();
-}
-
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
-                                           const byte* start, const byte* end) {
-  WasmFeatures no_features = WasmFeatures::None();
-  WasmDecoder<Decoder::kValidate> decoder(zone, nullptr, no_features,
-                                          &no_features, nullptr, start, end, 0);
-  return WasmDecoder<Decoder::kValidate>::AnalyzeLoopAssignment(
-      &decoder, start, static_cast<uint32_t>(num_locals), zone);
+BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, uint32_t num_locals,
+                                           const uint8_t* start,
+                                           const uint8_t* end,
+                                           bool* loop_is_innermost) {
+  WasmEnabledFeatures no_features = WasmEnabledFeatures::None();
+  WasmDetectedFeatures unused_detected_features;
+  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+  WasmDecoder<Decoder::FullValidationTag> decoder(
+      zone, nullptr, no_features, &unused_detected_features, nullptr, kIsShared,
+      start, end, 0);
+  return WasmDecoder<Decoder::FullValidationTag>::AnalyzeLoopAssignment(
+      &decoder, start, num_locals, zone, loop_is_innermost);
 }
 
 }  // namespace wasm

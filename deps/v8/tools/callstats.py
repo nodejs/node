@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2016 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -28,9 +28,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import operator
-from callstats_groups import RUNTIME_CALL_STATS_GROUPS
-
 import numpy
 from math import sqrt
 
@@ -74,7 +71,7 @@ def start_replay_server(args, sites, discard_output=True):
     with open(os.devnull, 'w') as null:
       server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
   else:
-      server = subprocess.Popen(cmd_args)
+    server = subprocess.Popen(cmd_args)
   print("RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid))
   print("=" * 80)
   return {'process': server, 'injection': injection}
@@ -320,7 +317,7 @@ def do_run_replay_server(args):
   try:
     replay_server['process'].wait()
   finally:
-   stop_replay_server(replay_server)
+    stop_replay_server(replay_server)
 
 
 # Calculate statistics.
@@ -372,21 +369,26 @@ def read_stats(path, domain, args):
   groups = [];
   if args.aggregate:
     groups = [
-        ('Group-IC', re.compile(".*IC_.*")),
-        ('Group-OptimizeBackground', re.compile(".*OptimizeBackground.*")),
+        ('Group-IC', re.compile(r".*IC_.*")),
+        ('Group-OptimizeMaglevBackground',
+         re.compile(r".*Optimize(Background|Concurrent).*Maglev.*")),
+        ('Group-OptimizeMaglev', re.compile(r".*Maglev.*")),
+        ('Group-OptimizeBackground',
+         re.compile(r".*Optimize(Background|Concurrent).*")),
         ('Group-Optimize',
-         re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
-        ('Group-CompileBackground', re.compile("(.*CompileBackground.*)")),
-        ('Group-Compile', re.compile("(^Compile.*)|(.*_Compile.*)")),
-        ('Group-ParseBackground', re.compile(".*ParseBackground.*")),
-        ('Group-Parse', re.compile(".*Parse.*")),
-        ('Group-Callback', re.compile(".*Callback.*")),
-        ('Group-API', re.compile(".*API.*")),
-        ('Group-GC-Custom', re.compile("GC_Custom_.*")),
-        ('Group-GC-Background', re.compile(".*GC.*BACKGROUND.*")),
-        ('Group-GC', re.compile("GC_.*|AllocateInTargetSpace")),
-        ('Group-JavaScript', re.compile("JS_Execution")),
-        ('Group-Runtime', re.compile(".*"))]
+         re.compile(r"StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
+        ('Group-CompileBackground', re.compile(r"(.*CompileBackground.*)")),
+        ('Group-Compile', re.compile(r"(^Compile.*)|(.*_Compile.*)")),
+        ('Group-ParseBackground', re.compile(r".*ParseBackground.*")),
+        ('Group-Parse', re.compile(r".*Parse.*")),
+        ('Group-Callback', re.compile(r".*Callback.*")),
+        ('Group-API', re.compile(r".*API.*")),
+        ('Group-GC-Custom', re.compile(r"GC_Custom_.*")),
+        ('Group-GC-Background', re.compile(r"GC_.*BACKGROUND.*")),
+        ('Group-GC', re.compile(r"GC_.*|AllocateInTargetSpace")),
+        ('Group-JavaScript', re.compile(r"JS_Execution")),
+        ('Group-Runtime', re.compile(r".*"))
+    ]
   with open(path, "rt") as f:
     # Process the whole file and sum repeating entries.
     entries = { 'Sum': {'time': 0, 'count': 0} }
@@ -493,12 +495,18 @@ def print_stats(S, args):
     print_entry("Total", S["Total"])
 
 
+def extract_domain(filename):
+  # Extract domain name: domain#123.txt or domain_123.txt
+  match = re.match(r'^(.*?)[^a-zA-Z]?[0-9]+?.txt', filename)
+  domain = match.group(1)
+  return domain
+
+
 def do_stats(args):
   domains = {}
   for path in args.logfiles:
     filename = os.path.basename(path)
-    m = re.match(r'^([^#]+)(#.*)?$', filename)
-    domain = m.group(1)
+    domain = extract_domain(filename)
     if domain not in domains: domains[domain] = {}
     read_stats(path, domains[domain], args)
   if args.aggregate:
@@ -558,8 +566,7 @@ def _read_logs(args):
         if version not in versions: versions[version] = {}
         for filename in files:
           if filename.endswith(".txt"):
-            m = re.match(r'^([^#]+)(#.*)?\.txt$', filename)
-            domain = m.group(1)
+            domain = extract_domain(filename)
             if domain not in versions[version]: versions[version][domain] = {}
             read_stats(os.path.join(root, filename),
                        versions[version][domain], args)

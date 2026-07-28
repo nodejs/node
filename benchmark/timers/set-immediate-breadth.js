@@ -2,7 +2,7 @@
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  n: [1e7]
+  n: [1e7],
 });
 
 function main({ n }) {

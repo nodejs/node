@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "file": "single-root-original-scope.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global"
+  ],
+  "scopes": "BCAAA,CKA,ECAA,FK"
+}

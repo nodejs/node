@@ -10,7 +10,6 @@
 
 #include "src/debug/debug-interface.h"
 #include "src/handles/handles.h"
-#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -63,8 +62,13 @@ class Coverage : public std::vector<CoverageScript> {
   // depending on selected mode. The invocation count is not reset.
   static std::unique_ptr<Coverage> CollectBestEffort(Isolate* isolate);
 
+#if V8_ENABLE_WEBASSEMBLY
+  static std::unique_ptr<Coverage> CollectWasmData(Isolate* isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // Select code coverage mode.
-  static void SelectMode(Isolate* isolate, debug::CoverageMode mode);
+  V8_EXPORT_PRIVATE static void SelectMode(Isolate* isolate,
+                                           debug::CoverageMode mode);
 
  private:
   static std::unique_ptr<Coverage> Collect(

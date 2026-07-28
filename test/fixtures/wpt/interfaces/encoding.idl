@@ -18,11 +18,11 @@ dictionary TextDecodeOptions {
   boolean stream = false;
 };
 
-[Exposed=(Window,Worker)]
+[Exposed=*]
 interface TextDecoder {
   constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
 
-  USVString decode(optional [AllowShared] BufferSource input, optional TextDecodeOptions options = {});
+  USVString decode(optional AllowSharedBufferSource input, optional TextDecodeOptions options = {});
 };
 TextDecoder includes TextDecoderCommon;
 
@@ -35,7 +35,7 @@ dictionary TextEncoderEncodeIntoResult {
   unsigned long long written;
 };
 
-[Exposed=(Window,Worker)]
+[Exposed=*]
 interface TextEncoder {
   constructor();
 
@@ -44,14 +44,14 @@ interface TextEncoder {
 };
 TextEncoder includes TextEncoderCommon;
 
-[Exposed=(Window,Worker)]
+[Exposed=*]
 interface TextDecoderStream {
   constructor(optional DOMString label = "utf-8", optional TextDecoderOptions options = {});
 };
 TextDecoderStream includes TextDecoderCommon;
 TextDecoderStream includes GenericTransformStream;
 
-[Exposed=(Window,Worker)]
+[Exposed=*]
 interface TextEncoderStream {
   constructor();
 };

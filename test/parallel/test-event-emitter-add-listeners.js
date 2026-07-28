@@ -46,11 +46,11 @@ const EventEmitter = require('events');
     assert.strictEqual(b, 'b');
   });
 
-  ee.once('newListener', function(name, listener) {
+  ee.once('newListener', common.mustCall(function(name, listener) {
     assert.strictEqual(name, 'hello');
     assert.strictEqual(listener, hello);
     assert.deepStrictEqual(this.listeners('hello'), []);
-  });
+  }));
 
   ee.on('hello', hello);
   ee.once('foo', assert.fail);
@@ -72,13 +72,13 @@ const EventEmitter = require('events');
   const listen2 = () => {};
   const ee = new EventEmitter();
 
-  ee.once('newListener', function() {
+  ee.once('newListener', common.mustCall(() => {
     assert.deepStrictEqual(ee.listeners('hello'), []);
-    ee.once('newListener', function() {
+    ee.once('newListener', common.mustCall(() => {
       assert.deepStrictEqual(ee.listeners('hello'), []);
-    });
+    }));
     ee.on('hello', listen2);
-  });
+  }));
   ee.on('hello', listen1);
   // The order of listeners on an event is not always the order in which the
   // listeners were added.

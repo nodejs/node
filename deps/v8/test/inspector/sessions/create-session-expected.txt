@@ -8,6 +8,7 @@ From session 1
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -20,6 +21,7 @@ From session 2
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -32,6 +34,7 @@ From session 2
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -44,6 +47,7 @@ From session 1
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -56,6 +60,7 @@ From session 3
             id : 1
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -65,6 +70,7 @@ From session 2
     method : Runtime.executionContextDestroyed
     params : {
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
     }
 }
 id matching: true
@@ -73,6 +79,7 @@ From session 1
     method : Runtime.executionContextDestroyed
     params : {
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
     }
 }
 id matching: true
@@ -81,6 +88,7 @@ From session 3
     method : Runtime.executionContextDestroyed
     params : {
         executionContextId : <executionContextId>
+        executionContextUniqueId : <executionContextUniqueId>
     }
 }
 id matching: true
@@ -92,6 +100,7 @@ From session 2
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -103,6 +112,7 @@ From session 1
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -114,6 +124,7 @@ From session 3
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }
@@ -127,6 +138,7 @@ From session 4
             id : 2
             name : 
             origin : 
+            uniqueId : <uniqueId>
         }
     }
 }

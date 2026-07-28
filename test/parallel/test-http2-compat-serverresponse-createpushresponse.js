@@ -11,7 +11,7 @@ const h2 = require('http2');
 const pushExpect = 'This is a server-initiated response';
 const servExpect = 'This is a client-initiated response';
 
-const server = h2.createServer((request, response) => {
+const server = h2.createServer(common.mustCallAtLeast((request, response) => {
   assert.strictEqual(response.stream.id % 2, 1);
   response.write(servExpect);
 
@@ -22,20 +22,19 @@ const server = h2.createServer((request, response) => {
       ':method': 'GET'
     }, undefined),
     {
-      code: 'ERR_INVALID_CALLBACK',
+      code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'Callback must be a function. Received undefined'
     }
   );
 
-  response.stream.on('close', () => {
+  response.stream.on('close', common.mustCall(() => {
     response.createPushResponse({
       ':path': '/pushed',
       ':method': 'GET'
     }, common.mustCall((error) => {
       assert.strictEqual(error.code, 'ERR_HTTP2_INVALID_STREAM');
     }));
-  });
+  }));
 
   response.createPushResponse({
     ':path': '/pushed',
@@ -45,7 +44,7 @@ const server = h2.createServer((request, response) => {
     push.end(pushExpect);
     response.end();
   }));
-});
+}));
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;

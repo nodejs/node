@@ -2,13 +2,21 @@
 
 const common = require('../common');
 const assert = require('assert');
-const execFile = require('child_process').execFile;
+const { execFile, execFileSync } = require('child_process');
+const { listenerCount } = require('events');
 const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
+const os = require('os');
 
 const fixture = fixtures.path('exit.js');
 const echoFixture = fixtures.path('echo.js');
-const execOpts = { encoding: 'utf8', shell: true };
+const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: process.execPath, FIXTURE: fixture } };
+
+common.expectWarning(
+  'DeprecationWarning',
+  'Passing args to a child process with shell option true can lead to security ' +
+  'vulnerabilities, as the arguments are not escaped, only concatenated.',
+  'DEP0190');
 
 {
   execFile(
@@ -44,7 +52,12 @@ const execOpts = { encoding: 'utf8', shell: true };
 
 {
   // Verify the shell option works properly
-  execFile(process.execPath, [fixture, 0], execOpts, common.mustSucceed());
+  execFile(
+    `"${common.isWindows ? execOpts.env.NODE : '$NODE'}"`,
+    [`"${common.isWindows ? execOpts.env.FIXTURE : '$FIXTURE'}"`, 0],
+    execOpts,
+    common.mustSucceed(),
+  );
 }
 
 {
@@ -52,21 +65,69 @@ const execOpts = { encoding: 'utf8', shell: true };
   const ac = new AbortController();
   const { signal } = ac;
 
-  const callback = common.mustCall((err) => {
+  const test = common.mustCall(() => {
+    const check = common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ABORT_ERR');
+      assert.strictEqual(err.name, 'AbortError');
+      assert.strictEqual(err.signal, undefined);
+    });
+    execFile(process.execPath, [echoFixture, 0], { signal }, check);
+  });
+
+  // Verify that it still works the same way now that the signal is aborted.
+  test();
+  ac.abort();
+}
+
+{
+  // Verify that does not spawn a child if already aborted
+  const signal = AbortSignal.abort();
+
+  const check = common.mustCall((err) => {
     assert.strictEqual(err.code, 'ABORT_ERR');
     assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(err.signal, undefined);
   });
-  execFile(process.execPath, [echoFixture, 0], { signal }, callback);
-  ac.abort();
+  execFile(process.execPath, [echoFixture, 0], { signal }, check);
 }
 
 {
   // Verify that if something different than Abortcontroller.signal
   // is passed, ERR_INVALID_ARG_TYPE is thrown
   assert.throws(() => {
-    const callback = common.mustNotCall(() => {});
+    const callback = common.mustNotCall();
 
     execFile(process.execPath, [echoFixture, 0], { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
+}
+{
+  // Verify that the process completing removes the abort listener
+  const ac = new AbortController();
+  const { signal } = ac;
 
+  const callback = common.mustCall((err) => {
+    assert.strictEqual(listenerCount(ac.signal, 'abort'), 0);
+    assert.strictEqual(err, null);
+  });
+  execFile(process.execPath, [fixture, 0], { signal }, callback);
+}
+
+// Verify the execFile() stdout is the same as execFileSync().
+{
+  const file = 'echo';
+  const args = ['foo', 'bar'];
+
+  // Test with and without `{ shell: true }`
+  [
+    // Skipping shell-less test on Windows because its echo command is a shell built-in command.
+    ...(common.isWindows ? [] : [{ encoding: 'utf8' }]),
+    { shell: true, encoding: 'utf8' },
+  ].forEach((options) => {
+    const execFileSyncStdout = execFileSync(file, args, options);
+    assert.strictEqual(execFileSyncStdout, `foo bar${os.EOL}`);
+
+    execFile(file, args, options, common.mustCall((_, stdout) => {
+      assert.strictEqual(stdout, execFileSyncStdout);
+    }));
+  });
 }

@@ -69,12 +69,12 @@ public:
     bool     findDuplCharClassFrom(IntPair *categories);
 
     /** Remove a column from the state table. Used when two character categories
-     *  have been found equivalent, and merged together, to eliminate the uneeded table column.
+     *  have been found equivalent, and merged together, to eliminate the unneeded table column.
      */
     void     removeColumn(int32_t column);
 
     /**
-     * Check for, and remove dupicate states (table rows).
+     * Check for, and remove duplicate states (table rows).
      * @return the number of states removed.
      */
     int32_t  removeDuplicateStates();
@@ -156,7 +156,7 @@ private:
 public:
 #ifdef RBBI_DEBUG
     void     printSet(UVector *s);
-    void     printPosSets(RBBINode *n /* = NULL*/);
+    void     printPosSets(RBBINode *n /* = nullptr */);
     void     printStates();
     void     printRuleStatusTable();
     void     printReverseTable();
@@ -219,8 +219,8 @@ public:
     ~RBBIStateDescriptor();
 
 private:
-    RBBIStateDescriptor(const RBBIStateDescriptor &other); // forbid copying of this class
-    RBBIStateDescriptor &operator=(const RBBIStateDescriptor &other); // forbid copying of this class
+    RBBIStateDescriptor(const RBBIStateDescriptor &other) = delete; // forbid copying of this class
+    RBBIStateDescriptor &operator=(const RBBIStateDescriptor &other) = delete; // forbid copying of this class
 };
 
 

@@ -49,7 +49,7 @@ const server = net.createServer(function(c) {
   });
 });
 
-server.listen(0, '127.0.0.1', common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   const port = this.address().port;
   const headers = [
     {
@@ -60,8 +60,8 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
       ['Host', 'echo.websocket.org'],
       ['Connection', 'Upgrade'],
       ['Upgrade', 'websocket'],
-      ['Origin', 'http://www.websocket.org']
-    ]
+      ['Origin', 'http://www.websocket.org'],
+    ],
   ];
   const countdown = new Countdown(headers.length, () => server.close());
 
@@ -82,11 +82,11 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
         assert.strictEqual(recvData.toString(), expectedRecvData);
       }));
 
-      console.log(res.headers);
       const expectedHeaders = {
         hello: 'world',
         connection: 'upgrade',
-        upgrade: 'websocket'
+        upgrade: 'websocket',
+        __proto__: null
       };
       assert.deepStrictEqual(res.headers, expectedHeaders);
       socket.end();

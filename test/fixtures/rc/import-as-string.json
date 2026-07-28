@@ -1,0 +1,5 @@
+{
+  "nodeOptions":{
+    "import": "./test/fixtures/printA.js"
+  }
+}

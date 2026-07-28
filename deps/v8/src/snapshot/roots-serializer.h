@@ -26,23 +26,27 @@ class RootsSerializer : public Serializer {
   // are already serialized.
   RootsSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
                   RootIndex first_root_to_be_serialized);
+  RootsSerializer(const RootsSerializer&) = delete;
+  RootsSerializer& operator=(const RootsSerializer&) = delete;
 
   bool can_be_rehashed() const { return can_be_rehashed_; }
   bool root_has_been_serialized(RootIndex root_index) const {
     return root_has_been_serialized_.test(static_cast<size_t>(root_index));
   }
 
-  bool IsRootAndHasBeenSerialized(HeapObject obj) const {
+  bool IsRootAndHasBeenSerialized(Tagged<HeapObject> obj) const {
     RootIndex root_index;
     return root_index_map()->Lookup(obj, &root_index) &&
            root_has_been_serialized(root_index);
   }
 
  protected:
-  void CheckRehashability(HeapObject obj);
+  void CheckRehashability(Tagged<HeapObject> obj);
 
   // Serializes |object| if not previously seen and returns its cache index.
-  int SerializeInObjectCache(HeapObject object);
+  int SerializeInObjectCache(Handle<HeapObject> object);
+
+  bool object_cache_empty() { return object_cache_index_map_.size() == 0; }
 
  private:
   void VisitRootPointers(Root root, const char* description,
@@ -55,8 +59,6 @@ class RootsSerializer : public Serializer {
   // Indicates whether we only serialized hash tables that we can rehash.
   // TODO(yangguo): generalize rehashing, and remove this flag.
   bool can_be_rehashed_;
-
-  DISALLOW_COPY_AND_ASSIGN(RootsSerializer);
 };
 
 }  // namespace internal

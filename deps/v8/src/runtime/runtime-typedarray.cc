@@ -2,56 +2,79 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/atomicops.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/elements.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 namespace v8 {
 namespace internal {
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferDetach) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<Object> argument = args.at(0);
   // This runtime function is exposed in ClusterFuzz and as such has to
   // support arbitrary arguments.
-  if (!argument->IsJSArrayBuffer()) {
+  if (args.length() < 1 || !IsJSArrayBuffer(*args.at(0))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
-  Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(argument);
-  array_buffer->Detach();
+  auto array_buffer = Cast<JSArrayBuffer>(args.at(0));
+  constexpr bool kForceForWasmMemory = false;
+  MAYBE_RETURN(JSArrayBuffer::Detach(array_buffer, kForceForWasmMemory,
+                                     args.atOrUndefined(isolate, 1)),
+               ReadOnlyRoots(isolate).exception());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> argument = args.at(0);
+  DirectHandle<Object> key = args.at(1);
+  // This runtime function is exposed in ClusterFuzz and as such has to
+  // support arbitrary arguments.
+  if (!IsJSArrayBuffer(*argument)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
+  }
+  auto array_buffer = Cast<JSArrayBuffer>(argument);
+  JSArrayBuffer::SetDetachKey(array_buffer, key, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
-
+  DirectHandle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  DirectHandle<JSAny> source = args.at<JSAny>(1);
   size_t length;
-  CHECK(TryNumberToSize(*length_obj, &length));
-
+  CHECK(TryNumberToSize(args[2], &length));
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, length, 0);
+  return accessor->CopyElements(isolate, source, target, length, 0);
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
-  return *holder->GetBuffer();
+  DirectHandle<JSTypedArray> holder = args.at<JSTypedArray>(0);
+  return *holder->GetBuffer(isolate);
 }
 
+RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<JSArrayBuffer> array_buffer = args.at<JSArrayBuffer>(0);
+
+  CHECK_EQ(0, array_buffer->byte_length_unchecked());
+  size_t byte_length = array_buffer->GetBackingStore()->byte_length();
+  return *isolate->factory()->NewNumberFromSize(byte_length);
+}
 
 namespace {
 
@@ -61,7 +84,7 @@ bool CompareNum(T x, T y) {
     return true;
   } else if (x > y) {
     return false;
-  } else if (!std::is_integral<T>::value) {
+  } else if (!std::is_integral_v<T>) {
     double _x = x, _y = y;
     if (x == 0 && x == y) {
       /* -0.0 is less than +0.0 */
@@ -74,6 +97,10 @@ bool CompareNum(T x, T y) {
   return false;
 }
 
+bool LessThanFloat16RawBits(uint16_t x, uint16_t y) {
+  return CompareNum(fp16_ieee_to_fp32_value(x), fp16_ieee_to_fp32_value(y));
+}
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
@@ -81,64 +108,85 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   DCHECK_EQ(1, args.length());
 
   // Validation is handled in the Torque builtin.
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, array, 0);
+  DirectHandle<JSTypedArray> array = args.at<JSTypedArray>(0);
   DCHECK(!array->WasDetached());
+  DCHECK(!array->IsOutOfBounds());
 
-  size_t length = array->length();
-  DCHECK_LT(1, length);
+#ifdef V8_OS_LINUX
+  if (v8_flags.multi_mapped_mock_allocator) {
+    // Sorting is meaningless with the mock allocator, and std::sort
+    // might crash (because aliasing elements violate its assumptions).
+    return *array;
+  }
+#endif
+
+  // After reading the byte length, avoid reading the bytelength or length
+  // again. If the buffer is shared, it might have been grown by a
+  // background thread. In that case we should ignore the new length and just
+  // sort the old elements and write them into the beginning of the array.
+  const size_t byte_length = array->GetByteLength();
 
   // In case of a SAB, the data is copied into temporary memory, as
   // std::sort might crash in case the underlying data is concurrently
   // modified while sorting.
-  CHECK(array->buffer().IsJSArrayBuffer());
-  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(array->buffer()), isolate);
+  CHECK(IsJSArrayBuffer(array->buffer()));
+  DirectHandle<JSArrayBuffer> buffer(Cast<JSArrayBuffer>(array->buffer()),
+                                     isolate);
   const bool copy_data = buffer->is_shared();
 
-  Handle<ByteArray> array_copy;
+  DirectHandle<ByteArray> array_copy;
   std::vector<uint8_t> offheap_copy;
   void* data_copy_ptr = nullptr;
   if (copy_data) {
-    const size_t bytes = array->byte_length();
-    if (bytes <= static_cast<unsigned>(
-                     ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
-      array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
-      data_copy_ptr = array_copy->GetDataStartAddress();
+    if (byte_length <= static_cast<unsigned>(
+                           ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
+      array_copy =
+          isolate->factory()->NewByteArray(static_cast<int>(byte_length));
+      data_copy_ptr = array_copy->begin();
     } else {
       // Allocate copy in C++ heap.
-      offheap_copy.resize(bytes);
+      offheap_copy.resize(byte_length);
       data_copy_ptr = &offheap_copy[0];
     }
-    std::memcpy(data_copy_ptr, static_cast<void*>(array->DataPtr()), bytes);
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(data_copy_ptr),
+                         static_cast<base::Atomic8*>(array->DataPtr()),
+                         byte_length);
   }
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
+  // The type is not necessarily consistent with the byte_length we read (a
+  // sandbox attacker might have changed it). The code below must handle it
+  // gracefully.
   switch (array->type()) {
-#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                          \
-  case kExternal##Type##Array: {                                           \
-    ctype* data = copy_data ? reinterpret_cast<ctype*>(data_copy_ptr)      \
-                            : static_cast<ctype*>(array->DataPtr());       \
-    if (kExternal##Type##Array == kExternalFloat64Array ||                 \
-        kExternal##Type##Array == kExternalFloat32Array) {                 \
-      if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
-        /* TODO(ishell, v8:8875): See UnalignedSlot<T> for details. */     \
-        std::sort(UnalignedSlot<ctype>(data),                              \
-                  UnalignedSlot<ctype>(data + length), CompareNum<ctype>); \
-      } else {                                                             \
-        std::sort(data, data + length, CompareNum<ctype>);                 \
-      }                                                                    \
-    } else {                                                               \
-      if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {        \
-        /* TODO(ishell, v8:8875): See UnalignedSlot<T> for details. */     \
-        std::sort(UnalignedSlot<ctype>(data),                              \
-                  UnalignedSlot<ctype>(data + length));                    \
-      } else {                                                             \
-        std::sort(data, data + length);                                    \
-      }                                                                    \
-    }                                                                      \
-    break;                                                                 \
+#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                            \
+  case kExternal##Type##Array: {                                             \
+    ctype* data = copy_data ? reinterpret_cast<ctype*>(data_copy_ptr)        \
+                            : static_cast<ctype*>(array->DataPtr());         \
+    size_t length = byte_length / sizeof(ctype);                             \
+    if (kExternal##Type##Array == kExternalFloat64Array ||                   \
+        kExternal##Type##Array == kExternalFloat32Array) {                   \
+      if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {          \
+        /* TODO(ishell, v8:8875): See UnalignedSlot<T> for details. */       \
+        std::sort(UnalignedSlot<ctype>(data),                                \
+                  UnalignedSlot<ctype>(data + length), CompareNum<ctype>);   \
+      } else {                                                               \
+        std::sort(data, data + length, CompareNum<ctype>);                   \
+      }                                                                      \
+    } else if (kExternal##Type##Array == kExternalFloat16Array) {            \
+      DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, alignof(ctype) <= kTaggedSize); \
+      std::sort(data, data + length, LessThanFloat16RawBits);                \
+    } else {                                                                 \
+      if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {          \
+        /* TODO(ishell, v8:8875): See UnalignedSlot<T> for details. */       \
+        std::sort(UnalignedSlot<ctype>(data),                                \
+                  UnalignedSlot<ctype>(data + length));                      \
+      } else {                                                               \
+        std::sort(data, data + length);                                      \
+      }                                                                      \
+    }                                                                        \
+    break;                                                                   \
   }
-
     TYPED_ARRAYS(TYPED_ARRAY_SORT)
 #undef TYPED_ARRAY_SORT
   }
@@ -146,8 +194,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   if (copy_data) {
     DCHECK_NOT_NULL(data_copy_ptr);
     DCHECK_NE(array_copy.is_null(), offheap_copy.empty());
-    const size_t bytes = array->byte_length();
-    std::memcpy(static_cast<void*>(array->DataPtr()), data_copy_ptr, bytes);
+    base::Relaxed_Memcpy(static_cast<base::Atomic8*>(array->DataPtr()),
+                         static_cast<base::Atomic8*>(data_copy_ptr),
+                         byte_length);
   }
 
   return *array;
@@ -156,19 +205,20 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
 RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 3);
-
+  DirectHandle<JSTypedArray> target = args.at<JSTypedArray>(0);
+  DirectHandle<JSAny> source = args.at<JSAny>(1);
   size_t length;
-  CHECK(TryNumberToSize(*length_obj, &length));
-
+  CHECK(TryNumberToSize(args[2], &length));
   size_t offset;
-  CHECK(TryNumberToSize(*offset_obj, &offset));
-
+  CHECK(TryNumberToSize(args[3], &offset));
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, length, offset);
+  return accessor->CopyElements(isolate, source, target, length, offset);
+}
+
+RUNTIME_FUNCTION(Runtime_ArrayBufferMaxByteLength) {
+  HandleScope shs(isolate);
+  size_t heap_max = isolate->array_buffer_allocator()->MaxAllocationSize();
+  return *isolate->factory()->NewNumber(heap_max);
 }
 
 }  // namespace internal

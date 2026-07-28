@@ -1,7 +1,8 @@
 /*
  * nghttp2 - HTTP/2 C Library
  *
- * Copyright (c) 2012 Tatsuhiro Tsujikawa
+ * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2012 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -27,68 +28,44 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
-#include "nghttp2_int.h"
+
 #include "nghttp2_mem.h"
 
 /* Implementation of unordered map */
 
-typedef int32_t key_type;
+typedef int32_t nghttp2_map_key_type;
 
-typedef struct nghttp2_map_entry {
-  struct nghttp2_map_entry *next;
-  key_type key;
-#if SIZEOF_INT_P == 4
-  /* we requires 8 bytes aligment */
-  int64_t pad;
-#endif
-} nghttp2_map_entry;
-
-typedef struct {
-  nghttp2_map_entry **table;
+typedef struct nghttp2_map {
+  nghttp2_map_key_type *keys;
+  void **data;
+  /* psl is the Probe Sequence Length.  0 has special meaning that the
+     element is not stored at i-th position if psl[i] == 0.  Because
+     of this, the actual psl value is psl[i] - 1 if psl[i] > 0. */
+  uint8_t *psl;
   nghttp2_mem *mem;
+  uint64_t seed;
   size_t size;
-  uint32_t tablelen;
+  size_t hashbits;
 } nghttp2_map;
 
 /*
- * Initializes the map |map|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP2_ERR_NOMEM
- *   Out of memory
+ * nghttp2_map_init initializes the map |map|.
  */
-int nghttp2_map_init(nghttp2_map *map, nghttp2_mem *mem);
+void nghttp2_map_init(nghttp2_map *map, uint64_t seed, nghttp2_mem *mem);
 
 /*
- * Deallocates any resources allocated for |map|. The stored entries
- * are not freed by this function. Use nghttp2_map_each_free() to free
- * each entries.
+ * nghttp2_map_free deallocates any resources allocated for |map|.
+ * The stored entries are not freed by this function.  Use
+ * nghttp2_map_each() to free each entry.
  */
 void nghttp2_map_free(nghttp2_map *map);
 
 /*
- * Deallocates each entries using |func| function and any resources
- * allocated for |map|. The |func| function is responsible for freeing
- * given the |entry| object. The |ptr| will be passed to the |func| as
- * send argument. The return value of the |func| will be ignored.
- */
-void nghttp2_map_each_free(nghttp2_map *map,
-                           int (*func)(nghttp2_map_entry *entry, void *ptr),
-                           void *ptr);
-
-/*
- * Initializes the |entry| with the |key|. All entries to be inserted
- * to the map must be initialized with this function.
- */
-void nghttp2_map_entry_init(nghttp2_map_entry *entry, key_type key);
-
-/*
- * Inserts the new |entry| with the key |entry->key| to the map |map|.
+ * nghttp2_map_insert inserts the new |data| with the |key| to the map
+ * |map|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -96,19 +73,19 @@ void nghttp2_map_entry_init(nghttp2_map_entry *entry, key_type key);
  * NGHTTP2_ERR_INVALID_ARGUMENT
  *     The item associated by |key| already exists.
  * NGHTTP2_ERR_NOMEM
- *   Out of memory
+ *     Out of memory
  */
-int nghttp2_map_insert(nghttp2_map *map, nghttp2_map_entry *entry);
+int nghttp2_map_insert(nghttp2_map *map, nghttp2_map_key_type key, void *data);
 
 /*
- * Returns the entry associated by the key |key|.  If there is no such
- * entry, this function returns NULL.
+ * nghttp2_map_find returns the entry associated by the key |key|.  If
+ * there is no such entry, this function returns NULL.
  */
-nghttp2_map_entry *nghttp2_map_find(nghttp2_map *map, key_type key);
+void *nghttp2_map_find(const nghttp2_map *map, nghttp2_map_key_type key);
 
 /*
- * Removes the entry associated by the key |key| from the |map|.  The
- * removed entry is not freed by this function.
+ * nghttp2_map_remove removes the entry associated by the key |key|
+ * from the |map|.  The removed entry is not freed by this function.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -116,29 +93,36 @@ nghttp2_map_entry *nghttp2_map_find(nghttp2_map *map, key_type key);
  * NGHTTP2_ERR_INVALID_ARGUMENT
  *     The entry associated by |key| does not exist.
  */
-int nghttp2_map_remove(nghttp2_map *map, key_type key);
+int nghttp2_map_remove(nghttp2_map *map, nghttp2_map_key_type key);
 
 /*
- * Returns the number of items stored in the map |map|.
+ * nghttp2_map_clear removes all entries from |map|.  The removed
+ * entry is not freed by this function.
  */
-size_t nghttp2_map_size(nghttp2_map *map);
+void nghttp2_map_clear(nghttp2_map *map);
 
 /*
- * Applies the function |func| to each entry in the |map| with the
- * optional user supplied pointer |ptr|.
+ * nghttp2_map_size returns the number of items stored in the map
+ * |map|.
+ */
+size_t nghttp2_map_size(const nghttp2_map *map);
+
+/*
+ * nghttp2_map_each applies the function |func| to each entry in the
+ * |map| with the optional user supplied pointer |ptr|.
  *
  * If the |func| returns 0, this function calls the |func| with the
- * next entry. If the |func| returns nonzero, it will not call the
+ * next entry.  If the |func| returns nonzero, it will not call the
  * |func| for further entries and return the return value of the
  * |func| immediately.  Thus, this function returns 0 if all the
  * invocations of the |func| return 0, or nonzero value which the last
  * invocation of |func| returns.
- *
- * Don't use this function to free each entry. Use
- * nghttp2_map_each_free() instead.
  */
-int nghttp2_map_each(nghttp2_map *map,
-                     int (*func)(nghttp2_map_entry *entry, void *ptr),
+int nghttp2_map_each(const nghttp2_map *map, int (*func)(void *data, void *ptr),
                      void *ptr);
 
-#endif /* NGHTTP2_MAP_H */
+#ifndef WIN32
+void nghttp2_map_print_distance(const nghttp2_map *map);
+#endif /* !defined(WIN32) */
+
+#endif /* !defined(NGHTTP2_MAP_H) */

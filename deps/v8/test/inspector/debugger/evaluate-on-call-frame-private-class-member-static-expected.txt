@@ -1,0 +1,231 @@
+Evaluate static private class member out of class scope in Debugger.evaluateOnCallFrame()
+
+class Klass {
+  static #field = "string";
+  static get #getterOnly() { return "getterOnly"; }
+  static set #setterOnly(val) { this.#field = "setterOnlyCalled"; }
+  static get #accessor() { return this.#field }
+  static set #accessor(val) { this.#field = val; }
+  static #method() { return "method"; }
+}
+const obj = new Klass();
+debugger;
+
+Running test: evaluatePrivateMembers
+Checking private fields
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    type : string
+    value : string
+}
+Debugger.evaluateOnCallFrame: `Klass.#field = 1`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Debugger.evaluateOnCallFrame: `Klass.#field++`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 2
+    type : number
+    value : 2
+}
+Debugger.evaluateOnCallFrame: `++Klass.#field`
+{
+    description : 3
+    type : number
+    value : 3
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 3
+    type : number
+    value : 3
+}
+Debugger.evaluateOnCallFrame: `Klass.#field -= 3`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Checking private getter-only accessors
+Debugger.evaluateOnCallFrame: `Klass.#getterOnly`
+{
+    type : string
+    value : getterOnly
+}
+Debugger.evaluateOnCallFrame: `Klass.#getterOnly = 1`
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at eval (eval at <anonymous> (:11:1), <anonymous>:1:19)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#getterOnly++`
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at eval (eval at <anonymous> (:11:1), <anonymous>:1:18)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#getterOnly -= 3`
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at eval (eval at <anonymous> (:11:1), <anonymous>:1:19)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#getterOnly`
+{
+    type : string
+    value : getterOnly
+}
+Checking private setter-only accessors
+Debugger.evaluateOnCallFrame: `Klass.#setterOnly`
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at eval (eval at <anonymous> (:11:1), <anonymous>:1:1)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#setterOnly = 1`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Debugger.evaluateOnCallFrame: `Klass.#setterOnly++`
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at eval (eval at <anonymous> (:11:1), <anonymous>:1:1)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#setterOnly -= 3`
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at eval (eval at <anonymous> (:11:1), <anonymous>:1:1)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    type : string
+    value : setterOnlyCalled
+}
+Checking private accessors
+Debugger.evaluateOnCallFrame: `Klass.#accessor`
+{
+    type : string
+    value : setterOnlyCalled
+}
+Debugger.evaluateOnCallFrame: `Klass.#accessor = 1`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Debugger.evaluateOnCallFrame: `Klass.#accessor++`
+{
+    description : 1
+    type : number
+    value : 1
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 2
+    type : number
+    value : 2
+}
+Debugger.evaluateOnCallFrame: `++Klass.#accessor`
+{
+    type : undefined
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 3
+    type : number
+    value : 3
+}
+Debugger.evaluateOnCallFrame: `Klass.#accessor -= 3`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Debugger.evaluateOnCallFrame: `Klass.#field`
+{
+    description : 0
+    type : number
+    value : 0
+}
+Checking private methods
+Debugger.evaluateOnCallFrame: `Klass.#method`
+{
+    className : Function
+    description : #method() { return "method"; }
+    objectId : <objectId>
+    type : function
+}
+Debugger.evaluateOnCallFrame: `Klass.#method = 1`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (:11:1), <anonymous>:1:15)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#method++`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (:11:1), <anonymous>:1:14)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `++Klass.#method`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (:11:1), <anonymous>:1:9)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Debugger.evaluateOnCallFrame: `Klass.#method -= 3`
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (:11:1), <anonymous>:1:15)     at <anonymous>:11:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}

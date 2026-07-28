@@ -57,10 +57,10 @@ function makeRequest() {
 
   const child = spawn(process.execPath, args);
 
-  child.on('exit', function(code) {
-    assert.ok(/DONE/.test(stderrBuffer));
+  child.on('exit', common.mustCall((code) => {
+    assert.match(stderrBuffer, /DONE/);
     assert.strictEqual(code, 0);
-  });
+  }));
 
   // The following two lines forward the stdio from the child
   // to parent process for debugging.
@@ -78,12 +78,12 @@ function makeRequest() {
 
 const serverOptions = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 let uploadCount = 0;
 
-const server = https.Server(serverOptions, function(req, res) {
+const server = https.Server(serverOptions, common.mustCall((req, res) => {
   // Close the server immediately. This test is only doing a single upload.
   // We need to make sure the server isn't keeping the event loop alive
   // while the upload is in progress.
@@ -94,12 +94,12 @@ const server = https.Server(serverOptions, function(req, res) {
     uploadCount += d.length;
   });
 
-  req.on('end', function() {
+  req.on('end', common.mustCall(() => {
     assert.strictEqual(uploadCount, bytesExpected);
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('successful upload\n');
-  });
-});
+  }));
+}));
 
 server.listen(0, function() {
   console.log(`expecting ${bytesExpected} bytes`);

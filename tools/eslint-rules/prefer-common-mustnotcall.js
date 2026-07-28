@@ -1,5 +1,5 @@
 /**
- * @fileoverview Prefer common.mustNotCall(msg) over common.mustCall(fn, 0)
+ * @file Prefer common.mustNotCall(msg) over common.mustCall(fn, 0)
  * @author James M Snell <jasnell@gmail.com>
  */
 'use strict';
@@ -15,16 +15,18 @@ const mustCallSelector = 'CallExpression[callee.object.name="common"]' +
 const arg0Selector = `${mustCallSelector}[arguments.0.value=0]`;
 const arg1Selector = `${mustCallSelector}[arguments.1.value=0]`;
 
-module.exports = function(context) {
-  function report(node) {
-    context.report(node, msg);
-  }
+module.exports = {
+  create(context) {
+    function report(node) {
+      context.report(node, msg);
+    }
 
-  return {
+    return {
     // Catch common.mustCall(0)
-    [arg0Selector]: report,
+      [arg0Selector]: report,
 
-    // Catch common.mustCall(fn, 0)
-    [arg1Selector]: report
-  };
+      // Catch common.mustCall(fn, 0)
+      [arg1Selector]: report,
+    };
+  },
 };

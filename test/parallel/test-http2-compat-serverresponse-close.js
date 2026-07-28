@@ -19,7 +19,7 @@ const server = h2.createServer(common.mustCall((req, res) => {
 }));
 server.listen(0);
 
-server.on('listening', () => {
+server.on('listening', common.mustCall(() => {
   const url = `http://localhost:${server.address().port}`;
   const client = h2.connect(url, common.mustCall(() => {
     const request = client.request();
@@ -28,4 +28,4 @@ server.on('listening', () => {
       server.close();
     }));
   }));
-});
+}));

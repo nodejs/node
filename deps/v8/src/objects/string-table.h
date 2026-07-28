@@ -20,27 +20,25 @@ namespace internal {
 class StringTableKey {
  public:
   virtual ~StringTableKey() = default;
-  inline StringTableKey(uint32_t hash_field, int length);
+  inline StringTableKey(uint32_t raw_hash_field, uint32_t length);
 
-  // The individual keys will have their own AsHandle, we shouldn't call the
-  // base version.
-  Handle<String> AsHandle(Isolate* isolate) = delete;
-
-  uint32_t hash_field() const {
-    DCHECK_NE(0, hash_field_);
-    return hash_field_;
+  uint32_t raw_hash_field() const {
+    DCHECK_NE(0, raw_hash_field_);
+    return raw_hash_field_;
   }
 
-  virtual bool IsMatch(String string) = 0;
   inline uint32_t hash() const;
-  int length() const { return length_; }
+  uint32_t length() const { return length_; }
+
+  virtual bool IsThinString() { return false; }
+  virtual Tagged<String> UnwrapThinString() { UNREACHABLE(); }
 
  protected:
-  inline void set_hash_field(uint32_t hash_field);
+  inline void set_raw_hash_field(uint32_t raw_hash_field);
 
  private:
-  uint32_t hash_field_ = 0;
-  int length_;
+  uint32_t raw_hash_field_ = 0;
+  uint32_t length_;
 };
 
 class SeqOneByteString;
@@ -52,8 +50,8 @@ class SeqOneByteString;
 // StringTable::Data for details.
 class V8_EXPORT_PRIVATE StringTable {
  public:
-  static constexpr Smi empty_element() { return Smi::FromInt(0); }
-  static constexpr Smi deleted_element() { return Smi::FromInt(1); }
+  static constexpr Tagged<Smi> empty_element() { return Smi::FromInt(0); }
+  static constexpr Tagged<Smi> deleted_element() { return Smi::FromInt(1); }
 
   explicit StringTable(Isolate* isolate);
   ~StringTable();
@@ -63,13 +61,13 @@ class V8_EXPORT_PRIVATE StringTable {
 
   // Find string in the string table. If it is not there yet, it is
   // added. The return value is the string found.
-  Handle<String> LookupString(Isolate* isolate, Handle<String> key);
+  DirectHandle<String> LookupString(Isolate* isolate, DirectHandle<String> key);
 
   // Find string in the string table, using the given key. If the string is not
   // there yet, it is created (by the key) and added. The return value is the
   // string found.
-  template <typename StringTableKey, typename LocalIsolate>
-  Handle<String> LookupKey(LocalIsolate* isolate, StringTableKey* key);
+  template <typename StringTableKey, typename IsolateT>
+  DirectHandle<String> LookupKey(IsolateT* isolate, StringTableKey* key);
 
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either a Smi if the string is an array index, an
@@ -77,27 +75,36 @@ class V8_EXPORT_PRIVATE StringTable {
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
 
-  void Print(const Isolate* isolate) const;
+  // Insert a range of strings. Only for use during isolate deserialization.
+  void InsertForIsolateDeserialization(
+      Isolate* isolate, const base::Vector<DirectHandle<String>>& strings);
+
+  // Insert the single empty string. Only for use during heap bootstrapping.
+  void InsertEmptyStringForBootstrapping(Isolate* isolate);
+
+  void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
 
   // The following methods must be called either while holding the write lock,
   // or while in a Heap safepoint.
   void IterateElements(RootVisitor* visitor);
+  void IterateElementsRange(RootVisitor* visitor, int start, int end);
   void DropOldData();
   void NotifyElementsRemoved(int count);
 
+  void VerifyIfOwnedBy(Isolate* isolate);
+
  private:
+  class OffHeapStringHashSet;
   class Data;
 
-  Data* EnsureCapacity(const Isolate* isolate, int additional_elements);
+  Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);
 
   std::atomic<Data*> data_;
   // Write mutex is mutable so that readers of concurrently mutated values (e.g.
   // NumberOfElements) are allowed to lock it while staying const.
   mutable base::Mutex write_mutex_;
-#ifdef DEBUG
   Isolate* isolate_;
-#endif
 };
 
 }  // namespace internal

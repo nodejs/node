@@ -10,7 +10,7 @@ const assert = require('assert');
 const server = http.createServer(common.mustCall((req, res) => {
   res.end('ok');
 }));
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   http.get({
     port: server.address().port,
     headers: { 'Test': 'Düsseldorf' }
@@ -18,4 +18,4 @@ server.listen(0, () => {
     assert.strictEqual(res.statusCode, 200);
     server.close();
   }));
-});
+}));

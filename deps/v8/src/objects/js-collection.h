@@ -17,6 +17,8 @@ namespace internal {
 class OrderedHashSet;
 class OrderedHashMap;
 
+#include "torque-generated/src/objects/js-collection-tq.inc"
+
 class JSCollection
     : public TorqueGeneratedJSCollection<JSCollection, JSObject> {
  public:
@@ -25,11 +27,11 @@ class JSCollection
   TQ_OBJECT_CONSTRUCTORS(JSCollection)
 };
 
-// The JSSet describes EcmaScript Harmony sets
+// The JSSet describes ECMAScript Harmony sets
 class JSSet : public TorqueGeneratedJSSet<JSSet, JSCollection> {
  public:
-  static void Initialize(Handle<JSSet> set, Isolate* isolate);
-  static void Clear(Isolate* isolate, Handle<JSSet> set);
+  static void Initialize(DirectHandle<JSSet> set, Isolate* isolate);
+  static void Clear(Isolate* isolate, DirectHandle<JSSet> set);
   void Rehash(Isolate* isolate);
 
   // Dispatched behavior.
@@ -46,17 +48,15 @@ class JSSetIterator
   DECL_PRINTER(JSSetIterator)
   DECL_VERIFIER(JSSetIterator)
 
-  DECL_CAST(JSSetIterator)
-
   OBJECT_CONSTRUCTORS(JSSetIterator,
                       OrderedHashTableIterator<JSSetIterator, OrderedHashSet>);
 };
 
-// The JSMap describes EcmaScript Harmony maps
+// The JSMap describes ECMAScript Harmony maps
 class JSMap : public TorqueGeneratedJSMap<JSMap, JSCollection> {
  public:
-  static void Initialize(Handle<JSMap> map, Isolate* isolate);
-  static void Clear(Isolate* isolate, Handle<JSMap> map);
+  static void Initialize(DirectHandle<JSMap> map, Isolate* isolate);
+  static void Clear(Isolate* isolate, DirectHandle<JSMap> map);
   void Rehash(Isolate* isolate);
 
   // Dispatched behavior.
@@ -73,11 +73,9 @@ class JSMapIterator
   DECL_PRINTER(JSMapIterator)
   DECL_VERIFIER(JSMapIterator)
 
-  DECL_CAST(JSMapIterator)
-
   // Returns the current value of the iterator. This should only be called when
   // |HasMore| returns true.
-  inline Object CurrentValue();
+  inline Tagged<Object> CurrentValue();
 
   OBJECT_CONSTRUCTORS(JSMapIterator,
                       OrderedHashTableIterator<JSMapIterator, OrderedHashMap>);
@@ -87,14 +85,15 @@ class JSMapIterator
 class JSWeakCollection
     : public TorqueGeneratedJSWeakCollection<JSWeakCollection, JSObject> {
  public:
-  static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
-  V8_EXPORT_PRIVATE static void Set(Handle<JSWeakCollection> collection,
-                                    Handle<Object> key, Handle<Object> value,
-                                    int32_t hash);
-  static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
-                     int32_t hash);
-  static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
-                                    int max_entries);
+  static void Initialize(DirectHandle<JSWeakCollection> collection,
+                         Isolate* isolate);
+  V8_EXPORT_PRIVATE static void Set(DirectHandle<JSWeakCollection> collection,
+                                    DirectHandle<Object> key,
+                                    DirectHandle<Object> value, int32_t hash);
+  static bool Delete(DirectHandle<JSWeakCollection> collection,
+                     DirectHandle<Object> key, int32_t hash);
+  static DirectHandle<JSArray> GetEntries(DirectHandle<JSWeakCollection> holder,
+                                          uint32_t max_entries);
 
   static const int kAddFunctionDescriptorIndex = 3;
 
@@ -109,25 +108,25 @@ class JSWeakCollection
   TQ_OBJECT_CONSTRUCTORS(JSWeakCollection)
 };
 
-// The JSWeakMap describes EcmaScript Harmony weak maps
+// The JSWeakMap describes ECMAScript Harmony weak maps
 class JSWeakMap : public TorqueGeneratedJSWeakMap<JSWeakMap, JSWeakCollection> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSWeakMap)
   DECL_VERIFIER(JSWeakMap)
 
-  STATIC_ASSERT(kHeaderSize == kHeaderSizeOfAllWeakCollections);
+  static_assert(kHeaderSize == kHeaderSizeOfAllWeakCollections);
   TQ_OBJECT_CONSTRUCTORS(JSWeakMap)
 };
 
-// The JSWeakSet describes EcmaScript Harmony weak sets
+// The JSWeakSet describes ECMAScript Harmony weak sets
 class JSWeakSet : public TorqueGeneratedJSWeakSet<JSWeakSet, JSWeakCollection> {
  public:
   // Dispatched behavior.
   DECL_PRINTER(JSWeakSet)
   DECL_VERIFIER(JSWeakSet)
 
-  STATIC_ASSERT(kHeaderSize == kHeaderSizeOfAllWeakCollections);
+  static_assert(kHeaderSize == kHeaderSizeOfAllWeakCollections);
   TQ_OBJECT_CONSTRUCTORS(JSWeakSet)
 };
 

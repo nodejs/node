@@ -8,11 +8,13 @@ const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const os = require('os');
-const util = require('util');
 
-common.skipIfDumbTerminal();
+common.skipIfInspectorDisabled();
+
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -40,11 +42,11 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', `${action}\n`);
+        this.emit('data', action);
       }
       setImmediate(doAction);
     };
-    setImmediate(doAction);
+    doAction();
   }
   resume() {}
   pause() {}
@@ -60,12 +62,11 @@ const CLEAR = { ctrl: true, name: 'u' };
 
 // File paths
 const historyFixturePath = fixtures.path('.node_repl_history');
-const historyPath = path.join(tmpdir.path, '.fixture_copy_repl_history');
+const historyPath = tmpdir.resolve('.fixture_copy_repl_history');
 const historyPathFail = fixtures.path('nonexistent_folder', 'filename');
-const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 const emptyHiddenHistoryPath = fixtures.path('.empty-hidden-repl-history-file');
-const devNullHistoryPath = path.join(tmpdir.path,
-                                     '.dev-null-repl-history-file');
+const devNullHistoryPath = tmpdir.resolve('.dev-null-repl-history-file');
 // Common message bits
 const prompt = '> ';
 const replDisabled = '\nPersistent history support disabled. Set the ' +
@@ -97,8 +98,8 @@ const tests = [
     test: [UP, '21', ENTER, "'42'", ENTER],
     expected: [
       prompt,
-      '2', '1', '21\n', prompt, prompt,
-      "'", '4', '2', "'", "'42'\n", prompt, prompt
+      '2', '1', '21\n', prompt,
+      "'", '4', '2', "'", "'42'\n", prompt,
     ],
     clean: false
   },
@@ -128,7 +129,7 @@ const tests = [
       `${prompt}'you look fabulous today'`,
       prompt,
       `${prompt}'you look fabulous today'`,
-      prompt
+      prompt,
     ]
   },
   {
@@ -138,14 +139,12 @@ const tests = [
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },
   {
-    before: function before() {
+    before: common.mustCall(function before() {
       if (common.isWindows) {
         const execSync = require('child_process').execSync;
-        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, (err) => {
-          assert.ifError(err);
-        });
+        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`);
       }
-    },
+    }),
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
     test: [UP],
     expected: [prompt]
@@ -169,7 +168,7 @@ const tests = [
     env: {},
     test: [UP],
     expected: [prompt, homedirErr, prompt, replDisabled, prompt]
-  }
+  },
 ];
 const numtests = tests.length;
 
@@ -195,8 +194,6 @@ function runTest(assertCleaned) {
   const opts = tests.shift();
   if (!opts) return; // All done
 
-  console.log('NEW');
-
   if (assertCleaned) {
     try {
       assert.strictEqual(fs.readFileSync(defaultHistoryPath, 'utf8'), '');
@@ -219,9 +216,8 @@ function runTest(assertCleaned) {
   REPL.createInternalRepl(env, {
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
-        console.log('INPUT', util.inspect(output));
 
         // Ignore escapes and blank lines
         if (output.charCodeAt(0) === 27 || /^[\r\n]+$/.test(output))
@@ -234,19 +230,19 @@ function runTest(assertCleaned) {
           throw err;
         }
         next();
-      }
+      }),
     }),
     prompt,
     useColors: false,
     terminal: true
-  }, function(err, repl) {
+  }, common.mustCall((err, repl) => {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
     repl.once('close', () => {
-      if (repl._flushing) {
+      if (repl.historyManager.isFlushing) {
         repl.once('flushHistory', onClose);
         return;
       }
@@ -254,7 +250,7 @@ function runTest(assertCleaned) {
       onClose();
     });
 
-    function onClose() {
+    const onClose = common.mustCall(() => {
       const cleaned = clean === false ? false : cleanupTmpFile();
 
       try {
@@ -265,8 +261,8 @@ function runTest(assertCleaned) {
         console.error(`Failed test # ${numtests - tests.length}`);
         throw err;
       }
-    }
+    });
 
     repl.inputStream.run(test);
-  });
+  }));
 }

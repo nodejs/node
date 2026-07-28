@@ -31,7 +31,7 @@ U_NAMESPACE_BEGIN
 
 using number::impl::DecimalQuantity;
 
-static const UChar OTHER_STRING[] = {
+static const char16_t OTHER_STRING[] = {
     0x6F, 0x74, 0x68, 0x65, 0x72, 0  // "other"
 };
 
@@ -40,23 +40,23 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(PluralFormat)
 PluralFormat::PluralFormat(UErrorCode& status)
         : locale(Locale::getDefault()),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
-    init(NULL, UPLURAL_TYPE_CARDINAL, status);
+    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
 }
 
 PluralFormat::PluralFormat(const Locale& loc, UErrorCode& status)
         : locale(loc),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
-    init(NULL, UPLURAL_TYPE_CARDINAL, status);
+    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
 }
 
 PluralFormat::PluralFormat(const PluralRules& rules, UErrorCode& status)
         : locale(Locale::getDefault()),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
     init(&rules, UPLURAL_TYPE_COUNT, status);
 }
@@ -66,7 +66,7 @@ PluralFormat::PluralFormat(const Locale& loc,
                            UErrorCode& status)
         : locale(loc),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
     init(&rules, UPLURAL_TYPE_COUNT, status);
 }
@@ -76,18 +76,18 @@ PluralFormat::PluralFormat(const Locale& loc,
                            UErrorCode& status)
         : locale(loc),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
-    init(NULL, type, status);
+    init(nullptr, type, status);
 }
 
 PluralFormat::PluralFormat(const UnicodeString& pat,
                            UErrorCode& status)
         : locale(Locale::getDefault()),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
-    init(NULL, UPLURAL_TYPE_CARDINAL, status);
+    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
     applyPattern(pat, status);
 }
 
@@ -96,9 +96,9 @@ PluralFormat::PluralFormat(const Locale& loc,
                            UErrorCode& status)
         : locale(loc),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
-    init(NULL, UPLURAL_TYPE_CARDINAL, status);
+    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
     applyPattern(pat, status);
 }
 
@@ -107,7 +107,7 @@ PluralFormat::PluralFormat(const PluralRules& rules,
                            UErrorCode& status)
         : locale(Locale::getDefault()),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
     init(&rules, UPLURAL_TYPE_COUNT, status);
     applyPattern(pat, status);
@@ -119,7 +119,7 @@ PluralFormat::PluralFormat(const Locale& loc,
                            UErrorCode& status)
         : locale(loc),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
     init(&rules, UPLURAL_TYPE_COUNT, status);
     applyPattern(pat, status);
@@ -131,9 +131,9 @@ PluralFormat::PluralFormat(const Locale& loc,
                            UErrorCode& status)
         : locale(loc),
           msgPattern(status),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(0) {
-    init(NULL, type, status);
+    init(nullptr, type, status);
     applyPattern(pat, status);
 }
 
@@ -141,7 +141,7 @@ PluralFormat::PluralFormat(const PluralFormat& other)
         : Format(other),
           locale(other.locale),
           msgPattern(other.msgPattern),
-          numberFormat(NULL),
+          numberFormat(nullptr),
           offset(other.offset) {
     copyObjects(other);
 }
@@ -149,19 +149,14 @@ PluralFormat::PluralFormat(const PluralFormat& other)
 void
 PluralFormat::copyObjects(const PluralFormat& other) {
     UErrorCode status = U_ZERO_ERROR;
-    if (numberFormat != NULL) {
-        delete numberFormat;
-    }
-    if (pluralRulesWrapper.pluralRules != NULL) {
-        delete pluralRulesWrapper.pluralRules;
-    }
-
-    if (other.numberFormat == NULL) {
+    delete numberFormat;
+    delete pluralRulesWrapper.pluralRules;
+    if (other.numberFormat == nullptr) {
         numberFormat = NumberFormat::createInstance(locale, status);
     } else {
         numberFormat = other.numberFormat->clone();
     }
-    if (other.pluralRulesWrapper.pluralRules == NULL) {
+    if (other.pluralRulesWrapper.pluralRules == nullptr) {
         pluralRulesWrapper.pluralRules = PluralRules::forLocale(locale, status);
     } else {
         pluralRulesWrapper.pluralRules = other.pluralRulesWrapper.pluralRules->clone();
@@ -179,11 +174,11 @@ PluralFormat::init(const PluralRules* rules, UPluralType type, UErrorCode& statu
         return;
     }
 
-    if (rules==NULL) {
+    if (rules==nullptr) {
         pluralRulesWrapper.pluralRules = PluralRules::forLocale(locale, type, status);
     } else {
         pluralRulesWrapper.pluralRules = rules->clone();
-        if (pluralRulesWrapper.pluralRules == NULL) {
+        if (pluralRulesWrapper.pluralRules == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -194,7 +189,7 @@ PluralFormat::init(const PluralRules* rules, UPluralType type, UErrorCode& statu
 
 void
 PluralFormat::applyPattern(const UnicodeString& newPattern, UErrorCode& status) {
-    msgPattern.parsePluralStyle(newPattern, NULL, status);
+    msgPattern.parsePluralStyle(newPattern, nullptr, status);
     if (U_FAILURE(status)) {
         msgPattern.clear();
         offset = 0;
@@ -239,7 +234,7 @@ PluralFormat::format(int32_t number,
                      UnicodeString& appendTo,
                      FieldPosition& pos,
                      UErrorCode& status) const {
-    return format(Formattable(number), (double)number, appendTo, pos, status);
+    return format(Formattable(number), static_cast<double>(number), appendTo, pos, status);
 }
 
 UnicodeString&
@@ -247,7 +242,7 @@ PluralFormat::format(double number,
                      UnicodeString& appendTo,
                      FieldPosition& pos,
                      UErrorCode& status) const {
-    return format(Formattable(number), (double)number, appendTo, pos, status);
+    return format(Formattable(number), number, appendTo, pos, status);
 }
 
 UnicodeString&
@@ -343,9 +338,9 @@ PluralFormat::setLocale(const Locale& loc, UErrorCode& status) {
     msgPattern.clear();
     delete numberFormat;
     offset = 0;
-    numberFormat = NULL;
+    numberFormat = nullptr;
     pluralRulesWrapper.reset();
-    init(NULL, UPLURAL_TYPE_CARDINAL, status);
+    init(nullptr, UPLURAL_TYPE_CARDINAL, status);
 }
 
 void
@@ -354,7 +349,7 @@ PluralFormat::setNumberFormat(const NumberFormat* format, UErrorCode& status) {
         return;
     }
     NumberFormat* nf = format->clone();
-    if (nf != NULL) {
+    if (nf != nullptr) {
         delete numberFormat;
         numberFormat = nf;
     } else {
@@ -381,26 +376,26 @@ PluralFormat::operator=(const PluralFormat& other) {
     return *this;
 }
 
-UBool
+bool
 PluralFormat::operator==(const Format& other) const {
     if (this == &other) {
-        return TRUE;
+        return true;
     }
     if (!Format::operator==(other)) {
-        return FALSE;
+        return false;
     }
     const PluralFormat& o = (const PluralFormat&)other;
     return
         locale == o.locale &&
         msgPattern == o.msgPattern &&  // implies same offset
-        (numberFormat == NULL) == (o.numberFormat == NULL) &&
-        (numberFormat == NULL || *numberFormat == *o.numberFormat) &&
-        (pluralRulesWrapper.pluralRules == NULL) == (o.pluralRulesWrapper.pluralRules == NULL) &&
-        (pluralRulesWrapper.pluralRules == NULL ||
+        (numberFormat == nullptr) == (o.numberFormat == nullptr) &&
+        (numberFormat == nullptr || *numberFormat == *o.numberFormat) &&
+        (pluralRulesWrapper.pluralRules == nullptr) == (o.pluralRulesWrapper.pluralRules == nullptr) &&
+        (pluralRulesWrapper.pluralRules == nullptr ||
             *pluralRulesWrapper.pluralRules == *o.pluralRulesWrapper.pluralRules);
 }
 
-UBool
+bool
 PluralFormat::operator!=(const Format& other) const {
     return  !operator==(other);
 }
@@ -434,11 +429,11 @@ int32_t PluralFormat::findSubMessage(const MessagePattern& pattern, int32_t part
     // (In other words, we never call the selector if we match against an explicit value,
     // or if the only non-explicit keyword is "other".)
     UnicodeString keyword;
-    UnicodeString other(FALSE, OTHER_STRING, 5);
+    UnicodeString other(false, OTHER_STRING, 5);
     // When we find a match, we set msgStart>0 and also set this boolean to true
     // to avoid matching the keyword again (duplicates are allowed)
     // while we continue to look for an explicit-value match.
-    UBool haveKeywordMatch=FALSE;
+    UBool haveKeywordMatch=false;
     // msgStart is 0 until we find any appropriate sub-message.
     // We remember the first "other" sub-message if we have not seen any
     // appropriate sub-message before.
@@ -477,7 +472,7 @@ int32_t PluralFormat::findSubMessage(const MessagePattern& pattern, int32_t part
                         // This is the first "other" sub-message,
                         // and the selected keyword is also "other".
                         // Do not match "other" again.
-                        haveKeywordMatch=TRUE;
+                        haveKeywordMatch=true;
                     }
                 }
             } else {
@@ -486,7 +481,7 @@ int32_t PluralFormat::findSubMessage(const MessagePattern& pattern, int32_t part
                     if(msgStart!=0 && (0 == keyword.compare(other))) {
                         // We have already seen an "other" sub-message.
                         // Do not match "other" again.
-                        haveKeywordMatch=TRUE;
+                        haveKeywordMatch=true;
                         // Skip keyword matching but do getLimitPartIndex().
                     }
                 }
@@ -494,7 +489,7 @@ int32_t PluralFormat::findSubMessage(const MessagePattern& pattern, int32_t part
                     // keyword matches
                     msgStart=partIndex;
                     // Do not match this keyword again.
-                    haveKeywordMatch=TRUE;
+                    haveKeywordMatch=true;
                 }
             }
         }
@@ -548,7 +543,7 @@ void PluralFormat::parseType(const UnicodeString& source, const NFRule *rbnfLeni
         }
 
         UnicodeString currArg = pattern.tempSubString(partStart->getLimit(), partLimit->getIndex() - partStart->getLimit());
-        if (rbnfLenientScanner != NULL) {
+        if (rbnfLenientScanner != nullptr) {
             // Check if non-lenient rule finds the text before call lenient parsing
             int32_t tempIndex = source.indexOf(currArg, startingAt);
             if (tempIndex >= 0) {
@@ -595,7 +590,7 @@ UnicodeString PluralFormat::PluralSelectorAdapter::select(void *context, double 
 
 void PluralFormat::PluralSelectorAdapter::reset() {
     delete pluralRules;
-    pluralRules = NULL;
+    pluralRules = nullptr;
 }
 
 

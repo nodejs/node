@@ -14,7 +14,7 @@ namespace compiler {
 
 class LiveRangeFinder;
 class TopLevelLiveRange;
-class TopTierRegisterAllocationData;
+class RegisterAllocationData;
 
 // SpillPlacer is an implementation of an algorithm to find optimal spill
 // insertion positions, where optimal is defined as:
@@ -75,10 +75,12 @@ class TopTierRegisterAllocationData;
 // easily process a batch of values at the same time as an optimization.
 class SpillPlacer {
  public:
-  SpillPlacer(LiveRangeFinder* finder, TopTierRegisterAllocationData* data,
-              Zone* zone);
+  SpillPlacer(RegisterAllocationData* data, Zone* zone);
 
   ~SpillPlacer();
+
+  SpillPlacer(const SpillPlacer&) = delete;
+  SpillPlacer& operator=(const SpillPlacer&) = delete;
 
   // Adds the given TopLevelLiveRange to the SpillPlacer's state. Will
   // eventually commit spill moves for that range and mark the range to indicate
@@ -89,7 +91,7 @@ class SpillPlacer {
   void Add(TopLevelLiveRange* range);
 
  private:
-  TopTierRegisterAllocationData* data() const { return data_; }
+  RegisterAllocationData* data() const { return data_; }
 
   // While initializing data for a range, returns the index within each Entry
   // where data about that range should be stored. May cause data about previous
@@ -140,8 +142,7 @@ class SpillPlacer {
   static constexpr int kValueIndicesPerEntry = 64;
 
   // Objects provided to the constructor, which all outlive this SpillPlacer.
-  LiveRangeFinder* finder_;
-  TopTierRegisterAllocationData* data_;
+  RegisterAllocationData* data_;
   Zone* zone_;
 
   // An array of one Entry per block, where blocks are in reverse post-order.
@@ -158,8 +159,6 @@ class SpillPlacer {
   // additional work.
   RpoNumber first_block_ = RpoNumber::Invalid();
   RpoNumber last_block_ = RpoNumber::Invalid();
-
-  DISALLOW_COPY_AND_ASSIGN(SpillPlacer);
 };
 
 }  // namespace compiler

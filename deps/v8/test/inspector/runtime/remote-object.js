@@ -198,8 +198,24 @@ InspectorTest.runAsyncTestSuite([
       expression: '-5n',
       generatePreview: true
     })).result);
+    let result = (await evaluate({
+      expression: '1n << 9_999_999n'
+    })).result;
+    if (result.result.unserializableValue === '0x8' + '0'.repeat(2_499_999) + 'n')
+      result.result.unserializableValue = '<expected unserializableValue>';
+    InspectorTest.logMessage(result);
+    result = (await evaluate({
+      expression: '-1n << 9_999_999n'
+    })).result;
+    InspectorTest.logMessage(result.result.description.length);
+    if (result.result.unserializableValue === '-0x8' + '0'.repeat(2_499_998) + 'n')
+      result.result.unserializableValue = '<expected unserializableValue>';
+    InspectorTest.logMessage(result);
   },
   async function testRegExp() {
+    InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/d'
+    })).result);
     InspectorTest.logMessage((await evaluate({
       expression: '/\w+/g'
     })).result);
@@ -219,10 +235,29 @@ InspectorTest.runAsyncTestSuite([
       expression: '/\w+/y'
     })).result);
     InspectorTest.logMessage((await evaluate({
-      expression: '/\w+/gimsuy'
+      expression: '/\w+/v'
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/dgimsuy'
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: '/\w+/dgimsvy'
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `new RegExp('\\w+', 'g')`,
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: `new RegExp('foo/bar')`
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: `var re = /./dgimsuy;
+        re.toString = () => 'foo';
+        re`
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: `var re = /./dgimsvy;
+        re.toString = () => 'foo';
+        re`
     })).result);
     InspectorTest.logMessage((await evaluate({
       expression: `var re = new RegExp('\\w+', 'g');
@@ -262,6 +297,29 @@ InspectorTest.runAsyncTestSuite([
       expression: `a = new Date(2018, 9, 31); a.b = 2; a`,
       generatePreview: true
     })).result;
+    if (result.result.description === new Date(2018, 9, 31) + '')
+      result.result.description = '<expected description>';
+    if (result.result.preview.description === new Date(2018, 9, 31) + '')
+      result.result.preview.description = '<expected description>';
+    InspectorTest.logMessage(result);
+
+    result = (await evaluate({
+               expression:
+                   `a = new Date(2018, 9, 31); a.toString = date => 'bar'; a`,
+               generatePreview: true
+             })).result;
+    if (result.result.description === new Date(2018, 9, 31) + '')
+      result.result.description = '<expected description>';
+    if (result.result.preview.description === new Date(2018, 9, 31) + '')
+      result.result.preview.description = '<expected description>';
+    InspectorTest.logMessage(result);
+
+    result =
+        (await evaluate({
+          expression:
+              `a = new Date(2018, 9, 31); a[Symbol.toPrimitive] = date => 'bar'; a`,
+          generatePreview: true
+        })).result;
     if (result.result.description === new Date(2018, 9, 31) + '')
       result.result.description = '<expected description>';
     if (result.result.preview.description === new Date(2018, 9, 31) + '')
@@ -443,6 +501,14 @@ InspectorTest.runAsyncTestSuite([
       expression: '({e: new Proxy({a: 1}, {b: 2})})',
       generatePreview: true
     })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: 'new Proxy([1, 2], {})',
+      generatePreview: true
+    })).result);
+    InspectorTest.logMessage((await evaluate({
+      expression: 'revocable = Proxy.revocable({}, {}); revocable.revoke(); revocable.proxy',
+      generatePreview: true
+    })).result);
   },
   async function testPromise() {
     InspectorTest.logMessage((await evaluate({
@@ -513,18 +579,12 @@ InspectorTest.runAsyncTestSuite([
       expression: '[1,2,3]'
     })).result);
   },
-  async function testArrayLike() {
+  async function testArgumentsObject() {
     InspectorTest.logMessage((await evaluate({
-      expression: '({length: 5, splice: () => []})'
+      expression: '(function() { return arguments; })(1, 2, 3)'
     })).result);
     InspectorTest.logMessage((await evaluate({
-      expression: `new (class Foo{constructor() {
-        this.length = 5;
-        this.splice = () => [];
-      }})`
-    })).result);
-    InspectorTest.logMessage((await evaluate({
-      expression: '({length: -5, splice: () => []})'
+      expression: '(function() { "use strict"; return arguments; })(-1, 0, 1, 2, 3)'
     })).result);
   },
   async function testOtherObjects() {
@@ -550,16 +610,16 @@ InspectorTest.runAsyncTestSuite([
       expression: 'new (class Bar {})'
     })).result);
     InspectorTest.logMessage((await evaluate({
-      expression: 'inspector.createObjectWithAccessor(\'title\', true)',
+      expression: 'inspector.createObjectWithNativeDataProperty(\'title\', true)',
       generatePreview: true
     })));
     InspectorTest.logMessage((await evaluate({
-      expression: 'inspector.createObjectWithAccessor(\'title\', false)',
+      expression: 'inspector.createObjectWithNativeDataProperty(\'title\', false)',
       generatePreview: true
     })));
     // TODO(kozyatinskiy): fix this one.
     InspectorTest.logMessage((await evaluate({
-      expression: 'inspector.createObjectWithAccessor(\'title\', true)',
+      expression: 'inspector.createObjectWithNativeDataProperty(\'title\', true)',
       returnByValue: true
     })));
     InspectorTest.logMessage((await evaluate({

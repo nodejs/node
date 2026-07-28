@@ -4,7 +4,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
-const makeDuplexPair = require('../common/duplexpair');
+const { duplexPair } = require('stream');
 const { Worker, isMainThread } = require('worker_threads');
 
 // This is a variant of test-http2-generic-streams-sendfile for checking
@@ -20,7 +20,7 @@ if (isMainThread) {
     stream.respondWithFile(process.execPath);  // Use a large-ish file.
   }));
 
-  const { clientSide, serverSide } = makeDuplexPair();
+  const [ clientSide, serverSide ] = duplexPair();
   server.emit('connection', serverSide);
 
   const client = http2.connect('http://localhost:80', {
@@ -33,7 +33,7 @@ if (isMainThread) {
     assert.strictEqual(headers[':status'], 200);
   }));
 
-  req.on('data', common.mustCall(process.exit));
+  req.on('data', common.mustCall(() => process.exit()));
   req.on('end', common.mustNotCall());
   req.end();
 }

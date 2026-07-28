@@ -1,17 +1,19 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
-const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
+const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/prefer-primordials');
 
 new RuleTester({
-  parserOptions: { ecmaVersion: 6 },
-  env: { es6: true }
+  languageOptions: {
+    sourceType: 'script',
+  },
 })
   .run('prefer-primordials', rule, {
     valid: [
@@ -56,7 +58,9 @@ new RuleTester({
       {
         code: `
           const { ObjectDefineProperty, Symbol } = primordials;
-          ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" })
+          ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" });
+          const val = Symbol.toStringTag;
+          const { toStringTag } = Symbol;
         `,
         options: [{ name: 'Symbol', ignore: ['toStringTag'] }]
       },
@@ -66,7 +70,7 @@ new RuleTester({
       },
       {
         code: 'const { NumberParseInt } = primordials; NumberParseInt("xxx")',
-        options: [{ name: 'parseInt' }]
+        options: [{ name: 'parseInt', into: 'Number' }]
       },
       {
         code: `
@@ -80,6 +84,51 @@ new RuleTester({
       {
         code: 'const { Map } = primordials; new Map()',
         options: [{ name: 'Map', into: 'Safe' }],
+      },
+      {
+        code: `
+          const { Function } = primordials;
+          const rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+      },
+      {
+        code: `
+          const { Function } = primordials;
+          let rename;
+          rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+      },
+      {
+        code: 'function identifier() {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'function* identifier() {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'class identifier {}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'new class { identifier(){} }',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'const a = { identifier: \'4\' }',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'identifier:{const a = 4}',
+        options: [{ name: 'identifier' }]
+      },
+      {
+        code: 'switch(0){case identifier:}',
+        options: [{ name: 'identifier' }]
       },
     ],
     invalid: [
@@ -130,6 +179,22 @@ new RuleTester({
       },
       {
         code: `
+          const { SymbolAsyncDispose } = primordials;
+          const a = { [SymbolAsyncDispose] () {} }
+        `,
+        options: [{ name: 'Symbol', polyfilled: ['asyncDispose', 'dispose'] }],
+        errors: [{ message: /const { SymbolAsyncDispose } = require\("internal\/util"\)/ }]
+      },
+      {
+        code: `
+          const { SymbolDispose } = primordials;
+          const a = { [SymbolDispose] () {} }
+        `,
+        options: [{ name: 'Symbol', polyfilled: ['asyncDispose', 'dispose'] }],
+        errors: [{ message: /const { SymbolDispose } = require\("internal\/util"\)/ }]
+      },
+      {
+        code: `
           const { ObjectDefineProperty, Symbol } = primordials;
           ObjectDefineProperty(o, Symbol.toStringTag, { value: "o" })
         `,
@@ -141,7 +206,7 @@ new RuleTester({
           const { Number } = primordials;
           Number.parseInt('10')
         `,
-        options: [{ name: 'Number', into: Number }],
+        options: [{ name: 'Number' }],
         errors: [{ message: /const { NumberParseInt } = primordials/ }]
       },
       {
@@ -151,6 +216,16 @@ new RuleTester({
       },
       {
         code: `
+          module.exports = function() {
+            const { ownKeys } = Reflect;
+          }
+        `,
+        options: [{ name: 'Reflect' }],
+        errors: [{ message: /const { ReflectOwnKeys } = primordials/ }]
+      },
+      {
+        code: `
+          const { Reflect } = primordials;
           module.exports = function() {
             const { ownKeys } = Reflect;
           }
@@ -170,6 +245,37 @@ new RuleTester({
         `,
         options: [{ name: 'Function' }],
         errors: [{ message: /const { FunctionPrototype } = primordials/ }]
+      },
+      {
+        code: `
+          const obj = { Function };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          const rename = Function;
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          const rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
+      },
+      {
+        code: `
+          let rename;
+          rename = Function;
+          const obj = { rename };
+        `,
+        options: [{ name: 'Function' }],
+        errors: [{ message: /const { Function } = primordials/ }]
       },
     ]
   });

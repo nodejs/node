@@ -46,10 +46,10 @@ server.on('listening', common.mustCall(() => {
     assert.strictEqual(client.alpnProtocol, 'h2c');
   }));
 
-  const countdown = new Countdown(count, () => {
+  const countdown = new Countdown(count, common.mustCall(() => {
     client.close();
     server.close(common.mustCall());
-  });
+  }));
 
   for (let n = 0; n < count; n++) {
     const req = client.request();

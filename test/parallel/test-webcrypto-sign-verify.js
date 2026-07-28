@@ -5,29 +5,31 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
 
-// Test Sign/Verify RSASSA-PKCS1-V1_5
+// Test Sign/Verify RSASSA-PKCS1-v1_5
 {
   async function test(data) {
     const ec = new TextEncoder();
     const { publicKey, privateKey } = await subtle.generateKey({
-      name: 'RSASSA-PKCS1-V1_5',
+      name: 'RSASSA-PKCS1-v1_5',
       modulusLength: 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     }, true, ['sign', 'verify']);
 
     const signature = await subtle.sign({
-      name: 'RSASSA-PKCS1-V1_5'
+      name: 'RSASSA-PKCS1-v1_5'
     }, privateKey, ec.encode(data));
 
     assert(await subtle.verify({
-      name: 'RSASSA-PKCS1-V1_5'
+      name: 'RSASSA-PKCS1-v1_5'
     }, publicKey, signature, ec.encode(data)));
   }
 
@@ -103,4 +105,91 @@ const { subtle } = require('crypto').webcrypto;
   }
 
   test('hello world').then(common.mustCall());
+}
+
+// Test Sign/Verify KMAC
+if (hasOpenSSL(3)) {
+  async function test(name, data) {
+    const ec = new TextEncoder();
+
+    const key = await subtle.generateKey({
+      name,
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name,
+      outputLength: 256,
+    }, key, ec.encode(data));
+
+    assert(await subtle.verify({
+      name,
+      outputLength: 256,
+    }, key, signature, ec.encode(data)));
+  }
+
+  test('KMAC128', 'hello world').then(common.mustCall());
+  test('KMAC256', 'hello world').then(common.mustCall());
+}
+
+// Test Sign/Verify Ed25519
+{
+  async function test(data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name: 'Ed25519',
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name: 'Ed25519',
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name: 'Ed25519',
+    }, publicKey, signature, ec.encode(data)));
+  }
+  test('hello world').then(common.mustCall());
+}
+
+// Test Sign/Verify Ed448
+if (!process.features.openssl_is_boringssl) {
+  async function test(data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name: 'Ed448',
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name: 'Ed448',
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name: 'Ed448',
+    }, publicKey, signature, ec.encode(data)));
+  }
+
+  test('hello world').then(common.mustCall());
+} else {
+  common.printSkipMessage('Skipping unsupported Ed448 test case');
+}
+
+// Test Sign/Verify ML-DSA
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  async function test(name, data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name,
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name,
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name,
+    }, publicKey, signature, ec.encode(data)));
+  }
+
+  test('ML-DSA-44', 'hello world').then(common.mustCall());
+  test('ML-DSA-65', 'hello world').then(common.mustCall());
+  test('ML-DSA-87', 'hello world').then(common.mustCall());
 }

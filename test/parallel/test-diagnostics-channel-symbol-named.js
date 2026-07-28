@@ -12,6 +12,7 @@ const symbol = Symbol('test');
 
 // Individual channel objects can be created to avoid future lookups
 const channel = dc.channel(symbol);
+assert.strictEqual(Object.hasOwn(channel, '_index'), true);
 
 // Expect two successful publishes later
 channel.subscribe(common.mustCall((message, name) => {
@@ -20,3 +21,9 @@ channel.subscribe(common.mustCall((message, name) => {
 }));
 
 channel.publish(input);
+
+{
+  assert.throws(() => {
+    dc.channel(null);
+  }, /ERR_INVALID_ARG_TYPE/);
+}

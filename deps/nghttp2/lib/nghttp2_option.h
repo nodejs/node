@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -68,12 +68,27 @@ typedef enum {
   NGHTTP2_OPT_NO_CLOSED_STREAMS = 1 << 10,
   NGHTTP2_OPT_MAX_OUTBOUND_ACK = 1 << 11,
   NGHTTP2_OPT_MAX_SETTINGS = 1 << 12,
+  NGHTTP2_OPT_SERVER_FALLBACK_RFC7540_PRIORITIES = 1 << 13,
+  NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 1 << 14,
+  NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT = 1 << 15,
+  NGHTTP2_OPT_MAX_CONTINUATIONS = 1 << 16,
+  NGHTTP2_OPT_GLITCH_RATE_LIMIT = 1 << 17,
 } nghttp2_option_flag;
 
 /**
  * Struct to store option values for nghttp2_session.
  */
 struct nghttp2_option {
+  /**
+   * NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT
+   */
+  uint64_t stream_reset_burst;
+  uint64_t stream_reset_rate;
+  /**
+   * NGHTTP2_OPT_GLITCH_RATE_LIMIT
+   */
+  uint64_t glitch_burst;
+  uint64_t glitch_rate;
   /**
    * NGHTTP2_OPT_MAX_SEND_HEADER_BLOCK_LENGTH
    */
@@ -90,6 +105,10 @@ struct nghttp2_option {
    * NGHTTP2_OPT_MAX_SETTINGS
    */
   size_t max_settings;
+  /**
+   * NGHTTP2_OPT_MAX_CONTINUATIONS
+   */
+  size_t max_continuations;
   /**
    * Bitwise OR of nghttp2_option_flag to determine that which fields
    * are specified.
@@ -128,9 +147,17 @@ struct nghttp2_option {
    */
   int no_closed_streams;
   /**
+   * NGHTTP2_OPT_SERVER_FALLBACK_RFC7540_PRIORITIES
+   */
+  int server_fallback_rfc7540_priorities;
+  /**
+   * NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION
+   */
+  int no_rfc9113_leading_and_trailing_ws_validation;
+  /**
    * NGHTTP2_OPT_USER_RECV_EXT_TYPES
    */
   uint8_t user_recv_ext_types[32];
 };
 
-#endif /* NGHTTP2_OPTION_H */
+#endif /* !defined(NGHTTP2_OPTION_H) */

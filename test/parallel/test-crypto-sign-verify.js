@@ -5,10 +5,13 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const exec = require('child_process').exec;
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
+const {
+  hasOpenSSL,
+  opensslCli,
+} = require('../common/crypto');
 
 // Test certificates
 const certPem = fixtures.readKey('rsa_cert.crt');
@@ -63,7 +66,11 @@ const keySize = 2048;
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, { message: 'bye, bye, error stack' });
+  }, { message: hasOpenSSL(3) ?
+    'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
+    process.features.openssl_is_boringssl ?
+      'error:0600006d:public key routines:OPENSSL_internal:ILLEGAL_OR_UNSUPPORTED_PADDING_MODE' :
+      'bye, bye, error stack' });
 
   delete Object.prototype.opensslErrorStack;
 }
@@ -170,14 +177,14 @@ assert.throws(
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
 
     const verifySaltLengths = [
       crypto.constants.RSA_PSS_SALTLEN_DIGEST,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
-      0, 16, 32, 64, 128
+      0, 16, 32, 64, 128,
     ];
     const errMessage = /^Error:.*data too large for key size$/;
 
@@ -339,7 +346,13 @@ assert.throws(
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, {
+  }, hasOpenSSL(3) ? {
+    code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    message: /illegal or unsupported padding mode/,
+  } : process.features.openssl_is_boringssl ? {
+    code: 'ERR_OSSL_EVP_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    message: /ILLEGAL_OR_UNSUPPORTED_PADDING_MODE/,
+  } : {
     code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
     opensslErrorStack: [
@@ -383,7 +396,7 @@ assert.throws(
   });
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     // These should all just work
     sign.update(new clazz());
@@ -410,20 +423,32 @@ assert.throws(
     /Invalid digest/);
 }
 
-[
+for (const pair of [
   { private: fixtures.readKey('ed25519_private.pem', 'ascii'),
     public: fixtures.readKey('ed25519_public.pem', 'ascii'),
+    skip: false,
     algo: null,
-    sigLen: 64 },
+    supportsContext: hasOpenSSL(3, 2),
+    sigLen: 64,
+    raw: true },
   { private: fixtures.readKey('ed448_private.pem', 'ascii'),
     public: fixtures.readKey('ed448_public.pem', 'ascii'),
+    skip: process.features.openssl_is_boringssl,
     algo: null,
-    sigLen: 114 },
+    supportsContext: hasOpenSSL(3, 2),
+    sigLen: 114,
+    raw: true },
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
+    skip: false,
     algo: 'sha1',
-    sigLen: 256 }
-].forEach((pair) => {
+    sigLen: 256,
+    raw: false },
+]) {
+  if (pair.skip) {
+    common.printSkipMessage('Skipping unsupported test case');
+    continue;
+  }
   const algo = pair.algo;
 
   {
@@ -449,6 +474,29 @@ assert.throws(
     assert.strictEqual(crypto.verify(algo, data, pubKeyObj, sig), true);
   }
 
+  if (pair.raw) {
+    const data = Buffer.from('Hello world');
+    const privKeyObj = crypto.createPrivateKey(pair.private);
+    const pubKeyObj = crypto.createPublicKey(pair.public);
+    const { asymmetricKeyType } = privKeyObj;
+    const rawPrivate = {
+      key: privKeyObj.export({ format: 'raw-private' }),
+      format: 'raw-private',
+      asymmetricKeyType,
+    };
+    const rawPublic = {
+      key: pubKeyObj.export({ format: 'raw-public' }),
+      format: 'raw-public',
+      asymmetricKeyType,
+    };
+
+    const sig = crypto.sign(algo, data, rawPrivate);
+    assert.strictEqual(sig.length, pair.sigLen);
+
+    assert.strictEqual(crypto.verify(algo, data, rawPrivate, sig), true);
+    assert.strictEqual(crypto.verify(algo, data, rawPublic, sig), true);
+  }
+
   {
     const data = Buffer.from('Hello world');
     const otherData = Buffer.from('Goodbye world');
@@ -458,14 +506,104 @@ assert.throws(
   }
 
   [
-    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array
+    Uint8Array, Uint16Array, Uint32Array, Float32Array, Float64Array,
   ].forEach((clazz) => {
     const data = new clazz();
     const sig = crypto.sign(algo, data, pair.private);
     assert.strictEqual(crypto.verify(algo, data, pair.private, sig),
                        true);
   });
-});
+
+  if (pair.supportsContext) {
+    const data = Buffer.from('Hello world');
+    {
+      const context = new Uint8Array();
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+    }
+
+    {
+      const context = new Uint8Array(32);
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), false);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+    }
+
+    assert.throws(() => crypto.sign(algo, data, { key: pair.private, context: new Uint8Array(256) }), {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'context string must be at most 255 bytes',
+    });
+
+    assert.throws(() => {
+      crypto.verify(algo, data, { key: pair.public, context: new Uint8Array(256) }, new Uint8Array());
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: 'context string must be at most 255 bytes',
+    });
+  } else {
+    const data = Buffer.from('Hello world');
+    {
+      const context = new Uint8Array();
+      const sig = crypto.sign(algo, data, { key: pair.private, context });
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), true);
+      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+    }
+
+    {
+      const context = new Uint8Array(32);
+      assert.throws(() => {
+        crypto.sign(algo, data, { key: pair.private, context });
+      }, { message: 'Context parameter is unsupported' });
+      assert.throws(() => {
+        crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, crypto.randomBytes(32));
+      }, { message: 'Context parameter is unsupported' });
+    }
+  }
+}
+
+// Ed25519ctx: Ed25519 with context string.
+if (hasOpenSSL(3, 2)) {
+  const privKey = fixtures.readKey('ed25519_private.pem', 'ascii');
+  const pubKey = fixtures.readKey('ed25519_public.pem', 'ascii');
+  const data = Buffer.from('Hello world');
+
+  {
+    const context = Buffer.from('my context');
+    const sig = crypto.sign(null, data, { key: privKey, context });
+    assert.strictEqual(sig.length, 64);
+
+    // Verify with matching context succeeds
+    assert.strictEqual(crypto.verify(null, data, { key: pubKey, context }, sig), true);
+
+    // Verify without context fails (Ed25519ctx !== Ed25519 pure)
+    assert.strictEqual(crypto.verify(null, data, { key: pubKey }, sig), false);
+
+    // Verify with wrong context fails
+    assert.strictEqual(crypto.verify(null, data, {
+      key: pubKey,
+      context: Buffer.from('wrong'),
+    }, sig), false);
+  }
+
+  {
+    // Empty context: behaves the same as no context because the
+    // internal has_context check requires a non-empty context string.
+    const context = new Uint8Array();
+    const sig = crypto.sign(null, data, { key: privKey, context });
+
+    assert.strictEqual(crypto.verify(null, data, { key: pubKey, context }, sig), true);
+    assert.strictEqual(crypto.verify(null, data, { key: pubKey }, sig), true);
+  }
+
+  // Context too long
+  assert.throws(() => crypto.sign(null, data, { key: privKey, context: new Uint8Array(256) }), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: 'context string must be at most 255 bytes',
+  });
+}
 
 [1, {}, [], true, Infinity].forEach((input) => {
   const data = Buffer.alloc(1);
@@ -481,8 +619,8 @@ assert.throws(
   assert.throws(() => crypto.sign(null, data, input), errObj);
   assert.throws(() => crypto.verify(null, data, input, sig), errObj);
 
-  errObj.message = 'The "signature" argument must be an instance of ' +
-                   'Buffer, TypedArray, or DataView.' +
+  errObj.message = 'The "signature" argument must be of type string or an instance of ' +
+                   'ArrayBuffer, Buffer, TypedArray, or DataView.' +
                    common.invalidArgTypeHelper(input);
   assert.throws(() => crypto.verify(null, data, 'test', input), errObj);
 });
@@ -492,11 +630,15 @@ assert.throws(
   const keys = [['ec-key.pem', 64], ['dsa_private_1025.pem', 40]];
 
   for (const [file, length] of keys) {
+    if (process.features.openssl_is_boringssl && file.startsWith('dsa_')) {
+      common.printSkipMessage(`Skipping unsupported ${file} test case`);
+      continue;
+    }
     const privKey = fixtures.readKey(file);
     [
       crypto.createSign('sha1').update(data).sign(privKey),
       crypto.sign('sha1', data, privKey),
-      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' })
+      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' }),
     ].forEach((sig) => {
       // Signature length variability due to DER encoding
       assert(sig.length >= length + 4 && sig.length <= length + 8);
@@ -521,11 +663,15 @@ assert.throws(
     // Test invalid signature lengths.
     for (const i of [-2, -1, 1, 2, 4, 8]) {
       sig = crypto.randomBytes(length + i);
-      assert.throws(() => {
-        crypto.verify('sha1', data, opts, sig);
-      }, {
-        message: 'Malformed signature'
-      });
+      let result;
+      try {
+        result = crypto.verify('sha1', data, opts, sig);
+      } catch (err) {
+        assert.match(err.message, /asn1 encoding/);
+        assert.strictEqual(err.library, 'asn1 encoding routines');
+        continue;
+      }
+      assert.strictEqual(result, false);
     }
   }
 
@@ -591,8 +737,9 @@ assert.throws(
 // Note: this particular test *must* be the last in this file as it will exit
 // early if no openssl binary is found
 {
-  if (!common.opensslCli)
+  if (!opensslCli) {
     common.skip('node compiled without OpenSSL CLI.');
+  }
 
   const pubfile = fixtures.path('keys', 'rsa_public_2048.pem');
   const privkey = fixtures.readKey('rsa_private_2048.pem');
@@ -608,17 +755,303 @@ assert.throws(
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
 
-  const sigfile = path.join(tmpdir.path, 's5.sig');
+  const sigfile = tmpdir.resolve('s5.sig');
   fs.writeFileSync(sigfile, s5);
-  const msgfile = path.join(tmpdir.path, 's5.msg');
+  const msgfile = tmpdir.resolve('s5.msg');
   fs.writeFileSync(msgfile, msg);
 
-  const cmd =
-    `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
-      sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
-      msgfile}"`;
-
-  exec(cmd, common.mustCall((err, stdout, stderr) => {
+  exec(...common.escapePOSIXShell`"${
+    opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
+    sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${msgfile
+  }"`, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));
   }));
+}
+
+if (!process.features.openssl_is_boringssl) {
+  // Test RSA-PSS.
+  {
+    // This key pair does not restrict the message digest algorithm or salt
+    // length.
+    const publicPem = fixtures.readKey('rsa_pss_public_2048.pem');
+    const privatePem = fixtures.readKey('rsa_pss_private_2048.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    for (const key of [privatePem, privateKey]) {
+      // Any algorithm should work.
+      for (const algo of ['sha1', 'sha256']) {
+        // Any salt length should work.
+        for (const saltLength of [undefined, 8, 10, 12, 16, 18, 20]) {
+          const signature = crypto.sign(algo, 'foo', { key, saltLength });
+
+          for (const pkey of [key, publicKey, publicPem]) {
+            const okay = crypto.verify(
+              algo,
+              'foo',
+              { key: pkey, saltLength },
+              signature
+            );
+
+            assert.ok(okay);
+          }
+        }
+      }
+    }
+  }
+
+  {
+    // This key pair enforces sha256 as the message digest and the MGF1
+    // message digest and a salt length of at least 16 bytes.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha256_sha256_16.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha256_sha256_16.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    for (const key of [privatePem, privateKey]) {
+      // Signing with anything other than sha256 should fail.
+      assert.throws(() => {
+        crypto.sign('sha1', 'foo', key);
+      }, /digest not allowed/);
+
+      // Signing with salt lengths less than 16 bytes should fail.
+      for (const saltLength of [8, 10, 12]) {
+        assert.throws(() => {
+          crypto.sign('sha256', 'foo', { key, saltLength });
+        }, /pss saltlen too small/);
+      }
+
+      // Signing with sha256 and appropriate salt lengths should work.
+      for (const saltLength of [undefined, 16, 18, 20]) {
+        const signature = crypto.sign('sha256', 'foo', { key, saltLength });
+
+        for (const pkey of [key, publicKey, publicPem]) {
+          const okay = crypto.verify(
+            'sha256',
+            'foo',
+            { key: pkey, saltLength },
+            signature
+          );
+
+          assert.ok(okay);
+        }
+      }
+    }
+  }
+
+  {
+    // This key enforces sha512 as the message digest and sha256 as the MGF1
+    // message digest.
+    const publicPem =
+      fixtures.readKey('rsa_pss_public_2048_sha512_sha256_20.pem');
+    const privatePem =
+      fixtures.readKey('rsa_pss_private_2048_sha512_sha256_20.pem');
+
+    const publicKey = crypto.createPublicKey(publicPem);
+    const privateKey = crypto.createPrivateKey(privatePem);
+
+    // Node.js usually uses the same hash function for the message and for MGF1.
+    // However, when a different MGF1 message digest algorithm has been
+    // specified as part of the key, it should automatically switch to that.
+    // This behavior is required by sections 3.1 and 3.3 of RFC4055.
+    for (const key of [privatePem, privateKey]) {
+      // sha256 matches the MGF1 hash function and should be used internally,
+      // but it should not be permitted as the main message digest algorithm.
+      for (const algo of ['sha1', 'sha256']) {
+        assert.throws(() => {
+          crypto.sign(algo, 'foo', key);
+        }, /digest not allowed/);
+      }
+
+      // sha512 should produce a valid signature.
+      const signature = crypto.sign('sha512', 'foo', key);
+
+      for (const pkey of [key, publicKey, publicPem]) {
+        const okay = crypto.verify('sha512', 'foo', pkey, signature);
+
+        assert.ok(okay);
+      }
+    }
+  }
+} else {
+  common.printSkipMessage('Skipping unsupported RSA-PSS test cases');
+}
+
+// The sign function should not swallow OpenSSL errors.
+// Regression test for https://github.com/nodejs/node/issues/40794.
+{
+  assert.throws(() => {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 512
+    });
+    crypto.sign('sha512', 'message', privateKey);
+  }, {
+    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
+    message: /digest too big for rsa key|DIGEST_TOO_BIG_FOR_RSA_KEY/
+  });
+}
+
+{
+  // This should not cause a crash: https://github.com/nodejs/node/issues/44471
+  for (const key of ['', 'foo', null, undefined, true, Boolean]) {
+    assert.throws(() => {
+      crypto.verify('sha256', 'foo', { key, format: 'jwk' }, Buffer.alloc(0));
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.createVerify('sha256').verify({ key, format: 'jwk' }, Buffer.alloc(0));
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.sign('sha256', 'foo', { key, format: 'jwk' });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.key" property must be of type object/ });
+    assert.throws(() => {
+      crypto.createSign('sha256').sign({ key, format: 'jwk' });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /The "privateKey\.key" property must be of type object/ });
+  }
+}
+
+{
+  // Ed25519 and Ed448 must use the one-shot methods
+  const keys = [{ privateKey: fixtures.readKey('ed25519_private.pem', 'ascii'),
+                  publicKey: fixtures.readKey('ed25519_public.pem', 'ascii') }];
+  if (!process.features.openssl_is_boringssl) {
+    keys.push({ privateKey: fixtures.readKey('ed448_private.pem', 'ascii'),
+                publicKey: fixtures.readKey('ed448_public.pem', 'ascii') });
+  } else {
+    common.printSkipMessage('Skipping unsupported Ed448 test case');
+  }
+
+  for (const { publicKey, privateKey } of keys) {
+    assert.throws(() => {
+      crypto.createSign('SHA256').update('Test123').sign(privateKey);
+    }, { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION', message: 'Unsupported crypto operation' });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(privateKey, 'sig');
+    }, { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION', message: 'Unsupported crypto operation' });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
+    }, { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION', message: 'Unsupported crypto operation' });
+  }
+}
+
+if (!process.features.openssl_is_boringssl) {
+  // Dh, x25519 and x448 should not be used for signing/verifying
+  // https://github.com/nodejs/node/issues/53742
+  for (const algo of ['dh', 'x25519', 'x448']) {
+    const privateKey = fixtures.readKey(`${algo}_private.pem`, 'ascii');
+    const publicKey = fixtures.readKey(`${algo}_public.pem`, 'ascii');
+    assert.throws(() => {
+      crypto.createSign('SHA256').update('Test123').sign(privateKey);
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(privateKey, 'sig');
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
+    assert.throws(() => {
+      crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
+    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
+  }
+} else {
+  common.printSkipMessage('Skipping unsupported dh/x25519/x448 test cases');
+}
+
+// Test that sign/verify error messages use correct property paths
+{
+  // Sign with invalid format
+  assert.throws(() => {
+    crypto.createSign('SHA256').update('test').sign({
+      key: Buffer.alloc(0), format: 'banana', type: 'pkcs8',
+    });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /privateKey\.format/,
+  });
+
+  // Sign with invalid type
+  assert.throws(() => {
+    crypto.createSign('SHA256').update('test').sign({
+      key: Buffer.alloc(0), format: 'der', type: 'banana',
+    });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /privateKey\.type/,
+  });
+
+  // Verify with invalid format
+  assert.throws(() => {
+    crypto.createVerify('SHA256').update('test').verify({
+      key: Buffer.alloc(0), format: 'banana', type: 'spki',
+    }, Buffer.alloc(0));
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // Verify with invalid type
+  assert.throws(() => {
+    crypto.createVerify('SHA256').update('test').verify({
+      key: Buffer.alloc(0), format: 'der', type: 'banana',
+    }, Buffer.alloc(0));
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.type/,
+  });
+
+  // crypto.sign with invalid format
+  assert.throws(() => {
+    crypto.sign('SHA256', Buffer.from('test'), {
+      key: Buffer.alloc(0), format: 'banana', type: 'pkcs8',
+    });
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+
+  // crypto.verify with invalid format
+  assert.throws(() => {
+    crypto.verify('SHA256', Buffer.from('test'), {
+      key: Buffer.alloc(0), format: 'banana', type: 'spki',
+    }, Buffer.alloc(0));
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /key\.format/,
+  });
+}
+
+// crypto.verify accepts ArrayBuffer and SharedArrayBuffer for data and signature
+{
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const dataBuffer = Buffer.from('Hello world');
+
+  // Data as ArrayBuffer
+  {
+    const ab = dataBuffer.buffer.slice(dataBuffer.byteOffset, dataBuffer.byteOffset + dataBuffer.byteLength);
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    assert.strictEqual(crypto.verify('SHA256', ab, publicKey, sig), true);
+  }
+
+  // Data as SharedArrayBuffer
+  {
+    const sab = new SharedArrayBuffer(dataBuffer.length);
+    new Uint8Array(sab).set(dataBuffer);
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    assert.strictEqual(crypto.verify('SHA256', sab, publicKey, sig), true);
+  }
+
+  // Signature as ArrayBuffer
+  {
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    const sigAB = sig.buffer.slice(sig.byteOffset, sig.byteOffset + sig.byteLength);
+    assert.strictEqual(crypto.verify('SHA256', dataBuffer, publicKey, sigAB), true);
+  }
+
+  // Signature as SharedArrayBuffer
+  {
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    const sigSAB = new SharedArrayBuffer(sig.length);
+    new Uint8Array(sigSAB).set(sig);
+    assert.strictEqual(crypto.verify('SHA256', dataBuffer, publicKey, sigSAB), true);
+  }
 }

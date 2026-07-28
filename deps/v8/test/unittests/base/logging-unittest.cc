@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
+
 #include <cstdint>
 
-#include "src/base/logging.h"
-#include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "testing/gtest-support.h"
 
-namespace v8 {
-namespace base {
-namespace logging_unittest {
+namespace v8::base::logging_unittest {
 
 namespace {
 
@@ -85,21 +83,36 @@ std::string SanitizeRegexp(std::string msg) {
   return msg;
 }
 
-std::string FailureMessage(const char* msg, const char* lhs, const char* rhs) {
-  std::string full_msg(msg);
-#ifdef DEBUG
-  full_msg.append(" (").append(lhs).append(" vs. ").append(rhs);
+std::string FailureMessage(std::string msg) {
+#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
+  // Official release builds strip all fatal messages for saving binary size,
+  // see src/base/logging.h.
+  USE(SanitizeRegexp);
+  return "";
+#else
+  return SanitizeRegexp("# " + msg);
 #endif
-  return SanitizeRegexp(std::move(full_msg));
+}
+
+std::string FailureMessage(const char* msg, const char* lhs, const char* rhs) {
+#ifdef DEBUG
+  return FailureMessage(
+      (std::ostringstream{} << msg << " (" << lhs << " vs. " << rhs << ").")
+          .str());
+#else
+  return FailureMessage(msg);
+#endif
 }
 
 std::string LongFailureMessage(const char* msg, const char* lhs,
                                const char* rhs) {
-  std::string full_msg(msg);
 #ifdef DEBUG
-  full_msg.append("\n   ").append(lhs).append("\n vs.\n   ").append(rhs);
+  return FailureMessage(
+      (std::ostringstream{} << msg << "\n   " << lhs << "\n vs.\n   " << rhs)
+          .str());
+#else
+  return FailureMessage(msg, lhs, rhs);
 #endif
-  return SanitizeRegexp(std::move(full_msg));
 }
 }  // namespace
 
@@ -161,12 +174,12 @@ TEST(LoggingTest, CompareEnumTypes) {
 class TestClass1 {
  public:
   bool operator==(const TestClass1&) const { return true; }
-  bool operator!=(const TestClass1&) const { return false; }
 };
 class TestClass2 {
  public:
   explicit TestClass2(int val) : val_(val) {}
   bool operator<(const TestClass2& other) const { return val_ < other.val_; }
+  bool operator==(const TestClass1&) const { return false; }
   int val() const { return val_; }
 
  private:
@@ -182,14 +195,20 @@ TEST(LoggingTest, CompareClassTypes) {
   CHECK_BOTH(LT, TestClass2{2}, TestClass2{7});
 
   // Check that the values are output correctly on error.
+  // TestClass1 is unprintable, so no values are output.
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_NE(TestClass1{}, TestClass1{}); })(),
-      FailureMessage("Check failed: TestClass1{} != TestClass1{}",
-                     "<unprintable>", "<unprintable>"));
+      FailureMessage("Check failed: TestClass1{} != TestClass1{}"));
+  // TestClass2 is printable.
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_LT(TestClass2{4}, TestClass2{3}); })(),
       FailureMessage("Check failed: TestClass2{4} < TestClass2{3}",
                      "TestClass2(4)", "TestClass2(3)"));
+  // Printable vs unprintable.
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ(TestClass2{0}, TestClass1{}); })(),
+      FailureMessage("Check failed: TestClass2{0} == TestClass1{}",
+                     "TestClass2(0)", "<unprintable>"));
 }
 
 TEST(LoggingDeathTest, OutputEnumValues) {
@@ -220,11 +239,26 @@ void operator<<(std::ostream& str, TestEnum6 val) {
 TEST(LoggingDeathTest, OutputEnumWithOutputOperator) {
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_EQ(TEST_A, TEST_B); })(),
-      FailureMessage("Check failed: TEST_A == TEST_B", "A", "B"));
+      FailureMessage("Check failed: TEST_A == TEST_B", "A (0)", "B (1)"));
   ASSERT_DEATH_IF_SUPPORTED(
       ([&] { CHECK_GE(TestEnum6::TEST_C, TestEnum6::TEST_D); })(),
       FailureMessage("Check failed: TestEnum6::TEST_C >= TestEnum6::TEST_D",
-                     "C", "D"));
+                     "C (0)", "D (1)"));
+}
+
+enum TestEnum7 : uint8_t { A = 2, B = 7 };
+enum class TestEnum8 : int8_t { A, B };
+
+TEST(LoggingDeathTest, OutputSingleCharEnum) {
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ(TestEnum7::A, TestEnum7::B); })(),
+      FailureMessage("Check failed: TestEnum7::A == TestEnum7::B", "2", "7"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_GT(TestEnum7::A, TestEnum7::B); })(),
+      FailureMessage("Check failed: TestEnum7::A > TestEnum7::B", "2", "7"));
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_GE(TestEnum8::A, TestEnum8::B); })(),
+      FailureMessage("Check failed: TestEnum8::A >= TestEnum8::B", "0", "1"));
 }
 
 TEST(LoggingDeathTest, OutputLongValues) {
@@ -248,7 +282,8 @@ TEST(LoggingDeathTest, OutputLongValues) {
 }
 
 TEST(LoggingDeathTest, FatalKills) {
-  ASSERT_DEATH_IF_SUPPORTED(FATAL("Dread pirate"), "Dread pirate");
+  ASSERT_DEATH_IF_SUPPORTED(FATAL("Dread pirate"),
+                            FailureMessage("Dread pirate"));
 }
 
 TEST(LoggingDeathTest, DcheckIsOnlyFatalInDebug) {
@@ -318,6 +353,28 @@ TEST(LoggingTest, LogFunctionPointers) {
 }
 #endif  // defined(DEBUG)
 
-}  // namespace logging_unittest
-}  // namespace base
-}  // namespace v8
+TEST(LoggingDeathTest, CheckChars) {
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ('a', 'b'); })(),
+      FailureMessage("Check failed: 'a' == 'b'", "'97'", "'98'"));
+}
+
+TEST(LoggingDeathTest, Collections) {
+  std::vector<int> listA{1};
+  std::vector<int> listB{1, 2};
+
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_EQ(listA, listB); })(),
+      FailureMessage("Check failed: listA == listB", "1 element: {1}",
+                     "2 elements: {1,2}"));
+}
+
+TEST(LoggingDeathTest, CollectionsOfUnprintable) {
+  std::vector<TestClass1> list{1};
+
+  ASSERT_DEATH_IF_SUPPORTED(
+      ([&] { CHECK_NE(list, list); })(),
+      FailureMessage("Check failed: list != list", "1 element", "1 element"));
+}
+
+}  // namespace v8::base::logging_unittest

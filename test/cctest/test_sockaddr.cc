@@ -1,5 +1,5 @@
-#include "node_sockaddr-inl.h"
 #include "gtest/gtest.h"
+#include "node_sockaddr-inl.h"
 
 using node::SocketAddress;
 using node::SocketAddressBlockList;
@@ -43,6 +43,85 @@ TEST(SocketAddress, SocketAddress) {
   CHECK_EQ(map[addr], 2);
 }
 
+TEST(SocketAddress, IpHashAndIpEqual) {
+  sockaddr_storage s1, s2, s3;
+  // Same IP, different ports.
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 8080, &s2);
+  // Different IP.
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.2", 443, &s3);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&s3));
+
+  SocketAddress::IpHash ip_hash;
+  SocketAddress::IpEqual ip_equal;
+
+  // Same IP, different port: should hash equal and compare equal.
+  CHECK_EQ(ip_hash(addr1), ip_hash(addr2));
+  CHECK(ip_equal(addr1, addr2));
+
+  // Different IP: should not compare equal.
+  CHECK(!ip_equal(addr1, addr3));
+
+  // Full Hash (includes port) should differ for same IP, different port.
+  CHECK_NE(SocketAddress::Hash()(addr1), SocketAddress::Hash()(addr2));
+
+  // IpMap should treat same-IP-different-port as the same key.
+  SocketAddress::IpMap<uint16_t> map;
+  map[addr1] = 1;
+  map[addr2]++;  // Same IP as addr1, should increment the same entry.
+  CHECK_EQ(map[addr1], 2);
+  CHECK_EQ(map.size(), 1);
+
+  map[addr3] = 10;
+  CHECK_EQ(map.size(), 2);
+  CHECK_EQ(map[addr3], 10);
+}
+
+TEST(SocketAddress, IpHashIPv6) {
+  sockaddr_storage s1, s2, s3;
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 8080, &s2);
+  SocketAddress::ToSockAddr(AF_INET6, "::2", 443, &s3);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&s3));
+
+  SocketAddress::IpHash ip_hash;
+  SocketAddress::IpEqual ip_equal;
+
+  // Same IPv6, different port: equal.
+  CHECK_EQ(ip_hash(addr1), ip_hash(addr2));
+  CHECK(ip_equal(addr1, addr2));
+
+  // Different IPv6: not equal.
+  CHECK(!ip_equal(addr1, addr3));
+
+  // IpMap with IPv6 keys.
+  SocketAddress::IpMap<uint16_t> map;
+  map[addr1] = 5;
+  map[addr2]++;
+  CHECK_EQ(map[addr1], 6);
+  CHECK_EQ(map.size(), 1);
+}
+
+TEST(SocketAddress, IpEqualCrossFamily) {
+  sockaddr_storage s1, s2;
+  SocketAddress::ToSockAddr(AF_INET, "127.0.0.1", 443, &s1);
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 443, &s2);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&s2));
+
+  SocketAddress::IpEqual ip_equal;
+
+  // Different address families should never be equal.
+  CHECK(!ip_equal(addr1, addr2));
+}
+
 TEST(SocketAddress, SocketAddressIPv6) {
   sockaddr_storage storage;
   SocketAddress::ToSockAddr(AF_INET6, "::1", 443, &storage);
@@ -67,11 +146,13 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   struct FooLRUTraits {
     using Type = Foo;
 
-    static bool CheckExpired(const SocketAddress& address, const Type& type) {
+    static bool CheckExpired(const SocketAddress& address,
+                             const Type& type,
+                             uint64_t now) {
       return type.expired;
     }
 
-    static void Touch(const SocketAddress& address, Type* type) {
+    static void Touch(const SocketAddress& address, Type* type, uint64_t now) {
       type->expired = false;
     }
   };
@@ -85,13 +166,13 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   SocketAddress::ToSockAddr(AF_INET, "123.123.123.125", 443, &storage[2]);
   SocketAddress::ToSockAddr(AF_INET, "123.123.123.123", 443, &storage[3]);
 
-
   SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
   SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
   SocketAddress addr3(reinterpret_cast<const sockaddr*>(&storage[2]));
   SocketAddress addr4(reinterpret_cast<const sockaddr*>(&storage[3]));
 
-  Foo* foo = lru.Upsert(addr1);
+  uint64_t now = uv_hrtime();
+  Foo* foo = lru.Upsert(addr1, now);
   CHECK_NOT_NULL(foo);
   CHECK_EQ(foo->c, 0);
   CHECK_EQ(foo->expired, false);
@@ -99,14 +180,14 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   foo->c = 1;
   foo->expired = true;
 
-  foo = lru.Upsert(addr1);
+  foo = lru.Upsert(addr1, now);
   CHECK_NOT_NULL(lru.Peek(addr1));
   CHECK_EQ(lru.Peek(addr1), lru.Peek(addr4));
   CHECK_EQ(lru.Peek(addr1)->c, 1);
   CHECK_EQ(lru.Peek(addr1)->expired, false);
   CHECK_EQ(lru.size(), 1);
 
-  foo = lru.Upsert(addr2);
+  foo = lru.Upsert(addr2, now);
   foo->c = 2;
   foo->expired = true;
   CHECK_NOT_NULL(lru.Peek(addr2));
@@ -115,7 +196,7 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
 
   foo->expired = true;
 
-  foo = lru.Upsert(addr3);
+  foo = lru.Upsert(addr3, now);
   foo->c = 3;
   foo->expired = false;
   CHECK_NOT_NULL(lru.Peek(addr3));
@@ -145,9 +226,9 @@ TEST(SocketAddress, Comparison) {
   SocketAddress addr5(reinterpret_cast<const sockaddr*>(&storage[4]));
   SocketAddress addr6(reinterpret_cast<const sockaddr*>(&storage[5]));
 
-  CHECK_EQ(addr1.compare(addr1), SocketAddress::CompareResult::SAME);
-  CHECK_EQ(addr1.compare(addr2), SocketAddress::CompareResult::LESS_THAN);
-  CHECK_EQ(addr2.compare(addr1), SocketAddress::CompareResult::GREATER_THAN);
+  CHECK_EQ(addr1.compare(addr1), std::partial_ordering::equivalent);
+  CHECK_EQ(addr1.compare(addr2), std::partial_ordering::less);
+  CHECK_EQ(addr2.compare(addr1), std::partial_ordering::greater);
   CHECK(addr1 <= addr1);
   CHECK(addr1 < addr2);
   CHECK(addr1 <= addr2);
@@ -155,9 +236,9 @@ TEST(SocketAddress, Comparison) {
   CHECK(addr2 > addr1);
   CHECK(addr2 >= addr1);
 
-  CHECK_EQ(addr3.compare(addr3), SocketAddress::CompareResult::SAME);
-  CHECK_EQ(addr3.compare(addr4), SocketAddress::CompareResult::LESS_THAN);
-  CHECK_EQ(addr4.compare(addr3), SocketAddress::CompareResult::GREATER_THAN);
+  CHECK_EQ(addr3.compare(addr3), std::partial_ordering::equivalent);
+  CHECK_EQ(addr3.compare(addr4), std::partial_ordering::less);
+  CHECK_EQ(addr4.compare(addr3), std::partial_ordering::greater);
   CHECK(addr3 <= addr3);
   CHECK(addr3 < addr4);
   CHECK(addr3 <= addr4);
@@ -166,8 +247,8 @@ TEST(SocketAddress, Comparison) {
   CHECK(addr4 >= addr3);
 
   // Not comparable
-  CHECK_EQ(addr1.compare(addr3), SocketAddress::CompareResult::NOT_COMPARABLE);
-  CHECK_EQ(addr3.compare(addr1), SocketAddress::CompareResult::NOT_COMPARABLE);
+  CHECK_EQ(addr1.compare(addr3), std::partial_ordering::unordered);
+  CHECK_EQ(addr3.compare(addr1), std::partial_ordering::unordered);
   CHECK(!(addr1 < addr3));
   CHECK(!(addr1 > addr3));
   CHECK(!(addr1 >= addr3));
@@ -178,10 +259,10 @@ TEST(SocketAddress, Comparison) {
   CHECK(!(addr3 <= addr1));
 
   // Comparable
-  CHECK_EQ(addr1.compare(addr5), SocketAddress::CompareResult::SAME);
-  CHECK_EQ(addr2.compare(addr6), SocketAddress::CompareResult::SAME);
-  CHECK_EQ(addr1.compare(addr6), SocketAddress::CompareResult::LESS_THAN);
-  CHECK_EQ(addr6.compare(addr1), SocketAddress::CompareResult::GREATER_THAN);
+  CHECK_EQ(addr1.compare(addr5), std::partial_ordering::equivalent);
+  CHECK_EQ(addr2.compare(addr6), std::partial_ordering::equivalent);
+  CHECK_EQ(addr1.compare(addr6), std::partial_ordering::less);
+  CHECK_EQ(addr6.compare(addr1), std::partial_ordering::greater);
   CHECK(addr1 <= addr5);
   CHECK(addr1 <= addr6);
   CHECK(addr1 < addr6);
@@ -197,17 +278,19 @@ TEST(SocketAddressBlockList, Simple) {
   sockaddr_storage storage[2];
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 0, &storage[0]);
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.2", 0, &storage[1]);
-  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
-  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
+  std::shared_ptr<SocketAddress> addr1 = std::make_shared<SocketAddress>(
+      reinterpret_cast<const sockaddr*>(&storage[0]));
+  std::shared_ptr<SocketAddress> addr2 = std::make_shared<SocketAddress>(
+      reinterpret_cast<const sockaddr*>(&storage[1]));
 
   bl.AddSocketAddress(addr1);
   bl.AddSocketAddress(addr2);
 
-  CHECK(bl.Apply(addr1));
-  CHECK(bl.Apply(addr2));
+  CHECK(bl.Apply(*addr1));
+  CHECK(bl.Apply(*addr2));
 
   bl.RemoveSocketAddress(addr1);
 
-  CHECK(!bl.Apply(addr1));
-  CHECK(bl.Apply(addr2));
+  CHECK(!bl.Apply(*addr1));
+  CHECK(bl.Apply(*addr2));
 }

@@ -27,6 +27,15 @@ expression: (function* foo() { yield 1 })
                 }
             }
             [2] : {
+                name : [[Prototype]]
+                value : {
+                    className : GeneratorFunction
+                    description : GeneratorFunction
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [3] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -60,6 +69,15 @@ expression: (function foo() {})
                 }
             }
             [1] : {
+                name : [[Prototype]]
+                value : {
+                    className : Function
+                    description : function () { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [2] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -80,6 +98,15 @@ expression: new Number(239)
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Number
+                    description : Number
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[PrimitiveValue]]
                 value : {
                     description : 239
@@ -96,6 +123,15 @@ expression: new Boolean(false)
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Boolean
+                    description : Boolean
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[PrimitiveValue]]
                 value : {
                     type : boolean
@@ -111,6 +147,15 @@ expression: new String('abc')
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : String
+                    description : String
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[PrimitiveValue]]
                 value : {
                     type : string
@@ -126,6 +171,15 @@ expression: Object(Symbol(42))
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Symbol
+                    description : Symbol
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[PrimitiveValue]]
                 value : {
                     description : Symbol(42)
@@ -142,6 +196,15 @@ expression: Object(BigInt(2))
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : BigInt
+                    description : BigInt
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[PrimitiveValue]]
                 value : {
                     description : 2n
@@ -160,13 +223,22 @@ expression: Promise.resolve(42)
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Promise
+                    description : Promise
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[PromiseState]]
                 value : {
                     type : string
                     value : fulfilled
                 }
             }
-            [1] : {
+            [2] : {
                 name : [[PromiseResult]]
                 value : {
                     description : 42
@@ -183,13 +255,22 @@ expression: new Promise(() => undefined)
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Promise
+                    description : Promise
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[PromiseState]]
                 value : {
                     type : string
                     value : pending
                 }
             }
-            [1] : {
+            [2] : {
                 name : [[PromiseResult]]
                 value : {
                     type : undefined
@@ -219,13 +300,22 @@ expression: gen1
                 }
             }
             [1] : {
+                name : [[Prototype]]
+                value : {
+                    className : Generator
+                    description : Generator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [2] : {
                 name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[GeneratorFunction]]
                 value : {
                     className : GeneratorFunction
@@ -234,7 +324,7 @@ expression: gen1
                     type : function
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[GeneratorReceiver]]
                 value : {
                     className : global
@@ -243,7 +333,7 @@ expression: gen1
                     type : object
                 }
             }
-            [4] : {
+            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -275,13 +365,22 @@ expression: gen1.next();gen1
                 }
             }
             [1] : {
+                name : [[Prototype]]
+                value : {
+                    className : Generator
+                    description : Generator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [2] : {
                 name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[GeneratorFunction]]
                 value : {
                     className : GeneratorFunction
@@ -290,7 +389,7 @@ expression: gen1.next();gen1
                     type : function
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[GeneratorReceiver]]
                 value : {
                     className : global
@@ -299,7 +398,7 @@ expression: gen1.next();gen1
                     type : object
                 }
             }
-            [4] : {
+            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -331,13 +430,22 @@ expression: gen1.next();gen1
                 }
             }
             [1] : {
+                name : [[Prototype]]
+                value : {
+                    className : Generator
+                    description : Generator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [2] : {
                 name : [[GeneratorState]]
                 value : {
                     type : string
                     value : closed
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[GeneratorFunction]]
                 value : {
                     className : GeneratorFunction
@@ -346,7 +454,7 @@ expression: gen1.next();gen1
                     type : function
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[GeneratorReceiver]]
                 value : {
                     className : global
@@ -379,13 +487,22 @@ expression: gen2
                 }
             }
             [1] : {
+                name : [[Prototype]]
+                value : {
+                    className : Generator
+                    description : Generator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [2] : {
                 name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[GeneratorFunction]]
                 value : {
                     className : GeneratorFunction
@@ -394,7 +511,7 @@ expression: gen2
                     type : function
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[GeneratorReceiver]]
                 value : {
                     className : global
@@ -403,7 +520,7 @@ expression: gen2
                     type : object
                 }
             }
-            [4] : {
+            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -435,13 +552,22 @@ expression: gen2.next();gen2
                 }
             }
             [1] : {
+                name : [[Prototype]]
+                value : {
+                    className : Generator
+                    description : Generator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [2] : {
                 name : [[GeneratorState]]
                 value : {
                     type : string
                     value : suspended
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[GeneratorFunction]]
                 value : {
                     className : GeneratorFunction
@@ -450,7 +576,7 @@ expression: gen2.next();gen2
                     type : function
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[GeneratorReceiver]]
                 value : {
                     className : global
@@ -459,7 +585,7 @@ expression: gen2.next();gen2
                     type : object
                 }
             }
-            [4] : {
+            [5] : {
                 name : [[Scopes]]
                 value : {
                     className : Array
@@ -491,13 +617,22 @@ expression: gen2.next();gen2
                 }
             }
             [1] : {
+                name : [[Prototype]]
+                value : {
+                    className : Generator
+                    description : Generator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [2] : {
                 name : [[GeneratorState]]
                 value : {
                     type : string
                     value : closed
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[GeneratorFunction]]
                 value : {
                     className : GeneratorFunction
@@ -506,7 +641,7 @@ expression: gen2.next();gen2
                     type : function
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[GeneratorReceiver]]
                 value : {
                     className : global
@@ -526,13 +661,22 @@ expression: (new Map([[1,2]])).entries()
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Map Iterator
+                    description : Map Iterator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[IteratorHasMore]]
                 value : {
                     type : boolean
                     value : true
                 }
             }
-            [1] : {
+            [2] : {
                 name : [[IteratorIndex]]
                 value : {
                     description : 0
@@ -540,14 +684,14 @@ expression: (new Map([[1,2]])).entries()
                     value : 0
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[IteratorKind]]
                 value : {
                     type : string
                     value : entries
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[Entries]]
                 value : {
                     className : Array
@@ -566,13 +710,22 @@ expression: (new Set([[1,2]])).entries()
     result : {
         internalProperties : [
             [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Set Iterator
+                    description : Set Iterator
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [1] : {
                 name : [[IteratorHasMore]]
                 value : {
                     type : boolean
                     value : true
                 }
             }
-            [1] : {
+            [2] : {
                 name : [[IteratorIndex]]
                 value : {
                     description : 0
@@ -580,14 +733,14 @@ expression: (new Set([[1,2]])).entries()
                     value : 0
                 }
             }
-            [2] : {
+            [3] : {
                 name : [[IteratorKind]]
                 value : {
                     type : string
                     value : entries
                 }
             }
-            [3] : {
+            [4] : {
                 name : [[Entries]]
                 value : {
                     className : Array

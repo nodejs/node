@@ -7,7 +7,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
-const path = require('path');
 const stream = require('stream');
 const tmpdir = require('../common/tmpdir');
 
@@ -72,7 +71,7 @@ function mstream(config) {
 
 function fstream(config) {
   const count = fstream.count++;
-  const filename = (name) => path.join(tmpdir.path, `${name}${count}`);
+  const filename = (name) => tmpdir.resolve(`${name}${count}`);
 
   const { cipher, key, iv, aad, authTagLength, plaintextLength } = config;
   const expected = Buffer.alloc(plaintextLength);
@@ -116,6 +115,11 @@ function fstream(config) {
 fstream.count = 0;
 
 function test(config) {
+  if (!crypto.getCiphers().includes(config.cipher)) {
+    common.printSkipMessage(`unsupported cipher: ${config.cipher}`);
+    return;
+  }
+
   direct(config);
   mstream(config);
   fstream(config);

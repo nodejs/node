@@ -1,5 +1,0 @@
-const t = require('tap')
-const restart = require('../../lib/restart.js')
-t.isa(restart, Function)
-t.equal(restart.completion, require('../../lib/utils/completion/none.js'), 'empty completion')
-t.equal(restart.usage, 'npm restart [-- <args>]')

@@ -6,14 +6,7 @@
 # The MIT License apply.
 #
 
-#
-# Choose your weapons:
-#  Set 'USE_CYTHON=1' to build and install the 'nghttp2.pyd' Python extension.
-#
 THIS_MAKEFILE := $(lastword $(MAKEFILE_LIST))
-
-USE_CYTHON := 0
-#USE_CYTHON := 1
 
 _VERSION	:= $(shell grep AC_INIT ../configure.ac | cut -d'[' -f3 | sed -e 's/-DEV//g' -e 's/], //g')
 _VERSION   	:= $(subst ., ,$(_VERSION))
@@ -81,7 +74,7 @@ NGHTTP2_SRC := nghttp2_pq.c \
   nghttp2_session.c \
   nghttp2_submit.c \
   nghttp2_helper.c \
-  nghttp2_npn.c \
+  nghttp2_alpn.c \
   nghttp2_hd.c \
   nghttp2_hd_huffman.c \
   nghttp2_hd_huffman_data.c \
@@ -102,7 +95,7 @@ NGHTTP2_OBJ_D := $(addprefix $(OBJ_DIR)/d_, $(notdir $(NGHTTP2_SRC:.c=.obj)))
 	clean_nghttp2_pyd_0 clean_nghttp2_pyd_1
 
 
-all: intro includes/nghttp2/nghttp2ver.h $(OBJ_DIR) $(TARGETS) build_nghttp2_pyd_$(USE_CYTHON)
+all: intro includes/nghttp2/nghttp2ver.h $(OBJ_DIR) $(TARGETS)
 	@echo 'Welcome to NgHTTP2 (release + debug).'
 	@echo 'Do a "make -f Makefile.MSVC install" at own risk!'
 
@@ -121,7 +114,7 @@ $(OBJ_DIR):
 
 install: includes/nghttp2/nghttp2.h includes/nghttp2/nghttp2ver.h \
          $(TARGETS) \
-         copy_headers_and_libs install_nghttp2_pyd_$(USE_CYTHON) 
+         copy_headers_and_libs
 
 #
 # This MUST be done before using the 'install_nghttp2_pyd_1' rule.
@@ -159,31 +152,6 @@ $(DLL_D): $(NGHTTP2_OBJ_D) $(OBJ_DIR)/d_nghttp2.res
 
 WIN_OBJDIR:=$(shell cygpath -w $(abspath $(OBJ_DIR)))
 WIN_OBJDIR:=$(subst \,/,$(WIN_OBJDIR))
-
-../python/setup.py: ../python/setup.py.in $(THIS_MAKEFILE)
-	cd ../python ; \
-	echo '# $(GENERATED). DO NOT EDIT.' > setup.py ; \
-	sed -e 's/@top_srcdir@/../'   \
-	    -e 's%@top_builddir@%$(WIN_OBJDIR)%' \
-	    -e 's/@PACKAGE_VERSION@/$(VERSION)/' setup.py.in >> setup.py ;
-
-build_nghttp2_pyd_0: ;
-
-build_nghttp2_pyd_1: $(addprefix ../python/, setup.py nghttp2.pyx)
-	cd ../python ; \
-	python setup.py build_ext -i -f bdist_wininst
-
-install_nghttp2_pyd_0: ;
-		
-install_nghttp2_pyd_1: $(addprefix ../python/, setup.py nghttp2.pyx)
-	cd ../python ; \
-	pip install .
-
-clean_nghttp2_pyd_0: ;
-
-clean_nghttp2_pyd_1:
-	cd ../python ; \
-	rm -fR build dist
 
 $(OBJ_DIR)/r_%.obj: %.c $(THIS_MAKEFILE)
 	$(CC) $(CFLAGS_R) $(CFLAGS) -Fo$@ -c $<
@@ -262,7 +230,7 @@ clean:
 	rm -f $(OBJ_DIR)/* includes/nghttp2/nghttp2ver.h
 	@echo
 
-vclean realclean: clean clean_nghttp2_pyd_$(USE_CYTHON)
+vclean realclean: clean
 	- rm -rf $(OBJ_DIR)
 	- rm -f .depend.MSVC
 

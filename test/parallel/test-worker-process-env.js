@@ -39,8 +39,20 @@ if (!workerData && process.argv[2] !== 'child') {
   process.env.SET_IN_WORKER = 'set';
   assert.strictEqual(process.env.SET_IN_WORKER, 'set');
 
-  Object.defineProperty(process.env, 'DEFINED_IN_WORKER', { value: 42 });
-  assert.strictEqual(process.env.DEFINED_IN_WORKER, '42');
+  assert.throws(
+    () => {
+      Object.defineProperty(process.env, 'DEFINED_IN_WORKER', {
+        value: 42
+      });
+    },
+    {
+      code: 'ERR_INVALID_OBJECT_DEFINE_PROPERTY',
+      name: 'TypeError',
+      message: '\'process.env\' only accepts a configurable, ' +
+          'writable, and enumerable data descriptor'
+    }
+  );
+
 
   const { stderr } =
     child_process.spawnSync(process.execPath, [__filename, 'child']);

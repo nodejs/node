@@ -62,8 +62,10 @@ class Message : public MemoryRetainer {
 
   // Deserialize the contained JS value. May only be called once, and only
   // after Serialize() has been called (e.g. by another thread).
-  v8::MaybeLocal<v8::Value> Deserialize(Environment* env,
-                                        v8::Local<v8::Context> context);
+  v8::MaybeLocal<v8::Value> Deserialize(
+      Environment* env,
+      v8::Local<v8::Context> context,
+      v8::Local<v8::Value>* port_list = nullptr);
 
   // Serialize a JS value, and optionally transfer objects, into this message.
   // The Message object retains ownership of all transferred objects until
@@ -86,6 +88,9 @@ class Message : public MemoryRetainer {
   // Internal method of Message that is called when a new WebAssembly.Module
   // object is encountered in the incoming value's structure.
   uint32_t AddWASMModule(v8::CompiledWasmModule&& mod);
+  // Internal method of Message that is called when a shared value is
+  // encountered for the first time in the incoming value's structure.
+  void AdoptSharedValueConveyor(v8::SharedValueConveyor&& conveyor);
 
   // The host objects that will be transferred, as recorded by Serialize()
   // (e.g. MessagePorts).
@@ -105,10 +110,14 @@ class Message : public MemoryRetainer {
 
  private:
   MallocedBuffer<char> main_message_buf_;
+  // TODO(addaleax): Make this a std::variant to save storage size in the common
+  // case (which is that all of these vectors are empty) once that is available
+  // with C++17.
   std::vector<std::shared_ptr<v8::BackingStore>> array_buffers_;
   std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers_;
   std::vector<std::unique_ptr<TransferData>> transferables_;
   std::vector<v8::CompiledWasmModule> wasm_modules_;
+  std::optional<v8::SharedValueConveyor> shared_value_conveyor_;
 
   friend class MessagePort;
 };
@@ -145,9 +154,9 @@ class SiblingGroup final : public std::enable_shared_from_this<SiblingGroup> {
   size_t size() const { return ports_.size(); }
 
  private:
-  std::string name_;
+  const std::string name_;
+  RwLock group_mutex_;  // Protects ports_.
   std::set<MessagePortData*> ports_;
-  Mutex group_mutex_;
 
   static void CheckSiblingGroup(const std::string& name);
 
@@ -200,6 +209,9 @@ class MessagePortData : public TransferData {
   // This mutex protects all fields below it, with the exception of
   // sibling_.
   mutable Mutex mutex_;
+  // TODO(addaleax): Make this a std::variant<std::shared_ptr, std::unique_ptr>
+  // once that is available with C++17, because std::shared_ptr comes with
+  // overhead that is only necessary for BroadcastChannel.
   std::deque<std::shared_ptr<Message>> incoming_messages_;
   MessagePort* owner_ = nullptr;
   std::shared_ptr<SiblingGroup> group_;
@@ -234,6 +246,7 @@ class MessagePort : public HandleWrap {
   // If this port is closed, or if there is no sibling, this message is
   // serialized with transfers, then silently discarded.
   v8::Maybe<bool> PostMessage(Environment* env,
+                              v8::Local<v8::Context> context,
                               v8::Local<v8::Value> message,
                               const TransferList& transfer);
 
@@ -248,7 +261,6 @@ class MessagePort : public HandleWrap {
   static void PostMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Drain(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReceiveMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -277,7 +289,7 @@ class MessagePort : public HandleWrap {
   // NULL pointer to the C++ MessagePort object is also detached.
   inline bool IsDetached() const;
 
-  TransferMode GetTransferMode() const override;
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -285,11 +297,18 @@ class MessagePort : public HandleWrap {
   SET_SELF_SIZE(MessagePort)
 
  private:
+  enum class MessageProcessingMode {
+    kNormalOperation,
+    kForceReadMessages
+  };
+
   void OnClose() override;
-  void OnMessage();
+  void OnMessage(MessageProcessingMode mode);
   void TriggerAsync();
-  v8::MaybeLocal<v8::Value> ReceiveMessage(v8::Local<v8::Context> context,
-                                           bool only_if_receiving);
+  v8::MaybeLocal<v8::Value> ReceiveMessage(
+      v8::Local<v8::Context> context,
+      MessageProcessingMode mode,
+      v8::Local<v8::Value>* port_list = nullptr);
 
   std::unique_ptr<MessagePortData> data_ = nullptr;
   bool receiving_messages_ = false;
@@ -299,20 +318,28 @@ class MessagePort : public HandleWrap {
   friend class MessagePortData;
 };
 
-// Provide a base class from which JS classes that should be transferable or
-// cloneable by postMesssage() can inherit.
+// Provide a wrapper class created when a built-in JS classes that being
+// transferable or cloneable by postMessage().
 // See e.g. FileHandle in internal/fs/promises.js for an example.
 class JSTransferable : public BaseObject {
  public:
-  JSTransferable(Environment* env, v8::Local<v8::Object> obj);
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static BaseObjectPtr<JSTransferable> Wrap(Environment* env,
+                                            v8::Local<v8::Object> target);
+  static bool IsJSTransferable(Environment* env,
+                               v8::Local<v8::Context> context,
+                               v8::Local<v8::Object> object);
 
-  TransferMode GetTransferMode() const override;
+  JSTransferable(Environment* env,
+                 v8::Local<v8::Object> obj,
+                 v8::Local<v8::Object> target);
+  ~JSTransferable();
+
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;
   std::unique_ptr<TransferData> CloneForMessaging() const override;
   v8::Maybe<std::vector<BaseObjectPtr<BaseObject>>>
       NestedTransferables() const override;
-  v8::Maybe<bool> FinalizeTransferRead(
+  v8::Maybe<void> FinalizeTransferRead(
       v8::Local<v8::Context> context,
       v8::ValueDeserializer* deserializer) override;
 
@@ -320,8 +347,13 @@ class JSTransferable : public BaseObject {
   SET_MEMORY_INFO_NAME(JSTransferable)
   SET_SELF_SIZE(JSTransferable)
 
+  v8::Local<v8::Object> target() const;
+
  private:
-  std::unique_ptr<TransferData> TransferOrClone(TransferMode mode) const;
+  template <TransferMode mode>
+  std::unique_ptr<TransferData> TransferOrClone() const;
+
+  v8::Global<v8::Object> target_;
 
   class Data : public TransferData {
    public:
@@ -346,7 +378,7 @@ class JSTransferable : public BaseObject {
 };
 
 v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
-    Environment* env);
+    IsolateData* isolate_data);
 
 }  // namespace worker
 }  // namespace node

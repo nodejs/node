@@ -4,7 +4,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   n: [32],
-  size: [8 << 20]
+  size: [8 << 20],
 });
 
 function main({ n, size }) {
@@ -15,7 +15,15 @@ function main({ n, size }) {
   assert.strictEqual(s.length % 4, 0);
   const b = Buffer.allocUnsafe(encodedSize);
   b.write(s, 0, encodedSize, 'base64');
+
+  let tmp;
+
   bench.start();
-  for (let i = 0; i < n; i += 1) b.base64Write(s, 0, s.length);
+
+  for (let i = 0; i < n; i += 1)
+    tmp = b.base64Write(s, 0, s.length);
+
   bench.end(n);
+
+  assert.strictEqual(tmp, encodedSize);
 }

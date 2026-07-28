@@ -21,6 +21,9 @@ namespace http2 {
     IDX_SETTINGS_COUNT
   };
 
+  // number of max additional settings, thus settings not implemented by nghttp2
+  const size_t MAX_ADDITIONAL_SETTINGS = 10;
+
   enum Http2SessionStateIndex {
     IDX_SESSION_STATE_EFFECTIVE_LOCAL_WINDOW_SIZE,
     IDX_SESSION_STATE_EFFECTIVE_RECV_DATA_LENGTH,
@@ -55,6 +58,9 @@ namespace http2 {
     IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS,
     IDX_OPTIONS_MAX_SESSION_MEMORY,
     IDX_OPTIONS_MAX_SETTINGS,
+    IDX_OPTIONS_STREAM_RESET_RATE,
+    IDX_OPTIONS_STREAM_RESET_BURST,
+    IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION,
     IDX_OPTIONS_FLAGS
   };
 
@@ -83,37 +89,36 @@ namespace http2 {
 
 class Http2State : public BaseObject {
  public:
-  Http2State(Environment* env, v8::Local<v8::Object> obj)
-      : BaseObject(env, obj),
-        root_buffer(env->isolate(), sizeof(http2_state_internal)),
+  Http2State(Realm* realm, v8::Local<v8::Object> obj)
+      : BaseObject(realm, obj),
+        root_buffer(realm->isolate(), sizeof(http2_state_internal)),
         session_state_buffer(
-            env->isolate(),
+            realm->isolate(),
             offsetof(http2_state_internal, session_state_buffer),
             IDX_SESSION_STATE_COUNT,
             root_buffer),
-        stream_state_buffer(
-            env->isolate(),
-            offsetof(http2_state_internal, stream_state_buffer),
-            IDX_STREAM_STATE_COUNT,
-            root_buffer),
-        stream_stats_buffer(
-            env->isolate(),
-            offsetof(http2_state_internal, stream_stats_buffer),
-            IDX_STREAM_STATS_COUNT,
-            root_buffer),
+        stream_state_buffer(realm->isolate(),
+                            offsetof(http2_state_internal, stream_state_buffer),
+                            IDX_STREAM_STATE_COUNT,
+                            root_buffer),
+        stream_stats_buffer(realm->isolate(),
+                            offsetof(http2_state_internal, stream_stats_buffer),
+                            IDX_STREAM_STATS_COUNT,
+                            root_buffer),
         session_stats_buffer(
-            env->isolate(),
+            realm->isolate(),
             offsetof(http2_state_internal, session_stats_buffer),
             IDX_SESSION_STATS_COUNT,
             root_buffer),
-        options_buffer(env->isolate(),
-                        offsetof(http2_state_internal, options_buffer),
-                        IDX_OPTIONS_FLAGS + 1,
-                        root_buffer),
-        settings_buffer(env->isolate(),
-                        offsetof(http2_state_internal, settings_buffer),
-                        IDX_SETTINGS_COUNT + 1,
-                        root_buffer) {}
+        options_buffer(realm->isolate(),
+                       offsetof(http2_state_internal, options_buffer),
+                       IDX_OPTIONS_FLAGS + 1,
+                       root_buffer),
+        settings_buffer(
+            realm->isolate(),
+            offsetof(http2_state_internal, settings_buffer),
+            IDX_SETTINGS_COUNT + 1 + 1 + 2 * MAX_ADDITIONAL_SETTINGS,
+            root_buffer) {}
 
   AliasedUint8Array root_buffer;
   AliasedFloat64Array session_state_buffer;
@@ -127,7 +132,7 @@ class Http2State : public BaseObject {
   SET_SELF_SIZE(Http2State)
   SET_MEMORY_INFO_NAME(Http2State)
 
-  static constexpr FastStringKey binding_data_name { "http2" };
+  SET_BINDING_ID(http2_binding_data)
 
  private:
   struct http2_state_internal {
@@ -137,7 +142,12 @@ class Http2State : public BaseObject {
     double stream_stats_buffer[IDX_STREAM_STATS_COUNT];
     double session_stats_buffer[IDX_SESSION_STATS_COUNT];
     uint32_t options_buffer[IDX_OPTIONS_FLAGS + 1];
-    uint32_t settings_buffer[IDX_SETTINGS_COUNT + 1];
+    // first + 1: number of actual nghttp2 supported settings
+    // second + 1: number of additional settings not supported by nghttp2
+    // 2 * MAX_ADDITIONAL_SETTINGS: settings id and value for each
+    // additional setting
+    uint32_t settings_buffer[IDX_SETTINGS_COUNT + 1 + 1 +
+                             2 * MAX_ADDITIONAL_SETTINGS];
   };
 };
 

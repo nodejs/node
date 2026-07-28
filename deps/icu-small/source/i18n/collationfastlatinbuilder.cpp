@@ -45,9 +45,9 @@ namespace {
  */
 int32_t
 compareInt64AsUnsigned(int64_t a, int64_t b) {
-    if((uint64_t)a < (uint64_t)b) {
+    if (static_cast<uint64_t>(a) < static_cast<uint64_t>(b)) {
         return -1;
-    } else if((uint64_t)a > (uint64_t)b) {
+    } else if (static_cast<uint64_t>(a) > static_cast<uint64_t>(b)) {
         return 1;
     } else {
         return 0;
@@ -89,9 +89,9 @@ binarySearch(const int64_t list[], int32_t limit, int64_t ce) {
 CollationFastLatinBuilder::CollationFastLatinBuilder(UErrorCode &errorCode)
         : ce0(0), ce1(0),
           contractionCEs(errorCode), uniqueCEs(errorCode),
-          miniCEs(NULL),
+          miniCEs(nullptr),
           firstDigitPrimary(0), firstLatinPrimary(0), lastLatinPrimary(0),
-          firstShortPrimary(0), shortPrimaryOverflow(FALSE),
+          firstShortPrimary(0), shortPrimaryOverflow(false),
           headerLength(0) {
 }
 
@@ -101,24 +101,24 @@ CollationFastLatinBuilder::~CollationFastLatinBuilder() {
 
 UBool
 CollationFastLatinBuilder::forData(const CollationData &data, UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     if(!result.isEmpty()) {  // This builder is not reusable.
         errorCode = U_INVALID_STATE_ERROR;
-        return FALSE;
+        return false;
     }
-    if(!loadGroups(data, errorCode)) { return FALSE; }
+    if(!loadGroups(data, errorCode)) { return false; }
 
     // Fast handling of digits.
     firstShortPrimary = firstDigitPrimary;
     getCEs(data, errorCode);
-    if(!encodeUniqueCEs(errorCode)) { return FALSE; }
+    if(!encodeUniqueCEs(errorCode)) { return false; }
     if(shortPrimaryOverflow) {
         // Give digits long mini primaries,
         // so that there are more short primaries for letters.
         firstShortPrimary = firstLatinPrimary;
         resetCEs();
         getCEs(data, errorCode);
-        if(!encodeUniqueCEs(errorCode)) { return FALSE; }
+        if(!encodeUniqueCEs(errorCode)) { return false; }
     }
     // Note: If we still have a short-primary overflow but not a long-primary overflow,
     // then we could calculate how many more long primaries would fit,
@@ -126,7 +126,7 @@ CollationFastLatinBuilder::forData(const CollationData &data, UErrorCode &errorC
     // and try again.
     // However, this might only benefit the en_US_POSIX tailoring,
     // and it is simpler to suppress building fast Latin data for it in genrb,
-    // or by returning FALSE here if shortPrimaryOverflow.
+    // or by returning false here if shortPrimaryOverflow.
 
     UBool ok = !shortPrimaryOverflow &&
             encodeCharCEs(errorCode) && encodeContractions(errorCode);
@@ -137,19 +137,19 @@ CollationFastLatinBuilder::forData(const CollationData &data, UErrorCode &errorC
 
 UBool
 CollationFastLatinBuilder::loadGroups(const CollationData &data, UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     headerLength = 1 + NUM_SPECIAL_GROUPS;
     uint32_t r0 = (CollationFastLatin::VERSION << 8) | headerLength;
-    result.append((UChar)r0);
+    result.append(static_cast<char16_t>(r0));
     // The first few reordering groups should be special groups
     // (space, punct, ..., digit) followed by Latn, then Grek and other scripts.
     for(int32_t i = 0; i < NUM_SPECIAL_GROUPS; ++i) {
         lastSpecialPrimaries[i] = data.getLastPrimaryForGroup(UCOL_REORDER_CODE_FIRST + i);
         if(lastSpecialPrimaries[i] == 0) {
             // missing data
-            return FALSE;
+            return false;
         }
-        result.append((UChar)0);  // reserve a slot for this group
+        result.append(static_cast<char16_t>(0)); // reserve a slot for this group
     }
 
     firstDigitPrimary = data.getFirstPrimaryForGroup(UCOL_REORDER_CODE_DIGIT);
@@ -157,9 +157,9 @@ CollationFastLatinBuilder::loadGroups(const CollationData &data, UErrorCode &err
     lastLatinPrimary = data.getLastPrimaryForGroup(USCRIPT_LATIN);
     if(firstDigitPrimary == 0 || firstLatinPrimary == 0) {
         // missing data
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 UBool
@@ -169,7 +169,7 @@ CollationFastLatinBuilder::inSameGroup(uint32_t p, uint32_t q) const {
     if(p >= firstShortPrimary) {
         return q >= firstShortPrimary;
     } else if(q >= firstShortPrimary) {
-        return FALSE;
+        return false;
     }
     // Both or neither must be potentially-variable,
     // so that we can test only one and determine if both are variable.
@@ -177,7 +177,7 @@ CollationFastLatinBuilder::inSameGroup(uint32_t p, uint32_t q) const {
     if(p > lastVariablePrimary) {
         return q > lastVariablePrimary;
     } else if(q > lastVariablePrimary) {
-        return FALSE;
+        return false;
     }
     // Both will be encoded with long mini primaries.
     // They must be in the same special reordering group,
@@ -188,7 +188,7 @@ CollationFastLatinBuilder::inSameGroup(uint32_t p, uint32_t q) const {
         if(p <= lastPrimary) {
             return q <= lastPrimary;
         } else if(q <= lastPrimary) {
-            return FALSE;
+            return false;
         }
     }
 }
@@ -197,7 +197,7 @@ void
 CollationFastLatinBuilder::resetCEs() {
     contractionCEs.removeAllElements();
     uniqueCEs.removeAllElements();
-    shortPrimaryOverflow = FALSE;
+    shortPrimaryOverflow = false;
     result.truncate(headerLength);
 }
 
@@ -205,7 +205,7 @@ void
 CollationFastLatinBuilder::getCEs(const CollationData &data, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return; }
     int32_t i = 0;
-    for(UChar c = 0;; ++i, ++c) {
+    for(char16_t c = 0;; ++i, ++c) {
         if(c == CollationFastLatin::LATIN_LIMIT) {
             c = CollationFastLatin::PUNCT_START;
         } else if(c == CollationFastLatin::PUNCT_LIMIT) {
@@ -234,7 +234,7 @@ CollationFastLatinBuilder::getCEs(const CollationData &data, UErrorCode &errorCo
             // Write a contraction list with only a default value if there is no real contraction.
             U_ASSERT(contractionCEs.isEmpty());
             addContractionEntry(CollationFastLatin::CONTR_CHAR_MASK, ce0, ce1, errorCode);
-            charCEs[0][0] = ((int64_t)Collation::NO_CE_PRIMARY << 32) | CONTRACTION_FLAG;
+            charCEs[0][0] = (static_cast<int64_t>(Collation::NO_CE_PRIMARY) << 32) | CONTRACTION_FLAG;
             charCEs[0][1] = 0;
         }
     }
@@ -245,7 +245,7 @@ CollationFastLatinBuilder::getCEs(const CollationData &data, UErrorCode &errorCo
 UBool
 CollationFastLatinBuilder::getCEsFromCE32(const CollationData &data, UChar32 c, uint32_t ce32,
                                           UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     ce32 = data.getFinalCE32(ce32);
     ce1 = 0;
     if(Collation::isSimpleOrLongCE32(ce32)) {
@@ -266,7 +266,7 @@ CollationFastLatinBuilder::getCEsFromCE32(const CollationData &data, UChar32 c, 
                 }
                 break;
             } else {
-                return FALSE;
+                return false;
             }
         }
         case Collation::EXPANSION_TAG: {
@@ -279,7 +279,7 @@ CollationFastLatinBuilder::getCEsFromCE32(const CollationData &data, UChar32 c, 
                 }
                 break;
             } else {
-                return FALSE;
+                return false;
             }
         }
         // Note: We could support PREFIX_TAG (assert c>=0)
@@ -295,54 +295,54 @@ CollationFastLatinBuilder::getCEsFromCE32(const CollationData &data, UChar32 c, 
             ce0 = data.getCEFromOffsetCE32(c, ce32);
             break;
         default:
-            return FALSE;
+            return false;
         }
     }
     // A mapping can be completely ignorable.
     if(ce0 == 0) { return ce1 == 0; }
     // We do not support an ignorable ce0 unless it is completely ignorable.
-    uint32_t p0 = (uint32_t)(ce0 >> 32);
-    if(p0 == 0) { return FALSE; }
+    uint32_t p0 = static_cast<uint32_t>(ce0 >> 32);
+    if(p0 == 0) { return false; }
     // We only support primaries up to the Latin script.
-    if(p0 > lastLatinPrimary) { return FALSE; }
+    if(p0 > lastLatinPrimary) { return false; }
     // We support non-common secondary and case weights only together with short primaries.
-    uint32_t lower32_0 = (uint32_t)ce0;
+    uint32_t lower32_0 = static_cast<uint32_t>(ce0);
     if(p0 < firstShortPrimary) {
         uint32_t sc0 = lower32_0 & Collation::SECONDARY_AND_CASE_MASK;
-        if(sc0 != Collation::COMMON_SECONDARY_CE) { return FALSE; }
+        if(sc0 != Collation::COMMON_SECONDARY_CE) { return false; }
     }
     // No below-common tertiary weights.
-    if((lower32_0 & Collation::ONLY_TERTIARY_MASK) < Collation::COMMON_WEIGHT16) { return FALSE; }
+    if((lower32_0 & Collation::ONLY_TERTIARY_MASK) < Collation::COMMON_WEIGHT16) { return false; }
     if(ce1 != 0) {
         // Both primaries must be in the same group,
         // or both must get short mini primaries,
         // or a short-primary CE is followed by a secondary CE.
         // This is so that we can test the first primary and use the same mask for both,
         // and determine for both whether they are variable.
-        uint32_t p1 = (uint32_t)(ce1 >> 32);
-        if(p1 == 0 ? p0 < firstShortPrimary : !inSameGroup(p0, p1)) { return FALSE; }
-        uint32_t lower32_1 = (uint32_t)ce1;
+        uint32_t p1 = static_cast<uint32_t>(ce1 >> 32);
+        if(p1 == 0 ? p0 < firstShortPrimary : !inSameGroup(p0, p1)) { return false; }
+        uint32_t lower32_1 = static_cast<uint32_t>(ce1);
         // No tertiary CEs.
-        if((lower32_1 >> 16) == 0) { return FALSE; }
+        if((lower32_1 >> 16) == 0) { return false; }
         // We support non-common secondary and case weights
         // only for secondary CEs or together with short primaries.
         if(p1 != 0 && p1 < firstShortPrimary) {
             uint32_t sc1 = lower32_1 & Collation::SECONDARY_AND_CASE_MASK;
-            if(sc1 != Collation::COMMON_SECONDARY_CE) { return FALSE; }
+            if(sc1 != Collation::COMMON_SECONDARY_CE) { return false; }
         }
         // No below-common tertiary weights.
-        if((lower32_1 & Collation::ONLY_TERTIARY_MASK) < Collation::COMMON_WEIGHT16) { return FALSE; }
+        if((lower32_1 & Collation::ONLY_TERTIARY_MASK) < Collation::COMMON_WEIGHT16) { return false; }
     }
     // No quaternary weights.
-    if(((ce0 | ce1) & Collation::QUATERNARY_MASK) != 0) { return FALSE; }
-    return TRUE;
+    if(((ce0 | ce1) & Collation::QUATERNARY_MASK) != 0) { return false; }
+    return true;
 }
 
 UBool
 CollationFastLatinBuilder::getCEsFromContractionCE32(const CollationData &data, uint32_t ce32,
                                                      UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
-    const UChar *p = data.contexts + Collation::indexFromCE32(ce32);
+    if(U_FAILURE(errorCode)) { return false; }
+    const char16_t *p = data.contexts + Collation::indexFromCE32(ce32);
     ce32 = CollationData::readCE32(p);  // Default if no suffix match.
     // Since the original ce32 is not a prefix mapping,
     // the default ce32 must not be another contraction.
@@ -357,7 +357,7 @@ CollationFastLatinBuilder::getCEsFromContractionCE32(const CollationData &data, 
     // Handle an encodable contraction unless the next contraction is too long
     // and starts with the same character.
     int32_t prevX = -1;
-    UBool addContraction = FALSE;
+    UBool addContraction = false;
     UCharsTrie::Iterator suffixes(p + 2, 0, errorCode);
     while(suffixes.next(errorCode)) {
         const UnicodeString &suffix = suffixes.getString();
@@ -367,34 +367,34 @@ CollationFastLatinBuilder::getCEsFromContractionCE32(const CollationData &data, 
             if(addContraction) {
                 // Bail out for all contractions starting with this character.
                 addContractionEntry(x, Collation::NO_CE, 0, errorCode);
-                addContraction = FALSE;
+                addContraction = false;
             }
             continue;
         }
         if(addContraction) {
             addContractionEntry(prevX, ce0, ce1, errorCode);
         }
-        ce32 = (uint32_t)suffixes.getValue();
+        ce32 = static_cast<uint32_t>(suffixes.getValue());
         if(suffix.length() == 1 && getCEsFromCE32(data, U_SENTINEL, ce32, errorCode)) {
-            addContraction = TRUE;
+            addContraction = true;
         } else {
             addContractionEntry(x, Collation::NO_CE, 0, errorCode);
-            addContraction = FALSE;
+            addContraction = false;
         }
         prevX = x;
     }
     if(addContraction) {
         addContractionEntry(prevX, ce0, ce1, errorCode);
     }
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     // Note: There might not be any fast Latin contractions, but
     // we need to enter contraction handling anyway so that we can bail out
     // when there is a non-fast-Latin character following.
     // For example: Danish &Y<<u+umlaut, when we compare Y vs. u\u0308 we need to see the
     // following umlaut and bail out, rather than return the difference of Y vs. u.
-    ce0 = ((int64_t)Collation::NO_CE_PRIMARY << 32) | CONTRACTION_FLAG | contractionIndex;
+    ce0 = (static_cast<int64_t>(Collation::NO_CE_PRIMARY) << 32) | CONTRACTION_FLAG | contractionIndex;
     ce1 = 0;
-    return TRUE;
+    return true;
 }
 
 void
@@ -410,8 +410,8 @@ CollationFastLatinBuilder::addContractionEntry(int32_t x, int64_t cce0, int64_t 
 void
 CollationFastLatinBuilder::addUniqueCE(int64_t ce, UErrorCode &errorCode) {
     if(U_FAILURE(errorCode)) { return; }
-    if(ce == 0 || (uint32_t)(ce >> 32) == Collation::NO_CE_PRIMARY) { return; }
-    ce &= ~(int64_t)Collation::CASE_MASK;  // blank out case bits
+    if (ce == 0 || static_cast<uint32_t>(ce >> 32) == Collation::NO_CE_PRIMARY) { return; }
+    ce &= ~static_cast<int64_t>(Collation::CASE_MASK); // blank out case bits
     int32_t i = binarySearch(uniqueCEs.getBuffer(), uniqueCEs.size(), ce);
     if(i < 0) {
         uniqueCEs.insertElementAt(ce, ~i, errorCode);
@@ -420,7 +420,7 @@ CollationFastLatinBuilder::addUniqueCE(int64_t ce, UErrorCode &errorCode) {
 
 uint32_t
 CollationFastLatinBuilder::getMiniCE(int64_t ce) const {
-    ce &= ~(int64_t)Collation::CASE_MASK;  // blank out case bits
+    ce &= ~static_cast<int64_t>(Collation::CASE_MASK); // blank out case bits
     int32_t index = binarySearch(uniqueCEs.getBuffer(), uniqueCEs.size(), ce);
     U_ASSERT(index >= 0);
     return miniCEs[index];
@@ -428,12 +428,12 @@ CollationFastLatinBuilder::getMiniCE(int64_t ce) const {
 
 UBool
 CollationFastLatinBuilder::encodeUniqueCEs(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     uprv_free(miniCEs);
-    miniCEs = (uint16_t *)uprv_malloc(uniqueCEs.size() * 2);
-    if(miniCEs == NULL) {
+    miniCEs = static_cast<uint16_t*>(uprv_malloc(uniqueCEs.size() * 2));
+    if(miniCEs == nullptr) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
-        return FALSE;
+        return false;
     }
     int32_t group = 0;
     uint32_t lastGroupPrimary = lastSpecialPrimaries[group];
@@ -448,13 +448,13 @@ CollationFastLatinBuilder::encodeUniqueCEs(UErrorCode &errorCode) {
         int64_t ce = uniqueCEs.elementAti(i);
         // Note: At least one of the p/s/t weights changes from one unique CE to the next.
         // (uniqueCEs does not store case bits.)
-        uint32_t p = (uint32_t)(ce >> 32);
+        uint32_t p = static_cast<uint32_t>(ce >> 32);
         if(p != prevPrimary) {
             while(p > lastGroupPrimary) {
                 U_ASSERT(pri <= CollationFastLatin::MAX_LONG);
                 // Set the group's header entry to the
                 // last "long primary" in or before the group.
-                result.setCharAt(1 + group, (UChar)pri);
+                result.setCharAt(1 + group, static_cast<char16_t>(pri));
                 if(++group < NUM_SPECIAL_GROUPS) {
                     lastGroupPrimary = lastSpecialPrimaries[group];
                 } else {
@@ -484,7 +484,7 @@ CollationFastLatinBuilder::encodeUniqueCEs(UErrorCode &errorCode) {
 #if DEBUG_COLLATION_FAST_LATIN_BUILDER
                     printf("short-primary overflow for %08x\n", p);
 #endif
-                    shortPrimaryOverflow = TRUE;
+                    shortPrimaryOverflow = true;
                     miniCEs[i] = CollationFastLatin::BAIL_OUT;
                     continue;
                 }
@@ -494,7 +494,7 @@ CollationFastLatinBuilder::encodeUniqueCEs(UErrorCode &errorCode) {
             sec = CollationFastLatin::COMMON_SEC;
             ter = CollationFastLatin::COMMON_TER;
         }
-        uint32_t lower32 = (uint32_t)ce;
+        uint32_t lower32 = static_cast<uint32_t>(ce);
         uint32_t s = lower32 >> 16;
         if(s != prevSecondary) {
             if(pri == 0) {
@@ -544,9 +544,9 @@ CollationFastLatinBuilder::encodeUniqueCEs(UErrorCode &errorCode) {
         }
         if(CollationFastLatin::MIN_LONG <= pri && pri <= CollationFastLatin::MAX_LONG) {
             U_ASSERT(sec == CollationFastLatin::COMMON_SEC);
-            miniCEs[i] = (uint16_t)(pri | ter);
+            miniCEs[i] = static_cast<uint16_t>(pri | ter);
         } else {
-            miniCEs[i] = (uint16_t)(pri | sec | ter);
+            miniCEs[i] = static_cast<uint16_t>(pri | sec | ter);
         }
     }
 #if DEBUG_COLLATION_FAST_LATIN_BUILDER
@@ -563,10 +563,10 @@ CollationFastLatinBuilder::encodeUniqueCEs(UErrorCode &errorCode) {
 
 UBool
 CollationFastLatinBuilder::encodeCharCEs(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     int32_t miniCEsStart = result.length();
     for(int32_t i = 0; i < CollationFastLatin::NUM_FAST_CHARS; ++i) {
-        result.append((UChar)0);  // initialize to completely ignorable
+        result.append(static_cast<char16_t>(0)); // initialize to completely ignorable
     }
     int32_t indexBase = result.length();
     for(int32_t i = 0; i < CollationFastLatin::NUM_FAST_CHARS; ++i) {
@@ -578,14 +578,14 @@ CollationFastLatinBuilder::encodeCharCEs(UErrorCode &errorCode) {
             // and if so, then we could reuse the other expansion.
             // However, that seems unlikely.
             int32_t expansionIndex = result.length() - indexBase;
-            if(expansionIndex > (int32_t)CollationFastLatin::INDEX_MASK) {
+            if (expansionIndex > static_cast<int32_t>(CollationFastLatin::INDEX_MASK)) {
                 miniCE = CollationFastLatin::BAIL_OUT;
             } else {
-                result.append((UChar)(miniCE >> 16)).append((UChar)miniCE);
+                result.append(static_cast<char16_t>(miniCE >> 16)).append(static_cast<char16_t>(miniCE));
                 miniCE = CollationFastLatin::EXPANSION | expansionIndex;
             }
         }
-        result.setCharAt(miniCEsStart + i, (UChar)miniCE);
+        result.setCharAt(miniCEsStart + i, static_cast<char16_t>(miniCE));
     }
     return U_SUCCESS(errorCode);
 }
@@ -594,48 +594,48 @@ UBool
 CollationFastLatinBuilder::encodeContractions(UErrorCode &errorCode) {
     // We encode all contraction lists so that the first word of a list
     // terminates the previous list, and we only need one additional terminator at the end.
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     int32_t indexBase = headerLength + CollationFastLatin::NUM_FAST_CHARS;
     int32_t firstContractionIndex = result.length();
     for(int32_t i = 0; i < CollationFastLatin::NUM_FAST_CHARS; ++i) {
         int64_t ce = charCEs[i][0];
         if(!isContractionCharCE(ce)) { continue; }
         int32_t contractionIndex = result.length() - indexBase;
-        if(contractionIndex > (int32_t)CollationFastLatin::INDEX_MASK) {
+        if (contractionIndex > static_cast<int32_t>(CollationFastLatin::INDEX_MASK)) {
             result.setCharAt(headerLength + i, CollationFastLatin::BAIL_OUT);
             continue;
         }
-        UBool firstTriple = TRUE;
-        for(int32_t index = (int32_t)ce & 0x7fffffff;; index += 3) {
+        UBool firstTriple = true;
+        for (int32_t index = static_cast<int32_t>(ce) & 0x7fffffff;; index += 3) {
             int32_t x = static_cast<int32_t>(contractionCEs.elementAti(index));
-            if((uint32_t)x == CollationFastLatin::CONTR_CHAR_MASK && !firstTriple) { break; }
+            if (static_cast<uint32_t>(x) == CollationFastLatin::CONTR_CHAR_MASK && !firstTriple) { break; }
             int64_t cce0 = contractionCEs.elementAti(index + 1);
             int64_t cce1 = contractionCEs.elementAti(index + 2);
             uint32_t miniCE = encodeTwoCEs(cce0, cce1);
             if(miniCE == CollationFastLatin::BAIL_OUT) {
-                result.append((UChar)(x | (1 << CollationFastLatin::CONTR_LENGTH_SHIFT)));
+                result.append(static_cast<char16_t>(x | (1 << CollationFastLatin::CONTR_LENGTH_SHIFT)));
             } else if(miniCE <= 0xffff) {
-                result.append((UChar)(x | (2 << CollationFastLatin::CONTR_LENGTH_SHIFT)));
-                result.append((UChar)miniCE);
+                result.append(static_cast<char16_t>(x | (2 << CollationFastLatin::CONTR_LENGTH_SHIFT)));
+                result.append(static_cast<char16_t>(miniCE));
             } else {
-                result.append((UChar)(x | (3 << CollationFastLatin::CONTR_LENGTH_SHIFT)));
-                result.append((UChar)(miniCE >> 16)).append((UChar)miniCE);
+                result.append(static_cast<char16_t>(x | (3 << CollationFastLatin::CONTR_LENGTH_SHIFT)));
+                result.append(static_cast<char16_t>(miniCE >> 16)).append(static_cast<char16_t>(miniCE));
             }
-            firstTriple = FALSE;
+            firstTriple = false;
         }
         // Note: There is a chance that this new contraction list is the same as a previous one,
         // and if so, then we could truncate the result and reuse the other list.
         // However, that seems unlikely.
         result.setCharAt(headerLength + i,
-                         (UChar)(CollationFastLatin::CONTRACTION | contractionIndex));
+                         static_cast<char16_t>(CollationFastLatin::CONTRACTION | contractionIndex));
     }
     if(result.length() > firstContractionIndex) {
         // Terminate the last contraction list.
-        result.append((UChar)CollationFastLatin::CONTR_CHAR_MASK);
+        result.append(static_cast<char16_t>(CollationFastLatin::CONTR_CHAR_MASK));
     }
     if(result.isBogus()) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
-        return FALSE;
+        return false;
     }
 #if DEBUG_COLLATION_FAST_LATIN_BUILDER
     printf("** fast Latin %d * 2 = %d bytes\n", result.length(), result.length() * 2);
@@ -663,7 +663,7 @@ CollationFastLatinBuilder::encodeContractions(UErrorCode &errorCode) {
     }
     puts("");
 #endif
-    return TRUE;
+    return true;
 }
 
 uint32_t
@@ -681,7 +681,7 @@ CollationFastLatinBuilder::encodeTwoCEs(int64_t first, int64_t second) const {
     if(miniCE >= CollationFastLatin::MIN_SHORT) {
         // Extract & copy the case bits.
         // Shift them from normal CE bits 15..14 to mini CE bits 4..3.
-        uint32_t c = (((uint32_t)first & Collation::CASE_MASK) >> (14 - 3));
+        uint32_t c = ((static_cast<uint32_t>(first) & Collation::CASE_MASK) >> (14 - 3));
         // Only in mini CEs: Ignorable case bits = 0, lowercase = 1.
         c += CollationFastLatin::LOWER_CASE;
         miniCE |= c;
@@ -691,7 +691,7 @@ CollationFastLatinBuilder::encodeTwoCEs(int64_t first, int64_t second) const {
     uint32_t miniCE1 = getMiniCE(second);
     if(miniCE1 == CollationFastLatin::BAIL_OUT) { return miniCE1; }
 
-    uint32_t case1 = (uint32_t)second & Collation::CASE_MASK;
+    uint32_t case1 = static_cast<uint32_t>(second) & Collation::CASE_MASK;
     if(miniCE >= CollationFastLatin::MIN_SHORT &&
             (miniCE & CollationFastLatin::SECONDARY_MASK) == CollationFastLatin::COMMON_SEC) {
         // Try to combine the two mini CEs into one.

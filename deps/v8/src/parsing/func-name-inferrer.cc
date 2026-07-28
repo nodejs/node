@@ -46,7 +46,7 @@ void FuncNameInferrer::RemoveAsyncKeywordFromEnd() {
 }
 
 AstConsString* FuncNameInferrer::MakeNameFromStack() {
-  if (names_stack_.size() == 0) {
+  if (names_stack_.empty()) {
     return ast_value_factory_->empty_cons_string();
   }
   AstConsString* result = ast_value_factory_->NewConsString();
@@ -60,7 +60,7 @@ AstConsString* FuncNameInferrer::MakeNameFromStack() {
       continue;
     }
     // Add name. Separate names with ".".
-    Zone* zone = ast_value_factory_->zone();
+    Zone* zone = ast_value_factory_->single_parse_zone();
     if (!result->IsEmpty()) {
       result->AddString(zone, ast_value_factory_->dot_string());
     }

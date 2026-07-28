@@ -7,18 +7,18 @@ const assert = require('assert');
 // basic
 {
   // Find it on Writable.prototype
-  assert(Writable.prototype.hasOwnProperty('writableFinished'));
+  assert(Object.hasOwn(Writable.prototype, 'writableFinished'));
 }
 
 // event
 {
   const writable = new Writable();
 
-  writable._write = (chunk, encoding, cb) => {
+  writable._write = common.mustCall((chunk, encoding, cb) => {
     // The state finished should start in false.
     assert.strictEqual(writable.writableFinished, false);
     cb();
-  };
+  });
 
   writable.on('finish', common.mustCall(() => {
     assert.strictEqual(writable.writableFinished, true);

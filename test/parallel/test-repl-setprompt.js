@@ -20,10 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 const os = require('os');
+
+common.skipIfInspectorDisabled();
 
 const args = [
   '-e',
@@ -41,9 +43,9 @@ child.stdout.on('data', function(d) { data += d; });
 
 child.stdin.end(`e.setPrompt("${p}");${os.EOL}`);
 
-child.on('close', function(code, signal) {
+child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.ok(!signal);
   const lines = data.split('\n');
   assert.strictEqual(lines.pop(), p);
-});
+}));

@@ -7,31 +7,30 @@ description: Edit an installed package
 ### Synopsis
 
 ```bash
-npm edit <pkg>
+npm edit <pkg>[/<subpkg>...]
 ```
+
+Note: This command is unaware of workspaces.
 
 ### Description
 
-Selects a dependency in the current project and opens the package folder in
-the default editor (or whatever you've configured as the npm `editor`
-config -- see [`npm-config`](npm-config).)
+Selects a dependency in the current project and opens the package folder in the default editor (or whatever you've configured as the npm `editor` config -- see [`npm-config`](npm-config).)
 
-After it has been edited, the package is rebuilt so as to pick up any
-changes in compiled packages.
+After it has been edited, the package is rebuilt so as to pick up any changes in compiled packages.
 
-For instance, you can do `npm install connect` to install connect
-into your package, and then `npm edit connect` to make a few
-changes to your locally installed copy.
+For instance, you can do `npm install connect` to install connect into your package, and then `npm edit connect` to make a few changes to your locally installed copy.
 
 ### Configuration
 
-#### editor
+#### `editor`
 
-* Default: `EDITOR` environment variable if set, or `"vi"` on Posix,
-  or `"notepad"` on Windows.
-* Type: path
+* Default: The EDITOR or VISUAL environment variables, or
+  '%SYSTEMROOT%\notepad.exe' on Windows, or 'vi' on Unix systems
+* Type: String
 
-The command to run for `npm edit` or `npm config edit`.
+The command to run for `npm edit` and `npm config edit`.
+
+
 
 ### See Also
 

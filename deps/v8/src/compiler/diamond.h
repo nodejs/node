@@ -6,8 +6,8 @@
 #define V8_COMPILER_DIAMOND_H_
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 
 namespace v8 {
 namespace internal {
@@ -15,18 +15,20 @@ namespace compiler {
 
 // A helper to make it easier to build diamond-shaped control patterns.
 struct Diamond {
-  Graph* graph;
+  TFGraph* graph;
   CommonOperatorBuilder* common;
   Node* branch;
   Node* if_true;
   Node* if_false;
   Node* merge;
 
-  Diamond(Graph* g, CommonOperatorBuilder* b, Node* cond,
-          BranchHint hint = BranchHint::kNone) {
+  Diamond(TFGraph* g, CommonOperatorBuilder* b, Node* cond,
+          BranchHint hint = BranchHint::kNone,
+          BranchSemantics semantics = BranchSemantics::kUnspecified) {
     graph = g;
     common = b;
-    branch = graph->NewNode(common->Branch(hint), cond, graph->start());
+    branch =
+        graph->NewNode(common->Branch(hint, semantics), cond, graph->start());
     if_true = graph->NewNode(common->IfTrue(), branch);
     if_false = graph->NewNode(common->IfFalse(), branch);
     merge = graph->NewNode(common->Merge(2), if_true, if_false);
@@ -39,8 +41,8 @@ struct Diamond {
   void Chain(Node* that) { branch->ReplaceInput(1, that); }
 
   // Nest {this} into either the if_true or if_false branch of {that}.
-  void Nest(Diamond const& that, bool if_true) {
-    if (if_true) {
+  void Nest(Diamond const& that, bool cond) {
+    if (cond) {
       branch->ReplaceInput(1, that.if_true);
       that.merge->ReplaceInput(0, merge);
     } else {

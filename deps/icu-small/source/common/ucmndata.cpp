@@ -18,7 +18,7 @@
  *                 contents for locating the individual items by name.
  *
  *                 Two formats for the table of contents are supported, which is
- *                 why there is an abstract inteface involved.
+ *                 why there is an abstract interface involved.
  *
  */
 
@@ -34,7 +34,7 @@
 
 U_CFUNC uint16_t
 udata_getHeaderSize(const DataHeader *udh) {
-    if(udh==NULL) {
+    if(udh==nullptr) {
         return 0;
     } else if(udh->info.isBigEndian==U_IS_BIG_ENDIAN) {
         /* same endianness */
@@ -48,7 +48,7 @@ udata_getHeaderSize(const DataHeader *udh) {
 
 U_CFUNC uint16_t
 udata_getInfoSize(const UDataInfo *info) {
-    if(info==NULL) {
+    if(info==nullptr) {
         return 0;
     } else if(info->isBigEndian==U_IS_BIG_ENDIAN) {
         /* same endianness */
@@ -108,8 +108,8 @@ strcmpAfterPrefix(const char *s1, const char *s2, int32_t *pPrefixLength) {
     s1+=pl;
     s2+=pl;
     for(;;) {
-        int32_t c1=(uint8_t)*s1++;
-        int32_t c2=(uint8_t)*s2++;
+        int32_t c1 = static_cast<uint8_t>(*s1++);
+        int32_t c2 = static_cast<uint8_t>(*s2++);
         cmp=c1-c2;
         if(cmp!=0 || c1==0) {  /* different or done */
             break;
@@ -216,7 +216,7 @@ static uint32_t U_CALLCONV
 offsetTOCEntryCount(const UDataMemory *pData) {
     int32_t          retVal=0;
     const UDataOffsetTOC *toc = (UDataOffsetTOC *)pData->toc;
-    if (toc != NULL) {
+    if (toc != nullptr) {
         retVal = toc->count;
     }
     return retVal;
@@ -229,7 +229,7 @@ offsetTOCLookupFn(const UDataMemory *pData,
                   UErrorCode *pErrorCode) {
     (void)pErrorCode;
     const UDataOffsetTOC  *toc = (UDataOffsetTOC *)pData->toc;
-    if(toc!=NULL) {
+    if(toc!=nullptr) {
         const char *base=(const char *)toc;
         int32_t number, count=(int32_t)toc->count;
 
@@ -257,7 +257,7 @@ offsetTOCLookupFn(const UDataMemory *pData,
 #ifdef UDATA_DEBUG
             fprintf(stderr, "%s: Not found.\n", tocEntryName);
 #endif
-            return NULL;
+            return nullptr;
         }
     } else {
 #ifdef UDATA_DEBUG
@@ -271,7 +271,7 @@ offsetTOCLookupFn(const UDataMemory *pData,
 
 static uint32_t U_CALLCONV pointerTOCEntryCount(const UDataMemory *pData) {
     const PointerTOC *toc = (PointerTOC *)pData->toc;
-    return (uint32_t)((toc != NULL) ? (toc->count) : 0);
+    return toc != nullptr ? toc->count : 0;
 }
 
 static const DataHeader * U_CALLCONV pointerTOCLookupFn(const UDataMemory *pData,
@@ -279,7 +279,7 @@ static const DataHeader * U_CALLCONV pointerTOCLookupFn(const UDataMemory *pData
                    int32_t *pLength,
                    UErrorCode *pErrorCode) {
     (void)pErrorCode;
-    if(pData->toc!=NULL) {
+    if(pData->toc!=nullptr) {
         const PointerTOC *toc = (PointerTOC *)pData->toc;
         int32_t number, count=(int32_t)toc->count;
 
@@ -301,7 +301,7 @@ static const DataHeader * U_CALLCONV pointerTOCLookupFn(const UDataMemory *pData
 #ifdef UDATA_DEBUG
             fprintf(stderr, "%s: Not found.\n", name);
 #endif
-            return NULL;
+            return nullptr;
         }
     } else {
         return pData->pHeader;
@@ -328,7 +328,7 @@ U_CFUNC void udata_checkCommonData(UDataMemory *udm, UErrorCode *err) {
         return;
     }
 
-    if(udm==NULL || udm->pHeader==NULL) {
+    if(udm==nullptr || udm->pHeader==nullptr) {
       *err=U_INVALID_FORMAT_ERROR;
     } else if(!(udm->pHeader->dataHeader.magic1==0xda &&
         udm->pHeader->dataHeader.magic2==0x27 &&

@@ -22,7 +22,8 @@ TEST_F(StringsStorageWithIsolate, GetNameFromString) {
   StringsStorage storage;
 
   // One char strings are canonical on the v8 heap so use a 2 char string here.
-  Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
+  DirectHandle<String> str =
+      isolate()->factory()->NewStringFromAsciiChecked("xy");
   const char* stored_str = storage.GetName(*str);
   CHECK(StringEq("xy", stored_str));
 
@@ -33,7 +34,8 @@ TEST_F(StringsStorageWithIsolate, GetNameFromString) {
 
   // Even if the input string was a different one on the v8 heap, if the char
   // array is the same, it should be de-duplicated.
-  Handle<String> str2 = isolate()->factory()->NewStringFromAsciiChecked("xy");
+  DirectHandle<String> str2 =
+      isolate()->factory()->NewStringFromAsciiChecked("xy");
   CHECK_NE(*str, *str2);
   const char* stored_str_thrice = storage.GetName(*str2);
   CHECK_EQ(stored_str_twice, stored_str_thrice);
@@ -42,11 +44,11 @@ TEST_F(StringsStorageWithIsolate, GetNameFromString) {
 TEST_F(StringsStorageWithIsolate, GetNameFromSymbol) {
   StringsStorage storage;
 
-  Handle<Symbol> symbol = isolate()->factory()->NewSymbol();
+  DirectHandle<Symbol> symbol = isolate()->factory()->NewSymbol();
   const char* stored_symbol = storage.GetName(*symbol);
   CHECK(StringEq("<symbol>", stored_symbol));
 
-  Handle<Symbol> symbol2 = isolate()->factory()->NewSymbol();
+  DirectHandle<Symbol> symbol2 = isolate()->factory()->NewSymbol();
   CHECK_NE(*symbol, *symbol2);
   const char* stored_symbol2 = storage.GetName(*symbol2);
   CHECK_EQ(stored_symbol, stored_symbol2);
@@ -55,7 +57,8 @@ TEST_F(StringsStorageWithIsolate, GetNameFromSymbol) {
 TEST_F(StringsStorageWithIsolate, GetConsName) {
   StringsStorage storage;
 
-  Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
+  DirectHandle<String> str =
+      isolate()->factory()->NewStringFromAsciiChecked("xy");
 
   const char* empty_prefix_str = storage.GetConsName("", *str);
   CHECK(StringEq("xy", empty_prefix_str));
@@ -101,7 +104,8 @@ TEST_F(StringsStorageWithIsolate, Format) {
 TEST_F(StringsStorageWithIsolate, FormatAndGetShareStorage) {
   StringsStorage storage;
 
-  Handle<String> str = isolate()->factory()->NewStringFromAsciiChecked("xy");
+  DirectHandle<String> str =
+      isolate()->factory()->NewStringFromAsciiChecked("xy");
   const char* stored_str = storage.GetName(*str);
 
   const char* formatted_str = storage.GetFormatted("%s", "xy");
@@ -113,17 +117,23 @@ TEST_F(StringsStorageWithIsolate, Refcounting) {
 
   const char* a = storage.GetCopy("12");
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   const char* b = storage.GetCopy("12");
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   // Ensure that we deduplicate the string.
   CHECK_EQ(a, b);
 
   CHECK(storage.Release(a));
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
+
   CHECK(storage.Release(b));
   CHECK_EQ(storage.GetStringCountForTesting(), 0);
+  CHECK_EQ(0, storage.GetStringSize());
+
 #if !DEBUG
   CHECK(!storage.Release("12"));
 #endif  // !DEBUG
@@ -131,30 +141,43 @@ TEST_F(StringsStorageWithIsolate, Refcounting) {
   // Verify that other constructors refcount as intended.
   const char* c = storage.GetFormatted("%d", 12);
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   const char* d = storage.GetName(12);
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
 
   CHECK_EQ(c, d);
 
   CHECK(storage.Release(c));
   CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(2, storage.GetStringSize());
   CHECK(storage.Release(d));
   CHECK_EQ(storage.GetStringCountForTesting(), 0);
-#if !DEBUG
+  CHECK_EQ(0, storage.GetStringSize());
+
   CHECK(!storage.Release("12"));
-#endif  // !DEBUG
 }
 
 TEST_F(StringsStorageWithIsolate, InvalidRelease) {
   StringsStorage storage;
 
-  // If a refcount becomes invalid, throw in debug builds.
-#ifdef DEBUG
-  ASSERT_DEATH_IF_SUPPORTED(storage.Release("12"), "check failed");
-#else
+  // If we attempt to release a string not being managed by the StringsStorage,
+  // return false.
   CHECK(!storage.Release("12"));
-#endif  // DEBUG
+}
+
+TEST_F(StringsStorageWithIsolate, CopyAndConsShareStorage) {
+  StringsStorage storage;
+
+  DirectHandle<String> str =
+      isolate()->factory()->NewStringFromAsciiChecked("foo");
+
+  const char* copy_str = storage.GetCopy("get foo");
+  const char* cons_str = storage.GetConsName("get ", *str);
+
+  CHECK_EQ(storage.GetStringCountForTesting(), 1);
+  CHECK_EQ(copy_str, cons_str);
 }
 
 }  // namespace internal

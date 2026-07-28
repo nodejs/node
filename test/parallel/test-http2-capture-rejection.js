@@ -90,8 +90,7 @@ events.captureRejections = true;
 
     req.on('response', common.mustCall((headers) => {
       assert.strictEqual(headers[':status'], 500);
-      assert.strictEqual(Object.hasOwnProperty.call(headers, 'content-type'),
-                         false);
+      assert.strictEqual(Object.hasOwn(headers, 'content-type'), false);
     }));
 
     req.on('close', common.mustCall(() => {
@@ -108,8 +107,6 @@ events.captureRejections = true;
   const server = createServer();
   server.on('stream', common.mustCall(async (stream) => {
     const { port } = server.address();
-
-    server.close();
 
     stream.pushStream({
       ':scheme': 'http',
@@ -128,6 +125,8 @@ events.captureRejections = true;
     stream.respond({
       ':status': 200
     });
+
+    server.close();
   }));
 
   server.listen(0, common.mustCall(() => {

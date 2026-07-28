@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
   streams: [1, 10, 20, 40, 100, 200],
   clients: [2],
   benchmarker: ['test-double-http2'],
-  duration: 5
+  duration: 5,
 }, { flags: ['--no-warnings'] });
 
 function main({ requests, streams, clients, duration }) {
@@ -25,14 +25,15 @@ function main({ requests, streams, clients, duration }) {
       stream.respondWithFD(fd);
       stream.on('error', (err) => {});
     });
-    server.listen(common.PORT, () => {
+    server.listen(0, () => {
       bench.http({
         path: '/',
         requests,
+        port: server.address().port,
         maxConcurrentStreams: streams,
         clients,
         duration,
-        threads: clients
+        threads: clients,
       }, () => server.close());
     });
 

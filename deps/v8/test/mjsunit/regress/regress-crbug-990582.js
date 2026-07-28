@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --invoke-weak-callbacks --budget-for-feedback-vector-allocation=0
+// Flags: --invoke-weak-callbacks --interrupt-budget-for-feedback-allocation=0
 
 __v_0 = 0;
 function __f_0() {

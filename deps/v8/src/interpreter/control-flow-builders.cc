@@ -41,8 +41,10 @@ void BreakableControlFlowBuilder::EmitJumpIfUndefined(BytecodeLabels* sites) {
   builder()->JumpIfUndefined(sites->New());
 }
 
-void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
-  builder()->JumpIfNull(sites->New());
+void BreakableControlFlowBuilder::EmitJumpIfForInDone(BytecodeLabels* sites,
+                                                      Register index,
+                                                      Register cache_length) {
+  builder()->JumpIfForInDone(sites->New(), index, cache_length);
 }
 
 LoopBuilder::~LoopBuilder() {
@@ -77,12 +79,16 @@ void LoopBuilder::JumpToHeader(int loop_depth, LoopBuilder* const parent_loop) {
     // they are a nested inner loop too, a Jump to its parent's JumpToHeader.
     parent_loop->JumpToLoopEnd();
   } else {
-    // Pass the proper loop nesting level to the backwards branch, to trigger
-    // on-stack replacement when armed for the given loop nesting depth.
-    int level = Min(loop_depth, AbstractCode::kMaxLoopNestingMarker - 1);
-    // Loop must have closed form, i.e. all loop elements are within the loop,
-    // the loop header precedes the body and next elements in the loop.
-    builder()->JumpLoop(&loop_header_, level, source_position_);
+    // Pass the proper loop depth to the backwards branch for triggering OSR.
+    // For purposes of OSR, the loop depth is capped at `kMaxOsrUrgency - 1`.
+    // Once that urgency is reached, all loops become OSR candidates.
+    //
+    // The loop must have closed form, i.e. all loop elements are within the
+    // loop, the loop header precedes the body and next elements in the loop.
+    int slot_index = feedback_vector_spec_->AddJumpLoopSlot().ToInt();
+    builder()->JumpLoop(
+        &loop_header_, std::min(loop_depth, FeedbackVector::kMaxOsrUrgency - 1),
+        source_position_, slot_index);
   }
 }
 
@@ -98,13 +104,46 @@ SwitchBuilder::~SwitchBuilder() {
 #endif
 }
 
-void SwitchBuilder::SetCaseTarget(int index, CaseClause* clause) {
-  BytecodeLabel& site = case_sites_.at(index);
-  builder()->Bind(&site);
-  if (block_coverage_builder_) {
-    block_coverage_builder_->IncrementBlockCounter(clause,
-                                                   SourceRangeKind::kBody);
+void SwitchBuilder::BindCaseTargetForJumpTable(int case_value,
+                                               CaseClause* clause) {
+  builder()->Bind(jump_table_, case_value);
+  BuildBlockCoverage(clause);
+}
+
+void SwitchBuilder::BindCaseTargetForCompareJump(int index,
+                                                 CaseClause* clause) {
+  builder()->Bind(&case_sites_.at(index));
+  BuildBlockCoverage(clause);
+}
+
+void SwitchBuilder::JumpToCaseIfTrue(BytecodeArrayBuilder::ToBooleanMode mode,
+                                     int index) {
+  builder()->JumpIfTrue(mode, &case_sites_.at(index));
+}
+
+// Precondition: tag is in the accumulator
+void SwitchBuilder::EmitJumpTableIfExists(
+    int min_case, int max_case, std::map<int, CaseClause*>& covered_cases) {
+  builder()->SwitchOnSmiNoFeedback(jump_table_);
+  fall_through_.Bind(builder());
+  // Bind any uncovered cases.
+  for (int j = min_case; j <= max_case; ++j) {
+    if (!covered_cases.contains(j)) {
+      this->BindCaseTargetForJumpTable(j, nullptr);
+    }
   }
+}
+
+void SwitchBuilder::BindDefault(CaseClause* clause) {
+  default_.Bind(builder());
+  BuildBlockCoverage(clause);
+}
+
+void SwitchBuilder::JumpToDefault() { this->EmitJump(&default_); }
+
+void SwitchBuilder::JumpToFallThroughIfFalse() {
+  this->EmitJumpIfFalse(BytecodeArrayBuilder::ToBooleanMode::kAlreadyBoolean,
+                        &fall_through_);
 }
 
 TryCatchBuilder::~TryCatchBuilder() {
@@ -170,6 +209,43 @@ void TryFinallyBuilder::BeginFinally() {
 
 void TryFinallyBuilder::EndFinally() {
   // Nothing to be done here.
+}
+
+ConditionalChainControlFlowBuilder::~ConditionalChainControlFlowBuilder() {
+  end_labels_.Bind(builder());
+#ifdef DEBUG
+  DCHECK(end_labels_.empty() || end_labels_.is_bound());
+
+  for (auto* label : then_labels_list_) {
+    DCHECK(label->empty() || label->is_bound());
+  }
+
+  for (auto* label : else_labels_list_) {
+    DCHECK(label->empty() || label->is_bound());
+  }
+#endif
+}
+
+void ConditionalChainControlFlowBuilder::JumpToEnd() {
+  builder()->Jump(end_labels_.New());
+}
+
+void ConditionalChainControlFlowBuilder::ThenAt(size_t index) {
+  DCHECK_LT(index, then_labels_list_.length());
+  then_labels_at(index)->Bind(builder());
+  if (block_coverage_builder_) {
+    block_coverage_builder_->IncrementBlockCounter(
+        block_coverage_then_slot_at(index));
+  }
+}
+
+void ConditionalChainControlFlowBuilder::ElseAt(size_t index) {
+  DCHECK_LT(index, else_labels_list_.length());
+  else_labels_at(index)->Bind(builder());
+  if (block_coverage_builder_) {
+    block_coverage_builder_->IncrementBlockCounter(
+        block_coverage_else_slot_at(index));
+  }
 }
 
 ConditionalControlFlowBuilder::~ConditionalControlFlowBuilder() {

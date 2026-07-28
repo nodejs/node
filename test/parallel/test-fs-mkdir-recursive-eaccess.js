@@ -26,8 +26,7 @@ function makeDirectoryReadOnly(dir) {
   let accessErrorCode = 'EACCES';
   if (common.isWindows) {
     accessErrorCode = 'EPERM';
-    execSync(`icacls ${dir} /inheritance:r`);
-    execSync(`icacls ${dir} /deny "everyone":W`);
+    execSync(`icacls ${dir} /deny "everyone:(OI)(CI)(DE,DC,AD,WD)"`);
   } else {
     fs.chmodSync(dir, '444');
   }
@@ -36,13 +35,13 @@ function makeDirectoryReadOnly(dir) {
 
 function makeDirectoryWritable(dir) {
   if (common.isWindows) {
-    execSync(`icacls ${dir} /grant "everyone":W`);
+    execSync(`icacls ${dir} /remove:d "everyone"`);
   }
 }
 
 // Synchronous API should return an EACCESS error with path populated.
 {
-  const dir = path.join(tmpdir.path, `mkdirp_${n++}`);
+  const dir = tmpdir.resolve(`mkdirp_${n++}`);
   fs.mkdirSync(dir);
   const codeExpected = makeDirectoryReadOnly(dir);
   let err = null;
@@ -59,13 +58,13 @@ function makeDirectoryWritable(dir) {
 
 // Asynchronous API should return an EACCESS error with path populated.
 {
-  const dir = path.join(tmpdir.path, `mkdirp_${n++}`);
+  const dir = tmpdir.resolve(`mkdirp_${n++}`);
   fs.mkdirSync(dir);
   const codeExpected = makeDirectoryReadOnly(dir);
-  fs.mkdir(path.join(dir, '/bar'), { recursive: true }, (err) => {
+  fs.mkdir(path.join(dir, '/bar'), { recursive: true }, common.mustCall((err) => {
     makeDirectoryWritable(dir);
     assert(err);
     assert.strictEqual(err.code, codeExpected);
     assert(err.path);
-  });
+  }));
 }

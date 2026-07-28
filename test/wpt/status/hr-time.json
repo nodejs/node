@@ -1,8 +1,0 @@
-{
-  "window-worker-timeOrigin.window.js": {
-    "fail": "Blob is not defined"
-  },
-  "idlharness.any.js": {
-    "skip": "TODO: update IDL parser"
-  }
-}

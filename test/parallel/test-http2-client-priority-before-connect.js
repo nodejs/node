@@ -5,6 +5,11 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const h2 = require('http2');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'http2Stream.priority is longer supported after priority signalling was deprecated in RFC 9113',
+  'DEP0194');
+
 const server = h2.createServer();
 
 // We use the lower-level API here

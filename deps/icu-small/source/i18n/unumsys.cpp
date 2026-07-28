@@ -31,7 +31,7 @@ unumsys_openByName(const char *name, UErrorCode *status)
 {
     // createInstanceByName does NOT return immediately if status indicates error
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
     return (UNumberingSystem*)NumberingSystem::createInstanceByName(name, *status);
 }
@@ -73,7 +73,7 @@ unumsys_isAlgorithmic(const UNumberingSystem *unumsys)
 }
 
 U_CAPI int32_t U_EXPORT2
-unumsys_getDescription(const UNumberingSystem *unumsys, UChar *result,
+unumsys_getDescription(const UNumberingSystem *unumsys, char16_t *result,
                        int32_t resultLength, UErrorCode *status)
 {
     if (U_FAILURE(*status)) {

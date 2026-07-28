@@ -1,10 +1,7 @@
-bbudge@chromium.org
 gdeepti@chromium.org
-zhin@chromium.org
+irezvov@chromium.org
 
 # Plus src/compiler owners.
 
 per-file register-allocator*=thibaudm@chromium.org
 per-file spill-placer*=thibaudm@chromium.org
-
-# COMPONENT: Blink>JavaScript>Compiler

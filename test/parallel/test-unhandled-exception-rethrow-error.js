@@ -22,7 +22,7 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(result.stdout.toString().trim(), '');
   // Verify that the error was thrown and that the stack was preserved.
   const stderr = result.stderr.toString();
-  assert(/Error: boom/.test(stderr));
-  assert(/at throwException/.test(stderr));
-  assert(/rethrow: true/.test(stderr));
+  assert.match(stderr, /Error: boom/);
+  assert.match(stderr, /at throwException/);
+  assert.match(stderr, /rethrow: true/);
 }

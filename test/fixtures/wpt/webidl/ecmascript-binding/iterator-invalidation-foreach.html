@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Behavior of iterators when modified within foreach</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<link rel="help" href="https://webidl.spec.whatwg.org/#es-forEach">
+<link rel="author" title="Manish Goregaokar" href="mailto:manishsmail@gmail.com">
+<script>
+test(function() {
+    let params = new URLSearchParams("a=1&b=2&c=3");
+    let arr = [];
+    params.forEach((p) => {
+        arr.push(p);
+        params.delete("b");
+    })
+    assert_array_equals(arr, ["1", "3"]);
+}, "forEach will not iterate over elements removed during iteration");
+test(function() {
+    let params = new URLSearchParams("a=1&b=2&c=3&d=4");
+    let arr = [];
+    params.forEach((p) => {
+        arr.push(p);
+        if (p == "2") {
+            params.delete("a");
+        }
+    })
+    assert_array_equals(arr, ["1", "2", "4"]);
+}, "Removing elements already iterated over during forEach will cause iterator to skip an element");
+test(function() {
+    let params = new URLSearchParams("a=1&b=2&c=3&d=4");
+    let arr = [];
+    params.forEach((p) => {
+        arr.push(p);
+        if (p == "2") {
+            params.append("e", "5");
+        }
+    })
+    assert_array_equals(arr, ["1", "2", "3", "4", "5"]);
+}, "Elements added during iteration with forEach will be reached");
+</script>

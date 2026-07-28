@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
-
 utils.load('test/inspector/wasm-inspector-test.js');
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Tests how wasm scrips report the source');
@@ -20,7 +18,7 @@ var sig_index = builder.addType(kSig_v_v);
 
 builder.addFunction('main', kSig_v_v)
     .addBody([
-      kExprBlock, kWasmStmt, kExprI32Const, 0, kExprCallIndirect, sig_index,
+      kExprBlock, kWasmVoid, kExprI32Const, 0, kExprCallIndirect, sig_index,
       kTableZero, kExprEnd
     ])
     .exportAs('main');

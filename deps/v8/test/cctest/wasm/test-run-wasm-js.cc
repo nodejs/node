@@ -7,24 +7,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-#define ADD_CODE(vec, ...)                                              \
-  do {                                                                  \
-    byte __buf[] = {__VA_ARGS__};                                       \
-    for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
-  } while (false)
 
 namespace {
 // A helper for generating predictable but unique argument values that
@@ -57,13 +52,13 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
   CHECK_LT(which, static_cast<int>(sig->parameter_count()));
   CHECK_LT(static_cast<int>(sig->parameter_count()), kMaxParams);
 
-  i::EmbeddedVector<char, 256> source;
+  base::EmbeddedVector<char, 256> source;
   char param = 'a' + which;
   SNPrintF(source, "(function(%s) { return %c; })",
            formals[sig->parameter_count()], param);
 
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source.begin()))));
   ManuallyImportedJSFunction import = {sig, js_function};
 
@@ -73,7 +68,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
 
 WASM_COMPILED_EXEC_TEST(Run_Int32Sub_jswrapped) {
   WasmRunner<int, int, int> r(execution_tier);
-  BUILD(r, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  r.Build({WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
 
   r.CheckCallViaJS(33, 44, 11);
   r.CheckCallViaJS(-8723487, -8000000, 723487);
@@ -81,7 +76,7 @@ WASM_COMPILED_EXEC_TEST(Run_Int32Sub_jswrapped) {
 
 WASM_COMPILED_EXEC_TEST(Run_Float32Div_jswrapped) {
   WasmRunner<float, float, float> r(execution_tier);
-  BUILD(r, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  r.Build({WASM_F32_DIV(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
 
   r.CheckCallViaJS(92, 46, 0.5);
   r.CheckCallViaJS(64, -16, -0.25);
@@ -89,7 +84,7 @@ WASM_COMPILED_EXEC_TEST(Run_Float32Div_jswrapped) {
 
 WASM_COMPILED_EXEC_TEST(Run_Float64Add_jswrapped) {
   WasmRunner<double, double, double> r(execution_tier);
-  BUILD(r, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  r.Build({WASM_F64_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
 
   r.CheckCallViaJS(3, 2, 1);
   r.CheckCallViaJS(-5.5, -5.25, -0.25);
@@ -97,7 +92,7 @@ WASM_COMPILED_EXEC_TEST(Run_Float64Add_jswrapped) {
 
 WASM_COMPILED_EXEC_TEST(Run_I32Popcount_jswrapped) {
   WasmRunner<int, int> r(execution_tier);
-  BUILD(r, WASM_I32_POPCNT(WASM_GET_LOCAL(0)));
+  r.Build({WASM_I32_POPCNT(WASM_LOCAL_GET(0))});
 
   r.CheckCallViaJS(2, 9);
   r.CheckCallViaJS(3, 11);
@@ -108,53 +103,17 @@ WASM_COMPILED_EXEC_TEST(Run_CallJS_Add_jswrapped) {
   TestSignatures sigs;
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source = "(function(a) { return a + 99; })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_i(), js_function};
-  WasmRunner<int, int> r(execution_tier, &import);
+  WasmRunner<int, int> r(execution_tier, kWasmOrigin, &import);
   uint32_t js_index = 0;
-  BUILD(r, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
+  r.Build({WASM_CALL_FUNCTION(js_index, WASM_LOCAL_GET(0))});
 
   r.CheckCallViaJS(101, 2);
   r.CheckCallViaJS(199, 100);
   r.CheckCallViaJS(-666666801, -666666900);
-}
-
-WASM_COMPILED_EXEC_TEST(Run_IndirectCallJSFunction) {
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  HandleScope scope(isolate);
-  TestSignatures sigs;
-
-  const char* source = "(function(a, b, c) { if(c) return a; return b; })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source))));
-
-  ManuallyImportedJSFunction import = {sigs.i_iii(), js_function};
-
-  WasmRunner<int32_t, int32_t> r(execution_tier, &import);
-
-  const uint32_t js_index = 0;
-  const int32_t left = -2;
-  const int32_t right = 3;
-
-  WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
-
-  byte sig_index = r.builder().AddSignature(sigs.i_iii());
-  uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
-
-  r.builder().AddIndirectFunctionTable(indirect_function_table,
-                                       arraysize(indirect_function_table));
-
-  BUILD(rc_fn, WASM_CALL_INDIRECT(sig_index, WASM_I32V(left), WASM_I32V(right),
-                                  WASM_GET_LOCAL(0), WASM_I32V(js_index)));
-
-  Handle<Object> args_left[] = {isolate->factory()->NewNumber(1)};
-  r.CheckCallApplyViaJS(left, rc_fn.function_index(), args_left, 1);
-
-  Handle<Object> args_right[] = {isolate->factory()->NewNumber(0)};
-  r.CheckCallApplyViaJS(right, rc_fn.function_index(), args_right, 1);
 }
 
 void RunJSSelectTest(TestExecutionTier tier, int which) {
@@ -168,27 +127,27 @@ void RunJSSelectTest(TestExecutionTier tier, int which) {
     FunctionSig sig(1, num_params, types);
 
     ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(tier, &import);
+    WasmRunner<void> r(tier, kWasmOrigin, &import);
     uint32_t js_index = 0;
 
     WasmFunctionCompiler& t = r.NewFunction(&sig);
 
     {
-      std::vector<byte> code;
+      std::vector<uint8_t> code;
 
       for (int i = 0; i < num_params; i++) {
         ADD_CODE(code, WASM_F64(inputs.arg_d(i)));
       }
 
-      ADD_CODE(code, kExprCallFunction, static_cast<byte>(js_index));
+      ADD_CODE(code, kExprCallFunction, static_cast<uint8_t>(js_index));
 
       size_t end = code.size();
       code.push_back(0);
-      t.Build(&code[0], &code[end]);
+      t.Build(base::VectorOf(code.data(), end));
     }
 
     double expected = inputs.arg_d(which);
-    r.CheckCallApplyViaJS(expected, t.function_index(), nullptr, 0);
+    r.CheckCallApplyViaJS(expected, t.function_index(), {});
   }
 }
 
@@ -244,9 +203,9 @@ void RunWASMSelectTest(TestExecutionTier tier, int which) {
 
     WasmRunner<void> r(tier);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
-    BUILD(t, WASM_GET_LOCAL(which));
+    t.Build({WASM_LOCAL_GET(which)});
 
-    Handle<Object> args[] = {
+    DirectHandle<Object> args[] = {
         isolate->factory()->NewNumber(inputs.arg_d(0)),
         isolate->factory()->NewNumber(inputs.arg_d(1)),
         isolate->factory()->NewNumber(inputs.arg_d(2)),
@@ -258,7 +217,7 @@ void RunWASMSelectTest(TestExecutionTier tier, int which) {
     };
 
     double expected = inputs.arg_d(which);
-    r.CheckCallApplyViaJS(expected, t.function_index(), args, kMaxParams);
+    r.CheckCallApplyViaJS(expected, t.function_index(), {args, kMaxParams});
   }
 }
 
@@ -316,22 +275,24 @@ void RunWASMSelectAlignTest(TestExecutionTier tier, int num_args,
   for (int which = 0; which < num_params; which++) {
     WasmRunner<void> r(tier);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
-    BUILD(t, WASM_GET_LOCAL(which));
+    t.Build({WASM_LOCAL_GET(which)});
 
-    Handle<Object> args[] = {isolate->factory()->NewNumber(inputs.arg_d(0)),
-                             isolate->factory()->NewNumber(inputs.arg_d(1)),
-                             isolate->factory()->NewNumber(inputs.arg_d(2)),
-                             isolate->factory()->NewNumber(inputs.arg_d(3)),
-                             isolate->factory()->NewNumber(inputs.arg_d(4)),
-                             isolate->factory()->NewNumber(inputs.arg_d(5)),
-                             isolate->factory()->NewNumber(inputs.arg_d(6)),
-                             isolate->factory()->NewNumber(inputs.arg_d(7)),
-                             isolate->factory()->NewNumber(inputs.arg_d(8)),
-                             isolate->factory()->NewNumber(inputs.arg_d(9))};
+    DirectHandle<Object> args[] = {
+        isolate->factory()->NewNumber(inputs.arg_d(0)),
+        isolate->factory()->NewNumber(inputs.arg_d(1)),
+        isolate->factory()->NewNumber(inputs.arg_d(2)),
+        isolate->factory()->NewNumber(inputs.arg_d(3)),
+        isolate->factory()->NewNumber(inputs.arg_d(4)),
+        isolate->factory()->NewNumber(inputs.arg_d(5)),
+        isolate->factory()->NewNumber(inputs.arg_d(6)),
+        isolate->factory()->NewNumber(inputs.arg_d(7)),
+        isolate->factory()->NewNumber(inputs.arg_d(8)),
+        isolate->factory()->NewNumber(inputs.arg_d(9))};
 
     double nan = std::numeric_limits<double>::quiet_NaN();
     double expected = which < num_args ? inputs.arg_d(which) : nan;
-    r.CheckCallApplyViaJS(expected, t.function_index(), args, num_args);
+    r.CheckCallApplyViaJS(expected, t.function_index(),
+                          {args, static_cast<size_t>(num_args)});
   }
 }
 
@@ -412,10 +373,10 @@ void RunJSSelectAlignTest(TestExecutionTier tier, int num_args,
   Zone zone(&allocator, ZONE_NAME);
 
   // Build the calling code.
-  std::vector<byte> code;
+  std::vector<uint8_t> code;
 
   for (int i = 0; i < num_params; i++) {
-    ADD_CODE(code, WASM_GET_LOCAL(i));
+    ADD_CODE(code, WASM_LOCAL_GET(i));
   }
 
   uint8_t imported_js_index = 0;
@@ -428,11 +389,11 @@ void RunJSSelectAlignTest(TestExecutionTier tier, int num_args,
   for (int which = 0; which < num_params; which++) {
     HandleScope scope(isolate);
     ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(tier, &import);
+    WasmRunner<void> r(tier, kWasmOrigin, &import);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
-    t.Build(&code[0], &code[end]);
+    t.Build(base::VectorOf(code.data(), end));
 
-    Handle<Object> args[] = {
+    DirectHandle<Object> args[] = {
         factory->NewNumber(inputs.arg_d(0)),
         factory->NewNumber(inputs.arg_d(1)),
         factory->NewNumber(inputs.arg_d(2)),
@@ -447,7 +408,8 @@ void RunJSSelectAlignTest(TestExecutionTier tier, int num_args,
 
     double nan = std::numeric_limits<double>::quiet_NaN();
     double expected = which < num_args ? inputs.arg_d(which) : nan;
-    r.CheckCallApplyViaJS(expected, t.function_index(), args, num_args);
+    r.CheckCallApplyViaJS(expected, t.function_index(),
+                          {args, static_cast<size_t>(num_args)});
   }
 }
 
@@ -519,19 +481,18 @@ WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_10) {
 // function (a,b,c){ if(c)return a; return b; }
 
 void RunPickerTest(TestExecutionTier tier, bool indirect) {
-  EXPERIMENTAL_FLAG_SCOPE(return_call);
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   TestSignatures sigs;
 
   const char* source = "(function(a,b,c) { if(c)return a; return b; })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   ManuallyImportedJSFunction import = {sigs.i_iii(), js_function};
 
-  WasmRunner<int32_t, int32_t> r(tier, &import);
+  WasmRunner<int32_t, int32_t> r(tier, kWasmOrigin, &import);
 
   const uint32_t js_index = 0;
   const int32_t left = -2;
@@ -540,37 +501,32 @@ void RunPickerTest(TestExecutionTier tier, bool indirect) {
   WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
 
   if (indirect) {
-    byte sig_index = r.builder().AddSignature(sigs.i_iii());
+    ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_iii());
     uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
 
     r.builder().AddIndirectFunctionTable(indirect_function_table,
                                          arraysize(indirect_function_table));
 
-    BUILD(rc_fn, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_I32V(left),
-                                           WASM_I32V(right), WASM_GET_LOCAL(0),
-                                           WASM_I32V(js_index)));
+    rc_fn.Build(
+        {WASM_RETURN_CALL_INDIRECT(sig_index, WASM_I32V(left), WASM_I32V(right),
+                                   WASM_LOCAL_GET(0), WASM_I32V(js_index))});
   } else {
-    BUILD(rc_fn,
-          WASM_RETURN_CALL_FUNCTION(js_index, WASM_I32V(left), WASM_I32V(right),
-                                    WASM_GET_LOCAL(0)));
+    rc_fn.Build({WASM_RETURN_CALL_FUNCTION(
+        js_index, WASM_I32V(left), WASM_I32V(right), WASM_LOCAL_GET(0))});
   }
 
-  Handle<Object> args_left[] = {isolate->factory()->NewNumber(1)};
-  r.CheckCallApplyViaJS(left, rc_fn.function_index(), args_left, 1);
+  DirectHandle<Object> args_left[] = {isolate->factory()->NewNumber(1)};
+  r.CheckCallApplyViaJS(left, rc_fn.function_index(),
+                        base::VectorOf(args_left));
 
-  Handle<Object> args_right[] = {isolate->factory()->NewNumber(0)};
-  r.CheckCallApplyViaJS(right, rc_fn.function_index(), args_right, 1);
+  DirectHandle<Object> args_right[] = {isolate->factory()->NewNumber(0)};
+  r.CheckCallApplyViaJS(right, rc_fn.function_index(),
+                        base::VectorOf(args_right));
 }
 
 WASM_COMPILED_EXEC_TEST(Run_ReturnCallImportedFunction) {
   RunPickerTest(execution_tier, false);
 }
-
-WASM_COMPILED_EXEC_TEST(Run_ReturnCallIndirectImportedFunction) {
-  RunPickerTest(execution_tier, true);
-}
-
-#undef ADD_CODE
 
 }  // namespace wasm
 }  // namespace internal

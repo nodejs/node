@@ -5,12 +5,14 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
+#include <vector>
+
 #include "src/objects/code.h"
 #include "src/objects/objects.h"
 
 // These instance types do not exist for actual use but are merely introduced
-// for object stats tracing. In contrast to Code and FixedArray sub types
-// these types are not known to other counters outside of object stats
+// for object stats tracing. In contrast to InstructionStream and FixedArray sub
+// types these types are not known to other counters outside of object stats
 // tracing.
 //
 // Update LAST_VIRTUAL_TYPE below when changing this macro.
@@ -70,18 +72,19 @@
   V(RELOC_INFO_TYPE)                             \
   V(RETAINED_MAPS_TYPE)                          \
   V(SCRIPT_LIST_TYPE)                            \
-  V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)           \
+  V(SCRIPT_INFOS_TYPE)                           \
   V(SCRIPT_SOURCE_EXTERNAL_ONE_BYTE_TYPE)        \
   V(SCRIPT_SOURCE_EXTERNAL_TWO_BYTE_TYPE)        \
   V(SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE)    \
   V(SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE)    \
   V(SERIALIZED_OBJECTS_TYPE)                     \
-  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)          \
   V(STRING_SPLIT_CACHE_TYPE)                     \
   V(STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE)      \
   V(STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE)      \
   V(SOURCE_POSITION_TABLE_TYPE)                  \
   V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)        \
+  V(WASTED_DESCRIPTOR_ARRAY_DETAILS_TYPE)        \
+  V(WASTED_DESCRIPTOR_ARRAY_VALUES_TYPE)         \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
 namespace v8 {
@@ -94,10 +97,16 @@ class ObjectStats {
  public:
   static const size_t kNoOverAllocation = 0;
 
+  struct ObjectData {
+    uint32_t address;
+    size_t size;
+    int type;
+  };
+
   explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(true); }
 
   // See description on VIRTUAL_INSTANCE_TYPE_LIST.
-  enum VirtualInstanceType {
+  enum class VirtualInstanceType {
 #define DEFINE_VIRTUAL_INSTANCE_TYPE(type) type,
     VIRTUAL_INSTANCE_TYPE_LIST(DEFINE_VIRTUAL_INSTANCE_TYPE)
 #undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
@@ -107,10 +116,10 @@ class ObjectStats {
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
-  enum {
-    FIRST_VIRTUAL_TYPE = LAST_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1,
-  };
+  static constexpr int FIRST_VIRTUAL_TYPE = LAST_TYPE + 1;
+  static constexpr int OBJECT_STATS_COUNT =
+      FIRST_VIRTUAL_TYPE +
+      static_cast<int>(VirtualInstanceType::LAST_VIRTUAL_TYPE) + 1;
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
@@ -118,9 +127,11 @@ class ObjectStats {
   void Dump(std::stringstream& stream);
 
   void CheckpointObjectStats();
-  void RecordObjectStats(InstanceType type, size_t size,
+  void RecordObject(Tagged<HeapObject> obj, int type, size_t size);
+  void RecordObjectStats(Tagged<HeapObject> obj, InstanceType type, size_t size,
                          size_t over_allocated = kNoOverAllocation);
-  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size,
+  void RecordVirtualObjectStats(Tagged<HeapObject> obj,
+                                VirtualInstanceType type, size_t size,
                                 size_t over_allocated);
 
   size_t object_count_last_gc(size_t index) {
@@ -142,10 +153,10 @@ class ObjectStats {
   static const int kNumberOfBuckets = kLastBucketShift - kFirstBucketShift + 1;
   static const int kLastValueBucketIndex = kLastBucketShift - kFirstBucketShift;
 
-  void PrintKeyAndId(const char* key, int gc_count);
+  void PrintKeyAndId(const char* key, GCEpoch gc_count);
   // The following functions are excluded from inline to reduce the overall
   // binary size of VB. On x64 this save around 80KB.
-  V8_NOINLINE void PrintInstanceTypeJSON(const char* key, int gc_count,
+  V8_NOINLINE void PrintInstanceTypeJSON(const char* key, GCEpoch gc_count,
                                          const char* name, int index);
   V8_NOINLINE void DumpInstanceTypeData(std::stringstream& stream,
                                         const char* name, int index);
@@ -167,10 +178,15 @@ class ObjectStats {
   size_t tagged_fields_count_;
   size_t embedder_fields_count_;
   size_t inobject_smi_fields_count_;
-  size_t unboxed_double_fields_count_;
   size_t boxed_double_fields_count_;
   size_t string_data_count_;
   size_t raw_fields_count_;
+
+#ifdef V8_COMPRESS_POINTERS
+  std::vector<ObjectData> objects_main_;
+  std::vector<ObjectData> objects_trusted_;
+  std::vector<ObjectData> objects_code_;
+#endif  // V8_COMPRESS_POINTERS
 
   friend class ObjectStatsCollectorImpl;
 };

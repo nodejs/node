@@ -70,9 +70,8 @@ FieldPosition::clone() const {
 // default constructor
 
 Format::Format()
-    : UObject()
+    : UObject(), actualLocale(Locale::getRoot()), validLocale(Locale::getRoot())
 {
-    *validLocale = *actualLocale = 0;
 }
 
 // -------------------------------------
@@ -97,8 +96,8 @@ Format&
 Format::operator=(const Format& that)
 {
     if (this != &that) {
-        uprv_strcpy(validLocale, that.validLocale);
-        uprv_strcpy(actualLocale, that.actualLocale);
+        actualLocale = that.actualLocale;
+        validLocale = that.validLocale;
     }
     return *this;
 }
@@ -155,7 +154,7 @@ Format::parseObject(const UnicodeString& source,
 
 // -------------------------------------
 
-UBool
+bool
 Format::operator==(const Format& that) const
 {
     // Subclasses: Call this method and then add more specific checks.
@@ -167,7 +166,7 @@ Format::operator==(const Format& that) const
  * Simple function for initializing a UParseError from a UnicodeString.
  *
  * @param pattern The pattern to copy into the parseError
- * @param pos The position in pattern where the error occured
+ * @param pos The position in pattern where the error occurred
  * @param parseError The UParseError object to fill in
  * @draft ICU 2.4
  */
@@ -196,20 +195,18 @@ void Format::syntaxError(const UnicodeString& pattern,
 
 Locale
 Format::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocale(type, status);
+    return LocaleBased::getLocale(validLocale, actualLocale, type, status);
 }
 
 const char *
 Format::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocaleID(type, status);
+    return LocaleBased::getLocaleID(validLocale,actualLocale, type, status);
 }
 
 void
 Format::setLocaleIDs(const char* valid, const char* actual) {
-    U_LOCALE_BASED(locBased, *this);
-    locBased.setLocaleIDs(valid, actual);
+    actualLocale = Locale(actual);
+    validLocale = Locale(valid);
 }
 
 U_NAMESPACE_END

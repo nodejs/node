@@ -1,7 +1,8 @@
 #include "crypto/crypto_pbkdf2.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
+#include "base_object-inl.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -10,16 +11,19 @@
 
 namespace node {
 
+using ncrypto::Digest;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::Just;
+using v8::JustVoid;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Value;
 
 namespace crypto {
 PBKDF2Config::PBKDF2Config(PBKDF2Config&& other) noexcept
     : mode(other.mode),
+      key(std::move(other.key)),
       pass(std::move(other.pass)),
       salt(std::move(other.salt)),
       iterations(other.iterations),
@@ -33,20 +37,18 @@ PBKDF2Config& PBKDF2Config::operator=(PBKDF2Config&& other) noexcept {
 }
 
 void PBKDF2Config::MemoryInfo(MemoryTracker* tracker) const {
-  // The the job is sync, the PBKDF2Config does not own the data
-  if (mode == kCryptoJobAsync) {
-    tracker->TrackFieldWithSize("pass", pass.size());
+  // If the job is sync, PBKDF2Config does not own the data.
+  if (key) tracker->TrackField("key", key);
+  if (IsCryptoJobAsync(mode)) {
+    if (!key) tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
   }
 }
 
-Maybe<bool> PBKDF2Traits::EncodeOutput(
-    Environment* env,
-    const PBKDF2Config& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> PBKDF2Traits::EncodeOutput(Environment* env,
+                                             const PBKDF2Config& params,
+                                             ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
 // The input arguments for the job are:
@@ -56,7 +58,7 @@ Maybe<bool> PBKDF2Traits::EncodeOutput(
 //   4. The number of iterations
 //   5. The number of bytes to generate
 //   6. The digest algorithm name
-Maybe<bool> PBKDF2Traits::AdditionalConfig(
+Maybe<void> PBKDF2Traits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -65,83 +67,83 @@ Maybe<bool> PBKDF2Traits::AdditionalConfig(
 
   params->mode = mode;
 
-  ArrayBufferOrViewContents<char> pass(args[offset]);
+  CHECK(KeyObjectHandle::HasInstance(env, args[offset]) ||
+        IsAnyBufferSource(args[offset]));  // pass
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
 
-  if (UNLIKELY(!pass.CheckSizeInt32())) {
-    THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
-    return Nothing<bool>();
+  if (KeyObjectHandle::HasInstance(env, args[offset])) {
+    KeyObjectHandle* key;
+    ASSIGN_OR_RETURN_UNWRAP(&key, args[offset], Nothing<void>());
+    params->key = key->Data().addRef();
+  } else {
+    ArrayBufferOrViewContents<char> pass(args[offset]);
+    if (!pass.CheckSizeInt32()) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
+      return Nothing<void>();
+    }
+    params->pass = IsCryptoJobAsync(mode) ? pass.ToCopy() : pass.ToByteSource();
   }
 
-  if (UNLIKELY(!salt.CheckSizeInt32())) {
+  if (!salt.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "salt is too large");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  params->pass = mode == kCryptoJobAsync
-      ? pass.ToCopy()
-      : pass.ToByteSource();
-
-  params->salt = mode == kCryptoJobAsync
-      ? salt.ToCopy()
-      : salt.ToByteSource();
+  params->salt = IsCryptoJobAsync(mode) ? salt.ToCopy() : salt.ToByteSource();
 
   CHECK(args[offset + 2]->IsInt32());  // iteration_count
   CHECK(args[offset + 3]->IsInt32());  // length
   CHECK(args[offset + 4]->IsString());  // digest_name
 
   params->iterations = args[offset + 2].As<Int32>()->Value();
-  if (params->iterations < 0) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "iterations must be <= %d", INT_MAX);
-    THROW_ERR_OUT_OF_RANGE(env, msg);
-    return Nothing<bool>();
+  if (params->iterations < 0) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "iterations must be <= %d", INT_MAX);
+    return Nothing<void>();
   }
 
   params->length = args[offset + 3].As<Int32>()->Value();
-  if (params->length < 0) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "length must be <= %d", INT_MAX);
-    THROW_ERR_OUT_OF_RANGE(env, msg);
-    return Nothing<bool>();
+  if (params->length < 0) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "length must be <= %d", INT_MAX);
+    return Nothing<void>();
   }
 
   Utf8Value name(args.GetIsolate(), args[offset + 4]);
-  params->digest = EVP_get_digestbyname(*name);
-  if (params->digest == nullptr) {
-    char errmsg[1024];
-    snprintf(errmsg, sizeof(errmsg), "Invalid digest: %s", *name);
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env, errmsg);
-    return Nothing<bool>();
+  params->digest = Digest::FromName(*name);
+  if (!params->digest) [[unlikely]] {
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", name);
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
-bool PBKDF2Traits::DeriveBits(
-    Environment* env,
-    const PBKDF2Config& params,
-    ByteSource* out) {
-  char* data = MallocOpenSSL<char>(params.length);
-  ByteSource buf = ByteSource::Allocated(data, params.length);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
-
+bool PBKDF2Traits::DeriveBits(Environment* env,
+                              const PBKDF2Config& params,
+                              ByteSource* out,
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
   // Both pass and salt may be zero length here.
-  // The generated bytes are stored in buf, which is
-  // assigned to out on success.
+  const ncrypto::Buffer<const char> pass{
+      .data = params.key ? params.key.GetSymmetricKey()
+                         : params.pass.data<const char>(),
+      .len = params.key ? params.key.GetSymmetricKeySize() : params.pass.size(),
+  };
 
-  if (PKCS5_PBKDF2_HMAC(
-          params.pass.get(),
-          params.pass.size(),
-          params.salt.data<unsigned char>(),
-          params.salt.size(),
-          params.iterations,
-          params.digest,
-          params.length,
-          ptr) <= 0) {
+  auto dp = ncrypto::pbkdf2(params.digest,
+                            pass,
+                            ncrypto::Buffer<const unsigned char>{
+                                .data = params.salt.data<unsigned char>(),
+                                .len = params.salt.size(),
+                            },
+                            params.iterations,
+                            params.length);
+
+  if (!dp) {
+    errors->Insert(NodeCryptoError::PBKDF2_FAILED);
     return false;
   }
-  *out = std::move(buf);
+  DCHECK(!dp.isSecure());
+  *out = ByteSource::Allocated(dp.release());
   return true;
 }
 

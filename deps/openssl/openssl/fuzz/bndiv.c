@@ -1,7 +1,7 @@
 /*
  * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -38,7 +38,7 @@ int FuzzerInitialize(int *argc, char ***argv)
     ctx = BN_CTX_new();
 
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
-    ERR_get_state();
+    ERR_clear_error();
 
     return 1;
 }
@@ -87,7 +87,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         success = (BN_is_negative(b3) != BN_is_negative(b2) || BN_is_zero(b3))
             && (BN_is_negative(b4) || BN_is_zero(b4));
     else
-        success = (BN_is_negative(b3) == BN_is_negative(b2)  || BN_is_zero(b3))
+        success = (BN_is_negative(b3) == BN_is_negative(b2) || BN_is_zero(b3))
             && (!BN_is_negative(b4) || BN_is_zero(b4));
     OPENSSL_assert(BN_mul(b5, b3, b2, ctx));
     OPENSSL_assert(BN_add(b5, b5, b4));
@@ -105,15 +105,15 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         BN_print_fp(stdout, b5);
         putchar('\n');
         printf("%d %d %d %d %d %d %d\n", BN_is_negative(b1),
-               BN_is_negative(b2),
-               BN_is_negative(b3), BN_is_negative(b4), BN_is_zero(b4),
-               BN_is_negative(b3) != BN_is_negative(b2)
-               && (BN_is_negative(b4) || BN_is_zero(b4)),
-               BN_cmp(b5, b1));
+            BN_is_negative(b2),
+            BN_is_negative(b3), BN_is_negative(b4), BN_is_zero(b4),
+            BN_is_negative(b3) != BN_is_negative(b2)
+                && (BN_is_negative(b4) || BN_is_zero(b4)),
+            BN_cmp(b5, b1));
         puts("----\n");
     }
 
- done:
+done:
     OPENSSL_assert(success);
     ERR_clear_error();
 

@@ -27,7 +27,7 @@
 *                           add() from Java source.
 *    07/28/98    stephen        Sync up with JDK 1.2
 *    09/14/98    stephen        Changed type of kOneDay, kOneWeek to double.
-*                            Fixed bug in roll()
+*                            Fixed bug in roll() 
 *   10/15/99    aliu        Fixed j31, incorrect WEEK_OF_YEAR computation.
 *   10/15/99    aliu        Fixed j32, cannot set date to Feb 29 2000 AD.
 *                           {JDK bug 4210209 4209272}
@@ -101,11 +101,12 @@ static const int32_t kGregorianCalendarLimits[UCAL_FIELD_COUNT][4] = {
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // JULIAN_DAY
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // MILLISECONDS_IN_DAY
     {/*N/A*/-1,/*N/A*/-1,/*N/A*/-1,/*N/A*/-1}, // IS_LEAP_MONTH
+    {        0,        0,       11,       11}, // ORDINAL_MONTH
 };
 
 /*
 * <pre>
-*                            Greatest       Least
+*                            Greatest       Least 
 * Field name        Minimum   Minimum     Maximum     Maximum
 * ----------        -------   -------     -------     -------
 * ERA                     0         0           1           1
@@ -146,6 +147,7 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(GregorianCalendar)
 // in Java, -12219292800000L
 //const UDate GregorianCalendar::kPapalCutover = -12219292800000L;
 static const uint32_t kCutoverJulianDay = 2299161;
+static const int32_t kDefaultCutoverYear = 1582;
 static const UDate kPapalCutover = (2299161.0 - kEpochStartAsJulianDay) * U_MILLIS_PER_DAY;
 //static const UDate kPapalCutoverJulian = (2299161.0 - kEpochStartAsJulianDay);
 
@@ -154,8 +156,8 @@ static const UDate kPapalCutover = (2299161.0 - kEpochStartAsJulianDay) * U_MILL
 GregorianCalendar::GregorianCalendar(UErrorCode& status)
 :   Calendar(status),
 fGregorianCutover(kPapalCutover),
-fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-fIsGregorian(TRUE), fInvertGregorian(FALSE)
+fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
+fIsGregorian(true), fInvertGregorian(false)
 {
     setTimeInMillis(getNow(), status);
 }
@@ -163,34 +165,22 @@ fIsGregorian(TRUE), fInvertGregorian(FALSE)
 // -------------------------------------
 
 GregorianCalendar::GregorianCalendar(TimeZone* zone, UErrorCode& status)
-:   Calendar(zone, Locale::getDefault(), status),
-fGregorianCutover(kPapalCutover),
-fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-fIsGregorian(TRUE), fInvertGregorian(FALSE)
+:   GregorianCalendar(zone, Locale::getDefault(), status)
 {
-    setTimeInMillis(getNow(), status);
 }
 
 // -------------------------------------
 
 GregorianCalendar::GregorianCalendar(const TimeZone& zone, UErrorCode& status)
-:   Calendar(zone, Locale::getDefault(), status),
-fGregorianCutover(kPapalCutover),
-fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-fIsGregorian(TRUE), fInvertGregorian(FALSE)
+:   GregorianCalendar(zone, Locale::getDefault(), status)
 {
-    setTimeInMillis(getNow(), status);
 }
 
 // -------------------------------------
 
 GregorianCalendar::GregorianCalendar(const Locale& aLocale, UErrorCode& status)
-:   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, status),
-fGregorianCutover(kPapalCutover),
-fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-fIsGregorian(TRUE), fInvertGregorian(FALSE)
+:   GregorianCalendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, status)
 {
-    setTimeInMillis(getNow(), status);
 }
 
 // -------------------------------------
@@ -199,8 +189,8 @@ GregorianCalendar::GregorianCalendar(TimeZone* zone, const Locale& aLocale,
                                      UErrorCode& status)
                                      :   Calendar(zone, aLocale, status),
                                      fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-                                     fIsGregorian(TRUE), fInvertGregorian(FALSE)
+                                     fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
+                                     fIsGregorian(true), fInvertGregorian(false)
 {
     setTimeInMillis(getNow(), status);
 }
@@ -211,8 +201,8 @@ GregorianCalendar::GregorianCalendar(const TimeZone& zone, const Locale& aLocale
                                      UErrorCode& status)
                                      :   Calendar(zone, aLocale, status),
                                      fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-                                     fIsGregorian(TRUE), fInvertGregorian(FALSE)
+                                     fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
+                                     fIsGregorian(true), fInvertGregorian(false)
 {
     setTimeInMillis(getNow(), status);
 }
@@ -223,8 +213,8 @@ GregorianCalendar::GregorianCalendar(int32_t year, int32_t month, int32_t date,
                                      UErrorCode& status)
                                      :   Calendar(TimeZone::createDefault(), Locale::getDefault(), status),
                                      fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-                                     fIsGregorian(TRUE), fInvertGregorian(FALSE)
+                                     fCutoverJulianDay(kCutoverJulianDay), fGregorianCutoverYear(kDefaultCutoverYear),
+                                     fIsGregorian(true), fInvertGregorian(false)
 {
     set(UCAL_ERA, AD);
     set(UCAL_YEAR, year);
@@ -236,15 +226,8 @@ GregorianCalendar::GregorianCalendar(int32_t year, int32_t month, int32_t date,
 
 GregorianCalendar::GregorianCalendar(int32_t year, int32_t month, int32_t date,
                                      int32_t hour, int32_t minute, UErrorCode& status)
-                                     :   Calendar(TimeZone::createDefault(), Locale::getDefault(), status),
-                                     fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-                                     fIsGregorian(TRUE), fInvertGregorian(FALSE)
+                                     :   GregorianCalendar(year, month, date, status)
 {
-    set(UCAL_ERA, AD);
-    set(UCAL_YEAR, year);
-    set(UCAL_MONTH, month);
-    set(UCAL_DATE, date);
     set(UCAL_HOUR_OF_DAY, hour);
     set(UCAL_MINUTE, minute);
 }
@@ -254,17 +237,8 @@ GregorianCalendar::GregorianCalendar(int32_t year, int32_t month, int32_t date,
 GregorianCalendar::GregorianCalendar(int32_t year, int32_t month, int32_t date,
                                      int32_t hour, int32_t minute, int32_t second,
                                      UErrorCode& status)
-                                     :   Calendar(TimeZone::createDefault(), Locale::getDefault(), status),
-                                     fGregorianCutover(kPapalCutover),
-                                     fCutoverJulianDay(kCutoverJulianDay), fNormalizedGregorianCutover(fGregorianCutover), fGregorianCutoverYear(1582),
-                                     fIsGregorian(TRUE), fInvertGregorian(FALSE)
+                                     :   GregorianCalendar(year, month, date, hour, minute, status)
 {
-    set(UCAL_ERA, AD);
-    set(UCAL_YEAR, year);
-    set(UCAL_MONTH, month);
-    set(UCAL_DATE, date);
-    set(UCAL_HOUR_OF_DAY, hour);
-    set(UCAL_MINUTE, minute);
     set(UCAL_SECOND, second);
 }
 
@@ -279,7 +253,7 @@ GregorianCalendar::~GregorianCalendar()
 GregorianCalendar::GregorianCalendar(const GregorianCalendar &source)
 :   Calendar(source),
 fGregorianCutover(source.fGregorianCutover),
-fCutoverJulianDay(source.fCutoverJulianDay), fNormalizedGregorianCutover(source.fNormalizedGregorianCutover), fGregorianCutoverYear(source.fGregorianCutoverYear),
+fCutoverJulianDay(source.fCutoverJulianDay), fGregorianCutoverYear(source.fGregorianCutoverYear),
 fIsGregorian(source.fIsGregorian), fInvertGregorian(source.fInvertGregorian)
 {
 }
@@ -300,7 +274,6 @@ GregorianCalendar::operator=(const GregorianCalendar &right)
     {
         Calendar::operator=(right);
         fGregorianCutover = right.fGregorianCutover;
-        fNormalizedGregorianCutover = right.fNormalizedGregorianCutover;
         fGregorianCutoverYear = right.fGregorianCutoverYear;
         fCutoverJulianDay = right.fCutoverJulianDay;
     }
@@ -321,7 +294,7 @@ UBool GregorianCalendar::isEquivalentTo(const Calendar& other) const
 void
 GregorianCalendar::setGregorianChange(UDate date, UErrorCode& status)
 {
-    if (U_FAILURE(status))
+    if (U_FAILURE(status)) 
         return;
 
     // Precompute two internal variables which we use to do the actual
@@ -330,54 +303,52 @@ GregorianCalendar::setGregorianChange(UDate date, UErrorCode& status)
     // normalized cutover is in pure date milliseconds; it contains no time
     // of day or timezone component, and it used to compare against other
     // pure date values.
-    double cutoverDay = ClockMath::floorDivide(date, (double)kOneDay);
+    double cutoverDay = ClockMath::floorDivide(date, kOneDay);
 
     // Handle the rare case of numeric overflow where the user specifies a time
     // outside of INT32_MIN .. INT32_MAX number of days.
-
+    
     if (cutoverDay <= INT32_MIN) {
         cutoverDay = INT32_MIN;
-        fGregorianCutover = fNormalizedGregorianCutover = cutoverDay * kOneDay;
+        fGregorianCutover = cutoverDay * kOneDay;
     } else if (cutoverDay >= INT32_MAX) {
         cutoverDay = INT32_MAX;
-        fGregorianCutover = fNormalizedGregorianCutover = cutoverDay * kOneDay;
+        fGregorianCutover = cutoverDay * kOneDay;
     } else {
-        fNormalizedGregorianCutover = cutoverDay * kOneDay;
         fGregorianCutover = date;
     }
 
     // Normalize the year so BC values are represented as 0 and negative
     // values.
     GregorianCalendar *cal = new GregorianCalendar(getTimeZone(), status);
-    /* test for NULL */
-    if (cal == 0) {
+    /* test for nullptr */
+    if (cal == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
-    if(U_FAILURE(status))
+    if(U_FAILURE(status)) {
         return;
+    }
     cal->setTime(date, status);
     fGregorianCutoverYear = cal->get(UCAL_YEAR, status);
-    if (cal->get(UCAL_ERA, status) == BC)
+    if (cal->get(UCAL_ERA, status) == BC) {
         fGregorianCutoverYear = 1 - fGregorianCutoverYear;
-    fCutoverJulianDay = (int32_t)cutoverDay;
+    }
+    fCutoverJulianDay = static_cast<int32_t>(cutoverDay);
     delete cal;
 }
 
-
 void GregorianCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status) {
     int32_t eyear, month, dayOfMonth, dayOfYear, unusedRemainder;
-
 
     if(U_FAILURE(status)) {
         return;
     }
 
 #if defined (U_DEBUG_CAL)
-    fprintf(stderr, "%s:%d: jd%d- (greg's %d)- [cut=%d]\n",
+    fprintf(stderr, "%s:%d: jd%d- (greg's %d)- [cut=%d]\n", 
         __FILE__, __LINE__, julianDay, getGregorianDayOfYear(), fCutoverJulianDay);
 #endif
-
 
     if (julianDay >= fCutoverJulianDay) {
         month = getGregorianMonth();
@@ -388,17 +359,17 @@ void GregorianCalendar::handleComputeFields(int32_t julianDay, UErrorCode& statu
         // The Julian epoch day (not the same as Julian Day)
         // is zero on Saturday December 30, 0 (Gregorian).
         int32_t julianEpochDay = julianDay - (kJan1_1JulianDay - 2);
-		eyear = (int32_t) ClockMath::floorDivide((4.0*julianEpochDay) + 1464.0, (int32_t) 1461, unusedRemainder);
+		eyear = static_cast<int32_t>(ClockMath::floorDivide((4.0 * julianEpochDay) + 1464.0, static_cast<int32_t>(1461), &unusedRemainder));
 
         // Compute the Julian calendar day number for January 1, eyear
-        int32_t january1 = 365*(eyear-1) + ClockMath::floorDivide(eyear-1, (int32_t)4);
+        int32_t january1 = 365 * (eyear - 1) + ClockMath::floorDivide(eyear - 1, static_cast<int32_t>(4));
         dayOfYear = (julianEpochDay - january1); // 0-based
 
         // Julian leap years occurred historically every 4 years starting
         // with 8 AD.  Before 8 AD the spacing is irregular; every 3 years
         // from 45 BC to 9 BC, and then none until 8 AD.  However, we don't
         // implement this historical detail; instead, we implement the
-        // computatinally cleaner proleptic calendar, which assumes
+        // computationally cleaner proleptic calendar, which assumes
         // consistent 4-year cycles throughout time.
         UBool isLeap = ((eyear&0x3) == 0); // equiv. to (eyear%4 == 0)
 
@@ -413,11 +384,11 @@ void GregorianCalendar::handleComputeFields(int32_t julianDay, UErrorCode& statu
         ++dayOfYear;
 #if defined (U_DEBUG_CAL)
         //     fprintf(stderr, "%d - %d[%d] + 1\n", dayOfYear, isLeap?kLeapNumDays[month]:kNumDays[month], month );
-        //           fprintf(stderr, "%s:%d:  greg's HCF %d -> %d/%d/%d not %d/%d/%d\n",
+        //           fprintf(stderr, "%s:%d:  greg's HCF %d -> %d/%d/%d not %d/%d/%d\n", 
         //                   __FILE__, __LINE__,julianDay,
         //          eyear,month,dayOfMonth,
         //          getGregorianYear(), getGregorianMonth(), getGregorianDayOfMonth()  );
-        fprintf(stderr, "%s:%d: doy %d (greg's %d)- [cut=%d]\n",
+        fprintf(stderr, "%s:%d: doy %d (greg's %d)- [cut=%d]\n", 
             __FILE__, __LINE__, dayOfYear, getGregorianDayOfYear(), fCutoverJulianDay);
 #endif
 
@@ -435,6 +406,7 @@ void GregorianCalendar::handleComputeFields(int32_t julianDay, UErrorCode& statu
     }
 
     internalSet(UCAL_MONTH, month);
+    internalSet(UCAL_ORDINAL_MONTH, month);
     internalSet(UCAL_DAY_OF_MONTH, dayOfMonth);
     internalSet(UCAL_DAY_OF_YEAR, dayOfYear);
     internalSet(UCAL_EXTENDED_YEAR, eyear);
@@ -458,7 +430,7 @@ GregorianCalendar::getGregorianChange() const
 
 // -------------------------------------
 
-UBool
+UBool 
 GregorianCalendar::isLeapYear(int32_t year) const
 {
     // MSVC complains bitterly if we try to use Grego::isLeapYear here
@@ -470,39 +442,45 @@ GregorianCalendar::isLeapYear(int32_t year) const
 
 // -------------------------------------
 
-int32_t GregorianCalendar::handleComputeJulianDay(UCalendarDateFields bestField)
+int32_t GregorianCalendar::handleComputeJulianDay(UCalendarDateFields bestField, UErrorCode& status)
 {
-    fInvertGregorian = FALSE;
+    fInvertGregorian = false;
 
-    int32_t jd = Calendar::handleComputeJulianDay(bestField);
+    int32_t jd = Calendar::handleComputeJulianDay(bestField, status);
+    if (U_FAILURE(status)) {
+        return 0;
+    }
 
     if((bestField == UCAL_WEEK_OF_YEAR) &&  // if we are doing WOY calculations, we are counting relative to Jan 1 *julian*
-        (internalGet(UCAL_EXTENDED_YEAR)==fGregorianCutoverYear) &&
-        jd >= fCutoverJulianDay) {
-            fInvertGregorian = TRUE;  // So that the Julian Jan 1 will be used in handleComputeMonthStart
-            return Calendar::handleComputeJulianDay(bestField);
+        (internalGet(UCAL_EXTENDED_YEAR)==fGregorianCutoverYear) && 
+        jd >= fCutoverJulianDay) { 
+            fInvertGregorian = true;  // So that the Julian Jan 1 will be used in handleComputeMonthStart
+            return Calendar::handleComputeJulianDay(bestField, status);
         }
 
 
         // The following check handles portions of the cutover year BEFORE the
         // cutover itself happens.
-        //if ((fIsGregorian==TRUE) != (jd >= fCutoverJulianDay)) {  /*  cutoverJulianDay)) { */
-        if ((fIsGregorian==TRUE) != (jd >= fCutoverJulianDay)) {  /*  cutoverJulianDay)) { */
+        //if ((fIsGregorian==true) != (jd >= fCutoverJulianDay)) {  /*  cutoverJulianDay)) { */
+        if ((fIsGregorian) != (jd >= fCutoverJulianDay)) {  /*  cutoverJulianDay)) { */
 #if defined (U_DEBUG_CAL)
-            fprintf(stderr, "%s:%d: jd [invert] %d\n",
+            fprintf(stderr, "%s:%d: jd [invert] %d\n", 
                 __FILE__, __LINE__, jd);
 #endif
-            fInvertGregorian = TRUE;
-            jd = Calendar::handleComputeJulianDay(bestField);
+            fInvertGregorian = true;
+            jd = Calendar::handleComputeJulianDay(bestField, status);
+            if (U_FAILURE(status)) {
+                return 0;
+            }
 #if defined (U_DEBUG_CAL)
-            fprintf(stderr, "%s:%d:  fIsGregorian %s, fInvertGregorian %s - ",
+            fprintf(stderr, "%s:%d:  fIsGregorian %s, fInvertGregorian %s - ", 
                 __FILE__, __LINE__,fIsGregorian?"T":"F", fInvertGregorian?"T":"F");
-            fprintf(stderr, " jd NOW %d\n",
+            fprintf(stderr, " jd NOW %d\n", 
                 jd);
 #endif
         } else {
 #if defined (U_DEBUG_CAL)
-            fprintf(stderr, "%s:%d: jd [==] %d - %sfIsGregorian %sfInvertGregorian, %d\n",
+            fprintf(stderr, "%s:%d: jd [==] %d - %sfIsGregorian %sfInvertGregorian, %d\n", 
                 __FILE__, __LINE__, jd, fIsGregorian?"T":"F", fInvertGregorian?"T":"F", bestField);
 #endif
         }
@@ -511,14 +489,14 @@ int32_t GregorianCalendar::handleComputeJulianDay(UCalendarDateFields bestField)
             int32_t gregShift = Grego::gregorianShift(internalGet(UCAL_EXTENDED_YEAR));
             if (bestField == UCAL_DAY_OF_YEAR) {
 #if defined (U_DEBUG_CAL)
-                fprintf(stderr, "%s:%d: [DOY%d] gregorian shift of JD %d += %d\n",
+                fprintf(stderr, "%s:%d: [DOY%d] gregorian shift of JD %d += %d\n", 
                     __FILE__, __LINE__, fFields[bestField],jd, gregShift);
 #endif
                 jd -= gregShift;
             } else if ( bestField == UCAL_WEEK_OF_MONTH ) {
                 int32_t weekShift = 14;
 #if defined (U_DEBUG_CAL)
-                fprintf(stderr, "%s:%d: [WOY/WOM] gregorian week shift of %d += %d\n",
+                fprintf(stderr, "%s:%d: [WOY/WOM] gregorian week shift of %d += %d\n", 
                     __FILE__, __LINE__, jd, weekShift);
 #endif
                 jd += weekShift; // shift by weeks for week based fields.
@@ -528,25 +506,33 @@ int32_t GregorianCalendar::handleComputeJulianDay(UCalendarDateFields bestField)
         return jd;
 }
 
-int32_t GregorianCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
+int64_t GregorianCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
 
-                                                   UBool /* useMonth */) const
+                                                   UBool /* useMonth */, UErrorCode& status) const
 {
-    GregorianCalendar *nonConstThis = (GregorianCalendar*)this; // cast away const
+    if (U_FAILURE(status)) {
+        return 0;
+    }
+    GregorianCalendar* nonConstThis = const_cast<GregorianCalendar*>(this); // cast away const
 
     // If the month is out of range, adjust it into range, and
     // modify the extended year value accordingly.
     if (month < 0 || month > 11) {
-        eyear += ClockMath::floorDivide(month, 12, month);
+        if (uprv_add32_overflow(ClockMath::floorDivide(month, 12, &month),
+                                eyear, &eyear)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return 0;
+        }
     }
 
     UBool isLeap = eyear%4 == 0;
-    int64_t y = (int64_t)eyear-1;
-    int64_t julianDay = 365*y + ClockMath::floorDivide(y, (int64_t)4) + (kJan1_1JulianDay - 3);
+    int64_t y = static_cast<int64_t>(eyear) - 1;
+    int64_t julianDay = 365LL * y +
+        ClockMath::floorDivideInt64(y, 4LL) + kJan1_1JulianDay - 3LL;
 
     nonConstThis->fIsGregorian = (eyear >= fGregorianCutoverYear);
 #if defined (U_DEBUG_CAL)
-    fprintf(stderr, "%s:%d: (hcms%d/%d) fIsGregorian %s, fInvertGregorian %s\n",
+    fprintf(stderr, "%s:%d: (hcms%d/%d) fIsGregorian %s, fInvertGregorian %s\n", 
         __FILE__, __LINE__, eyear,month, fIsGregorian?"T":"F", fInvertGregorian?"T":"F");
 #endif
     if (fInvertGregorian) {
@@ -558,7 +544,7 @@ int32_t GregorianCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
         // Julian calendar
         int32_t gregShift = Grego::gregorianShift(eyear);
 #if defined (U_DEBUG_CAL)
-        fprintf(stderr, "%s:%d: (hcms%d/%d) gregorian shift of %d += %d\n",
+        fprintf(stderr, "%s:%d: (hcms%d/%d) gregorian shift of %d += %d\n", 
             __FILE__, __LINE__, eyear, month, julianDay, gregShift);
 #endif
         julianDay += gregShift;
@@ -572,30 +558,31 @@ int32_t GregorianCalendar::handleComputeMonthStart(int32_t eyear, int32_t month,
         julianDay += isLeap?kLeapNumDays[month]:kNumDays[month];
     }
 
-    return static_cast<int32_t>(julianDay);
+    return julianDay;
 }
 
-int32_t GregorianCalendar::handleGetMonthLength(int32_t extendedYear, int32_t month)  const
+int32_t GregorianCalendar::handleGetMonthLength(int32_t extendedYear, int32_t month, UErrorCode& /* status */)  const
 {
     // If the month is out of range, adjust it into range, and
     // modify the extended year value accordingly.
     if (month < 0 || month > 11) {
-        extendedYear += ClockMath::floorDivide(month, 12, month);
+        extendedYear += ClockMath::floorDivide(month, 12, &month);
     }
 
     return isLeapYear(extendedYear) ? kLeapMonthLength[month] : kMonthLength[month];
 }
 
-int32_t GregorianCalendar::handleGetYearLength(int32_t eyear) const {
+int32_t GregorianCalendar::handleGetYearLength(int32_t eyear, UErrorCode& status) const {
+    if (U_FAILURE(status)) return 0;
     return isLeapYear(eyear) ? 366 : 365;
 }
 
 
 int32_t
-GregorianCalendar::monthLength(int32_t month) const
+GregorianCalendar::monthLength(int32_t month, UErrorCode& status) const
 {
     int32_t year = internalGet(UCAL_EXTENDED_YEAR);
-    return handleGetMonthLength(year, month);
+    return handleGetMonthLength(year, month, status);
 }
 
 // -------------------------------------
@@ -609,38 +596,12 @@ GregorianCalendar::monthLength(int32_t month, int32_t year) const
 // -------------------------------------
 
 int32_t
-GregorianCalendar::yearLength(int32_t year) const
-{
-    return isLeapYear(year) ? 366 : 365;
-}
-
-// -------------------------------------
-
-int32_t
 GregorianCalendar::yearLength() const
 {
     return isLeapYear(internalGet(UCAL_YEAR)) ? 366 : 365;
 }
 
 // -------------------------------------
-
-/**
-* After adjustments such as add(MONTH), add(YEAR), we don't want the
-* month to jump around.  E.g., we don't want Jan 31 + 1 month to go to Mar
-* 3, we want it to go to Feb 28.  Adjustments which might run into this
-* problem call this method to retain the proper month.
-*/
-void
-GregorianCalendar::pinDayOfMonth()
-{
-    int32_t monthLen = monthLength(internalGet(UCAL_MONTH));
-    int32_t dom = internalGet(UCAL_DATE);
-    if(dom > monthLen)
-        set(UCAL_DATE, monthLen);
-}
-
-// -------------------------------------
-
 
 UBool
 GregorianCalendar::validateFields() const
@@ -649,25 +610,27 @@ GregorianCalendar::validateFields() const
         // Ignore DATE and DAY_OF_YEAR which are handled below
         if (field != UCAL_DATE &&
             field != UCAL_DAY_OF_YEAR &&
-            isSet((UCalendarDateFields)field) &&
-            ! boundsCheck(internalGet((UCalendarDateFields)field), (UCalendarDateFields)field))
-            return FALSE;
+            isSet(static_cast<UCalendarDateFields>(field)) &&
+            !boundsCheck(internalGet(static_cast<UCalendarDateFields>(field)), static_cast<UCalendarDateFields>(field)))
+            return false;
     }
 
     // Values differ in Least-Maximum and Maximum should be handled
     // specially.
     if (isSet(UCAL_DATE)) {
         int32_t date = internalGet(UCAL_DATE);
+        UErrorCode internalStatus = U_ZERO_ERROR;
         if (date < getMinimum(UCAL_DATE) ||
-            date > monthLength(internalGet(UCAL_MONTH))) {
-                return FALSE;
-            }
+            date > monthLength(internalGetMonth(internalStatus), internalStatus) ||
+            U_FAILURE(internalStatus)) {
+                return false;
+        }
     }
 
     if (isSet(UCAL_DAY_OF_YEAR)) {
         int32_t days = internalGet(UCAL_DAY_OF_YEAR);
         if (days < 1 || days > yearLength()) {
-            return FALSE;
+            return false;
         }
     }
 
@@ -675,10 +638,10 @@ GregorianCalendar::validateFields() const
     // We've checked against minimum and maximum above already.
     if (isSet(UCAL_DAY_OF_WEEK_IN_MONTH) &&
         0 == internalGet(UCAL_DAY_OF_WEEK_IN_MONTH)) {
-            return FALSE;
+            return false;
         }
 
-        return TRUE;
+        return true;
 }
 
 // -------------------------------------
@@ -691,8 +654,8 @@ GregorianCalendar::boundsCheck(int32_t value, UCalendarDateFields field) const
 
 // -------------------------------------
 
-UDate
-GregorianCalendar::getEpochDay(UErrorCode& status)
+UDate 
+GregorianCalendar::getEpochDay(UErrorCode& status) 
 {
     complete(status);
     // Divide by 1000 (convert to seconds) in order to prevent overflow when
@@ -787,7 +750,7 @@ double GregorianCalendar::computeJulianDayOfYear(UBool isGregorian,
 double
 GregorianCalendar::millisToJulianDay(UDate millis)
 {
-    return (double)kEpochStartAsJulianDay + ClockMath::floorDivide(millis, (double)kOneDay);
+    return static_cast<double>(kEpochStartAsJulianDay) + ClockMath::floorDivide(millis, kOneDay);
 }
 
 // -------------------------------------
@@ -795,7 +758,7 @@ GregorianCalendar::millisToJulianDay(UDate millis)
 UDate
 GregorianCalendar::julianDayToMillis(double julian)
 {
-    return (UDate) ((julian - kEpochStartAsJulianDay) * (double) kOneDay);
+    return static_cast<UDate>((julian - kEpochStartAsJulianDay) * kOneDay);
 }
 
 // -------------------------------------
@@ -805,7 +768,7 @@ GregorianCalendar::aggregateStamp(int32_t stamp_a, int32_t stamp_b)
 {
     return (((stamp_a != kUnset && stamp_b != kUnset)
         ? uprv_max(stamp_a, stamp_b)
-        : (int32_t)kUnset));
+        : static_cast<int32_t>(kUnset)));
 }
 
 // -------------------------------------
@@ -817,18 +780,17 @@ GregorianCalendar::aggregateStamp(int32_t stamp_a, int32_t stamp_b)
 
 void
 GregorianCalendar::roll(EDateFields field, int32_t amount, UErrorCode& status) {
-    roll((UCalendarDateFields) field, amount, status);
+    roll(static_cast<UCalendarDateFields>(field), amount, status);
 }
 
 void
-GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& status)
-{
+GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& status) UPRV_NO_SANITIZE_UNDEFINED {
     if((amount == 0) || U_FAILURE(status)) {
         return;
     }
 
     // J81 processing. (gregorian cutover)
-    UBool inCutoverMonth = FALSE;
+    UBool inCutoverMonth = false;
     int32_t cMonthLen=0; // 'c' for cutover; in days
     int32_t cDayOfMonth=0; // no discontinuity: [0, cMonthLen)
     double cMonthStart=0.0; // in ms
@@ -839,7 +801,10 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
         case UCAL_DAY_OF_MONTH:
         case UCAL_WEEK_OF_MONTH:
             {
-                int32_t max = monthLength(internalGet(UCAL_MONTH));
+                int32_t max = monthLength(internalGetMonth(status), status);
+                if (U_FAILURE(status)) {
+                    return;
+                }
                 UDate t = internalGetTime();
                 // We subtract 1 from the DAY_OF_MONTH to make it zero-based, and an
                 // additional 10 if we are after the cutover. Thus the monthStart
@@ -849,8 +814,8 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
                 // A month containing the cutover is 10 days shorter.
                 if ((cMonthStart < fGregorianCutover) &&
                     (cMonthStart + (cMonthLen=(max-10))*kOneDay >= fGregorianCutover)) {
-                        inCutoverMonth = TRUE;
-                    }
+                        inCutoverMonth = true;
+                }
             }
             break;
         default:
@@ -872,16 +837,24 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
         // may be one year before or after the calendar year.
         int32_t isoYear = get(UCAL_YEAR_WOY, status);
         int32_t isoDoy = internalGet(UCAL_DAY_OF_YEAR);
-        if (internalGet(UCAL_MONTH) == UCAL_JANUARY) {
+        int32_t month = internalGetMonth(status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+        if (month == UCAL_JANUARY) {
             if (woy >= 52) {
-                isoDoy += handleGetYearLength(isoYear);
+                isoDoy += handleGetYearLength(isoYear, status);
             }
         } else {
             if (woy == 1) {
-                isoDoy -= handleGetYearLength(isoYear - 1);
+                isoDoy -= handleGetYearLength(isoYear - 1, status);
             }
         }
-        woy += amount;
+        if (U_FAILURE(status)) return;
+        if (uprv_add32_overflow(woy, amount, &woy)) {
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return;
+        }
         // Do fast checks to avoid unnecessary computation:
         if (woy < 1 || woy > 52) {
             // Determine the last week of the ISO year.
@@ -890,7 +863,8 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
             // days at the end of the year are going to fall into
             // week 1 of the next year, we drop the last week by
             // subtracting 7 from the last day of the year.
-            int32_t lastDoy = handleGetYearLength(isoYear);
+            int32_t lastDoy = handleGetYearLength(isoYear, status);
+            if (U_FAILURE(status)) return;
             int32_t lastRelDow = (lastDoy - isoDoy + internalGet(UCAL_DAY_OF_WEEK) -
                 getFirstDayOfWeek()) % 7;
             if (lastRelDow < 0) lastRelDow += 7;
@@ -904,10 +878,11 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
                             }
 
     case UCAL_DAY_OF_MONTH:
-        if( !inCutoverMonth ) {
+        if( !inCutoverMonth ) { 
             Calendar::roll(field, amount, status);
             return;
-        } else {
+        }
+        {
             // [j81] 1582 special case for DOM
             // The default computation works except when the current month
             // contains the Gregorian cutover.  We handle this special case
@@ -919,7 +894,7 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
                 msIntoMonth += monthLen;
             }
 #if defined (U_DEBUG_CAL)
-            fprintf(stderr, "%s:%d: roll DOM %d  -> %.0lf ms  \n",
+            fprintf(stderr, "%s:%d: roll DOM %d  -> %.0lf ms  \n", 
                 __FILE__, __LINE__,amount, cMonthLen, cMonthStart+msIntoMonth);
 #endif
             setTimeInMillis(cMonthStart + msIntoMonth, status);
@@ -927,16 +902,17 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
         }
 
     case UCAL_WEEK_OF_MONTH:
-        if( !inCutoverMonth ) {
+        if( !inCutoverMonth ) { 
             Calendar::roll(field, amount, status);
             return;
-        } else {
+        }
+        {
 #if defined (U_DEBUG_CAL)
-            fprintf(stderr, "%s:%d: roll WOM %d ??????????????????? \n",
+            fprintf(stderr, "%s:%d: roll WOM %d ??????????????????? \n", 
                 __FILE__, __LINE__,amount);
 #endif
             // NOTE: following copied from  the old
-            //     GregorianCalendar::roll( WEEK_OF_MONTH )  code
+            //     GregorianCalendar::roll( WEEK_OF_MONTH )  code 
 
             // This is tricky, because during the roll we may have to shift
             // to a different day of the week.  For example:
@@ -974,7 +950,7 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
             // Normalize the DAY_OF_WEEK so that 0 is the first day of the week
             // in this locale.  We have dow in 0..6.
             int32_t dow = internalGet(UCAL_DAY_OF_WEEK) - getFirstDayOfWeek();
-            if (dow < 0)
+            if (dow < 0) 
                 dow += 7;
 
             // Find the day of month, compensating for cutover discontinuity.
@@ -983,7 +959,7 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
             // Find the day of the week (normalized for locale) for the first
             // of the month.
             int32_t fdm = (dow - dom + 1) % 7;
-            if (fdm < 0)
+            if (fdm < 0) 
                 fdm += 7;
 
             // Get the first day of the first full week of the month,
@@ -1011,14 +987,14 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
             // Now roll between start and (limit - 1).
             int32_t gap = limit - start;
             int32_t newDom = (dom + amount*7 - start) % gap;
-            if (newDom < 0)
+            if (newDom < 0) 
                 newDom += gap;
             newDom += start;
 
             // Finally, pin to the real start and end of the month.
-            if (newDom < 1)
+            if (newDom < 1) 
                 newDom = 1;
-            if (newDom > monthLen)
+            if (newDom > monthLen) 
                 newDom = monthLen;
 
             // Set the DAY_OF_MONTH.  We rely on the fact that this field
@@ -1031,7 +1007,7 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
             // If we are in the cutover month, manipulate ms directly.  Don't do
             // this in general because it doesn't work across DST boundaries
             // (details, details).  This takes care of the discontinuity.
-            setTimeInMillis(cMonthStart + (newDom-1)*kOneDay, status);
+            setTimeInMillis(cMonthStart + (newDom-1)*kOneDay, status);                
             return;
         }
 
@@ -1053,12 +1029,12 @@ GregorianCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode& s
 */
 int32_t GregorianCalendar::getActualMinimum(EDateFields field) const
 {
-    return getMinimum((UCalendarDateFields)field);
+    return getMinimum(static_cast<UCalendarDateFields>(field));
 }
 
 int32_t GregorianCalendar::getActualMinimum(EDateFields field, UErrorCode& /* status */) const
 {
-    return getMinimum((UCalendarDateFields)field);
+    return getMinimum(static_cast<UCalendarDateFields>(field));
 }
 
 /**
@@ -1145,7 +1121,7 @@ int32_t GregorianCalendar::getActualMaximum(UCalendarDateFields field, UErrorCod
                 return 0;
             }
 
-            cal->setLenient(TRUE);
+            cal->setLenient(true);
 
             int32_t era = cal->get(UCAL_ERA, status);
             UDate d = cal->getTime(status);
@@ -1176,19 +1152,18 @@ int32_t GregorianCalendar::getActualMaximum(UCalendarDateFields field, UErrorCod
 }
 
 
-int32_t GregorianCalendar::handleGetExtendedYear() {
+int32_t GregorianCalendar::handleGetExtendedYear(UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return 0;
+    }
     // the year to return
     int32_t year = kEpochYear;
 
     // year field to use
-    int32_t yearField = UCAL_EXTENDED_YEAR;
-
     // There are three separate fields which could be used to
     // derive the proper year.  Use the one most recently set.
-    if (fStamp[yearField] < fStamp[UCAL_YEAR])
-        yearField = UCAL_YEAR;
-    if (fStamp[yearField] < fStamp[UCAL_YEAR_WOY])
-        yearField = UCAL_YEAR_WOY;
+    UCalendarDateFields yearField = newerField(
+        newerField(UCAL_EXTENDED_YEAR, UCAL_YEAR), UCAL_YEAR_WOY);
 
     // based on the "best" year field, get the year
     switch(yearField) {
@@ -1202,17 +1177,24 @@ int32_t GregorianCalendar::handleGetExtendedYear() {
             int32_t era = internalGet(UCAL_ERA, AD);
             if (era == BC) {
                 year = 1 - internalGet(UCAL_YEAR, 1); // Convert to extended year
-            } else {
+            } else if (era == AD) {
                 year = internalGet(UCAL_YEAR, kEpochYear);
+            } else {
+                status = U_ILLEGAL_ARGUMENT_ERROR;
+                return 0;
             }
         }
         break;
 
     case UCAL_YEAR_WOY:
-        year = handleGetExtendedYearFromWeekFields(internalGet(UCAL_YEAR_WOY), internalGet(UCAL_WEEK_OF_YEAR));
+        year = handleGetExtendedYearFromWeekFields(
+            internalGet(UCAL_YEAR_WOY), internalGet(UCAL_WEEK_OF_YEAR), status);
+        if (U_FAILURE(status)) {
+            return 0;
+        }
 #if defined (U_DEBUG_CAL)
         //    if(internalGet(UCAL_YEAR_WOY) != year) {
-        fprintf(stderr, "%s:%d: hGEYFWF[%d,%d] ->  %d\n",
+        fprintf(stderr, "%s:%d: hGEYFWF[%d,%d] ->  %d\n", 
             __FILE__, __LINE__,internalGet(UCAL_YEAR_WOY),internalGet(UCAL_WEEK_OF_YEAR),year);
         //}
 #endif
@@ -1224,30 +1206,19 @@ int32_t GregorianCalendar::handleGetExtendedYear() {
     return year;
 }
 
-int32_t GregorianCalendar::handleGetExtendedYearFromWeekFields(int32_t yearWoy, int32_t woy)
+int32_t GregorianCalendar::handleGetExtendedYearFromWeekFields(int32_t yearWoy, int32_t woy, UErrorCode& status)
 {
+    if (U_FAILURE(status)) {
+        return 0;
+    }
     // convert year to extended form
     int32_t era = internalGet(UCAL_ERA, AD);
     if(era == BC) {
         yearWoy = 1 - yearWoy;
     }
-    return Calendar::handleGetExtendedYearFromWeekFields(yearWoy, woy);
+    return Calendar::handleGetExtendedYearFromWeekFields(yearWoy, woy, status);
 }
 
-
-// -------------------------------------
-
-UBool
-GregorianCalendar::inDaylightTime(UErrorCode& status) const
-{
-    if (U_FAILURE(status) || !getTimeZone().useDaylightTime())
-        return FALSE;
-
-    // Force an update of the state of the Calendar.
-    ((GregorianCalendar*)this)->complete(status); // cast away const
-
-    return (UBool)(U_SUCCESS(status) ? (internalGet(UCAL_DST_OFFSET) != 0) : FALSE);
-}
 
 // -------------------------------------
 
@@ -1257,7 +1228,7 @@ GregorianCalendar::inDaylightTime(UErrorCode& status) const
 */
 int32_t
 GregorianCalendar::internalGetEra() const {
-    return isSet(UCAL_ERA) ? internalGet(UCAL_ERA) : (int32_t)AD;
+    return isSet(UCAL_ERA) ? internalGet(UCAL_ERA) : static_cast<int32_t>(AD);
 }
 
 const char *
@@ -1267,51 +1238,7 @@ GregorianCalendar::getType() const {
     return "gregorian";
 }
 
-/**
- * The system maintains a static default century start date and Year.  They are
- * initialized the first time they are used.  Once the system default century date
- * and year are set, they do not change.
- */
-static UDate           gSystemDefaultCenturyStart       = DBL_MIN;
-static int32_t         gSystemDefaultCenturyStartYear   = -1;
-static icu::UInitOnce  gSystemDefaultCenturyInit        = U_INITONCE_INITIALIZER;
-
-
-UBool GregorianCalendar::haveDefaultCentury() const
-{
-    return TRUE;
-}
-
-static void U_CALLCONV
-initializeSystemDefaultCentury()
-{
-    // initialize systemDefaultCentury and systemDefaultCenturyYear based
-    // on the current time.  They'll be set to 80 years before
-    // the current time.
-    UErrorCode status = U_ZERO_ERROR;
-    GregorianCalendar calendar(status);
-    if (U_SUCCESS(status)) {
-        calendar.setTime(Calendar::getNow(), status);
-        calendar.add(UCAL_YEAR, -80, status);
-
-        gSystemDefaultCenturyStart = calendar.getTime(status);
-        gSystemDefaultCenturyStartYear = calendar.get(UCAL_YEAR, status);
-    }
-    // We have no recourse upon failure unless we want to propagate the failure
-    // out.
-}
-
-UDate GregorianCalendar::defaultCenturyStart() const {
-    // lazy-evaluate systemDefaultCenturyStart
-    umtx_initOnce(gSystemDefaultCenturyInit, &initializeSystemDefaultCentury);
-    return gSystemDefaultCenturyStart;
-}
-
-int32_t GregorianCalendar::defaultCenturyStartYear() const {
-    // lazy-evaluate systemDefaultCenturyStartYear
-    umtx_initOnce(gSystemDefaultCenturyInit, &initializeSystemDefaultCentury);
-    return gSystemDefaultCenturyStartYear;
-}
+IMPL_SYSTEM_DEFAULT_CENTURY(GregorianCalendar, "@calendar=gregory")
 
 U_NAMESPACE_END
 

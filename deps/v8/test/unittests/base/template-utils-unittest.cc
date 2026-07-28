@@ -47,7 +47,7 @@ TEST(TemplateUtilsTest, MakeArrayConstexpr) {
 // Wrap into this helper struct, such that the type is printed on errors.
 template <typename T1, typename T2>
 struct CheckIsSame {
-  static_assert(std::is_same<T1, T2>::value, "test failure");
+  static_assert(std::is_same_v<T1, T2>, "test failure");
 };
 
 #define TEST_PASS_VALUE_OR_REF0(remove_extend, expected, given)               \
@@ -86,9 +86,9 @@ TEST_PASS_VALUE_OR_REF0(false, int, const int&);
 //////////////////////////////
 
 // Intrinsic types:
-static_assert(has_output_operator<int>::value, "int can be output");
-static_assert(has_output_operator<void*>::value, "void* can be output");
-static_assert(has_output_operator<uint64_t>::value, "int can be output");
+static_assert(has_output_operator<int>, "int can be output");
+static_assert(has_output_operator<void*>, "void* can be output");
+static_assert(has_output_operator<uint64_t>, "int can be output");
 
 // Classes:
 class TestClass1 {};
@@ -96,73 +96,15 @@ class TestClass2 {};
 extern std::ostream& operator<<(std::ostream& str, const TestClass2&);
 class TestClass3 {};
 extern std::ostream& operator<<(std::ostream& str, TestClass3);
-static_assert(!has_output_operator<TestClass1>::value,
-              "TestClass1 can not be output");
-static_assert(has_output_operator<TestClass2>::value,
+static_assert(!has_output_operator<TestClass1>, "TestClass1 can not be output");
+static_assert(has_output_operator<TestClass2>,
               "non-const TestClass2 can be output");
-static_assert(has_output_operator<const TestClass2>::value,
+static_assert(has_output_operator<const TestClass2>,
               "const TestClass2 can be output");
-static_assert(has_output_operator<TestClass3>::value,
+static_assert(has_output_operator<TestClass3>,
               "non-const TestClass3 can be output");
-static_assert(has_output_operator<const TestClass3>::value,
+static_assert(has_output_operator<const TestClass3>,
               "const TestClass3 can be output");
-
-//////////////////////////////
-// Test fold.
-//////////////////////////////
-
-struct FoldAllSameType {
-  constexpr uint32_t operator()(uint32_t a, uint32_t b) const { return a | b; }
-};
-static_assert(base::fold(FoldAllSameType{}, 3, 6) == 7, "check fold");
-// Test that it works if implicit conversion is needed for one of the
-// parameters.
-static_assert(base::fold(FoldAllSameType{}, uint8_t{1}, 256) == 257,
-              "check correct type inference");
-// Test a single parameter.
-static_assert(base::fold(FoldAllSameType{}, 25) == 25,
-              "check folding a single argument");
-
-TEST(TemplateUtilsTest, FoldDifferentType) {
-  auto fn = [](std::string str, char c) {
-    str.push_back(c);
-    return str;
-  };
-  CHECK_EQ(base::fold(fn, std::string("foo"), 'b', 'a', 'r'), "foobar");
-}
-
-TEST(TemplateUtilsTest, FoldMoveOnlyType) {
-  auto fn = [](std::unique_ptr<std::string> str, char c) {
-    str->push_back(c);
-    return str;
-  };
-  std::unique_ptr<std::string> str = std::make_unique<std::string>("foo");
-  std::unique_ptr<std::string> folded =
-      base::fold(fn, std::move(str), 'b', 'a', 'r');
-  CHECK_NULL(str);
-  CHECK_NOT_NULL(folded);
-  CHECK_EQ(*folded, "foobar");
-}
-
-struct TemplatizedFoldFunctor {
-  template <typename T, typename... Tup>
-  std::tuple<Tup..., typename std::decay<T>::type> operator()(
-      std::tuple<Tup...> tup, T&& val) {
-    return std::tuple_cat(std::move(tup),
-                          std::make_tuple(std::forward<T>(val)));
-  }
-};
-TEST(TemplateUtilsTest, FoldToTuple) {
-  auto input = std::make_tuple(char{'x'}, int{4}, double{3.2},
-                               std::unique_ptr<uint8_t>{}, std::string{"foo"});
-  auto result =
-      base::fold(TemplatizedFoldFunctor{}, std::make_tuple(),
-                 std::get<0>(input), std::get<1>(input), std::get<2>(input),
-                 std::unique_ptr<uint8_t>{}, std::get<4>(input));
-  static_assert(std::is_same<decltype(result), decltype(input)>::value,
-                "the resulting tuple should have the same type as the input");
-  DCHECK_EQ(input, result);
-}
 
 }  // namespace template_utils_unittest
 }  // namespace base

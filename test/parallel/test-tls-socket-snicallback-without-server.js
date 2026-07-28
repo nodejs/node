@@ -1,8 +1,5 @@
 'use strict';
 
-// This is based on test-tls-securepair-fiftharg.js
-// for the deprecated `tls.createSecurePair()` variant.
-
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -10,9 +7,9 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const makeDuplexPair = require('../common/duplexpair');
+const { duplexPair } = require('stream');
 
-const { clientSide, serverSide } = makeDuplexPair();
+const [ clientSide, serverSide ] = duplexPair();
 new tls.TLSSocket(serverSide, {
   isServer: true,
   SNICallback: common.mustCall((servername, cb) => {

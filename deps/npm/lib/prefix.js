@@ -1,8 +1,0 @@
-const npm = require('./npm.js')
-const output = require('./utils/output.js')
-const usageUtil = require('./utils/usage.js')
-const completion = require('./utils/completion/none.js')
-const cmd = (args, cb) => prefix(args).then(() => cb()).catch(cb)
-const usage = usageUtil('prefix', 'npm prefix [-g]')
-const prefix = async (args, cb) => output(npm.prefix)
-module.exports = Object.assign(cmd, { usage, completion })

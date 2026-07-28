@@ -49,7 +49,7 @@ typedef struct HashForgetfulChain {
   size_t max_hops;
 
   /* Shortcuts. */
-  void* extra;
+  void* extra[2];
   HasherCommon* common;
 
   /* --- Dynamic size members --- */
@@ -77,14 +77,15 @@ static uint8_t* FN(TinyHash)(void* extra) {
 }
 
 static FN(Bank)* FN(Banks)(void* extra) {
-  return (FN(Bank)*)(&FN(TinyHash)(extra)[65536]);
+  return (FN(Bank)*)(extra);
 }
 
 static void FN(Initialize)(
     HasherCommon* common, HashForgetfulChain* BROTLI_RESTRICT self,
     const BrotliEncoderParams* params) {
   self->common = common;
-  self->extra = common->extra;
+  self->extra[0] = common->extra[0];
+  self->extra[1] = common->extra[1];
 
   self->max_hops = (params->quality > 6 ? 7u : 8u) << (params->quality - 4);
 }
@@ -92,9 +93,9 @@ static void FN(Initialize)(
 static void FN(Prepare)(
     HashForgetfulChain* BROTLI_RESTRICT self, BROTLI_BOOL one_shot,
     size_t input_size, const uint8_t* BROTLI_RESTRICT data) {
-  uint32_t* BROTLI_RESTRICT addr = FN(Addr)(self->extra);
-  uint16_t* BROTLI_RESTRICT head = FN(Head)(self->extra);
-  uint8_t* BROTLI_RESTRICT tiny_hash = FN(TinyHash)(self->extra);
+  uint32_t* BROTLI_RESTRICT addr = FN(Addr)(self->extra[0]);
+  uint16_t* BROTLI_RESTRICT head = FN(Head)(self->extra[0]);
+  uint8_t* BROTLI_RESTRICT tiny_hash = FN(TinyHash)(self->extra[0]);
   /* Partial preparation is 100 times slower (per socket). */
   size_t partial_prepare_threshold = BUCKET_SIZE >> 6;
   if (one_shot && input_size <= partial_prepare_threshold) {
@@ -116,24 +117,25 @@ static void FN(Prepare)(
   memset(self->free_slot_idx, 0, sizeof(self->free_slot_idx));
 }
 
-static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
+static BROTLI_INLINE void FN(HashMemAllocInBytes)(
     const BrotliEncoderParams* params, BROTLI_BOOL one_shot,
-    size_t input_size) {
+    size_t input_size, size_t* alloc_size) {
   BROTLI_UNUSED(params);
   BROTLI_UNUSED(one_shot);
   BROTLI_UNUSED(input_size);
-  return sizeof(uint32_t) * BUCKET_SIZE + sizeof(uint16_t) * BUCKET_SIZE +
-         sizeof(uint8_t) * 65536 + sizeof(FN(Bank)) * NUM_BANKS;
+  alloc_size[0] = sizeof(uint32_t) * BUCKET_SIZE +
+                  sizeof(uint16_t) * BUCKET_SIZE + sizeof(uint8_t) * 65536;
+  alloc_size[1] = sizeof(FN(Bank)) * NUM_BANKS;
 }
 
 /* Look at 4 bytes at &data[ix & mask]. Compute a hash from these, and prepend
    node to corresponding chain; also update tiny_hash for current position. */
 static BROTLI_INLINE void FN(Store)(HashForgetfulChain* BROTLI_RESTRICT self,
     const uint8_t* BROTLI_RESTRICT data, const size_t mask, const size_t ix) {
-  uint32_t* BROTLI_RESTRICT addr = FN(Addr)(self->extra);
-  uint16_t* BROTLI_RESTRICT head = FN(Head)(self->extra);
-  uint8_t* BROTLI_RESTRICT tiny_hash = FN(TinyHash)(self->extra);
-  FN(Bank)* BROTLI_RESTRICT banks = FN(Banks)(self->extra);
+  uint32_t* BROTLI_RESTRICT addr = FN(Addr)(self->extra[0]);
+  uint16_t* BROTLI_RESTRICT head = FN(Head)(self->extra[0]);
+  uint8_t* BROTLI_RESTRICT tiny_hash = FN(TinyHash)(self->extra[0]);
+  FN(Bank)* BROTLI_RESTRICT banks = FN(Banks)(self->extra[1]);
   const size_t key = FN(HashBytes)(&data[ix & mask]);
   const size_t bank = key & (NUM_BANKS - 1);
   const size_t idx = self->free_slot_idx[bank]++ & (BANK_SIZE - 1);
@@ -196,10 +198,10 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const size_t cur_ix, const size_t max_length, const size_t max_backward,
     const size_t dictionary_distance, const size_t max_distance,
     HasherSearchResult* BROTLI_RESTRICT out) {
-  uint32_t* BROTLI_RESTRICT addr = FN(Addr)(self->extra);
-  uint16_t* BROTLI_RESTRICT head = FN(Head)(self->extra);
-  uint8_t* BROTLI_RESTRICT tiny_hashes = FN(TinyHash)(self->extra);
-  FN(Bank)* BROTLI_RESTRICT banks = FN(Banks)(self->extra);
+  uint32_t* BROTLI_RESTRICT addr = FN(Addr)(self->extra[0]);
+  uint16_t* BROTLI_RESTRICT head = FN(Head)(self->extra[0]);
+  uint8_t* BROTLI_RESTRICT tiny_hashes = FN(TinyHash)(self->extra[0]);
+  FN(Bank)* BROTLI_RESTRICT banks = FN(Banks)(self->extra[1]);
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   /* Don't accept a short copy from far away. */
   score_t min_score = out->score;
@@ -210,6 +212,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   const uint8_t tiny_hash = (uint8_t)(key);
   out->len = 0;
   out->len_code_delta = 0;
+
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
+
   /* Try last distance first. */
   for (i = 0; i < NUM_LAST_DISTANCES_TO_CHECK; ++i) {
     const size_t backward = (size_t)distance_cache[i];
@@ -239,6 +244,11 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       }
     }
   }
+  /* we require matches of len >4, so increase best_len to 3, so we can compare
+   * 4 bytes all the time. */
+  if (best_len < 3) {
+    best_len = 3;
+  }
   {
     const size_t bank = key & (NUM_BANKS - 1);
     size_t backward = 0;
@@ -255,7 +265,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       delta = banks[bank].slots[last].delta;
       if (cur_ix_masked + best_len > ring_buffer_mask ||
           prev_ix + best_len > ring_buffer_mask ||
-          data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+          /* compare 4 bytes ending at best_len + 1 */
+          BrotliUnalignedRead32(&data[cur_ix_masked + best_len - 3]) !=
+              BrotliUnalignedRead32(&data[prev_ix + best_len - 3])) {
         continue;
       }
       {

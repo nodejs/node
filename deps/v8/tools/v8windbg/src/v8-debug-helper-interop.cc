@@ -10,13 +10,14 @@
 #include "src/common/globals.h"
 #include "tools/debug_helper/debug-helper.h"
 #include "tools/v8windbg/base/utilities.h"
+#include "tools/v8windbg/src/cur-isolate.h"
 #include "tools/v8windbg/src/v8windbg-extension.h"
 
 namespace d = v8::debug_helper;
 
 // We need a plain C function pointer for interop with v8_debug_helper. We can
 // use this to get one as long as we never need two at once.
-class MemReaderScope {
+class V8_NODISCARD MemReaderScope {
  public:
   explicit MemReaderScope(WRL::ComPtr<IDebugHostContext> sp_context)
       : sp_context_(sp_context) {
@@ -45,11 +46,9 @@ class MemReaderScope {
 IDebugHostContext* MemReaderScope::context_;
 
 StructField::StructField(std::u16string field_name, std::u16string type_name,
-                         std::string uncompressed_type_name, uint64_t offset,
-                         uint8_t num_bits, uint8_t shift_bits)
+                         uint64_t offset, uint8_t num_bits, uint8_t shift_bits)
     : name(field_name),
       type_name(type_name),
-      uncompressed_type_name(uncompressed_type_name),
       offset(offset),
       num_bits(num_bits),
       shift_bits(shift_bits) {}
@@ -60,12 +59,10 @@ StructField& StructField::operator=(const StructField&) = default;
 StructField& StructField::operator=(StructField&&) = default;
 
 Property::Property(std::u16string property_name, std::u16string type_name,
-                   std::string uncompressed_type_name, uint64_t address,
-                   size_t item_size)
+                   uint64_t address, size_t item_size)
     : name(property_name),
       type(PropertyType::kPointer),
       type_name(type_name),
-      uncompressed_type_name(uncompressed_type_name),
       addr_value(address),
       item_size(item_size) {}
 Property::~Property() = default;
@@ -89,8 +86,7 @@ std::vector<Property> GetPropertiesAsVector(size_t num_properties,
     const auto& source_prop = *(properties)[property_index];
     Property dest_prop(ConvertToU16String(source_prop.name),
                        ConvertToU16String(source_prop.type),
-                       source_prop.decompressed_type, source_prop.address,
-                       source_prop.size);
+                       source_prop.address, source_prop.size);
     if (source_prop.kind != d::PropertyKind::kSingle) {
       dest_prop.type = PropertyType::kArray;
       dest_prop.length = source_prop.num_values;
@@ -107,7 +103,6 @@ std::vector<Property> GetPropertiesAsVector(size_t num_properties,
         const auto& struct_field = *source_prop.struct_fields[field_index];
         dest_prop.fields.push_back({ConvertToU16String(struct_field.name),
                                     ConvertToU16String(struct_field.type),
-                                    struct_field.decompressed_type,
                                     struct_field.offset, struct_field.num_bits,
                                     struct_field.shift_bits});
       }
@@ -115,6 +110,79 @@ std::vector<Property> GetPropertiesAsVector(size_t num_properties,
     result.push_back(dest_prop);
   }
   return result;
+}
+
+HRESULT GetMetadataPointerTableAddress(WRL::ComPtr<IDebugHostContext> context,
+                                       uintptr_t* result) {
+  WRL::ComPtr<IModelObject> isolate_instance_ptr;
+  RETURN_IF_FAIL(GetCurrentIsolate(isolate_instance_ptr));
+
+  WRL::ComPtr<IModelObject> isolate_instance;
+  RETURN_IF_FAIL(isolate_instance_ptr->Dereference(&isolate_instance));
+
+  // Access field {IsolateGroup* isolate_group_} in class {Isolate}.
+  WRL::ComPtr<IModelObject> isolate_group_pointer;
+  RETURN_IF_FAIL(isolate_instance->GetRawValue(SymbolKind::SymbolField,
+                                               L"isolate_group_", RawSearchNone,
+                                               &isolate_group_pointer));
+
+  WRL::ComPtr<IModelObject> isolate_group;
+  RETURN_IF_FAIL(isolate_group_pointer->Dereference(&isolate_group));
+
+  // Access field {metadata_pointer_table_} in class {IsolateGroup}.
+  WRL::ComPtr<IModelObject> metadata_pointer_table;
+  RETURN_IF_FAIL(isolate_group->GetRawValue(
+      SymbolKind::SymbolField, L"metadata_pointer_table_", RawSearchNone,
+      &metadata_pointer_table));
+
+  Location location;
+  RETURN_IF_FAIL(metadata_pointer_table->GetLocation(&location));
+  *result = location.Offset;
+  return S_OK;
+}
+
+HRESULT GetIsolateHeapMemberOffset(WRL::ComPtr<IDebugHostContext> context,
+                                   uintptr_t* result) {
+  // Use debug symbols to find the offset of the isolate_ field within the
+  // Heap class. This is necessary because the offset can vary between builds
+  // due to compilation differences.
+  *result = 0;
+
+  // Get the current isolate to access its heap_ member, then query the type.
+  WRL::ComPtr<IModelObject> isolate_ptr;
+  RETURN_IF_FAIL(GetCurrentIsolate(isolate_ptr));
+
+  WRL::ComPtr<IModelObject> isolate;
+  RETURN_IF_FAIL(isolate_ptr->Dereference(&isolate));
+
+  // Access the heap_ field to get a Heap object.
+  WRL::ComPtr<IModelObject> heap_obj;
+  RETURN_IF_FAIL(isolate->GetRawValue(SymbolKind::SymbolField, L"heap_",
+                                      RawSearchNone, &heap_obj));
+
+  // Get the type of the heap_ field.
+  WRL::ComPtr<IDebugHostType> heap_type;
+  RETURN_IF_FAIL(heap_obj->GetTypeInfo(&heap_type));
+
+  // Enumerate fields to find isolate_.
+  WRL::ComPtr<IDebugHostSymbolEnumerator> field_enumerator;
+  RETURN_IF_FAIL(heap_type->EnumerateChildren(SymbolField, L"isolate_",
+                                              &field_enumerator));
+
+  WRL::ComPtr<IDebugHostSymbol> isolate_symbol;
+  RETURN_IF_FAIL(field_enumerator->GetNext(&isolate_symbol));
+  if (!isolate_symbol) {
+    return E_FAIL;
+  }
+
+  // Get the field offset.
+  WRL::ComPtr<IDebugHostField> isolate_field;
+  RETURN_IF_FAIL(isolate_symbol.As(&isolate_field));
+
+  ULONG64 offset;
+  RETURN_IF_FAIL(isolate_field->GetOffset(&offset));
+  *result = static_cast<uintptr_t>(offset);
+  return S_OK;
 }
 
 V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
@@ -125,11 +193,22 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   V8HeapObject obj;
   MemReaderScope reader_scope(sp_context);
 
-  d::HeapAddresses heap_addresses = {0, 0, 0, 0};
+  d::HeapAddresses heap_addresses = {0, 0, 0, 0, 0, 0};
   // TODO ideally we'd provide real heap page pointers. For now, just testing
   // decompression based on the pointer to wherever we found this value,
   // which is likely (though not guaranteed) to be a heap pointer itself.
   heap_addresses.any_heap_pointer = referring_pointer;
+
+  // Ignore the return value; there is nothing useful we can do in case of
+  // failure.
+  GetMetadataPointerTableAddress(sp_context,
+                                 &heap_addresses.metadata_pointer_table);
+
+  // Get the offset of Isolate::heap_ from PDB symbols. This is critical for
+  // accessing external strings correctly, as the offset can differ between
+  // builds.
+  GetIsolateHeapMemberOffset(sp_context,
+                             &heap_addresses.isolate_heap_member_offset);
 
   auto props = d::GetObjectProperties(tagged_ptr, reader_scope.GetReader(),
                                       heap_addresses, type_name);
@@ -142,26 +221,16 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   if (referring_pointer != 0) {
     for (size_t type_index = 0; type_index < props->num_guessed_types;
          ++type_index) {
-      const std::string& type_name = props->guessed_types[type_index];
+      const std::string& guessed_type_name = props->guessed_types[type_index];
       Property dest_prop(
-          ConvertToU16String(("guessed type " + type_name).c_str()),
-          ConvertToU16String(is_compressed ? kTaggedValue : type_name),
-          type_name, referring_pointer,
+          ConvertToU16String(("guessed type " + guessed_type_name).c_str()),
+          ConvertToU16String(guessed_type_name), referring_pointer,
           is_compressed ? i::kTaggedSize : sizeof(void*));
       obj.properties.push_back(dest_prop);
     }
   }
 
   return obj;
-}
-
-std::vector<std::u16string> ListObjectClasses() {
-  const d::ClassList* class_list = d::ListObjectClasses();
-  std::vector<std::u16string> result;
-  for (size_t i = 0; i < class_list->num_class_names; ++i) {
-    result.push_back(ConvertToU16String(class_list->class_names[i]));
-  }
-  return result;
 }
 
 const char* BitsetName(uint64_t payload) { return d::BitsetName(payload); }

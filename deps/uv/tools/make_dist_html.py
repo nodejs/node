@@ -1,6 +1,4 @@
-#!/usr/bin/python
-
-from __future__ import print_function
+#!/usr/bin/python3
 
 import itertools
 import os
@@ -84,7 +82,7 @@ EXE = r'''
 '''
 
 def version(tag):
-  return map(int, re.match('^v(\d+)\.(\d+)\.(\d+)', tag).groups())
+  return list(map(int, re.match('^v(\d+)\.(\d+)\.(\d+)', tag).groups()))
 
 def major_minor(tag):
   return version(tag)[:2]
@@ -114,7 +112,7 @@ def groups_for(groups, n=4):
 
 if __name__ == '__main__':
   os.chdir(os.path.dirname(__file__))
-  tags = subprocess.check_output(['git', 'tag'])
+  tags = subprocess.check_output(['git', 'tag'], text=True)
   tags = [tag for tag in tags.split('\n') if tag.startswith('v')]
   tags.sort(key=version, reverse=True)
   groups = [group_for(list(g)) for _, g in itertools.groupby(tags, major_minor)]

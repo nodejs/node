@@ -5,10 +5,10 @@
 #include "src/compiler/loop-variable-optimizer.h"
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -17,12 +17,12 @@ namespace internal {
 namespace compiler {
 
 // Macro for outputting trace information from representation inference.
-#define TRACE(...)                                  \
-  do {                                              \
-    if (FLAG_trace_turbo_loop) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                      \
+  do {                                                  \
+    if (v8_flags.trace_turbo_loop) PrintF(__VA_ARGS__); \
   } while (false)
 
-LoopVariableOptimizer::LoopVariableOptimizer(Graph* graph,
+LoopVariableOptimizer::LoopVariableOptimizer(TFGraph* graph,
                                              CommonOperatorBuilder* common,
                                              Zone* zone)
     : graph_(graph),
@@ -76,7 +76,7 @@ void LoopVariableOptimizer::Run() {
 
 void InductionVariable::AddUpperBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     StdoutStream{} << "New upper bound for " << phi()->id() << " (loop "
                    << NodeProperties::GetControlInput(phi())->id()
                    << "): " << *bound << std::endl;
@@ -86,7 +86,7 @@ void InductionVariable::AddUpperBound(Node* bound,
 
 void InductionVariable::AddLowerBound(Node* bound,
                                       InductionVariable::ConstraintKind kind) {
-  if (FLAG_trace_turbo_loop) {
+  if (v8_flags.trace_turbo_loop) {
     StdoutStream{} << "New lower bound for " << phi()->id() << " (loop "
                    << NodeProperties::GetControlInput(phi())->id()
                    << "): " << *bound;
@@ -230,17 +230,22 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   if (arith->opcode() == IrOpcode::kJSAdd ||
       arith->opcode() == IrOpcode::kNumberAdd ||
       arith->opcode() == IrOpcode::kSpeculativeNumberAdd ||
-      arith->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd) {
+      arith->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerAdd ||
+      arith->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract ||
+      arith->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
   } else if (arith->opcode() == IrOpcode::kJSSubtract ||
              arith->opcode() == IrOpcode::kNumberSubtract ||
              arith->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
-             arith->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract) {
+             arith->opcode() == IrOpcode::kSpeculativeSmallIntegerSubtract) {
     arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
   } else {
     return nullptr;
   }
 
+  // We allow a few additional conversions on the lhs of the arithmetic
+  // operation. This needs to be kept in sync with the corresponding code in
+  // {Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint}.
   // TODO(jarin) Support both sides.
   Node* input = arith->InputAt(0);
   if (input->opcode() == IrOpcode::kSpeculativeToNumber ||
@@ -288,8 +293,8 @@ void LoopVariableOptimizer::ChangeToInductionVariablePhis() {
     InductionVariable* induction_var = entry.second;
     DCHECK_EQ(MachineRepresentation::kTagged,
               PhiRepresentationOf(induction_var->phi()->op()));
-    if (induction_var->upper_bounds().size() == 0 &&
-        induction_var->lower_bounds().size() == 0) {
+    if (induction_var->upper_bounds().empty() &&
+        induction_var->lower_bounds().empty()) {
       continue;
     }
     // Insert the increment value to the value inputs.

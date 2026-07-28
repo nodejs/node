@@ -40,10 +40,10 @@ const bad = [
     input: [0x00, 0xdc, 0x00, 0xd8],
     expected: '\uFFFD\uFFFD',
     name: 'swapped surrogate pair'
-  }
+  },
 ];
 
-bad.forEach((t) => {
+for (const t of bad) {
   assert.throws(
     () => {
       new TextDecoder(t.encoding, { fatal: true })
@@ -53,4 +53,4 @@ bad.forEach((t) => {
       name: 'TypeError'
     }
   );
-});
+}

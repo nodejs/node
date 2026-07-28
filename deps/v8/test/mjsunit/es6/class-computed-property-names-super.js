@@ -72,8 +72,6 @@ function assertAccessorDescriptor(object, name) {
     [ID(4294967295)]() { return '4294967295' + super.m(); }
   }
 
-  assertSame(Derived.prototype, Derived.prototype.a[%HomeObjectSymbol()]);
-
   assertMethodDescriptor(Derived.prototype, "a");
   assertMethodDescriptor(Derived.prototype, "b");
   assertMethodDescriptor(Derived.prototype, 0);

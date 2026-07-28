@@ -54,28 +54,36 @@ $L$body:
 $L$oop_grande:
 	mov	DWORD[280+rsp],edx
 	xor	edx,edx
+
 	mov	r8,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r8,rbp
+
 	mov	r9,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[4+rbx],ecx
 	cmovle	r9,rbp
+
 	mov	r10,QWORD[32+rsi]
+
 	mov	ecx,DWORD[40+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[8+rbx],ecx
 	cmovle	r10,rbp
+
 	mov	r11,QWORD[48+rsi]
+
 	mov	ecx,DWORD[56+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
@@ -2642,14 +2650,18 @@ $L$body_shaext:
 $L$oop_grande_shaext:
 	mov	DWORD[280+rsp],edx
 	xor	edx,edx
+
 	mov	r8,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r8,rsp
+
 	mov	r9,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
@@ -3057,28 +3069,36 @@ $L$body_avx:
 $L$oop_grande_avx:
 	mov	DWORD[280+rsp],edx
 	xor	edx,edx
+
 	mov	r8,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r8,rbp
+
 	mov	r9,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[4+rbx],ecx
 	cmovle	r9,rbp
+
 	mov	r10,QWORD[32+rsi]
+
 	mov	ecx,DWORD[40+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[8+rbx],ecx
 	cmovle	r10,rbp
+
 	mov	r11,QWORD[48+rsi]
+
 	mov	ecx,DWORD[56+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
@@ -5174,56 +5194,72 @@ $L$oop_grande_avx2:
 	mov	DWORD[552+rsp],edx
 	xor	edx,edx
 	lea	rbx,[512+rsp]
+
 	mov	r12,QWORD[rsi]
+
 	mov	ecx,DWORD[8+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[rbx],ecx
 	cmovle	r12,rbp
+
 	mov	r13,QWORD[16+rsi]
+
 	mov	ecx,DWORD[24+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[4+rbx],ecx
 	cmovle	r13,rbp
+
 	mov	r14,QWORD[32+rsi]
+
 	mov	ecx,DWORD[40+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[8+rbx],ecx
 	cmovle	r14,rbp
+
 	mov	r15,QWORD[48+rsi]
+
 	mov	ecx,DWORD[56+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[12+rbx],ecx
 	cmovle	r15,rbp
+
 	mov	r8,QWORD[64+rsi]
+
 	mov	ecx,DWORD[72+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[16+rbx],ecx
 	cmovle	r8,rbp
+
 	mov	r9,QWORD[80+rsi]
+
 	mov	ecx,DWORD[88+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[20+rbx],ecx
 	cmovle	r9,rbp
+
 	mov	r10,QWORD[96+rsi]
+
 	mov	ecx,DWORD[104+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
 	test	ecx,ecx
 	mov	DWORD[24+rbx],ecx
 	cmovle	r10,rbp
+
 	mov	r11,QWORD[112+rsi]
+
 	mov	ecx,DWORD[120+rsi]
 	cmp	ecx,edx
 	cmovg	edx,ecx
@@ -7383,7 +7419,7 @@ $L$epilogue_avx2:
 	DB	0F3h,0C3h		;repret
 
 $L$SEH_end_sha1_multi_block_avx2:
-
+section	.rdata rdata align=256
 ALIGN	256
 	DD	0x5a827999,0x5a827999,0x5a827999,0x5a827999
 	DD	0x5a827999,0x5a827999,0x5a827999,0x5a827999
@@ -7402,6 +7438,7 @@ DB	32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,120
 DB	56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77
 DB	83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110
 DB	115,115,108,46,111,114,103,62,0
+section .text
 EXTERN	__imp_RtlVirtualUnwind
 
 ALIGN	16

@@ -127,7 +127,7 @@ function MapIdLargeHoley() {
 // Setup and Run
 // ----------------------------------------------------------------------------
 
-load('../base.js');
+d8.file.execute('../base.js');
 
 var success = true;
 

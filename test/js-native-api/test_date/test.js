@@ -2,7 +2,7 @@
 
 const common = require('../../common');
 
-// This tests the date-related n-api calls
+// This tests the date-related Node-API calls
 
 const assert = require('assert');
 const test_date = require(`./build/${common.buildType}/test_date`);

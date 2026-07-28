@@ -25,19 +25,19 @@ U_NAMESPACE_BEGIN
 
 TransliterationRuleData::TransliterationRuleData(UErrorCode& status)
  : UMemory(), ruleSet(status), variableNames(status),
-    variables(0), variablesAreOwned(TRUE)
+    variables(nullptr), variablesAreOwned(true)
 {
     if (U_FAILURE(status)) {
         return;
     }
     variableNames.setValueDeleter(uprv_deleteUObject);
-    variables = 0;
+    variables = nullptr;
     variablesLength = 0;
 }
 
 TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& other) :
     UMemory(other), ruleSet(other.ruleSet),
-    variablesAreOwned(TRUE),
+    variablesAreOwned(true),
     variablesBase(other.variablesBase),
     variablesLength(other.variablesLength)
 {
@@ -46,39 +46,39 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
     variableNames.setValueDeleter(uprv_deleteUObject);
     int32_t pos = UHASH_FIRST;
     const UHashElement *e;
-    while ((e = other.variableNames.nextElement(pos)) != 0) {
+    while ((e = other.variableNames.nextElement(pos)) != nullptr) {
         UnicodeString* value =
-            new UnicodeString(*(const UnicodeString*)e->value.pointer);
+            new UnicodeString(*static_cast<const UnicodeString*>(e->value.pointer));
         // Exit out if value could not be created.
-        if (value == NULL) {
-		return;
+        if (value == nullptr) {
+        	return;
         }
-        variableNames.put(*(UnicodeString*)e->key.pointer, value, status);
+        variableNames.put(*static_cast<UnicodeString*>(e->key.pointer), value, status);
     }
 
-    variables = 0;
-    if (other.variables != 0) {
-        variables = (UnicodeFunctor **)uprv_malloc(variablesLength * sizeof(UnicodeFunctor *));
-        /* test for NULL */
-        if (variables == 0) {
+    variables = nullptr;
+    if (other.variables != nullptr) {
+        variables = static_cast<UnicodeFunctor**>(uprv_malloc(variablesLength * sizeof(UnicodeFunctor*)));
+        /* test for nullptr */
+        if (variables == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
         for (i=0; i<variablesLength; ++i) {
             variables[i] = other.variables[i]->clone();
-            if (variables[i] == NULL) {
+            if (variables[i] == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 break;
             }
         }
     }
-    // Remove the array and exit if memory allocation error occured.
+    // Remove the array and exit if memory allocation error occurred.
     if (U_FAILURE(status)) {
         for (int32_t n = i-1; n >= 0; n--) {
             delete variables[n];
         }
         uprv_free(variables);
-        variables = NULL;
+        variables = nullptr;
         return;
     }
 
@@ -87,7 +87,7 @@ TransliterationRuleData::TransliterationRuleData(const TransliterationRuleData& 
 }
 
 TransliterationRuleData::~TransliterationRuleData() {
-    if (variablesAreOwned && variables != 0) {
+    if (variablesAreOwned && variables != nullptr) {
         for (int32_t i=0; i<variablesLength; ++i) {
             delete variables[i];
         }
@@ -98,19 +98,19 @@ TransliterationRuleData::~TransliterationRuleData() {
 UnicodeFunctor*
 TransliterationRuleData::lookup(UChar32 standIn) const {
     int32_t i = standIn - variablesBase;
-    return (i >= 0 && i < variablesLength) ? variables[i] : 0;
+    return (i >= 0 && i < variablesLength) ? variables[i] : nullptr;
 }
 
 UnicodeMatcher*
 TransliterationRuleData::lookupMatcher(UChar32 standIn) const {
     UnicodeFunctor *f = lookup(standIn);
-    return (f != 0) ? f->toMatcher() : 0;
+    return f != nullptr ? f->toMatcher() : nullptr;
 }
 
 UnicodeReplacer*
 TransliterationRuleData::lookupReplacer(UChar32 standIn) const {
     UnicodeFunctor *f = lookup(standIn);
-    return (f != 0) ? f->toReplacer() : 0;
+    return f != nullptr ? f->toReplacer() : nullptr;
 }
 
 

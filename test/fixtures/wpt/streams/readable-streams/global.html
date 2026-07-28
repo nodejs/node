@@ -1,0 +1,162 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ensure Stream objects are created in expected globals. </title>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<body></body>
+<script>
+// These tests are loosely derived from Gecko's readable-stream-globals.js,
+// which is a test case designed around the JS Streams implementation.
+//
+// Unlike in JS Streams, where function calls switch realms and change
+// the resulting global of the resulting objects, in WebIDL streams,
+// the global of an object is (currently underspecified, but) intended
+// to be the "Relevant Global" of the 'this' object.
+//
+// See:
+// https://html.spec.whatwg.org/multipage/webappapis.html#relevant
+// https://github.com/whatwg/streams/issues/1213
+"use strict"
+
+const iframe = document.createElement("iframe")
+document.body.append(iframe)
+
+const otherGlobal = iframe.contentWindow;
+const OtherReadableStream = otherGlobal.ReadableStream
+const OtherReadableStreamDefaultReader = otherGlobal.ReadableStreamDefaultReader;
+const OtherReadableStreamDefaultController = otherGlobal.ReadableStreamDefaultController;
+
+promise_test(async () => {
+
+    // Controllers
+    let controller;
+    let otherController;
+
+    // Get Stream Prototypes and controllers.
+    let streamController;
+    let stream = new ReadableStream({start(c) { streamController = c; }});
+
+    const callReaderThisGlobal = OtherReadableStream.prototype.getReader.call(stream);
+    const newReaderOtherGlobal = new OtherReadableStreamDefaultReader(new ReadableStream());
+
+    // Relevant Global Checking.
+    assert_equals(callReaderThisGlobal instanceof ReadableStreamDefaultReader, true, "reader was created in this global (.call)");
+    assert_equals(newReaderOtherGlobal instanceof ReadableStreamDefaultReader, false, "reader was created in other global (new)");
+
+    assert_equals(callReaderThisGlobal instanceof OtherReadableStreamDefaultReader, false, "reader isn't coming from other global (.call)" );
+    assert_equals(newReaderOtherGlobal instanceof OtherReadableStreamDefaultReader, true, "reader isn't coming from other global (new)");
+
+    assert_equals(otherController instanceof ReadableStreamDefaultController, false, "otherController should come from other gloal")
+
+
+    const request = callReaderThisGlobal.read();
+    assert_equals(request instanceof Promise, true, "Promise comes from this global");
+
+    streamController.close();
+    const requestResult = await request;
+    assert_equals(requestResult instanceof Object, true, "returned object comes from this global");
+}, "Stream objects created in expected globals")
+
+promise_test(async () => {
+    const stream = new ReadableStream();
+    const otherReader = new OtherReadableStreamDefaultReader(stream);
+    const cancelPromise = ReadableStreamDefaultReader.prototype.cancel.call(otherReader);
+    assert_equals(cancelPromise instanceof Promise, true, "Cancel promise comes from the same global as the stream");
+    assert_equals(await cancelPromise, undefined, "Cancel promise resolves to undefined");
+}, "Cancel promise is created in same global as stream")
+
+// Refresh the streams and controllers.
+function getFreshInstances() {
+    let controller;
+    let otherController;
+    let stream = new ReadableStream({
+        start(c) {
+            controller = c;
+        }
+    });
+
+    new OtherReadableStream({
+        start(c) {
+            otherController = c;
+        }
+    });
+
+    return {stream, controller, otherController}
+}
+
+
+promise_test(async () => {
+    // Test closed promise on reader from another global (connected to a this-global stream)
+    const {stream, controller, otherController} = getFreshInstances();
+
+    const otherReader = new OtherReadableStreamDefaultReader(stream);
+    const closedPromise = otherReader.closed;
+    assert_equals(closedPromise instanceof otherGlobal.Promise, true, "Closed promise in other global.");
+}, "Closed Promise in correct global");
+
+promise_test(async () => {
+    const {stream, controller, otherController} = getFreshInstances();
+
+    const otherReader = OtherReadableStream.prototype.getReader.call(stream);
+    assert_equals(otherReader instanceof ReadableStreamDefaultReader, true, "Reader comes from this global")
+    const request = otherReader.read();
+    assert_equals(request instanceof Promise, true, "Promise still comes from stream's realm (this realm)");
+    otherController.close.call(controller);
+    assert_equals((await request) instanceof otherGlobal.Object, true, "Object comes from other realm");
+}, "Reader objects in correct global");
+
+
+promise_test(async () => {
+    const {stream, controller, otherController} = getFreshInstances();
+    assert_equals(controller.desiredSize, 1, "Desired size is expected");
+    Object.defineProperty(controller, "desiredSize",
+        Object.getOwnPropertyDescriptor(OtherReadableStreamDefaultController.prototype, "desiredSize"));
+    assert_equals(controller.desiredSize, 1, "Grafting getter from other prototype still returns desired size");
+}, "Desired size can be grafted from one prototype to another");
+
+promise_test(async () => {
+    const {stream, controller, otherController} = getFreshInstances();
+
+    // Make sure the controller close method returns the correct TypeError
+    const enqueuedError = { name: "enqueuedError" };
+    controller.error(enqueuedError);
+
+    assert_throws_js(TypeError, () => controller.close(),  "Current Global controller");
+    assert_throws_js(otherGlobal.TypeError, () => otherController.close.call(controller),  "Other global controller");
+}, "Closing errored stream throws object in appropriate global")
+
+promise_test(async () => {
+    const {otherController} = getFreshInstances();
+    // We can enqueue chunks from multiple globals
+    const chunk = { name: "chunk" };
+
+    let controller;
+    const stream = new ReadableStream({ start(c) { controller = c; } }, { size() {return 1} });
+    otherController.enqueue.call(controller, chunk);
+    otherController.enqueue.call(controller, new otherGlobal.Uint8Array(10));
+    controller.enqueue(new otherGlobal.Uint8Array(10));
+}, "Can enqueue chunks from multiple globals")
+
+promise_test(async () => {
+    const {stream, controller, otherController} = getFreshInstances();
+    const chunk = { name: "chunk" };
+
+    // We get the correct type errors out of a closed stream.
+    controller.close();
+    assert_throws_js(TypeError, () => controller.enqueue(new otherGlobal.Uint8Array(10)));
+    assert_throws_js(otherGlobal.TypeError, () => otherController.enqueue.call(controller, chunk));
+    assert_throws_js(otherGlobal.TypeError, () => otherController.enqueue.call(controller, new otherGlobal.Uint8Array(10)));
+}, "Correct errors and globals for closed streams");
+
+
+promise_test(async () => {
+    const {stream, controller, otherController} = getFreshInstances();
+    // Branches out of tee are in the correct global
+
+    const [branch1, branch2] = otherGlobal.ReadableStream.prototype.tee.call(stream);
+    assert_equals(branch1 instanceof ReadableStream, true, "Branch created in this global (as stream is in this global)");
+    assert_equals(branch2 instanceof ReadableStream, true, "Branch created in this global (as stream is in this global)");
+}, "Tee Branches in correct global");
+</script>

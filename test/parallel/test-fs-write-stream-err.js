@@ -40,13 +40,14 @@ fs.write = function() {
       console.error('first write');
       // First time is ok.
       return write.apply(fs, arguments);
-    case 1:
+    case 1: {
       // Then it breaks.
       console.error('second write');
       const cb = arguments[arguments.length - 1];
       return process.nextTick(function() {
         cb(err);
       });
+    }
     default:
       // It should not be called again!
       throw new Error('BOOM!');
@@ -67,10 +68,10 @@ stream.on('error', common.mustCall(function(err_) {
 }));
 
 
-stream.write(Buffer.allocUnsafe(256), function() {
+stream.write(Buffer.allocUnsafe(256), common.mustCall(() => {
   console.error('first cb');
   stream.write(Buffer.allocUnsafe(256), common.mustCall(function(err_) {
     console.error('second cb');
     assert.strictEqual(err_, err);
   }));
-});
+}));

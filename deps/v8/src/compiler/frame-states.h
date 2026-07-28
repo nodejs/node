@@ -14,6 +14,11 @@
 namespace v8 {
 namespace internal {
 
+namespace wasm {
+class CanonicalValueType;
+class CanonicalSig;
+}  // namespace wasm
+
 namespace compiler {
 
 class JSGraph;
@@ -59,13 +64,23 @@ class OutputFrameStateCombine {
   size_t const parameter_;
 };
 
-
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kInterpretedFunction,            // Represents an InterpretedFrame.
-  kArgumentsAdaptor,               // Represents an ArgumentsAdaptorFrame.
-  kConstructStub,                  // Represents a ConstructStubFrame.
-  kBuiltinContinuation,            // Represents a continuation to a stub.
+  kUnoptimizedFunction,    // Represents an UnoptimizedJSFrame.
+  kInlinedExtraArguments,  // Represents inlined extra arguments.
+  kConstructCreateStub,    // Represents a frame created before creating a new
+                           // object in the construct stub.
+  kConstructInvokeStub,    // Represents a frame created before invoking the
+                           // constructor in the construct stub.
+  kBuiltinContinuation,    // Represents a continuation to a stub.
+#if V8_ENABLE_WEBASSEMBLY  // ↓ WebAssembly only
+  kJSToWasmBuiltinContinuation,    // Represents a lazy deopt continuation for a
+                                   // JS to Wasm call.
+  kWasmInlinedIntoJS,              // Represents a Wasm function inlined into a
+                                   // JS function.
+  kLiftoffFunction,                // Represents an unoptimized (liftoff) wasm
+                                   // function.
+#endif                             // ↑ WebAssembly only
   kJavaScriptBuiltinContinuation,  // Represents a continuation to a JavaScipt
                                    // builtin.
   kJavaScriptBuiltinContinuationWithCatch  // Represents a continuation to a
@@ -75,96 +90,187 @@ enum class FrameStateType {
 
 class FrameStateFunctionInfo {
  public:
-  FrameStateFunctionInfo(FrameStateType type, int parameter_count,
-                         int local_count,
-                         Handle<SharedFunctionInfo> shared_info)
+  FrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
+                         uint16_t max_arguments, int local_count,
+                         IndirectHandle<SharedFunctionInfo> shared_info,
+                         MaybeIndirectHandle<BytecodeArray> bytecode_array,
+                         uint32_t wasm_liftoff_frame_size = 0,
+                         uint32_t wasm_function_index = -1)
       : type_(type),
         parameter_count_(parameter_count),
+        max_arguments_(max_arguments),
         local_count_(local_count),
-        shared_info_(shared_info) {}
+#if V8_ENABLE_WEBASSEMBLY
+        wasm_liftoff_frame_size_(wasm_liftoff_frame_size),
+        wasm_function_index_(wasm_function_index),
+#endif
+        shared_info_(shared_info),
+        bytecode_array_(bytecode_array) {
+  }
 
   int local_count() const { return local_count_; }
-  int parameter_count() const { return parameter_count_; }
-  Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  uint16_t parameter_count() const { return parameter_count_; }
+  uint16_t parameter_count_without_receiver() const {
+    DCHECK_GT(parameter_count_, 0);
+    return parameter_count_ - 1;
+  }
+  uint16_t max_arguments() const { return max_arguments_; }
+  IndirectHandle<SharedFunctionInfo> shared_info() const {
+    return shared_info_;
+  }
+  MaybeIndirectHandle<BytecodeArray> bytecode_array() const {
+    return bytecode_array_;
+  }
   FrameStateType type() const { return type_; }
+  uint32_t wasm_liftoff_frame_size() const {
+    return wasm_liftoff_frame_size_;
+  }
+  uint32_t wasm_function_index() const { return wasm_function_index_; }
 
   static bool IsJSFunctionType(FrameStateType type) {
-    return type == FrameStateType::kInterpretedFunction ||
+    // This must be in sync with TRANSLATION_JS_FRAME_OPCODE_LIST in
+    // translation-opcode.h or bad things happen.
+    return type == FrameStateType::kUnoptimizedFunction ||
            type == FrameStateType::kJavaScriptBuiltinContinuation ||
            type == FrameStateType::kJavaScriptBuiltinContinuationWithCatch;
   }
 
  private:
-  FrameStateType const type_;
-  int const parameter_count_;
-  int const local_count_;
-  Handle<SharedFunctionInfo> const shared_info_;
+  const FrameStateType type_;
+  const uint16_t parameter_count_;
+  const uint16_t max_arguments_;
+  const int local_count_;
+#if V8_ENABLE_WEBASSEMBLY
+  const uint32_t wasm_liftoff_frame_size_ = 0;
+  const uint32_t wasm_function_index_ = -1;
+#else
+  static constexpr uint32_t wasm_liftoff_frame_size_ = 0;
+  static constexpr uint32_t wasm_function_index_ = -1;
+#endif
+  const IndirectHandle<SharedFunctionInfo> shared_info_;
+  const MaybeIndirectHandle<BytecodeArray> bytecode_array_;
 };
 
+V8_EXPORT_PRIVATE bool operator==(FrameStateFunctionInfo const&,
+                                  FrameStateFunctionInfo const&);
+
+#if V8_ENABLE_WEBASSEMBLY
+class JSToWasmFrameStateFunctionInfo : public FrameStateFunctionInfo {
+ public:
+  JSToWasmFrameStateFunctionInfo(FrameStateType type, uint16_t parameter_count,
+                                 int local_count,
+                                 IndirectHandle<SharedFunctionInfo> shared_info,
+                                 const wasm::CanonicalSig* signature)
+      : FrameStateFunctionInfo(type, parameter_count, 0, local_count,
+                               shared_info, {}),
+        signature_(signature) {
+    DCHECK_NOT_NULL(signature);
+  }
+
+  const wasm::CanonicalSig* signature() const { return signature_; }
+
+ private:
+  const wasm::CanonicalSig* const signature_;
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 class FrameStateInfo final {
  public:
-  FrameStateInfo(BailoutId bailout_id, OutputFrameStateCombine state_combine,
+  FrameStateInfo(BytecodeOffset bailout_id,
+                 OutputFrameStateCombine state_combine,
                  const FrameStateFunctionInfo* info)
       : bailout_id_(bailout_id),
         frame_state_combine_(state_combine),
         info_(info) {}
 
   FrameStateType type() const {
-    return info_ == nullptr ? FrameStateType::kInterpretedFunction
+    return info_ == nullptr ? FrameStateType::kUnoptimizedFunction
                             : info_->type();
   }
-  BailoutId bailout_id() const { return bailout_id_; }
+  BytecodeOffset bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
-  MaybeHandle<SharedFunctionInfo> shared_info() const {
-    return info_ == nullptr ? MaybeHandle<SharedFunctionInfo>()
+  MaybeIndirectHandle<SharedFunctionInfo> shared_info() const {
+    return info_ == nullptr ? MaybeIndirectHandle<SharedFunctionInfo>()
                             : info_->shared_info();
   }
-  int parameter_count() const {
-    return info_ == nullptr ? 0 : info_->parameter_count();
+  MaybeIndirectHandle<BytecodeArray> bytecode_array() const {
+    return info_ == nullptr ? MaybeIndirectHandle<BytecodeArray>()
+                            : info_->bytecode_array();
+  }
+  uint16_t parameter_count() const {
+    DCHECK_NOT_NULL(info_);
+    return info_->parameter_count();
+  }
+  uint16_t parameter_count_without_receiver() const {
+    DCHECK_NOT_NULL(info_);
+    return info_->parameter_count_without_receiver();
+  }
+  uint16_t max_arguments() const {
+    DCHECK_NOT_NULL(info_);
+    return info_->max_arguments();
   }
   int local_count() const {
-    return info_ == nullptr ? 0 : info_->local_count();
+    DCHECK_NOT_NULL(info_);
+    return info_->local_count();
+  }
+  int stack_count() const {
+    return type() == FrameStateType::kUnoptimizedFunction ? 1 : 0;
   }
   const FrameStateFunctionInfo* function_info() const { return info_; }
 
  private:
-  BailoutId const bailout_id_;
+  BytecodeOffset const bailout_id_;
   OutputFrameStateCombine const frame_state_combine_;
   const FrameStateFunctionInfo* const info_;
 };
 
-bool operator==(FrameStateInfo const&, FrameStateInfo const&);
-bool operator!=(FrameStateInfo const&, FrameStateInfo const&);
+V8_EXPORT_PRIVATE bool operator==(FrameStateInfo const&, FrameStateInfo const&);
+V8_EXPORT_PRIVATE bool operator!=(FrameStateInfo const&, FrameStateInfo const&);
 
 size_t hash_value(FrameStateInfo const&);
 
 std::ostream& operator<<(std::ostream&, FrameStateInfo const&);
 
-static constexpr int kFrameStateParametersInput = 0;
-static constexpr int kFrameStateLocalsInput = 1;
-static constexpr int kFrameStateStackInput = 2;
-static constexpr int kFrameStateContextInput = 3;
-static constexpr int kFrameStateFunctionInput = 4;
-static constexpr int kFrameStateOuterStateInput = 5;
-static constexpr int kFrameStateInputCount = kFrameStateOuterStateInput + 1;
-
 enum class ContinuationFrameStateMode { EAGER, LAZY, LAZY_WITH_CATCH };
 
+uint8_t DeoptimizerParameterCountFor(ContinuationFrameStateMode mode);
+
+class FrameState;
+
 FrameState CreateStubBuiltinContinuationFrameState(
-    JSGraph* graph, Builtins::Name name, Node* context, Node* const* parameters,
+    JSGraph* graph, Builtin name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode);
+    ContinuationFrameStateMode mode,
+    const wasm::CanonicalSig* signature = nullptr);
+
+#if V8_ENABLE_WEBASSEMBLY
+FrameState CreateJSWasmCallBuiltinContinuationFrameState(
+    JSGraph* jsgraph, Node* context, Node* outer_frame_state,
+    const wasm::CanonicalSig* signature);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 FrameState CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* graph, const SharedFunctionInfoRef& shared, Builtins::Name name,
-    Node* target, Node* context, Node* const* stack_parameters,
-    int stack_parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode);
+    JSGraph* graph, SharedFunctionInfoRef shared, Builtin name, Node* target,
+    Node* context, Node* const* stack_parameters, int stack_parameter_count,
+    Node* outer_frame_state, ContinuationFrameStateMode mode);
 
 FrameState CreateGenericLazyDeoptContinuationFrameState(
-    JSGraph* graph, const SharedFunctionInfoRef& shared, Node* target,
-    Node* context, Node* receiver, Node* outer_frame_state);
+    JSGraph* graph, SharedFunctionInfoRef shared, Node* target, Node* context,
+    Node* receiver, Node* outer_frame_state);
+
+// Creates GenericLazyDeoptContinuationFrameState if
+// --experimental-stack-trace-frames is enabled, returns outer_frame_state
+// otherwise.
+Node* CreateInlinedApiFunctionFrameState(JSGraph* graph,
+                                         SharedFunctionInfoRef shared,
+                                         Node* target, Node* context,
+                                         Node* receiver,
+                                         Node* outer_frame_state);
+
+// Creates a FrameState otherwise identical to `frame_state` except the
+// OutputFrameStateCombine is changed.
+FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,
+                           OutputFrameStateCombine changed_state_combine);
 
 }  // namespace compiler
 }  // namespace internal

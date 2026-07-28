@@ -1,10 +1,9 @@
 {
   "targets": [
     {
-      "target_name": "binding",
+      "target_name": "3_callbacks",
       "sources": [
-        "../entry_point.c",
-        "binding.c"
+        "3_callbacks.c"
       ]
     }
   ]

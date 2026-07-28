@@ -12,11 +12,13 @@ const dftProtocol = {};
 
 // Test for immutable `opts`
 {
-  const opts = { foo: 'bar', ALPNProtocols: [ 'http/1.1' ] };
+  const opts = common.mustNotMutateObjectDeep({
+    foo: 'bar',
+    ALPNProtocols: [ 'http/1.1' ],
+  });
   const server = https.createServer(opts);
 
   tls.convertALPNProtocols([ 'http/1.1' ], dftProtocol);
-  assert.deepStrictEqual(opts, { foo: 'bar', ALPNProtocols: [ 'http/1.1' ] });
   assert.strictEqual(server.ALPNProtocols.compare(dftProtocol.ALPNProtocols),
                      0);
 }
@@ -42,4 +44,15 @@ const dftProtocol = {};
   assert.strictEqual(server.ALPNProtocols.compare(dftProtocol.ALPNProtocols),
                      0);
   assert.strictEqual(server.listeners('request').length, 0);
+}
+
+
+// Validate that `createServer` only uses defaults when appropriate
+{
+  const ALPNCallback = () => {};
+  const server = https.createServer({
+    ALPNCallback,
+  });
+  assert.strictEqual(server.ALPNProtocols, undefined);
+  assert.strictEqual(server.ALPNCallback, ALPNCallback);
 }

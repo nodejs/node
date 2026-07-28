@@ -4,7 +4,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   n: [1e6],
-  type: ['buffer', 'string']
+  type: ['buffer', 'string'],
 });
 
 const zeroBuffer = Buffer.alloc(0);

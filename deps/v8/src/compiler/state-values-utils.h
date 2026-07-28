@@ -7,7 +7,6 @@
 
 #include <array>
 
-#include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/zone/zone-hashmap.h"
@@ -19,15 +18,15 @@ class BitVector;
 
 namespace compiler {
 
-class Graph;
+class TFGraph;
+class BytecodeLivenessState;
 
 class V8_EXPORT_PRIVATE StateValuesCache {
  public:
   explicit StateValuesCache(JSGraph* js_graph);
 
   Node* GetNodeForValues(Node** values, size_t count,
-                         const BitVector* liveness = nullptr,
-                         int liveness_offset = 0);
+                         const BytecodeLivenessState* liveness = nullptr);
 
  private:
   static const size_t kMaxInputCount = 8;
@@ -57,22 +56,19 @@ class V8_EXPORT_PRIVATE StateValuesCache {
   // at {values_idx}, sparsely encoding according to {liveness}. {node_count} is
   // updated with the new number of inputs in {node_buffer}, and a bitmask of
   // the sparse encoding is returned.
-  SparseInputMask::BitMaskType FillBufferWithValues(WorkingBuffer* node_buffer,
-                                                    size_t* node_count,
-                                                    size_t* values_idx,
-                                                    Node** values, size_t count,
-                                                    const BitVector* liveness,
-                                                    int liveness_offset);
+  SparseInputMask::BitMaskType FillBufferWithValues(
+      WorkingBuffer* node_buffer, size_t* node_count, size_t* values_idx,
+      Node** values, size_t count, const BytecodeLivenessState* liveness);
 
   Node* BuildTree(size_t* values_idx, Node** values, size_t count,
-                  const BitVector* liveness, int liveness_offset, size_t level);
+                  const BytecodeLivenessState* liveness, size_t level);
 
   WorkingBuffer* GetWorkingSpace(size_t level);
   Node* GetEmptyStateValues();
   Node* GetValuesNodeFromCache(Node** nodes, size_t count,
                                SparseInputMask mask);
 
-  Graph* graph() { return js_graph_->graph(); }
+  TFGraph* graph() { return js_graph_->graph(); }
   CommonOperatorBuilder* common() { return js_graph_->common(); }
 
   Zone* zone() { return graph()->zone(); }
@@ -126,6 +122,17 @@ class V8_EXPORT_PRIVATE StateValuesAccess {
 
   size_t size() const;
   iterator begin() const { return iterator(node_); }
+  iterator begin_without_receiver() const {
+    return ++begin();  // Skip the receiver.
+  }
+  iterator begin_without_receiver_and_skip(int n_skips) {
+    iterator it = begin_without_receiver();
+    while (n_skips > 0 && !it.done()) {
+      ++it;
+      --n_skips;
+    }
+    return it;
+  }
   iterator end() const { return iterator(); }
 
  private:

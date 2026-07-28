@@ -1,14 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-""" Unit tests for the xcode.py file. """
+"""Unit tests for the xcode.py file."""
 
-import gyp.generator.xcode as xcode
-import unittest
 import sys
+import unittest
+
+from gyp.generator import xcode
 
 
 class TestEscapeXcodeDefine(unittest.TestCase):

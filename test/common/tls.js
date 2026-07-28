@@ -1,9 +1,9 @@
-/* eslint-disable node-core/require-common-first, node-core/required-modules */
 /* eslint-disable node-core/crypto-check */
 
 'use strict';
 const crypto = require('crypto');
 const net = require('net');
+const assert = require('assert');
 
 exports.ccs = Buffer.from('140303000101', 'hex');
 
@@ -15,9 +15,9 @@ class TestTLSSocket extends net.Socket {
     this.handshake_list = [];
     // AES128-GCM-SHA256
     this.ciphers = Buffer.from('000002009c0', 'hex');
-    this.pre_master_secret =
+    this.pre_primary_secret =
       Buffer.concat([this.version, crypto.randomBytes(46)]);
-    this.master_secret = null;
+    this.primary_secret = null;
     this.write_seq = 0;
     this.client_random = crypto.randomBytes(32);
 
@@ -26,12 +26,12 @@ class TestTLSSocket extends net.Socket {
     });
 
     this.on('server_random', (server_random) => {
-      this.master_secret = PRF12('sha256', this.pre_master_secret,
-                                 'master secret',
-                                 Buffer.concat([this.client_random,
-                                                server_random]),
-                                 48);
-      const key_block = PRF12('sha256', this.master_secret,
+      this.primary_secret = PRF12('sha256', this.pre_primary_secret,
+                                  'primary secret',
+                                  Buffer.concat([this.client_random,
+                                                 server_random]),
+                                  48);
+      const key_block = PRF12('sha256', this.primary_secret,
                               'key expansion',
                               Buffer.concat([server_random,
                                              this.client_random]),
@@ -44,21 +44,21 @@ class TestTLSSocket extends net.Socket {
   createClientHello() {
     const compressions = Buffer.from('0100', 'hex'); // null
     const msg = addHandshakeHeader(0x01, Buffer.concat([
-      this.version, this.client_random, this.ciphers, compressions
+      this.version, this.client_random, this.ciphers, compressions,
     ]));
     this.emit('handshake', msg);
     return addRecordHeader(0x16, msg);
   }
 
   createClientKeyExchange() {
-    const encrypted_pre_master_secret = crypto.publicEncrypt({
+    const encrypted_pre_primary_secret = crypto.publicEncrypt({
       key: this.server_cert,
-      padding: crypto.constants.RSA_PKCS1_PADDING
-    }, this.pre_master_secret);
+      padding: crypto.constants.RSA_PKCS1_PADDING,
+    }, this.pre_primary_secret);
     const length = Buffer.alloc(2);
-    length.writeUIntBE(encrypted_pre_master_secret.length, 0, 2);
+    length.writeUIntBE(encrypted_pre_primary_secret.length, 0, 2);
     const msg = addHandshakeHeader(0x10, Buffer.concat([
-      length, encrypted_pre_master_secret]));
+      length, encrypted_pre_primary_secret]));
     this.emit('handshake', msg);
     return addRecordHeader(0x16, msg);
   }
@@ -67,7 +67,7 @@ class TestTLSSocket extends net.Socket {
     const shasum = crypto.createHash('sha256');
     shasum.update(Buffer.concat(this.handshake_list));
     const message_hash = shasum.digest();
-    const r = PRF12('sha256', this.master_secret,
+    const r = PRF12('sha256', this.primary_secret,
                     'client finished', message_hash, 12);
     const msg = addHandshakeHeader(0x14, r);
     this.emit('handshake', msg);
@@ -174,4 +174,58 @@ function P_hash(algo, secret, seed, size) {
   return result;
 }
 
+exports.assertIsCAArray = function assertIsCAArray(certs) {
+  assert(Array.isArray(certs));
+  assert(certs.length > 0);
+
+  // The certificates looks PEM-encoded.
+  for (const cert of certs) {
+    const trimmed = cert.trim();
+    assert.match(trimmed, /^-----BEGIN CERTIFICATE-----/);
+    assert.match(trimmed, /-----END CERTIFICATE-----$/);
+  }
+};
+
+function extractMetadata(cert) {
+  const x509 = new crypto.X509Certificate(cert);
+  return {
+    serialNumber: x509.serialNumber,
+    issuer: x509.issuer,
+    subject: x509.subject,
+  };
+}
+exports.extractMetadata = extractMetadata;
+
+// To compare two certificates, we can just compare serialNumber, issuer,
+// and subject like X509_comp(). We can't just compare two strings because
+// the line endings or order of the fields may differ after PEM serdes by
+// OpenSSL.
+exports.assertEqualCerts = function assertEqualCerts(a, b) {
+  const setA = new Set(a.map(extractMetadata));
+  const setB = new Set(b.map(extractMetadata));
+  assert.deepStrictEqual(setA, setB);
+};
+
+exports.includesCert = function includesCert(certs, cert) {
+  const metadata = extractMetadata(cert);
+  for (const c of certs) {
+    const cMetadata = extractMetadata(c);
+    if (cMetadata.serialNumber === metadata.serialNumber &&
+        cMetadata.issuer === metadata.issuer &&
+        cMetadata.subject === metadata.subject) {
+      return true;
+    }
+  }
+  return false;
+};
+
 exports.TestTLSSocket = TestTLSSocket;
+
+// Dumps certs into a file to pass safely into test/fixtures/list-certs.js
+exports.writeCerts = function writeCerts(certs, filename) {
+  const fs = require('fs');
+  for (const cert of certs) {
+    const x509 = new crypto.X509Certificate(cert);
+    fs.appendFileSync(filename, x509.toString());
+  }
+};

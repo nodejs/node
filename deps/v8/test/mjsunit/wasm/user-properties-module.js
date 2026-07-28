@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc --verify-heap
+// Flags: --expose-gc --verify-heap
 
-load("test/mjsunit/wasm/user-properties-common.js");
+d8.file.execute("test/mjsunit/wasm/user-properties-common.js");
 
 (function ModuleTest() {
   for (f of [x => (x + 19 + globalCounter), minus18]) {
@@ -17,8 +17,8 @@ load("test/mjsunit/wasm/user-properties-common.js");
         kExprLocalGet, 0,
         kExprCallFunction, 0])
       .exportAs("main");
-    builder.addMemory(1, 1, false)
-      .exportMemoryAs("memory")
+    builder.addMemory(1, 1);
+    builder.exportMemoryAs("memory");
 
     let module = builder.toModule();
     testProperties(module);

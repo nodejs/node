@@ -15,7 +15,7 @@
 *   Date        Name        Description
 *   06/10/99    stephen     Creation.
 *   02/07/08    Spieth      Correct XLIFF generation on EBCDIC platform
-*
+*   
 *******************************************************************************
 */
 
@@ -30,7 +30,10 @@ void
 get_dirname(char *dirname,
             const char *filename)
 {
-  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR) + 1;
+  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR);
+  if (lastSlash != NULL) {
+    lastSlash++;
+  }
 
   if(lastSlash>filename) {
     uprv_strncpy(dirname, filename, (lastSlash - filename));
@@ -46,7 +49,10 @@ get_basename(char *basename,
              const char *filename)
 {
   /* strip off any leading directory portions */
-  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR) + 1;
+  const char *lastSlash = uprv_strrchr(filename, U_FILE_SEP_CHAR);
+  if (lastSlash != NULL) {
+    lastSlash++;
+  }
   char *lastDot;
 
   if(lastSlash>filename) {
@@ -64,7 +70,7 @@ get_basename(char *basename,
 }
 
 #define MAX_DIGITS 10
-int32_t
+int32_t 
 itostr(char * buffer, int32_t i, uint32_t radix, int32_t pad)
 {
     const char digits[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
@@ -74,12 +80,12 @@ itostr(char * buffer, int32_t i, uint32_t radix, int32_t pad)
     int digit;
     int32_t j;
     char temp;
-
+    
     /* if i is negative make it positive */
     if(i<0){
         i=-i;
     }
-
+    
     do{
         digit = (int)(i % radix);
         buffer[length++]= digits[digit];
@@ -89,7 +95,7 @@ itostr(char * buffer, int32_t i, uint32_t radix, int32_t pad)
     while (length < pad){
         buffer[length++] = '0';/*zero padding */
     }
-
+    
     /* if i is negative add the negative sign */
     if(save < 0){
         buffer[length++]='-';
@@ -101,7 +107,7 @@ itostr(char * buffer, int32_t i, uint32_t radix, int32_t pad)
     }
 
     num= (pad>=length) ? pad :length;
-
+ 
 
     /* Reverses the string */
     for (j = 0; j < (num / 2); j++){

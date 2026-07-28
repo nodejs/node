@@ -36,7 +36,7 @@ const WINDOW = 200; // Why does this need to be so big?
     assert.ok(diff > 0);
     console.error(`diff: ${diff}`);
 
-    assert.ok(1000 <= diff && diff < 1000 + WINDOW);
+    assert.ok(Math.abs(diff - 1000) < WINDOW);
   }), 1000);
 }
 
@@ -61,7 +61,7 @@ const WINDOW = 200; // Why does this need to be so big?
 
     const t = interval_count * 1000;
 
-    assert.ok(t <= diff && diff < t + (WINDOW * interval_count));
+    assert.ok(Math.abs(diff - t) < WINDOW * interval_count);
 
     assert.ok(interval_count <= 3, `interval_count: ${interval_count}`);
     if (interval_count === 3)
@@ -72,41 +72,41 @@ const WINDOW = 200; // Why does this need to be so big?
 
 // Single param:
 {
-  setTimeout(function(param) {
+  setTimeout(common.mustCall(function(param) {
     assert.strictEqual(param, 'test param');
-  }, 1000, 'test param');
+  }), 1000, 'test param');
 }
 
 {
   let interval_count = 0;
-  setInterval(function(param) {
+  setInterval(common.mustCall(function(param) {
     ++interval_count;
     assert.strictEqual(param, 'test param');
 
     if (interval_count === 3)
       clearInterval(this);
-  }, 1000, 'test param');
+  }, 3), 1000, 'test param');
 }
 
 
 // Multiple param
 {
-  setTimeout(function(param1, param2) {
+  setTimeout(common.mustCall(function(param1, param2) {
     assert.strictEqual(param1, 'param1');
     assert.strictEqual(param2, 'param2');
-  }, 1000, 'param1', 'param2');
+  }), 1000, 'param1', 'param2');
 }
 
 {
   let interval_count = 0;
-  setInterval(function(param1, param2) {
+  setInterval(common.mustCall(function(param1, param2) {
     ++interval_count;
     assert.strictEqual(param1, 'param1');
     assert.strictEqual(param2, 'param2');
 
     if (interval_count === 3)
       clearInterval(this);
-  }, 1000, 'param1', 'param2');
+  }, 3), 1000, 'param1', 'param2');
 }
 
 // setInterval(cb, 0) should be called multiple times.

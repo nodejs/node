@@ -3,20 +3,17 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const assert = require('assert');
 const h2 = require('http2');
+
+common.expectWarning(
+  'DeprecationWarning',
+  'http2Stream.priority is longer supported after priority signalling was deprecated in RFC 9113',
+  'DEP0194');
 
 const server = h2.createServer();
 
 // We use the lower-level API here
 server.on('stream', common.mustCall(onStream));
-
-function onPriority(stream, parent, weight, exclusive) {
-  assert.strictEqual(stream, 1);
-  assert.strictEqual(parent, 0);
-  assert.strictEqual(weight, 1);
-  assert.strictEqual(exclusive, false);
-}
 
 function onStream(stream, headers, flags) {
   stream.priority({
@@ -33,7 +30,7 @@ function onStream(stream, headers, flags) {
 
 server.listen(0);
 
-server.on('priority', common.mustCall(onPriority));
+server.on('priority', common.mustNotCall());
 
 server.on('listening', common.mustCall(() => {
 
@@ -48,7 +45,9 @@ server.on('listening', common.mustCall(() => {
     });
   });
 
-  req.on('priority', common.mustCall(onPriority));
+  // The priority event is not supported anymore by nghttp2
+  // since 1.65.0.
+  req.on('priority', common.mustNotCall());
 
   req.on('response', common.mustCall());
   req.resume();

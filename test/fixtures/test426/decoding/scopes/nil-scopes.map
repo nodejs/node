@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "file": "nil-scopes.js",
+  "sources": [
+    "original_0.js",
+    "original_1.js",
+    "original_2.js",
+    "original_3.js"
+  ],
+  "mappings": "",
+  "names": [],
+  "scopes": "A,A,A,A"
+}

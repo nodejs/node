@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_S390_SIMULATOR_S390_H_
+#define V8_EXECUTION_S390_SIMULATOR_S390_H_
+
 // Declares a Simulator for S390 instructions if we are not generating a native
 // S390 binary. This Simulator allows us to run and debug S390 code generation
 // on regular desktop machines.
 // V8 calls into generated code via the GeneratedCode wrapper,
 // which will start execution in the Simulator or forwards to the real entry
 // on a S390 hardware platform.
-
-#ifndef V8_EXECUTION_S390_SIMULATOR_S390_H_
-#define V8_EXECUTION_S390_SIMULATOR_S390_H_
 
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"
@@ -23,6 +23,10 @@
 #include "src/codegen/s390/constants-s390.h"
 #include "src/execution/simulator-base.h"
 #include "src/utils/allocation.h"
+
+namespace heap::base {
+class StackVisitor;
+}
 
 namespace v8 {
 namespace internal {
@@ -52,6 +56,25 @@ class CachePage {
   static const int kValidityMapSize = kPageSize >> kLineShift;
   char validity_map_[kValidityMapSize];  // One byte per line.
 };
+
+template <class T>
+static T ComputeRounding(T a, int mode) {
+  switch (mode) {
+    case ROUND_TO_NEAREST_AWAY_FROM_0:
+      return std::round(a);
+    case ROUND_TO_NEAREST_TO_EVEN:
+      return std::nearbyint(a);
+    case ROUND_TOWARD_0:
+      return std::trunc(a);
+    case ROUND_TOWARD_POS_INF:
+      return std::ceil(a);
+    case ROUND_TOWARD_NEG_INF:
+      return std::floor(a);
+    default:
+      UNIMPLEMENTED();
+  }
+  return 0;
+}
 
 class Simulator : public SimulatorBase {
  public:
@@ -118,40 +141,29 @@ class Simulator : public SimulatorBase {
   void set_high_register(int reg, uint32_t value);
 
   double get_double_from_register_pair(int reg);
-  void set_d_register_from_double(int dreg, const double dbl) {
+
+  // Unlike Integer values, Floating Point values are located on the left most
+  // side of a native 64 bit register. As FP registers are a subset of vector
+  // registers, 64 and 32 bit FP values need to be located on first lane (lane
+  // number 0) of a vector register.
+  template <class T>
+  T get_fpr(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    set_simd_register_by_lane<double>(dreg, 0, dbl);
+    return get_simd_register_by_lane<T>(dreg, 0);
   }
 
-  double get_double_from_d_register(int dreg) {
+  template <class T>
+  void set_fpr(int dreg, const T val) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return get_simd_register_by_lane<double>(dreg, 0);
-  }
+    if (InstructionTracingEnabled()) {
+      uint64_t bits = 0;
+      static_assert(sizeof(val) <= sizeof(bits));
+      memcpy(&bits, &val, sizeof(val));
 
-  void set_d_register(int dreg, int64_t value) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    set_simd_register_by_lane<int64_t>(dreg, 0, value);
-  }
-
-  int64_t get_d_register(int dreg) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return get_simd_register_by_lane<int64_t>(dreg, 0);
-  }
-
-  void set_d_register_from_float32(int dreg, const float f) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-
-    int32_t f_int = *bit_cast<int32_t*>(&f);
-    int64_t finalval = static_cast<int64_t>(f_int) << 32;
-    set_d_register(dreg, finalval);
-  }
-
-  float get_float32_from_d_register(int dreg) {
-    DCHECK(dreg >= 0 && dreg < kNumFPRs);
-
-    int64_t regval = get_d_register(dreg) >> 32;
-    int32_t regval32 = static_cast<int32_t>(regval);
-    return *bit_cast<float*>(&regval32);
+      PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+             i::RegisterName(i::DoubleRegister::from_code(dreg)), bits);
+    }
+    set_simd_register_by_lane<T>(dreg, 0, val);
   }
 
   // Special case of set_register and get_register to access the raw PC value.
@@ -160,8 +172,18 @@ class Simulator : public SimulatorBase {
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows.
   uintptr_t StackLimit(uintptr_t c_limit) const;
+
+  uintptr_t StackBase() const;
+
+  // Return central stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kStackProtectionSize; }
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
   // Executes S390 instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -177,10 +199,10 @@ class Simulator : public SimulatorBase {
   double CallFPReturnsDouble(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Debugger input.
   void set_last_debugger_input(char* input);
@@ -198,7 +220,11 @@ class Simulator : public SimulatorBase {
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
 
- private:
+  // Manage instruction tracing.
+  bool InstructionTracingEnabled();
+
+  void ToggleInstructionTracing();
+
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
     // without being properly setup.
@@ -232,6 +258,10 @@ class Simulator : public SimulatorBase {
   void SoftwareInterrupt(Instruction* instr);
   void DebugAtNextPC();
 
+  // Take a copy of v8 simulator tracing flag because flags are frozen after
+  // start.
+  bool instruction_tracing_ = v8_flags.trace_sim;
+
   // Stop helper functions.
   inline bool isStopInstruction(Instruction* instr);
   inline bool isWatchedStop(uint32_t bkpt_code);
@@ -241,28 +271,23 @@ class Simulator : public SimulatorBase {
   inline void IncreaseStopCounter(uint32_t bkpt_code);
   void PrintStopInfo(uint32_t code);
 
-  // Byte Reverse
-  inline int16_t ByteReverse(int16_t hword);
-  inline int32_t ByteReverse(int32_t word);
-  inline int64_t ByteReverse(int64_t dword);
-
   // Read and write memory.
   inline uint8_t ReadBU(intptr_t addr);
   inline int8_t ReadB(intptr_t addr);
   inline void WriteB(intptr_t addr, uint8_t value);
   inline void WriteB(intptr_t addr, int8_t value);
 
-  inline uint16_t ReadHU(intptr_t addr, Instruction* instr);
-  inline int16_t ReadH(intptr_t addr, Instruction* instr);
+  inline uint16_t ReadHU(intptr_t addr);
+  inline int16_t ReadH(intptr_t addr);
   // Note: Overloaded on the sign of the value.
-  inline void WriteH(intptr_t addr, uint16_t value, Instruction* instr);
-  inline void WriteH(intptr_t addr, int16_t value, Instruction* instr);
+  inline void WriteH(intptr_t addr, uint16_t value);
+  inline void WriteH(intptr_t addr, int16_t value);
 
-  inline uint32_t ReadWU(intptr_t addr, Instruction* instr);
-  inline int32_t ReadW(intptr_t addr, Instruction* instr);
-  inline int64_t ReadW64(intptr_t addr, Instruction* instr);
-  inline void WriteW(intptr_t addr, uint32_t value, Instruction* instr);
-  inline void WriteW(intptr_t addr, int32_t value, Instruction* instr);
+  inline uint32_t ReadWU(intptr_t addr);
+  inline int32_t ReadW(intptr_t addr);
+  inline int64_t ReadW64(intptr_t addr);
+  inline void WriteW(intptr_t addr, uint32_t value);
+  inline void WriteW(intptr_t addr, int32_t value);
 
   inline int64_t ReadDW(intptr_t addr);
   inline double ReadDouble(intptr_t addr);
@@ -271,66 +296,6 @@ class Simulator : public SimulatorBase {
 
   // S390
   void Trace(Instruction* instr);
-
-  // Used by the CL**BR instructions.
-  template <typename T1, typename T2>
-  void SetS390RoundConditionCode(T1 r2_val, T2 max, T2 min) {
-    condition_reg_ = 0;
-    double r2_dval = static_cast<double>(r2_val);
-    double dbl_min = static_cast<double>(min);
-    double dbl_max = static_cast<double>(max);
-
-    if (r2_dval == 0.0)
-      condition_reg_ = 8;
-    else if (r2_dval < 0.0 && r2_dval >= dbl_min && std::isfinite(r2_dval))
-      condition_reg_ = 4;
-    else if (r2_dval > 0.0 && r2_dval <= dbl_max && std::isfinite(r2_dval))
-      condition_reg_ = 2;
-    else
-      condition_reg_ = 1;
-  }
-
-  template <typename T1>
-  void SetS390RoundConditionCode(T1 r2_val, int64_t max, int64_t min) {
-    condition_reg_ = 0;
-    double r2_dval = static_cast<double>(r2_val);
-    double dbl_min = static_cast<double>(min);
-    double dbl_max = static_cast<double>(max);
-
-    // Note that the IEEE 754 floating-point representations (both 32 and
-    // 64 bit) cannot exactly represent INT64_MAX. The closest it can get
-    // is INT64_max + 1. IEEE 754 FP can, though, represent INT64_MIN
-    // exactly.
-
-    // This is not an issue for INT32, as IEEE754 64-bit can represent
-    // INT32_MAX and INT32_MIN with exact precision.
-
-    if (r2_dval == 0.0)
-      condition_reg_ = 8;
-    else if (r2_dval < 0.0 && r2_dval >= dbl_min && std::isfinite(r2_dval))
-      condition_reg_ = 4;
-    else if (r2_dval > 0.0 && r2_dval < dbl_max && std::isfinite(r2_dval))
-      condition_reg_ = 2;
-    else
-      condition_reg_ = 1;
-  }
-
-  // Used by the CL**BR instructions.
-  template <typename T1, typename T2, typename T3>
-  void SetS390ConvertConditionCode(T1 src, T2 dst, T3 max) {
-    condition_reg_ = 0;
-    if (src == static_cast<T1>(0.0)) {
-      condition_reg_ |= 8;
-    } else if (src < static_cast<T1>(0.0) && static_cast<T2>(src) == 0 &&
-               std::isfinite(src)) {
-      condition_reg_ |= 4;
-    } else if (src > static_cast<T1>(0.0) && std::isfinite(src) &&
-               src < static_cast<T1>(max)) {
-      condition_reg_ |= 2;
-    } else {
-      condition_reg_ |= 1;
-    }
-  }
 
   template <typename T>
   void SetS390ConditionCode(T lhs, T rhs) {
@@ -367,6 +332,28 @@ class Simulator : public SimulatorBase {
   }
 
   bool isNaN(double value) { return (value != value); }
+
+  template <typename T1, typename T2, typename T3>
+  T1 FPProcessNaNBinop(T1 fp_lhs, T1 fp_rhs,
+                       const std::function<T1(T1, T1)>& op_for_non_nan) {
+    T2 lhs = T2::FromBits(base::bit_cast<T3>(fp_lhs));
+    T2 rhs = T2::FromBits(base::bit_cast<T3>(fp_rhs));
+    if (lhs.is_nan() && !lhs.is_quiet_nan())
+      return lhs.to_quiet_nan().get_scalar();
+    if (rhs.is_nan() && !rhs.is_quiet_nan())
+      return rhs.to_quiet_nan().get_scalar();
+    if (lhs.is_nan()) return lhs.to_quiet_nan().get_scalar();
+    if (rhs.is_nan()) return rhs.to_quiet_nan().get_scalar();
+    return op_for_non_nan(fp_lhs, fp_rhs);
+  }
+
+  template <typename T1, typename T2, typename T3>
+  T1 FPProcessNaNUnop(T1 fp_input, int m3,
+                      const std::function<T1(T1, int)>& op_for_non_nan) {
+    T2 input = T2::FromBits(base::bit_cast<T3>(fp_input));
+    if (input.is_nan()) return input.to_quiet_nan().get_scalar();
+    return op_for_non_nan(fp_input, m3);
+  }
 
   // Set the condition code for bitwise operations
   // CC0 is set if value == 0.
@@ -431,24 +418,51 @@ class Simulator : public SimulatorBase {
 
   static constexpr fpr_t fp_zero = {{0}};
 
-  fpr_t& get_simd_register(int reg) { return fp_registers_[reg]; }
+  fpr_t get_simd_register(int reg) { return fp_registers_[reg]; }
 
-  void set_simd_register(int reg, const fpr_t& v) {
-    get_simd_register(reg) = v;
+  void set_simd_register(int reg, const fpr_t& value) {
+    fp_registers_[reg] = value;
+  }
+
+  // Vector register lane numbers on IBM machines are reversed compared to
+  // x64. For example, doing an I32x4 extract_lane with lane number 0 on x64
+  // will be equal to lane number 3 on IBM machines. Vector registers are only
+  // used for compiling Wasm code at the moment. Wasm is also little endian
+  // enforced. On s390 native, we manually do a reverse byte whenever values are
+  // loaded/stored from memory to a Simd register. On the simulator however, we
+  // do not reverse the bytes and data is just copied as is from one memory
+  // location to another location which represents a register. To keep the Wasm
+  // simulation accurate, we need to make sure accessing a lane is correctly
+  // simulated and as such we reverse the lane number on the getters and setters
+  // below. We need to be careful when getting/setting values on the Low or High
+  // side of a simulated register. In the simulation, "Low" is equal to the MSB
+  // and "High" is equal to the LSB on memory. "force_ibm_lane_numbering" could
+  // be used to disabled automatic lane number reversal and help with accessing
+  // the Low or High side of a simulated register.
+  template <class T>
+  T get_simd_register_by_lane(int reg, int lane,
+                              bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumFPRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    return (reinterpret_cast<T*>(&fp_registers_[reg]))[lane];
   }
 
   template <class T>
-  T& get_simd_register_by_lane(int reg, int lane) {
-    DCHECK_LE(lane, kSimd128Size / sizeof(T));
-    DCHECK_LT(reg, kNumFPRs);
-    DCHECK_GE(lane, 0);
-    DCHECK_GE(reg, 0);
-    return (reinterpret_cast<T*>(&get_simd_register(reg)))[lane];
-  }
-
-  template <class T>
-  void set_simd_register_by_lane(int reg, int lane, const T& value) {
-    get_simd_register_by_lane<T>(reg, lane) = value;
+  void set_simd_register_by_lane(int reg, int lane, const T& value,
+                                 bool force_ibm_lane_numbering = true) {
+    if (force_ibm_lane_numbering) {
+      lane = (kSimd128Size / sizeof(T)) - 1 - lane;
+    }
+    CHECK_LE(lane, kSimd128Size / sizeof(T));
+    CHECK_LT(reg, kNumFPRs);
+    CHECK_GE(lane, 0);
+    CHECK_GE(reg, 0);
+    (reinterpret_cast<T*>(&fp_registers_[reg]))[lane] = value;
   }
 
   // Condition Code register. In S390, the last 4 bits are used.
@@ -456,9 +470,17 @@ class Simulator : public SimulatorBase {
   // Special register to track PC.
   intptr_t special_reg_pc_;
 
-  // Simulator support.
-  char* stack_;
-  static const size_t stack_protection_size_ = 256 * kSystemPointerSize;
+  // Simulator support for the stack.
+  uint8_t* stack_;
+  static const size_t kStackProtectionSize = 20 * KB;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+    size_t stack_size = v8_flags.sim_stack_size * KB;
+    return stack_size + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() {
+    return AllocatedStackSize() - kStackProtectionSize;
+  }
   bool pc_modified_;
   int64_t icount_;
 
@@ -967,6 +989,8 @@ class Simulator : public SimulatorBase {
   EVALUATE(OGR);
   EVALUATE(XGR);
   EVALUATE(FLOGR);
+  EVALUATE(CLZG);
+  EVALUATE(CTZG);
   EVALUATE(LLGCR);
   EVALUATE(LLGHR);
   EVALUATE(MLGR);
@@ -1244,6 +1268,9 @@ class Simulator : public SimulatorBase {
   EVALUATE(CZXT);
   EVALUATE(CDZT);
   EVALUATE(CXZT);
+  EVALUATE(MG);
+  EVALUATE(MGRK);
+
 #undef EVALUATE
 };
 

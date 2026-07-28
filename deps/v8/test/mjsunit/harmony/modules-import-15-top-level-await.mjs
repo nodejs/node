@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-top-level-await --allow-natives-syntax
-// Flags: --harmony-dynamic-import
+// Flags: --allow-natives-syntax
 
 var ran = false;
 
@@ -48,7 +47,7 @@ async function test3() {
     let x = await import('nonexistent-file.mjs');
     %AbortJS('failure: should be unreachable');
   } catch(e) {
-    assertTrue(e.startsWith('d8: Error reading'));
+    assertTrue(e.message.startsWith('d8: Error reading'));
     ran = true;
   }
 }

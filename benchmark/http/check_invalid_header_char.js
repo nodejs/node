@@ -23,7 +23,7 @@ const groupedInputs = {
 
   // Put it here so the benchmark result lines will not be super long.
   LONG_AND_INVALID: ['Here is a value that is really a folded header ' +
-    'value\r\n  this should be supported, but it is not currently']
+    'value\r\n  this should be supported, but it is not currently'],
 };
 
 const inputs = [
@@ -55,7 +55,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, input }) {
   let inputs = [input];
-  if (groupedInputs.hasOwnProperty(input)) {
+  if (Object.hasOwn(groupedInputs, input)) {
     inputs = groupedInputs[input];
   }
 

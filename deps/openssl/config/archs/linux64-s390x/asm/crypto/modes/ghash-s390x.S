@@ -25,10 +25,21 @@ gcm_ghash_4bit:
 					#  vector
 	tmhh	%r0,0x4000	# check for function 65
 	jz	.Lsoft_ghash
+	# Do not assume this function is called from a gcm128_context.
+	# This is not true, e.g., for AES-GCM-SIV.
+	# Parameter Block:
+	# Chaining Value (XI) 128byte
+	# Key (Htable[8]) 128byte
+	lmg	%r0,%r1,0(%r2)
+	stmg	%r0,%r1,8(%r15)
+	lmg	%r0,%r1,8*16(%r3)
+	stmg	%r0,%r1,24(%r15)
+	la	%r1,8(%r15)
 	lghi	%r0,S390X_GHASH	# function 65
-	la	%r1,0(%r2)	# H lies right after Xi in gcm128_context
 	.long	0xb93e0004	# kimd %r0,%r4
 	brc	1,.-4		# pay attention to "partial completion"
+	lmg	%r0,%r1,8(%r15)
+	stmg	%r0,%r1,0(%r2)
 	br	%r14
 .align	32
 .Lsoft_ghash:

@@ -33,14 +33,14 @@ U_NAMESPACE_USE
 U_CAPI UBreakIterator* U_EXPORT2
 ubrk_open(UBreakIteratorType type,
       const char *locale,
-      const UChar *text,
+      const char16_t *text,
       int32_t textLength,
       UErrorCode *status)
 {
 
-  if(U_FAILURE(*status)) return 0;
+  if (U_FAILURE(*status)) return nullptr;
 
-  BreakIterator *result = 0;
+  BreakIterator *result = nullptr;
 
   switch(type) {
 
@@ -70,16 +70,16 @@ ubrk_open(UBreakIteratorType type,
 
   // check for allocation error
   if (U_FAILURE(*status)) {
-     return 0;
+    return nullptr;
   }
-  if(result == 0) {
+  if (result == nullptr) {
     *status = U_MEMORY_ALLOCATION_ERROR;
-    return 0;
+    return nullptr;
   }
 
 
   UBreakIterator *uBI = (UBreakIterator *)result;
-  if (text != NULL) {
+  if (text != nullptr) {
       ubrk_setText(uBI, text, textLength, status);
   }
   return uBI;
@@ -94,26 +94,26 @@ ubrk_open(UBreakIteratorType type,
 //
 //------------------------------------------------------------------------------
 U_CAPI UBreakIterator* U_EXPORT2
-ubrk_openRules(  const UChar        *rules,
+ubrk_openRules(  const char16_t     *rules,
                        int32_t       rulesLength,
-                 const UChar        *text,
+                 const char16_t     *text,
                        int32_t       textLength,
                        UParseError  *parseErr,
                        UErrorCode   *status)  {
 
-    if (status == NULL || U_FAILURE(*status)){
-        return 0;
+    if (status == nullptr || U_FAILURE(*status)){
+        return nullptr;
     }
 
-    BreakIterator *result = 0;
+    BreakIterator *result = nullptr;
     UnicodeString ruleString(rules, rulesLength);
     result = RBBIRuleBuilder::createRuleBasedBreakIterator(ruleString, parseErr, *status);
     if(U_FAILURE(*status)) {
-        return 0;
+        return nullptr;
     }
 
     UBreakIterator *uBI = (UBreakIterator *)result;
-    if (text != NULL) {
+    if (text != nullptr) {
         ubrk_setText(uBI, text, textLength, status);
     }
     return uBI;
@@ -122,22 +122,22 @@ ubrk_openRules(  const UChar        *rules,
 
 U_CAPI UBreakIterator* U_EXPORT2
 ubrk_openBinaryRules(const uint8_t *binaryRules, int32_t rulesLength,
-                     const UChar *  text, int32_t textLength,
+                     const char16_t *  text, int32_t textLength,
                      UErrorCode *   status)
 {
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
     if (rulesLength < 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
     LocalPointer<RuleBasedBreakIterator> lpRBBI(new RuleBasedBreakIterator(binaryRules, rulesLength, *status), *status);
     if (U_FAILURE(*status)) {
-        return NULL;
+        return nullptr;
     }
     UBreakIterator *uBI = reinterpret_cast<UBreakIterator *>(lpRBBI.orphan());
-    if (text != NULL) {
+    if (text != nullptr) {
         ubrk_setText(uBI, text, textLength, status);
     }
     return uBI;
@@ -151,29 +151,33 @@ ubrk_safeClone(
           int32_t *pBufferSize,
           UErrorCode *status)
 {
-    if (status == NULL || U_FAILURE(*status)){
-        return NULL;
+    if (status == nullptr || U_FAILURE(*status)){
+        return nullptr;
     }
-    if (bi == NULL) {
+    if (bi == nullptr) {
        *status = U_ILLEGAL_ARGUMENT_ERROR;
-        return NULL;
+        return nullptr;
     }
-    if (pBufferSize != NULL) {
+    if (pBufferSize != nullptr) {
         int32_t inputSize = *pBufferSize;
         *pBufferSize = 1;
         if (inputSize == 0) {
-            return NULL;  // preflighting for deprecated functionality
+            return nullptr;  // preflighting for deprecated functionality
         }
     }
     BreakIterator *newBI = ((BreakIterator *)bi)->clone();
-    if (newBI == NULL) {
+    if (newBI == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-    } else {
+    } else if (pBufferSize != nullptr) {
         *status = U_SAFECLONE_ALLOCATED_WARNING;
     }
     return (UBreakIterator *)newBI;
 }
 
+U_CAPI UBreakIterator * U_EXPORT2
+ubrk_clone(const UBreakIterator *bi, UErrorCode *status) {
+    return ubrk_safeClone(bi, nullptr, nullptr, status);
+}
 
 
 U_CAPI void U_EXPORT2
@@ -184,14 +188,14 @@ ubrk_close(UBreakIterator *bi)
 
 U_CAPI void U_EXPORT2
 ubrk_setText(UBreakIterator* bi,
-             const UChar*    text,
+             const char16_t*    text,
              int32_t         textLength,
              UErrorCode*     status)
 {
     UText  ut = UTEXT_INITIALIZER;
     utext_openUChars(&ut, text, textLength, status);
     ((BreakIterator*)bi)->setText(&ut, *status);
-    // A stack allocated UText wrapping a UChar * string
+    // A stack allocated UText wrapping a char16_t * string
     //   can be dumped without explicitly closing it.
 }
 
@@ -300,11 +304,11 @@ ubrk_getLocaleByType(const UBreakIterator *bi,
                      ULocDataLocaleType type,
                      UErrorCode* status)
 {
-    if (bi == NULL) {
+    if (bi == nullptr) {
         if (U_SUCCESS(*status)) {
             *status = U_ILLEGAL_ARGUMENT_ERROR;
         }
-        return NULL;
+        return nullptr;
     }
     return ((BreakIterator*)bi)->getLocaleID(type, *status);
 }
@@ -327,12 +331,12 @@ ubrk_getBinaryRules(UBreakIterator *bi,
     if (U_FAILURE(*status)) {
         return 0;
     }
-    if ((binaryRules == NULL && rulesCapacity > 0) || rulesCapacity < 0) {
+    if ((binaryRules == nullptr && rulesCapacity > 0) || rulesCapacity < 0) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
     RuleBasedBreakIterator* rbbi;
-    if ((rbbi = dynamic_cast<RuleBasedBreakIterator*>(reinterpret_cast<BreakIterator*>(bi))) == NULL) {
+    if ((rbbi = dynamic_cast<RuleBasedBreakIterator*>(reinterpret_cast<BreakIterator*>(bi))) == nullptr) {
         *status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -342,7 +346,7 @@ ubrk_getBinaryRules(UBreakIterator *bi,
         *status = U_INDEX_OUTOFBOUNDS_ERROR;
         return 0;
     }
-    if (binaryRules != NULL) { // if not preflighting
+    if (binaryRules != nullptr) { // if not preflighting
         // Here we know rulesLength <= INT32_MAX and rulesCapacity >= 0, can cast safely
         if ((int32_t)rulesLength > rulesCapacity) {
             *status = U_BUFFER_OVERFLOW_ERROR;

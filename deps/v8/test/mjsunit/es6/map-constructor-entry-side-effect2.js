@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --turbofan
 
 function TestMapConstructorEntrySideEffect(ctor) {
   const originalPrototypeSet = ctor.prototype.set;
@@ -38,6 +38,11 @@ function TestMapConstructorEntrySideEffect(ctor) {
   ctor.prototype.set = originalPrototypeSet;
 }
 
+// Forbid inlining these helper functions to avoid deopt surprises.
+%NeverOptimizeFunction(assertEquals);
+%NeverOptimizeFunction(assertFalse);
+%NeverOptimizeFunction(assertTrue);
+
 %PrepareFunctionForOptimization(TestMapConstructorEntrySideEffect);
 TestMapConstructorEntrySideEffect(Map);
 TestMapConstructorEntrySideEffect(Map);
@@ -48,6 +53,7 @@ assertOptimized(TestMapConstructorEntrySideEffect);
 
 // This call would deopt
 TestMapConstructorEntrySideEffect(WeakMap);
+
 %PrepareFunctionForOptimization(TestMapConstructorEntrySideEffect);
 TestMapConstructorEntrySideEffect(WeakMap);
 TestMapConstructorEntrySideEffect(WeakMap);

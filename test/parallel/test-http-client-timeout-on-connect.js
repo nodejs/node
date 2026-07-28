@@ -13,7 +13,10 @@ const server = http.createServer((req, res) => {
 
 server.listen(0, common.localhostIPv4, common.mustCall(() => {
   const port = server.address().port;
-  const req = http.get(`http://${common.localhostIPv4}:${port}`);
+  const req = http.get(
+    `http://${common.localhostIPv4}:${port}`,
+    { agent: new http.Agent() }
+  );
 
   req.setTimeout(1);
   req.on('socket', common.mustCall((socket) => {

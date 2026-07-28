@@ -5,11 +5,17 @@
 #include "src/inspector/custom-preview.h"
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-container.h"
+#include "include/v8-context.h"
+#include "include/v8-function.h"
+#include "include/v8-json.h"
+#include "include/v8-microtask-queue.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-console-message.h"
+#include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 
@@ -20,36 +26,37 @@ using protocol::Runtime::CustomPreview;
 namespace {
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
   DCHECK(tryCatch.HasCaught());
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   int contextId = InspectedContext::contextId(context);
   int groupId = inspector->contextGroupId(contextId);
-  v8::Local<v8::String> message = tryCatch.Message()->Get();
+  v8::Local<v8::String> message = toV8String(isolate, "<no message available>");
+  if (!tryCatch.Message().IsEmpty()) message = tryCatch.Message()->Get();
   v8::Local<v8::String> prefix =
       toV8String(isolate, "Custom Formatter Failed: ");
   message = v8::String::Concat(isolate, prefix, message);
-  std::vector<v8::Local<v8::Value>> arguments;
+  v8::LocalVector<v8::Value> arguments(isolate);
   arguments.push_back(message);
   V8ConsoleMessageStorage* storage =
       inspector->ensureConsoleMessageStorage(groupId);
   if (!storage) return;
   storage->addMessage(V8ConsoleMessage::createForConsoleAPI(
       context, contextId, groupId, inspector,
-      inspector->client()->currentTimeMS(), ConsoleAPIType::kError, arguments,
-      String16(), nullptr));
+      inspector->client()->currentTimeMS(), ConsoleAPIType::kError,
+      {arguments.begin(), arguments.end()}, String16(), nullptr));
 }
 
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
                  const String16& message) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   isolate->ThrowException(toV8String(isolate, message));
   reportError(context, tryCatch);
 }
 
 InjectedScript* getInjectedScript(v8::Local<v8::Context> context,
                                   int sessionId) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   InspectedContext* inspectedContext =
@@ -62,7 +69,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
                           v8::Local<v8::Context> context,
                           v8::Local<v8::Array> jsonML, int maxDepth) {
   if (!jsonML->Length()) return true;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
   if (maxDepth <= 0) {
@@ -113,9 +120,9 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       return false;
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapper;
-    protocol::Response response =
-        injectedScript->wrapObject(originValue, groupName, WrapMode::kNoPreview,
-                                   configValue, maxDepth - 1, &wrapper);
+    protocol::Response response = injectedScript->wrapObject(
+        originValue, groupName, WrapOptions({WrapMode::kIdOnly}), configValue,
+        maxDepth - 1, &wrapper);
     if (!response.IsSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
       return false;
@@ -152,7 +159,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
 }
 
 void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> bodyConfig = info.Data().As<v8::Object>();
@@ -229,6 +236,10 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     reportError(context, tryCatch);
     return;
   }
+  if (formattedValue->IsNull()) {
+    info.GetReturnValue().Set(formattedValue);
+    return;
+  }
   if (!formattedValue->IsArray()) {
     reportError(context, tryCatch, "body should return an Array");
     return;
@@ -245,13 +256,17 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 }  // anonymous namespace
 
-void generateCustomPreview(int sessionId, const String16& groupName,
+void generateCustomPreview(v8::Isolate* isolate, int sessionId,
+                           const String16& groupName,
                            v8::Local<v8::Object> object,
                            v8::MaybeLocal<v8::Value> maybeConfig, int maxDepth,
                            std::unique_ptr<CustomPreview>* preview) {
-  v8::Local<v8::Context> context = object->CreationContext();
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::MicrotasksScope microtasksScope(isolate,
+  v8::Local<v8::Context> context;
+  if (!object->GetCreationContext(isolate).ToLocal(&context)) {
+    return;
+  }
+
+  v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
 

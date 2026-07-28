@@ -21,11 +21,11 @@ let interval;
 
 server.on('stream', common.mustNotCall());
 server.on('session', common.mustCall((session) => {
-  session.on('error', (e) => {
+  session.on('error', common.mustCallAtLeast((e) => {
     assert.strictEqual(e.code, 'ERR_HTTP2_ERROR');
     assert(e.message.includes('Flooding was detected'));
     clearInterval(interval);
-  });
+  }, 0));
   session.on('close', common.mustCall(() => {
     server.close();
   }));

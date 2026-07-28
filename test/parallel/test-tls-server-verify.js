@@ -22,11 +22,15 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
-if (!common.opensslCli)
+const { opensslCli } = require('../common/crypto');
+
+if (!opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
+}
 
 // This is a rather complex test which sets up various TLS servers with node
 // and connects to them using the 'openssl s_client' command line utility
@@ -43,7 +47,7 @@ const { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } =
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-const testCases =
+let testCases =
   [{ title: 'Do not request certs. Everyone is unauthorized.',
      requestCert: false,
      rejectUnauthorized: false,
@@ -53,9 +57,8 @@ const testCases =
      [{ name: 'agent1', shouldReject: false, shouldAuth: false },
       { name: 'agent2', shouldReject: false, shouldAuth: false },
       { name: 'agent3', shouldReject: false, shouldAuth: false },
-      { name: 'nocert', shouldReject: false, shouldAuth: false }
-     ]
-  },
+      { name: 'nocert', shouldReject: false, shouldAuth: false },
+     ] },
 
    { title: 'Allow both authed and unauthed connections with CA1',
      requestCert: true,
@@ -66,9 +69,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: false, shouldAuth: false },
      { name: 'agent3', shouldReject: false, shouldAuth: false },
-     { name: 'nocert', shouldReject: false, shouldAuth: false }
-    ]
-   },
+     { name: 'nocert', shouldReject: false, shouldAuth: false },
+    ] },
 
    { title: 'Do not request certs at connection. Do that later',
      requestCert: false,
@@ -79,9 +81,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: false, shouldAuth: false },
      { name: 'agent3', shouldReject: false, shouldAuth: false },
-     { name: 'nocert', shouldReject: false, shouldAuth: false }
-    ]
-   },
+     { name: 'nocert', shouldReject: false, shouldAuth: false },
+    ] },
 
    { title: 'Allow only authed connections with CA1',
      requestCert: true,
@@ -92,9 +93,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: true },
      { name: 'agent3', shouldReject: true },
-     { name: 'nocert', shouldReject: true }
-    ]
-   },
+     { name: 'nocert', shouldReject: true },
+    ] },
 
    { title: 'Allow only authed connections with CA1 and CA2',
      requestCert: true,
@@ -105,9 +105,8 @@ const testCases =
     [{ name: 'agent1', shouldReject: false, shouldAuth: true },
      { name: 'agent2', shouldReject: true },
      { name: 'agent3', shouldReject: false, shouldAuth: true },
-     { name: 'nocert', shouldReject: true }
-    ]
-   },
+     { name: 'nocert', shouldReject: true },
+    ] },
 
 
    { title: 'Allow only certs signed by CA2 but not in the CRL',
@@ -122,10 +121,18 @@ const testCases =
        { name: 'agent3', shouldReject: false, shouldAuth: true },
        // Agent4 has a cert in the CRL.
        { name: 'agent4', shouldReject: true, shouldAuth: false },
-       { name: 'nocert', shouldReject: true }
-     ]
-   }
+       { name: 'nocert', shouldReject: true },
+     ] },
   ];
+
+if (process.features.openssl_is_boringssl) {
+  // Remove the delayed client-certificate verification case. It depends on TLS
+  // renegotiation to request a client certificate after the initial handshake,
+  // but BoringSSL does not support caller-initiated renegotiation.
+  common.printSkipMessage(
+    'BoringSSL: skipping renegotiated client certificate verification case');
+  testCases = testCases.filter((tcase) => !tcase.renegotiate);
+}
 
 function filenamePEM(n) {
   return fixtures.path('keys', `${n}.pem`);
@@ -194,7 +201,7 @@ function runClient(prefix, port, options, cb) {
   }
 
   // To test use: openssl s_client -connect localhost:8000
-  const client = spawn(common.opensslCli, args);
+  const client = spawn(opensslCli, args);
 
   let out = '';
 
@@ -223,7 +230,7 @@ function runClient(prefix, port, options, cb) {
     }
   });
 
-  client.on('exit', function(code) {
+  client.on('exit', common.mustCall((code) => {
     if (options.shouldReject) {
       assert.strictEqual(
         rejected, true,
@@ -239,7 +246,7 @@ function runClient(prefix, port, options, cb) {
     }
 
     cb();
-  });
+  }));
 }
 
 
@@ -275,7 +282,7 @@ function runTest(port, testIndex) {
   }
 
   let renegotiated = false;
-  const server = tls.Server(serverOptions, function handleConnection(c) {
+  const server = tls.Server(serverOptions, common.mustCallAtLeast(function handleConnection(c) {
     c.on('error', function(e) {
       // child.kill() leads ECONNRESET error in the TLS connection of
       // openssl s_client via spawn(). A test result is already
@@ -284,18 +291,17 @@ function runTest(port, testIndex) {
     });
     if (tcase.renegotiate && !renegotiated) {
       renegotiated = true;
-      setTimeout(function() {
+      setTimeout(common.mustCall(() => {
         console.error(`${prefix}- connected, renegotiating`);
         c.write('\n_renegotiating\n');
         return c.renegotiate({
           requestCert: true,
           rejectUnauthorized: false
-        }, function(err) {
-          assert.ifError(err);
+        }, common.mustSucceed(() => {
           c.write('\n_renegotiated\n');
           handleConnection(c);
-        });
-      }, 200);
+        }));
+      }), 200);
       return;
     }
 
@@ -307,7 +313,7 @@ function runTest(port, testIndex) {
       console.error(`${prefix}- unauthed connection: %s`, c.authorizationError);
       c.write('\n_unauthed\n');
     }
-  });
+  }));
 
   function runNextClient(clientIndex) {
     const options = tcase.clients[clientIndex];

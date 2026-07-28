@@ -54,10 +54,6 @@ typedef struct HashLongestMatch {
   uint32_t* buckets_;  /* uint32_t[bucket_size * block_size]; */
 } HashLongestMatch;
 
-static BROTLI_INLINE uint16_t* FN(Num)(void* extra) {
-  return (uint16_t*)extra;
-}
-
 static void FN(Initialize)(
     HasherCommon* common, HashLongestMatch* BROTLI_RESTRICT self,
     const BrotliEncoderParams* params) {
@@ -68,8 +64,8 @@ static void FN(Initialize)(
   self->bucket_size_ = (size_t)1 << common->params.bucket_bits;
   self->block_size_ = (size_t)1 << common->params.block_bits;
   self->block_mask_ = (uint32_t)(self->block_size_ - 1);
-  self->num_ = (uint16_t*)common->extra;
-  self->buckets_ = (uint32_t*)(&self->num_[self->bucket_size_]);
+  self->num_ = (uint16_t*)common->extra[0];
+  self->buckets_ = (uint32_t*)common->extra[1];
   self->block_bits_ = common->params.block_bits;
   self->num_last_distances_to_check_ =
       common->params.num_last_distances_to_check;
@@ -92,15 +88,15 @@ static void FN(Prepare)(
   }
 }
 
-static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
+static BROTLI_INLINE void FN(HashMemAllocInBytes)(
     const BrotliEncoderParams* params, BROTLI_BOOL one_shot,
-    size_t input_size) {
+    size_t input_size, size_t* alloc_size) {
   size_t bucket_size = (size_t)1 << params->hasher.bucket_bits;
   size_t block_size = (size_t)1 << params->hasher.block_bits;
   BROTLI_UNUSED(one_shot);
   BROTLI_UNUSED(input_size);
-  return sizeof(uint16_t) * bucket_size +
-         sizeof(uint32_t) * bucket_size * block_size;
+  alloc_size[0] = sizeof(uint16_t) * bucket_size;
+  alloc_size[1] = sizeof(uint32_t) * bucket_size * block_size;
 }
 
 /* Look at 4 bytes at &data[ix & mask].
@@ -108,11 +104,13 @@ static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
 static BROTLI_INLINE void FN(Store)(
     HashLongestMatch* BROTLI_RESTRICT self, const uint8_t* BROTLI_RESTRICT data,
     const size_t mask, const size_t ix) {
+  uint16_t* BROTLI_RESTRICT num = self->num_;
+  uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   const uint32_t key = FN(HashBytes)(&data[ix & mask], self->hash_shift_);
-  const size_t minor_ix = self->num_[key] & self->block_mask_;
+  const size_t minor_ix = num[key] & self->block_mask_;
   const size_t offset = minor_ix + (key << self->block_bits_);
-  self->buckets_[offset] = (uint32_t)ix;
-  ++self->num_[key];
+  ++num[key];
+  buckets[offset] = (uint32_t)ix;
 }
 
 static BROTLI_INLINE void FN(StoreRange)(HashLongestMatch* BROTLI_RESTRICT self,
@@ -171,8 +169,17 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
+  /* Precalculate the hash key and prefetch the bucket. */
+  const uint32_t key =
+      FN(HashBytes)(&data[cur_ix_masked], self->hash_shift_);
+  uint32_t* BROTLI_RESTRICT bucket = &buckets[key << self->block_bits_];
+  PREFETCH_L1(bucket);
+  if (self->block_bits_ > 4) PREFETCH_L1(bucket + 16);
   out->len = 0;
   out->len_code_delta = 0;
+
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
+
   /* Try last distance first. */
   for (i = 0; i < (size_t)self->num_last_distances_to_check_; ++i) {
     const size_t backward = (size_t)distance_cache[i];
@@ -185,8 +192,10 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     }
     prev_ix &= ring_buffer_mask;
 
-    if (cur_ix_masked + best_len > ring_buffer_mask ||
-        prev_ix + best_len > ring_buffer_mask ||
+    if (cur_ix_masked + best_len > ring_buffer_mask) {
+      break;
+    }
+    if (prev_ix + best_len > ring_buffer_mask ||
         data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
       continue;
     }
@@ -212,10 +221,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       }
     }
   }
+  /* we require matches of len >4, so increase best_len to 3, so we can compare
+   * 4 bytes all the time. */
+  if (best_len < 3) {
+    best_len = 3;
+  }
   {
-    const uint32_t key =
-        FN(HashBytes)(&data[cur_ix_masked], self->hash_shift_);
-    uint32_t* BROTLI_RESTRICT bucket = &buckets[key << self->block_bits_];
     const size_t down =
         (num[key] > self->block_size_) ? (num[key] - self->block_size_) : 0u;
     for (i = num[key]; i > down;) {
@@ -225,9 +236,13 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
         break;
       }
       prev_ix &= ring_buffer_mask;
-      if (cur_ix_masked + best_len > ring_buffer_mask ||
-          prev_ix + best_len > ring_buffer_mask ||
-          data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+      if (cur_ix_masked + best_len > ring_buffer_mask) {
+        break;
+      }
+      if (prev_ix + best_len > ring_buffer_mask ||
+          /* compare 4 bytes ending at best_len + 1 */
+          BrotliUnalignedRead32(&data[cur_ix_masked + best_len - 3]) !=
+              BrotliUnalignedRead32(&data[prev_ix + best_len - 3])) {
         continue;
       }
       {

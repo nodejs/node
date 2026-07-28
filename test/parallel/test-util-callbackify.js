@@ -20,7 +20,7 @@ const values = [
   Symbol('I am a symbol'),
   function ok() {},
   ['array', 'with', 4, 'values'],
-  new Error('boo')
+  new Error('boo'),
 ];
 
 {
@@ -188,6 +188,7 @@ const values = [
   for (const value of values) {
     const iAmThis = {
       fn(arg) {
+        // eslint-disable-next-line node-core/must-call-assert
         assert.strictEqual(this, iAmThis);
         return Promise.resolve(arg);
       },
@@ -200,6 +201,7 @@ const values = [
 
     const iAmThat = {
       async fn(arg) {
+        // eslint-disable-next-line node-core/must-call-assert
         assert.strictEqual(this, iAmThat);
         return arg;
       },
@@ -225,6 +227,7 @@ const values = [
       const errLines = stderr.trim().split(/[\r\n]+/);
       const errLine = errLines.find((l) => /^Error/.exec(l));
       assert.strictEqual(errLine, `Error: ${fixture}`);
+      assert.strictEqual(errLines.length, 7);
     })
   );
 }
@@ -278,4 +281,21 @@ const values = [
                common.invalidArgTypeHelper(value)
     });
   });
+}
+
+{
+  // Test Promise factory
+  function promiseFn(value) {
+    return Promise.reject(value);
+  }
+
+  const cbPromiseFn = callbackify(promiseFn);
+
+  cbPromiseFn(null, common.mustCall((err) => {
+    assert.strictEqual(err.message, 'Promise was rejected with falsy value');
+    assert.strictEqual(err.code, 'ERR_FALSY_VALUE_REJECTION');
+    assert.strictEqual(err.reason, null);
+    const stack = err.stack.split(/[\r\n]+/);
+    assert.match(stack[1], /at process\.processTicksAndRejections/);
+  }));
 }

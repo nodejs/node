@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --inspector-live-edit
 // Test that live-editing a frame to introduce new.target fails.
 
 Debug = debug.Debug
@@ -43,7 +43,7 @@ function Replace(fun, original, patch) {
     try {
       %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(original, patch));
     } catch (e) {
-      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME');
+      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION');
       exceptions++;
     }
   });

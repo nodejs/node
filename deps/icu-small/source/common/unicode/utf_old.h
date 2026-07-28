@@ -293,10 +293,10 @@ typedef int32_t UTextOffset;
 #ifdef U_UTF8_IMPL
 // No forward declaration if compiling utf_impl.cpp, which defines utf8_countTrailBytes.
 #elif defined(U_STATIC_IMPLEMENTATION) || defined(U_COMMON_IMPLEMENTATION)
-U_CFUNC const uint8_t utf8_countTrailBytes[];
+U_CAPI const uint8_t utf8_countTrailBytes[];
 #else
-U_CFUNC U_IMPORT const uint8_t utf8_countTrailBytes[];    /* U_IMPORT2? */ /*U_IMPORT*/
-#endif
+U_CFUNC U_IMPORT const uint8_t utf8_countTrailBytes[];
+#endif 
 
 /**
  * Count the trail bytes for a UTF-8 lead byte.
@@ -385,8 +385,10 @@ U_CFUNC U_IMPORT const uint8_t utf8_countTrailBytes[];    /* U_IMPORT2? */ /*U_I
         /* each following branch falls through to the next one */ \
         case 3: \
             (c)=((c)<<6)|((s)[(i)++]&0x3f); \
+            U_FALLTHROUGH; \
         case 2: \
             (c)=((c)<<6)|((s)[(i)++]&0x3f); \
+            U_FALLTHROUGH; \
         case 1: \
             (c)=((c)<<6)|((s)[(i)++]&0x3f); \
         /* no other branches to optimize switch() */ \

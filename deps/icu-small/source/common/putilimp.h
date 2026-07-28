@@ -90,6 +90,8 @@ typedef size_t uintptr_t;
 #   define U_NL_LANGINFO_CODESET -1
 #elif U_PLATFORM == U_PF_OS400
    /* not defined */
+#elif U_PLATFORM == U_PF_HAIKU
+   /* not defined */
 #else
 #   define U_NL_LANGINFO_CODESET CODESET
 #endif
@@ -102,6 +104,8 @@ typedef size_t uintptr_t;
 #   define U_TZSET _tzset
 #endif
 #elif U_PLATFORM == U_PF_OS400
+   /* not defined */
+#elif U_PLATFORM == U_PF_HAIKU
    /* not defined */
 #else
 #   define U_TZSET tzset
@@ -141,6 +145,8 @@ typedef size_t uintptr_t;
 #endif
 #elif U_PLATFORM == U_PF_OS400
    /* not defined */
+#elif U_PLATFORM == U_PF_HAIKU
+    /* not defined, (well it is but a loop back to icu) */
 #else
 #   define U_TZNAME tzname
 #endif
@@ -527,7 +533,7 @@ U_CAPI void * U_EXPORT2 uprv_maximumPtr(void *base);
  * on the destination pointer and capacity cannot overflow.
  *
  * The pinned capacity must fulfill the following conditions (for positive capacities):
- *   - dest + capacity is a valid pointer according to the machine arcitecture (AS/400, 64-bit, etc.)
+ *   - dest + capacity is a valid pointer according to the machine architecture (AS/400, 64-bit, etc.)
  *   - (dest + capacity) >= dest
  *   - The size (in bytes) of T[capacity] does not exceed 0x7fffffff
  *
@@ -553,7 +559,7 @@ inline int32_t pinCapacity(T *dest, int32_t capacity) {
     if (maxInt < destInt) {
         // Less than 2GB to the end of the address space.
         // Pin to that to prevent address overflow.
-        maxInt = (uintptr_t)-1;
+        maxInt = static_cast<uintptr_t>(-1);
     }
 #  endif
 

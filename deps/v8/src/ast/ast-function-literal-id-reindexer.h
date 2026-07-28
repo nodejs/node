@@ -6,7 +6,6 @@
 #define V8_AST_AST_FUNCTION_LITERAL_ID_REINDEXER_H_
 
 #include "src/ast/ast-traversal-visitor.h"
-#include "src/base/macros.h"
 
 #ifdef DEBUG
 #include <set>
@@ -21,6 +20,9 @@ class AstFunctionLiteralIdReindexer final
     : public AstTraversalVisitor<AstFunctionLiteralIdReindexer> {
  public:
   AstFunctionLiteralIdReindexer(size_t stack_limit, int delta);
+  AstFunctionLiteralIdReindexer(const AstFunctionLiteralIdReindexer&) = delete;
+  AstFunctionLiteralIdReindexer& operator=(
+      const AstFunctionLiteralIdReindexer&) = delete;
   ~AstFunctionLiteralIdReindexer();
 
   void Reindex(Expression* pattern);
@@ -28,6 +30,7 @@ class AstFunctionLiteralIdReindexer final
   // AstTraversalVisitor implementation.
   void VisitFunctionLiteral(FunctionLiteral* lit);
   void VisitClassLiteral(ClassLiteral* lit);
+  void VisitCall(Call* lit);
 
  private:
   int delta_;
@@ -42,8 +45,6 @@ class AstFunctionLiteralIdReindexer final
 #else
   void CheckVisited(Expression* expr) {}
 #endif
-
-  DISALLOW_COPY_AND_ASSIGN(AstFunctionLiteralIdReindexer);
 };
 
 }  // namespace internal

@@ -8,27 +8,31 @@ description: Get help on npm
 
 ```bash
 npm help <term> [<terms..>]
+
+alias: hlep
 ```
+
+Note: This command is unaware of workspaces.
 
 ### Description
 
 If supplied a topic, then show the appropriate documentation page.
 
-If the topic does not exist, or if multiple terms are provided, then npm
-will run the `help-search` command to find a match.  Note that, if
-`help-search` finds a single subject, then it will run `help` on that
-topic, so unique matches are equivalent to specifying a topic name.
+If the topic does not exist, or if multiple terms are provided, then npm will run the `help-search` command to find a match.
+Note that, if `help-search` finds a single subject, then it will run `help` on that topic, so unique matches are equivalent to specifying a topic name.
 
 ### Configuration
 
-#### viewer
+#### `viewer`
 
 * Default: "man" on Posix, "browser" on Windows
-* Type: path
+* Type: String
 
 The program to use to view help content.
 
 Set to `"browser"` to view html help content in the default web browser.
+
+
 
 ### See Also
 

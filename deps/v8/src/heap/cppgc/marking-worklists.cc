@@ -15,7 +15,17 @@ void MarkingWorklists::ClearForTesting() {
   not_fully_constructed_worklist_.Clear();
   previously_not_fully_constructed_worklist_.Clear();
   write_barrier_worklist_.Clear();
-  weak_callback_worklist_.Clear();
+  weak_container_callback_worklist_.Clear();
+  parallel_weak_callback_worklist_.Clear();
+  weak_custom_callback_worklist_.Clear();
+  concurrent_marking_bailout_worklist_.Clear();
+  discovered_ephemeron_pairs_worklist_.Clear();
+  ephemeron_pairs_for_processing_worklist_.Clear();
+  retrace_marked_objects_worklist_.Clear();
+}
+
+MarkingWorklists::ExternalMarkingWorklist::~ExternalMarkingWorklist() {
+  DCHECK(IsEmpty());
 }
 
 }  // namespace internal

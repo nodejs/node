@@ -13,7 +13,7 @@ const servers = [
   {
     socket: dgram.createSocket('udp4'),
     reply: { type: 'A', address: '5.6.7.8', ttl: 123, domain: 'example.org' }
-  }
+  },
 ];
 
 let waiting = servers.length;

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --opt --no-always-opt
-// Flags: --no-stress-flush-bytecode
+// Flags: --allow-natives-syntax --turbofan
+// Flags: --no-stress-flush-code
 
 let string = "foobar";
 
@@ -14,7 +14,6 @@ function f(useArrayIndex) {
 
 %PrepareFunctionForOptimization(f);
 f(true);
-f(true);
 
 %OptimizeFunctionOnNextCall(f);
 f(false);
@@ -22,6 +21,12 @@ assertUnoptimized(f);
 
 %PrepareFunctionForOptimization(f);
 f(true);
+
+// Might deopt again with oob support since the argument cannot be converted to an index
+%OptimizeFunctionOnNextCall(f);
+f(false);
+
+%PrepareFunctionForOptimization(f);
 f(true);
 
 %OptimizeFunctionOnNextCall(f);

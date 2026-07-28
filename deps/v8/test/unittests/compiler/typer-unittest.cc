@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "src/base/overflowing-math.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
@@ -22,8 +23,8 @@ class TyperTest : public TypedGraphTest {
  public:
   TyperTest()
       : TypedGraphTest(3),
-        broker_(isolate(), zone()),
-        operation_typer_(&broker_, zone()),
+        current_broker_(broker()),
+        operation_typer_(broker(), zone()),
         types_(zone(), isolate(), random_number_generator()),
         javascript_(zone()),
         simplified_(zone()) {
@@ -56,7 +57,7 @@ class TyperTest : public TypedGraphTest {
 
   const int kRepetitions = 50;
 
-  JSHeapBroker broker_;
+  CurrentHeapBrokerScope current_broker_;
   OperationTyper operation_typer_;
   Types types_;
   JSOperatorBuilder javascript_;
@@ -182,9 +183,7 @@ class TyperTest : public TypedGraphTest {
           for (int x1 = lmin; x1 < lmin + width; x1++) {
             for (int x2 = rmin; x2 < rmin + width; x2++) {
               double result_value = opfun(x1, x2);
-              Type result_type = Type::Constant(
-                  &broker_, isolate()->factory()->NewNumber(result_value),
-                  zone());
+              Type result_type = Type::Constant(result_value, zone());
               EXPECT_TRUE(result_type.Is(expected_type));
             }
           }
@@ -200,26 +199,22 @@ class TyperTest : public TypedGraphTest {
       Type r1 = RandomRange();
       Type r2 = RandomRange();
       Type expected_type = TypeBinaryOp(op, r1, r2);
-      for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
         double x1 = RandomInt(r1.AsRange());
         double x2 = RandomInt(r2.AsRange());
         double result_value = opfun(x1, x2);
-        Type result_type = Type::Constant(
-            &broker_, isolate()->factory()->NewNumber(result_value), zone());
+        Type result_type = Type::Constant(result_value, zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
     // Test extreme cases.
     double x1 = +1e-308;
     double x2 = -1e-308;
-    Type r1 =
-        Type::Constant(&broker_, isolate()->factory()->NewNumber(x1), zone());
-    Type r2 =
-        Type::Constant(&broker_, isolate()->factory()->NewNumber(x2), zone());
+    Type r1 = Type::Constant(x1, zone());
+    Type r2 = Type::Constant(x2, zone());
     Type expected_type = TypeBinaryOp(op, r1, r2);
     double result_value = opfun(x1, x2);
-    Type result_type = Type::Constant(
-        &broker_, isolate()->factory()->NewNumber(result_value), zone());
+    Type result_type = Type::Constant(result_value, zone());
     EXPECT_TRUE(result_type.Is(expected_type));
   }
 
@@ -229,15 +224,14 @@ class TyperTest : public TypedGraphTest {
       Type r1 = RandomRange();
       Type r2 = RandomRange();
       Type expected_type = TypeBinaryOp(op, r1, r2);
-      for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
         double x1 = RandomInt(r1.AsRange());
         double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
-        Type result_type =
-            Type::Constant(&broker_,
-                           result_value ? isolate()->factory()->true_value()
-                                        : isolate()->factory()->false_value(),
-                           zone());
+        Type result_type = Type::Constant(
+            broker(),
+            result_value ? broker()->true_value() : broker()->false_value(),
+            zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
@@ -249,12 +243,11 @@ class TyperTest : public TypedGraphTest {
       Type r1 = RandomRange(true);
       Type r2 = RandomRange(true);
       Type expected_type = TypeBinaryOp(op, r1, r2);
-      for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
         int32_t x1 = static_cast<int32_t>(RandomInt(r1.AsRange()));
         int32_t x2 = static_cast<int32_t>(RandomInt(r2.AsRange()));
         double result_value = opfun(x1, x2);
-        Type result_type = Type::Constant(
-            &broker_, isolate()->factory()->NewNumber(result_value), zone());
+        Type result_type = Type::Constant(result_value, zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
@@ -326,12 +319,6 @@ FeedbackSource FeedbackSourceWithOneBinarySlot(TyperTest* R) {
       FeedbackSlot{0}};
 }
 
-FeedbackSource FeedbackSourceWithOneCompareSlot(TyperTest* R) {
-  return FeedbackSource{
-      FeedbackVector::NewWithOneCompareSlotForTesting(R->zone(), R->isolate()),
-      FeedbackSlot{0}};
-}
-
 }  // namespace
 
 
@@ -392,9 +379,8 @@ TEST_F(TyperTest, TypeJSShiftRight) {
 }
 
 TEST_F(TyperTest, TypeJSLessThan) {
-  TestBinaryCompareOp(
-      javascript_.LessThan(FeedbackSourceWithOneCompareSlot(this)),
-      std::less<double>());
+  TestBinaryCompareOp(javascript_.LessThan(CompareOperationHint::kNone),
+                      std::less<double>());
 }
 
 TEST_F(TyperTest, TypeNumberLessThan) {
@@ -408,9 +394,8 @@ TEST_F(TyperTest, TypeSpeculativeNumberLessThan) {
 }
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
-  TestBinaryCompareOp(
-      javascript_.LessThanOrEqual(FeedbackSourceWithOneCompareSlot(this)),
-      std::less_equal<double>());
+  TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHint::kNone),
+                      std::less_equal<double>());
 }
 
 TEST_F(TyperTest, TypeNumberLessThanOrEqual) {
@@ -425,20 +410,19 @@ TEST_F(TyperTest, TypeSpeculativeNumberLessThanOrEqual) {
 }
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
-  TestBinaryCompareOp(
-      javascript_.GreaterThan(FeedbackSourceWithOneCompareSlot(this)),
-      std::greater<double>());
+  TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHint::kNone),
+                      std::greater<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
   TestBinaryCompareOp(
-      javascript_.GreaterThanOrEqual(FeedbackSourceWithOneCompareSlot(this)),
+      javascript_.GreaterThanOrEqual(CompareOperationHint::kNone),
       std::greater_equal<double>());
 }
 
 TEST_F(TyperTest, TypeJSEqual) {
-  TestBinaryCompareOp(javascript_.Equal(FeedbackSourceWithOneCompareSlot(this)),
+  TestBinaryCompareOp(javascript_.Equal(CompareOperationHint::kNone),
                       std::equal_to<double>());
 }
 
@@ -454,9 +438,8 @@ TEST_F(TyperTest, TypeSpeculativeNumberEqual) {
 
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
-  TestBinaryCompareOp(
-      javascript_.StrictEqual(FeedbackSourceWithOneCompareSlot(this)),
-      std::equal_to<double>());
+  TestBinaryCompareOp(javascript_.StrictEqual(CompareOperationHint::kNone),
+                      std::equal_to<double>());
 }
 
 //------------------------------------------------------------------------------
@@ -475,10 +458,9 @@ TEST_MONOTONICITY(ToString)
 #undef TEST_MONOTONICITY
 
 // JS compare ops.
-#define TEST_MONOTONICITY(name)                                    \
-  TEST_F(TyperTest, Monotonicity_##name) {                         \
-    TestBinaryMonotonicity(                                        \
-        javascript_.name(FeedbackSourceWithOneCompareSlot(this))); \
+#define TEST_MONOTONICITY(name)                                            \
+  TEST_F(TyperTest, Monotonicity_##name) {                                 \
+    TestBinaryMonotonicity(javascript_.name(CompareOperationHint::kNone)); \
   }
 TEST_MONOTONICITY(Equal)
 TEST_MONOTONICITY(StrictEqual)

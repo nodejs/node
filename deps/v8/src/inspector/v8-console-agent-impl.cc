@@ -30,14 +30,12 @@ Response V8ConsoleAgentImpl::enable() {
   if (m_enabled) return Response::Success();
   m_state->setBoolean(ConsoleAgentState::consoleEnabled, true);
   m_enabled = true;
-  m_session->inspector()->enableStackCapturingIfNeeded();
   reportAllMessages();
   return Response::Success();
 }
 
 Response V8ConsoleAgentImpl::disable() {
   if (!m_enabled) return Response::Success();
-  m_session->inspector()->disableStackCapturingIfNeeded();
   m_state->setBoolean(ConsoleAgentState::consoleEnabled, false);
   m_enabled = false;
   return Response::Success();
@@ -61,9 +59,15 @@ void V8ConsoleAgentImpl::reportAllMessages() {
   V8ConsoleMessageStorage* storage =
       m_session->inspector()->ensureConsoleMessageStorage(
           m_session->contextGroupId());
-  for (const auto& message : storage->messages()) {
-    if (message->origin() == V8MessageOrigin::kConsole) {
-      if (!reportMessage(message.get(), false)) return;
+  // The message queue can be cleared by a getter during message formatting.
+  // Make a copy of the message to avoid a UAF.
+  const auto& messages = storage->messages();
+  const size_t size = messages.size();
+  for (size_t i = 0; i < size; ++i) {
+    if (i >= messages.size()) break;
+    V8ConsoleMessage message = *messages[i];
+    if (!reportMessage(&message, false)) {
+      break;
     }
   }
 }

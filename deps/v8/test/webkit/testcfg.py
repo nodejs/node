@@ -25,7 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
 import re
 
 from testrunner.local import testsuite
@@ -33,7 +32,6 @@ from testrunner.objects import testcase
 from testrunner.outproc import webkit
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
-SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 
 class TestLoader(testsuite.JSTestLoader):
@@ -60,7 +58,7 @@ class TestCase(testcase.D8TestCase):
 
   def _parse_source_files(self, source):
     files_list = []  # List of file names to append to command arguments.
-    files_match = FILES_PATTERN.search(source);
+    files_match = FILES_PATTERN.search(source)
     # Accept several lines of 'Files:'.
     while True:
       if files_match:
@@ -68,20 +66,15 @@ class TestCase(testcase.D8TestCase):
         files_match = FILES_PATTERN.search(source, files_match.end())
       else:
         break
-    files = [ os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
-              for f in files_list ]
-    testfilename = os.path.join(self.suite.root, self.path + self._get_suffix())
-    if SELF_SCRIPT_PATTERN.search(source):
-      env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
-      files = env + files
-    files.append(os.path.join(self.suite.root, "resources/standalone-pre.js"))
-    files.append(testfilename)
-    files.append(os.path.join(self.suite.root, "resources/standalone-post.js"))
+    files = [self.suite.root.parents[1] / f for f in files_list]
+    files.append(self.suite.root / "resources/standalone-pre.js")
+    files.append(self.suite.root / self.path_js)
+    files.append(self.suite.root / "resources/standalone-post.js")
     return files
 
   def _get_files_params(self):
     files = self._source_files
-    if self._test_config.isolates:
+    if self.test_config.isolates:
       files = files + ['--isolate'] + files
     return files
 
@@ -89,14 +82,10 @@ class TestCase(testcase.D8TestCase):
     return self._source_flags
 
   def _get_source_path(self):
-    return os.path.join(self.suite.root, self.path + self._get_suffix())
+    return self.suite.root / self.path_js
 
   @property
   def output_proc(self):
     return webkit.OutProc(
         self.expected_outcomes,
-        os.path.join(self.suite.root, self.path) + '-expected.txt')
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+        self.suite.root / self.path_and_suffix('-expected.txt'))

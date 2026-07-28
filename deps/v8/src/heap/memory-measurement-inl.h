@@ -6,6 +6,8 @@
 #define V8_HEAP_MEMORY_MEASUREMENT_INL_H_
 
 #include "src/heap/memory-measurement.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/contexts-inl.h"
 #include "src/objects/contexts.h"
 #include "src/objects/instance-type-inl.h"
@@ -16,38 +18,26 @@
 namespace v8 {
 namespace internal {
 
-bool NativeContextInferrer::Infer(Isolate* isolate, Map map, HeapObject object,
+bool NativeContextInferrer::Infer(PtrComprCageBase cage_base, Tagged<Map> map,
+                                  Tagged<HeapObject> object,
                                   Address* native_context) {
-  switch (map.visitor_id()) {
-    case kVisitContext:
-      *native_context = Context::cast(object).native_context().ptr();
-      return true;
-    case kVisitNativeContext:
-      *native_context = object.ptr();
-      return true;
-    case kVisitJSFunction:
-      return InferForJSFunction(JSFunction::cast(object), native_context);
-    case kVisitJSApiObject:
-    case kVisitJSArrayBuffer:
-    case kVisitJSObject:
-    case kVisitJSObjectFast:
-    case kVisitJSTypedArray:
-    case kVisitJSWeakCollection:
-      return InferForJSObject(isolate, map, JSObject::cast(object),
-                              native_context);
-    default:
-      return false;
-  }
+  Tagged<Object> maybe_native_context =
+      map->map()->raw_native_context_or_null();
+  *native_context = maybe_native_context.ptr();
+  // The value might be equal to Smi::uninitialized_deserialization_value()
+  // during NativeContext deserialization.
+  return !IsSmi(maybe_native_context) && !IsNull(maybe_native_context);
 }
 
-V8_INLINE bool NativeContextStats::HasExternalBytes(Map map) {
-  InstanceType instance_type = map.instance_type();
+V8_INLINE bool NativeContextStats::HasExternalBytes(Tagged<Map> map) {
+  InstanceType instance_type = map->instance_type();
   return (instance_type == JS_ARRAY_BUFFER_TYPE ||
           InstanceTypeChecker::IsExternalString(instance_type));
 }
 
-V8_INLINE void NativeContextStats::IncrementSize(Address context, Map map,
-                                                 HeapObject object,
+V8_INLINE void NativeContextStats::IncrementSize(Address context,
+                                                 Tagged<Map> map,
+                                                 Tagged<HeapObject> object,
                                                  size_t size) {
   size_by_context_[context] += size;
   if (HasExternalBytes(map)) {

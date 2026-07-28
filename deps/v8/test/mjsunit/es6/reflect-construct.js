@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-unsafe-function-constructor --harmony-promise-any
+// Flags: --allow-unsafe-function-constructor
 
 
 (function testReflectConstructArity() {
@@ -145,6 +145,21 @@
   // TODO(caitp): bug: newTarget prototype is not used if it is not
   // explicitly set.
   //assertSame(B.prototype, Object.getPrototypeOf(O));
+})();
+
+
+(function testReflectConstructNewTargetProxy() {
+  const proto = {};
+  let counter = 0;
+  Object.setPrototypeOf(Proxy, {
+    get prototype() {
+      counter++;
+      return proto;
+    },
+  });
+  const obj = Reflect.construct(Object, [], Proxy);
+  assertEquals(1, counter);
+  assertTrue(Object.getPrototypeOf(obj) === proto);
 })();
 
 

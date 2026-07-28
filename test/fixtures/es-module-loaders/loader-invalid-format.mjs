@@ -1,17 +1,20 @@
-export async function resolve(specifier, { parentURL }, defaultResolve) {
+export async function resolve(specifier, { parentURL, importAttributes }, next) {
   if (parentURL && specifier === '../fixtures/es-modules/test-esm-ok.mjs') {
     return {
-      url: 'file:///asdf'
+      shortCircuit: true,
+      url: 'file:///asdf',
     };
   }
-  return defaultResolve(specifier, {parentURL}, defaultResolve);
+  return next(specifier);
 }
 
-export function getFormat(url, context, defaultGetFormat) {
+export async function load(url, context, next) {
   if (url === 'file:///asdf') {
     return {
-      format: 'esm'
+      format: 'esm',
+      shortCircuit: true,
+      source: '',
     }
   }
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return next(url);
 }

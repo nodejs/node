@@ -65,6 +65,12 @@ Address SimulatorBase::RedirectExternalReference(Address external_function,
   return redirection->address_of_instruction();
 }
 
+// static
+Address SimulatorBase::UnwrapRedirection(Address redirection_trampoline) {
+  return reinterpret_cast<Address>(
+      Redirection::UnwrapRedirection(redirection_trampoline));
+}
+
 Redirection::Redirection(Address external_function,
                          ExternalReference::Type type)
     : external_function_(external_function), type_(type), next_(nullptr) {
@@ -94,6 +100,26 @@ Redirection* Redirection::Get(Address external_function,
     }
   }
   return new Redirection(external_function, type);
+}
+
+void SimulatorData::RegisterFunctionsAndSignatures(
+    Address* c_functions, const CFunctionInfo* const* c_signatures,
+    unsigned num_functions) {
+  base::MutexGuard guard(&signature_map_mutex_);
+  for (unsigned i = 0; i < num_functions; ++i) {
+    EncodedCSignature sig(c_signatures[i]);
+    AddSignatureForTarget(c_functions[i], sig);
+  }
+}
+
+const EncodedCSignature& SimulatorData::GetSignatureForTarget(Address target) {
+  base::MutexGuard guard(&signature_map_mutex_);
+  auto entry = target_to_signature_table_.find(target);
+  if (entry != target_to_signature_table_.end()) {
+    const EncodedCSignature& sig = entry->second;
+    return sig;
+  }
+  return EncodedCSignature::Invalid();
 }
 
 }  // namespace internal

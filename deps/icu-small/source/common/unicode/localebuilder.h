@@ -18,7 +18,7 @@
  */
 
 U_NAMESPACE_BEGIN
-class CharString;
+class FixedString;
 
 /**
  * <code>LocaleBuilder</code> is used to build instances of <code>Locale</code>
@@ -90,8 +90,7 @@ public:
     LocaleBuilder& setLocale(const Locale& locale);
 
     /**
-     * Resets the LocaleBuilder to match the provided
-     * [Unicode Locale Identifier](http://www.unicode.org/reports/tr35/tr35.html#unicode_locale_id) .
+     * Resets the LocaleBuilder to match the provided IETF BCP 47 language tag.
      * Discards the existing state.
      * The empty string causes the builder to be reset, like {@link #clear}.
      * Legacy language tags (marked as “Type: grandfathered” in BCP 47)
@@ -101,8 +100,7 @@ public:
      *
      * <p>This method clears the internal UErrorCode.
      *
-     * @param tag the language tag, defined as
-     *   [unicode_locale_id](http://www.unicode.org/reports/tr35/tr35.html#unicode_locale_id).
+     * @param tag the language tag, defined as IETF BCP 47 language tag.
      * @return This builder.
      * @stable ICU 64
      */
@@ -299,7 +297,7 @@ private:
     char language_[9];
     char script_[5];
     char region_[4];
-    CharString *variant_;  // Pointer not object so we need not #include internal charstr.h.
+    FixedString *variant_;  // Pointer not object so we need not #include internal fixedstring.h.
     icu::Locale *extensions_;  // Pointer not object. Storage for all other fields.
 
 };

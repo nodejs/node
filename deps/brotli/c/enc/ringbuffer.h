@@ -9,12 +9,10 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
-#include <string.h>  /* memcpy */
-
 #include "../common/platform.h"
-#include <brotli/types.h>
-#include "./memory.h"
-#include "./quality.h"
+#include "memory.h"
+#include "params.h"
+#include "quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

@@ -32,45 +32,23 @@
 #include "uv.h"
 #include "internal.h"
 
-static void uv__once_inner(uv_once_t* guard, void (*callback)(void)) {
-  DWORD result;
-  HANDLE existing_event, created_event;
+typedef void (*uv__once_cb)(void);
 
-  created_event = CreateEvent(NULL, 1, 0, NULL);
-  if (created_event == 0) {
-    /* Could fail in a low-memory situation? */
-    uv_fatal_error(GetLastError(), "CreateEvent");
-  }
+typedef struct {
+  uv__once_cb callback;
+} uv__once_data_t;
 
-  existing_event = InterlockedCompareExchangePointer(&guard->event,
-                                                     created_event,
-                                                     NULL);
+static BOOL WINAPI uv__once_inner(INIT_ONCE *once, void* param, void** context) {
+  uv__once_data_t* data = param;
 
-  if (existing_event == NULL) {
-    /* We won the race */
-    callback();
+  data->callback();
 
-    result = SetEvent(created_event);
-    assert(result);
-    guard->ran = 1;
-
-  } else {
-    /* We lost the race. Destroy the event we created and wait for the existing
-     * one to become signaled. */
-    CloseHandle(created_event);
-    result = WaitForSingleObject(existing_event, INFINITE);
-    assert(result == WAIT_OBJECT_0);
-  }
+  return TRUE;
 }
 
-
-void uv_once(uv_once_t* guard, void (*callback)(void)) {
-  /* Fast case - avoid WaitForSingleObject. */
-  if (guard->ran) {
-    return;
-  }
-
-  uv__once_inner(guard, callback);
+void uv_once(uv_once_t* guard, uv__once_cb callback) {
+  uv__once_data_t data = { .callback = callback };
+  InitOnceExecuteOnce(&guard->init_once, uv__once_inner, (void*) &data, NULL);
 }
 
 
@@ -79,6 +57,9 @@ STATIC_ASSERT(sizeof(uv_thread_t) <= sizeof(void*));
 
 static uv_key_t uv__current_thread_key;
 static uv_once_t uv__current_thread_init_guard = UV_ONCE_INIT;
+static uv_once_t uv__thread_name_once = UV_ONCE_INIT;
+HRESULT (WINAPI *pGetThreadDescription)(HANDLE, PWSTR*);
+HRESULT (WINAPI *pSetThreadDescription)(HANDLE, PCWSTR);
 
 
 static void uv__init_current_thread_key(void) {
@@ -103,7 +84,7 @@ static UINT __stdcall uv__thread_start(void* arg) {
   uv__free(ctx_p);
 
   uv_once(&uv__current_thread_init_guard, uv__init_current_thread_key);
-  uv_key_set(&uv__current_thread_key, (void*) ctx.self);
+  uv_key_set(&uv__current_thread_key, ctx.self);
 
   ctx.entry(ctx.arg);
 
@@ -116,6 +97,15 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   params.flags = UV_THREAD_NO_FLAGS;
   return uv_thread_create_ex(tid, &params, entry, arg);
 }
+
+
+int uv_thread_detach(uv_thread_t *tid) {
+  if (CloseHandle(*tid) == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  return 0;
+}
+
 
 int uv_thread_create_ex(uv_thread_t* tid,
                         const uv_thread_options_t* params,
@@ -180,10 +170,97 @@ int uv_thread_create_ex(uv_thread_t* tid,
   return UV_EIO;
 }
 
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  int i;
+  HANDLE hproc;
+  DWORD_PTR procmask;
+  DWORD_PTR sysmask;
+  DWORD_PTR threadmask;
+  DWORD_PTR oldthreadmask;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  assert(cpumasksize > 0);
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  hproc = GetCurrentProcess();
+  if (!GetProcessAffinityMask(hproc, &procmask, &sysmask))
+    return uv_translate_sys_error(GetLastError());
+
+  threadmask = 0;
+  for (i = 0; i < cpumasksize; i++) {
+    if (cpumask[i]) {
+      if (procmask & (1 << i))
+        threadmask |= 1 << i;
+      else
+        return UV_EINVAL;
+    }
+  }
+
+  oldthreadmask = SetThreadAffinityMask(*tid, threadmask);
+  if (oldthreadmask == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  if (oldmask != NULL) {
+    for (i = 0; i < cpumasksize; i++)
+      oldmask[i] = (oldthreadmask >> i) & 1;
+  }
+
+  return 0;
+}
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  int i;
+  HANDLE hproc;
+  DWORD_PTR procmask;
+  DWORD_PTR sysmask;
+  DWORD_PTR threadmask;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  assert(cpumasksize > 0);
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  hproc = GetCurrentProcess();
+  if (!GetProcessAffinityMask(hproc, &procmask, &sysmask))
+    return uv_translate_sys_error(GetLastError());
+
+  threadmask = SetThreadAffinityMask(*tid, procmask);
+  if (threadmask == 0 || SetThreadAffinityMask(*tid, threadmask) == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  for (i = 0; i < cpumasksize; i++)
+    cpumask[i] = (threadmask >> i) & 1;
+
+  return 0;
+}
+
+int uv_thread_getcpu(void) {
+  return GetCurrentProcessorNumber();
+}
 
 uv_thread_t uv_thread_self(void) {
+  uv_thread_t key;
   uv_once(&uv__current_thread_init_guard, uv__init_current_thread_key);
-  return (uv_thread_t) uv_key_get(&uv__current_thread_key);
+  key = uv_key_get(&uv__current_thread_key);
+  if (key == NULL) {
+      /* If the thread wasn't started by uv_thread_create (such as the main
+       * thread), we assign an id to it now. */
+      if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
+                           GetCurrentProcess(), &key, 0,
+                           FALSE, DUPLICATE_SAME_ACCESS)) {
+          uv_fatal_error(GetLastError(), "DuplicateHandle");
+      }
+      uv_key_set(&uv__current_thread_key, key);
+  }
+  return key;
 }
 
 
@@ -201,6 +278,92 @@ int uv_thread_join(uv_thread_t *tid) {
 
 int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2) {
   return *t1 == *t2;
+}
+
+
+static void uv__thread_name_init_once(void) {
+  HMODULE m;
+
+  m = GetModuleHandleW(L"api-ms-win-core-processthreads-l1-1-3.dll");
+  if (m != NULL) {
+    pGetThreadDescription = (void*) GetProcAddress(m, "GetThreadDescription");
+    pSetThreadDescription = (void*) GetProcAddress(m, "SetThreadDescription");
+  }
+}
+
+
+int uv_thread_setname(const char* name) {
+  HRESULT hr;
+  WCHAR* namew;
+  int err;
+  char namebuf[UV_PTHREAD_MAX_NAMELEN_NP];
+
+  uv_once(&uv__thread_name_once, uv__thread_name_init_once);
+
+  if (pSetThreadDescription == NULL)
+    return UV_ENOSYS;
+
+  if (name == NULL)
+    return UV_EINVAL;
+
+  strncpy(namebuf, name, sizeof(namebuf) - 1);
+  namebuf[sizeof(namebuf) - 1] = '\0';
+
+  namew = NULL;
+  err = uv__convert_utf8_to_utf16(namebuf, &namew);
+  if (err)
+    return err;
+
+  hr = pSetThreadDescription(GetCurrentThread(), namew);
+  uv__free(namew);
+  if (FAILED(hr))
+    return uv_translate_sys_error(HRESULT_CODE(hr));
+
+  return 0;
+}
+
+
+int uv_thread_getname(uv_thread_t* tid, char* name, size_t size) {
+  HRESULT hr;
+  WCHAR* namew;
+  char* thread_name;
+  size_t buf_size;
+  int r;
+  DWORD exit_code;
+
+  uv_once(&uv__thread_name_once, uv__thread_name_init_once);
+
+  if (pGetThreadDescription == NULL)
+    return UV_ENOSYS;
+
+  if (name == NULL || size == 0)
+    return UV_EINVAL;
+
+  if (tid == NULL || *tid == NULL)
+    return UV_EINVAL;
+
+  /* Check if the thread handle is valid */
+  if (!GetExitCodeThread(*tid, &exit_code) || exit_code != STILL_ACTIVE)
+    return UV_ENOENT;
+
+  namew = NULL;
+  thread_name = NULL;
+  hr = pGetThreadDescription(*tid, &namew);
+  if (FAILED(hr))
+    return uv_translate_sys_error(HRESULT_CODE(hr));
+
+  buf_size = size;
+  r = uv__copy_utf16_to_utf8(namew, -1, name, &buf_size);
+  if (r == UV_ENOBUFS) {
+    r = uv__convert_utf16_to_utf8(namew, wcslen(namew), &thread_name);
+    if (r == 0) {
+      uv__strscpy(name, thread_name, size);
+      uv__free(thread_name);
+    }
+  }
+
+  LocalFree(namew);
+  return r;
 }
 
 
@@ -237,113 +400,60 @@ void uv_mutex_unlock(uv_mutex_t* mutex) {
   LeaveCriticalSection(mutex);
 }
 
+/* Ensure that the ABI for this type remains stable in v1.x */
+#ifdef _WIN64
+STATIC_ASSERT(sizeof(uv_rwlock_t) == 80);
+#else
+STATIC_ASSERT(sizeof(uv_rwlock_t) == 48);
+#endif
 
 int uv_rwlock_init(uv_rwlock_t* rwlock) {
-  /* Initialize the semaphore that acts as the write lock. */
-  HANDLE handle = CreateSemaphoreW(NULL, 1, 1, NULL);
-  if (handle == NULL)
-    return uv_translate_sys_error(GetLastError());
-  rwlock->state_.write_semaphore_ = handle;
-
-  /* Initialize the critical section protecting the reader count. */
-  InitializeCriticalSection(&rwlock->state_.num_readers_lock_);
-
-  /* Initialize the reader count. */
-  rwlock->state_.num_readers_ = 0;
+  memset(rwlock, 0, sizeof(*rwlock));
+  InitializeSRWLock(&rwlock->read_write_lock_);
 
   return 0;
 }
 
 
 void uv_rwlock_destroy(uv_rwlock_t* rwlock) {
-  DeleteCriticalSection(&rwlock->state_.num_readers_lock_);
-  CloseHandle(rwlock->state_.write_semaphore_);
+  /* SRWLock does not need explicit destruction so long as there are no waiting threads
+     See: https://docs.microsoft.com/windows/win32/api/synchapi/nf-synchapi-initializesrwlock#remarks */
 }
 
 
 void uv_rwlock_rdlock(uv_rwlock_t* rwlock) {
-  /* Acquire the lock that protects the reader count. */
-  EnterCriticalSection(&rwlock->state_.num_readers_lock_);
-
-  /* Increase the reader count, and lock for write if this is the first
-   * reader.
-   */
-  if (++rwlock->state_.num_readers_ == 1) {
-    DWORD r = WaitForSingleObject(rwlock->state_.write_semaphore_, INFINITE);
-    if (r != WAIT_OBJECT_0)
-      uv_fatal_error(GetLastError(), "WaitForSingleObject");
-  }
-
-  /* Release the lock that protects the reader count. */
-  LeaveCriticalSection(&rwlock->state_.num_readers_lock_);
+  AcquireSRWLockShared(&rwlock->read_write_lock_);
 }
 
 
 int uv_rwlock_tryrdlock(uv_rwlock_t* rwlock) {
-  int err;
-
-  if (!TryEnterCriticalSection(&rwlock->state_.num_readers_lock_))
+  if (!TryAcquireSRWLockShared(&rwlock->read_write_lock_))
     return UV_EBUSY;
 
-  err = 0;
-
-  if (rwlock->state_.num_readers_ == 0) {
-    /* Currently there are no other readers, which means that the write lock
-     * needs to be acquired.
-     */
-    DWORD r = WaitForSingleObject(rwlock->state_.write_semaphore_, 0);
-    if (r == WAIT_OBJECT_0)
-      rwlock->state_.num_readers_++;
-    else if (r == WAIT_TIMEOUT)
-      err = UV_EBUSY;
-    else if (r == WAIT_FAILED)
-      uv_fatal_error(GetLastError(), "WaitForSingleObject");
-
-  } else {
-    /* The write lock has already been acquired because there are other
-     * active readers.
-     */
-    rwlock->state_.num_readers_++;
-  }
-
-  LeaveCriticalSection(&rwlock->state_.num_readers_lock_);
-  return err;
+  return 0;
 }
 
 
 void uv_rwlock_rdunlock(uv_rwlock_t* rwlock) {
-  EnterCriticalSection(&rwlock->state_.num_readers_lock_);
-
-  if (--rwlock->state_.num_readers_ == 0) {
-    if (!ReleaseSemaphore(rwlock->state_.write_semaphore_, 1, NULL))
-      uv_fatal_error(GetLastError(), "ReleaseSemaphore");
-  }
-
-  LeaveCriticalSection(&rwlock->state_.num_readers_lock_);
+  ReleaseSRWLockShared(&rwlock->read_write_lock_);
 }
 
 
 void uv_rwlock_wrlock(uv_rwlock_t* rwlock) {
-  DWORD r = WaitForSingleObject(rwlock->state_.write_semaphore_, INFINITE);
-  if (r != WAIT_OBJECT_0)
-    uv_fatal_error(GetLastError(), "WaitForSingleObject");
+  AcquireSRWLockExclusive(&rwlock->read_write_lock_);
 }
 
 
 int uv_rwlock_trywrlock(uv_rwlock_t* rwlock) {
-  DWORD r = WaitForSingleObject(rwlock->state_.write_semaphore_, 0);
-  if (r == WAIT_OBJECT_0)
-    return 0;
-  else if (r == WAIT_TIMEOUT)
+  if (!TryAcquireSRWLockExclusive(&rwlock->read_write_lock_))
     return UV_EBUSY;
-  else
-    uv_fatal_error(GetLastError(), "WaitForSingleObject");
+
+  return 0;
 }
 
 
 void uv_rwlock_wrunlock(uv_rwlock_t* rwlock) {
-  if (!ReleaseSemaphore(rwlock->state_.write_semaphore_, 1, NULL))
-    uv_fatal_error(GetLastError(), "ReleaseSemaphore");
+  ReleaseSRWLockExclusive(&rwlock->read_write_lock_);
 }
 
 
@@ -415,75 +525,13 @@ void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
     abort();
 }
 
+
 int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   if (SleepConditionVariableCS(&cond->cond_var, mutex, (DWORD)(timeout / 1e6)))
     return 0;
   if (GetLastError() != ERROR_TIMEOUT)
     abort();
   return UV_ETIMEDOUT;
-}
-
-
-int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
-  int err;
-
-  barrier->n = count;
-  barrier->count = 0;
-
-  err = uv_mutex_init(&barrier->mutex);
-  if (err)
-    return err;
-
-  err = uv_sem_init(&barrier->turnstile1, 0);
-  if (err)
-    goto error2;
-
-  err = uv_sem_init(&barrier->turnstile2, 1);
-  if (err)
-    goto error;
-
-  return 0;
-
-error:
-  uv_sem_destroy(&barrier->turnstile1);
-error2:
-  uv_mutex_destroy(&barrier->mutex);
-  return err;
-
-}
-
-
-void uv_barrier_destroy(uv_barrier_t* barrier) {
-  uv_sem_destroy(&barrier->turnstile2);
-  uv_sem_destroy(&barrier->turnstile1);
-  uv_mutex_destroy(&barrier->mutex);
-}
-
-
-int uv_barrier_wait(uv_barrier_t* barrier) {
-  int serial_thread;
-
-  uv_mutex_lock(&barrier->mutex);
-  if (++barrier->count == barrier->n) {
-    uv_sem_wait(&barrier->turnstile2);
-    uv_sem_post(&barrier->turnstile1);
-  }
-  uv_mutex_unlock(&barrier->mutex);
-
-  uv_sem_wait(&barrier->turnstile1);
-  uv_sem_post(&barrier->turnstile1);
-
-  uv_mutex_lock(&barrier->mutex);
-  serial_thread = (--barrier->count == 0);
-  if (serial_thread) {
-    uv_sem_wait(&barrier->turnstile1);
-    uv_sem_post(&barrier->turnstile2);
-  }
-  uv_mutex_unlock(&barrier->mutex);
-
-  uv_sem_wait(&barrier->turnstile2);
-  uv_sem_post(&barrier->turnstile2);
-  return serial_thread;
 }
 
 

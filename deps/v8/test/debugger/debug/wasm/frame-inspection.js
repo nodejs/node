@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
-
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 Debug = debug.Debug
 
@@ -14,8 +12,8 @@ var break_count = 0;
 const expected_frames = [
   // func-name; wasm?; pos; line; col
   ['call_debugger', false],        // --
-  ['wasm_2', true, 56, 1, 60],     // --
-  ['wasm_1', true, 52, 1, 55],     // --
+  ['$wasm_2', true, 56, 1, 60],    // --
+  ['$wasm_1', true, 52, 1, 55],    // --
   ['testFrameInspection', false],  // --
   ['', false]
 ];

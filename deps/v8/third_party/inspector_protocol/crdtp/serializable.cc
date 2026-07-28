@@ -1,8 +1,10 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "serializable.h"
+
+#include <utility>
 
 namespace v8_crdtp {
 // =============================================================================
@@ -18,7 +20,8 @@ std::vector<uint8_t> Serializable::Serialize() const {
 namespace {
 class PreSerialized : public Serializable {
  public:
-  explicit PreSerialized(std::vector<uint8_t> bytes) : bytes_(bytes) {}
+  explicit PreSerialized(std::vector<uint8_t> bytes)
+      : bytes_(std::move(bytes)) {}
 
   void AppendSerialized(std::vector<uint8_t>* out) const override {
     out->insert(out->end(), bytes_.begin(), bytes_.end());

@@ -1,22 +1,23 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #ifndef OSSL_INTERNAL_DSO_H
-# define OSSL_INTERNAL_DSO_H
+#define OSSL_INTERNAL_DSO_H
+#pragma once
 
-# include <openssl/crypto.h>
-# include "internal/dsoerr.h"
+#include <openssl/crypto.h>
+#include "internal/dsoerr.h"
 
 /* These values are used as commands to DSO_ctrl() */
-# define DSO_CTRL_GET_FLAGS      1
-# define DSO_CTRL_SET_FLAGS      2
-# define DSO_CTRL_OR_FLAGS       3
+#define DSO_CTRL_GET_FLAGS 1
+#define DSO_CTRL_SET_FLAGS 2
+#define DSO_CTRL_OR_FLAGS 3
 
 /*
  * By default, DSO_load() will translate the provided filename into a form
@@ -29,7 +30,7 @@
  * the caller has prompted the user for a path to a driver library so the
  * filename should be interpreted as-is.
  */
-# define DSO_FLAG_NO_NAME_TRANSLATION            0x01
+#define DSO_FLAG_NO_NAME_TRANSLATION 0x01
 /*
  * An extra flag to give if only the extension should be added as
  * translation.  This is obviously only of importance on Unix and other
@@ -37,21 +38,21 @@
  * something, like 'lib', and ignored everywhere else. This flag is also
  * ignored if DSO_FLAG_NO_NAME_TRANSLATION is used at the same time.
  */
-# define DSO_FLAG_NAME_TRANSLATION_EXT_ONLY      0x02
+#define DSO_FLAG_NAME_TRANSLATION_EXT_ONLY 0x02
 
 /*
  * Don't unload the DSO when we call DSO_free()
  */
-# define DSO_FLAG_NO_UNLOAD_ON_FREE              0x04
+#define DSO_FLAG_NO_UNLOAD_ON_FREE 0x04
 
 /*
  * This flag loads the library with public symbols. Meaning: The exported
  * symbols of this library are public to all libraries loaded after this
  * library. At the moment only implemented in unix.
  */
-# define DSO_FLAG_GLOBAL_SYMBOLS                 0x20
+#define DSO_FLAG_GLOBAL_SYMBOLS 0x20
 
-typedef void (*DSO_FUNC_TYPE) (void);
+typedef void (*DSO_FUNC_TYPE)(void);
 
 typedef struct dso_st DSO;
 typedef struct dso_meth_st DSO_METHOD;
@@ -159,7 +160,5 @@ DSO *DSO_dsobyaddr(void *addr, int flags);
  * reside: in libc itself or libsocket.
  */
 void *DSO_global_lookup(const char *name);
-
-int ERR_load_DSO_strings(void);
 
 #endif

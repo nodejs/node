@@ -20,10 +20,10 @@ server.on('stream', common.mustCall((stream) => {
   assert.strictEqual(++c, 1);
   stream.respond();
   // Force some asynchronous stuff.
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     stream.end('ok');
     assert.strictEqual(--c, 0);
-  });
+  }));
 }, 3));
 
 server.listen(0, common.mustCall(() => {

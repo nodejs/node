@@ -38,7 +38,7 @@ server.listen(0, common.mustCall(() => {
 
   const notCallClose = common.mustNotCall();
 
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     req.setEncoding('utf8');
     req.removeListener('close', notCallClose);
     req.on('close', common.mustCall(() => {
@@ -49,7 +49,7 @@ server.listen(0, common.mustCall(() => {
     req.on('end', common.mustCall(() => {
       assert.strictEqual(data, 'test');
     }));
-  }, common.platformTimeout(100));
+  }), common.platformTimeout(100));
 
   req.on('close', notCallClose);
 }));

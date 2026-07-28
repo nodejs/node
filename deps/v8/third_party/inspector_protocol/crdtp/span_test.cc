@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -83,6 +83,12 @@ TEST(SpanFromTest, FromVectorUint8AndUint16) {
   std::vector<uint16_t> bar = {0xff, 0xef, 0xeb};
   span<uint16_t> bar_span = SpanFrom(bar);
   EXPECT_EQ(bar.size(), bar_span.size());
+}
+
+TEST(SpanFromTest, FromVectorImplicit) {
+  std::vector<uint8_t> foo = {'f', 'o', 'o'};
+  span<uint8_t> foo_span(foo);
+  EXPECT_EQ(foo.size(), foo_span.size());
 }
 
 TEST(SpanComparisons, ByteWiseLexicographicalOrder) {

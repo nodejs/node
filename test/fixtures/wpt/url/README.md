@@ -1,31 +1,31 @@
-## urltestdata.json
+## urltestdata.json / urltestdata-javascript-only.json
 
-These tests are for browsers, but the data for
-`a-element.html`, `url-constructor.html`, `a-element-xhtml.xhtml`, and `failure.html`
-is in `resources/urltestdata.json` and can be re-used by non-browser implementations.
-This file contains a JSON array of comments as strings and test cases as objects.
-The keys for each test case are:
+[`resources/urltestdata.json`](resources/urltestdata.json) contains URL parsing tests suitable for any URL parser implementation.
+[`resources/urltestdata-javascript-only.json`](resources/urltestdata-javascript-only.json) contains URL parsing tests specifically meant
+for JavaScript's `URL()` class as well as other languages accepting non-scalar-value strings.
 
-* `base`: an absolute URL as a string whose [parsing] without a base of its own must succeed.
-  This key is always present,
-  and may have a value like `"about:blank"` when `input` is an absolute URL.
-* `input`: an URL as a string to be [parsed][parsing] with `base` as its base URL.
-* Either:
-  * `failure` with the value `true`, indicating that parsing `input` should return failure,
-  * or `href`, `origin`, `protocol`, `username`, `password`, `host`, `hostname`, `port`,
-    `pathname`, `search`, and `hash` with string values;
-    indicating that parsing `input` should return an URL record
-    and that the getters of each corresponding attribute in that URL’s [API]
-    should return the corresponding value.
+These files are used as a source of tests by `a-element.html`, `failure.html`, `url-constructor.any.js`,
+and other test files in this directory.
 
-    The `origin` key may be missing.
-    In that case, the API’s `origin` attribute is not tested.
+Both files share the same format. They consist of a JSON array of comments as strings and test cases as
+objects. The keys for each test case are:
 
-In addition to testing that parsing `input` against `base` gives the result, a test harness for the
-`URL` constructor (or similar APIs) should additionally test the following pattern: if `failure` is
-true, parsing `about:blank` against `input` must give failure. This tests that the logic for
-converting base URLs into strings properly fails the whole parsing algorithm if the base URL cannot
-be parsed.
+* `input`: a string to be parsed as URL.
+* `base`: null or a serialized URL (i.e., does not fail parsing).
+* Then either
+
+  * `failure` whose value is `true`, indicating that parsing `input` relative to `base` returns
+    failure
+  * `relativeTo` whose value is "`non-opaque-path-base`" (input does parse against a non-null base
+    URL without an opaque path) or "`any-base`" (input parses against any non-null base URL), or is
+    omitted in its entirety (input never parses successfully)
+
+  or `href`, `origin`, `protocol`, `username`, `password`, `host`, `hostname`, `port`,
+  `pathname`, `search`, and `hash` with string values; indicating that parsing `input` should return
+  an URL record and that the getters of each corresponding attribute in that URL’s [API] should
+  return the corresponding value.
+
+  The `origin` key may be missing. In that case, the API’s `origin` attribute is not tested.
 
 ## setters_tests.json
 

@@ -1,0 +1,24 @@
+---
+source: components/calendar/src/tests/date_arithmetic_snapshot.rs
+expression: output
+---
+2023-1-1
+  (start: Date(112-1-1, roc era, for calendar ROC))
+    +10d → Date(112-1-11, roc era, for calendar ROC)
+    +2m → Date(112-3-1, roc era, for calendar ROC)
+    +1y → Date(113-1-1, roc era, for calendar ROC)
+    +1y 3m 15d → Date(113-4-16, roc era, for calendar ROC)
+
+2024-6-15
+  (start: Date(113-6-15, roc era, for calendar ROC))
+    +10d → Date(113-6-25, roc era, for calendar ROC)
+    +2m → Date(113-8-15, roc era, for calendar ROC)
+    +1y → Date(114-6-15, roc era, for calendar ROC)
+    +1y 3m 15d → Date(114-9-30, roc era, for calendar ROC)
+
+2025-12-31
+  (start: Date(114-12-31, roc era, for calendar ROC))
+    +10d → Date(115-1-10, roc era, for calendar ROC)
+    +2m → Date(115-2-28, roc era, for calendar ROC)
+    +1y → Date(115-12-31, roc era, for calendar ROC)
+    +1y 3m 15d → Date(116-4-15, roc era, for calendar ROC)

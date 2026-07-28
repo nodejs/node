@@ -6,26 +6,47 @@
 
 <!-- source_link=lib/os.js -->
 
-The `os` module provides operating system-related utility methods and
+The `node:os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
-```js
-const os = require('os');
+```mjs
+import os from 'node:os';
+```
+
+```cjs
+const os = require('node:os');
 ```
 
 ## `os.EOL`
+
 <!-- YAML
 added: v0.7.8
 -->
 
-* {string}
+* Type: {string}
 
 The operating system-specific end-of-line marker.
 
 * `\n` on POSIX
 * `\r\n` on Windows
 
+## `os.availableParallelism()`
+
+<!-- YAML
+added:
+  - v19.4.0
+  - v18.14.0
+-->
+
+* Returns: {integer}
+
+Returns an estimate of the default amount of parallelism a program should use.
+Always returns a value greater than zero.
+
+This function is a small wrapper about libuv's [`uv_available_parallelism()`][].
+
 ## `os.arch()`
+
 <!-- YAML
 added: v0.5.0
 -->
@@ -33,30 +54,34 @@ added: v0.5.0
 * Returns: {string}
 
 Returns the operating system CPU architecture for which the Node.js binary was
-compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
-`'mipsel'`, `'ppc'`, `'ppc64'`, `'s390'`, `'s390x'`, `'x32'`, and `'x64'`.
+compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`,
+`'mips'`, `'mipsel'`, `'ppc64'`, `'riscv64'`, `'s390x'`, and `'x64'`.
 
 The return value is equivalent to [`process.arch`][].
 
 ## `os.constants`
+
 <!-- YAML
 added: v6.3.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Contains commonly used operating system-specific constants for error codes,
 process signals, and so on. The specific constants defined are described in
-[OS constants](#os_os_constants_1).
+[OS constants](#os-constants).
 
 ## `os.cpus()`
+
 <!-- YAML
 added: v0.3.3
 -->
 
-* Returns: {Object[]}
+* Returns: {Object\[]}
 
 Returns an array of objects containing information about each logical CPU core.
+The array will be empty if no CPU information is available, such as if the
+`/proc` file system is unavailable.
 
 The properties included on each object include:
 
@@ -69,7 +94,6 @@ The properties included on each object include:
   * `idle` {number} The number of milliseconds the CPU has spent in idle mode.
   * `irq` {number} The number of milliseconds the CPU has spent in irq mode.
 
-<!-- eslint-disable semi -->
 ```js
 [
   {
@@ -80,8 +104,8 @@ The properties included on each object include:
       nice: 0,
       sys: 30340,
       idle: 1070356870,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -91,8 +115,8 @@ The properties included on each object include:
       nice: 0,
       sys: 26980,
       idle: 1071569080,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -102,8 +126,8 @@ The properties included on each object include:
       nice: 0,
       sys: 21750,
       idle: 1070919370,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -113,16 +137,36 @@ The properties included on each object include:
       nice: 0,
       sys: 19430,
       idle: 1070905480,
-      irq: 20
-    }
-  }
-]
+      irq: 20,
+    },
+  },
+];
 ```
 
 `nice` values are POSIX-only. On Windows, the `nice` values of all processors
 are always 0.
 
+`os.cpus().length` should not be used to calculate the amount of parallelism
+available to an application. Use
+[`os.availableParallelism()`](#osavailableparallelism) for this purpose.
+
+## `os.devNull`
+
+<!-- YAML
+added:
+  - v16.3.0
+  - v14.18.0
+-->
+
+* Type: {string}
+
+The platform-specific file path of the null device.
+
+* `\\.\nul` on Windows
+* `/dev/null` on POSIX
+
 ## `os.endianness()`
+
 <!-- YAML
 added: v0.9.4
 -->
@@ -135,6 +179,7 @@ binary was compiled.
 Possible values are `'BE'` for big endian and `'LE'` for little endian.
 
 ## `os.freemem()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -144,18 +189,20 @@ added: v0.3.3
 Returns the amount of free system memory in bytes as an integer.
 
 ## `os.getPriority([pid])`
+
 <!-- YAML
 added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to retrieve scheduling priority for.
-  **Default** `0`.
+  **Default:** `0`.
 * Returns: {integer}
 
 Returns the scheduling priority for the process specified by `pid`. If `pid` is
 not provided or is `0`, the priority of the current process is returned.
 
 ## `os.homedir()`
+
 <!-- YAML
 added: v2.3.0
 -->
@@ -171,6 +218,7 @@ On Windows, it uses the `USERPROFILE` environment variable if defined.
 Otherwise it uses the path to the profile directory of the current user.
 
 ## `os.hostname()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -180,11 +228,12 @@ added: v0.3.3
 Returns the host name of the operating system as a string.
 
 ## `os.loadavg()`
+
 <!-- YAML
 added: v0.3.3
 -->
 
-* Returns: {number[]}
+* Returns: {number\[]}
 
 Returns an array containing the 1, 5, and 15 minute load averages.
 
@@ -194,9 +243,35 @@ system and expressed as a fractional number.
 The load average is a Unix-specific concept. On Windows, the return value is
 always `[0, 0, 0]`.
 
+## `os.machine()`
+
+<!-- YAML
+added:
+  - v18.9.0
+  - v16.18.0
+-->
+
+* Returns: {string}
+
+Returns the machine type as a string, such as `arm`, `arm64`, `aarch64`,
+`mips`, `mips64`, `ppc64`, `ppc64le`, `s390x`, `i386`, `i686`, `x86_64`.
+
+On POSIX systems, the machine type is determined by calling
+[`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not
+available, `GetVersionExW()` will be used. See
+<https://en.wikipedia.org/wiki/Uname#Examples> for more information.
+
 ## `os.networkInterfaces()`
+
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: v18.4.0
+    pr-url: https://github.com/nodejs/node/pull/43054
+    description: The `family` property now returns a string instead of a number.
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41431
+    description: The `family` property now returns a number instead of a string.
 -->
 
 * Returns: {Object}
@@ -221,60 +296,61 @@ The properties available on the assigned network address object include:
   in CIDR notation. If the `netmask` is invalid, this property is set
   to `null`.
 
-<!-- eslint-skip -->
-```js
+```json
 {
-  lo: [
+  "lo:": [
     {
-      address: '127.0.0.1',
-      netmask: '255.0.0.0',
-      family: 'IPv4',
-      mac: '00:00:00:00:00:00',
-      internal: true,
-      cidr: '127.0.0.1/8'
+      "address:": "127.0.0.1",
+      "netmask:": "255.0.0.0",
+      "family:": "IPv4",
+      "mac:": "00:00:00:00:00:00",
+      "internal:": true,
+      "cidr:": "127.0.0.1/8"
     },
     {
-      address: '::1',
-      netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
-      family: 'IPv6',
-      mac: '00:00:00:00:00:00',
-      scopeid: 0,
-      internal: true,
-      cidr: '::1/128'
+      "address:": "::1",
+      "netmask:": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+      "family:": "IPv6",
+      "mac:": "00:00:00:00:00:00",
+      "scopeid:": 0,
+      "internal:": true,
+      "cidr:": "::1/128"
     }
   ],
-  eth0: [
+  "eth0:": [
     {
-      address: '192.168.1.108',
-      netmask: '255.255.255.0',
-      family: 'IPv4',
-      mac: '01:02:03:0a:0b:0c',
-      internal: false,
-      cidr: '192.168.1.108/24'
+      "address:": "192.168.1.108",
+      "netmask:": "255.255.255.0",
+      "family:": "IPv4",
+      "mac:": "01:02:03:0a:0b:0c",
+      "internal:": false,
+      "cidr:": "192.168.1.108/24"
     },
     {
-      address: 'fe80::a00:27ff:fe4e:66a1',
-      netmask: 'ffff:ffff:ffff:ffff::',
-      family: 'IPv6',
-      mac: '01:02:03:0a:0b:0c',
-      scopeid: 1,
-      internal: false,
-      cidr: 'fe80::a00:27ff:fe4e:66a1/64'
+      "address:": "fe80::a00:27ff:fe4e:66a1",
+      "netmask:": "ffff:ffff:ffff:ffff::",
+      "family:": "IPv6",
+      "mac:": "01:02:03:0a:0b:0c",
+      "scopeid:": 1,
+      "internal:": false,
+      "cidr:": "fe80::a00:27ff:fe4e:66a1/64"
     }
   ]
 }
 ```
 
 ## `os.platform()`
+
 <!-- YAML
 added: v0.5.0
 -->
 
 * Returns: {string}
 
-Returns a string identifying the operating system platform. The value is set
-at compile time. Possible values are `'aix'`, `'darwin'`, `'freebsd'`,
-`'linux'`, `'openbsd'`, `'sunos'`, and `'win32'`.
+Returns a string identifying the operating system platform for which
+the Node.js binary was compiled. The value is set at compile time.
+Possible values are `'aix'`, `'darwin'`, `'freebsd'`,`'linux'`,
+`'openbsd'`, `'sunos'`, and `'win32'`.
 
 The return value is equivalent to [`process.platform`][].
 
@@ -282,6 +358,7 @@ The value `'android'` may also be returned if Node.js is built on the Android
 operating system. [Android support is experimental][Android building].
 
 ## `os.release()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -295,12 +372,13 @@ On POSIX systems, the operating system release is determined by calling
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
 ## `os.setPriority([pid, ]priority)`
+
 <!-- YAML
 added: v10.10.0
 -->
 
 * `pid` {integer} The process ID to set scheduling priority for.
-  **Default** `0`.
+  **Default:** `0`.
 * `priority` {integer} The scheduling priority to assign to the process.
 
 Attempts to set the scheduling priority for the process specified by `pid`. If
@@ -318,6 +396,7 @@ privileges. Otherwise the set priority will be silently reduced to
 `PRIORITY_HIGH`.
 
 ## `os.tmpdir()`
+
 <!-- YAML
 added: v0.9.9
 changes:
@@ -332,7 +411,21 @@ changes:
 Returns the operating system's default directory for temporary files as a
 string.
 
+On Windows, the result can be overridden by `TEMP` and `TMP` environment variables, and
+`TEMP` takes precedence over `TMP`. If neither is set, it defaults to `%SystemRoot%\temp`
+or `%windir%\temp`.
+
+On non-Windows platforms, `TMPDIR`, `TMP` and `TEMP` environment variables will be checked
+to override the result of this method, in the described order. If none of them is set, it
+defaults to `/tmp`.
+
+Some operating system distributions would either configure `TMPDIR` (non-Windows) or
+`TEMP` and `TMP` (Windows) by default without additional configurations by the system
+administrators. The result of `os.tmpdir()` typically reflects the system preference
+unless it's explicitly overridden by the users.
+
 ## `os.totalmem()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -342,6 +435,7 @@ added: v0.3.3
 Returns the total amount of system memory in bytes as an integer.
 
 ## `os.type()`
+
 <!-- YAML
 added: v0.3.3
 -->
@@ -355,6 +449,7 @@ See <https://en.wikipedia.org/wiki/Uname#Examples> for additional information
 about the output of running [`uname(3)`][] on various operating systems.
 
 ## `os.uptime()`
+
 <!-- YAML
 added: v0.3.3
 changes:
@@ -369,6 +464,7 @@ changes:
 Returns the system uptime in number of seconds.
 
 ## `os.userInfo([options])`
+
 <!-- YAML
 added: v6.0.0
 -->
@@ -392,13 +488,14 @@ operating system response.
 Throws a [`SystemError`][] if a user has no `username` or `homedir`.
 
 ## `os.version()`
+
 <!-- YAML
 added:
  - v13.11.0
  - v12.17.0
 -->
 
-* Returns {string}
+* Returns: {string}
 
 Returns a string identifying the kernel version.
 
@@ -414,6 +511,7 @@ The following constants are exported by `os.constants`.
 Not all constants will be available on every operating system.
 
 ### Signal constants
+
 <!-- YAML
 changes:
   - version: v5.11.0
@@ -916,7 +1014,7 @@ The following error constants are exported by `os.constants.errno`.
   </tr>
   <tr>
     <td><code>EXDEV</code></td>
-    <td>Indicates an improper link.
+    <td>Indicates an improper link.</td>
   </tr>
 </table>
 
@@ -1203,6 +1301,7 @@ information.
 </table>
 
 ### Priority constants
+
 <!-- YAML
 added: v10.10.0
 -->
@@ -1269,9 +1368,10 @@ The following process scheduling constants are exported by
   </tr>
 </table>
 
-[Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
+[Android building]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#android
 [EUID]: https://en.wikipedia.org/wiki/User_identifier#Effective_user_ID
-[`SystemError`]: errors.md#errors_class_systemerror
-[`process.arch`]: process.md#process_process_arch
-[`process.platform`]: process.md#process_process_platform
+[`SystemError`]: errors.md#class-systemerror
+[`process.arch`]: process.md#processarch
+[`process.platform`]: process.md#processplatform
 [`uname(3)`]: https://linux.die.net/man/3/uname
+[`uv_available_parallelism()`]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_available_parallelism

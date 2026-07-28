@@ -25,12 +25,17 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <type_traits>  // std::remove_reference
+#include "base_object_types.h"
 #include "memory_tracker.h"
+#include "node_v8_embedder.h"
+#include "util.h"
 #include "v8.h"
 
 namespace node {
 
 class Environment;
+class IsolateData;
+class Realm;
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl;
 
@@ -40,12 +45,15 @@ class TransferData;
 
 class BaseObject : public MemoryRetainer {
  public:
-  enum InternalFields { kSlot, kInternalFieldCount };
+  enum InternalFields { kEmbedderType, kSlot, kInternalFieldCount };
 
-  // Associates this object with `object`. It uses the 0th internal field for
+  // Associates this object with `object`. It uses the 1st internal field for
   // that, and in particular aborts if there is no such field.
+  // This is the designated constructor.
+  BaseObject(Realm* realm, v8::Local<v8::Object> object);
+  // Convenient constructor for constructing BaseObject in the principal realm.
   inline BaseObject(Environment* env, v8::Local<v8::Object> object);
-  inline ~BaseObject() override;
+  ~BaseObject() override;
 
   BaseObject() = delete;
 
@@ -60,19 +68,34 @@ class BaseObject : public MemoryRetainer {
   inline v8::Global<v8::Object>& persistent();
 
   inline Environment* env() const;
+  inline Realm* realm() const;
 
   // Get a BaseObject* pointer, or subclass pointer, for the JS object that
   // was also passed to the `BaseObject()` constructor initially.
   // This may return `nullptr` if the C++ object has not been constructed yet,
   // e.g. when the JS object used `MakeLazilyInitializedJSTemplate`.
+  static inline void SetInternalFields(IsolateData* isolate_data,
+                                       v8::Local<v8::Object> object,
+                                       void* slot);
+  static inline bool IsBaseObject(IsolateData* isolate_data,
+                                  v8::Local<v8::Object> object);
+  static inline void TagBaseObject(IsolateData* isolate_data,
+                                   v8::Local<v8::Object> object);
+  static void LazilyInitializedJSTemplateConstructor(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static inline BaseObject* FromJSObject(v8::Local<v8::Value> object);
   template <typename T>
   static inline T* FromJSObject(v8::Local<v8::Value> object);
+  // Global alias for FromJSObject() to avoid churn.
+  template <typename T>
+  static inline T* Unwrap(v8::Local<v8::Value> obj) {
+    return BaseObject::FromJSObject<T>(obj);
+  }
 
   // Make the `v8::Global` a weak reference and, `delete` this object once
   // the JS object has been garbage collected and there are no (strong)
   // BaseObjectPtr references to it.
-  inline void MakeWeak();
+  void MakeWeak();
 
   // Undo `MakeWeak()`, i.e. turn this into a strong reference that is a GC
   // root and will not be touched by the garbage collector.
@@ -86,17 +109,16 @@ class BaseObject : public MemoryRetainer {
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
-  static inline v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
-      Environment* env);
+  static v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
+      IsolateData* isolate, int internal_field_count = kInternalFieldCount);
+  static v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
+      Environment* env, int internal_field_count = kInternalFieldCount);
 
   // Setter/Getter pair for internal fields that can be passed to SetAccessor.
   template <int Field>
-  static void InternalFieldGet(v8::Local<v8::String> property,
-                               const v8::PropertyCallbackInfo<v8::Value>& info);
+  static void InternalFieldGet(const v8::FunctionCallbackInfo<v8::Value>& args);
   template <int Field, bool (v8::Value::*typecheck)() const>
-  static void InternalFieldSet(v8::Local<v8::String> property,
-                               v8::Local<v8::Value> value,
-                               const v8::PropertyCallbackInfo<void>& info);
+  static void InternalFieldSet(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // This is a bit of a hack. See the override in async_wrap.cc for details.
   virtual bool IsDoneInitializing() const;
@@ -107,18 +129,15 @@ class BaseObject : public MemoryRetainer {
   // a BaseObjectPtr to this object.
   inline void Detach();
 
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
-
   // Interface for transferring BaseObject instances using the .postMessage()
   // method of MessagePorts (and, by extension, Workers).
   // GetTransferMode() returns a transfer mode that indicates how to deal with
   // the current object:
-  // - kUntransferable:
-  //     No transfer is possible, either because this type of BaseObject does
-  //     not know how to be transferred, or because it is not in a state in
-  //     which it is possible to do so (e.g. because it has already been
-  //     transferred).
+  // - kDisallowCloneAndTransfer:
+  //     No transfer or clone is possible, either because this type of
+  //     BaseObject does not know how to be transferred, or because it is not
+  //     in a state in which it is possible to do so (e.g. because it has
+  //     already been transferred).
   // - kTransferable:
   //     This object can be transferred in a destructive fashion, i.e. will be
   //     rendered unusable on the sending side of the channel in the process
@@ -134,22 +153,27 @@ class BaseObject : public MemoryRetainer {
   //     This object can be cloned without being modified.
   //     CloneForMessaging() will be called to get a representation of the
   //     object that is used for subsequent deserialization, unless the
-  //     object is listed in transferList, in which case TransferForMessaging()
-  //     is attempted first.
+  //     object is listed in transferList and is kTransferable, in which case
+  //     TransferForMessaging() is attempted first.
+  // - kTransferableAndCloneable:
+  //     This object can be transferred or cloned.
   // After a successful clone, FinalizeTransferRead() is called on the receiving
   // end, and can read deserialize JS data possibly serialized by a previous
   // FinalizeTransferWrite() call.
-  enum class TransferMode {
-    kUntransferable,
-    kTransferable,
-    kCloneable
+  // By default, a BaseObject is kDisallowCloneAndTransfer and a JS Object is
+  // kCloneable unless otherwise specified.
+  enum TransferMode : uint32_t {
+    kDisallowCloneAndTransfer = 0,
+    kTransferable = 1 << 0,
+    kCloneable = 1 << 1,
+    kTransferableAndCloneable = kTransferable | kCloneable,
   };
   virtual TransferMode GetTransferMode() const;
   virtual std::unique_ptr<worker::TransferData> TransferForMessaging();
   virtual std::unique_ptr<worker::TransferData> CloneForMessaging() const;
   virtual v8::Maybe<std::vector<BaseObjectPtrImpl<BaseObject, false>>>
       NestedTransferables() const;
-  virtual v8::Maybe<bool> FinalizeTransferRead(
+  virtual v8::Maybe<void> FinalizeTransferRead(
       v8::Local<v8::Context> context, v8::ValueDeserializer* deserializer);
 
   // Indicates whether this object is expected to use a strong reference during
@@ -158,18 +182,19 @@ class BaseObject : public MemoryRetainer {
 
   virtual inline void OnGCCollect();
 
+  virtual inline bool is_snapshotable() const { return false; }
+
  private:
   v8::Local<v8::Object> WrappedObject() const override;
-  bool IsRootNode() const override;
-  static void DeleteMe(void* data);
+  void DeleteMe();
 
   // persistent_handle_ needs to be at a fixed offset from the start of the
   // class because it is used by src/node_postmortem_metadata.cc to calculate
   // offsets and generate debug symbols for BaseObject, which assumes that the
   // position of members in memory are predictable. For more information please
-  // refer to `doc/guides/node-postmortem-support.md`
+  // refer to `doc/contributing/node-postmortem-support.md`
   friend int GenDebugSymbols();
-  friend class CleanupHookCallback;
+  friend class CleanupQueue;
   template <typename T, bool kIsWeak>
   friend class BaseObjectPtrImpl;
 
@@ -189,7 +214,7 @@ class BaseObject : public MemoryRetainer {
     // Indicates whether MakeWeak() has been called.
     bool wants_weak_jsobj = false;
     // Indicates whether Detach() has been called. If that is the case, this
-    // object will be destryoed once the strong pointer count drops to zero.
+    // object will be destroyed once the strong pointer count drops to zero.
     bool is_detached = false;
     // Reference to the original BaseObject. This is used by weak pointers.
     BaseObject* self = nullptr;
@@ -198,21 +223,29 @@ class BaseObject : public MemoryRetainer {
   inline bool has_pointer_data() const;
   // This creates a PointerData struct if none was associated with this
   // BaseObject before.
-  inline PointerData* pointer_data();
+  PointerData* pointer_data();
 
   // Functions that adjust the strong pointer count.
-  inline void decrease_refcount();
-  inline void increase_refcount();
+  void decrease_refcount();
+  void increase_refcount();
 
-  Environment* env_;
+  Realm* realm_;
   PointerData* pointer_data_ = nullptr;
+  ListNode<BaseObject> base_object_list_node_;
+
+  friend class BaseObjectList;
 };
 
-// Global alias for FromJSObject() to avoid churn.
-template <typename T>
-inline T* Unwrap(v8::Local<v8::Value> obj) {
-  return BaseObject::FromJSObject<T>(obj);
-}
+class BaseObjectList
+    : public ListHead<BaseObject, &BaseObject::base_object_list_node_>,
+      public MemoryRetainer {
+ public:
+  void Cleanup();
+
+  SET_MEMORY_INFO_NAME(BaseObjectList)
+  SET_SELF_SIZE(BaseObjectList)
+  void MemoryInfo(node::MemoryTracker* tracker) const override;
+};
 
 #define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                 \
   do {                                                                         \
@@ -226,7 +259,9 @@ inline T* Unwrap(v8::Local<v8::Value> obj) {
 // circumstances such as the GC or Environment cleanup.
 // If weak, destruction behaviour is not affected, but the pointer will be
 // reset to nullptr once the BaseObject is destroyed.
-// The API matches std::shared_ptr closely.
+// The API matches std::shared_ptr closely. However, this class is not thread
+// safe, that is, we can't have different BaseObjectPtrImpl instances in
+// different threads referring to the same BaseObject instance.
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl final {
  public:
@@ -245,6 +280,9 @@ class BaseObjectPtrImpl final {
   inline BaseObjectPtrImpl& operator=(const BaseObjectPtrImpl& other);
   inline BaseObjectPtrImpl(BaseObjectPtrImpl&& other);
   inline BaseObjectPtrImpl& operator=(BaseObjectPtrImpl&& other);
+
+  inline BaseObjectPtrImpl(std::nullptr_t);
+  inline BaseObjectPtrImpl& operator=(std::nullptr_t);
 
   inline void reset(T* ptr = nullptr);
   inline T* get() const;
@@ -267,6 +305,13 @@ class BaseObjectPtrImpl final {
   inline BaseObject::PointerData* pointer_data() const;
 };
 
+template <typename T, bool kIsWeak>
+inline static bool operator==(const BaseObjectPtrImpl<T, kIsWeak>,
+                              const std::nullptr_t);
+template <typename T, bool kIsWeak>
+inline static bool operator==(const std::nullptr_t,
+                              const BaseObjectPtrImpl<T, kIsWeak>);
+
 template <typename T>
 using BaseObjectPtr = BaseObjectPtrImpl<T, false>;
 template <typename T>
@@ -276,6 +321,10 @@ using BaseObjectWeakPtr = BaseObjectPtrImpl<T, true>;
 // This variant leaves the object as a GC root by default.
 template <typename T, typename... Args>
 inline BaseObjectPtr<T> MakeBaseObject(Args&&... args);
+// Create a BaseObject instance and return a pointer to it.
+// This variant makes the object a weak GC root by default.
+template <typename T, typename... Args>
+inline BaseObjectWeakPtr<T> MakeWeakBaseObject(Args&&... args);
 // Create a BaseObject instance and return a pointer to it.
 // This variant detaches the object by default, meaning that the caller fully
 // owns it, and once the last BaseObjectPtr to it is destroyed, the object

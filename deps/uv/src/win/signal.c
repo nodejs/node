@@ -39,7 +39,7 @@ int uv__signal_start(uv_signal_t* handle,
                      int signum,
                      int oneshot);
 
-void uv_signals_init(void) {
+void uv__signals_init(void) {
   InitializeCriticalSection(&uv__signal_lock);
   if (!SetConsoleCtrlHandler(uv__signal_control_handler, TRUE))
     abort();
@@ -91,7 +91,7 @@ int uv__signal_dispatch(int signum) {
 
   for (handle = RB_NFIND(uv_signal_tree_s, &uv__signal_tree, &lookup);
        handle != NULL && handle->signum == signum;
-       handle = RB_NEXT(uv_signal_tree_s, &uv__signal_tree, handle)) {
+       handle = RB_NEXT(uv_signal_tree_s, handle)) {
     unsigned long previous = InterlockedExchange(
             (volatile LONG*) &handle->pending_signum, signum);
 
@@ -231,7 +231,7 @@ int uv__signal_start(uv_signal_t* handle,
 }
 
 
-void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
+void uv__process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
     uv_req_t* req) {
   long dispatched_signum;
 
@@ -254,22 +254,22 @@ void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
   if (handle->flags & UV_HANDLE_CLOSING) {
     /* When it is closing, it must be stopped at this point. */
     assert(handle->signum == 0);
-    uv_want_endgame(loop, (uv_handle_t*) handle);
+    uv__want_endgame(loop, (uv_handle_t*) handle);
   }
 }
 
 
-void uv_signal_close(uv_loop_t* loop, uv_signal_t* handle) {
+void uv__signal_close(uv_loop_t* loop, uv_signal_t* handle) {
   uv_signal_stop(handle);
   uv__handle_closing(handle);
 
   if (handle->pending_signum == 0) {
-    uv_want_endgame(loop, (uv_handle_t*) handle);
+    uv__want_endgame(loop, (uv_handle_t*) handle);
   }
 }
 
 
-void uv_signal_endgame(uv_loop_t* loop, uv_signal_t* handle) {
+void uv__signal_endgame(uv_loop_t* loop, uv_signal_t* handle) {
   assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 

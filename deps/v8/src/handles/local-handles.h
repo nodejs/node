@@ -6,7 +6,7 @@
 #define V8_HANDLES_LOCAL_HANDLES_H_
 
 #include "include/v8-internal.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/handles/handles.h"
 #include "src/heap/local-heap.h"
@@ -34,21 +34,29 @@ class LocalHandles {
   V8_EXPORT_PRIVATE Address* AddBlock();
   V8_EXPORT_PRIVATE void RemoveUnusedBlocks();
 
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
   V8_EXPORT_PRIVATE static void ZapRange(Address* start, Address* end);
 #endif
 
   friend class LocalHandleScope;
 };
 
-class LocalHandleScope {
+class V8_NODISCARD LocalHandleScope {
  public:
   explicit inline LocalHandleScope(LocalIsolate* local_isolate);
   explicit inline LocalHandleScope(LocalHeap* local_heap);
   inline ~LocalHandleScope();
+  LocalHandleScope(const LocalHandleScope&) = delete;
+  LocalHandleScope& operator=(const LocalHandleScope&) = delete;
 
-  template <typename T>
-  Handle<T> CloseAndEscape(Handle<T> handle_value);
+  // TODO(42203211): When direct handles are enabled, the version with
+  // HandleType = DirectHandle does not need to be called, as it simply
+  // closes the scope (which is done by the scope's destructor anyway)
+  // and returns its parameter. This will be cleaned up after direct
+  // handles ship.
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
+  HandleType<T> CloseAndEscape(HandleType<T> handle_value);
 
   V8_INLINE static Address* GetHandle(LocalHeap* local_heap, Address value);
 
@@ -60,12 +68,24 @@ class LocalHandleScope {
   // Close the handle scope resetting limits to a previous state.
   static inline void CloseScope(LocalHeap* local_heap, Address* prev_next,
                                 Address* prev_limit);
+  V8_EXPORT_PRIVATE static void CloseMainThreadScope(LocalHeap* local_heap,
+                                                     Address* prev_next,
+                                                     Address* prev_limit);
+
+  V8_EXPORT_PRIVATE void OpenMainThreadScope(LocalHeap* local_heap);
+
+  V8_EXPORT_PRIVATE static Address* GetMainThreadHandle(LocalHeap* local_heap,
+                                                        Address value);
 
   LocalHeap* local_heap_;
   Address* prev_limit_;
   Address* prev_next_;
 
-  DISALLOW_COPY_AND_ASSIGN(LocalHandleScope);
+#ifdef V8_ENABLE_CHECKS
+  int scope_level_ = 0;
+
+  V8_EXPORT_PRIVATE void VerifyMainThreadScope() const;
+#endif
 };
 
 }  // namespace internal

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/test-api.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
+#include "src/base/strings.h"
+#include "test/cctest/test-api.h"
 
 using ::v8::Array;
 using ::v8::Context;
@@ -17,13 +18,13 @@ using ::v8::Value;
 static v8::MaybeLocal<Value> PrepareStackTrace42(v8::Local<Context> context,
                                                  v8::Local<Value> error,
                                                  v8::Local<Array> trace) {
-  return v8::Number::New(context->GetIsolate(), 42);
+  return v8::Number::New(CcTest::isolate(), 42);
 }
 
 static v8::MaybeLocal<Value> PrepareStackTraceThrow(v8::Local<Context> context,
                                                     v8::Local<Value> error,
                                                     v8::Local<Array> trace) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::Local<String> message = v8_str("42");
   isolate->ThrowException(v8::Exception::Error(message));
   return v8::MaybeLocal<Value>();
@@ -31,7 +32,7 @@ static v8::MaybeLocal<Value> PrepareStackTraceThrow(v8::Local<Context> context,
 
 THREADED_TEST(IsolatePrepareStackTrace) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   isolate->SetPrepareStackTraceCallback(PrepareStackTrace42);
@@ -44,7 +45,7 @@ THREADED_TEST(IsolatePrepareStackTrace) {
 
 THREADED_TEST(IsolatePrepareStackTraceThrow) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   isolate->SetPrepareStackTraceCallback(PrepareStackTraceThrow);
@@ -59,6 +60,7 @@ THREADED_TEST(IsolatePrepareStackTraceThrow) {
 }
 
 static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   ApiTestFuzzer::Fuzz();
   v8::Local<String> foo = v8_str("foo");
   v8::Local<String> message = v8_str("message");
@@ -76,21 +78,21 @@ static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 THREADED_TEST(ExceptionCreateMessage) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
   v8::Local<String> foo_str = v8_str("foo");
   v8::Local<String> message_str = v8_str("message");
 
-  context->GetIsolate()->SetCaptureStackTraceForUncaughtExceptions(true);
+  context.isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
 
   Local<v8::FunctionTemplate> fun =
-      v8::FunctionTemplate::New(context->GetIsolate(), ThrowV8Exception);
+      v8::FunctionTemplate::New(context.isolate(), ThrowV8Exception);
   v8::Local<v8::Object> global = context->Global();
   CHECK(global
             ->Set(context.local(), v8_str("throwV8Exception"),
                   fun->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
 
-  TryCatch try_catch(context->GetIsolate());
+  TryCatch try_catch(context.isolate());
   CompileRun(
       "function f1() {\n"
       "  throwV8Exception();\n"
@@ -107,7 +109,7 @@ THREADED_TEST(ExceptionCreateMessage) {
             .FromJust());
 
   v8::Local<v8::Message> message =
-      v8::Exception::CreateMessage(context->GetIsolate(), error);
+      v8::Exception::CreateMessage(context.isolate(), error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber(context.local()).FromJust());
   CHECK_EQ(2, message->GetStartColumn(context.local()).FromJust());
@@ -120,7 +122,7 @@ THREADED_TEST(ExceptionCreateMessage) {
   CHECK(!stackTrace.IsEmpty());
   CHECK_EQ(2, stackTrace->GetFrameCount());
 
-  context->GetIsolate()->SetCaptureStackTraceForUncaughtExceptions(false);
+  context.isolate()->SetCaptureStackTraceForUncaughtExceptions(false);
 
   // Now check message location when SetCaptureStackTraceForUncaughtExceptions
   // is false.
@@ -141,7 +143,7 @@ THREADED_TEST(ExceptionCreateMessage) {
             ->Equals(context.local(), foo_str)
             .FromJust());
 
-  message = v8::Exception::CreateMessage(context->GetIsolate(), error);
+  message = v8::Exception::CreateMessage(context.isolate(), error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber(context.local()).FromJust());
   CHECK_EQ(9, message->GetStartColumn(context.local()).FromJust());
@@ -156,13 +158,14 @@ THREADED_TEST(ExceptionCreateMessage) {
 // THREADED_TEST(StackTrace) {
 TEST(StackTrace) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  v8::TryCatch try_catch(context->GetIsolate());
+  v8::Isolate* isolate = context.isolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch try_catch(isolate);
   const char* source = "function foo() { FAIL.FAIL; }; foo();";
   v8::Local<v8::String> src = v8_str(source);
   v8::Local<v8::String> origin = v8_str("stack-trace-test");
   v8::ScriptCompiler::Source script_source(src, v8::ScriptOrigin(origin));
-  CHECK(v8::ScriptCompiler::CompileUnboundScript(context->GetIsolate(),
+  CHECK(v8::ScriptCompiler::CompileUnboundScript(context.isolate(),
                                                  &script_source)
             .ToLocalChecked()
             ->BindToCurrentContext()
@@ -170,25 +173,40 @@ TEST(StackTrace) {
             .IsEmpty());
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(
-      context->GetIsolate(),
+      context.isolate(),
       try_catch.StackTrace(context.local()).ToLocalChecked());
   CHECK_NOT_NULL(strstr(*stack, "at foo (stack-trace-test"));
 }
 
 // Checks that a StackFrame has certain expected values.
 static void checkStackFrame(const char* expected_script_name,
+                            const char* expected_script_source,
+                            const char* expected_script_source_mapping_url,
                             const char* expected_func_name,
                             int expected_line_number, int expected_column,
-                            bool is_eval, bool is_constructor,
+                            int expected_source_position, bool is_eval,
+                            bool is_constructor,
                             v8::Local<v8::StackFrame> frame) {
   v8::HandleScope scope(CcTest::isolate());
   v8::String::Utf8Value func_name(CcTest::isolate(), frame->GetFunctionName());
   v8::String::Utf8Value script_name(CcTest::isolate(), frame->GetScriptName());
+  v8::String::Utf8Value script_source(CcTest::isolate(),
+                                      frame->GetScriptSource());
+  v8::String::Utf8Value script_source_mapping_url(
+      CcTest::isolate(), frame->GetScriptSourceMappingURL());
   if (*script_name == nullptr) {
     // The situation where there is no associated script, like for evals.
     CHECK_NULL(expected_script_name);
   } else {
     CHECK_NOT_NULL(strstr(*script_name, expected_script_name));
+  }
+  CHECK_NOT_NULL(strstr(*script_source, expected_script_source));
+  if (*script_source_mapping_url == nullptr) {
+    CHECK_NULL(expected_script_source_mapping_url);
+  } else {
+    CHECK_NOT_NULL(expected_script_source_mapping_url);
+    CHECK_NOT_NULL(
+        strstr(*script_source_mapping_url, expected_script_source_mapping_url));
   }
   if (!frame->GetFunctionName().IsEmpty()) {
     CHECK_NOT_NULL(strstr(*func_name, expected_func_name));
@@ -197,92 +215,141 @@ static void checkStackFrame(const char* expected_script_name,
   CHECK_EQ(expected_column, frame->GetColumn());
   CHECK_EQ(is_eval, frame->IsEval());
   CHECK_EQ(is_constructor, frame->IsConstructor());
+  CHECK_EQ(expected_source_position, frame->GetSourcePosition());
   CHECK(frame->IsUserJavaScript());
 }
 
+// Tests the C++ StackTrace API.
+
+// Test getting OVERVIEW information. Should ignore information that is not
+// script name, function name, line number, and column offset.
+const char* overview_source_eval = "new foo();";
+const char* overview_source =
+    "function bar() {\n"
+    "  var y; AnalyzeStackInNativeCode(1);\n"
+    "}\n"
+    "function foo() {\n"
+    "\n"
+    "  bar();\n"
+    "}\n"
+    "//# sourceMappingURL=http://foobar.com/overview.ts\n"
+    "var x;eval('new foo();');";
+
+// Test getting DETAILED information.
+const char* detailed_source =
+    "function bat() {AnalyzeStackInNativeCode(2);\n"
+    "}\n"
+    "\n"
+    "function baz() {\n"
+    "  bat();\n"
+    "}\n"
+    "eval('new baz();');";
+
+// Test using function.name and function.displayName in stack trace
+const char function_name_source[] =
+    "function bar(function_name, display_name, testGroup) {\n"
+    "  var f = new Function(`AnalyzeStackInNativeCode(${testGroup});`);\n"
+    "  if (function_name) {\n"
+    "    Object.defineProperty(f, 'name', { value: function_name });\n"
+    "  }\n"
+    "  if (display_name) {\n"
+    "    f.displayName = display_name;"
+    "  }\n"
+    "  f()\n"
+    "}\n"
+    "bar('function.name', undefined, 3);\n"
+    "bar('function.name', 'function.displayName', 4);\n"
+    "bar(239, undefined, 5);\n";
+
+// Maybe it's a bit pathological to depend on the exact format of the wrapper
+// the Function constructor puts around it's input string. If this becomes a
+// hassle, maybe come up with some regex matching approach?
+const char function_name_source_anon3[] =
+    "(function anonymous(\n"
+    ") {\n"
+    "AnalyzeStackInNativeCode(3);\n"
+    "})";
+const char function_name_source_anon4[] =
+    "(function anonymous(\n"
+    ") {\n"
+    "AnalyzeStackInNativeCode(4);\n"
+    "})";
+const char function_name_source_anon5[] =
+    "(function anonymous(\n"
+    ") {\n"
+    "AnalyzeStackInNativeCode(5);\n"
+    "})";
+
 static void AnalyzeStackInNativeCode(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
   const char* origin = "capture-stack-trace-test";
   const int kOverviewTest = 1;
   const int kDetailedTest = 2;
   const int kFunctionName = 3;
-  const int kDisplayName = 4;
-  const int kFunctionNameAndDisplayName = 5;
-  const int kDisplayNameIsNotString = 6;
-  const int kFunctionNameIsNotString = 7;
+  const int kFunctionNameAndDisplayName = 4;
+  const int kFunctionNameIsNotString = 5;
 
-  CHECK_EQ(args.Length(), 1);
+  CHECK_EQ(info.Length(), 1);
 
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  v8::Isolate* isolate = args.GetIsolate();
-  int testGroup = args[0]->Int32Value(context).FromJust();
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  v8::Isolate* isolate = info.GetIsolate();
+  int testGroup = info[0]->Int32Value(context).FromJust();
   if (testGroup == kOverviewTest) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 10, v8::StackTrace::kOverview);
+        info.GetIsolate(), 10, v8::StackTrace::kOverview);
     CHECK_EQ(4, stackTrace->GetFrameCount());
-    checkStackFrame(origin, "bar", 2, 10, false, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 0));
-    checkStackFrame(origin, "foo", 6, 3, false, true,
-                    stackTrace->GetFrame(isolate, 1));
+    checkStackFrame(origin, overview_source, "//foobar.com/overview.ts", "bar",
+                    2, 10, 26, false, false,
+                    stackTrace->GetFrame(info.GetIsolate(), 0));
+    checkStackFrame(origin, overview_source, "//foobar.com/overview.ts", "foo",
+                    6, 3, 77, false, true, stackTrace->GetFrame(isolate, 1));
     // This is the source string inside the eval which has the call to foo.
-    checkStackFrame(nullptr, "", 1, 1, true, false,
+    checkStackFrame(nullptr, "new foo();", nullptr, "", 1, 1, 0, true, false,
                     stackTrace->GetFrame(isolate, 2));
     // The last frame is an anonymous function which has the initial eval call.
-    checkStackFrame(origin, "", 8, 7, false, false,
-                    stackTrace->GetFrame(isolate, 3));
+    checkStackFrame(origin, overview_source, "//foobar.com/overview.ts", "", 9,
+                    7, 143, false, false, stackTrace->GetFrame(isolate, 3));
   } else if (testGroup == kDetailedTest) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 10, v8::StackTrace::kDetailed);
+        info.GetIsolate(), 10, v8::StackTrace::kDetailed);
     CHECK_EQ(4, stackTrace->GetFrameCount());
-    checkStackFrame(origin, "bat", 4, 22, false, false,
-                    stackTrace->GetFrame(isolate, 0));
-    checkStackFrame(origin, "baz", 8, 3, false, true,
-                    stackTrace->GetFrame(isolate, 1));
+    checkStackFrame(origin, detailed_source, nullptr, "bat", 4, 22, 16, false,
+                    false, stackTrace->GetFrame(isolate, 0));
+    checkStackFrame(origin, detailed_source, nullptr, "baz", 8, 3, 67, false,
+                    true, stackTrace->GetFrame(isolate, 1));
     bool is_eval = true;
     // This is the source string inside the eval which has the call to baz.
-    checkStackFrame(nullptr, "", 1, 1, is_eval, false,
+    checkStackFrame(nullptr, "new baz();", nullptr, "", 1, 1, 0, is_eval, false,
                     stackTrace->GetFrame(isolate, 2));
     // The last frame is an anonymous function which has the initial eval call.
-    checkStackFrame(origin, "", 10, 1, false, false,
-                    stackTrace->GetFrame(isolate, 3));
+    checkStackFrame(origin, detailed_source, nullptr, "", 10, 1, 76, false,
+                    false, stackTrace->GetFrame(isolate, 3));
   } else if (testGroup == kFunctionName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+        info.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.name", 3, 1, true, false,
-                    stackTrace->GetFrame(isolate, 0));
-  } else if (testGroup == kDisplayName) {
-    v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 5, v8::StackTrace::kOverview);
-    CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
+    checkStackFrame(nullptr, function_name_source_anon3, nullptr,
+                    "function.name", 3, 1, 25, true, false,
                     stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kFunctionNameAndDisplayName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+        info.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
-                    stackTrace->GetFrame(isolate, 0));
-  } else if (testGroup == kDisplayNameIsNotString) {
-    v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 5, v8::StackTrace::kOverview);
-    CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "function.name", 3, 1, true, false,
+    checkStackFrame(nullptr, function_name_source_anon4, nullptr,
+                    "function.name", 3, 1, 25, true, false,
                     stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kFunctionNameIsNotString) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-        args.GetIsolate(), 5, v8::StackTrace::kOverview);
+        info.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
-    checkStackFrame(nullptr, "", 3, 1, true, false,
-                    stackTrace->GetFrame(isolate, 0));
+    checkStackFrame(nullptr, function_name_source_anon5, nullptr, "", 3, 1, 25,
+                    true, false, stackTrace->GetFrame(isolate, 0));
   }
 }
 
-// Tests the C++ StackTrace API.
-// TODO(3074796): Reenable this as a THREADED_TEST once it passes.
-// THREADED_TEST(CaptureStackTrace) {
-TEST(CaptureStackTrace) {
+THREADED_TEST(CaptureStackTrace) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::String> origin = v8_str("capture-stack-trace-test");
@@ -291,17 +358,6 @@ TEST(CaptureStackTrace) {
              v8::FunctionTemplate::New(isolate, AnalyzeStackInNativeCode));
   LocalContext context(nullptr, templ);
 
-  // Test getting OVERVIEW information. Should ignore information that is not
-  // script name, function name, line number, and column offset.
-  const char* overview_source =
-      "function bar() {\n"
-      "  var y; AnalyzeStackInNativeCode(1);\n"
-      "}\n"
-      "function foo() {\n"
-      "\n"
-      "  bar();\n"
-      "}\n"
-      "var x;eval('new foo();');";
   v8::Local<v8::String> overview_src = v8_str(overview_source);
   v8::ScriptCompiler::Source script_source(overview_src,
                                            v8::ScriptOrigin(origin));
@@ -314,20 +370,9 @@ TEST(CaptureStackTrace) {
   CHECK(!overview_result.IsEmpty());
   CHECK(overview_result->IsObject());
 
-  // Test getting DETAILED information.
-  const char* detailed_source =
-      "function bat() {AnalyzeStackInNativeCode(2);\n"
-      "}\n"
-      "\n"
-      "function baz() {\n"
-      "  bat();\n"
-      "}\n"
-      "eval('new baz();');";
   v8::Local<v8::String> detailed_src = v8_str(detailed_source);
   // Make the script using a non-zero line and column offset.
-  v8::Local<v8::Integer> line_offset = v8::Integer::New(isolate, 3);
-  v8::Local<v8::Integer> column_offset = v8::Integer::New(isolate, 5);
-  v8::ScriptOrigin detailed_origin(origin, line_offset, column_offset);
+  v8::ScriptOrigin detailed_origin(origin, 3, 5);
   v8::ScriptCompiler::Source script_source2(detailed_src, detailed_origin);
   v8::Local<v8::UnboundScript> detailed_script(
       v8::ScriptCompiler::CompileUnboundScript(isolate, &script_source2)
@@ -338,23 +383,6 @@ TEST(CaptureStackTrace) {
   CHECK(!detailed_result.IsEmpty());
   CHECK(detailed_result->IsObject());
 
-  // Test using function.name and function.displayName in stack trace
-  const char function_name_source[] =
-      "function bar(function_name, display_name, testGroup) {\n"
-      "  var f = new Function(`AnalyzeStackInNativeCode(${testGroup});`);\n"
-      "  if (function_name) {\n"
-      "    Object.defineProperty(f, 'name', { value: function_name });\n"
-      "  }\n"
-      "  if (display_name) {\n"
-      "    f.displayName = display_name;"
-      "  }\n"
-      "  f()\n"
-      "}\n"
-      "bar('function.name', undefined, 3);\n"
-      "bar(undefined, 'function.displayName', 4);\n"
-      "bar('function.name', 'function.displayName', 5);\n"
-      "bar('function.name', 239, 6);\n"
-      "bar(239, undefined, 7);\n";
   v8::Local<v8::String> function_name_src =
       v8::String::NewFromUtf8Literal(isolate, function_name_source);
   v8::ScriptCompiler::Source script_source3(function_name_src,
@@ -369,33 +397,35 @@ TEST(CaptureStackTrace) {
 }
 
 static int report_count = 0;
+
+// Test uncaught exception
+const char uncaught_exception_source[] =
+    "function foo() {\n"
+    "  throw 1;\n"
+    "};\n"
+    "function bar() {\n"
+    "  foo();\n"
+    "};";
+
 static void StackTraceForUncaughtExceptionListener(
     v8::Local<v8::Message> message, v8::Local<Value>) {
   report_count++;
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK_EQ(2, stack_trace->GetFrameCount());
-  checkStackFrame("origin", "foo", 2, 3, false, false,
-                  stack_trace->GetFrame(message->GetIsolate(), 0));
-  checkStackFrame("origin", "bar", 5, 3, false, false,
-                  stack_trace->GetFrame(message->GetIsolate(), 1));
+  checkStackFrame("origin", uncaught_exception_source, nullptr, "foo", 2, 3, 19,
+                  false, false, stack_trace->GetFrame(CcTest::isolate(), 0));
+  checkStackFrame("origin", uncaught_exception_source, nullptr, "bar", 5, 3, 50,
+                  false, false, stack_trace->GetFrame(CcTest::isolate(), 1));
 }
 
 TEST(CaptureStackTraceForUncaughtException) {
-  report_count = 0;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   isolate->AddMessageListener(StackTraceForUncaughtExceptionListener);
   isolate->SetCaptureStackTraceForUncaughtExceptions(true);
 
-  CompileRunWithOrigin(
-      "function foo() {\n"
-      "  throw 1;\n"
-      "};\n"
-      "function bar() {\n"
-      "  foo();\n"
-      "};",
-      "origin");
+  CompileRunWithOrigin(uncaught_exception_source, "origin");
   v8::Local<v8::Object> global = env->Global();
   Local<Value> trouble =
       global->Get(env.local(), v8_str("bar")).ToLocalChecked();
@@ -408,70 +438,112 @@ TEST(CaptureStackTraceForUncaughtException) {
   CHECK_EQ(1, report_count);
 }
 
+// Test uncaught exception in a setter
+const char uncaught_setter_exception_source[] =
+    "var setters = ['column', 'lineNumber', 'scriptName',\n"
+    "    'scriptNameOrSourceURL', 'functionName', 'isEval',\n"
+    "    'isConstructor'];\n"
+    "for (let i = 0; i < setters.length; i++) {\n"
+    "  let prop = setters[i];\n"
+    "  Object.prototype.__defineSetter__(prop, function() { throw prop; });\n"
+    "}\n";
+
+static void StackTraceForUncaughtExceptionAndSettersListener(
+    v8::Local<v8::Message> message, v8::Local<Value> value) {
+  CHECK(value->IsObject());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  report_count++;
+  v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK_EQ(1, stack_trace->GetFrameCount());
+  checkStackFrame(nullptr, "throw 'exception';", nullptr, nullptr, 1, 1, 0,
+                  false, false, stack_trace->GetFrame(isolate, 0));
+  v8::Local<v8::StackFrame> stack_frame = stack_trace->GetFrame(isolate, 0);
+  v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(value);
+  CHECK(object
+            ->Set(context,
+                  v8::String::NewFromUtf8Literal(isolate, "lineNumber"),
+                  v8::Integer::New(isolate, stack_frame->GetLineNumber()))
+            .IsNothing());
+}
+
 TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
+  report_count = 0;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object = v8::Object::New(isolate);
+  isolate->AddMessageListener(StackTraceForUncaughtExceptionAndSettersListener,
+                              object);
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 1024,
                                                      v8::StackTrace::kDetailed);
 
-  CompileRun(
-      "var setters = ['column', 'lineNumber', 'scriptName',\n"
-      "    'scriptNameOrSourceURL', 'functionName', 'isEval',\n"
-      "    'isConstructor'];\n"
-      "for (var i = 0; i < setters.length; i++) {\n"
-      "  var prop = setters[i];\n"
-      "  Object.prototype.__defineSetter__(prop, function() { throw prop; });\n"
-      "}\n");
+  CompileRun(uncaught_setter_exception_source);
   CompileRun("throw 'exception';");
   isolate->SetCaptureStackTraceForUncaughtExceptions(false);
+  isolate->RemoveMessageListeners(
+      StackTraceForUncaughtExceptionAndSettersListener);
+  CHECK(object
+            ->Get(isolate->GetCurrentContext(),
+                  v8::String::NewFromUtf8Literal(isolate, "lineNumber"))
+            .ToLocalChecked()
+            ->IsUndefined());
+  CHECK_EQ(report_count, 1);
 }
+
+const char functions_with_function_name[] =
+    "function gen(name, counter) {\n"
+    "  var f = function foo() {\n"
+    "    if (counter === 0)\n"
+    "      throw 1;\n"
+    "    gen(name, counter - 1)();\n"
+    "  };\n"
+    "  if (counter == 3) {\n"
+    "    Object.defineProperty(f, 'name', {get: function(){ throw 239; }});\n"
+    "  } else {\n"
+    "    Object.defineProperty(f, 'name', {writable:true});\n"
+    "    if (counter == 2)\n"
+    "      f.name = 42;\n"
+    "    else\n"
+    "      f.name = name + ':' + counter;\n"
+    "  }\n"
+    "  return f;\n"
+    "};"
+    "//# sourceMappingURL=local/functional.sc";
+
+const char functions_with_function_name_caller[] = "gen('foo', 3)();";
 
 static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
                                            v8::Local<Value>) {
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
-  v8::Isolate* isolate = message->GetIsolate();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(5, stack_trace->GetFrameCount());
-  checkStackFrame("origin", "foo:0", 4, 7, false, false,
+  checkStackFrame("origin", functions_with_function_name, "local/functional.sc",
+                  "foo:0", 4, 7, 86, false, false,
                   stack_trace->GetFrame(isolate, 0));
-  checkStackFrame("origin", "foo:1", 5, 27, false, false,
+  checkStackFrame("origin", functions_with_function_name, "local/functional.sc",
+                  "foo:1", 5, 27, 121, false, false,
                   stack_trace->GetFrame(isolate, 1));
-  checkStackFrame("origin", "foo", 5, 27, false, false,
+  checkStackFrame("origin", functions_with_function_name, "local/functional.sc",
+                  "foo", 5, 27, 121, false, false,
                   stack_trace->GetFrame(isolate, 2));
-  checkStackFrame("origin", "foo", 5, 27, false, false,
+  checkStackFrame("origin", functions_with_function_name, "local/functional.sc",
+                  "foo", 5, 27, 121, false, false,
                   stack_trace->GetFrame(isolate, 3));
-  checkStackFrame("origin", "", 1, 14, false, false,
-                  stack_trace->GetFrame(isolate, 4));
+  checkStackFrame("origin", functions_with_function_name_caller, nullptr, "", 1,
+                  14, 13, false, false, stack_trace->GetFrame(isolate, 4));
 }
 
 TEST(GetStackTraceContainsFunctionsWithFunctionName) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
-  CompileRunWithOrigin(
-      "function gen(name, counter) {\n"
-      "  var f = function foo() {\n"
-      "    if (counter === 0)\n"
-      "      throw 1;\n"
-      "    gen(name, counter - 1)();\n"
-      "  };\n"
-      "  if (counter == 3) {\n"
-      "    Object.defineProperty(f, 'name', {get: function(){ throw 239; }});\n"
-      "  } else {\n"
-      "    Object.defineProperty(f, 'name', {writable:true});\n"
-      "    if (counter == 2)\n"
-      "      f.name = 42;\n"
-      "    else\n"
-      "      f.name = name + ':' + counter;\n"
-      "  }\n"
-      "  return f;\n"
-      "};",
-      "origin");
+  CompileRunWithOrigin(functions_with_function_name, "origin");
 
   isolate->AddMessageListener(StackTraceFunctionNameListener);
   isolate->SetCaptureStackTraceForUncaughtExceptions(true);
-  CompileRunWithOrigin("gen('foo', 3)();", "origin");
+  CompileRunWithOrigin(functions_with_function_name_caller, "origin");
   isolate->SetCaptureStackTraceForUncaughtExceptions(false);
   isolate->RemoveMessageListeners(StackTraceFunctionNameListener);
 }
@@ -486,7 +558,7 @@ static void RethrowStackTraceHandler(v8::Local<v8::Message> message,
   int line_number[] = {1, 2, 5};
   for (int i = 0; i < frame_count; i++) {
     CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(message->GetIsolate(), i)->GetLineNumber());
+             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
   }
 }
 
@@ -494,7 +566,7 @@ static void RethrowStackTraceHandler(v8::Local<v8::Message> message,
 // is first thrown (not where it is rethrown).
 TEST(RethrowStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   // We make sure that
   // - the stack trace of the ReferenceError in g() is reported.
@@ -529,14 +601,14 @@ static void RethrowPrimitiveStackTraceHandler(v8::Local<v8::Message> message,
   int line_number[] = {3, 7};
   for (int i = 0; i < frame_count; i++) {
     CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(message->GetIsolate(), i)->GetLineNumber());
+             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
   }
 }
 
 // Test that we do not recognize identity for primitive exceptions.
 TEST(RethrowPrimitiveStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   // We do not capture stack trace for non Error objects on creation time.
   // Instead, we capture the stack trace on last throw.
@@ -562,14 +634,14 @@ static void RethrowExistingStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(1, stack_trace->GetFrame(message->GetIsolate(), 0)->GetLineNumber());
+  CHECK_EQ(1, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
 }
 
 // Test that the stack trace is captured when the error object is created and
 // not where it is thrown.
 TEST(RethrowExistingStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   const char* source =
       "var e = new Error();           \n"
@@ -587,13 +659,14 @@ static void RethrowBogusErrorStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(2, stack_trace->GetFrame(message->GetIsolate(), 0)->GetLineNumber());
+  CHECK_EQ(1, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
 }
 
-// Test that the stack trace is captured where the bogus Error object is thrown.
+// Test that the stack trace is captured where the bogus Error object is created
+// and not where it is thrown.
 TEST(RethrowBogusErrorStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   const char* source =
       "var e = {__proto__: new Error()} \n"
@@ -606,17 +679,18 @@ TEST(RethrowBogusErrorStackTrace) {
 }
 
 void AnalyzeStackOfEvalWithSourceURL(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-      args.GetIsolate(), 10, v8::StackTrace::kDetailed);
+      info.GetIsolate(), 10, v8::StackTrace::kDetailed);
   CHECK_EQ(5, stackTrace->GetFrameCount());
   v8::Local<v8::String> url = v8_str("eval_url");
   for (int i = 0; i < 3; i++) {
     v8::Local<v8::String> name =
-        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptNameOrSourceURL();
+        stackTrace->GetFrame(info.GetIsolate(), i)->GetScriptNameOrSourceURL();
     CHECK(!name.IsEmpty());
-    CHECK(url->Equals(args.GetIsolate()->GetCurrentContext(), name).FromJust());
+    CHECK(url->Equals(info.GetIsolate()->GetCurrentContext(), name).FromJust());
   }
 }
 
@@ -642,23 +716,24 @@ TEST(SourceURLInStackTrace) {
       "}\n"
       "eval('(' + outer +')()%s');";
 
-  i::ScopedVector<char> code(1024);
-  i::SNPrintF(code, source, "//# sourceURL=eval_url");
+  v8::base::ScopedVector<char> code(1024);
+  v8::base::SNPrintF(code, source, "//# sourceURL=eval_url");
   CHECK(CompileRun(code.begin())->IsUndefined());
-  i::SNPrintF(code, source, "//@ sourceURL=eval_url");
+  v8::base::SNPrintF(code, source, "//@ sourceURL=eval_url");
   CHECK(CompileRun(code.begin())->IsUndefined());
 }
 
 static int scriptIdInStack[2];
 
-void AnalyzeScriptIdInStack(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
+void AnalyzeScriptIdInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-      args.GetIsolate(), 10, v8::StackTrace::kScriptId);
+      info.GetIsolate(), 10, v8::StackTrace::kScriptId);
   CHECK_EQ(2, stackTrace->GetFrameCount());
   for (int i = 0; i < 2; i++) {
     scriptIdInStack[i] =
-        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptId();
+        stackTrace->GetFrame(info.GetIsolate(), i)->GetScriptId();
   }
 }
 
@@ -679,22 +754,319 @@ TEST(ScriptIdInStackTrace) {
   script->Run(context.local()).ToLocalChecked();
   for (int i = 0; i < 2; i++) {
     CHECK_NE(scriptIdInStack[i], v8::Message::kNoScriptIdInfo);
-    CHECK_EQ(scriptIdInStack[i], script->GetUnboundScript()->GetId());
+    CHECK_EQ(scriptIdInStack[i], script->ScriptId());
   }
 }
 
+static int currentScriptId = -1;
+
+void AnalyzeCurrentScriptIdInStack(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
+  currentScriptId = v8::StackTrace::CurrentScriptId(info.GetIsolate());
+}
+
+TEST(CurrentScriptId_Id) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "AnalyzeCurrentScriptIdInStack",
+             v8::FunctionTemplate::New(CcTest::isolate(),
+                                       AnalyzeCurrentScriptIdInStack));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"(
+    function foo() {
+      AnalyzeCurrentScriptIdInStack();
+    }
+    foo();
+  )";
+
+  v8::Local<v8::Script> script = CompileWithOrigin(source, "test", false);
+  script->Run(context.local()).ToLocalChecked();
+
+  CHECK_EQ(currentScriptId, script->ScriptId());
+
+  // When nothing is on the stack, we should get the default response.
+  CHECK_EQ(v8::Message::kNoScriptIdInfo,
+           v8::StackTrace::CurrentScriptId(CcTest::isolate()));
+}
+
+static std::vector<v8::StackTrace::ScriptIdAndContext> expectedFrames;
+
+void CaptureStackIdsAndContexts(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  int frame_limit = 10;
+  // Was a frame limit specified in script?
+  if (info.Length() == 1) {
+    frame_limit = info[0]->Int32Value(context).FromJust();
+  }
+  CHECK_LE(frame_limit, 10);
+
+  std::vector<v8::StackTrace::ScriptIdAndContext> results(10);
+  auto result_span = v8::StackTrace::CurrentScriptIdsAndContexts(
+      isolate, v8::MemorySpan<v8::StackTrace::ScriptIdAndContext>(
+                   results.data(), frame_limit));
+
+  CHECK_EQ(result_span.size(), expectedFrames.size());
+  for (size_t i = 0; i < result_span.size(); ++i) {
+    CHECK_EQ(result_span[i].id, expectedFrames[i].id);
+    CHECK_EQ(result_span[i].context, expectedFrames[i].context);
+  }
+}
+
+// Verify that `CurrentScriptIdsAndContexts` will follow an `eval`to the script
+// id that initiated the `eval`.
+TEST(CurrentScriptIdsAndContexts_FollowsEval) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+  LocalContext context(nullptr, templ);
+
+  const char* source = "function test() { eval('CaptureStack()'); } test();";
+  v8::Local<v8::Script> script =
+      CompileWithOrigin(source, "origin_script", false);
+
+  // 0: The eval function which calls CaptureStack
+  // 1: The test() function
+  // 2: The top-level function
+  int expected_id = script->GetUnboundScript()->ScriptId();
+  expectedFrames = {3, {expected_id, context.local()}};
+  script->Run(context.local()).ToLocalChecked();
+}
+
+// Verify that `CurrentScriptIdsAndContexts` will follow the `new Function`
+// constructor back to the script id that initiated the creation.
+TEST(CurrentScriptIdsAndContexts_FollowsNewFunction) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+  LocalContext context(nullptr, templ);
+
+  const char* source =
+      "function test() {"
+      "  var dynamicFn = new Function('CaptureStack()');"
+      "  dynamicFn();"
+      "} "
+      "test();";
+
+  v8::Local<v8::Script> script =
+      CompileWithOrigin(source, "origin_script_new_fn", false);
+
+  // 0: The dynamic function which calls CaptureStack
+  // 1: The test() function
+  // 2: The top-level function
+  int expected_id = script->GetUnboundScript()->ScriptId();
+  expectedFrames = {3, {expected_id, context.local()}};
+  script->Run(context.local()).ToLocalChecked();
+}
+
+// Verify that `CurrentScriptIdsAndContexts` will follow an `eval`to the script
+// id that initiated the `eval`, even through nested evals.
+TEST(CurrentScriptIdsAndContexts_FollowsNestedEval) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"SCRIPT(
+    function test() {
+      eval("eval(\"CaptureStack();\")");
+    }
+    test();
+  )SCRIPT";
+  v8::Local<v8::Script> script =
+      CompileWithOrigin(source, "origin_script", false);
+
+  // The stack should have 2 eval frames and a test() frame.
+  // All should point back to the original script ID.
+  // 0: Outer eval
+  // 1: Inner eval
+  // 2: Test function
+  // 3: Top-level function
+  int expected_id = script->GetUnboundScript()->ScriptId();
+  expectedFrames = {4, {expected_id, context.local()}};
+  script->Run(context.local()).ToLocalChecked();
+}
+
+// Verify that stacks with multiple contexts show up appropriately.
+TEST(CurrentScriptIdsAndContexts_CrossContextScripting) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+
+  LocalContext context_a(nullptr, templ);
+  LocalContext context_b(nullptr, templ);
+
+  // Give the contexts a shared security token.
+  v8::Local<v8::String> shared_token = v8_str("https://example.com");
+  context_a->SetSecurityToken(shared_token);
+  context_b->SetSecurityToken(shared_token);
+
+  v8::Local<v8::Function> actor_function;
+  int script_a_id = -1;
+
+  // Define a method in the first context, that will later be called from the
+  // second.
+  {
+    v8::Context::Scope context_scope(context_a.local());
+    const char* source_a = "function publicMethod() { CaptureStack(); }";
+    v8::Local<v8::Script> script_a =
+        CompileWithOrigin(source_a, "script_a", false);
+    script_a->Run(context_a.local()).ToLocalChecked();
+
+    script_a_id = script_a->GetUnboundScript()->ScriptId();
+    actor_function = context_a->Global()
+                         ->Get(context_a.local(), v8_str("publicMethod"))
+                         .ToLocalChecked()
+                         .As<v8::Function>();
+  }
+
+  int script_b_id = -1;
+
+  // The second context's script, which calls into the first.
+  {
+    v8::Context::Scope context_scope(context_b.local());
+
+    // Inject actor into B
+    context_b->Global()
+        ->Set(context_b.local(), v8_str("publicMethod"), actor_function)
+        .FromJust();
+
+    // Wrap the call in a function to ensure a visible stack frame in Context B
+    const char* source_b =
+        "function foo() { publicMethod.call(globalThis); } foo();";
+    v8::Local<v8::Script> script_b =
+        CompileWithOrigin(source_b, "script_b", false);
+
+    // frame 0: context a: publicMethod()
+    // frame 1: context b: foo()
+    // frame 2: context b: top-level
+    script_b_id = script_b->GetUnboundScript()->ScriptId();
+    expectedFrames = {{script_a_id, context_a.local()},
+                      {script_b_id, context_b.local()},
+                      {script_b_id, context_b.local()}};
+    script_b->Run(context_b.local()).ToLocalChecked();
+  }
+}
+
+// Ensure that the stack walk honors the provided frame limit.
+TEST(CurrentScriptIdsAndContexts_FrameLimit) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"SCRIPT(
+    function a() { b(); }
+    function b() { c(); }
+    function c() { d(); }
+    function d() { CaptureStack(3); }  // frame limit 3 set here.
+    a();
+  )SCRIPT";
+
+  v8::Local<v8::Script> script = CompileWithOrigin(source, "limit_test", false);
+
+  // Even though the stack is ~5 frames deep (d, c, b, a, global),
+  // we specifically requested a limit of 3.
+  int expected_id = script->GetUnboundScript()->ScriptId();
+  expectedFrames = {3, {expected_id, context.local()}};
+  script->Run(context.local()).ToLocalChecked();
+}
+
+TEST(CurrentScriptIdsAndContexts_ZeroLimit) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+
+  LocalContext context(nullptr, templ);
+
+  expectedFrames = {};
+
+  // This should not crash and should return a span of size 0
+  CompileRun("CaptureStack(0);");
+}
+
+TEST(CurrentScriptIdsAndContexts_SkipsBuiltins) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+  LocalContext context(nullptr, templ);
+
+  const char* source =
+      "function userFunc() { CaptureStack(); } [1].forEach(userFunc);";
+  v8::Local<v8::Script> script =
+      CompileWithOrigin(source, "builtin_test", false);
+
+  // The full stack should look like:
+  // [userFunc (JS), forEach (Builtin), top-level (JS)]
+  // However, we should skip over the forEach builtin.
+  int expected_id = script->GetUnboundScript()->ScriptId();
+  expectedFrames = {2, {expected_id, context.local()}};
+  script->Run(context.local()).ToLocalChecked();
+}
+
+TEST(CurrentScriptIdsAndContexts_BoundFunction) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(isolate, "CaptureStack",
+             v8::FunctionTemplate::New(isolate, CaptureStackIdsAndContexts));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"SCRIPT(
+    function target() { CaptureStack(); }
+    const bound = target.bind(null);
+    function caller() { bound(); }
+    caller();
+  )SCRIPT";
+
+  v8::Local<v8::Script> script = CompileWithOrigin(source, "bound_test", false);
+
+  // Should see: target, caller, global script.
+  int expected_id = script->GetUnboundScript()->ScriptId();
+  expectedFrames = {3, {expected_id, context.local()}};
+  script->Run(context.local()).ToLocalChecked();
+}
+
 void AnalyzeStackOfInlineScriptWithSourceURL(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-      args.GetIsolate(), 10, v8::StackTrace::kDetailed);
+      info.GetIsolate(), 10, v8::StackTrace::kDetailed);
   CHECK_EQ(4, stackTrace->GetFrameCount());
   v8::Local<v8::String> url = v8_str("source_url");
   for (int i = 0; i < 3; i++) {
     v8::Local<v8::String> name =
-        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptNameOrSourceURL();
+        stackTrace->GetFrame(info.GetIsolate(), i)->GetScriptNameOrSourceURL();
     CHECK(!name.IsEmpty());
-    CHECK(url->Equals(args.GetIsolate()->GetCurrentContext(), name).FromJust());
+    CHECK(url->Equals(info.GetIsolate()->GetCurrentContext(), name).FromJust());
   }
 }
 
@@ -720,25 +1092,26 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  i::ScopedVector<char> code(1024);
-  i::SNPrintF(code, source, "//# sourceURL=source_url");
+  v8::base::ScopedVector<char> code(1024);
+  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
-  i::SNPrintF(code, source, "//@ sourceURL=source_url");
+  v8::base::SNPrintF(code, source, "//@ sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 1)->IsUndefined());
 }
 
 void AnalyzeStackOfDynamicScriptWithSourceURL(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
   v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
-      args.GetIsolate(), 10, v8::StackTrace::kDetailed);
+      info.GetIsolate(), 10, v8::StackTrace::kDetailed);
   CHECK_EQ(4, stackTrace->GetFrameCount());
   v8::Local<v8::String> url = v8_str("source_url");
   for (int i = 0; i < 3; i++) {
     v8::Local<v8::String> name =
-        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptNameOrSourceURL();
+        stackTrace->GetFrame(info.GetIsolate(), i)->GetScriptNameOrSourceURL();
     CHECK(!name.IsEmpty());
-    CHECK(url->Equals(args.GetIsolate()->GetCurrentContext(), name).FromJust());
+    CHECK(url->Equals(info.GetIsolate()->GetCurrentContext(), name).FromJust());
   }
 }
 
@@ -764,16 +1137,16 @@ TEST(DynamicWithSourceURLInStackTrace) {
       "}\n"
       "outer()\n%s";
 
-  i::ScopedVector<char> code(1024);
-  i::SNPrintF(code, source, "//# sourceURL=source_url");
+  v8::base::ScopedVector<char> code(1024);
+  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
-  i::SNPrintF(code, source, "//@ sourceURL=source_url");
+  v8::base::SNPrintF(code, source, "//@ sourceURL=source_url");
   CHECK(CompileRunWithOrigin(code.begin(), "url", 0, 0)->IsUndefined());
 }
 
 TEST(DynamicWithSourceURLInStackTraceString) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
 
   const char* source =
       "function outer() {\n"
@@ -784,25 +1157,90 @@ TEST(DynamicWithSourceURLInStackTraceString) {
       "}\n"
       "outer()\n%s";
 
-  i::ScopedVector<char> code(1024);
-  i::SNPrintF(code, source, "//# sourceURL=source_url");
-  v8::TryCatch try_catch(context->GetIsolate());
+  v8::base::ScopedVector<char> code(1024);
+  v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
+  v8::TryCatch try_catch(context.isolate());
   CompileRunWithOrigin(code.begin(), "", 0, 0);
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(
-      context->GetIsolate(),
+      context.isolate(),
       try_catch.StackTrace(context.local()).ToLocalChecked());
   CHECK_NOT_NULL(strstr(*stack, "at foo (source_url:3:5)"));
 }
 
-TEST(CaptureStackTraceForStackOverflow) {
-  v8::internal::FLAG_stack_size = 150;
-  LocalContext current;
-  v8::Isolate* isolate = current->GetIsolate();
+UNINITIALIZED_TEST(CaptureStackTraceForStackOverflow) {
+  // We must set v8_flags.stack_size before initializing the isolate.
+  v8::internal::v8_flags.stack_size = 150;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  {
+    LocalContext current(isolate);
+    v8::HandleScope scope(isolate);
+    isolate->SetCaptureStackTraceForUncaughtExceptions(
+        true, 10, v8::StackTrace::kDetailed);
+    v8::TryCatch try_catch(isolate);
+    CompileRun("(function f(x) { f(x+1); })(0)");
+    CHECK(try_catch.HasCaught());
+  }
+  isolate->Exit();
+  isolate->Dispose();
+}
+
+void AnalyzeScriptNameInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
+  v8::Local<v8::String> name =
+      v8::StackTrace::CurrentScriptNameOrSourceURL(info.GetIsolate());
+  CHECK(!name.IsEmpty());
+  CHECK(name->StringEquals(v8_str("test.js")));
+}
+
+TEST(CurrentScriptNameOrSourceURL_Name) {
+  v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
-                                                     v8::StackTrace::kDetailed);
-  v8::TryCatch try_catch(isolate);
-  CompileRun("(function f(x) { f(x+1); })(0)");
-  CHECK(try_catch.HasCaught());
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(
+      isolate, "AnalyzeScriptNameInStack",
+      v8::FunctionTemplate::New(CcTest::isolate(), AnalyzeScriptNameInStack));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"(
+    function foo() {
+      AnalyzeScriptNameInStack();
+    }
+    foo();
+  )";
+
+  CHECK(CompileRunWithOrigin(source, "test.js")->IsUndefined());
+}
+
+void AnalyzeScriptURLInStack(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
+  v8::Local<v8::String> name =
+      v8::StackTrace::CurrentScriptNameOrSourceURL(info.GetIsolate());
+  CHECK(!name.IsEmpty());
+  CHECK(name->StringEquals(v8_str("foo.js")));
+}
+
+TEST(CurrentScriptNameOrSourceURL_SourceURL) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(
+      isolate, "AnalyzeScriptURLInStack",
+      v8::FunctionTemplate::New(CcTest::isolate(), AnalyzeScriptURLInStack));
+  LocalContext context(nullptr, templ);
+
+  const char* source = R"(
+    function foo() {
+      AnalyzeScriptURLInStack();
+    }
+    foo();
+    //# sourceURL=foo.js
+  )";
+
+  CHECK(CompileRunWithOrigin(source, "")->IsUndefined());
 }

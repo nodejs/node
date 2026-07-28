@@ -1144,6 +1144,7 @@ Camellia_Ekeygen:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	Camellia_Ekeygen,.-Camellia_Ekeygen
+.section	.rodata
 .align	64
 .LCamellia_SIGMA:
 .long	0x3bcc908b, 0xa09e667f, 0x4caa73b2, 0xb67ae858
@@ -1663,11 +1664,13 @@ Camellia_Ekeygen:
 .long	0x008f8f8f,0xe300e3e3
 .long	0x00010101,0x40004040
 .long	0x003d3d3d,0x4f004f4f
+.text	
 .globl	Camellia_cbc_encrypt
 .type	Camellia_cbc_encrypt,@function
 .align	16
 Camellia_cbc_encrypt:
 .cfi_startproc	
+.byte	243,15,30,250
 	cmpq	$0,%rdx
 	je	.Lcbc_abort
 	pushq	%rbx
@@ -1922,3 +1925,24 @@ Camellia_cbc_encrypt:
 .size	Camellia_cbc_encrypt,.-Camellia_cbc_encrypt
 
 .byte	67,97,109,101,108,108,105,97,32,102,111,114,32,120,56,54,95,54,52,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+	.section ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 3
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 3
+4:

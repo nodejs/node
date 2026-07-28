@@ -18,11 +18,10 @@
 
 #include "../common/context.h"
 #include "../common/platform.h"
-#include <brotli/types.h>
-#include "./command.h"
-#include "./entropy_encode.h"
-#include "./memory.h"
-#include "./metablock.h"
+#include "command.h"
+#include "entropy_encode.h"
+#include "memory.h"
+#include "metablock.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -35,7 +34,7 @@ BROTLI_INTERNAL void BrotliStoreHuffmanTree(const uint8_t* depths, size_t num,
     HuffmanTree* tree, size_t* storage_ix, uint8_t* storage);
 
 BROTLI_INTERNAL void BrotliBuildAndStoreHuffmanTreeFast(
-    MemoryManager* m, const uint32_t* histogram, const size_t histogram_total,
+    HuffmanTree* tree, const uint32_t* histogram, const size_t histogram_total,
     const size_t max_bits, uint8_t* depth, uint16_t* bits, size_t* storage_ix,
     uint8_t* storage);
 

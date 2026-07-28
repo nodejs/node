@@ -40,8 +40,8 @@ public:
 
     ~NFRuleSet();
 
-    UBool operator==(const NFRuleSet& rhs) const;
-    UBool operator!=(const NFRuleSet& rhs) const { return !operator==(rhs); }
+    bool operator==(const NFRuleSet& rhs) const;
+    bool operator!=(const NFRuleSet& rhs) const { return !operator==(rhs); }
 
     UBool isPublic() const { return fIsPublic; }
 
@@ -55,7 +55,7 @@ public:
     void  format(int64_t number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
     void  format(double number, UnicodeString& toAppendTo, int32_t pos, int32_t recursionCount, UErrorCode& status) const;
 
-    UBool parse(const UnicodeString& text, ParsePosition& pos, double upperBound, uint32_t nonNumericalExecutedRuleMask, Formattable& result) const;
+    UBool parse(const UnicodeString& text, ParsePosition& pos, double upperBound, uint32_t nonNumericalExecutedRuleMask, int32_t recursionCount, Formattable& result) const;
 
     void appendRules(UnicodeString& result) const; // toString
 
@@ -66,7 +66,7 @@ private:
     const NFRule * findNormalRule(int64_t number) const;
     const NFRule * findDoubleRule(double number) const;
     const NFRule * findFractionRuleSetRule(double number) const;
-
+    
     friend class NFSubstitution;
 
 private:
@@ -93,10 +93,10 @@ int64_t util64_fromDouble(double d);
 uint64_t util64_pow(uint32_t radix, uint16_t exponent);
 
 // convert n to digit string in buffer, return length of string
-uint32_t util64_tou(int64_t n, UChar* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
+uint32_t util64_tou(int64_t n, char16_t* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 
 #ifdef RBNF_DEBUG
-int64_t util64_utoi(const UChar* str, uint32_t radix = 10);
+int64_t util64_utoi(const char16_t* str, uint32_t radix = 10);
 uint32_t util64_toa(int64_t n, char* buffer, uint32_t buflen, uint32_t radix = 10, UBool raw = false);
 int64_t util64_atoi(const char* str, uint32_t radix);
 #endif

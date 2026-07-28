@@ -59,9 +59,9 @@ EXPECTED_PROCESSED_OUTPUT = {
 # Data for test_merge_instrumented_line_results. A list of absolute paths to
 # all executables.
 EXE_LIST = [
-  '/path/to/d8',
-  '/path/to/cctest',
-  '/path/to/unittests',
+    '/path/to/d8',
+    '/path/to/cctest',
+    '/path/to/v8_unittests',
 ]
 
 # Post-processed llvm symbolizer output as returned by
@@ -86,13 +86,13 @@ INSTRUMENTED_LINE_RESULTS = [
 # the coverage mask is 0 for all lines. The line tuples remain sorted by
 # line number and contain no duplicates.
 EXPECTED_INSTRUMENTED_LINES_DATA = {
-  'version': 1,
-  'tests': ['cctest', 'd8', 'unittests'],
-  'files': {
-    'src/baz/bar.h': [[0, 0], [3, 0], [7, 0], [8, 0]],
-    'src/baz.cc': [[1, 0], [2, 0]],
-    'src/foo.cc': [[1, 0], [11, 0], [92, 0], [93, 0]],
-  },
+    'version': 1,
+    'tests': ['cctest', 'd8', 'v8_unittests'],
+    'files': {
+        'src/baz/bar.h': [[0, 0], [3, 0], [7, 0], [8, 0]],
+        'src/baz.cc': [[1, 0], [2, 0]],
+        'src/foo.cc': [[1, 0], [11, 0], [92, 0], [93, 0]],
+    },
 }
 
 
@@ -102,32 +102,32 @@ EXPECTED_INSTRUMENTED_LINES_DATA = {
 # llvm-symbolizer output as a tuple including the executable name of each data
 # set.
 COVERED_LINE_RESULTS = [
-  ({
-     'src/baz/bar.h': [3, 7],
-     'src/foo.cc': [11],
-   }, 'd8'),
-  ({
-     'src/baz/bar.h': [3, 7],
-     'src/baz.cc': [2],
-     'src/foo.cc': [1],
-   }, 'cctest'),
-  ({
-     'src/foo.cc': [92],
-     'src/baz.cc': [2],
-   }, 'unittests'),
+    ({
+        'src/baz/bar.h': [3, 7],
+        'src/foo.cc': [11],
+    }, 'd8'),
+    ({
+        'src/baz/bar.h': [3, 7],
+        'src/baz.cc': [2],
+        'src/foo.cc': [1],
+    }, 'cctest'),
+    ({
+        'src/foo.cc': [92],
+        'src/baz.cc': [2],
+    }, 'v8_unittests'),
 ]
 
 # This shows initial instrumentation + coverage. The mask bits are:
-# cctest: 1, d8: 2, unittests:4. So a line covered by cctest and unittests
+# cctest: 1, d8: 2, v8_unittests:4. So a line covered by cctest and v8_unittests
 # has a coverage mask of 0b101, e.g. line 2 in src/baz.cc.
 EXPECTED_COVERED_LINES_DATA = {
-  'version': 1,
-  'tests': ['cctest', 'd8', 'unittests'],
-  'files': {
-    'src/baz/bar.h': [[0, 0b0], [3, 0b11], [7, 0b11], [8, 0b0]],
-    'src/baz.cc': [[1, 0b0], [2, 0b101]],
-    'src/foo.cc': [[1, 0b1], [11, 0b10], [92, 0b100], [93, 0b0]],
-  },
+    'version': 1,
+    'tests': ['cctest', 'd8', 'v8_unittests'],
+    'files': {
+        'src/baz/bar.h': [[0, 0b0], [3, 0b11], [7, 0b11], [8, 0b0]],
+        'src/baz.cc': [[1, 0b0], [2, 0b101]],
+        'src/foo.cc': [[1, 0b1], [11, 0b10], [92, 0b100], [93, 0b0]],
+    },
 }
 
 
@@ -136,36 +136,36 @@ EXPECTED_COVERED_LINES_DATA = {
 # Data for test_split.
 
 EXPECTED_SPLIT_FILES = [
-  (
-    os.path.join('src', 'baz', 'bar.h.json'),
-    {
-      'version': 1,
-      'tests': ['cctest', 'd8', 'unittests'],
-      'files': {
-        'src/baz/bar.h': [[0, 0b0], [3, 0b11], [7, 0b11], [8, 0b0]],
-      },
-    },
-  ),
-  (
-    os.path.join('src', 'baz.cc.json'),
-    {
-      'version': 1,
-      'tests': ['cctest', 'd8', 'unittests'],
-      'files': {
-        'src/baz.cc': [[1, 0b0], [2, 0b101]],
-      },
-    },
-  ),
-  (
-    os.path.join('src', 'foo.cc.json'),
-    {
-      'version': 1,
-      'tests': ['cctest', 'd8', 'unittests'],
-      'files': {
-        'src/foo.cc': [[1, 0b1], [11, 0b10], [92, 0b100], [93, 0b0]],
-      },
-    },
-  ),
+    (
+        os.path.join('src', 'baz', 'bar.h.json'),
+        {
+            'version': 1,
+            'tests': ['cctest', 'd8', 'v8_unittests'],
+            'files': {
+                'src/baz/bar.h': [[0, 0b0], [3, 0b11], [7, 0b11], [8, 0b0]],
+            },
+        },
+    ),
+    (
+        os.path.join('src', 'baz.cc.json'),
+        {
+            'version': 1,
+            'tests': ['cctest', 'd8', 'v8_unittests'],
+            'files': {
+                'src/baz.cc': [[1, 0b0], [2, 0b101]],
+            },
+        },
+    ),
+    (
+        os.path.join('src', 'foo.cc.json'),
+        {
+            'version': 1,
+            'tests': ['cctest', 'd8', 'v8_unittests'],
+            'files': {
+                'src/foo.cc': [[1, 0b1], [11, 0b10], [92, 0b100], [93, 0b0]],
+            },
+        },
+    ),
 ]
 
 

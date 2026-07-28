@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_CPPGC_HEAP_H_
 #define V8_HEAP_CPPGC_HEAP_H_
 
+#include <optional>
+
 #include "include/cppgc/heap.h"
 #include "include/cppgc/liveness-broker.h"
 #include "include/cppgc/macros.h"
@@ -32,29 +34,48 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   HeapBase& AsBase() { return *this; }
   const HeapBase& AsBase() const { return *this; }
 
-  void CollectGarbage(Config) final;
-  void StartIncrementalGarbageCollection(Config) final;
-  void FinalizeIncrementalGarbageCollectionIfRunning(Config);
+  void CollectGarbage(GCConfig) final;
+  void StartIncrementalGarbageCollection(GCConfig) final;
+  bool RetryAllocate(v8::base::FunctionRef<bool()> allocate) final;
+  void FinalizeIncrementalGarbageCollectionIfRunning(GCConfig);
 
   size_t epoch() const final { return epoch_; }
+
+  std::optional<EmbedderStackState> overridden_stack_state() const final {
+    return override_stack_state_;
+  }
+  void set_override_stack_state(EmbedderStackState state) final {
+    CHECK(!override_stack_state_);
+    override_stack_state_ = state;
+  }
+  void clear_overridden_stack_state() final { override_stack_state_.reset(); }
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  std::optional<int> UpdateAllocationTimeout() final { return std::nullopt; }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+  void EnableGenerationalGC();
 
   void DisableHeapGrowingForTesting();
 
  private:
-  void StartGarbageCollection(Config);
-  void FinalizeGarbageCollection(Config::StackState);
+  void StartGarbageCollection(GCConfig);
+  void FinalizeGarbageCollection(StackState);
+  void FinalizeGarbageCollectionImpl(StackState);
 
-  void FinalizeIncrementalGarbageCollectionIfNeeded(
-      Config::StackState stack_state) final {
-    FinalizeGarbageCollection(stack_state);
-  }
+  void FinalizeIncrementalGarbageCollectionIfNeeded(StackState) final;
 
-  Config config_;
+  void StartIncrementalGarbageCollectionForTesting() final;
+  void FinalizeIncrementalGarbageCollectionForTesting(EmbedderStackState) final;
+
+  GCConfig config_;
   GCInvoker gc_invoker_;
   HeapGrowing growing_;
+  bool generational_gc_enabled_ = false;
 
-  bool gc_in_progress_ = false;
   size_t epoch_ = 0;
+
+  std::optional<cppgc::EmbedderStackState> override_stack_state_;
 };
 
 }  // namespace internal

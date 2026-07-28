@@ -9,6 +9,7 @@
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/arm64/utils-arm64.h"
+#include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 
@@ -16,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 struct AssemblerOptions;
+class Zone;
 
 // ISA constants. --------------------------------------------------------------
 
@@ -50,7 +52,7 @@ extern const float16 kFP16DefaultNaN;
 }  // end of extern "C"
 #endif
 
-unsigned CalcLSDataSize(LoadStoreOp op);
+unsigned CalcLSDataSizeLog2(LoadStoreOp op);
 unsigned CalcLSPairDataSize(LoadStorePairOp op);
 
 enum ImmBranchType {
@@ -87,10 +89,8 @@ class Instruction {
     return base::ReadUnalignedValue<Instr>(reinterpret_cast<Address>(this));
   }
 
-  V8_INLINE void SetInstructionBits(Instr new_instr) {
-    // Usually this is aligned, but when de/serializing that's not guaranteed.
-    base::WriteUnalignedValue(reinterpret_cast<Address>(this), new_instr);
-  }
+  V8_EXPORT_PRIVATE void SetInstructionBits(
+      Instr new_instr, WritableJitAllocation* jit_allocation = nullptr);
 
   int Bit(int pos) const { return (InstructionBits() >> pos) & 1; }
 
@@ -144,7 +144,7 @@ class Instruction {
   double ImmNEONFP64() const;
 
   unsigned SizeLS() const {
-    return CalcLSDataSize(static_cast<LoadStoreOp>(Mask(LoadStoreMask)));
+    return CalcLSDataSizeLog2(static_cast<LoadStoreOp>(Mask(LoadStoreMask)));
   }
 
   unsigned SizeLSPair() const {
@@ -187,7 +187,7 @@ class Instruction {
     uint32_t bit5_to_0 = bits & 0x3f;
     uint32_t result = (bit7 << 31) | ((32 - bit6) << 25) | (bit5_to_0 << 19);
 
-    return bit_cast<float>(result);
+    return base::bit_cast<float>(result);
   }
 
   static double Imm8ToFP64(uint32_t imm8) {
@@ -201,7 +201,7 @@ class Instruction {
     uint64_t bit5_to_0 = bits & 0x3f;
     uint64_t result = (bit7 << 63) | ((256 - bit6) << 54) | (bit5_to_0 << 48);
 
-    return bit_cast<double>(result);
+    return base::bit_cast<double>(result);
   }
 
   bool IsLdrLiteral() const {
@@ -308,7 +308,7 @@ class Instruction {
     }
   }
 
-  static int ImmBranchRangeBitwidth(ImmBranchType branch_type) {
+  static constexpr int ImmBranchRangeBitwidth(ImmBranchType branch_type) {
     switch (branch_type) {
       case UncondBranchType:
         return ImmUncondBranch_width;
@@ -324,7 +324,7 @@ class Instruction {
   }
 
   // The range of the branch instruction, expressed as 'instr +- range'.
-  static int32_t ImmBranchRange(ImmBranchType branch_type) {
+  static constexpr int32_t ImmBranchRange(ImmBranchType branch_type) {
     return (1 << (ImmBranchRangeBitwidth(branch_type) + kInstrSizeLog2)) / 2 -
            kInstrSize;
   }
@@ -397,6 +397,61 @@ class Instruction {
     return false;
   }
 
+  enum class MemOp : uint8_t {
+    kCPY,
+    kSET,
+  };
+
+  bool IsMOPSPrologueOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    return InstructionBits() == instr->Mask(~(0x3U << op_lsb));
+  }
+
+  bool IsMOPSMainOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    return InstructionBits() ==
+           (instr->Mask(~(0x3U << op_lsb)) | (0x1 << op_lsb));
+  }
+
+  bool IsMOPSEpilogueOf(const Instruction* instr, MemOp mem_op) const {
+    int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    return InstructionBits() ==
+           (instr->Mask(~(0x3U << op_lsb)) | (0x2 << op_lsb));
+  }
+
+  template <MemOp mem_op>
+  bool IsConsistentMOPSTriplet() const {
+    int64_t isize = static_cast<int64_t>(kInstrSize);
+    const Instruction* prev2 = InstructionAtOffset(-2 * isize);
+    const Instruction* prev1 = InstructionAtOffset(-1 * isize);
+    const Instruction* next1 = InstructionAtOffset(1 * isize);
+    const Instruction* next2 = InstructionAtOffset(2 * isize);
+
+    // Use the encoding of the current instruction to determine the expected
+    // adjacent instructions. This doesn't check if the nearby instructions
+    // are MOPS-type, but checks that they form a consistent triplet if they
+    // are. For example, 'mov x0, #0; mov x0, #512; mov x0, #1024' is a
+    // consistent triplet, but they are not MOPS instructions.
+    constexpr int op_lsb = mem_op == MemOp::kCPY ? 22 : 14;
+    constexpr uint32_t kMOPSOpfield = 0x3 << op_lsb;
+    constexpr uint32_t kMOPSPrologue = 0;
+    constexpr uint32_t kMOPSMain = 0x1 << op_lsb;
+    constexpr uint32_t kMOPSEpilogue = 0x2 << op_lsb;
+    switch (Mask(kMOPSOpfield)) {
+      case kMOPSPrologue:
+        return next1->IsMOPSMainOf(this, mem_op) &&
+               next2->IsMOPSEpilogueOf(this, mem_op);
+      case kMOPSMain:
+        return prev1->IsMOPSPrologueOf(this, mem_op) &&
+               next1->IsMOPSEpilogueOf(this, mem_op);
+      case kMOPSEpilogue:
+        return prev2->IsMOPSPrologueOf(this, mem_op) &&
+               prev1->IsMOPSMainOf(this, mem_op);
+      default:
+        UNREACHABLE();
+    }
+  }
+
   bool IsNop(int n) {
     // A marking nop is an instruction
     //   mov r<n>,  r<n>
@@ -416,13 +471,19 @@ class Instruction {
 
   // Check if the offset is in range of a given branch type. The offset is
   // a byte offset, unscaled.
-  static bool IsValidImmPCOffset(ImmBranchType branch_type, ptrdiff_t offset);
+  static constexpr bool IsValidImmPCOffset(ImmBranchType branch_type,
+                                           ptrdiff_t offset) {
+    DCHECK_EQ(offset % kInstrSize, 0);
+    return is_intn(offset / kInstrSize, ImmBranchRangeBitwidth(branch_type));
+  }
+
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
-  void SetImmPCOffsetTarget(const AssemblerOptions& options,
+  void SetImmPCOffsetTarget(Zone* zone, AssemblerOptions options,
                             Instruction* target);
-  void SetUnresolvedInternalReferenceImmTarget(const AssemblerOptions& options,
+  void SetUnresolvedInternalReferenceImmTarget(Zone* zone,
+                                               AssemblerOptions options,
                                                Instruction* target);
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
@@ -459,8 +520,40 @@ class Instruction {
 
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
-  void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
-  V8_EXPORT_PRIVATE void SetBranchImmTarget(Instruction* target);
+  void SetPCRelImmTarget(Zone* zone, AssemblerOptions options,
+                         Instruction* target);
+
+  template <ImmBranchType branch_type>
+  void SetBranchImmTarget(Instruction* target,
+                          WritableJitAllocation* jit_allocation = nullptr) {
+    DCHECK(IsAligned(DistanceTo(target), kInstrSize));
+    int offset = static_cast<int>(DistanceTo(target) >> kInstrSizeLog2);
+    Instr branch_imm = 0;
+    uint32_t imm_mask = 0;
+    switch (branch_type) {
+      case CondBranchType:
+      case CompareBranchType:
+        static_assert(ImmCondBranch_mask == ImmCmpBranch_mask);
+        static_assert(ImmCondBranch_offset == ImmCmpBranch_offset);
+        // We use a checked truncation here to catch certain bugs where we fail
+        // to check whether a veneer is required. See e.g. crbug.com/1485829.
+        branch_imm = checked_truncate_to_int19(offset) << ImmCondBranch_offset;
+        imm_mask = ImmCondBranch_mask;
+        break;
+      case UncondBranchType:
+        branch_imm = checked_truncate_to_int26(offset)
+                     << ImmUncondBranch_offset;
+        imm_mask = ImmUncondBranch_mask;
+        break;
+      case TestBranchType:
+        branch_imm = checked_truncate_to_int14(offset) << ImmTestBranch_offset;
+        imm_mask = ImmTestBranch_mask;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    SetInstructionBits(Mask(~imm_mask) | branch_imm, jit_allocation);
+  }
 };
 
 // Simulator/Debugger debug instructions ---------------------------------------
@@ -474,6 +567,10 @@ const Instr kImmExceptionIsRedirectedCall = 0xca11;
 // Represent unreachable code. This is used as a guard in parts of the code that
 // should not be reachable, such as in data encoded inline in the instructions.
 const Instr kImmExceptionIsUnreachable = 0xdebf;
+
+// Indicate that the stack is being switched, so the simulator must update its
+// stack limit. The new stack limit is passed in x16.
+const Instr kImmExceptionIsSwitchStackLimit = 0x5915;
 
 // A pseudo 'printf' instruction. The arguments will be passed to the platform
 // printf method.
@@ -654,6 +751,13 @@ class NEONFormatDecoder {
     // NEON FP vector formats: NF_2S, NF_4S, NF_2D.
     static const NEONFormatMap map = {{22, 30},
                                       {NF_2S, NF_4S, NF_UNDEF, NF_2D}};
+    return &map;
+  }
+
+  // The FP half-precision format map uses one Q bit to encode the
+  // NEON FP vector formats: NF_4H, NF_8H.
+  static const NEONFormatMap* FPHPFormatMap() {
+    static const NEONFormatMap map = {{30}, {NF_4H, NF_8H}};
     return &map;
   }
 

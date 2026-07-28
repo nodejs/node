@@ -47,7 +47,7 @@ function test(statusCode) {
     const conn = net.createConnection(
       server.address().port,
       common.mustCall(() => {
-        conn.write('GET / HTTP/1.1\r\n\r\n');
+        conn.write('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');
 
         let resp = '';
         conn.setEncoding('utf8');
@@ -57,9 +57,9 @@ function test(statusCode) {
 
         conn.on('end', common.mustCall(() => {
           // Connection: close should be in the response
-          assert.strictEqual(/^Connection: close\r\n$/m.test(resp), true);
+          assert.match(resp, /^Connection: close\r\n$/m);
           // Make sure this doesn't end with 0\r\n\r\n
-          assert.strictEqual(/^0\r\n$/m.test(resp), false);
+          assert.doesNotMatch(resp, /^0\r\n$/m);
         }));
       })
     );

@@ -1,7 +1,7 @@
 /*
  * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -32,7 +32,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len)
 
 #define BUF_SIZE 65536
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     FuzzerInitialize(&argc, &argv);
 

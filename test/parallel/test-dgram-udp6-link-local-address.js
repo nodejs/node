@@ -7,6 +7,8 @@ const assert = require('assert');
 const dgram = require('dgram');
 const os = require('os');
 
+const { isWindows } = common;
+
 function linklocal() {
   for (const [ifname, entries] of Object.entries(os.networkInterfaces())) {
     for (const { address, family, scopeid } of entries) {
@@ -21,7 +23,7 @@ const iface = linklocal();
 if (!iface)
   common.skip('cannot find any IPv6 interfaces with a link local address');
 
-const address = `${iface.address}%${iface.ifname}`;
+const address = isWindows ? iface.address : `${iface.address}%${iface.ifname}`;
 const message = 'Hello, local world!';
 
 // Create a client socket for sending to the link-local address.
@@ -42,7 +44,7 @@ server.on('message', common.mustCall((buf, info) => {
   // including the link local scope identifier.
   assert.strictEqual(
     info.address,
-    common.isWindows ? `${iface.address}%${iface.scopeid}` : address
+    isWindows ? `${iface.address}%${iface.scopeid}` : address
   );
   server.close();
   client.close();

@@ -141,6 +141,15 @@ function assertNotNull(value, user_message = '') {
   }
 }
 
+/**
+ * Throws if value is undefined.
+ */
+function assertNotUndefined(value, user_message = '') {
+  if (value === undefined) {
+    fail("not undefined", value, user_message);
+  }
+}
+
 
 /**
  * Runs code() and asserts that it throws the specified exception.
@@ -281,5 +290,19 @@ function assertLanguageTag(child, parent) {
   if (childSplit.locale !== parentSplit.locale &&
       !childSplit.locale.startsWith(parentSplit.locale + '-')) {
     fail(child, parent, 'language tag comparison');
+  }
+}
+
+function assertArrayEquals(expected, found, name_opt) {
+  var start = "";
+  if (name_opt) {
+    start = name_opt + " - ";
+  }
+  assertEquals(expected.length, found.length, start + "array length");
+  if (expected.length === found.length) {
+    for (var i = 0; i < expected.length; ++i) {
+      assertEquals(expected[i], found[i],
+                   start + "array element at index " + i);
+    }
   }
 }

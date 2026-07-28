@@ -24,6 +24,7 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const net = require('net');
+const path = require('path');
 const assert = require('assert');
 
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
@@ -38,11 +39,11 @@ if (common.isWindows) {
 } else {
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
-  // Keep the file name very short so that we don't exceed the 108 char limit
-  // on CI for a POSIX socket. Even though this isn't actually a socket file,
-  // the error will be different from the one we are expecting if we exceed the
-  // limit.
-  emptyTxt = `${tmpdir.path}0.txt`;
+  // Use a short relative path so that we don't exceed the 108 byte limit for
+  // Unix socket paths in long or multibyte CI workspaces. Even though this
+  // isn't actually a socket file, the error will be different from the one we
+  // are expecting if the path is too long.
+  emptyTxt = path.join(path.relative(process.cwd(), tmpdir.path), '0.txt');
 
   function cleanup() {
     try {

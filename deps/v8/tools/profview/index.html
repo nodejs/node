@@ -2,10 +2,10 @@
 <!-- Copyright 2017 the V8 project authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file. -->
-
 <html lang="en">
-
 <head>
+  <!-- This will be overwritten by the v8.dev/tools exporter -->
+<!-- ANALYTICS_PLACEHOLDER -->
   <meta charset="utf-8"/>
   <title>V8 Tick Processor</title>
   <link rel="stylesheet" href="profview.css">
@@ -47,16 +47,35 @@ found in the LICENSE file. -->
   To view the profile, click the <i>Choose file</i> button above and choose
   the file in the dialog box.
 
+  <br>
+  <br>
+  For recording a profile from Chrome use:
+  <pre>
+    --no-sandbox --js-flags=--prof
+  </pre>
+
+  If running on Android use also use --single-process:
+  <pre>
+    --single-process --no-sandbox --js-flags=--prof
+  </pre>
+
+  If the profile is from Android pass the unstripped Chrome library to
+  resolve C++ symbols when processing the file using linux-tick-processor.
+  <pre>
+  &lt;v8-dir>/tools/linux-tick-processor --preprocess --apk-embedded-library=./out/Release/lib.unstripped/libchrome.so v8.log > v8.json
+  </pre>
+
+  More detailed instructions for Android here: https://v8.dev/docs/profile-chromium#android
 </div>
 
 <div id="timeline" style="display : none">
   <div>
   <canvas id="timeline-canvas"/>
   </div>
-  <table>
-    <tr id="timeline-legend">
-    </tr>
-  </table>
+  Legend:
+  <div id="timeline-legend">
+  </div>
+  <label><input type="checkbox" id="show-logging"> Show logging</label>
   <div>
     Current code object: <span id="timeline-currentCode"></span>
     <button id="source-viewer-hide-button">Hide source</button>
@@ -112,7 +131,7 @@ found in the LICENSE file. -->
 <br>
 <br>
 <br>
-Copyright the V8 Authors - Last change to this page: 2018/08/13
+Copyright the V8 Authors - Last change to this page: 2020/12/04
 </p>
 
 </body>

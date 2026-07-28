@@ -5,23 +5,24 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_H_
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
+#include <optional>
+
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reloc-info.h"
-#include "src/codegen/string-constants.h"
 #include "src/common/globals.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/use-info.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/zone/zone-containers.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
 
-class StringConstantBase;
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
 namespace compiler {
 
@@ -32,8 +33,16 @@ class Operator;
 class Type;
 class Node;
 
-// Prediction hint for branches.
-enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
+// The semantics of IrOpcode::kBranch changes throughout the pipeline, and in
+// particular is not the same before SimplifiedLowering (JS semantics) and after
+// (machine branch semantics). Some passes are applied both before and after
+// SimplifiedLowering, and use the BranchSemantics enum to know how branches
+// should be treated.
+// TODO(nicohartmann@): Need to remove BranchSemantics::kUnspecified once all
+// branch uses have been updated.
+enum class BranchSemantics { kJS, kMachine, kUnspecified };
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchSemantics);
 
 inline BranchHint NegateBranchHint(BranchHint hint) {
   switch (hint) {
@@ -47,57 +56,80 @@ inline BranchHint NegateBranchHint(BranchHint hint) {
   UNREACHABLE();
 }
 
-inline size_t hash_value(BranchHint hint) { return static_cast<size_t>(hint); }
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
-
-enum class IsSafetyCheck : uint8_t {
-  kCriticalSafetyCheck,
-  kSafetyCheck,
-  kNoSafetyCheck
-};
-
-// Get the more critical safety check of the two arguments.
-IsSafetyCheck CombineSafetyChecks(IsSafetyCheck, IsSafetyCheck);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IsSafetyCheck);
-inline size_t hash_value(IsSafetyCheck is_safety_check) {
-  return static_cast<size_t>(is_safety_check);
-}
-
-enum class TrapId : uint32_t {
-#define DEF_ENUM(Name, ...) k##Name,
+#if V8_ENABLE_WEBASSEMBLY
+enum class TrapId : int32_t {
+#define DEF_ENUM(Name, ...) \
+  k##Name = static_cast<uint32_t>(Builtin::kThrowWasm##Name),
   FOREACH_WASM_TRAPREASON(DEF_ENUM)
 #undef DEF_ENUM
-      kInvalid
 };
+
+static_assert(std::is_same_v<std::underlying_type_t<Builtin>,
+                             std::underlying_type_t<TrapId>>);
 
 inline size_t hash_value(TrapId id) { return static_cast<uint32_t>(id); }
 
 std::ostream& operator<<(std::ostream&, TrapId trap_id);
 
 TrapId TrapIdOf(const Operator* const op);
+#endif
 
-struct BranchOperatorInfo {
-  BranchHint hint;
-  IsSafetyCheck is_safety_check;
+class BranchParameters final {
+ public:
+  BranchParameters(BranchSemantics semantics, BranchHint hint)
+      : semantics_(semantics), hint_(hint) {}
+
+  BranchSemantics semantics() const { return semantics_; }
+  BranchHint hint() const { return hint_; }
+
+ private:
+  const BranchSemantics semantics_;
+  const BranchHint hint_;
 };
 
-inline size_t hash_value(const BranchOperatorInfo& info) {
-  return base::hash_combine(info.hint, info.is_safety_check);
+bool operator==(const BranchParameters& lhs, const BranchParameters& rhs);
+inline bool operator!=(const BranchParameters& lhs,
+                       const BranchParameters& rhs) {
+  return !(lhs == rhs);
 }
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchOperatorInfo);
+size_t hash_value(const BranchParameters& p);
 
-inline bool operator==(const BranchOperatorInfo& a,
-                       const BranchOperatorInfo& b) {
-  return a.hint == b.hint && a.is_safety_check == b.is_safety_check;
-}
+std::ostream& operator<<(std::ostream&, const BranchParameters& p);
 
-V8_EXPORT_PRIVATE const BranchOperatorInfo& BranchOperatorInfoOf(
+V8_EXPORT_PRIVATE const BranchParameters& BranchParametersOf(
     const Operator* const) V8_WARN_UNUSED_RESULT;
+
 V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
+
+class AssertParameters final {
+ public:
+  AssertParameters(BranchSemantics semantics, const char* condition_string,
+                   const char* file, int line)
+      : semantics_(semantics),
+        condition_string_(condition_string),
+        file_(file),
+        line_(line) {}
+
+  BranchSemantics semantics() const { return semantics_; }
+  const char* condition_string() const { return condition_string_; }
+  const char* file() const { return file_; }
+  int line() const { return line_; }
+
+ private:
+  const BranchSemantics semantics_;
+  const char* condition_string_;
+  const char* file_;
+  const int line_;
+};
+
+bool operator==(const AssertParameters& lhs, const AssertParameters& rhs);
+size_t hash_value(const AssertParameters& p);
+std::ostream& operator<<(std::ostream&, const AssertParameters& p);
+
+V8_EXPORT_PRIVATE const AssertParameters& AssertParametersOf(
+    const Operator* const) V8_WARN_UNUSED_RESULT;
 
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
@@ -105,24 +137,15 @@ int ValueInputCountOfReturn(Operator const* const op);
 // Parameters for the {Deoptimize} operator.
 class DeoptimizeParameters final {
  public:
-  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
-                       FeedbackSource const& feedback,
-                       IsSafetyCheck is_safety_check)
-      : kind_(kind),
-        reason_(reason),
-        feedback_(feedback),
-        is_safety_check_(is_safety_check) {}
+  DeoptimizeParameters(DeoptimizeReason reason, FeedbackSource const& feedback)
+      : reason_(reason), feedback_(feedback) {}
 
-  DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
   const FeedbackSource& feedback() const { return feedback_; }
-  IsSafetyCheck is_safety_check() const { return is_safety_check_; }
 
  private:
-  DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
   FeedbackSource const feedback_;
-  IsSafetyCheck is_safety_check_;
 };
 
 bool operator==(DeoptimizeParameters, DeoptimizeParameters);
@@ -135,20 +158,21 @@ std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
     V8_WARN_UNUSED_RESULT;
 
-IsSafetyCheck IsSafetyCheckOf(const Operator* op) V8_WARN_UNUSED_RESULT;
-
 class SelectParameters final {
  public:
-  explicit SelectParameters(MachineRepresentation representation,
-                            BranchHint hint = BranchHint::kNone)
-      : representation_(representation), hint_(hint) {}
+  explicit SelectParameters(
+      MachineRepresentation representation, BranchHint hint = BranchHint::kNone,
+      BranchSemantics semantics = BranchSemantics::kUnspecified)
+      : representation_(representation), hint_(hint), semantics_(semantics) {}
 
   MachineRepresentation representation() const { return representation_; }
   BranchHint hint() const { return hint_; }
+  BranchSemantics semantics() const { return semantics_; }
 
  private:
   const MachineRepresentation representation_;
   const BranchHint hint_;
+  const BranchSemantics semantics_;
 };
 
 bool operator==(SelectParameters const&, SelectParameters const&);
@@ -168,14 +192,21 @@ V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
 
 V8_EXPORT_PRIVATE MachineRepresentation
+LoopExitValueRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
+
+V8_EXPORT_PRIVATE MachineRepresentation
 PhiRepresentationOf(const Operator* const) V8_WARN_UNUSED_RESULT;
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
 // function. This class bundles the index and a debug name for such operators.
 class ParameterInfo final {
  public:
+  static constexpr int kMinIndex = Linkage::kJSCallClosureParamIndex;
+
   ParameterInfo(int index, const char* debug_name)
-      : index_(index), debug_name_(debug_name) {}
+      : index_(index), debug_name_(debug_name) {
+    DCHECK_LE(kMinIndex, index);
+  }
 
   int index() const { return index_; }
   const char* debug_name() const { return debug_name_; }
@@ -448,10 +479,63 @@ const FrameStateInfo& FrameStateInfoOf(const Operator* op)
 V8_EXPORT_PRIVATE Handle<HeapObject> HeapConstantOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
-const StringConstantBase* StringConstantBaseOf(const Operator* op)
-    V8_WARN_UNUSED_RESULT;
-
 const char* StaticAssertSourceOf(const Operator* op);
+
+class SLVerifierHintParameters final {
+ public:
+  explicit SLVerifierHintParameters(const Operator* semantics,
+                                    std::optional<Type> override_output_type)
+      : semantics_(semantics), override_output_type_(override_output_type) {}
+
+  const Operator* semantics() const { return semantics_; }
+  const std::optional<Type>& override_output_type() const {
+    return override_output_type_;
+  }
+
+ private:
+  const Operator* semantics_;
+  std::optional<Type> override_output_type_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(const SLVerifierHintParameters& p1,
+                                  const SLVerifierHintParameters& p2);
+
+size_t hash_value(const SLVerifierHintParameters& p);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                           const SLVerifierHintParameters& p);
+
+V8_EXPORT_PRIVATE const SLVerifierHintParameters& SLVerifierHintParametersOf(
+    const Operator* op) V8_WARN_UNUSED_RESULT;
+
+class ExitMachineGraphParameters final {
+ public:
+  ExitMachineGraphParameters(MachineRepresentation output_representation,
+                             Type output_type)
+      : output_representation_(output_representation),
+        output_type_(output_type) {}
+
+  MachineRepresentation output_representation() const {
+    return output_representation_;
+  }
+
+  const Type& output_type() const { return output_type_; }
+
+ private:
+  const MachineRepresentation output_representation_;
+  const Type output_type_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(const ExitMachineGraphParameters& lhs,
+                                  const ExitMachineGraphParameters& rhs);
+
+size_t hash_value(const ExitMachineGraphParameters& p);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const ExitMachineGraphParameters& p);
+
+V8_EXPORT_PRIVATE const ExitMachineGraphParameters&
+ExitMachineGraphParametersOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
@@ -459,14 +543,32 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit CommonOperatorBuilder(Zone* zone);
+  CommonOperatorBuilder(const CommonOperatorBuilder&) = delete;
+  CommonOperatorBuilder& operator=(const CommonOperatorBuilder&) = delete;
+
+  // A dummy value node temporarily used as input when the actual value doesn't
+  // matter. This operator is inserted only in SimplifiedLowering and is
+  // expected to not survive dead code elimination.
+  const Operator* Plug();
 
   const Operator* Dead();
-  const Operator* DeadValue(MachineRepresentation rep);
+  const Operator* DeadValue(MachineRepresentation rep,
+                            int value_input_count = 1);
   const Operator* Unreachable();
+  const Operator* MajorGCForCompilerTesting();
   const Operator* StaticAssert(const char* source);
+  // SLVerifierHint is used only during SimplifiedLowering. It may be introduced
+  // during lowering to provide additional hints for the verifier. These nodes
+  // are removed at the end of SimplifiedLowering after verification.
+  const Operator* SLVerifierHint(
+      const Operator* semantics,
+      const std::optional<Type>& override_output_type);
   const Operator* End(size_t control_input_count);
-  const Operator* Branch(BranchHint = BranchHint::kNone,
-                         IsSafetyCheck = IsSafetyCheck::kSafetyCheck);
+  // TODO(nicohartmann@): Remove the default argument for {semantics} once all
+  // uses are updated.
+  const Operator* Branch(
+      BranchHint = BranchHint::kNone,
+      BranchSemantics semantics = BranchSemantics::kUnspecified);
   const Operator* IfTrue();
   const Operator* IfFalse();
   const Operator* IfSuccess();
@@ -476,18 +578,20 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                           BranchHint hint = BranchHint::kNone);
   const Operator* IfDefault(BranchHint hint = BranchHint::kNone);
   const Operator* Throw();
-  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
+  const Operator* Deoptimize(DeoptimizeReason reason,
                              FeedbackSource const& feedback);
-  const Operator* DeoptimizeIf(
-      DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  const Operator* DeoptimizeUnless(
-      DeoptimizeKind kind, DeoptimizeReason reason,
-      FeedbackSource const& feedback,
-      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
-  const Operator* TrapIf(TrapId trap_id);
-  const Operator* TrapUnless(TrapId trap_id);
+  const Operator* DeoptimizeIf(DeoptimizeReason reason,
+                               FeedbackSource const& feedback);
+  const Operator* DeoptimizeUnless(DeoptimizeReason reason,
+                                   FeedbackSource const& feedback);
+  const Operator* Assert(BranchSemantics semantics,
+                         const char* condition_string, const char* file,
+                         int line);
+
+#if V8_ENABLE_WEBASSEMBLY
+  const Operator* TrapIf(TrapId trap_id, bool has_frame_state);
+  const Operator* TrapUnless(TrapId trap_id, bool has_frame_state);
+#endif
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 
@@ -501,13 +605,15 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Int32Constant(int32_t);
   const Operator* Int64Constant(int64_t);
   const Operator* TaggedIndexConstant(int32_t value);
-  const Operator* Float32Constant(volatile float);
-  const Operator* Float64Constant(volatile double);
+  const Operator* Float32Constant(float);
+  const Operator* Float64Constant(double);
+  const Operator* Float64Constant(Float64);
   const Operator* ExternalConstant(const ExternalReference&);
-  const Operator* NumberConstant(volatile double);
+  const Operator* NumberConstant(double);
   const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
   const Operator* CompressedHeapConstant(const Handle<HeapObject>&);
+  const Operator* TrustedHeapConstant(const Handle<HeapObject>&);
   const Operator* ObjectId(uint32_t);
 
   const Operator* RelocatableInt32Constant(int32_t value,
@@ -515,13 +621,15 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* RelocatableInt64Constant(int64_t value,
                                            RelocInfo::Mode rmode);
 
-  const Operator* Select(MachineRepresentation, BranchHint = BranchHint::kNone);
+  const Operator* Select(
+      MachineRepresentation, BranchHint = BranchHint::kNone,
+      BranchSemantics semantics = BranchSemantics::kUnspecified);
   const Operator* Phi(MachineRepresentation representation,
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
   const Operator* InductionVariablePhi(int value_input_count);
   const Operator* LoopExit();
-  const Operator* LoopExitValue();
+  const Operator* LoopExitValue(MachineRepresentation rep);
   const Operator* LoopExitEffect();
   const Operator* Checkpoint();
   const Operator* BeginRegion(RegionObservability);
@@ -534,7 +642,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* ObjectState(uint32_t object_id, int pointer_slots);
   const Operator* TypedObjectState(uint32_t object_id,
                                    const ZoneVector<MachineType>* types);
-  const Operator* FrameState(BailoutId bailout_id,
+  const Operator* FrameState(BytecodeOffset bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);
   const Operator* Call(const CallDescriptor* call_descriptor);
@@ -542,7 +650,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Projection(size_t index);
   const Operator* Retain();
   const Operator* TypeGuard(Type type);
-  const Operator* FoldConstant();
+  const Operator* EnterMachineGraph(UseInfo use_info);
+  const Operator* ExitMachineGraph(MachineRepresentation output_representation,
+                                   Type output_type);
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.
@@ -550,21 +660,21 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
-      FrameStateType type, int parameter_count, int local_count,
-      Handle<SharedFunctionInfo> shared_info);
-
-  const Operator* MarkAsSafetyCheck(const Operator* op,
-                                    IsSafetyCheck safety_check);
-
-  const Operator* DelayedStringConstant(const StringConstantBase* str);
+      FrameStateType type, uint16_t parameter_count, uint16_t max_arguments,
+      int local_count, IndirectHandle<SharedFunctionInfo> shared_info,
+      IndirectHandle<BytecodeArray> bytecode_array);
+#if V8_ENABLE_WEBASSEMBLY
+  const FrameStateFunctionInfo* CreateJSToWasmFrameStateFunctionInfo(
+      FrameStateType type, uint16_t parameter_count, int local_count,
+      Handle<SharedFunctionInfo> shared_info,
+      const wasm::CanonicalSig* signature);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
   Zone* zone() const { return zone_; }
 
   const CommonOperatorGlobalCache& cache_;
   Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
 
 // Node wrappers.
@@ -593,16 +703,70 @@ class CommonNodeWrapperBase : public NodeWrapper {
         NodeProperties::GetValueInput(node(), TheIndex));  \
   }
 
+// TODO(jgruber): This class doesn't match the usual OpcodeNode naming
+// convention for historical reasons (it was originally a very basic typed node
+// wrapper similar to Effect and Control). Consider updating the name, with low
+// priority.
+class FrameState : public CommonNodeWrapperBase {
+ public:
+  explicit constexpr FrameState(Node* node) : CommonNodeWrapperBase(node) {
+    DCHECK_EQ(node->opcode(), IrOpcode::kFrameState);
+  }
+
+  const FrameStateInfo& frame_state_info() const {
+    return FrameStateInfoOf(node()->op());
+  }
+
+  static constexpr int kFrameStateParametersInput = 0;
+  static constexpr int kFrameStateLocalsInput = 1;
+  static constexpr int kFrameStateStackInput = 2;
+  static constexpr int kFrameStateContextInput = 3;
+  static constexpr int kFrameStateFunctionInput = 4;
+  static constexpr int kFrameStateOuterStateInput = 5;
+  static constexpr int kFrameStateInputCount = 6;
+
+  // Note: The parameters should be accessed through StateValuesAccess.
+  Node* parameters() const {
+    Node* n = node()->InputAt(kFrameStateParametersInput);
+    DCHECK(n->opcode() == IrOpcode::kStateValues ||
+           n->opcode() == IrOpcode::kTypedStateValues ||
+           n->opcode() == IrOpcode::kDeadValue);
+    return n;
+  }
+  Node* locals() const {
+    Node* n = node()->InputAt(kFrameStateLocalsInput);
+    DCHECK(n->opcode() == IrOpcode::kStateValues ||
+           n->opcode() == IrOpcode::kTypedStateValues);
+    return n;
+  }
+  // TODO(jgruber): Consider renaming this to the more meaningful
+  // 'accumulator'.
+  Node* stack() const { return node()->InputAt(kFrameStateStackInput); }
+  Node* context() const { return node()->InputAt(kFrameStateContextInput); }
+  Node* function() const { return node()->InputAt(kFrameStateFunctionInput); }
+
+  // An outer frame state exists for inlined functions; otherwise it points at
+  // the start node. Could also be dead.
+  Node* outer_frame_state() const {
+    Node* result = node()->InputAt(kFrameStateOuterStateInput);
+    DCHECK(result->opcode() == IrOpcode::kFrameState ||
+           result->opcode() == IrOpcode::kStart ||
+           result->opcode() == IrOpcode::kDeadValue);
+    return result;
+  }
+};
+
 class StartNode final : public CommonNodeWrapperBase {
  public:
   explicit constexpr StartNode(Node* node) : CommonNodeWrapperBase(node) {
-    CONSTEXPR_DCHECK(node->opcode() == IrOpcode::kStart);
+    DCHECK_EQ(IrOpcode::kStart, node->opcode());
   }
 
   // The receiver is counted as part of formal parameters.
   static constexpr int kReceiverOutputCount = 1;
   // These outputs are in addition to formal parameters.
-  static constexpr int kExtraOutputCount = 4;
+  static constexpr int kExtraOutputCount =
+      4 + V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL;
 
   // Takes the formal parameter count of the current function (including
   // receiver) and returns the number of value outputs of the start node.
@@ -610,16 +774,25 @@ class StartNode final : public CommonNodeWrapperBase {
     constexpr int kClosure = 1;
     constexpr int kNewTarget = 1;
     constexpr int kArgCount = 1;
+    constexpr int kDispatchHandle =
+        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0;
     constexpr int kContext = 1;
-    STATIC_ASSERT(kClosure + kNewTarget + kArgCount + kContext ==
+    static_assert(kClosure + kNewTarget + kArgCount + kDispatchHandle +
+                      kContext ==
                   kExtraOutputCount);
     // Checking related linkage methods here since they rely on Start node
     // layout.
-    CONSTEXPR_DCHECK(Linkage::kJSCallClosureParamIndex == -1);
-    CONSTEXPR_DCHECK(Linkage::GetJSCallNewTargetParamIndex(argc) == argc + 0);
-    CONSTEXPR_DCHECK(Linkage::GetJSCallArgCountParamIndex(argc) == argc + 1);
-    CONSTEXPR_DCHECK(Linkage::GetJSCallContextParamIndex(argc) == argc + 2);
-    return argc + kClosure + kNewTarget + kArgCount + kContext;
+    DCHECK_EQ(-1, Linkage::kJSCallClosureParamIndex);
+    DCHECK_EQ(argc + 0, Linkage::GetJSCallNewTargetParamIndex(argc));
+    DCHECK_EQ(argc + 1, Linkage::GetJSCallArgCountParamIndex(argc));
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    DCHECK_EQ(argc + 2, Linkage::GetJSCallDispatchHandleParamIndex(argc));
+    DCHECK_EQ(argc + 3, Linkage::GetJSCallContextParamIndex(argc));
+#else
+    DCHECK_EQ(argc + 2, Linkage::GetJSCallContextParamIndex(argc));
+#endif
+    return argc + kClosure + kNewTarget + kArgCount + kDispatchHandle +
+           kContext;
   }
 
   int FormalParameterCount() const {
@@ -634,6 +807,63 @@ class StartNode final : public CommonNodeWrapperBase {
     return node()->op()->ValueOutputCount() - kExtraOutputCount -
            kReceiverOutputCount;
   }
+
+  // Note these functions don't return the index of the Start output; instead
+  // they return the index assigned to the Parameter node.
+  // TODO(jgruber): Consider unifying the two.
+  int NewTargetParameterIndex() const {
+    return Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount());
+  }
+  int ArgCountParameterIndex() const {
+    return Linkage::GetJSCallArgCountParamIndex(FormalParameterCount());
+  }
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  int DispatchHandleOutputIndex() const {
+    return Linkage::GetJSCallDispatchHandleParamIndex(FormalParameterCount());
+  }
+#endif
+  int ContextParameterIndex() const {
+    return Linkage::GetJSCallContextParamIndex(FormalParameterCount());
+  }
+
+  // TODO(jgruber): Remove this function and use
+  // Linkage::GetJSCallContextParamIndex instead. This currently doesn't work
+  // because tests don't create valid Start nodes - for example, they may add
+  // only two context outputs (and not the closure, new target, argc). Once
+  // tests are fixed, remove this function.
+  int ContextParameterIndex_MaybeNonStandardLayout() const {
+    // The context is always the last parameter to a JavaScript function, and
+    // {Parameter} indices start at -1, so value outputs of {Start} look like
+    // this: closure, receiver, param0, ..., paramN, context.
+    //
+    // TODO(jgruber): This function is called from spots that operate on
+    // CSA/Torque graphs; Start node layout appears to be different there.
+    // These should be unified to avoid confusion. Once done, enable this
+    // DCHECK: DCHECK_EQ(LastOutputIndex(), ContextOutputIndex());
+    return node()->op()->ValueOutputCount() - 2;
+  }
+  int LastParameterIndex_MaybeNonStandardLayout() const {
+    return ContextParameterIndex_MaybeNonStandardLayout();
+  }
+
+  // Unlike ContextParameterIndex_MaybeNonStandardLayout above, these return
+  // output indices (and not the index assigned to a Parameter).
+  int NewTargetOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1). TODO(jgruber): Consider starting at 0.
+    return Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount()) + 1;
+  }
+  int ArgCountOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1). TODO(jgruber): Consider starting at 0.
+    return Linkage::GetJSCallArgCountParamIndex(FormalParameterCount()) + 1;
+  }
+  int ContextOutputIndex() const {
+    // Indices assigned to parameters are off-by-one (Parameters indices start
+    // at -1). TODO(jgruber): Consider starting at 0.
+    return Linkage::GetJSCallContextParamIndex(FormalParameterCount()) + 1;
+  }
+  int LastOutputIndex() const { return ContextOutputIndex(); }
 };
 
 #undef DEFINE_INPUT_ACCESSORS

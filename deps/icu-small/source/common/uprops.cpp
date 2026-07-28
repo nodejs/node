@@ -30,7 +30,9 @@
 #include "unicode/unorm2.h"
 #include "unicode/uscript.h"
 #include "unicode/ustring.h"
+#include "unicode/utf16.h"
 #include "cstring.h"
+#include "emojiprops.h"
 #include "mutex.h"
 #include "normalizer2impl.h"
 #include "umutex.h"
@@ -47,7 +49,7 @@ U_NAMESPACE_USE
 
 namespace {
 
-icu::UInitOnce gLayoutInitOnce = U_INITONCE_INITIALIZER;
+icu::UInitOnce gLayoutInitOnce {};
 UDataMemory *gLayoutMemory = nullptr;
 
 UCPTrie *gInpcTrie = nullptr;  // Indic_Positional_Category
@@ -74,7 +76,7 @@ UBool U_CALLCONV uprops_cleanup() {
     gMaxVoValue = 0;
 
     gLayoutInitOnce.reset();
-    return TRUE;
+    return true;
 }
 
 UBool U_CALLCONV
@@ -98,8 +100,8 @@ void U_CALLCONV ulayout_load(UErrorCode &errorCode) {
         ulayout_isAcceptable, nullptr, &errorCode);
     if (U_FAILURE(errorCode)) { return; }
 
-    const uint8_t *inBytes = (const uint8_t *)udata_getMemory(gLayoutMemory);
-    const int32_t *inIndexes = (const int32_t *)inBytes;
+    const uint8_t* inBytes = static_cast<const uint8_t*>(udata_getMemory(gLayoutMemory));
+    const int32_t* inIndexes = reinterpret_cast<const int32_t*>(inBytes);
     int32_t indexesLength = inIndexes[ULAYOUT_IX_INDEXES_LENGTH];
     if (indexesLength < 12) {
         errorCode = U_INVALID_FORMAT_ERROR;  // Not enough indexes.
@@ -139,7 +141,7 @@ void U_CALLCONV ulayout_load(UErrorCode &errorCode) {
 }
 
 UBool ulayout_ensureData(UErrorCode &errorCode) {
-    if (U_FAILURE(errorCode)) { return FALSE; }
+    if (U_FAILURE(errorCode)) { return false; }
     umtx_initOnce(gLayoutInitOnce, &ulayout_load, errorCode);
     return U_SUCCESS(errorCode);
 }
@@ -169,7 +171,7 @@ static UBool defaultContains(const BinaryProperty &prop, UChar32 c, UProperty /*
 }
 
 static UBool caseBinaryPropertyContains(const BinaryProperty &/*prop*/, UChar32 c, UProperty which) {
-    return static_cast<UBool>(ucase_hasBinaryProperty(c, which));
+    return ucase_hasBinaryProperty(c, which);
 }
 
 static UBool isBidiControl(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
@@ -186,7 +188,7 @@ static UBool isJoinControl(const BinaryProperty &/*prop*/, UChar32 c, UProperty 
 
 #if UCONFIG_NO_NORMALIZATION
 static UBool hasFullCompositionExclusion(const BinaryProperty &, UChar32, UProperty) {
-    return FALSE;
+    return false;
 }
 #else
 static UBool hasFullCompositionExclusion(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
@@ -200,20 +202,20 @@ static UBool hasFullCompositionExclusion(const BinaryProperty &/*prop*/, UChar32
 // UCHAR_NF*_INERT properties
 #if UCONFIG_NO_NORMALIZATION
 static UBool isNormInert(const BinaryProperty &, UChar32, UProperty) {
-    return FALSE;
+    return false;
 }
 #else
 static UBool isNormInert(const BinaryProperty &/*prop*/, UChar32 c, UProperty which) {
     UErrorCode errorCode=U_ZERO_ERROR;
     const Normalizer2 *norm2=Normalizer2Factory::getInstance(
-        (UNormalizationMode)(which-UCHAR_NFD_INERT+UNORM_NFD), errorCode);
+        static_cast<UNormalizationMode>(which - UCHAR_NFD_INERT + UNORM_NFD), errorCode);
     return U_SUCCESS(errorCode) && norm2->isInert(c);
 }
 #endif
 
 #if UCONFIG_NO_NORMALIZATION
 static UBool changesWhenCasefolded(const BinaryProperty &, UChar32, UProperty) {
-    return FALSE;
+    return false;
 }
 #else
 static UBool changesWhenCasefolded(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
@@ -221,7 +223,7 @@ static UBool changesWhenCasefolded(const BinaryProperty &/*prop*/, UChar32 c, UP
     UErrorCode errorCode=U_ZERO_ERROR;
     const Normalizer2 *nfcNorm2=Normalizer2::getNFCInstance(errorCode);
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     if(nfcNorm2->getDecomposition(c, nfd)) {
         /* c has a decomposition */
@@ -235,36 +237,36 @@ static UBool changesWhenCasefolded(const BinaryProperty &/*prop*/, UChar32 c, UP
             c=U_SENTINEL;
         }
     } else if(c<0) {
-        return FALSE;  /* protect against bad input */
+        return false;  /* protect against bad input */
     }
     if(c>=0) {
         /* single code point */
-        const UChar *resultString;
-        return (UBool)(ucase_toFullFolding(c, &resultString, U_FOLD_CASE_DEFAULT)>=0);
+        const char16_t *resultString;
+        return ucase_toFullFolding(c, &resultString, U_FOLD_CASE_DEFAULT) >= 0;
     } else {
         /* guess some large but stack-friendly capacity */
-        UChar dest[2*UCASE_MAX_STRING_LENGTH];
+        char16_t dest[2*UCASE_MAX_STRING_LENGTH];
         int32_t destLength;
         destLength=u_strFoldCase(dest, UPRV_LENGTHOF(dest),
                                   nfd.getBuffer(), nfd.length(),
                                   U_FOLD_CASE_DEFAULT, &errorCode);
-        return (UBool)(U_SUCCESS(errorCode) &&
+        return U_SUCCESS(errorCode) &&
                        0!=u_strCompare(nfd.getBuffer(), nfd.length(),
-                                       dest, destLength, FALSE));
+                                       dest, destLength, false);
     }
 }
 #endif
 
 #if UCONFIG_NO_NORMALIZATION
 static UBool changesWhenNFKC_Casefolded(const BinaryProperty &, UChar32, UProperty) {
-    return FALSE;
+    return false;
 }
 #else
 static UBool changesWhenNFKC_Casefolded(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
     UErrorCode errorCode=U_ZERO_ERROR;
     const Normalizer2Impl *kcf=Normalizer2Factory::getNFKC_CFImpl(errorCode);
     if(U_FAILURE(errorCode)) {
-        return FALSE;
+        return false;
     }
     UnicodeString src(c);
     UnicodeString dest;
@@ -274,9 +276,9 @@ static UBool changesWhenNFKC_Casefolded(const BinaryProperty &/*prop*/, UChar32 
         ReorderingBuffer buffer(*kcf, dest);
         // Small destCapacity for NFKC_CF(c).
         if(buffer.init(5, errorCode)) {
-            const UChar *srcArray=src.getBuffer();
-            kcf->compose(srcArray, srcArray+src.length(), FALSE,
-                          TRUE, buffer, errorCode);
+            const char16_t *srcArray=src.getBuffer();
+            kcf->compose(srcArray, srcArray+src.length(), false,
+                          true, buffer, errorCode);
         }
     }
     return U_SUCCESS(errorCode) && dest!=src;
@@ -285,7 +287,7 @@ static UBool changesWhenNFKC_Casefolded(const BinaryProperty &/*prop*/, UChar32 
 
 #if UCONFIG_NO_NORMALIZATION
 static UBool isCanonSegmentStarter(const BinaryProperty &, UChar32, UProperty) {
-    return FALSE;
+    return false;
 }
 #else
 static UBool isCanonSegmentStarter(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
@@ -320,6 +322,78 @@ static UBool isPOSIX_xdigit(const BinaryProperty &/*prop*/, UChar32 c, UProperty
 static UBool isRegionalIndicator(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
     // Property starts are a subset of lb=RI etc.
     return 0x1F1E6<=c && c<=0x1F1FF;
+}
+
+static UBool hasEmojiProperty(const BinaryProperty &/*prop*/, UChar32 c, UProperty which) {
+    return EmojiProps::hasBinaryProperty(c, which);
+}
+
+static UBool isIDSUnaryOperator(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    // New in Unicode 15.1 for just two characters.
+    return 0x2FFE<=c && c<=0x2FFF;
+}
+
+/** Ranges (start/limit pairs) of ID_Compat_Math_Continue (only), from UCD PropList.txt. */
+static constexpr UChar32 ID_COMPAT_MATH_CONTINUE[] = {
+    0x00B2, 0x00B3 + 1,
+    0x00B9, 0x00B9 + 1,
+    0x2070, 0x2070 + 1,
+    0x2074, 0x207E + 1,
+    0x2080, 0x208E + 1
+};
+
+/** ID_Compat_Math_Start characters, from UCD PropList.txt. */
+static constexpr UChar32 ID_COMPAT_MATH_START[] = {
+    0x2202,
+    0x2207,
+    0x221E,
+    0x1D6C1,
+    0x1D6DB,
+    0x1D6FB,
+    0x1D715,
+    0x1D735,
+    0x1D74F,
+    0x1D76F,
+    0x1D789,
+    0x1D7A9,
+    0x1D7C3
+};
+
+/** Ranges (start/limit pairs) of Modifier_Combining_mark (only), from UCD PropList.txt. */
+static constexpr UChar32 MODIFIER_COMBINING_MARK[] = {
+    0x0654, 0x0655 + 1,
+    0x0658, 0x0658 + 1, // U+0658
+    0x06DC, 0x06DC + 1, // U+06DC
+    0x06E3, 0x06E3 + 1, // U+06E3
+    0x06E7, 0x06E8 + 1,
+    0x08CA, 0x08CB + 1,
+    0x08CD, 0x08CF + 1,
+    0x08D3, 0x08D3 + 1, // U+08D3
+    0x08F3, 0x08F3 + 1  // U+08F3
+};
+
+static UBool isIDCompatMathStart(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    if (c < ID_COMPAT_MATH_START[0]) { return false; }  // fastpath for common scripts
+    for (UChar32 startChar : ID_COMPAT_MATH_START) {
+        if (c == startChar) { return true; }
+    }
+    return false;
+}
+
+static UBool isIDCompatMathContinue(const BinaryProperty &prop, UChar32 c, UProperty /*which*/) {
+    for (int32_t i = 0; i < UPRV_LENGTHOF(ID_COMPAT_MATH_CONTINUE); i += 2) {
+        if (c < ID_COMPAT_MATH_CONTINUE[i]) { return false; }  // below range start
+        if (c < ID_COMPAT_MATH_CONTINUE[i + 1]) { return true; }  // below range limit
+    }
+    return isIDCompatMathStart(prop, c, UCHAR_ID_COMPAT_MATH_START);
+}
+
+static UBool isModifierCombiningMark(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    for (int32_t i = 0; i < UPRV_LENGTHOF(MODIFIER_COMBINING_MARK); i += 2) {
+        if (c < MODIFIER_COMBINING_MARK[i]) { return false; }  // below range start
+        if (c < MODIFIER_COMBINING_MARK[i + 1]) { return true; }  // below range limit
+    }
+    return false;
 }
 
 static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
@@ -388,14 +462,25 @@ static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     { UPROPS_SRC_CASE_AND_NORM,  0, changesWhenCasefolded },
     { UPROPS_SRC_CASE,  0, caseBinaryPropertyContains },  // UCHAR_CHANGES_WHEN_CASEMAPPED
     { UPROPS_SRC_NFKC_CF, 0, changesWhenNFKC_Casefolded },
-    { 2,                U_MASK(UPROPS_2_EMOJI), defaultContains },
-    { 2,                U_MASK(UPROPS_2_EMOJI_PRESENTATION), defaultContains },
-    { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER), defaultContains },
-    { 2,                U_MASK(UPROPS_2_EMOJI_MODIFIER_BASE), defaultContains },
-    { 2,                U_MASK(UPROPS_2_EMOJI_COMPONENT), defaultContains },
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_EMOJI
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_EMOJI_PRESENTATION
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_EMOJI_MODIFIER
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_EMOJI_MODIFIER_BASE
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_EMOJI_COMPONENT
     { 2,                0, isRegionalIndicator },
     { 1,                U_MASK(UPROPS_PREPENDED_CONCATENATION_MARK), defaultContains },
-    { 2,                U_MASK(UPROPS_2_EXTENDED_PICTOGRAPHIC), defaultContains },
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_EXTENDED_PICTOGRAPHIC
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_BASIC_EMOJI
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_EMOJI_KEYCAP_SEQUENCE
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI_MODIFIER_SEQUENCE
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI_FLAG_SEQUENCE
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI_TAG_SEQUENCE
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI_ZWJ_SEQUENCE
+    { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI
+    { UPROPS_SRC_IDSU, 0, isIDSUnaryOperator }, // UCHAR_IDS_UNARY_OPERATOR
+    { UPROPS_SRC_ID_COMPAT_MATH, 0, isIDCompatMathStart }, // UCHAR_ID_COMPAT_MATH_START
+    { UPROPS_SRC_ID_COMPAT_MATH, 0, isIDCompatMathContinue }, // UCHAR_ID_COMPAT_MATH_CONTINUE
+    { UPROPS_SRC_MCM, 0 , isModifierCombiningMark }, // UCHAR_MODIFIER_COMBINING_MARK
 };
 
 U_CAPI UBool U_EXPORT2
@@ -403,11 +488,44 @@ u_hasBinaryProperty(UChar32 c, UProperty which) {
     /* c is range-checked in the functions that are called from here */
     if(which<UCHAR_BINARY_START || UCHAR_BINARY_LIMIT<=which) {
         /* not a known binary property */
-        return FALSE;
+        return false;
     } else {
         const BinaryProperty &prop=binProps[which];
         return prop.contains(prop, c, which);
     }
+}
+
+/* Checks if the Unicode character can start a Unicode identifier.*/
+U_CAPI UBool U_EXPORT2
+u_isIDStart(UChar32 c) {
+    return u_hasBinaryProperty(c, UCHAR_ID_START);
+}
+
+/* Checks if the Unicode character can be a Unicode identifier part other than starting the
+ identifier.*/
+U_CAPI UBool U_EXPORT2
+u_isIDPart(UChar32 c) {
+    return u_hasBinaryProperty(c, UCHAR_ID_CONTINUE);
+}
+
+U_CAPI UBool U_EXPORT2
+u_stringHasBinaryProperty(const char16_t *s, int32_t length, UProperty which) {
+    if (s == nullptr && length != 0) { return false; }
+    if (length == 1) {
+        return u_hasBinaryProperty(s[0], which);  // single code point
+    } else if (length == 2 || (length < 0 && *s != 0)) {  // not empty string
+        // first code point
+        int32_t i = 0;
+        UChar32 c;
+        U16_NEXT(s, i, length, c);
+        if (length > 0 ? i == length : s[i] == 0) {
+            return u_hasBinaryProperty(c, which);  // single code point
+        }
+    }
+    // Only call into EmojiProps for a relevant property,
+    // so that we not unnecessarily try to load its data file.
+    return UCHAR_BASIC_EMOJI <= which && which <= UCHAR_RGI_EMOJI &&
+        EmojiProps::hasBinaryProperty(s, length, which);
 }
 
 struct IntProperty;
@@ -425,7 +543,7 @@ struct IntProperty {
 
 static int32_t defaultGetValue(const IntProperty &prop, UChar32 c, UProperty /*which*/) {
     /* systematic, directly stored properties */
-    return (int32_t)(u_getUnicodeProperties(c, prop.column)&prop.mask)>>prop.shift;
+    return static_cast<int32_t>(u_getUnicodeProperties(c, prop.column) & prop.mask) >> prop.shift;
 }
 
 static int32_t defaultGetMaxValue(const IntProperty &prop, UProperty /*which*/) {
@@ -437,15 +555,23 @@ static int32_t getMaxValueFromShift(const IntProperty &prop, UProperty /*which*/
 }
 
 static int32_t getBiDiClass(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return (int32_t)u_charDirection(c);
+    return static_cast<int32_t>(u_charDirection(c));
 }
 
 static int32_t getBiDiPairedBracketType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return (int32_t)ubidi_getPairedBracketType(c);
+    return static_cast<int32_t>(ubidi_getPairedBracketType(c));
 }
 
 static int32_t biDiGetMaxValue(const IntProperty &/*prop*/, UProperty which) {
     return ubidi_getMaxValue(which);
+}
+
+static int32_t getBlock(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    return static_cast<int32_t>(ublock_getCode(c));
+}
+
+static int32_t blockGetMaxValue(const IntProperty &/*prop*/, UProperty /*which*/) {
+    return uprv_getMaxValues(UPROPS_MAX_VALUES_OTHER_INDEX) & UPROPS_MAX_BLOCK;
 }
 
 #if UCONFIG_NO_NORMALIZATION
@@ -459,7 +585,7 @@ static int32_t getCombiningClass(const IntProperty &/*prop*/, UChar32 c, UProper
 #endif
 
 static int32_t getGeneralCategory(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    return (int32_t)u_charType(c);
+    return static_cast<int32_t>(u_charType(c));
 }
 
 static int32_t getJoiningGroup(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
@@ -471,23 +597,26 @@ static int32_t getJoiningType(const IntProperty &/*prop*/, UChar32 c, UProperty 
 }
 
 static int32_t getNumericType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
-    int32_t ntv=(int32_t)GET_NUMERIC_TYPE_VALUE(u_getMainProperties(c));
+    int32_t ntv = static_cast<int32_t>(GET_NUMERIC_TYPE_VALUE(u_getMainProperties(c)));
     return UPROPS_NTV_GET_TYPE(ntv);
 }
 
 static int32_t getScript(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
     UErrorCode errorCode=U_ZERO_ERROR;
-    return (int32_t)uscript_getScript(c, &errorCode);
+    return static_cast<int32_t>(uscript_getScript(c, &errorCode));
 }
 
 static int32_t scriptGetMaxValue(const IntProperty &/*prop*/, UProperty /*which*/) {
-    uint32_t scriptX=uprv_getMaxValues(0)&UPROPS_SCRIPT_X_MASK;
-    return uprops_mergeScriptCodeOrIndex(scriptX);
+    return uprv_getMaxValues(0)&UPROPS_MAX_SCRIPT;
 }
 
 /*
  * Map some of the Grapheme Cluster Break values to Hangul Syllable Types.
- * Hangul_Syllable_Type is fully redundant with a subset of Grapheme_Cluster_Break.
+ * Hangul_Syllable_Type used to be fully redundant with a subset of Grapheme_Cluster_Break.
+ *
+ * Starting with Unicode 16, this is no longer true for HST=V vs. GCB=V in some cases:
+ * Some Kirat Rai vowels are given GCB=V for proper grapheme clustering, but
+ * they are of course not related to Hangul syllables.
  */
 static const UHangulSyllableType gcbToHst[]={
     U_HST_NOT_APPLICABLE,   /* U_GCB_OTHER */
@@ -507,8 +636,13 @@ static const UHangulSyllableType gcbToHst[]={
 };
 
 static int32_t getHangulSyllableType(const IntProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    // Ignore supplementary code points: They all have HST=NA.
+    // This is a simple way to handle the GCB!=hst cases since Unicode 16 (Kirat Rai vowels).
+    if(c>0xffff) {
+        return U_HST_NOT_APPLICABLE;
+    }
     /* see comments on gcbToHst[] above */
-    int32_t gcb=(int32_t)(u_getUnicodeProperties(c, 2)&UPROPS_GCB_MASK)>>UPROPS_GCB_SHIFT;
+    int32_t gcb = static_cast<int32_t>(u_getUnicodeProperties(c, 2) & UPROPS_GCB_MASK) >> UPROPS_GCB_SHIFT;
     if(gcb<UPRV_LENGTHOF(gcbToHst)) {
         return gcbToHst[gcb];
     } else {
@@ -522,7 +656,7 @@ static int32_t getNormQuickCheck(const IntProperty &, UChar32, UProperty) {
 }
 #else
 static int32_t getNormQuickCheck(const IntProperty &/*prop*/, UChar32 c, UProperty which) {
-    return (int32_t)unorm_getQuickCheck(c, (UNormalizationMode)(which-UCHAR_NFD_QUICK_CHECK+UNORM_NFD));
+    return static_cast<int32_t>(unorm_getQuickCheck(c, static_cast<UNormalizationMode>(which - UCHAR_NFD_QUICK_CHECK + UNORM_NFD)));
 }
 #endif
 
@@ -572,6 +706,11 @@ static int32_t layoutGetMaxValue(const IntProperty &/*prop*/, UProperty which) {
     }
 }
 
+static int32_t getIDStatusValue(const IntProperty & /*prop*/, UChar32 c, UProperty /*which*/) {
+    uint32_t value = u_getUnicodeProperties(c, 2) >> UPROPS_2_ID_TYPE_SHIFT;
+    return value >= UPROPS_ID_TYPE_ALLOWED_MIN ? U_ID_STATUS_ALLOWED : U_ID_STATUS_RESTRICTED;
+}
+
 static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     /*
      * column, mask and shift values for int-value properties from u_getUnicodeProperties().
@@ -582,25 +721,25 @@ static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
      * For them, column is the UPropertySource value.
      */
     { UPROPS_SRC_BIDI,  0, 0,                               getBiDiClass, biDiGetMaxValue },
-    { 0,                UPROPS_BLOCK_MASK, UPROPS_BLOCK_SHIFT, defaultGetValue, defaultGetMaxValue },
+    { UPROPS_SRC_BLOCK, 0, 0,                               getBlock, blockGetMaxValue },
     { UPROPS_SRC_NFC,   0, 0xff,                            getCombiningClass, getMaxValueFromShift },
     { 2,                UPROPS_DT_MASK, 0,                  defaultGetValue, defaultGetMaxValue },
     { 0,                UPROPS_EA_MASK, UPROPS_EA_SHIFT,    defaultGetValue, defaultGetMaxValue },
-    { UPROPS_SRC_CHAR,  0, (int32_t)U_CHAR_CATEGORY_COUNT-1,getGeneralCategory, getMaxValueFromShift },
+    { UPROPS_SRC_CHAR, 0, static_cast<int32_t>(U_CHAR_CATEGORY_COUNT) - 1, getGeneralCategory, getMaxValueFromShift },
     { UPROPS_SRC_BIDI,  0, 0,                               getJoiningGroup, biDiGetMaxValue },
     { UPROPS_SRC_BIDI,  0, 0,                               getJoiningType, biDiGetMaxValue },
     { 2,                UPROPS_LB_MASK, UPROPS_LB_SHIFT,    defaultGetValue, defaultGetMaxValue },
-    { UPROPS_SRC_CHAR,  0, (int32_t)U_NT_COUNT-1,           getNumericType, getMaxValueFromShift },
+    { UPROPS_SRC_CHAR, 0, static_cast<int32_t>(U_NT_COUNT) - 1, getNumericType, getMaxValueFromShift },
     { UPROPS_SRC_PROPSVEC, 0, 0,                            getScript, scriptGetMaxValue },
-    { UPROPS_SRC_PROPSVEC, 0, (int32_t)U_HST_COUNT-1,       getHangulSyllableType, getMaxValueFromShift },
+    { UPROPS_SRC_PROPSVEC, 0, static_cast<int32_t>(U_HST_COUNT) - 1, getHangulSyllableType, getMaxValueFromShift },
     // UCHAR_NFD_QUICK_CHECK: max=1=YES -- never "maybe", only "no" or "yes"
-    { UPROPS_SRC_NFC,   0, (int32_t)UNORM_YES,              getNormQuickCheck, getMaxValueFromShift },
+    { UPROPS_SRC_NFC, 0, static_cast<int32_t>(UNORM_YES), getNormQuickCheck, getMaxValueFromShift },
     // UCHAR_NFKD_QUICK_CHECK: max=1=YES -- never "maybe", only "no" or "yes"
-    { UPROPS_SRC_NFKC,  0, (int32_t)UNORM_YES,              getNormQuickCheck, getMaxValueFromShift },
+    { UPROPS_SRC_NFKC, 0, static_cast<int32_t>(UNORM_YES), getNormQuickCheck, getMaxValueFromShift },
     // UCHAR_NFC_QUICK_CHECK: max=2=MAYBE
-    { UPROPS_SRC_NFC,   0, (int32_t)UNORM_MAYBE,            getNormQuickCheck, getMaxValueFromShift },
+    { UPROPS_SRC_NFC, 0, static_cast<int32_t>(UNORM_MAYBE), getNormQuickCheck, getMaxValueFromShift },
     // UCHAR_NFKC_QUICK_CHECK: max=2=MAYBE
-    { UPROPS_SRC_NFKC,  0, (int32_t)UNORM_MAYBE,            getNormQuickCheck, getMaxValueFromShift },
+    { UPROPS_SRC_NFKC, 0, static_cast<int32_t>(UNORM_MAYBE), getNormQuickCheck, getMaxValueFromShift },
     { UPROPS_SRC_NFC,   0, 0xff,                            getLeadCombiningClass, getMaxValueFromShift },
     { UPROPS_SRC_NFC,   0, 0xff,                            getTrailCombiningClass, getMaxValueFromShift },
     { 2,                UPROPS_GCB_MASK, UPROPS_GCB_SHIFT,  defaultGetValue, defaultGetMaxValue },
@@ -610,6 +749,8 @@ static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     { UPROPS_SRC_INPC,  0, 0,                               getInPC, layoutGetMaxValue },
     { UPROPS_SRC_INSC,  0, 0,                               getInSC, layoutGetMaxValue },
     { UPROPS_SRC_VO,    0, 0,                               getVo, layoutGetMaxValue },
+    { UPROPS_SRC_PROPSVEC, 0, static_cast<int32_t>(U_ID_STATUS_ALLOWED), getIDStatusValue, getMaxValueFromShift },
+    { 0,                UPROPS_INCB_MASK, UPROPS_INCB_SHIFT,defaultGetValue, defaultGetMaxValue },
 };
 
 U_CAPI int32_t U_EXPORT2
@@ -637,7 +778,7 @@ U_CAPI int32_t U_EXPORT2
 u_getIntPropertyMaxValue(UProperty which) {
     if(which<UCHAR_INT_START) {
         if(UCHAR_BINARY_START<=which && which<UCHAR_BINARY_LIMIT) {
-            return 1;  // maximum TRUE for all binary properties
+            return 1;  // maximum true for all binary properties
         }
     } else if(which<UCHAR_INT_LIMIT) {
         const IntProperty &prop=intProps[which-UCHAR_INT_START];
@@ -704,6 +845,7 @@ uprops_getSource(UProperty which) {
     } else {
         switch(which) {
         case UCHAR_SCRIPT_EXTENSIONS:
+        case UCHAR_IDENTIFIER_TYPE:
             return UPROPS_SRC_PROPSVEC;
         default:
             return UPROPS_SRC_NONE; /* undefined */
@@ -713,6 +855,26 @@ uprops_getSource(UProperty which) {
 
 U_CFUNC void U_EXPORT2
 uprops_addPropertyStarts(UPropertySource src, const USetAdder *sa, UErrorCode *pErrorCode) {
+    if (U_FAILURE(*pErrorCode)) { return; }
+    if (src == UPROPS_SRC_ID_COMPAT_MATH) {
+        // range limits
+        for (UChar32 c : ID_COMPAT_MATH_CONTINUE) {
+            sa->add(sa->set, c);
+        }
+        // single characters
+        for (UChar32 c : ID_COMPAT_MATH_START) {
+            sa->add(sa->set, c);
+            sa->add(sa->set, c + 1);
+        }
+        return;
+    }
+    if (src == UPROPS_SRC_MCM) {
+        // range limits
+        for (UChar32 c : MODIFIER_COMBINING_MARK) {
+            sa->add(sa->set, c);
+        }
+        return;
+    }
     if (!ulayout_ensureData(*pErrorCode)) { return; }
     const UCPTrie *trie;
     switch (src) {
@@ -744,14 +906,94 @@ uprops_addPropertyStarts(UPropertySource src, const USetAdder *sa, UErrorCode *p
     }
 }
 
+U_CAPI bool U_EXPORT2
+u_hasIDType(UChar32 c, UIdentifierType type) {
+    uint32_t typeIndex = type;  // also guards against negative type integers
+    if (typeIndex >= UPRV_LENGTHOF(uprops_idTypeToEncoded)) {
+        return false;
+    }
+    uint32_t encodedType = uprops_idTypeToEncoded[typeIndex];
+    uint32_t value = u_getUnicodeProperties(c, 2) >> UPROPS_2_ID_TYPE_SHIFT;
+    if ((encodedType & UPROPS_ID_TYPE_BIT) != 0) {
+        return value < UPROPS_ID_TYPE_FORBIDDEN && (value & encodedType) != 0;
+    } else {
+        return value == encodedType;
+    }
+}
+
+namespace {
+
+void maybeAppendType(uint32_t value, uint32_t bit, UIdentifierType t,
+                     UIdentifierType *types, int32_t &length, int32_t capacity) {
+    if ((value & bit) != 0) {
+        if (length < capacity) {
+            types[length] = t;
+        }
+        ++length;
+    }
+}
+
+}  // namespace
+
+U_CAPI int32_t U_EXPORT2
+u_getIDTypes(UChar32 c, UIdentifierType *types, int32_t capacity, UErrorCode *pErrorCode) {
+    if (U_FAILURE(*pErrorCode)) { return 0; }
+    if (capacity < 0 || (capacity > 0 && types == nullptr)) {
+        *pErrorCode = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    uint32_t value = u_getUnicodeProperties(c, 2) >> UPROPS_2_ID_TYPE_SHIFT;
+    if ((value & UPROPS_ID_TYPE_FORBIDDEN) == UPROPS_ID_TYPE_FORBIDDEN ||
+            value == UPROPS_ID_TYPE_NOT_CHARACTER) {
+        // single value
+        if (capacity > 0) {
+            UIdentifierType t;
+            switch (value) {
+                case UPROPS_ID_TYPE_NOT_CHARACTER: t = U_ID_TYPE_NOT_CHARACTER; break;
+                case UPROPS_ID_TYPE_DEPRECATED: t = U_ID_TYPE_DEPRECATED; break;
+                case UPROPS_ID_TYPE_DEFAULT_IGNORABLE: t = U_ID_TYPE_DEFAULT_IGNORABLE; break;
+                case UPROPS_ID_TYPE_NOT_NFKC: t = U_ID_TYPE_NOT_NFKC; break;
+                case UPROPS_ID_TYPE_INCLUSION: t = U_ID_TYPE_INCLUSION; break;
+                case UPROPS_ID_TYPE_RECOMMENDED: t = U_ID_TYPE_RECOMMENDED; break;
+                default:
+                    *pErrorCode = U_INVALID_FORMAT_ERROR;
+                    return 0;
+            }
+            types[0] = t;
+        } else {
+            *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
+        }
+        return 1;
+    } else {
+        // one or more combinable bits
+        int32_t length = 0;
+        maybeAppendType(value, UPROPS_ID_TYPE_NOT_XID, U_ID_TYPE_NOT_XID,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_EXCLUSION, U_ID_TYPE_EXCLUSION,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_OBSOLETE, U_ID_TYPE_OBSOLETE,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_TECHNICAL, U_ID_TYPE_TECHNICAL,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_UNCOMMON_USE, U_ID_TYPE_UNCOMMON_USE,
+                        types, length, capacity);
+        maybeAppendType(value, UPROPS_ID_TYPE_LIMITED_USE, U_ID_TYPE_LIMITED_USE,
+                        types, length, capacity);
+        if (length >= capacity) {
+            *pErrorCode = U_BUFFER_OVERFLOW_ERROR;
+        }
+        return length;
+    }
+}
+
 #if !UCONFIG_NO_NORMALIZATION
 
 U_CAPI int32_t U_EXPORT2
-u_getFC_NFKC_Closure(UChar32 c, UChar *dest, int32_t destCapacity, UErrorCode *pErrorCode) {
-    if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
+u_getFC_NFKC_Closure(UChar32 c, char16_t *dest, int32_t destCapacity, UErrorCode *pErrorCode) {
+    if(pErrorCode==nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
-    if(destCapacity<0 || (dest==NULL && destCapacity>0)) {
+    if(destCapacity<0 || (dest==nullptr && destCapacity>0)) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
@@ -767,7 +1009,7 @@ u_getFC_NFKC_Closure(UChar32 c, UChar *dest, int32_t destCapacity, UErrorCode *p
     }
     // first: b = NFKC(Fold(a))
     UnicodeString folded1String;
-    const UChar *folded1;
+    const char16_t *folded1;
     int32_t folded1Length=ucase_toFullFolding(c, &folded1, U_FOLD_CASE_DEFAULT);
     if(folded1Length<0) {
         const Normalizer2Impl *nfkcImpl=Normalizer2Factory::getImpl(nfkc);
@@ -779,7 +1021,7 @@ u_getFC_NFKC_Closure(UChar32 c, UChar *dest, int32_t destCapacity, UErrorCode *p
         if(folded1Length>UCASE_MAX_STRING_LENGTH) {
             folded1String.setTo(folded1Length);
         } else {
-            folded1String.setTo(FALSE, folded1, folded1Length);
+            folded1String.setTo(false, folded1, folded1Length);
         }
     }
     UnicodeString kc1=nfkc->normalize(folded1String, *pErrorCode);

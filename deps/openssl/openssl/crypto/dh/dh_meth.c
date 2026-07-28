@@ -1,11 +1,17 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * DH low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
 #include "dh_local.h"
 #include <string.h>
@@ -25,7 +31,6 @@ DH_METHOD *DH_meth_new(const char *name, int flags)
         OPENSSL_free(dhm);
     }
 
-    DHerr(DH_F_DH_METH_NEW, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 
@@ -51,7 +56,6 @@ DH_METHOD *DH_meth_dup(const DH_METHOD *dhm)
         OPENSSL_free(ret);
     }
 
-    DHerr(DH_F_DH_METH_DUP, ERR_R_MALLOC_FAILURE);
     return NULL;
 }
 
@@ -64,10 +68,8 @@ int DH_meth_set1_name(DH_METHOD *dhm, const char *name)
 {
     char *tmpname = OPENSSL_strdup(name);
 
-    if (tmpname == NULL) {
-        DHerr(DH_F_DH_METH_SET1_NAME, ERR_R_MALLOC_FAILURE);
+    if (tmpname == NULL)
         return 0;
-    }
 
     OPENSSL_free(dhm->name);
     dhm->name = tmpname;
@@ -97,41 +99,38 @@ int DH_meth_set0_app_data(DH_METHOD *dhm, void *app_data)
     return 1;
 }
 
-int (*DH_meth_get_generate_key(const DH_METHOD *dhm)) (DH *)
+int (*DH_meth_get_generate_key(const DH_METHOD *dhm))(DH *)
 {
     return dhm->generate_key;
 }
 
-int DH_meth_set_generate_key(DH_METHOD *dhm, int (*generate_key) (DH *))
+int DH_meth_set_generate_key(DH_METHOD *dhm, int (*generate_key)(DH *))
 {
     dhm->generate_key = generate_key;
     return 1;
 }
 
-int (*DH_meth_get_compute_key(const DH_METHOD *dhm))
-        (unsigned char *key, const BIGNUM *pub_key, DH *dh)
+int (*DH_meth_get_compute_key(const DH_METHOD *dhm))(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 {
     return dhm->compute_key;
 }
 
 int DH_meth_set_compute_key(DH_METHOD *dhm,
-        int (*compute_key) (unsigned char *key, const BIGNUM *pub_key, DH *dh))
+    int (*compute_key)(unsigned char *key, const BIGNUM *pub_key, DH *dh))
 {
     dhm->compute_key = compute_key;
     return 1;
 }
 
-
-int (*DH_meth_get_bn_mod_exp(const DH_METHOD *dhm))
-    (const DH *, BIGNUM *, const BIGNUM *, const BIGNUM *, const BIGNUM *,
-     BN_CTX *, BN_MONT_CTX *)
+int (*DH_meth_get_bn_mod_exp(const DH_METHOD *dhm))(const DH *, BIGNUM *, const BIGNUM *, const BIGNUM *, const BIGNUM *,
+    BN_CTX *, BN_MONT_CTX *)
 {
     return dhm->bn_mod_exp;
 }
 
 int DH_meth_set_bn_mod_exp(DH_METHOD *dhm,
-    int (*bn_mod_exp) (const DH *, BIGNUM *, const BIGNUM *, const BIGNUM *,
-                       const BIGNUM *, BN_CTX *, BN_MONT_CTX *))
+    int (*bn_mod_exp)(const DH *, BIGNUM *, const BIGNUM *, const BIGNUM *,
+        const BIGNUM *, BN_CTX *, BN_MONT_CTX *))
 {
     dhm->bn_mod_exp = bn_mod_exp;
     return 1;
@@ -148,25 +147,24 @@ int DH_meth_set_init(DH_METHOD *dhm, int (*init)(DH *))
     return 1;
 }
 
-int (*DH_meth_get_finish(const DH_METHOD *dhm)) (DH *)
+int (*DH_meth_get_finish(const DH_METHOD *dhm))(DH *)
 {
     return dhm->finish;
 }
 
-int DH_meth_set_finish(DH_METHOD *dhm, int (*finish) (DH *))
+int DH_meth_set_finish(DH_METHOD *dhm, int (*finish)(DH *))
 {
     dhm->finish = finish;
     return 1;
 }
 
-int (*DH_meth_get_generate_params(const DH_METHOD *dhm))
-        (DH *, int, int, BN_GENCB *)
+int (*DH_meth_get_generate_params(const DH_METHOD *dhm))(DH *, int, int, BN_GENCB *)
 {
     return dhm->generate_params;
 }
 
 int DH_meth_set_generate_params(DH_METHOD *dhm,
-        int (*generate_params) (DH *, int, int, BN_GENCB *))
+    int (*generate_params)(DH *, int, int, BN_GENCB *))
 {
     dhm->generate_params = generate_params;
     return 1;

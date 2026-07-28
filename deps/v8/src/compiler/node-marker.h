@@ -12,13 +12,14 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
-class Graph;
-
+class TFGraph;
 
 // Base class for templatized NodeMarkers.
 class NodeMarkerBase {
  public:
-  NodeMarkerBase(Graph* graph, uint32_t num_states);
+  NodeMarkerBase(TFGraph* graph, uint32_t num_states);
+  NodeMarkerBase(const NodeMarkerBase&) = delete;
+  NodeMarkerBase& operator=(const NodeMarkerBase&) = delete;
 
   V8_INLINE Mark Get(const Node* node) {
     Mark mark = node->mark();
@@ -37,8 +38,6 @@ class NodeMarkerBase {
  private:
   Mark const mark_min_;
   Mark const mark_max_;
-
-  DISALLOW_COPY_AND_ASSIGN(NodeMarkerBase);
 };
 
 // A NodeMarker assigns a local "state" to every node of a graph in constant
@@ -60,7 +59,7 @@ class NodeMarkerBase {
 template <typename State>
 class NodeMarker : public NodeMarkerBase {
  public:
-  V8_INLINE NodeMarker(Graph* graph, uint32_t num_states)
+  V8_INLINE NodeMarker(TFGraph* graph, uint32_t num_states)
       : NodeMarkerBase(graph, num_states) {}
 
   V8_INLINE State Get(const Node* node) {

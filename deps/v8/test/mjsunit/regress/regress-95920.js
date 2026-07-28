@@ -29,7 +29,9 @@
 // properties redefined.
 
 Object.preventExtensions(new Int8Array(42));
-Object.seal(new Int8Array(42));
+assertThrows(function() {
+  Object.seal(new Int8Array(42));
+}, TypeError);
 
 // No elements, so should succeed.
 Object.freeze(new Int8Array(0));

@@ -15,7 +15,8 @@
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. Se OWNERS for suggested reviewers.
 //
-// For more information, see https://goo.gl/yMeyUY.
+// For more information, see:
+// https://docs.google.com/document/d/17y4kxuHFrVxAiuCP_FFtFA2HP5sNPsCD10KEx17Hz6M
 //
 // For the code that runs in the trap handler itself, see handler-inside.cc.
 
@@ -40,7 +41,7 @@ void* g_registered_handler = nullptr;
 
 bool RegisterDefaultTrapHandler() {
   constexpr ULONG first = TRUE;
-  CHECK_NULL(g_registered_handler);
+  TH_CHECK(g_registered_handler == nullptr);
   g_registered_handler = AddVectoredExceptionHandler(first, HandleWasmTrap);
 
   return nullptr != g_registered_handler;

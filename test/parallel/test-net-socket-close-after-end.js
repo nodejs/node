@@ -6,7 +6,7 @@ const net = require('net');
 
 const server = net.createServer();
 
-server.on('connection', (socket) => {
+server.on('connection', common.mustCall((socket) => {
   let endEmitted = false;
 
   socket.once('readable', () => {
@@ -17,12 +17,12 @@ server.on('connection', (socket) => {
   socket.on('end', () => {
     endEmitted = true;
   });
-  socket.on('close', () => {
+  socket.on('close', common.mustCall(() => {
     assert(endEmitted);
     server.close();
-  });
+  }));
   socket.end('foo');
-});
+}));
 
 server.listen(common.mustCall(() => {
   const socket = net.createConnection(server.address().port, () => {

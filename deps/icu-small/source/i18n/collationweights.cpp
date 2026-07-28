@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 *******************************************************************************
 *
 *   Copyright (C) 1999-2015, International Business Machines
@@ -42,13 +42,13 @@ U_NAMESPACE_BEGIN
 
 static inline uint32_t
 getWeightTrail(uint32_t weight, int32_t length) {
-    return (uint32_t)(weight>>(8*(4-length)))&0xff;
+    return (weight >> (8 * (4 - length))) & 0xff;
 }
 
 static inline uint32_t
 setWeightTrail(uint32_t weight, int32_t length, uint32_t trail) {
     length=8*(4-length);
-    return (uint32_t)((weight&(0xffffff00<<length))|(trail<<length));
+    return static_cast<uint32_t>((weight & (0xffffff00 << length)) | (trail << length));
 }
 
 static inline uint32_t
@@ -62,7 +62,7 @@ setWeightByte(uint32_t weight, int32_t idx, uint32_t byte) {
 
     idx*=8;
     if(idx<32) {
-        mask=((uint32_t)0xffffffff)>>idx;
+        mask = (static_cast<uint32_t>(0xffffffff)) >> idx;
     } else {
         // Do not use uint32_t>>32 because on some platforms that does not shift at all
         // while we need it to become 0.
@@ -77,22 +77,22 @@ setWeightByte(uint32_t weight, int32_t idx, uint32_t byte) {
     }
     idx=32-idx;
     mask|=0xffffff00<<idx;
-    return (uint32_t)((weight&mask)|(byte<<idx));
+    return ((weight & mask) | (byte << idx));
 }
 
 static inline uint32_t
 truncateWeight(uint32_t weight, int32_t length) {
-    return (uint32_t)(weight&(0xffffffff<<(8*(4-length))));
+    return static_cast<uint32_t>(weight & (0xffffffff << (8 * (4 - length))));
 }
 
 static inline uint32_t
 incWeightTrail(uint32_t weight, int32_t length) {
-    return (uint32_t)(weight+(1UL<<(8*(4-length))));
+    return static_cast<uint32_t>(weight + (1UL << (8 * (4 - length))));
 }
 
 static inline uint32_t
 decWeightTrail(uint32_t weight, int32_t length) {
-    return (uint32_t)(weight-(1UL<<(8*(4-length))));
+    return static_cast<uint32_t>(weight - (1UL << (8 * (4 - length))));
 }
 
 CollationWeights::CollationWeights()
@@ -169,7 +169,7 @@ uint32_t
 CollationWeights::incWeightByOffset(uint32_t weight, int32_t length, int32_t offset) const {
     for(;;) {
         offset += getWeightByte(weight, length);
-        if((uint32_t)offset <= maxBytes[length]) {
+        if (static_cast<uint32_t>(offset) <= maxBytes[length]) {
             return setWeightByte(weight, length, offset);
         } else {
             // Split the offset between this byte and the previous one.
@@ -196,8 +196,8 @@ static int32_t U_CALLCONV
 compareRanges(const void * /*context*/, const void *left, const void *right) {
     uint32_t l, r;
 
-    l=((const CollationWeights::WeightRange *)left)->start;
-    r=((const CollationWeights::WeightRange *)right)->start;
+    l = static_cast<const CollationWeights::WeightRange*>(left)->start;
+    r = static_cast<const CollationWeights::WeightRange*>(right)->start;
     if(l<r) {
         return -1;
     } else if(l>r) {
@@ -227,7 +227,7 @@ CollationWeights::getWeightRanges(uint32_t lowerLimit, uint32_t upperLimit) {
 #ifdef UCOL_DEBUG
         printf("error: no space between lower & upper limits\n");
 #endif
-        return FALSE;
+        return false;
     }
 
     /* check that neither is a prefix of the other */
@@ -236,7 +236,7 @@ CollationWeights::getWeightRanges(uint32_t lowerLimit, uint32_t upperLimit) {
 #ifdef UCOL_DEBUG
             printf("error: lower limit 0x%08lx is a prefix of upper limit 0x%08lx\n", lowerLimit, upperLimit);
 #endif
-            return FALSE;
+            return false;
         }
     }
     /* if the upper limit is a prefix of the lower limit then the earlier test lowerLimit>=upperLimit has caught it */
@@ -295,7 +295,7 @@ CollationWeights::getWeightRanges(uint32_t lowerLimit, uint32_t upperLimit) {
     /* set the middle range */
     middle.length=middleLength;
     if(middle.end>=middle.start) {
-        middle.count=(int32_t)((middle.end-middle.start)>>(8*(4-middleLength)))+1;
+        middle.count = static_cast<int32_t>((middle.end - middle.start) >> (8 * (4 - middleLength))) + 1;
     } else {
         /* no middle range, eliminate overlaps */
         for(int32_t length=4; length>middleLength; --length) {
@@ -307,7 +307,7 @@ CollationWeights::getWeightRanges(uint32_t lowerLimit, uint32_t upperLimit) {
                 // maxByte (for lowerEnd) or minByte (for upperStart).
                 const uint32_t lowerEnd=lower[length].end;
                 const uint32_t upperStart=upper[length].start;
-                UBool merged=FALSE;
+                UBool merged=false;
 
                 if(lowerEnd>upperStart) {
                     // These two lower and upper ranges collide.
@@ -322,11 +322,11 @@ CollationWeights::getWeightRanges(uint32_t lowerLimit, uint32_t upperLimit) {
                     // Intersect these two ranges.
                     lower[length].end=upper[length].end;
                     lower[length].count=
-                            (int32_t)getWeightTrail(lower[length].end, length)-
-                            (int32_t)getWeightTrail(lower[length].start, length)+1;
+                            static_cast<int32_t>(getWeightTrail(lower[length].end, length)) -
+                            static_cast<int32_t>(getWeightTrail(lower[length].start, length)) + 1;
                     // count might be <=0 in which case there is no room,
                     // and the range-collecting code below will ignore this range.
-                    merged=TRUE;
+                    merged=true;
                 } else if(lowerEnd==upperStart) {
                     // Not possible, unless minByte==maxByte which is not allowed.
                     U_ASSERT(minBytes[length]<maxBytes[length]);
@@ -335,7 +335,7 @@ CollationWeights::getWeightRanges(uint32_t lowerLimit, uint32_t upperLimit) {
                         // Merge adjacent ranges.
                         lower[length].end=upper[length].end;
                         lower[length].count+=upper[length].count;  // might be >countBytes
-                        merged=TRUE;
+                        merged=true;
                     }
                 }
                 if(merged) {
@@ -409,14 +409,14 @@ CollationWeights::allocWeightsInShortRanges(int32_t n, int32_t minLength) {
                 /* sort the ranges by weight values */
                 UErrorCode errorCode=U_ZERO_ERROR;
                 uprv_sortArray(ranges, rangeCount, sizeof(WeightRange),
-                               compareRanges, NULL, FALSE, &errorCode);
+                               compareRanges, nullptr, false, &errorCode);
                 /* ignore error code: we know that the internal sort function will not fail here */
             }
-            return TRUE;
+            return true;
         }
         n -= ranges[i].count;  // still >0
     }
-    return FALSE;
+    return false;
 }
 
 UBool
@@ -433,7 +433,7 @@ CollationWeights::allocWeightsInMinLengthRanges(int32_t n, int32_t minLength) {
     }
 
     int32_t nextCountBytes = countBytes(minLength + 1);
-    if(n > count * nextCountBytes) { return FALSE; }
+    if(n > count * nextCountBytes) { return false; }
 
     // Use the minLength ranges. Merge them, and then split again as necessary.
     uint32_t start = ranges[0].start;
@@ -485,7 +485,7 @@ CollationWeights::allocWeightsInMinLengthRanges(int32_t n, int32_t minLength) {
         lengthenRange(ranges[1]);
         rangeCount = 2;
     }
-    return TRUE;
+    return true;
 }
 
 /*
@@ -503,7 +503,7 @@ CollationWeights::allocWeights(uint32_t lowerLimit, uint32_t upperLimit, int32_t
 #ifdef UCOL_DEBUG
         printf("error: unable to get Weight ranges\n");
 #endif
-        return FALSE;
+        return false;
     }
 
     /* try until we find suitably large ranges */
@@ -518,7 +518,7 @@ CollationWeights::allocWeights(uint32_t lowerLimit, uint32_t upperLimit, int32_t
             printf("error: the maximum number of %ld weights is insufficient for n=%ld\n",
                    minLengthCount, n);
 #endif
-            return FALSE;
+            return false;
         }
 
         if(allocWeightsInMinLengthRanges(n, minLength)) { break; }
@@ -541,7 +541,7 @@ CollationWeights::allocWeights(uint32_t lowerLimit, uint32_t upperLimit, int32_t
 #endif
 
     rangeIndex = 0;
-    return TRUE;
+    return true;
 }
 
 uint32_t

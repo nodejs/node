@@ -30,6 +30,8 @@
 #include "unicode/uobject.h"
 #include "unicode/ustringtrie.h"
 
+class BytesTrieTest;
+
 U_NAMESPACE_BEGIN
 
 class ByteSink;
@@ -67,7 +69,7 @@ public:
      * @stable ICU 4.8
      */
     BytesTrie(const void *trieBytes)
-            : ownedArray_(NULL), bytes_(static_cast<const uint8_t *>(trieBytes)),
+            : ownedArray_(nullptr), bytes_(static_cast<const uint8_t *>(trieBytes)),
               pos_(bytes_), remainingMatchLength_(-1) {}
 
     /**
@@ -83,7 +85,7 @@ public:
      * @stable ICU 4.8
      */
     BytesTrie(const BytesTrie &other)
-            : ownedArray_(NULL), bytes_(other.bytes_),
+            : ownedArray_(nullptr), bytes_(other.bytes_),
               pos_(other.pos_), remainingMatchLength_(other.remainingMatchLength_) {}
 
     /**
@@ -107,7 +109,7 @@ public:
      */
     uint64_t getState64() const {
         return (static_cast<uint64_t>(remainingMatchLength_ + 2) << kState64RemainingShift) |
-            (uint64_t)(pos_ - bytes_);
+            static_cast<uint64_t>(pos_ - bytes_);
     }
 
     /**
@@ -141,7 +143,7 @@ public:
          * Constructs an empty State.
          * @stable ICU 4.8
          */
-        State() { bytes=NULL; }
+        State() { bytes=nullptr; }
     private:
         friend class BytesTrie;
 
@@ -175,7 +177,7 @@ public:
      * @stable ICU 4.8
      */
     BytesTrie &resetToState(const State &state) {
-        if(bytes_==state.bytes && bytes_!=NULL) {
+        if(bytes_==state.bytes && bytes_!=nullptr) {
             pos_=state.pos;
             remainingMatchLength_=state.remainingMatchLength;
         }
@@ -225,7 +227,7 @@ public:
      *   result=next(c);
      * return result;
      * \endcode
-     * @param s A string or byte sequence. Can be NULL if length is 0.
+     * @param s A string or byte sequence. Can be nullptr if length is 0.
      * @param length The length of the byte sequence. Can be -1 if NUL-terminated.
      * @return The match/value Result.
      * @stable ICU 4.8
@@ -260,7 +262,7 @@ public:
     inline UBool hasUniqueValue(int32_t &uniqueValue) const {
         const uint8_t *pos=pos_;
         // Skip the rest of a pending linear-match node.
-        return pos!=NULL && findUniqueValue(pos+remainingMatchLength_+1, false, uniqueValue);
+        return pos!=nullptr && findUniqueValue(pos+remainingMatchLength_+1, false, uniqueValue);
     }
 
     /**
@@ -378,6 +380,7 @@ public:
 
 private:
     friend class BytesTrieBuilder;
+    friend class ::BytesTrieTest;
 
     /**
      * Constructs a BytesTrie reader instance.
@@ -391,10 +394,10 @@ private:
               pos_(bytes_), remainingMatchLength_(-1) {}
 
     // No assignment operator.
-    BytesTrie &operator=(const BytesTrie &other);
+    BytesTrie &operator=(const BytesTrie &other) = delete;
 
     inline void stop() {
-        pos_=NULL;
+        pos_=nullptr;
     }
 
     // Reads a compact 32-bit integer.
@@ -436,7 +439,7 @@ private:
     }
 
     static inline UStringTrieResult valueResult(int32_t node) {
-        return (UStringTrieResult)(USTRINGTRIE_INTERMEDIATE_VALUE-(node&kValueIsFinal));
+        return static_cast<UStringTrieResult>(USTRINGTRIE_INTERMEDIATE_VALUE - (node & kValueIsFinal));
     }
 
     // Handles a branch node for both next(byte) and next(string).
@@ -552,7 +555,7 @@ private:
 
     // Iterator variables.
 
-    // Pointer to next trie byte to read. NULL if no more matches.
+    // Pointer to next trie byte to read. nullptr if no more matches.
     const uint8_t *pos_;
     // Remaining length of a linear-match node, minus 1. Negative if not in such a node.
     int32_t remainingMatchLength_;

@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -42,18 +42,22 @@
 # Denver	0.51		0.65		6.02
 # Mongoose	0.65		1.10		8.06
 # Kryo		0.76		1.16		8.00
+# ThunderX2	1.05
 #
 # (*)	presented for reference/comparison purposes;
 
-$flavour = shift;
-$output  = shift;
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}arm-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/arm-xlate.pl" and -f $xlate) or
 die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 $Xi="x0";	# argument block
@@ -66,18 +70,26 @@ $inc="x12";
 {
 my ($Xl,$Xm,$Xh,$IN)=map("q$_",(0..3));
 my ($t0,$t1,$t2,$xC2,$H,$Hhl,$H2)=map("q$_",(8..14));
+my $_byte = ($flavour =~ /win/ ? "DCB" : ".byte");
 
 $code=<<___;
 #include "arm_arch.h"
 
 #if __ARM_MAX_ARCH__>=7
-.text
 ___
-$code.=".arch	armv8-a+crypto\n"	if ($flavour =~ /64/);
-$code.=<<___				if ($flavour !~ /64/);
+$code.=".arch	armv8-a+crypto\n.text\n"	if ($flavour =~ /64/);
+$code.=<<___					if ($flavour !~ /64/);
 .fpu	neon
-.code	32
-#undef	__thumb2__
+#ifdef __thumb2__
+.syntax        unified
+.thumb
+# define INST(a,b,c,d) $_byte  c,0xef,a,b
+#else
+.code  32
+# define INST(a,b,c,d) $_byte  a,b,c,0xf2
+#endif
+
+.text
 ___
 
 ################################################################################
@@ -95,6 +107,11 @@ $code.=<<___;
 .type	gcm_init_v8,%function
 .align	4
 gcm_init_v8:
+___
+$code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
+___
+$code.=<<___;
 	vld1.64		{$t1},[x1]		@ load input H
 	vmov.i8		$xC2,#0xe1
 	vshl.i64	$xC2,$xC2,#57		@ 0xc2.0
@@ -141,6 +158,7 @@ gcm_init_v8:
 ___
 if ($flavour =~ /64/) {
 my ($t3,$Yl,$Ym,$Yh) = map("q$_",(4..7));
+my ($H3,$H34k,$H4,$H5,$H56k,$H6,$H7,$H78k,$H8) = map("q$_",(15..23));
 
 $code.=<<___;
 	@ calculate H^3 and H^4
@@ -175,15 +193,103 @@ $code.=<<___;
 	 vpmull.p64	$Yl,$Yl,$xC2
 	veor		$t2,$t2,$Xh
 	 veor		$t3,$t3,$Yh
-	veor		$H, $Xl,$t2		@ H^3
-	 veor		$H2,$Yl,$t3		@ H^4
+	veor		$H3, $Xl,$t2		@ H^3
+	 veor		$H4,$Yl,$t3		@ H^4
 
-	vext.8		$t0,$H, $H,#8		@ Karatsuba pre-processing
-	 vext.8		$t1,$H2,$H2,#8
-	veor		$t0,$t0,$H
-	 veor		$t1,$t1,$H2
-	vext.8		$Hhl,$t0,$t1,#8		@ pack Karatsuba pre-processed
-	vst1.64		{$H-$H2},[x0]		@ store Htable[3..5]
+	vext.8		$t0,$H3, $H3,#8		@ Karatsuba pre-processing
+	 vext.8		$t1,$H4,$H4,#8
+	 vext.8		$t2,$H2,$H2,#8
+	veor		$t0,$t0,$H3
+	 veor		$t1,$t1,$H4
+	 veor		$t2,$t2,$H2
+	vext.8		$H34k,$t0,$t1,#8		@ pack Karatsuba pre-processed
+	vst1.64		{$H3-$H4},[x0],#48		@ store Htable[3..5]
+
+	@ calculate H^5 and H^6
+	vpmull.p64	$Xl,$H2, $H3
+	 vpmull.p64	$Yl,$H3,$H3
+	vpmull2.p64	$Xh,$H2, $H3
+	 vpmull2.p64	$Yh,$H3,$H3
+	vpmull.p64	$Xm,$t0,$t2
+	 vpmull.p64	$Ym,$t0,$t0
+
+	vext.8		$t0,$Xl,$Xh,#8		@ Karatsuba post-processing
+	 vext.8		$t1,$Yl,$Yh,#8
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t0
+	 veor		$t3,$Yl,$Yh
+	 veor		$Ym,$Ym,$t1
+	veor		$Xm,$Xm,$t2
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase
+	 veor		$Ym,$Ym,$t3
+	 vpmull.p64	$t3,$Yl,$xC2
+
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	 vmov		$Yh#lo,$Ym#hi
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	 vmov		$Ym#hi,$Yl#lo
+	veor		$Xl,$Xm,$t2
+	 veor		$Yl,$Ym,$t3
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase
+	 vext.8		$t3,$Yl,$Yl,#8
+	vpmull.p64	$Xl,$Xl,$xC2
+	 vpmull.p64	$Yl,$Yl,$xC2
+	veor		$t2,$t2,$Xh
+	 veor		$t3,$t3,$Yh
+	veor		$H5,$Xl,$t2		@ H^5
+	 veor		$H6,$Yl,$t3		@ H^6
+
+	vext.8		$t0,$H5, $H5,#8		@ Karatsuba pre-processing
+	 vext.8		$t1,$H6,$H6,#8
+	 vext.8		$t2,$H2,$H2,#8
+	veor		$t0,$t0,$H5
+	 veor		$t1,$t1,$H6
+	 veor		$t2,$t2,$H2
+	vext.8		$H56k,$t0,$t1,#8		@ pack Karatsuba pre-processed
+	vst1.64		{$H5-$H6},[x0],#48		@ store Htable[6..8]
+
+	@ calculate H^7 and H^8
+	vpmull.p64	$Xl,$H2,$H5
+	 vpmull.p64	$Yl,$H2,$H6
+	vpmull2.p64	$Xh,$H2,$H5
+	 vpmull2.p64	$Yh,$H2,$H6
+	vpmull.p64	$Xm,$t0,$t2
+	 vpmull.p64	$Ym,$t1,$t2
+
+	vext.8		$t0,$Xl,$Xh,#8		@ Karatsuba post-processing
+	 vext.8		$t1,$Yl,$Yh,#8
+	veor		$t2,$Xl,$Xh
+	veor		$Xm,$Xm,$t0
+	 veor		$t3,$Yl,$Yh
+	 veor		$Ym,$Ym,$t1
+	veor		$Xm,$Xm,$t2
+	vpmull.p64	$t2,$Xl,$xC2		@ 1st phase
+	 veor		$Ym,$Ym,$t3
+	 vpmull.p64	$t3,$Yl,$xC2
+
+	vmov		$Xh#lo,$Xm#hi		@ Xh|Xm - 256-bit result
+	 vmov		$Yh#lo,$Ym#hi
+	vmov		$Xm#hi,$Xl#lo		@ Xm is rotated Xl
+	 vmov		$Ym#hi,$Yl#lo
+	veor		$Xl,$Xm,$t2
+	 veor		$Yl,$Ym,$t3
+
+	vext.8		$t2,$Xl,$Xl,#8		@ 2nd phase
+	 vext.8		$t3,$Yl,$Yl,#8
+	vpmull.p64	$Xl,$Xl,$xC2
+	 vpmull.p64	$Yl,$Yl,$xC2
+	veor		$t2,$t2,$Xh
+	 veor		$t3,$t3,$Yh
+	veor		$H7,$Xl,$t2		@ H^7
+	 veor		$H8,$Yl,$t3		@ H^8
+
+	vext.8		$t0,$H7,$H7,#8		@ Karatsuba pre-processing
+	 vext.8		$t1,$H8,$H8,#8
+	veor		$t0,$t0,$H7
+	 veor		$t1,$t1,$H8
+	vext.8		$H78k,$t0,$t1,#8		@ pack Karatsuba pre-processed
+	vst1.64		{$H7-$H8},[x0]		@ store Htable[9..11]
 ___
 }
 $code.=<<___;
@@ -202,6 +308,11 @@ $code.=<<___;
 .type	gcm_gmult_v8,%function
 .align	4
 gcm_gmult_v8:
+___
+$code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
+___
+$code.=<<___;
 	vld1.64		{$t1},[$Xi]		@ load Xi
 	vmov.i8		$xC2,#0xe1
 	vld1.64		{$H-$Hhl},[$Htbl]	@ load twisted H, ...
@@ -256,6 +367,7 @@ $code.=<<___;
 gcm_ghash_v8:
 ___
 $code.=<<___	if ($flavour =~ /64/);
+	AARCH64_VALID_CALL_TARGET
 	cmp		$len,#64
 	b.hs		.Lgcm_ghash_v8_4x
 ___
@@ -698,6 +810,7 @@ ___
 }
 
 $code.=<<___;
+.rodata
 .asciz  "GHASH for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align  2
 #endif
@@ -732,6 +845,9 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	s/\.[uisp]?64//o and s/\.16b/\.2d/go;
 	s/\.[42]([sd])\[([0-3])\]/\.$1\[$2\]/o;
 
+	# Switch preprocessor checks to aarch64 versions.
+	s/__ARME([BL])__/__AARCH64E$1__/go;
+
 	print $_,"\n";
     }
 } else {				######## 32-bit code
@@ -752,7 +868,7 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	    # since ARMv7 instructions are always encoded little-endian.
 	    # correct solution is to use .inst directive, but older
 	    # assemblers don't implement it:-(
-	    sprintf ".byte\t0x%02x,0x%02x,0x%02x,0x%02x\t@ %s %s",
+	    sprintf "INST(0x%02x,0x%02x,0x%02x,0x%02x)\t@ %s %s",
 			$word&0xff,($word>>8)&0xff,
 			($word>>16)&0xff,($word>>24)&0xff,
 			$mnemonic,$arg;
@@ -767,12 +883,16 @@ if ($flavour =~ /64/) {			######## 64-bit code
 	# fix up remaining new-style suffixes
 	s/\],#[0-9]+/]!/o;
 
-	s/cclr\s+([^,]+),\s*([a-z]+)/mov$2	$1,#0/o			or
+	s/cclr\s+([^,]+),\s*([a-z]+)/mov.$2	$1,#0/o			or
 	s/vdup\.32\s+(.*)/unvdup32($1)/geo				or
 	s/v?(pmull2?)\.p64\s+(.*)/unvpmullp64($1,$2)/geo		or
 	s/\bq([0-9]+)#(lo|hi)/sprintf "d%d",2*$1+($2 eq "hi")/geo	or
 	s/^(\s+)b\./$1b/o						or
 	s/^(\s+)ret/$1bx\tlr/o;
+
+	if (s/^(\s+)mov\.([a-z]+)/$1mov$2/) {
+	    print "     it      $2\n";
+	}
 
 	print $_,"\n";
     }

@@ -47,7 +47,7 @@ const winPaths = [
   ['\\\\server two\\shared folder\\file path.zip',
    '\\\\server two\\shared folder\\'],
   ['\\\\teela\\admin$\\system32', '\\\\teela\\admin$\\'],
-  ['\\\\?\\UNC\\server\\share', '\\\\?\\UNC\\']
+  ['\\\\?\\UNC\\server\\share', '\\\\?\\UNC\\'],
 ];
 
 const winSpecialCaseParseTests = [
@@ -62,7 +62,7 @@ const winSpecialCaseFormatTests = [
   [{ name: 'index', ext: '.html' }, 'index.html'],
   [{ dir: 'some\\dir', name: 'index', ext: '.html' }, 'some\\dir\\index.html'],
   [{ root: 'C:\\', name: 'index', ext: '.html' }, 'C:\\index.html'],
-  [{}, '']
+  [{}, ''],
 ];
 
 const unixPaths = [
@@ -86,7 +86,7 @@ const unixPaths = [
   ['/.', '/'],
   ['/.foo', '/'],
   ['/.foo.bar', '/'],
-  ['/foo/bar.baz', '/']
+  ['/foo/bar.baz', '/'],
 ];
 
 const unixSpecialCaseFormatTests = [
@@ -96,7 +96,7 @@ const unixSpecialCaseFormatTests = [
   [{ name: 'index', ext: '.html' }, 'index.html'],
   [{ dir: 'some/dir', name: 'index', ext: '.html' }, 'some/dir/index.html'],
   [{ root: '/', name: 'index', ext: '.html' }, '/index.html'],
-  [{}, '']
+  [{}, ''],
 ];
 
 const errors = [
@@ -132,10 +132,9 @@ const trailingTests = [
         dir: 'D:\\foo\\\\',
         base: 'bar.baz',
         ext: '.baz',
-        name: 'bar'
-      }
-     ]
-    ]
+        name: 'bar' },
+     ],
+    ],
   ],
   [ path.posix.parse,
     [['./', { root: '', dir: '', base: '.', ext: '', name: '.' }],
@@ -143,19 +142,17 @@ const trailingTests = [
      ['///', { root: '/', dir: '/', base: '', ext: '', name: '' }],
      ['/foo///', { root: '/', dir: '/', base: 'foo', ext: '', name: 'foo' }],
      ['/foo///bar.baz',
-      { root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar' }
-     ]
-    ]
-  ]
+      { root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar' },
+     ],
+    ],
+  ],
 ];
 const failures = [];
-trailingTests.forEach((test) => {
-  const parse = test[0];
+for (const [parse, testList] of trailingTests) {
   const os = parse === path.win32.parse ? 'win32' : 'posix';
-  test[1].forEach((test) => {
-    const actual = parse(test[0]);
-    const expected = test[1];
-    const message = `path.${os}.parse(${JSON.stringify(test[0])})\n  expect=${
+  for (const [input, expected] of testList) {
+    const actual = parse(input);
+    const message = `path.${os}.parse(${JSON.stringify(input)})\n  expect=${
       JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     const actualKeys = Object.keys(actual);
     const expectedKeys = Object.keys(expected);
@@ -171,8 +168,8 @@ trailingTests.forEach((test) => {
     }
     if (failed)
       failures.push(`\n${message}`);
-  });
-});
+  }
+}
 assert.strictEqual(failures.length, 0, failures.join(''));
 
 function checkErrors(path) {
@@ -225,3 +222,7 @@ function checkFormat(path, testCases) {
     });
   });
 }
+
+// See https://github.com/nodejs/node/issues/44343
+assert.strictEqual(path.format({ name: 'x', ext: 'png' }), 'x.png');
+assert.strictEqual(path.format({ name: 'x', ext: '.png' }), 'x.png');

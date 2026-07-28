@@ -26,7 +26,12 @@
 #include <errno.h>
 
 #include <paths.h>
-#include <sys/user.h>
+#if defined(__DragonFly__)
+# include <sys/event.h>
+# include <sys/kinfo.h>
+#else
+# include <sys/user.h>
+#endif
 #include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
@@ -91,7 +96,7 @@ uint64_t uv_get_free_memory(void) {
   size_t size = sizeof(freecount);
 
   if (sysctlbyname("vm.stats.vm.v_free_count", &freecount, &size, NULL, 0))
-    return UV__ERR(errno);
+    return 0;
 
   return (uint64_t) freecount * sysconf(_SC_PAGESIZE);
 
@@ -105,14 +110,19 @@ uint64_t uv_get_total_memory(void) {
   size_t size = sizeof(info);
 
   if (sysctl(which, ARRAY_SIZE(which), &info, &size, NULL, 0))
-    return UV__ERR(errno);
+    return 0;
 
   return (uint64_t) info;
 }
 
 
 uint64_t uv_get_constrained_memory(void) {
-  return 0;  /* Memory constraints are unknown. */
+  return uv__get_rlimit_max_memory();
+}
+
+
+uint64_t uv_get_available_memory(void) {
+  return uv_get_free_memory();
 }
 
 
@@ -264,19 +274,17 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 }
 
 
-int uv__sendmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen) {
-#if __FreeBSD__ >= 11
-  return sendmmsg(fd, mmsg, vlen, /* flags */ 0);
+ssize_t
+uv__fs_copy_file_range(int fd_in,
+                       off_t* off_in,
+                       int fd_out,
+                       off_t* off_out,
+                       size_t len,
+                       unsigned int flags)
+{
+#if __FreeBSD__ >= 13 && !defined(__DragonFly__)
+	return copy_file_range(fd_in, off_in, fd_out, off_out, len, flags);
 #else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__recvmmsg(int fd, struct uv__mmsghdr* mmsg, unsigned int vlen) {
-#if __FreeBSD__ >= 11
-  return recvmmsg(fd, mmsg, vlen, 0 /* flags */, NULL /* timeout */);
-#else
-  return errno = ENOSYS, -1;
+	return errno = ENOSYS, -1;
 #endif
 }

@@ -5,20 +5,22 @@
 #ifndef INCLUDE_CPPGC_COMMON_H_
 #define INCLUDE_CPPGC_COMMON_H_
 
-// TODO(chromium:1056170): Remove dependency on v8.
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace cppgc {
 
-// Indicator for the stack state of the embedder.
+/**
+ *  Indicator for the stack state of the embedder.
+ */
 enum class EmbedderStackState {
+  /**
+   * Stack may contain interesting heap pointers.
+   */
   kMayContainHeapPointers,
+  /**
+   * Stack does not contain any interesting heap pointers.
+   */
   kNoHeapPointers,
-  kUnknown V8_ENUM_DEPRECATE_SOON("Use kMayContainHeapPointers") =
-      kMayContainHeapPointers,
-  kNonEmpty V8_ENUM_DEPRECATE_SOON("Use kMayContainHeapPointers") =
-      kMayContainHeapPointers,
-  kEmpty V8_ENUM_DEPRECATE_SOON("Use kNoHeapPointers") = kNoHeapPointers,
 };
 
 }  // namespace cppgc

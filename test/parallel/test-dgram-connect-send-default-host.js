@@ -16,8 +16,7 @@ const received = [];
 
 server.on('listening', common.mustCall(() => {
   const port = server.address().port;
-  client.connect(port, (err) => {
-    assert.ifError(err);
+  client.connect(port, common.mustSucceed(() => {
     client.send(toSend[0], 0, toSend[0].length);
     client.send(toSend[1]);
     client.send([toSend[2]]);
@@ -28,7 +27,7 @@ server.on('listening', common.mustCall(() => {
     client.send([new Uint8Array(toSend[2])]);
     client.send(new Uint8Array(Buffer.from(toSend[3])),
                 0, toSend[3].length);
-  });
+  }));
 }));
 
 server.on('message', common.mustCall((buf, info) => {

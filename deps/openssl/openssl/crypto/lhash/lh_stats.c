@@ -1,11 +1,13 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include <stdio.h>
 #include <string.h>
@@ -20,7 +22,8 @@
 #include <openssl/lhash.h>
 #include "lhash_local.h"
 
-# ifndef OPENSSL_NO_STDIO
+#ifndef OPENSSL_NO_STDIO
+#ifndef OPENSSL_NO_DEPRECATED_3_1
 void OPENSSL_LH_stats(const OPENSSL_LHASH *lh, FILE *fp)
 {
     BIO *bp;
@@ -56,27 +59,33 @@ void OPENSSL_LH_node_usage_stats(const OPENSSL_LHASH *lh, FILE *fp)
     OPENSSL_LH_node_usage_stats_bio(lh, bp);
     BIO_free(bp);
 }
+#endif
+#endif
 
-# endif
-
+#ifndef OPENSSL_NO_DEPRECATED_3_1
+/*
+ * These functions are implemented as separate static functions as they are
+ * called from the stdio functions above and calling deprecated functions will
+ * generate a warning.
+ */
 void OPENSSL_LH_stats_bio(const OPENSSL_LHASH *lh, BIO *out)
 {
     BIO_printf(out, "num_items             = %lu\n", lh->num_items);
-    BIO_printf(out, "num_nodes             = %u\n",  lh->num_nodes);
-    BIO_printf(out, "num_alloc_nodes       = %u\n",  lh->num_alloc_nodes);
-    BIO_printf(out, "num_expands           = %lu\n", lh->num_expands);
-    BIO_printf(out, "num_expand_reallocs   = %lu\n", lh->num_expand_reallocs);
-    BIO_printf(out, "num_contracts         = %lu\n", lh->num_contracts);
-    BIO_printf(out, "num_contract_reallocs = %lu\n", lh->num_contract_reallocs);
-    BIO_printf(out, "num_hash_calls        = %lu\n", lh->num_hash_calls);
-    BIO_printf(out, "num_comp_calls        = %lu\n", lh->num_comp_calls);
-    BIO_printf(out, "num_insert            = %lu\n", lh->num_insert);
-    BIO_printf(out, "num_replace           = %lu\n", lh->num_replace);
-    BIO_printf(out, "num_delete            = %lu\n", lh->num_delete);
-    BIO_printf(out, "num_no_delete         = %lu\n", lh->num_no_delete);
-    BIO_printf(out, "num_retrieve          = %lu\n", lh->num_retrieve);
-    BIO_printf(out, "num_retrieve_miss     = %lu\n", lh->num_retrieve_miss);
-    BIO_printf(out, "num_hash_comps        = %lu\n", lh->num_hash_comps);
+    BIO_printf(out, "num_nodes             = %u\n", lh->num_nodes);
+    BIO_printf(out, "num_alloc_nodes       = %u\n", lh->num_alloc_nodes);
+    BIO_printf(out, "num_expands           = 0\n");
+    BIO_printf(out, "num_expand_reallocs   = 0\n");
+    BIO_printf(out, "num_contracts         = 0\n");
+    BIO_printf(out, "num_contract_reallocs = 0\n");
+    BIO_printf(out, "num_hash_calls        = 0\n");
+    BIO_printf(out, "num_comp_calls        = 0\n");
+    BIO_printf(out, "num_insert            = 0\n");
+    BIO_printf(out, "num_replace           = 0\n");
+    BIO_printf(out, "num_delete            = 0\n");
+    BIO_printf(out, "num_no_delete         = 0\n");
+    BIO_printf(out, "num_retrieve          = 0\n");
+    BIO_printf(out, "num_retrieve_miss     = 0\n");
+    BIO_printf(out, "num_hash_comps        = 0\n");
 }
 
 void OPENSSL_LH_node_stats_bio(const OPENSSL_LHASH *lh, BIO *out)
@@ -111,7 +120,8 @@ void OPENSSL_LH_node_usage_stats_bio(const OPENSSL_LHASH *lh, BIO *out)
     if (n_used == 0)
         return;
     BIO_printf(out, "load %d.%02d  actual load %d.%02d\n",
-               (int)(total / lh->num_nodes),
-               (int)((total % lh->num_nodes) * 100 / lh->num_nodes),
-               (int)(total / n_used), (int)((total % n_used) * 100 / n_used));
+        (int)(total / lh->num_nodes),
+        (int)((total % lh->num_nodes) * 100 / lh->num_nodes),
+        (int)(total / n_used), (int)((total % n_used) * 100 / n_used));
 }
+#endif

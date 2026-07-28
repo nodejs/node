@@ -339,10 +339,6 @@ assertTrue(cdesc.configurable);
 assertFalse(adesc.enumerable);
 assertTrue(adesc.configurable);
 
-assertSame(cdesc.get, cdesc.set);
-assertSame(cdesc.get, adesc.get);
-assertSame(cdesc.get, adesc.set);
-
 assertTrue(cdesc.get instanceof Function);
 assertEquals(0, cdesc.get.length);
 assertThrows(cdesc.get, TypeError);

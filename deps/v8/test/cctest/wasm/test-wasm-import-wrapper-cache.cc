@@ -9,8 +9,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
-
+#include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
+#include "test/common/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 
 namespace v8 {
@@ -19,37 +20,48 @@ namespace wasm {
 namespace test_wasm_import_wrapper_cache {
 
 std::shared_ptr<NativeModule> NewModule(Isolate* isolate) {
-  std::shared_ptr<WasmModule> module(new WasmModule);
-  constexpr size_t kCodeSizeEstimate = 16384;
-  auto native_module = isolate->wasm_engine()->NewNativeModule(
-      isolate, WasmFeatures::All(), std::move(module), kCodeSizeEstimate);
+  auto module = std::make_shared<WasmModule>(kWasmOrigin);
+  size_t kCodeSizeEstimate = 0;
+  auto native_module = GetWasmEngine()->NewNativeModule(
+      isolate, WasmEnabledFeatures::All(), WasmDetectedFeatures{},
+      CompileTimeImports{}, std::move(module), kCodeSizeEstimate);
   native_module->SetWireBytes({});
   return native_module;
 }
 
 TEST(CacheHit) {
+  FlagScope<bool> cleanup_immediately(&v8_flags.stress_wasm_code_gc, true);
   Isolate* isolate = CcTest::InitIsolateOnce();
   auto module = NewModule(isolate);
   TestSignatures sigs;
-  WasmCodeRefScope wasm_code_ref_scope;
-  WasmImportWrapperCache::ModificationScope cache_scope(
-      module->import_wrapper_cache());
 
-  auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunction;
   auto sig = sigs.i_i();
+  CanonicalTypeIndex type_index =
+      GetTypeCanonicalizer()->AddRecursiveGroup(sig);
   int expected_arity = static_cast<int>(sig->parameter_count());
+  auto* canonical_sig =
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
+  {
+    std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+        isolate, kind, canonical_sig, expected_arity, kNoSuspend);
 
-  WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                                      isolate->counters(), kind, sig,
-                                      expected_arity, &cache_scope);
+    CHECK(c1->has_code());
+    CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
-  CHECK_NOT_NULL(c1);
-  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
+    std::shared_ptr<wasm::WasmWrapperHandle> c2 =
+        GetWasmImportWrapperCache()->Get(
+            isolate, {kind, canonical_sig, expected_arity, kNoSuspend});
 
-  WasmCode* c2 = cache_scope[{kind, sig, expected_arity}];
-
-  CHECK_NOT_NULL(c2);
-  CHECK_EQ(c1, c2);
+    CHECK(c2->has_code());
+    CHECK_EQ(c1, c2);
+  }
+  // Ending the lifetime of the {WasmCodeRefScope} should drop the refcount
+  // of the wrapper to zero, causing its cleanup at the next Wasm Code GC
+  // (requested via interrupt).
+  isolate->stack_guard()->HandleInterrupts();
+  CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
+      kind, canonical_sig, expected_arity, kNoSuspend));
 }
 
 TEST(CacheMissSig) {
@@ -57,25 +69,29 @@ TEST(CacheMissSig) {
   auto module = NewModule(isolate);
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
-  WasmImportWrapperCache::ModificationScope cache_scope(
-      module->import_wrapper_cache());
 
-  auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
-  auto sig1 = sigs.i_i();
+  auto kind = ImportCallKind::kJSFunction;
+  auto* sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
+  CanonicalTypeIndex type_index1 =
+      GetTypeCanonicalizer()->AddRecursiveGroup(sig1);
+  auto* canonical_sig1 =
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index1);
   auto sig2 = sigs.i_ii();
   int expected_arity2 = static_cast<int>(sig2->parameter_count());
+  CanonicalTypeIndex type_index2 =
+      GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
+  auto* canonical_sig2 =
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index2);
 
-  WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                                      isolate->counters(), kind, sig1,
-                                      expected_arity1, &cache_scope);
+  std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+      isolate, kind, canonical_sig1, expected_arity1, kNoSuspend);
 
-  CHECK_NOT_NULL(c1);
-  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
+  CHECK(c1->has_code());
+  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
-  WasmCode* c2 = cache_scope[{kind, sig2, expected_arity2}];
-
-  CHECK_NULL(c2);
+  CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
+      kind, canonical_sig2, expected_arity2, kNoSuspend));
 }
 
 TEST(CacheMissKind) {
@@ -83,24 +99,24 @@ TEST(CacheMissKind) {
   auto module = NewModule(isolate);
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
-  WasmImportWrapperCache::ModificationScope cache_scope(
-      module->import_wrapper_cache());
 
-  auto kind1 = compiler::WasmImportCallKind::kJSFunctionArityMatch;
-  auto kind2 = compiler::WasmImportCallKind::kJSFunctionArityMismatch;
+  auto kind1 = ImportCallKind::kJSFunction;
+  auto kind2 = ImportCallKind::kUseCallBuiltin;
   auto sig = sigs.i_i();
   int expected_arity = static_cast<int>(sig->parameter_count());
+  CanonicalTypeIndex type_index =
+      GetTypeCanonicalizer()->AddRecursiveGroup(sig);
+  auto* canonical_sig =
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
 
-  WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                                      isolate->counters(), kind1, sig,
-                                      expected_arity, &cache_scope);
+  std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+      isolate, kind1, canonical_sig, expected_arity, kNoSuspend);
 
-  CHECK_NOT_NULL(c1);
-  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
+  CHECK(c1->has_code());
+  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
-  WasmCode* c2 = cache_scope[{kind2, sig, expected_arity}];
-
-  CHECK_NULL(c2);
+  CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
+      kind2, canonical_sig, expected_arity, kNoSuspend));
 }
 
 TEST(CacheHitMissSig) {
@@ -108,40 +124,47 @@ TEST(CacheHitMissSig) {
   auto module = NewModule(isolate);
   TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
-  WasmImportWrapperCache::ModificationScope cache_scope(
-      module->import_wrapper_cache());
 
-  auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
+  auto kind = ImportCallKind::kJSFunction;
   auto sig1 = sigs.i_i();
   int expected_arity1 = static_cast<int>(sig1->parameter_count());
+  CanonicalTypeIndex type_index1 =
+      GetTypeCanonicalizer()->AddRecursiveGroup(sig1);
+  auto* canonical_sig1 =
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index1);
   auto sig2 = sigs.i_ii();
   int expected_arity2 = static_cast<int>(sig2->parameter_count());
+  CanonicalTypeIndex type_index2 =
+      GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
+  auto* canonical_sig2 =
+      GetTypeCanonicalizer()->LookupFunctionSignature(type_index2);
 
-  WasmCode* c1 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                                      isolate->counters(), kind, sig1,
-                                      expected_arity1, &cache_scope);
+  std::shared_ptr<wasm::WasmWrapperHandle> c1 = CompileImportWrapperForTest(
+      isolate, kind, canonical_sig1, expected_arity1, kNoSuspend);
 
   CHECK_NOT_NULL(c1);
-  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
+  CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->code()->kind());
 
-  WasmCode* c2 = cache_scope[{kind, sig2, expected_arity2}];
+  CHECK(!GetWasmImportWrapperCache()->HasCodeForTesting(
+      kind, canonical_sig2, expected_arity2, kNoSuspend));
 
-  CHECK_NULL(c2);
-
-  c2 = CompileImportWrapper(isolate->wasm_engine(), module.get(),
-                            isolate->counters(), kind, sig2, expected_arity2,
-                            &cache_scope);
+  std::shared_ptr<wasm::WasmWrapperHandle> c2 = CompileImportWrapperForTest(
+      isolate, kind, canonical_sig2, expected_arity2, kNoSuspend);
 
   CHECK_NE(c1, c2);
 
-  WasmCode* c3 = cache_scope[{kind, sig1, expected_arity1}];
+  std::shared_ptr<wasm::WasmWrapperHandle> c3 =
+      GetWasmImportWrapperCache()->Get(
+          isolate, {kind, canonical_sig1, expected_arity1, kNoSuspend});
 
-  CHECK_NOT_NULL(c3);
+  CHECK(c3->has_code());
   CHECK_EQ(c1, c3);
 
-  WasmCode* c4 = cache_scope[{kind, sig2, expected_arity2}];
+  std::shared_ptr<wasm::WasmWrapperHandle> c4 =
+      GetWasmImportWrapperCache()->Get(
+          isolate, {kind, canonical_sig2, expected_arity2, kNoSuspend});
 
-  CHECK_NOT_NULL(c4);
+  CHECK(c4->has_code());
   CHECK_EQ(c2, c4);
 }
 

@@ -6,10 +6,13 @@
 #define V8_CODEGEN_X64_ASSEMBLER_X64_INL_H_
 
 #include "src/codegen/x64/assembler-x64.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/base/cpu.h"
 #include "src/base/memory.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -17,45 +20,8 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
-
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
-
-void Assembler::emitl(uint32_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint32_t);
-}
-
-void Assembler::emitq(uint64_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint64_t);
-}
-
-void Assembler::emitw(uint16_t x) {
-  WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
-  pc_ += sizeof(uint16_t);
-}
-
-void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsRuntimeEntry(rmode));
-  RecordRelocInfo(rmode);
-  emitl(static_cast<uint32_t>(entry - options().code_range_start));
-}
-
-void Assembler::emit(Immediate x) {
-  if (!RelocInfo::IsNone(x.rmode_)) {
-    RecordRelocInfo(x.rmode_);
-  }
-  emitl(x.value_);
-}
-
-void Assembler::emit(Immediate64 x) {
-  if (!RelocInfo::IsNone(x.rmode_)) {
-    RecordRelocInfo(x.rmode_);
-  }
-  emitq(static_cast<uint64_t>(x.value_));
-}
 
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | reg.high_bit() << 2 | rm_reg.high_bit());
@@ -74,11 +40,11 @@ void Assembler::emit_rex_64(XMMRegister reg, XMMRegister rm_reg) {
 }
 
 void Assembler::emit_rex_64(Register reg, Operand op) {
-  emit(0x48 | reg.high_bit() << 2 | op.data().rex);
+  emit(0x48 | reg.high_bit() << 2 | op.rex());
 }
 
 void Assembler::emit_rex_64(XMMRegister reg, Operand op) {
-  emit(0x48 | (reg.code() & 0x8) >> 1 | op.data().rex);
+  emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex());
 }
 
 void Assembler::emit_rex_64(Register rm_reg) {
@@ -86,47 +52,47 @@ void Assembler::emit_rex_64(Register rm_reg) {
   emit(0x48 | rm_reg.high_bit());
 }
 
-void Assembler::emit_rex_64(Operand op) { emit(0x48 | op.data().rex); }
+void Assembler::emit_rex_64(Operand op) { emit(0x48 | op.rex()); }
 
 void Assembler::emit_rex_32(Register reg, Register rm_reg) {
   emit(0x40 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
 
 void Assembler::emit_rex_32(Register reg, Operand op) {
-  emit(0x40 | reg.high_bit() << 2 | op.data().rex);
+  emit(0x40 | reg.high_bit() << 2 | op.rex());
 }
 
 void Assembler::emit_rex_32(Register rm_reg) { emit(0x40 | rm_reg.high_bit()); }
 
-void Assembler::emit_rex_32(Operand op) { emit(0x40 | op.data().rex); }
+void Assembler::emit_rex_32(Operand op) { emit(0x40 | op.rex()); }
 
 void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
-  byte rex_bits = reg.high_bit() << 2 | rm_reg.high_bit();
+  uint8_t rex_bits = reg.high_bit() << 2 | rm_reg.high_bit();
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
 void Assembler::emit_optional_rex_32(Register reg, Operand op) {
-  byte rex_bits = reg.high_bit() << 2 | op.data().rex;
+  uint8_t rex_bits = reg.high_bit() << 2 | op.rex();
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
 void Assembler::emit_optional_rex_32(XMMRegister reg, Operand op) {
-  byte rex_bits = (reg.code() & 0x8) >> 1 | op.data().rex;
+  uint8_t rex_bits = (reg.code() & 0x8) >> 1 | op.rex();
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
 void Assembler::emit_optional_rex_32(XMMRegister reg, XMMRegister base) {
-  byte rex_bits = (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
+  uint8_t rex_bits = (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
 void Assembler::emit_optional_rex_32(XMMRegister reg, Register base) {
-  byte rex_bits = (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
+  uint8_t rex_bits = (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
 void Assembler::emit_optional_rex_32(Register reg, XMMRegister base) {
-  byte rex_bits = (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
+  uint8_t rex_bits = (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
@@ -139,7 +105,7 @@ void Assembler::emit_optional_rex_32(XMMRegister rm_reg) {
 }
 
 void Assembler::emit_optional_rex_32(Operand op) {
-  if (op.data().rex != 0) emit(0x40 | op.data().rex);
+  if (op.rex() != 0) emit(0x40 | op.rex());
 }
 
 void Assembler::emit_optional_rex_8(Register reg) {
@@ -158,23 +124,132 @@ void Assembler::emit_optional_rex_8(Register reg, Operand op) {
   }
 }
 
+#ifdef V8_ENABLE_APX_F
+void Assembler::emit_rex2_prefix(Register reg, Register rm_reg, Rex2MapID m,
+                                 Rex2W w) {
+  emit(0xD5);
+  emit(m | reg.bit4() << 6 | rm_reg.bit4() << 4 | w | reg.high_bit() << 2 |
+       rm_reg.high_bit());
+}
+
+void Assembler::emit_rex2_prefix(Register reg, Operand op, Rex2MapID m,
+                                 Rex2W w) {
+  emit(0xD5);
+  emit(m | reg.bit4() << 6 | op.rex2() << 4 | w | reg.high_bit() << 2 |
+       op.rex());
+}
+
+void Assembler::emit_rex2_64(Register reg, Register rm_reg, Rex2MapID m) {
+  emit_rex2_prefix(reg, rm_reg, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_64(Register reg, Operand op, Rex2MapID m) {
+  emit_rex2_prefix(reg, op, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_64(Register reg, Rex2MapID m) {
+  emit_rex2_prefix(rax, reg, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_64(Operand op, Rex2MapID m) {
+  emit_rex2_prefix(rax, op, m, kRex2W1);
+}
+
+void Assembler::emit_rex2_32(Register reg, Register rm_reg, Rex2MapID m) {
+  emit_rex2_prefix(reg, rm_reg, m, kRex2W0);
+}
+
+void Assembler::emit_rex2_32(Register reg, Operand op, Rex2MapID m) {
+  emit_rex2_prefix(reg, op, m, kRex2W0);
+}
+
+void Assembler::emit_rex2_32(Register reg, Rex2MapID m) {
+  emit_rex2_prefix(rax, reg, m, kRex2W0);
+}
+
+void Assembler::emit_rex2_32(Operand op, Rex2MapID m) {
+  emit_rex2_prefix(rax, op, m, kRex2W0);
+}
+
+// Legacy extended evex
+void Assembler::emit_legacy_extended_evex_prefix(Register dst, Register src1,
+                                                 Register src2, SIMDPrefix pp,
+                                                 VexW w,
+                                                 EvexStatusFlagUpdate nf,
+                                                 EvexNewDataDestination nd) {
+  emit_evex_byte0();
+  emit_legacy_extended_evex_byte1(src1, src2);
+  emit_legacy_extended_evex_byte2(dst, w, pp);
+  emit_legacy_extended_evex_byte3(dst, nd, nf);
+}
+
+void Assembler::emit_legacy_extended_evex_prefix(Register dst, Register src1,
+                                                 Operand src2, SIMDPrefix pp,
+                                                 VexW w,
+                                                 EvexStatusFlagUpdate nf,
+                                                 EvexNewDataDestination nd) {
+  emit_evex_byte0();
+  emit_legacy_extended_evex_byte1(src1, src2);
+  emit_legacy_extended_evex_byte2(dst, src2, w, pp);
+  emit_legacy_extended_evex_byte3(dst, nd, nf);
+}
+
+void Assembler::emit_legacy_extended_evex_byte1(Register src1, Register src2) {
+  uint8_t mm = 4;
+  uint8_t rxb =
+      static_cast<uint8_t>(~((src1.high_bit() << 2) | src2.high_bit())) << 5;
+  uint8_t r4 = static_cast<uint8_t>((~src1.bit4()) & 0x1);
+  uint8_t b4 = static_cast<uint8_t>(src2.bit4() & 0x1);
+  emit(rxb | (r4 << 4) | (b4 << 3) | mm);
+}
+
+void Assembler::emit_legacy_extended_evex_byte1(Register src1, Operand src2) {
+  uint8_t mm = 4;
+  uint8_t r3 = static_cast<uint8_t>((~src1.high_bit()) & 0x1);
+  uint8_t x3b3 = (~src2.rex()) & 0x3;
+  uint8_t r4 = static_cast<uint8_t>((~src1.bit4()) & 0x1);
+  uint8_t b4 = src2.rex2() & 0x1;
+  emit((r3 << 7) | (x3b3 << 5) | (r4 << 4) | (b4 << 3) | mm);
+}
+
+void Assembler::emit_legacy_extended_evex_byte2(Register dst, VexW w,
+                                                SIMDPrefix pp) {
+  uint8_t x4 = 1;
+  emit(w | ((~dst.code() & 0xf) << 3) | (x4 << 2) | pp);
+}
+
+void Assembler::emit_legacy_extended_evex_byte2(Register dst, Operand src2,
+                                                VexW w, SIMDPrefix pp) {
+  uint8_t x4 = (~src2.rex2() & 0x2) >> 1;
+  emit(w | ((~dst.code() & 0xf) << 3) | (x4 << 2) | pp);
+}
+
+void Assembler::emit_legacy_extended_evex_byte3(Register dst,
+                                                EvexNewDataDestination nd,
+                                                EvexStatusFlagUpdate nf) {
+  uint8_t v4 = (dst.code() < 16) ? 0x8 : 0;
+  emit(nd | v4 | nf);
+}
+#endif  // V8_ENABLE_APX_F
+
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
                                 LeadingOpcode m) {
-  byte rxb = static_cast<byte>(~((reg.high_bit() << 2) | rm.high_bit())) << 5;
+  uint8_t rxb = static_cast<uint8_t>(~((reg.high_bit() << 2) | rm.high_bit()))
+                << 5;
   emit(rxb | m);
 }
 
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
-  byte rxb = static_cast<byte>(~((reg.high_bit() << 2) | rm.data().rex)) << 5;
+  uint8_t rxb = static_cast<uint8_t>(~((reg.high_bit() << 2) | rm.rex())) << 5;
   emit(rxb | m);
 }
 
 // byte 1 of 2-byte VEX
 void Assembler::emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
                                 SIMDPrefix pp) {
-  byte rv = static_cast<byte>(~((reg.high_bit() << 4) | v.code())) << 3;
+  uint8_t rv = static_cast<uint8_t>(~((reg.high_bit() << 4) | v.code())) << 3;
   emit(rv | l | pp);
 }
 
@@ -209,7 +284,7 @@ void Assembler::emit_vex_prefix(Register reg, Register vreg, Register rm,
 void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg, Operand rm,
                                 VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
                                 VexW w) {
-  if (rm.data().rex || mm != k0F || w != kW0) {
+  if (rm.rex() || mm != k0F || w != kW0) {
     emit_vex3_byte0();
     emit_vex3_byte1(reg, rm, mm);
     emit_vex3_byte2(w, vreg, l, pp);
@@ -233,24 +308,28 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
+                                      WritableJitAllocation* jit_allocation,
                                       ICacheFlushMode icache_flush_mode) {
-  DCHECK(is_int32(target - pc - 4));
-  WriteUnalignedValue(pc, static_cast<int32_t>(target - pc - 4));
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue(pc, relative_target_offset(target, pc));
+  } else {
+    WriteUnalignedValue(pc, relative_target_offset(target, pc));
+  }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, sizeof(int32_t));
   }
 }
 
-void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
-  WriteUnalignedValue(pc, target);
+int32_t Assembler::relative_target_offset(Address target, Address pc) {
+  Address offset = target - pc - 4;
+  DCHECK(is_int32(offset));
+  return static_cast<int32_t>(offset);
 }
 
-void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
-  set_target_address_at(instruction_payload,
-                        !code.is_null() ? code.constant_pool() : kNullAddress,
-                        target);
+void Assembler::deserialization_set_target_internal_reference_at(
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
+  jit_allocation.WriteUnalignedValue(pc, target);
 }
 
 int Assembler::deserialization_special_target_size(
@@ -258,42 +337,65 @@ int Assembler::deserialization_special_target_size(
   return kSpecialTargetSize;
 }
 
-Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
+DirectHandle<Code> Assembler::code_target_object_handle_at(Address pc) {
   return GetCodeTarget(ReadUnalignedValue<int32_t>(pc));
 }
 
-Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(Address pc) {
+DirectHandle<HeapObject> Assembler::compressed_embedded_object_handle_at(
+    Address pc) {
   return GetEmbeddedObject(ReadUnalignedValue<uint32_t>(pc));
 }
 
-Address Assembler::runtime_entry_at(Address pc) {
-  return ReadUnalignedValue<int32_t>(pc) + options().code_range_start;
+Builtin Assembler::target_builtin_at(Address pc) {
+  int32_t builtin_id = ReadUnalignedValue<int32_t>(pc);
+  DCHECK(Builtins::IsBuiltinId(builtin_id));
+  return static_cast<Builtin>(builtin_id);
+}
+
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  return ReadUnalignedValue<uint32_t>(pc);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       WritableJitAllocation* jit_allocation,
+                                       ICacheFlushMode icache_flush_mode) {
+  if (jit_allocation) {
+    jit_allocation->WriteUnalignedValue<uint32_t>(pc, new_constant);
+  } else {
+    WriteUnalignedValue<uint32_t>(pc, new_constant);
+  }
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, sizeof(uint32_t));
+  }
 }
 
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(intptr_t delta) {
-  if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
-    WriteUnalignedValue(
+void WritableRelocInfo::apply(intptr_t delta) {
+  if (IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
+      IsWasmStubCall(rmode_)) {
+    jit_allocation_.WriteUnalignedValue(
         pc_, ReadUnalignedValue<int32_t>(pc_) - static_cast<int32_t>(delta));
   } else if (IsInternalReference(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    WriteUnalignedValue(pc_, ReadUnalignedValue<Address>(pc_) + delta);
+    jit_allocation_.WriteUnalignedValue(
+        pc_, ReadUnalignedValue<Address>(pc_) + delta);
   }
 }
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_) ||
+         IsWasmCall(rmode_) || IsWasmStubCall(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsWasmStubCall(rmode_) || IsFullEmbeddedObject(rmode_) ||
-         IsCompressedEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsWasmCall(rmode_) || IsWasmStubCall(rmode_) ||
+         IsFullEmbeddedObject(rmode_) || IsCompressedEmbeddedObject(rmode_) ||
+         IsExternalReference(rmode_) || IsOffHeapTarget(rmode_));
   return pc_;
 }
 
@@ -308,29 +410,19 @@ int RelocInfo::target_address_size() {
   }
 }
 
-HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
-  if (IsCompressedEmbeddedObject(rmode_)) {
-    CHECK(!host_.is_null());
-    Object o = static_cast<Object>(DecompressTaggedPointer(
-        host_.ptr(), ReadUnalignedValue<Tagged_t>(pc_)));
-    return HeapObject::cast(o);
-  }
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
-}
-
-HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed = ReadUnalignedValue<Tagged_t>(pc_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Object obj(DecompressTaggedPointer(isolate, compressed));
-    return HeapObject::cast(obj);
+    Tagged<Object> obj(V8HeapCompressionScheme::DecompressTagged(compressed));
+    return Cast<HeapObject>(obj);
   }
-  return HeapObject::cast(Object(ReadUnalignedValue<Address>(pc_)));
+  DCHECK(IsFullEmbeddedObject(rmode_));
+  return Cast<HeapObject>(Tagged<Object>(ReadUnalignedValue<Address>(pc_)));
 }
 
-Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCodeTarget(rmode_)) {
     return origin->code_target_object_handle_at(pc_);
@@ -338,7 +430,8 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
     if (IsCompressedEmbeddedObject(rmode_)) {
       return origin->compressed_embedded_object_handle_at(pc_);
     }
-    return Handle<HeapObject>::cast(ReadUnalignedValue<Handle<Object>>(pc_));
+    DCHECK(IsFullEmbeddedObject(rmode_));
+    return Cast<HeapObject>(ReadUnalignedValue<IndirectHandle<Object>>(pc_));
   }
 }
 
@@ -347,10 +440,24 @@ Address RelocInfo::target_external_reference() {
   return ReadUnalignedValue<Address>(pc_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
-  WriteUnalignedValue(pc_, target);
+  jit_allocation_.WriteUnalignedValue(pc_, target);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc_, sizeof(Address));
+  }
+}
+
+WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
+  return WasmCodePointer{ReadUnalignedValue<uint32_t>(pc_)};
+}
+
+void WritableRelocInfo::set_wasm_code_pointer_table_entry(
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
+  jit_allocation_.WriteUnalignedValue(pc_, target.value());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
@@ -366,59 +473,42 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
-                                  ICacheFlushMode icache_flush_mode) {
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return ReadUnalignedValue<JSDispatchHandle>(pc_);
+}
+
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     DCHECK(COMPRESS_POINTERS_BOOL);
-    Tagged_t tagged = CompressTagged(target.ptr());
-    WriteUnalignedValue(pc_, tagged);
+    // We must not compress pointers to objects outside of the main pointer
+    // compression cage as we wouldn't be able to decompress them with the
+    // correct cage base.
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL,
+                   !TrustedHeapLayout::InTrustedSpace(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !TrustedHeapLayout::InCodeSpace(target));
+    Tagged_t tagged = V8HeapCompressionScheme::CompressObject(target.ptr());
+    jit_allocation_.WriteUnalignedValue(pc_, tagged);
   } else {
-    WriteUnalignedValue(pc_, target.ptr());
+    DCHECK(IsFullEmbeddedObject(rmode_));
+    jit_allocation_.WriteUnalignedValue(pc_, target.ptr());
   }
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc_, sizeof(Address));
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
-      !FLAG_disable_write_barriers) {
-    WriteBarrierForCode(host(), this, target);
-  }
 }
 
-Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  return origin->runtime_entry_at(pc_);
-}
-
-void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode write_barrier_mode,
-                                         ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  if (target_address() != target) {
-    set_target_address(target, write_barrier_mode, icache_flush_mode);
-  }
+Builtin RelocInfo::target_builtin_at(Assembler* origin) {
+  DCHECK(IsNearBuiltinEntry(rmode_));
+  return Assembler::target_builtin_at(pc_);
 }
 
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return ReadUnalignedValue<Address>(pc_);
-}
-
-void RelocInfo::WipeOut() {
-  if (IsFullEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-      IsInternalReference(rmode_) || IsOffHeapTarget(rmode_)) {
-    WriteUnalignedValue(pc_, kNullAddress);
-  } else if (IsCompressedEmbeddedObject(rmode_)) {
-    Address smi_address = Smi::FromInt(0).ptr();
-    WriteUnalignedValue(pc_, CompressTagged(smi_address));
-  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
-    // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(pc_, constant_pool_,
-                                     pc_ + sizeof(int32_t));
-  } else {
-    UNREACHABLE();
-  }
 }
 
 }  // namespace internal

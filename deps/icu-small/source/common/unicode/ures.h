@@ -25,6 +25,7 @@
 #ifndef URES_H
 #define URES_H
 
+#include "unicode/char16ptr.h"
 #include "unicode/utypes.h"
 #include "unicode/uloc.h"
 
@@ -44,9 +45,9 @@
  * locale and then ask it for individual resources.
  * <P>
  * Resource bundles in ICU4C are currently defined using text files which conform to the following
- * <a href="http://source.icu-project.org/repos/icu/icuhtml/trunk/design/bnf_rb.txt">BNF definition</a>.
+ * <a href="https://github.com/unicode-org/icu-docs/blob/main/design/bnf_rb.txt">BNF definition</a>.
  * More on resource bundle concepts and syntax can be found in the
- * <a href="http://icu-project.org/userguide/ResourceManagement.html">Users Guide</a>.
+ * <a href="https://unicode-org.github.io/icu/userguide/locale/resources">Users Guide</a>.
  * <P>
  */
 
@@ -812,7 +813,7 @@ inline UnicodeString
 ures_getUnicodeString(const UResourceBundle *resB, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const UChar *r = ures_getString(resB, &len, status);
+    const char16_t *r = ConstChar16Ptr(ures_getString(resB, &len, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {
@@ -837,7 +838,7 @@ inline UnicodeString
 ures_getNextUnicodeString(UResourceBundle *resB, const char ** key, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const UChar* r = ures_getNextString(resB, &len, key, status);
+    const char16_t* r = ConstChar16Ptr(ures_getNextString(resB, &len, key, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {
@@ -859,7 +860,7 @@ inline UnicodeString
 ures_getUnicodeStringByIndex(const UResourceBundle *resB, int32_t indexS, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const UChar* r = ures_getStringByIndex(resB, indexS, &len, status);
+    const char16_t* r = ConstChar16Ptr(ures_getStringByIndex(resB, indexS, &len, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {
@@ -882,7 +883,7 @@ inline UnicodeString
 ures_getUnicodeStringByKey(const UResourceBundle *resB, const char* key, UErrorCode* status) {
     UnicodeString result;
     int32_t len = 0;
-    const UChar* r = ures_getStringByKey(resB, key, &len, status);
+    const char16_t* r = ConstChar16Ptr(ures_getStringByKey(resB, key, &len, status));
     if(U_SUCCESS(*status)) {
         result.setTo(true, r, len);
     } else {

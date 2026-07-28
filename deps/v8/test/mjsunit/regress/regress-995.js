@@ -33,8 +33,8 @@
 
 // HHasInstance.
 function f(value) {
-  if (%_IsJSReceiver(value)) {
-    if ((%_IsArray(value))) assertTrue(false);
+  if (%IsJSReceiver(value)) {
+    if ((%IsArray(value))) assertTrue(false);
   }
 }
 f(new String("bar"));

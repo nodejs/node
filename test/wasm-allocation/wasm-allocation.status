@@ -1,0 +1,16 @@
+prefix wasm-allocation
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$system!=linux || $asan==on || $pointer_compression==on]
+test-wasm-allocation: SKIP
+test-wasm-allocation-auto-adapt: SKIP
+test-wasm-allocation-memory64: SKIP
+
+[$arch!=x64 && $arch!=arm64]
+test-wasm-allocation: SKIP
+test-wasm-allocation-memory64: SKIP

@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -33,14 +33,16 @@
 # instructions and improve single-block and short-input performance
 # with misaligned data.
 
-$output = pop;
-open STDOUT,">$output";
+$output = pop and open STDOUT,">$output";
 
 {
 my ($inp,$out,$key,$rounds,$tmp,$mask) = map("%o$_",(0..5));
 
 $code.=<<___;
-#include "sparc_arch.h"
+#ifndef __ASSEMBLER__
+# define __ASSEMBLER__ 1
+#endif
+#include "crypto/sparc_arch.h"
 
 #define LOCALS (STACK_BIAS+STACK_FRAME)
 
@@ -477,11 +479,16 @@ aes_fx_cbc_encrypt:
 	ldd		[$end + 24], %f12
 
 	movrz		$len, 0, $inc
+
+	brz,pn		$len, .Lcbc_enc_skip_load
+	nop
+
 	fmovd		$intail, $in0
 	ldd		[$inp - 8], $in1	! load next input block
 	ldda		[$inp]0x82, $intail	! non-faulting load
 	add		$inp, $inc, $inp	! inp+=16
 
+.Lcbc_enc_skip_load:
 	fmovd		%f0, %f4
 	faesencx	%f2, %f6, %f0
 	faesencx	%f4, %f8, %f2
@@ -692,11 +699,16 @@ aes_fx_cbc_encrypt:
 	fmovd		$in1, $iv1
 
 	movrz		$len, 0, $inc
+
+	brz,pn		$len, .Lcbc_dec_skip_load
+	nop
+
 	fmovd		$intail, $in0
 	ldd		[$inp - 8], $in1	! load next input block
 	ldda		[$inp]0x82, $intail	! non-faulting load
 	add		$inp, $inc, $inp	! inp+=16
 
+.Lcbc_dec_skip_load:
 	fmovd		%f0, %f4
 	faesdecx	%f2, %f10, %f0
 	faesdecx	%f4, %f12, %f2
@@ -951,11 +963,16 @@ aes_fx_ctr32_encrypt_blocks:
 	fxor		$in1, $rllo, %f8
 
 	movrz		$len, 0, $inc
+
+	brz,pn		$len, .Lctr32_enc_skip_load
+	nop
+
 	fmovd		$intail, $in0
 	ldd		[$inp - 8], $in1	! load next input block
 	ldda		[$inp]0x82, $intail	! non-faulting load
 	add		$inp, $inc, $inp	! inp+=16
 
+.Lctr32_enc_skip_load:
 	fmovd		%f0, %f4
 	faesencx	%f2, %f10, %f0
 	faesencx	%f4, %f12, %f2

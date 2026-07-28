@@ -28,294 +28,306 @@
 import { SplayTree } from "./splaytree.mjs";
 
 /**
+* The number of alignment bits in a page address.
+*/
+const kPageAlignment = 12;
+/**
+* Page size in bytes.
+*/
+const kPageSize =  1 << kPageAlignment;
+
+/**
  * Constructs a mapper that maps addresses into code entries.
- *
- * @constructor
  */
-export function CodeMap() {
+export class CodeMap {
   /**
    * Dynamic code entries. Used for JIT compiled code.
    */
-  this.dynamics_ = new SplayTree();
+  dynamics_ = new SplayTree();
 
   /**
    * Name generator for entries having duplicate names.
    */
-  this.dynamicsNameGen_ = new CodeMap.NameGenerator();
+  dynamicsNameGen_ = new NameGenerator();
 
   /**
    * Static code entries. Used for statically compiled code.
    */
-  this.statics_ = new SplayTree();
+  statics_ = new SplayTree();
 
   /**
    * Libraries entries. Used for the whole static code libraries.
    */
-  this.libraries_ = new SplayTree();
+  libraries_ = new SplayTree();
 
   /**
    * Map of memory pages occupied with static code.
    */
-  this.pages_ = [];
-};
+  pages_ = new Set();
 
-
-/**
- * The number of alignment bits in a page address.
- */
-CodeMap.PAGE_ALIGNMENT = 12;
-
-
-/**
- * Page size in bytes.
- */
-CodeMap.PAGE_SIZE =
-    1 << CodeMap.PAGE_ALIGNMENT;
-
-
-/**
- * Adds a dynamic (i.e. moveable and discardable) code entry.
- *
- * @param {number} start The starting address.
- * @param {CodeMap.CodeEntry} codeEntry Code entry object.
- */
-CodeMap.prototype.addCode = function(start, codeEntry) {
-  this.deleteAllCoveredNodes_(this.dynamics_, start, start + codeEntry.size);
-  this.dynamics_.insert(start, codeEntry);
-};
-
-
-/**
- * Moves a dynamic code entry. Throws an exception if there is no dynamic
- * code entry with the specified starting address.
- *
- * @param {number} from The starting address of the entry being moved.
- * @param {number} to The destination address.
- */
-CodeMap.prototype.moveCode = function(from, to) {
-  var removedNode = this.dynamics_.remove(from);
-  this.deleteAllCoveredNodes_(this.dynamics_, to, to + removedNode.value.size);
-  this.dynamics_.insert(to, removedNode.value);
-};
-
-
-/**
- * Discards a dynamic code entry. Throws an exception if there is no dynamic
- * code entry with the specified starting address.
- *
- * @param {number} start The starting address of the entry being deleted.
- */
-CodeMap.prototype.deleteCode = function(start) {
-  var removedNode = this.dynamics_.remove(start);
-};
-
-
-/**
- * Adds a library entry.
- *
- * @param {number} start The starting address.
- * @param {CodeMap.CodeEntry} codeEntry Code entry object.
- */
-CodeMap.prototype.addLibrary = function(
-    start, codeEntry) {
-  this.markPages_(start, start + codeEntry.size);
-  this.libraries_.insert(start, codeEntry);
-};
-
-
-/**
- * Adds a static code entry.
- *
- * @param {number} start The starting address.
- * @param {CodeMap.CodeEntry} codeEntry Code entry object.
- */
-CodeMap.prototype.addStaticCode = function(
-    start, codeEntry) {
-  this.statics_.insert(start, codeEntry);
-};
-
-
-/**
- * @private
- */
-CodeMap.prototype.markPages_ = function(start, end) {
-  for (var addr = start; addr <= end;
-       addr += CodeMap.PAGE_SIZE) {
-    this.pages_[(addr / CodeMap.PAGE_SIZE)|0] = 1;
+  constructor(useBigIntAddresses=false) {
+    this.useBigIntAddresses = useBigIntAddresses;
+    this.kPageSize = useBigIntAddresses ? BigInt(kPageSize) : kPageSize;
+    this.kOne = useBigIntAddresses ? 1n : 1;
+    this.kZero = useBigIntAddresses ? 0n : 0;
   }
-};
 
+  /**
+   * Adds a code entry that might overlap with static code (e.g. for builtins).
+   *
+   * @param {number} start The starting address.
+   * @param {CodeEntry} codeEntry Code entry object.
+   */
+  addAnyCode(start, codeEntry) {
+    const pageAddr = (start / this.kPageSize) | this.kZero;
+    if (!this.pages_.has(pageAddr)) return this.addCode(start, codeEntry);
+    // We might have loaded static code (builtins, bytecode handlers)
+    // and we get more information later in v8.log with code-creation events.
+    // Overwrite the existing entries in this case.
+    let result = this.findInTree_(this.statics_, start);
+    if (result === null) return this.addCode(start, codeEntry);
 
-/**
- * @private
- */
-CodeMap.prototype.deleteAllCoveredNodes_ = function(tree, start, end) {
-  var to_delete = [];
-  var addr = end - 1;
-  while (addr >= start) {
-    var node = tree.findGreatestLessThan(addr);
-    if (!node) break;
-    var start2 = node.key, end2 = start2 + node.value.size;
-    if (start2 < end && start < end2) to_delete.push(start2);
-    addr = start2 - 1;
+    const removedNode = this.statics_.remove(start);
+    this.deleteAllCoveredNodes_(
+        this.statics_, start, start + removedNode.value.size);
+    this.statics_.insert(start, codeEntry);
   }
-  for (var i = 0, l = to_delete.length; i < l; ++i) tree.remove(to_delete[i]);
-};
 
 
-/**
- * @private
- */
-CodeMap.prototype.isAddressBelongsTo_ = function(addr, node) {
-  return addr >= node.key && addr < (node.key + node.value.size);
-};
+  /**
+   * Adds a dynamic (i.e. moveable and discardable) code entry.
+   *
+   * @param {number} start The starting address.
+   * @param {CodeEntry} codeEntry Code entry object.
+   */
+  addCode(start, codeEntry) {
+    this.deleteAllCoveredNodes_(this.dynamics_, start, start + codeEntry.size);
+    this.dynamics_.insert(start, codeEntry);
+  }
 
+  /**
+   * Moves a dynamic code entry. Throws an exception if there is no dynamic
+   * code entry with the specified starting address.
+   *
+   * @param {number} from The starting address of the entry being moved.
+   * @param {number} to The destination address.
+   */
+  moveCode(from, to) {
+    const removedNode = this.dynamics_.remove(from);
+    this.deleteAllCoveredNodes_(this.dynamics_, to, to + removedNode.value.size);
+    this.dynamics_.insert(to, removedNode.value);
+  }
 
-/**
- * @private
- */
-CodeMap.prototype.findInTree_ = function(tree, addr) {
-  var node = tree.findGreatestLessThan(addr);
-  return node && this.isAddressBelongsTo_(addr, node) ? node : null;
-};
+  /**
+   * Discards a dynamic code entry. Throws an exception if there is no dynamic
+   * code entry with the specified starting address.
+   *
+   * @param {number} start The starting address of the entry being deleted.
+   */
+  deleteCode(start) {
+    const removedNode = this.dynamics_.remove(start);
+  }
 
+  /**
+   * Adds a library entry.
+   *
+   * @param {number} start The starting address.
+   * @param {CodeEntry} codeEntry Code entry object.
+   */
+  addLibrary(start, codeEntry) {
+    this.markPages_(start, start + codeEntry.size);
+    this.libraries_.insert(start, codeEntry);
+  }
 
-/**
- * Finds a code entry that contains the specified address. Both static and
- * dynamic code entries are considered. Returns the code entry and the offset
- * within the entry.
- *
- * @param {number} addr Address.
- */
-CodeMap.prototype.findAddress = function(addr) {
-  var pageAddr = (addr / CodeMap.PAGE_SIZE)|0;
-  if (pageAddr in this.pages_) {
-    // Static code entries can contain "holes" of unnamed code.
-    // In this case, the whole library is assigned to this address.
-    var result = this.findInTree_(this.statics_, addr);
-    if (!result) {
-      result = this.findInTree_(this.libraries_, addr);
-      if (!result) return null;
+  /**
+   * Adds a static code entry.
+   *
+   * @param {number} start The starting address.
+   * @param {CodeEntry} codeEntry Code entry object.
+   */
+  addStaticCode(start, codeEntry) {
+    this.statics_.insert(start, codeEntry);
+  }
+
+  /**
+   * @private
+   */
+  markPages_(start, end) {
+    for (let addr = start; addr <= end; addr += this.kPageSize) {
+      this.pages_.add((addr / this.kPageSize) | this.kZero);
     }
-    return { entry : result.value, offset : addr - result.key };
   }
-  var min = this.dynamics_.findMin();
-  var max = this.dynamics_.findMax();
-  if (max != null && addr < (max.key + max.value.size) && addr >= min.key) {
-    var dynaEntry = this.findInTree_(this.dynamics_, addr);
-    if (dynaEntry == null) return null;
-    // Dedupe entry name.
-    var entry = dynaEntry.value;
-    if (!entry.nameUpdated_) {
-      entry.name = this.dynamicsNameGen_.getName(entry.name);
-      entry.nameUpdated_ = true;
+
+  /**
+   * @private
+   */
+  deleteAllCoveredNodes_(tree, start, end) {
+    const to_delete = [];
+    let addr = end - this.kOne;
+    while (addr >= start) {
+      const node = tree.findGreatestLessThan(addr);
+      if (node === null) break;
+      const start2 = node.key, end2 = start2 + node.value.size;
+      if (start2 < end && start < end2) to_delete.push(start2);
+      addr = start2 - this.kOne;
     }
-    return { entry : entry, offset : addr - dynaEntry.key };
+    for (let i = 0, l = to_delete.length; i < l; ++i) tree.remove(to_delete[i]);
   }
-  return null;
-};
 
-
-/**
- * Finds a code entry that contains the specified address. Both static and
- * dynamic code entries are considered.
- *
- * @param {number} addr Address.
- */
-CodeMap.prototype.findEntry = function(addr) {
-  var result = this.findAddress(addr);
-  return result ? result.entry : null;
-};
-
-
-/**
- * Returns a dynamic code entry using its starting address.
- *
- * @param {number} addr Address.
- */
-CodeMap.prototype.findDynamicEntryByStartAddress =
-    function(addr) {
-  var node = this.dynamics_.find(addr);
-  return node ? node.value : null;
-};
-
-
-/**
- * Returns an array of all dynamic code entries.
- */
-CodeMap.prototype.getAllDynamicEntries = function() {
-  return this.dynamics_.exportValues();
-};
-
-
-/**
- * Returns an array of pairs of all dynamic code entries and their addresses.
- */
-CodeMap.prototype.getAllDynamicEntriesWithAddresses = function() {
-  return this.dynamics_.exportKeysAndValues();
-};
-
-
-/**
- * Returns an array of all static code entries.
- */
-CodeMap.prototype.getAllStaticEntries = function() {
-  return this.statics_.exportValues();
-};
-
-
-/**
- * Returns an array of pairs of all static code entries and their addresses.
- */
-CodeMap.prototype.getAllStaticEntriesWithAddresses = function() {
-  return this.statics_.exportKeysAndValues();
-};
-
-
-/**
- * Returns an array of all libraries entries.
- */
-CodeMap.prototype.getAllLibrariesEntries = function() {
-  return this.libraries_.exportValues();
-};
-
-
-/**
- * Creates a code entry object.
- *
- * @param {number} size Code entry size in bytes.
- * @param {string} opt_name Code entry name.
- * @param {string} opt_type Code entry type, e.g. SHARED_LIB, CPP.
- * @constructor
- */
-CodeMap.CodeEntry = function(size, opt_name, opt_type) {
-  this.size = size;
-  this.name = opt_name || '';
-  this.type = opt_type || '';
-  this.nameUpdated_ = false;
-};
-
-
-CodeMap.CodeEntry.prototype.getName = function() {
-  return this.name;
-};
-
-
-CodeMap.CodeEntry.prototype.toString = function() {
-  return this.name + ': ' + this.size.toString(16);
-};
-
-
-CodeMap.NameGenerator = function() {
-  this.knownNames_ = {};
-};
-
-
-CodeMap.NameGenerator.prototype.getName = function(name) {
-  if (!(name in this.knownNames_)) {
-    this.knownNames_[name] = 0;
-    return name;
+  /**
+   * @private
+   */
+  isAddressBelongsTo_(addr, node) {
+    return addr >= node.key && addr < (node.key + node.value.size);
   }
-  var count = ++this.knownNames_[name];
-  return name + ' {' + count + '}';
-};
+
+  /**
+   * @private
+   */
+  findInTree_(tree, addr) {
+    const node = tree.findGreatestLessThan(addr);
+    return node !== null && this.isAddressBelongsTo_(addr, node) ? node : null;
+  }
+
+  /**
+   * Finds a code entry that contains the specified address. Both static and
+   * dynamic code entries are considered. Returns the code entry and the offset
+   * within the entry.
+   *
+   * @param {number} addr Address.
+   */
+  findAddress(addr) {
+    const pageAddr = (addr / this.kPageSize) | this.kZero;
+    if (this.pages_.has(pageAddr)) {
+      // Static code entries can contain "holes" of unnamed code.
+      // In this case, the whole library is assigned to this address.
+      let result = this.findInTree_(this.statics_, addr);
+      if (result === null) {
+        result = this.findInTree_(this.libraries_, addr);
+        if (result === null) return null;
+      }
+      return {entry: result.value, offset: addr - result.key};
+    }
+    const max = this.dynamics_.findMax();
+    if (max === null) return null;
+    const min = this.dynamics_.findMin();
+    if (addr >= min.key && addr < (max.key + max.value.size)) {
+      const dynaEntry = this.findInTree_(this.dynamics_, addr);
+      if (dynaEntry === null) return null;
+      // Dedupe entry name.
+      const entry = dynaEntry.value;
+      if (!entry.nameUpdated_) {
+        entry.name = this.dynamicsNameGen_.getName(entry.name);
+        entry.nameUpdated_ = true;
+      }
+      return {entry, offset: addr - dynaEntry.key};
+    }
+    return null;
+  }
+
+  /**
+   * Finds a code entry that contains the specified address. Both static and
+   * dynamic code entries are considered.
+   *
+   * @param {number} addr Address.
+   */
+  findEntry(addr) {
+    const result = this.findAddress(addr);
+    return result !== null ? result.entry : null;
+  }
+
+  /**
+   * Returns a dynamic code entry using its starting address.
+   *
+   * @param {number} addr Address.
+   */
+  findDynamicEntryByStartAddress(addr) {
+    const node = this.dynamics_.find(addr);
+    return node !== null ? node.value : null;
+  }
+
+  /**
+   * Returns an array of all dynamic code entries.
+   */
+  getAllDynamicEntries() {
+    return this.dynamics_.exportValues();
+  }
+
+  /**
+   * Returns an array of pairs of all dynamic code entries and their addresses.
+   */
+  getAllDynamicEntriesWithAddresses() {
+    return this.dynamics_.exportKeysAndValues();
+  }
+
+  /**
+   * Returns an array of all static code entries.
+   */
+  getAllStaticEntries() {
+    return this.statics_.exportValues();
+  }
+
+  /**
+   * Returns an array of pairs of all static code entries and their addresses.
+   */
+  getAllStaticEntriesWithAddresses() {
+    return this.statics_.exportKeysAndValues();
+  }
+
+  /**
+   * Returns an array of all library entries.
+   */
+  getAllLibraryEntries() {
+    return this.libraries_.exportValues();
+  }
+
+  /**
+   * Returns an array of pairs of all library entries and their addresses.
+   */
+  getAllLibraryEntriesWithAddresses() {
+    return this.libraries_.exportKeysAndValues();
+  }
+}
+
+
+export class CodeEntry {
+  constructor(size, opt_name, opt_type) {
+    /** @type {number} */
+    this.size = size;
+    /** @type {string} */
+    this.name = opt_name || '';
+    /** @type {string} */
+    this.type = opt_type || '';
+    this.nameUpdated_ = false;
+    /** @type {?string} */
+    this.source = undefined;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  toString() {
+    return this.name + ': ' + this.size.toString(16);
+  }
+
+  getSourceCode() {
+    return '';
+  }
+
+  get sourcePosition() {
+    return this.logEntry.sourcePosition;
+  }
+}
+
+class NameGenerator {
+  knownNames_ = { __proto__:null }
+  getName(name) {
+    if (!(name in this.knownNames_)) {
+      this.knownNames_[name] = 0;
+      return name;
+    }
+    const count = ++this.knownNames_[name];
+    return name + ' {' + count + '}';
+  };
+}

@@ -1,11 +1,17 @@
 /*
- * Copyright 2005-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * RSA low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
@@ -13,21 +19,41 @@
 #include <openssl/rsa.h>
 #include <openssl/objects.h>
 
+/*
+ * X9.31 Embeds the hash inside the following data structure
+ *
+ * header (4 bits = 0x6)
+ * padding (consisting of zero or more 4 bit values of a sequence of 0xB,
+ *          ending with the terminator 0xA)
+ * hash(Msg) hash of a message (the output size is related to the hash function)
+ * trailer (consists of 2 bytes)
+ *         The 1st byte is related to a part number for a hash algorithm
+ *         (See RSA_X931_hash_id()), followed by the fixed value 0xCC
+ *
+ * The RSA modulus size n (which for X9.31 is 1024 + 256*s) is the size of the data
+ * structure, which determines the padding size.
+ * i.e. len(padding) = n - len(header) - len(hash) - len(trailer)
+ *
+ * Params:
+ *     to The output buffer to write the data structure to.
+ *     tolen The size of 'to' in bytes (it is the size of the n)
+ *     from The input hash followed by the 1st byte of the trailer.
+ *     flen The size of the input hash + 1 (trailer byte)
+ */
 int RSA_padding_add_X931(unsigned char *to, int tlen,
-                         const unsigned char *from, int flen)
+    const unsigned char *from, int flen)
 {
     int j;
     unsigned char *p;
 
     /*
-     * Absolute minimum amount of padding is 1 header nibble, 1 padding
-     * nibble and 2 trailer bytes: but 1 hash if is already in 'from'.
+     * We need at least 1 byte for header + padding (0x6A)
+     * And 2 trailer bytes (but we subtract 1 since flen includes 1 trailer byte)
      */
-
     j = tlen - flen - 2;
 
     if (j < 0) {
-        RSAerr(RSA_F_RSA_PADDING_ADD_X931, RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
         return -1;
     }
 
@@ -51,14 +77,14 @@ int RSA_padding_add_X931(unsigned char *to, int tlen,
 }
 
 int RSA_padding_check_X931(unsigned char *to, int tlen,
-                           const unsigned char *from, int flen, int num)
+    const unsigned char *from, int flen, int num)
 {
     int i = 0, j;
     const unsigned char *p;
 
     p = from;
     if ((num != flen) || ((*p != 0x6A) && (*p != 0x6B))) {
-        RSAerr(RSA_F_RSA_PADDING_CHECK_X931, RSA_R_INVALID_HEADER);
+        ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_HEADER);
         return -1;
     }
 
@@ -69,7 +95,7 @@ int RSA_padding_check_X931(unsigned char *to, int tlen,
             if (c == 0xBA)
                 break;
             if (c != 0xBB) {
-                RSAerr(RSA_F_RSA_PADDING_CHECK_X931, RSA_R_INVALID_PADDING);
+                ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_PADDING);
                 return -1;
             }
         }
@@ -77,7 +103,7 @@ int RSA_padding_check_X931(unsigned char *to, int tlen,
         j -= i;
 
         if (i == 0) {
-            RSAerr(RSA_F_RSA_PADDING_CHECK_X931, RSA_R_INVALID_PADDING);
+            ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_PADDING);
             return -1;
         }
 
@@ -86,7 +112,7 @@ int RSA_padding_check_X931(unsigned char *to, int tlen,
     }
 
     if (p[j] != 0xCC) {
-        RSAerr(RSA_F_RSA_PADDING_CHECK_X931, RSA_R_INVALID_TRAILER);
+        ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_TRAILER);
         return -1;
     }
 
@@ -95,7 +121,12 @@ int RSA_padding_check_X931(unsigned char *to, int tlen,
     return j;
 }
 
-/* Translate between X931 hash ids and NIDs */
+/*
+ * Translate between X9.31 hash ids and NIDs
+ * The returned values relate to ISO/IEC 10118 part numbers which consist of
+ * a hash algorithm and hash number. The returned values are used as the
+ * first byte of the 'trailer'.
+ */
 
 int RSA_X931_hash_id(int nid)
 {
@@ -111,7 +142,6 @@ int RSA_X931_hash_id(int nid)
 
     case NID_sha512:
         return 0x35;
-
     }
     return -1;
 }

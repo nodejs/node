@@ -11,27 +11,32 @@ const args = {
   ArrayBufferView: {
     'true': dataView,
     'false-primitive': true,
-    'false-object': arrayBuffer
+    'false-object': arrayBuffer,
   },
   TypedArray: {
     'true': int32Array,
     'false-primitive': true,
-    'false-object': arrayBuffer
+    'false-object': arrayBuffer,
   },
   Uint8Array: {
     'true': uint8Array,
     'false-primitive': true,
-    'false-object': int32Array
-  }
+    'false-object': int32Array,
+  },
+  DataView: {
+    'true': dataView,
+    'false-primitive': true,
+    'false-object': uint8Array,
+  },
 };
 
 const bench = common.createBenchmark(main, {
   type: Object.keys(args),
   version: ['native', 'js'],
   argument: ['true', 'false-primitive', 'false-object'],
-  n: [1e5]
+  n: [1e6],
 }, {
-  flags: ['--expose-internals', '--no-warnings']
+  flags: ['--expose-internals', '--no-warnings'],
 });
 
 function main({ type, argument, version, n }) {

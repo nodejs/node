@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
 
 #include "src/execution/s390/frame-constants-s390.h"
 
@@ -17,7 +17,7 @@ Register JavaScriptFrame::fp_register() { return v8::internal::fp; }
 Register JavaScriptFrame::context_register() { return cp; }
 Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
-int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
+int UnoptimizedFrameConstants::RegisterStackSlotCount(int register_count) {
   return register_count;
 }
 
@@ -26,7 +26,15 @@ int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
   return 0;
 }
 
+// static
+intptr_t MaglevFrame::StackGuardFrameSize(int register_input_count) {
+  // Include one extra slot for the single argument into StackGuardWithGap +
+  // register input count.
+  return StandardFrameConstants::kFixedFrameSizeFromFp +
+         (1 + register_input_count) * kSystemPointerSize;
+}
+
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_S390X

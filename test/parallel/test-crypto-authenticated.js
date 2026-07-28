@@ -18,18 +18,20 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-// Flags: --no-warnings
+
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
 const assert = require('assert');
 const crypto = require('crypto');
 const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL3 } = require('../common/crypto');
 
-crypto.DEFAULT_ENCODING = 'buffer';
+const isFipsEnabled = crypto.getFips();
 
 //
 // Test authenticated encryption modes.
@@ -44,43 +46,10 @@ const errMessages = {
   state: / state/,
   FIPS: /not supported in FIPS mode/,
   length: /Invalid initialization vector/,
-  authTagLength: /Invalid authentication tag/
+  authTagLength: /Invalid authentication tag length/
 };
 
 const ciphers = crypto.getCiphers();
-
-const expectedWarnings = common.hasFipsCrypto ?
-  [] : [
-    ['Use Cipheriv for counter mode of aes-192-gcm'],
-    ['Use Cipheriv for counter mode of aes-192-ccm'],
-    ['Use Cipheriv for counter mode of aes-192-ccm'],
-    ['Use Cipheriv for counter mode of aes-128-ccm'],
-    ['Use Cipheriv for counter mode of aes-128-ccm'],
-    ['Use Cipheriv for counter mode of aes-128-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm']
-  ];
-
-const expectedDeprecationWarnings = [
-  ['crypto.DEFAULT_ENCODING is deprecated.', 'DEP0091'],
-  ['crypto.createCipher is deprecated.', 'DEP0106']
-];
-
-common.expectWarning({
-  Warning: expectedWarnings,
-  DeprecationWarning: expectedDeprecationWarnings
-});
 
 for (const test of TEST_CASES) {
   if (!ciphers.includes(test.algo)) {
@@ -88,17 +57,16 @@ for (const test of TEST_CASES) {
     continue;
   }
 
-  if (common.hasFipsCrypto && test.iv.length < 24) {
+  if (isFipsEnabled && test.iv.length < 24) {
     common.printSkipMessage('IV len < 12 bytes unsupported in FIPS mode');
     continue;
   }
 
   const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
-  const isChacha20Poly1305 = test.algo === 'chacha20-poly1305';
 
   let options;
-  if (isCCM || isOCB || isChacha20Poly1305)
+  if (isCCM || isOCB)
     options = { authTagLength: test.tag.length / 2 };
 
   const inputEncoding = test.plainIsHex ? 'hex' : 'ascii';
@@ -131,7 +99,7 @@ for (const test of TEST_CASES) {
   }
 
   {
-    if (isCCM && common.hasFipsCrypto) {
+    if (isCCM && isFipsEnabled) {
       assert.throws(() => {
         crypto.createDecipheriv(test.algo,
                                 Buffer.from(test.key, 'hex'),
@@ -156,45 +124,6 @@ for (const test of TEST_CASES) {
       } else {
         // Assert that final throws if input data could not be verified!
         assert.throws(function() { decrypt.final('hex'); }, errMessages.auth);
-      }
-    }
-  }
-
-  if (test.password) {
-    if (common.hasFipsCrypto) {
-      assert.throws(() => { crypto.createCipher(test.algo, test.password); },
-                    errMessages.FIPS);
-    } else {
-      const encrypt = crypto.createCipher(test.algo, test.password, options);
-      if (test.aad)
-        encrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
-      let hex = encrypt.update(test.plain, 'ascii', 'hex');
-      hex += encrypt.final('hex');
-      const auth_tag = encrypt.getAuthTag();
-      // Only test basic encryption run if output is marked as tampered.
-      if (!test.tampered) {
-        assert.strictEqual(hex, test.ct);
-        assert.strictEqual(auth_tag.toString('hex'), test.tag);
-      }
-    }
-  }
-
-  if (test.password) {
-    if (common.hasFipsCrypto) {
-      assert.throws(() => { crypto.createDecipher(test.algo, test.password); },
-                    errMessages.FIPS);
-    } else {
-      const decrypt = crypto.createDecipher(test.algo, test.password, options);
-      decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
-      if (test.aad)
-        decrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
-      let msg = decrypt.update(test.ct, 'hex', 'ascii');
-      if (!test.tampered) {
-        msg += decrypt.final('ascii');
-        assert.strictEqual(msg, test.plain);
-      } else {
-        // Assert that final throws if input data could not be verified!
-        assert.throws(function() { decrypt.final('ascii'); }, errMessages.auth);
       }
     }
   }
@@ -287,7 +216,7 @@ for (const test of TEST_CASES) {
     cipher.update('01234567', 'hex');
     cipher.final();
     const tag = cipher.getAuthTag();
-    assert.strictEqual(tag.toString('hex'), fullTag.substr(0, 2 * e));
+    assert.strictEqual(tag.toString('hex'), fullTag.slice(0, 2 * e));
   }
 }
 
@@ -311,77 +240,32 @@ for (const test of TEST_CASES) {
   decipher.setAuthTag(Buffer.from('445352d3ff85cf94', 'hex'));
   const text = Buffer.concat([
     decipher.update('3a2a3647', 'hex'),
-    decipher.final()
+    decipher.final(),
   ]);
   assert.strictEqual(text.toString('utf8'), 'node');
 }
 
-// Test that create(De|C)ipher(iv)? throws if the mode is CCM and an invalid
+// Test that create(De|C)ipheriv throws if the mode is CCM and an invalid
 // authentication tag length has been specified.
 {
-  for (const authTagLength of [-1, true, false, NaN, 5.5]) {
-    assert.throws(() => {
-      crypto.createCipheriv('aes-256-ccm',
-                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                            'qkuZpJWCewa6S',
-                            {
-                              authTagLength
-                            });
-    }, {
-      name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
-               `Received ${inspect(authTagLength)}`
-    });
-
-    assert.throws(() => {
-      crypto.createDecipheriv('aes-256-ccm',
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
+    for (const authTagLength of [-1, true, false, NaN, 5.5]) {
+      assert.throws(() => {
+        crypto.createCipheriv('aes-256-ccm',
                               'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                               'qkuZpJWCewa6S',
                               {
                                 authTagLength
                               });
-    }, {
-      name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
-        `Received ${inspect(authTagLength)}`
-    });
-
-    if (!common.hasFipsCrypto) {
-      assert.throws(() => {
-        crypto.createCipher('aes-256-ccm', 'bad password', { authTagLength });
       }, {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_VALUE',
         message: "The property 'options.authTagLength' is invalid. " +
-          `Received ${inspect(authTagLength)}`
+                `Received ${inspect(authTagLength)}`
       });
 
-      assert.throws(() => {
-        crypto.createDecipher('aes-256-ccm', 'bad password', { authTagLength });
-      }, {
-        name: 'TypeError',
-        code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.authTagLength' is invalid. " +
-          `Received ${inspect(authTagLength)}`
-      });
-    }
-  }
-
-  // The following values will not be caught by the JS layer and thus will not
-  // use the default error codes.
-  for (const authTagLength of [0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17, 18]) {
-    assert.throws(() => {
-      crypto.createCipheriv('aes-256-ccm',
-                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                            'qkuZpJWCewa6S',
-                            {
-                              authTagLength
-                            });
-    }, errMessages.authTagLength);
-
-    if (!common.hasFipsCrypto) {
       assert.throws(() => {
         crypto.createDecipheriv('aes-256-ccm',
                                 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
@@ -389,23 +273,49 @@ for (const test of TEST_CASES) {
                                 {
                                   authTagLength
                                 });
+      }, {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.authTagLength' is invalid. " +
+          `Received ${inspect(authTagLength)}`
+      });
+    }
+
+    // The following values will not be caught by the JS layer and thus will not
+    // use the default error codes.
+    for (const authTagLength of [0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17, 18]) {
+      assert.throws(() => {
+        crypto.createCipheriv('aes-256-ccm',
+                              'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                              'qkuZpJWCewa6S',
+                              {
+                                authTagLength
+                              });
       }, errMessages.authTagLength);
 
-      assert.throws(() => {
-        crypto.createCipher('aes-256-ccm', 'bad password', { authTagLength });
-      }, errMessages.authTagLength);
-
-      assert.throws(() => {
-        crypto.createDecipher('aes-256-ccm', 'bad password', { authTagLength });
-      }, errMessages.authTagLength);
+      if (!isFipsEnabled) {
+        assert.throws(() => {
+          crypto.createDecipheriv('aes-256-ccm',
+                                  'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                  'qkuZpJWCewa6S',
+                                  {
+                                    authTagLength
+                                  });
+        }, errMessages.authTagLength);
+      }
     }
   }
 }
 
-// Test that create(De|C)ipher(iv)? throws if the mode is CCM or OCB and no
-// authentication tag has been specified.
+// Test that create(De|C)ipheriv throws if the mode is CCM or OCB and no
+// authentication tag length has been specified.
 {
   for (const mode of ['ccm', 'ocb']) {
+    if (!ciphers.includes(`aes-256-${mode}`)) {
+      common.printSkipMessage(`unsupported aes-256-${mode} test`);
+      continue;
+    }
+
     assert.throws(() => {
       crypto.createCipheriv(`aes-256-${mode}`,
                             'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
@@ -414,24 +324,12 @@ for (const test of TEST_CASES) {
       message: `authTagLength required for aes-256-${mode}`
     });
 
-    // CCM decryption and create(De|C)ipher are unsupported in FIPS mode.
-    if (!common.hasFipsCrypto) {
+    // CCM decryption is unsupported in FIPS mode.
+    if (!isFipsEnabled || mode !== 'ccm') {
       assert.throws(() => {
         crypto.createDecipheriv(`aes-256-${mode}`,
                                 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                                 'qkuZpJWCewa6S');
-      }, {
-        message: `authTagLength required for aes-256-${mode}`
-      });
-
-      assert.throws(() => {
-        crypto.createCipher(`aes-256-${mode}`, 'very bad password');
-      }, {
-        message: `authTagLength required for aes-256-${mode}`
-      });
-
-      assert.throws(() => {
-        crypto.createDecipher(`aes-256-${mode}`, 'very bad password');
       }, {
         message: `authTagLength required for aes-256-${mode}`
       });
@@ -441,84 +339,96 @@ for (const test of TEST_CASES) {
 
 // Test that setAAD throws if an invalid plaintext length has been specified.
 {
-  const cipher = crypto.createCipheriv('aes-256-ccm',
-                                       'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                                       'qkuZpJWCewa6S',
-                                       {
-                                         authTagLength: 10
-                                       });
-
-  for (const plaintextLength of [-1, true, false, NaN, 5.5]) {
-    assert.throws(() => {
-      cipher.setAAD(Buffer.from('0123456789', 'hex'), { plaintextLength });
-    }, {
-      name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.plaintextLength' is invalid. " +
-        `Received ${inspect(plaintextLength)}`
-    });
-  }
-}
-
-// Test that setAAD and update throw if the plaintext is too long.
-{
-  for (const ivLength of [13, 12]) {
-    const maxMessageSize = (1 << (8 * (15 - ivLength))) - 1;
-    const key = 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8';
-    const cipher = () => crypto.createCipheriv('aes-256-ccm', key,
-                                               '0'.repeat(ivLength),
-                                               {
-                                                 authTagLength: 10
-                                               });
-
-    assert.throws(() => {
-      cipher().setAAD(Buffer.alloc(0), {
-        plaintextLength: maxMessageSize + 1
-      });
-    }, /Invalid message length$/);
-
-    const msg = Buffer.alloc(maxMessageSize + 1);
-    assert.throws(() => {
-      cipher().update(msg);
-    }, /Invalid message length/);
-
-    const c = cipher();
-    c.setAAD(Buffer.alloc(0), {
-      plaintextLength: maxMessageSize
-    });
-    c.update(msg.slice(1));
-  }
-}
-
-// Test that setAAD throws if the mode is CCM and the plaintext length has not
-// been specified.
-{
-  assert.throws(() => {
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
     const cipher = crypto.createCipheriv('aes-256-ccm',
                                          'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                                          'qkuZpJWCewa6S',
                                          {
                                            authTagLength: 10
                                          });
-    cipher.setAAD(Buffer.from('0123456789', 'hex'));
-  }, /options\.plaintextLength required for CCM mode with AAD/);
 
-  if (!common.hasFipsCrypto) {
+    for (const plaintextLength of [-1, true, false, NaN, 5.5]) {
+      assert.throws(() => {
+        cipher.setAAD(Buffer.from('0123456789', 'hex'), { plaintextLength });
+      }, {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.plaintextLength' is invalid. " +
+          `Received ${inspect(plaintextLength)}`
+      });
+    }
+  }
+}
+
+// Test that setAAD and update throw if the plaintext is too long.
+{
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
+    for (const ivLength of [13, 12]) {
+      const maxMessageSize = (1 << (8 * (15 - ivLength))) - 1;
+      const key = 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8';
+      const cipher = () => crypto.createCipheriv('aes-256-ccm', key,
+                                                 '0'.repeat(ivLength),
+                                                 {
+                                                   authTagLength: 10
+                                                 });
+
+      assert.throws(() => {
+        cipher().setAAD(Buffer.alloc(0), {
+          plaintextLength: maxMessageSize + 1
+        });
+      }, /Invalid message length$/);
+
+      const msg = Buffer.alloc(maxMessageSize + 1);
+      assert.throws(() => {
+        cipher().update(msg);
+      }, /Invalid message length/);
+
+      const c = cipher();
+      c.setAAD(Buffer.alloc(0), {
+        plaintextLength: maxMessageSize
+      });
+      c.update(msg.slice(1));
+    }
+  }
+}
+
+// Test that setAAD throws if the mode is CCM and the plaintext length has not
+// been specified.
+{
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
     assert.throws(() => {
-      const cipher = crypto.createDecipheriv('aes-256-ccm',
-                                             'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                                             'qkuZpJWCewa6S',
-                                             {
-                                               authTagLength: 10
-                                             });
+      const cipher = crypto.createCipheriv('aes-256-ccm',
+                                           'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                           'qkuZpJWCewa6S',
+                                           {
+                                             authTagLength: 10
+                                           });
       cipher.setAAD(Buffer.from('0123456789', 'hex'));
     }, /options\.plaintextLength required for CCM mode with AAD/);
+
+    if (!isFipsEnabled) {
+      assert.throws(() => {
+        const cipher = crypto.createDecipheriv('aes-256-ccm',
+                                               'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                               'qkuZpJWCewa6S',
+                                               {
+                                                 authTagLength: 10
+                                               });
+        cipher.setAAD(Buffer.from('0123456789', 'hex'));
+      }, /options\.plaintextLength required for CCM mode with AAD/);
+    }
   }
 }
 
 // Test that final() throws in CCM mode when no authentication tag is provided.
 {
-  if (!common.hasFipsCrypto) {
+  if (!isFipsEnabled && ciphers.includes('aes-128-ccm')) {
     const key = Buffer.from('1ed2233fa2223ef5d7df08546049406c', 'hex');
     const iv = Buffer.from('7305220bca40d4c90e1791e9', 'hex');
     const ct = Buffer.from('8beba09d4d4d861f957d51c0794f4abf8030848e', 'hex');
@@ -550,43 +460,83 @@ for (const test of TEST_CASES) {
 
 // Test that an IV length of 11 does not overflow max_message_size_.
 {
-  const key = 'x'.repeat(16);
-  const iv = Buffer.from('112233445566778899aabb', 'hex');
-  const options = { authTagLength: 8 };
-  const encrypt = crypto.createCipheriv('aes-128-ccm', key, iv, options);
-  encrypt.update('boom');  // Should not throw 'Message exceeds maximum size'.
-  encrypt.final();
+  if (!ciphers.includes('aes-128-ccm')) {
+    common.printSkipMessage(`unsupported aes-128-ccm test`);
+  } else {
+    const key = 'x'.repeat(16);
+    const iv = Buffer.from('112233445566778899aabb', 'hex');
+    const options = { authTagLength: 8 };
+    const encrypt = crypto.createCipheriv('aes-128-ccm', key, iv, options);
+    encrypt.update('boom');  // Should not throw 'Message exceeds maximum size'.
+    encrypt.final();
+  }
 }
 
 // Test that the authentication tag can be set at any point before calling
-// final() in GCM or OCB mode.
+// final() in GCM mode, OCB mode, and for ChaCha20-Poly1305.
 {
+  const aad = Buffer.from('Shared', 'utf8');
   const plain = Buffer.from('Hello world', 'utf8');
-  const key = Buffer.from('0123456789abcdef', 'utf8');
+  const key = Buffer.from('0123456789abcdefghijklmnopqrstuv', 'utf8');
   const iv = Buffer.from('0123456789ab', 'utf8');
 
-  for (const mode of ['gcm', 'ocb']) {
-    for (const authTagLength of mode === 'gcm' ? [undefined, 8] : [8]) {
-      const cipher = crypto.createCipheriv(`aes-128-${mode}`, key, iv, {
+  function testAllOrders({ alg, authTagLength, useAAD, useMessage }) {
+    // Encrypt the message first to obtain ciphertext and authTag.
+    const cipher = crypto.createCipheriv(alg, key, iv, {
+      authTagLength
+    });
+    if (useAAD) {
+      cipher.setAAD(aad);
+    }
+    const ciphertext = useMessage ? Buffer.concat([cipher.update(plain), cipher.final()]) : cipher.final();
+    const authTag = cipher.getAuthTag();
+    assert.strictEqual(authTag.length, authTagLength ?? 16);
+
+    // Test decryption with each possible order of operations.
+    for (const authTagTime of ['beforeAAD', 'beforeUpdate', 'afterUpdate']) {
+      const decipher = crypto.createDecipheriv(alg, key, iv, {
         authTagLength
       });
-      const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
-      const authTag = cipher.getAuthTag();
+      if (authTagTime === 'beforeAAD') {
+        decipher.setAuthTag(authTag);
+      }
+      if (useAAD) {
+        decipher.setAAD(aad);
+      }
+      if (authTagTime === 'beforeUpdate') {
+        decipher.setAuthTag(authTag);
+      }
+      const resultBuffers = [];
+      if (useMessage) {
+        resultBuffers.push(decipher.update(ciphertext));
+      }
+      if (authTagTime === 'afterUpdate') {
+        decipher.setAuthTag(authTag);
+      }
+      resultBuffers.push(decipher.final());
+      const result = Buffer.concat(resultBuffers);
+      if (useMessage) {
+        assert.deepStrictEqual(result, plain);
+      } else {
+        assert.strictEqual(result.length, 0);
+      }
+    }
+  }
 
-      for (const authTagBeforeUpdate of [true, false]) {
-        const decipher = crypto.createDecipheriv(`aes-128-${mode}`, key, iv, {
-          authTagLength
-        });
-        if (authTagBeforeUpdate) {
-          decipher.setAuthTag(authTag);
-        }
-        const resultUpdate = decipher.update(ciphertext);
-        if (!authTagBeforeUpdate) {
-          decipher.setAuthTag(authTag);
-        }
-        const resultFinal = decipher.final();
-        const result = Buffer.concat([resultUpdate, resultFinal]);
-        assert(result.equals(plain));
+  for (const alg of ['aes-256-gcm', 'aes-256-ocb', 'chacha20-poly1305']) {
+    if (!ciphers.includes(alg)) {
+      common.printSkipMessage(`unsupported ${alg} test`);
+      continue;
+    }
+
+    for (const authTagLength of alg === 'aes-256-gcm' ? [undefined, 8] : [8]) {
+      for (const [useAAD, useMessage] of [
+        [false, false],  // No AAD, no update.
+        [true, false],   // Only AAD (e.g., GMAC).
+        [false, true],   // No AAD, only message.
+        [true, true],    // Both AAD and message.
+      ]) {
+        testAllOrders({ alg, authTagLength, useAAD, useMessage });
       }
     }
   }
@@ -600,6 +550,11 @@ for (const test of TEST_CASES) {
   const opts = { authTagLength: 8 };
 
   for (const mode of ['gcm', 'ccm', 'ocb']) {
+    if (!ciphers.includes(`aes-128-${mode}`)) {
+      common.printSkipMessage(`unsupported aes-128-${mode} test`);
+      continue;
+    }
+
     const cipher = crypto.createCipheriv(`aes-128-${mode}`, key, iv, opts);
     const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
     const tag = cipher.getAuthTag();
@@ -612,7 +567,7 @@ for (const test of TEST_CASES) {
     // Decryption should still work.
     const plaintext = Buffer.concat([
       decipher.update(ciphertext),
-      decipher.final()
+      decipher.final(),
     ]);
     assert(plain.equals(plaintext));
   }
@@ -643,25 +598,213 @@ for (const test of TEST_CASES) {
     tampered: false,
   };
 
-  // Invalid IV lengths should be detected:
-  // - 12 and below are valid.
-  // - 13-16 are not detected as invalid by some OpenSSL versions.
-  check(13);
-  check(14);
-  check(15);
-  check(16);
-  // - 17 and above were always detected as invalid by OpenSSL.
-  check(17);
+  if (!ciphers.includes(valid.algo)) {
+    common.printSkipMessage(`unsupported ${valid.algo} test`);
+  } else {
+    // Invalid IV lengths should be detected:
+    // - 12 and below are valid.
+    // - 13-16 are not detected as invalid by some OpenSSL versions.
+    check(13);
+    check(14);
+    check(15);
+    check(16);
+    // - 17 and above were always detected as invalid by OpenSSL.
+    check(17);
 
-  function check(ivLength) {
-    const prefix = ivLength - valid.iv.length / 2;
-    assert.throws(() => crypto.createCipheriv(
-      valid.algo,
-      Buffer.from(valid.key, 'hex'),
-      Buffer.from(H(prefix) + valid.iv, 'hex'),
-      { authTagLength: valid.tag.length / 2 }
-    ), errMessages.length, `iv length ${ivLength} was not rejected`);
+    function check(ivLength) {
+      const prefix = ivLength - valid.iv.length / 2;
+      assert.throws(() => crypto.createCipheriv(
+        valid.algo,
+        Buffer.from(valid.key, 'hex'),
+        Buffer.from(H(prefix) + valid.iv, 'hex')
+      ), errMessages.length, `iv length ${ivLength} was not rejected`);
 
-    function H(length) { return '00'.repeat(length); }
+      function H(length) { return '00'.repeat(length); }
+    }
   }
+}
+
+{
+  // CCM cipher without data should not crash, see https://github.com/nodejs/node/issues/38035.
+  if (!ciphers.includes('aes-128-ccm')) {
+    common.printSkipMessage(`unsupported aes-128-ccm test`);
+  } else {
+    const key = Buffer.alloc(16);
+    const iv = Buffer.alloc(12);
+    const opts = { authTagLength: 10 };
+
+    const cipher = crypto.createCipheriv('aes-128-ccm', key, iv, opts);
+    assert.throws(() => {
+      cipher.final();
+    }, hasOpenSSL3 ? {
+      code: 'ERR_OSSL_TAG_NOT_SET'
+    } : {
+      message: /Unsupported state/
+    });
+  }
+}
+
+if (!process.features.openssl_is_boringssl) {
+  const key = Buffer.alloc(32);
+  const iv = Buffer.alloc(12);
+
+  for (const authTagLength of [0, 17]) {
+    assert.throws(() => {
+      crypto.createCipheriv('chacha20-poly1305', key, iv, { authTagLength });
+    }, {
+      code: 'ERR_CRYPTO_INVALID_AUTH_TAG',
+      message: errMessages.authTagLength
+    });
+  }
+} else {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+}
+
+// ChaCha20-Poly1305 should respect the authTagLength option and should not
+// require the authentication tag before calls to update() during decryption.
+if (!process.features.openssl_is_boringssl) {
+  const key = Buffer.alloc(32);
+  const iv = Buffer.alloc(12);
+
+  for (let authTagLength = 1; authTagLength <= 16; authTagLength++) {
+    const cipher =
+        crypto.createCipheriv('chacha20-poly1305', key, iv, { authTagLength });
+    const ciphertext = Buffer.concat([cipher.update('foo'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    assert.strictEqual(authTag.length, authTagLength);
+
+    // The decipher operation should reject all authentication tags other than
+    // that of the expected length.
+    for (let other = 1; other <= 16; other++) {
+      const decipher = crypto.createDecipheriv('chacha20-poly1305', key, iv, {
+        authTagLength: other
+      });
+      // ChaCha20 is a stream cipher so we do not need to call final() to obtain
+      // the full plaintext.
+      const plaintext = decipher.update(ciphertext);
+      assert.strictEqual(plaintext.toString(), 'foo');
+      if (other === authTagLength) {
+        // The authentication tag length is as expected and the tag itself is
+        // correct, so this should work.
+        decipher.setAuthTag(authTag);
+        decipher.final();
+      } else {
+        // The authentication tag that we are going to pass to setAuthTag is
+        // either too short or too long. If other < authTagLength, the
+        // authentication tag is still correct, but it should still be rejected
+        // because its security assurance is lower than expected.
+        assert.throws(() => {
+          decipher.setAuthTag(authTag);
+        }, {
+          code: 'ERR_CRYPTO_INVALID_AUTH_TAG',
+          message: `Invalid authentication tag length: ${authTagLength}`
+        });
+      }
+    }
+  }
+} else {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+}
+
+// ChaCha20-Poly1305 should default to an authTagLength of 16. When encrypting,
+// this matches the behavior of GCM ciphers. When decrypting, however, it is
+// stricter than GCM in that it only allows authentication tags that are exactly
+// 16 bytes long, whereas, when no authTagLength was specified, GCM would accept
+// shorter tags as long as their length was valid according to NIST SP 800-38D.
+// For ChaCha20-Poly1305, we intentionally deviate from that because there are
+// no recommended or approved authentication tag lengths below 16 bytes.
+if (!process.features.openssl_is_boringssl) {
+  const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
+    return algo === 'chacha20-poly1305' && tampered === false;
+  });
+  assert.strictEqual(rfcTestCases.length, 1);
+
+  const [testCase] = rfcTestCases;
+  const key = Buffer.from(testCase.key, 'hex');
+  const iv = Buffer.from(testCase.iv, 'hex');
+  const aad = Buffer.from(testCase.aad, 'hex');
+
+  for (const opt of [
+    undefined,
+    { authTagLength: undefined },
+    { authTagLength: 16 },
+  ]) {
+    const cipher = crypto.createCipheriv('chacha20-poly1305', key, iv, opt);
+    const ciphertext = Buffer.concat([
+      cipher.setAAD(aad).update(testCase.plain, 'hex'),
+      cipher.final(),
+    ]);
+    const authTag = cipher.getAuthTag();
+
+    assert.strictEqual(ciphertext.toString('hex'), testCase.ct);
+    assert.strictEqual(authTag.toString('hex'), testCase.tag);
+
+    const decipher = crypto.createDecipheriv('chacha20-poly1305', key, iv, opt);
+    const plaintext = Buffer.concat([
+      decipher.setAAD(aad).update(ciphertext),
+      decipher.setAuthTag(authTag).final(),
+    ]);
+
+    assert.strictEqual(plaintext.toString('hex'), testCase.plain);
+  }
+} else {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+}
+
+// https://github.com/nodejs/node/issues/45874
+if (!process.features.openssl_is_boringssl) {
+  const rfcTestCases = TEST_CASES.filter(({ algo, tampered }) => {
+    return algo === 'chacha20-poly1305' && tampered === false;
+  });
+  assert.strictEqual(rfcTestCases.length, 1);
+
+  const [testCase] = rfcTestCases;
+  const key = Buffer.from(testCase.key, 'hex');
+  const iv = Buffer.from(testCase.iv, 'hex');
+  const aad = Buffer.from(testCase.aad, 'hex');
+  const opt = { authTagLength: 16 };
+
+  const cipher = crypto.createCipheriv('chacha20-poly1305', key, iv, opt);
+  const ciphertext = Buffer.concat([
+    cipher.setAAD(aad).update(testCase.plain, 'hex'),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+
+  assert.strictEqual(ciphertext.toString('hex'), testCase.ct);
+  assert.strictEqual(authTag.toString('hex'), testCase.tag);
+
+  const decipher = crypto.createDecipheriv('chacha20-poly1305', key, iv, opt);
+  decipher.setAAD(aad).update(ciphertext);
+
+  assert.throws(() => {
+    decipher.final();
+  }, /Unsupported state or unable to authenticate data/);
+} else {
+  common.printSkipMessage('Skipping unsupported chacha20-poly1305 test');
+}
+
+// Refs: https://github.com/nodejs/node/issues/62342
+if (ciphers.includes('aes-128-ccm')) {
+  const key = crypto.randomBytes(16);
+  const nonce = crypto.randomBytes(13);
+
+  const cipher = crypto.createCipheriv('aes-128-ccm', key, nonce, {
+    authTagLength: 16,
+  });
+  cipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+  cipher.update(new DataView(new ArrayBuffer(0)));
+  cipher.final();
+  const tag = cipher.getAuthTag();
+  assert.strictEqual(tag.length, 16);
+
+  const decipher = crypto.createDecipheriv('aes-128-ccm', key, nonce, {
+    authTagLength: 16,
+  });
+  decipher.setAuthTag(tag);
+  decipher.setAAD(Buffer.alloc(0), { plaintextLength: 0 });
+  decipher.update(new DataView(new ArrayBuffer(0)));
+  decipher.final();
+} else {
+  common.printSkipMessage('Skipping unsupported aes-128-ccm test');
 }

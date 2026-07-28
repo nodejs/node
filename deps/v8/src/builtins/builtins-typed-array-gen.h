@@ -21,18 +21,19 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                     TNode<Map> map, TNode<Smi> length,
                     TNode<UintPtrT> byte_offset);
 
-  TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context,
-                                                 TNode<UintPtrT> byte_length);
+  TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context);
 
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
   TNode<BoolT> IsMockArrayBufferAllocatorFlag();
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
                                            TNode<UintPtrT> byte_offset);
 
-  // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
+  // Returns true if kind is either UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
+  // RAB_GSAB_UINT8_ELEMENTS, or RAB_GSAB_UINT8_CLAMPED_ELEMENTS.
   TNode<BoolT> IsUint8ElementsKind(TNode<Int32T> kind);
 
-  // Returns true if kind is either BIGINT64_ELEMENTS or BIGUINT64_ELEMENTS.
+  // Returns true if kind is either BIGINT64_ELEMENTS, BIGUINT64_ELEMENTS,
+  // RAB_GSAB_BIGINT64_ELEMENTS, or RAB_GSAB_BIGUINT64_ELEMENTS.
   TNode<BoolT> IsBigInt64ElementsKind(TNode<Int32T> kind);
 
   // Returns the byte size of an element for a TypedArray elements kind.
@@ -45,15 +46,30 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
                                           TNode<JSTypedArray> exemplar);
 
-  TNode<JSTypedArray> ValidateTypedArray(TNode<Context> context,
-                                         TNode<Object> obj,
-                                         const char* method_name);
+  // Implements `ValidateTypedArray` except the
+  // `IsTypedArrayOutOfBounds(taRecord)` check. Useful if later code already
+  // does that validation. https://tc39.es/ecma262/#sec-validatetypedarray
+  TNode<JSTypedArray> PartiallyValidateTypedArrayMaybeOOB(
+      TNode<Context> context, TNode<Object> obj, const char* method_name,
+      TypedArrayAccessMode access_mode);
+
+  // Implements `ValidateTypedArray` and also returns the length.
+  // https://tc39.es/ecma262/#sec-validatetypedarray
+  TNode<UintPtrT> ValidateTypedArrayAndGetLength(
+      TNode<Context> context, TNode<Object> obj, const char* method_name,
+      TypedArrayAccessMode access_mode);
 
   void CallCMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                     TNode<UintPtrT> byte_length);
 
+  void CallCRelaxedMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                           TNode<UintPtrT> byte_length);
+
   void CallCMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                    TNode<UintPtrT> byte_length);
+
+  void CallCRelaxedMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                          TNode<UintPtrT> byte_length);
 
   void CallCMemset(TNode<RawPtrT> dest_ptr, TNode<IntPtrT> value,
                    TNode<UintPtrT> length);
@@ -83,9 +99,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void SetJSTypedArrayOffHeapDataPtr(TNode<JSTypedArray> holder,
                                      TNode<RawPtrT> base,
                                      TNode<UintPtrT> offset);
+
   void StoreJSTypedArrayElementFromNumeric(TNode<Context> context,
                                            TNode<JSTypedArray> typed_array,
-                                           TNode<UintPtrT> index_node,
+                                           TNode<UintPtrT> index,
                                            TNode<Numeric> value,
                                            ElementsKind elements_kind);
   void StoreJSTypedArrayElementFromTagged(TNode<Context> context,
@@ -93,7 +110,17 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                           TNode<UintPtrT> index_node,
                                           TNode<Object> value,
                                           ElementsKind elements_kind,
-                                          Label* if_detached);
+                                          Label* if_detached_or_out_of_bounds);
+  template <typename TValue>
+  void StoreJSTypedArrayElementFromPreparedValue(
+      TNode<Context> context, TNode<JSTypedArray> typed_array,
+      TNode<UintPtrT> index_node, TNode<TValue> value,
+      ElementsKind elements_kind, Label* if_detached_or_out_of_bounds);
+
+  TNode<BoolT> IsTrackArrayBufferViewsEnabled() {
+    return LoadRuntimeFlag(
+        ExternalReference::address_of_track_array_buffer_views_flag());
+  }
 };
 
 }  // namespace internal

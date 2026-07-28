@@ -30,9 +30,9 @@
 #include "req-inl.h"
 
 
-INLINE static void uv_stream_init(uv_loop_t* loop,
-                                  uv_stream_t* handle,
-                                  uv_handle_type type) {
+INLINE static void uv__stream_init(uv_loop_t* loop,
+                                   uv_stream_t* handle,
+                                   uv_handle_type type) {
   uv__handle_init(loop, (uv_handle_t*) handle, type);
   handle->write_queue_size = 0;
   handle->activecnt = 0;
@@ -46,7 +46,7 @@ INLINE static void uv_stream_init(uv_loop_t* loop,
 }
 
 
-INLINE static void uv_connection_init(uv_stream_t* handle) {
+INLINE static void uv__connection_init(uv_stream_t* handle) {
   handle->flags |= UV_HANDLE_CONNECTION;
 }
 

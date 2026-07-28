@@ -6,20 +6,30 @@
 #define V8_OBJECTS_BACKING_STORE_H_
 
 #include <memory>
+#include <optional>
 
+#include "include/v8-array-buffer.h"
 #include "include/v8-internal.h"
-#include "include/v8.h"
-#include "src/base/optional.h"
+#include "src/base/bit-field.h"
 #include "src/handles/handles.h"
+#include "src/sandbox/sandbox.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Isolate;
 class WasmMemoryObject;
 
+// Whether this is Wasm memory, and if 32 or 64 bit.
+enum class WasmMemoryFlag : uint8_t { kNotWasm, kWasmMemory32, kWasmMemory64 };
+
 // Whether the backing store is shared or not.
 enum class SharedFlag : uint8_t { kNotShared, kShared };
+
+// Whether the backing store is resizable or not.
+enum class ResizableFlag : uint8_t { kNotResizable, kResizable };
+
+// Whether the backing store is mutable or not.
+enum class ImmutableFlag : uint8_t { kMutable, kImmutable };
 
 // Whether the backing store memory is initialied to zero or not.
 enum class InitializedFlag : uint8_t { kUninitialized, kZeroInitialized };
@@ -35,10 +45,10 @@ struct SharedWasmMemoryData;
 // regions, etc. Instances of this classes *own* the underlying memory
 // when they are created through one of the {Allocate()} methods below,
 // and the destructor frees the memory (and page allocation if necessary).
-// Backing stores can also *wrap* embedder-allocated memory. In this case,
-// they do not own the memory, and upon destruction, they do not deallocate it.
 class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
  public:
+  static constexpr ExternalPointerTag kManagedTag = kBackingStoreTag;
+
   ~BackingStore();
 
   // Allocate an array buffer backing store using the default method,
@@ -48,23 +58,25 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
                                                 SharedFlag shared,
                                                 InitializedFlag initialized);
 
+#if V8_ENABLE_WEBASSEMBLY
   // Allocate the backing store for a Wasm memory.
-  static std::unique_ptr<BackingStore> AllocateWasmMemory(Isolate* isolate,
-                                                          size_t initial_pages,
-                                                          size_t maximum_pages,
-                                                          SharedFlag shared);
+  static std::unique_ptr<BackingStore> AllocateWasmMemory(
+      Isolate* isolate, size_t initial_pages, size_t maximum_pages,
+      WasmMemoryFlag wasm_memory, SharedFlag shared);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  // Tries to allocate `maximum_pages` of memory and commit `initial_pages`.
+  //
+  // If {isolate} is not null, initial failure to allocate the backing store may
+  // trigger GC, after which the allocation is retried. If {isolate} is null, no
+  // GC will be triggered.
+  static std::unique_ptr<BackingStore> TryAllocateAndPartiallyCommitMemory(
+      Isolate* isolate, size_t byte_length, size_t max_byte_length,
+      size_t page_size, size_t initial_pages, size_t maximum_pages,
+      WasmMemoryFlag wasm_memory, SharedFlag shared,
+      bool has_guard_regions = false);
 
   // Create a backing store that wraps existing allocated memory.
-  // If {free_on_destruct} is {true}, the memory will be freed using the
-  // ArrayBufferAllocator::Free() callback when this backing store is
-  // destructed. Otherwise destructing the backing store will do nothing
-  // to the allocated memory.
-  static std::unique_ptr<BackingStore> WrapAllocation(Isolate* isolate,
-                                                      void* allocation_base,
-                                                      size_t allocation_length,
-                                                      SharedFlag shared,
-                                                      bool free_on_destruct);
-
   static std::unique_ptr<BackingStore> WrapAllocation(
       void* allocation_base, size_t allocation_length,
       v8::BackingStore::DeleterCallback deleter, void* deleter_data,
@@ -74,45 +86,87 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   static std::unique_ptr<BackingStore> EmptyBackingStore(SharedFlag shared);
 
   // Accessors.
-  void* buffer_start() const { return buffer_start_; }
-  size_t byte_length() const {
-    return byte_length_.load(std::memory_order_relaxed);
+  // Internally, we treat nullptr as the empty buffer value. However,
+  // externally, we should use the EmptyBackingStoreBuffer() constant for that
+  // purpose as the buffer pointer should always point into the sandbox. As
+  // such, this is the place where we convert between these two.
+  void* buffer_start() const {
+    return buffer_start_ != nullptr ? buffer_start_ : EmptyBackingStoreBuffer();
   }
+  size_t byte_length(
+      std::memory_order memory_order = std::memory_order_relaxed) const {
+    return byte_length_.load(memory_order);
+  }
+  size_t max_byte_length() const { return max_byte_length_; }
   size_t byte_capacity() const { return byte_capacity_; }
-  bool is_shared() const { return is_shared_; }
-  bool is_wasm_memory() const { return is_wasm_memory_; }
-  bool has_guard_regions() const { return has_guard_regions_; }
-  bool free_on_destruct() const { return free_on_destruct_; }
+  bool is_shared() const { return has_flag(kIsShared); }
+  bool is_resizable_by_js() const { return has_flag(kIsResizableByJs); }
+  bool is_immutable() const { return has_flag(kIsImmutable); }
+  bool is_wasm_memory() const { return has_flag(kIsWasmMemory); }
+  bool is_wasm_memory64() const { return has_flag(kIsWasmMemory64); }
+  bool has_guard_regions() const { return has_flag(kHasGuardRegions); }
+
+  void set_is_immutable(bool immutable) {
+    if (immutable) {
+      set_flag(kIsImmutable);
+    } else {
+      clear_flag(kIsImmutable);
+    }
+  }
+
+  bool IsEmpty() const {
+    DCHECK_GE(byte_capacity_, byte_length_);
+    return byte_capacity_ == 0;
+  }
+
+  enum ResizeOrGrowResult { kSuccess, kFailure, kRace };
+
+  ResizeOrGrowResult ResizeInPlace(Isolate* isolate, size_t new_byte_length);
+  ResizeOrGrowResult GrowInPlace(Isolate* isolate, size_t new_byte_length);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // The IsResizableByJs flag is set for backing stores for a resizable
+  // ArrayBuffer or a WebAssembly.Memory that exposes its buffer as resizable
+  // ArrayBuffer.
+  //
+  // For backing stores of ArrayBuffers that are not Wasm memories, the flag
+  // never changes. It always matches whether ArrayBuffers backed by it are
+  // resizable.
+  //
+  // For unshared Wasm memories, this flag may change. WebAssembly.Memory
+  // instances are born with their buffers exposed as fixed-length ArrayBuffers
+  // (for backwards compat), but may transition to exposing their buffers as
+  // resizable. It always matches whether the ArrayBuffer it backs is resizable,
+  // since unshared ArrayBuffers never alias the same BackingStore.
+  //
+  // For shared Wasm memories, this field never changes, but may differ from the
+  // value of the is_resizable_by_js field of SharedArrayBuffers it backs.
+  // WebAssembly.Memory can create multiple SharedArrayBuffers backed by the
+  // same BackingStore, some of which are exposed as growable, and some of which
+  // as fixed-length.
+  void MakeWasmMemoryResizableByJS(bool resizable);
 
   // Attempt to grow this backing store in place.
-  base::Optional<size_t> GrowWasmMemoryInPlace(Isolate* isolate,
-                                               size_t delta_pages,
-                                               size_t max_pages);
-
-  // Wrapper around ArrayBuffer::Allocator::Reallocate.
-  bool Reallocate(Isolate* isolate, size_t new_byte_length);
+  std::optional<size_t> GrowWasmMemoryInPlace(Isolate* isolate,
+                                              size_t delta_pages,
+                                              size_t max_pages);
 
   // Allocate a new, larger, backing store for this Wasm memory and copy the
   // contents of this backing store into it.
   std::unique_ptr<BackingStore> CopyWasmMemory(Isolate* isolate,
-                                               size_t new_pages);
+                                               size_t new_pages,
+                                               size_t max_pages,
+                                               WasmMemoryFlag wasm_memory);
 
   // Attach the given memory object to this backing store. The memory object
   // will be updated if this backing store is grown.
-  void AttachSharedWasmMemoryObject(Isolate* isolate,
-                                    Handle<WasmMemoryObject> memory_object);
+  void AttachSharedWasmMemoryObject(
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory_object);
 
   // Send asynchronous updates to attached memory objects in other isolates
   // after the backing store has been grown. Memory objects in this
   // isolate are updated synchronously.
-  static void BroadcastSharedWasmMemoryGrow(Isolate* isolate,
-                                            std::shared_ptr<BackingStore>);
-
-  // TODO(wasm): address space limitations should be enforced in page alloc.
-  // These methods enforce a limit on the total amount of address space,
-  // which is used for both backing stores and wasm memory.
-  static bool ReserveAddressSpace(uint64_t num_bytes);
-  static void ReleaseReservation(uint64_t num_bytes);
+  void BroadcastSharedWasmMemoryGrow(Isolate* isolate) const;
 
   // Remove all memory objects in the given isolate that refer to this
   // backing store.
@@ -120,53 +174,114 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   // Update all shared memory objects in this isolate (after a grow operation).
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Returns the size of the external memory owned by this backing store.
   // It is used for triggering GCs based on the external memory pressure.
   size_t PerIsolateAccountingLength() {
-    if (is_shared_) {
-      // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
-      // with accounting for per-isolate external memory. In particular, sharing
-      // the same array buffer or memory multiple times, which happens in stress
-      // tests, can cause overcounting, leading to GC thrashing. Fix with global
-      // accounting?
-      return 0;
-    }
-    if (empty_deleter_) {
-      // The backing store has an empty deleter. Even if the backing store is
-      // freed after GC, it would not free the memory block.
-      return 0;
-    }
+    // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
+    // with accounting for per-isolate external memory. In particular, sharing
+    // the same array buffer or memory multiple times, which happens in stress
+    // tests, can cause overcounting, leading to GC thrashing. Fix with global
+    // accounting?
+    if (has_flag(kIsShared)) return 0;
+
+    // Wasm backing stores are already accounted for via the
+    // `Managed<BackingStore>` stored in the `WasmMemoryObject`. The latter is
+    // referenced from the `JSArrayBuffer` via the
+    // `array_buffer_wasm_memory_symbol`. (There's a IfChange -> ThenChange lint
+    // check in place for this.)
+    if (is_wasm_memory()) return 0;
+
+    // Check if the backing store has an empty deleter. Even if the backing
+    // store is freed after GC, it would not free the memory block.
+    if (has_flag(kEmptyDeleter)) return 0;
+
     return byte_length();
   }
+
+  uint32_t id() const { return id_; }
+
+  // Return the size of the reservation needed for a wasm backing store.
+  static size_t GetWasmReservationSize(bool has_guard_regions,
+                                       size_t byte_capacity,
+                                       bool is_wasm_memory64);
 
  private:
   friend class GlobalBackingStoreRegistry;
 
-  BackingStore(void* buffer_start, size_t byte_length, size_t byte_capacity,
-               SharedFlag shared, bool is_wasm_memory, bool free_on_destruct,
-               bool has_guard_regions, bool custom_deleter, bool empty_deleter)
-      : buffer_start_(buffer_start),
-        byte_length_(byte_length),
-        byte_capacity_(byte_capacity),
-        is_shared_(shared == SharedFlag::kShared),
-        is_wasm_memory_(is_wasm_memory),
-        holds_shared_ptr_to_allocator_(false),
-        free_on_destruct_(free_on_destruct),
-        has_guard_regions_(has_guard_regions),
-        globally_registered_(false),
-        custom_deleter_(custom_deleter),
-        empty_deleter_(empty_deleter) {}
+  enum Flag {
+    kIsShared,
+    kIsResizableByJs,
+    kIsImmutable,
+    kIsWasmMemory,
+    kIsWasmMemory64,
+    kHoldsSharedPtrToAllocater,
+    kHasGuardRegions,
+    kGloballyRegistered,
+    kCustomDeleter,
+    kEmptyDeleter
+  };
+
+  BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
+               size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
+               ImmutableFlag immutable, bool is_wasm_memory,
+               bool is_wasm_memory64, bool has_guard_regions,
+               bool custom_deleter, bool empty_deleter);
+  BackingStore(const BackingStore&) = delete;
+  BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
 
-  void* buffer_start_ = nullptr;
-  std::atomic<size_t> byte_length_{0};
-  size_t byte_capacity_ = 0;
+  // Accessors for type-specific data.
+  v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();
+  SharedWasmMemoryData* get_shared_wasm_memory_data() const;
 
-  struct DeleterInfo {
-    v8::BackingStore::DeleterCallback callback;
-    void* data;
-  };
+  bool has_flag(Flag flag) const {
+    return flags_.load(std::memory_order_relaxed).contains(flag);
+  }
+  void set_flag(Flag flag) {
+    base::EnumSet<Flag, uint16_t> old_flags =
+        flags_.load(std::memory_order_relaxed);
+    while (!flags_.compare_exchange_weak(old_flags, old_flags | flag,
+                                         std::memory_order_relaxed)) {
+      // Retry with updated `old_flags`.
+    }
+  }
+  void clear_flag(Flag flag) {
+    base::EnumSet<Flag, uint16_t> old_flags =
+        flags_.load(std::memory_order_relaxed);
+    while (!flags_.compare_exchange_weak(old_flags, old_flags - flag,
+                                         std::memory_order_relaxed)) {
+      // Retry with updated `old_flags`.
+    }
+  }
+
+  bool holds_shared_ptr_to_allocator() const {
+    return has_flag(kHoldsSharedPtrToAllocater);
+  }
+  bool custom_deleter() const { return has_flag(kCustomDeleter); }
+  bool globally_registered() const { return has_flag(kGloballyRegistered); }
+
+#ifdef V8_ENABLE_SANDBOX
+  void set_page_allocator(std::weak_ptr<v8::PageAllocator> page_allocator) {
+    page_allocator_ = std::move(page_allocator);
+  }
+#endif
+
+  void* buffer_start_ = nullptr;
+  std::atomic<size_t> byte_length_;
+  // Max byte length of the corresponding JSArrayBuffer(s).
+  size_t max_byte_length_;
+  // Amount of the memory allocated
+  size_t byte_capacity_;
+  // Unique ID of this backing store. Currently only used by DevTools, to
+  // identify stores used by several ArrayBuffers or WebAssembly memories
+  // (reported by the inspector as [[ArrayBufferData]] internal property)
+  const uint32_t id_;
+
+#ifdef V8_ENABLE_SANDBOX
+  std::weak_ptr<v8::PageAllocator> page_allocator_;
+#endif
 
   union TypeSpecificData {
     TypeSpecificData() : v8_api_array_buffer_allocator(nullptr) {}
@@ -189,44 +304,24 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
     // Custom deleter for the backing stores that wrap memory blocks that are
     // allocated with a custom allocator.
-    DeleterInfo deleter;
+    struct DeleterInfo {
+      v8::BackingStore::DeleterCallback callback;
+      void* data;
+    } deleter;
   } type_specific_data_;
 
-  bool is_shared_ : 1;
-  bool is_wasm_memory_ : 1;
-  bool holds_shared_ptr_to_allocator_ : 1;
-  bool free_on_destruct_ : 1;
-  bool has_guard_regions_ : 1;
-  bool globally_registered_ : 1;
-  bool custom_deleter_ : 1;
-  bool empty_deleter_ : 1;
-
-  // Accessors for type-specific data.
-  v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();
-  SharedWasmMemoryData* get_shared_wasm_memory_data();
-
-  void Clear();  // Internally clears fields after deallocation.
-  static std::unique_ptr<BackingStore> TryAllocateWasmMemory(
-      Isolate* isolate, size_t initial_pages, size_t maximum_pages,
-      SharedFlag shared);
-
-  DISALLOW_COPY_AND_ASSIGN(BackingStore);
+  std::atomic<base::EnumSet<Flag, uint16_t>> flags_;
 };
 
-// A global, per-process mapping from buffer addresses to backing stores.
-// This is generally only used for dealing with an embedder that has not
-// migrated to the new API which should use proper pointers to manage
-// backing stores.
+// A global, per-process mapping from buffer addresses to backing stores
+// of wasm memory objects.
 class GlobalBackingStoreRegistry {
  public:
   // Register a backing store in the global registry. A mapping from the
   // {buffer_start} to the backing store object will be added. The backing
   // store will automatically unregister itself upon destruction.
+  // Only wasm memory backing stores are supported.
   static void Register(std::shared_ptr<BackingStore> backing_store);
-
-  // Look up a backing store based on the {buffer_start} pointer.
-  static std::shared_ptr<BackingStore> Lookup(void* buffer_start,
-                                              size_t length);
 
  private:
   friend class BackingStore;
@@ -235,22 +330,21 @@ class GlobalBackingStoreRegistry {
 
   // Adds the given memory object to the backing store's weak list
   // of memory objects (under the registry lock).
-  static void AddSharedWasmMemoryObject(Isolate* isolate,
-                                        BackingStore* backing_store,
-                                        Handle<WasmMemoryObject> memory_object);
+  static void AddSharedWasmMemoryObject(
+      Isolate* isolate, BackingStore* backing_store,
+      DirectHandle<WasmMemoryObject> memory_object);
 
   // Purge any shared wasm memory lists that refer to this isolate.
   static void Purge(Isolate* isolate);
 
   // Broadcast updates to all attached memory objects.
-  static void BroadcastSharedWasmMemoryGrow(
-      Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
+  static void BroadcastSharedWasmMemoryGrow(Isolate* isolate,
+                                            const BackingStore* backing_store);
 
   // Update all shared memory objects in the given isolate.
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_BACKING_STORE_H_

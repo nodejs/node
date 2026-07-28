@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { Readable, Writable } = require('stream');
 
@@ -130,7 +130,7 @@ function end() {
   source.emit('end');
   assert(!reading);
   writer.end(stream.read());
-  setImmediate(function() {
+  setImmediate(common.mustCall(() => {
     assert(ended);
-  });
+  }));
 }

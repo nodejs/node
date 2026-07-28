@@ -32,12 +32,11 @@ int uv_loop_init(uv_loop_t* loop) {
   void* saved_data;
   int err;
 
-
   saved_data = loop->data;
   memset(loop, 0, sizeof(*loop));
   loop->data = saved_data;
 
-  lfields = (uv__loop_internal_fields_t*) uv__calloc(1, sizeof(*lfields));
+  lfields = uv__calloc(1, sizeof(*lfields));
   if (lfields == NULL)
     return UV_ENOMEM;
   loop->internal_fields = lfields;
@@ -45,22 +44,25 @@ int uv_loop_init(uv_loop_t* loop) {
   err = uv_mutex_init(&lfields->loop_metrics.lock);
   if (err)
     goto fail_metrics_mutex_init;
+  memset(&lfields->loop_metrics.metrics,
+         0,
+         sizeof(lfields->loop_metrics.metrics));
 
   heap_init((struct heap*) &loop->timer_heap);
-  QUEUE_INIT(&loop->wq);
-  QUEUE_INIT(&loop->idle_handles);
-  QUEUE_INIT(&loop->async_handles);
-  QUEUE_INIT(&loop->check_handles);
-  QUEUE_INIT(&loop->prepare_handles);
-  QUEUE_INIT(&loop->handle_queue);
+  uv__queue_init(&loop->wq);
+  uv__queue_init(&loop->idle_handles);
+  uv__queue_init(&loop->async_handles);
+  uv__queue_init(&loop->check_handles);
+  uv__queue_init(&loop->prepare_handles);
+  uv__queue_init(&loop->handle_queue);
 
   loop->active_handles = 0;
   loop->active_reqs.count = 0;
   loop->nfds = 0;
   loop->watchers = NULL;
   loop->nwatchers = 0;
-  QUEUE_INIT(&loop->pending_queue);
-  QUEUE_INIT(&loop->watcher_queue);
+  uv__queue_init(&loop->pending_queue);
+  uv__queue_init(&loop->watcher_queue);
 
   loop->closing_handles = NULL;
   uv__update_time(loop);
@@ -79,13 +81,10 @@ int uv_loop_init(uv_loop_t* loop) {
     goto fail_platform_init;
 
   uv__signal_global_once_init();
-  err = uv_signal_init(loop, &loop->child_watcher);
+  err = uv__process_init(loop);
   if (err)
-    goto fail_signal_init;
-
-  uv__handle_unref(&loop->child_watcher);
-  loop->child_watcher.flags |= UV_HANDLE_INTERNAL;
-  QUEUE_INIT(&loop->process_handles);
+    goto fail_process_init;
+  uv__queue_init(&loop->process_handles);
 
   err = uv_rwlock_init(&loop->cloexec_lock);
   if (err)
@@ -111,10 +110,14 @@ fail_mutex_init:
   uv_rwlock_destroy(&loop->cloexec_lock);
 
 fail_rwlock_init:
+fail_process_init:
   uv__signal_loop_cleanup(loop);
-
-fail_signal_init:
   uv__platform_loop_delete(loop);
+
+  if (loop->backend_fd != -1) {
+    uv__close(loop->backend_fd);
+    loop->backend_fd = -1;
+  }
 
 fail_platform_init:
   uv_mutex_destroy(&lfields->loop_metrics.lock);
@@ -152,9 +155,9 @@ int uv_loop_fork(uv_loop_t* loop) {
     if (w == NULL)
       continue;
 
-    if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue)) {
+    if (w->pevents != 0 && uv__queue_empty(&w->watcher_queue)) {
       w->events = 0; /* Force re-registration in uv__io_poll. */
-      QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
+      uv__queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
     }
   }
 
@@ -180,7 +183,7 @@ void uv__loop_close(uv_loop_t* loop) {
   }
 
   uv_mutex_lock(&loop->wq_mutex);
-  assert(QUEUE_EMPTY(&loop->wq) && "thread pool work queue not empty!");
+  assert(uv__queue_empty(&loop->wq) && "thread pool work queue not empty!");
   assert(!uv__has_active_reqs(loop));
   uv_mutex_unlock(&loop->wq_mutex);
   uv_mutex_destroy(&loop->wq_mutex);
@@ -192,8 +195,8 @@ void uv__loop_close(uv_loop_t* loop) {
   uv_rwlock_destroy(&loop->cloexec_lock);
 
 #if 0
-  assert(QUEUE_EMPTY(&loop->pending_queue));
-  assert(QUEUE_EMPTY(&loop->watcher_queue));
+  assert(uv__queue_empty(&loop->pending_queue));
+  assert(uv__queue_empty(&loop->watcher_queue));
   assert(loop->nfds == 0);
 #endif
 
@@ -216,6 +219,14 @@ int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap) {
     lfields->flags |= UV_METRICS_IDLE_TIME;
     return 0;
   }
+
+#if defined(__linux__)
+  if (option == UV_LOOP_USE_IO_URING_SQPOLL) {
+    loop->flags |= UV_LOOP_ENABLE_IO_URING_SQPOLL;
+    return 0;
+  }
+#endif
+
 
   if (option != UV_LOOP_BLOCK_SIGNAL)
     return UV_ENOSYS;

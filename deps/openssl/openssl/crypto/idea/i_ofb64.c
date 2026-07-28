@@ -1,11 +1,18 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * IDEA low level APIs are deprecated for public use, but still ok for internal
+ * use where we're using them to implement the higher level EVP interface, as is
+ * the case here.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/idea.h>
 #include "idea_local.h"
@@ -16,8 +23,8 @@
  * used is contained in *num;
  */
 void IDEA_ofb64_encrypt(const unsigned char *in, unsigned char *out,
-                        long length, IDEA_KEY_SCHEDULE *schedule,
-                        unsigned char *ivec, int *num)
+    long length, IDEA_KEY_SCHEDULE *schedule,
+    unsigned char *ivec, int *num)
 {
     register unsigned long v0, v1, t;
     register int n = *num;
@@ -27,6 +34,12 @@ void IDEA_ofb64_encrypt(const unsigned char *in, unsigned char *out,
     unsigned long ti[2];
     unsigned char *iv;
     int save = 0;
+
+    if (n < 0) {
+        *num = -1;
+        return;
+    }
+    n = n & 0x07;
 
     iv = (unsigned char *)ivec;
     n2l(iv, v0);

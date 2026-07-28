@@ -5,9 +5,6 @@
 #ifndef V8_HEAP_LOCAL_FACTORY_H_
 #define V8_HEAP_LOCAL_FACTORY_H_
 
-#include <map>
-#include <vector>
-
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -15,10 +12,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
-#include "src/objects/heap-object.h"
-#include "src/objects/map.h"
-#include "src/objects/objects.h"
-#include "src/objects/shared-function-info.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -35,8 +28,7 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
 
   ReadOnlyRoots read_only_roots() const { return roots_; }
 
-#define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
-  READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#define ROOT_ACCESSOR(Type, name, CamelName) inline DirectHandle<Type> name();
   // AccessorInfos appear mutable, but they're actually not mutated once they
   // finish initializing. In particular, the root accessors are not mutated and
   // are safe to access (as long as the off-thread job doesn't try to mutate
@@ -46,8 +38,8 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
 
   // The parser shouldn't allow the LocalFactory to get into a state where
   // it generates errors.
-  Handle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
-  Handle<Object> NewRangeError(MessageTemplate template_index) {
+  DirectHandle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
+  DirectHandle<Object> NewRangeError(MessageTemplate template_index) {
     UNREACHABLE();
   }
 
@@ -56,8 +48,9 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
 
   // ------
   // Customization points for FactoryBase.
-  HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kWordAligned);
+  Tagged<HeapObject> AllocateRaw(int size, AllocationType allocation,
+                                 AllocationAlignment alignment = kTaggedAligned,
+                                 AllocationHint hint = AllocationHint());
 
   LocalIsolate* isolate() {
     // Downcast to the privately inherited sub-class using c-style casts to
@@ -66,11 +59,14 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
     // NOLINTNEXTLINE (google-readability-casting)
     return (LocalIsolate*)this;  // NOLINT(readability/casting)
   }
+
   inline bool CanAllocateInReadOnlySpace() { return false; }
   inline bool EmptyStringRootIsInitialized() { return true; }
+  inline AllocationType AllocationTypeForInPlaceInternalizableString();
   // ------
 
-  void AddToScriptList(Handle<Script> shared);
+  void ProcessNewScript(DirectHandle<Script> script,
+                        ScriptEventType script_event_type);
   // ------
 
   ReadOnlyRoots roots_;

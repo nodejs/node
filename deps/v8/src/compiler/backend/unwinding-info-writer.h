@@ -15,7 +15,7 @@
 #include "src/compiler/backend/x64/unwinding-info-writer-x64.h"
 #elif V8_TARGET_ARCH_S390X
 #include "src/compiler/backend/s390/unwinding-info-writer-s390.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/compiler/backend/ppc/unwinding-info-writer-ppc.h"
 #else
 
@@ -33,7 +33,7 @@ namespace compiler {
 
 class InstructionBlock;
 
-static_assert(!FLAG_perf_prof_unwinding_info,
+static_assert(!v8_flags.perf_prof_unwinding_info.value(),
               "--perf-prof-unwinding-info should be statically disabled if not "
               "supported");
 

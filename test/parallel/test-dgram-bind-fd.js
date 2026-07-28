@@ -95,7 +95,7 @@ const BUFFER_SIZE = 4096;
         assert.fail(err.message);
       });
 
-      socket.on('close', common.mustCall(() => {}));
+      socket.on('close', common.mustCall());
     }));
 
     receiver.on('message', common.mustCall((data, { address, port }) => {
@@ -109,7 +109,7 @@ const BUFFER_SIZE = 4096;
       assert.fail(err.message);
     });
 
-    receiver.on('close', common.mustCall(() => {}));
+    receiver.on('close', common.mustCall());
   }
 
   testWithOptions(true, true);

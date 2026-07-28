@@ -31,10 +31,10 @@ const invalidUrls = [
   'ftp://www.example.com',
   'javascript:alert(\'hello\');',
   'xmpp:foo@bar.com',
-  'f://some.host/path'
+  'f://some.host/path',
 ];
 
-invalidUrls.forEach((invalid) => {
+for (const invalid of invalidUrls) {
   assert.throws(
     () => { http.request(url.parse(invalid)); },
     {
@@ -42,4 +42,4 @@ invalidUrls.forEach((invalid) => {
       name: 'TypeError'
     }
   );
-});
+}

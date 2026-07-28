@@ -1,11 +1,13 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#define OPENSSL_SUPPRESS_DEPRECATED /* for BIO_get_callback */
 
 #include <stdio.h>
 #include <errno.h>
@@ -20,16 +22,16 @@ static long enc_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int enc_new(BIO *h);
 static int enc_free(BIO *data);
 static long enc_callback_ctrl(BIO *h, int cmd, BIO_info_cb *fps);
-#define ENC_BLOCK_SIZE  (1024*4)
-#define ENC_MIN_CHUNK   (256)
-#define BUF_OFFSET      (ENC_MIN_CHUNK + EVP_MAX_BLOCK_LENGTH)
+#define ENC_BLOCK_SIZE (1024 * 4)
+#define ENC_MIN_CHUNK (256)
+#define BUF_OFFSET (ENC_MIN_CHUNK + EVP_MAX_BLOCK_LENGTH)
 
 typedef struct enc_struct {
     int buf_len;
     int buf_off;
-    int cont;                   /* <= 0 when finished */
+    int cont; /* <= 0 when finished */
     int finished;
-    int ok;                     /* bad decrypt */
+    int ok; /* bad decrypt */
     EVP_CIPHER_CTX *cipher;
     unsigned char *read_start, *read_end;
     /*
@@ -42,14 +44,12 @@ typedef struct enc_struct {
 static const BIO_METHOD methods_enc = {
     BIO_TYPE_CIPHER,
     "cipher",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     enc_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     enc_read,
-    NULL,                       /* enc_puts, */
-    NULL,                       /* enc_gets, */
+    NULL, /* enc_puts, */
+    NULL, /* enc_gets, */
     enc_ctrl,
     enc_new,
     enc_free,
@@ -65,10 +65,8 @@ static int enc_new(BIO *bi)
 {
     BIO_ENC_CTX *ctx;
 
-    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL) {
-        EVPerr(EVP_F_ENC_NEW, ERR_R_MALLOC_FAILURE);
+    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL)
         return 0;
-    }
 
     ctx->cipher = EVP_CIPHER_CTX_new();
     if (ctx->cipher == NULL) {
@@ -133,7 +131,11 @@ static int enc_read(BIO *b, char *out, int outl)
         }
     }
 
-    blocksize = EVP_CIPHER_CTX_block_size(ctx->cipher);
+    blocksize = EVP_CIPHER_CTX_get_block_size(ctx->cipher);
+
+    if (blocksize == 0)
+        return 0;
+
     if (blocksize == 1)
         blocksize = 0;
 
@@ -159,8 +161,9 @@ static int enc_read(BIO *b, char *out, int outl)
             /* Should be continue next time we are called? */
             if (!BIO_should_retry(next)) {
                 ctx->cont = i;
+                ctx->finished = 1;
                 i = EVP_CipherFinal_ex(ctx->cipher,
-                                       ctx->buf, &(ctx->buf_len));
+                    ctx->buf, &(ctx->buf_len));
                 ctx->ok = i;
                 ctx->buf_off = 0;
             } else {
@@ -177,8 +180,8 @@ static int enc_read(BIO *b, char *out, int outl)
                 int j = outl - blocksize, buf_len;
 
                 if (!EVP_CipherUpdate(ctx->cipher,
-                                      (unsigned char *)out, &buf_len,
-                                      ctx->read_start, i > j ? j : i)) {
+                        (unsigned char *)out, &buf_len,
+                        ctx->read_start, i > j ? j : i)) {
                     BIO_clear_retry_flags(b);
                     return 0;
                 }
@@ -195,8 +198,8 @@ static int enc_read(BIO *b, char *out, int outl)
             if (i > ENC_MIN_CHUNK)
                 i = ENC_MIN_CHUNK;
             if (!EVP_CipherUpdate(ctx->cipher,
-                                  ctx->buf, &ctx->buf_len,
-                                  ctx->read_start, i)) {
+                    ctx->buf, &ctx->buf_len,
+                    ctx->read_start, i)) {
                 BIO_clear_retry_flags(b);
                 ctx->ok = 0;
                 return 0;
@@ -264,8 +267,8 @@ static int enc_write(BIO *b, const char *in, int inl)
     while (inl > 0) {
         n = (inl > ENC_BLOCK_SIZE) ? ENC_BLOCK_SIZE : inl;
         if (!EVP_CipherUpdate(ctx->cipher,
-                              ctx->buf, &ctx->buf_len,
-                              (const unsigned char *)in, n)) {
+                ctx->buf, &ctx->buf_len,
+                (const unsigned char *)in, n)) {
             BIO_clear_retry_flags(b);
             ctx->ok = 0;
             return 0;
@@ -299,6 +302,7 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
     int i;
     EVP_CIPHER_CTX **c_ctx;
     BIO *next;
+    int pend;
 
     ctx = BIO_get_data(b);
     next = BIO_next(b);
@@ -310,11 +314,11 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
         ctx->ok = 1;
         ctx->finished = 0;
         if (!EVP_CipherInit_ex(ctx->cipher, NULL, NULL, NULL, NULL,
-                               EVP_CIPHER_CTX_encrypting(ctx->cipher)))
+                EVP_CIPHER_CTX_is_encrypting(ctx->cipher)))
             return 0;
         ret = BIO_ctrl(next, cmd, num, ptr);
         break;
-    case BIO_CTRL_EOF:         /* More to read */
+    case BIO_CTRL_EOF: /* More to read */
         if (ctx->cont <= 0)
             ret = 1;
         else
@@ -325,17 +329,23 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
         if (ret <= 0)
             ret = BIO_ctrl(next, cmd, num, ptr);
         break;
-    case BIO_CTRL_PENDING:     /* More to read in buffer */
+    case BIO_CTRL_PENDING: /* More to read in buffer */
         ret = ctx->buf_len - ctx->buf_off;
         if (ret <= 0)
             ret = BIO_ctrl(next, cmd, num, ptr);
         break;
     case BIO_CTRL_FLUSH:
         /* do a final write */
- again:
+    again:
         while (ctx->buf_len != ctx->buf_off) {
+            pend = ctx->buf_len - ctx->buf_off;
             i = enc_write(b, NULL, 0);
-            if (i < 0)
+            /*
+             * i should never be > 0 here because we didn't ask to write any
+             * new data. We stop if we get an error or we failed to make any
+             * progress writing pending data.
+             */
+            if (i < 0 || (ctx->buf_len - ctx->buf_off) == pend)
                 return i;
         }
 
@@ -343,8 +353,8 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
             ctx->finished = 1;
             ctx->buf_off = 0;
             ret = EVP_CipherFinal_ex(ctx->cipher,
-                                     (unsigned char *)ctx->buf,
-                                     &(ctx->buf_len));
+                (unsigned char *)ctx->buf,
+                &(ctx->buf_len));
             ctx->ok = (int)ret;
             if (ret <= 0)
                 break;
@@ -355,6 +365,7 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
 
         /* Finally flush the underlying BIO */
         ret = BIO_ctrl(next, cmd, num, ptr);
+        BIO_copy_next_retry(b);
         break;
     case BIO_C_GET_CIPHER_STATUS:
         ret = (long)ctx->ok;
@@ -388,42 +399,53 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
 
 static long enc_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
 {
-    long ret = 1;
     BIO *next = BIO_next(b);
 
     if (next == NULL)
         return 0;
-    switch (cmd) {
-    default:
-        ret = BIO_callback_ctrl(next, cmd, fp);
-        break;
-    }
-    return ret;
+
+    return BIO_callback_ctrl(next, cmd, fp);
 }
 
 int BIO_set_cipher(BIO *b, const EVP_CIPHER *c, const unsigned char *k,
-                   const unsigned char *i, int e)
+    const unsigned char *i, int e)
 {
     BIO_ENC_CTX *ctx;
-    long (*callback) (struct bio_st *, int, const char *, int, long, long);
+    BIO_callback_fn_ex callback_ex;
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    long (*callback)(struct bio_st *, int, const char *, int, long, long) = NULL;
+#endif
 
     ctx = BIO_get_data(b);
     if (ctx == NULL)
         return 0;
 
-    callback = BIO_get_callback(b);
+    if ((callback_ex = BIO_get_callback_ex(b)) != NULL) {
+        if (callback_ex(b, BIO_CB_CTRL, (const char *)c, 0, BIO_CTRL_SET,
+                e, 1, NULL)
+            <= 0)
+            return 0;
+    }
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    else {
+        callback = BIO_get_callback(b);
 
-    if ((callback != NULL) &&
-            (callback(b, BIO_CB_CTRL, (const char *)c, BIO_CTRL_SET, e,
-                      0L) <= 0))
-        return 0;
+        if ((callback != NULL) && (callback(b, BIO_CB_CTRL, (const char *)c, BIO_CTRL_SET, e, 0L) <= 0))
+            return 0;
+    }
+#endif
 
     BIO_set_init(b, 1);
 
     if (!EVP_CipherInit_ex(ctx->cipher, c, NULL, k, i, e))
         return 0;
 
-    if (callback != NULL)
+    if (callback_ex != NULL)
+        return callback_ex(b, BIO_CB_CTRL | BIO_CB_RETURN, (const char *)c, 0,
+            BIO_CTRL_SET, e, 1, NULL);
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    else if (callback != NULL)
         return callback(b, BIO_CB_CTRL, (const char *)c, BIO_CTRL_SET, e, 1L);
+#endif
     return 1;
 }

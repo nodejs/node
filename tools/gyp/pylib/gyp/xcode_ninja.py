@@ -13,15 +13,16 @@ of targets within Xcode.
 """
 
 import errno
-import gyp.generator.ninja
 import os
 import re
 import xml.sax.saxutils
 
+import gyp.generator.ninja
+
 
 def _WriteWorkspace(main_gyp, sources_gyp, params):
-    """ Create a workspace to wrap main and sources gyp paths. """
-    (build_file_root, build_file_ext) = os.path.splitext(main_gyp)
+    """Create a workspace to wrap main and sources gyp paths."""
+    (build_file_root, _build_file_ext) = os.path.splitext(main_gyp)
     workspace_path = build_file_root + ".xcworkspace"
     options = params["options"]
     if options.generator_output:
@@ -43,11 +44,11 @@ def _WriteWorkspace(main_gyp, sources_gyp, params):
     workspace_file = os.path.join(workspace_path, "contents.xcworkspacedata")
 
     try:
-        with open(workspace_file, "r") as input_file:
+        with open(workspace_file) as input_file:
             input_string = input_file.read()
             if input_string == output_string:
                 return
-    except IOError:
+    except OSError:
         # Ignore errors if the file doesn't exist.
         pass
 
@@ -56,7 +57,7 @@ def _WriteWorkspace(main_gyp, sources_gyp, params):
 
 
 def _TargetFromSpec(old_spec, params):
-    """ Create fake target for xcode-ninja wrapper. """
+    """Create fake target for xcode-ninja wrapper."""
     # Determine ninja top level build dir (e.g. /path/to/out).
     ninja_toplevel = None
     jobs = 0
@@ -69,12 +70,11 @@ def _TargetFromSpec(old_spec, params):
 
     target_name = old_spec.get("target_name")
     product_name = old_spec.get("product_name", target_name)
-    product_extension = old_spec.get("product_extension")
 
     ninja_target = {}
     ninja_target["target_name"] = target_name
     ninja_target["product_name"] = product_name
-    if product_extension:
+    if product_extension := old_spec.get("product_extension"):
         ninja_target["product_extension"] = product_extension
     ninja_target["toolset"] = old_spec.get("toolset")
     ninja_target["default_configuration"] = old_spec.get("default_configuration")
@@ -102,9 +102,9 @@ def _TargetFromSpec(old_spec, params):
                     new_xcode_settings[key] = old_xcode_settings[key]
 
             ninja_target["configurations"][config] = {}
-            ninja_target["configurations"][config][
-                "xcode_settings"
-            ] = new_xcode_settings
+            ninja_target["configurations"][config]["xcode_settings"] = (
+                new_xcode_settings
+            )
 
     ninja_target["mac_bundle"] = old_spec.get("mac_bundle", 0)
     ninja_target["mac_xctest_bundle"] = old_spec.get("mac_xctest_bundle", 0)
@@ -137,13 +137,13 @@ def _TargetFromSpec(old_spec, params):
 def IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
     """Limit targets for Xcode wrapper.
 
-  Xcode sometimes performs poorly with too many targets, so only include
-  proper executable targets, with filters to customize.
-  Arguments:
-    target_extras: Regular expression to always add, matching any target.
-    executable_target_pattern: Regular expression limiting executable targets.
-    spec: Specifications for target.
-  """
+    Xcode sometimes performs poorly with too many targets, so only include
+    proper executable targets, with filters to customize.
+    Arguments:
+      target_extras: Regular expression to always add, matching any target.
+      executable_target_pattern: Regular expression limiting executable targets.
+      spec: Specifications for target.
+    """
     target_name = spec.get("target_name")
     # Always include targets matching target_extras.
     if target_extras is not None and re.search(target_extras, target_name):
@@ -154,7 +154,6 @@ def IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
         spec.get("type", "") == "executable"
         and spec.get("product_extension", "") != "bundle"
     ):
-
         # If there is a filter and the target does not match, exclude the target.
         if executable_target_pattern is not None:
             if not re.search(executable_target_pattern, target_name):
@@ -166,14 +165,14 @@ def IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
 def CreateWrapper(target_list, target_dicts, data, params):
     """Initialize targets for the ninja wrapper.
 
-  This sets up the necessary variables in the targets to generate Xcode projects
-  that use ninja as an external builder.
-  Arguments:
-    target_list: List of target pairs: 'base/base.gyp:base'.
-    target_dicts: Dict of target properties keyed on target pair.
-    data: Dict of flattened build files keyed on gyp path.
-    params: Dict of global options for gyp.
-  """
+    This sets up the necessary variables in the targets to generate Xcode projects
+    that use ninja as an external builder.
+    Arguments:
+      target_list: List of target pairs: 'base/base.gyp:base'.
+      target_dicts: Dict of target properties keyed on target pair.
+      data: Dict of flattened build files keyed on gyp path.
+      params: Dict of global options for gyp.
+    """
     orig_gyp = params["build_files"][0]
     for gyp_name, gyp_dict in data.items():
         if gyp_name == orig_gyp:
@@ -214,7 +213,7 @@ def CreateWrapper(target_list, target_dicts, data, params):
         if IsValidTargetForWrapper(target_extras, executable_target_pattern, spec):
             # Add to new_target_list.
             target_name = spec.get("target_name")
-            new_target_name = "%s:%s#target" % (main_gyp, target_name)
+            new_target_name = f"{main_gyp}:{target_name}#target"
             new_target_list.append(new_target_name)
 
             # Add to new_target_dicts.
@@ -282,7 +281,7 @@ def CreateWrapper(target_list, target_dicts, data, params):
 
     # Put sources_to_index in it's own gyp.
     sources_gyp = os.path.join(os.path.dirname(main_gyp), sources_target_name + ".gyp")
-    fully_qualified_target_name = "%s:%s#target" % (sources_gyp, sources_target_name)
+    fully_qualified_target_name = f"{sources_gyp}:{sources_target_name}#target"
 
     # Add to new_target_list, new_target_dicts and new_data.
     new_target_list.append(fully_qualified_target_name)

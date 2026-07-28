@@ -14,7 +14,7 @@ if (os.platform() !== 'win32')
 
 const bench = common.createBenchmark(main, {
   len: messagesLength,
-  dur: [5]
+  dur: [5],
 });
 
 function main({ dur, len }) {

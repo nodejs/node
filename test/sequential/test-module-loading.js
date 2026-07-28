@@ -29,8 +29,7 @@ const path = require('path');
 
 const backslash = /\\/g;
 
-if (!process.env.NODE_PENDING_DEPRECATION)
-  process.on('warning', common.mustNotCall());
+process.on('warning', common.mustCall());
 
 console.error('load test-module-loading.js');
 
@@ -107,20 +106,29 @@ const d2 = require('../fixtures/b/d');
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main-index').ok, 'ok');
+
+common.expectWarning(
+  'DeprecationWarning',
+  "Invalid 'main' field in '" +
+  path.toNamespacedPath(require.resolve('../fixtures/packages/missing-main/package.json')) +
+  "' of 'doesnotexist.js'. Please either fix that or report it to the" +
+  ' module author',
+  'DEP0128');
 assert.strictEqual(require('../fixtures/packages/missing-main').ok, 'ok');
+
 assert.throws(
   () => require('../fixtures/packages/missing-main-no-index'),
   {
     code: 'MODULE_NOT_FOUND',
     message: /packages[/\\]missing-main-no-index[/\\]doesnotexist\.js'\. Please.+package\.json.+valid "main"/,
     path: /fixtures[/\\]packages[/\\]missing-main-no-index[/\\]package\.json/,
-    requestPath: /^\.\.[/\\]fixtures[/\\]packages[/\\]missing-main-no-index$/
+    requestPath: /^\.\.[/\\]fixtures[/\\]packages[/\\]missing-main-no-index$/,
   }
 );
 
 assert.throws(
   function() { require('../fixtures/packages/unparseable'); },
-  /^SyntaxError: Error parsing/
+  { code: 'ERR_INVALID_PACKAGE_CONFIG' }
 );
 
 {
@@ -157,13 +165,13 @@ try {
 assert.strictEqual(path.dirname(__filename), __dirname);
 
 console.error('load custom file types with extensions');
-require.extensions['.test'] = function(module, filename) {
+require.extensions['.test'] = common.mustCall(function(module, filename) {
   let content = fs.readFileSync(filename).toString();
   assert.strictEqual(content, 'this is custom source\n');
   content = content.replace('this is custom source',
                             'exports.test = \'passed\'');
   module._compile(content, filename);
-};
+});
 
 assert.strictEqual(require('../fixtures/registerExt').test, 'passed');
 // Unknown extension, load as .js
@@ -173,7 +181,7 @@ assert.strictEqual(require('../fixtures/registerExt.hello.world').test,
 console.error('load custom file types that return non-strings');
 require.extensions['.test'] = function(module) {
   module.exports = {
-    custom: 'passed'
+    custom: 'passed',
   };
 };
 
@@ -206,9 +214,9 @@ assert.throws(
     (e) => {
       // Not a real .node module, but we know we require'd the right thing.
       if (common.isOpenBSD) { // OpenBSD errors with non-ELF object error
-        assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message, /File not an ELF object/);
       } else {
-        assert.ok(/file3\.node/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message, /file3\.node/);
       }
       return true;
     }
@@ -221,9 +229,9 @@ assert.throws(
     () => require(`${loadOrder}file7`),
     (e) => {
       if (common.isOpenBSD) {
-        assert.ok(/File not an ELF object/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message, /File not an ELF object/);
       } else {
-        assert.ok(/file7\/index\.node/.test(e.message.replace(backslash, '/')));
+        assert.match(e.message.replace(backslash, '/'), /file7\/index\.node/);
       }
       return true;
     }
@@ -248,7 +256,7 @@ assert.throws(
   assert.deepStrictEqual(json, {
     name: 'package-name',
     version: '1.2.3',
-    main: 'package-main-module'
+    main: 'package-main-module',
   });
 }
 
@@ -270,21 +278,21 @@ assert.throws(
 
   assert.deepStrictEqual(children, {
     'common/index.js': {
-      'common/tmpdir.js': {}
+      'common/tmpdir.js': {},
     },
     'fixtures/not-main-module.js': {},
     'fixtures/a.js': {
       'fixtures/b/c.js': {
         'fixtures/b/d.js': {},
-        'fixtures/b/package/index.js': {}
-      }
+        'fixtures/b/package/index.js': {},
+      },
     },
     'fixtures/foo': {},
     'fixtures/nested-index/one/index.js': {
-      'fixtures/nested-index/one/hello.js': {}
+      'fixtures/nested-index/one/hello.js': {},
     },
     'fixtures/nested-index/two/index.js': {
-      'fixtures/nested-index/two/hello.js': {}
+      'fixtures/nested-index/two/hello.js': {},
     },
     'fixtures/nested-index/three.js': {},
     'fixtures/nested-index/three/index.js': {},
@@ -293,13 +301,13 @@ assert.throws(
     'fixtures/packages/main-index/package-main-module/index.js': {},
     'fixtures/packages/missing-main/index.js': {},
     'fixtures/cycles/root.js': {
-      'fixtures/cycles/folder/foo.js': {}
+      'fixtures/cycles/folder/foo.js': {},
     },
     'fixtures/node_modules/foo.js': {
       'fixtures/node_modules/baz/index.js': {
         'fixtures/node_modules/bar.js': {},
-        'fixtures/node_modules/baz/node_modules/asdf.js': {}
-      }
+        'fixtures/node_modules/baz/node_modules/asdf.js': {},
+      },
     },
     'fixtures/path.js': {},
     'fixtures/registerExt.test': {},
@@ -314,10 +322,10 @@ assert.throws(
     'fixtures/module-load-order/file9/index.reg2': {},
     'fixtures/module-require/parent/index.js': {
       'fixtures/module-require/child/index.js': {
-        'fixtures/module-require/child/node_modules/target.js': {}
-      }
+        'fixtures/module-require/child/node_modules/target.js': {},
+      },
     },
-    'fixtures/packages/main/package.json': {}
+    'fixtures/packages/main/package.json': {},
   });
 }
 

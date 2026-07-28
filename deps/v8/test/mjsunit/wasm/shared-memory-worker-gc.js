@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads --expose-gc
+// Flags: --expose-gc
 
 const kNumMessages = 1000;
 
@@ -11,12 +11,14 @@ function AllocMemory(pages = 1, max = pages) {
 }
 
 (function RunTest() {
-  let worker = new Worker(
-`onmessage =
-   function(msg) {
-     if (msg.memory) postMessage({memory : msg.memory});
-     gc();
-}`, {type : 'string'});
+  function workerCode() {
+    onmessage = function({data:msg}) {
+      if (msg.memory) postMessage({memory : msg.memory});
+      gc();
+    }
+  }
+
+  let worker = new Worker(workerCode, {type: 'function'});
 
   let time = performance.now();
 

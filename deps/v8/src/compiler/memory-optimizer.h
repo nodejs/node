@@ -9,6 +9,25 @@
 #include "src/compiler/memory-lowering.h"
 #include "src/zone/zone-containers.h"
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/compiler/wasm-address-reassociation.h"
+#else
+namespace v8 {
+namespace internal {
+namespace compiler {
+
+class V8_EXPORT_PRIVATE WasmAddressReassociation final {
+ public:
+  WasmAddressReassociation(JSGraph* jsgraph, Zone* zone) {}
+  void Optimize() {}
+  void VisitProtectedMemOp(Node* node, uint32_t effect_chain) {}
+};
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -17,7 +36,7 @@ class TickCounter;
 namespace compiler {
 
 class JSGraph;
-class Graph;
+class TFGraph;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
@@ -29,10 +48,10 @@ using NodeId = uint32_t;
 // operators.
 class MemoryOptimizer final {
  public:
-  MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
-                  PoisoningMitigationLevel poisoning_level,
+  MemoryOptimizer(JSHeapBroker* broker, JSGraph* jsgraph, Zone* zone,
                   MemoryLowering::AllocationFolding allocation_folding,
-                  const char* function_debug_name, TickCounter* tick_counter);
+                  const char* function_debug_name, TickCounter* tick_counter,
+                  bool is_wasm);
   ~MemoryOptimizer() = default;
 
   void Optimize();
@@ -48,25 +67,32 @@ class MemoryOptimizer final {
   struct Token {
     Node* node;
     AllocationState const* state;
+    // The most recent EffectPhi in the chain, which is used as a heuristic by
+    // address reassociation.
+    NodeId effect_chain;
   };
 
-  void VisitNode(Node*, AllocationState const*);
-  void VisitAllocateRaw(Node*, AllocationState const*);
-  void VisitCall(Node*, AllocationState const*);
-  void VisitLoadFromObject(Node*, AllocationState const*);
-  void VisitLoadElement(Node*, AllocationState const*);
-  void VisitLoadField(Node*, AllocationState const*);
-  void VisitStoreToObject(Node*, AllocationState const*);
-  void VisitStoreElement(Node*, AllocationState const*);
-  void VisitStoreField(Node*, AllocationState const*);
-  void VisitStore(Node*, AllocationState const*);
-  void VisitOtherEffect(Node*, AllocationState const*);
+  void VisitNode(Node*, AllocationState const*, NodeId);
+  void VisitAllocateRaw(Node*, AllocationState const*, NodeId);
+  void VisitCall(Node*, AllocationState const*, NodeId);
+  void VisitLoadFromObject(Node*, AllocationState const*, NodeId);
+  void VisitLoadElement(Node*, AllocationState const*, NodeId);
+  void VisitLoadField(Node*, AllocationState const*, NodeId);
+  void VisitProtectedLoad(Node*, AllocationState const*, NodeId);
+  void VisitProtectedStore(Node*, AllocationState const*, NodeId);
+  void VisitStoreToObject(Node*, AllocationState const*, NodeId);
+  void VisitStoreElement(Node*, AllocationState const*, NodeId);
+  void VisitStoreField(Node*, AllocationState const*, NodeId);
+  void VisitStore(Node*, AllocationState const*, NodeId);
+  void VisitOtherEffect(Node*, AllocationState const*, NodeId);
 
   AllocationState const* MergeStates(AllocationStates const& states);
 
   void EnqueueMerge(Node*, int, AllocationState const*);
-  void EnqueueUses(Node*, AllocationState const*);
-  void EnqueueUse(Node*, int, AllocationState const*);
+  void EnqueueUses(Node*, AllocationState const*, NodeId);
+  void EnqueueUse(Node*, int, AllocationState const*, NodeId);
+
+  void ReplaceUsesAndKillNode(Node* node, Node* replacement);
 
   // Returns true if the AllocationType of the current AllocateRaw node that we
   // are visiting needs to be updated to kOld, due to propagation of tenuring
@@ -75,12 +101,16 @@ class MemoryOptimizer final {
 
   AllocationState const* empty_state() const { return empty_state_; }
   MemoryLowering* memory_lowering() { return &memory_lowering_; }
-  Graph* graph() const;
+  WasmAddressReassociation* wasm_address_reassociation() {
+    return &wasm_address_reassociation_;
+  }
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return zone_; }
 
   JSGraphAssembler graph_assembler_;
   MemoryLowering memory_lowering_;
+  WasmAddressReassociation wasm_address_reassociation_;
   JSGraph* jsgraph_;
   AllocationState const* const empty_state_;
   ZoneMap<NodeId, AllocationStates> pending_;

@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
   count: [5, 10, 20],
   context: ['context', 'null'],
   rest: [0, 1],
-  n: [5e6]
+  n: [5e6],
 });
 
 function makeTest(count, rest) {

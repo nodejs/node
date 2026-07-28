@@ -31,4 +31,10 @@ const ws = new Writable({
 
 res.assignSocket(ws);
 
+assert.throws(function() {
+  res.assignSocket(ws);
+}, {
+  code: 'ERR_HTTP_SOCKET_ASSIGNED'
+});
+
 res.end('hello world');

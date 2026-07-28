@@ -12,10 +12,11 @@ const binObj = (name, bin) =>
 
 const hasBin = (pkg, path) => {
   const bin = binObj(pkg.name, pkg.bin)
-  const p = path.replace(/^[^\\\/]*\//, '')
-  for (const [k, v] of Object.entries(bin)) {
-    if (v === p)
+  const p = path.replace(/^[^\\/]*\//, '')
+  for (const kv of Object.entries(bin)) {
+    if (kv[1] === p) {
       return true
+    }
   }
   return false
 }

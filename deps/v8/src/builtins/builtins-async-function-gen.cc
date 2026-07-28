@@ -5,13 +5,15 @@
 #include "src/builtins/builtins-async-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 class AsyncFunctionBuiltinsAssembler : public AsyncBuiltinsAssembler {
  public:
@@ -20,7 +22,7 @@ class AsyncFunctionBuiltinsAssembler : public AsyncBuiltinsAssembler {
 
  protected:
   template <typename Descriptor>
-  void AsyncFunctionAwait(const bool is_predicted_as_caught);
+  void AsyncFunctionAwait();
 
   void AsyncFunctionAwaitResumeClosure(
       const TNode<Context> context, const TNode<Object> sent_value,
@@ -34,28 +36,13 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
          resume_mode == JSGeneratorObject::kThrow);
 
   TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
-
-  // Push the promise for the {async_function_object} back onto the catch
-  // prediction stack to handle exceptions thrown after resuming from the
-  // await properly.
-  Label if_instrumentation(this, Label::kDeferred),
-      if_instrumentation_done(this);
-  Branch(IsDebugActive(), &if_instrumentation, &if_instrumentation_done);
-  BIND(&if_instrumentation);
-  {
-    TNode<JSPromise> promise = LoadObjectField<JSPromise>(
-        async_function_object, JSAsyncFunctionObject::kPromiseOffset);
-    CallRuntime(Runtime::kDebugAsyncFunctionResumed, context, promise);
-    Goto(&if_instrumentation_done);
-  }
-  BIND(&if_instrumentation_done);
+      CAST(LoadContextElementNoCell(context, Context::EXTENSION_INDEX));
 
   // Inline version of GeneratorPrototypeNext / GeneratorPrototypeReturn with
   // unnecessary runtime checks removed.
 
   // Ensure that the {async_function_object} is neither closed nor running.
-  CSA_SLOW_ASSERT(
+  CSA_SLOW_DCHECK(
       this, SmiGreaterThan(
                 LoadObjectField<Smi>(async_function_object,
                                      JSGeneratorObject::kContinuationOffset),
@@ -67,8 +54,8 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
                                  SmiConstant(resume_mode));
 
   // Resume the {receiver} using our trampoline.
-  Callable callable = CodeFactory::ResumeGenerator(isolate());
-  CallStub(callable, context, sent_value, async_function_object);
+  CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, sent_value,
+              async_function_object);
 
   // The resulting Promise is a throwaway, so it doesn't matter what it
   // resolves to. What is important is that we don't end up keeping the
@@ -77,16 +64,15 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
 }
 
 TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSFunction> closure = CAST(Parameter(Descriptor::kClosure));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto closure = Parameter<JSFunction>(Descriptor::kClosure);
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // Compute the number of registers and parameters.
   TNode<SharedFunctionInfo> shared = LoadObjectField<SharedFunctionInfo>(
       closure, JSFunction::kSharedFunctionInfoOffset);
-  TNode<IntPtrT> formal_parameter_count =
-      ChangeInt32ToIntPtr(LoadObjectField<Uint16T>(
-          shared, SharedFunctionInfo::kFormalParameterCountOffset));
+  TNode<IntPtrT> formal_parameter_count = ChangeInt32ToIntPtr(
+      LoadSharedFunctionInfoFormalParameterCountWithoutReceiver(shared));
   TNode<BytecodeArray> bytecode_array =
       LoadSharedFunctionInfoBytecodeArray(shared);
   TNode<IntPtrT> frame_size = ChangeInt32ToIntPtr(LoadObjectField<Uint32T>(
@@ -97,37 +83,21 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
 
   // Allocate and initialize the register file.
   TNode<FixedArrayBase> parameters_and_registers =
-      AllocateFixedArray(HOLEY_ELEMENTS, parameters_and_register_length,
-                         kAllowLargeObjectAllocation);
+      AllocateFixedArray(HOLEY_ELEMENTS, parameters_and_register_length);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
                           IntPtrConstant(0), parameters_and_register_length,
                           RootIndex::kUndefinedValue);
 
-  // Allocate space for the promise, the async function object.
-  TNode<IntPtrT> size = IntPtrConstant(JSPromise::kSizeWithEmbedderFields +
-                                       JSAsyncFunctionObject::kHeaderSize);
-  TNode<HeapObject> base = AllocateInNewSpace(size);
+  // Allocate and initialize the promise.
+  TNode<JSPromise> promise = NewJSPromise(context);
 
-  // Initialize the promise.
+  // Allocate and initialize the async function object.
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<JSFunction> promise_function =
-      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
-  TNode<Map> promise_map = LoadObjectField<Map>(
-      promise_function, JSFunction::kPrototypeOrInitialMapOffset);
-  TNode<JSPromise> promise = UncheckedCast<JSPromise>(
-      InnerAllocate(base, JSAsyncFunctionObject::kHeaderSize));
-  StoreMapNoWriteBarrier(promise, promise_map);
-  StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
-                       RootIndex::kEmptyFixedArray);
-  StoreObjectFieldRoot(promise, JSPromise::kElementsOffset,
-                       RootIndex::kEmptyFixedArray);
-  PromiseInit(promise);
-
-  // Initialize the async function object.
-  TNode<Map> async_function_object_map = CAST(LoadContextElement(
+  TNode<Map> async_function_object_map = CAST(LoadContextElementNoCell(
       native_context, Context::ASYNC_FUNCTION_OBJECT_MAP_INDEX));
   TNode<JSAsyncFunctionObject> async_function_object =
-      UncheckedCast<JSAsyncFunctionObject>(base);
+      UncheckedCast<JSAsyncFunctionObject>(
+          AllocateInNewSpace(JSAsyncFunctionObject::kHeaderSize));
   StoreMapNoWriteBarrier(async_function_object, async_function_object_map);
   StoreObjectFieldRoot(async_function_object,
                        JSAsyncFunctionObject::kPropertiesOrHashOffset,
@@ -157,81 +127,61 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset, promise);
 
-  // Fire promise hooks if enabled and push the Promise under construction
-  // in an async function on the catch prediction stack to handle exceptions
-  // thrown before the first await.
-  Label if_instrumentation(this, Label::kDeferred),
-      if_instrumentation_done(this);
-  Branch(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
-         &if_instrumentation, &if_instrumentation_done);
-  BIND(&if_instrumentation);
-  {
-    CallRuntime(Runtime::kDebugAsyncFunctionEntered, context, promise);
-    Goto(&if_instrumentation_done);
-  }
-  BIND(&if_instrumentation_done);
+  // Initialize closure fields to undefined. They will be lazily allocated
+  // on first await. This saves memory for async functions that never suspend
+  // (e.g., conditional awaits, early returns).
+  StoreObjectFieldRoot(async_function_object,
+                       JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+                       RootIndex::kUndefinedValue);
+  StoreObjectFieldRoot(async_function_object,
+                       JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+                       RootIndex::kUndefinedValue);
 
   Return(async_function_object);
 }
 
 TF_BUILTIN(AsyncFunctionReject, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(Parameter(Descriptor::kAsyncFunctionObject));
-  TNode<Object> reason = CAST(Parameter(Descriptor::kReason));
-  TNode<Oddball> can_suspend = CAST(Parameter(Descriptor::kCanSuspend));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto async_function_object =
+      Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
+  auto reason = Parameter<Object>(Descriptor::kReason);
+  auto context = Parameter<Context>(Descriptor::kContext);
   TNode<JSPromise> promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
   // Reject the {promise} for the given {reason}, disabling the
   // additional debug event for the rejection since a debug event
   // already happend for the exception that got us here.
-  CallBuiltin(Builtins::kRejectPromise, context, promise, reason,
+  CallBuiltin(Builtin::kRejectPromise, context, promise, reason,
               FalseConstant());
 
-  Label if_debugging(this, Label::kDeferred);
-  GotoIf(HasAsyncEventDelegate(), &if_debugging);
-  GotoIf(IsDebugActive(), &if_debugging);
   Return(promise);
-
-  BIND(&if_debugging);
-  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, can_suspend,
-                  promise);
 }
 
 TF_BUILTIN(AsyncFunctionResolve, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(Parameter(Descriptor::kAsyncFunctionObject));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Oddball> can_suspend = CAST(Parameter(Descriptor::kCanSuspend));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  auto async_function_object =
+      Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
   TNode<JSPromise> promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
-  CallBuiltin(Builtins::kResolvePromise, context, promise, value);
+  CallBuiltin(Builtin::kResolvePromise, context, promise, value);
 
-  Label if_debugging(this, Label::kDeferred);
-  GotoIf(HasAsyncEventDelegate(), &if_debugging);
-  GotoIf(IsDebugActive(), &if_debugging);
   Return(promise);
-
-  BIND(&if_debugging);
-  TailCallRuntime(Runtime::kDebugAsyncFunctionFinished, context, can_suspend,
-                  promise);
 }
 
 // AsyncFunctionReject and AsyncFunctionResolve are both required to return
 // the promise instead of the result of RejectPromise or ResolvePromise
 // respectively from a lazy deoptimization.
 TF_BUILTIN(AsyncFunctionLazyDeoptContinuation, AsyncFunctionBuiltinsAssembler) {
-  TNode<JSPromise> promise = CAST(Parameter(Descriptor::kPromise));
+  auto promise = Parameter<JSPromise>(Descriptor::kPromise);
   Return(promise);
 }
 
 TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  const TNode<Object> sentError = CAST(Parameter(Descriptor::kSentError));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  CSA_DCHECK_JS_ARGC_EQ(this, 1);
+  const auto sentError = Parameter<Object>(Descriptor::kSentError);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   AsyncFunctionAwaitResumeClosure(context, sentError,
                                   JSGeneratorObject::kThrow);
@@ -239,9 +189,9 @@ TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  const TNode<Object> sentValue = CAST(Parameter(Descriptor::kSentValue));
-  const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  CSA_DCHECK_JS_ARGC_EQ(this, 1);
+  const auto sentValue = Parameter<Object>(Descriptor::kSentValue);
+  const auto context = Parameter<Context>(Descriptor::kContext);
 
   AsyncFunctionAwaitResumeClosure(context, sentValue, JSGeneratorObject::kNext);
   Return(UndefinedConstant());
@@ -256,50 +206,29 @@ TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
 // The 'value' parameter is the value; the .generator_object stands in
 // for the asyncContext.
 template <typename Descriptor>
-void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
-    const bool is_predicted_as_caught) {
-  TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(Parameter(Descriptor::kAsyncFunctionObject));
-  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
+  auto async_function_object =
+      Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
 
-  Label after_debug_hook(this), call_debug_hook(this, Label::kDeferred);
-  GotoIf(HasAsyncEventDelegate(), &call_debug_hook);
-  Goto(&after_debug_hook);
-  BIND(&after_debug_hook);
-
-  TNode<SharedFunctionInfo> on_resolve_sfi =
-      AsyncFunctionAwaitResolveSharedFunConstant();
-  TNode<SharedFunctionInfo> on_reject_sfi =
-      AsyncFunctionAwaitRejectSharedFunConstant();
-  Await(context, async_function_object, value, outer_promise, on_resolve_sfi,
-        on_reject_sfi, is_predicted_as_caught);
+  AwaitWithReusableClosures(context, async_function_object, value,
+                            outer_promise);
 
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.
   Return(outer_promise);
-
-  BIND(&call_debug_hook);
-  CallRuntime(Runtime::kDebugAsyncFunctionSuspended, context, outer_promise);
-  Goto(&after_debug_hook);
 }
 
-// Called by the parser from the desugaring of 'await' when catch
-// prediction indicates that there is a locally surrounding catch block.
-TF_BUILTIN(AsyncFunctionAwaitCaught, AsyncFunctionBuiltinsAssembler) {
-  static const bool kIsPredictedAsCaught = true;
-  AsyncFunctionAwait<Descriptor>(kIsPredictedAsCaught);
+// Called by the parser from the desugaring of 'await'.
+TF_BUILTIN(AsyncFunctionAwait, AsyncFunctionBuiltinsAssembler) {
+  AsyncFunctionAwait<Descriptor>();
 }
 
-// Called by the parser from the desugaring of 'await' when catch
-// prediction indicates no locally surrounding catch block.
-TF_BUILTIN(AsyncFunctionAwaitUncaught, AsyncFunctionBuiltinsAssembler) {
-  static const bool kIsPredictedAsCaught = false;
-  AsyncFunctionAwait<Descriptor>(kIsPredictedAsCaught);
-}
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

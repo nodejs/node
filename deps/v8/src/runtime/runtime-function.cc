@@ -3,12 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/builtins/accessors.h"
-#include "src/codegen/compiler.h"
-#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/logging/counters.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -17,12 +13,12 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
+  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
 
-  if (function->IsJSFunction()) {
-    Handle<Object> script(Handle<JSFunction>::cast(function)->shared().script(),
-                          isolate);
-    if (script->IsScript()) return Handle<Script>::cast(script)->source();
+  if (IsJSFunction(*function)) {
+    DirectHandle<Object> script(Cast<JSFunction>(function)->shared()->script(),
+                                isolate);
+    if (IsScript(*script)) return Cast<Script>(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -30,13 +26,13 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
+  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
 
-  if (function->IsJSFunction()) {
-    Handle<Object> script(Handle<JSFunction>::cast(function)->shared().script(),
-                          isolate);
-    if (script->IsScript()) {
-      return Smi::FromInt(Handle<Script>::cast(script)->id());
+  if (IsJSFunction(*function)) {
+    DirectHandle<Object> script(Cast<JSFunction>(function)->shared()->script(),
+                                isolate);
+    if (IsScript(*script)) {
+      return Smi::FromInt(Cast<Script>(script)->id());
     }
   }
   return Smi::FromInt(-1);
@@ -45,57 +41,45 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
 RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
-  if (function->IsJSFunction()) {
-    Handle<SharedFunctionInfo> shared(
-        Handle<JSFunction>::cast(function)->shared(), isolate);
-    return *SharedFunctionInfo::GetSourceCode(shared);
+  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
+  if (IsJSFunction(*function)) {
+    DirectHandle<SharedFunctionInfo> shared(
+        Cast<JSFunction>(function)->shared(), isolate);
+    return *SharedFunctionInfo::GetSourceCode(isolate, shared);
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
-
 
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  int pos = fun.shared().StartPosition();
+  auto fun = Cast<JSFunction>(args[0]);
+  int pos = fun->shared()->StartPosition();
   return Smi::FromInt(pos);
 }
-
 
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return isolate->heap()->ToBoolean(f.shared().IsApiFunction());
+  auto f = Cast<JSFunction>(args[0]);
+  return ReadOnlyRoots(isolate).boolean_value(f->shared()->IsApiFunction());
 }
-
 
 RUNTIME_FUNCTION(Runtime_Call) {
   HandleScope scope(isolate);
   DCHECK_LE(2, args.length());
   int const argc = args.length() - 2;
-  CONVERT_ARG_HANDLE_CHECKED(Object, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  ScopedVector<Handle<Object>> argv(argc);
+  DirectHandle<Object> target = args.at(0);
+  DirectHandle<Object> receiver = args.at(1);
+  DirectHandleVector<Object> arguments(isolate, argc);
   for (int i = 0; i < argc; ++i) {
-    argv[i] = args.at(2 + i);
+    arguments[i] = args.at(2 + i);
   }
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, target, receiver, argc, argv.begin()));
+  RETURN_RESULT_OR_FAILURE(isolate, Execution::Call(isolate, target, receiver,
+                                                    base::VectorOf(arguments)));
 }
-
-
-RUNTIME_FUNCTION(Runtime_IsFunction) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-  return isolate->heap()->ToBoolean(object.IsFunction());
-}
-
 
 }  // namespace internal
 }  // namespace v8

@@ -5,10 +5,10 @@ Testing regular Proxy
     result : {
         result : {
             className : Object
-            description : Proxy
+            description : Proxy(Object)
             objectId : <objectId>
             preview : {
-                description : Proxy
+                description : Proxy(Object)
                 overflow : false
                 properties : [
                     [0] : {
@@ -65,10 +65,10 @@ Testing revocable Proxy
     result : {
         result : {
             className : Object
-            description : Proxy
+            description : Proxy(Object)
             objectId : <objectId>
             preview : {
-                description : Proxy
+                description : Proxy(Object)
                 overflow : false
                 properties : [
                     [0] : {

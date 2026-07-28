@@ -5,8 +5,7 @@
 #ifndef V8_CODEGEN_IA32_REGISTER_IA32_H_
 #define V8_CODEGEN_IA32_REGISTER_IA32_H_
 
-#include "src/codegen/register.h"
-#include "src/codegen/reglist.h"
+#include "src/codegen/register-base.h"
 
 namespace v8 {
 namespace internal {
@@ -42,13 +41,16 @@ namespace internal {
 #define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
+  V(xmm0)                               \
   V(xmm1)                               \
   V(xmm2)                               \
   V(xmm3)                               \
   V(xmm4)                               \
   V(xmm5)                               \
-  V(xmm6)                               \
-  V(xmm7)
+  V(xmm6)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS esi, edi, ebx
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
@@ -67,8 +69,15 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 ASSERT_TRIVIALLY_COPYABLE(Register);
-static_assert(sizeof(Register) == sizeof(int),
+static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
+
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
 
 #define DEFINE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
@@ -76,8 +85,13 @@ GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr Register no_reg = Register::no_reg();
 
-constexpr bool kPadArguments = false;
-constexpr bool kSimpleFPAliasing = true;
+// Returns the number of padding slots needed for stack pointer alignment.
+constexpr int ArgumentPaddingSlots(int argument_count) {
+  // No argument padding required.
+  return 0;
+}
+
+constexpr AliasingKind kFPAliasing = AliasingKind::kOverlap;
 constexpr bool kSimdMaskRegisters = false;
 
 enum DoubleCode {
@@ -107,17 +121,6 @@ constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 // Note that the bit values must match those used in actual instruction encoding
 constexpr int kNumRegs = 8;
 
-// Caller-saved registers
-constexpr RegList kJSCallerSaved =
-    Register::ListOf(eax, ecx, edx,
-                     ebx,   // used as caller-saved register in JavaScript code
-                     edi);  // callee function
-
-constexpr int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-constexpr int kNumSafepointRegisters = 8;
-
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
@@ -138,28 +141,24 @@ constexpr Register kJavaScriptCallArgCountRegister = eax;
 constexpr Register kJavaScriptCallCodeStartRegister = ecx;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = edx;
+// DispatchHandle is only needed for the sandbox which is not available on Ia32.
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 // The ExtraArg1Register not part of the real JS calling convention and is
 // mostly there to simplify consistent interface descriptor definitions across
 // platforms. Note that on ia32 it aliases kJavaScriptCallCodeStartRegister.
 constexpr Register kJavaScriptCallExtraArg1Register = ecx;
 
-// The off-heap trampoline does not need a register on ia32 (it uses a
-// pc-relative call instead).
-constexpr Register kOffHeapTrampolineRegister = no_reg;
-
 constexpr Register kRuntimeCallFunctionRegister = edx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
 constexpr Register kRuntimeCallArgvRegister = ecx;
-constexpr Register kWasmInstanceRegister = esi;
+constexpr Register kWasmImplicitArgRegister = esi;
 constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 constexpr Register kRootRegister = ebx;
 
-// TODO(860429): Remove remaining poisoning infrastructure on ia32.
-constexpr Register kSpeculationPoisonRegister = no_reg;
-
-constexpr DoubleRegister kFPReturnRegister0 = xmm1;  // xmm0 isn't allocatable.
+constexpr DoubleRegister kFPReturnRegister0 = xmm0;
+constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 }  // namespace internal
 }  // namespace v8

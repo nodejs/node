@@ -6,12 +6,10 @@
 
 function get_thin_string(a, b) {
   var str = a + b;  // Make a ConsString.
-  var o = {};
-  o[str];  // Turn it into a ThinString.
-  return str;
+  return %ConstructThinString(str);
 }
 
-var str = get_thin_string("foo", "bar");
+var str = get_thin_string('foofoo', 'barbarbar');
 
 var re = /.o+ba./;
 assertEquals(["foobar"], re.exec(str));
@@ -94,3 +92,40 @@ cc2(t);
 cc2(t);
 %OptimizeFunctionOnNextCall(cc2);
 cc2(t);
+
+function string_table_lookup_sliced_thin_string(a, b) {
+  // Make a ConsString.
+  var s = a + b;
+  // Slice a substring out of it.
+  var slice = s.substring(0, 20);
+  // Make the original string thin.
+  var o = {};
+  o[s];
+  // Try to internalize the SlicedString.
+  o[slice];
+}
+
+string_table_lookup_sliced_thin_string(
+    'abcdefghijklmnopqrstuvwxyz', '0123456789');
+
+function test(str) {
+  let a = '1234567890abcdef' + str;
+  assertEquals(a, '1234567890abcdeffoofoobarbarbar');
+  let b = str + '1234567890abcdef';
+  assertEquals(b, 'foofoobarbarbar1234567890abcdef');
+  let c = a + b;
+  assertEquals(
+      c, '1234567890abcdeffoofoobarbarbarfoofoobarbarbar1234567890abcdef');
+  let d = str + '1234567890abcdef' + str;
+  assertEquals(d, 'foofoobarbarbar1234567890abcdeffoofoobarbarbar');
+  let s = String(1.1);
+  let e = '1234567890abcdef' + str + s;
+  assertEquals(e, '1234567890abcdeffoofoobarbarbar1.1');
+  let f = '1234567890abcdef' + s + str;
+  assertEquals(f, '1234567890abcdef1.1foofoobarbarbar');
+}
+
+%PrepareFunctionForOptimization(test);
+test(str);
+%OptimizeFunctionOnNextCall(test);
+test(str);

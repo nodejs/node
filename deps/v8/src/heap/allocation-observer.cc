@@ -4,6 +4,8 @@
 
 #include "src/heap/allocation-observer.h"
 
+#include <algorithm>
+
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 
@@ -35,8 +37,8 @@ void AllocationCounter::AddAllocationObserver(AllocationObserver* observer) {
     next_counter_ = observer_next_counter;
   } else {
     size_t missing_bytes = next_counter_ - current_counter_;
-    next_counter_ =
-        current_counter_ + Min(static_cast<intptr_t>(missing_bytes), step_size);
+    next_counter_ = current_counter_ +
+                    std::min(static_cast<intptr_t>(missing_bytes), step_size);
   }
 }
 
@@ -55,15 +57,15 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
 
   observers_.erase(it);
 
-  if (observers_.size() == 0) {
+  if (observers_.empty()) {
     current_counter_ = next_counter_ = 0;
   } else {
     size_t step_size = 0;
 
-    for (AllocationObserverCounter& observer : observers_) {
-      size_t left_in_step = observer.next_counter_ - current_counter_;
+    for (AllocationObserverCounter& observer_counter : observers_) {
+      size_t left_in_step = observer_counter.next_counter_ - current_counter_;
       DCHECK_GT(left_in_step, 0);
-      step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+      step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
     }
 
     next_counter_ = current_counter_ + step_size;
@@ -71,10 +73,7 @@ void AllocationCounter::RemoveAllocationObserver(AllocationObserver* observer) {
 }
 
 void AllocationCounter::AdvanceAllocationObservers(size_t allocated) {
-  if (!IsActive()) {
-    return;
-  }
-
+  if (observers_.empty()) return;
   DCHECK(!step_in_progress_);
   DCHECK_LT(allocated, next_counter_ - current_counter_);
   current_counter_ += allocated;
@@ -83,10 +82,7 @@ void AllocationCounter::AdvanceAllocationObservers(size_t allocated) {
 void AllocationCounter::InvokeAllocationObservers(Address soon_object,
                                                   size_t object_size,
                                                   size_t aligned_object_size) {
-  if (!IsActive()) {
-    return;
-  }
-
+  if (observers_.empty()) return;
   DCHECK(!step_in_progress_);
   DCHECK_GE(aligned_object_size, next_counter_ - current_counter_);
   DCHECK(soon_object);
@@ -100,7 +96,7 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
   for (AllocationObserverCounter& aoc : observers_) {
     if (aoc.next_counter_ - current_counter_ <= aligned_object_size) {
       {
-        DisallowHeapAllocation disallow_heap_allocation;
+        DisallowGarbageCollection no_gc;
         aoc.observer_->Step(
             static_cast<int>(current_counter_ - aoc.prev_counter_), soon_object,
             object_size);
@@ -114,20 +110,21 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
     }
 
     size_t left_in_step = aoc.next_counter_ - current_counter_;
-    step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+    step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
   }
 
   CHECK(step_run);
 
   // Now process newly added allocation observers.
   for (AllocationObserverCounter& aoc : pending_added_) {
+    DCHECK_EQ(0, aoc.next_counter_);
     size_t observer_step_size = aoc.observer_->GetNextStepSize();
     aoc.prev_counter_ = current_counter_;
     aoc.next_counter_ =
         current_counter_ + aligned_object_size + observer_step_size;
 
     DCHECK_NE(step_size, 0);
-    step_size = Min(step_size, aligned_object_size + observer_step_size);
+    step_size = std::min(step_size, aligned_object_size + observer_step_size);
 
     observers_.push_back(aoc);
   }
@@ -139,14 +136,15 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
         std::remove_if(observers_.begin(), observers_.end(),
                        [this](const AllocationObserverCounter& aoc) {
                          return pending_removed_.count(aoc.observer_) != 0;
-                       }));
+                       }),
+        observers_.end());
     pending_removed_.clear();
 
     // Some observers were removed, recalculate step size.
     step_size = 0;
     for (AllocationObserverCounter& aoc : observers_) {
       size_t left_in_step = aoc.next_counter_ - current_counter_;
-      step_size = step_size ? Min(step_size, left_in_step) : left_in_step;
+      step_size = step_size ? std::min(step_size, left_in_step) : left_in_step;
     }
 
     if (observers_.empty()) {
@@ -163,16 +161,13 @@ void AllocationCounter::InvokeAllocationObservers(Address soon_object,
 PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)
     : heap_(heap) {
   DCHECK_EQ(heap->gc_state(), Heap::NOT_IN_GC);
-
-  for (SpaceIterator it(heap_); it.HasNext();) {
-    it.Next()->PauseAllocationObservers();
-  }
+  heap->allocator()->PauseAllocationObservers();
+  heap_->pause_allocation_observers_depth_++;
 }
 
 PauseAllocationObserversScope::~PauseAllocationObserversScope() {
-  for (SpaceIterator it(heap_); it.HasNext();) {
-    it.Next()->ResumeAllocationObservers();
-  }
+  heap_->pause_allocation_observers_depth_--;
+  heap_->allocator()->ResumeAllocationObservers();
 }
 
 }  // namespace internal

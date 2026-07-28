@@ -2,8 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
 import re
+
+from pathlib import Path
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
@@ -13,33 +14,18 @@ WPT_ROOT = "/wasm/jsapi/"
 META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
 META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
-proposal_flags = [{
-                    'name': 'reference-types',
-                    'flags': ['--experimental-wasm-reftypes',
-                              '--no-experimental-wasm-bulk-memory',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'bulk-memory-operations',
-                    'flags': ['--experimental-wasm-bulk-memory',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'js-types',
-                    'flags': ['--experimental-wasm-type-reflection',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'tail-call',
-                    'flags': ['--experimental-wasm-tail-call',
-                              '--wasm-staging']
-                  },
-                  {
-                    'name': 'simd',
-                    'flags': ['--experimental-wasm-simd',
-                              '--wasm-staging']
-                  },
-                  ]
+# Flags per Wasm proposal.
+proposal_flags = {
+    # currently none; if needed add entries in this form:
+    # 'exception-handling': ['--experimental-wasm-exnref'],
+    'custom-descriptors': [
+        '--experimental-wasm-custom-descriptors',
+        '--experimental-wasm-js-interop',
+    ],
+}
+
+# Flags per WPT subdirectory.
+wpt_flags = {'memory': ['--experimental-wasm-rab-integration']}
 
 
 class TestLoader(testsuite.JSTestLoader):
@@ -49,11 +35,11 @@ class TestLoader(testsuite.JSTestLoader):
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
-    self.mjsunit_js = os.path.join(os.path.dirname(self.root), "mjsunit",
-                                   "mjsunit.js")
-    self.test_root = os.path.join(self.root, "tests")
+
+  def __init__(self, ctx, *args, **kwargs):
+    super(TestSuite, self).__init__(ctx, *args, **kwargs)
+    self.mjsunit_js = self.root.parent / "mjsunit" / "mjsunit.js"
+    self.test_root = self.root / "tests"
     self._test_loader.test_root = self.test_root
 
   def _test_loader_class(self):
@@ -62,8 +48,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-def get_proposal_path_identifier(proposal):
-  return os.sep.join(['proposals', proposal['name']])
 
 class TestCase(testcase.D8TestCase):
   def _get_timeout_param(self):
@@ -81,47 +65,48 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     files = [self.suite.mjsunit_js,
-             os.path.join(self.suite.root, "third_party", "testharness.js"),
-             os.path.join(self.suite.root, "testharness-additions.js"),
-             os.path.join(self.suite.root, "report.js")]
+             self.suite.root / "third_party" / "testharness.js",
+             self.suite.root / "testharness-additions.js",
+             self.suite.root / "report.js"]
 
     source = self.get_source()
-    current_dir = os.path.dirname(self._get_source_path())
+    current_dir = self._get_source_path().parent
     for script in META_SCRIPT_REGEXP.findall(source):
       if script.startswith(WPT_ROOT):
         # Matched an absolute path, strip the root and replace it with our
         # local root.
-        found = False
-        for proposal in proposal_flags:
-          if get_proposal_path_identifier(proposal) in current_dir:
-            found = True
-            script = os.path.join(self.suite.test_root,
-                                  os.sep.join(['proposals', proposal['name']]),
-                                  script[len(WPT_ROOT):])
-        if not found:
-          script = os.path.join(self.suite.test_root, script[len(WPT_ROOT):])
-      elif not script.startswith("/"):
+        script_suffix = script[len(WPT_ROOT):]
+        subdirs = []
+        # If the test is in the 'proposals' directory, load relative to that
+        # proposal.
+        if self.path.parts[0] == 'proposals':
+          subdirs = self.path.parts[0:2]
+        # Similarly, load from the 'wpt' directory for wpt tests.
+        elif self.path.parts[0] == 'wpt':
+          subdirs = ['wpt']
+        script = self.suite.test_root.joinpath(*subdirs) / script_suffix
+      elif not Path(script).is_absolute():
         # Matched a relative path, prepend this test's directory.
-        script = os.path.join(current_dir, script)
+        script = current_dir / script
       else:
-        raise Exception("Unexpected absolute path for script: \"%s\"" % script);
+        raise Exception(f"Unexpected absolute path for script: \"{script}\"")
 
       files.append(script)
 
-    files.extend([self._get_source_path(),
-                  os.path.join(self.suite.root, "after.js")])
+    files.extend([self._get_source_path(), self.suite.root / "after.js"])
     return files
 
   def _get_source_flags(self):
-    for proposal in proposal_flags:
-      if get_proposal_path_identifier(proposal) in self.path:
-        return proposal['flags']
+    if self.path.parts[0] == 'proposals':
+      proposal_name = self.path.parts[1]
+      if proposal_name in proposal_flags:
+        return proposal_flags[proposal_name]
+    if self.path.parts[0] == 'wpt':
+      wpt_subdir = self.path.parts[1]
+      if wpt_subdir in wpt_flags:
+        return wpt_flags[wpt_subdir]
     return ['--wasm-staging']
 
   def _get_source_path(self):
     # All tests are named `path/name.any.js`
-    return os.path.join(self.suite.test_root, self.path + ANY_JS)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+    return self.suite.test_root / self.path_and_suffix(ANY_JS)

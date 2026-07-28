@@ -35,7 +35,7 @@ if (isMainThread) {
     `, {
       argv: [null, 'foo', 123, Symbol('bar')],
       eval: true
-    })
+    }),
   ].forEach((worker) => {
     worker.on('exit', common.mustCall((code) => {
       assert.strictEqual(code, 0);

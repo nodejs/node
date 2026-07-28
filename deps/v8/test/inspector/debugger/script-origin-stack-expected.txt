@@ -2,12 +2,13 @@ Debugger.scriptParsed.stackTrace should contain only one frame
 {
     method : Debugger.scriptParsed
     params : {
+        buildId : 
         embedderName : 
         endColumn : 0
         endLine : 0
         executionContextId : <executionContextId>
         hasSourceURL : false
-        hash : 3fb75160ab1f4e4e82675bc4cd924d3481abe278
+        hash : e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
         isLiveEdit : false
         isModule : false
         length : 0

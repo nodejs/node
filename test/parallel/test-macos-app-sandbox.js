@@ -1,7 +1,9 @@
 'use strict';
 const common = require('../common');
 if (process.platform !== 'darwin')
-  common.skip('App Sandbox is only avaliable on Darwin');
+  common.skip('App Sandbox is only available on Darwin');
+if (process.config.variables.node_builtin_modules_path)
+  common.skip('App Sandbox cannot load modules from outside the sandbox');
 
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -15,7 +17,11 @@ const nodeBinary = process.execPath;
 
 tmpdir.refresh();
 
-const appBundlePath = path.join(tmpdir.path, 'node_sandboxed.app');
+if (!tmpdir.hasEnoughSpace(120 * 1024 * 1024)) {
+  common.skip('Available disk space < 120MB');
+}
+
+const appBundlePath = tmpdir.resolve('node_sandboxed.app');
 const appBundleContentPath = path.join(appBundlePath, 'Contents');
 const appExecutablePath = path.join(
   appBundleContentPath, 'MacOS', 'node');
@@ -43,14 +49,14 @@ assert.strictEqual(
     '--entitlements', fixtures.path(
       'macos-app-sandbox', 'node_sandboxed.entitlements'),
     '--force', '-s', '-',
-    appBundlePath
+    appBundlePath,
   ]).status,
   0);
 
 // Sandboxed app shouldn't be able to read the home dir
 assert.notStrictEqual(
   child_process.spawnSync(appExecutablePath, [
-    '-e', 'fs.readdirSync(process.argv[1])', os.homedir()
+    '-e', 'fs.readdirSync(process.argv[1])', os.homedir(),
   ]).status,
   0);
 

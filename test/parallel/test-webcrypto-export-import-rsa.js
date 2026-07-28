@@ -1,12 +1,14 @@
 'use strict';
 
 const common = require('../common');
+const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const crypto = require('crypto');
+const { subtle } = globalThis.crypto;
 
 const sizes = [1024, 2048, 4096];
 
@@ -14,8 +16,18 @@ const hashes = [
   'SHA-1',
   'SHA-256',
   'SHA-384',
-  'SHA-512'
+  'SHA-512',
 ];
+
+if (!process.features.openssl_is_boringssl) {
+  hashes.push(
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+}
 
 const keyData = {
   1024: {
@@ -313,6 +325,8 @@ async function testImportSpki({ name, publicUsages }, size, hash, extractable) {
   assert.deepStrictEqual(key.algorithm.publicExponent,
                          new Uint8Array([1, 0, 1]));
   assert.strictEqual(key.algorithm.hash.name, hash);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     const spki = await subtle.exportKey('spki', key);
@@ -322,7 +336,8 @@ async function testImportSpki({ name, publicUsages }, size, hash, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 }
@@ -347,6 +362,8 @@ async function testImportPkcs8(
   assert.deepStrictEqual(key.algorithm.publicExponent,
                          new Uint8Array([1, 0, 1]));
   assert.strictEqual(key.algorithm.hash.name, hash);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
 
   if (extractable) {
     const pkcs8 = await subtle.exportKey('pkcs8', key);
@@ -356,9 +373,19 @@ async function testImportPkcs8(
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
+
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      keyData[size].pkcs8,
+      { name, hash },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
 }
 
 async function testImportJwk(
@@ -368,6 +395,19 @@ async function testImportJwk(
   extractable) {
 
   const jwk = keyData[size].jwk;
+
+  let alg;
+  switch (name) {
+    case 'RSA-PSS':
+      alg = hash.startsWith('SHA-') ? `PS${hash === 'SHA-1' ? 1 : hash.substring(4)}` : undefined;
+      break;
+    case 'RSA-OAEP':
+      alg = hash.startsWith('SHA-') ? `RSA-OAEP${hash === 'SHA-1' ? '' : hash.substring(3)}` : undefined;
+      break;
+    case 'RSASSA-PKCS1-v1_5':
+      alg = hash.startsWith('SHA-') ? `RS${hash === 'SHA-1' ? 1 : hash.substring(4)}` : undefined;
+      break;
+  }
 
   const [
     publicKey,
@@ -379,17 +419,17 @@ async function testImportJwk(
         kty: jwk.kty,
         n: jwk.n,
         e: jwk.e,
-        alg: `PS${hash.substring(4)}`
+        alg,
       },
       { name, hash },
       extractable,
       publicUsages),
     subtle.importKey(
       'jwk',
-      { ...jwk, alg: `PS${hash.substring(4)}` },
+      { ...jwk, alg },
       { name, hash },
       extractable,
-      privateUsages)
+      privateUsages),
   ]);
 
   assert.strictEqual(publicKey.type, 'public');
@@ -404,18 +444,24 @@ async function testImportJwk(
                          new Uint8Array([1, 0, 1]));
   assert.deepStrictEqual(publicKey.algorithm.publicExponent,
                          privateKey.algorithm.publicExponent);
+  assert.strictEqual(privateKey.algorithm, privateKey.algorithm);
+  assert.strictEqual(privateKey.usages, privateKey.usages);
+  assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+  assert.strictEqual(publicKey.usages, publicKey.usages);
 
   if (extractable) {
     const [
       pubJwk,
-      pvtJwk
+      pvtJwk,
     ] = await Promise.all([
       subtle.exportKey('jwk', publicKey),
-      subtle.exportKey('jwk', privateKey)
+      subtle.exportKey('jwk', privateKey),
     ]);
 
     assert.strictEqual(pubJwk.kty, 'RSA');
     assert.strictEqual(pvtJwk.kty, 'RSA');
+    assert.strictEqual(pubJwk.alg, alg);
+    assert.strictEqual(pvtJwk.alg, alg);
     assert.strictEqual(pubJwk.n, jwk.n);
     assert.strictEqual(pvtJwk.n, jwk.n);
     assert.strictEqual(pubJwk.e, jwk.e);
@@ -435,12 +481,138 @@ async function testImportJwk(
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
     await assert.rejects(
       subtle.exportKey('jwk', privateKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
+  }
+
+  {
+    const invalidUse = name === 'RSA-OAEP' ? 'sig' : 'enc';
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, use: invalidUse },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, use: invalidUse },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'Invalid JWK "use" Parameter' });
+  }
+
+  if (alg) {
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: alg.toLowerCase() },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: alg.toLowerCase() },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
+  if (!hash.startsWith('SHA3-')) {
+    let invalidAlgHash = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
+    switch (name) {
+      case 'RSA-OAEP':
+        if (hash === 'SHA-1')
+          invalidAlgHash += '-256';
+        break;
+      default:
+        if (hash === 'SHA-256')
+          invalidAlgHash += '384';
+        else
+          invalidAlgHash += '256';
+    }
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlgHash },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlgHash },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
+  if (!hash.startsWith('SHA3-')) {
+    const invalidAlgType = name === 'RSA-PSS' ? `RS${hash.substring(4)}` : `PS${hash.substring(4)}`;
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlgType },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' }).catch((e) => {
+      throw e;
+    });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlgType },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { ...jwk },
+      { name, hash },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+
+  await assert.rejects(
+    subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, /* missing e */ n: jwk.n },
+      { name, hash },
+      extractable,
+      publicUsages),
+    { name: 'DataError', message: 'Invalid keyData' });
+
+  for (const field of ['p', 'q', 'dp', 'dq', 'qi']) {
+    const jwkMissingCrtField = { ...jwk };
+    delete jwkMissingCrtField[field];
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        jwkMissingCrtField,
+        { name, hash },
+        extractable,
+        privateUsages),
+      { name: 'DataError', message: 'Invalid keyData' },
+      `missing private JWK CRT field ${field}`);
   }
 }
 
@@ -457,10 +629,10 @@ const testVectors = [
     publicUsages: ['verify']
   },
   {
-    name: 'RSASSA-PKCS1-V1_5',
+    name: 'RSASSA-PKCS1-v1_5',
     privateUsages: ['sign'],
     publicUsages: ['verify']
-  }
+  },
 ];
 
 (async function() {
@@ -478,3 +650,27 @@ const testVectors = [
   });
   await Promise.all(variations);
 })().then(common.mustCall());
+
+{
+  const ecPublic = crypto.createPublicKey(
+    fixtures.readKey('ec_p256_public.pem'));
+  const ecPrivate = crypto.createPrivateKey(
+    fixtures.readKey('ec_p256_private.pem'));
+
+  for (const [name, [publicUsage, privateUsage]] of Object.entries({
+    'RSA-PSS': ['verify', 'sign'],
+    'RSASSA-PKCS1-v1_5': ['verify', 'sign'],
+    'RSA-OAEP': ['encrypt', 'decrypt'],
+  })) {
+    assert.rejects(subtle.importKey(
+      'spki',
+      ecPublic.export({ format: 'der', type: 'spki' }),
+      { name, hash: 'SHA-256' },
+      true, [publicUsage]), { message: /Invalid key type/ }).then(common.mustCall());
+    assert.rejects(subtle.importKey(
+      'pkcs8',
+      ecPrivate.export({ format: 'der', type: 'pkcs8' }),
+      { name, hash: 'SHA-256' },
+      true, [privateUsage]), { message: /Invalid key type/ }).then(common.mustCall());
+  }
+}

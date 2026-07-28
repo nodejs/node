@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8.h"
+#include "include/v8-exception.h"
+#include "include/v8-function.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-object.h"
+#include "include/v8-template.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -11,8 +15,10 @@ namespace {
 
 using InterceptorTest = TestWithContext;
 
-void NamedGetter(Local<Name> property,
-                 const PropertyCallbackInfo<Value>& info) {}
+v8::Intercepted NamedGetter(Local<Name> property,
+                            const PropertyCallbackInfo<Value>& info) {
+  return v8::Intercepted::kNo;
+}
 
 TEST_F(InterceptorTest, FreezeApiObjectWithInterceptor) {
   TryCatch try_catch(isolate());
@@ -28,10 +34,52 @@ TEST_F(InterceptorTest, FreezeApiObjectWithInterceptor) {
   ASSERT_TRUE(try_catch.HasCaught());
 }
 
+v8::Intercepted NamedDescriptor(Local<Name> property,
+                                const PropertyCallbackInfo<Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<Name> names[] = {
+      v8::String::NewFromUtf8(isolate, "enumerable").ToLocalChecked(),
+      v8::String::NewFromUtf8(isolate, "configurable").ToLocalChecked(),
+      v8::String::NewFromUtf8(isolate, "writable").ToLocalChecked(),
+      v8::String::NewFromUtf8(isolate, "value").ToLocalChecked(),
+  };
+  Local<Value> values[] = {
+      v8::Boolean::New(isolate, true),
+      v8::Boolean::New(isolate, true),
+      v8::Boolean::New(isolate, true),
+      v8::Number::New(isolate, 42),
+  };
+  // The prototype must be an Object, so that `Object.prototype.get` can be
+  // looked up.
+  Local<Object> descriptor =
+      v8::Object::New(isolate, v8::Object::New(isolate), names, values, 4);
+  info.GetReturnValue().Set(descriptor);
+  return v8::Intercepted::kYes;
+}
+
+TEST_F(InterceptorTest, GetPropertyDescriptorWithObjectPrototypeProps) {
+  TryCatch try_catch(isolate());
+
+  Local<FunctionTemplate> tmpl = FunctionTemplate::New(isolate());
+  tmpl->InstanceTemplate()->SetHandler(NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, NamedDescriptor, nullptr, nullptr, nullptr));
+
+  Local<Function> ctor = tmpl->GetFunction(context()).ToLocalChecked();
+  Local<Object> obj = ctor->NewInstance(context()).ToLocalChecked();
+
+  SetGlobalProperty("obj", obj);
+  TryRunJS(
+      "Object.prototype.get = 3;"
+      "obj.x = 4;");
+  ASSERT_TRUE(try_catch.HasCaught());
+}
+
 }  // namespace
 
 namespace internal {
 namespace {
+
+const v8::EmbedderDataTypeTag kTestInterceptorTag = 1;
 
 class InterceptorLoggingTest : public TestWithNativeContext {
  public:
@@ -39,24 +87,29 @@ class InterceptorLoggingTest : public TestWithNativeContext {
 
   static const int kTestIndex = 0;
 
-  static void NamedPropertyGetter(Local<v8::Name> name,
-                                  const v8::PropertyCallbackInfo<Value>& info) {
+  static v8::Intercepted NamedPropertyGetter(
+      Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
     LogCallback(info, "named getter");
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedPropertySetter(Local<v8::Name> name, Local<v8::Value> value,
-                                  const v8::PropertyCallbackInfo<Value>& info) {
+  static v8::Intercepted NamedPropertySetter(
+      Local<v8::Name> name, Local<v8::Value> value,
+      const v8::PropertyCallbackInfo<void>& info) {
     LogCallback(info, "named setter");
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedPropertyQuery(
+  static v8::Intercepted NamedPropertyQuery(
       Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
     LogCallback(info, "named query");
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedPropertyDeleter(
+  static v8::Intercepted NamedPropertyDeleter(
       Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     LogCallback(info, "named deleter");
+    return v8::Intercepted::kNo;
   }
 
   static void NamedPropertyEnumerator(
@@ -64,36 +117,42 @@ class InterceptorLoggingTest : public TestWithNativeContext {
     LogCallback(info, "named enumerator");
   }
 
-  static void NamedPropertyDefiner(
+  static v8::Intercepted NamedPropertyDefiner(
       Local<v8::Name> name, const v8::PropertyDescriptor& desc,
-      const v8::PropertyCallbackInfo<Value>& info) {
+      const v8::PropertyCallbackInfo<void>& info) {
     LogCallback(info, "named definer");
+    return v8::Intercepted::kNo;
   }
 
-  static void NamedPropertyDescriptor(
+  static v8::Intercepted NamedPropertyDescriptor(
       Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
     LogCallback(info, "named descriptor");
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedPropertyGetter(
+  static v8::Intercepted IndexedPropertyGetter(
       uint32_t index, const v8::PropertyCallbackInfo<Value>& info) {
     LogCallback(info, "indexed getter");
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedPropertySetter(
+  static v8::Intercepted IndexedPropertySetter(
       uint32_t index, Local<v8::Value> value,
-      const v8::PropertyCallbackInfo<Value>& info) {
+      const v8::PropertyCallbackInfo<void>& info) {
     LogCallback(info, "indexed setter");
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedPropertyQuery(
+  static v8::Intercepted IndexedPropertyQuery(
       uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
     LogCallback(info, "indexed query");
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedPropertyDeleter(
+  static v8::Intercepted IndexedPropertyDeleter(
       uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
     LogCallback(info, "indexed deleter");
+    return v8::Intercepted::kNo;
   }
 
   static void IndexedPropertyEnumerator(
@@ -101,22 +160,25 @@ class InterceptorLoggingTest : public TestWithNativeContext {
     LogCallback(info, "indexed enumerator");
   }
 
-  static void IndexedPropertyDefiner(
+  static v8::Intercepted IndexedPropertyDefiner(
       uint32_t index, const v8::PropertyDescriptor& desc,
-      const v8::PropertyCallbackInfo<Value>& info) {
+      const v8::PropertyCallbackInfo<void>& info) {
     LogCallback(info, "indexed definer");
+    return v8::Intercepted::kNo;
   }
 
-  static void IndexedPropertyDescriptor(
+  static v8::Intercepted IndexedPropertyDescriptor(
       uint32_t index, const v8::PropertyCallbackInfo<Value>& info) {
     LogCallback(info, "indexed descriptor");
+    return v8::Intercepted::kNo;
   }
 
   template <class T>
   static void LogCallback(const v8::PropertyCallbackInfo<T>& info,
                           const char* callback_name) {
     InterceptorLoggingTest* test = reinterpret_cast<InterceptorLoggingTest*>(
-        info.This()->GetAlignedPointerFromInternalField(kTestIndex));
+        info.HolderV2()->GetAlignedPointerFromInternalField(
+            kTestIndex, kTestInterceptorTag));
     test->Log(callback_name);
   }
 
@@ -144,7 +206,8 @@ class InterceptorLoggingTest : public TestWithNativeContext {
         IndexedPropertyDefiner, IndexedPropertyDescriptor));
     v8::Local<v8::Object> instance =
         templ->NewInstance(context()).ToLocalChecked();
-    instance->SetAlignedPointerInInternalField(kTestIndex, this);
+    instance->SetAlignedPointerInInternalField(kTestIndex, this,
+                                               kTestInterceptorTag);
     SetGlobalProperty("obj", instance);
   }
 
@@ -170,8 +233,10 @@ TEST_F(InterceptorLoggingTest, DispatchTest) {
   EXPECT_EQ(Run("obj.foo"), "named getter");
   EXPECT_EQ(Run("obj[42]"), "indexed getter");
 
-  EXPECT_EQ(Run("obj.foo = null"), "named setter");
-  EXPECT_EQ(Run("obj[42] = null"), "indexed setter");
+  EXPECT_EQ(Run("obj.foo = null"),
+            "named setter, named descriptor, named query");
+  EXPECT_EQ(Run("obj[42] = null"),
+            "indexed setter, indexed descriptor, indexed query");
 
   EXPECT_EQ(Run("Object.getOwnPropertyDescriptor(obj, 'foo')"),
             "named descriptor");

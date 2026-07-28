@@ -614,7 +614,7 @@ a61.set(a62)
 assertArrayPrefix([1, 12], a61)
 
 // Invalid source
-assertThrows(function() { a.set(0); }, TypeError);
+a.set(0); // does not throw
 assertArrayPrefix([1,2,3,4,5,6], a);
 a.set({}); // does not throw
 assertArrayPrefix([1,2,3,4,5,6], a);

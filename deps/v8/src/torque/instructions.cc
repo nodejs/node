@@ -3,12 +3,13 @@
 // found in the LICENSE file.
 
 #include "src/torque/instructions.h"
+
+#include <optional>
+
 #include "src/torque/cfg.h"
 #include "src/torque/type-oracle.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 #define TORQUE_INSTRUCTION_BOILERPLATE_DEFINITIONS(Name)        \
   const InstructionKind Name::kKind = InstructionKind::k##Name; \
@@ -129,6 +130,11 @@ DefinitionLocation NamespaceConstantInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const NamespaceConstantInstruction& instruction) {
+  return os << "NamespaceConstant " << instruction.constant->external_name();
+}
+
 void InstructionBase::InvalidateTransientTypes(
     Stack<const Type*>* stack) const {
   auto current = stack->begin();
@@ -183,6 +189,22 @@ DefinitionLocation CallIntrinsicInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const CallIntrinsicInstruction& instruction) {
+  os << "CallIntrinsic " << instruction.intrinsic->ReadableName();
+  if (!instruction.specialization_types.empty()) {
+    os << "<";
+    PrintCommaSeparatedList(
+        os, instruction.specialization_types,
+        [](const Type* type) -> const Type& { return *type; });
+    os << ">";
+  }
+  os << "(";
+  PrintCommaSeparatedList(os, instruction.constexpr_arguments);
+  os << ")";
+  return os;
+}
+
 void CallCsaMacroInstruction::TypeInstruction(Stack<const Type*>* stack,
                                               ControlFlowGraph* cfg) const {
   std::vector<const Type*> parameter_types =
@@ -227,9 +249,9 @@ void CallCsaMacroInstruction::RecomputeDefinitionLocations(
   }
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallCsaMacroInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 
@@ -241,6 +263,18 @@ DefinitionLocation CallCsaMacroInstruction::GetValueDefinition(
     std::size_t index) const {
   DCHECK_LT(index, GetValueDefinitionCount());
   return DefinitionLocation::Instruction(this, index);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallCsaMacroInstruction& instruction) {
+  os << "CallCsaMacro " << instruction.macro->ReadableName();
+  os << "(";
+  PrintCommaSeparatedList(os, instruction.constexpr_arguments);
+  os << ")";
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
 }
 
 void CallCsaMacroAndBranchInstruction::TypeInstruction(
@@ -280,12 +314,12 @@ void CallCsaMacroAndBranchInstruction::TypeInstruction(
   if (macro->signature().return_type != TypeOracle::GetNeverType()) {
     Stack<const Type*> return_stack = *stack;
     return_stack.PushMany(LowerType(macro->signature().return_type));
-    if (return_continuation == base::nullopt) {
+    if (return_continuation == std::nullopt) {
       ReportError("missing return continuation.");
     }
     (*return_continuation)->SetInputTypes(return_stack);
   } else {
-    if (return_continuation != base::nullopt) {
+    if (return_continuation != std::nullopt) {
       ReportError("unreachable return continuation.");
     }
   }
@@ -357,10 +391,30 @@ DefinitionLocation CallCsaMacroAndBranchInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallCsaMacroAndBranchInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallCsaMacroAndBranchInstruction& instruction) {
+  os << "CallCsaMacroAndBranch " << instruction.macro->ReadableName();
+  os << "(";
+  PrintCommaSeparatedList(os, instruction.constexpr_arguments);
+  os << ")";
+  if (instruction.return_continuation) {
+    os << ", return continuation " << (*instruction.return_continuation)->id();
+  }
+  if (!instruction.label_blocks.empty()) {
+    os << ", label blocks ";
+    PrintCommaSeparatedList(os, instruction.label_blocks,
+                            [](Block* block) { return block->id(); });
+  }
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
 }
 
 void CallBuiltinInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -408,9 +462,9 @@ DefinitionLocation CallBuiltinInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallBuiltinInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
 }
 
@@ -423,8 +477,8 @@ void CallBuiltinPointerInstruction::TypeInstruction(
     ReportError("wrong argument types");
   }
   DCHECK_EQ(type, f);
-  // TODO(tebbi): Only invalidate transient types if the function pointer type
-  // is transitioning.
+  // TODO(turbofan): Only invalidate transient types if the function pointer
+  // type is transitioning.
   InvalidateTransientTypes(stack);
   stack->PushMany(LowerType(f->return_type()));
 }
@@ -445,6 +499,19 @@ DefinitionLocation CallBuiltinPointerInstruction::GetValueDefinition(
     std::size_t index) const {
   DCHECK_LT(index, GetValueDefinitionCount());
   return DefinitionLocation::Instruction(this, index);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallBuiltinInstruction& instruction) {
+  os << "CallBuiltin " << instruction.builtin->ReadableName()
+     << ", argc: " << instruction.argc;
+  if (instruction.is_tailcall) {
+    os << ", is_tailcall";
+  }
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
 }
 
 void CallRuntimeInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -501,10 +568,23 @@ DefinitionLocation CallRuntimeInstruction::GetValueDefinition(
   return DefinitionLocation::Instruction(this, index);
 }
 
-base::Optional<DefinitionLocation>
+std::optional<DefinitionLocation>
 CallRuntimeInstruction::GetExceptionObjectDefinition() const {
-  if (!catch_block) return base::nullopt;
+  if (!catch_block) return std::nullopt;
   return DefinitionLocation::Instruction(this, GetValueDefinitionCount());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallRuntimeInstruction& instruction) {
+  os << "CallRuntime " << instruction.runtime_function->ReadableName()
+     << ", argc: " << instruction.argc;
+  if (instruction.is_tailcall) {
+    os << ", is_tailcall";
+  }
+  if (instruction.catch_block) {
+    os << ", catch block " << (*instruction.catch_block)->id();
+  }
+  return os;
 }
 
 void BranchInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -524,6 +604,12 @@ void BranchInstruction::RecomputeDefinitionLocations(
   if_false->MergeInputDefinitions(*locations, worklist);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const BranchInstruction& instruction) {
+  return os << "Branch true: " << instruction.if_true->id()
+            << ", false: " << instruction.if_false->id();
+}
+
 void ConstexprBranchInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                  ControlFlowGraph* cfg) const {
   if_true->SetInputTypes(*stack);
@@ -536,6 +622,13 @@ void ConstexprBranchInstruction::RecomputeDefinitionLocations(
   if_false->MergeInputDefinitions(*locations, worklist);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const ConstexprBranchInstruction& instruction) {
+  return os << "ConstexprBranch " << instruction.condition
+            << ", true: " << instruction.if_true->id()
+            << ", false: " << instruction.if_false->id();
+}
+
 void GotoInstruction::TypeInstruction(Stack<const Type*>* stack,
                                       ControlFlowGraph* cfg) const {
   destination->SetInputTypes(*stack);
@@ -544,6 +637,10 @@ void GotoInstruction::TypeInstruction(Stack<const Type*>* stack,
 void GotoInstruction::RecomputeDefinitionLocations(
     Stack<DefinitionLocation>* locations, Worklist<Block*>* worklist) const {
   destination->MergeInputDefinitions(*locations, worklist);
+}
+
+std::ostream& operator<<(std::ostream& os, const GotoInstruction& instruction) {
+  return os << "Goto " << instruction.destination->id();
 }
 
 void GotoExternalInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -558,18 +655,18 @@ void GotoExternalInstruction::RecomputeDefinitionLocations(
 
 void ReturnInstruction::TypeInstruction(Stack<const Type*>* stack,
                                         ControlFlowGraph* cfg) const {
-  cfg->SetReturnType(stack->Pop());
+  cfg->SetReturnType(stack->PopMany(count));
 }
 
 void ReturnInstruction::RecomputeDefinitionLocations(
     Stack<DefinitionLocation>* locations, Worklist<Block*>* worklist) const {
-  locations->Pop();
+  locations->PopMany(count);
 }
 
-void PrintConstantStringInstruction::TypeInstruction(
-    Stack<const Type*>* stack, ControlFlowGraph* cfg) const {}
+void PrintErrorInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                            ControlFlowGraph* cfg) const {}
 
-void PrintConstantStringInstruction::RecomputeDefinitionLocations(
+void PrintErrorInstruction::RecomputeDefinitionLocations(
     Stack<DefinitionLocation>* locations, Worklist<Block*>* worklist) const {}
 
 void AbortInstruction::TypeInstruction(Stack<const Type*>* stack,
@@ -595,7 +692,9 @@ DefinitionLocation UnsafeCastInstruction::GetValueDefinition() const {
 void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                ControlFlowGraph* cfg) const {
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
+  ExpectSubtype(stack->Pop(), TypeOracle::GetUnionType(
+                                  TypeOracle::GetHeapObjectType(),
+                                  TypeOracle::GetTaggedZeroPatternType()));
   DCHECK_EQ(std::vector<const Type*>{type}, LowerType(type));
   stack->Push(type);
 }
@@ -615,7 +714,9 @@ void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                 ControlFlowGraph* cfg) const {
   ExpectSubtype(stack->Pop(), type);
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
+  ExpectSubtype(stack->Pop(), TypeOracle::GetUnionType(
+                                  TypeOracle::GetHeapObjectType(),
+                                  TypeOracle::GetTaggedZeroPatternType()));
 }
 
 void StoreReferenceInstruction::RecomputeDefinitionLocations(
@@ -659,11 +760,49 @@ DefinitionLocation StoreBitFieldInstruction::GetValueDefinition() const {
   return DefinitionLocation::Instruction(this, 0);
 }
 
+void MakeLazyNodeInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                              ControlFlowGraph* cfg) const {
+  std::vector<const Type*> parameter_types =
+      LowerParameterTypes(macro->signature().parameter_types);
+  for (intptr_t i = parameter_types.size() - 1; i >= 0; --i) {
+    const Type* arg_type = stack->Pop();
+    const Type* parameter_type = parameter_types.back();
+    parameter_types.pop_back();
+    if (arg_type != parameter_type) {
+      ReportError("parameter ", i, ": expected type ", *parameter_type,
+                  " but found type ", *arg_type);
+    }
+  }
+
+  stack->Push(result_type);
+}
+
+void MakeLazyNodeInstruction::RecomputeDefinitionLocations(
+    Stack<DefinitionLocation>* locations, Worklist<Block*>* worklist) const {
+  auto parameter_types =
+      LowerParameterTypes(macro->signature().parameter_types);
+  locations->PopMany(parameter_types.size());
+
+  locations->Push(GetValueDefinition());
+}
+
+DefinitionLocation MakeLazyNodeInstruction::GetValueDefinition() const {
+  return DefinitionLocation::Instruction(this, 0);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const MakeLazyNodeInstruction& instruction) {
+  os << "MakeLazyNode " << instruction.macro->ReadableName() << ", "
+     << *instruction.result_type;
+  for (const std::string& arg : instruction.constexpr_arguments) {
+    os << ", " << arg;
+  }
+  return os;
+}
+
 bool CallRuntimeInstruction::IsBlockTerminator() const {
   return is_tailcall || runtime_function->signature().return_type ==
                             TypeOracle::GetNeverType();
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

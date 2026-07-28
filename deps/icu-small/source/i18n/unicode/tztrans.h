@@ -10,7 +10,7 @@
 #define TZTRANS_H
 
 /**
- * \file
+ * \file 
  * \brief C++ API: Time zone transition
  */
 
@@ -37,7 +37,7 @@ public:
     /**
      * Constructs a <code>TimeZoneTransition</code> with the time and the rules before/after
      * the transition.
-     *
+     * 
      * @param time  The time of transition in milliseconds since the base time.
      * @param from  The time zone rule used before the transition.
      * @param to    The time zone rule used after the transition.
@@ -86,7 +86,7 @@ public:
      * @return  true if the given TimeZoneTransition objects are semantically equal.
      * @stable ICU 3.8
      */
-    UBool operator==(const TimeZoneTransition& that) const;
+    bool operator==(const TimeZoneTransition& that) const;
 
     /**
      * Return true if the given TimeZoneTransition objects are semantically unequal. Objects
@@ -95,14 +95,14 @@ public:
      * @return  true if the given TimeZoneTransition objects are semantically unequal.
      * @stable ICU 3.8
      */
-    UBool operator!=(const TimeZoneTransition& that) const;
+    bool operator!=(const TimeZoneTransition& that) const;
 
     /**
      * Returns the time of transition in milliseconds.
      * @return The time of the transition in milliseconds since the 1970 Jan 1 epoch time.
      * @stable ICU 3.8
      */
-    UDate getTime(void) const;
+    UDate getTime() const;
 
     /**
      * Sets the time of transition in milliseconds.
@@ -116,7 +116,7 @@ public:
      * @return The time zone rule used after the transition.
      * @stable ICU 3.8
      */
-    const TimeZoneRule* getFrom(void) const;
+    const TimeZoneRule* getFrom() const;
 
     /**
      * Sets the rule used before the transition.  The caller remains
@@ -155,7 +155,7 @@ public:
      * @return The time zone rule used after the transition.
      * @stable ICU 3.8
      */
-    const TimeZoneRule* getTo(void) const;
+    const TimeZoneRule* getTo() const;
 
 private:
     UDate   fTime;
@@ -174,7 +174,7 @@ public:
      * @return          The class ID for all objects of this class.
      * @stable ICU 3.8
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns a unique class ID POLYMORPHICALLY. Pure virtual override. This
@@ -187,7 +187,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID(void) const;
+    virtual UClassID getDynamicClassID() const override;
 };
 
 U_NAMESPACE_END

@@ -20,7 +20,7 @@ async function testArg(argValue) {
   const nodeProcess = spawnSync(process.execPath, [
     '--inspect=0',
     `--inspect-publish-uid=${argValue}`,
-    '-e', `(${scriptMain.toString()})(${hasHttp ? 200 : 404})`
+    '-e', `(${scriptMain.toString()})(${hasHttp ? 200 : 404})`,
   ]);
   const hasWebSocketInStderr = checkStdError(
     nodeProcess.stderr.toString('utf8'));
@@ -34,9 +34,9 @@ async function testArg(argValue) {
   function scriptMain(code) {
     const url = require('inspector').url();
     const { host } = require('url').parse(url);
-    require('http').get('http://' + host + '/json/list', (response) => {
+    require('http').get('http://' + host + '/json/list', common.mustCall((response) => {
       assert.strictEqual(response.statusCode, code);
       response.destroy();
-    });
+    }));
   }
 }

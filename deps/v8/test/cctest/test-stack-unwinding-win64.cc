@@ -2,21 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/win32-headers.h"
-#include "src/init/v8.h"
+#include <windows.h>
+
+// This has to come after windows.h.
+#include <versionhelpers.h>  // For IsWindows8OrGreater().
+
+#include "include/v8-external.h"
+#include "include/v8-function.h"
+#include "include/v8-isolate.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-template.h"
+#include "src/base/macros.h"
 #include "test/cctest/cctest.h"
 
-#if defined(V8_OS_WIN_X64)
+#if defined(V8_OS_WIN_X64)  // Native x64 compilation
 #define CONTEXT_PC(context) (context.Rip)
 #elif defined(V8_OS_WIN_ARM64)
+#if defined(V8_HOST_ARCH_ARM64)  // Native ARM64 compilation
 #define CONTEXT_PC(context) (context.Pc)
+#else  // x64 to ARM64 cross-compilation
+#define CONTEXT_PC(context) (context.Rip)
+#endif
 #endif
 
 class UnwindingWin64Callbacks {
  public:
   UnwindingWin64Callbacks() = default;
 
-  static void Getter(v8::Local<v8::String> name,
+  static void Getter(v8::Local<v8::Name> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
     // Expects to find at least 15 stack frames in the call stack.
     // The stack walking should fail on stack frames for builtin functions if
@@ -24,7 +37,7 @@ class UnwindingWin64Callbacks {
     int stack_frames = CountCallStackFrames(15);
     CHECK_GE(stack_frames, 15);
   }
-  static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
+  static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
                      const v8::PropertyCallbackInfo<void>& info) {}
 
  private:
@@ -52,6 +65,12 @@ class UnwindingWin64Callbacks {
   }
 };
 
+namespace {
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kCallbackTag = 22;
+}  // namespace
+
 // Verifies that stack unwinding data has been correctly registered on Win64.
 UNINITIALIZED_TEST(StackUnwindingWin64) {
 #ifdef V8_WIN64_UNWINDING_INFO
@@ -70,8 +89,8 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
     return;
   }
 
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_win64_unwinding_info = true;
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.win64_unwinding_info = true;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -87,10 +106,10 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
         func_template->InstanceTemplate();
 
     UnwindingWin64Callbacks accessors;
-    v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
-    instance_template->SetAccessor(v8_str("foo"),
-                                   &UnwindingWin64Callbacks::Getter,
-                                   &UnwindingWin64Callbacks::Setter, data);
+    v8::Local<v8::External> data = v8::External::New(isolate, &accessors, kCallbackTag);
+    instance_template->SetNativeDataProperty(
+        v8_str("foo"), &UnwindingWin64Callbacks::Getter,
+        &UnwindingWin64Callbacks::Setter, data);
     v8::Local<v8::Function> func =
         func_template->GetFunction(env.local()).ToLocalChecked();
     v8::Local<v8::Object> instance =
@@ -101,7 +120,7 @@ UNINITIALIZED_TEST(StackUnwindingWin64) {
     v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
         env->Global()->Get(env.local(), v8_str("start")).ToLocalChecked());
 
-    CompileRun("%OptimizeFunctionOnNextCall(start);");
+    CompileRun("start(1); %OptimizeFunctionOnNextCall(start);");
 
     int32_t repeat_count = 100;
     v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, repeat_count)};

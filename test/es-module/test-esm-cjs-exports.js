@@ -1,35 +1,28 @@
 'use strict';
 
-const common = require('../common');
-const fixtures = require('../common/fixtures');
-const { spawn } = require('child_process');
-const assert = require('assert');
+const { spawnPromisified } = require('../common');
+const fixtures = require('../common/fixtures.js');
+const assert = require('node:assert');
+const { execPath } = require('node:process');
+const { describe, it } = require('node:test');
 
-const entry = fixtures.path('/es-modules/cjs-exports.mjs');
 
-let child = spawn(process.execPath, [entry]);
-child.stderr.setEncoding('utf8');
-let stdout = '';
-child.stdout.setEncoding('utf8');
-child.stdout.on('data', (data) => {
-  stdout += data;
+describe('ESM: importing CJS', { concurrency: !process.env.TEST_PARALLEL }, () => {
+  it('should support valid CJS exports', async () => {
+    const validEntry = fixtures.path('/es-modules/cjs-exports.mjs');
+    const { code, signal, stdout } = await spawnPromisified(execPath, [validEntry]);
+
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+    assert.strictEqual(stdout, 'ok\n');
+  });
+
+  it('should error on invalid CJS exports', async () => {
+    const invalidEntry = fixtures.path('/es-modules/cjs-exports-invalid.mjs');
+    const { code, signal, stderr } = await spawnPromisified(execPath, [invalidEntry]);
+
+    assert.match(stderr, /SyntaxError: The requested module '\.\/invalid-cjs\.js' does not provide an export named 'default'/);
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
 });
-child.on('close', common.mustCall((code, signal) => {
-  assert.strictEqual(code, 0);
-  assert.strictEqual(signal, null);
-  assert.strictEqual(stdout, 'ok\n');
-}));
-
-const entryInvalid = fixtures.path('/es-modules/cjs-exports-invalid.mjs');
-child = spawn(process.execPath, [entryInvalid]);
-let stderr = '';
-child.stderr.setEncoding('utf8');
-child.stderr.on('data', (data) => {
-  stderr += data;
-});
-child.on('close', common.mustCall((code, signal) => {
-  assert.strictEqual(code, 1);
-  assert.strictEqual(signal, null);
-  assert.ok(stderr.includes('Warning: To load an ES module'));
-  assert.ok(stderr.includes('Unexpected token \'export\''));
-}));

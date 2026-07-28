@@ -4,37 +4,40 @@
 :: explicitly allow them to persist in the calling shell.
 endlocal
 
-if /i "%1"=="help" goto help
-if /i "%1"=="--help" goto help
-if /i "%1"=="-help" goto help
-if /i "%1"=="/help" goto help
-if /i "%1"=="?" goto help
-if /i "%1"=="-?" goto help
-if /i "%1"=="--?" goto help
-if /i "%1"=="/?" goto help
+set "arg=%1"
+if /i "%arg:~-1%"=="?" goto help
+if /i "%arg:~-4%"=="help" goto help
 
 cd %~dp0
 
 set JS_SUITES=default
-set NATIVE_SUITES=addons js-native-api node-api
+set NATIVE_SUITES=addons js-native-api node-api embedding
 @rem CI_* variables should be kept synchronized with the ones in Makefile
 set "CI_NATIVE_SUITES=%NATIVE_SUITES% benchmark"
-set "CI_JS_SUITES=%JS_SUITES%"
+set "CI_JS_SUITES=%JS_SUITES% pummel"
 set CI_DOC=doctool
 @rem Same as the test-ci target in Makefile
-set "common_test_suites=%JS_SUITES% %NATIVE_SUITES%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
+set "common_test_suites=%JS_SUITES% %NATIVE_SUITES%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set build_ffi_tests=1"
 
 @rem Process arguments.
 set config=Release
 set target=Build
 set target_arch=x64
 set ltcg=
+set thin_lto=
+set lto=
+set lto_jobs=
+set pgo_generate=
+set pgo_use=
 set target_env=
 set noprojgen=
 set projgen=
+set clang_cl=
+set ccache_path=
 set nobuild=
 set sign=
 set nosnapshot=
+set nonpm=
 set cctest_args=
 set test_args=
 set stage_package=
@@ -43,20 +46,28 @@ set msi=
 set upload=
 set licensertf=
 set lint_js=
+set lint_js_build=
+set lint_js_fix=
 set lint_cpp=
 set lint_md=
 set lint_md_build=
-set noetw=
-set noetw_msi_arg=
+set format_md=
 set i18n_arg=
 set download_arg=
 set build_release=
 set configure_flags=
+set without_ffi=
+set shared_ffi=
+set shared_ffi_includes=
+set shared_ffi_libname=
+set shared_ffi_libpath=
+set enable_vtune_arg=
 set build_addons=
 set dll=
 set enable_static=
 set build_js_native_api_tests=
 set build_node_api_tests=
+set build_ffi_tests=
 set test_node_inspect=
 set test_check_deopts=
 set v8_test_options=
@@ -67,10 +78,14 @@ set link_module=
 set no_cctest=
 set cctest=
 set openssl_no_asm=
+set no_shared_roheap=
 set doc=
 set extra_msbuild_args=
+set compile_commands=
+set cfg=
+set v8temporal=
+set v8windbg=
 set exit_code=0
-set experimental_quic=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -82,34 +97,40 @@ if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
-if /i "%1"=="vs2019"        set target_env=vs2019&goto arg-ok
+if /i "%1"=="vs2022"        set target_env=vs2022&goto arg-ok
+if /i "%1"=="vs2026"        set target_env=vs2026&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
+if /i "%1"=="clang-cl"      set clang_cl=1&goto arg-ok
+if /i "%1"=="ccache"        set "ccache_path=%2%"&goto arg-ok-2
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
-if /i "%1"=="noetw"         set noetw=1&goto arg-ok
+if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
+if /i "%1"=="thin-lto"      set thin_lto=1&goto arg-ok
+if /i "%1"=="lto"           set lto=1&goto arg-ok
+if /i "%1"=="lto-jobs"      set "lto_jobs=%2"&goto arg-ok-2
+if /i "%1"=="pgo-generate"  set pgo_generate=1&goto arg-ok
+if /i "%1"=="pgo-use"       set pgo_use=1&goto arg-ok
+if /i "%1"=="v8temporal"    set v8temporal=1&goto arg-ok
+if /i "%1"=="v8windbg"      set v8windbg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% -J %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
-if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -J -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
-if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -J -p tap --logfile test.tap %CI_JS_SUITES%&set no_cctest=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
+if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set build_ffi_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
+if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_JS_SUITES%&set build_ffi_tests=1&set no_cctest=1&goto arg-ok
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-js-native-api-tests"   set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="build-node-api-tests"   set build_node_api_tests=1&goto arg-ok
+if /i "%1"=="build-ffi-tests"   set build_ffi_tests=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-doc"      set test_args=%test_args% %CI_DOC%&set doc=1&&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-js-native-api"   set test_args=%test_args% js-native-api&set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="test-node-api"   set test_args=%test_args% node-api&set build_node_api_tests=1&goto arg-ok
-if /i "%1"=="test-benchmark" set test_args=%test_args% benchmark&goto arg-ok
-if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
-if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
 if /i "%1"=="test-tick-processor" set test_args=%test_args% tick-processor&goto arg-ok
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
-if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
-if /i "%1"=="test-async-hooks"  set test_args=%test_args% async-hooks&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% gc internet pummel %common_test_suites%&set lint_cpp=1&set lint_js=1&goto arg-ok
 if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
 if /i "%1"=="test-check-deopts" set test_check_deopts=1&goto arg-ok
@@ -120,11 +141,13 @@ if /i "%1"=="test-v8-benchmarks" set test_v8_benchmarks=1&set custom_v8_test=1&g
 if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_benchmarks=1&set custom_v8_test=1&goto arg-ok
 if /i "%1"=="lint-cpp"      set lint_cpp=1&goto arg-ok
 if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
+if /i "%1"=="lint-js-build" set lint_js_build=1&goto arg-ok
+if /i "%1"=="lint-js-fix"   set lint_js_fix=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
-if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
 if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="lint-ci"       set lint_cpp=1&set lint_js_ci=1&goto arg-ok
+if /i "%1"=="format-md"     set format_md=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=full-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&set sign=1&goto arg-ok
@@ -136,16 +159,24 @@ if /i "%1"=="without-intl"  set i18n_arg=none&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
+if /i "%1"=="enable-vtune" set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="static"           set enable_static=1&goto arg-ok
+if /i "%1"=="without-ffi"      set without_ffi=1&goto arg-ok
+if /i "%1"=="shared-ffi"       set shared_ffi=1&goto arg-ok
+if /i "%1"=="shared-ffi-includes" set "shared_ffi_includes=%2"&goto arg-ok-2
+if /i "%1"=="shared-ffi-libname" set "shared_ffi_libname=%2"&goto arg-ok-2
+if /i "%1"=="shared-ffi-libpath" set "shared_ffi_libpath=%2"&goto arg-ok-2
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
 if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
 if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
+if /i "%1"=="no-shared-roheap" set no_shared_roheap=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
-if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
-if /i "%1"=="experimental-quic" set experimental_quic=1&goto arg-ok
+if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:out\%config%\node.binlog&goto arg-ok
+if /i "%1"=="compile-commands" set compile_commands=1&goto arg-ok
+if /i "%1"=="cfg"           set cfg=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -167,7 +198,30 @@ if defined build_release (
   set i18n_arg=full-icu
   set projgen=1
   set cctest=1
-  set ltcg=1
+  set thin_lto=1
+  @REM Parallel LTO link jobs can cause OOM issues, so we limit it to 2 by default for release builds in the release CI.
+  set lto_jobs=2
+)
+
+:: LTO mutual exclusion
+set lto_count=0
+if defined ltcg       set /a lto_count+=1
+if defined thin_lto   set /a lto_count+=1
+if defined lto        set /a lto_count+=1
+if %lto_count% gtr 1 (
+  echo Error: Only one of 'ltcg', 'thin-lto', or 'lto' can be specified.
+  echo   ltcg     : Thin LTO scoped to node.exe and libnode only
+  echo   thin-lto : Thin LTO applied globally to all targets
+  echo   lto      : Full LTO applied globally to all targets
+  exit /b 1
+)
+
+:: PGO mutual exclusion
+if defined pgo_generate if defined pgo_use (
+  echo Error: Only one of 'pgo-generate' or 'pgo-use' can be specified.
+  echo   pgo-generate : build instrumented binary, then profile it
+  echo   pgo-use      : rebuild using the collected profile data
+  exit /b 1
 )
 
 if defined msi     set stage_package=1
@@ -177,29 +231,54 @@ if defined package set stage_package=1
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
-if "%target_env%"=="vs2019" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2019"
+set "doc_kit_exe="%~dp0%node_exe%" %~dp0tools\doc\node_modules\@node-core\doc-kit\bin\cli.mjs"
+if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
+if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026"
 
 :: skip building if the only argument received was lint
 if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
 
+:: skip building if the only argument received was format-md
+if "%*"=="format-md" if exist "%node_exe%" goto format-md
+
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
-if defined noetw            set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
+if defined nonpm            set configure_flags=%configure_flags% --without-npm
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
+if defined thin_lto         set configure_flags=%configure_flags% --enable-thin-lto
+if defined lto              set configure_flags=%configure_flags% --enable-lto
+if defined lto_jobs         set configure_flags=%configure_flags% --lto-jobs=%lto_jobs%
+if defined pgo_generate     set configure_flags=%configure_flags% --enable-pgo-generate
+if defined pgo_use          set configure_flags=%configure_flags% --enable-pgo-use
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
+if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
 if defined dll              set configure_flags=%configure_flags% --shared
 if defined enable_static    set configure_flags=%configure_flags% --enable-static
+if defined without_ffi      set configure_flags=%configure_flags% --without-ffi
+if defined shared_ffi       set configure_flags=%configure_flags% --shared-ffi
+if defined shared_ffi_includes set configure_flags=%configure_flags% --shared-ffi-includes=%shared_ffi_includes%
+if defined shared_ffi_libname set configure_flags=%configure_flags% --shared-ffi-libname=%shared_ffi_libname%
+if defined shared_ffi_libpath set configure_flags=%configure_flags% --shared-ffi-libpath=%shared_ffi_libpath%
 if defined no_NODE_OPTIONS  set configure_flags=%configure_flags% --without-node-options
 if defined link_module      set configure_flags=%configure_flags% %link_module%
 if defined i18n_arg         set configure_flags=%configure_flags% --with-intl=%i18n_arg%
 if defined config_flags     set configure_flags=%configure_flags% %config_flags%
 if defined target_arch      set configure_flags=%configure_flags% --dest-cpu=%target_arch%
+if defined debug_nghttp2    set configure_flags=%configure_flags% --debug-nghttp2
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
+if defined no_shared_roheap set configure_flags=%configure_flags% --disable-shared-readonly-heap
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
-if defined experimental_quic set configure_flags=%configure_flags% --experimental-quic
-if "%target_arch%"=="x86" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set configure_flags=%configure_flags% --no-cross-compiling
-if "%target_arch%"=="arm64" set configure_flags=%configure_flags% --cross-compiling
+if defined ccache_path      set configure_flags=%configure_flags% --use-ccache-win
+if defined compile_commands set configure_flags=%configure_flags% -C
+if defined cfg              set configure_flags=%configure_flags% --control-flow-guard
+if defined v8temporal       set configure_flags=%configure_flags% --v8-enable-temporal-support
+if defined v8windbg         set configure_flags=%configure_flags% --enable-v8windbg
+
+if "%target_arch%"=="x86" (
+  echo "32-bit Windows builds are not supported anymore."
+  exit /b 1
+)
 
 if not exist "%~dp0deps\icu" goto no-depsicu
 if "%target%"=="Clean" echo deleting %~dp0deps\icu
@@ -216,11 +295,19 @@ if "%target%"=="TestClean" (
 call tools\msvs\find_python.cmd
 if errorlevel 1 goto :exit
 
-REM NASM is only needed on IA32 and x86_64.
+REM NASM is only needed on x86_64.
 if not defined openssl_no_asm if "%target_arch%" NEQ "arm64" call tools\msvs\find_nasm.cmd
 if errorlevel 1 echo Could not find NASM, install it or build with openssl-no-asm. See BUILDING.md.
 
 call :getnodeversion || exit /b 1
+
+@REM Forcing ClangCL usage for version 24 and above
+set NODE_MAJOR_VERSION=
+for /F "tokens=1 delims=." %%i in ("%NODE_VERSION%") do set "NODE_MAJOR_VERSION=%%i"
+if %NODE_MAJOR_VERSION% GEQ 24 (
+  echo ClangCL is required because the Node.js version being compiled is ^>= 24.
+  set clang_cl=1
+)
 
 if defined TAG set configure_flags=%configure_flags% --tag=%TAG%
 
@@ -232,41 +319,53 @@ if defined noprojgen if defined nobuild goto :after-build
 
 @rem Set environment for msbuild
 
-set msvs_host_arch=x86
-if _%PROCESSOR_ARCHITECTURE%_==_AMD64_ set msvs_host_arch=amd64
-if _%PROCESSOR_ARCHITEW6432%_==_AMD64_ set msvs_host_arch=amd64
+set msvs_host_arch=amd64
+if _%PROCESSOR_ARCHITECTURE%_==_ARM64_ set msvs_host_arch=arm64
 @rem usually vcvarsall takes an argument: host + '_' + target
 set vcvarsall_arg=%msvs_host_arch%_%target_arch%
-@rem unless both host and target are x64
+@rem unless both the host and the target are the same
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
-@rem also if both are x86
-if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
+if %target_arch%==%msvs_host_arch% set vcvarsall_arg=%target_arch%
 
-@rem Look for Visual Studio 2019
-:vs-set-2019
-if defined target_env if "%target_env%" NEQ "vs2019" goto msbuild-not-found
-echo Looking for Visual Studio 2019
+@rem Look for Visual Studio 2026
+:vs-set-2026
+if defined target_env if "%target_env%" NEQ "vs2026" goto vs-set-2022
+echo Looking for Visual Studio 2026
 @rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" "prerelease"
+call tools\msvs\vswhere_usability_wrapper.cmd "[18.0,19.0)" %target_arch% "prerelease" %clang_cl%
+if "_%VCINSTALLDIR%_" == "__" goto vs-set-2022
+@rem check if VS2026 is already setup, and for the requested arch
+if "_%VisualStudioVersion%_" == "_18.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2026
+@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
+set "VSINSTALLDIR="
+@rem prevent VsDevCmd.bat from changing the current working directory
+set "VSCMD_START_DIR=%CD%"
+set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
+echo calling: %vcvars_call%
+call %vcvars_call%
+if errorlevel 1 goto vs-set-2022
+if defined DEBUG_HELPER @ECHO ON
+:found_vs2026
+echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2026
+set PLATFORM_TOOLSET=v145
+goto msbuild-found
+
+@rem Look for Visual Studio 2022
+:vs-set-2022
+if defined target_env if "%target_env%" NEQ "vs2022" goto msbuild-not-found
+echo Looking for Visual Studio 2022
+@rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
+@rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
+@rem detect the version searched for
+if not defined target_env set "VCINSTALLDIR="
+call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease" %clang_cl%
 if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
-set "WIXSDKDIR=%WIX%\SDK\VS2017"
-if defined msi (
-  echo Looking for WiX installation for Visual Studio 2019...
-  if not exist "%WIXSDKDIR%" (
-    echo Failed to find WiX install for Visual Studio 2019
-    echo VS2019 support for WiX is only present starting at version 3.11
-    goto msbuild-not-found
-  )
-  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
-    echo Failed to find the WiX Toolset Visual Studio 2019 Extension
-    goto msbuild-not-found
-  )
-)
-@rem check if VS2019 is already setup, and for the requested arch
-if "_%VisualStudioVersion%_" == "_16.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2019
+@rem check if VS2022 is already setup, and for the requested arch
+if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
 @rem need to clear VSINSTALLDIR for vcvarsall to work as expected
 set "VSINSTALLDIR="
 @rem prevent VsDevCmd.bat from changing the current working directory
@@ -276,19 +375,48 @@ echo calling: %vcvars_call%
 call %vcvars_call%
 if errorlevel 1 goto msbuild-not-found
 if defined DEBUG_HELPER @ECHO ON
-:found_vs2019
+:found_vs2022
 echo Found MSVS version %VisualStudioVersion%
-set GYP_MSVS_VERSION=2019
-set PLATFORM_TOOLSET=v142
+set GYP_MSVS_VERSION=2022
+set PLATFORM_TOOLSET=v143
 goto msbuild-found
 
 :msbuild-not-found
-echo Failed to find a suitable Visual Studio installation.
+set "clang_echo="
+if defined clang_cl set "clang_echo= with Clang compiler/LLVM toolset"
+echo Failed to find a suitable Visual Studio installation%clang_echo%.
 echo Try to run in a "Developer Command Prompt" or consult
-echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows
+echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
 goto exit
 
 :msbuild-found
+
+@rem Visual Studio v17.10 has a bug that causes the build to fail.
+@rem Check if the version is v17.10 and exit if it is.
+echo %VSCMD_VER% | findstr /b /c:"17.10" >nul
+if %errorlevel% neq 1  (
+  echo Node.js doesn't compile with Visual Studio 17.10 Please use a different version.
+  goto exit
+)
+
+@rem check if the clang-cl build is requested
+if not defined clang_cl goto clang-skip
+@rem x64 is hard coded as it is used for both cross and native compilation.
+set "clang_path=%VCINSTALLDIR%\Tools\Llvm\x64\bin\clang.exe"
+for /F "tokens=3" %%i in ('"%clang_path%" --version') do (
+    set clang_version=%%i
+    goto clang-found
+)
+
+:clang-not-found
+echo Failed to find Clang compiler in %clang_path%.
+goto exit
+
+:clang-found
+echo Found Clang version %clang_version%
+set configure_flags=%configure_flags% --clang-cl=%clang_version%
+
+:clang-skip
 
 set project_generated=
 :project-gen
@@ -298,7 +426,7 @@ if defined projgen goto run-configure
 if not exist node.sln goto run-configure
 if not exist .gyp_configure_stamp goto run-configure
 echo %configure_flags% > .tmp_gyp_configure_stamp
-where /R . /T *.gyp? >> .tmp_gyp_configure_stamp
+where /R . /T *.gyp* >> .tmp_gyp_configure_stamp
 fc .gyp_configure_stamp .tmp_gyp_configure_stamp >NUL 2>&1
 if errorlevel 1 goto run-configure
 
@@ -313,13 +441,13 @@ del .gyp_configure_stamp 2> NUL
 @rem Generate the VS project.
 echo configure %configure_flags%
 echo %configure_flags%> .used_configure_flags
-python configure %configure_flags%
+call python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 set project_generated=1
 echo Project files generated.
 echo %configure_flags% > .gyp_configure_stamp
-where /R . /T *.gyp? >> .gyp_configure_stamp
+where /R . /T *.gyp* >> .gyp_configure_stamp
 
 :msbuild
 @rem Skip build if requested.
@@ -328,8 +456,7 @@ if defined nobuild goto :after-build
 @rem Build the sln with msbuild.
 set "msbcpu=/m:2"
 if "%NUMBER_OF_PROCESSORS%"=="1" set "msbcpu=/m:1"
-set "msbplatform=Win32"
-if "%target_arch%"=="x64" set "msbplatform=x64"
+set "msbplatform=x64"
 if "%target_arch%"=="arm64" set "msbplatform=ARM64"
 if "%target%"=="Build" (
   if defined no_cctest set target=node
@@ -337,7 +464,9 @@ if "%target%"=="Build" (
   if defined cctest set target="Build"
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
+if "%target%"=="node" if exist "%config%\embedtest.exe" del "%config%\embedtest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
+if defined ccache_path set "extra_msbuild_args=%extra_msbuild_args% /p:TrackFileAccess=false /p:CLToolPath=%ccache_path% /p:ForceImportAfterCppProps=%CD%\tools\msvs\props_4_ccache.props"
 @rem Setup env variables to use multiprocessor build
 set UseMultiToolTask=True
 set EnforceProcessCountAcrossBuilds=True
@@ -350,7 +479,8 @@ if errorlevel 1 (
 if "%target%" == "Clean" goto exit
 
 :after-build
-rd %config%
+:: Check existence of %config% before removing it.
+if exist %config% rd %config%
 if errorlevel 1 echo "Old build output exists at 'out\%config%'. Please remove." & exit /B
 :: Use /J because /D (symlink) requires special permissions.
 if EXIST out\%config% mklink /J %config% out\%config%
@@ -361,7 +491,7 @@ if errorlevel 1 echo "Could not create junction to 'out\%config%'." & exit /B
 if not defined sign goto licensertf
 
 call tools\sign.bat Release\node.exe
-if errorlevel 1 echo Failed to sign exe&goto exit
+if errorlevel 1 echo Failed to sign exe, got error code %errorlevel%&goto exit
 
 :licensertf
 @rem Skip license.rtf generation if not requested.
@@ -369,25 +499,25 @@ if not defined licensertf goto stage_package
 
 set "use_x64_node_exe=false"
 if "%target_arch%"=="arm64" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "use_x64_node_exe=true"
+set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
 if "%use_x64_node_exe%"=="true" (
   echo Cross-compilation to ARM64 detected. We'll use the x64 Node executable for license2rtf.
-  if not defined "%x64_node_exe%" set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
   if not exist "%x64_node_exe%" (
     echo Downloading x64 node.exe...
     if not exist "temp-vcbuild" mkdir temp-vcbuild
-    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile 'temp-vcbuild\node-x64-cross-compiling.exe'"
+    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile '%x64_node_exe%'"
   )
   if not exist "%x64_node_exe%" (
     echo Could not find the Node executable at the given x64_node_exe path. Aborting.
     set exit_code=1
     goto exit
   )
-  %x64_node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %x64_node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 ) else (
-  %node_exe% tools\license2rtf.js < LICENSE > %config%\license.rtf
+  %node_exe% tools\license2rtf.mjs < LICENSE > %config%\license.rtf
 )
 
-if errorlevel 1 echo Failed to generate license.rtf&goto exit
+if errorlevel 1 echo Failed to generate license.rtf, got error code %errorlevel%&goto exit
 
 :stage_package
 if not defined stage_package goto install-doctools
@@ -406,23 +536,54 @@ copy /Y ..\README.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy README.md && goto package_error
 copy /Y ..\CHANGELOG.md %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy CHANGELOG.md && goto package_error
-robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
-if errorlevel 8 echo Cannot copy npm package && goto package_error
-copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npm && goto package_error
-copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
-copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npx && goto package_error
-copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
-if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
+
+if not defined nonpm (
+  robocopy ..\deps\npm %TARGET_NAME%\node_modules\npm /e /xd test > nul
+  if errorlevel 8 echo Cannot copy npm package && goto package_error
+  copy /Y ..\deps\npm\bin\npm %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npm && goto package_error
+  copy /Y ..\deps\npm\bin\npm.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npm.cmd && goto package_error
+  copy /Y ..\deps\npm\bin\npx %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npx && goto package_error
+  copy /Y ..\deps\npm\bin\npx.cmd %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npx.cmd && goto package_error
+  copy /Y ..\deps\npm\bin\npm.ps1 %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npm.ps1 && goto package_error
+  copy /Y ..\deps\npm\bin\npx.ps1 %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy npx.ps1 && goto package_error
+)
+
 copy /Y ..\tools\msvs\nodevars.bat %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy nodevars.bat && goto package_error
 copy /Y ..\tools\msvs\install_tools\*.* %TARGET_NAME%\ > nul
 if errorlevel 1 echo Cannot copy install_tools scripts && goto package_error
-if not defined noetw (
-    copy /Y ..\src\res\node_etw_provider.man %TARGET_NAME%\ > nul
-    if errorlevel 1 echo Cannot copy node_etw_provider.man && goto package_error
+if defined dll (
+  copy /Y libnode.dll %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
+
+  copy /Y libnode.lib %TARGET_NAME%\ > nul
+  if errorlevel 1 echo Cannot copy libnode.lib && goto package_error
+
+  mkdir %TARGET_NAME%\Release > nul
+  copy /Y node.def %TARGET_NAME%\Release\ > nul
+  if errorlevel 1 echo Cannot copy node.def && goto package_error
+
+  python ..\tools\install.py install --root-dir .. --config-gypi-path %CD%\..\config.gypi --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only
+  if errorlevel 1 echo Cannot install headers && goto package_error
+
+  if exist ..\Debug (
+    mkdir %TARGET_NAME%\Debug > nul
+
+    copy /Y ..\Debug\libnode.dll %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy libnode.dll && goto package_error
+
+    copy /Y ..\Debug\libnode.lib %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy libnode.lib && goto package_error
+
+    copy /Y ..\Debug\node.def %TARGET_NAME%\Debug\ > nul
+    if errorlevel 1 echo Cannot copy node.def && goto package_error
+  )
 )
 cd ..
 
@@ -463,12 +624,12 @@ if not defined msi goto install-doctools
 echo Building node-v%FULLVERSION%-%target_arch%.msi
 set "msbsdk="
 if defined WindowsSDKVersion set "msbsdk=/p:WindowsTargetPlatformVersion=%WindowsSDKVersion:~0,-1%"
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build %msbsdk% /p:PlatformToolset=%PLATFORM_TOOLSET% /p:WixSdkDir="%WIXSDKDIR%" /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Restore,Clean,Build %msbsdk% /p:PlatformToolset=%PLATFORM_TOOLSET% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if not defined sign goto upload
 call tools\sign.bat node-v%FULLVERSION%-%target_arch%.msi
-if errorlevel 1 echo Failed to sign msi&goto exit
+if errorlevel 1 echo Failed to sign msi, got error code %errorlevel%&goto exit
 
 :upload
 @rem Skip upload if not requested
@@ -480,21 +641,36 @@ if not defined SSHCONFIG (
 )
 
 if not defined STAGINGSERVER set STAGINGSERVER=node-www
+if not defined CLOUDFLARE_BUCKET set CLOUDFLARE_BUCKET=r2:dist-staging
 ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node.lib %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.lib"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.zip"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\node_pdb.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node_pdb.7z"
 if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.7z %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% Release\%TARGET_NAME%.zip %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip
 if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip"
+if errorlevel 1 goto exit
 scp -F %SSHCONFIG% node-v%FULLVERSION%-%target_arch%.msi %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/
+if errorlevel 1 goto exit
+ssh -F %SSHCONFIG% %STAGINGSERVER% "rclone copyto nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi %CLOUDFLARE_BUCKET%/nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi"
 if errorlevel 1 goto exit
 ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.msi.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.zip.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/%TARGET_NAME%.7z.done nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%.done && chmod -R ug=rw-x+X,o=r+X nodejs/%DISTTYPEDIR%/v%FULLVERSION%/node-v%FULLVERSION%-%target_arch%.* nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%*"
 if errorlevel 1 goto exit
@@ -508,9 +684,7 @@ if not defined doc if not defined build_addons (
 )
 if exist "tools\doc\node_modules\unified\package.json" goto skip-install-doctools
 SETLOCAL
-cd tools\doc
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\doc ci
 if errorlevel 1 goto exit
 ENDLOCAL
 :skip-install-doctools
@@ -526,11 +700,16 @@ if not exist %node_exe% (
 )
 mkdir %config%\doc
 robocopy /e doc\api %config%\doc\api
-robocopy /e doc\api_assets %config%\doc\api\assets
 
-for %%F in (%config%\doc\api\*.md) do (
-  %node_exe% tools\doc\generate.js --node-version=v%FULLVERSION% %%F --output-directory=%%~dF%%~pF
-)
+%doc_kit_exe% ^
+  generate ^
+  -t legacy-html-all legacy-json-all api-links ^
+  -i doc/api/*.md ^
+  -i lib/*.js ^
+  -o %config%/doc/api/ ^
+  -c file://%~dp0\CHANGELOG.md ^
+  -v %NODE_VERSION% ^
+  --type-map "file://%~dp0doc\type-map.json"
 
 :run
 @rem Run tests if requested.
@@ -546,12 +725,11 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-"%node_exe%" tools\doc\addon-verify.js
+"%node_exe%" tools\doc\addon-verify.mjs --input "%~dp0doc\api\addons.md" --output "%~dp0test\addons"
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
-set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
+python "%~dp0tools\build_addons.py" "%~dp0test\addons" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 
@@ -568,17 +746,16 @@ for /d %%F in (test\js-native-api\??_*) do (
 )
 :: building js-native-api
 setlocal
-set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\js-native-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto build-node-api-tests
 
 :build-node-api-tests
-if not defined build_node_api_tests goto run-tests
+if not defined build_node_api_tests goto build-ffi-tests
 if not exist "%node_exe%" (
   echo Failed to find node.exe
-  goto run-tests
+  goto build-ffi-tests
 )
 echo Building node-api
 :: clear
@@ -587,8 +764,20 @@ for /d %%F in (test\node-api\??_*) do (
 )
 :: building node-api
 setlocal
-set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\node-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\node-api" --config %config%
+if errorlevel 1 exit /b 1
+endlocal
+goto build-ffi-tests
+
+:build-ffi-tests
+if not defined build_ffi_tests goto run-tests
+if not exist "%node_exe%" (
+  echo Failed to find node.exe
+  goto run-tests
+)
+echo Building ffi tests
+setlocal
+python "%~dp0tools\build_addons.py" "%~dp0test\ffi" --config %config%
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
@@ -599,7 +788,7 @@ if defined test_node_inspect goto node-test-inspect
 goto node-tests
 
 :node-check-deopts
-python tools\test.py --mode=release --check-deopts parallel sequential -J
+python tools\test.py --mode=release --check-deopts parallel sequential
 if defined test_node_inspect goto node-test-inspect
 goto node-tests
 
@@ -637,38 +826,45 @@ if errorlevel 1 goto exit
 goto lint-cpp
 
 :lint-cpp
-if not defined lint_cpp goto lint-js
+if not defined lint_cpp goto lint-js-build
 if defined NODEJS_MAKE goto run-make-lint
 where make > NUL 2>&1 && make -v | findstr /C:"GNU Make" 1> NUL
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-lint
 where wsl > NUL 2>&1
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=wsl make" & goto run-make-lint
 echo Could not find GNU Make, needed for linting C/C++
-goto lint-js
+echo Alternatively, you can use WSL
+goto lint-js-build
 
 :run-make-lint
 %NODEJS_MAKE% lint-cpp
-goto lint-js
+goto lint-js-build
+
+:lint-js-build
+if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
+%npm_exe% --prefix tools\eslint ci
 
 :lint-js
-if not defined lint_js goto lint-md-build
-if not exist tools\node_modules\eslint goto no-lint
+if not defined lint_js goto lint-js-fix
+if not exist tools\eslint\node_modules\eslint goto no-lint
 echo running lint-js
-%node_exe% tools\node_modules\eslint\bin\eslint.js --cache --report-unused-disable-directives --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
-goto lint-md-build
+%node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools
+goto lint-js-fix
 
-:no-lint
-echo Linting is not available through the source tarball.
-echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
+:lint-js-fix
+if not defined lint_js_fix goto lint-md
+if not exist tools\eslint\node_modules\eslint goto no-lint
+echo running lint-js-fix
+%node_exe% tools\eslint\node_modules\eslint\bin\eslint.js --cache --max-warnings=0 --report-unused-disable-directives --rule "@stylistic/js/linebreak-style: 0" eslint.config.mjs benchmark doc lib test tools --fix
 goto lint-md-build
 
 :lint-md-build
-if not defined lint_md_build goto lint-md
-echo "Deprecated no-op target 'lint_md_build'"
-goto lint-md
+if not defined lint_md if not defined format_md goto lint-md
+%npm_exe% --prefix tools\lint-md ci
 
 :lint-md
-if not defined lint_md goto exit
+if not defined lint_md goto format-md
+if not exist tools\lint-md\node_modules goto no-lint
 echo Running Markdown linter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -676,9 +872,38 @@ for /D %%D IN (doc\*) do (
   for %%F IN (%%D\*.md) do (
     set "lint_md_files="%%F" !lint_md_files!"
   )
+  for /D %%S IN (%%D\*) do (
+    for %%F IN (%%S\*.md) do (
+      set "lint_md_files="%%F" !lint_md_files!"
+    )
+  )
 )
-%node_exe% tools\lint-md.js -q -f %lint_md_files%
+%node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
 ENDLOCAL
+goto format-md
+
+:format-md
+if not defined format_md goto exit
+if not exist tools\lint-md\node_modules goto no-lint
+echo Running Markdown formatter on docs...
+SETLOCAL ENABLEDELAYEDEXPANSION
+set lint_md_files=
+for /D %%D IN (doc\*) do (
+  for %%F IN (%%D\*.md) do (
+    set "lint_md_files="%%F" !lint_md_files!"
+  )
+  for /D %%S IN (%%D\*) do (
+    for %%F IN (%%S\*.md) do (
+      set "lint_md_files="%%F" !lint_md_files!"
+    )
+  )
+)
+%node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
+ENDLOCAL
+
+:no-lint
+echo Linting is not available through the source tarball.
+echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
 goto exit
 
 :create-msvs-files-failed
@@ -688,16 +913,23 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm] [experimental-quic]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [build-addons/build-js-native-api-tests/build-node-api-tests/build-ffi-tests] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [thin-lto] [lto] [lto-jobs number-of-jobs] [pgo-generate] [pgo-use] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
 echo   vcbuild.bat release msi              : builds release build and MSI installer package
 echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
+echo   vcbuild.bat enable-vtune             : builds Node.js with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
 echo   vcbuild.bat lint                     : runs the C++, documentation and JavaScript linter
 echo   vcbuild.bat no-cctest                : skip building cctest.exe
+echo   vcbuild.bat ccache c:\ccache\        : use ccache to speed build
+echo   vcbuild.bat thin-lto                 : builds with Thin LTO applied globally to all targets
+echo   vcbuild.bat lto                      : builds with Full LTO applied globally to all targets
+echo   vcbuild.bat thin-lto lto-jobs 2      : builds with Thin LTO applied globally to all targets and limits parallel LTO link jobs (reduces peak memory usage)
+echo   vcbuild.bat pgo-generate             : builds instrumented binary for PGO (profile first, then rebuild with pgo-use)
+echo   vcbuild.bat pgo-use                  : builds optimized binary using PGO profile data
 goto exit
 
 :exit

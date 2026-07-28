@@ -5,91 +5,27 @@
 #ifndef V8_EXECUTION_ISOLATE_UTILS_INL_H_
 #define V8_EXECUTION_ISOLATE_UTILS_INL_H_
 
-#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
-#include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap-inl.h"
+#include "src/sandbox/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-inline const Isolate* GetIsolateForPtrComprFromOnHeapAddress(Address address) {
-#ifdef V8_COMPRESS_POINTERS
-  return Isolate::FromRoot(GetIsolateRoot(address));
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
-}
-
-inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
-  return GetIsolateForPtrComprFromOnHeapAddress(object.ptr());
-}
-
-inline const Isolate* GetIsolateForPtrCompr(const Isolate* isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  return isolate;
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
-}
-
-inline const Isolate* GetIsolateForPtrCompr(const LocalIsolate* isolate) {
-#ifdef V8_COMPRESS_POINTERS
-  return isolate->GetIsolateForPtrCompr();
-#else
-  return nullptr;
-#endif  // V8_COMPRESS_POINTERS
-}
-
-V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
-  // Avoid using the below GetIsolateFromWritableObject because we want to be
-  // able to get the heap, but not the isolate, for off-thread objects.
-
-#if defined V8_ENABLE_THIRD_PARTY_HEAP
-  return Heap::GetIsolateFromWritableObject(object)->heap();
-#elif defined V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
-  DCHECK_NOT_NULL(isolate);
-  return isolate->heap();
-#else
-  heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
-  return chunk->GetHeap();
-#endif  // V8_COMPRESS_POINTERS || V8_ENABLE_THIRD_PARTY_HEAP
-}
-
-V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-  return Heap::GetIsolateFromWritableObject(object);
-#elif defined V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
-  DCHECK_NOT_NULL(isolate);
-  return isolate;
-#else
-  return Isolate::FromHeap(GetHeapFromWritableObject(object));
-#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
-}
-
-V8_INLINE bool GetIsolateFromHeapObject(HeapObject object, Isolate** isolate) {
-#ifdef V8_ENABLE_THIRD_PARTY_HEAP
-  *isolate = Heap::GetIsolateFromWritableObject(object);
-  return true;
-#elif defined V8_COMPRESS_POINTERS
-  *isolate = GetIsolateFromWritableObject(object);
-  return true;
-#else
-  heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
+                                        Isolate** isolate) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   if (chunk->InReadOnlySpace()) {
     *isolate = nullptr;
     return false;
   }
-  *isolate = Isolate::FromHeap(chunk->GetHeap());
+  *isolate = Isolate::FromHeap(chunk->Metadata()->heap());
   return true;
-#endif  // V8_COMPRESS_POINTERS, V8_ENABLE_THIRD_PARTY_HEAP
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_EXECUTION_ISOLATE_UTILS_INL_H_

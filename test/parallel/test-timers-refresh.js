@@ -4,9 +4,8 @@
 
 const common = require('../common');
 
-const { strictEqual, throws } = require('assert');
+const assert = require('assert');
 const { setUnrefTimeout } = require('internal/timers');
-const { inspect } = require('util');
 
 // Schedule the unrefed cases first so that the later case keeps the event loop
 // active.
@@ -25,20 +24,19 @@ const { inspect } = require('util');
   // This relies on implicit timers handle sorting within libuv.
 
   setTimeout(common.mustCall(() => {
-    strictEqual(called, false, 'unref()\'d timer returned before check');
+    assert.strictEqual(called, false);
   }), 1);
 
-  strictEqual(timer.refresh(), timer);
+  assert.strictEqual(timer.refresh(), timer);
 }
 
 // Should throw with non-functions
 {
   [null, true, false, 0, 1, NaN, '', 'foo', {}, Symbol()].forEach((cb) => {
-    throws(
+    assert.throws(
       () => setUnrefTimeout(cb),
       {
-        code: 'ERR_INVALID_CALLBACK',
-        message: `Callback must be a function. Received ${inspect(cb)}`
+        code: 'ERR_INVALID_ARG_TYPE',
       }
     );
   });
@@ -52,10 +50,10 @@ const { inspect } = require('util');
   }), 1);
 
   setUnrefTimeout(common.mustCall(() => {
-    strictEqual(called, false, 'unref pooled timer returned before check');
+    assert.strictEqual(called, false);
   }), 1);
 
-  strictEqual(timer.refresh(), timer);
+  assert.strictEqual(timer.refresh(), timer);
 }
 
 // regular timer
@@ -66,10 +64,10 @@ const { inspect } = require('util');
   }), 1);
 
   setTimeout(common.mustCall(() => {
-    strictEqual(called, false, 'pooled timer returned before check');
+    assert.strictEqual(called, false);
   }), 1);
 
-  strictEqual(timer.refresh(), timer);
+  assert.strictEqual(timer.refresh(), timer);
 }
 
 // regular timer
@@ -80,7 +78,7 @@ const { inspect } = require('util');
       called = true;
       process.nextTick(common.mustCall(() => {
         timer.refresh();
-        strictEqual(timer.hasRef(), true);
+        assert.strictEqual(timer.hasRef(), true);
       }));
     }
   }, 2), 1);
@@ -97,8 +95,8 @@ const { inspect } = require('util');
   }, 2), 1);
 
   setTimeout(common.mustCall(() => {
-    strictEqual(called, 0, 'pooled timer returned before check');
+    assert.strictEqual(called, 0);
   }), 1);
 
-  strictEqual(timer.refresh(), timer);
+  assert.strictEqual(timer.refresh(), timer);
 }

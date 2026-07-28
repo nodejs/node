@@ -36,22 +36,34 @@
 
 #include "src/codegen/ppc/assembler-ppc.h"
 
-#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#if defined(__PASE__)
+#include <sys/utsname.h>
+#endif
+
+#if V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/ppc/assembler-ppc-inl.h"
-#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 
 namespace v8 {
 namespace internal {
 
 // Get the CPU features enabled by the build.
-static unsigned CpuFeaturesImpliedByCompiler() {
-  unsigned answer = 0;
+static CpuFeatureSet CpuFeaturesImpliedByCompiler() {
+  CpuFeatureSet answer;
   return answer;
+}
+
+bool CpuFeatures::SupportsWasmSimd128() {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(CpuFeatures::IsSupported(PPC_9_PLUS));
+  return true;
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
@@ -61,73 +73,60 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-// Detect whether frim instruction is supported (POWER5+)
-// For now we will just check for processors we know do not
-// support it
-#ifndef USE_SIMULATOR
-  // Probe for additional features at runtime.
+// Probe for additional features at runtime.
+#ifdef USE_SIMULATOR
+  // Simulator
+  supported_.Add(PPC_11_PLUS);
+#else
   base::CPU cpu;
-  if (cpu.part() == base::CPU::PPC_POWER9) {
-    supported_ |= (1u << MODULO);
-  }
-#if V8_TARGET_ARCH_PPC64
-  if (cpu.part() == base::CPU::PPC_POWER8) {
-    supported_ |= (1u << FPR_GPR_MOV);
-  }
+  if (cpu.part() == base::CPU::kPPCPower11) {
+    supported_.Add(PPC_11_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower10) {
+#if defined(__PASE__)
+    // Some P10 features such as prefixed isns will only be supported in future
+    // ibmi versions. We only enable full power 10 features if version>7.4
+    struct utsname uts;
+    memset(reinterpret_cast<void*>(&uts), 0, sizeof(uts));
+    int r = uname(&uts);
+    CHECK_GE(r, 0);
+    int rel = atoi(uts.release);
+    if (rel > 4) {
+      supported_.Add(PPC_10_PLUS);
+    } else {
+      supported_.Add(PPC_9_PLUS);
+    }
+#else
+    supported_.Add(PPC_10_PLUS);
 #endif
-  if (cpu.part() == base::CPU::PPC_POWER6 ||
-      cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
-    supported_ |= (1u << LWSYNC);
-  }
-  if (cpu.part() == base::CPU::PPC_POWER7 ||
-      cpu.part() == base::CPU::PPC_POWER8) {
-    supported_ |= (1u << ISELECT);
-    supported_ |= (1u << VSX);
+  } else if (cpu.part() == base::CPU::kPPCPower9) {
+    supported_.Add(PPC_9_PLUS);
   }
 #if V8_OS_LINUX
-  if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
-    // Assume support
-    supported_ |= (1u << FPU);
-  }
-  if (cpu.icache_line_size() != base::CPU::UNKNOWN_CACHE_LINE_SIZE) {
+  if (cpu.icache_line_size() != base::CPU::kUnknownCacheLineSize) {
     icache_line_size_ = cpu.icache_line_size();
   }
-#elif V8_OS_AIX
-  // Assume support FP support and default cache line size
-  supported_ |= (1u << FPU);
-#endif
-#else  // Simulator
-  supported_ |= (1u << FPU);
-  supported_ |= (1u << LWSYNC);
-  supported_ |= (1u << ISELECT);
-  supported_ |= (1u << VSX);
-  supported_ |= (1u << MODULO);
-#if V8_TARGET_ARCH_PPC64
-  supported_ |= (1u << FPR_GPR_MOV);
 #endif
 #endif
+  if (supported_.contains(PPC_11_PLUS)) supported_.Add(PPC_10_PLUS);
+  if (supported_.contains(PPC_10_PLUS)) supported_.Add(PPC_9_PLUS);
+
+  // Set a static value on whether Simd is supported.
+  // This variable is only used for certain archs to query SupportWasmSimd128()
+  // at runtime in builtins using an extern ref. Other callers should use
+  // CpuFeatures::SupportWasmSimd128().
+  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
 }
 
 void CpuFeatures::PrintTarget() {
   const char* ppc_arch = nullptr;
-
-#if V8_TARGET_ARCH_PPC64
   ppc_arch = "ppc64";
-#else
-  ppc_arch = "ppc";
-#endif
-
   printf("target %s\n", ppc_arch);
 }
 
 void CpuFeatures::PrintFeatures() {
-  printf("FPU=%d\n", CpuFeatures::IsSupported(FPU));
-  printf("FPR_GPR_MOV=%d\n", CpuFeatures::IsSupported(FPR_GPR_MOV));
-  printf("LWSYNC=%d\n", CpuFeatures::IsSupported(LWSYNC));
-  printf("ISELECT=%d\n", CpuFeatures::IsSupported(ISELECT));
-  printf("VSX=%d\n", CpuFeatures::IsSupported(VSX));
-  printf("MODULO=%d\n", CpuFeatures::IsSupported(MODULO));
+  printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
+  printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
+  printf("PPC_11_PLUS=%d\n", CpuFeatures::IsSupported(PPC_11_PLUS));
 }
 
 Register ToRegister(int num) {
@@ -155,7 +154,7 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool && constant_pool_ != kNullAddress) {
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_ != kNullAddress) {
     return Assembler::IsConstantPoolLoadStart(pc_);
   }
   return false;
@@ -181,46 +180,25 @@ Operand Operand::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Operand(Smi::FromInt(smi));
   Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(value);
+  result.is_heap_number_request_ = true;
+  result.value_.heap_number_request = HeapNumberRequest(value);
   return result;
 }
 
-Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
-  Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(str);
-  return result;
-}
-
-MemOperand::MemOperand(Register rn, int32_t offset)
+MemOperand::MemOperand(Register rn, int64_t offset)
     : ra_(rn), offset_(offset), rb_(no_reg) {}
 
 MemOperand::MemOperand(Register ra, Register rb)
     : ra_(ra), offset_(0), rb_(rb) {}
 
-void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
-  for (auto& request : heap_object_requests_) {
-    Handle<HeapObject> object;
-    switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber: {
-        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-        break;
-      }
-      case HeapObjectRequest::kStringConstant: {
-        const StringConstantBase* str = request.string();
-        CHECK_NOT_NULL(str);
-        object = str->AllocateStringConstant(isolate);
-        break;
-      }
-    }
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Address constant_pool = kNullAddress;
-    set_target_address_at(pc, constant_pool, object.address(),
-                          SKIP_ICACHE_FLUSH);
-  }
+MemOperand::MemOperand(Register ra, Register rb, int64_t offset)
+    : ra_(ra), offset_(offset), rb_(rb) {}
+
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  Address constant_pool = kNullAddress;
+  set_target_address_at(pc, constant_pool, object.address(), nullptr,
+                        SKIP_ICACHE_FLUSH);
 }
 
 // -----------------------------------------------------------------------------
@@ -229,7 +207,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_(ip.bit()),
+      scratch_register_list_(DefaultTmpList()),
+      scratch_double_register_list_(DefaultFPTmpList()),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -240,14 +219,26 @@ Assembler::Assembler(const AssemblerOptions& options,
   internal_trampoline_exception_ = false;
   last_bound_pos_ = 0;
   optimizable_cmpi_pos_ = -1;
-  trampoline_emitted_ = FLAG_force_long_branches;
+  trampoline_emitted_ = v8_flags.force_long_branches;
   tracked_branch_count_ = 0;
   relocations_.reserve(128);
 }
 
-void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+  GetCode(isolate->main_thread_local_isolate(), desc);
+}
+void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
+  // As a crutch to avoid having to add manual Align calls wherever we use a
+  // raw workflow to create InstructionStream objects (mostly in tests), add
+  // another Align call here. It does no harm - the end of the InstructionStream
+  // object is aligned to the (larger) kCodeAlignment anyways.
+  // TODO(jgruber): Consider moving responsibility for proper alignment to
+  // metadata table builders (safepoint, handler, constant pool, code
+  // comments).
+  DataAlign(InstructionStream::kMetadataAlignment);
+
   // Emit constant pool if necessary.
   int constant_pool_size = EmitConstantPool();
 
@@ -255,14 +246,18 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 
   int code_comments_size = WriteCodeComments();
 
-  AllocateAndInstallRequestedHeapObjects(isolate);
+  AllocateAndInstallRequestedHeapNumbers(isolate);
 
   // Set up code descriptor.
   // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
   // this point to make CodeDesc initialization less fiddly.
 
+  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - kBuiltinJumpTableInfoSize;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - constant_pool_size;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -270,12 +265,13 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   const int safepoint_table_offset =
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
-          : safepoint_table_builder->GetCodeOffset();
+          : safepoint_table_builder->safepoint_table_offset();
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::Align(int m) {
@@ -297,7 +293,6 @@ Condition Assembler::GetCondition(Instr instr) {
     default:
       UNIMPLEMENTED();
   }
-  return al;
 }
 
 bool Assembler::IsLis(Instr instr) {
@@ -322,7 +317,6 @@ Register Assembler::GetRB(Instr instr) {
   return Register::from_code(Instruction::RBValue(instr));
 }
 
-#if V8_TARGET_ARCH_PPC64
 // This code assumes a FIXED_SEQUENCE for 64bit loads (lis/ori)
 bool Assembler::Is64BitLoadIntoR12(Instr instr1, Instr instr2, Instr instr3,
                                    Instr instr4, Instr instr5) {
@@ -336,15 +330,6 @@ bool Assembler::Is64BitLoadIntoR12(Instr instr1, Instr instr2, Instr instr3,
           (instr3 == 0x798C07C6) && ((instr4 >> 16) == 0x658C) &&
           ((instr5 >> 16) == 0x618C));
 }
-#else
-// This code assumes a FIXED_SEQUENCE for 32bit loads (lis/ori)
-bool Assembler::Is32BitLoadIntoR12(Instr instr1, Instr instr2) {
-  // Check the instruction is indeed a two part load (into r12)
-  // 3d802553       lis     r12, 9555
-  // 618c5000       ori   r12, r12, 20480
-  return (((instr1 >> 16) == 0x3D80) && ((instr2 >> 16) == 0x618C));
-}
-#endif
 
 bool Assembler::IsCmpRegister(Instr instr) {
   return (((instr & kOpcodeMask) == EXT2) &&
@@ -357,12 +342,10 @@ bool Assembler::IsRlwinm(Instr instr) {
 
 bool Assembler::IsAndi(Instr instr) { return ((instr & kOpcodeMask) == ANDIx); }
 
-#if V8_TARGET_ARCH_PPC64
 bool Assembler::IsRldicl(Instr instr) {
   return (((instr & kOpcodeMask) == EXT5) &&
           ((EXT5 | (instr & kExt5OpcodeMask)) == RLDICL));
 }
-#endif
 
 bool Assembler::IsCmpImmediate(Instr instr) {
   return ((instr & kOpcodeMask) == CMPI);
@@ -475,9 +458,10 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // Load the position of the label relative to the generated code object
       // pointer in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      int32_t offset = target_pos + (Code::kHeaderSize - kHeapObjectTag);
+      int32_t offset =
+          target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag);
       PatchingAssembler patcher(
-          options(), reinterpret_cast<byte*>(buffer_start_ + pos), 2);
+          options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos), 2);
       patcher.bitwise_mov32(dst, offset);
       break;
     }
@@ -492,7 +476,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
                           : (SIGN_EXT_IMM22(operands & kImm22Mask));
       int32_t offset = target_pos + delta;
       PatchingAssembler patcher(
-          options(), reinterpret_cast<byte*>(buffer_start_ + pos),
+          options(), reinterpret_cast<uint8_t*>(buffer_start_ + pos),
           2 + static_cast<int32_t>(opcode == kUnboundAddLabelLongOffsetOpcode));
       patcher.bitwise_add32(dst, base, offset);
       if (opcode == kUnboundAddLabelLongOffsetOpcode) patcher.nop();
@@ -502,7 +486,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       PatchingAssembler patcher(options(),
-                                reinterpret_cast<byte*>(buffer_start_ + pos),
+                                reinterpret_cast<uint8_t*>(buffer_start_ + pos),
                                 kMovInstructionsNoConstantPool);
       // Keep internal references relative until EmitRelocations.
       patcher.bitwise_mov(dst, target_pos);
@@ -510,7 +494,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     }
     case kUnboundJumpTableEntryOpcode: {
       PatchingAssembler patcher(options(),
-                                reinterpret_cast<byte*>(buffer_start_ + pos),
+                                reinterpret_cast<uint8_t*>(buffer_start_ + pos),
                                 kSystemPointerSize / kInstrSize);
       // Keep internal references relative until EmitRelocations.
       patcher.dp(target_pos);
@@ -685,11 +669,11 @@ int Assembler::link(Label* L) {
 // Branch instructions.
 
 void Assembler::bclr(BOfield bo, int condition_bit, LKBit lk) {
-  emit(EXT1 | bo | condition_bit * B16 | BCLRX | lk);
+  emit(EXT1 | static_cast<uint32_t>(bo) | condition_bit * B16 | BCLRX | lk);
 }
 
 void Assembler::bcctr(BOfield bo, int condition_bit, LKBit lk) {
-  emit(EXT1 | bo | condition_bit * B16 | BCCTRX | lk);
+  emit(EXT1 | static_cast<uint32_t>(bo) | condition_bit * B16 | BCCTRX | lk);
 }
 
 // Pseudo op - branch to link register
@@ -703,7 +687,8 @@ void Assembler::bctrl() { bcctr(BA, 0, SetLK); }
 void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
   int imm16 = branch_offset;
   CHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
-  emit(BCX | bo | condition_bit * B16 | (imm16 & kImm16Mask) | lk);
+  emit(BCX | static_cast<uint32_t>(bo) | condition_bit * B16 |
+       (imm16 & kImm16Mask) | lk);
 }
 
 void Assembler::b(int branch_offset, LKBit lk) {
@@ -829,6 +814,20 @@ void Assembler::mullw(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | MULLW, dst, src1, src2, o, r);
 }
 
+void Assembler::mulli(Register dst, Register src, const Operand& imm) {
+  d_form(MULLI, dst, src, imm.immediate(), true);
+}
+
+// Multiply hi doubleword
+void Assembler::mulhd(Register dst, Register src1, Register src2, RCBit r) {
+  xo_form(EXT2 | MULHD, dst, src1, src2, LeaveOE, r);
+}
+
+// Multiply hi doubleword unsigned
+void Assembler::mulhdu(Register dst, Register src1, Register src2, RCBit r) {
+  xo_form(EXT2 | MULHDU, dst, src1, src2, LeaveOE, r);
+}
+
 // Multiply hi word
 void Assembler::mulhw(Register dst, Register src1, Register src2, RCBit r) {
   xo_form(EXT2 | MULHWX, dst, src1, src2, LeaveOE, r);
@@ -883,11 +882,7 @@ void Assembler::oris(Register dst, Register src, const Operand& imm) {
 
 void Assembler::cmpi(Register src1, const Operand& src2, CRegister cr) {
   intptr_t imm16 = src2.immediate();
-#if V8_TARGET_ARCH_PPC64
   int L = 1;
-#else
-  int L = 0;
-#endif
   DCHECK(is_int16(imm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   imm16 &= kImm16Mask;
@@ -896,11 +891,7 @@ void Assembler::cmpi(Register src1, const Operand& src2, CRegister cr) {
 
 void Assembler::cmpli(Register src1, const Operand& src2, CRegister cr) {
   uintptr_t uimm16 = src2.immediate();
-#if V8_TARGET_ARCH_PPC64
   int L = 1;
-#else
-  int L = 0;
-#endif
   DCHECK(is_uint16(uimm16));
   DCHECK(cr.code() >= 0 && cr.code() <= 7);
   uimm16 &= kImm16Mask;
@@ -979,15 +970,11 @@ void Assembler::lha(Register dst, const MemOperand& src) {
 }
 
 void Assembler::lwa(Register dst, const MemOperand& src) {
-#if V8_TARGET_ARCH_PPC64
   int offset = src.offset();
   DCHECK(src.ra_ != r0);
   CHECK(!(offset & 3) && is_int16(offset));
   offset = kImm16Mask & offset;
   emit(LD | dst.code() * B21 | src.ra().code() * B16 | offset | 2);
-#else
-  lwz(dst, src);
-#endif
 }
 
 void Assembler::stb(Register dst, const MemOperand& src) {
@@ -1014,7 +1001,6 @@ void Assembler::neg(Register rt, Register ra, OEBit o, RCBit r) {
   emit(EXT2 | NEGX | rt.code() * B21 | ra.code() * B16 | o | r);
 }
 
-#if V8_TARGET_ARCH_PPC64
 // 64bit specific instructions
 void Assembler::ld(Register rd, const MemOperand& src) {
   int offset = src.offset();
@@ -1124,7 +1110,164 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
                       RCBit r) {
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
 }
-#endif
+
+// Prefixed instructions.
+#define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
+  CHECK(is_int34(immediate));                                       \
+  int32_t prefix =                                                  \
+      SIGN_EXT_IMM18((immediate >> 16) & kImm18Mask); /* 18 bits.*/ \
+  int16_t suffix = immediate & kImm16Mask;            /* 16 bits.*/ \
+  DCHECK(is_int18(prefix));
+
+void Assembler::paddi(Register dst, Register src, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  DCHECK(src != r0);  // use pli instead to show intent.
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  addi(dst, src, Operand(lo));
+}
+
+void Assembler::pli(Register dst, const Operand& imm) {
+  CHECK(CpuFeatures::IsSupported(PPC_10_PLUS));
+  intptr_t immediate = imm.immediate();
+  GENERATE_PREFIX_SUFFIX_BITS(immediate, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  li(dst, Operand(lo));
+}
+
+void Assembler::psubi(Register dst, Register src, const Operand& imm) {
+  paddi(dst, src, Operand(-(imm.immediate())));
+}
+
+void Assembler::plbz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lbz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plhz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lhz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plha(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lha(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwz(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lwz(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plwa(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLWA | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::pld(Register dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPLD | dst.code() * B21 | src.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::plfs(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfs(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::plfd(DoubleRegister dst, const MemOperand& src) {
+  DCHECK(src.ra_ != r0);
+  int64_t offset = src.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  lfd(dst, MemOperand(src.ra(), lo));
+}
+
+void Assembler::pstb(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stb(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::psth(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  sth(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstw(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stw(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstd(Register src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_8ls(Operand(hi));
+  emit(PPSTD | src.code() * B21 | dst.ra().code() * B16 | (lo & kImm16Mask));
+}
+
+void Assembler::pstfs(const DoubleRegister src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stfs(src, MemOperand(dst.ra(), lo));
+}
+
+void Assembler::pstfd(const DoubleRegister src, const MemOperand& dst) {
+  DCHECK(dst.ra_ != r0);
+  int64_t offset = dst.offset();
+  GENERATE_PREFIX_SUFFIX_BITS(offset, hi, lo)
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  pload_store_mls(Operand(hi));
+  stfd(src, MemOperand(dst.ra(), lo));
+}
+#undef GENERATE_PREFIX_SUFFIX_BITS
 
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
@@ -1142,18 +1285,16 @@ int Assembler::instructions_required_for_mov(Register dst,
 
 bool Assembler::use_constant_pool_for_mov(Register dst, const Operand& src,
                                           bool canOptimize) const {
-  if (!FLAG_enable_embedded_constant_pool || !is_constant_pool_available()) {
+  if (!V8_EMBEDDED_CONSTANT_POOL_BOOL || !is_constant_pool_available()) {
     // If there is no constant pool available, we must use a mov
     // immediate sequence.
     return false;
   }
   intptr_t value = src.immediate();
-#if V8_TARGET_ARCH_PPC64
   bool allowOverflow = !((canOptimize && is_int32(value)) || dst == r0);
-#else
-  bool allowOverflow = !(canOptimize || dst == r0);
-#endif
-  if (canOptimize && is_int16(value)) {
+  if (canOptimize &&
+      (is_int16(value) ||
+       (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))) {
     // Prefer a single-instruction load-immediate.
     return false;
   }
@@ -1176,7 +1317,7 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != nullptr && assembler->predictable_code_size()) return true;
     return assembler->options().record_reloc_info_for_serialization;
-  } else if (RelocInfo::IsNone(rmode_)) {
+  } else if (RelocInfo::IsNoInfo(rmode_)) {
     return false;
   }
   return true;
@@ -1190,8 +1331,8 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 // and only use the generic version when we require a fixed sequence
 void Assembler::mov(Register dst, const Operand& src) {
   intptr_t value;
-  if (src.IsHeapObjectRequest()) {
-    RequestHeapObject(src.heap_object_request());
+  if (src.IsHeapNumberRequest()) {
+    RequestHeapNumber(src.heap_number_request());
     value = 0;
   } else {
     value = src.immediate();
@@ -1200,43 +1341,36 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool canOptimize;
 
   canOptimize =
-      !(relocatable || (is_trampoline_pool_blocked() && !is_int16(value)));
+      !(relocatable ||
+        (is_trampoline_pool_blocked() &&
+         (!is_int16(value) ||
+          !(CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)))));
 
-  if (!src.IsHeapObjectRequest() &&
+  if (!src.IsHeapNumberRequest() &&
       use_constant_pool_for_mov(dst, src, canOptimize)) {
     DCHECK(is_constant_pool_available());
     if (relocatable) {
       RecordRelocInfo(src.rmode_);
     }
     ConstantPoolEntry::Access access = ConstantPoolAddEntry(src.rmode_, value);
-#if V8_TARGET_ARCH_PPC64
     if (access == ConstantPoolEntry::OVERFLOWED) {
       addis(dst, kConstantPoolRegister, Operand::Zero());
       ld(dst, MemOperand(dst, 0));
     } else {
       ld(dst, MemOperand(kConstantPoolRegister, 0));
     }
-#else
-    if (access == ConstantPoolEntry::OVERFLOWED) {
-      addis(dst, kConstantPoolRegister, Operand::Zero());
-      lwz(dst, MemOperand(dst, 0));
-    } else {
-      lwz(dst, MemOperand(kConstantPoolRegister, 0));
-    }
-#endif
     return;
   }
 
   if (canOptimize) {
     if (is_int16(value)) {
       li(dst, Operand(value));
+    } else if (CpuFeatures::IsSupported(PPC_10_PLUS) && is_int34(value)) {
+      pli(dst, Operand(value));
     } else {
       uint16_t u16;
-#if V8_TARGET_ARCH_PPC64
       if (is_int32(value)) {
-#endif
         lis(dst, Operand(value >> 16));
-#if V8_TARGET_ARCH_PPC64
       } else {
         if (is_int48(value)) {
           li(dst, Operand(value >> 32));
@@ -1253,7 +1387,6 @@ void Assembler::mov(Register dst, const Operand& src) {
           oris(dst, dst, Operand(u16));
         }
       }
-#endif
       u16 = (value & 0xFFFF);
       if (u16) {
         ori(dst, dst, Operand(u16));
@@ -1271,7 +1404,6 @@ void Assembler::mov(Register dst, const Operand& src) {
 
 void Assembler::bitwise_mov(Register dst, intptr_t value) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-#if V8_TARGET_ARCH_PPC64
   int32_t hi_32 = static_cast<int32_t>(value >> 32);
   int32_t lo_32 = static_cast<int32_t>(value);
   int hi_word = static_cast<int>(hi_32 >> 16);
@@ -1283,12 +1415,6 @@ void Assembler::bitwise_mov(Register dst, intptr_t value) {
   lo_word = static_cast<int>(lo_32 & 0xFFFF);
   oris(dst, dst, Operand(hi_word));
   ori(dst, dst, Operand(lo_word));
-#else
-  int hi_word = static_cast<int>(value >> 16);
-  int lo_word = static_cast<int>(value & 0xFFFF);
-  lis(dst, Operand(SIGN_EXT_IMM16(hi_word)));
-  ori(dst, dst, Operand(lo_word));
-#endif
 }
 
 void Assembler::bitwise_mov32(Register dst, int32_t value) {
@@ -1313,11 +1439,21 @@ void Assembler::bitwise_add32(Register dst, Register src, int32_t value) {
   }
 }
 
+void Assembler::patch_pc_address(Register dst, int pc_offset,
+                                 int return_address_offset) {
+  DCHECK(is_int16(return_address_offset));
+  Assembler patching_assembler(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(buffer_start_ + pc_offset, kInstrSize + kGap));
+  patching_assembler.addi(dst, dst, Operand(return_address_offset));
+}
+
 void Assembler::mov_label_offset(Register dst, Label* label) {
   int position = link(label);
   if (label->is_bound()) {
     // Load the position of the label relative to the generated code object.
-    mov(dst, Operand(position + Code::kHeaderSize - kHeapObjectTag));
+    mov(dst,
+        Operand(position + InstructionStream::kHeaderSize - kHeapObjectTag));
   } else {
     // Encode internal reference to unbound label. We use a dummy opcode
     // such that it won't collide with any opcode that might appear in the
@@ -1417,9 +1553,7 @@ void Assembler::emit_label_addr(Label* label) {
     // the link and target_at_put patches the instruction(s).
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundJumpTableEntryOpcode | (link & kImm26Mask));
-#if V8_TARGET_ARCH_PPC64
     nop();
-#endif
   }
 }
 
@@ -1457,7 +1591,9 @@ void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
 
 void Assembler::mfcr(Register dst) { emit(EXT2 | MFCR | dst.code() * B21); }
 
-#if V8_TARGET_ARCH_PPC64
+void Assembler::mtcrf(Register src, uint8_t FXM) {
+  emit(MTCRF | src.code() * B21 | FXM * B12);
+}
 void Assembler::mffprd(Register dst, DoubleRegister src) {
   emit(EXT2 | MFVSRD | src.code() * B21 | dst.code() * B16);
 }
@@ -1477,7 +1613,6 @@ void Assembler::mtfprwz(DoubleRegister dst, Register src) {
 void Assembler::mtfprwa(DoubleRegister dst, Register src) {
   emit(EXT2 | MTVSRWA | dst.code() * B21 | src.code() * B16);
 }
-#endif
 
 // Exception-generating instructions and debugging support.
 // Stops with a non-negative code less than kNumOfWatchedStops support
@@ -1604,6 +1739,12 @@ void Assembler::fadd(const DoubleRegister frt, const DoubleRegister fra,
 void Assembler::fmul(const DoubleRegister frt, const DoubleRegister fra,
                      const DoubleRegister frc, RCBit rc) {
   emit(EXT4 | FMUL | frt.code() * B21 | fra.code() * B16 | frc.code() * B6 |
+       rc);
+}
+
+void Assembler::fcpsgn(const DoubleRegister frt, const DoubleRegister fra,
+                       const DoubleRegister frb, RCBit rc) {
+  emit(EXT4 | FCPSGN | frt.code() * B21 | fra.code() * B16 | frb.code() * B11 |
        rc);
 }
 
@@ -1777,16 +1918,101 @@ void Assembler::mtvsrd(const Simd128Register rt, const Register ra) {
   emit(MTVSRD | rt.code() * B21 | ra.code() * B16 | TX);
 }
 
+void Assembler::mtvsrdd(const Simd128Register rt, const Register ra,
+                        const Register rb) {
+  int TX = 1;
+  emit(MTVSRDD | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | TX);
+}
+
 void Assembler::lxvd(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
   int TX = 1;
   emit(LXVD | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
        TX);
 }
 
+void Assembler::lxvx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
+  int TX = 1;
+  emit(LXVX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::lxsdx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
+  int TX = 1;
+  emit(LXSDX | rt.code() * B21 | src.ra().code() * B16 | src.rb().code() * B11 |
+       TX);
+}
+
+void Assembler::lxsibzx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
+  int TX = 1;
+  emit(LXSIBZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsihzx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
+  int TX = 1;
+  emit(LXSIHZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::lxsiwzx(const Simd128Register rt, const MemOperand& src) {
+  CHECK(src.rb().is_valid());
+  int TX = 1;
+  emit(LXSIWZX | rt.code() * B21 | src.ra().code() * B16 |
+       src.rb().code() * B11 | TX);
+}
+
+void Assembler::stxsdx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
+  int SX = 1;
+  emit(STXSDX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsibx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
+  int SX = 1;
+  emit(STXSIBX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsihx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
+  int SX = 1;
+  emit(STXSIHX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
+}
+
+void Assembler::stxsiwx(const Simd128Register rs, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
+  int SX = 1;
+  emit(STXSIWX | rs.code() * B21 | dst.ra().code() * B16 |
+       dst.rb().code() * B11 | SX);
+}
+
 void Assembler::stxvd(const Simd128Register rt, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
   int SX = 1;
   emit(STXVD | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
        SX);
+}
+
+void Assembler::stxvx(const Simd128Register rt, const MemOperand& dst) {
+  CHECK(dst.rb().is_valid());
+  int SX = 1;
+  emit(STXVX | rt.code() * B21 | dst.ra().code() * B16 | dst.rb().code() * B11 |
+       SX);
+}
+
+void Assembler::xxspltib(const Simd128Register rt, const Operand& imm) {
+  int TX = 1;
+  CHECK(is_uint8(imm.immediate()));
+  emit(XXSPLTIB | (rt.code() & 0x1F) * B21 | (imm.immediate() & 0xFF) * B11 |
+       TX);
 }
 
 // Pseudo instructions.
@@ -1845,7 +2071,7 @@ void Assembler::GrowBuffer(int needed) {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   intptr_t pc_delta = new_start - buffer_start_;
@@ -1904,7 +2130,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = reinterpret_cast<Address>(buffer_start_) + it->position();
-    RelocInfo rinfo(pc, rmode, it->data(), Code());
+    RelocInfo rinfo(pc, rmode, it->data());
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
@@ -1916,7 +2142,7 @@ void Assembler::EmitRelocations() {
       intptr_t pos = static_cast<intptr_t>(target_address_at(pc, kNullAddress));
       set_target_address_at(pc, 0,
                             reinterpret_cast<Address>(buffer_start_) + pos,
-                            SKIP_ICACHE_FLUSH);
+                            nullptr, SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);
@@ -1959,7 +2185,7 @@ void Assembler::CheckTrampolinePool() {
 }
 
 PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
-                                     byte* address, int instructions)
+                                     uint8_t* address, int instructions)
     : Assembler(options, ExternalAssemblerBuffer(
                              address, instructions * kInstrSize + kGap)) {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
@@ -1971,25 +2197,12 @@ PatchingAssembler::~PatchingAssembler() {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
 }
 
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : assembler_(assembler),
-      old_available_(*assembler->GetScratchRegisterList()) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *assembler_->GetScratchRegisterList() = old_available_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  RegList* available = assembler_->GetScratchRegisterList();
-  DCHECK_NOT_NULL(available);
-  DCHECK_NE(*available, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available));
-  Register reg = Register::from_code(index);
-  *available &= ~reg.bit();
-  return reg;
+RegList Assembler::DefaultTmpList() { return {r26, ip}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, kDoubleRegZero};
 }
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#endif  // V8_TARGET_ARCH_PPC64

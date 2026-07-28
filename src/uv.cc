@@ -22,7 +22,8 @@
 #include "uv.h"
 #include "env-inl.h"
 #include "node.h"
-#include "node_process.h"
+#include "node_external_reference.h"
+#include "node_process-inl.h"
 
 namespace node {
 
@@ -42,7 +43,7 @@ static const struct UVError uv_errors_map[] = {
 };
 }  // namespace per_process
 
-namespace {
+namespace uv {
 
 using v8::Array;
 using v8::Context;
@@ -58,8 +59,18 @@ using v8::ReadOnly;
 using v8::String;
 using v8::Value;
 
+void GetErrMessage(const FunctionCallbackInfo<Value>& args) {
+  int err = args[0].As<v8::Int32>()->Value();
+  CHECK_LT(err, 0);
+  char message[50];
+  uv_strerror_r(err, message, sizeof(message));
+  args.GetReturnValue().Set(OneByteString(args.GetIsolate(), message));
+}
+
 void ErrName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
   if (env->options()->pending_deprecation && env->EmitErrNameWarning()) {
     if (ProcessEmitDeprecationWarning(
         env,
@@ -69,18 +80,19 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
         "DEP0119").IsNothing())
     return;
   }
-  int err;
-  if (!args[0]->Int32Value(env->context()).To(&err)) return;
+  int err = args[0].As<v8::Int32>()->Value();
   CHECK_LT(err, 0);
-  const char* name = uv_err_name(err);
-  args.GetReturnValue().Set(OneByteString(env->isolate(), name));
+  char name[50];
+  uv_err_name_r(err, name, sizeof(name));
+  args.GetReturnValue().Set(OneByteString(isolate, name));
 }
 
 void GetErrMap(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
+  // This can't return a SafeMap, because the uv binding can be referenced
+  // by user code by using `process.binding('uv').getErrorMap()`:
   Local<Map> err_map = Map::New(isolate);
 
   size_t errors_len = arraysize(per_process::uv_errors_map);
@@ -106,11 +118,8 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)
-                  ->GetFunction(env->context())
-                  .ToLocalChecked()).Check();
+  SetConstructorFunction(
+      context, target, "errname", NewFunctionTemplate(isolate, ErrName));
 
   // TODO(joyeecheung): This should be deprecated in user land in favor of
   // `util.getSystemErrorName(err)`.
@@ -121,15 +130,22 @@ void Initialize(Local<Object> target,
   for (size_t i = 0; i < errors_len; ++i) {
     const auto& error = per_process::uv_errors_map[i];
     const std::string prefixed_name = prefix + error.name;
-    Local<String> name = OneByteString(isolate, prefixed_name.c_str());
+    Local<String> name = OneByteString(isolate, prefixed_name);
     Local<Integer> value = Integer::New(isolate, error.value);
     target->DefineOwnProperty(context, name, value, attributes).Check();
   }
 
-  env->SetMethod(target, "getErrorMap", GetErrMap);
+  SetMethod(context, target, "getErrorMap", GetErrMap);
+  SetMethod(context, target, "getErrorMessage", GetErrMessage);
 }
 
-}  // anonymous namespace
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(ErrName);
+  registry->Register(GetErrMap);
+  registry->Register(GetErrMessage);
+}
+}  // namespace uv
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(uv, node::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(uv, node::uv::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(uv, node::uv::RegisterExternalReferences)

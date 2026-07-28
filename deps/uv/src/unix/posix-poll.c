@@ -132,11 +132,12 @@ static void uv__pollfds_del(uv_loop_t* loop, int fd) {
 
 
 void uv__io_poll(uv_loop_t* loop, int timeout) {
+  uv__loop_internal_fields_t* lfields;
   sigset_t* pset;
   sigset_t set;
   uint64_t time_base;
   uint64_t time_diff;
-  QUEUE* q;
+  struct uv__queue* q;
   uv__io_t* w;
   size_t i;
   unsigned int nevents;
@@ -148,17 +149,19 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int reset_timeout;
 
   if (loop->nfds == 0) {
-    assert(QUEUE_EMPTY(&loop->watcher_queue));
+    assert(uv__queue_empty(&loop->watcher_queue));
     return;
   }
 
-  /* Take queued watchers and add their fds to our poll fds array.  */
-  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
-    q = QUEUE_HEAD(&loop->watcher_queue);
-    QUEUE_REMOVE(q);
-    QUEUE_INIT(q);
+  lfields = uv__get_internal_fields(loop);
 
-    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
+  /* Take queued watchers and add their fds to our poll fds array.  */
+  while (!uv__queue_empty(&loop->watcher_queue)) {
+    q = uv__queue_head(&loop->watcher_queue);
+    uv__queue_remove(q);
+    uv__queue_init(q);
+
+    w = uv__queue_data(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
@@ -179,7 +182,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   assert(timeout >= -1);
   time_base = loop->time;
 
-  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+  if (lfields->flags & UV_METRICS_IDLE_TIME) {
     reset_timeout = 1;
     user_timeout = timeout;
     timeout = 0;
@@ -192,25 +195,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
    * our caller then we need to loop around and poll() again.
    */
   for (;;) {
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
-    if (pset != NULL)
-      if (pthread_sigmask(SIG_BLOCK, pset, NULL))
-        abort();
+    uv__io_poll_prepare(loop, pset, timeout);
     nfds = poll(loop->poll_fds, (nfds_t)loop->poll_fds_used, timeout);
-    if (pset != NULL)
-      if (pthread_sigmask(SIG_UNBLOCK, pset, NULL))
-        abort();
-
-    /* Update loop->time unconditionally. It's tempting to skip the update when
-     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
-     * operating system didn't reschedule our process while in the syscall.
-     */
-    SAVE_ERRNO(uv__update_time(loop));
+    uv__io_poll_check(loop, pset);
 
     if (nfds == 0) {
       if (reset_timeout != 0) {
@@ -285,21 +272,23 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           have_signals = 1;
         } else {
           uv__metrics_update_idle_time(loop);
-          w->cb(loop, w, pe->revents);
+          uv__io_cb(loop, w, pe->revents);
         }
 
         nevents++;
       }
     }
 
+    uv__metrics_inc_events(loop, nevents);
     if (reset_timeout != 0) {
       timeout = user_timeout;
       reset_timeout = 0;
+      uv__metrics_inc_events_waiting(loop, nevents);
     }
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     loop->poll_fds_iterating = 0;

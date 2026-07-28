@@ -5,22 +5,29 @@
 #ifndef V8_COMPILER_JS_HEAP_BROKER_H_
 #define V8_COMPILER_JS_HEAP_BROKER_H_
 
+#include <optional>
+
 #include "src/base/compiler-specific.h"
-#include "src/base/optional.h"
+#include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/feedback-source.h"
-#include "src/compiler/globals.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/refs-map.h"
-#include "src/compiler/serializer-hints.h"
+#include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/local-heap.h"
-#include "src/interpreter/bytecode-array-accessor.h"
+#include "src/heap/parked-scope.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
-#include "src/objects/function-kind.h"
 #include "src/objects/objects.h"
+#include "src/objects/tagged.h"
+#include "src/roots/roots.h"
+#include "src/roots/static-roots.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/ostreams.h"
@@ -28,22 +35,21 @@
 
 namespace v8 {
 namespace internal {
+
+namespace maglev {
+class MaglevCompilationInfo;
+}
+
 namespace compiler {
 
-class BytecodeAnalysis;
 class ObjectRef;
-std::ostream& operator<<(std::ostream& os, const ObjectRef& ref);
 
-#define TRACE_BROKER(broker, x)                                      \
-  do {                                                               \
-    if (broker->tracing_enabled() && FLAG_trace_heap_broker_verbose) \
-      StdoutStream{} << broker->Trace() << x << '\n';                \
-  } while (false)
+std::ostream& operator<<(std::ostream& os, ObjectRef ref);
 
-#define TRACE_BROKER_MEMORY(broker, x)                              \
-  do {                                                              \
-    if (broker->tracing_enabled() && FLAG_trace_heap_broker_memory) \
-      StdoutStream{} << broker->Trace() << x << std::endl;          \
+#define TRACE_BROKER(broker, x)                                          \
+  do {                                                                   \
+    if (broker->tracing_enabled() && v8_flags.trace_heap_broker_verbose) \
+      StdoutStream{} << broker->Trace() << x << '\n';                    \
   } while (false)
 
 #define TRACE_BROKER_MISSING(broker, x)                                        \
@@ -75,16 +81,28 @@ struct PropertyAccessTarget {
   };
 };
 
+enum GetOrCreateDataFlag {
+  // If set, a failure to create the data object results in a crash.
+  kCrashOnError = 1 << 0,
+  // If set, data construction assumes that the given object is protected by
+  // a memory fence (e.g. acquire-release) and thus fields required for
+  // construction (like Object::map) are safe to read. The protection can
+  // extend to some other situations as well.
+  kAssumeMemoryFence = 1 << 1,
+};
+using GetOrCreateDataFlags = base::Flags<GetOrCreateDataFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(GetOrCreateDataFlags)
+
 class V8_EXPORT_PRIVATE JSHeapBroker {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone, bool tracing_enabled,
-               bool is_concurrent_inlining, bool is_native_context_independent);
+               CodeKind code_kind);
 
   // For use only in tests, sets default values for some arguments. Avoids
   // churn when new flags are added.
   JSHeapBroker(Isolate* isolate, Zone* broker_zone)
-      : JSHeapBroker(isolate, broker_zone, FLAG_trace_heap_broker, false,
-                     false) {}
+      : JSHeapBroker(isolate, broker_zone, v8_flags.trace_heap_broker,
+                     CodeKind::TURBOFAN_JS) {}
 
   ~JSHeapBroker();
 
@@ -93,66 +111,105 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   NativeContextRef target_native_context() const {
     return target_native_context_.value();
   }
-  void SetTargetNativeContextRef(Handle<NativeContext> native_context);
+  void SetTargetNativeContextRef(DirectHandle<NativeContext> native_context);
 
-  void InitializeAndStartSerializing(Handle<NativeContext> native_context);
+  void InitializeAndStartSerializing(
+      DirectHandle<NativeContext> native_context);
 
   Isolate* isolate() const { return isolate_; }
+
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to InstructionStream objects.
+  PtrComprCageBase cage_base() const {
+#if V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
-  bool is_concurrent_inlining() const { return is_concurrent_inlining_; }
-  bool is_native_context_independent() const {
-    return is_native_context_independent_;
-  }
-  bool generate_full_feedback_collection() const {
-    // NCI code currently collects full feedback.
-    DCHECK_IMPLIES(is_native_context_independent(),
-                   CollectFeedbackInGenericLowering());
-    return is_native_context_independent();
+
+  NexusConfig feedback_nexus_config() const {
+    return IsMainThread() ? NexusConfig::FromMainThread(isolate())
+                          : NexusConfig::FromBackgroundThread(
+                                isolate(), local_isolate()->heap());
   }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
-  // Initialize the local heap with the persistent and canonical handles
-  // provided by {info}.
-  void InitializeLocalHeap(OptimizedCompilationInfo* info);
-  // Tear down the local heap and pass the persistent and canonical handles
-  // provided back to {info}. {info} is responsible for disposing of them.
-  void TearDownLocalHeap(OptimizedCompilationInfo* info);
+
   void StopSerializing();
   void Retire();
   bool SerializingAllowed() const;
 
 #ifdef DEBUG
+  // Get the current heap broker for this thread. Only to be used for DCHECKs.
+  static JSHeapBroker* Current();
+#endif
+
+  // Remember the local isolate and initialize its local heap with the
+  // persistent and canonical handles provided by {info}.
+  void AttachLocalIsolate(OptimizedCompilationInfo* info,
+                          LocalIsolate* local_isolate);
+  // Forget about the local isolate and pass the persistent and canonical
+  // handles provided back to {info}. {info} is responsible for disposing of
+  // them.
+  void DetachLocalIsolate(OptimizedCompilationInfo* info);
+
+  // TODO(v8:7700): Refactor this once the broker is no longer
+  // Turbofan-specific.
+  void AttachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info,
+                                   LocalIsolate* local_isolate);
+  void DetachLocalIsolateForMaglev(maglev::MaglevCompilationInfo* info);
+
+  // Attaches the canonical handles map from the compilation info to the broker.
+  // Ownership of the map remains in the compilation info.
+  template <typename CompilationInfoT>
+  void AttachCompilationInfo(CompilationInfoT* info) {
+    set_canonical_handles(info->canonical_handles());
+  }
+
+  bool StackHasOverflowed() const;
+
+#ifdef DEBUG
   void PrintRefsAnalysis() const;
 #endif  // DEBUG
 
-  // Retruns the handle from root index table for read only heap objects.
-  Handle<Object> GetRootHandle(Object object);
+  // Returns the handle from root index table for read only heap objects.
+  DirectHandle<Object> GetRootHandle(Tagged<Object> object);
 
   // Never returns nullptr.
-  ObjectData* GetOrCreateData(Handle<Object>);
-  // Like the previous but wraps argument in handle first (for convenience).
-  ObjectData* GetOrCreateData(Object);
+  ObjectData* GetOrCreateData(Handle<Object> object,
+                              GetOrCreateDataFlags flags = {});
+  template <typename T>
+  ObjectData* GetOrCreateData(Tagged<T> object,
+                              GetOrCreateDataFlags flags = {}) {
+    return GetOrCreateData(CanonicalPersistentHandle(object), flags);
+  }
 
-  // Check if {object} is any native context's %ArrayPrototype% or
-  // %ObjectPrototype%.
-  bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
+  // Gets data only if we have it. However, thin wrappers will be created for
+  // smis, read-only objects and never-serialized objects.
+  ObjectData* TryGetOrCreateData(Handle<Object> object,
+                                 GetOrCreateDataFlags flags = {});
+  template <typename T>
+  ObjectData* TryGetOrCreateData(Tagged<T> object,
+                                 GetOrCreateDataFlags flags = {}) {
+    return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
+  }
 
   bool HasFeedback(FeedbackSource const& source) const;
   void SetFeedback(FeedbackSource const& source,
                    ProcessedFeedback const* feedback);
-  ProcessedFeedback const& GetFeedback(FeedbackSource const& source) const;
   FeedbackSlotKind GetFeedbackSlotKind(FeedbackSource const& source) const;
 
-  // TODO(neis): Move these into serializer when we're always in the background.
   ElementAccessFeedback const& ProcessFeedbackMapsForElementAccess(
-      MapHandles const& maps, KeyedAccessMode const& keyed_mode,
+      ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
       FeedbackSlotKind slot_kind);
-  BytecodeAnalysis const& GetBytecodeAnalysis(
-      Handle<BytecodeArray> bytecode_array, BailoutId osr_offset,
-      bool analyze_liveness,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  ElementAccessFeedback const& ProcessFeedbackMapsForKeyedPropertyAccess(
+      ZoneVector<MapRef>& maps, KeyedAccessMode const& keyed_mode,
+      FeedbackSlotKind slot_kind);
 
   // Binary, comparison and for-in hints can be fully expressed via
   // an enum. Insufficient feedback is signaled by <Hint enum>::kNone.
@@ -167,6 +224,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForInstanceOf(
       FeedbackSource const& source);
+  TypeOfFeedback::Result GetFeedbackForTypeOf(FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForArrayOrObjectLiteral(
       FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForRegExpLiteral(
@@ -175,121 +233,171 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   ProcessedFeedback const& GetFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
-      base::Optional<NameRef> static_name);
+      OptionalNameRef static_name);
 
   ProcessedFeedback const& ProcessFeedbackForBinaryOperation(
       FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForCall(FeedbackSource const& source);
   ProcessedFeedback const& ProcessFeedbackForCompareOperation(
       FeedbackSource const& source);
   ProcessedFeedback const& ProcessFeedbackForForIn(
       FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForGlobalAccess(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForInstanceOf(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForPropertyAccess(
-      FeedbackSource const& source, AccessMode mode,
-      base::Optional<NameRef> static_name);
-  ProcessedFeedback const& ProcessFeedbackForArrayOrObjectLiteral(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForRegExpLiteral(
-      FeedbackSource const& source);
-  ProcessedFeedback const& ProcessFeedbackForTemplateObject(
+  ProcessedFeedback const& ProcessFeedbackForTypeOf(
       FeedbackSource const& source);
 
   bool FeedbackIsInsufficient(FeedbackSource const& source) const;
 
-  base::Optional<NameRef> GetNameFeedback(FeedbackNexus const& nexus);
+  OptionalNameRef GetNameFeedback(FeedbackNexus const& nexus);
 
-  // If {policy} is {kAssumeSerialized} and the broker doesn't know about the
-  // combination of {map}, {name}, and {access_mode}, returns Invalid.
-  PropertyAccessInfo GetPropertyAccessInfo(
-      MapRef map, NameRef name, AccessMode access_mode,
-      CompilationDependencies* dependencies = nullptr,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
-
-  MinimorphicLoadPropertyAccessInfo GetPropertyAccessInfo(
-      MinimorphicLoadPropertyAccessFeedback const& feedback,
-      FeedbackSource const& source,
-      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
+  PropertyAccessInfo GetPropertyAccessInfo(MapRef map, NameRef name,
+                                           AccessMode access_mode);
 
   StringRef GetTypedArrayStringTag(ElementsKind kind);
 
-  bool ShouldBeSerializedForCompilation(const SharedFunctionInfoRef& shared,
-                                        const FeedbackVectorRef& feedback,
-                                        const HintsVector& arguments) const;
-  void SetSerializedForCompilation(const SharedFunctionInfoRef& shared,
-                                   const FeedbackVectorRef& feedback,
-                                   const HintsVector& arguments);
-  bool IsSerializedForCompilation(const SharedFunctionInfoRef& shared,
-                                  const FeedbackVectorRef& feedback) const;
-
-  LocalHeap* local_heap() {
-    return local_heap_.has_value() ? &(*local_heap_) : nullptr;
+  bool IsMainThread() const {
+    return local_isolate() == nullptr || local_isolate()->is_main_thread();
   }
+
+  LocalIsolate* local_isolate() const { return local_isolate_; }
+
+  // TODO(jgruber): Consider always having local_isolate_ set to a real value.
+  // This seems not entirely trivial since we currently reset local_isolate_ to
+  // nullptr at some point in the JSHeapBroker lifecycle.
+  LocalIsolate* local_isolate_or_isolate() const {
+    return local_isolate() != nullptr ? local_isolate()
+                                      : isolate()->AsLocalIsolate();
+  }
+
+  inline std::optional<RootIndex> FindRootIndex(HeapObjectRef object);
 
   // Return the corresponding canonical persistent handle for {object}. Create
   // one if it does not exist.
-  // If we have the canonical map, we can create the canonical & persistent
-  // handle through it. This commonly happens during the Execute phase.
+  // If a local isolate is attached, we can create the persistent handle through
+  // it. This commonly happens during the Execute phase.
   // If we don't, that means we are calling this method from serialization. If
-  // that happens, we should be inside a canonical and a persistent handle
-  // scope. Then, we would just use the regular handle creation.
+  // that happens, we should be inside a persistent handle scope. Then, we would
+  // just use the regular handle creation.
   template <typename T>
-  Handle<T> CanonicalPersistentHandle(T object) {
-    if (canonical_handles_) {
-      Address address = object.ptr();
-      if (Internals::HasHeapObjectTag(address)) {
-        RootIndex root_index;
-        if (root_index_map_.Lookup(address, &root_index)) {
-          return Handle<T>(isolate_->root_handle(root_index).location());
-        }
+  Handle<T> CanonicalPersistentHandle(Tagged<T> object) {
+    DCHECK_NOT_NULL(canonical_handles_);
+    if (Tagged<HeapObject> heap_object;
+        TryCast<HeapObject>(object, &heap_object)) {
+      RootIndex root_index;
+      // The root index map only contains immortal, immutable objects; it never
+      // contains any instances of type JSObject, since JSObjects must exist
+      // within a NativeContext, and NativeContexts can be created and
+      // destroyed. Thus, we can skip the lookup in the root index map for those
+      // values and save a little time.
+      if constexpr (std::is_convertible_v<T, JSObject> ||
+                    std::is_convertible_v<T, Context>) {
+        DCHECK(!root_index_map_.Lookup(heap_object, &root_index));
+      } else if (root_index_map_.Lookup(heap_object, &root_index)) {
+        return Handle<T>(isolate_->root_handle(root_index).location());
       }
-
-      Object obj(address);
-      Address** entry = canonical_handles_->Get(obj);
-      if (*entry == nullptr) {
-        // Allocate new PersistentHandle if one wasn't created before.
-        DCHECK(local_heap_);
-        *entry = local_heap_->NewPersistentHandle(obj).location();
-      }
-      return Handle<T>(*entry);
-    } else {
-      return Handle<T>(object, isolate());
     }
+
+    auto find_result = canonical_handles_->FindOrInsert(object);
+    if (find_result.already_exists) return Handle<T>(*find_result.entry);
+
+    // Allocate new PersistentHandle if one wasn't created before.
+    if (local_isolate()) {
+      *find_result.entry =
+          local_isolate()->heap()->NewPersistentHandle(object).location();
+    } else {
+      DCHECK(PersistentHandlesScope::IsActive(isolate()));
+      *find_result.entry = IndirectHandle<T>(object, isolate()).location();
+    }
+    return Handle<T>(*find_result.entry);
   }
 
   template <typename T>
   Handle<T> CanonicalPersistentHandle(Handle<T> object) {
+    if (object.is_null()) return object;  // Can't deref a null handle.
     return CanonicalPersistentHandle<T>(*object);
   }
 
-  // Find the corresponding handle in the CanonicalHandlesMap. The entry must be
-  // found.
+  // Checks if a canonical persistent handle for {object} exists.
   template <typename T>
-  Handle<T> FindCanonicalPersistentHandleForTesting(Object object) {
-    Address** entry = canonical_handles_->Find(object);
-    return Handle<T>(*entry);
+  bool IsCanonicalHandle(Handle<T> handle) {
+    DCHECK_NOT_NULL(canonical_handles_);
+    if (Tagged<HeapObject> heap_object;
+        TryCast<HeapObject>(*handle, &heap_object)) {
+      RootIndex root_index;
+      if (root_index_map_.Lookup(heap_object, &root_index)) {
+        return true;
+      }
+      // Builtins use pseudo handles that are canonical and persistent by
+      // design.
+      if (isolate()->IsBuiltinTableHandleLocation(handle.location())) {
+        return true;
+      }
+    }
+    return canonical_handles_->Find(*handle) != nullptr;
   }
 
-  // Set the persistent handles and copy the canonical handles over to the
-  // JSHeapBroker.
-  void SetPersistentAndCopyCanonicalHandlesForTesting(
-      std::unique_ptr<PersistentHandles> persistent_handles,
-      std::unique_ptr<CanonicalHandlesMap> canonical_handles);
   std::string Trace() const;
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
 
-  RootIndexMap const& root_index_map() { return root_index_map_; }
+  // Locks {mutex} through the duration of this scope iff it is the first
+  // occurrence. This is done to have a recursive shared lock on {mutex}.
+  class V8_NODISCARD RecursiveMutexGuardIfNeeded {
+   protected:
+    V8_INLINE RecursiveMutexGuardIfNeeded(LocalIsolate* local_isolate,
+                                          base::Mutex* mutex,
+                                          int* mutex_depth_address);
+
+    ~RecursiveMutexGuardIfNeeded() {
+      DCHECK_GE((*mutex_depth_address_), 1);
+      (*mutex_depth_address_)--;
+      DCHECK_EQ(initial_mutex_depth_, (*mutex_depth_address_));
+    }
+
+   private:
+    int* const mutex_depth_address_;
+    const int initial_mutex_depth_;
+    ParkedMutexGuardIf mutex_guard_;
+  };
+
+  class MapUpdaterGuardIfNeeded final : public RecursiveMutexGuardIfNeeded {
+   public:
+    V8_INLINE explicit MapUpdaterGuardIfNeeded(JSHeapBroker* broker);
+  };
+
+  class BoilerplateMigrationGuardIfNeeded final
+      : public RecursiveMutexGuardIfNeeded {
+   public:
+    V8_INLINE explicit BoilerplateMigrationGuardIfNeeded(JSHeapBroker* broker);
+  };
+
+  // If this returns false, the object is guaranteed to be fully initialized and
+  // thus safe to read from a memory safety perspective. The converse does not
+  // necessarily hold.
+  bool ObjectMayBeUninitialized(DirectHandle<Object> object) const;
+  bool ObjectMayBeUninitialized(Tagged<Object> object) const;
+  bool ObjectMayBeUninitialized(Tagged<HeapObject> object) const;
+
+  void set_dependencies(CompilationDependencies* dependencies) {
+    DCHECK_NOT_NULL(dependencies);
+    DCHECK_NULL(dependencies_);
+    dependencies_ = dependencies;
+  }
+  CompilationDependencies* dependencies() const {
+    DCHECK_NOT_NULL(dependencies_);
+    return dependencies_;
+  }
+
+#define V(Type, name, Name) inline typename ref_traits<Type>::ref_type name();
+  READ_ONLY_ROOT_LIST(V)
+#undef V
 
  private:
+  friend class JSHeapBrokerScopeForTesting;
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
+  friend class PropertyCellData;
 
-  bool CanUseFeedback(const FeedbackNexus& nexus) const;
+  ProcessedFeedback const& GetFeedback(FeedbackSource const& source) const;
   const ProcessedFeedback& NewInsufficientFeedback(FeedbackSlotKind kind) const;
 
   // Bottleneck FeedbackNexus access here, for storage in the broker
@@ -298,26 +406,24 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForBinaryOperation(
       FeedbackSource const& source) const;
+  ProcessedFeedback const& ReadFeedbackForTypeOf(
+      FeedbackSource const& source) const;
   ProcessedFeedback const& ReadFeedbackForCall(FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForCompareOperation(
       FeedbackSource const& source) const;
   ProcessedFeedback const& ReadFeedbackForForIn(
       FeedbackSource const& source) const;
   ProcessedFeedback const& ReadFeedbackForGlobalAccess(
-      FeedbackSource const& source);
+      JSHeapBroker* broker, FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForInstanceOf(
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForPropertyAccess(
       FeedbackSource const& source, AccessMode mode,
-      base::Optional<NameRef> static_name);
+      OptionalNameRef static_name);
   ProcessedFeedback const& ReadFeedbackForRegExpLiteral(
       FeedbackSource const& source);
   ProcessedFeedback const& ReadFeedbackForTemplateObject(
       FeedbackSource const& source);
-
-  void CollectArrayAndObjectPrototypes();
-
-  PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
   void set_persistent_handles(
       std::unique_ptr<PersistentHandles> persistent_handles) {
@@ -330,74 +436,81 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
     return std::move(ph_);
   }
 
-  void set_canonical_handles(
-      std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
-    DCHECK_NULL(canonical_handles_);
-    canonical_handles_ = std::move(canonical_handles);
-    DCHECK_NOT_NULL(canonical_handles_);
+  void set_canonical_handles(CanonicalHandlesMap* canonical_handles) {
+    canonical_handles_ = canonical_handles;
   }
 
-  std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles() {
-    DCHECK_NOT_NULL(canonical_handles_);
-    return std::move(canonical_handles_);
-  }
-
-  // Copy the canonical handles over to the JSHeapBroker.
-  void CopyCanonicalHandlesForTesting(
-      std::unique_ptr<CanonicalHandlesMap> canonical_handles);
+#define V(Type, name, Name) void Init##Name();
+  READ_ONLY_ROOT_LIST(V)
+#undef V
 
   Isolate* const isolate_;
-  Zone* const zone_ = nullptr;
-  base::Optional<NativeContextRef> target_native_context_;
+#if V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
+  Zone* const zone_;
+  OptionalNativeContextRef target_native_context_;
   RefsMap* refs_;
   RootIndexMap root_index_map_;
-  ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
-                   Handle<JSObject>::equal_to>
-      array_and_object_prototypes_;
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
-  bool const is_concurrent_inlining_;
-  bool const is_native_context_independent_;
+  CodeKind const code_kind_;
   std::unique_ptr<PersistentHandles> ph_;
-  base::Optional<LocalHeap> local_heap_;
-  std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
+  LocalIsolate* local_isolate_ = nullptr;
+  // The CanonicalHandlesMap is owned by the compilation info.
+  CanonicalHandlesMap* canonical_handles_;
   unsigned trace_indentation_ = 0;
-  PerIsolateCompilerCache* compiler_cache_ = nullptr;
   ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
                    FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
-  ZoneUnorderedMap<ObjectData*, BytecodeAnalysis*> bytecode_analyses_;
   ZoneUnorderedMap<PropertyAccessTarget, PropertyAccessInfo,
                    PropertyAccessTarget::Hash, PropertyAccessTarget::Equal>
       property_access_infos_;
-  ZoneUnorderedMap<FeedbackSource, MinimorphicLoadPropertyAccessInfo,
-                   FeedbackSource::Hash, FeedbackSource::Equal>
-      minimorphic_property_access_infos_;
 
-  ZoneVector<ObjectData*> typed_array_string_tags_;
+  // Cache read only roots to avoid needing to look them up via the map.
+#define V(Type, name, Name) \
+  OptionalRef<typename ref_traits<Type>::ref_type> name##_;
+  READ_ONLY_ROOT_LIST(V)
+#undef V
 
-  struct SerializedFunction {
-    SharedFunctionInfoRef shared;
-    FeedbackVectorRef feedback;
+  CompilationDependencies* dependencies_ = nullptr;
 
-    bool operator<(const SerializedFunction& other) const {
-      if (shared.object().address() < other.shared.object().address()) {
-        return true;
-      }
-      if (shared.object().address() == other.shared.object().address()) {
-        return feedback.object().address() < other.feedback.object().address();
-      }
-      return false;
-    }
-  };
-  ZoneMultimap<SerializedFunction, HintsVector> serialized_functions_;
+  // The MapUpdater mutex is used in recursive patterns; for example,
+  // ComputePropertyAccessInfo may call itself recursively. Thus we need to
+  // emulate a recursive mutex, which we do by checking if this heap broker
+  // instance already holds the mutex when a lock is requested. This field
+  // holds the locking depth, i.e. how many times the mutex has been
+  // recursively locked. Only the outermost locker actually locks underneath.
+  int map_updater_mutex_depth_ = 0;
+  // Likewise for boilerplate migrations.
+  int boilerplate_migration_mutex_depth_ = 0;
 
-  static const size_t kMaxSerializedFunctionsCacheSize = 200;
-  static const uint32_t kMinimalRefsBucketCount = 8;     // must be power of 2
-  static const uint32_t kInitialRefsBucketCount = 1024;  // must be power of 2
+  static constexpr uint32_t kMinimalRefsBucketCount = 8;
+  static_assert(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
+  static constexpr uint32_t kInitialRefsBucketCount = 16;
+  static_assert(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
 };
 
-class TraceScope {
+#ifdef DEBUG
+// In debug builds, store the current heap broker on a thread local, for
+// DCHECKs to access it via JSHeapBroker::Current();
+class V8_NODISCARD V8_EXPORT_PRIVATE CurrentHeapBrokerScope {
+ public:
+  explicit CurrentHeapBrokerScope(JSHeapBroker* broker);
+  ~CurrentHeapBrokerScope();
+
+ private:
+  JSHeapBroker* const prev_broker_;
+};
+#else
+class V8_NODISCARD V8_EXPORT_PRIVATE CurrentHeapBrokerScope {
+ public:
+  explicit CurrentHeapBrokerScope(JSHeapBroker* broker) {}
+  ~CurrentHeapBrokerScope() {}
+};
+#endif
+
+class V8_NODISCARD TraceScope {
  public:
   TraceScope(JSHeapBroker* broker, const char* label)
       : TraceScope(broker, static_cast<void*>(broker), label) {}
@@ -417,58 +530,130 @@ class TraceScope {
   JSHeapBroker* const broker_;
 };
 
-#define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,             \
-                                                optionally_something)      \
-  auto optionally_something_ = optionally_something;                       \
-  if (!optionally_something_)                                              \
-    return NoChangeBecauseOfMissingData(broker(), __FUNCTION__, __LINE__); \
-  something_var = *optionally_something_;
-
-class Reduction;
-Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
-                                       const char* function, int line);
-
-// Miscellaneous definitions that should be moved elsewhere once concurrent
-// compilation is finished.
-bool CanInlineElementAccess(MapRef const& map);
-
-class OffHeapBytecodeArray final : public interpreter::AbstractBytecodeArray {
- public:
-  explicit OffHeapBytecodeArray(BytecodeArrayRef bytecode_array);
-
-  int length() const override;
-  int parameter_count() const override;
-  uint8_t get(int index) const override;
-  void set(int index, uint8_t value) override;
-  Address GetFirstBytecodeAddress() const override;
-  Handle<Object> GetConstantAtIndex(int index, Isolate* isolate) const override;
-  bool IsConstantAtIndexSmi(int index) const override;
-  Smi GetConstantAtIndexAsSmi(int index) const override;
-
- private:
-  BytecodeArrayRef array_;
-};
-
 // Scope that unparks the LocalHeap, if:
 //   a) We have a JSHeapBroker,
-//   b) Said JSHeapBroker has a LocalHeap, and
-//   c) Said LocalHeap has been parked.
+//   b) Said JSHeapBroker has a LocalIsolate and thus a LocalHeap,
+//   c) Said LocalHeap has been parked and
+//   d) The given condition evaluates to true.
 // Used, for example, when printing the graph with --trace-turbo with a
 // previously parked LocalHeap.
-class UnparkedScopeIfNeeded {
+class V8_NODISCARD UnparkedScopeIfNeeded {
  public:
-  explicit UnparkedScopeIfNeeded(JSHeapBroker* broker) {
-    if (broker != nullptr) {
-      LocalHeap* local_heap = broker->local_heap();
-      if (local_heap != nullptr && local_heap->IsParked()) {
-        unparked_scope.emplace(local_heap);
+  explicit UnparkedScopeIfNeeded(JSHeapBroker* broker,
+                                 bool extra_condition = true) {
+    if (broker != nullptr && extra_condition) {
+      LocalIsolate* local_isolate = broker->local_isolate();
+      if (local_isolate != nullptr && local_isolate->heap()->IsParked()) {
+        unparked_scope.emplace(local_isolate->heap());
       }
     }
   }
 
  private:
-  base::Optional<UnparkedScope> unparked_scope;
+  std::optional<UnparkedScope> unparked_scope;
 };
+
+class V8_NODISCARD JSHeapBrokerScopeForTesting {
+ public:
+  JSHeapBrokerScopeForTesting(JSHeapBroker* broker, Isolate* isolate,
+                              Zone* zone)
+      : JSHeapBrokerScopeForTesting(
+            broker, std::make_unique<CanonicalHandlesMap>(
+                        isolate->heap(), ZoneAllocationPolicy(zone))) {}
+  JSHeapBrokerScopeForTesting(
+      JSHeapBroker* broker,
+      std::unique_ptr<CanonicalHandlesMap> canonical_handles)
+      : canonical_handles_(std::move(canonical_handles)), broker_(broker) {
+    broker_->set_canonical_handles(canonical_handles_.get());
+  }
+  ~JSHeapBrokerScopeForTesting() { broker_->set_canonical_handles(nullptr); }
+
+ private:
+  std::unique_ptr<CanonicalHandlesMap> canonical_handles_;
+  JSHeapBroker* const broker_;
+};
+
+template <class T>
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(JSHeapBroker* broker,
+                                                         ObjectData* data)
+  requires(is_subtype_v<T, Object>)
+{
+  if (data == nullptr) return {};
+  return {typename ref_traits<T>::ref_type(data)};
+}
+
+// Usage:
+//
+//  OptionalFooRef ref = TryMakeRef(broker, o);
+//  if (!ref.has_value()) return {};  // bailout
+//
+// or
+//
+//  FooRef ref = MakeRef(broker, o);
+template <class T>
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
+    JSHeapBroker* broker, Tagged<T> object, GetOrCreateDataFlags flags = {})
+  requires(is_subtype_v<T, Object>)
+{
+  ObjectData* data = broker->TryGetOrCreateData(object, flags);
+  if (data == nullptr) {
+    TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(object));
+  }
+  return TryMakeRef<T>(broker, data);
+}
+
+template <class T>
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
+    JSHeapBroker* broker, Handle<T> object, GetOrCreateDataFlags flags = {})
+  requires(is_subtype_v<T, Object>)
+{
+  ObjectData* data = broker->TryGetOrCreateData(object, flags);
+  if (data == nullptr) {
+    DCHECK_EQ(flags & kCrashOnError, 0);
+    TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(*object));
+  }
+  return TryMakeRef<T>(broker, data);
+}
+
+template <class T>
+typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, Tagged<T> object)
+  requires(is_subtype_v<T, Object>)
+{
+  return TryMakeRef(broker, object, kCrashOnError).value();
+}
+
+template <class T>
+typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, Handle<T> object)
+  requires(is_subtype_v<T, Object>)
+{
+  return TryMakeRef(broker, object, kCrashOnError).value();
+}
+
+template <class T>
+typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
+                                                          Tagged<T> object)
+  requires(is_subtype_v<T, Object>)
+{
+  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
+}
+
+template <class T>
+typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
+                                                          Handle<T> object)
+  requires(is_subtype_v<T, Object>)
+{
+  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
+}
+
+#define V(Type, name, Name)                                         \
+  inline typename ref_traits<Type>::ref_type JSHeapBroker::name() { \
+    if (!name##_) {                                                 \
+      Init##Name();                                                 \
+    }                                                               \
+    return name##_.value();                                         \
+  }
+READ_ONLY_ROOT_LIST(V)
+#undef V
 
 }  // namespace compiler
 }  // namespace internal

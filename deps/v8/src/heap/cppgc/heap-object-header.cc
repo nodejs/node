@@ -4,27 +4,53 @@
 
 #include "src/heap/cppgc/heap-object-header.h"
 
+#include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/macros.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/heap/cppgc/gc-info-table.h"
+#include "src/heap/cppgc/heap-base.h"
+#include "src/heap/cppgc/heap-page.h"
 
 namespace cppgc {
 namespace internal {
 
-STATIC_ASSERT((kAllocationGranularity % sizeof(HeapObjectHeader)) == 0);
+static_assert((kAllocationGranularity % sizeof(HeapObjectHeader)) == 0);
 
 void HeapObjectHeader::CheckApiConstants() {
-  STATIC_ASSERT(api_constants::kFullyConstructedBitMask ==
+  static_assert(api_constants::kFullyConstructedBitMask ==
                 FullyConstructedField::kMask);
-  STATIC_ASSERT(api_constants::kFullyConstructedBitFieldOffsetFromPayload ==
+  static_assert(api_constants::kFullyConstructedBitFieldOffsetFromPayload ==
                 (sizeof(encoded_high_) + sizeof(encoded_low_)));
 }
 
 void HeapObjectHeader::Finalize() {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  const size_t size =
+      IsLargeObject()
+          ? LargePage::From(BasePage::FromPayload(this))->ObjectSize()
+          : ObjectSize();
+  ASAN_UNPOISON_MEMORY_REGION(ObjectStart(), size);
+#endif  // V8_USE_ADDRESS_SANITIZER
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
   if (gc_info.finalize) {
-    gc_info.finalize(Payload());
+    gc_info.finalize(ObjectStart());
   }
+}
+
+HeapObjectName HeapObjectHeader::GetName() const {
+  return GetName(BasePage::FromPayload(this)->heap().name_of_unnamed_object());
+}
+
+HeapObjectName HeapObjectHeader::GetName(
+    HeapObjectNameForUnnamedObject heap_object_name) const {
+  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
+  return gc_info.name(ObjectStart(), heap_object_name);
+}
+
+void HeapObjectHeader::MarkAsFullyConstructed() {
+  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
+      ObjectStart());
 }
 
 }  // namespace internal

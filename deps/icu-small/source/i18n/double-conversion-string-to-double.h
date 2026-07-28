@@ -100,7 +100,7 @@ class StringToDoubleConverter {
   //      This *must* start with "0x" and separate the exponent with "p".
   //      Examples: 0x1.2p3 == 9.0
   //                0x10.1p0 == 16.0625
-  //      ALLOW_HEX and ALLOW_HEX_FLOATS are indendent.
+  //      ALLOW_HEX and ALLOW_HEX_FLOATS are indented.
   //
   // empty_string_value is returned when an empty string is given as input.
   // If ALLOW_LEADING_SPACES or ALLOW_TRAILING_SPACES are set, then a string
@@ -158,8 +158,8 @@ class StringToDoubleConverter {
   //  flags = ALLOW_OCTAL | ALLOW_LEADING_SPACES,
   //  empty_string_value = 0.0,
   //  junk_string_value = NaN,
-  //  infinity_symbol = NULL,
-  //  nan_symbol = NULL:
+  //  infinity_symbol = nullptr,
+  //  nan_symbol = nullptr:
   //    StringToDouble("0x1234") -> NaN  // junk_string_value.
   //    StringToDouble("01234") -> 668.0.
   //    StringToDouble("") -> 0.0  // empty_string_value.
@@ -217,6 +217,18 @@ class StringToDoubleConverter {
   float StringToFloat(const uc16* buffer,
                       int length,
                       int* processed_characters_count) const;
+
+  // Same as StringToDouble for T = double, and StringToFloat for T = float.
+  template <typename T>
+  T StringTo(const char* buffer,
+             int length,
+             int* processed_characters_count) const;
+
+  // Same as StringTo above but for 16 bit characters.
+  template <typename T>
+  T StringTo(const uc16* buffer,
+             int length,
+             int* processed_characters_count) const;
 
  private:
   const int flags_;

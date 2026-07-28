@@ -20,15 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
-const FILENAME = path.join(tmpdir.path, 'watch-me');
+const FILENAME = tmpdir.resolve('watch-me');
 const TIMEOUT = 1300;
 
 let nevents = 0;
@@ -39,7 +38,7 @@ try {
   // swallow
 }
 
-fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, function(curr, prev) {
+fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, common.mustCall((curr, prev) => {
   console.log([curr, prev]);
   switch (++nevents) {
     case 1:
@@ -54,9 +53,9 @@ fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, function(curr, prev) {
       fs.unwatchFile(FILENAME);
       break;
     default:
-      assert(0);
+      assert.fail();
   }
-});
+}, 4));
 
 process.on('exit', function() {
   assert.strictEqual(nevents, 4);

@@ -1,6 +1,7 @@
 'use strict';
 // https://github.com/nodejs/node/issues/33156
 const common = require('../common');
+const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
 if (!common.hasCrypto) {
@@ -23,6 +24,11 @@ let client_stream;
 
 server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
+    // Client destroys mid-stream without END_STREAM (clean RST code).
+    // Peer reset before END_STREAM surfaces as ERR_HTTP2_STREAM_ABORTED.
+    stream.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ABORTED');
+    }));
     stream.resume();
     stream.on('data', function() {
       this.write(Buffer.alloc(1));
@@ -31,7 +37,7 @@ server.on('session', common.mustCall(function(session) {
   }));
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`, {
     ca,
     maxSessionMemory: 1000
@@ -43,4 +49,4 @@ server.listen(0, function() {
   }));
   client_stream.resume();
   client_stream.write(Buffer.alloc(64 * 1024));
-});
+}));

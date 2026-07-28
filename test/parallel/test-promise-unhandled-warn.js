@@ -2,8 +2,7 @@
 'use strict';
 
 const common = require('../common');
-
-common.disableCrashOnUnhandledRejection();
+const assert = require('assert');
 
 // Verify that ignoring unhandled rejection works fine and that no warning is
 // logged.
@@ -14,11 +13,25 @@ new Promise(() => {
 
 Promise.reject('test');
 
+function lookForMeInStackTrace() {
+  Promise.reject(new class ErrorLike {
+    constructor() {
+      Error.captureStackTrace(this);
+      this.message = 'ErrorLike';
+    }
+  }());
+}
+lookForMeInStackTrace();
+
 // Unhandled rejections trigger two warning per rejection. One is the rejection
 // reason and the other is a note where this warning is coming from.
-process.on('warning', common.mustCall(4));
+process.on('warning', common.mustCall((reason) => {
+  if (reason.message.includes('ErrorLike')) {
+    assert.match(reason.stack, /lookForMeInStackTrace/);
+  }
+}, 6));
 process.on('uncaughtException', common.mustNotCall('uncaughtException'));
-process.on('rejectionHandled', common.mustCall(2));
+process.on('rejectionHandled', common.mustCall(3));
 
 process.on('unhandledRejection', (reason, promise) => {
   // Handle promises but still warn!

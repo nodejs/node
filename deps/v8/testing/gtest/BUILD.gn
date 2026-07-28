@@ -4,9 +4,9 @@
 
 import("//build_overrides/gtest.gni")
 if (is_ios) {
+  import("//build/buildflag_header.gni")
   import("//build/config/coverage/coverage.gni")
   import("//build/config/ios/ios_sdk.gni")
-  import("//build/buildflag_header.gni")
 }
 
 config("gtest_direct_config") {
@@ -40,9 +40,7 @@ static_library("gtest") {
     #    Android. https://codereview.chromium.org/2852613002/#ps20001
     "empty.cc",
   ]
-  public_deps = [
-    "//third_party/googletest:gtest",
-  ]
+  public_deps = [ "//third_party/googletest:gtest" ]
 
   public_configs = [ ":gtest_direct_config" ]
 
@@ -58,9 +56,6 @@ static_library("gtest") {
   }
 
   if ((is_mac || is_ios) && gtest_include_objc_support) {
-    if (is_ios) {
-      set_sources_assignment_filter([])
-    }
     sources += [
       "../gtest_mac.h",
       "../gtest_mac.mm",
@@ -68,7 +63,6 @@ static_library("gtest") {
     if (gtest_include_platform_test) {
       sources += [ "../platform_test_mac.mm" ]
     }
-    set_sources_assignment_filter(sources_assignment_filter)
   }
 
   if (is_ios && gtest_include_ios_coverage) {
@@ -76,9 +70,7 @@ static_library("gtest") {
       "../coverage_util_ios.h",
       "../coverage_util_ios.mm",
     ]
-    deps = [
-      ":ios_enable_coverage",
-    ]
+    deps = [ ":ios_enable_coverage" ]
   }
 }
 
@@ -87,9 +79,7 @@ static_library("gtest") {
 # into //third_party/googletest.
 source_set("gtest_main") {
   testonly = true
-  deps = [
-    "//third_party/googletest:gtest_main",
-  ]
+  deps = [ "//third_party/googletest:gtest_main" ]
 }
 
 if (is_ios) {

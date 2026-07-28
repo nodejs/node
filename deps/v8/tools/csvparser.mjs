@@ -38,19 +38,17 @@ export class CsvParser {
   escapeField(string) {
     let nextPos = string.indexOf("\\");
     if (nextPos === -1) return string;
-
-    let result = string.substring(0, nextPos);
+    let result = [string.substring(0, nextPos)];
     // Escape sequences of the form \x00 and \u0000;
-    let endPos = string.length;
     let pos = 0;
     while (nextPos !== -1) {
-      let escapeIdentifier = string.charAt(nextPos + 1);
+      const escapeIdentifier = string[nextPos + 1];
       pos = nextPos + 2;
       if (escapeIdentifier === 'n') {
-        result += '\n';
+        result.push('\n');
         nextPos = pos;
       } else if (escapeIdentifier === '\\') {
-        result += '\\';
+        result.push('\\');
         nextPos = pos;
       } else {
         if (escapeIdentifier === 'x') {
@@ -61,8 +59,12 @@ export class CsvParser {
           nextPos = pos + 4;
         }
         // Convert the selected escape sequence to a single character.
-        let escapeChars = string.substring(pos, nextPos);
-        result += String.fromCharCode(parseInt(escapeChars, 16));
+        const escapeChars = string.substring(pos, nextPos);
+        if (escapeChars === '2C') {
+            result.push(',');
+        } else {
+          result.push(String.fromCharCode(parseInt(escapeChars, 16)));
+        }
       }
 
       // Continue looking for the next escape sequence.
@@ -70,12 +72,13 @@ export class CsvParser {
       nextPos = string.indexOf("\\", pos);
       // If there are no more escape sequences consume the rest of the string.
       if (nextPos === -1) {
-        result += string.substr(pos);
+        result.push(string.substr(pos));
+        break;
       } else if (pos !== nextPos) {
-        result += string.substring(pos, nextPos);
+        result.push(string.substring(pos, nextPos));
       }
     }
-    return result;
+    return result.join('');
   }
 
   /**
@@ -84,9 +87,9 @@ export class CsvParser {
    * @param {string} line Input line.
    */
   parseLine(line) {
-    var pos = 0;
-    var endPos = line.length;
-    var fields = [];
+    let pos = 0;
+    const endPos = line.length;
+    const fields = [];
     if (endPos == 0) return fields;
     let nextPos = 0;
     while(nextPos !== -1) {

@@ -51,8 +51,7 @@ function testHttp() {
     res.resume();
   }
 
-  httpServer.listen(0, (er) => {
-    assert.ifError(er);
+  httpServer.listen(0, common.mustSucceed(() => {
     http.get({
       method: 'GET',
       path: `/${counter++}`,
@@ -92,5 +91,5 @@ function testHttp() {
       port: httpServer.address().port,
       rejectUnauthorized: false
     }, cb).on('error', common.mustNotCall()).end();
-  });
+  }));
 }

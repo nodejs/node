@@ -13,19 +13,21 @@ const util = require('util');
 const buf = Buffer.from([0xef, 0xbb, 0xbf, 0x74, 0x65,
                          0x73, 0x74, 0xe2, 0x82, 0xac]);
 
+const encoding_sets = ['unicode-1-1-utf-8', 'unicode11utf8', 'unicode20utf8',
+                       'utf8', 'utf-8', 'x-unicode20utf8'];
 // Make Sure TextDecoder exist
 assert(TextDecoder);
 
 // Test TextDecoder, UTF-8, fatal: false, ignoreBOM: false
 {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i);
     assert.strictEqual(dec.encoding, 'utf-8');
     const res = dec.decode(buf);
     assert.strictEqual(res, 'test€');
   });
 
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i);
     let res = '';
     res += dec.decode(buf.slice(0, 8), { stream: true });
@@ -36,13 +38,13 @@ assert(TextDecoder);
 
 // Test TextDecoder, UTF-8, fatal: false, ignoreBOM: true
 {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i, { ignoreBOM: true });
     const res = dec.decode(buf);
     assert.strictEqual(res, '\ufefftest€');
   });
 
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i, { ignoreBOM: true });
     let res = '';
     res += dec.decode(buf.slice(0, 8), { stream: true });
@@ -51,33 +53,36 @@ assert(TextDecoder);
   });
 }
 
-// Test TextDecoder, UTF-8, fatal: true, ignoreBOM: false
-if (common.hasIntl) {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
-    const dec = new TextDecoder(i, { fatal: true });
-    assert.throws(() => dec.decode(buf.slice(0, 8)),
-                  {
-                    code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
-                    name: 'TypeError',
-                    message: 'The encoded data was not valid ' +
-                          'for encoding utf-8'
-                  });
+// Invalid encoders
+{
+  ['meow', 'nonunicode', 'foo', 'bar'].forEach((fakeEncoding) => {
+    assert.throws(
+      () => { new TextDecoder(fakeEncoding); },
+      {
+        code: 'ERR_ENCODING_NOT_SUPPORTED',
+        name: 'RangeError'
+      }
+    );
   });
-
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
-    const dec = new TextDecoder(i, { fatal: true });
-    dec.decode(buf.slice(0, 8), { stream: true });
-    dec.decode(buf.slice(8));
-  });
-} else {
-  assert.throws(
-    () => new TextDecoder('utf-8', { fatal: true }),
-    {
-      code: 'ERR_NO_ICU',
-      name: 'TypeError',
-      message: '"fatal" option is not supported on Node.js compiled without ICU'
-    });
 }
+
+// Test TextDecoder, UTF-8, fatal: true, ignoreBOM: false
+['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  const dec = new TextDecoder(i, { fatal: true });
+  assert.throws(() => dec.decode(buf.slice(0, 8)),
+                {
+                  code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
+                  name: 'TypeError',
+                  message: 'The encoded data was not valid ' +
+                        'for encoding utf-8'
+                });
+});
+
+['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  const dec = new TextDecoder(i, { fatal: true });
+  dec.decode(buf.slice(0, 8), { stream: true });
+  dec.decode(buf.slice(8));
+});
 
 // Test TextDecoder, label undefined, options null
 {
@@ -105,32 +110,16 @@ if (common.hasIntl) {
 // Test TextDecoder inspect with hidden fields
 {
   const dec = new TextDecoder('utf-8', { ignoreBOM: true });
-  if (common.hasIntl) {
-    assert.strictEqual(
-      util.inspect(dec, { showHidden: true }),
-      'TextDecoder {\n' +
-      '  encoding: \'utf-8\',\n' +
-      '  fatal: false,\n' +
-      '  ignoreBOM: true,\n' +
-      '  [Symbol(flags)]: 4,\n' +
-      '  [Symbol(handle)]: Converter {}\n' +
-      '}'
-    );
-  } else {
-    assert.strictEqual(
-      util.inspect(dec, { showHidden: true }),
-      'TextDecoder {\n' +
-      "  encoding: 'utf-8',\n" +
-      '  fatal: false,\n' +
-      '  ignoreBOM: true,\n' +
-      '  [Symbol(flags)]: 4,\n' +
-      '  [Symbol(handle)]: StringDecoder {\n' +
-      "    encoding: 'utf8',\n" +
-      '    [Symbol(kNativeDecoder)]: <Buffer 00 00 00 00 00 00 01>\n' +
-      '  }\n' +
-      '}'
-    );
-  }
+  assert.strictEqual(
+    util.inspect(dec, { showHidden: true }),
+    'TextDecoder {\n' +
+    '  encoding: \'utf-8\',\n' +
+    '  fatal: false,\n' +
+    '  ignoreBOM: true,\n' +
+    '  Symbol(flags): 4,\n' +
+    '  Symbol(handle): undefined\n' +
+    '}'
+  );
 }
 
 
@@ -190,4 +179,31 @@ if (common.hasIntl) {
       name: 'TypeError'
     }
   );
+}
+
+// Test TextDecoder for incomplete UTF-8 byte sequence.
+{
+  const decoder = new TextDecoder();
+  const chunk = new Uint8Array([0x66, 0x6f, 0x6f, 0xed]);
+  const str = decoder.decode(chunk);
+  assert.strictEqual(str, 'foo\ufffd');
+}
+
+if (common.hasIntl) {
+  try {
+    const decoder = new TextDecoder('Shift_JIS');
+    const chunk = new Uint8Array([-1]);
+    const str = decoder.decode(chunk);
+    assert.strictEqual(str, '\ufffd');
+  } catch (e) {
+    // Encoding may not be available, e.g. small-icu builds
+    assert.strictEqual(e.code, 'ERR_ENCODING_NOT_SUPPORTED');
+  }
+}
+
+{
+  const buffer = new ArrayBuffer(1);
+  new MessageChannel().port1.postMessage(buffer, [buffer]); // buffer is detached
+  const decoder = new TextDecoder();
+  assert.strictEqual(decoder.decode(buffer), '');
 }

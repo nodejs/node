@@ -1,8 +1,9 @@
 const t = require('tap')
-const requireInject = require('require-inject')
+const tmock = require('../fixtures/tmock')
+
 t.test('loading the bin calls the implementation', t => {
-  requireInject('../../bin/npm-cli.js', {
-    '../../lib/cli.js': proc => {
+  tmock(t, '{BIN}/npm-cli.js', {
+    '{LIB}/cli.js': proc => {
       t.equal(proc, process, 'called implementation with process object')
       t.end()
     },

@@ -140,7 +140,7 @@ void calculatePackageName(UErrorCode* status) {
  * Assumes calculatePackageName was called.
  * @param exists set to TRUE if exists, FALSE otherwise.
  * Changed from reference to pointer to match node.js style
- * @return 0 on "OK" (success or resource-missing),
+ * @returns 0 on "OK" (success or resource-missing),
  * 1 on "FAILURE" (unexpected error)
  */
 int localeExists(const char* loc, UBool* exists) {
@@ -187,7 +187,7 @@ void printIndent(FILE* bf, int indent) {
 /**
  * Dumps a table resource contents
  * if lev==0, skips INSTALLEDLOCALES
- * @return 0 for OK, 1 for err
+ * @returns 0 for OK, 1 for err
  */
 int dumpAllButInstalledLocales(int lev,
                                icu::LocalUResourceBundlePointer* bund,

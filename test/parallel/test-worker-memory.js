@@ -7,7 +7,7 @@ const assert = require('assert');
 const util = require('util');
 const { Worker } = require('worker_threads');
 
-let numWorkers = +process.env.JOBS || require('os').cpus().length;
+let numWorkers = +process.env.JOBS || require('os').availableParallelism();
 if (numWorkers > 20) {
   // Cap the number of workers at 20 (as an even divisor of 60 used as
   // the total number of workers started) otherwise the test fails on
@@ -35,7 +35,7 @@ function run(n, done) {
 const startStats = process.memoryUsage();
 let finished = 0;
 for (let i = 0; i < numWorkers; ++i) {
-  run(60 / numWorkers, () => {
+  run(60 / numWorkers, common.mustCall(() => {
     console.log(`done() called (finished=${finished})`);
     if (++finished === numWorkers) {
       const finishStats = process.memoryUsage();
@@ -47,5 +47,5 @@ for (let i = 0; i < numWorkers; ++i) {
                 'Unexpected memory overhead: ' +
                 util.inspect([startStats, finishStats]));
     }
-  });
+  }));
 }

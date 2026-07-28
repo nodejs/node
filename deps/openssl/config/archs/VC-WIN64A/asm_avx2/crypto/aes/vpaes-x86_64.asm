@@ -637,6 +637,7 @@ $L$SEH_begin_vpaes_set_encrypt_key:
 
 
 
+DB	243,15,30,250
 	lea	rsp,[((-184))+rsp]
 	movaps	XMMWORD[16+rsp],xmm6
 	movaps	XMMWORD[32+rsp],xmm7
@@ -690,6 +691,7 @@ $L$SEH_begin_vpaes_set_decrypt_key:
 
 
 
+DB	243,15,30,250
 	lea	rsp,[((-184))+rsp]
 	movaps	XMMWORD[16+rsp],xmm6
 	movaps	XMMWORD[32+rsp],xmm7
@@ -748,6 +750,7 @@ $L$SEH_begin_vpaes_encrypt:
 
 
 
+DB	243,15,30,250
 	lea	rsp,[((-184))+rsp]
 	movaps	XMMWORD[16+rsp],xmm6
 	movaps	XMMWORD[32+rsp],xmm7
@@ -796,6 +799,7 @@ $L$SEH_begin_vpaes_decrypt:
 
 
 
+DB	243,15,30,250
 	lea	rsp,[((-184))+rsp]
 	movaps	XMMWORD[16+rsp],xmm6
 	movaps	XMMWORD[32+rsp],xmm7
@@ -846,6 +850,7 @@ $L$SEH_begin_vpaes_cbc_encrypt:
 
 
 
+DB	243,15,30,250
 	xchg	rdx,rcx
 	sub	rcx,16
 	jc	NEAR $L$cbc_abort
@@ -936,6 +941,7 @@ _vpaes_preheat:
 
 
 
+section	.rdata rdata align=64
 ALIGN	64
 _vpaes_consts:
 $L$k_inv:
@@ -1031,13 +1037,13 @@ $L$k_dsbe:
 $L$k_dsbo:
 	DQ	0x1387EA537EF94000,0xC7AA6DB9D4943E2D
 	DQ	0x12D7560F93441D00,0xCA4B8159D8C58E9C
+ALIGN	64
+
 DB	86,101,99,116,111,114,32,80,101,114,109,117,116,97,116,105
 DB	111,110,32,65,69,83,32,102,111,114,32,120,56,54,95,54
 DB	52,47,83,83,83,69,51,44,32,77,105,107,101,32,72,97
 DB	109,98,117,114,103,32,40,83,116,97,110,102,111,114,100,32
 DB	85,110,105,118,101,114,115,105,116,121,41,0
-ALIGN	64
-
 EXTERN	__imp_RtlVirtualUnwind
 
 ALIGN	16

@@ -20,12 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const http = require('http');
 
-const server = http.createServer(function(request, response) {
+const server = http.createServer(common.mustCall(function(request, response) {
+  const socket = response.socket;
+
   // Removed headers should stay removed, even if node automatically adds them
   // to the output:
   response.removeHeader('connection');
@@ -36,26 +38,29 @@ const server = http.createServer(function(request, response) {
   response.removeHeader('date');
   response.setHeader('date', 'coffee o clock');
 
+  response.on('finish', common.mustCall(function() {
+    // The socket should be closed immediately, with no keep-alive, because
+    // no content-length or transfer-encoding are used.
+    assert.strictEqual(socket.writableEnded, true);
+  }));
+
   response.end('beep boop\n');
+}));
 
-  this.close();
-});
-
-let response = '';
-
-process.on('exit', function() {
-  assert.strictEqual(response, 'beep boop\n');
-  console.log('ok');
-});
-
-server.listen(0, function() {
-  http.get({ port: this.address().port }, function(res) {
+server.listen(0, common.mustCall(function() {
+  http.get({ port: this.address().port }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
-    assert.deepStrictEqual(res.headers, { date: 'coffee o clock' });
+    assert.deepStrictEqual(res.headers, { __proto__: null, date: 'coffee o clock' });
 
+    let response = '';
     res.setEncoding('ascii');
     res.on('data', function(chunk) {
       response += chunk;
     });
-  });
-});
+
+    res.on('end', common.mustCall(() => {
+      assert.strictEqual(response, 'beep boop\n');
+      server.close();
+    }));
+  }));
+}));

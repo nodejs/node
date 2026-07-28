@@ -80,15 +80,15 @@ UBool
 UTF8CollationIterator::foundNULTerminator() {
     if(length < 0) {
         length = --pos;
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
 UBool
 UTF8CollationIterator::forbidSurrogateCodePoints() const {
-    return TRUE;
+    return true;
 }
 
 UChar32
@@ -224,7 +224,7 @@ FCDUTF8CollationIterator::nextHasLccc() const {
     // The lowest code point with ccc!=0 is U+0300 which is CC 80 in UTF-8.
     // CJK U+4000..U+DFFF except U+Axxx are also FCD-inert. (Lead bytes E4..ED except EA.)
     UChar32 c = u8[pos];
-    if(c < 0xcc || (0xe4 <= c && c <= 0xed && c != 0xea)) { return FALSE; }
+    if(c < 0xcc || (0xe4 <= c && c <= 0xed && c != 0xea)) { return false; }
     int32_t i = pos;
     U8_NEXT_OR_FFFD(u8, i, length, c);
     if(c > 0xffff) { c = U16_LEAD(c); }
@@ -235,18 +235,18 @@ UBool
 FCDUTF8CollationIterator::previousHasTccc() const {
     U_ASSERT(state == CHECK_BWD && pos != 0);
     UChar32 c = u8[pos - 1];
-    if(U8_IS_SINGLE(c)) { return FALSE; }
+    if(U8_IS_SINGLE(c)) { return false; }
     int32_t i = pos;
     U8_PREV_OR_FFFD(u8, 0, i, c);
     if(c > 0xffff) { c = U16_LEAD(c); }
     return CollationFCD::hasTccc(c);
 }
 
-UChar
+char16_t
 FCDUTF8CollationIterator::handleGetTrailSurrogate() {
     if(state != IN_NORMALIZED) { return 0; }
     U_ASSERT(pos < normalized.length());
-    UChar trail;
+    char16_t trail;
     if(U16_IS_TRAIL(trail = normalized[pos])) { ++pos; }
     return trail;
 }
@@ -255,9 +255,9 @@ UBool
 FCDUTF8CollationIterator::foundNULTerminator() {
     if(state == CHECK_FWD && length < 0) {
         length = --pos;
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -383,7 +383,7 @@ FCDUTF8CollationIterator::switchToForward() {
 
 UBool
 FCDUTF8CollationIterator::nextSegment(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(state == CHECK_FWD && pos != length);
     // The input text [start..pos[ passes the FCD check.
     int32_t segmentStart = pos;
@@ -396,7 +396,7 @@ FCDUTF8CollationIterator::nextSegment(UErrorCode &errorCode) {
         UChar32 c;
         U8_NEXT_OR_FFFD(u8, pos, length, c);
         uint16_t fcd16 = nfcImpl.getFCD16(c);
-        uint8_t leadCC = (uint8_t)(fcd16 >> 8);
+        uint8_t leadCC = static_cast<uint8_t>(fcd16 >> 8);
         if(leadCC == 0 && cpStart != segmentStart) {
             // FCD boundary before this character.
             pos = cpStart;
@@ -414,14 +414,14 @@ FCDUTF8CollationIterator::nextSegment(UErrorCode &errorCode) {
                 }
                 s.append(c);
             }
-            if(!normalize(s, errorCode)) { return FALSE; }
+            if(!normalize(s, errorCode)) { return false; }
             start = segmentStart;
             limit = pos;
             state = IN_NORMALIZED;
             pos = 0;
-            return TRUE;
+            return true;
         }
-        prevCC = (uint8_t)fcd16;
+        prevCC = static_cast<uint8_t>(fcd16);
         if(pos == length || prevCC == 0) {
             // FCD boundary after the last character.
             break;
@@ -431,7 +431,7 @@ FCDUTF8CollationIterator::nextSegment(UErrorCode &errorCode) {
     pos = segmentStart;
     U_ASSERT(pos != limit);
     state = IN_FCD_SEGMENT;
-    return TRUE;
+    return true;
 }
 
 void
@@ -462,7 +462,7 @@ FCDUTF8CollationIterator::switchToBackward() {
 
 UBool
 FCDUTF8CollationIterator::previousSegment(UErrorCode &errorCode) {
-    if(U_FAILURE(errorCode)) { return FALSE; }
+    if(U_FAILURE(errorCode)) { return false; }
     U_ASSERT(state == CHECK_BWD && pos != 0);
     // The input text [pos..limit[ passes the FCD check.
     int32_t segmentLimit = pos;
@@ -475,7 +475,7 @@ FCDUTF8CollationIterator::previousSegment(UErrorCode &errorCode) {
         UChar32 c;
         U8_PREV_OR_FFFD(u8, 0, pos, c);
         uint16_t fcd16 = nfcImpl.getFCD16(c);
-        uint8_t trailCC = (uint8_t)fcd16;
+        uint8_t trailCC = static_cast<uint8_t>(fcd16);
         if(trailCC == 0 && cpLimit != segmentLimit) {
             // FCD boundary after this character.
             pos = cpLimit;
@@ -496,14 +496,14 @@ FCDUTF8CollationIterator::previousSegment(UErrorCode &errorCode) {
                 s.append(c);
             }
             s.reverse();
-            if(!normalize(s, errorCode)) { return FALSE; }
+            if(!normalize(s, errorCode)) { return false; }
             limit = segmentLimit;
             start = pos;
             state = IN_NORMALIZED;
             pos = normalized.length();
-            return TRUE;
+            return true;
         }
-        nextCC = (uint8_t)(fcd16 >> 8);
+        nextCC = static_cast<uint8_t>(fcd16 >> 8);
         if(pos == 0 || nextCC == 0) {
             // FCD boundary before the following character.
             break;
@@ -513,7 +513,7 @@ FCDUTF8CollationIterator::previousSegment(UErrorCode &errorCode) {
     pos = segmentLimit;
     U_ASSERT(pos != start);
     state = IN_FCD_SEGMENT;
-    return TRUE;
+    return true;
 }
 
 UBool

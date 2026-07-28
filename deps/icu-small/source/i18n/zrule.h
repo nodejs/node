@@ -10,7 +10,7 @@
 #define __ZRULE_H
 
 /**
- * \file
+ * \file 
  * \brief C API: Time zone rule classes
  */
 
@@ -19,8 +19,6 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/uobject.h"
-
-#ifndef UCNV_H
 
 /**
  * A TimeZoneRule.  Use the zrule_* API to manipulate.  Create with
@@ -42,8 +40,6 @@ typedef struct IZRule IZRule;
  */
 struct AZRule;
 typedef struct AZRule AZRule;
-
-#endif
 
 /*********************************************************************
  * ZRule API
@@ -195,12 +191,12 @@ izrule_isEquivalentTo(IZRule* rule1,  IZRule* rule2);
  *          "result" is unchanged.
  */
 U_CAPI UBool U_EXPORT2
-izrule_getFirstStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings,
+izrule_getFirstStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings, 
                     UDate& result);
 
 /**
  * Gets the final time when this rule takes effect.
- * @param rule              The IZrule to use
+ * @param rule              The IZrule to use     
  * @param prevRawOffset     The standard time offset from UTC before this rule
  *                          takes effect in milliseconds.
  * @param prevDSTSavings    The amount of daylight saving offset from the
@@ -210,7 +206,7 @@ izrule_getFirstStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings
  *          "result" is unchanged.
  */
 U_CAPI UBool U_EXPORT2
-izrule_getFinalStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings,
+izrule_getFinalStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings, 
                     UDate& result);
 
 /**
@@ -228,7 +224,7 @@ izrule_getFinalStart(IZRule* rule, int32_t prevRawOffset, int32_t prevDSTSavings
  *          "result" is unchanged.
  */
 U_CAPI UBool U_EXPORT2
-izrule_getNextStart(IZRule* rule, UDate base, int32_t prevRawOffset,
+izrule_getNextStart(IZRule* rule, UDate base, int32_t prevRawOffset, 
                    int32_t prevDSTSavings, UBool inclusive, UDate& result);
 
 /**
@@ -246,7 +242,7 @@ izrule_getNextStart(IZRule* rule, UDate base, int32_t prevRawOffset,
  *          "result" is unchanged.
  */
 U_CAPI UBool U_EXPORT2
-izrule_getPreviousStart(IZRule* rule, UDate base, int32_t prevRawOffset,
+izrule_getPreviousStart(IZRule* rule, UDate base, int32_t prevRawOffset, 
                        int32_t prevDSTSavings, UBool inclusive, UDate& result);
 
 

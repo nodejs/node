@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   ],
   args: [ '', 'offset', 'offset+length' ],
   len: [2048],
-  n: [1e6]
+  n: [1e6],
 });
 
 function main({ len, n, encoding, args }) {

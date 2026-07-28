@@ -10,9 +10,14 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include <cmath>
 
 #include "src/base/bits.h"
+#include "src/base/platform/memory.h"
+#include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/mips64/constants-mips64.h"
@@ -20,7 +25,6 @@
 #include "src/heap/combined-heap.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -31,6 +35,11 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 // Util functions.
 inline bool HaveSameSign(int64_t a, int64_t b) { return ((a ^ b) >= 0); }
 
+// TODO(mips): Currently defaults to true, indicating that MIPS supports
+// unaligned access by default. This can be changed based on the actual
+// environment or platform configuration.
+bool isMipsSupportUnalignedAccess = true;
+
 uint32_t get_fcsr_condition_bit(uint32_t cc) {
   if (cc == 0) {
     return 23;
@@ -39,29 +48,11 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
   }
 }
 
-static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
-  uint64_t u0, v0, w0;
-  int64_t u1, v1, w1, w2, t;
-
-  u0 = u & 0xFFFFFFFFL;
-  u1 = u >> 32;
-  v0 = v & 0xFFFFFFFFL;
-  v1 = v >> 32;
-
-  w0 = u0 * v0;
-  t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xFFFFFFFFL;
-  w2 = t >> 32;
-  w1 = u0 * v1 + w1;
-
-  return u1 * v1 + w2 + (w1 >> 32);
-}
-
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent was through
-// ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
-// Library does not provide vsscanf.
-#define SScanF sscanf  // NOLINT
+// ::v8::internal::OS in the same way as base::SNPrintF is that the Windows C
+// Run-Time Library does not provide vsscanf.
+#define SScanF sscanf
 
 // The MipsDebugger class is used by the simulator while debugging simulated
 // code.
@@ -155,7 +146,6 @@ bool MipsDebugger::GetValue(const char* desc, int64_t* value) {
   } else {
     return SScanF(desc, "%" SCNu64, reinterpret_cast<uint64_t*>(value)) == 1;
   }
-  return false;
 }
 
 bool MipsDebugger::SetBreakpoint(Instruction* breakpc) {
@@ -286,6 +276,10 @@ void MipsDebugger::PrintAllRegsIncludingFPU() {
 }
 
 void MipsDebugger::Debug() {
+  if (!v8_flags.simulator_debugger) {
+    // Debugger not enabled; crash instead.
+    UNREACHABLE();
+  }
   intptr_t last_pc = -1;
   bool done = false;
 
@@ -314,8 +308,9 @@ void MipsDebugger::Debug() {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);
       // Use a reasonably large buffer.
-      v8::internal::EmbeddedVector<char, 256> buffer;
-      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
+      v8::base::EmbeddedVector<char, 256> buffer;
+      dasm.InstructionDecode(buffer,
+                             reinterpret_cast<uint8_t*>(sim_->get_pc()));
       PrintF("  0x%016" PRIx64 "   %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
     }
@@ -406,10 +401,10 @@ void MipsDebugger::Debug() {
           int64_t value;
           StdoutStream os;
           if (GetValue(arg1, &value)) {
-            Object obj(value);
+            Tagged<Object> obj(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
-            obj.Print(os);
+            Print(obj, os);
             os << "\n";
 #else
             os << Brief(obj) << "\n";
@@ -452,16 +447,16 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           PrintF("  0x%012" PRIxPTR " :  0x%016" PRIx64 "  %14" PRId64 " ",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          Object obj(*cur);
+          Tagged<Object> obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
           if (!skip_obj_print) {
-            if (obj.IsSmi() ||
-                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+            if (IsSmi(obj) ||
+                IsValidHeapObject(current_heap, Cast<HeapObject>(obj))) {
               PrintF(" (");
-              if (obj.IsSmi()) {
+              if (IsSmi(obj)) {
                 PrintF("smi %d", Smi::ToInt(obj));
               } else {
-                obj.ShortPrint();
+                ShortPrint(obj);
               }
               PrintF(")");
             }
@@ -475,13 +470,13 @@ void MipsDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::internal::EmbeddedVector<char, 256> buffer;
+        v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
@@ -489,7 +484,7 @@ void MipsDebugger::Debug() {
             // The argument is an address or a register name.
             int64_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(value);
+              cur = reinterpret_cast<uint8_t*>(value);
               // Disassemble 10 instructions at <arg1>.
               end = cur + (10 * kInstrSize);
             }
@@ -497,7 +492,7 @@ void MipsDebugger::Debug() {
             // The argument is the number of instructions.
             int64_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(sim_->get_pc());
+              cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
               end = cur + (value * kInstrSize);
             }
@@ -506,7 +501,7 @@ void MipsDebugger::Debug() {
           int64_t value1;
           int64_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -604,18 +599,18 @@ void MipsDebugger::Debug() {
         disasm::NameConverter converter;
         disasm::Disassembler dasm(converter);
         // Use a reasonably large buffer.
-        v8::internal::EmbeddedVector<char, 256> buffer;
+        v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int64_t value;
           if (GetValue(arg1, &value)) {
-            cur = reinterpret_cast<byte*>(value);
+            cur = reinterpret_cast<uint8_t*>(value);
             // no length parameter passed, assume 10 instructions
             end = cur + (10 * kInstrSize);
           }
@@ -623,7 +618,7 @@ void MipsDebugger::Debug() {
           int64_t value1;
           int64_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -796,8 +791,9 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
-  stack_size_ = FLAG_sim_stack_size * KB;
-  stack_ = reinterpret_cast<char*>(malloc(stack_size_));
+  size_t stack_size = AllocatedStackSize();
+  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]);
+  stack_limit_ = stack_ + kStackProtectionSize;
   pc_modified_ = false;
   icount_ = 0;
   break_count_ = 0;
@@ -824,7 +820,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
   // some buffer below.
-  registers_[sp] = reinterpret_cast<int64_t>(stack_) + stack_size_ - 64;
+  registers_[sp] = StackBase();
   // The ra and pc are initialized to a known bad value that will cause an
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_ra;
@@ -835,7 +831,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
-  free(stack_);
+  delete[] reinterpret_cast<uint8_t*>(stack_);
 }
 
 // Get the active Simulator for the current thread.
@@ -903,12 +899,12 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<float*>(&FPUregisters_[fpureg * 2]) = value;
+  memcpy(&FPUregisters_[fpureg * 2], &value, sizeof(value));
 }
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *bit_cast<double*>(&FPUregisters_[fpureg * 2]) = value;
+  memcpy(&FPUregisters_[fpureg * 2], &value, sizeof(value));
 }
 
 // Get the register from the architecture state. This function does handle
@@ -956,12 +952,12 @@ int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg * 2]));
+  return base::bit_cast<float>(get_fpu_register_word(fpureg));
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *bit_cast<double*>(&FPUregisters_[fpureg * 2]);
+  return base::bit_cast<double>(FPUregisters_[fpureg * 2]);
 }
 
 template <typename T>
@@ -1031,6 +1027,10 @@ void Simulator::set_fcsr_bit(uint32_t cc, bool value) {
 
 bool Simulator::test_fcsr_bit(uint32_t cc) { return FCSR_ & (1 << cc); }
 
+void Simulator::clear_fcsr_cause() {
+  FCSR_ &= ~kFCSRCauseMask;
+}
+
 void Simulator::set_fcsr_rounding_mode(FPURoundingMode mode) {
   FCSR_ |= mode & kFPURoundingModeMask;
 }
@@ -1054,24 +1054,31 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1084,27 +1091,34 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
   bool ret = false;
   // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
   // loading the most accurate representation into max_int64, which is 2^63.
-  double max_int64 = std::numeric_limits<int64_t>::max();
+  double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
   double min_int64 = std::numeric_limits<int64_t>::min();
+
+  clear_fcsr_cause();
 
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < DBL_MIN && rounded > -DBL_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1118,24 +1132,31 @@ bool Simulator::set_fcsr_round_error(float original, float rounded) {
   double max_int32 = std::numeric_limits<int32_t>::max();
   double min_int32 = std::numeric_limits<int32_t>::min();
 
+  clear_fcsr_cause();
+
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded > max_int32 || rounded < min_int32) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1184,7 +1205,7 @@ void Simulator::set_fpu_register_invalid_result64(float original,
   if (FCSR_ & kFCSRNaN2008FlagMask) {
     // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
     // loading the most accurate representation into max_int64, which is 2^63.
-    double max_int64 = std::numeric_limits<int64_t>::max();
+    double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
     double min_int64 = std::numeric_limits<int64_t>::min();
     if (std::isnan(original)) {
       set_fpu_register(fd_reg(), 0);
@@ -1243,7 +1264,7 @@ void Simulator::set_fpu_register_invalid_result64(double original,
   if (FCSR_ & kFCSRNaN2008FlagMask) {
     // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
     // loading the most accurate representation into max_int64, which is 2^63.
-    double max_int64 = std::numeric_limits<int64_t>::max();
+    double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
     double min_int64 = std::numeric_limits<int64_t>::min();
     if (std::isnan(original)) {
       set_fpu_register(fd_reg(), 0);
@@ -1265,27 +1286,34 @@ bool Simulator::set_fcsr_round64_error(float original, float rounded) {
   bool ret = false;
   // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
   // loading the most accurate representation into max_int64, which is 2^63.
-  double max_int64 = std::numeric_limits<int64_t>::max();
+  double max_int64 = static_cast<double>(std::numeric_limits<int64_t>::max());
   double min_int64 = std::numeric_limits<int64_t>::min();
+
+  clear_fcsr_cause();
 
   if (!std::isfinite(original) || !std::isfinite(rounded)) {
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
   if (original != rounded) {
     set_fcsr_bit(kFCSRInexactFlagBit, true);
+    set_fcsr_bit(kFCSRInexactCauseBit, true);
   }
 
   if (rounded < FLT_MIN && rounded > -FLT_MIN && rounded != 0) {
     set_fcsr_bit(kFCSRUnderflowFlagBit, true);
+    set_fcsr_bit(kFCSRUnderflowCauseBit, true);
     ret = true;
   }
 
   if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
+    set_fcsr_bit(kFCSROverflowCauseBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
+    set_fcsr_bit(kFCSRInvalidOpCauseBit, true);
     ret = true;
   }
 
@@ -1532,7 +1560,7 @@ void Simulator::DieOrDebug() {
 }
 
 void Simulator::TraceRegWr(int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       int64_t fmt_int64;
       int32_t fmt_int32[2];
@@ -1543,35 +1571,36 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
-                 " uint32:%" PRIu32,
-                 v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
+                       " uint32:%" PRIu32,
+                       v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "    (%" PRId64 ")    int64:%" PRId64
-                 " uint64:%" PRIu64,
-                 value, icount_, value, value);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    int64:%" PRId64
+                       " uint64:%" PRIu64,
+                       value, icount_, value, value);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    flt:%e",
-                 v.fmt_int64, icount_, v.fmt_float[0]);
+        base::SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    flt:%e",
+                       v.fmt_int64, icount_, v.fmt_float[0]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
-                 v.fmt_int64, icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    dbl:%e",
+                       v.fmt_int64, icount_, v.fmt_double);
         break;
       case FLOAT_DOUBLE:
-        SNPrintF(trace_buf_, "%016" PRIx64 "    (%" PRId64 ")    flt:%e dbl:%e",
-                 v.fmt_int64, icount_, v.fmt_float[0], v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    flt:%e dbl:%e",
+                       v.fmt_int64, icount_, v.fmt_float[0], v.fmt_double);
         break;
       case WORD_DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
-                 " uint32:%" PRIu32 " int64:%" PRId64 " uint64:%" PRIu64,
-                 v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0],
-                 v.fmt_int64, v.fmt_int64);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "    (%" PRId64 ")    int32:%" PRId32
+                       " uint32:%" PRIu32 " int64:%" PRId64 " uint64:%" PRIu64,
+                       v.fmt_int64, icount_, v.fmt_int32[0], v.fmt_int32[0],
+                       v.fmt_int64, v.fmt_int64);
         break;
       default:
         UNREACHABLE();
@@ -1581,7 +1610,7 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 
 template <typename T>
 void Simulator::TraceMSARegWr(T* value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       uint8_t b[16];
       uint16_t h[8];
@@ -1593,38 +1622,41 @@ void Simulator::TraceMSARegWr(T* value, TraceType t) {
     memcpy(v.b, value, kSimd128Size);
     switch (t) {
       case BYTE:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")",
+                       v.d[0], v.d[1], icount_);
         break;
       case HALF:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")",
+                       v.d[0], v.d[1], icount_);
         break;
       case WORD:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
-                 "  %" PRId32,
-                 v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
+                       "  %" PRId32,
+                       v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-                 v.d[0], v.d[1], icount_);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")",
+                       v.d[0], v.d[1], icount_);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    flt[0..3]:%e  %e  %e  %e",
-                 v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")    flt[0..3]:%e  %e  %e  %e",
+                       v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_,
-                 "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-                 ")    dbl[0..1]:%e  %e",
-                 v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
+        base::SNPrintF(trace_buf_,
+                       "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                       ")    dbl[0..1]:%e  %e",
+                       v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
         break;
       default:
         UNREACHABLE();
@@ -1634,7 +1666,7 @@ void Simulator::TraceMSARegWr(T* value, TraceType t) {
 
 template <typename T>
 void Simulator::TraceMSARegWr(T* value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       uint8_t b[kMSALanesByte];
       uint16_t h[kMSALanesHalf];
@@ -1645,33 +1677,33 @@ void Simulator::TraceMSARegWr(T* value) {
     } v;
     memcpy(v.b, value, kMSALanesByte);
 
-    if (std::is_same<T, int32_t>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
-               "  %" PRId32,
-               v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
-    } else if (std::is_same<T, float>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    flt[0..3]:%e  %e  %e  %e",
-               v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
-    } else if (std::is_same<T, double>::value) {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
-               ")    dbl[0..1]:%e  %e",
-               v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
+    if (std::is_same_v<T, int32_t>) {
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                     ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
+                     "  %" PRId32,
+                     v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
+    } else if (std::is_same_v<T, float>) {
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                     ")    flt[0..3]:%e  %e  %e  %e",
+                     v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
+    } else if (std::is_same_v<T, double>) {
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
+                     ")    dbl[0..1]:%e  %e",
+                     v.d[0], v.d[1], icount_, v.df[0], v.df[1]);
     } else {
-      SNPrintF(trace_buf_,
-               "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
-               v.d[0], v.d[1], icount_);
+      base::SNPrintF(trace_buf_,
+                     "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64 ")",
+                     v.d[0], v.d[1], icount_);
     }
   }
 }
 
 // TODO(plind): consider making icount_ printing a flag option.
 void Simulator::TraceMemRd(int64_t addr, int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       int64_t fmt_int64;
       int32_t fmt_int32[2];
@@ -1682,34 +1714,36 @@ void Simulator::TraceMemRd(int64_t addr, int64_t value, TraceType t) {
 
     switch (t) {
       case WORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    int32:%" PRId32 " uint32:%" PRIu32,
-                 v.fmt_int64, addr, icount_, v.fmt_int32[0], v.fmt_int32[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    int32:%" PRId32 " uint32:%" PRIu32,
+                       v.fmt_int64, addr, icount_, v.fmt_int32[0],
+                       v.fmt_int32[0]);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    int64:%" PRId64 " uint64:%" PRIu64,
-                 value, addr, icount_, value, value);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    int64:%" PRId64 " uint64:%" PRIu64,
+                       value, addr, icount_, value, value);
         break;
       case FLOAT:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    flt:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_float[0]);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    flt:%e",
+                       v.fmt_int64, addr, icount_, v.fmt_float[0]);
         break;
       case DOUBLE:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    dbl:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    dbl:%e",
+                       v.fmt_int64, addr, icount_, v.fmt_double);
         break;
       case FLOAT_DOUBLE:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
-                 ")    flt:%e dbl:%e",
-                 v.fmt_int64, addr, icount_, v.fmt_float[0], v.fmt_double);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  <-- [%016" PRIx64 "]    (%" PRId64
+                       ")    flt:%e dbl:%e",
+                       v.fmt_int64, addr, icount_, v.fmt_float[0],
+                       v.fmt_double);
         break;
       default:
         UNREACHABLE();
@@ -1718,29 +1752,30 @@ void Simulator::TraceMemRd(int64_t addr, int64_t value, TraceType t) {
 }
 
 void Simulator::TraceMemWr(int64_t addr, int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     switch (t) {
       case BYTE:
-        SNPrintF(trace_buf_,
-                 "               %02" PRIx8 " --> [%016" PRIx64 "]    (%" PRId64
-                 ")",
-                 static_cast<uint8_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "               %02" PRIx8 " --> [%016" PRIx64
+                       "]    (%" PRId64 ")",
+                       static_cast<uint8_t>(value), addr, icount_);
         break;
       case HALF:
-        SNPrintF(trace_buf_,
-                 "            %04" PRIx16 " --> [%016" PRIx64 "]    (%" PRId64
-                 ")",
-                 static_cast<uint16_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "            %04" PRIx16 " --> [%016" PRIx64
+                       "]    (%" PRId64 ")",
+                       static_cast<uint16_t>(value), addr, icount_);
         break;
       case WORD:
-        SNPrintF(trace_buf_,
-                 "        %08" PRIx32 " --> [%016" PRIx64 "]    (%" PRId64 ")",
-                 static_cast<uint32_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "        %08" PRIx32 " --> [%016" PRIx64 "]    (%" PRId64
+                       ")",
+                       static_cast<uint32_t>(value), addr, icount_);
         break;
       case DWORD:
-        SNPrintF(trace_buf_,
-                 "%016" PRIx64 "  --> [%016" PRIx64 "]    (%" PRId64 " )",
-                 value, addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "%016" PRIx64 "  --> [%016" PRIx64 "]    (%" PRId64 " )",
+                       value, addr, icount_);
         break;
       default:
         UNREACHABLE();
@@ -1750,35 +1785,38 @@ void Simulator::TraceMemWr(int64_t addr, int64_t value, TraceType t) {
 
 template <typename T>
 void Simulator::TraceMemRd(int64_t addr, T value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     switch (sizeof(T)) {
       case 1:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx8 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int8:%" PRId8 " uint8:%" PRIu8,
-                 static_cast<uint8_t>(value), addr, icount_,
-                 static_cast<int8_t>(value), static_cast<uint8_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx8 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int8:%" PRId8 " uint8:%" PRIu8,
+                       static_cast<uint8_t>(value), addr, icount_,
+                       static_cast<int8_t>(value), static_cast<uint8_t>(value));
         break;
       case 2:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx16 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int16:%" PRId16 " uint16:%" PRIu16,
-                 static_cast<uint16_t>(value), addr, icount_,
-                 static_cast<int16_t>(value), static_cast<uint16_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx16 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int16:%" PRId16 " uint16:%" PRIu16,
+                       static_cast<uint16_t>(value), addr, icount_,
+                       static_cast<int16_t>(value),
+                       static_cast<uint16_t>(value));
         break;
       case 4:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx32 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int32:%" PRId32 " uint32:%" PRIu32,
-                 static_cast<uint32_t>(value), addr, icount_,
-                 static_cast<int32_t>(value), static_cast<uint32_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx32 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int32:%" PRId32 " uint32:%" PRIu32,
+                       static_cast<uint32_t>(value), addr, icount_,
+                       static_cast<int32_t>(value),
+                       static_cast<uint32_t>(value));
         break;
       case 8:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx64 " <-- [%08" PRIx64 "]    (%" PRIu64
-                 ")    int64:%" PRId64 " uint64:%" PRIu64,
-                 static_cast<uint64_t>(value), addr, icount_,
-                 static_cast<int64_t>(value), static_cast<uint64_t>(value));
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx64 " <-- [%08" PRIx64 "]    (%" PRIu64
+                       ")    int64:%" PRId64 " uint64:%" PRIu64,
+                       static_cast<uint64_t>(value), addr, icount_,
+                       static_cast<int64_t>(value),
+                       static_cast<uint64_t>(value));
         break;
       default:
         UNREACHABLE();
@@ -1788,27 +1826,28 @@ void Simulator::TraceMemRd(int64_t addr, T value) {
 
 template <typename T>
 void Simulator::TraceMemWr(int64_t addr, T value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     switch (sizeof(T)) {
       case 1:
-        SNPrintF(trace_buf_,
-                 "      %02" PRIx8 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint8_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "      %02" PRIx8 " --> [%08" PRIx64 "]    (%" PRIu64
+                       ")",
+                       static_cast<uint8_t>(value), addr, icount_);
         break;
       case 2:
-        SNPrintF(trace_buf_,
-                 "    %04" PRIx16 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint16_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "    %04" PRIx16 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                       static_cast<uint16_t>(value), addr, icount_);
         break;
       case 4:
-        SNPrintF(trace_buf_,
-                 "%08" PRIx32 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint32_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "%08" PRIx32 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                       static_cast<uint32_t>(value), addr, icount_);
         break;
       case 8:
-        SNPrintF(trace_buf_,
-                 "%16" PRIx64 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
-                 static_cast<uint64_t>(value), addr, icount_);
+        base::SNPrintF(trace_buf_,
+                       "%16" PRIx64 " --> [%08" PRIx64 "]    (%" PRIu64 ")",
+                       static_cast<uint64_t>(value), addr, icount_);
         break;
       default:
         UNREACHABLE();
@@ -1826,7 +1865,8 @@ int32_t Simulator::ReadW(int64_t addr, Instruction* instr, TraceType t) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
+  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6 ||
+      isMipsSupportUnalignedAccess) {
     local_monitor_.NotifyLoad();
     int32_t* ptr = reinterpret_cast<int32_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr), t);
@@ -1918,7 +1958,8 @@ int64_t Simulator::Read2W(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6 ||
+      isMipsSupportUnalignedAccess) {
     local_monitor_.NotifyLoad();
     int64_t* ptr = reinterpret_cast<int64_t*>(addr);
     TraceMemRd(addr, *ptr);
@@ -1992,7 +2033,6 @@ double Simulator::ReadD(int64_t addr, Instruction* instr) {
   PrintF("Unaligned (double) read at 0x%08" PRIx64 " , pc=0x%08" V8PRIxPTR "\n",
          addr, reinterpret_cast<intptr_t>(instr));
   base::OS::Abort();
-  return 0;
 }
 
 void Simulator::WriteD(int64_t addr, double value, Instruction* instr) {
@@ -2140,13 +2180,44 @@ void Simulator::WriteMem(int64_t addr, T value, Instruction* instr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (GetCurrentStackPosition() < c_limit) {
-    return reinterpret_cast<uintptr_t>(get_sp());
+  if (base::Stack::GetCurrentStackPosition() < c_limit) {
+    return get_sp();
   }
 
-  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // Otherwise the limit is the JS stack. Leave a safety margin
   // to prevent overrunning the stack when pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 1024;
+  return stack_limit_ + kAdditionalStackMargin;
+}
+
+uintptr_t Simulator::StackBase() const {
+  return reinterpret_cast<uintptr_t>(stack_) + UsableStackSize();
+}
+
+base::Vector<uint8_t> Simulator::GetCentralStackView() const {
+  // We do not add an additional safety margin as above in
+  // Simulator::StackLimit, as users of this method are expected to add their
+  // own margin.
+  return base::VectorOf(
+      reinterpret_cast<uint8_t*>(stack_) + kStackProtectionSize,
+      UsableStackSize());
+}
+
+// We touch the stack, which may or may not have been initialized properly. Msan
+// reports here are not interesting.
+DISABLE_MSAN void Simulator::IterateRegistersAndStack(
+    ::heap::base::StackVisitor* visitor) {
+  for (int i = 0; i < kNumSimuRegisters; ++i) {
+    visitor->VisitPointer(reinterpret_cast<const void*>(get_register(i)));
+  }
+  for (const void* const* current =
+           reinterpret_cast<const void* const*>(get_sp());
+       current < reinterpret_cast<const void* const*>(StackBase()); ++current) {
+    const void* address = *current;
+    if (address == nullptr) {
+      continue;
+    }
+    visitor->VisitPointer(address);
+  }
 }
 
 // Unsupported instructions use Format to print an error and stop execution.
@@ -2162,28 +2233,163 @@ void Simulator::Format(Instruction* instr, const char* format) {
 // 64-bit value. With the code below we assume that all runtime calls return
 // 64 bits of result. If they don't, the v1 result register contains a bogus
 // value, which is fine because it is caller-saved.
-
-using SimulatorRuntimeCall = ObjectPair (*)(int64_t arg0, int64_t arg1,
-                                            int64_t arg2, int64_t arg3,
-                                            int64_t arg4, int64_t arg5,
-                                            int64_t arg6, int64_t arg7,
-                                            int64_t arg8, int64_t arg9);
+using SimulatorRuntimeCall = ObjectPair (*)(
+    int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4,
+    int64_t arg5, int64_t arg6, int64_t arg7, int64_t arg8, int64_t arg9,
+    int64_t arg10, int64_t arg11, int64_t arg12, int64_t arg13, int64_t arg14,
+    int64_t arg15, int64_t arg16, int64_t arg17, int64_t arg18, int64_t arg19);
 
 // These prototypes handle the four types of FP calls.
 using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
 using SimulatorRuntimeFPFPCall = double (*)(double darg0, double darg1);
 using SimulatorRuntimeFPCall = double (*)(double darg0);
 using SimulatorRuntimeFPIntCall = double (*)(double darg0, int32_t arg0);
+using SimulatorRuntimeIntFPCall = int32_t (*)(double darg0);
+// Define four args for future flexibility; at the time of this writing only
+// one is ever used.
+using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
+                                                int64_t arg2, int64_t arg3);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
-using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 
-// This signature supports direct call to accessor getter callback.
-using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
-using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
-                                                     void* arg2);
+// This signature supports direct call to accessor/interceptor getter callback.
+// Using v8::Local<v8::Name> instead of int64_t as a first argument type fixes
+// MSAN false positive report when using the value in the callback.
+using SimulatorRuntimeDirectGetterCall = int64_t (*)(v8::Local<v8::Name> arg0,
+                                                     int64_t arg1);
+
+// This signature supports direct call to accessor/interceptor setter callback.
+// Using v8::Local<v8::Name/Value> instead of int64_t as first two argument
+// types fixes MSAN false positive report when using the value in the callback.
+using SimulatorRuntimeDirectSetterCall = int64_t (*)(v8::Local<v8::Name> arg0,
+                                                     v8::Local<v8::Value> arg1,
+                                                     int64_t arg2);
+
+using MixedRuntimeCall_0 = AnyCType (*)();
+
+#define BRACKETS(ident, N) ident[N]
+
+#define REP_0(expr, FMT)
+#define REP_1(expr, FMT) FMT(expr, 0)
+#define REP_2(expr, FMT) REP_1(expr, FMT), FMT(expr, 1)
+#define REP_3(expr, FMT) REP_2(expr, FMT), FMT(expr, 2)
+#define REP_4(expr, FMT) REP_3(expr, FMT), FMT(expr, 3)
+#define REP_5(expr, FMT) REP_4(expr, FMT), FMT(expr, 4)
+#define REP_6(expr, FMT) REP_5(expr, FMT), FMT(expr, 5)
+#define REP_7(expr, FMT) REP_6(expr, FMT), FMT(expr, 6)
+#define REP_8(expr, FMT) REP_7(expr, FMT), FMT(expr, 7)
+#define REP_9(expr, FMT) REP_8(expr, FMT), FMT(expr, 8)
+#define REP_10(expr, FMT) REP_9(expr, FMT), FMT(expr, 9)
+#define REP_11(expr, FMT) REP_10(expr, FMT), FMT(expr, 10)
+#define REP_12(expr, FMT) REP_11(expr, FMT), FMT(expr, 11)
+#define REP_13(expr, FMT) REP_12(expr, FMT), FMT(expr, 12)
+#define REP_14(expr, FMT) REP_13(expr, FMT), FMT(expr, 13)
+#define REP_15(expr, FMT) REP_14(expr, FMT), FMT(expr, 14)
+#define REP_16(expr, FMT) REP_15(expr, FMT), FMT(expr, 15)
+#define REP_17(expr, FMT) REP_16(expr, FMT), FMT(expr, 16)
+#define REP_18(expr, FMT) REP_17(expr, FMT), FMT(expr, 17)
+#define REP_19(expr, FMT) REP_18(expr, FMT), FMT(expr, 18)
+#define REP_20(expr, FMT) REP_19(expr, FMT), FMT(expr, 19)
+
+#define GEN_MAX_PARAM_COUNT(V) \
+  V(0)                         \
+  V(1)                         \
+  V(2)                         \
+  V(3)                         \
+  V(4)                         \
+  V(5)                         \
+  V(6)                         \
+  V(7)                         \
+  V(8)                         \
+  V(9)                         \
+  V(10)                        \
+  V(11)                        \
+  V(12)                        \
+  V(13)                        \
+  V(14)                        \
+  V(15)                        \
+  V(16)                        \
+  V(17)                        \
+  V(18)                        \
+  V(19)                        \
+  V(20)
+
+#define MIXED_RUNTIME_CALL(N) \
+  using MixedRuntimeCall_##N = AnyCType (*)(REP_##N(AnyCType arg, CONCAT));
+
+GEN_MAX_PARAM_COUNT(MIXED_RUNTIME_CALL)
+#undef MIXED_RUNTIME_CALL
+
+#define CALL_ARGS(N) REP_##N(args, BRACKETS)
+#define CALL_TARGET_VARARG(N)                                   \
+  if (signature.ParameterCount() == N) { /* NOLINT */           \
+    MixedRuntimeCall_##N target =                               \
+        reinterpret_cast<MixedRuntimeCall_##N>(target_address); \
+    result = target(CALL_ARGS(N));                              \
+  } else /* NOLINT */
+
+#define PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
+#define RETURN_REGISTER v0
+#define FP_PARAM_REGISTERS f12, f13, f14, f15, f16, f17, f18, f19
+#define FP_RETURN_REGISTER f0
+
+void Simulator::CallAnyCTypeFunction(Address target_address,
+                                     const EncodedCSignature& signature) {
+  const int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
+  const double* double_stack_pointer =
+      reinterpret_cast<double*>(get_register(sp));
+
+  const Register kParamRegisters[] = {PARAM_REGISTERS};
+  const FPURegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
+
+  int num_reg_params = 0, num_stack_params = 0;
+
+  CHECK_LE(signature.ParameterCount(), kMaxCParameters);
+  static_assert(sizeof(AnyCType) == 8, "AnyCType is assumed to be 64-bit.");
+  AnyCType args[kMaxCParameters];
+  for (int i = 0; i < signature.ParameterCount(); ++i) {
+    if (num_reg_params < 8) {
+      if (signature.IsFloat(i)) {
+        args[i].double_value =
+            get_fpu_register_double(kFPParamRegisters[num_reg_params++]);
+      } else {
+        args[i].int64_value = get_register(kParamRegisters[num_reg_params++]);
+      }
+    } else {
+      if (signature.IsFloat(i)) {
+        args[i].double_value = double_stack_pointer[num_stack_params++];
+      } else {
+        args[i].int64_value = stack_pointer[num_stack_params++];
+      }
+    }
+  }
+  AnyCType result;
+  GEN_MAX_PARAM_COUNT(CALL_TARGET_VARARG)
+  /* else */ {
+    UNREACHABLE();
+  }
+  static_assert(20 == kMaxCParameters,
+                "If you've changed kMaxCParameters, please change the "
+                "GEN_MAX_PARAM_COUNT macro.");
+  printf("CallAnyCTypeFunction end result \n");
+
+#undef CALL_TARGET_VARARG
+#undef CALL_ARGS
+#undef GEN_MAX_PARAM_COUNT
+
+  if (signature.IsReturnFloat()) {
+    set_fpu_register_double(FP_RETURN_REGISTER, result.double_value);
+  } else {
+    set_register(RETURN_REGISTER, result.int64_value);
+  }
+}
+
+#undef PARAM_REGISTERS
+#undef RETURN_REGISTER
+#undef FP_PARAM_REGISTERS
+#undef FP_RETURN_REGISTER
 
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime. They are also used for debugging with simulator.
@@ -2197,6 +2403,26 @@ void Simulator::SoftwareInterrupt() {
   if (instr_.InstructionBits() == rtCallRedirInstr) {
     Redirection* redirection = Redirection::FromInstruction(instr_.instr());
 
+    // This is dodgy but it works because the C entry stubs are never moved.
+    int64_t saved_ra = get_register(ra);
+
+    intptr_t external =
+        reinterpret_cast<intptr_t>(redirection->external_function());
+
+    Address func_addr =
+        reinterpret_cast<Address>(redirection->external_function());
+    SimulatorData* simulator_data = isolate_->simulator_data();
+    DCHECK_NOT_NULL(simulator_data);
+    const EncodedCSignature& signature =
+        simulator_data->GetSignatureForTarget(func_addr);
+    if (signature.IsValid()) {
+      CHECK_EQ(redirection->type(), ExternalReference::FAST_C_CALL);
+      CallAnyCTypeFunction(external, signature);
+      set_register(ra, saved_ra);
+      set_pc(get_register(ra));
+      return;
+    }
+
     int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
 
     int64_t arg0 = get_register(a0);
@@ -2209,13 +2435,24 @@ void Simulator::SoftwareInterrupt() {
     int64_t arg7 = get_register(a7);
     int64_t arg8 = stack_pointer[0];
     int64_t arg9 = stack_pointer[1];
-    STATIC_ASSERT(kMaxCParameters == 10);
+    int64_t arg10 = stack_pointer[2];
+    int64_t arg11 = stack_pointer[3];
+    int64_t arg12 = stack_pointer[4];
+    int64_t arg13 = stack_pointer[5];
+    int64_t arg14 = stack_pointer[6];
+    int64_t arg15 = stack_pointer[7];
+    int64_t arg16 = stack_pointer[8];
+    int64_t arg17 = stack_pointer[9];
+    int64_t arg18 = stack_pointer[10];
+    int64_t arg19 = stack_pointer[11];
+    static_assert(kMaxCParameters == 20);
 
     bool fp_call =
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
         (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
         (redirection->type() == ExternalReference::BUILTIN_FP_CALL) ||
-        (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
+        (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL) ||
+        (redirection->type() == ExternalReference::BUILTIN_INT_FP_CALL);
 
     if (!IsMipsSoftFloatABI) {
       // With the hard floating point calling convention, double
@@ -2244,13 +2481,6 @@ void Simulator::SoftwareInterrupt() {
       }
     }
 
-    // This is dodgy but it works because the C entry stubs are never moved.
-    // See comment in codegen-arm.cc and bug 1242173.
-    int64_t saved_ra = get_register(ra);
-
-    intptr_t external =
-        reinterpret_cast<intptr_t>(redirection->external_function());
-
     // Based on CpuFeatures::IsSupported(FPU), Mips will use either hardware
     // FPU, or gcc soft-float routines. Hardware FPU is simulated in this
     // simulator. Soft-float has additional abstraction of ExternalReference,
@@ -2263,7 +2493,7 @@ void Simulator::SoftwareInterrupt() {
       GetFpArgs(&dval0, &dval1, &ival);
       SimulatorRuntimeCall generic_target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
@@ -2281,9 +2511,13 @@ void Simulator::SoftwareInterrupt() {
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0, ival);
             break;
+          case ExternalReference::BUILTIN_INT_FP_CALL:
+            PrintF("Call to host function at %p with args %f",
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
+            break;
           default:
             UNREACHABLE();
-            break;
         }
       }
       switch (redirection->type()) {
@@ -2316,13 +2550,20 @@ void Simulator::SoftwareInterrupt() {
           SetFpResult(dresult);
           break;
         }
+        case ExternalReference::BUILTIN_INT_FP_CALL: {
+          SimulatorRuntimeIntFPCall target =
+              reinterpret_cast<SimulatorRuntimeIntFPCall>(external);
+          iresult = target(dval0);
+          set_register(v0, iresult);
+          break;
+        }
         default:
           UNREACHABLE();
-          break;
       }
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_COMPARE_CALL:
+          case ExternalReference::BUILTIN_INT_FP_CALL:
             PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
             break;
           case ExternalReference::BUILTIN_FP_FP_CALL:
@@ -2332,65 +2573,80 @@ void Simulator::SoftwareInterrupt() {
             break;
           default:
             UNREACHABLE();
-            break;
         }
       }
+    } else if (redirection->type() ==
+               ExternalReference::BUILTIN_FP_POINTER_CALL) {
+      if (v8_flags.trace_sim) {
+        PrintF("Call to host function at %p args %08" PRIx64 " \n",
+               reinterpret_cast<void*>(external), arg0);
+      }
+      SimulatorRuntimeFPTaggedCall target =
+          reinterpret_cast<SimulatorRuntimeFPTaggedCall>(external);
+      double dresult = target(arg0, arg1, arg2, arg3);
+      SetFpResult(dresult);
+      if (v8_flags.trace_sim) {
+        PrintF("Returned %f\n", dresult);
+      }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 " \n",
                reinterpret_cast<void*>(external), arg0);
       }
       SimulatorRuntimeDirectApiCall target =
           reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       target(arg0);
-    } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
-               " \n",
-               reinterpret_cast<void*>(external), arg0, arg1);
-      }
-      SimulatorRuntimeProfilingApiCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-      target(arg0, Redirection::ReverseRedirection(arg1));
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
                " \n",
                reinterpret_cast<void*>(external), arg0, arg1);
       }
       SimulatorRuntimeDirectGetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-      target(arg0, arg1);
-    } else if (redirection->type() ==
-               ExternalReference::PROFILING_GETTER_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      int64_t iresult = target(base::bit_cast<v8::Local<v8::Name>>(arg0), arg1);
+      set_register(v0, static_cast<int64_t>(iresult));
+    } else if (redirection->type() == ExternalReference::DIRECT_SETTER_CALL) {
+      // void f(v8::Local<Name>, v8::Local<v8::Value>,
+      //        v8::PropertyCallbackInfo&);
+      // v8::Intercepted f(v8::Local<Name>, v8::Local<v8::Value>,
+      //                   v8::PropertyCallbackInfo&);
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
                "  %08" PRIx64 " \n",
                reinterpret_cast<void*>(external), arg0, arg1, arg2);
       }
-      SimulatorRuntimeProfilingGetterCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      target(arg0, arg1, Redirection::ReverseRedirection(arg2));
+      SimulatorRuntimeDirectSetterCall target =
+          reinterpret_cast<SimulatorRuntimeDirectSetterCall>(external);
+      int64_t iresult =
+          target(base::bit_cast<v8::Local<v8::Name>>(arg0),
+                 base::bit_cast<v8::Local<v8::Value>>(arg1), arg2);
+      set_register(v0, static_cast<int64_t>(iresult));
     } else {
       DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
              redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
       SimulatorRuntimeCall target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF(
             "Call to host function at %p "
             "args %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
             " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
-            " , %08" PRIx64 " , %08" PRIx64 " \n",
+            " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
+            " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
+            " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64 " , %08" PRIx64
+            " \n",
             reinterpret_cast<void*>(FUNCTION_ADDR(target)), arg0, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+            arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12,
+            arg13, arg14, arg15, arg16, arg17, arg18, arg19);
       }
-      ObjectPair result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+      ObjectPair result = target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
+                                 arg8, arg9, arg10, arg11, arg12, arg13, arg14,
+                                 arg15, arg16, arg17, arg18, arg19);
       set_register(v0, (int64_t)(result.x));
       set_register(v1, (int64_t)(result.y));
     }
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       PrintF("Returned %08" PRIx64 "  : %08" PRIx64 " \n", get_register(v1),
              get_register(v0));
     }
@@ -2586,8 +2842,8 @@ static T FPUMaxA(T a, T b) {
 
 enum class KeepSign : bool { no = false, yes };
 
-template <typename T, typename std::enable_if<std::is_floating_point<T>::value,
-                                              int>::type = 0>
+template <typename T,
+          typename std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 T FPUCanonalizeNaNArg(T result, T arg, KeepSign keepSign = KeepSign::no) {
   DCHECK(std::isnan(arg));
   T qNaN = std::numeric_limits<T>::quiet_NaN();
@@ -2634,8 +2890,8 @@ void Simulator::DecodeTypeRegisterSRsType() {
   fs = get_fpu_register_float(fs_reg());
   ft = get_fpu_register_float(ft_reg());
   fd = get_fpu_register_float(fd_reg());
-  int32_t ft_int = bit_cast<int32_t>(ft);
-  int32_t fd_int = bit_cast<int32_t>(fd);
+  int32_t ft_int = base::bit_cast<int32_t>(ft);
+  int32_t fd_int = base::bit_cast<int32_t>(fd);
   uint32_t cc, fcsr_cc;
   cc = instr_.FCccValue();
   fcsr_cc = get_fcsr_condition_bit(cc);
@@ -2773,7 +3029,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       break;
     case CLASS_S: {  // Mips64r6 instruction
       // Convert float input to uint32_t for easier bit manipulation
-      uint32_t classed = bit_cast<uint32_t>(fs);
+      uint32_t classed = base::bit_cast<uint32_t>(fs);
 
       // Extracting sign, exponent and mantissa from the input float
       uint32_t sign = (classed >> 31) & 1;
@@ -2831,7 +3087,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
 
       DCHECK_NE(result, 0);
 
-      fResult = bit_cast<float>(result);
+      fResult = base::bit_cast<float>(result);
       SetFPUFloatResult(fd_reg(), fResult);
       break;
     }
@@ -3013,8 +3269,8 @@ void Simulator::DecodeTypeRegisterDRsType() {
   fd = get_fpu_register_double(fd_reg());
   cc = instr_.FCccValue();
   fcsr_cc = get_fcsr_condition_bit(cc);
-  int64_t ft_int = bit_cast<int64_t>(ft);
-  int64_t fd_int = bit_cast<int64_t>(fd);
+  int64_t ft_int = base::bit_cast<int64_t>(ft);
+  int64_t fd_int = base::bit_cast<int64_t>(fd);
   switch (instr_.FunctionFieldRaw()) {
     case RINT: {
       DCHECK_EQ(kArchVariant, kMips64r6);
@@ -3303,7 +3559,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
     }
     case CLASS_D: {  // Mips64r6 instruction
       // Convert double input to uint64_t for easier bit manipulation
-      uint64_t classed = bit_cast<uint64_t>(fs);
+      uint64_t classed = base::bit_cast<uint64_t>(fs);
 
       // Extracting sign, exponent and mantissa from the input double
       uint32_t sign = (classed >> 63) & 1;
@@ -3361,7 +3617,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
 
       DCHECK_NE(result, 0);
 
-      dResult = bit_cast<double>(result);
+      dResult = base::bit_cast<double>(result);
       SetFPUDoubleResult(fd_reg(), dResult);
       break;
     }
@@ -3896,14 +4152,14 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case DMULT:  // DMULT == D_MUL_MUH.
       if (kArchVariant != kMips64r6) {
         set_register(LO, rs() * rt());
-        set_register(HI, MultiplyHighSigned(rs(), rt()));
+        set_register(HI, base::bits::SignedMulHigh64(rs(), rt()));
       } else {
         switch (sa()) {
           case MUL_OP:
             SetResult(rd_reg(), rs() * rt());
             break;
           case MUH_OP:
-            SetResult(rd_reg(), MultiplyHighSigned(rs(), rt()));
+            SetResult(rd_reg(), base::bits::SignedMulHigh64(rs(), rt()));
             break;
           default:
             UNIMPLEMENTED_MIPS();
@@ -3912,7 +4168,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       }
       break;
     case DMULTU:
-      UNIMPLEMENTED_MIPS();
+      if (kArchVariant != kMips64r6) {
+        set_register(LO, rs_u() * rt_u());
+        set_register(HI, base::bits::UnsignedMulHigh64(rs_u(), rt_u()));
+      } else {
+        UNIMPLEMENTED_MIPS();
+      }
       break;
     case DIV:
     case DDIV: {
@@ -3966,12 +4227,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
           switch (sa()) {
             case DIV_OP:
               if (rt_u_32 != 0) {
-                SetResult(rd_reg(), rs_u_32 / rt_u_32);
+                SetResult(rd_reg(), static_cast<int32_t>(rs_u_32 / rt_u_32));
               }
               break;
             case MOD_OP:
               if (rt_u() != 0) {
-                SetResult(rd_reg(), rs_u_32 % rt_u_32);
+                SetResult(rd_reg(), static_cast<int32_t>(rs_u_32 % rt_u_32));
               }
               break;
             default:
@@ -3983,8 +4244,8 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
           if (rt_u() != 0) {
             uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
             uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
-            set_register(LO, rs_u_32 / rt_u_32);
-            set_register(HI, rs_u_32 % rt_u_32);
+            set_register(LO, static_cast<int32_t>(rs_u_32 / rt_u_32));
+            set_register(HI, static_cast<int32_t>(rs_u_32 % rt_u_32));
           }
         }
       }
@@ -4357,7 +4618,6 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
             default:
               alu_out = 0x12345678;
               UNREACHABLE();
-              break;
           }
           break;
         }
@@ -4456,7 +4716,6 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
             default:
               alu_out = 0x12345678;
               UNREACHABLE();
-              break;
           }
           break;
         }
@@ -4495,7 +4754,6 @@ int Simulator::DecodeMsaDataFormat() {
         break;
       default:
         UNREACHABLE();
-        break;
     }
   } else {
     int DF[] = {MSA_BYTE, MSA_HALF, MSA_WORD, MSA_DWORD};
@@ -4540,7 +4798,6 @@ int Simulator::DecodeMsaDataFormat() {
         break;
       default:
         UNREACHABLE();
-        break;
     }
   }
   return df;
@@ -4662,16 +4919,16 @@ T Simulator::MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5) {
       res = static_cast<T>(ws - ui5);
       break;
     case MAXI_S:
-      res = static_cast<T>(Max(ws, static_cast<T>(i5)));
+      res = static_cast<T>(std::max(ws, static_cast<T>(i5)));
       break;
     case MINI_S:
-      res = static_cast<T>(Min(ws, static_cast<T>(i5)));
+      res = static_cast<T>(std::min(ws, static_cast<T>(i5)));
       break;
     case MAXI_U:
-      res = static_cast<T>(Max(ws_u64, ui5_u64));
+      res = static_cast<T>(std::max(ws_u64, ui5_u64));
       break;
     case MINI_U:
-      res = static_cast<T>(Min(ws_u64, ui5_u64));
+      res = static_cast<T>(std::min(ws_u64, ui5_u64));
       break;
     case CEQI:
       res = static_cast<T>(!Compare(ws, static_cast<T>(i5)) ? -1ull : 0ull);
@@ -4778,13 +5035,13 @@ void Simulator::DecodeTypeMsaELM() {
   switch (opcode) {
     case CTCMSA:
       DCHECK_EQ(sa(), kMSACSRRegister);
-      MSACSR_ = bit_cast<uint32_t>(
+      MSACSR_ = base::bit_cast<uint32_t>(
           static_cast<int32_t>(registers_[rd_reg()] & kMaxUInt32));
       TraceRegWr(static_cast<int32_t>(MSACSR_));
       break;
     case CFCMSA:
       DCHECK_EQ(rd_reg(), kMSACSRRegister);
-      SetResult(sa(), static_cast<int64_t>(bit_cast<int32_t>(MSACSR_)));
+      SetResult(sa(), static_cast<int64_t>(base::bit_cast<int32_t>(MSACSR_)));
       break;
     case MOVE_V: {
       msa_reg_t ws;
@@ -4920,7 +5177,6 @@ void Simulator::DecodeTypeMsaELM() {
         case SPLATI:
         case INSVE:
           UNIMPLEMENTED();
-          break;
         default:
           UNREACHABLE();
       }
@@ -4930,7 +5186,7 @@ void Simulator::DecodeTypeMsaELM() {
 
 template <typename T>
 T Simulator::MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m) {
-  using uT = typename std::make_unsigned<T>::type;
+  using uT = std::make_unsigned_t<T>;
   T res;
   switch (opcode) {
     case SLLI:
@@ -5123,7 +5379,7 @@ void Simulator::DecodeTypeMsaMI10() {
 
 template <typename T>
 T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
-  using uT = typename std::make_unsigned<T>::type;
+  using uT = std::make_unsigned_t<T>;
   T res;
   int wt_modulo = wt % (sizeof(T) * 8);
   switch (opcode) {
@@ -5174,16 +5430,16 @@ T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
       res = ws - wt;
       break;
     case MAX_S:
-      res = Max(ws, wt);
+      res = std::max(ws, wt);
       break;
     case MAX_U:
-      res = static_cast<T>(Max(static_cast<uT>(ws), static_cast<uT>(wt)));
+      res = static_cast<T>(std::max(static_cast<uT>(ws), static_cast<uT>(wt)));
       break;
     case MIN_S:
-      res = Min(ws, wt);
+      res = std::min(ws, wt);
       break;
     case MIN_U:
-      res = static_cast<T>(Min(static_cast<uT>(ws), static_cast<uT>(wt)));
+      res = static_cast<T>(std::min(static_cast<uT>(ws), static_cast<uT>(wt)));
       break;
     case MAX_A:
       // We use negative abs in order to avoid problems
@@ -5403,8 +5659,8 @@ template <typename T_int, typename T_smaller_int, typename T_reg>
 void Msa3RInstrHelper_horizontal(const uint32_t opcode, T_reg ws, T_reg wt,
                                  T_reg wd, const int i,
                                  const int num_of_lanes) {
-  using T_uint = typename std::make_unsigned<T_int>::type;
-  using T_smaller_uint = typename std::make_unsigned<T_smaller_int>::type;
+  using T_uint = std::make_unsigned_t<T_int>;
+  using T_smaller_uint = std::make_unsigned_t<T_smaller_int>;
   T_int* wd_p;
   T_smaller_int *ws_p, *wt_p;
   ws_p = reinterpret_cast<T_smaller_int*>(ws);
@@ -5637,44 +5893,44 @@ void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
       }
     } break;
     case FADD:
-      *wd = bit_cast<T_int>(s_element + t_element);
+      *wd = base::bit_cast<T_int>(s_element + t_element);
       break;
     case FSUB:
-      *wd = bit_cast<T_int>(s_element - t_element);
+      *wd = base::bit_cast<T_int>(s_element - t_element);
       break;
     case FMUL:
-      *wd = bit_cast<T_int>(s_element * t_element);
+      *wd = base::bit_cast<T_int>(s_element * t_element);
       break;
     case FDIV: {
       if (t_element == 0) {
-        *wd = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *wd = base::bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        *wd = bit_cast<T_int>(s_element / t_element);
+        *wd = base::bit_cast<T_int>(s_element / t_element);
       }
     } break;
     case FMADD:
-      *wd = bit_cast<T_int>(
+      *wd = base::bit_cast<T_int>(
           std::fma(s_element, t_element, *reinterpret_cast<T_fp*>(wd)));
       break;
     case FMSUB:
-      *wd = bit_cast<T_int>(
+      *wd = base::bit_cast<T_int>(
           std::fma(-s_element, t_element, *reinterpret_cast<T_fp*>(wd)));
       break;
     case FEXP2:
-      *wd = bit_cast<T_int>(std::ldexp(s_element, static_cast<int>(wt)));
+      *wd = base::bit_cast<T_int>(std::ldexp(s_element, static_cast<int>(wt)));
       break;
     case FMIN:
-      *wd = bit_cast<T_int>(std::min(s_element, t_element));
+      *wd = base::bit_cast<T_int>(std::min(s_element, t_element));
       break;
     case FMAX:
-      *wd = bit_cast<T_int>(std::max(s_element, t_element));
+      *wd = base::bit_cast<T_int>(std::max(s_element, t_element));
       break;
     case FMIN_A: {
-      *wd = bit_cast<T_int>(
+      *wd = base::bit_cast<T_int>(
           std::fabs(s_element) < std::fabs(t_element) ? s_element : t_element);
     } break;
     case FMAX_A: {
-      *wd = bit_cast<T_int>(
+      *wd = base::bit_cast<T_int>(
           std::fabs(s_element) > std::fabs(t_element) ? s_element : t_element);
     } break;
     case FSOR:
@@ -5697,8 +5953,8 @@ void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
 
 template <typename T_int, typename T_int_dbl, typename T_reg>
 void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
-  //  using T_uint = typename std::make_unsigned<T_int>::type;
-  using T_uint_dbl = typename std::make_unsigned<T_int_dbl>::type;
+  //  using T_uint = std::make_unsigned_t<T_int>;
+  using T_uint_dbl = std::make_unsigned_t<T_int_dbl>;
   const T_int max_int = std::numeric_limits<T_int>::max();
   const T_int min_int = std::numeric_limits<T_int>::min();
   const int shift = kBitsPerByte * sizeof(T_int) - 1;
@@ -5709,7 +5965,8 @@ void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
   switch (opcode) {
     case MUL_Q: {
       const T_int_dbl min_fix_dbl =
-          bit_cast<T_uint_dbl>(std::numeric_limits<T_int_dbl>::min()) >> 1U;
+          base::bit_cast<T_uint_dbl>(std::numeric_limits<T_int_dbl>::min()) >>
+          1U;
       const T_int_dbl max_fix_dbl = std::numeric_limits<T_int_dbl>::max() >> 1U;
       if (product == min_fix_dbl) {
         product = max_fix_dbl;
@@ -5728,7 +5985,8 @@ void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
     } break;
     case MULR_Q: {
       const T_int_dbl min_fix_dbl =
-          bit_cast<T_uint_dbl>(std::numeric_limits<T_int_dbl>::min()) >> 1U;
+          base::bit_cast<T_uint_dbl>(std::numeric_limits<T_int_dbl>::min()) >>
+          1U;
       const T_int_dbl max_fix_dbl = std::numeric_limits<T_int_dbl>::max() >> 1U;
       if (product == min_fix_dbl) {
         *wd = static_cast<T_int>(max_fix_dbl >> shift);
@@ -5857,10 +6115,10 @@ void Simulator::DecodeTypeMsa3RF() {
           break;
         case MSA_WORD:
           for (int i = 0; i < kMSALanesDword; i++) {
-            wd.w[i + kMSALanesWord / 2] = bit_cast<int32_t>(
-                static_cast<float>(bit_cast<double>(ws.d[i])));
-            wd.w[i] = bit_cast<int32_t>(
-                static_cast<float>(bit_cast<double>(wt.d[i])));
+            wd.w[i + kMSALanesWord / 2] = base::bit_cast<int32_t>(
+                static_cast<float>(base::bit_cast<double>(ws.d[i])));
+            wd.w[i] = base::bit_cast<int32_t>(
+                static_cast<float>(base::bit_cast<double>(wt.d[i])));
           }
           break;
         default:
@@ -5871,7 +6129,7 @@ void Simulator::DecodeTypeMsa3RF() {
 #undef FEXDO_DF
     case FTQ:
 #define FTQ_DF(source, dst, fp_type, int_type)                  \
-  element = bit_cast<fp_type>(source) *                         \
+  element = base::bit_cast<fp_type>(source) *                   \
             (1U << (sizeof(int_type) * kBitsPerByte - 1));      \
   if (element > std::numeric_limits<int_type>::max()) {         \
     dst = std::numeric_limits<int_type>::max();                 \
@@ -5918,7 +6176,7 @@ void Simulator::DecodeTypeMsa3RF() {
     case MADDR_Q:
     case MSUBR_Q:
       get_msa_register(wd_reg(), &wd);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case MUL_Q:
     case MULR_Q:
       switch (DecodeMsaDataFormat()) {
@@ -6140,8 +6398,8 @@ void Simulator::DecodeTypeMsa2R() {
 }
 
 #define BIT(n) (0x1LL << n)
-#define QUIET_BIT_S(nan) (bit_cast<int32_t>(nan) & BIT(22))
-#define QUIET_BIT_D(nan) (bit_cast<int64_t>(nan) & BIT(51))
+#define QUIET_BIT_S(nan) (base::bit_cast<int32_t>(nan) & BIT(22))
+#define QUIET_BIT_D(nan) (base::bit_cast<int64_t>(nan) & BIT(51))
 static inline bool isSnan(float fp) { return !QUIET_BIT_S(fp); }
 static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 #undef QUIET_BIT_S
@@ -6150,7 +6408,7 @@ static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 template <typename T_int, typename T_fp, typename T_src, typename T_dst>
 T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
                         Simulator* sim) {
-  using T_uint = typename std::make_unsigned<T_int>::type;
+  using T_uint = std::make_unsigned_t<T_int>;
   switch (opcode) {
     case FCLASS: {
 #define SNAN_BIT BIT(0)
@@ -6217,86 +6475,87 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
 #undef POS_SUBNORMAL_BIT
 #undef POS_ZERO_BIT
     case FTRUNC_S: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       const T_int max_int = std::numeric_limits<T_int>::max();
       const T_int min_int = std::numeric_limits<T_int>::min();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element >= max_int || element <= min_int) {
-        *dst = element >= max_int ? max_int : min_int;
+      } else if (element >= static_cast<T_fp>(max_int) || element <= min_int) {
+        *dst = element >= static_cast<T_fp>(max_int) ? max_int : min_int;
       } else {
         *dst = static_cast<T_int>(std::trunc(element));
       }
       break;
     }
     case FTRUNC_U: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       const T_uint max_int = std::numeric_limits<T_uint>::max();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element >= max_int || element <= 0) {
-        *dst = element >= max_int ? max_int : 0;
+      } else if (element >= static_cast<T_fp>(max_int) || element <= 0) {
+        *dst = element >= static_cast<T_fp>(max_int) ? max_int : 0;
       } else {
         *dst = static_cast<T_uint>(std::trunc(element));
       }
       break;
     }
     case FSQRT: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       if (element < 0 || std::isnan(element)) {
-        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = base::bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        *dst = bit_cast<T_int>(std::sqrt(element));
+        *dst = base::bit_cast<T_int>(std::sqrt(element));
       }
       break;
     }
     case FRSQRT: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       if (element < 0 || std::isnan(element)) {
-        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = base::bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        *dst = bit_cast<T_int>(1 / std::sqrt(element));
+        *dst = base::bit_cast<T_int>(1 / std::sqrt(element));
       }
       break;
     }
     case FRCP: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       if (std::isnan(element)) {
-        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = base::bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
-        *dst = bit_cast<T_int>(1 / element);
+        *dst = base::bit_cast<T_int>(1 / element);
       }
       break;
     }
     case FRINT: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       if (std::isnan(element)) {
-        *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+        *dst = base::bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
       } else {
         T_int dummy;
         sim->round_according_to_msacsr<T_fp, T_int>(element, &element, &dummy);
-        *dst = bit_cast<T_int>(element);
+        *dst = base::bit_cast<T_int>(element);
       }
       break;
     }
     case FLOG2: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       switch (std::fpclassify(element)) {
         case FP_NORMAL:
         case FP_SUBNORMAL:
-          *dst = bit_cast<T_int>(std::logb(element));
+          *dst = base::bit_cast<T_int>(std::logb(element));
           break;
         case FP_ZERO:
-          *dst = bit_cast<T_int>(-std::numeric_limits<T_fp>::infinity());
+          *dst = base::bit_cast<T_int>(-std::numeric_limits<T_fp>::infinity());
           break;
         case FP_NAN:
-          *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+          *dst = base::bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
           break;
         case FP_INFINITE:
           if (element < 0) {
-            *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+            *dst =
+                base::bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
           } else {
-            *dst = bit_cast<T_int>(std::numeric_limits<T_fp>::infinity());
+            *dst = base::bit_cast<T_int>(std::numeric_limits<T_fp>::infinity());
           }
           break;
         default:
@@ -6305,25 +6564,25 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
       break;
     }
     case FTINT_S: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       const T_int max_int = std::numeric_limits<T_int>::max();
       const T_int min_int = std::numeric_limits<T_int>::min();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element < min_int || element > max_int) {
-        *dst = element > max_int ? max_int : min_int;
+      } else if (element < min_int || element > static_cast<T_fp>(max_int)) {
+        *dst = element > static_cast<T_fp>(max_int) ? max_int : min_int;
       } else {
         sim->round_according_to_msacsr<T_fp, T_int>(element, &element, dst);
       }
       break;
     }
     case FTINT_U: {
-      T_fp element = bit_cast<T_fp>(src);
+      T_fp element = base::bit_cast<T_fp>(src);
       const T_uint max_uint = std::numeric_limits<T_uint>::max();
       if (std::isnan(element)) {
         *dst = 0;
-      } else if (element < 0 || element > max_uint) {
-        *dst = element > max_uint ? max_uint : 0;
+      } else if (element < 0 || element > static_cast<T_fp>(max_uint)) {
+        *dst = element > static_cast<T_fp>(max_uint) ? max_uint : 0;
       } else {
         T_uint res;
         sim->round_according_to_msacsr<T_fp, T_uint>(element, &element, &res);
@@ -6332,11 +6591,12 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
       break;
     }
     case FFINT_S:
-      *dst = bit_cast<T_int>(static_cast<T_fp>(src));
+      *dst = base::bit_cast<T_int>(static_cast<T_fp>(src));
       break;
     case FFINT_U:
-      using uT_src = typename std::make_unsigned<T_src>::type;
-      *dst = bit_cast<T_int>(static_cast<T_fp>(bit_cast<uT_src>(src)));
+      using uT_src = std::make_unsigned_t<T_src>;
+      *dst =
+          base::bit_cast<T_int>(static_cast<T_fp>(base::bit_cast<uT_src>(src)));
       break;
     default:
       UNREACHABLE();
@@ -6352,61 +6612,65 @@ T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
 #define EXTRACT_FLOAT16_FRAC(fp16) (fp16 & 0x3FF)
 #define PACK_FLOAT32(sign, exp, frac) \
   static_cast<uint32_t>(((sign) << 31) + ((exp) << 23) + (frac))
-#define FEXUP_DF(src_index)                                                   \
-  uint_fast16_t element = ws.uh[src_index];                                   \
-  uint_fast32_t aSign, aFrac;                                                 \
-  int_fast32_t aExp;                                                          \
-  aSign = EXTRACT_FLOAT16_SIGN(element);                                      \
-  aExp = EXTRACT_FLOAT16_EXP(element);                                        \
-  aFrac = EXTRACT_FLOAT16_FRAC(element);                                      \
-  if (V8_LIKELY(aExp && aExp != 0x1F)) {                                      \
-    return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                     \
-  } else if (aExp == 0x1F) {                                                  \
-    if (aFrac) {                                                              \
-      return bit_cast<int32_t>(std::numeric_limits<float>::quiet_NaN());      \
-    } else {                                                                  \
-      return bit_cast<uint32_t>(std::numeric_limits<float>::infinity()) |     \
-             static_cast<uint32_t>(aSign) << 31;                              \
-    }                                                                         \
-  } else {                                                                    \
-    if (aFrac == 0) {                                                         \
-      return PACK_FLOAT32(aSign, 0, 0);                                       \
-    } else {                                                                  \
-      int_fast16_t shiftCount =                                               \
-          base::bits::CountLeadingZeros32(static_cast<uint32_t>(aFrac)) - 21; \
-      aFrac <<= shiftCount;                                                   \
-      aExp = -shiftCount;                                                     \
-      return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                   \
-    }                                                                         \
+#define FEXUP_DF(src_index)                                                    \
+  uint_fast16_t element = ws.uh[src_index];                                    \
+  uint_fast32_t aSign, aFrac;                                                  \
+  int_fast32_t aExp;                                                           \
+  aSign = EXTRACT_FLOAT16_SIGN(element);                                       \
+  aExp = EXTRACT_FLOAT16_EXP(element);                                         \
+  aFrac = EXTRACT_FLOAT16_FRAC(element);                                       \
+  if (V8_LIKELY(aExp && aExp != 0x1F)) {                                       \
+    return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                      \
+  } else if (aExp == 0x1F) {                                                   \
+    if (aFrac) {                                                               \
+      return base::bit_cast<int32_t>(std::numeric_limits<float>::quiet_NaN()); \
+    } else {                                                                   \
+      return base::bit_cast<uint32_t>(                                         \
+                 std::numeric_limits<float>::infinity()) |                     \
+             static_cast<uint32_t>(aSign) << 31;                               \
+    }                                                                          \
+  } else {                                                                     \
+    if (aFrac == 0) {                                                          \
+      return PACK_FLOAT32(aSign, 0, 0);                                        \
+    } else {                                                                   \
+      int_fast16_t shiftCount =                                                \
+          base::bits::CountLeadingZeros32(static_cast<uint32_t>(aFrac)) - 21;  \
+      aFrac <<= shiftCount;                                                    \
+      aExp = -shiftCount;                                                      \
+      return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                    \
+    }                                                                          \
   }
     case FEXUPL:
-      if (std::is_same<int32_t, T_int>::value) {
+      if (std::is_same_v<int32_t, T_int>) {
         FEXUP_DF(i + kMSALanesWord)
       } else {
-        return bit_cast<int64_t>(
-            static_cast<double>(bit_cast<float>(ws.w[i + kMSALanesDword])));
+        return base::bit_cast<int64_t>(static_cast<double>(
+            base::bit_cast<float>(ws.w[i + kMSALanesDword])));
       }
     case FEXUPR:
-      if (std::is_same<int32_t, T_int>::value) {
+      if (std::is_same_v<int32_t, T_int>) {
         FEXUP_DF(i)
       } else {
-        return bit_cast<int64_t>(static_cast<double>(bit_cast<float>(ws.w[i])));
+        return base::bit_cast<int64_t>(
+            static_cast<double>(base::bit_cast<float>(ws.w[i])));
       }
     case FFQL: {
-      if (std::is_same<int32_t, T_int>::value) {
-        return bit_cast<int32_t>(static_cast<float>(ws.h[i + kMSALanesWord]) /
-                                 (1U << 15));
+      if (std::is_same_v<int32_t, T_int>) {
+        return base::bit_cast<int32_t>(
+            static_cast<float>(ws.h[i + kMSALanesWord]) / (1U << 15));
       } else {
-        return bit_cast<int64_t>(static_cast<double>(ws.w[i + kMSALanesDword]) /
-                                 (1U << 31));
+        return base::bit_cast<int64_t>(
+            static_cast<double>(ws.w[i + kMSALanesDword]) / (1U << 31));
       }
       break;
     }
     case FFQR: {
-      if (std::is_same<int32_t, T_int>::value) {
-        return bit_cast<int32_t>(static_cast<float>(ws.h[i]) / (1U << 15));
+      if (std::is_same_v<int32_t, T_int>) {
+        return base::bit_cast<int32_t>(static_cast<float>(ws.h[i]) /
+                                       (1U << 15));
       } else {
-        return bit_cast<int64_t>(static_cast<double>(ws.w[i]) / (1U << 31));
+        return base::bit_cast<int64_t>(static_cast<double>(ws.w[i]) /
+                                       (1U << 31));
       }
       break;
       default:
@@ -6580,7 +6844,7 @@ void Simulator::DecodeTypeImmediate() {
     int64_t current_pc = get_pc();
     const int32_t bitsIn16Int = sizeof(int16_t) * kBitsPerByte;
     if (do_branch) {
-      if (FLAG_debug_code) {
+      if (v8_flags.debug_code) {
         int16_t bits = imm16 & 0xFC;
         if (imm16 >= 0) {
           CHECK_EQ(bits, 0);
@@ -7140,7 +7404,6 @@ void Simulator::DecodeTypeImmediate() {
                 }
                 default:
                   UNREACHABLE();
-                  break;
               }
               break;
             }
@@ -7226,7 +7489,6 @@ void Simulator::DecodeTypeImmediate() {
           break;
         default:
           UNREACHABLE();
-          break;
       }
       break;
     default:
@@ -7250,13 +7512,15 @@ void Simulator::DecodeTypeImmediate() {
 
 // Type 3: instructions using a 26 bytes immediate. (e.g. j, jal).
 void Simulator::DecodeTypeJump() {
-  SimInstruction simInstr = instr_;
+  // instr_ will be overwritten by BranchDelayInstructionDecode(), so we save
+  // the result of IsLinkingInstruction now.
+  bool isLinkingInstr = instr_.IsLinkingInstruction();
   // Get current pc.
   int64_t current_pc = get_pc();
   // Get unchanged bits of pc.
   int64_t pc_high_bits = current_pc & 0xFFFFFFFFF0000000;
   // Next pc.
-  int64_t next_pc = pc_high_bits | (simInstr.Imm26Value() << 2);
+  int64_t next_pc = pc_high_bits | (instr_.Imm26Value() << 2);
 
   // Execute branch delay slot.
   // We don't check for end_sim_pc. First it should not be met as the current pc
@@ -7267,7 +7531,7 @@ void Simulator::DecodeTypeJump() {
 
   // Update pc and ra if necessary.
   // Do this after the branch delay execution.
-  if (simInstr.IsLinkingInstruction()) {
+  if (isLinkingInstr) {
     set_register(31, current_pc + 2 * kInstrSize);
   }
   set_pc(next_pc);
@@ -7276,19 +7540,19 @@ void Simulator::DecodeTypeJump() {
 
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
-  if (v8::internal::FLAG_check_icache) {
+  if (v8_flags.check_icache) {
     CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
 
-  v8::internal::EmbeddedVector<char, 256> buffer;
+  v8::base::EmbeddedVector<char, 256> buffer;
 
-  if (::v8::internal::FLAG_trace_sim) {
-    SNPrintF(trace_buf_, " ");
+  if (v8_flags.trace_sim) {
+    base::SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.
-    dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
+    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
   }
 
   instr_ = instr;
@@ -7306,7 +7570,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
       UNSUPPORTED();
   }
 
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     PrintF("  0x%08" PRIxPTR "   %-44s   %s\n",
            reinterpret_cast<intptr_t>(instr), buffer.begin(),
            trace_buf_.begin());
@@ -7321,7 +7585,7 @@ void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   int64_t program_counter = get_pc();
-  if (::v8::internal::FLAG_stop_sim_at == 0) {
+  if (v8_flags.stop_sim_at == 0) {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
@@ -7331,12 +7595,12 @@ void Simulator::Execute() {
       program_counter = get_pc();
     }
   } else {
-    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instruction count.
+    // v8_flags.stop_sim_at is at the non-default value. Stop in the debugger
+    // when we reach the particular instruction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
-      if (icount_ == static_cast<int64_t>(::v8::internal::FLAG_stop_sim_at)) {
+      if (icount_ == static_cast<int64_t>(v8_flags.stop_sim_at)) {
         MipsDebugger dbg(this);
         dbg.Debug();
       } else {
@@ -7416,39 +7680,37 @@ void Simulator::CallInternal(Address entry) {
   set_register(fp, fp_val);
 }
 
-intptr_t Simulator::CallImpl(Address entry, int argument_count,
-                             const intptr_t* arguments) {
-  constexpr int kRegisterPassedArguments = 8;
-  // Set up arguments.
-
-  // First four arguments passed in registers in both ABI's.
-  int reg_arg_count = std::min(kRegisterPassedArguments, argument_count);
-  if (reg_arg_count > 0) set_register(a0, arguments[0]);
-  if (reg_arg_count > 1) set_register(a1, arguments[1]);
-  if (reg_arg_count > 2) set_register(a2, arguments[2]);
-  if (reg_arg_count > 3) set_register(a3, arguments[3]);
-
-  // Up to eight arguments passed in registers in N64 ABI.
-  // TODO(plind): N64 ABI calls these regs a4 - a7. Clarify this.
-  if (reg_arg_count > 4) set_register(a4, arguments[4]);
-  if (reg_arg_count > 5) set_register(a5, arguments[5]);
-  if (reg_arg_count > 6) set_register(a6, arguments[6]);
-  if (reg_arg_count > 7) set_register(a7, arguments[7]);
+void Simulator::CallImpl(Address entry, CallArgument* args) {
+  std::vector<int64_t> stack_args(0);
+  for (int i = 0; !args[i].IsEnd(); i++) {
+    CallArgument arg = args[i];
+    if (i < 8) {
+      if (arg.IsGP()) {
+        set_register(i + 4, arg.bits());
+      } else {
+        DCHECK(arg.IsFP());
+        set_fpu_register(i + 12, arg.bits());
+      }
+    } else {
+      DCHECK(arg.IsFP() || arg.IsGP());
+      stack_args.push_back(arg.bits());
+    }
+  }
 
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  int stack_args_count = argument_count - reg_arg_count;
-  int stack_args_size = stack_args_count * sizeof(*arguments) + kCArgsSlotsSize;
+  int64_t stack_args_size =
+      stack_args.size() * sizeof(stack_args[0]) + kCArgsSlotsSize;
   int64_t entry_stack = original_stack - stack_args_size;
 
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
-  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
-         stack_args_count * sizeof(*arguments));
+  char* stack_argument = reinterpret_cast<char*>(entry_stack);
+  memcpy(stack_argument + kCArgSlotCount, stack_args.data(),
+         stack_args.size() * sizeof(int64_t));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -7456,8 +7718,6 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   // Pop stack passed arguments.
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
-
-  return get_register(v0);
 }
 
 double Simulator::CallFP(Address entry, double d0, double d1) {
@@ -7670,7 +7930,7 @@ void Simulator::GlobalMonitor::RemoveLinkedAddress(
 }
 
 #undef SScanF
-
+#undef BRACKETS
 }  // namespace internal
 }  // namespace v8
 

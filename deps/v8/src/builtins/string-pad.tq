@@ -6,15 +6,15 @@
 
 namespace string {
 
-extern transitioning builtin
-StringSubstring(implicit context: Context)(String, intptr, intptr): String;
+extern transitioning builtin StringSubstring(
+    implicit context: Context)(String, intptr, intptr): String;
 
 const kStringPadStart: constexpr int31 = 0;
 const kStringPadEnd: constexpr int31 = 1;
 
-transitioning macro StringPad(implicit context: Context)(
-    receiver: JSAny, arguments: Arguments, methodName: constexpr string,
-    variant: constexpr int31): String {
+transitioning macro StringPad(
+    implicit context: Context)(receiver: JSAny, arguments: Arguments,
+    methodName: constexpr string, variant: constexpr int31): String {
   const receiverString: String = ToThisString(receiver, methodName);
   const stringLength: Smi = receiverString.length_smi;
 
@@ -22,7 +22,7 @@ transitioning macro StringPad(implicit context: Context)(
     return receiverString;
   }
   const maxLength: Number = ToLength_Inline(arguments[0]);
-  assert(IsNumberNormalized(maxLength));
+  dcheck(IsNumberNormalized(maxLength));
 
   typeswitch (maxLength) {
     case (smiMaxLength: Smi): {
@@ -49,7 +49,7 @@ transitioning macro StringPad(implicit context: Context)(
   }
 
   // Pad.
-  assert(fillLength > 0);
+  dcheck(fillLength > 0);
   // Throw if max_length is greater than String::kMaxLength.
   if (!TaggedIsSmi(maxLength)) {
     ThrowInvalidStringLength(context);
@@ -59,7 +59,7 @@ transitioning macro StringPad(implicit context: Context)(
   if (smiMaxLength > SmiConstant(kStringMaxLength)) {
     ThrowInvalidStringLength(context);
   }
-  assert(smiMaxLength > stringLength);
+  dcheck(smiMaxLength > stringLength);
   const padLength: Smi = smiMaxLength - stringLength;
 
   let padding: String;
@@ -85,26 +85,26 @@ transitioning macro StringPad(implicit context: Context)(
   }
 
   // Return result.
-  assert(padLength == padding.length_smi);
+  dcheck(padLength == padding.length_smi);
   if (variant == kStringPadStart) {
     return padding + receiverString;
   }
-  assert(variant == kStringPadEnd);
+  dcheck(variant == kStringPadEnd);
   return receiverString + padding;
 }
 
 // ES6 #sec-string.prototype.padstart
-transitioning javascript builtin
-StringPrototypePadStart(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+transitioning javascript builtin StringPrototypePadStart(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.padStart';
   return StringPad(receiver, arguments, methodName, kStringPadStart);
 }
 
 // ES6 #sec-string.prototype.padend
-transitioning javascript builtin
-StringPrototypePadEnd(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+transitioning javascript builtin StringPrototypePadEnd(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.padEnd';
   return StringPad(receiver, arguments, methodName, kStringPadEnd);
 }

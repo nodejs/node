@@ -16,28 +16,28 @@ const fnsToTest = [setTimeout, (cb) => {
       hook.disable();
     });
   });
-}, (cb) => {
-  setImmediate(() => {
+}, common.mustCall((cb) => {
+  setImmediate(common.mustCall(() => {
     process.nextTick(() => {
       cb();
 
       // We need to keep the event loop open for this to actually work
       // since destroy hooks are triggered in unrefed Immediates
-      setImmediate(() => {
+      setImmediate(common.mustCall(() => {
         hook.disable();
         assert.strictEqual(fnsToTest.length, 0);
-      });
+      }));
     });
-  });
-}];
+  }));
+})];
 
 const hook = async_hooks.createHook({
   before: common.mustNotCall(),
-  after: common.mustCall(() => {}, 3),
+  after: common.mustCall(3),
   destroy: common.mustCall(() => {
     hook.disable();
     nextTest();
-  }, 3)
+  }, 3),
 });
 
 nextTest();

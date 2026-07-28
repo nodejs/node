@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // This test verifies that stream.unshift(Buffer.alloc(0)) or
@@ -41,7 +41,7 @@ let readAll = false;
 const seen = [];
 r.on('readable', () => {
   let chunk;
-  while (chunk = r.read()) {
+  while ((chunk = r.read()) !== null) {
     seen.push(chunk.toString());
     // Simulate only reading a certain amount of the data,
     // and then putting the rest of the chunk back into the
@@ -74,7 +74,7 @@ const expect =
     'xxxxxxxxxx',
     'yyyyy' ];
 
-r.on('end', () => {
+r.on('end', common.mustCall(() => {
   assert.deepStrictEqual(seen, expect);
   console.log('ok');
-});
+}));

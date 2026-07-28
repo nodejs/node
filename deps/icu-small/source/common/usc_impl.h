@@ -33,7 +33,7 @@
  *
  * Scripts are chosen based on the <code>UScriptCode</code> enumeration.
  * No attempt is made to combine related scripts into a single run. In
- * particular, Hiragana, Katakana, and Han characters will appear in seperate
+ * particular, Hiragana, Katakana, and Han characters will appear in separate
  * runs.
 
  * Here is an example of how to iterate over script runs:

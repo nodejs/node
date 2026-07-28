@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_REGEXP_DOTPRINTER_H_
 #define V8_REGEXP_REGEXP_DOTPRINTER_H_
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -19,5 +20,6 @@ class DotPrinter final : public AllStatic {
 
 }  // namespace internal
 }  // namespace v8
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
 #endif  // V8_REGEXP_REGEXP_DOTPRINTER_H_

@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-collection-iterator-tq.inc"
+
 class JSCollectionIterator
     : public TorqueGeneratedJSCollectionIterator<JSCollectionIterator,
                                                  JSObject> {
@@ -49,7 +51,7 @@ class OrderedHashTableIterator : public JSCollectionIterator {
 
   // Returns the current key of the iterator. This should only be called when
   // |HasMore| returns true.
-  inline Object CurrentKey();
+  inline Tagged<Object> CurrentKey();
 
  private:
   // Transitions the iterator to the non obsolete backing store. This is a NOP

@@ -9,10 +9,7 @@
 #ifndef BROTLI_ENC_MEMORY_H_
 #define BROTLI_ENC_MEMORY_H_
 
-#include <string.h>  /* memcpy */
-
 #include "../common/platform.h"
-#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -23,6 +20,16 @@ extern "C" {
 #define BROTLI_ENCODER_EXIT_ON_OOM
 #endif
 
+#if !defined(BROTLI_ENCODER_EXIT_ON_OOM)
+#if defined(BROTLI_EXPERIMENTAL)
+#define BROTLI_ENCODER_MEMORY_MANAGER_SLOTS (48*1024)
+#else  /* BROTLI_EXPERIMENTAL */
+#define BROTLI_ENCODER_MEMORY_MANAGER_SLOTS 256
+#endif  /* BROTLI_EXPERIMENTAL */
+#else /* BROTLI_ENCODER_EXIT_ON_OOM */
+#define BROTLI_ENCODER_MEMORY_MANAGER_SLOTS 0
+#endif  /* BROTLI_ENCODER_EXIT_ON_OOM */
+
 typedef struct MemoryManager {
   brotli_alloc_func alloc_func;
   brotli_free_func free_func;
@@ -32,7 +39,7 @@ typedef struct MemoryManager {
   size_t perm_allocated;
   size_t new_allocated;
   size_t new_freed;
-  void* pointers[256];
+  void* pointers[BROTLI_ENCODER_MEMORY_MANAGER_SLOTS];
 #endif  /* BROTLI_ENCODER_EXIT_ON_OOM */
 } MemoryManager;
 
@@ -106,6 +113,12 @@ V: value to append
   BROTLI_ENSURE_CAPACITY(M, T, A, C, S);                  \
   A[(S) - 1] = (V);                                       \
 }
+
+/* "Bootstrap" allocations are not tracked by memory manager; should be used
+   only to allocate MemoryManager itself (or structure containing it). */
+BROTLI_INTERNAL void* BrotliBootstrapAlloc(size_t size,
+    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
+BROTLI_INTERNAL void BrotliBootstrapFree(void* address, MemoryManager* m);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

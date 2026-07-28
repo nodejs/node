@@ -11,7 +11,7 @@ const domain = require('domain');
 const child_process = require('child_process');
 
 const tests = [
-  function nextTick() {
+  common.mustCallAtLeast(function nextTick() {
     const d = domain.create();
 
     d.once('error', common.mustCall());
@@ -21,9 +21,9 @@ const tests = [
         throw new Error('exceptional!');
       });
     });
-  },
+  }, 0),
 
-  function timer() {
+  common.mustCallAtLeast(function timer() {
     const d = domain.create();
 
     d.on('error', common.mustCall());
@@ -33,9 +33,9 @@ const tests = [
         throw new Error('exceptional!');
       }, 33);
     });
-  },
+  }, 0),
 
-  function immediate() {
+  common.mustCallAtLeast(function immediate() {
     const d = domain.create();
 
     d.on('error', common.mustCall());
@@ -45,9 +45,9 @@ const tests = [
         throw new Error('boom!');
       });
     });
-  },
+  }, 0),
 
-  function timerPlusNextTick() {
+  common.mustCallAtLeast(function timerPlusNextTick() {
     const d = domain.create();
 
     d.on('error', common.mustCall());
@@ -59,9 +59,9 @@ const tests = [
         });
       }, 33);
     });
-  },
+  }, 0),
 
-  function firstRun() {
+  common.mustCallAtLeast(function firstRun() {
     const d = domain.create();
 
     d.on('error', common.mustCall());
@@ -69,9 +69,9 @@ const tests = [
     d.run(function() {
       throw new Error('exceptional!');
     });
-  },
+  }, 0),
 
-  function fsAsync() {
+  common.mustCallAtLeast(function fsAsync() {
     const d = domain.create();
 
     d.on('error', common.mustCall());
@@ -82,9 +82,9 @@ const tests = [
         throw new Error('boom!');
       });
     });
-  },
+  }, 0),
 
-  function netServer() {
+  common.mustCallAtLeast(function netServer() {
     const net = require('net');
     const d = domain.create();
 
@@ -103,9 +103,9 @@ const tests = [
         server.close();
       });
     });
-  },
+  }, 0),
 
-  function firstRunOnlyTopLevelErrorHandler() {
+  common.mustCallAtLeast(function firstRunOnlyTopLevelErrorHandler() {
     const d = domain.create();
     const d2 = domain.create();
 
@@ -116,9 +116,9 @@ const tests = [
         throw new Error('boom!');
       });
     });
-  },
+  }, 0),
 
-  function firstRunNestedWithErrorHandler() {
+  common.mustCallAtLeast(function firstRunNestedWithErrorHandler() {
     const d = domain.create();
     const d2 = domain.create();
 
@@ -129,9 +129,9 @@ const tests = [
         throw new Error('boom!');
       });
     });
-  },
+  }, 0),
 
-  function timeoutNestedWithErrorHandler() {
+  common.mustCallAtLeast(function timeoutNestedWithErrorHandler() {
     const d = domain.create();
     const d2 = domain.create();
 
@@ -145,9 +145,9 @@ const tests = [
         }, 33);
       });
     });
-  },
+  }, 0),
 
-  function setImmediateNestedWithErrorHandler() {
+  common.mustCallAtLeast(function setImmediateNestedWithErrorHandler() {
     const d = domain.create();
     const d2 = domain.create();
 
@@ -160,9 +160,9 @@ const tests = [
         });
       });
     });
-  },
+  }, 0),
 
-  function nextTickNestedWithErrorHandler() {
+  common.mustCallAtLeast(function nextTickNestedWithErrorHandler() {
     const d = domain.create();
     const d2 = domain.create();
 
@@ -175,9 +175,9 @@ const tests = [
         });
       });
     });
-  },
+  }, 0),
 
-  function fsAsyncNestedWithErrorHandler() {
+  common.mustCallAtLeast(function fsAsyncNestedWithErrorHandler() {
     const d = domain.create();
     const d2 = domain.create();
 
@@ -191,7 +191,7 @@ const tests = [
         });
       });
     });
-  }
+  }, 0),
 ];
 
 if (process.argv[2] === 'child') {
@@ -202,18 +202,15 @@ if (process.argv[2] === 'child') {
 } else {
 
   tests.forEach(function(test, testIndex) {
-    let testCmd = '';
+    const escapedArgs = common.escapePOSIXShell`"${process.execPath}" --abort-on-uncaught-exception "${__filename}" child ${testIndex}`;
     if (!common.isWindows) {
       // Do not create core files, as it can take a lot of disk space on
       // continuous testing and developers' machines
-      testCmd += 'ulimit -c 0 && ';
+      escapedArgs[0] = 'ulimit -c 0 && ' + escapedArgs[0];
     }
 
-    testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception ` +
-               `"${process.argv[1]}" child ${testIndex}`;
-
     try {
-      child_process.execSync(testCmd);
+      child_process.execSync(...escapedArgs);
     } catch (e) {
       assert.fail(`Test index ${testIndex} failed: ${e}`);
     }

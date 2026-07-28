@@ -43,7 +43,7 @@ void assert_nonexistent(int fd) {
 void assert_existent(int fd) {
   struct uv__fd_info_s info = { 0 };
   ASSERT(uv__fd_hash_get(fd, &info));
-  ASSERT(info.flags == fd + FD_DIFF);
+  ASSERT_EQ(info.flags, fd + FD_DIFF);
 }
 
 void assert_insertion(int fd) {
@@ -58,7 +58,7 @@ void assert_removal(int fd) {
   struct uv__fd_info_s info = { 0 };
   assert_existent(fd);
   uv__fd_hash_remove(fd, &info);
-  ASSERT(info.flags == fd + FD_DIFF);
+  ASSERT_EQ(info.flags, fd + FD_DIFF);
   assert_nonexistent(fd);
 }
 
@@ -66,17 +66,25 @@ void assert_removal(int fd) {
 /* Run a function for a set of values up to a very high number */
 #define RUN_HASH(function)                                                   \
   do {                                                                       \
+    uint64_t before = uv_hrtime();                                           \
     for (fd = 0; fd < HASH_MAX; fd += HASH_INC) {                            \
       function(fd);                                                          \
     }                                                                        \
+    uint64_t after = uv_hrtime();                                            \
+    double seconds = (after - before) / 1e9;                                 \
+    printf("%.5f hash %s\n", seconds, #function);                            \
   } while (0)
 
 /* Run a function for a set of values that will cause many collisions */
 #define RUN_COLLISIONS(function)                                             \
   do {                                                                       \
+    uint64_t before = uv_hrtime();                                           \
     for (fd = 1; fd < BUCKET_MAX; fd += BUCKET_INC) {                        \
       function(fd);                                                          \
     }                                                                        \
+    uint64_t after = uv_hrtime();                                            \
+    double seconds = (after - before) / 1e9;                                 \
+    printf("%.5f coll %s\n", seconds, #function);                            \
   } while (0)
 
 
@@ -106,7 +114,7 @@ TEST_IMPL(fs_fd_hash) {
   {
     struct uv__fd_info_s info = { 0 };
     ASSERT(uv__fd_hash_get(0, &info));
-    ASSERT(info.flags == FD_DIFF + FD_DIFF);
+    ASSERT_EQ(info.flags, FD_DIFF + FD_DIFF);
   }
   {
     /* Leave as it was, will be again tested below */

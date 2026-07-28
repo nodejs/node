@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common.js');
-
+const { Buffer } = require('buffer');
 const types = [
   'BigUInt64LE',
   'BigUInt64BE',
@@ -29,7 +29,7 @@ const types = [
 const bench = common.createBenchmark(main, {
   buffer: ['fast'],
   type: types,
-  n: [1e6]
+  n: [1e6],
 });
 
 const INT8 = 0x7f;
@@ -60,20 +60,20 @@ const mod = {
   writeUIntLE: INT8,
   writeUIntBE: INT16,
   writeIntLE: INT32,
-  writeIntBE: INT48
+  writeIntBE: INT48,
 };
 
 const byteLength = {
   writeUIntLE: 1,
   writeUIntBE: 2,
   writeIntLE: 4,
-  writeIntBE: 6
+  writeIntBE: 6,
 };
 
 function main({ n, buf, type }) {
   const buff = buf === 'fast' ?
     Buffer.alloc(8) :
-    require('buffer').SlowBuffer(8);
+    Buffer.allocUnsafeSlow(8);
   const fn = `write${type}`;
 
   if (!/\d/.test(fn))

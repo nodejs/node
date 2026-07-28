@@ -11,25 +11,27 @@
 #include "src/base/logging.h"
 
 namespace v8 {
-namespace internal {
 
+namespace base {
 template <typename T>
 class Vector;
+}  // namespace base
+
+namespace internal {
 
 template <typename T>
 class ZoneList;
 
 // ScopedList is a scope-lifetime list with a std::vector backing that can be
-// re-used between ScopedLists. Note that a ScopedList in an outer scope cannot
+// reused between ScopedLists. Note that a ScopedList in an outer scope cannot
 // add any entries if there is a ScopedList with the same backing in an inner
 // scope.
 template <typename T, typename TBacking = T>
-class ScopedList final {
+class V8_NODISCARD ScopedList final {
   // The backing can either be the same type as the list type, or, for pointers,
   // we additionally allow a void* backing store.
-  static_assert((std::is_same<TBacking, T>::value) ||
-                    (std::is_same<TBacking, void*>::value &&
-                     std::is_pointer<T>::value),
+  static_assert((std::is_same_v<TBacking, T>) ||
+                    (std::is_same_v<TBacking, void*> && std::is_pointer_v<T>),
                 "Incompatible combination of T and TBacking types");
 
  public:
@@ -67,9 +69,9 @@ class ScopedList final {
     return *reinterpret_cast<T*>(&buffer_[index]);
   }
 
-  Vector<const T> ToConstVector() const {
+  base::Vector<const T> ToConstVector() const {
     T* data = reinterpret_cast<T*>(buffer_.data() + start_);
-    return Vector<const T>(data, length());
+    return base::Vector<const T>(data, length());
   }
 
   void Add(const T& value) {
@@ -78,7 +80,7 @@ class ScopedList final {
     ++end_;
   }
 
-  void AddAll(const Vector<const T>& list) {
+  void AddAll(base::Vector<const T> list) {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.reserve(buffer_.size() + list.length());
     for (int i = 0; i < list.length(); i++) {

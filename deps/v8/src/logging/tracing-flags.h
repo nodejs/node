@@ -13,8 +13,8 @@ namespace v8 {
 namespace internal {
 
 // This struct contains a set of flags that can be modified from multiple
-// threads at runtime unlike the normal FLAG_-like flags which are not modified
-// after V8 instance is initialized.
+// threads at runtime unlike the normal v8_flags.-like flags which are not
+// modified after V8 instance is initialized.
 
 struct TracingFlags {
   static V8_EXPORT_PRIVATE std::atomic_uint runtime_stats;
@@ -23,9 +23,11 @@ struct TracingFlags {
   static V8_EXPORT_PRIVATE std::atomic_uint ic_stats;
   static V8_EXPORT_PRIVATE std::atomic_uint zone_stats;
 
+#ifdef V8_RUNTIME_CALL_STATS
   static bool is_runtime_stats_enabled() {
     return runtime_stats.load(std::memory_order_relaxed) != 0;
   }
+#endif
 
   static bool is_gc_enabled() {
     return gc.load(std::memory_order_relaxed) != 0;

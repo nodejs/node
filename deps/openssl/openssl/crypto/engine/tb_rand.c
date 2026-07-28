@@ -1,11 +1,14 @@
 /*
- * Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/* We need to use some engine deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
 
 #include "eng_local.h"
 
@@ -26,8 +29,8 @@ int ENGINE_register_RAND(ENGINE *e)
 {
     if (e->rand_meth)
         return engine_table_register(&rand_table,
-                                     engine_unregister_all_RAND, e,
-                                     &dummy_nid, 1, 0);
+            engine_unregister_all_RAND, e,
+            &dummy_nid, 1, 0);
     return 1;
 }
 
@@ -43,8 +46,8 @@ int ENGINE_set_default_RAND(ENGINE *e)
 {
     if (e->rand_meth)
         return engine_table_register(&rand_table,
-                                     engine_unregister_all_RAND, e,
-                                     &dummy_nid, 1, 1);
+            engine_unregister_all_RAND, e,
+            &dummy_nid, 1, 1);
     return 1;
 }
 
@@ -55,7 +58,8 @@ int ENGINE_set_default_RAND(ENGINE *e)
  */
 ENGINE *ENGINE_get_default_RAND(void)
 {
-    return engine_table_select(&rand_table, dummy_nid);
+    return ossl_engine_table_select(&rand_table, dummy_nid,
+        OPENSSL_FILE, OPENSSL_LINE);
 }
 
 /* Obtains an RAND implementation from an ENGINE functional reference */

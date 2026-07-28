@@ -6,94 +6,196 @@
 #define V8_EXECUTION_ISOLATE_INL_H_
 
 #include "src/execution/isolate.h"
-#include "src/objects/cell-inl.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/objects/contexts-inl.h"
 #include "src/objects/js-function.h"
+#include "src/objects/lookup-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/source-text-module-inl.h"
 
-namespace v8 {
-namespace internal {
+#ifdef DEBUG
+#include "src/common/ptr-compr-inl.h"
+#include "src/runtime/runtime-utils.h"
+#endif
 
-IsolateAllocationMode Isolate::isolate_allocation_mode() {
-  return isolate_allocator_->mode();
+namespace v8::internal {
+
+// static
+V8_INLINE Isolate::PerIsolateThreadData*
+Isolate::CurrentPerIsolateThreadData() {
+  return g_current_per_isolate_thread_data_;
 }
 
-void Isolate::set_context(Context context) {
-  DCHECK(context.is_null() || context.IsContext());
+// static
+V8_INLINE Isolate* Isolate::Current() {
+  Isolate* isolate = TryGetCurrent();
+  DCHECK_NOT_NULL(isolate);
+  return isolate;
+}
+
+bool Isolate::IsCurrent() const { return this == TryGetCurrent(); }
+
+void Isolate::set_context(Tagged<Context> context) {
+  DCHECK(context.is_null() || IsContext(context));
   thread_local_top()->context_ = context;
 }
 
 Handle<NativeContext> Isolate::native_context() {
   DCHECK(!context().is_null());
-  return handle(context().native_context(), this);
+  return handle(context()->native_context(), this);
 }
 
-NativeContext Isolate::raw_native_context() {
+Tagged<NativeContext> Isolate::raw_native_context() {
   DCHECK(!context().is_null());
-  return context().native_context();
+  return context()->native_context();
 }
 
-Object Isolate::pending_exception() {
-  DCHECK(has_pending_exception());
-  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
-  return thread_local_top()->pending_exception_;
+void Isolate::set_topmost_script_having_context(Tagged<Context> context) {
+  DCHECK(context.is_null() || IsContext(context));
+  thread_local_top()->topmost_script_having_context_ = context;
 }
 
-void Isolate::set_pending_exception(Object exception_obj) {
-  DCHECK(!exception_obj.IsException(this));
-  thread_local_top()->pending_exception_ = exception_obj;
+void Isolate::clear_topmost_script_having_context() {
+  static_assert(Context::kNoContext == 0);
+  thread_local_top()->topmost_script_having_context_ = Context();
 }
 
-void Isolate::clear_pending_exception() {
-  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
-  thread_local_top()->pending_exception_ = ReadOnlyRoots(this).the_hole_value();
+DirectHandle<NativeContext> Isolate::GetIncumbentContext() {
+  Tagged<Context> maybe_topmost_script_having_context =
+      topmost_script_having_context();
+  if (V8_LIKELY(!maybe_topmost_script_having_context.is_null())) {
+    // The topmost script-having context value is guaranteed to be valid only
+    // inside the Api callback however direct calls of Api callbacks from
+    // builtins or optimized code do not change the current VM state, so we
+    // allow JS VM state too.
+    DCHECK(current_vm_state() == EXTERNAL ||  // called from C++ code
+           current_vm_state() == JS);         // called from JS code directly
+
+    Tagged<NativeContext> incumbent_context =
+        maybe_topmost_script_having_context->native_context();
+    DCHECK_EQ(incumbent_context, *GetIncumbentContextSlow());
+    return direct_handle(incumbent_context, this);
+  }
+  return GetIncumbentContextSlow();
 }
 
-bool Isolate::has_pending_exception() {
-  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
-  return !thread_local_top()->pending_exception_.IsTheHole(this);
+void Isolate::set_pending_message(Tagged<Object> message_obj) {
+  DCHECK(IsTheHole(message_obj, this) || IsJSMessageObject(message_obj));
+  thread_local_top()->pending_message_ = message_obj;
+}
+
+Tagged<Object> Isolate::pending_message() {
+  return thread_local_top()->pending_message_;
 }
 
 void Isolate::clear_pending_message() {
-  thread_local_top()->pending_message_obj_ =
-      ReadOnlyRoots(this).the_hole_value();
+  set_pending_message(ReadOnlyRoots(this).the_hole_value());
 }
 
-Object Isolate::scheduled_exception() {
-  DCHECK(has_scheduled_exception());
-  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
-  return thread_local_top()->scheduled_exception_;
+bool Isolate::has_pending_message() {
+  return !IsTheHole(pending_message(), this);
 }
 
-bool Isolate::has_scheduled_exception() {
-  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
-  return thread_local_top()->scheduled_exception_ !=
-         ReadOnlyRoots(this).the_hole_value();
+Tagged<Object> Isolate::exception() {
+  CHECK(has_exception());
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
+  return thread_local_top()->exception_;
 }
 
-void Isolate::clear_scheduled_exception() {
-  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
-  thread_local_top()->scheduled_exception_ =
-      ReadOnlyRoots(this).the_hole_value();
+void Isolate::set_exception(Tagged<Object> exception_obj) {
+  DCHECK(!IsExceptionHole(exception_obj, this));
+  thread_local_top()->exception_ = exception_obj;
 }
 
-bool Isolate::is_catchable_by_javascript(Object exception) {
+void Isolate::clear_internal_exception() {
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
+  thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
+}
+
+void Isolate::clear_exception() {
+  clear_internal_exception();
+  if (try_catch_handler()) try_catch_handler()->Reset();
+}
+
+bool Isolate::has_exception() {
+  ThreadLocalTop* top = thread_local_top();
+  DCHECK(!IsExceptionHole(top->exception_, this));
+  return !IsTheHole(top->exception_, this);
+}
+
+bool Isolate::is_execution_terminating() {
+  return thread_local_top()->exception_ ==
+         i::ReadOnlyRoots(this).termination_exception();
+}
+
+#ifdef DEBUG
+Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
+  if (is_execution_terminating() && !v8_flags.strict_termination_checks) {
+    // We may be missing places where termination checks are handled properly.
+    // If that's the case, it's likely that we'll have one sitting around when
+    // we return from a builtin. If we're not looking to find such bugs
+    // (strict_termination_checks is false), simply return the exception marker.
+    return ReadOnlyRoots(this).exception();
+  }
+
+  // Here we use full pointer comparison as the result might be an object
+  // outside of the main pointer compression heap (e.g. in trusted space).
+  DCHECK_EQ(has_exception(),
+            result.SafeEquals(ReadOnlyRoots(this).exception()));
+
+#ifdef V8_COMPRESS_POINTERS
+  // Check that the returned pointer is actually part of the current isolate (or
+  // the shared isolate), because that's the assumption in generated code (which
+  // might call this builtin).
+  Isolate* isolate;
+  if (!IsSmi(result) &&
+      GetIsolateFromHeapObject(Cast<HeapObject>(result), &isolate)) {
+    DCHECK(isolate == this || isolate == shared_space_isolate());
+  }
+#endif
+
+  return result;
+}
+
+ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
+#ifdef V8_HOST_ARCH_64_BIT
+  Tagged<Object> x(pair.x), y(pair.y);
+
+  // Here we use full pointer comparison as the result might be an object
+  // outside of the main pointer compression heap (e.g. in trusted space).
+  DCHECK_EQ(has_exception(), x.SafeEquals(ReadOnlyRoots(this).exception()));
+
+#ifdef V8_COMPRESS_POINTERS
+  // Check that the returned pointer is actually part of the current isolate (or
+  // the shared isolate), because that's the assumption in generated code (which
+  // might call this builtin).
+  Isolate* isolate;
+  if (!IsSmi(x) && GetIsolateFromHeapObject(Cast<HeapObject>(x), &isolate)) {
+    DCHECK(isolate == this || isolate == shared_space_isolate());
+  }
+  if (!IsSmi(y) && GetIsolateFromHeapObject(Cast<HeapObject>(y), &isolate)) {
+    DCHECK(isolate == this || isolate == shared_space_isolate());
+  }
+#endif
+#endif  // V8_HOST_ARCH_64_BIT
+  return pair;
+}
+#endif  // DEBUG
+
+bool Isolate::is_catchable_by_javascript(Tagged<Object> exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
-bool Isolate::is_catchable_by_wasm(Object exception) {
+bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
-  if (!exception.IsJSObject()) return true;
-  // We don't allocate, but the LookupIterator interface expects a handle.
-  DisallowHeapAllocation no_gc;
-  HandleScope handle_scope(this);
-  LookupIterator it(this, handle(JSReceiver::cast(exception), this),
-                    factory()->wasm_uncatchable_symbol(),
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  return !JSReceiver::HasProperty(&it).FromJust();
+  if (!IsJSObject(exception)) return true;
+  return !LookupIterator::HasInternalMarkerProperty(
+      this, Cast<JSReceiver>(exception), factory()->wasm_uncatchable_symbol());
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {
@@ -103,32 +205,49 @@ void Isolate::FireBeforeCallEnteredCallback() {
 }
 
 Handle<JSGlobalObject> Isolate::global_object() {
-  return handle(context().global_object(), this);
+  return handle(context()->global_object(), this);
 }
 
 Handle<JSGlobalProxy> Isolate::global_proxy() {
-  return handle(context().global_proxy(), this);
+  return handle(context()->global_proxy(), this);
 }
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
-    : isolate_(isolate),
-      pending_exception_(isolate_->pending_exception(), isolate_) {}
-
-Isolate::ExceptionScope::~ExceptionScope() {
-  isolate_->set_pending_exception(*pending_exception_);
+    : isolate_(isolate), exception_(isolate_->exception(), isolate_) {
+  isolate_->clear_internal_exception();
 }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)    \
-  Handle<type> Isolate::name() {                            \
-    return Handle<type>(raw_native_context().name(), this); \
-  }                                                         \
-  bool Isolate::is_##name(type value) {                     \
-    return raw_native_context().is_##name(value);           \
+Isolate::ExceptionScope::~ExceptionScope() {
+  isolate_->set_exception(*exception_);
+}
+
+bool Isolate::IsInitialArrayPrototype(Tagged<JSArray> array) {
+  DisallowGarbageCollection no_gc;
+  return IsInCreationContext(array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+}
+
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)              \
+  Handle<UNPAREN(type)> Isolate::name() {                             \
+    DCHECK(!raw_native_context().is_null());                          \
+    return Handle<UNPAREN(type)>(raw_native_context()->name(), this); \
+  }                                                                   \
+  bool Isolate::is_##name(Tagged<UNPAREN(type)> value) {              \
+    DCHECK(!raw_native_context().is_null());                          \
+    return raw_native_context()->is_##name(value);                    \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
-}  // namespace internal
-}  // namespace v8
+SetCurrentIsolateScope::SetCurrentIsolateScope(Isolate* isolate)
+    : ptr_compr_cage_access_scope_(isolate),
+      previous_isolate_(Isolate::TryGetCurrent()) {
+  Isolate::SetCurrent(isolate);
+}
+
+SetCurrentIsolateScope::~SetCurrentIsolateScope() {
+  Isolate::SetCurrent(previous_isolate_);
+}
+
+}  // namespace v8::internal
 
 #endif  // V8_EXECUTION_ISOLATE_INL_H_

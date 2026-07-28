@@ -1,0 +1,7 @@
+{
+  "name": "root",
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  }
+}

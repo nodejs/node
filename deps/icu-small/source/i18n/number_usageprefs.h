@@ -23,15 +23,14 @@ U_NAMESPACE_BEGIN
 using ::icu::units::ComplexUnitsConverter;
 using ::icu::units::UnitsRouter;
 
-namespace number {
-namespace impl {
+namespace number::impl {
 
 /**
  * A MicroPropsGenerator which uses UnitsRouter to produce output converted to a
  * MeasureUnit appropriate for a particular localized usage: see
  * NumberFormatterSettings::usage().
  */
-class U_I18N_API UsagePrefsHandler : public MicroPropsGenerator, public UMemory {
+class UsagePrefsHandler : public MicroPropsGenerator, public UMemory {
   public:
     UsagePrefsHandler(const Locale &locale, const MeasureUnit &inputUnit, const StringPiece usage,
                       const MicroPropsGenerator *parent, UErrorCode &status);
@@ -44,7 +43,7 @@ class U_I18N_API UsagePrefsHandler : public MicroPropsGenerator, public UMemory 
      * micros.outputUnit.
      */
     void processQuantity(DecimalQuantity &quantity, MicroProps &micros,
-                         UErrorCode &status) const U_OVERRIDE;
+                         UErrorCode &status) const override;
 
     /**
      * Returns the list of possible output units, i.e. the full set of
@@ -62,63 +61,39 @@ class U_I18N_API UsagePrefsHandler : public MicroPropsGenerator, public UMemory 
     const MicroPropsGenerator *fParent;
 };
 
-} // namespace impl
-} // namespace number
-
-// Export explicit template instantiations of LocalPointerBase and LocalPointer.
-// This is required when building DLLs for Windows. (See datefmt.h,
-// collationiterator.h, erarules.h and others for similar examples.)
-//
-// Note: These need to be outside of the number::impl namespace, or Clang will
-// generate a compile error.
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-#if defined(_MSC_VER)
-// Ignore warning 4661 as LocalPointerBase does not use operator== or operator!=
-#pragma warning(push)
-#pragma warning(disable: 4661)
-#endif
-template class U_I18N_API LocalPointerBase<ComplexUnitsConverter>;
-template class U_I18N_API LocalPointer<ComplexUnitsConverter>;
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-#endif
-
-namespace number {
-namespace impl {
-
 /**
  * A MicroPropsGenerator which converts a measurement from one MeasureUnit to
  * another. In particular, the output MeasureUnit may be a mixed unit. (The
  * input unit may not be a mixed unit.)
  */
-class U_I18N_API UnitConversionHandler : public MicroPropsGenerator, public UMemory {
+class UnitConversionHandler : public MicroPropsGenerator, public UMemory {
   public:
     /**
      * Constructor.
      *
-     * @param inputUnit Specifies the input MeasureUnit. Mixed units are not
-     *     supported as input (because input is just a single decimal quantity).
-     * @param outputUnit Specifies the output MeasureUnit.
+     * @param targetUnit Specifies the output MeasureUnit. The input MeasureUnit
+     *     is derived from it: in case of a mixed unit, the biggest unit is
+     *     taken as the input unit. If not a mixed unit, the input unit will be
+     *     the same as the output unit and no unit conversion takes place.
      * @param parent The parent MicroPropsGenerator.
      * @param status Receives status.
      */
-    UnitConversionHandler(const MeasureUnit &inputUnit, const MeasureUnit &outputUnit,
-                          const MicroPropsGenerator *parent, UErrorCode &status);
+    UnitConversionHandler(const MeasureUnit &targetUnit, const MicroPropsGenerator *parent,
+                          UErrorCode &status);
 
     /**
      * Obtains the appropriate output values from the Unit Converter.
      */
     void processQuantity(DecimalQuantity &quantity, MicroProps &micros,
-                         UErrorCode &status) const U_OVERRIDE;
+                         UErrorCode &status) const override;
   private:
     MeasureUnit fOutputUnit;
     LocalPointer<ComplexUnitsConverter> fUnitConverter;
     const MicroPropsGenerator *fParent;
 };
 
-} // namespace impl
-} // namespace number
+} // namespace number::impl
+
 U_NAMESPACE_END
 
 #endif // __NUMBER_USAGEPREFS_H__

@@ -8,10 +8,10 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {
@@ -19,29 +19,29 @@ namespace compiler {
 
 template <typename T>
 const Operator* NewConstantOperator(CommonOperatorBuilder* common,
-                                    volatile T value);
+                                    T value);
 
 template <>
 const Operator* NewConstantOperator<int32_t>(CommonOperatorBuilder* common,
-                                             volatile int32_t value) {
+                                             int32_t value) {
   return common->Int32Constant(value);
 }
 
 template <>
 const Operator* NewConstantOperator<int64_t>(CommonOperatorBuilder* common,
-                                             volatile int64_t value) {
+                                             int64_t value) {
   return common->Int64Constant(value);
 }
 
 template <>
 const Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
-                                            volatile double value) {
+                                            double value) {
   return common->Float64Constant(value);
 }
 
 template <>
 const Operator* NewConstantOperator<float>(CommonOperatorBuilder* common,
-                                           volatile float value) {
+                                           float value) {
   return common->Float32Constant(value);
 }
 
@@ -69,7 +69,7 @@ float ValueOfOperator<float>(const Operator* op) {
 template <>
 double ValueOfOperator<double>(const Operator* op) {
   CHECK_EQ(IrOpcode::kFloat64Constant, op->opcode());
-  return OpParameter<double>(op);
+  return OpParameter<Float64>(op).get_scalar();
 }
 
 
@@ -78,8 +78,7 @@ class ReducerTester : public HandleAndZoneScope {
   explicit ReducerTester(int num_parameters = 0,
                          MachineOperatorBuilder::Flags flags =
                              MachineOperatorBuilder::kAllOptionalOps)
-      : HandleAndZoneScope(kCompressGraphZone),
-        isolate(main_isolate()),
+      : isolate(main_isolate()),
         binop(nullptr),
         unop(nullptr),
         machine(main_zone(), MachineType::PointerRepresentation(), flags),
@@ -100,14 +99,14 @@ class ReducerTester : public HandleAndZoneScope {
   const Operator* unop;
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Node* maxuint32;
   GraphReducer graph_reducer;
 
   template <typename T>
-  Node* Constant(volatile T value) {
+  Node* Constant(T value) {
     return graph.NewNode(NewConstantOperator<T>(&common, value));
   }
 
@@ -119,17 +118,19 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that the reduction of this binop applied to constants {a} and {b}
   // yields the {expect} value.
   template <typename T>
-  void CheckFoldBinop(volatile T expect, volatile T a, volatile T b) {
+  void CheckFoldBinop(T expect, T a, T b) {
     CheckFoldBinop<T>(expect, Constant<T>(a), Constant<T>(b));
   }
 
   // Check that the reduction of this binop applied to {a} and {b} yields
   // the {expect} value.
   template <typename T>
-  void CheckFoldBinop(volatile T expect, Node* a, Node* b) {
+  void CheckFoldBinop(T expect, Node* a, Node* b) {
     CHECK(binop);
     Node* n = CreateBinopNode(a, b);
-    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_NE(n, reduction.replacement());
@@ -149,7 +150,9 @@ class ReducerTester : public HandleAndZoneScope {
   void CheckBinop(Node* expect, Node* a, Node* b) {
     CHECK(binop);
     Node* n = CreateBinopNode(a, b);
-    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(expect, reduction.replacement());
@@ -161,7 +164,9 @@ class ReducerTester : public HandleAndZoneScope {
                       Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
-    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(binop, reduction.replacement()->op());
@@ -172,11 +177,13 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that the reduction of this binop applied to {left} and {right} yields
   // the {op_expect} applied to {left_expect} and {right_expect}.
   template <typename T>
-  void CheckFoldBinop(volatile T left_expect, const Operator* op_expect,
+  void CheckFoldBinop(T left_expect, const Operator* op_expect,
                       Node* right_expect, Node* left, Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
-    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -188,10 +195,12 @@ class ReducerTester : public HandleAndZoneScope {
   // the {op_expect} applied to {left_expect} and {right_expect}.
   template <typename T>
   void CheckFoldBinop(Node* left_expect, const Operator* op_expect,
-                      volatile T right_expect, Node* left, Node* right) {
+                      T right_expect, Node* left, Node* right) {
     CHECK(binop);
     Node* n = CreateBinopNode(left, right);
-    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -204,13 +213,15 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that if the given constant appears on the left, the reducer will
   // swap it to be on the right.
   template <typename T>
-  void CheckPutConstantOnRight(volatile T constant) {
+  void CheckPutConstantOnRight(T constant) {
     // TODO(titzer): CHECK(binop->HasProperty(Operator::kCommutative));
     Node* p = Parameter();
     Node* k = Constant<T>(constant);
     {
       Node* n = CreateBinopNode(k, p);
-      MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+      MachineOperatorReducer reducer(
+          &graph_reducer, &jsgraph,
+          MachineOperatorReducer::kPropagateSignallingNan);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed() || reduction.replacement() == n);
       CHECK_EQ(p, n->InputAt(0));
@@ -218,7 +229,9 @@ class ReducerTester : public HandleAndZoneScope {
     }
     {
       Node* n = CreateBinopNode(p, k);
-      MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+      MachineOperatorReducer reducer(
+          &graph_reducer, &jsgraph,
+          MachineOperatorReducer::kPropagateSignallingNan);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed());
       CHECK_EQ(p, n->InputAt(0));
@@ -229,12 +242,14 @@ class ReducerTester : public HandleAndZoneScope {
   // Check that if the given constant appears on the left, the reducer will
   // *NOT* swap it to be on the right.
   template <typename T>
-  void CheckDontPutConstantOnRight(volatile T constant) {
+  void CheckDontPutConstantOnRight(T constant) {
     CHECK(!binop->HasProperty(Operator::kCommutative));
     Node* p = Parameter();
     Node* k = Constant<T>(constant);
     Node* n = CreateBinopNode(k, p);
-    MachineOperatorReducer reducer(&graph_reducer, &jsgraph);
+    MachineOperatorReducer reducer(
+        &graph_reducer, &jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction reduction = reducer.Reduce(n);
     CHECK(!reduction.Changed());
     CHECK_EQ(k, n->InputAt(0));
@@ -791,7 +806,9 @@ TEST(ReduceLoadStore) {
                                index, R.graph.start(), R.graph.start());
 
   {
-    MachineOperatorReducer reducer(&R.graph_reducer, &R.jsgraph);
+    MachineOperatorReducer reducer(
+        &R.graph_reducer, &R.jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction reduction = reducer.Reduce(load);
     CHECK(!reduction.Changed());  // loads should not be reduced.
   }
@@ -801,7 +818,9 @@ TEST(ReduceLoadStore) {
         R.graph.NewNode(R.machine.Store(StoreRepresentation(
                             MachineRepresentation::kWord32, kNoWriteBarrier)),
                         base, index, load, load, R.graph.start());
-    MachineOperatorReducer reducer(&R.graph_reducer, &R.jsgraph);
+    MachineOperatorReducer reducer(
+        &R.graph_reducer, &R.jsgraph,
+        MachineOperatorReducer::kPropagateSignallingNan);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.
   }

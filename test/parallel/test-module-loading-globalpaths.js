@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
   tmpdir.refresh();
 
   // Copy node binary into a test $PREFIX directory.
-  const prefixPath = path.join(tmpdir.path, 'install');
+  const prefixPath = tmpdir.resolve('install');
   fs.mkdirSync(prefixPath);
   let testExecPath;
   if (common.isWindows) {
@@ -32,12 +32,12 @@ if (process.argv[2] === 'child') {
   fs.copyFileSync(process.execPath, testExecPath, COPYFILE_FICLONE);
   fs.chmodSync(testExecPath, mode);
 
-  const runTest = (expectedString, env) => {
+  const runTest = common.mustCallAtLeast((expectedString, env) => {
     const child = child_process.execFileSync(testExecPath,
                                              [ __filename, 'child' ],
                                              { encoding: 'utf8', env: env });
     assert.strictEqual(child.trim(), expectedString);
-  };
+  });
 
   const testFixturesDir = fixtures.path(path.basename(__filename, '.js'));
 
@@ -46,7 +46,7 @@ if (process.argv[2] === 'child') {
   delete env.NODE_PATH;
 
   // Test empty global path.
-  const noPkgHomeDir = path.join(tmpdir.path, 'home-no-pkg');
+  const noPkgHomeDir = tmpdir.resolve('home-no-pkg');
   fs.mkdirSync(noPkgHomeDir);
   env.HOME = env.USERPROFILE = noPkgHomeDir;
   assert.throws(
@@ -54,7 +54,7 @@ if (process.argv[2] === 'child') {
       child_process.execFileSync(testExecPath, [ __filename, 'child' ],
                                  { encoding: 'utf8', env: env });
     },
-    new RegExp(`Cannot find module '${pkgName}'`));
+    new RegExp(`Cannot find module '${RegExp.escape(pkgName)}'`));
 
   // Test module in $HOME/.node_modules.
   const modHomeDir = path.join(testFixturesDir, 'home-pkg-in-node_modules');

@@ -24,11 +24,11 @@
  * ICU-internal class CStr, a small helper class to facilitate passing UnicodeStrings
  * to functions needing (const char *) strings, such as printf().
  *
- * It is intended primarily for use in debugging or in tests. Uses platform
+ * It is intended primarily for use in debugging or in tests. Uses platform 
  * default code page conversion, which will do the best job possible,
  * but may be lossy, depending on the platform.
  *
- * If no other conversion is available, use invariant conversion and substitue
+ * If no other conversion is available, use invariant conversion and substitute
  * '?' for non-invariant characters.
  *
  * Example Usage:
@@ -43,16 +43,16 @@
 
 U_NAMESPACE_BEGIN
 
-class U_COMMON_API CStr : public UMemory {
+class U_COMMON_API_CLASS CStr : public UMemory {
   public:
-    CStr(const UnicodeString &in);
-    ~CStr();
-    const char * operator ()() const;
+    U_COMMON_API CStr(const UnicodeString &in);
+    U_COMMON_API ~CStr();
+    U_COMMON_API const char * operator ()() const;
 
   private:
     CharString s;
-    CStr(const CStr &other);               //  Forbid copying of this class.
-    CStr &operator =(const CStr &other);   //  Forbid assignment.
+    CStr(const CStr &other) = delete;               //  Forbid copying of this class.
+    CStr &operator =(const CStr &other) = delete;   //  Forbid assignment.
 };
 
 U_NAMESPACE_END

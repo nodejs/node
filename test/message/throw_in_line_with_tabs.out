@@ -1,5 +1,0 @@
-before
-*test*message*throw_in_line_with_tabs.js:*
-	throw ({ foo: 'bar' });
-	^
-{ foo: 'bar' }

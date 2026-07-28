@@ -1,7 +1,15 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
+
+common.expectWarning({
+  DeprecationWarning: [
+    ['crypto.Hash constructor is deprecated.',
+     'DEP0179'],
+  ]
+});
 
 const assert = require('assert');
 const crypto = require('crypto');
@@ -39,7 +47,7 @@ a8.write('');
 a8.end();
 a8 = a8.read();
 
-if (!common.hasFipsCrypto) {
+if (!crypto.getFips()) {
   cryptoType = 'md5';
   digest = 'latin1';
   const a0 = crypto.createHash(cryptoType).update('Test123').digest(digest);
@@ -181,17 +189,30 @@ assert.throws(
 }
 
 // Test XOF hash functions and the outputLength option.
-{
-  // Default outputLengths.
-  assert.strictEqual(crypto.createHash('shake128').digest('hex'),
+if (!process.features.openssl_is_boringssl) {
+  const invalidXofLength = {
+    code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
+    name: 'Error',
+    message: /not XOF or invalid length/,
+  };
+
+  assert.throws(() => crypto.createHash('shake128'), invalidXofLength);
+  assert.throws(() => crypto.createHash('shake128', null), invalidXofLength);
+  assert.throws(() => crypto.createHash('shake256'), invalidXofLength);
+  assert.throws(() => crypto.createHash('shake256', {}), invalidXofLength);
+
+  assert.strictEqual(crypto.createHash('shake128', { outputLength: 16 })
+                           .digest('hex'),
                      '7f9c2ba4e88f827d616045507605853e');
-  assert.strictEqual(crypto.createHash('shake128', null).digest('hex'),
-                     '7f9c2ba4e88f827d616045507605853e');
-  assert.strictEqual(crypto.createHash('shake256').digest('hex'),
+  assert.strictEqual(crypto.createHash('shake256', { outputLength: 32 })
+                           .digest('hex'),
                      '46b9dd2b0ba88d13233b3feb743eeb24' +
                      '3fcd52ea62b81b82b50c27646ed5762f');
-  assert.strictEqual(crypto.createHash('shake256', { outputLength: 0 })
-                           .copy()  // Default outputLength.
+  const shake256 = crypto.createHash('shake256', { outputLength: 0 });
+  assert.throws(() => shake256.copy(), invalidXofLength);
+  assert.throws(() => shake256.copy(null), invalidXofLength);
+  assert.throws(() => shake256.copy({}), invalidXofLength);
+  assert.strictEqual(shake256.copy({ outputLength: 32 })
                            .digest('hex'),
                      '46b9dd2b0ba88d13233b3feb743eeb24' +
                      '3fcd52ea62b81b82b50c27646ed5762f');
@@ -259,6 +280,8 @@ assert.throws(
     assert.throws(() => crypto.createHash('sha256', { outputLength }),
                   { code: 'ERR_OUT_OF_RANGE' });
   }
+} else {
+  common.printSkipMessage('Skipping unsupported XOF hash test cases');
 }
 
 {
@@ -275,4 +298,8 @@ assert.throws(
   const d = crypto.createHash('sha512').update('abcdef');
   assert.strictEqual(a.digest('hex'), b.digest('hex'));
   assert.strictEqual(c.digest('hex'), d.digest('hex'));
+}
+
+{
+  crypto.Hash('sha256');
 }

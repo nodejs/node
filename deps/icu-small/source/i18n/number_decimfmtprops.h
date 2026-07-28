@@ -21,24 +21,15 @@ U_NAMESPACE_BEGIN
 // data member of CurrencyPluralInfoWrapper.
 // (When building DLLs for Windows this is required.)
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-#if defined(_MSC_VER)
-// Ignore warning 4661 as LocalPointerBase does not use operator== or operator!=
-#pragma warning(push)
-#pragma warning(disable: 4661)
-#endif
 template class U_I18N_API LocalPointerBase<CurrencyPluralInfo>;
 template class U_I18N_API LocalPointer<CurrencyPluralInfo>;
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 #endif
 
-namespace number {
-namespace impl {
+namespace number::impl {
 
 // Exported as U_I18N_API because it is a public member field of exported DecimalFormatProperties
 // Using this wrapper is rather unfortunate, but is needed on Windows platforms in order to allow
-// for DLL-exporting an fully specified template instantiation.
+// for DLL-exporting a fully specified template instantiation.
 class U_I18N_API CurrencyPluralInfoWrapper {
 public:
     LocalPointer<CurrencyPluralInfo> fPtr;
@@ -52,7 +43,8 @@ public:
     }
 
     CurrencyPluralInfoWrapper& operator=(const CurrencyPluralInfoWrapper& other) {
-        if (!other.fPtr.isNull()) {
+        if (this != &other &&  // self-assignment: no-op
+                !other.fPtr.isNull()) {
             fPtr.adoptInstead(new CurrencyPluralInfo(*other.fPtr));
         }
         return *this;
@@ -104,6 +96,7 @@ struct U_I18N_API DecimalFormatProperties : public UMemory {
     bool decimalPatternMatchRequired;
     bool decimalSeparatorAlwaysShown;
     bool exponentSignAlwaysShown;
+    bool currencyAsDecimal;
     bool formatFailIfMoreThanMaxDigits; // ICU4C-only
     int32_t formatWidth;
     int32_t groupingSize;
@@ -164,8 +157,8 @@ struct U_I18N_API DecimalFormatProperties : public UMemory {
     bool _equals(const DecimalFormatProperties& other, bool ignoreForFastFormat) const;
 };
 
-} // namespace impl
-} // namespace number
+} // namespace number::impl
+
 U_NAMESPACE_END
 
 

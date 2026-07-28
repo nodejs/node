@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <string.h>
 #include <stddef.h>
@@ -35,13 +35,44 @@
 #include <nghttp2/nghttp2.h>
 #include "nghttp2_mem.h"
 
-#define nghttp2_min(A, B) ((A) < (B) ? (A) : (B))
-#define nghttp2_max(A, B) ((A) > (B) ? (A) : (B))
+#define nghttp2_max_def(SUFFIX, T)                                             \
+  static inline T nghttp2_max_##SUFFIX(T a, T b) { return a < b ? b : a; }
 
-#define lstreq(A, B, N) ((sizeof((A)) - 1) == (N) && memcmp((A), (B), (N)) == 0)
+nghttp2_max_def(int8, int8_t)
+nghttp2_max_def(int16, int16_t)
+nghttp2_max_def(int32, int32_t)
+nghttp2_max_def(int64, int64_t)
+nghttp2_max_def(uint8, uint8_t)
+nghttp2_max_def(uint16, uint16_t)
+nghttp2_max_def(uint32, uint32_t)
+nghttp2_max_def(uint64, uint64_t)
+nghttp2_max_def(size, size_t)
+
+#define nghttp2_min_def(SUFFIX, T)                                             \
+  static inline T nghttp2_min_##SUFFIX(T a, T b) { return a < b ? a : b; }
+
+nghttp2_min_def(int8, int8_t)
+nghttp2_min_def(int16, int16_t)
+nghttp2_min_def(int32, int32_t)
+nghttp2_min_def(int64, int64_t)
+nghttp2_min_def(uint8, uint8_t)
+nghttp2_min_def(uint16, uint16_t)
+nghttp2_min_def(uint32, uint32_t)
+nghttp2_min_def(uint64, uint64_t)
+nghttp2_min_def(size, size_t)
+
+/*
+ * nghttp2_strlen_lit returns the length of string literal |S|.  This
+ * macro assumes |S| is NULL-terminated string literal.  It must not
+ * be used with pointers.
+ */
+#define nghttp2_strlen_lit(S) (sizeof(S) - 1)
+
+#define lstreq(A, B, N)                                                        \
+  (nghttp2_strlen_lit((A)) == (N) && memcmp((A), (B), (N)) == 0)
 
 #define nghttp2_struct_of(ptr, type, member)                                   \
-  ((type *)(void *)((char *)(ptr)-offsetof(type, member)))
+  ((type *)(void *)((char *)(ptr) - offsetof(type, member)))
 
 /*
  * Copies 2 byte unsigned integer |n| in host byte order to |buf| in
@@ -119,4 +150,4 @@ int nghttp2_should_send_window_update(int32_t local_window_size,
  */
 uint8_t *nghttp2_cpymem(uint8_t *dest, const void *src, size_t len);
 
-#endif /* NGHTTP2_HELPER_H */
+#endif /* !defined(NGHTTP2_HELPER_H) */

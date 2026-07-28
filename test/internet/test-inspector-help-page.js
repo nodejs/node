@@ -14,11 +14,11 @@ const stderr = child.stderr.toString();
 const helpUrl = stderr.match(/For help, see: (.+)/)[1];
 
 function check(url, cb) {
-  https.get(url, common.mustCall((res) => {
+  https.get(url, { agent: new https.Agent() }, common.mustCall((res) => {
     assert(res.statusCode >= 200 && res.statusCode < 400);
 
     if (res.statusCode >= 300)
-      return check(res.headers.location, cb);
+      return check(new URL(res.headers.location, url), cb);
 
     let result = '';
 
@@ -28,7 +28,7 @@ function check(url, cb) {
     });
 
     res.on('end', common.mustCall(() => {
-      assert(/>Debugging Guide</.test(result));
+      assert.match(result, />Debugging Node\.js</);
       cb();
     }));
   })).on('error', common.mustNotCall);

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --interrupt-budget=100 --deopt-every-n-times=4
 // Flags: --allow-natives-syntax --use-osr
 
 "use strict";

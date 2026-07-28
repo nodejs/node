@@ -14,9 +14,9 @@ async_hooks.createHook({
   after: common.mustCall((id) => {
     assert.strictEqual(id, 1000);
     insideHook = false;
-  })
+  }),
 }).enable();
 
-runInCallbackScope({}, 1000, 1000, () => {
+runInCallbackScope({}, 1000, 1000, common.mustCallAtLeast(() => {
   assert(insideHook);
-});
+}));

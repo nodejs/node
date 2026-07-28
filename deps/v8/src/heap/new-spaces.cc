@@ -4,298 +4,283 @@
 
 #include "src/heap/new-spaces.h"
 
+#include <atomic>
+#include <optional>
+
+#include "src/base/logging.h"
+#include "src/base/macros.h"
+#include "src/common/globals.h"
+#include "src/flags/flags.h"
+#include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
+#include "src/heap/concurrent-marking.h"
+#include "src/heap/free-list-inl.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-state-inl.h"
+#include "src/heap/marking-state.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page.h"
+#include "src/heap/normal-page-inl.h"
+#include "src/heap/normal-page.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
+#include "src/heap/zapping.h"
 
 namespace v8 {
 namespace internal {
 
-Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
-  bool in_to_space = (id() != kFromSpace);
-  chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
-  Page* page = static_cast<Page*>(chunk);
-  page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  page->list_node().Initialize();
-#ifdef ENABLE_MINOR_MC
-  if (FLAG_minor_mc) {
-    page->AllocateYoungGenerationBitmap();
-    heap()
-        ->minor_mark_compact_collector()
-        ->non_atomic_marking_state()
-        ->ClearLiveness(page);
-  }
-#endif  // ENABLE_MINOR_MC
-  page->InitializationMemoryFence();
-  return page;
-}
-
-bool SemiSpace::EnsureCurrentCapacity() {
-  if (is_committed()) {
-    const int expected_pages =
-        static_cast<int>(current_capacity_ / Page::kPageSize);
-    MemoryChunk* current_page = first_page();
-    int actual_pages = 0;
-
-    // First iterate through the pages list until expected pages if so many
-    // pages exist.
-    while (current_page != nullptr && actual_pages < expected_pages) {
-      actual_pages++;
-      current_page = current_page->list_node().next();
-    }
-
-    // Free all overallocated pages which are behind current_page.
-    while (current_page) {
-      MemoryChunk* next_current = current_page->list_node().next();
-      memory_chunk_list_.Remove(current_page);
-      // Clear new space flags to avoid this page being treated as a new
-      // space page that is potentially being swept.
-      current_page->SetFlags(0, Page::kIsInYoungGenerationMask);
-      heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
-          current_page);
-      current_page = next_current;
-    }
-
-    // Add more pages if we have less than expected_pages.
-    IncrementalMarking::NonAtomicMarkingState* marking_state =
-        heap()->incremental_marking()->non_atomic_marking_state();
-    while (actual_pages < expected_pages) {
-      actual_pages++;
-      current_page =
-          heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-              MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
-              NOT_EXECUTABLE);
-      if (current_page == nullptr) return false;
-      DCHECK_NOT_NULL(current_page);
-      memory_chunk_list_.PushBack(current_page);
-      marking_state->ClearLiveness(current_page);
-      current_page->SetFlags(first_page()->GetFlags(),
-                             static_cast<uintptr_t>(Page::kCopyAllFlags));
-      heap()->CreateFillerObjectAt(current_page->area_start(),
-                                   static_cast<int>(current_page->area_size()),
-                                   ClearRecordedSlots::kNo);
-    }
-  }
-  return true;
-}
-
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-void SemiSpace::SetUp(size_t initial_capacity, size_t maximum_capacity) {
-  DCHECK_GE(maximum_capacity, static_cast<size_t>(Page::kPageSize));
-  minimum_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
-  current_capacity_ = minimum_capacity_;
-  maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
-  committed_ = false;
+NormalPage* SemiSpace::InitializePage(MutablePage* mutable_page) {
+  bool in_to_space = (id() != kFromSpace);
+  MemoryChunk* chunk = mutable_page->Chunk();
+  mutable_page->SetFlagNonExecutable(in_to_space ? MemoryChunk::TO_PAGE
+                                                 : MemoryChunk::FROM_PAGE);
+  NormalPage* page = SbxCast<NormalPage>(mutable_page);
+  page->list_node().Initialize();
+  CHECK(page->IsLivenessClear());
+  chunk->InitializationMemoryFence();
+  return page;
 }
 
-void SemiSpace::TearDown() {
-  // Properly uncommit memory to keep the allocator counters in sync.
-  if (is_committed()) {
-    Uncommit();
-  }
-  current_capacity_ = maximum_capacity_ = 0;
-}
+SemiSpace::SemiSpace(Heap* heap, SemiSpaceId semispace)
+    : Space(heap, NEW_SPACE, nullptr), id_(semispace) {}
 
-bool SemiSpace::Commit() {
-  DCHECK(!is_committed());
-  const int num_pages = static_cast<int>(current_capacity_ / Page::kPageSize);
-  for (int pages_added = 0; pages_added < num_pages; pages_added++) {
-    // Pages in the new spaces can be moved to the old space by the full
-    // collector. Therefore, they must be initialized with the same FreeList as
-    // old pages.
-    Page* new_page =
-        heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
-            NOT_EXECUTABLE);
-    if (new_page == nullptr) {
-      if (pages_added) RewindPages(pages_added);
-      return false;
-    }
-    memory_chunk_list_.PushBack(new_page);
-  }
-  Reset();
-  AccountCommitted(current_capacity_);
-  if (age_mark_ == kNullAddress) {
-    age_mark_ = first_page()->area_start();
-  }
-  committed_ = true;
-  return true;
-}
-
-bool SemiSpace::Uncommit() {
-  DCHECK(is_committed());
+SemiSpace::~SemiSpace() {
+  const bool is_marking = heap_->isolate()->isolate_data()->is_marking();
   while (!memory_chunk_list_.Empty()) {
-    MemoryChunk* chunk = memory_chunk_list_.front();
-    memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(chunk);
+    MutablePage* page = memory_chunk_list_.front();
+    memory_chunk_list_.Remove(page);
+    if (is_marking) {
+      page->ClearLiveness();
+    }
+    heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
+  }
+}
+
+bool SemiSpace::ContainsSlow(Address address) const {
+  for (const NormalPage* page : *this) {
+    if (page == BasePage::FromAddress(heap()->isolate(), address)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void SemiSpace::ShrinkCapacityTo(size_t capacity) {
+  DCHECK_IMPLIES(!IsCommitted(), CommittedMemory() == 0);
+  // Only the to-space is allowed to have quarantined pages.
+  DCHECK_IMPLIES(id_ != kToSpace, quarantined_pages_count_ == 0);
+  DCHECK_GE(memory_chunk_list_.size(), quarantined_pages_count_);
+
+  const size_t quarantined_pages =
+      id_ == kToSpace ? quarantined_pages_count_ : 0;
+  // Quarantined pages are not accounted against the capacity of the space.
+  const int pages_available_for_allocation =
+      static_cast<int>(memory_chunk_list_.size() - quarantined_pages);
+  const int num_pages = static_cast<int>((capacity / NormalPage::kPageSize)) -
+                        pages_available_for_allocation;
+  if (num_pages >= 0) {
+    // The space is already smaller than it needs to be.
+    return;
+  }
+
+  RewindPages(-num_pages);
+
+  DCHECK_EQ(capacity + quarantined_pages * NormalPage::kPageSize,
+            CommittedMemory());
+  DCHECK_EQ(
+      static_cast<int>(capacity / NormalPage::kPageSize) + quarantined_pages,
+      memory_chunk_list_.size());
+}
+
+void SemiSpace::Uncommit() {
+  DCHECK_EQ(CommittedMemory(),
+            memory_chunk_list_.size() * NormalPage::kPageSize);
+  if (!memory_chunk_list_.Empty()) {
+    RewindPages(static_cast<int>(memory_chunk_list_.size()));
   }
   current_page_ = nullptr;
-  AccountUncommitted(current_capacity_);
-  committed_ = false;
-  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
-  return true;
+  current_capacity_ = 0;
+  quarantined_pages_count_ = 0;
+  DCHECK_EQ(CommittedPhysicalMemory(), 0);
+  DCHECK_EQ(CommittedMemory(), 0);
+  DCHECK(!IsCommitted());
 }
 
-size_t SemiSpace::CommittedPhysicalMemory() {
-  if (!is_committed()) return 0;
-  size_t size = 0;
-  for (Page* p : *this) {
-    size += p->CommittedPhysicalMemory();
-  }
-  return size;
+size_t SemiSpace::CommittedPhysicalMemory() const {
+  if (!IsCommitted()) return 0;
+  if (!base::OS::HasLazyCommits()) return CommittedMemory();
+  return committed_physical_memory_;
 }
 
-bool SemiSpace::GrowTo(size_t new_capacity) {
-  if (!is_committed()) {
-    if (!Commit()) return false;
+bool SemiSpace::AllocateFreshPage() {
+  NormalPage* new_page = heap()->memory_allocator()->AllocatePage(
+      MemoryAllocator::AllocationMode::kTryDelayedAndPooled, this,
+      NOT_EXECUTABLE);
+  if (new_page == nullptr) {
+    return false;
   }
-  DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
-  DCHECK_LE(new_capacity, maximum_capacity_);
-  DCHECK_GT(new_capacity, current_capacity_);
-  const size_t delta = new_capacity - current_capacity_;
-  DCHECK(IsAligned(delta, AllocatePageSize()));
-  const int delta_pages = static_cast<int>(delta / Page::kPageSize);
-  DCHECK(last_page());
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
-      heap()->incremental_marking()->non_atomic_marking_state();
-  for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
-    Page* new_page =
-        heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-            MemoryChunkLayout::AllocatableMemoryInDataPage(), this,
-            NOT_EXECUTABLE);
-    if (new_page == nullptr) {
-      if (pages_added) RewindPages(pages_added);
-      return false;
-    }
-    memory_chunk_list_.PushBack(new_page);
-    marking_state->ClearLiveness(new_page);
-    // Duplicate the flags that was set on the old page.
-    new_page->SetFlags(last_page()->GetFlags(), Page::kCopyOnFlipFlagsMask);
-  }
-  AccountCommitted(delta);
-  current_capacity_ = new_capacity;
+  memory_chunk_list_.PushBack(new_page);
+  IncrementCommittedPhysicalMemory(new_page->CommittedPhysicalMemory());
+  AccountCommitted(NormalPage::kPageSize);
+  heap()->CreateFillerObjectAt(new_page->area_start(),
+                               static_cast<int>(new_page->area_size()));
   return true;
 }
 
 void SemiSpace::RewindPages(int num_pages) {
   DCHECK_GT(num_pages, 0);
   DCHECK(last_page());
+  AccountUncommitted(num_pages * NormalPage::kPageSize);
+  size_t uncommitted_physical_memory = 0;
   while (num_pages > 0) {
-    MemoryChunk* last = last_page();
+    MutablePage* last = last_page();
+    CHECK_NOT_NULL(last);
+    uncommitted_physical_memory += last->CommittedPhysicalMemory();
     memory_chunk_list_.Remove(last);
-    heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(last);
+    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, last);
     num_pages--;
   }
+  DecrementCommittedPhysicalMemory(uncommitted_physical_memory);
 }
 
-bool SemiSpace::ShrinkTo(size_t new_capacity) {
-  DCHECK_EQ(new_capacity & kPageAlignmentMask, 0u);
-  DCHECK_GE(new_capacity, minimum_capacity_);
-  DCHECK_LT(new_capacity, current_capacity_);
-  if (is_committed()) {
-    const size_t delta = current_capacity_ - new_capacity;
-    DCHECK(IsAligned(delta, Page::kPageSize));
-    int delta_pages = static_cast<int>(delta / Page::kPageSize);
-    RewindPages(delta_pages);
-    AccountUncommitted(delta);
-    heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
-  }
-  current_capacity_ = new_capacity;
-  return true;
-}
-
-void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
-  for (Page* page : *this) {
+void SemiSpace::FixPagesFlags() {
+  const auto to_space_flags =
+      MutablePage::YoungGenerationPageFlags(
+          heap()->incremental_marking()->marking_mode()) |
+      MemoryChunk::TO_PAGE;
+  for (NormalPage* page : *this) {
     page->set_owner(this);
-    page->SetFlags(flags, mask);
     if (id_ == kToSpace) {
-      page->ClearFlag(MemoryChunk::FROM_PAGE);
-      page->SetFlag(MemoryChunk::TO_PAGE);
-      page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
-      heap()->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(
-          page, 0);
+      page->SetFlagsNonExecutable(to_space_flags);
     } else {
-      page->SetFlag(MemoryChunk::FROM_PAGE);
-      page->ClearFlag(MemoryChunk::TO_PAGE);
+      DCHECK_EQ(id_, kFromSpace);
+      // From space must preserve `NEW_SPACE_BELOW_AGE_MARK` which is used for
+      // deciding on whether to copy or promote an object.
+      page->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
+      page->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
     }
-    DCHECK(page->InYoungGeneration());
+    DCHECK(page->Chunk()->InYoungGeneration());
   }
 }
 
-void SemiSpace::Reset() {
-  DCHECK(first_page());
-  DCHECK(last_page());
-  current_page_ = first_page();
-  pages_used_ = 0;
-}
-
-void SemiSpace::RemovePage(Page* page) {
+void SemiSpace::RemovePage(NormalPage* page) {
   if (current_page_ == page) {
     if (page->prev_page()) {
       current_page_ = page->prev_page();
     }
   }
   memory_chunk_list_.Remove(page);
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    DecrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+  AccountUncommitted(NormalPage::kPageSize);
+  DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
-void SemiSpace::PrependPage(Page* page) {
-  page->SetFlags(current_page()->GetFlags(),
-                 static_cast<uintptr_t>(Page::kCopyAllFlags));
-  page->set_owner(this);
-  memory_chunk_list_.PushFront(page);
-  pages_used_++;
-  for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
-  }
+void SemiSpace::MovePageToTheEnd(NormalPage* page) {
+  DCHECK_EQ(page->owner(), this);
+  memory_chunk_list_.Remove(page);
+  memory_chunk_list_.PushBack(page);
+  current_page_ = page;
 }
 
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
-  // We won't be swapping semispaces without data in them.
-  DCHECK(from->first_page());
-  DCHECK(to->first_page());
-
-  intptr_t saved_to_space_flags = to->current_page()->GetFlags();
-
   // We swap all properties but id_.
-  std::swap(from->current_capacity_, to->current_capacity_);
-  std::swap(from->maximum_capacity_, to->maximum_capacity_);
-  std::swap(from->minimum_capacity_, to->minimum_capacity_);
-  std::swap(from->age_mark_, to->age_mark_);
-  std::swap(from->committed_, to->committed_);
   std::swap(from->memory_chunk_list_, to->memory_chunk_list_);
   std::swap(from->current_page_, to->current_page_);
-  std::swap(from->external_backing_store_bytes_,
-            to->external_backing_store_bytes_);
+  std::swap(from->committed_physical_memory_, to->committed_physical_memory_);
+  {
+    // Swap committed atomic counters.
+    size_t to_commited = to->committed_.load();
+    to->committed_.store(from->committed_.load());
+    from->committed_.store(to_commited);
+  }
+  std::swap(from->quarantined_pages_count_, to->quarantined_pages_count_);
 
-  to->FixPagesFlags(saved_to_space_flags, Page::kCopyOnFlipFlagsMask);
-  from->FixPagesFlags(0, 0);
+  // Swapping the `memory_cunk_list_` essentially swaps out the pages (actual
+  // payload) from to and from space.
+  to->FixPagesFlags();
+  from->FixPagesFlags();
 }
 
-void SemiSpace::set_age_mark(Address mark) {
-  DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
-  age_mark_ = mark;
-  // Mark all pages up to the one containing mark.
-  for (Page* p : PageRange(space_start(), mark)) {
-    p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+bool SemiSpace::AdvancePage(size_t target_capacity) {
+  NormalPage* next_page;
+
+  if (current_page_) {
+    next_page = current_page_->next_page();
+  } else {
+    // Start allocating on the first page but skip the quarantined pages.
+    DCHECK_GE(memory_chunk_list_.size(), quarantined_pages_count_);
+    next_page = first_page();
+    for (size_t i = 0; i < quarantined_pages_count_; i++) {
+      DCHECK_NOT_NULL(next_page);
+      next_page = next_page->next_page();
+    }
   }
+
+  if (!next_page && current_capacity_ < target_capacity) {
+    DCHECK_IMPLIES(current_page_, current_page_ == last_page());
+    if (!AllocateFreshPage()) return false;
+    next_page = last_page();
+    DCHECK_NOT_NULL(next_page);
+  }
+
+  if (!next_page) {
+    return false;
+  }
+
+  current_page_ = next_page;
+  base::AsAtomicWord::Relaxed_Store(&current_capacity_,
+                                    current_capacity_ + NormalPage::kPageSize);
+  DCHECK_IMPLIES(current_capacity_ > target_capacity,
+                 heap()->IsNewSpaceAllowedToGrowAboveTargetCapacity());
+  return true;
+}
+
+void SemiSpace::IncrementCommittedPhysicalMemory(size_t increment_value) {
+  if (!base::OS::HasLazyCommits()) return;
+  DCHECK_LE(committed_physical_memory_,
+            committed_physical_memory_ + increment_value);
+  committed_physical_memory_ += increment_value;
+}
+
+void SemiSpace::DecrementCommittedPhysicalMemory(size_t decrement_value) {
+  if (!base::OS::HasLazyCommits()) return;
+  DCHECK_LE(decrement_value, committed_physical_memory_);
+  committed_physical_memory_ -= decrement_value;
+}
+
+void SemiSpace::AddRangeToActiveSystemPages(Address start, Address end) {
+  NormalPage* page = current_page();
+  MemoryChunk* chunk = page->Chunk();
+
+  DCHECK_LE(chunk->address(), start);
+  DCHECK_LT(start, end);
+  DCHECK_LE(end, chunk->address() + NormalPage::kPageSize);
+
+  const size_t added_pages = page->active_system_pages()->Add(
+      chunk->Offset(start), chunk->Offset(end),
+      MemoryAllocator::GetCommitPageSizeBits());
+  IncrementCommittedPhysicalMemory(added_pages *
+                                   MemoryAllocator::GetCommitPageSize());
 }
 
 std::unique_ptr<ObjectIterator> SemiSpace::GetObjectIterator(Heap* heap) {
-  // Use the NewSpace::NewObjectIterator to iterate the ToSpace.
+  // Use the SemiSpaceNewSpace::NewObjectIterator to iterate the ToSpace.
   UNREACHABLE();
+}
+
+void SemiSpace::Reset() {
+  current_page_ = nullptr;
+  current_capacity_ = 0;
+  quarantined_pages_count_ = 0;
 }
 
 #ifdef DEBUG
@@ -303,52 +288,48 @@ void SemiSpace::Print() {}
 #endif
 
 #ifdef VERIFY_HEAP
-void SemiSpace::Verify() {
+void SemiSpace::VerifyPages() const {
   bool is_from_space = (id_ == kFromSpace);
-  size_t external_backing_store_bytes[kNumTypes];
 
-  for (int i = 0; i < kNumTypes; i++) {
-    external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
+  size_t actual_pages = 0;
+  size_t computed_committed_physical_memory = 0;
 
-  for (Page* page : *this) {
+  for (const NormalPage* page : *this) {
+    const MemoryChunk* chunk = page->Chunk();
     CHECK_EQ(page->owner(), this);
-    CHECK(page->InNewSpace());
-    CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::FROM_PAGE
-                                        : MemoryChunk::TO_PAGE));
-    CHECK(!page->IsFlagSet(is_from_space ? MemoryChunk::TO_PAGE
-                                         : MemoryChunk::FROM_PAGE));
-    CHECK(page->IsFlagSet(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING));
+    CHECK(chunk->InNewSpace());
+    CHECK_IMPLIES(is_from_space, chunk->IsFromPage());
+    CHECK_IMPLIES(!is_from_space, chunk->IsToPage());
+    CHECK(chunk->PointersToHereAreInteresting());
+    CHECK(!page->is_quarantined());
     if (!is_from_space) {
       // The pointers-from-here-are-interesting flag isn't updated dynamically
       // on from-space pages, so it might be out of sync with the marking state.
       if (page->heap()->incremental_marking()->IsMarking()) {
-        CHECK(page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
+        CHECK(page->heap()->incremental_marking()->IsMajorMarking());
+        CHECK(chunk->PointersFromHereAreInteresting());
       } else {
-        CHECK(
-            !page->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING));
+        CHECK(!chunk->PointersFromHereAreInteresting());
       }
+      CHECK_IMPLIES(actual_pages < quarantined_pages_count_,
+                    chunk->InNewSpaceBelowAgeMark());
     }
-    for (int i = 0; i < kNumTypes; i++) {
-      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-      external_backing_store_bytes[t] += page->ExternalBackingStoreBytes(t);
-    }
+    computed_committed_physical_memory += page->CommittedPhysicalMemory();
 
     CHECK_IMPLIES(page->list_node().prev(),
                   page->list_node().prev()->list_node().next() == page);
+    actual_pages++;
   }
-  for (int i = 0; i < kNumTypes; i++) {
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
-  }
+  CHECK_EQ(actual_pages * NormalPage::kPageSize, CommittedMemory());
+  CHECK_EQ(computed_committed_physical_memory, CommittedPhysicalMemory());
 }
-#endif
+#endif  // VERIFY_HEAP
 
 #ifdef DEBUG
 void SemiSpace::AssertValidRange(Address start, Address end) {
   // Addresses belong to same semi-space
-  Page* page = Page::FromAllocationAreaAddress(start);
-  Page* end_page = Page::FromAllocationAreaAddress(end);
+  NormalPage* page = NormalPage::FromAllocationAreaAddress(start);
+  NormalPage* end_page = NormalPage::FromAllocationAreaAddress(end);
   SemiSpace* space = reinterpret_cast<SemiSpace*>(page->owner());
   DCHECK_EQ(space, end_page->owner());
   // Start address is before end address, either on same page,
@@ -365,359 +346,609 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 }
 #endif
 
-// -----------------------------------------------------------------------------
-// SemiSpaceObjectIterator implementation.
-
-SemiSpaceObjectIterator::SemiSpaceObjectIterator(NewSpace* space) {
-  Initialize(space->first_allocatable_address(), space->top());
-}
-
-void SemiSpaceObjectIterator::Initialize(Address start, Address end) {
-  SemiSpace::AssertValidRange(start, end);
-  current_ = start;
-  limit_ = end;
-}
-
-size_t NewSpace::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits()) return CommittedMemory();
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  size_t size = to_space_.CommittedPhysicalMemory();
-  if (from_space_.is_committed()) {
-    size += from_space_.CommittedPhysicalMemory();
-  }
-  return size;
+void SemiSpace::MoveQuarantinedPage(NormalPage* metadata) {
+#ifdef DEBUG
+  MemoryChunk* chunk = metadata->Chunk();
+  // Quarantining pages happens at the end of scavenge, after the semi spaces
+  // have been swapped. Thus, the quarantined page originates from "from space"
+  // and is moved to "to space" to keep pinned objects as live.
+  DCHECK_EQ(kToSpace, id_);
+  DCHECK(metadata->is_quarantined());
+  DCHECK(!metadata->will_be_promoted());
+  DCHECK(chunk->IsFromPage());
+#endif  // DEBUG
+  SemiSpace& from_space = heap_->semi_space_new_space()->from_space();
+  DCHECK_EQ(&from_space, metadata->owner());
+  DCHECK_NE(&from_space, this);
+  from_space.RemovePage(metadata);
+  metadata->set_is_quarantined(false);
+  metadata->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
+  metadata->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+  metadata->set_owner(this);
+  AccountCommitted(NormalPage::kPageSize);
+  IncrementCommittedPhysicalMemory(metadata->CommittedPhysicalMemory());
+  memory_chunk_list_.PushFront(metadata);
+  quarantined_pages_count_++;
 }
 
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
-NewSpace::NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
-                   size_t initial_semispace_capacity,
-                   size_t max_semispace_capacity)
-    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList()),
+NewSpace::NewSpace(Heap* heap)
+    : SpaceWithLinearArea(heap, NEW_SPACE, nullptr) {}
+
+void NewSpace::PromotePageToOldSpace(NormalPage* page, FreeMode free_mode) {
+  DCHECK(page->will_be_promoted());
+  DCHECK(page->Chunk()->InYoungGeneration());
+  if (page->is_quarantined()) {
+    page->set_is_quarantined(false);
+  }
+  page->set_will_be_promoted(false);
+  page->set_never_allocate_on_chunk(false);
+  RemovePage(page);
+  NormalPage* new_page = NormalPage::ConvertNewToOld(page, free_mode);
+  DCHECK(!new_page->Chunk()->InYoungGeneration());
+  USE(new_page);
+}
+
+// -----------------------------------------------------------------------------
+// SemiSpaceNewSpace implementation
+
+SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
+                                     size_t initial_semispace_capacity,
+                                     size_t min_semispace_capacity,
+                                     size_t max_semispace_capacity)
+    : NewSpace(heap),
       to_space_(heap, kToSpace),
-      from_space_(heap, kFromSpace) {
-  DCHECK(initial_semispace_capacity <= max_semispace_capacity);
+      from_space_(heap, kFromSpace),
+      minimum_capacity_(min_semispace_capacity),
+      maximum_capacity_(max_semispace_capacity),
+      target_capacity_(initial_semispace_capacity) {
+  DCHECK(IsAligned(initial_semispace_capacity, NormalPage::kPageSize));
+  DCHECK(IsAligned(minimum_capacity_, NormalPage::kPageSize));
+  DCHECK(IsAligned(maximum_capacity_, NormalPage::kPageSize));
 
-  to_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
-  from_space_.SetUp(initial_semispace_capacity, max_semispace_capacity);
-  if (!to_space_.Commit()) {
-    V8::FatalProcessOutOfMemory(heap->isolate(), "New space setup");
+  DCHECK_LE(static_cast<size_t>(NormalPage::kPageSize), minimum_capacity_);
+  DCHECK_LE(minimum_capacity_, target_capacity_);
+  DCHECK_LE(target_capacity_, maximum_capacity_);
+}
+
+void SemiSpaceNewSpace::Grow(size_t new_capacity) {
+  heap()->safepoint()->AssertActive();
+  DCHECK(MemoryChunk::IsAligned(new_capacity));
+  DCHECK_LE(target_capacity_, new_capacity);
+  DCHECK_LE(new_capacity, maximum_capacity_);
+  target_capacity_ = new_capacity;
+}
+
+void SemiSpaceNewSpace::GrowToMaximumCapacityForTesting() {
+  Grow(maximum_capacity_);
+}
+
+void SemiSpaceNewSpace::SetAgeMarkAndBelowAgeMarkPageFlags() {
+  age_mark_ = allocation_top();
+
+  NormalPage* current_page = to_space().first_page();
+
+  for (size_t i = 0; i < to_space_.quarantined_pages_count_; i++) {
+    DCHECK_NOT_NULL(current_page);
+    current_page->SetFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+    current_page = current_page->next_page();
   }
-  DCHECK(!from_space_.is_committed());  // No need to use memory yet.
-  ResetLinearAllocationArea();
-}
 
-void NewSpace::TearDown() {
-  allocation_info_.Reset(kNullAddress, kNullAddress);
+  if (age_mark_) {
+    NormalPage* age_mark_page =
+        NormalPage::FromAllocationAreaAddress(age_mark_);
+    DCHECK_EQ(age_mark_page->owner(), &to_space());
 
-  to_space_.TearDown();
-  from_space_.TearDown();
-}
-
-void NewSpace::Flip() { SemiSpace::Swap(&from_space_, &to_space_); }
-
-void NewSpace::Grow() {
-  DCHECK(heap()->safepoint()->IsActive());
-  // Double the semispace size but only up to maximum capacity.
-  DCHECK(TotalCapacity() < MaximumCapacity());
-  size_t new_capacity =
-      Min(MaximumCapacity(),
-          static_cast<size_t>(FLAG_semi_space_growth_factor) * TotalCapacity());
-  if (to_space_.GrowTo(new_capacity)) {
-    // Only grow from space if we managed to grow to-space.
-    if (!from_space_.GrowTo(new_capacity)) {
-      // If we managed to grow to-space but couldn't grow from-space,
-      // attempt to shrink to-space.
-      if (!to_space_.ShrinkTo(from_space_.current_capacity())) {
-        // We are in an inconsistent state because we could not
-        // commit/uncommit memory from new space.
-        FATAL("inconsistent state");
-      }
+    // Mark all pages up to (and including) the one containing mark.
+    for (; current_page != age_mark_page;
+         current_page = current_page->next_page()) {
+      current_page->SetFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     }
-  }
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-}
 
-void NewSpace::Shrink() {
-  size_t new_capacity = Max(InitialTotalCapacity(), 2 * Size());
-  size_t rounded_new_capacity = ::RoundUp(new_capacity, Page::kPageSize);
-  if (rounded_new_capacity < TotalCapacity() &&
-      to_space_.ShrinkTo(rounded_new_capacity)) {
-    // Only shrink from-space if we managed to shrink to-space.
-    from_space_.Reset();
-    if (!from_space_.ShrinkTo(rounded_new_capacity)) {
-      // If we managed to shrink to-space but couldn't shrink from
-      // space, attempt to grow to-space again.
-      if (!to_space_.GrowTo(from_space_.current_capacity())) {
-        // We are in an inconsistent state because we could not
-        // commit/uncommit memory from new space.
-        FATAL("inconsistent state");
-      }
-    }
-  }
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-}
-
-bool NewSpace::Rebalance() {
-  // Order here is important to make use of the page pool.
-  return to_space_.EnsureCurrentCapacity() &&
-         from_space_.EnsureCurrentCapacity();
-}
-
-void NewSpace::UpdateLinearAllocationArea() {
-  AdvanceAllocationObservers();
-
-  Address new_top = to_space_.page_low();
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.Reset(new_top, to_space_.page_high());
-  // The order of the following two stores is important.
-  // See the corresponding loads in ConcurrentMarking::Run.
-  original_limit_.store(limit(), std::memory_order_relaxed);
-  original_top_.store(top(), std::memory_order_release);
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-
-  UpdateInlineAllocationLimit(0);
-}
-
-void NewSpace::ResetLinearAllocationArea() {
-  to_space_.Reset();
-  UpdateLinearAllocationArea();
-  // Clear all mark-bits in the to-space.
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
-      heap()->incremental_marking()->non_atomic_marking_state();
-  for (Page* p : to_space_) {
-    marking_state->ClearLiveness(p);
-    // Concurrent marking may have local live bytes for this page.
-    heap()->concurrent_marking()->ClearMemoryChunkData(p);
+    DCHECK_EQ(current_page, age_mark_page);
+    current_page->SetFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
   }
 }
 
-void NewSpace::UpdateInlineAllocationLimit(size_t min_size) {
-  Address new_limit = ComputeLimit(top(), to_space_.page_high(), min_size);
-  DCHECK_LE(top(), new_limit);
-  DCHECK_LE(new_limit, to_space_.page_high());
-  allocation_info_.set_limit(new_limit);
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+void SemiSpaceNewSpace::Shrink(size_t new_capacity) {
+  DCHECK(MemoryChunk::IsAligned(new_capacity));
+  DCHECK_LE(minimum_capacity_, new_capacity);
+  DCHECK_LE(new_capacity, target_capacity_);
+  DCHECK_LE(target_capacity_, maximum_capacity_);
 
-#if DEBUG
-  VerifyTop();
-#endif
-}
-
-bool NewSpace::AddFreshPage() {
-  Address top = allocation_info_.top();
-  DCHECK(!OldSpace::IsAtPageStart(top));
-
-  if (!to_space_.AdvancePage()) {
-    // No more pages left to advance.
-    return false;
+  target_capacity_ = new_capacity;
+  to_space_.ShrinkCapacityTo(new_capacity);
+  if (allocation_top()) {
+    DCHECK_SEMISPACE_ALLOCATION_TOP(allocation_top(), to_space_);
   }
-
-  // Clear remainder of current page.
-  Address limit = Page::FromAllocationAreaAddress(top)->area_end();
-  int remaining_in_page = static_cast<int>(limit - top);
-  heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
-  UpdateLinearAllocationArea();
-
-  return true;
+  from_space_.Uncommit();
 }
 
-bool NewSpace::AddFreshPageSynchronized() {
-  base::MutexGuard guard(&mutex_);
-  return AddFreshPage();
+size_t SemiSpaceNewSpace::CommittedPhysicalMemory() const {
+  if (!base::OS::HasLazyCommits()) return CommittedMemory();
+  size_t size = to_space_.CommittedPhysicalMemory();
+  if (from_space_.IsCommitted()) {
+    size += from_space_.CommittedPhysicalMemory();
+  }
+  return size;
 }
 
-bool NewSpace::EnsureAllocation(int size_in_bytes,
-                                AllocationAlignment alignment) {
-  AdvanceAllocationObservers();
+bool SemiSpaceNewSpace::AddFreshPage() {
+  DCHECK_IMPLIES(allocation_top(), allocation_top() == to_space_.page_high());
 
-  Address old_top = allocation_info_.top();
-  Address high = to_space_.page_high();
-  int filler_size = Heap::GetFillToAlign(old_top, alignment);
-  int aligned_size_in_bytes = size_in_bytes + filler_size;
-
-  if (old_top + aligned_size_in_bytes <= high) {
-    UpdateInlineAllocationLimit(aligned_size_in_bytes);
+  if (to_space_.AdvancePage(target_capacity_)) {
+    ResetAllocationTopToCurrentPageStart();
     return true;
   }
+  return false;
+}
+std::optional<std::pair<Address, Address>>
+SemiSpaceNewSpace::AllocateOnNewPageBeyondCapacity(
+    int size_in_bytes, AllocationAlignment alignment) {
+  DCHECK_LT(Available(), size_in_bytes);
+  DCHECK(!AddFreshPage());
+  if (!to_space_.AllocateFreshPage()) return std::nullopt;
+  return Allocate(size_in_bytes, alignment);
+}
 
-  // Not enough room in the page, try to allocate a new one.
-  if (!AddFreshPage()) {
-    return false;
+bool SemiSpaceNewSpace::AddParkedAllocationBuffer(
+    int size_in_bytes, AllocationAlignment alignment) {
+  int parked_size = 0;
+  Address start = 0;
+  for (auto it = parked_allocation_buffers_.begin();
+       it != parked_allocation_buffers_.end();) {
+    parked_size = it->first;
+    start = it->second;
+    int filler_size = Heap::GetFillToAlign(start, alignment);
+    if (size_in_bytes + filler_size <= parked_size) {
+      parked_allocation_buffers_.erase(it);
+      NormalPage* page = NormalPage::FromAddress(start);
+      // We move a page with a parked allocation to the end of the pages list
+      // to maintain the invariant that the last page is the used one.
+      to_space_.MovePageToTheEnd(page);
+      SetAllocationTop(start);
+      return true;
+    } else {
+      it++;
+    }
   }
-
-  old_top = allocation_info_.top();
-  high = to_space_.page_high();
-  filler_size = Heap::GetFillToAlign(old_top, alignment);
-  aligned_size_in_bytes = size_in_bytes + filler_size;
-
-  DCHECK(old_top + aligned_size_in_bytes <= high);
-  UpdateInlineAllocationLimit(aligned_size_in_bytes);
-  return true;
+  return false;
 }
 
-void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
-  if (info.limit() != kNullAddress && info.limit() == top()) {
-    DCHECK_NE(info.top(), kNullAddress);
-    allocation_info_.set_top(info.top());
-    allocation_info_.MoveStartToTop();
-    original_top_.store(info.top(), std::memory_order_release);
-  }
-
-#if DEBUG
-  VerifyTop();
-#endif
+void SemiSpaceNewSpace::ResetParkedAllocationBuffers() {
+  parked_allocation_buffers_.clear();
 }
 
-std::unique_ptr<ObjectIterator> NewSpace::GetObjectIterator(Heap* heap) {
-  return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
+int SemiSpaceNewSpace::GetSpaceRemainingOnCurrentPageForTesting() {
+  if (!allocation_top()) return 0;
+  return static_cast<int>(to_space_.page_high() - allocation_top());
 }
 
-AllocationResult NewSpace::AllocateRawSlow(int size_in_bytes,
-                                           AllocationAlignment alignment,
-                                           AllocationOrigin origin) {
-#ifdef V8_HOST_ARCH_32_BIT
-  return alignment != kWordAligned
-             ? AllocateRawAligned(size_in_bytes, alignment, origin)
-             : AllocateRawUnaligned(size_in_bytes, origin);
-#else
-#ifdef V8_COMPRESS_POINTERS
-  // TODO(ishell, v8:8875): Consider using aligned allocations once the
-  // allocation alignment inconsistency is fixed. For now we keep using
-  // unaligned access since both x64 and arm64 architectures (where pointer
-  // compression is supported) allow unaligned access to doubles and full words.
-#endif  // V8_COMPRESS_POINTERS
-  return AllocateRawUnaligned(size_in_bytes, origin);
-#endif
-}
-
-AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes,
-                                                AllocationOrigin origin) {
-  if (!EnsureAllocation(size_in_bytes, kWordAligned)) {
-    return AllocationResult::Retry();
-  }
-
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
-
-  AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
-  DCHECK(!result.IsRetry());
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes, size_in_bytes,
-                            size_in_bytes);
-
-  return result;
-}
-
-AllocationResult NewSpace::AllocateRawAligned(int size_in_bytes,
-                                              AllocationAlignment alignment,
-                                              AllocationOrigin origin) {
-  if (!EnsureAllocation(size_in_bytes, alignment)) {
-    return AllocationResult::Retry();
-  }
-
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
-
-  int aligned_size_in_bytes;
-
-  AllocationResult result = AllocateFastAligned(
-      size_in_bytes, &aligned_size_in_bytes, alignment, origin);
-  DCHECK(!result.IsRetry());
-
-  InvokeAllocationObservers(result.ToAddress(), size_in_bytes,
-                            aligned_size_in_bytes, aligned_size_in_bytes);
-
-  return result;
-}
-
-void NewSpace::VerifyTop() {
-  // Ensure validity of LAB: start <= top <= limit
-  DCHECK_LE(allocation_info_.start(), allocation_info_.top());
-  DCHECK_LE(allocation_info_.top(), allocation_info_.limit());
-
-  // Ensure that original_top_ always equals LAB start.
-  DCHECK_EQ(original_top_, allocation_info_.start());
-
-  // Ensure that limit() is <= original_limit_, original_limit_ always needs
-  // to be end of curent to space page.
-  DCHECK_LE(allocation_info_.limit(), original_limit_);
-  DCHECK_EQ(original_limit_, to_space_.page_high());
+void SemiSpaceNewSpace::FillCurrentPageForTesting() {
+  int remaining = GetSpaceRemainingOnCurrentPageForTesting();
+  heap()->CreateFillerObjectAt(allocation_top(), remaining);
+  IncrementAllocationTop(to_space_.page_high());
 }
 
 #ifdef VERIFY_HEAP
 // We do not use the SemiSpaceObjectIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
-void NewSpace::Verify(Isolate* isolate) {
-  // The allocation pointer should be in the space or at the very end.
-  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
-
-  // There should be objects packed in from the low address up to the
-  // allocation pointer.
-  Address current = to_space_.first_page()->area_start();
-  CHECK_EQ(current, to_space_.space_start());
-
-  size_t external_space_bytes[kNumTypes];
-  for (int i = 0; i < kNumTypes; i++) {
-    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
-  }
-
-  while (current != top()) {
-    if (!Page::IsAlignedToPageSize(current)) {
-      // The allocation pointer should not be in the middle of an object.
-      CHECK(!Page::FromAllocationAreaAddress(current)->ContainsLimit(top()) ||
-            current < top());
-
-      HeapObject object = HeapObject::FromAddress(current);
-
-      // The first word should be a map, and we expect all map pointers to
-      // be in map space or read-only space.
-      Map map = object.map();
-      CHECK(map.IsMap());
-      CHECK(ReadOnlyHeap::Contains(map) || heap()->map_space()->Contains(map));
-
-      // The object should not be code or a map.
-      CHECK(!object.IsMap());
-      CHECK(!object.IsAbstractCode());
-
-      // The object itself should look OK.
-      object.ObjectVerify(isolate);
-
-      // All the interior pointers should be contained in the heap.
-      VerifyPointersVisitor visitor(heap());
-      int size = object.Size();
-      object.IterateBody(map, size, &visitor);
-
-      if (object.IsExternalString()) {
-        ExternalString external_string = ExternalString::cast(object);
-        size_t size = external_string.ExternalPayloadSize();
-        external_space_bytes[ExternalBackingStoreType::kExternalString] += size;
-      }
-
-      current += size;
-    } else {
-      // At end of page, switch to next page.
-      Page* page = Page::FromAllocationAreaAddress(current)->next_page();
-      current = page->area_start();
-    }
-  }
-
-  for (int i = 0; i < kNumTypes; i++) {
-    if (i == ExternalBackingStoreType::kArrayBuffer) continue;
-    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
-  }
-
-    size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
-    CHECK_EQ(bytes,
-             ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
+void SemiSpaceNewSpace::Verify(Isolate* isolate,
+                               SpaceVerificationVisitor* visitor) const {
+  VerifyObjects(isolate, visitor);
 
   // Check semi-spaces.
   CHECK_EQ(from_space_.id(), kFromSpace);
   CHECK_EQ(to_space_.id(), kToSpace);
-  from_space_.Verify();
-  to_space_.Verify();
+  from_space_.VerifyPages();
+  to_space_.VerifyPages();
 }
-#endif
+
+// We do not use the SemiSpaceObjectIterator because verification doesn't assume
+// that it works (it depends on the invariants we are checking).
+void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
+                                      SpaceVerificationVisitor* visitor) const {
+  PtrComprCageBase cage_base(isolate);
+  for (const NormalPage* page = to_space_.first_page(); page;
+       page = page->next_page()) {
+    visitor->VerifyPage(page);
+
+    Address current_address = page->area_start();
+
+    while (!NormalPage::IsAlignedToPageSize(current_address)) {
+      Tagged<HeapObject> object = HeapObject::FromAddress(current_address);
+
+      // The first word should be a map, and we expect all map pointers to
+      // be in map space or read-only space.
+      int size = object->Size(cage_base);
+
+      visitor->VerifyObject(object);
+      current_address += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
+    }
+
+    visitor->VerifyPageDone(page);
+  }
+}
+#endif  // VERIFY_HEAP
+
+void SemiSpaceNewSpace::MakeIterable() {
+  MakeAllPagesInFromSpaceIterable();
+  MakeUnusedPagesInToSpaceIterable();
+}
+
+void SemiSpaceNewSpace::MakeAllPagesInFromSpaceIterable() {
+  if (!IsFromSpaceCommitted()) return;
+
+  // Fix all pages in the "from" semispace.
+  for (NormalPage* page : from_space()) {
+    heap()->CreateFillerObjectAt(page->area_start(),
+                                 static_cast<int>(page->area_size()));
+  }
+}
+
+void SemiSpaceNewSpace::MakeUnusedPagesInToSpaceIterable() {
+  if (!to_space().current_page()) {
+    DCHECK(to_space().memory_chunk_list().Empty());
+    return;
+  }
+
+  PageIterator it(to_space().current_page());
+
+  // Fix the remaining unused pages in the "to" semispace.
+  for (NormalPage* page = *(++it); page != nullptr; page = *(++it)) {
+    heap()->CreateFillerObjectAt(page->area_start(),
+                                 static_cast<int>(page->area_size()));
+  }
+}
+
+bool SemiSpaceNewSpace::ShouldPageBePromoted(const MemoryChunk* chunk) const {
+  if (!chunk->InNewSpaceBelowAgeMark()) {
+    return false;
+  }
+  // If the page contains the current age mark, it contains both objects in the
+  // interemediate generation (that could be promoted to old space) and new
+  // objects (that should remain in new space). When pinning an intermediate
+  // generation object on this page, we don't yet know whether or not the page
+  // will also contain pinned new objects (that will prevent us from promoting
+  // the page). Thus, we conservatively keep the page in new space. Pinned
+  // objects on it will either die or be promoted in the next GC cycle.
+  return !chunk->Metadata(heap()->isolate())->ContainsLimit(age_mark_);
+}
+
+std::unique_ptr<ObjectIterator> SemiSpaceNewSpace::GetObjectIterator(
+    Heap* heap) {
+  return std::unique_ptr<ObjectIterator>(new SemiSpaceObjectIterator(this));
+}
+
+bool SemiSpaceNewSpace::Contains(Tagged<HeapObject> object) const {
+  // Don't delegate to SemiSpace to avoid the repeated metadata lookup.
+  const auto* owner =
+      BasePage::FromHeapObject(heap()->isolate(), object)->owner();
+  return owner == &to_space_ || owner == &from_space_;
+}
+
+bool SemiSpaceNewSpace::ContainsSlow(Address a) const {
+  return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
+}
+
+size_t SemiSpaceNewSpace::Size() const {
+  size_t const top = allocation_top();
+  size_t const quarantined = QuarantinedSize();
+
+  if (top) {
+    DCHECK_SEMISPACE_ALLOCATION_TOP(top, to_space_);
+    return quarantined +
+           (to_space_.current_capacity() - NormalPage::kPageSize) /
+               NormalPage::kPageSize *
+               MemoryChunkLayout::AllocatableMemoryInDataPage() +
+           static_cast<size_t>(top - to_space_.page_low());
+  } else {
+    DCHECK_EQ(to_space_.current_capacity(), 0);
+    return quarantined;
+  }
+}
+
+size_t SemiSpaceNewSpace::Available() const {
+  DCHECK_GE(Capacity(), Size() - QuarantinedSize());
+  return Capacity() - (Size() - QuarantinedSize());
+}
+
+size_t SemiSpaceNewSpace::AllocatedSinceLastGC() const {
+  size_t current_size = Size();
+  DCHECK_GE(current_size, size_after_last_gc_);
+  return current_size - size_after_last_gc_;
+}
+
+void SemiSpaceNewSpace::GarbageCollectionPrologue() {
+  ResetParkedAllocationBuffers();
+}
+
+void SemiSpaceNewSpace::SwapSemiSpaces() {
+  // Flip the semispaces. After flipping, to space is empty and from space has
+  // live objects.
+  SemiSpace::Swap(&from_space_, &to_space_);
+  to_space_.Reset();
+  from_space_.Reset();
+  quarantined_size_ = 0;
+  allocation_top_ = kNullAddress;
+  DCHECK_EQ(0u, Size());
+
+#if DEBUG
+  for (NormalPage* p : to_space_) {
+    DCHECK(p->IsLivenessClear());
+  }
+#endif  // DEBUG
+}
+
+void SemiSpaceNewSpace::GarbageCollectionEpilogue() {
+  DCHECK(!heap()->allocator()->new_space_allocator()->IsLabValid());
+  SetAgeMarkAndBelowAgeMarkPageFlags();
+  size_after_last_gc_ = Size();
+
+  if (heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
+    ZapUnusedMemory();
+  }
+
+  // Shrink from-space down to target_capacity_ if necessary.
+  from_space_.ShrinkCapacityTo(target_capacity_);
+  // to-space always fits into target_capacity_ after the GC.
+  DCHECK_LE(to_space_.current_capacity(), target_capacity_);
+  MakeAllPagesInFromSpaceIterable();
+}
+
+void SemiSpaceNewSpace::ZapUnusedMemory() {
+  if (!IsFromSpaceCommitted()) {
+    return;
+  }
+  for (NormalPage* page : PageRange(from_space().first_page(), nullptr)) {
+    heap::ZapBlock(page->area_start(),
+                   page->HighWaterMark() - page->area_start(),
+                   heap::ZapValue());
+  }
+}
+
+void SemiSpaceNewSpace::RemovePage(NormalPage* page) {
+  DCHECK(!page->Chunk()->IsToPage());
+  DCHECK(page->Chunk()->IsFromPage());
+  from_space().RemovePage(page);
+}
+
+bool SemiSpaceNewSpace::IsPromotionCandidate(const MutablePage* page) const {
+  return !page->Contains(age_mark());
+}
+
+std::optional<std::pair<Address, Address>> SemiSpaceNewSpace::Allocate(
+    int size_in_bytes, AllocationAlignment alignment) {
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+  Address top = allocation_top();
+  if (top) {
+    DCHECK_SEMISPACE_ALLOCATION_TOP(allocation_top(), to_space_);
+    Address high = to_space_.page_high();
+    int filler_size = Heap::GetFillToAlign(top, alignment);
+    int aligned_size_in_bytes = size_in_bytes + filler_size;
+
+    if (top + aligned_size_in_bytes <= high) {
+      IncrementAllocationTop(high);
+      return std::pair(top, high);
+    }
+
+    int remaining_in_page = static_cast<int>(high - top);
+    heap()->CreateFillerObjectAt(top, remaining_in_page);
+    SetAllocationTop(high);
+
+    // We park unused allocation buffer space of allocations happening from the
+    // mutator.
+    if (v8_flags.allocation_buffer_parking &&
+        heap()->gc_state() == Heap::NOT_IN_GC &&
+        remaining_in_page >= kAllocationBufferParkingThreshold) {
+      parked_allocation_buffers_.push_back(
+          ParkedAllocationBuffer(remaining_in_page, top));
+    }
+  }
+
+  if (AddFreshPage()) {
+    Address start = allocation_top();
+    Address end = to_space_.page_high();
+    IncrementAllocationTop(end);
+    return std::pair(start, end);
+  }
+
+  if (v8_flags.allocation_buffer_parking &&
+      AddParkedAllocationBuffer(size_in_bytes, alignment)) {
+    Address start = allocation_top();
+    Address end = to_space_.page_high();
+    DCHECK_LT(start, end);
+    IncrementAllocationTop(end);
+    return std::pair(start, end);
+  }
+
+  return std::nullopt;
+}
+
+void SemiSpaceNewSpace::Free(Address start, Address end) {
+  DCHECK_LE(start, end);
+  heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
+
+  if (end == allocation_top()) {
+    DecrementAllocationTop(start);
+  }
+}
+
+AllocatorPolicy* SemiSpaceNewSpace::CreateAllocatorPolicy(
+    MainAllocator* allocator) {
+  return new SemiSpaceNewSpaceAllocatorPolicy(this, allocator);
+}
+
+void SemiSpaceNewSpace::MoveQuarantinedPage(NormalPage* metadata) {
+  to_space_.MoveQuarantinedPage(metadata);
+}
+
+// -----------------------------------------------------------------------------
+// PagedSpaceForNewSpace implementation
+
+PagedSpaceForNewSpace::PagedSpaceForNewSpace(Heap* heap,
+                                             size_t initial_capacity,
+                                             size_t min_capacity,
+                                             size_t max_capacity)
+    : PagedSpaceBase(heap, NEW_SPACE, NOT_EXECUTABLE,
+                     FreeList::CreateFreeListForNewSpace(),
+                     CompactionSpaceKind::kNone),
+      min_capacity_(min_capacity),
+      max_capacity_(max_capacity),
+      target_capacity_(initial_capacity) {
+  DCHECK(IsAligned(target_capacity_, NormalPage::kPageSize));
+  DCHECK(IsAligned(min_capacity_, NormalPage::kPageSize));
+  DCHECK(IsAligned(max_capacity_, NormalPage::kPageSize));
+
+  DCHECK_LE(min_capacity_, target_capacity_);
+  DCHECK_LE(target_capacity_, max_capacity_);
+}
+
+NormalPage* PagedSpaceForNewSpace::InitializePage(
+    MutablePage* mutable_page_metadata) {
+  DCHECK_EQ(identity(), NEW_SPACE);
+  MemoryChunk* chunk = mutable_page_metadata->Chunk();
+  NormalPage* page = SbxCast<NormalPage>(mutable_page_metadata);
+  DCHECK_EQ(
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(page->owner_identity()),
+      page->area_size());
+  // Make sure that categories are initialized before freeing the area.
+  page->ResetAllocationStatistics();
+  page->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+  page->ClearLiveness();
+  page->AllocateFreeListCategories();
+  page->InitializeFreeListCategories();
+  page->list_node().Initialize();
+  chunk->InitializationMemoryFence();
+  return page;
+}
+
+void PagedSpaceForNewSpace::Grow(size_t new_capacity) {
+  heap()->safepoint()->AssertActive();
+  DCHECK_LE(TotalCapacity(), MaximumCapacity());
+  DCHECK_LE(new_capacity, MaximumCapacity());
+  target_capacity_ = new_capacity;
+}
+
+void PagedSpaceForNewSpace::GrowToMaximumCapacityForTesting() {
+  Grow(max_capacity_);
+}
+
+bool PagedSpaceForNewSpace::StartShrinking(size_t new_target_capacity) {
+  DCHECK(heap()->tracer()->IsInAtomicPause());
+  if (new_target_capacity > target_capacity_) return false;
+  target_capacity_ = new_target_capacity;
+  return true;
+}
+
+void PagedSpaceForNewSpace::FinishShrinking() {
+  DCHECK(heap()->tracer()->IsInAtomicPause());
+  if (current_capacity_ > target_capacity_) {
+#if DEBUG
+    // If `current_capacity_` is higher than `target_capacity_`, i.e. the
+    // space could not be shrunk all the way down to `target_capacity_`, it
+    // must mean that all pages contain live objects.
+    for (NormalPage* page : *this) {
+      DCHECK_NE(0, page->live_bytes());
+    }
+#endif  // DEBUG
+    // After a minor GC current_capacity_ could be still above max_capacity_
+    // when not enough pages got promoted or died.
+    target_capacity_ = std::min(current_capacity_, max_capacity_);
+  }
+}
+
+size_t PagedSpaceForNewSpace::AddPage(NormalPage* page) {
+  current_capacity_ += NormalPage::kPageSize;
+  return PagedSpaceBase::AddPage(page);
+}
+
+void PagedSpaceForNewSpace::RemovePage(NormalPage* page) {
+  DCHECK_LE(NormalPage::kPageSize, current_capacity_);
+  current_capacity_ -= NormalPage::kPageSize;
+  PagedSpaceBase::RemovePage(page);
+}
+
+void PagedSpaceForNewSpace::RemovePageFromSpace(NormalPage* page) {
+  DCHECK_LE(NormalPage::kPageSize, current_capacity_);
+  current_capacity_ -= NormalPage::kPageSize;
+  PagedSpaceBase::RemovePageFromSpaceImpl(page);
+}
+
+bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {
+  return current_capacity_ > target_capacity_;
+}
+
+void PagedSpaceForNewSpace::AllocatePageUpToCapacityForTesting() {
+  while (current_capacity_ < target_capacity_) {
+    if (!AllocatePage()) return;
+  }
+}
+
+bool PagedSpaceForNewSpace::AllocatePage() {
+  // Verify that the free space map is already initialized. Otherwise, new free
+  // list entries will be invalid.
+  DCHECK_NE(kNullAddress,
+            heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
+  return TryExpand(heap()->main_thread_local_heap(),
+                   AllocationOrigin::kRuntime);
+}
+
+bool PagedSpaceForNewSpace::IsPromotionCandidate(
+    const MutablePage* page) const {
+  DCHECK_EQ(this, page->owner());
+  if (page == last_lab_page_) return false;
+  return page->AllocatedLabSize() <=
+         static_cast<size_t>(
+             NormalPage::kPageSize *
+             v8_flags.minor_ms_page_promotion_max_lab_threshold / 100);
+}
+
+size_t PagedSpaceForNewSpace::AllocatedSinceLastGC() const {
+  return Size() - size_at_last_gc_;
+}
+
+size_t PagedSpaceForNewSpace::Available() const {
+  return PagedSpaceBase::Available();
+}
+
+#ifdef VERIFY_HEAP
+void PagedSpaceForNewSpace::Verify(Isolate* isolate,
+                                   SpaceVerificationVisitor* visitor) const {
+  PagedSpaceBase::Verify(isolate, visitor);
+
+  CHECK_EQ(current_capacity_, NormalPage::kPageSize * CountTotalPages());
+
+  auto sum_allocated_labs = [](size_t sum, const NormalPage* page) {
+    return sum + page->AllocatedLabSize();
+  };
+  CHECK_EQ(AllocatedSinceLastGC(),
+           std::accumulate(begin(), end(), 0, sum_allocated_labs));
+}
+#endif  // VERIFY_HEAP
+
+// -----------------------------------------------------------------------------
+// PagedNewSpace implementation
+
+PagedNewSpace::PagedNewSpace(Heap* heap, size_t initial_capacity,
+                             size_t min_capacity, size_t max_capacity)
+    : NewSpace(heap),
+      paged_space_(heap, initial_capacity, min_capacity, max_capacity) {}
+
+PagedNewSpace::~PagedNewSpace() {
+  paged_space_.TearDown();
+}
+
+AllocatorPolicy* PagedNewSpace::CreateAllocatorPolicy(
+    MainAllocator* allocator) {
+  return new PagedNewSpaceAllocatorPolicy(this, allocator);
+}
+
+bool PagedNewSpace::Contains(Tagged<HeapObject> object) const {
+  return paged_space_.Contains(object);
+}
 
 }  // namespace internal
 }  // namespace v8

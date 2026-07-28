@@ -1,12 +1,13 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
-const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
+const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/no-unescaped-regexp-dot');
 
 new RuleTester().run('no-unescaped-regexp-dot', rule, {
@@ -17,7 +18,7 @@ new RuleTester().run('no-unescaped-regexp-dot', rule, {
     '/.*/',
     '/.?/',
     '/.{5}/',
-    String.raw`/\\\./`
+    String.raw`/\\\./`,
   ],
   invalid: [
     {
@@ -27,6 +28,6 @@ new RuleTester().run('no-unescaped-regexp-dot', rule, {
     {
       code: String.raw`/\\./`,
       errors: [{ message: 'Unescaped dot character in regular expression' }]
-    }
+    },
   ]
 });

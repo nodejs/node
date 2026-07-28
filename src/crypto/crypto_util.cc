@@ -1,10 +1,10 @@
 #include "crypto/crypto_util.h"
+#include "async_wrap-inl.h"
 #include "crypto/crypto_bio.h"
 #include "crypto/crypto_keys.h"
-#include "allocated_buffer-inl.h"
-#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "ncrypto.h"
 #include "node_buffer.h"
 #include "node_options-inl.h"
 #include "string_bytes.h"
@@ -14,64 +14,49 @@
 
 #include "math.h"
 
+#if OPENSSL_VERSION_MAJOR >= 3
+#include "openssl/provider.h"
+#endif
+
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::BIOPointer;
+using ncrypto::CryptoErrorList;
+using ncrypto::DataPointer;
+#ifndef OPENSSL_NO_ENGINE
+using ncrypto::EnginePointer;
+#endif  // !OPENSSL_NO_ENGINE
+using ncrypto::SSLPointer;
+using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
+using v8::BigInt;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
+using v8::TryCatch;
+using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
-int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
-  // From https://www.openssl.org/docs/man1.1.1/man3/SSL_verify_cb:
-  //
-  //   If VerifyCallback returns 1, the verification process is continued. If
-  //   VerifyCallback always returns 1, the TLS/SSL handshake will not be
-  //   terminated with respect to verification failures and the connection will
-  //   be established. The calling process can however retrieve the error code
-  //   of the last verification error using SSL_get_verify_result(3) or by
-  //   maintaining its own error storage managed by VerifyCallback.
-  //
-  // Since we cannot perform I/O quickly enough with X509_STORE_CTX_ APIs in
-  // this callback, we ignore all preverify_ok errors and let the handshake
-  // continue. It is imperative that the user use Connection::VerifyError after
-  // the 'secure' callback has been made.
-  return 1;
-}
-
-void CheckEntropy() {
-  for (;;) {
-    int status = RAND_status();
-    CHECK_GE(status, 0);  // Cannot fail.
-    if (status != 0)
-      break;
-
-    // Give up, RAND_poll() not supported.
-    if (RAND_poll() == 0)
-      break;
-  }
-}
-
-bool EntropySource(unsigned char* buffer, size_t length) {
-  // Ensure that OpenSSL's PRNG is properly seeded.
-  CheckEntropy();
-  // RAND_bytes() can return 0 to indicate that the entropy data is not truly
-  // random. That's okay, it's still better than V8's stock source of entropy,
-  // which is /dev/urandom on UNIX platforms and the current time on Windows.
-  return RAND_bytes(buffer, length) != -1;
-}
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
   const ByteSource* passphrase = *static_cast<const ByteSource**>(u);
@@ -80,7 +65,7 @@ int PasswordCallback(char* buf, int size, int rwflag, void* u) {
     size_t len = passphrase->size();
     if (buflen < len)
       return -1;
-    memcpy(buf, passphrase->get(), len);
+    memcpy(buf, passphrase->data(), len);
     return len;
   }
 
@@ -96,109 +81,274 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
+bool ProcessFipsOptions() {
+  /* Override FIPS settings in configuration file, if needed. */
+  if (per_process::cli_options->enable_fips_crypto ||
+      per_process::cli_options->force_fips_crypto) {
+#if OPENSSL_VERSION_MAJOR >= 3
+    if (!ncrypto::testFipsEnabled()) return false;
+    return ncrypto::setFipsEnabled(true, nullptr);
+#else
+    // TODO(@jasnell): Remove this ifdef branch when openssl 1.1.1 is
+    // no longer supported.
+    if (FIPS_mode() == 0) return FIPS_mode_set(1);
+#endif
+  }
+  return true;
+}
+
+bool InitCryptoOnce(Isolate* isolate) {
+  static uv_once_t init_once = UV_ONCE_INIT;
+  TryCatch try_catch{isolate};
+  uv_once(&init_once, InitCryptoOnce);
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    try_catch.ReThrow();
+    return false;
+  }
+  return true;
+}
+
+// Protect accesses to FIPS state with a mutex. This should potentially
+// be part of a larger mutex for global OpenSSL state.
+static Mutex fips_mutex;
+
 void InitCryptoOnce() {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
 #ifndef OPENSSL_IS_BORINGSSL
   OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
 
+#if OPENSSL_VERSION_MAJOR < 3
   // --openssl-config=...
   if (!per_process::cli_options->openssl_config.empty()) {
     const char* conf = per_process::cli_options->openssl_config.c_str();
     OPENSSL_INIT_set_config_filename(settings, conf);
   }
-
-  OPENSSL_init_ssl(0, settings);
-  OPENSSL_INIT_free(settings);
-  settings = nullptr;
 #endif
 
-#ifdef NODE_FIPS_MODE
-  /* Override FIPS settings in cnf file, if needed. */
-  unsigned long err = 0;  // NOLINT(runtime/int)
-  if (per_process::cli_options->enable_fips_crypto ||
-      per_process::cli_options->force_fips_crypto) {
-    if (0 == FIPS_mode() && !FIPS_mode_set(1)) {
-      err = ERR_get_error();
+#if OPENSSL_VERSION_MAJOR >= 3
+  // --openssl-legacy-provider
+  if (per_process::cli_options->openssl_legacy_provider) {
+    OSSL_PROVIDER* legacy_provider = OSSL_PROVIDER_load(nullptr, "legacy");
+    if (legacy_provider == nullptr) {
+      fprintf(stderr, "Unable to load legacy provider.\n");
     }
   }
-  if (0 != err) {
-    fprintf(stderr,
-            "openssl fips failed: %s\n",
-            ERR_error_string(err, nullptr));
-    UNREACHABLE();
+#endif
+
+  OPENSSL_init_ssl(0, settings);
+
+#if OPENSSL_WITH_OPENSSL_PQC
+  // Configure all loaded providers to prefer seed-only format for ML-KEM and
+  // ML-DSA private keys in PKCS#8 export, falling back to priv-only when a
+  // seed is not available. The provider encoder reads these parameters at
+  // encoding time via ossl_prov_ctx_get_param().
+  OSSL_PROVIDER_do_all(
+      nullptr,
+      [](OSSL_PROVIDER* provider, void*) -> int {
+        OSSL_PROVIDER_add_conf_parameter(
+            provider, "ml-kem.output_formats", "seed-only,priv-only");
+        OSSL_PROVIDER_add_conf_parameter(
+            provider, "ml-dsa.output_formats", "seed-only,priv-only");
+        return 1;
+      },
+      nullptr);
+#endif
+  OPENSSL_INIT_free(settings);
+  settings = nullptr;
+
+#ifndef _WIN32
+  if (per_process::cli_options->secure_heap != 0) {
+    switch (DataPointer::TryInitSecureHeap(
+        per_process::cli_options->secure_heap,
+        per_process::cli_options->secure_heap_min)) {
+      case DataPointer::InitSecureHeapResult::FAILED:
+        fprintf(stderr, "Unable to initialize openssl secure heap.\n");
+        break;
+      case DataPointer::InitSecureHeapResult::UNABLE_TO_MEMORY_MAP:
+        // Not a fatal error but worthy of a warning.
+        fprintf(stderr, "Unable to memory map openssl secure heap.\n");
+        break;
+      case DataPointer::InitSecureHeapResult::OK:
+        // OK!
+        break;
+    }
   }
-#endif  // NODE_FIPS_MODE
+#endif
+
+#endif  // OPENSSL_IS_BORINGSSL
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
   // No-op with OPENSSL_NO_COMP builds of OpenSSL.
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 
 #ifndef OPENSSL_NO_ENGINE
-  ERR_load_ENGINE_strings();
-  ENGINE_load_builtin_engines();
+  EnginePointer::initEnginesOnce();
 #endif  // !OPENSSL_NO_ENGINE
-
-  NodeBIO::GetMethod();
 }
 
-#ifdef NODE_FIPS_MODE
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(FIPS_mode() ? 1 : 0);
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
+  args.GetReturnValue().Set(ncrypto::isFipsEnabled() ? 1 : 0);
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
+
   CHECK(!per_process::cli_options->force_fips_crypto);
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->owns_process_state());
   bool enable = args[0]->BooleanValue(env->isolate());
 
-  if (enable == FIPS_mode())
-    return;  // No action needed.
-
-  if (!FIPS_mode_set(enable)) {
-    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-    return ThrowCryptoError(env, err);
+  CryptoErrorList errors;
+  if (!ncrypto::setFipsEnabled(enable, &errors)) {
+    Local<Value> exception;
+    if (cryptoErrorListToException(env, errors).ToLocal(&exception)) {
+      env->isolate()->ThrowException(exception);
+    }
   }
 }
-#endif /* NODE_FIPS_MODE */
 
-void CryptoErrorVector::Capture() {
-  clear();
-  while (auto err = ERR_get_error()) {
+void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  Mutex::ScopedLock fips_lock(fips_mutex);
+  args.GetReturnValue().Set(ncrypto::testFipsEnabled() ? 1 : 0);
+}
+
+void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
+  ncrypto::ClearErrorOnReturn clear_error_on_return;
+  if (auto sec_level = SSLPointer::getSecurityLevel()) {
+    return args.GetReturnValue().Set(sec_level.value());
+  }
+  Environment* env = Environment::GetCurrent(args);
+  ThrowCryptoError(
+      env, clear_error_on_return.peekError(), "getOpenSSLSecLevel");
+}
+
+void CryptoErrorStore::Capture() {
+  errors_.clear();
+  primary_openssl_error_ = 0;
+  while (const uint32_t err = ERR_get_error()) {
+    if (primary_openssl_error_ == 0) primary_openssl_error_ = err;
     char buf[256];
     ERR_error_string_n(err, buf, sizeof(buf));
-    push_back(buf);
+    errors_.emplace_back(buf);
   }
-  std::reverse(begin(), end());
+  std::ranges::reverse(errors_);
 }
 
-MaybeLocal<Value> CryptoErrorVector::ToException(
+bool CryptoErrorStore::Empty() const {
+  return errors_.empty();
+}
+
+MaybeLocal<Value> cryptoErrorListToException(Environment* env,
+                                             const CryptoErrorList& errors) {
+  // The CryptoErrorList contains a listing of zero or more errors.
+  // If there are no errors, it is likely a bug but we will return
+  // an error anyway.
+  if (errors.empty()) {
+    return Exception::Error(FIXED_ONE_BYTE_STRING(env->isolate(), "Ok"));
+  }
+
+  // The last error in the list is the one that will be used as the
+  // error message. All other errors will be added to the .opensslErrorStack
+  // property. We know there has to be at least one error in the list at
+  // this point.
+  auto& last = errors.peek_back();
+  Local<String> message;
+  if (!String::NewFromUtf8(
+           env->isolate(), last.data(), NewStringType::kNormal, last.size())
+           .ToLocal(&message)) {
+    return {};
+  }
+
+  Local<Value> exception = Exception::Error(message);
+  CHECK(!exception.IsEmpty());
+
+  if (errors.size() > 1) {
+    CHECK(exception->IsObject());
+    Local<Object> exception_obj = exception.As<Object>();
+    LocalVector<Value> stack(env->isolate());
+    stack.reserve(errors.size() - 1);
+
+    // Iterate over all but the last error in the list.
+    auto current = errors.begin();
+    auto last = errors.end();
+    last--;
+    while (current != last) {
+      Local<Value> error;
+      if (!ToV8Value(env->context(), *current).ToLocal(&error)) {
+        return {};
+      }
+      stack.push_back(error);
+      ++current;
+    }
+
+    Local<v8::Array> stackArray =
+        v8::Array::New(env->isolate(), stack.data(), stack.size());
+
+    if (exception_obj
+            ->Set(env->context(), env->openssl_error_stack(), stackArray)
+            .IsNothing()) {
+      return {};
+    }
+  }
+  return exception;
+}
+
+namespace error {
+v8::Maybe<void> Decorate(Environment* env,
+                         v8::Local<v8::Object> obj,
+                         unsigned long err);  // NOLINT(runtime/int)
+}  // namespace error
+
+MaybeLocal<Value> CryptoErrorStore::ToException(
     Environment* env,
     Local<String> exception_string) const {
   if (exception_string.IsEmpty()) {
-    CryptoErrorVector copy(*this);
-    if (copy.empty()) copy.push_back("no error");  // But possibly a bug...
+    CryptoErrorStore copy(*this);
+    if (copy.Empty()) {
+      // But possibly a bug...
+      copy.Insert(NodeCryptoError::OK);
+    }
     // Use last element as the error message, everything else goes
     // into the .opensslErrorStack property on the exception object.
-    Local<String> exception_string;
-    if (!String::NewFromUtf8(
-            env->isolate(),
-            copy.back().data(),
-            NewStringType::kNormal,
-            copy.back().size()).ToLocal(&exception_string)) {
+    const std::string& last_error_string = copy.errors_.back();
+    Local<Value> exception_string;
+    if (!ToV8Value(env->context(), last_error_string)
+             .ToLocal(&exception_string)) {
       return MaybeLocal<Value>();
     }
-    copy.pop_back();
-    return copy.ToException(env, exception_string);
+    DCHECK(exception_string->IsString());
+    copy.errors_.pop_back();
+    return copy.ToException(env, exception_string.As<v8::String>());
   }
 
   Local<Value> exception_v = Exception::Error(exception_string);
   CHECK(!exception_v.IsEmpty());
+  CHECK(exception_v->IsObject());
+  Local<Object> exception = exception_v.As<Object>();
 
-  if (!empty()) {
-    CHECK(exception_v->IsObject());
-    Local<Object> exception = exception_v.As<Object>();
+  if (!Empty()) {
     Local<Value> stack;
-    if (!ToV8Value(env->context(), *this).ToLocal(&stack) ||
+    if (!ToV8Value(env->context(), errors_).ToLocal(&stack) ||
         exception->Set(env->context(), env->openssl_error_stack(), stack)
+            .IsNothing()) {
+      return MaybeLocal<Value>();
+    }
+  }
+
+  if (primary_openssl_error_ != 0) {
+    if (error::Decorate(env, exception, primary_openssl_error_).IsNothing()) {
+      return MaybeLocal<Value>();
+    }
+  } else if (node_error_code_ != nullptr) {
+    if (exception
+            ->Set(env->context(),
+                  env->code_string(),
+                  OneByteString(env->isolate(), node_error_code_))
             .IsNothing()) {
       return MaybeLocal<Value>();
     }
@@ -218,12 +368,6 @@ ByteSource::~ByteSource() {
   OPENSSL_clear_free(allocated_data_, size_);
 }
 
-void ByteSource::reset() {
-  OPENSSL_clear_free(allocated_data_, size_);
-  data_ = nullptr;
-  size_ = 0;
-}
-
 ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   if (&other != this) {
     OPENSSL_clear_free(allocated_data_, size_);
@@ -235,16 +379,61 @@ ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   return *this;
 }
 
-std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore() {
+void TruncateToBitLength(size_t length_bits, ByteSource* bytes) {
+  CHECK_NOT_NULL(bytes);
+  const size_t length_bytes = NumBitsToBytes(length_bits);
+  CHECK_LE(length_bytes, bytes->size());
+
+  if (bytes->allocated_data_ == nullptr || bytes->size() != length_bytes) {
+    auto data = DataPointer::Alloc(length_bytes);
+    if (length_bytes > 0) {
+      CHECK_NOT_NULL(data.get());
+      memcpy(data.get(), bytes->data(), length_bytes);
+    }
+    *bytes = ByteSource::Allocated(data.release());
+  }
+
+  const size_t remainder_bits = length_bits % CHAR_BIT;
+  if (remainder_bits != 0) {
+    auto* data = static_cast<unsigned char*>(bytes->allocated_data_);
+    CHECK_NOT_NULL(data);
+    const unsigned char mask =
+        static_cast<unsigned char>(0xff << (CHAR_BIT - remainder_bits));
+    data[length_bytes - 1] &= mask;
+  }
+}
+
+std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore(
+    Environment* env) {
   // It's ok for allocated_data_ to be nullptr but
   // only if size_ is zero.
   CHECK_IMPLIES(size_ > 0, allocated_data_ != nullptr);
+#ifdef V8_ENABLE_SANDBOX
+  // If the v8 sandbox is enabled, then all array buffers must be allocated
+  // via the isolate. External buffers are not allowed. So, instead of wrapping
+  // the allocated data we'll copy it instead.
+
+  // TODO(@jasnell): It would be nice to use an abstracted utility to do this
+  // branch instead of duplicating the V8_ENABLE_SANDBOX check each time.
+  std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      size(),
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!ptr) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return nullptr;
+  }
+  memcpy(ptr->Data(), allocated_data_, size());
+  OPENSSL_clear_free(allocated_data_, size_);
+#else
   std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
       allocated_data_,
       size(),
       [](void* data, size_t length, void* deleter_data) {
         OPENSSL_clear_free(deleter_data, length);
       }, allocated_data_);
+#endif  // V8_ENABLE_SANDBOX
   CHECK(ptr);
   allocated_data_ = nullptr;
   data_ = nullptr;
@@ -253,67 +442,56 @@ std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore() {
 }
 
 Local<ArrayBuffer> ByteSource::ToArrayBuffer(Environment* env) {
-  std::unique_ptr<BackingStore> store = ReleaseToBackingStore();
+  std::unique_ptr<BackingStore> store = ReleaseToBackingStore(env);
   return ArrayBuffer::New(env->isolate(), std::move(store));
 }
 
-const char* ByteSource::get() const {
-  return data_;
-}
-
-size_t ByteSource::size() const {
-  return size_;
+MaybeLocal<Uint8Array> ByteSource::ToBuffer(Environment* env) {
+  Local<ArrayBuffer> ab = ToArrayBuffer(env);
+  return Buffer::New(env, ab, 0, ab->ByteLength());
 }
 
 ByteSource ByteSource::FromBIO(const BIOPointer& bio) {
   CHECK(bio);
-  BUF_MEM* bptr;
-  BIO_get_mem_ptr(bio.get(), &bptr);
-  char* data = MallocOpenSSL<char>(bptr->length);
-  memcpy(data, bptr->data, bptr->length);
-  return Allocated(data, bptr->length);
+  BUF_MEM* bptr = bio;
+  auto out = DataPointer::Alloc(bptr->length);
+  memcpy(out.get(), bptr->data, bptr->length);
+  return ByteSource::Allocated(out.release());
 }
 
 ByteSource ByteSource::FromEncodedString(Environment* env,
                                          Local<String> key,
                                          enum encoding enc) {
   size_t length = 0;
-  size_t actual = 0;
-  char* data = nullptr;
+  ByteSource out;
 
   if (StringBytes::Size(env->isolate(), key, enc).To(&length) && length > 0) {
-    data = MallocOpenSSL<char>(length);
-    actual = StringBytes::Write(env->isolate(), data, length, key, enc);
-
-    CHECK(actual <= length);
-
-    if (actual == 0) {
-      OPENSSL_clear_free(data, length);
-      data = nullptr;
-    } else if (actual < length) {
-      data = reinterpret_cast<char*>(OPENSSL_realloc(data, actual));
-    }
+    auto buf = DataPointer::Alloc(length);
+    size_t actual = StringBytes::Write(
+        env->isolate(), static_cast<char*>(buf.get()), length, key, enc);
+    out = ByteSource::Allocated(buf.resize(actual).release());
   }
 
-  return Allocated(data, actual);
+  return out;
 }
 
 ByteSource ByteSource::FromStringOrBuffer(Environment* env,
                                           Local<Value> value) {
-  return IsAnyByteSource(value) ? FromBuffer(value)
-                                : FromString(env, value.As<String>());
+  return IsAnyBufferSource(value) ? FromBuffer(value)
+                                  : FromString(env, value.As<String>());
 }
 
 ByteSource ByteSource::FromString(Environment* env, Local<String> str,
                                   bool ntc) {
   CHECK(str->IsString());
-  size_t size = str->Utf8Length(env->isolate());
+  size_t size = str->Utf8LengthV2(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
-  char* data = MallocOpenSSL<char>(alloc_size);
-  int opts = String::NO_OPTIONS;
-  if (!ntc) opts |= String::NO_NULL_TERMINATION;
-  str->WriteUtf8(env->isolate(), data, alloc_size, nullptr, opts);
-  return Allocated(data, size);
+  auto out = DataPointer::Alloc(alloc_size);
+  int flags = String::WriteFlags::kNone;
+  if (ntc) flags |= String::WriteFlags::kNullTerminate;
+  str->WriteUtf8V2(
+      env->isolate(), static_cast<char*>(out.get()), alloc_size, flags);
+  return ByteSource::Allocated(out.release());
 }
 
 ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
@@ -324,12 +502,12 @@ ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
 ByteSource ByteSource::FromSecretKeyBytes(
     Environment* env,
     Local<Value> value) {
-  // A key can be passed as a string, buffer or KeyObject with type 'secret'.
-  // If it is a string, we need to convert it to a buffer. We are not doing that
-  // in JS to avoid creating an unprotected copy on the heap.
-  return value->IsString() || IsAnyByteSource(value) ?
-           ByteSource::FromStringOrBuffer(env, value) :
-           ByteSource::FromSymmetricKeyObjectHandle(value);
+  // JS normalizes secret KeyObject/CryptoKey inputs to a KeyObjectHandle.
+  // Strings are converted here instead of in JS to avoid creating an
+  // unprotected copy on the heap.
+  return value->IsString() || IsAnyBufferSource(value)
+             ? ByteSource::FromStringOrBuffer(env, value)
+             : ByteSource::FromSymmetricKeyObjectHandle(value);
 }
 
 ByteSource ByteSource::NullTerminatedCopy(Environment* env,
@@ -340,32 +518,33 @@ ByteSource ByteSource::NullTerminatedCopy(Environment* env,
 
 ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
   CHECK(handle->IsObject());
-  KeyObjectHandle* key = Unwrap<KeyObjectHandle>(handle.As<Object>());
+  KeyObjectHandle* key =
+      BaseObject::Unwrap<KeyObjectHandle>(handle.As<Object>());
   CHECK_NOT_NULL(key);
-  return Foreign(key->Data()->GetSymmetricKey(),
-                 key->Data()->GetSymmetricKeySize());
+  return Foreign(key->Data().GetSymmetricKey(),
+                 key->Data().GetSymmetricKeySize());
 }
 
-ByteSource::ByteSource(const char* data, char* allocated_data, size_t size)
-    : data_(data),
-      allocated_data_(allocated_data),
-      size_(size) {}
-
-ByteSource ByteSource::Allocated(char* data, size_t size) {
+ByteSource ByteSource::Allocated(void* data, size_t size) {
   return ByteSource(data, data, size);
 }
 
-ByteSource ByteSource::Foreign(const char* data, size_t size) {
+ByteSource ByteSource::Foreign(const void* data, size_t size) {
   return ByteSource(data, nullptr, size);
 }
 
 namespace error {
-Maybe<bool> Decorate(Environment* env, Local<Object> obj,
-              unsigned long err) {  // NOLINT(runtime/int)
-  if (err == 0) return Just(true);  // No decoration necessary.
+Maybe<void> Decorate(Environment* env,
+                     Local<Object> obj,
+                     unsigned long err) {  // NOLINT(runtime/int)
+  if (err == 0) return JustVoid();         // No decoration necessary.
 
   const char* ls = ERR_lib_error_string(err);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  const char* fs = nullptr;
+#else
   const char* fs = ERR_func_error_string(err);
+#endif
   const char* rs = ERR_reason_error_string(err);
 
   Isolate* isolate = env->isolate();
@@ -374,19 +553,19 @@ Maybe<bool> Decorate(Environment* env, Local<Object> obj,
   if (ls != nullptr) {
     if (obj->Set(context, env->library_string(),
                  OneByteString(isolate, ls)).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
   if (fs != nullptr) {
     if (obj->Set(context, env->function_string(),
                  OneByteString(isolate, fs)).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
   if (rs != nullptr) {
     if (obj->Set(context, env->reason_string(),
                  OneByteString(isolate, rs)).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     // SSL has no API to recover the error name from the number, so we
@@ -401,51 +580,61 @@ Maybe<bool> Decorate(Environment* env, Local<Object> obj,
         c = ToUpper(c);
     }
 
-#define OSSL_ERROR_CODES_MAP(V)                                               \
-    V(SYS)                                                                    \
-    V(BN)                                                                     \
-    V(RSA)                                                                    \
-    V(DH)                                                                     \
-    V(EVP)                                                                    \
-    V(BUF)                                                                    \
-    V(OBJ)                                                                    \
-    V(PEM)                                                                    \
-    V(DSA)                                                                    \
-    V(X509)                                                                   \
-    V(ASN1)                                                                   \
-    V(CONF)                                                                   \
-    V(CRYPTO)                                                                 \
-    V(EC)                                                                     \
-    V(SSL)                                                                    \
-    V(BIO)                                                                    \
-    V(PKCS7)                                                                  \
-    V(X509V3)                                                                 \
-    V(PKCS12)                                                                 \
-    V(RAND)                                                                   \
-    V(DSO)                                                                    \
-    V(ENGINE)                                                                 \
-    V(OCSP)                                                                   \
-    V(UI)                                                                     \
-    V(COMP)                                                                   \
-    V(ECDSA)                                                                  \
-    V(ECDH)                                                                   \
-    V(OSSL_STORE)                                                             \
-    V(FIPS)                                                                   \
-    V(CMS)                                                                    \
-    V(TS)                                                                     \
-    V(HMAC)                                                                   \
-    V(CT)                                                                     \
-    V(ASYNC)                                                                  \
-    V(KDF)                                                                    \
-    V(SM2)                                                                    \
-    V(USER)                                                                   \
+#ifdef OPENSSL_IS_BORINGSSL
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
+#else
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)                                   \
+  V(PKCS12)                                                                    \
+  V(DSO)                                                                       \
+  V(OSSL_STORE)                                                                \
+  V(FIPS)                                                                      \
+  V(TS)                                                                        \
+  V(CT)                                                                        \
+  V(ASYNC)                                                                     \
+  V(KDF)                                                                       \
+  V(SM2)
+#endif
+
+#define OSSL_ERROR_CODES_MAP(V)                                                \
+  V(SYS)                                                                       \
+  V(BN)                                                                        \
+  V(RSA)                                                                       \
+  V(DH)                                                                        \
+  V(EVP)                                                                       \
+  V(BUF)                                                                       \
+  V(OBJ)                                                                       \
+  V(PEM)                                                                       \
+  V(DSA)                                                                       \
+  V(X509)                                                                      \
+  V(ASN1)                                                                      \
+  V(CONF)                                                                      \
+  V(CRYPTO)                                                                    \
+  V(EC)                                                                        \
+  V(SSL)                                                                       \
+  V(BIO)                                                                       \
+  V(PKCS7)                                                                     \
+  V(X509V3)                                                                    \
+  V(RAND)                                                                      \
+  V(ENGINE)                                                                    \
+  V(OCSP)                                                                      \
+  V(UI)                                                                        \
+  V(COMP)                                                                      \
+  V(ECDSA)                                                                     \
+  V(ECDH)                                                                      \
+  V(CMS)                                                                       \
+  V(HMAC)                                                                      \
+  V(USER)                                                                      \
+  OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
 
 #define V(name) case ERR_LIB_##name: lib = #name "_"; break;
     const char* lib = "";
     const char* prefix = "OSSL_";
-    switch (ERR_GET_LIB(err)) { OSSL_ERROR_CODES_MAP(V) }
+    switch (ERR_GET_LIB(err)) { /* NOLINT(whitespace/newline) */
+      OSSL_ERROR_CODES_MAP(V)
+    }
 #undef V
 #undef OSSL_ERROR_CODES_MAP
+#undef OSSL_ERROR_CODES_MAP_OPENSSL_ONLY
     // Don't generate codes like "ERR_OSSL_SSL_".
     if (lib && strcmp(lib, "SSL_") == 0)
       prefix = "";
@@ -459,10 +648,10 @@ Maybe<bool> Decorate(Environment* env, Local<Object> obj,
     if (obj->Set(env->isolate()->GetCurrentContext(),
              env->code_string(),
              OneByteString(env->isolate(), code)).IsNothing())
-      return Nothing<bool>();
+      return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 }  // namespace error
 
@@ -482,7 +671,7 @@ void ThrowCryptoError(Environment* env,
   Local<Object> obj;
   if (!String::NewFromUtf8(env->isolate(), message).ToLocal(&exception_string))
     return;
-  CryptoErrorVector errors;
+  CryptoErrorStore errors;
   errors.Capture();
   if (!errors.ToException(env, exception_string).ToLocal(&exception) ||
       !exception->ToObject(env->context()).ToLocal(&obj) ||
@@ -493,114 +682,207 @@ void ThrowCryptoError(Environment* env,
 }
 
 #ifndef OPENSSL_NO_ENGINE
-EnginePointer LoadEngineById(const char* id, CryptoErrorVector* errors) {
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-
-  EnginePointer engine(ENGINE_by_id(id));
-  if (!engine) {
-    // Engine not found, try loading dynamically.
-    engine = EnginePointer(ENGINE_by_id("dynamic"));
-    if (engine) {
-      if (!ENGINE_ctrl_cmd_string(engine.get(), "SO_PATH", id, 0) ||
-          !ENGINE_ctrl_cmd_string(engine.get(), "LOAD", nullptr, 0)) {
-        engine.reset();
-      }
-    }
-  }
-
-  if (!engine && errors != nullptr) {
-    if (ERR_get_error() != 0) {
-      errors->Capture();
-    } else {
-      errors->push_back(std::string("Engine \"") + id + "\" was not found");
-    }
-  }
-
-  return engine;
-}
-
-bool SetEngine(const char* id, uint32_t flags, CryptoErrorVector* errors) {
-  ClearErrorOnReturn clear_error_on_return;
-  EnginePointer engine = LoadEngineById(id, errors);
-  if (!engine)
-    return false;
-
-  if (!ENGINE_set_default(engine.get(), flags)) {
-    if (errors != nullptr)
-      errors->Capture();
-    return false;
-  }
-
-  return true;
-}
-
 void SetEngine(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (env->permission()->enabled()) [[unlikely]] {
+    return THROW_ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED(
+        env,
+        "Programmatic selection of OpenSSL engines is unsupported while the "
+        "experimental permission model is enabled");
+  }
+
   CHECK(args.Length() >= 2 && args[0]->IsString());
   uint32_t flags;
   if (!args[1]->Uint32Value(env->context()).To(&flags)) return;
 
   const node::Utf8Value engine_id(env->isolate(), args[0]);
-
-  args.GetReturnValue().Set(SetEngine(*engine_id, flags));
+  // If the engine name is not known, calling setAsDefault on the
+  // empty engine pointer will be non-op that always returns false.
+  args.GetReturnValue().Set(
+      EnginePointer::getEngineByName(*engine_id).setAsDefault(flags));
 }
 #endif  // !OPENSSL_NO_ENGINE
 
-MaybeLocal<Value> EncodeBignum(
-    Environment* env,
-    const BIGNUM* bn,
-    int size,
-    Local<Value>* error) {
-  std::vector<uint8_t> buf(size);
-  CHECK_EQ(BN_bn2binpad(bn, buf.data(), size), size);
-  return StringBytes::Encode(
-      env->isolate(),
-      reinterpret_cast<const char*>(buf.data()),
-      buf.size(),
-      BASE64URL,
-      error);
+MaybeLocal<Value> EncodeBignum(Environment* env, const BIGNUM* bn, int size) {
+  EscapableHandleScope scope(env->isolate());
+  auto buf = BignumPointer::EncodePadded(bn, size);
+  CHECK_EQ(buf.size(), static_cast<size_t>(size));
+  Local<Value> ret;
+  if (!StringBytes::Encode(env->isolate(),
+                           reinterpret_cast<const char*>(buf.get()),
+                           buf.size(),
+                           BASE64URL)
+           .ToLocal(&ret)) {
+    return {};
+  }
+  return scope.Escape(ret);
 }
 
-Maybe<bool> SetEncodedValue(
-    Environment* env,
-    Local<Object> target,
-    Local<String> name,
-    const BIGNUM* bn,
-    int size) {
+Maybe<void> SetEncodedValue(Environment* env,
+                            Local<Object> target,
+                            Local<String> name,
+                            const BIGNUM* bn,
+                            int size) {
   Local<Value> value;
-  Local<Value> error;
   CHECK_NOT_NULL(bn);
-  if (size == 0)
-    size = BN_num_bytes(bn);
-  if (!EncodeBignum(env, bn, size, &error).ToLocal(&value)) {
-    if (!error.IsEmpty())
-      env->isolate()->ThrowException(error);
-    return Nothing<bool>();
+  if (size == 0) size = BignumPointer::GetByteCount(bn);
+  if (!EncodeBignum(env, bn, size).ToLocal(&value)) {
+    return Nothing<void>();
   }
-  return target->Set(env->context(), name, value);
+  return target->DefineOwnProperty(env->context(), name, value).FromMaybe(false)
+             ? JustVoid()
+             : Nothing<void>();
 }
 
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   CHECK(args->IsUint32());
   uint32_t mode = args.As<v8::Uint32>()->Value();
-  CHECK_LE(mode, kCryptoJobSync);
+  CHECK_LE(mode, kCryptoJobWebCrypto);
   return static_cast<CryptoJobMode>(mode);
 }
 
+bool IsCryptoJobAsync(CryptoJobMode mode) {
+  return mode == kCryptoJobAsync || mode == kCryptoJobWebCrypto;
+}
+
+MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
+                                          Local<Value> cause) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Object> per_context_bindings;
+  Local<Value> domexception_ctor;
+  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
+      !per_context_bindings
+           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "DOMException"))
+           .ToLocal(&domexception_ctor)) {
+    return {};
+  }
+  CHECK(domexception_ctor->IsFunction());
+
+  Local<Object> options = Object::New(isolate);
+  if (options
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "name"),
+                FIXED_ONE_BYTE_STRING(isolate, "OperationError"))
+          .IsNothing() ||
+      options->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cause"), cause)
+          .IsNothing()) {
+    return {};
+  }
+
+  Local<Value> argv[] = {
+      FIXED_ONE_BYTE_STRING(isolate,
+                            "The operation failed for an operation-specific "
+                            "reason"),
+      options,
+  };
+
+  return domexception_ctor.As<Function>()->NewInstance(
+      context, arraysize(argv), argv);
+}
+
+MaybeLocal<Value> ToWebCryptoJobResult(Environment* env, Local<Value> value) {
+  if (value->IsArrayBuffer()) {
+    return value;
+  }
+
+  if (Buffer::HasInstance(value)) {
+    return value.As<ArrayBufferView>()->Buffer();
+  }
+
+  CHECK(value->IsBoolean() || (value->IsObject() && !value->IsArray() &&
+                               !value->IsArrayBufferView()));
+  return value;
+}
+
+namespace {
+// SecureBuffer uses OpenSSL's secure heap feature to allocate a
+// Uint8Array. Without --secure-heap, OpenSSL's secure heap is disabled,
+// in which case this has the same semantics as
+// using OPENSSL_malloc. However, if the secure heap is
+// initialized, SecureBuffer will automatically use it.
+void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+#ifdef V8_ENABLE_SANDBOX
+  // The v8 sandbox is enabled, so we cannot use the secure heap because
+  // the sandbox requires that all array buffers be allocated via the isolate.
+  // That is fundamentally incompatible with the secure heap which allocates
+  // in openssl's secure heap area. Instead we'll just throw an error here.
+  //
+  // That said, we really shouldn't get here in the first place since the
+  // option to enable the secure heap is only available when the sandbox
+  // is disabled.
+  UNREACHABLE();
+#else
+  CHECK(args[0]->IsUint32());
+  uint32_t len = args[0].As<Uint32>()->Value();
+
+  auto data = DataPointer::SecureAlloc(len);
+  if (!data) {
+    return THROW_ERR_OPERATION_FAILED(env, "Allocation failed");
+  }
+  auto released = data.release();
+
+  std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+      released.data,
+      released.len,
+      [](void* data, size_t len, void* deleter_data) {
+        // The DataPointer takes ownership and will appropriately
+        // free the data when it gets reset.
+        DataPointer free_me(
+            ncrypto::Buffer<void>{
+                .data = data,
+                .len = len,
+            },
+            true);
+      },
+      nullptr);
+
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
+  args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
+#endif  // V8_ENABLE_SANDBOX
+}
+
+void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(
+      BigInt::New(args.GetIsolate(), DataPointer::GetSecureHeapUsed()));
+}
+}  // namespace
+
 namespace Util {
 void Initialize(Environment* env, Local<Object> target) {
+  Local<Context> context = env->context();
 #ifndef OPENSSL_NO_ENGINE
-  env->SetMethod(target, "setEngine", SetEngine);
+  SetMethod(context, target, "setEngine", SetEngine);
 #endif  // !OPENSSL_NO_ENGINE
 
-#ifdef NODE_FIPS_MODE
-  env->SetMethodNoSideEffect(target, "getFipsCrypto", GetFipsCrypto);
-  env->SetMethod(target, "setFipsCrypto", SetFipsCrypto);
-#endif
+  SetMethodNoSideEffect(context, target, "getFipsCrypto", GetFipsCrypto);
+  SetMethod(context, target, "setFipsCrypto", SetFipsCrypto);
+  SetMethodNoSideEffect(context, target, "testFipsCrypto", TestFipsCrypto);
 
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
+  NODE_DEFINE_CONSTANT(target, kCryptoJobWebCrypto);
+
+  SetMethod(context, target, "secureBuffer", SecureBuffer);
+  SetMethodNoSideEffect(context, target, "secureHeapUsed", SecureHeapUsed);
+
+  SetMethodNoSideEffect(
+      context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);
 }
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+#ifndef OPENSSL_NO_ENGINE
+  registry->Register(SetEngine);
+#endif  // !OPENSSL_NO_ENGINE
+
+  registry->Register(GetFipsCrypto);
+  registry->Register(SetFipsCrypto);
+  registry->Register(TestFipsCrypto);
+  registry->Register(SecureBuffer);
+  registry->Register(SecureHeapUsed);
+  registry->Register(GetOpenSSLSecLevelCrypto);
+}
+
 }  // namespace Util
 
 }  // namespace crypto

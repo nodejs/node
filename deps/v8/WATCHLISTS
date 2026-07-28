@@ -33,6 +33,9 @@
 
 {
   'WATCHLIST_DEFINITIONS': {
+    'api': {
+      'filepath': 'include/',
+    },
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
@@ -45,27 +48,20 @@
                   '|include/js_protocol.pdl' \
                   '|include/v8-inspector*\.h',
     },
-    'interpreter': {
-      'filepath': 'src/interpreter/' \
-                  '|src/compiler/bytecode' \
-                  '|test/cctest/interpreter/' \
-                  '|test/unittests/interpreter/',
+    'baseline': {
+      'filepath': 'src/baseline/',
     },
-    'feature_shipping_status': {
+    'flags': {
       'filepath': 'src/flags/flag-definitions.h',
     },
-    'gc_changes': {
+    'heap_changes': {
       'filepath': 'src/heap/',
     },
     'arm': {
       'filepath': '/arm/',
     },
-    'csa': {
-      'filepath': 'src/codegen/code-stub-assembler\.(cc|h)$' \
-                  '|src/builtins/.*-gen.(cc|h)$',
-    },
-    'ia32': {
-      'filepath': '/ia32/',
+    'riscv': {
+      'filepath': '/riscv/',
     },
     'merges': {
       'filepath': '.',
@@ -77,24 +73,54 @@
     'value_serializer': {
       'filepath': 'src/value-serializer',
     },
+    'maglev': {
+      'filepath': 'src/maglev/',
+    },
+    'compiler': {
+      'filepath': 'src/compiler',
+    },
     'parser': {
       'filepath': 'src/ast/' \
                   '|src/parsing/',
     },
-    'torque': {
-      'filepath': '.*\.tq$',
-    },
     'tracing': {
       'filepath': 'src/tracing/',
+    },
+    'ieee754': {
+      'filepath': 'src/base/ieee754\.(cc|h)' \
+                  '|src/base/overflowing-math.h' \
+                  '|LICENSE.fdlibm',
+    },
+    'regexp': {
+      'filepath': 'src/.*regexp',
+    },
+    'bazel': {
+      'filepath': 'BUILD.gn' \
+                  '|BUILD.bazel' \
+                  '|WORKSPACE' \
+                  '|bazel/',
+    },
+    'cppgc': {
+      'filepath': 'src/heap/cppgc/' \
+                  '|src/heap/cppgc-js/' \
+                  '|include/cppgc/' \
+                  '|test/unittests/heap/cppgc/' \
+                  '|test/unittests/heap/cppgc-js/',
+    },
+    'trap-handler': {
+      'filepath': 'src/trap-handler/',
     },
   },
 
   'WATCHLISTS': {
-    'csa': [
-      'jgruber+watch@chromium.org',
+    'maglev': [
+      'dmercadier+watch@chromium.org',
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
+      'victorgomes+watch@chromium.org',
     ],
-    'torque': [
-      'jgruber+watch@chromium.org',
+    'compiler': [
+      'dmercadier+watch@chromium.org',
     ],
     'snapshot': [
       'jgruber+watch@chromium.org',
@@ -102,18 +128,24 @@
     'devtools': [
       'devtools-reviews+v8@chromium.org',
     ],
-    'interpreter': [
-      'rmcilroy@chromium.org',
+    'baseline': [
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
     ],
-    'feature_shipping_status': [
-      'hablich@chromium.org',
+    'flags': [
+      'v8-flag-updates@chromium.org',
     ],
-    'gc_changes': [
+    'heap_changes': [
       'hpayer@chromium.org',
+      'mlippautz+watch@chromium.org',
     ],
     'arm': [
       'v8-mips-ports@googlegroups.com',
       'v8-ppc-ports@googlegroups.com',
+      'v8-risc-v-ports@chromium.org',
+    ],
+    'riscv': [
+      'v8-risc-v-ports@chromium.org',
     ],
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py
@@ -132,6 +164,30 @@
       'alph+watch@chromium.org',
       'lpy+v8tracing@chromium.org',
       'fmeawad@chromium.org',
+      'cbruni+watch@chromium.org',
+    ],
+    'ieee754': [
+      'rtoy+watch@chromium.org',
+      'hongchan+watch@chromium.org',
+    ],
+    'regexp': [
+      'jgruber+watch@chromium.org',
+      'pthier+watch@chromium.org',
+    ],
+    'bazel': [
+      'victorgomes+watch@chromium.org',
+    ],
+    'api': [
+      'cbruni+watch@chromium.org',
+    ],
+    'cppgc': [
+      'oilpan-reviews+v8@chromium.org',
+    ],
+    'trap-handler': [
+      'ahaas@chromium.org',
+      'clemensb@chromium.org',
+      'mark@chromium.org',
+      'mseaborn@chromium.org',
     ],
   },
 }

@@ -94,7 +94,7 @@ class Tests(unittest.TestCase):
       data = '\x00'
       write_command = 'M%x,%x:%s' % (breakpoint_addr, len(data), gdb_rsp.EncodeHex(data))
       reply = connection.RspRequest(write_command)
-      self.assertEquals(reply, 'E03')
+      self.assertEqual(reply, 'E03')
 
 
 def Main():

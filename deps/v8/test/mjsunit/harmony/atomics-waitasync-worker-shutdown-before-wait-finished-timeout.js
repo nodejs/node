@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-sharedarraybuffer --harmony-atomics-waitasync --expose-gc
+// Flags: --allow-natives-syntax --expose-gc
 
 (function test() {
   const sab = new SharedArrayBuffer(16);
   const i32a = new Int32Array(sab);
 
   (function createWorker() {
-    const script = `onmessage = function(msg) {
-    if (msg.sab) {
-        const i32a = new Int32Array(msg.sab);
-        const result = Atomics.waitAsync(i32a, 0, 0, 100000);
-        postMessage('worker waiting');
+    function workerCode() {
+      onmessage = function({data:msg}) {
+        if (msg.sab) {
+          const i32a = new Int32Array(msg.sab);
+          const result = Atomics.waitAsync(i32a, 0, 0, 100000);
+          postMessage('worker waiting');
+        }
       }
-    }`;
-    const w = new Worker(script, {type : 'string'});
+    }
+    const w = new Worker(workerCode, {type: 'function'});
     w.postMessage({sab: sab});
     const m = w.getMessage();
     assertEquals('worker waiting', m);

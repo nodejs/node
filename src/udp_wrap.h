@@ -32,6 +32,7 @@
 
 namespace node {
 
+class ExternalReferenceRegistry;
 class UDPWrapBase;
 
 // A listener that can be attached to an `UDPWrapBase` object and generally
@@ -110,6 +111,7 @@ class UDPWrapBase {
   static void RecvStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStop(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddMethods(Environment* env, v8::Local<v8::FunctionTemplate> t);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
  private:
   UDPListener* listener_ = nullptr;
@@ -126,6 +128,7 @@ class UDPWrap final : public HandleWrap,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
                          void* priv);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void GetFD(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -144,12 +147,10 @@ class UDPWrap final : public HandleWrap,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastInterface(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetMulticastTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetMulticastLoopback(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetBroadcast(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSendQueueSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSendQueueCount(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // UDPListener implementation
   uv_buf_t OnAlloc(size_t suggested_size) override;
@@ -171,6 +172,8 @@ class UDPWrap final : public HandleWrap,
   SocketAddress GetSockName() override;
 
   AsyncWrap* GetAsyncWrap() override;
+
+  inline uv_udp_t* GetLibuvHandle() { return &handle_; }
 
   static v8::MaybeLocal<v8::Object> Instantiate(Environment* env,
                                                 AsyncWrap* parent,

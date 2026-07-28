@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -24,7 +24,7 @@ int X509_REQ_print_fp(FILE *fp, X509_REQ *x)
     int ret;
 
     if ((b = BIO_new(BIO_s_file())) == NULL) {
-        X509err(X509_F_X509_REQ_PRINT_FP, ERR_R_BUF_LIB);
+        ERR_raise(ERR_LIB_X509, ERR_R_BUF_LIB);
         return 0;
     }
     BIO_set_fp(b, fp, BIO_NOCLOSE);
@@ -35,22 +35,22 @@ int X509_REQ_print_fp(FILE *fp, X509_REQ *x)
 #endif
 
 int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
-                      unsigned long cflag)
+    unsigned long cflag)
 {
     long l;
     int i;
     EVP_PKEY *pkey;
-    STACK_OF(X509_EXTENSION) *exts;
+    STACK_OF(X509_EXTENSION) *exts = NULL;
     char mlch = ' ';
-    int nmindent = 0;
+    int nmindent = 0, printok = 0;
 
     if ((nmflags & XN_FLAG_SEP_MASK) == XN_FLAG_SEP_MULTILINE) {
         mlch = '\n';
         nmindent = 12;
     }
 
-    if (nmflags == X509_FLAG_COMPAT)
-        nmindent = 16;
+    if (nmflags == XN_FLAG_COMPAT)
+        printok = 1;
 
     if (!(cflag & X509_FLAG_NO_HEADER)) {
         if (BIO_write(bp, "Certificate Request:\n", 21) <= 0)
@@ -60,7 +60,7 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
     }
     if (!(cflag & X509_FLAG_NO_VERSION)) {
         l = X509_REQ_get_version(x);
-        if (l >= 0 && l <= 2) {
+        if (l == X509_REQ_VERSION_1) {
             if (BIO_printf(bp, "%8sVersion: %ld (0x%lx)\n", "", l + 1, (unsigned long)l) <= 0)
                 goto err;
         } else {
@@ -72,7 +72,8 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
         if (BIO_printf(bp, "        Subject:%c", mlch) <= 0)
             goto err;
         if (X509_NAME_print_ex(bp, X509_REQ_get_subject_name(x),
-            nmindent, nmflags) < 0)
+                nmindent, nmflags)
+            < printok)
             goto err;
         if (BIO_write(bp, "\n", 1) <= 0)
             goto err;
@@ -108,7 +109,7 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
             goto err;
 
         if (X509_REQ_get_attr_count(x) == 0) {
-            if (BIO_printf(bp, "%12sa0:00\n", "") <= 0)
+            if (BIO_printf(bp, "%12s(none)\n", "") <= 0)
                 goto err;
         } else {
             for (i = 0; i < X509_REQ_get_attr_count(x); i++) {
@@ -128,10 +129,10 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
                     ii = 0;
                     count = X509_ATTRIBUTE_count(a);
                     if (count == 0) {
-                      X509err(X509_F_X509_REQ_PRINT_EX, X509_R_INVALID_ATTRIBUTES);
-                      return 0;
+                        ERR_raise(ERR_LIB_X509, X509_R_INVALID_ATTRIBUTES);
+                        return 0;
                     }
- get_next:
+                get_next:
                     at = X509_ATTRIBUTE_get0_type(a, ii);
                     type = at->type;
                     bs = at->value.asn1_string;
@@ -148,7 +149,7 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
                 case V_ASN1_UTF8STRING:
                 case V_ASN1_IA5STRING:
                     if (BIO_write(bp, (char *)bs->data, bs->length)
-                            != bs->length)
+                        != bs->length)
                         goto err;
                     if (BIO_puts(bp, "\n") <= 0)
                         goto err;
@@ -166,14 +167,14 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
     if (!(cflag & X509_FLAG_NO_EXTENSIONS)) {
         exts = X509_REQ_get_extensions(x);
         if (exts) {
-            if (BIO_printf(bp, "%8sRequested Extensions:\n", "") <= 0)
+            if (BIO_printf(bp, "%12sRequested Extensions:\n", "") <= 0)
                 goto err;
             for (i = 0; i < sk_X509_EXTENSION_num(exts); i++) {
                 ASN1_OBJECT *obj;
                 X509_EXTENSION *ex;
                 int critical;
                 ex = sk_X509_EXTENSION_value(exts, i);
-                if (BIO_printf(bp, "%12s", "") <= 0)
+                if (BIO_printf(bp, "%16s", "") <= 0)
                     goto err;
                 obj = X509_EXTENSION_get_object(ex);
                 if (i2a_ASN1_OBJECT(bp, obj) <= 0)
@@ -181,16 +182,18 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
                 critical = X509_EXTENSION_get_critical(ex);
                 if (BIO_printf(bp, ": %s\n", critical ? "critical" : "") <= 0)
                     goto err;
-                if (!X509V3_EXT_print(bp, ex, cflag, 16)) {
-                    if (BIO_printf(bp, "%16s", "") <= 0
+                if (!X509V3_EXT_print(bp, ex, cflag, 20)) {
+                    if (BIO_printf(bp, "%20s", "") <= 0
                         || ASN1_STRING_print(bp,
-                                             X509_EXTENSION_get_data(ex)) <= 0)
+                               X509_EXTENSION_get_data(ex))
+                            <= 0)
                         goto err;
                 }
                 if (BIO_write(bp, "\n", 1) <= 0)
                     goto err;
             }
             sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+            exts = NULL;
         }
     }
 
@@ -203,8 +206,9 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
     }
 
     return 1;
- err:
-    X509err(X509_F_X509_REQ_PRINT_EX, ERR_R_BUF_LIB);
+err:
+    sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
+    ERR_raise(ERR_LIB_X509, ERR_R_BUF_LIB);
     return 0;
 }
 

@@ -31,11 +31,6 @@ function keyToString(key) {
 }
 
 class ObjectMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
-
   get visitor() {
     const thisMutator = this;
 
@@ -71,7 +66,7 @@ class ObjectMutator extends mutator.Mutator {
         }
 
         function getTwoRandomProperties() {
-          const [a, b] = random.sample(propertyIndicies, 2);
+          const [a, b] = random.sampleOfTwo(propertyIndicies);
           return [properties[a], properties[b]];
         }
 

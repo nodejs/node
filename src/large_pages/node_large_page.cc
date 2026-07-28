@@ -48,7 +48,7 @@
 //    To move the .text section, perform the following steps:
 //      * Map a new, temporary area and copy the original code there.
 //      * Use mmap using the start address with MAP_FIXED so we get exactly the
-//        same virtual address (except on OSX). On platforms other than Linux,
+//        same virtual address (except on macOS). On platforms other than Linux,
 //        use mmap flags to request hugepages.
 //      * On Linux use madvise with MADV_HUGEPAGE to use anonymous 2MB pages.
 //      * If successful copy the code to the newly mapped area and protect it to
@@ -68,6 +68,11 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif  // ifndef _GNU_SOURCE
+#include <sys/prctl.h>
+#if !defined(PR_SET_VMA)
+#define PR_SET_VMA 0x53564d41
+#define PR_SET_VMA_ANON_NAME 0
+#endif
 #elif defined(__FreeBSD__)
 #include "uv.h"  // uv_exepath
 #endif  // defined(__linux__)
@@ -258,21 +263,21 @@ struct text_region FindNodeTextRegion() {
 
 #if defined(__linux__)
 bool IsTransparentHugePagesEnabled() {
-  std::ifstream ifs;
-
-  ifs.open("/sys/kernel/mm/transparent_hugepage/enabled");
-  if (!ifs) {
+  // File format reference:
+  // https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/huge_memory.c?id=13391c60da3308ed9980de0168f74cce6c62ac1d#n163
+  const char* filename = "/sys/kernel/mm/transparent_hugepage/enabled";
+  std::ifstream config_stream(filename, std::ios::in);
+  if (!config_stream.good()) {
     PrintWarning("could not open /sys/kernel/mm/transparent_hugepage/enabled");
     return false;
   }
 
-  std::string always, madvise;
-  if (ifs.is_open()) {
-    while (ifs >> always >> madvise) {}
-  }
-  ifs.close();
-
-  return always == "[always]" || madvise == "[madvise]";
+  std::string token;
+  config_stream >> token;
+  if ("[always]" == token) return true;
+  config_stream >> token;
+  if ("[madvise]" == token) return true;
+  return false;
 }
 #elif defined(__FreeBSD__)
 bool IsSuperPagesEnabled() {
@@ -311,6 +316,21 @@ class MemoryMapPointer {
   FORCE_INLINE void Reset() {
     mem_ = nullptr;
     size_ = 0;
+  }
+  static void SetName(void* mem, size_t size, const char* name) {
+#if defined(__linux__)
+    // Available since the 5.17 kernel release and if the
+    // CONFIG_ANON_VMA_NAME option, we can set an identifier
+    // to an anonymous mapped region. However if the kernel
+    // option is not present or it s an older kernel, it is a no-op.
+    if (mem != MAP_FAILED && mem != nullptr)
+        prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+            reinterpret_cast<uintptr_t>(mem),
+            size,
+            reinterpret_cast<uintptr_t>(name));
+#else
+    (void)name;
+#endif
   }
   FORCE_INLINE ~MemoryMapPointer() {
     if (mem_ == nullptr) return;
@@ -382,6 +402,7 @@ MoveTextRegionToLargePages(const text_region& r) {
 #endif
 
   if (mprotect(start, size, PROT_READ | PROT_EXEC) == -1) goto fail;
+  MemoryMapPointer::SetName(start, size, "nodejs Large Page");
 
   // We need not `munmap(tmem, size)` on success.
   tmem.Reset();

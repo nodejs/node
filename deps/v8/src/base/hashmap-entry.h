@@ -6,18 +6,28 @@
 #define V8_BASE_HASHMAP_ENTRY_H_
 
 #include <cstdint>
+#include <type_traits>
+
+#include "src/base/memory.h"
 
 namespace v8 {
 namespace base {
 
+// Marker type for hashmaps without a value (i.e. hashsets). These won't
+// allocate space for the value in the entry.
+struct NoHashMapValue {};
+
 // HashMap entries are (key, value, hash) triplets, with a boolean indicating if
 // they are an empty entry. Some clients may not need to use the value slot
-// (e.g. implementers of sets, where the key is the value).
+// (e.g. implementers of sets, where the key is the value), in which case they
+// should use NoHashMapValue.
 template <typename Key, typename Value>
 struct TemplateHashMapEntry {
+  static_assert((!std::is_same_v<Value, NoHashMapValue>));
+
   Key key;
   Value value;
-  uint32_t hash;  // The full hash value for key
+  uint32_t hash : 31;  // The full hash value for key
 
   TemplateHashMapEntry(Key key, Value value, uint32_t hash)
       : key(key), value(value), hash(hash), exists_(true) {}
@@ -27,26 +37,28 @@ struct TemplateHashMapEntry {
   void clear() { exists_ = false; }
 
  private:
-  bool exists_;
+  bool exists_ : 1;
 };
 
-// Specialization for pointer-valued keys
-template <typename Key, typename Value>
-struct TemplateHashMapEntry<Key*, Value> {
-  Key* key;
-  Value value;
-  uint32_t hash;  // The full hash value for key
+// Specialization for no value.
+template <typename Key>
+struct TemplateHashMapEntry<Key, NoHashMapValue> {
+  union {
+    Key key;
+    NoHashMapValue value;  // Value in union with key to not take up space.
+  };
+  uint32_t hash : 31;  // The full hash value for key
 
-  TemplateHashMapEntry(Key* key, Value value, uint32_t hash)
-      : key(key), value(value), hash(hash) {}
+  TemplateHashMapEntry(Key key, NoHashMapValue value, uint32_t hash)
+      : key(key), hash(hash), exists_(true) {}
 
-  bool exists() const { return key != nullptr; }
+  bool exists() const { return exists_; }
 
-  void clear() { key = nullptr; }
+  void clear() { exists_ = false; }
+
+ private:
+  bool exists_ : 1;
 };
-
-// TODO(leszeks): There could be a specialisation for void values (e.g. for
-// sets), which omits the value field
 
 }  // namespace base
 }  // namespace v8

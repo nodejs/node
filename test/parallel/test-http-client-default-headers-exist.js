@@ -41,16 +41,16 @@ const expectedMethods = Object.keys(expectedHeaders);
 const server = http.createServer(common.mustCall((req, res) => {
   res.end();
 
-  assert(expectedHeaders.hasOwnProperty(req.method),
+  assert(Object.hasOwn(expectedHeaders, req.method),
          `${req.method} was an unexpected method`);
 
   const requestHeaders = Object.keys(req.headers);
-  requestHeaders.forEach((header) => {
+  for (const header of requestHeaders) {
     assert.ok(
       expectedHeaders[req.method].includes(header.toLowerCase()),
       `${header} should not exist for method ${req.method}`
     );
-  });
+  }
 
   assert.strictEqual(
     requestHeaders.length,

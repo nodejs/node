@@ -1,17 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-""" Unit tests for the msvs.py file. """
+"""Unit tests for the msvs.py file."""
 
-import gyp.generator.msvs as msvs
 import unittest
+from io import StringIO
 
-try:
-    from StringIO import StringIO  # Python 2
-except ImportError:
-    from io import StringIO  # Python 3
+from gyp.generator import msvs
 
 
 class TestSequenceFunctions(unittest.TestCase):

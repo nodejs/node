@@ -4,7 +4,8 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks nested scheduled break in framework code.');
 
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 function frameworkCall(callback) {
   inspector.callWithScheduledBreak(doFrameworkWork.bind(null, callback),
     'top-framework-scheduled-break',
@@ -18,11 +19,11 @@ function doFrameworkWork(callback) {
 
 function doFrameworkBreak() {
   inspector.breakProgram('framework-break', JSON.stringify({ data: 'data for framework-break' }));
-}
+}`,
+    'framework.js');
 
-//# sourceURL=framework.js`, 7, 26);
-
-contextGroup.addScript(`
+contextGroup.addInlineScript(
+    `
 function testFunction() {
   inspector.callWithScheduledBreak(frameworkCall.bind(null, callback),
     'top-scheduled-break', '');
@@ -31,9 +32,8 @@ function testFunction() {
 function callback() {
   inspector.breakProgram('user-break', JSON.stringify({ data: 'data for user-break' }));
   return 42;
-}
-
-//# sourceURL=user.js`, 25, 26);
+}`,
+    'user.js');
 
 session.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

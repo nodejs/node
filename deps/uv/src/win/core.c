@@ -84,9 +84,11 @@ static int uv__loops_capacity;
 #define UV__LOOPS_CHUNK_SIZE 8
 static uv_mutex_t uv__loops_lock;
 
+
 static void uv__loops_init(void) {
   uv_mutex_init(&uv__loops_lock);
 }
+
 
 static int uv__loops_add(uv_loop_t* loop) {
   uv_loop_t** new_loops;
@@ -112,8 +114,9 @@ static int uv__loops_add(uv_loop_t* loop) {
 
 failed_loops_realloc:
   uv_mutex_unlock(&uv__loops_lock);
-  return ERROR_OUTOFMEMORY;
+  return UV_ENOMEM;
 }
+
 
 static void uv__loops_remove(uv_loop_t* loop) {
   int loop_index;
@@ -173,7 +176,7 @@ void uv__wake_all_loops(void) {
   uv_mutex_unlock(&uv__loops_lock);
 }
 
-static void uv_init(void) {
+static void uv__init(void) {
   /* Tell Windows that we will handle critical errors. */
   SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
                SEM_NOOPENFILEERRORBOX);
@@ -199,19 +202,19 @@ static void uv_init(void) {
   /* Fetch winapi function pointers. This must be done first because other
    * initialization code might need these function pointers to be loaded.
    */
-  uv_winapi_init();
+  uv__winapi_init();
 
   /* Initialize winsock */
-  uv_winsock_init();
+  uv__winsock_init();
 
   /* Initialize FS */
-  uv_fs_init();
+  uv__fs_init();
 
   /* Initialize signal stuff */
-  uv_signals_init();
+  uv__signals_init();
 
   /* Initialize console */
-  uv_console_init();
+  uv__console_init();
 
   /* Initialize utilities */
   uv__util_init();
@@ -242,6 +245,9 @@ int uv_loop_init(uv_loop_t* loop) {
   err = uv_mutex_init(&lfields->loop_metrics.lock);
   if (err)
     goto fail_metrics_mutex_init;
+  memset(&lfields->loop_metrics.metrics,
+         0,
+         sizeof(lfields->loop_metrics.metrics));
 
   /* To prevent uninitialized memory access, loop->time must be initialized
    * to zero before calling uv_update_time for the first time.
@@ -249,8 +255,8 @@ int uv_loop_init(uv_loop_t* loop) {
   loop->time = 0;
   uv_update_time(loop);
 
-  QUEUE_INIT(&loop->wq);
-  QUEUE_INIT(&loop->handle_queue);
+  uv__queue_init(&loop->wq);
+  uv__queue_init(&loop->handle_queue);
   loop->active_reqs.count = 0;
   loop->active_handles = 0;
 
@@ -275,9 +281,6 @@ int uv_loop_init(uv_loop_t* loop) {
   loop->next_idle_handle = NULL;
 
   memset(&loop->poll_peer_sockets, 0, sizeof loop->poll_peer_sockets);
-
-  loop->active_tcp_streams = 0;
-  loop->active_udp_streams = 0;
 
   loop->timer_counter = 0;
   loop->stop_flag = 0;
@@ -327,7 +330,7 @@ void uv_update_time(uv_loop_t* loop) {
 
 
 void uv__once_init(void) {
-  uv_once(&uv_init_guard_, uv_init);
+  uv_once(&uv_init_guard_, uv__init);
 }
 
 
@@ -355,7 +358,7 @@ void uv__loop_close(uv_loop_t* loop) {
   }
 
   uv_mutex_lock(&loop->wq_mutex);
-  assert(QUEUE_EMPTY(&loop->wq) && "thread pool work queue not empty!");
+  assert(uv__queue_empty(&loop->wq) && "thread pool work queue not empty!");
   assert(!uv__has_active_reqs(loop));
   uv_mutex_unlock(&loop->wq_mutex);
   uv_mutex_destroy(&loop->wq_mutex);
@@ -395,119 +398,49 @@ int uv_loop_fork(uv_loop_t* loop) {
 }
 
 
-int uv_backend_timeout(const uv_loop_t* loop) {
-  if (loop->stop_flag != 0)
-    return 0;
-
-  if (!uv__has_active_handles(loop) && !uv__has_active_reqs(loop))
-    return 0;
-
-  if (loop->pending_reqs_tail)
-    return 0;
-
-  if (loop->endgame_handles)
-    return 0;
-
-  if (loop->idle_handles)
-    return 0;
-
-  return uv__next_timeout(loop);
+static int uv__loop_alive(const uv_loop_t* loop) {
+  return uv__has_active_handles(loop) ||
+         uv__has_active_reqs(loop) ||
+         loop->pending_reqs_tail != NULL ||
+         loop->endgame_handles != NULL;
 }
 
 
-static void uv__poll_wine(uv_loop_t* loop, DWORD timeout) {
-  DWORD bytes;
-  ULONG_PTR key;
-  OVERLAPPED* overlapped;
-  uv_req_t* req;
-  int repeat;
-  uint64_t timeout_time;
-  uint64_t user_timeout;
-  int reset_timeout;
+int uv_loop_alive(const uv_loop_t* loop) {
+  return uv__loop_alive(loop);
+}
 
-  timeout_time = loop->time + timeout;
 
-  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
-    reset_timeout = 1;
-    user_timeout = timeout;
-    timeout = 0;
-  } else {
-    reset_timeout = 0;
-  }
-
-  for (repeat = 0; ; repeat++) {
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
-    GetQueuedCompletionStatus(loop->iocp,
-                              &bytes,
-                              &key,
-                              &overlapped,
-                              timeout);
-
-    if (reset_timeout != 0) {
-      timeout = user_timeout;
-      reset_timeout = 0;
-    }
-
-    /* Placed here because on success the loop will break whether there is an
-     * empty package or not, or if GetQueuedCompletionStatus returned early then
-     * the timeout will be updated and the loop will run again. In either case
-     * the idle time will need to be updated.
-     */
-    uv__metrics_update_idle_time(loop);
-
-    if (overlapped) {
-      /* Package was dequeued */
-      req = uv_overlapped_to_req(overlapped);
-      uv_insert_pending_req(loop, req);
-
-      /* Some time might have passed waiting for I/O,
-       * so update the loop time here.
-       */
-      uv_update_time(loop);
-    } else if (GetLastError() != WAIT_TIMEOUT) {
-      /* Serious error */
-      uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
-    } else if (timeout > 0) {
-      /* GetQueuedCompletionStatus can occasionally return a little early.
-       * Make sure that the desired timeout target time is reached.
-       */
-      uv_update_time(loop);
-      if (timeout_time > loop->time) {
-        timeout = (DWORD)(timeout_time - loop->time);
-        /* The first call to GetQueuedCompletionStatus should return very
-         * close to the target time and the second should reach it, but
-         * this is not stated in the documentation. To make sure a busy
-         * loop cannot happen, the timeout is increased exponentially
-         * starting on the third round.
-         */
-        timeout += repeat ? (1 << (repeat - 1)) : 0;
-        continue;
-      }
-    }
-    break;
-  }
+int uv_backend_timeout(const uv_loop_t* loop) {
+  if (loop->stop_flag == 0 &&
+      /* uv__loop_alive(loop) && */
+      (uv__has_active_handles(loop) || uv__has_active_reqs(loop)) &&
+      loop->pending_reqs_tail == NULL &&
+      loop->idle_handles == NULL &&
+      loop->endgame_handles == NULL)
+    return uv__next_timeout(loop);
+  return 0;
 }
 
 
 static void uv__poll(uv_loop_t* loop, DWORD timeout) {
+  uv__loop_internal_fields_t* lfields;
   BOOL success;
   uv_req_t* req;
   OVERLAPPED_ENTRY overlappeds[128];
+  OVERLAPPED* overlapped;
   ULONG count;
   ULONG i;
   int repeat;
   uint64_t timeout_time;
   uint64_t user_timeout;
+  uint64_t actual_timeout;
   int reset_timeout;
 
+  lfields = uv__get_internal_fields(loop);
   timeout_time = loop->time + timeout;
 
-  if (uv__get_internal_fields(loop)->flags & UV_METRICS_IDLE_TIME) {
+  if (lfields->flags & UV_METRICS_IDLE_TIME) {
     reset_timeout = 1;
     user_timeout = timeout;
     timeout = 0;
@@ -516,18 +449,26 @@ static void uv__poll(uv_loop_t* loop, DWORD timeout) {
   }
 
   for (repeat = 0; ; repeat++) {
+    actual_timeout = timeout;
+
     /* Only need to set the provider_entry_time if timeout != 0. The function
      * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
      */
     if (timeout != 0)
       uv__metrics_set_provider_entry_time(loop);
 
-    success = pGetQueuedCompletionStatusEx(loop->iocp,
-                                           overlappeds,
-                                           ARRAY_SIZE(overlappeds),
-                                           &count,
-                                           timeout,
-                                           FALSE);
+    /* Store the current timeout in a location that's globally accessible so
+     * other locations like uv__work_done() can determine whether the queue
+     * of events in the callback were waiting when poll was called.
+     */
+    lfields->current_timeout = timeout;
+
+    success = GetQueuedCompletionStatusEx(loop->iocp,
+                                          overlappeds,
+                                          ARRAY_SIZE(overlappeds),
+                                          &count,
+                                          timeout,
+                                          FALSE);
 
     if (reset_timeout != 0) {
       timeout = user_timeout;
@@ -535,9 +476,9 @@ static void uv__poll(uv_loop_t* loop, DWORD timeout) {
     }
 
     /* Placed here because on success the loop will break whether there is an
-     * empty package or not, or if GetQueuedCompletionStatus returned early then
-     * the timeout will be updated and the loop will run again. In either case
-     * the idle time will need to be updated.
+     * empty package or not, or if GetQueuedCompletionStatusEx returned early
+     * then the timeout will be updated and the loop will run again. In either
+     * case the idle time will need to be updated.
      */
     uv__metrics_update_idle_time(loop);
 
@@ -547,8 +488,13 @@ static void uv__poll(uv_loop_t* loop, DWORD timeout) {
          * meant only to wake us up.
          */
         if (overlappeds[i].lpOverlapped) {
-          req = uv_overlapped_to_req(overlappeds[i].lpOverlapped);
-          uv_insert_pending_req(loop, req);
+          uv__metrics_inc_events(loop, 1);
+          if (actual_timeout == 0)
+            uv__metrics_inc_events_waiting(loop, 1);
+
+          overlapped = overlappeds[i].lpOverlapped;
+          req = container_of(overlapped, uv_req_t, u.io.overlapped);
+          uv__insert_pending_req(loop, req);
         }
       }
 
@@ -581,43 +527,214 @@ static void uv__poll(uv_loop_t* loop, DWORD timeout) {
 }
 
 
-static int uv__loop_alive(const uv_loop_t* loop) {
-  return uv__has_active_handles(loop) ||
-         uv__has_active_reqs(loop) ||
-         loop->endgame_handles != NULL;
+#define DELEGATE_STREAM_REQ(loop, req, method, handle_at)                     \
+  do {                                                                        \
+    switch (((uv_handle_t*) (req)->handle_at)->type) {                        \
+      case UV_TCP:                                                            \
+        uv__process_tcp_##method##_req(loop,                                  \
+                                      (uv_tcp_t*) ((req)->handle_at),         \
+                                      req);                                   \
+        break;                                                                \
+                                                                              \
+      case UV_NAMED_PIPE:                                                     \
+        uv__process_pipe_##method##_req(loop,                                 \
+                                       (uv_pipe_t*) ((req)->handle_at),       \
+                                       req);                                  \
+        break;                                                                \
+                                                                              \
+      case UV_TTY:                                                            \
+        uv__process_tty_##method##_req(loop,                                  \
+                                      (uv_tty_t*) ((req)->handle_at),         \
+                                      req);                                   \
+        break;                                                                \
+                                                                              \
+      default:                                                                \
+        assert(0);                                                            \
+    }                                                                         \
+  } while (0)
+
+
+static void uv__process_reqs(uv_loop_t* loop) {
+  uv_req_t* req;
+  uv_req_t* first;
+  uv_req_t* next;
+
+  if (loop->pending_reqs_tail == NULL)
+    return;
+
+  first = loop->pending_reqs_tail->next_req;
+  next = first;
+  loop->pending_reqs_tail = NULL;
+
+  while (next != NULL) {
+    req = next;
+    next = req->next_req != first ? req->next_req : NULL;
+
+    switch (req->type) {
+      case UV_READ:
+        DELEGATE_STREAM_REQ(loop, req, read, data);
+        break;
+
+      case UV_WRITE:
+        DELEGATE_STREAM_REQ(loop, (uv_write_t*) req, write, handle);
+        break;
+
+      case UV_ACCEPT:
+        DELEGATE_STREAM_REQ(loop, req, accept, data);
+        break;
+
+      case UV_CONNECT:
+        DELEGATE_STREAM_REQ(loop, (uv_connect_t*) req, connect, handle);
+        break;
+
+      case UV_SHUTDOWN:
+        DELEGATE_STREAM_REQ(loop, (uv_shutdown_t*) req, shutdown, handle);
+        break;
+
+      case UV_UDP_RECV:
+        uv__process_udp_recv_req(loop, (uv_udp_t*) req->data, req);
+        break;
+
+      case UV_UDP_SEND:
+        uv__process_udp_send_req(loop,
+                                 ((uv_udp_send_t*) req)->handle,
+                                 (uv_udp_send_t*) req);
+        break;
+
+      case UV_WAKEUP:
+        uv__process_async_wakeup_req(loop, (uv_async_t*) req->data, req);
+        break;
+
+      case UV_SIGNAL_REQ:
+        uv__process_signal_req(loop, (uv_signal_t*) req->data, req);
+        break;
+
+      case UV_POLL_REQ:
+        uv__process_poll_req(loop, (uv_poll_t*) req->data, req);
+        break;
+
+      case UV_PROCESS_EXIT:
+        uv__process_proc_exit(loop, (uv_process_t*) req->data);
+        break;
+
+      case UV_FS_EVENT_REQ:
+        uv__process_fs_event_req(loop, req, (uv_fs_event_t*) req->data);
+        break;
+
+      default:
+        assert(0);
+    }
+  }
 }
 
+#undef DELEGATE_STREAM_REQ
 
-int uv_loop_alive(const uv_loop_t* loop) {
-    return uv__loop_alive(loop);
+static void uv__process_endgames(uv_loop_t* loop) {
+  uv_handle_t* handle;
+
+  while (loop->endgame_handles) {
+    handle = loop->endgame_handles;
+    loop->endgame_handles = handle->endgame_next;
+
+    handle->flags &= ~UV_HANDLE_ENDGAME_QUEUED;
+
+    switch (handle->type) {
+      case UV_TCP:
+        uv__tcp_endgame(loop, (uv_tcp_t*) handle);
+        break;
+
+      case UV_NAMED_PIPE:
+        uv__pipe_endgame(loop, (uv_pipe_t*) handle);
+        break;
+
+      case UV_TTY:
+        uv__tty_endgame(loop, (uv_tty_t*) handle);
+        break;
+
+      case UV_UDP:
+        uv__udp_endgame(loop, (uv_udp_t*) handle);
+        break;
+
+      case UV_POLL:
+        uv__poll_endgame(loop, (uv_poll_t*) handle);
+        break;
+
+      case UV_TIMER:
+        uv__timer_close((uv_timer_t*) handle);
+        uv__handle_close(handle);
+        break;
+
+      case UV_PREPARE:
+      case UV_CHECK:
+      case UV_IDLE:
+        uv__loop_watcher_endgame(loop, handle);
+        break;
+
+      case UV_ASYNC:
+        uv__async_endgame(loop, (uv_async_t*) handle);
+        break;
+
+      case UV_SIGNAL:
+        uv__signal_endgame(loop, (uv_signal_t*) handle);
+        break;
+
+      case UV_PROCESS:
+        uv__process_endgame(loop, (uv_process_t*) handle);
+        break;
+
+      case UV_FS_EVENT:
+        uv__fs_event_endgame(loop, (uv_fs_event_t*) handle);
+        break;
+
+      case UV_FS_POLL:
+        uv__fs_poll_endgame(loop, (uv_fs_poll_t*) handle);
+        break;
+
+      default:
+        assert(0);
+        break;
+    }
+  }
 }
 
 
 int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   DWORD timeout;
   int r;
-  int ran_pending;
+  int can_sleep;
 
   r = uv__loop_alive(loop);
   if (!r)
     uv_update_time(loop);
 
-  while (r != 0 && loop->stop_flag == 0) {
+  /* Maintain backwards compatibility by processing timers before entering the
+   * while loop for UV_RUN_DEFAULT. Otherwise timers only need to be executed
+   * once, which should be done after polling in order to maintain proper
+   * execution order of the conceptual event loop. */
+  if (mode == UV_RUN_DEFAULT && r != 0 && loop->stop_flag == 0) {
     uv_update_time(loop);
     uv__run_timers(loop);
+  }
 
-    ran_pending = uv_process_reqs(loop);
-    uv_idle_invoke(loop);
-    uv_prepare_invoke(loop);
+  while (r != 0 && loop->stop_flag == 0) {
+    can_sleep = loop->pending_reqs_tail == NULL && loop->idle_handles == NULL;
+
+    uv__process_reqs(loop);
+    uv__idle_invoke(loop);
+    uv__prepare_invoke(loop);
 
     timeout = 0;
-    if ((mode == UV_RUN_ONCE && !ran_pending) || mode == UV_RUN_DEFAULT)
+    if ((mode == UV_RUN_ONCE && can_sleep) || mode == UV_RUN_DEFAULT)
       timeout = uv_backend_timeout(loop);
 
-    if (pGetQueuedCompletionStatusEx)
-      uv__poll(loop, timeout);
-    else
-      uv__poll_wine(loop, timeout);
+    uv__metrics_inc_loop_count(loop);
+
+    uv__poll(loop, timeout);
+
+    /* Process immediate callbacks (e.g. write_cb) a small fixed number of
+     * times to avoid loop starvation.*/
+    for (r = 0; r < 8 && loop->pending_reqs_tail != NULL; r++)
+      uv__process_reqs(loop);
 
     /* Run one final update on the provider_idle_time in case uv__poll*
      * returned because the timeout expired, but no events were received. This
@@ -626,20 +743,11 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
      */
     uv__metrics_update_idle_time(loop);
 
-    uv_check_invoke(loop);
-    uv_process_endgames(loop);
+    uv__check_invoke(loop);
+    uv__process_endgames(loop);
 
-    if (mode == UV_RUN_ONCE) {
-      /* UV_RUN_ONCE implies forward progress: at least one callback must have
-       * been invoked when it returns. uv__io_poll() can return without doing
-       * I/O (meaning: no callbacks) when its timeout expires - which means we
-       * have pending timers that satisfy the forward progress constraint.
-       *
-       * UV_RUN_NOWAIT makes no guarantees about progress so it's omitted from
-       * the check.
-       */
-      uv__run_timers(loop);
-    }
+    uv_update_time(loop);
+    uv__run_timers(loop);
 
     r = uv__loop_alive(loop);
     if (mode == UV_RUN_ONCE || mode == UV_RUN_NOWAIT)
@@ -745,4 +853,27 @@ int uv__getsockpeername(const uv_handle_t* handle,
     return uv_translate_sys_error(WSAGetLastError());
 
   return 0;
+}
+
+void uv__insert_pending_req(uv_loop_t* loop, uv_req_t* req) {
+  req->next_req = NULL;
+  if (loop->pending_reqs_tail) {
+#ifdef _DEBUG
+    /* Ensure the request is not already in the queue, or the queue
+     * will get corrupted.
+     */
+    uv_req_t* current = loop->pending_reqs_tail;
+    do {
+      assert(req != current);
+      current = current->next_req;
+    } while (current != loop->pending_reqs_tail);
+#endif
+
+    req->next_req = loop->pending_reqs_tail->next_req;
+    loop->pending_reqs_tail->next_req = req;
+    loop->pending_reqs_tail = req;
+  } else {
+    req->next_req = req;
+    loop->pending_reqs_tail = req;
+  }
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 // Test for the buffer becoming detached in surprising places. Test262 covers
 // the case where the buffer starts off detached.

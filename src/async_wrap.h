@@ -31,85 +31,87 @@
 
 namespace node {
 
-#define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                               \
-  V(NONE)                                                                     \
-  V(DIRHANDLE)                                                                \
-  V(DNSCHANNEL)                                                               \
-  V(ELDHISTOGRAM)                                                             \
-  V(FILEHANDLE)                                                               \
-  V(FILEHANDLECLOSEREQ)                                                       \
-  V(FSEVENTWRAP)                                                              \
-  V(FSREQCALLBACK)                                                            \
-  V(FSREQPROMISE)                                                             \
-  V(GETADDRINFOREQWRAP)                                                       \
-  V(GETNAMEINFOREQWRAP)                                                       \
-  V(HEAPSNAPSHOT)                                                             \
-  V(HTTP2SESSION)                                                             \
-  V(HTTP2STREAM)                                                              \
-  V(HTTP2PING)                                                                \
-  V(HTTP2SETTINGS)                                                            \
-  V(HTTPINCOMINGMESSAGE)                                                      \
-  V(HTTPCLIENTREQUEST)                                                        \
-  V(JSSTREAM)                                                                 \
-  V(JSUDPWRAP)                                                                \
-  V(MESSAGEPORT)                                                              \
-  V(PIPECONNECTWRAP)                                                          \
-  V(PIPESERVERWRAP)                                                           \
-  V(PIPEWRAP)                                                                 \
-  V(PROCESSWRAP)                                                              \
-  V(PROMISE)                                                                  \
-  V(QUERYWRAP)                                                                \
-  V(QLOGSTREAM)                                                               \
-  V(QUICCLIENTSESSION)                                                        \
-  V(QUICSERVERSESSION)                                                        \
-  V(QUICSENDWRAP)                                                             \
-  V(QUICSOCKET)                                                               \
-  V(QUICSTREAM)                                                               \
-  V(SHUTDOWNWRAP)                                                             \
-  V(SIGNALWRAP)                                                               \
-  V(STATWATCHER)                                                              \
-  V(STREAMPIPE)                                                               \
-  V(TCPCONNECTWRAP)                                                           \
-  V(TCPSERVERWRAP)                                                            \
-  V(TCPWRAP)                                                                  \
-  V(TTYWRAP)                                                                  \
-  V(UDPSENDWRAP)                                                              \
-  V(UDPWRAP)                                                                  \
-  V(SIGINTWATCHDOG)                                                           \
-  V(WORKER)                                                                   \
-  V(WORKERHEAPSNAPSHOT)                                                       \
-  V(WRITEWRAP)                                                                \
+#define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                \
+  V(NONE)                                                                      \
+  V(DIRHANDLE)                                                                 \
+  V(DNSCHANNEL)                                                                \
+  V(ELDHISTOGRAM)                                                              \
+  V(FILEHANDLE)                                                                \
+  V(FILEHANDLECLOSEREQ)                                                        \
+  V(BLOBREADER)                                                                \
+  V(FSEVENTWRAP)                                                               \
+  V(FSREQCALLBACK)                                                             \
+  V(FSREQPROMISE)                                                              \
+  V(GETADDRINFOREQWRAP)                                                        \
+  V(GETNAMEINFOREQWRAP)                                                        \
+  V(HEAPSNAPSHOT)                                                              \
+  V(HTTP2SESSION)                                                              \
+  V(HTTP2STREAM)                                                               \
+  V(HTTP2PING)                                                                 \
+  V(HTTP2SETTINGS)                                                             \
+  V(HTTPINCOMINGMESSAGE)                                                       \
+  V(HTTPCLIENTREQUEST)                                                         \
+  V(LOCKS)                                                                     \
+  V(DTLS_ENDPOINT)                                                             \
+  V(DTLS_SESSION)                                                              \
+  V(JSSTREAM)                                                                  \
+  V(JSUDPWRAP)                                                                 \
+  V(MESSAGEPORT)                                                               \
+  V(PIPECONNECTWRAP)                                                           \
+  V(PIPESERVERWRAP)                                                            \
+  V(PIPEWRAP)                                                                  \
+  V(PROCESSWRAP)                                                               \
+  V(PROMISE)                                                                   \
+  V(QUERYWRAP)                                                                 \
+  V(QUIC_ENDPOINT)                                                             \
+  V(QUIC_LOGSTREAM)                                                            \
+  V(QUIC_SESSION)                                                              \
+  V(QUIC_STREAM)                                                               \
+  V(QUIC_UDP)                                                                  \
+  V(SHUTDOWNWRAP)                                                              \
+  V(SIGNALWRAP)                                                                \
+  V(STATWATCHER)                                                               \
+  V(STREAMPIPE)                                                                \
+  V(TCPCONNECTWRAP)                                                            \
+  V(TCPSERVERWRAP)                                                             \
+  V(TCPWRAP)                                                                   \
+  V(TTYWRAP)                                                                   \
+  V(UDPSENDWRAP)                                                               \
+  V(UDPWRAP)                                                                   \
+  V(SIGINTWATCHDOG)                                                            \
+  V(WORKER)                                                                    \
+  V(WORKERCPUPROFILE)                                                          \
+  V(WORKERCPUUSAGE)                                                            \
+  V(WORKERHEAPPROFILE)                                                         \
+  V(WORKERHEAPSNAPSHOT)                                                        \
+  V(WORKERHEAPSTATISTICS)                                                      \
+  V(WRITEWRAP)                                                                 \
   V(ZLIB)
 
 #if HAVE_OPENSSL
-#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
-  V(PBKDF2REQUEST)                                                            \
-  V(KEYPAIRGENREQUEST)                                                        \
-  V(KEYGENREQUEST)                                                            \
-  V(KEYEXPORTREQUEST)                                                         \
-  V(CIPHERREQUEST)                                                            \
-  V(DERIVEBITSREQUEST)                                                        \
-  V(HASHREQUEST)                                                              \
-  V(RANDOMBYTESREQUEST)                                                       \
-  V(SCRYPTREQUEST)                                                            \
-  V(SIGNREQUEST)                                                              \
-  V(TLSWRAP)                                                                  \
+#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                    \
+  V(CHECKPRIMEREQUEST)                                                         \
+  V(PBKDF2REQUEST)                                                             \
+  V(KEYPAIRGENREQUEST)                                                         \
+  V(KEYGENREQUEST)                                                             \
+  V(KEYEXPORTREQUEST)                                                          \
+  V(ARGON2REQUEST)                                                             \
+  V(CIPHERREQUEST)                                                             \
+  V(DERIVEBITSREQUEST)                                                         \
+  V(HASHREQUEST)                                                               \
+  V(RANDOMBYTESREQUEST)                                                        \
+  V(RANDOMPRIMEREQUEST)                                                        \
+  V(SCRYPTREQUEST)                                                             \
+  V(SIGNREQUEST)                                                               \
+  V(TLSWRAP)                                                                   \
   V(VERIFYREQUEST)
 #else
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
 #endif  // HAVE_OPENSSL
 
-#if HAVE_INSPECTOR
-#define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)                                \
-  V(INSPECTORJSBINDING)
-#else
-#define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
-#endif  // HAVE_INSPECTOR
-
-#define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
-  NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                     \
-  NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                         \
-  NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
+#define NODE_ASYNC_PROVIDER_TYPES(V)                                           \
+  NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                      \
+  NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
 
 class Environment;
 class DestroyParam;
@@ -117,6 +119,11 @@ class ExternalReferenceRegistry;
 
 class AsyncWrap : public BaseObject {
  public:
+  enum InternalFields {
+    kAsyncContextFrame = BaseObject::kInternalFieldCount,
+    kInternalFieldCount,
+  };
+
   enum ProviderType {
 #define V(PROVIDER)                                                           \
     PROVIDER_ ## PROVIDER,
@@ -141,13 +148,17 @@ class AsyncWrap : public BaseObject {
   static constexpr double kInvalidAsyncId = -1;
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      IsolateData* isolate_data);
+  inline static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
-  static void Initialize(v8::Local<v8::Object> target,
-                         v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context,
-                         void* priv);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PushAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -157,6 +168,8 @@ class AsyncWrap : public BaseObject {
   static void ClearAsyncIdStack(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetAsyncContextFrame(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProviderType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyAsyncId(
     const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -176,6 +189,7 @@ class AsyncWrap : public BaseObject {
 
   void EmitDestroy(bool from_gc = false);
 
+  void EmitTraceAsyncStart() const;
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();
@@ -188,9 +202,11 @@ class AsyncWrap : public BaseObject {
   inline double get_async_id() const;
   inline double get_trigger_async_id() const;
 
+  inline v8::Local<v8::Value> context_frame() const;
+  inline void set_context_frame(v8::Local<v8::Value> value);
+
   void AsyncReset(v8::Local<v8::Object> resource,
-                  double execution_async_id = kInvalidAsyncId,
-                  bool silent = false);
+                  double execution_async_id = kInvalidAsyncId);
 
   // Only call these within a valid HandleScope.
   v8::MaybeLocal<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -210,7 +226,7 @@ class AsyncWrap : public BaseObject {
       v8::Local<v8::Value>* argv);
 
   virtual std::string diagnostic_name() const;
-  std::string MemoryInfoName() const override;
+  const char* MemoryInfoName() const override;
 
   static void WeakCallback(const v8::WeakCallbackInfo<DestroyParam> &info);
 
@@ -222,24 +238,15 @@ class AsyncWrap : public BaseObject {
 
   bool IsDoneInitializing() const override;
 
- private:
-  friend class PromiseWrap;
+  static inline v8::Local<v8::FunctionTemplate> MakeLazilyInitializedJSTemplate(
+      Environment* env, int internal_field_count = kInternalFieldCount);
 
-  AsyncWrap(Environment* env,
-            v8::Local<v8::Object> promise,
-            ProviderType provider,
-            double execution_async_id,
-            bool silent);
-  AsyncWrap(Environment* env,
-            v8::Local<v8::Object> promise,
-            ProviderType provider,
-            double execution_async_id,
-            double trigger_async_id);
+ private:
   ProviderType provider_type_ = PROVIDER_NONE;
   bool init_hook_ran_ = false;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
-  double trigger_async_id_;
+  double trigger_async_id_ = kInvalidAsyncId;
 };
 
 }  // namespace node

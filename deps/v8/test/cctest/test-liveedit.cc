@@ -27,8 +27,7 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
+#include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/debug/liveedit.h"
 #include "src/objects/objects-inl.h"
@@ -189,11 +188,11 @@ TEST(LiveEditTranslatePosition) {
   CompareStringsOneWay("aabbaaaa", "aaaabbaa", &changes);
   CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
   CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 1);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 4);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 5);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 4), 6);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 5), 7);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 6), 8);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 3);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 4), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 5), 3);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 6), 6);
   CHECK_EQ(LiveEdit::TranslatePosition(changes, 8), 8);
 }
 
@@ -201,44 +200,45 @@ namespace {
 void PatchFunctions(v8::Local<v8::Context> context, const char* source_a,
                     const char* source_b,
                     v8::debug::LiveEditResult* result = nullptr) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::EscapableHandleScope scope(isolate);
   v8::Local<v8::Script> script_a =
       v8::Script::Compile(context, v8_str(isolate, source_a)).ToLocalChecked();
   script_a->Run(context).ToLocalChecked();
   i::Handle<i::Script> i_script_a(
-      i::Script::cast(v8::Utils::OpenHandle(*script_a)->shared().script()),
+      i::Cast<i::Script>(
+          v8::Utils::OpenDirectHandle(*script_a)->shared()->script()),
       i_isolate);
 
   if (result) {
     LiveEdit::PatchScript(
         i_isolate, i_script_a,
-        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false,
+        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false, false,
         result);
     if (result->status == v8::debug::LiveEditResult::COMPILE_ERROR) {
       result->message = scope.Escape(result->message);
     }
   } else {
-    v8::debug::LiveEditResult result;
+    v8::debug::LiveEditResult r;
     LiveEdit::PatchScript(
         i_isolate, i_script_a,
-        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false,
-        &result);
-    CHECK_EQ(result.status, v8::debug::LiveEditResult::OK);
+        i_isolate->factory()->NewStringFromAsciiChecked(source_b), false, false,
+        &r);
+    CHECK_EQ(r.status, v8::debug::LiveEditResult::OK);
   }
 }
 }  // anonymous namespace
 
 TEST(LiveEditPatchFunctions) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
   // Check that function is removed from compilation cache.
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   PatchFunctions(context, "42;", "%AbortJS('')");
   PatchFunctions(context, "42;", "239;");
-  i::FLAG_allow_natives_syntax = false;
+  i::v8_flags.allow_natives_syntax = false;
 
   // Basic test cases.
   PatchFunctions(context, "42;", "2;");
@@ -247,7 +247,7 @@ TEST(LiveEditPatchFunctions) {
   // Trivial return value change.
   PatchFunctions(context, "function foo() { return 1; }",
                  "function foo() { return 42; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -255,7 +255,7 @@ TEST(LiveEditPatchFunctions) {
   // It is expected, we do not reevaluate top level function.
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var a = 3; function foo() { return a; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -264,14 +264,14 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 4; function foo() { return b; }");
   {
-    v8::TryCatch try_catch(env->GetIsolate());
+    v8::TryCatch try_catch(env.isolate());
     CompileRun("foo()");
     CHECK(try_catch.HasCaught());
   }
   // But user always can add new variable to function and use it.
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 4; function foo() { var b = 5; return b; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -279,7 +279,7 @@ TEST(LiveEditPatchFunctions) {
 
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 4; function foo() { var a = 6; return a; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -288,14 +288,14 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var d = (() => ({a:2}))(); function foo() { return d; }");
   {
-    v8::TryCatch try_catch(env->GetIsolate());
+    v8::TryCatch try_catch(env.isolate());
     CompileRun("foo()");
     CHECK(try_catch.HasCaught());
   }
 
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 1; var a = 2; function foo() { return a; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -304,14 +304,14 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "var a = 1; function foo() { return a; }",
                  "var b = 1; var a = 2; function foo() { return b; }");
   {
-    v8::TryCatch try_catch(env->GetIsolate());
+    v8::TryCatch try_catch(env.isolate());
     CompileRun("foo()");
     CHECK(try_catch.HasCaught());
   }
 
   PatchFunctions(context, "function foo() { var a = 1; return a; }",
                  "function foo() { var b = 1; return b; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -319,7 +319,7 @@ TEST(LiveEditPatchFunctions) {
 
   PatchFunctions(context, "var a = 3; function foo() { var a = 1; return a; }",
                  "function foo() { var b = 1; return a; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -328,7 +328,7 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context, "var a = 3; var c = 7; function foo() { return a; }",
                  "var b = 5; var a = 3; function foo() { return b; }");
   {
-    v8::TryCatch try_catch(env->GetIsolate());
+    v8::TryCatch try_catch(env.isolate());
     CompileRun("foo()");
     CHECK(try_catch.HasCaught());
   }
@@ -336,7 +336,7 @@ TEST(LiveEditPatchFunctions) {
   // Add argument.
   PatchFunctions(context, "function fooArgs(a1, b1) { return a1 + b1; }",
                  "function fooArgs(a2, b2, c2) { return a2 + b2 + c2; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "fooArgs(1,2,3)")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "fooArgs(1,2,3)")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -344,24 +344,24 @@ TEST(LiveEditPatchFunctions) {
 
   PatchFunctions(context, "function fooArgs(a1, b1) { return a1 + b1; }",
                  "function fooArgs(a1, b1, c1) { return a1 + b1 + c1; }");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "fooArgs(1,2,3)")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "fooArgs(1,2,3)")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
            6);
 
-  i::FLAG_allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax = true;
   PatchFunctions(context,
                  "function foo(a, b) { return a + b; }; "
                  "%PrepareFunctionForOptimization(foo);"
                  "%OptimizeFunctionOnNextCall(foo); foo(1,2);",
                  "function foo(a, b) { return a * b; };");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo(5,7)")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo(5,7)")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
            35);
-  i::FLAG_allow_natives_syntax = false;
+  i::v8_flags.allow_natives_syntax = false;
 
   // Check inner function.
   PatchFunctions(
@@ -369,7 +369,7 @@ TEST(LiveEditPatchFunctions) {
       "function foo(a,b) { function op(a,b) { return a + b } return op(a,b); }",
       "function foo(a,b) { function op(a,b) { return a * b } return op(a,b); "
       "}");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "foo(8,9)")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "foo(8,9)")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -379,7 +379,7 @@ TEST(LiveEditPatchFunctions) {
   PatchFunctions(context,
                  "class Foo { constructor(a,b) { this.data = a + b; } };",
                  "class Foo { constructor(a,b) { this.data = a * b; } };");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "new Foo(4,5).data")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "new Foo(4,5).data")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -391,7 +391,7 @@ TEST(LiveEditPatchFunctions) {
       "function f4() {}",
       "function f(evt) { function f2() { return 1; } return f2() + f3(); "
       "function f3() { return 2; }  } function f4() {}");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "f()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -415,29 +415,32 @@ TEST(LiveEditPatchFunctions) {
                  "    return 'Capybara' + b;\n"
                  "  };\n"
                  "}\n");
-  CompileRunChecked(env->GetIsolate(), "var new_closure = ChooseAnimal(3, 4);");
-  v8::Local<v8::String> call_result =
-      CompileRunChecked(env->GetIsolate(), "new_closure()").As<v8::String>();
-  v8::String::Utf8Value new_result_utf8(env->GetIsolate(), call_result);
-  CHECK_NOT_NULL(strstr(*new_result_utf8, "Capybara4"));
-  call_result =
-      CompileRunChecked(env->GetIsolate(), "old_closure()").As<v8::String>();
-  v8::String::Utf8Value old_result_utf8(env->GetIsolate(), call_result);
-  CHECK_NOT_NULL(strstr(*old_result_utf8, "Cat2"));
+  CompileRunChecked(env.isolate(), "var new_closure = ChooseAnimal(3, 4);");
+
+  {
+    v8::Local<v8::String> call_result =
+        CompileRunChecked(env.isolate(), "new_closure()").As<v8::String>();
+    v8::String::Utf8Value new_result_utf8(env.isolate(), call_result);
+    CHECK_NOT_NULL(strstr(*new_result_utf8, "Capybara4"));
+    call_result =
+        CompileRunChecked(env.isolate(), "old_closure()").As<v8::String>();
+    v8::String::Utf8Value old_result_utf8(env.isolate(), call_result);
+    CHECK_NOT_NULL(strstr(*old_result_utf8, "Cat2"));
+  }
 
   // Update const literals.
   PatchFunctions(context, "function foo() { return 'a' + 'b'; }",
                  "function foo() { return 'c' + 'b'; }");
   {
-    v8::Local<v8::String> result =
-        CompileRunChecked(env->GetIsolate(), "foo()").As<v8::String>();
-    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result);
+    v8::Local<v8::String> result_str =
+        CompileRunChecked(env.isolate(), "foo()").As<v8::String>();
+    v8::String::Utf8Value new_result_utf8(env.isolate(), result_str);
     CHECK_NOT_NULL(strstr(*new_result_utf8, "cb"));
   }
 
   // TODO(kozyatinskiy): should work when we remove (.
   PatchFunctions(context, "f = () => 2", "f = a => a");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f(3)")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "f(3)")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -445,7 +448,7 @@ TEST(LiveEditPatchFunctions) {
 
   // Replace function with not a function.
   PatchFunctions(context, "f = () => 2", "f = a == 2");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f(3)")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "f(3)")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -453,7 +456,7 @@ TEST(LiveEditPatchFunctions) {
 
   // TODO(kozyatinskiy): should work when we put function into (...).
   PatchFunctions(context, "f = a => 2", "f = (a => 5)()");
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "f()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -473,12 +476,12 @@ TEST(LiveEditPatchFunctions) {
                  "}\n"
                  "f()\n");
   // TODO(kozyatinskiy): ditto.
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f2()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "f2()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
            5);
-  CHECK_EQ(CompileRunChecked(env->GetIsolate(), "f()")
+  CHECK_EQ(CompileRunChecked(env.isolate(), "f()")
                ->ToInt32(context)
                .ToLocalChecked()
                ->Value(),
@@ -487,7 +490,7 @@ TEST(LiveEditPatchFunctions) {
 
 TEST(LiveEditCompileError) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
   debug::LiveEditResult result;
   PatchFunctions(
@@ -503,14 +506,14 @@ TEST(LiveEditCompileError) {
   CHECK_EQ(result.status, debug::LiveEditResult::COMPILE_ERROR);
   CHECK_EQ(result.line_number, 2);
   CHECK_EQ(result.column_number, 51);
-  v8::String::Utf8Value result_message(env->GetIsolate(), result.message);
+  v8::String::Utf8Value result_message(env.isolate(), result.message);
   CHECK_NOT_NULL(
       strstr(*result_message, "Uncaught SyntaxError: Unexpected token ')'"));
 
   {
-    v8::Local<v8::String> result =
-        CompileRunChecked(env->GetIsolate(), "ChooseAnimal()").As<v8::String>();
-    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result);
+    v8::Local<v8::String> result_str =
+        CompileRunChecked(env.isolate(), "ChooseAnimal()").As<v8::String>();
+    v8::String::Utf8Value new_result_utf8(env.isolate(), result_str);
     CHECK_NOT_NULL(strstr(*new_result_utf8, "Cat"));
   }
 
@@ -531,9 +534,9 @@ TEST(LiveEditFunctionExpression) {
       "  return 'Capy' + 'bara';\n"
       "})\n";
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   v8::Local<v8::Context> context = env.local();
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::Local<v8::Script> script =
       v8::Script::Compile(context, v8_str(isolate, original_source))
@@ -541,20 +544,21 @@ TEST(LiveEditFunctionExpression) {
   v8::Local<v8::Function> f =
       script->Run(context).ToLocalChecked().As<v8::Function>();
   i::Handle<i::Script> i_script(
-      i::Script::cast(v8::Utils::OpenHandle(*script)->shared().script()),
+      i::Cast<i::Script>(
+          v8::Utils::OpenDirectHandle(*script)->shared()->script()),
       i_isolate);
   debug::LiveEditResult result;
   LiveEdit::PatchScript(
       i_isolate, i_script,
       i_isolate->factory()->NewStringFromAsciiChecked(updated_source), false,
-      &result);
+      false, &result);
   CHECK_EQ(result.status, debug::LiveEditResult::OK);
   {
-    v8::Local<v8::String> result =
+    v8::Local<v8::String> result_str =
         f->Call(context, context->Global(), 0, nullptr)
             .ToLocalChecked()
             .As<v8::String>();
-    v8::String::Utf8Value new_result_utf8(env->GetIsolate(), result);
+    v8::String::Utf8Value new_result_utf8(env.isolate(), result_str);
     CHECK_NOT_NULL(strstr(*new_result_utf8, "Capybara"));
   }
 }

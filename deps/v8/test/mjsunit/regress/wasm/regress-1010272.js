@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-grow-shared-memory --experimental-wasm-threads
+// Flags: --wasm-grow-shared-memory
 
 const kNumWorkers = 100;
 const kNumMessages = 50;
@@ -15,8 +15,7 @@ function AllocMemory(initial, maximum = initial) {
   let worker = [];
   for (let w = 0; w < kNumWorkers; w++) {
     worker[w] = new Worker(
-        `onmessage =
-        function(msg) {
+        `onmessage = function({data:msg}) {
           msg.memory.grow(1);
         }`, {type : 'string'});
   }

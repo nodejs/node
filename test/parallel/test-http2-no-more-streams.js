@@ -18,7 +18,7 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const nextID = 2 ** 31 - 1;
 
-  client.on('connect', () => {
+  client.on('connect', common.mustCall(() => {
     client.setNextStreamID(nextID);
 
     assert.strictEqual(client.state.nextStreamID, nextID);
@@ -49,5 +49,5 @@ server.listen(0, common.mustCall(() => {
       }));
       req.on('error', () => countdown.dec());
     }
-  });
+  }));
 }));

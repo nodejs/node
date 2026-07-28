@@ -262,6 +262,25 @@ assertEquals(2016, f6(64), "largeSwitch.64");
 assertEquals(4032, f6(128), "largeSwitch.128");
 assertEquals(4222, f6(148), "largeSwitch.148");
 
+function fhole(x) {
+  switch(x){
+    case 0:
+      x = 2;
+    case 2:
+      x = 3;
+    case 3:
+      x = 4;
+    case 4:
+      x = 5;
+      break;
+    case 5:
+      x = 6;
+      break;
+  }
+  return x;
+}
+
+assertEquals(1, fhole(1), "fhole.jumptablehole");
 
 function f7(value) {
   switch (value) {
@@ -305,6 +324,120 @@ assertEquals("default", f7(1<<30), "0-1-switch.maxsmi++");
 assertEquals("default", f7(-(1<<30)-1), "0-1-switch.minsmi--");
 assertEquals("A", f7((170/16)-(170%16/16)), "0-1-switch.heapnum");
 
+function zeroCheck1(value){
+  switch(value){
+    case -0:
+      return 313;
+    case -5:
+      return 5;
+    case -4:
+      return 4;
+    case -3:
+      return 3;
+    case -2:
+      return 1;
+    case -1:
+    case 0:
+      return 291949;
+  }
+  return 0;
+}
+
+assertEquals(313, zeroCheck1(0), "zero-check-1.1");
+assertEquals(313, zeroCheck1(0.0), "zero-check-1.2");
+assertEquals(313, zeroCheck1(-0), "zero-check-1.3");
+assertEquals(291949, zeroCheck1(-1), "zero-check-1.4");
+
+function zeroCheck2(value){
+  switch(value){
+    case 0:
+      return 291;
+    case -5:
+      return 5;
+    case -4:
+    case -0:
+      return 313;
+    case -3:
+      return 3;
+    case -2:
+      return 1;
+    case -1:
+      return 10;
+  }
+  return 0;
+}
+
+assertEquals(291, zeroCheck2(0), "zero-check-2.1");
+assertEquals(291, zeroCheck2(0.0), "zero-check-2.2");
+assertEquals(291, zeroCheck2(-0), "zero-check-2.3");
+assertEquals(313, zeroCheck2(-4), "zero-check-2.4");
+
+function duplicateCaseCheck(value){
+  switch(value){
+    case 1:
+      return 291;
+    case 2.0:
+      return 5;
+    case 3:
+    case 1.0:
+      return 324;
+    case 4:
+    case 2:
+      return 15;
+    case 5:
+    case 6:
+      return 18;
+  }
+  return 0;
+}
+
+assertEquals(291, duplicateCaseCheck(1.0), "duplicate-check.1");
+assertEquals(324, duplicateCaseCheck(3), "duplicate-check.2");
+assertEquals(15, duplicateCaseCheck(4), "duplicate-check.3");
+assertEquals(5, duplicateCaseCheck(2), "duplicate-check.4");
+
+function jumpTableHoleAliasCheck(value){
+  let y = 4;
+  switch(value){
+    case 0: return 10;
+    case 1: return 20;
+    case 2: return 30;
+    case 3: return 40;
+    case 5: return 60;
+    case 6: return 70;
+    case y: return 50;
+  }
+  return 0;
+}
+
+assertEquals(50, jumpTableHoleAliasCheck(4), "jump-table-hole-alias.1");
+
+function caseSideEffects(value){
+  let y = 2;
+  switch(value){
+    case y--:
+      return 'first!';
+    case 3:
+      return 'const1';
+    case 4:
+      return 'const2';
+    case 5:
+      return 'const3';
+    case 6:
+      return 'const4';
+    case 7:
+      return 'const5';
+    case 8:
+      return 'const6';
+    case y:
+      return 'wow';
+    case 1:
+      return 'ouch';
+  }
+  return '';
+}
+
+assertEquals('wow', caseSideEffects(1), "case-side-effects.1");
 
 function makeVeryLong(length) {
   var res = "(function () {\n" +

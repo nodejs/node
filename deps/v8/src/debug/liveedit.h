@@ -56,11 +56,6 @@ struct SourceChangeRange {
 
 class V8_EXPORT_PRIVATE LiveEdit : AllStatic {
  public:
-  static void InitializeThreadLocal(Debug* debug);
-
-  // Restarts the call frame and completely drops all frames above it.
-  static bool RestartFrame(JavaScriptFrame* frame);
-
   static void CompareStrings(Isolate* isolate, Handle<String> a,
                              Handle<String> b,
                              std::vector<SourceChangeRange>* diffs);
@@ -68,9 +63,8 @@ class V8_EXPORT_PRIVATE LiveEdit : AllStatic {
                                int position);
   static void PatchScript(Isolate* isolate, Handle<Script> script,
                           Handle<String> source, bool preview,
+                          bool allow_top_frame_live_editing,
                           debug::LiveEditResult* result);
-  // Architecture-specific constant.
-  static const bool kFrameDropperSupported;
 };
 }  // namespace internal
 }  // namespace v8

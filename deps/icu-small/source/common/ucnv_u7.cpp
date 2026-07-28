@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -184,12 +184,12 @@ static void U_CALLCONV
 _UTF7Reset(UConverter *cnv, UConverterResetChoice choice) {
     if(choice<=UCNV_RESET_TO_UNICODE) {
         /* reset toUnicode */
-        cnv->toUnicodeStatus=0x1000000; /* inDirectMode=TRUE */
+        cnv->toUnicodeStatus=0x1000000; /* inDirectMode=true */
         cnv->toULength=0;
     }
     if(choice!=UCNV_RESET_TO_UNICODE) {
         /* reset fromUnicode */
-        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=TRUE */
+        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=true */
     }
 }
 
@@ -212,8 +212,8 @@ _UTF7ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                           UErrorCode *pErrorCode) {
     UConverter *cnv;
     const uint8_t *source, *sourceLimit;
-    UChar *target;
-    const UChar *targetLimit;
+    char16_t *target;
+    const char16_t *targetLimit;
     int32_t *offsets;
 
     uint8_t *bytes;
@@ -280,13 +280,13 @@ directMode:
             } else if(b!=PLUS) {
                 /* write directly encoded character */
                 *target++=b;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex++;
                 }
             } else /* PLUS */ {
                 /* switch to Unicode mode */
                 nextSourceIndex=++sourceIndex;
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 byteIndex=0;
                 bits=0;
                 base64Counter=-1;
@@ -320,16 +320,16 @@ unicodeMode:
                      * base64Value==-1 for any legal character except base64 and minus sign, or
                      * base64Value==-3 for illegal characters:
                      * 1. In either case, leave Unicode mode.
-                     * 2.1. If we ended with an incomplete UChar or none after the +, then
+                     * 2.1. If we ended with an incomplete char16_t or none after the +, then
                      *      generate an error for the preceding erroneous sequence and deal with
                      *      the current (possibly illegal) character next time through.
-                     * 2.2. Else the current char comes after a complete UChar, which was already
+                     * 2.2. Else the current char comes after a complete char16_t, which was already
                      *      pushed to the output buf, so:
                      * 2.2.1. If the current char is legal, just save it for processing next time.
                      *        It may be for example, a plus which we need to deal with in direct mode.
                      * 2.2.2. Else if the current char is illegal, we might as well deal with it here.
                      */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     if(base64Counter==-1) {
                         /* illegal: + immediately followed by something other than base64 or minus sign */
                         /* include the plus sign in the reported sequence, but not the subsequent char */
@@ -339,14 +339,14 @@ unicodeMode:
                         *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                         break;
                     } else if(bits!=0) {
-                        /* bits are illegally left over, a UChar is incomplete */
+                        /* bits are illegally left over, a char16_t is incomplete */
                         /* don't include current char (legal or illegal) in error seq */
                         --source;
                         --byteIndex;
                         *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                         break;
                     } else {
-                        /* previous UChar was complete */
+                        /* previous char16_t was complete */
                         if(base64Value==-3) {
                             /* current character is illegal, deal with it here */
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
@@ -374,8 +374,8 @@ unicodeMode:
                         ++base64Counter;
                         break;
                     case 2:
-                        *target++=(UChar)((bits<<4)|(base64Value>>2));
-                        if(offsets!=NULL) {
+                        *target++=(char16_t)((bits<<4)|(base64Value>>2));
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                             sourceIndex=nextSourceIndex-1;
                         }
@@ -385,8 +385,8 @@ unicodeMode:
                         base64Counter=3;
                         break;
                     case 5:
-                        *target++=(UChar)((bits<<2)|(base64Value>>4));
-                        if(offsets!=NULL) {
+                        *target++=(char16_t)((bits<<2)|(base64Value>>4));
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                             sourceIndex=nextSourceIndex-1;
                         }
@@ -396,8 +396,8 @@ unicodeMode:
                         base64Counter=6;
                         break;
                     case 7:
-                        *target++=(UChar)((bits<<6)|base64Value);
-                        if(offsets!=NULL) {
+                        *target++=(char16_t)((bits<<6)|base64Value);
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                             sourceIndex=nextSourceIndex;
                         }
@@ -411,17 +411,17 @@ unicodeMode:
                     }
                 } else /*base64Value==-2*/ {
                     /* minus sign terminates the base64 sequence */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     if(base64Counter==-1) {
                         /* +- i.e. a minus immediately following a plus */
                         *target++=PLUS;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex-1;
                         }
                     } else {
                         /* absorb the minus and leave the Unicode Mode */
                         if(bits!=0) {
-                            /* bits are illegally left over, a UChar is incomplete */
+                            /* bits are illegally left over, a char16_t is incomplete */
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             break;
                         }
@@ -455,19 +455,18 @@ unicodeMode:
     pArgs->source=(const char *)source;
     pArgs->target=target;
     pArgs->offsets=offsets;
-    return;
 }
 
 static void U_CALLCONV
 _UTF7FromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                             UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source, *sourceLimit;
+    const char16_t *source, *sourceLimit;
     uint8_t *target, *targetLimit;
     int32_t *offsets;
 
     int32_t length, targetCapacity, sourceIndex;
-    UChar c;
+    char16_t c;
 
     /* UTF-7 state */
     const UBool *encodeDirectly;
@@ -511,7 +510,7 @@ directMode:
             if(c<=127 && encodeDirectly[c]) {
                 /* encode directly */
                 *target++=(uint8_t)c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex++;
                 }
             } else if(c==PLUS) {
@@ -519,14 +518,14 @@ directMode:
                 *target++=PLUS;
                 if(target<targetLimit) {
                     *target++=MINUS;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                         *offsets++=sourceIndex++;
                     }
                     /* realign length and targetCapacity */
                     goto directMode;
                 } else {
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex++;
                     }
                     cnv->charErrorBuffer[0]=MINUS;
@@ -538,10 +537,10 @@ directMode:
                 /* un-read this character and switch to Unicode Mode */
                 --source;
                 *target++=PLUS;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 base64Counter=0;
                 goto unicodeMode;
             }
@@ -558,7 +557,7 @@ unicodeMode:
                 c=*source++;
                 if(c<=127 && encodeDirectly[c]) {
                     /* encode directly */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
 
                     /* trick: back out this character to make this easier */
                     --source;
@@ -567,7 +566,7 @@ unicodeMode:
                     if(base64Counter!=0) {
                         /* write remaining bits for the previous character */
                         *target++=toBase64[bits];
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex-1;
                         }
                     }
@@ -575,7 +574,7 @@ unicodeMode:
                         /* need to terminate with a minus */
                         if(target<targetLimit) {
                             *target++=MINUS;
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex-1;
                             }
                         } else {
@@ -601,12 +600,12 @@ unicodeMode:
                         *target++=toBase64[c>>10];
                         if(target<targetLimit) {
                             *target++=toBase64[(c>>4)&0x3f];
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                                 *offsets++=sourceIndex++;
                             }
                         } else {
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex++;
                             }
                             cnv->charErrorBuffer[0]=toBase64[(c>>4)&0x3f];
@@ -622,13 +621,13 @@ unicodeMode:
                             *target++=toBase64[(c>>8)&0x3f];
                             if(target<targetLimit) {
                                 *target++=toBase64[(c>>2)&0x3f];
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
                             } else {
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
@@ -637,7 +636,7 @@ unicodeMode:
                                 *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             }
                         } else {
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex++;
                             }
                             cnv->charErrorBuffer[0]=toBase64[(c>>8)&0x3f];
@@ -654,13 +653,13 @@ unicodeMode:
                             *target++=toBase64[(c>>6)&0x3f];
                             if(target<targetLimit) {
                                 *target++=toBase64[c&0x3f];
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
                             } else {
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
@@ -669,7 +668,7 @@ unicodeMode:
                                 *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             }
                         } else {
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex++;
                             }
                             cnv->charErrorBuffer[0]=toBase64[(c>>6)&0x3f];
@@ -699,7 +698,7 @@ unicodeMode:
             if (base64Counter!=0) {
                 if(target<targetLimit) {
                     *target++=toBase64[bits];
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex-1;
                     }
                 } else {
@@ -710,7 +709,7 @@ unicodeMode:
             /* Add final MINUS to terminate unicodeMode */
             if(target<targetLimit) {
                 *target++=MINUS;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex-1;
                 }
             } else {
@@ -719,7 +718,7 @@ unicodeMode:
             }
         }
         /* reset the state for the next conversion */
-        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=TRUE */
+        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=true */
     } else {
         /* set the converter state back into UConverter */
         cnv->fromUnicodeStatus=
@@ -731,7 +730,6 @@ unicodeMode:
     pArgs->source=source;
     pArgs->target=(char *)target;
     pArgs->offsets=offsets;
-    return;
 }
 
 static const char * U_CALLCONV
@@ -748,27 +746,27 @@ U_CDECL_END
 static const UConverterImpl _UTF7Impl={
     UCNV_UTF7,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _UTF7Open,
-    NULL,
+    nullptr,
     _UTF7Reset,
 
     _UTF7ToUnicodeWithOffsets,
     _UTF7ToUnicodeWithOffsets,
     _UTF7FromUnicodeWithOffsets,
     _UTF7FromUnicodeWithOffsets,
-    NULL,
+    nullptr,
 
-    NULL,
+    nullptr,
     _UTF7GetName,
-    NULL, /* we don't need writeSub() because we never call a callback at fromUnicode() */
-    NULL,
+    nullptr, /* we don't need writeSub() because we never call a callback at fromUnicode() */
+    nullptr,
     ucnv_getCompleteUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _UTF7StaticData={
@@ -778,7 +776,7 @@ static const UConverterStaticData _UTF7StaticData={
     UCNV_IBM, UCNV_UTF7,
     1, 4,
     { 0x3f, 0, 0, 0 }, 1, /* the subchar is not used */
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -814,7 +812,7 @@ const UConverterSharedData _UTF7Data=
  *       the use of "~" in some servers as a home directory indicator.
  *
  *    5) UTF-7 permits multiple alternate forms to represent the same
- *       string; in particular, printable US-ASCII chararacters can be
+ *       string; in particular, printable US-ASCII characters can be
  *       represented in encoded form.
  *
  * In modified UTF-7, printable US-ASCII characters except for "&"
@@ -896,8 +894,8 @@ _IMAPToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                           UErrorCode *pErrorCode) {
     UConverter *cnv;
     const uint8_t *source, *sourceLimit;
-    UChar *target;
-    const UChar *targetLimit;
+    char16_t *target;
+    const char16_t *targetLimit;
     int32_t *offsets;
 
     uint8_t *bytes;
@@ -914,7 +912,7 @@ _IMAPToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
 
     int32_t sourceIndex, nextSourceIndex;
 
-    UChar c;
+    char16_t c;
     uint8_t b;
 
     /* set up the local pointers */
@@ -965,13 +963,13 @@ directMode:
             } else if(b!=AMPERSAND) {
                 /* write directly encoded character */
                 *target++=b;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex++;
                 }
             } else /* AMPERSAND */ {
                 /* switch to Unicode mode */
                 nextSourceIndex=++sourceIndex;
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 byteIndex=0;
                 bits=0;
                 base64Counter=-1;
@@ -1002,7 +1000,7 @@ unicodeMode:
                 ++nextSourceIndex;
                 if(b>0x7e) {
                     /* illegal - test other illegal US-ASCII values by base64Value==-3 */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                     break;
                 } else if((base64Value=FROM_BASE64_IMAP(b))>=0) {
@@ -1021,15 +1019,15 @@ unicodeMode:
                         ++base64Counter;
                         break;
                     case 2:
-                        c=(UChar)((bits<<4)|(base64Value>>2));
+                        c=(char16_t)((bits<<4)|(base64Value>>2));
                         if(isLegalIMAP(c)) {
                             /* illegal */
-                            inDirectMode=TRUE;
+                            inDirectMode=true;
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             goto endloop;
                         }
                         *target++=c;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                             sourceIndex=nextSourceIndex-1;
                         }
@@ -1039,15 +1037,15 @@ unicodeMode:
                         base64Counter=3;
                         break;
                     case 5:
-                        c=(UChar)((bits<<2)|(base64Value>>4));
+                        c=(char16_t)((bits<<2)|(base64Value>>4));
                         if(isLegalIMAP(c)) {
                             /* illegal */
-                            inDirectMode=TRUE;
+                            inDirectMode=true;
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             goto endloop;
                         }
                         *target++=c;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                             sourceIndex=nextSourceIndex-1;
                         }
@@ -1057,15 +1055,15 @@ unicodeMode:
                         base64Counter=6;
                         break;
                     case 7:
-                        c=(UChar)((bits<<6)|base64Value);
+                        c=(char16_t)((bits<<6)|base64Value);
                         if(isLegalIMAP(c)) {
                             /* illegal */
-                            inDirectMode=TRUE;
+                            inDirectMode=true;
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             goto endloop;
                         }
                         *target++=c;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                             sourceIndex=nextSourceIndex;
                         }
@@ -1079,17 +1077,17 @@ unicodeMode:
                     }
                 } else if(base64Value==-2) {
                     /* minus sign terminates the base64 sequence */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     if(base64Counter==-1) {
                         /* &- i.e. a minus immediately following an ampersand */
                         *target++=AMPERSAND;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex-1;
                         }
                     } else {
                         /* absorb the minus and leave the Unicode Mode */
                         if(bits!=0 || (base64Counter!=0 && base64Counter!=3 && base64Counter!=6)) {
-                            /* bits are illegally left over, a UChar is incomplete */
+                            /* bits are illegally left over, a char16_t is incomplete */
                             /* base64Counter other than 0, 3, 6 means non-minimal zero-padding, also illegal */
                             *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                             break;
@@ -1109,7 +1107,7 @@ unicodeMode:
                     /* base64Value==-1 for characters that are illegal only in Unicode mode */
                     /* base64Value==-3 for illegal characters */
                     /* illegal */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
                     *pErrorCode=U_ILLEGAL_CHAR_FOUND;
                     break;
                 }
@@ -1144,7 +1142,7 @@ endloop:
         }
         /* else if(base64Counter!=-1) byteIndex remains 0 because there is no particular byte sequence */
 
-        inDirectMode=TRUE; /* avoid looping */
+        inDirectMode=true; /* avoid looping */
         *pErrorCode=U_TRUNCATED_CHAR_FOUND;
     }
 
@@ -1156,19 +1154,18 @@ endloop:
     pArgs->source=(const char *)source;
     pArgs->target=target;
     pArgs->offsets=offsets;
-    return;
 }
 
 static void U_CALLCONV
 _IMAPFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                             UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source, *sourceLimit;
+    const char16_t *source, *sourceLimit;
     uint8_t *target, *targetLimit;
     int32_t *offsets;
 
     int32_t length, targetCapacity, sourceIndex;
-    UChar c;
+    char16_t c;
     uint8_t b;
 
     /* UTF-7 state */
@@ -1210,7 +1207,7 @@ directMode:
             if(inSetDIMAP(c)) {
                 /* encode directly */
                 *target++=(uint8_t)c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex++;
                 }
             } else if(c==AMPERSAND) {
@@ -1218,14 +1215,14 @@ directMode:
                 *target++=AMPERSAND;
                 if(target<targetLimit) {
                     *target++=MINUS;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                         *offsets++=sourceIndex++;
                     }
                     /* realign length and targetCapacity */
                     goto directMode;
                 } else {
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex++;
                     }
                     cnv->charErrorBuffer[0]=MINUS;
@@ -1237,10 +1234,10 @@ directMode:
                 /* un-read this character and switch to Unicode Mode */
                 --source;
                 *target++=AMPERSAND;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
-                inDirectMode=FALSE;
+                inDirectMode=false;
                 base64Counter=0;
                 goto unicodeMode;
             }
@@ -1257,7 +1254,7 @@ unicodeMode:
                 c=*source++;
                 if(isLegalIMAP(c)) {
                     /* encode directly */
-                    inDirectMode=TRUE;
+                    inDirectMode=true;
 
                     /* trick: back out this character to make this easier */
                     --source;
@@ -1266,14 +1263,14 @@ unicodeMode:
                     if(base64Counter!=0) {
                         /* write remaining bits for the previous character */
                         *target++=TO_BASE64_IMAP(bits);
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex-1;
                         }
                     }
                     /* need to terminate with a minus */
                     if(target<targetLimit) {
                         *target++=MINUS;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex-1;
                         }
                     } else {
@@ -1300,12 +1297,12 @@ unicodeMode:
                         if(target<targetLimit) {
                             b=(uint8_t)((c>>4)&0x3f);
                             *target++=TO_BASE64_IMAP(b);
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                                 *offsets++=sourceIndex++;
                             }
                         } else {
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex++;
                             }
                             b=(uint8_t)((c>>4)&0x3f);
@@ -1325,13 +1322,13 @@ unicodeMode:
                             if(target<targetLimit) {
                                 b=(uint8_t)((c>>2)&0x3f);
                                 *target++=TO_BASE64_IMAP(b);
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
                             } else {
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
@@ -1341,7 +1338,7 @@ unicodeMode:
                                 *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             }
                         } else {
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex++;
                             }
                             b=(uint8_t)((c>>8)&0x3f);
@@ -1363,13 +1360,13 @@ unicodeMode:
                             if(target<targetLimit) {
                                 b=(uint8_t)(c&0x3f);
                                 *target++=TO_BASE64_IMAP(b);
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
                             } else {
-                                if(offsets!=NULL) {
+                                if(offsets!=nullptr) {
                                     *offsets++=sourceIndex;
                                     *offsets++=sourceIndex++;
                                 }
@@ -1379,7 +1376,7 @@ unicodeMode:
                                 *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             }
                         } else {
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex++;
                             }
                             b=(uint8_t)((c>>6)&0x3f);
@@ -1411,7 +1408,7 @@ unicodeMode:
             if(base64Counter!=0) {
                 if(target<targetLimit) {
                     *target++=TO_BASE64_IMAP(bits);
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex-1;
                     }
                 } else {
@@ -1422,7 +1419,7 @@ unicodeMode:
             /* need to terminate with a minus */
             if(target<targetLimit) {
                 *target++=MINUS;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex-1;
                 }
             } else {
@@ -1431,7 +1428,7 @@ unicodeMode:
             }
         }
         /* reset the state for the next conversion */
-        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=TRUE */
+        cnv->fromUnicodeStatus=(cnv->fromUnicodeStatus&0xf0000000)|0x1000000; /* keep version, inDirectMode=true */
     } else {
         /* set the converter state back into UConverter */
         cnv->fromUnicodeStatus=
@@ -1443,33 +1440,32 @@ unicodeMode:
     pArgs->source=source;
     pArgs->target=(char *)target;
     pArgs->offsets=offsets;
-    return;
 }
 U_CDECL_END
 
 static const UConverterImpl _IMAPImpl={
     UCNV_IMAP_MAILBOX,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _UTF7Open,
-    NULL,
+    nullptr,
     _UTF7Reset,
 
     _IMAPToUnicodeWithOffsets,
     _IMAPToUnicodeWithOffsets,
     _IMAPFromUnicodeWithOffsets,
     _IMAPFromUnicodeWithOffsets,
-    NULL,
+    nullptr,
 
-    NULL,
-    NULL,
-    NULL, /* we don't need writeSub() because we never call a callback at fromUnicode() */
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr, /* we don't need writeSub() because we never call a callback at fromUnicode() */
+    nullptr,
     ucnv_getCompleteUnicodeSet,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _IMAPStaticData={
@@ -1479,7 +1475,7 @@ static const UConverterStaticData _IMAPStaticData={
     UCNV_IBM, UCNV_IMAP_MAILBOX,
     1, 4,
     { 0x3f, 0, 0, 0 }, 1, /* the subchar is not used */
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */

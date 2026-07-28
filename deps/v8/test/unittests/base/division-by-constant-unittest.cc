@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#include <ostream>  // NOLINT
+#include <ostream>
 
 #include "testing/gtest-support.h"
 

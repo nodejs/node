@@ -30,11 +30,11 @@ function serialFork() {
     const worker = cluster.fork();
     worker.on('error', (err) => assert.fail(err));
     // No common.mustCall since 1 out of 3 should fail.
-    worker.on('online', () => {
+    worker.on('online', common.mustCall(() => {
       worker.on('message', common.mustCall((message) => {
         ports.push(message.debugPort);
       }));
-    });
+    }));
     worker.on('exit', common.mustCall((code, signal) => {
       assert.strictEqual(signal, null);
       // worker 2 should fail because of port clash with `server`
@@ -47,7 +47,7 @@ function serialFork() {
   });
 }
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   cluster.on('online', common.mustCall((worker) => worker.send('dbgport'), 2));
 
   // Block one of the ports with a listening socket.

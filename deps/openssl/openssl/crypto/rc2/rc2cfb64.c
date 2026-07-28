@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * RC2 low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/rc2.h>
 #include "rc2_local.h"
@@ -17,11 +23,11 @@
  */
 
 void RC2_cfb64_encrypt(const unsigned char *in, unsigned char *out,
-                       long length, RC2_KEY *schedule, unsigned char *ivec,
-                       int *num, int encrypt)
+    long length, RC2_KEY *schedule, unsigned char *ivec,
+    int *num, int encrypt)
 {
     register unsigned long v0, v1, t;
-    register int n = *num;
+    register int n = *num & 0x07;
     register long l = length;
     unsigned long ti[2];
     unsigned char *iv, c, cc;

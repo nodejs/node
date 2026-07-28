@@ -5,7 +5,7 @@
 #ifndef V8_DEBUG_WASM_GDB_SERVER_WASM_MODULE_DEBUG_H_
 #define V8_DEBUG_WASM_GDB_SERVER_WASM_MODULE_DEBUG_H_
 
-#include "src/debug/debug.h"
+#include "src/debug/debug-interface.h"
 #include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 #include "src/execution/frames.h"
 
@@ -49,9 +49,15 @@ class WasmModuleDebug {
   // associated to this module.
   // Returns the number of byte copied to {buffer}, or 0 is case of error.
   // Note: only one Memory for Module is currently supported.
-  static uint32_t GetWasmMemory(Isolate* isolate, uint32_t frame_index,
-                                uint32_t offset, uint8_t* buffer,
-                                uint32_t size);
+  uint32_t GetWasmMemory(Isolate* isolate, uint32_t offset, uint8_t* buffer,
+                         uint32_t size);
+
+  // Reads {size} bytes, starting from {offset}, from the first segment
+  // associated to this module.
+  // Returns the number of byte copied to {buffer}, or 0 is case of error.
+  // Note: only one Memory for Module is currently supported.
+  uint32_t GetWasmData(Zone* zone, Isolate* isolate, uint32_t offset,
+                       uint8_t* buffer, uint32_t size);
 
   // Gets {size} bytes, starting from {offset}, from the Code space of this
   // module.
@@ -76,8 +82,8 @@ class WasmModuleDebug {
  private:
   // Returns the module WasmInstance associated to the {frame_index}th frame
   // in the call stack.
-  static Handle<WasmInstanceObject> GetWasmInstance(Isolate* isolate,
-                                                    uint32_t frame_index);
+  static DirectHandle<WasmInstanceObject> GetWasmInstance(Isolate* isolate,
+                                                          uint32_t frame_index);
 
   // Returns its first WasmInstance for this Wasm module.
   Handle<WasmInstanceObject> GetFirstWasmInstance();
@@ -87,7 +93,7 @@ class WasmModuleDebug {
   // Returns an empty array if the frame specified does not correspond to a Wasm
   // stack frame.
   static std::vector<FrameSummary> FindWasmFrame(
-      StackTraceFrameIterator* frame_it, uint32_t* frame_index);
+      DebuggableStackFrameIterator* frame_it, uint32_t* frame_index);
 
   // Converts a WasmValue into an array of bytes.
   static bool GetWasmValue(const wasm::WasmValue& wasm_value, uint8_t* buffer,

@@ -3,55 +3,81 @@
 // found in the LICENSE file.
 
 @abstract
-@generateCppClass
+@cppObjectLayoutDefinition
 extern class FixedArrayBase extends HeapObject {
-  // length of the array.
   const length: Smi;
 }
 
+@cppObjectLayoutDefinition
 @generateBodyDescriptor
-@generateCppClass
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
 }
 
 type EmptyFixedArray extends FixedArray;
 
-@generateCppClass
-extern class FixedDoubleArray extends FixedArrayBase {
-  floats[length]: float64_or_hole;
+@cppObjectLayoutDefinition
+extern class TrustedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: Object;
 }
 
-@generateBodyDescriptor
-@generateCppClass
+@cppObjectLayoutDefinition
+extern class ProtectedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: TrustedObject|Smi;
+}
+
+@cppObjectLayoutDefinition
+extern class FixedDoubleArray extends FixedArrayBase {
+  values[length]: float64_or_undefined_or_hole;
+}
+
+@cppObjectLayoutDefinition
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
   objects[length]: MaybeObject;
 }
 
-@generateCppClass
+@cppObjectLayoutDefinition
+extern class TrustedWeakFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: MaybeObject;
+}
+
+@cppObjectLayoutDefinition
+extern class ProtectedWeakFixedArray extends TrustedObject {
+  const length: Smi;
+  // TODO(jkummerow): Define "TrustedMaybeObject" if we ever write Torque
+  // code accessing these values.
+  objects[length]: TrustedObject|Smi;
+}
+
+@cppObjectLayoutDefinition
 extern class ByteArray extends FixedArrayBase {
-  bytes[length]: uint8;
+  values[length]: uint8;
 }
 
-@hasSameInstanceTypeAsParent
-@generateCppClass
-@doNotGenerateCast
-extern class ArrayList extends FixedArray {
+@cppObjectLayoutDefinition
+extern class TrustedByteArray extends TrustedObject {
+  const length: Smi;
+  values[length]: uint8;
 }
 
-@hasSameInstanceTypeAsParent
-@generateCppClass
-@doNotGenerateCast
-extern class TemplateList extends FixedArray {
+extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
+
+@cppObjectLayoutDefinition
+extern class ArrayList extends HeapObject {
+  const capacity: Smi;
+  length: Smi;
+  objects[capacity]: Object;
 }
 
 @generateBodyDescriptor
-@generateCppClass
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;
-  objects[capacity]: MaybeObject;
+  @cppRelaxedLoad @cppRelaxedStore objects[capacity]: MaybeObject;
 }
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
@@ -89,30 +115,44 @@ extern macro StoreFixedArrayElement(
     FixedArray, intptr, Object, constexpr WriteBarrierMode): void;
 extern macro StoreFixedArrayElement(
     FixedArray, intptr, Smi, constexpr WriteBarrierMode): void;
-extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
+extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, intptr, float64): void;
-extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
+extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, Smi, float64): void;
-extern operator '.floats[]' macro LoadFixedDoubleArrayElement(
+extern operator '.values[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
+  extern macro StoreFixedDoubleArrayUndefined(FixedDoubleArray, Smi): void;
 operator '[]=' macro StoreFixedDoubleArrayDirect(
-    a: FixedDoubleArray, i: Smi, v: Number) {
-  a.floats[i] = Convert<float64_or_hole>(Convert<float64>(v));
+    a: FixedDoubleArray, i: Smi, v: Number): void {
+  a.values[i] = Convert<float64_or_undefined_or_hole>(Convert<float64>(v));
 }
-operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
+operator '[]=' macro StoreFixedArrayDirect(
+    a: FixedArray, i: Smi, v: Object): void {
   a.objects[i] = v;
 }
-
+extern macro AllocateFixedArray(
+    constexpr ElementsKind, intptr): FixedArrayBase;
 extern macro AllocateFixedArray(
     constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
+
+extern macro FillEntireFixedArrayWithSmiZero(
+    constexpr ElementsKind, FixedArray, intptr): void;
 
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 extern macro CalculateNewElementsCapacity(Smi): Smi;
 extern macro CalculateNewElementsCapacity(intptr): intptr;
 
+extern macro FillFixedArrayWithSmiZero(
+    constexpr ElementsKind, FixedArray, intptr, intptr): void;
+extern macro FillFixedDoubleArrayWithZero(
+    FixedDoubleArray, intptr, intptr): void;
+
+extern macro AllocateFixedArrayWithHoles(intptr): FixedArray;
 extern macro AllocateFixedArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedArray;
+extern macro AllocateFixedDoubleArrayWithHoles(intptr): FixedDoubleArray;
 extern macro AllocateFixedDoubleArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedDoubleArray;
 extern macro CopyFixedArrayElements(
@@ -123,23 +163,23 @@ extern macro CopyFixedArrayElements(
     intptr, intptr, intptr): void;
 
 macro ExtractFixedArray(
-    source: FixedArray, first: intptr, count: intptr,
-    capacity: intptr): FixedArray {
-  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+    source: FixedArray, first: intptr, count: intptr, capacity: intptr,
+    initialElement: Hole): FixedArray {
+  // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedArray(
       capacity,
       IteratorSequence<Object>(
           (&source.objects).Iterator(first, first + count),
-          ConstantIterator(TheHole)));
+          ConstantIterator(initialElement)));
 }
 macro ExtractFixedDoubleArray(
     source: FixedDoubleArray, first: intptr, count: intptr,
     capacity: intptr): FixedDoubleArray|EmptyFixedArray {
-  // TODO(tebbi): This should be optimized to use memcpy for initialization.
+  // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedDoubleArray(
       capacity,
-      IteratorSequence<float64_or_hole>(
-          (&source.floats).Iterator(first, first + count),
+      IteratorSequence<float64_or_undefined_or_hole>(
+          (&source.values).Iterator(first, first + count),
           ConstantIterator(kDoubleHole)));
 }
 
@@ -147,7 +187,8 @@ namespace runtime {
 extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
 }
 
-macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
+macro NewFixedArray<Iterator: type>(
+    length: intptr, it: Iterator): FixedArray {
   if (length == 0) return kEmptyFixedArray;
   if (length > kFixedArrayMaxLength) deferred {
       runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
@@ -165,6 +206,6 @@ macro NewFixedDoubleArray<Iterator: type>(
   return new FixedDoubleArray{
     map: kFixedDoubleArrayMap,
     length: Convert<Smi>(length),
-    floats: ...it
+    values: ...it
   };
 }

@@ -6,24 +6,24 @@
 
 namespace proxy {
 
-extern transitioning runtime
-SetPropertyWithReceiver(implicit context: Context)(
-    Object, Name, Object, Object): void;
+extern transitioning runtime SetPropertyWithReceiver(
+    implicit context: Context)(Object, Name, Object, Object): void;
 
-transitioning macro CallThrowTypeErrorIfStrict(implicit context: Context)(
-    message: constexpr MessageTemplate) {
+transitioning macro CallThrowTypeErrorIfStrict(
+    implicit context: Context)(message: constexpr MessageTemplate): void {
   ThrowTypeErrorIfStrict(SmiConstant(message), Null, Null);
 }
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
 // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
-transitioning builtin
-ProxySetProperty(implicit context: Context)(
-    proxy: JSProxy, name: PropertyKey|PrivateSymbol, value: JSAny,
-    receiverValue: JSAny): JSAny {
+transitioning builtin ProxySetProperty(
+    implicit context: Context)(proxy: JSProxy, name: PropertyKey|PrivateSymbol,
+    value: JSAny, receiverValue: JSAny): JSAny {
+  // Handle deeply nested proxy.
+  PerformStackCheck();
   // 1. Assert: IsPropertyKey(P) is true.
-  assert(TaggedIsNotSmi(name));
-  assert(Is<Name>(name));
+  dcheck(TaggedIsNotSmi(name));
+  dcheck(Is<Name>(name));
 
   let key: PropertyKey;
   typeswitch (name) {
@@ -40,7 +40,7 @@ ProxySetProperty(implicit context: Context)(
     // 2. Let handler be O.[[ProxyHandler]].
     // 3. If handler is null, throw a TypeError exception.
     // 4. Assert: Type(handler) is Object.
-    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    dcheck(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
     const handler =
         Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 

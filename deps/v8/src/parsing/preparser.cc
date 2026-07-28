@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/parsing/preparser.h"
+
 #include <cmath>
 
 #include "src/base/logging.h"
 #include "src/common/globals.h"
-#include "src/logging/counters.h"
+#include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
-#include "src/parsing/preparser.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -26,27 +27,19 @@ PreParserIdentifier GetIdentifierHelper(Scanner* scanner,
                                         const AstRawString* string,
                                         AstValueFactory* avf) {
   // These symbols require slightly different treatement:
-  // - regular keywords (async, await, etc.; treated in 1st switch.)
+  // - regular keywords (async, etc.; treated in 1st switch.)
   // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
   // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
-    case Token::AWAIT:
-      return PreParserIdentifier::Await();
-    case Token::ASYNC:
+    case Token::kAsync:
       return PreParserIdentifier::Async();
-    case Token::PRIVATE_NAME:
+    case Token::kPrivateName:
       return PreParserIdentifier::PrivateName();
     default:
       break;
   }
   if (string == avf->constructor_string()) {
     return PreParserIdentifier::Constructor();
-  }
-  if (string == avf->name_string()) {
-    return PreParserIdentifier::Name();
-  }
-  if (scanner->literal_contains_escapes()) {
-    return PreParserIdentifier::Default();
   }
   if (string == avf->eval_string()) {
     return PreParserIdentifier::Eval();
@@ -84,7 +77,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   original_scope_ = scope_;
   int start_position = peek_position();
   PreParserScopedStatementList body(pointer_buffer());
-  ParseStatementList(&body, Token::EOS);
+  ParseStatementList(&body, Token::kEos);
   CheckConflictingVarDeclarations(scope);
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
@@ -103,9 +96,10 @@ void PreParserFormalParameters::ValidateStrictMode(PreParser* preparser) const {
 }
 
 PreParser::PreParseResult PreParser::PreParseFunction(
-    const AstRawString* function_name, FunctionKind kind,
-    FunctionSyntaxKind function_syntax_kind, DeclarationScope* function_scope,
-    int* use_counts, ProducedPreparseData** produced_preparse_data) {
+    int function_literal_id, const AstRawString* function_name,
+    FunctionKind kind, FunctionSyntaxKind function_syntax_kind,
+    DeclarationScope* function_scope, int* use_counts,
+    ProducedPreparseData** produced_preparse_data) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
 #ifdef DEBUG
@@ -114,10 +108,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   PreParserFormalParameters formals(function_scope);
 
-  // In the preparser, we use the function literal ids to count how many
-  // FunctionLiterals were encountered. The PreParser doesn't actually persist
-  // FunctionLiterals, so there IDs don't matter.
-  ResetFunctionLiteralId();
+  ResetInfoId(function_literal_id);
 
   // The caller passes the function_scope which is not yet inserted into the
   // scope stack. All scopes above the function_scope are ignored by the
@@ -146,7 +137,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       BuildParameterInitializationBlock(formals);
     }
 
-    Expect(Token::RPAREN);
+    Expect(Token::kRightParen);
     int formals_end_position = scanner()->location().end_pos;
 
     CheckArityRestrictions(formals.arity, kind, formals.has_rest,
@@ -154,7 +145,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
                            formals_end_position);
   }
 
-  Expect(Token::LBRACE);
+  Expect(Token::kLeftBrace);
   DeclarationScope* inner_scope = function_scope;
 
   if (!formals.is_simple) {
@@ -164,7 +155,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   {
     BlockState block_state(&scope_, inner_scope);
-    ParseStatementListAndLogFunction(&formals);
+    ParseStatementListAndLogFunction(function_literal_id, &formals);
   }
 
   bool allow_duplicate_parameters = false;
@@ -203,7 +194,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   } else if (has_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
   } else {
-    DCHECK_EQ(Token::RBRACE, scanner()->peek());
+    DCHECK_EQ(Token::kRightBrace, scanner()->peek());
 
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
@@ -272,17 +263,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      RuntimeCallCounterId::kPreParseWithVariableResolution,
-      RuntimeCallStats::kThreadSpecific);
+  RCS_SCOPE(runtime_call_stats_,
+            RuntimeCallCounterId::kPreParseWithVariableResolution,
+            RuntimeCallStats::kThreadSpecific);
 
   base::ElapsedTimer timer;
-  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+  if (V8_UNLIKELY(v8_flags.log_function_events)) timer.Start();
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
-  int func_id = GetNextFunctionLiteralId();
+  int function_literal_id = GetNextInfoId();
   bool skippable_function = false;
 
   // Start collecting data for a new function which might contain skippable
@@ -297,7 +287,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
     FunctionState function_state(&function_state_, &scope_, function_scope);
 
-    Expect(Token::LPAREN);
+    Expect(Token::kLeftParen);
     int start_position = position();
     function_scope->set_start_position(start_position);
     PreParserFormalParameters formals(function_scope);
@@ -306,13 +296,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       ParseFormalParameterList(&formals);
       if (formals_scope.has_duplicate()) formals.set_has_duplicate();
     }
-    Expect(Token::RPAREN);
+    Expect(Token::kRightParen);
     int formals_end_position = scanner()->location().end_pos;
 
     CheckArityRestrictions(formals.arity, kind, formals.has_rest,
                            start_position, formals_end_position);
 
-    Expect(Token::LBRACE);
+    Expect(Token::kLeftBrace);
 
     // Parse function body.
     PreParserScopedStatementList body(pointer_buffer());
@@ -336,11 +326,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     if (skippable_function) {
       preparse_data_builder_scope.SetSkippableFunction(
           function_scope, formals.function_length,
-          GetLastFunctionLiteralId() - func_id);
+          GetLastInfoId() - function_literal_id);
     }
   }
 
-  if (V8_UNLIKELY(FLAG_log_function_events)) {
+  if (V8_UNLIKELY(v8_flags.log_function_events)) {
     double ms = timer.Elapsed().InMillisecondsF();
     const char* event_name = "preparse-resolution";
     // We might not always get a function name here. However, it can be easily
@@ -354,7 +344,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       name_byte_length = string->byte_length();
       is_one_byte = string->is_one_byte();
     }
-    logger_->FunctionEvent(
+    v8_file_logger_->FunctionEvent(
         event_name, flags().script_id(), ms, function_scope->start_position(),
         function_scope->end_position(), name, name_byte_length, is_one_byte);
   }
@@ -363,16 +353,17 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 }
 
 void PreParser::ParseStatementListAndLogFunction(
-    PreParserFormalParameters* formals) {
+    int function_literal_id, PreParserFormalParameters* formals) {
   PreParserScopedStatementList body(pointer_buffer());
-  ParseStatementList(&body, Token::RBRACE);
+  ParseStatementList(&body, Token::kRightBrace);
 
   // Position right after terminal '}'.
-  DCHECK_IMPLIES(!has_error(), scanner()->peek() == Token::RBRACE);
+  DCHECK_IMPLIES(!has_error(), scanner()->peek() == Token::kRightBrace);
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(body_end, formals->num_parameters(),
-                   formals->function_length, GetLastFunctionLiteralId());
+                   formals->function_length,
+                   GetLastInfoId() - function_literal_id);
 }
 
 PreParserBlock PreParser::BuildParameterInitializationBlock(

@@ -1,7 +1,5 @@
 'use strict';
 
-if (!process.features.inspector) return;
-
 const common = require('../common');
 const assert = require('assert');
 const { dirname } = require('path');
@@ -10,20 +8,22 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { pathToFileURL } = require('url');
 
+common.skipIfInspectorDisabled();
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 let dirc = 0;
 function nextdir() {
   return process.env.NODE_V8_COVERAGE ||
-    path.join(tmpdir.path, `source_map_${++dirc}`);
+    tmpdir.resolve(`source_map_${++dirc}`);
 }
 
 // Outputs source maps when event loop is drained, with no async logic.
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/basic')
+    require.resolve('../fixtures/source-map/basic'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -38,7 +38,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/sigint')
+    require.resolve('../fixtures/source-map/sigint'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   if (!common.isWindows) {
     if (output.signal !== 'SIGINT') {
@@ -55,7 +55,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/exit-1')
+    require.resolve('../fixtures/source-map/exit-1'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.stderr.toString(), '');
   const sourceMap = getSourceMapFromCache('exit-1.js', coverageDirectory);
@@ -67,7 +67,7 @@ function nextdir() {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
     '--no-warnings',
-    require.resolve('../fixtures/source-map/esm-basic.mjs')
+    require.resolve('../fixtures/source-map/esm-basic.mjs'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.stderr.toString(), '');
   const sourceMap = getSourceMapFromCache('esm-basic.mjs', coverageDirectory);
@@ -78,7 +78,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/disk-relative-path')
+    require.resolve('../fixtures/source-map/disk-relative-path'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -99,7 +99,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64.js')
+    require.resolve('../fixtures/source-map/inline-base64.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -120,7 +120,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64-type-error.js')
+    require.resolve('../fixtures/source-map/inline-base64-type-error.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -136,7 +136,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64-json-error.js')
+    require.resolve('../fixtures/source-map/inline-base64-json-error.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   assert.strictEqual(output.status, 0);
   assert.strictEqual(output.stderr.toString(), '');
@@ -152,14 +152,14 @@ function nextdir() {
 // is not set.
 {
   const output = spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/uglify-throw.js')
+    require.resolve('../fixtures/source-map/uglify-throw.js'),
   ]);
   assert.strictEqual(
-    output.stderr.toString().match(/->.*uglify-throw-original\.js:5:9/),
+    output.stderr.toString().match(/.*uglify-throw-original\.js:5:9/),
     null
   );
   assert.strictEqual(
-    output.stderr.toString().match(/->.*uglify-throw-original\.js:9:3/),
+    output.stderr.toString().match(/.*uglify-throw-original\.js:9:3/),
     null
   );
 }
@@ -168,15 +168,15 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/uglify-throw.js')
+    require.resolve('../fixtures/source-map/uglify-throw.js'),
   ]);
   assert.match(
     output.stderr.toString(),
-    /->.*uglify-throw-original\.js:5:9/
+    /.*uglify-throw-original\.js:5:9/
   );
   assert.match(
     output.stderr.toString(),
-    /->.*uglify-throw-original\.js:9:3/
+    /.*uglify-throw-original\.js:9:3/
   );
   assert.match(output.stderr.toString(), /at Hello/);
 }
@@ -185,20 +185,20 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/typescript-throw.js')
+    require.resolve('../fixtures/source-map/typescript-throw.js'),
   ]);
-  assert.ok(output.stderr.toString().match(/->.*typescript-throw\.ts:18:11/));
-  assert.ok(output.stderr.toString().match(/->.*typescript-throw\.ts:24:1/));
+  assert.ok(output.stderr.toString().match(/.*typescript-throw\.ts:18:11/));
+  assert.ok(output.stderr.toString().match(/.*typescript-throw\.ts:24:1/));
 }
 
 // Applies source-maps generated by babel to stack trace.
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/babel-throw.js')
+    require.resolve('../fixtures/source-map/babel-throw.js'),
   ]);
   assert.ok(
-    output.stderr.toString().match(/->.*babel-throw-original\.js:18:31/)
+    output.stderr.toString().match(/.*babel-throw-original\.js:18:31/)
   );
 }
 
@@ -206,13 +206,13 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/istanbul-throw.js')
+    require.resolve('../fixtures/source-map/istanbul-throw.js'),
   ]);
   assert.ok(
-    output.stderr.toString().match(/->.*istanbul-throw-original\.js:5:9/)
+    output.stderr.toString().match(/.*istanbul-throw-original\.js:5:9/)
   );
   assert.ok(
-    output.stderr.toString().match(/->.*istanbul-throw-original\.js:9:3/)
+    output.stderr.toString().match(/.*istanbul-throw-original\.js:9:3/)
   );
 }
 
@@ -220,10 +220,10 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/babel-esm.mjs')
+    require.resolve('../fixtures/source-map/babel-esm.mjs'),
   ]);
   assert.ok(
-    output.stderr.toString().match(/->.*babel-esm-original\.mjs:9:29/)
+    output.stderr.toString().match(/.*babel-esm-original\.mjs:9:29/)
   );
 }
 
@@ -231,7 +231,7 @@ function nextdir() {
 {
   const coverageDirectory = nextdir();
   spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/inline-base64.js')
+    require.resolve('../fixtures/source-map/inline-base64.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   const sourceMap = getSourceMapFromCache(
     'inline-base64.js',
@@ -242,15 +242,16 @@ function nextdir() {
 
 // Persists line lengths for in-memory representation of source file.
 {
+  const checkoutEOL = fs.readFileSync(__filename).includes('\r\n') ? '\r\n' : '\n';
   const coverageDirectory = nextdir();
   spawnSync(process.execPath, [
-    require.resolve('../fixtures/source-map/istanbul-throw.js')
+    require.resolve('../fixtures/source-map/istanbul-throw.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   const sourceMap = getSourceMapFromCache(
     'istanbul-throw.js',
     coverageDirectory
   );
-  if (common.isWindows) {
+  if (checkoutEOL === '\r\n') {
     assert.deepStrictEqual(sourceMap.lineLengths, [1086, 31, 185, 649, 0]);
   } else {
     assert.deepStrictEqual(sourceMap.lineLengths, [1085, 30, 184, 648, 0]);
@@ -261,7 +262,7 @@ function nextdir() {
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/emptyStackError.js')
+    require.resolve('../fixtures/source-map/emptyStackError.js'),
   ]);
 
   assert.ok(
@@ -272,11 +273,11 @@ function nextdir() {
 // Does not attempt to apply path resolution logic to absolute URLs
 // with schemes.
 // Refs: https://github.com/webpack/webpack/issues/9601
-// Refs: https://sourcemaps.info/spec.html#h.75yo6yoyk7x5
+// Refs: https://tc39.es/ecma426/#sec-sources
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/webpack.js')
+    require.resolve('../fixtures/source-map/webpack.js'),
   ]);
   // Error in original context of source content:
   assert.match(
@@ -289,13 +290,37 @@ function nextdir() {
   assert.match(output.stderr.toString(), /at functionC.*10:3/);
 }
 
+// Properly converts Windows absolute paths to absolute URLs.
+// Refs: https://github.com/nodejs/node/issues/50523
+// Refs: https://github.com/TypeStrong/ts-node/issues/1769
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    require.resolve('../fixtures/source-map/ts-node-win32.js'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
+  const sourceMap = getSourceMapFromCache(
+    'ts-node-win32.js',
+    coverageDirectory
+  );
+  // base64 JSON should have been decoded, the D: in the sources field should
+  // have been taken as the drive letter on Windows, the scheme on POSIX.
+  assert.strictEqual(
+    sourceMap.data.sources[0],
+    common.isWindows ?
+      'file:///D:/workspaces/node/test/fixtures/source-map/ts-node.ts' :
+      'd:/workspaces/node/test/fixtures/source-map/ts-node.ts'
+  );
+}
+
 // Stores and applies source map associated with file that throws while
 // being required.
 {
   const coverageDirectory = nextdir();
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
-    require.resolve('../fixtures/source-map/throw-on-require-entry.js')
+    require.resolve('../fixtures/source-map/throw-on-require-entry.js'),
   ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
   const sourceMap = getSourceMapFromCache(
     'throw-on-require.js',
@@ -305,6 +330,58 @@ function nextdir() {
   assert.match(output.stderr.toString(), /throw-on-require\.ts:9:9/);
   // Source map should have been serialized.
   assert.ok(sourceMap);
+}
+
+// Does not throw TypeError when primitive value is thrown.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-string.js'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'throw-string.js',
+    coverageDirectory
+  );
+  // Original stack trace.
+  assert.match(output.stderr.toString(), /goodbye/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
+// Does not throw TypeError when exception occurs as result of missing named
+// export.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/esm-export-missing.mjs'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  const sourceMap = getSourceMapFromCache(
+    'esm-export-missing.mjs',
+    coverageDirectory
+  );
+  // Module loader error displayed.
+  assert.match(output.stderr.toString(),
+               /does not provide an export named 'Something'/);
+  // Source map should have been serialized.
+  assert.ok(sourceMap);
+}
+
+// Does not include null for async/await with esm
+// Refs: https://github.com/nodejs/node/issues/42417
+{
+  const output = spawnSync(process.execPath, [
+    '--enable-source-maps',
+    require.resolve('../fixtures/source-map/throw-async.mjs'),
+  ]);
+  // Error in original context of source content:
+  assert.match(
+    output.stderr.toString(),
+    /throw new Error\(message\)\r?\n.*\^/
+  );
+  // Rewritten stack trace:
+  assert.match(output.stderr.toString(), /at Throw \([^)]+throw-async\.ts:4:9\)/);
 }
 
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {

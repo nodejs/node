@@ -3,7 +3,6 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
@@ -13,7 +12,7 @@ const expected = 'ümlaut. Лорем 運務ホソモ指及 आपको कर�
 const exptectedBuff = Buffer.from(expected);
 const expectedLength = exptectedBuff.length;
 
-const filename = path.join(tmpdir.path, 'readv_sync.txt');
+const filename = tmpdir.resolve('readv_sync.txt');
 fs.writeFileSync(filename, exptectedBuff);
 
 const allocateEmptyBuffers = (combinedLength) => {
@@ -32,10 +31,10 @@ const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')], 0);
-  assert.deepStrictEqual(read, 0);
+  assert.strictEqual(read, 0);
 
   read = fs.readvSync(fd, bufferArr, 0);
-  assert.deepStrictEqual(read, expectedLength);
+  assert.strictEqual(read, expectedLength);
 
   fs.closeSync(fd);
 
@@ -49,10 +48,10 @@ const allocateEmptyBuffers = (combinedLength) => {
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')]);
-  assert.deepStrictEqual(read, 0);
+  assert.strictEqual(read, 0);
 
   read = fs.readvSync(fd, bufferArr);
-  assert.deepStrictEqual(read, expectedLength);
+  assert.strictEqual(read, expectedLength);
 
   fs.closeSync(fd);
 
@@ -67,21 +66,21 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
 {
   const fd = fs.openSync(filename, 'r');
 
-  wrongInputs.forEach((wrongInput) => {
+  for (const wrongInput of wrongInputs) {
     assert.throws(
       () => fs.readvSync(fd, wrongInput, null), {
         code: 'ERR_INVALID_ARG_TYPE',
         name: 'TypeError'
       }
     );
-  });
+  }
 
   fs.closeSync(fd);
 }
 
 {
   // fs.readv with wrong fd argument
-  wrongInputs.forEach((wrongInput) => {
+  for (const wrongInput of wrongInputs) {
     assert.throws(
       () => fs.readvSync(wrongInput),
       {
@@ -89,5 +88,5 @@ const wrongInputs = [false, 'test', {}, [{}], ['sdf'], null, undefined];
         name: 'TypeError'
       }
     );
-  });
+  }
 }

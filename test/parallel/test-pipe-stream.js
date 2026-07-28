@@ -26,11 +26,11 @@ function test(clazz, cb) {
       conn.write('PING', 'utf-8');
     });
 
-    conn.on('data', function(data) {
+    conn.on('data', common.mustCallAtLeast((data) => {
       assert.strictEqual(data.toString(), 'PONG');
       have_pong = true;
       conn.destroy();
-    });
+    }));
   }
 
   function pong(conn) {
@@ -38,11 +38,11 @@ function test(clazz, cb) {
       throw err;
     });
 
-    conn.on('data', function(data) {
+    conn.on('data', common.mustCall((data) => {
       assert.strictEqual(data.toString(), 'PING');
       have_ping = true;
       conn.write('PONG', 'utf-8');
-    });
+    }));
 
     conn.on('close', function() {
       server.close();

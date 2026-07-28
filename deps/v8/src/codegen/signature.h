@@ -5,13 +5,87 @@
 #ifndef V8_CODEGEN_SIGNATURE_H_
 #define V8_CODEGEN_SIGNATURE_H_
 
-#include "src/base/functional.h"
-#include "src/base/iterator.h"
+#include "src/base/hashing.h"
+#include "src/base/vector.h"
 #include "src/codegen/machine-type.h"
+#include "src/sandbox/check.h"
 #include "src/zone/zone.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+namespace wasm {
+class WasmModuleSignatureStorage;
+}
+
+template <typename SigT, typename T>
+class SignatureBuilder {
+ public:
+  template <typename SignatureStorageOrZone>
+  SignatureBuilder(SignatureStorageOrZone* storage, size_t return_count,
+                   size_t parameter_count)
+      : return_count_(return_count),
+        parameter_count_(parameter_count),
+        rcursor_(0),
+        pcursor_(0) {
+    // Allocate memory for the signature plus the array backing the
+    // signature.
+    constexpr size_t padding = sizeof(SigT) % alignof(T);
+    using AllocationTypeTag = SignatureBuilder;
+    const size_t allocated_bytes =
+        sizeof(SigT) + padding + sizeof(T) * (return_count + parameter_count);
+    void* memory;
+    if constexpr (std::is_same_v<Zone, SignatureStorageOrZone>) {
+      memory = storage->template Allocate<AllocationTypeTag>(allocated_bytes);
+    } else {
+      static_assert(std::is_same_v<wasm::WasmModuleSignatureStorage,
+                                   SignatureStorageOrZone>);
+      memory = storage->Allocate(allocated_bytes, alignof(SigT));
+    }
+    uint8_t* rep_buffer =
+        reinterpret_cast<uint8_t*>(memory) + sizeof(SigT) + padding;
+    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(rep_buffer), alignof(T)));
+    buffer_ = reinterpret_cast<T*>(rep_buffer);
+    sig_ = new (memory) SigT{return_count, parameter_count, buffer_};
+  }
+
+  const size_t return_count_;
+  const size_t parameter_count_;
+
+  void AddReturn(T val) {
+    DCHECK_LT(rcursor_, return_count_);
+    buffer_[rcursor_++] = val;
+  }
+
+  void AddReturnAt(size_t index, T val) {
+    DCHECK_LT(index, return_count_);
+    buffer_[index] = val;
+    rcursor_ = std::max(rcursor_, index + 1);
+  }
+
+  void AddParam(T val) {
+    DCHECK_LT(pcursor_, parameter_count_);
+    buffer_[return_count_ + pcursor_++] = val;
+  }
+
+  void AddParamAt(size_t index, T val) {
+    DCHECK_LT(index, parameter_count_);
+    buffer_[return_count_ + index] = val;
+    pcursor_ = std::max(pcursor_, index + 1);
+  }
+
+  SigT* Get() const {
+    DCHECK_EQ(rcursor_, return_count_);
+    DCHECK_EQ(pcursor_, parameter_count_);
+    DCHECK_NOT_NULL(sig_);
+    return sig_;
+  }
+
+ protected:
+  size_t rcursor_;
+  size_t pcursor_;
+  SigT* sig_;
+  T* buffer_;
+};
 
 // Describes the inputs and outputs of a function or call.
 template <typename T>
@@ -25,31 +99,35 @@ class Signature : public ZoneObject {
     DCHECK_EQ(kReturnCountOffset, offsetof(Signature, return_count_));
     DCHECK_EQ(kParameterCountOffset, offsetof(Signature, parameter_count_));
     DCHECK_EQ(kRepsOffset, offsetof(Signature, reps_));
-    STATIC_ASSERT(std::is_standard_layout<Signature<T>>::value);
+    static_assert(std::is_standard_layout_v<Signature<T>>);
   }
 
   size_t return_count() const { return return_count_; }
   size_t parameter_count() const { return parameter_count_; }
 
   T GetParam(size_t index) const {
-    DCHECK_LT(index, parameter_count_);
+    // If heap memory is corrupted, we may get confused about the number of
+    // parameters during compilation. These SBXCHECKs defend against that.
+    SBXCHECK_LT(index, parameter_count_);
     return reps_[return_count_ + index];
   }
 
   T GetReturn(size_t index = 0) const {
-    DCHECK_LT(index, return_count_);
+    SBXCHECK_LT(index, return_count_);
     return reps_[index];
   }
 
+  bool contains(T element) const {
+    return std::find(all().cbegin(), all().cend(), element) != all().cend();
+  }
+
   // Iteration support.
-  base::iterator_range<const T*> parameters() const {
-    return {reps_ + return_count_, reps_ + return_count_ + parameter_count_};
+  base::Vector<const T> parameters() const {
+    return {reps_ + return_count_, parameter_count_};
   }
-  base::iterator_range<const T*> returns() const {
-    return {reps_, reps_ + return_count_};
-  }
-  base::iterator_range<const T*> all() const {
-    return {reps_, reps_ + return_count_ + parameter_count_};
+  base::Vector<const T> returns() const { return {reps_, return_count_}; }
+  base::Vector<const T> all() const {
+    return {reps_, return_count_ + parameter_count_};
   }
 
   bool operator==(const Signature& other) const {
@@ -61,48 +139,17 @@ class Signature : public ZoneObject {
   bool operator!=(const Signature& other) const { return !(*this == other); }
 
   // For incrementally building signatures.
-  class Builder {
-   public:
-    Builder(Zone* zone, size_t return_count, size_t parameter_count)
-        : return_count_(return_count),
-          parameter_count_(parameter_count),
-          zone_(zone),
-          rcursor_(0),
-          pcursor_(0),
-          buffer_(zone->NewArray<T>(
-              static_cast<int>(return_count + parameter_count))) {}
+  using Builder = SignatureBuilder<Signature<T>, T>;
 
-    const size_t return_count_;
-    const size_t parameter_count_;
-
-    void AddReturn(T val) {
-      DCHECK_LT(rcursor_, return_count_);
-      buffer_[rcursor_++] = val;
-    }
-
-    void AddParam(T val) {
-      DCHECK_LT(pcursor_, parameter_count_);
-      buffer_[return_count_ + pcursor_++] = val;
-    }
-
-    void AddParamAt(size_t index, T val) {
-      DCHECK_LT(index, parameter_count_);
-      buffer_[return_count_ + index] = val;
-      pcursor_ = std::max(pcursor_, index + 1);
-    }
-
-    Signature<T>* Build() {
-      DCHECK_EQ(rcursor_, return_count_);
-      DCHECK_EQ(pcursor_, parameter_count_);
-      return zone_->New<Signature<T>>(return_count_, parameter_count_, buffer_);
-    }
-
-   private:
-    Zone* zone_;
-    size_t rcursor_;
-    size_t pcursor_;
-    T* buffer_;
-  };
+  template <typename SignatureStorageOrZone>
+  static Signature<T>* Build(SignatureStorageOrZone* storage,
+                             std::initializer_list<T> returns,
+                             std::initializer_list<T> params) {
+    Builder builder(storage, returns.size(), params.size());
+    for (T ret : returns) builder.AddReturn(ret);
+    for (T param : params) builder.AddParam(param);
+    return builder.Get();
+  }
 
   static constexpr size_t kReturnCountOffset = 0;
   static constexpr size_t kParameterCountOffset =
@@ -119,12 +166,66 @@ using MachineSignature = Signature<MachineType>;
 
 template <typename T>
 size_t hash_value(const Signature<T>& sig) {
-  size_t hash = base::hash_combine(sig.parameter_count(), sig.return_count());
-  for (const T& t : sig.all()) hash = base::hash_combine(hash, t);
-  return hash;
+  // Hash over all contained representations, plus the parameter count to
+  // differentiate signatures with the same representation array but different
+  // parameter/return count.
+  return base::Hasher{}.Add(sig.parameter_count()).AddRange(sig.all()).hash();
 }
 
-}  // namespace internal
-}  // namespace v8
+template <typename T, size_t kNumReturns = 0, size_t kNumParams = 0>
+class FixedSizeSignature : public Signature<T> {
+ public:
+  // Add return types to this signature (only allowed if there are none yet).
+  template <typename... ReturnTypes>
+  auto Returns(ReturnTypes... return_types) const {
+    static_assert(kNumReturns == 0, "Please specify all return types at once");
+    return FixedSizeSignature<T, sizeof...(ReturnTypes), kNumParams>{
+        std::initializer_list<T>{return_types...}.begin(), reps_};
+  }
+
+  // Add parameters to this signature (only allowed if there are none yet).
+  template <typename... ParamTypes>
+  auto Params(ParamTypes... param_types) const {
+    static_assert(kNumParams == 0, "Please specify all parameters at once");
+    return FixedSizeSignature<T, kNumReturns, sizeof...(ParamTypes)>{
+        reps_, std::initializer_list<T>{param_types...}.begin()};
+  }
+
+ private:
+  // Other template instantiations can call the private constructor.
+  template <typename T2, size_t kNumReturns2, size_t kNumParams2>
+  friend class FixedSizeSignature;
+
+  FixedSizeSignature(const T* returns, const T* params)
+      : Signature<T>(kNumReturns, kNumParams, reps_) {
+    std::copy(returns, returns + kNumReturns, reps_);
+    std::copy(params, params + kNumParams, reps_ + kNumReturns);
+  }
+
+  T reps_[kNumReturns + kNumParams];
+};
+
+// Specialization for zero-sized signatures.
+template <typename T>
+class FixedSizeSignature<T, 0, 0> : public Signature<T> {
+ public:
+  constexpr FixedSizeSignature() : Signature<T>(0, 0, nullptr) {}
+
+  // Add return types.
+  template <typename... ReturnTypes>
+  static auto Returns(ReturnTypes... return_types) {
+    return FixedSizeSignature<T, sizeof...(ReturnTypes), 0>{
+        std::initializer_list<T>{return_types...}.begin(), nullptr};
+  }
+
+  // Add parameters.
+  template <typename... ParamTypes>
+  static auto Params(ParamTypes... param_types) {
+    return FixedSizeSignature<T, 0, sizeof...(ParamTypes)>{
+        nullptr, std::initializer_list<T>{param_types...}.begin()};
+  }
+};
+
+}  // namespace v8::internal
 
 #endif  // V8_CODEGEN_SIGNATURE_H_

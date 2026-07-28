@@ -8,6 +8,8 @@ namespace node {
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
+using v8::TryCatch;
 using v8::Value;
 
 enum encoding ParseEncoding(const char* encoding,
@@ -15,6 +17,10 @@ enum encoding ParseEncoding(const char* encoding,
   switch (encoding[0]) {
     case 'u':
     case 'U':
+      // Note: the two first conditions are needed for performance reasons
+      // as "utf8"/"utf-8" is a common case.
+      // (same for other cases below)
+
       // utf8, utf16le
       if (encoding[1] == 't' && encoding[2] == 'f') {
         // Skip `-`
@@ -68,6 +74,8 @@ enum encoding ParseEncoding(const char* encoding,
       } else if (encoding[1] == 'a') {
         if (strncmp(encoding + 2, "se64", 5) == 0)
           return BASE64;
+        if (strncmp(encoding + 2, "se64url", 8) == 0)
+          return BASE64URL;
       }
       if (StringEqualNoCase(encoding, "binary"))
         return LATIN1;  // BINARY is a deprecated alias of LATIN1.
@@ -75,6 +83,8 @@ enum encoding ParseEncoding(const char* encoding,
         return BUFFER;
       if (StringEqualNoCase(encoding, "base64"))
         return BASE64;
+      if (StringEqualNoCase(encoding, "base64url"))
+        return BASE64URL;
       break;
 
     case 'a':
@@ -101,6 +111,16 @@ enum encoding ParseEncoding(const char* encoding,
   return default_encoding;
 }
 
+enum encoding ParseEncoding(Isolate* isolate,
+                            Local<Value> encoding_v,
+                            Local<Value> encoding_id,
+                            enum encoding default_encoding) {
+  if (encoding_id->IsUint32()) {
+    return static_cast<enum encoding>(encoding_id.As<v8::Uint32>()->Value());
+  }
+
+  return ParseEncoding(isolate, encoding_v, default_encoding);
+}
 
 enum encoding ParseEncoding(Isolate* isolate,
                             Local<Value> encoding_v,
@@ -115,20 +135,30 @@ enum encoding ParseEncoding(Isolate* isolate,
   return ParseEncoding(*encoding, default_encoding);
 }
 
+MaybeLocal<Value> TryEncode(Isolate* isolate,
+                            const char* buf,
+                            size_t len,
+                            enum encoding encoding) {
+  CHECK_NE(encoding, UCS2);
+  return StringBytes::Encode(isolate, buf, len, encoding);
+}
+
+MaybeLocal<Value> TryEncode(Isolate* isolate, const uint16_t* buf, size_t len) {
+  return StringBytes::Encode(isolate, buf, len);
+}
+
 Local<Value> Encode(Isolate* isolate,
                     const char* buf,
                     size_t len,
                     enum encoding encoding) {
   CHECK_NE(encoding, UCS2);
-  Local<Value> error;
-  return StringBytes::Encode(isolate, buf, len, encoding, &error)
-      .ToLocalChecked();
+  TryCatch try_catch(isolate);
+  return StringBytes::Encode(isolate, buf, len, encoding).ToLocalChecked();
 }
 
 Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
-  Local<Value> error;
-  return StringBytes::Encode(isolate, buf, len, &error)
-      .ToLocalChecked();
+  TryCatch try_catch(isolate);
+  return StringBytes::Encode(isolate, buf, len).ToLocalChecked();
 }
 
 // Returns -1 if the handle was not valid for decoding
@@ -146,7 +176,7 @@ ssize_t DecodeWrite(Isolate* isolate,
                     size_t buflen,
                     Local<Value> val,
                     enum encoding encoding) {
-  return StringBytes::Write(isolate, buf, buflen, val, encoding, nullptr);
+  return StringBytes::Write(isolate, buf, buflen, val, encoding);
 }
 
 }  // namespace node

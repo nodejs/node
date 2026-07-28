@@ -1,13 +1,14 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #include <openssl/opensslconf.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -26,67 +27,97 @@
 #define DEFBITS 2048
 #define DEFPRIMES 2
 
-static int genrsa_cb(int p, int n, BN_GENCB *cb);
+static int verbose = 0;
 
 typedef enum OPTION_choice {
-    OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
-    OPT_3, OPT_F4, OPT_ENGINE,
-    OPT_OUT, OPT_PASSOUT, OPT_CIPHER, OPT_PRIMES,
-    OPT_R_ENUM
+    OPT_COMMON,
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    OPT_3,
+#endif
+    OPT_F4,
+    OPT_ENGINE,
+    OPT_OUT,
+    OPT_PASSOUT,
+    OPT_CIPHER,
+    OPT_PRIMES,
+    OPT_VERBOSE,
+    OPT_QUIET,
+    OPT_R_ENUM,
+    OPT_PROV_ENUM,
+    OPT_TRADITIONAL
 } OPTION_CHOICE;
 
 const OPTIONS genrsa_options[] = {
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"3", OPT_3, '-', "Use 3 for the E value"},
-    {"F4", OPT_F4, '-', "Use F4 (0x10001) for the E value"},
-    {"f4", OPT_F4, '-', "Use F4 (0x10001) for the E value"},
-    {"out", OPT_OUT, '>', "Output the key to specified file"},
-    OPT_R_OPTIONS,
-    {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
-    {"", OPT_CIPHER, '-', "Encrypt the output with any supported cipher"},
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options] numbits\n" },
+
+    OPT_SECTION("General"),
+    { "help", OPT_HELP, '-', "Display this summary" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
-    {"primes", OPT_PRIMES, 'p', "Specify number of primes"},
-    {NULL}
+
+    OPT_SECTION("Input"),
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+    { "3", OPT_3, '-', "(deprecated) Use 3 for the E value" },
+#endif
+    { "F4", OPT_F4, '-', "Use the Fermat number F4 (0x10001) for the E value" },
+    { "f4", OPT_F4, '-', "Use the Fermat number F4 (0x10001) for the E value" },
+
+    OPT_SECTION("Output"),
+    { "out", OPT_OUT, '>', "Output the key to specified file" },
+    { "passout", OPT_PASSOUT, 's', "Output file pass phrase source" },
+    { "primes", OPT_PRIMES, 'p', "Specify number of primes" },
+    { "verbose", OPT_VERBOSE, '-', "Verbose output" },
+    { "quiet", OPT_QUIET, '-', "Terse output" },
+    { "traditional", OPT_TRADITIONAL, '-',
+        "Use traditional format for private keys" },
+    { "", OPT_CIPHER, '-', "Encrypt the output with any supported cipher" },
+
+    OPT_R_OPTIONS,
+    OPT_PROV_OPTIONS,
+
+    OPT_PARAMETERS(),
+    { "numbits", 0, 0, "Size of key in bits" },
+    { NULL }
 };
 
 int genrsa_main(int argc, char **argv)
 {
     BN_GENCB *cb = BN_GENCB_new();
-    PW_CB_DATA cb_data;
     ENGINE *eng = NULL;
     BIGNUM *bn = BN_new();
     BIO *out = NULL;
-    const BIGNUM *e;
-    RSA *rsa = NULL;
-    const EVP_CIPHER *enc = NULL;
+    EVP_PKEY *pkey = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+    EVP_CIPHER *enc = NULL;
     int ret = 1, num = DEFBITS, private = 0, primes = DEFPRIMES;
     unsigned long f4 = RSA_F4;
     char *outfile = NULL, *passoutarg = NULL, *passout = NULL;
-    char *prog, *hexe, *dece;
+    char *prog, *hexe, *dece, *ciphername = NULL;
     OPTION_CHOICE o;
+    int traditional = 0;
 
     if (bn == NULL || cb == NULL)
         goto end;
 
-    BN_GENCB_set(cb, genrsa_cb, bio_err);
-
+    opt_set_unknown_name("cipher");
     prog = opt_init(argc, argv, genrsa_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
-opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
             ret = 0;
             opt_help(genrsa_options);
             goto end;
+#ifndef OPENSSL_NO_DEPRECATED_3_0
         case OPT_3:
-            f4 = 3;
+            f4 = RSA_3;
             break;
+#endif
         case OPT_F4:
             f4 = RSA_F4;
             break;
@@ -100,19 +131,32 @@ opthelp:
             if (!opt_rand(o))
                 goto end;
             break;
+        case OPT_PROV_CASES:
+            if (!opt_provider(o))
+                goto end;
+            break;
         case OPT_PASSOUT:
             passoutarg = opt_arg();
             break;
         case OPT_CIPHER:
-            if (!opt_cipher(opt_unknown(), &enc))
-                goto end;
+            ciphername = opt_unknown();
             break;
         case OPT_PRIMES:
-            if (!opt_int(opt_arg(), &primes))
-                goto end;
+            primes = opt_int_arg();
+            break;
+        case OPT_VERBOSE:
+            verbose = 1;
+            break;
+        case OPT_QUIET:
+            verbose = 0;
+            break;
+        case OPT_TRADITIONAL:
+            traditional = 1;
             break;
         }
     }
+
+    /* One optional argument, the bitsize. */
     argc = opt_num_rest();
     argv = opt_rest();
 
@@ -121,15 +165,19 @@ opthelp:
             goto end;
         if (num > OPENSSL_RSA_MAX_MODULUS_BITS)
             BIO_printf(bio_err,
-                       "Warning: It is not recommended to use more than %d bit for RSA keys.\n"
-                       "         Your key size is %d! Larger key size may behave not as expected.\n",
-                       OPENSSL_RSA_MAX_MODULUS_BITS, num);
-    } else if (argc > 0) {
-        BIO_printf(bio_err, "Extra arguments given.\n");
+                "Warning: It is not recommended to use more than %d bit for RSA keys.\n"
+                "         Your key size is %d! Larger key size may behave not as expected.\n",
+                OPENSSL_RSA_MAX_MODULUS_BITS, num);
+    } else if (!opt_check_rest_arg(NULL)) {
         goto opthelp;
     }
 
+    if (!app_RAND_load())
+        goto end;
+
     private = 1;
+    if (!opt_cipher(ciphername, &enc))
+        goto end;
     if (!app_passwd(NULL, passoutarg, NULL, &passout)) {
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
@@ -139,58 +187,72 @@ opthelp:
     if (out == NULL)
         goto end;
 
-    BIO_printf(bio_err, "Generating RSA private key, %d bit long modulus (%d primes)\n",
-               num, primes);
-    rsa = eng ? RSA_new_method(eng) : RSA_new();
-    if (rsa == NULL)
+    if (!init_gen_str(&ctx, "RSA", eng, 0, app_get0_libctx(),
+            app_get0_propq()))
         goto end;
 
-    if (!BN_set_word(bn, f4)
-        || !RSA_generate_multi_prime_key(rsa, num, primes, bn, cb))
-        goto end;
+    if (verbose)
+        EVP_PKEY_CTX_set_cb(ctx, progress_cb);
+    EVP_PKEY_CTX_set_app_data(ctx, bio_err);
 
-    RSA_get0_key(rsa, NULL, &e, NULL);
-    hexe = BN_bn2hex(e);
-    dece = BN_bn2dec(e);
-    if (hexe && dece) {
-        BIO_printf(bio_err, "e is %s (0x%s)\n", dece, hexe);
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, num) <= 0) {
+        BIO_printf(bio_err, "Error setting RSA length\n");
+        goto end;
     }
-    OPENSSL_free(hexe);
-    OPENSSL_free(dece);
-    cb_data.password = passout;
-    cb_data.prompt_info = outfile;
-    assert(private);
-    if (!PEM_write_bio_RSAPrivateKey(out, rsa, enc, NULL, 0,
-                                     (pem_password_cb *)password_callback,
-                                     &cb_data))
+    if (!BN_set_word(bn, f4)) {
+        BIO_printf(bio_err, "Error allocating RSA public exponent\n");
         goto end;
+    }
+    if (EVP_PKEY_CTX_set1_rsa_keygen_pubexp(ctx, bn) <= 0) {
+        BIO_printf(bio_err, "Error setting RSA public exponent\n");
+        goto end;
+    }
+    if (EVP_PKEY_CTX_set_rsa_keygen_primes(ctx, primes) <= 0) {
+        BIO_printf(bio_err, "Error setting number of primes\n");
+        goto end;
+    }
+    pkey = app_keygen(ctx, "RSA", num, verbose);
+    if (pkey == NULL)
+        goto end;
+
+    if (verbose) {
+        BIGNUM *e = NULL;
+
+        /* Every RSA key has an 'e' */
+        EVP_PKEY_get_bn_param(pkey, "e", &e);
+        if (e == NULL) {
+            BIO_printf(bio_err, "Error cannot access RSA e\n");
+            goto end;
+        }
+        hexe = BN_bn2hex(e);
+        dece = BN_bn2dec(e);
+        if (hexe && dece) {
+            BIO_printf(bio_err, "e is %s (0x%s)\n", dece, hexe);
+        }
+        OPENSSL_free(hexe);
+        OPENSSL_free(dece);
+        BN_free(e);
+    }
+    if (traditional) {
+        if (!PEM_write_bio_PrivateKey_traditional(out, pkey, enc, NULL, 0,
+                NULL, passout))
+            goto end;
+    } else {
+        if (!PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, passout))
+            goto end;
+    }
 
     ret = 0;
- end:
+end:
     BN_free(bn);
     BN_GENCB_free(cb);
-    RSA_free(rsa);
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    EVP_CIPHER_free(enc);
     BIO_free_all(out);
     release_engine(eng);
     OPENSSL_free(passout);
     if (ret != 0)
         ERR_print_errors(bio_err);
     return ret;
-}
-
-static int genrsa_cb(int p, int n, BN_GENCB *cb)
-{
-    char c = '*';
-
-    if (p == 0)
-        c = '.';
-    if (p == 1)
-        c = '+';
-    if (p == 2)
-        c = '*';
-    if (p == 3)
-        c = '\n';
-    BIO_write(BN_GENCB_get_arg(cb), &c, 1);
-    (void)BIO_flush(BN_GENCB_get_arg(cb));
-    return 1;
 }

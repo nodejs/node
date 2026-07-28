@@ -32,8 +32,8 @@ LocalizedNumberFormatterAsFormat::LocalizedNumberFormatterAsFormat(
 
 LocalizedNumberFormatterAsFormat::~LocalizedNumberFormatterAsFormat() = default;
 
-UBool LocalizedNumberFormatterAsFormat::operator==(const Format& other) const {
-    auto* _other = dynamic_cast<const LocalizedNumberFormatterAsFormat*>(&other);
+bool LocalizedNumberFormatterAsFormat::operator==(const Format& other) const {
+    const auto* _other = dynamic_cast<const LocalizedNumberFormatterAsFormat*>(&other);
     if (_other == nullptr) {
         return false;
     }

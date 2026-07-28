@@ -32,11 +32,11 @@
 U_CAPI FileStream* U_EXPORT2
 T_FileStream_open(const char* filename, const char* mode)
 {
-    if(filename != NULL && *filename != 0 && mode != NULL && *mode != 0) {
+    if(filename != nullptr && *filename != 0 && mode != nullptr && *mode != 0) {
         FILE *file = fopen(filename, mode);
         return (FileStream*)file;
     } else {
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -44,7 +44,7 @@ T_FileStream_open(const char* filename, const char* mode)
 U_CAPI FileStream* U_EXPORT2
 T_FileStream_wopen(const wchar_t* filename, const wchar_t* mode)
 {
-   // TBD: _wfopen is believed to be MS-specific?
+   // TBD: _wfopen is believed to be MS-specific? 
 #if U_PLATFORM_USES_ONLY_WIN32_API
     FILE* result = _wfopen(filename, mode);
     return (FileStream*)result;
@@ -53,13 +53,13 @@ T_FileStream_wopen(const wchar_t* filename, const wchar_t* mode)
     char *fn, *md;
     FILE *result;
 
-    // convert from wchar_t to char
-    fnMbsSize = wcstombs(NULL, filename, ((size_t)-1) >> 1);
+    // convert from wchar_t to char 
+    fnMbsSize = wcstombs(nullptr, filename, ((size_t)-1) >> 1);
     fn = (char*)uprv_malloc(fnMbsSize+2);
     wcstombs(fn, filename, fnMbsSize);
     fn[fnMbsSize] = 0;
 
-    mdMbsSize = wcstombs(NULL, mode, ((size_t)-1) >> 1);
+    mdMbsSize = wcstombs(nullptr, mode, ((size_t)-1) >> 1);
     md = (char*)uprv_malloc(mdMbsSize+2);
     wcstombs(md, mode, mdMbsSize);
     md[mdMbsSize] = 0;
@@ -74,7 +74,7 @@ T_FileStream_wopen(const wchar_t* filename, const wchar_t* mode)
 U_CAPI void U_EXPORT2
 T_FileStream_close(FileStream* fileStream)
 {
-    if (fileStream != 0)
+    if (fileStream != nullptr)
         fclose((FILE*)fileStream);
 }
 
@@ -84,9 +84,9 @@ T_FileStream_file_exists(const char* filename)
     FILE* temp = fopen(filename, "r");
     if (temp) {
         fclose(temp);
-        return TRUE;
+        return true;
     } else
-        return FALSE;
+        return false;
 }
 
 /*static const int32_t kEOF;
@@ -182,7 +182,7 @@ T_FileStream_eof(FileStream* fileStream)
 }
 
 /*
- Warning
+ Warning 
  This function may not work consistently on all platforms
  (e.g. HP-UX, FreeBSD and MacOSX don't return an error when
  putc is used on a file opened as readonly)
@@ -190,7 +190,7 @@ T_FileStream_eof(FileStream* fileStream)
 U_CAPI int U_EXPORT2
 T_FileStream_error(FileStream* fileStream)
 {
-    return (fileStream == 0 || ferror((FILE*)fileStream));
+    return (fileStream == nullptr || ferror((FILE*)fileStream));
 }
 
 /* This function doesn't work. */
@@ -203,20 +203,20 @@ T_FileStream_setError(FileStream* fileStream)
 */
 
 U_CAPI FileStream* U_EXPORT2
-T_FileStream_stdin(void)
+T_FileStream_stdin()
 {
     return (FileStream*)stdin;
 }
 
 U_CAPI FileStream* U_EXPORT2
-T_FileStream_stdout(void)
+T_FileStream_stdout()
 {
     return (FileStream*)stdout;
 }
 
 
 U_CAPI FileStream* U_EXPORT2
-T_FileStream_stderr(void)
+T_FileStream_stderr()
 {
     return (FileStream*)stderr;
 }

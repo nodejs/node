@@ -13,7 +13,7 @@ var stepCount = 0;
 function listener(event, execState, eventData, data) {
   if (event == Debug.DebugEvent.Break) {
     if (!done) {
-      execState.prepareStep(Debug.StepAction.StepIn);
+      execState.prepareStep(Debug.StepAction.StepInto);
       var s = execState.frame().sourceLineText();
       assertTrue(s.indexOf('// ' + stepCount + '.') !== -1);
       stepCount++;
@@ -34,7 +34,7 @@ function f() {
   class Derived extends GetBase() {} // 0.
 }
 
-var bp = Debug.setBreakPoint(f, 0);
+var bp = Debug.setBreakPoint(f, 1, 20);
 f();
 assertEquals(4, stepCount);
 

@@ -19,7 +19,7 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
   const socket = setup();
   assert.throws(
     () => { socket.dropMembership(multicastAddress); },
-    /^Error: dropMembership EADDRNOTAVAIL$/
+    /^Error: dropMembership EADDRNOTAVAIL$/,
   );
   socket.close();
 }

@@ -17,11 +17,10 @@ Debug.setListener(function (event, exec_state, event_data, data) {
 });
 
 function makeCounter() {
-  // If the variable `result` were stack-allocated, it would be 3 at this point
-  // due to the debugging activity during function entry. However, for a
-  // heap-allocated variable, the debugger evaluated `result = 3` in a temporary
-  // scope instead and had no effect on this variable.
-  assertEquals(undefined, result);
+  // The debug-evaluate should be able to set this to 3. This was fixed with
+  // https://crbug.com/1246907 which delays debug breaks triggered by stack
+  // checks until the function context is properly set up.
+  assertEquals(3, result);
 
   var result = 0;
 

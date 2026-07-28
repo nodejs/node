@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const stream = require('stream');
 const Writable = stream.Writable;
@@ -18,13 +18,13 @@ let seenEnd = false;
 
 const w = new Writable();
 // Let's arrange to store the chunks.
-w._write = function(chunk, encoding, cb) {
+w._write = common.mustCallAtLeast(function(chunk, encoding, cb) {
   // Default encoding given none was specified.
   assert.strictEqual(encoding, 'buffer');
 
   seenChunks.push(chunk);
   cb();
-};
+});
 // Let's record the stream end event.
 w.on('finish', () => {
   seenEnd = true;
@@ -35,13 +35,13 @@ function writeChunks(remainingChunks, callback) {
   let writeState;
 
   if (writeChunk) {
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       writeState = w.write(writeChunk);
       // We were not told to stop writing.
       assert.ok(writeState);
 
       writeChunks(remainingChunks, callback);
-    });
+    }));
   } else {
     callback();
   }
@@ -58,7 +58,7 @@ seenChunks = [];
 w.cork();
 
 // Write the bufferedChunks.
-writeChunks(inputChunks, () => {
+writeChunks(inputChunks, common.mustCall(() => {
   // Should not have seen anything yet.
   assert.strictEqual(seenChunks.length, 0);
 
@@ -79,8 +79,8 @@ writeChunks(inputChunks, () => {
     assert.ok(seen.equals(expected));
   }
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     // The stream should not have been ended.
     assert.ok(!seenEnd);
-  });
-});
+  }));
+}));

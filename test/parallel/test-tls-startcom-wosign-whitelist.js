@@ -39,7 +39,7 @@ const testCases = [
       rejectUnauthorized: true
     },
     errorCode: 'CERT_REVOKED'
-  }
+  },
 ];
 
 
@@ -58,22 +58,22 @@ function runTest(tindex) {
 
   const server = tls.createServer(tcase.serverOpts, function(s) {
     s.resume();
-  }).listen(0, function() {
+  }).listen(0, common.mustCall(function() {
     tcase.clientOpts.port = this.address().port;
     const client = tls.connect(tcase.clientOpts);
-    client.on('error', function(e) {
+    client.on('error', common.mustCallAtLeast((e) => {
       assert.strictEqual(e.code, tcase.errorCode);
       runNextTest(server, tindex);
-    });
+    }, 0));
 
-    client.on('secureConnect', function() {
+    client.on('secureConnect', common.mustCall(() => {
       // agent8 can pass StartCom/WoSign check so that the secureConnect
       // is established.
       assert.strictEqual(tcase.errorCode, 'CERT_REVOKED');
       client.end();
       runNextTest(server, tindex);
-    });
-  });
+    }));
+  }));
 }
 
 

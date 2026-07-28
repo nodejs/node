@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_OBJECTS_JS_SEGMENTER_H_
 #define V8_OBJECTS_JS_SEGMENTER_H_
 
@@ -28,23 +29,25 @@ class BreakIterator;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-segmenter-tq.inc"
+
 class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
  public:
   // Creates segmenter object with properties derived from input locales and
   // options.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmenter> New(
-      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmenter> New(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options, const char* method_name);
 
-  V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
-      Isolate* isolate, Handle<JSSegmenter> segmenter_holder);
+  V8_WARN_UNUSED_RESULT static DirectHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, DirectHandle<JSSegmenter> segmenter_holder);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // Segmenter accessors.
-  DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
 
   // Granularity: identifying the segmenter used.
   //
@@ -63,9 +66,9 @@ class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_SEGMENTER_FLAGS()
 
-  STATIC_ASSERT(Granularity::GRAPHEME <= GranularityBits::kMax);
-  STATIC_ASSERT(Granularity::WORD <= GranularityBits::kMax);
-  STATIC_ASSERT(Granularity::SENTENCE <= GranularityBits::kMax);
+  static_assert(GranularityBits::is_valid(Granularity::GRAPHEME));
+  static_assert(GranularityBits::is_valid(Granularity::WORD));
+  static_assert(GranularityBits::is_valid(Granularity::SENTENCE));
 
   DECL_PRINTER(JSSegmenter)
 

@@ -31,10 +31,12 @@ const {
   restoreStderr
 } = require('../common/hijackstdio');
 
+const { isMainThread } = require('worker_threads');
+
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 // Support legacy API
-if (common.isMainThread) {
+if (isMainThread) {
   assert.strictEqual(typeof process.stdout.fd, 'number');
   assert.strictEqual(typeof process.stderr.fd, 'number');
 }
@@ -49,7 +51,7 @@ common.expectWarning(
     ['No such label \'default\' for console.timeLog()'],
     ['No such label \'default\' for console.timeEnd()'],
     ['Label \'default\' already exists for console.time()'],
-    ['Label \'test\' already exists for console.time()']
+    ['Label \'test\' already exists for console.time()'],
   ]
 );
 
@@ -177,11 +179,11 @@ console.timeEnd(NaN);
 // Make sure calling time twice without timeEnd doesn't reset the timer.
 console.time('test');
 const time = console._times.get('test');
-setTimeout(() => {
+setTimeout(common.mustCall(() => {
   console.time('test');
   assert.deepStrictEqual(console._times.get('test'), time);
   console.timeEnd('test');
-}, 1);
+}), 1);
 
 console.time('log1');
 console.timeLog('log1');
@@ -216,7 +218,7 @@ console.timeEnd('label3');
 assert.strictEqual(console._times.size, timesMapSize);
 
 const expectedStrings = [
-  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect'
+  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect',
 ];
 
 for (const expected of expectedStrings) {
@@ -234,10 +236,10 @@ for (const expected of expectedStrings) {
 }
 
 assert.strictEqual(strings.shift(),
-                   "{\n  foo: 'bar',\n  [Symbol(nodejs.util.inspect.custom)]:" +
+                   "{\n  foo: 'bar',\n  Symbol(nodejs.util.inspect.custom):" +
                     ' [Function: [nodejs.util.inspect.custom]]\n}\n');
 assert.strictEqual(strings.shift(),
-                   "{\n  foo: 'bar',\n  [Symbol(nodejs.util.inspect.custom)]:" +
+                   "{\n  foo: 'bar',\n  Symbol(nodejs.util.inspect.custom):" +
                     ' [Function: [nodejs.util.inspect.custom]]\n}\n');
 assert.ok(strings.shift().includes('foo: [Object]'));
 assert.strictEqual(strings.shift().includes('baz'), false);
@@ -246,24 +248,27 @@ assert.ok(strings[0].includes('foo: { bar: { baz:'));
 assert.ok(strings[0].includes('quux'));
 assert.ok(strings.shift().includes('quux: true'));
 
-assert.ok(/^label: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^__proto__: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^constructor: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^hasOwnProperty: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
+assert.match(strings.shift().trim(), /^label: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^__proto__: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^constructor: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^hasOwnProperty: \d+(\.\d{1,3})?(ms|s)$/);
 
 // Verify that console.time() coerces label values to strings as expected
-assert.ok(/^: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^null: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^default: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^default: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^NaN: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
+assert.match(strings.shift().trim(), /^: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(),
+             /^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(),
+             /^\[object Object\]: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^null: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^default: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^default: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^NaN: \d+(\.\d{1,3})?(ms|s)$/);
 
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s) test$/.test(strings.shift().trim()));
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s) {} \[ 1, 2, 3 ]$/.test(strings.shift().trim()));
-assert.ok(/^log1: \d+(\.\d{1,3})?(ms|s)$/.test(strings.shift().trim()));
+assert.match(strings.shift().trim(), /^log1: \d+(\.\d{1,3})?(ms|s)$/);
+assert.match(strings.shift().trim(), /^log1: \d+(\.\d{1,3})?(ms|s) test$/);
+assert.match(strings.shift().trim(),
+             /^log1: \d+(\.\d{1,3})?(ms|s) {} \[ 1, 2, 3 ]$/);
+assert.match(strings.shift().trim(), /^log1: \d+(\.\d{1,3})?(ms|s)$/);
 
 // Make sure that we checked all strings
 assert.strictEqual(strings.length, 0);

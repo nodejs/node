@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --expose-gc
+// Flags: --expose-gc
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let nogc = () => {};
 
 function newModule() {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs("memory");
   builder.addFunction("main", kSig_i_v)
     .addBody([kExprI32Const, 0, kExprI32LoadMem, 0, 0])
     .exportFunc();

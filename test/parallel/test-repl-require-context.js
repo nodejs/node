@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+common.skipIfInspectorDisabled();
 const assert = require('assert');
 const cp = require('child_process');
 const child = cp.spawn(process.execPath, ['--interactive']);
@@ -19,6 +20,5 @@ child.on('exit', common.mustCall(() => {
 
 child.stdin.write('const isObject = (obj) => obj.constructor === Object;\n');
 child.stdin.write('isObject({});\n');
-child.stdin.write(`require('${fixture}').isObject({});\n`);
-child.stdin.write('.exit');
-child.stdin.end();
+child.stdin.write(`require(${JSON.stringify(fixture)}).isObject({});\n`);
+child.stdin.write('.exit\n');

@@ -22,12 +22,25 @@
 'use strict';
 const common = require('../common');
 
-const assert = require('assert');
-const cluster = require('cluster');
+const assert = require('node:assert');
+const cluster = require('node:cluster');
+const { spawnSync } = require('node:child_process');
 
 assert.strictEqual('NODE_UNIQUE_ID' in process.env, false,
                    `NODE_UNIQUE_ID (${process.env.NODE_UNIQUE_ID}) ` +
                    'should be removed on startup');
+
+{
+  const { status } = spawnSync(process.execPath, [
+    '-e',
+    `
+      const { strictEqual } = require('node:assert');
+      Object.setPrototypeOf(process.env, { NODE_UNIQUE_ID: 0 });
+      strictEqual(require('cluster').isPrimary, true);
+    `,
+  ]);
+  assert.strictEqual(status, 0);
+}
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach((name, index) => {
@@ -38,7 +51,7 @@ function forEach(obj, fn) {
 
 if (cluster.isWorker) {
   require('http').Server(common.mustNotCall()).listen(0, '127.0.0.1');
-} else if (cluster.isMaster) {
+} else if (cluster.isPrimary) {
 
   const checks = {
     cluster: {
@@ -79,7 +92,7 @@ if (cluster.isWorker) {
   const stateNames = Object.keys(checks.worker.states);
 
   // Check events, states, and emit arguments
-  forEach(checks.cluster.events, (bool, name, index) => {
+  forEach(checks.cluster.events, common.mustCallAtLeast((bool, name, index) => {
 
     // Listen on event
     cluster.on(name, common.mustCall(function(/* worker */) {
@@ -94,7 +107,7 @@ if (cluster.isWorker) {
       const state = stateNames[index];
       checks.worker.states[state] = (state === worker.state);
     }));
-  });
+  }));
 
   // Kill worker when listening
   cluster.on('listening', common.mustCall(() => {
@@ -111,7 +124,7 @@ if (cluster.isWorker) {
          'the worker is not a instance of the Worker constructor');
 
   // Check event
-  forEach(checks.worker.events, function(bool, name, index) {
+  forEach(checks.worker.events, common.mustCallAtLeast((bool, name, index) => {
     worker.on(name, common.mustCall(function() {
       // Set event
       checks.worker.events[name] = true;
@@ -126,57 +139,57 @@ if (cluster.isWorker) {
           assert.strictEqual(arguments.length, 2);
           break;
 
-        case 'listening':
+        case 'listening': {
           assert.strictEqual(arguments.length, 1);
           assert.strictEqual(Object.keys(arguments[0]).length, 4);
           assert.strictEqual(arguments[0].address, '127.0.0.1');
           assert.strictEqual(arguments[0].addressType, 4);
-          assert(arguments[0].hasOwnProperty('fd'));
+          assert(Object.hasOwn(arguments[0], 'fd'));
           assert.strictEqual(arguments[0].fd, undefined);
           const port = arguments[0].port;
           assert(Number.isInteger(port));
           assert(port >= 1);
           assert(port <= 65535);
           break;
-
+        }
         default:
           assert.strictEqual(arguments.length, 0);
           break;
       }
     }));
-  });
+  }));
 
   // Check all values
-  process.once('exit', () => {
+  process.on('exit', () => {
     // Check cluster events
-    forEach(checks.cluster.events, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.cluster.events)) {
       assert(check,
              `The cluster event "${name}" on the cluster object did not fire`);
-    });
+    }
 
     // Check cluster event arguments
-    forEach(checks.cluster.equal, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.cluster.equal)) {
       assert(check,
              `The cluster event "${name}" did not emit with correct argument`);
-    });
+    }
 
     // Check worker states
-    forEach(checks.worker.states, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.worker.states)) {
       assert(check,
              `The worker state "${name}" was not set to true`);
-    });
+    }
 
     // Check worker events
-    forEach(checks.worker.events, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.worker.events)) {
       assert(check,
              `The worker event "${name}" on the worker object did not fire`);
-    });
+    }
 
     // Check worker event arguments
-    forEach(checks.worker.equal, (check, name) => {
+    for (const [ name, check ] of Object.entries(checks.worker.equal)) {
       assert(check,
              `The worker event "${name}" did not emit with correct argument`);
-    });
+    }
   });
 
 }

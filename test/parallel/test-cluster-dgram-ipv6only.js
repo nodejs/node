@@ -12,7 +12,7 @@ const dgram = require('dgram');
 
 // This test ensures that the `ipv6Only` option in `dgram.createSock()`
 // works as expected.
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   cluster.fork().on('exit', common.mustCall((code) => {
     assert.strictEqual(code, 0);
   }));

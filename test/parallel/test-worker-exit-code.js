@@ -8,7 +8,8 @@ const assert = require('assert');
 const worker = require('worker_threads');
 const { Worker, parentPort } = worker;
 
-const testCases = require('../fixtures/process-exit-code-cases');
+const { getTestCases } = require('../common/process-exit-code-cases');
+const testCases = getTestCases(true);
 
 // Do not use isMainThread so that this test itself can be run inside a Worker.
 if (!process.env.HAS_STARTED_WORKER) {
@@ -24,7 +25,7 @@ if (!process.env.HAS_STARTED_WORKER) {
 }
 
 function parent() {
-  const test = (arg, name = 'worker', exit, error = null) => {
+  const test = common.mustCall((arg, name = 'worker', exit, error = null) => {
     const w = new Worker(__filename);
     w.on('exit', common.mustCall((code) => {
       assert.strictEqual(
@@ -35,12 +36,11 @@ function parent() {
     if (error) {
       w.on('error', common.mustCall((err) => {
         console.log(err);
-        assert(error.test(err),
-               `wrong error for ${arg}\nexpected:${error} but got:${err}`);
+        assert.match(String(err), error);
       }));
     }
     w.postMessage(arg);
-  };
+  }, testCases.length);
 
   testCases.forEach((tc, i) => test(i, tc.func.name, tc.result, tc.error));
 }

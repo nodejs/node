@@ -15,7 +15,7 @@ using ::wasm::Message;
 
 namespace {
 
-own<Trap> IdentityCallback(const Val args[], Val results[]) {
+own<Trap> IdentityCallback(const vec<Val>& args, vec<Val>& results) {
   results[0] = args[0].copy();
   return nullptr;
 }
@@ -32,35 +32,37 @@ TEST_F(WasmCapiTest, HostRef) {
   FunctionSig r_v_sig(1, 0, rr_reps);
   FunctionSig v_ir_sig(0, 2, ir_reps);
   FunctionSig r_i_sig(1, 1, ri_reps);
-  uint32_t func_index = builder()->AddImport(CStrVector("f"), &r_r_sig);
+  uint32_t func_index = builder()->AddImport(base::CStrVector("f"), &r_r_sig);
   const bool kMutable = true;
   uint32_t global_index = builder()->AddExportedGlobal(
-      kWasmExternRef, kMutable, WasmInitExpr::RefNullConst(HeapType::kExtern),
-      CStrVector("global"));
+      kWasmExternRef, kMutable, WasmInitExpr::RefNullConst(kWasmExternRef),
+      base::CStrVector("global"));
   uint32_t table_index = builder()->AddTable(kWasmExternRef, 10);
-  builder()->AddExport(CStrVector("table"), kExternalTable, table_index);
-  byte global_set_code[] = {WASM_SET_GLOBAL(global_index, WASM_GET_LOCAL(0))};
-  AddExportedFunction(CStrVector("global.set"), global_set_code,
+  builder()->AddExport(base::CStrVector("table"), kExternalTable, table_index);
+  uint8_t global_set_code[] = {
+      WASM_GLOBAL_SET(global_index, WASM_LOCAL_GET(0))};
+  AddExportedFunction(base::CStrVector("global.set"), global_set_code,
                       sizeof(global_set_code), &v_r_sig);
-  byte global_get_code[] = {WASM_GET_GLOBAL(global_index)};
-  AddExportedFunction(CStrVector("global.get"), global_get_code,
+  uint8_t global_get_code[] = {WASM_GLOBAL_GET(global_index)};
+  AddExportedFunction(base::CStrVector("global.get"), global_get_code,
                       sizeof(global_get_code), &r_v_sig);
-  byte table_set_code[] = {
-      WASM_TABLE_SET(table_index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
-  AddExportedFunction(CStrVector("table.set"), table_set_code,
+  uint8_t table_set_code[] = {
+      WASM_TABLE_SET(table_index, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))};
+  AddExportedFunction(base::CStrVector("table.set"), table_set_code,
                       sizeof(table_set_code), &v_ir_sig);
-  byte table_get_code[] = {WASM_TABLE_GET(table_index, WASM_GET_LOCAL(0))};
-  AddExportedFunction(CStrVector("table.get"), table_get_code,
+  uint8_t table_get_code[] = {WASM_TABLE_GET(table_index, WASM_LOCAL_GET(0))};
+  AddExportedFunction(base::CStrVector("table.get"), table_get_code,
                       sizeof(table_get_code), &r_i_sig);
-  byte func_call_code[] = {WASM_CALL_FUNCTION(func_index, WASM_GET_LOCAL(0))};
-  AddExportedFunction(CStrVector("func.call"), func_call_code,
+  uint8_t func_call_code[] = {
+      WASM_CALL_FUNCTION(func_index, WASM_LOCAL_GET(0))};
+  AddExportedFunction(base::CStrVector("func.call"), func_call_code,
                       sizeof(func_call_code), &r_r_sig);
 
-  own<FuncType> func_type =
-      FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::ANYREF)),
-                     ownvec<ValType>::make(ValType::make(::wasm::ANYREF)));
+  own<FuncType> func_type = FuncType::make(
+      ownvec<ValType>::make(ValType::make(::wasm::ValKind::EXTERNREF)),
+      ownvec<ValType>::make(ValType::make(::wasm::ValKind::EXTERNREF)));
   own<Func> callback = Func::make(store(), func_type.get(), IdentityCallback);
-  Extern* imports[] = {callback.get()};
+  vec<Extern*> imports = vec<Extern*>::make(callback.get());
   Instantiate(imports);
 
   Global* global = GetExportedGlobal(0);
@@ -86,33 +88,37 @@ TEST_F(WasmCapiTest, HostRef) {
   EXPECT_TRUE(ref->copy()->same(host1.get()));
 
   // Interact with the Global.
-  Val args[2];
-  Val results[1];
-  own<Trap> trap = global_get->call(nullptr, results);
+  vec<Val> args = vec<Val>::make_uninitialized(2);
+  vec<Val> results = vec<Val>::make_uninitialized(1);
+
+  vec<Val> empty_args = vec<Val>::make_uninitialized();
+  vec<Val> empty_rets = vec<Val>::make_uninitialized();
+
+  own<Trap> trap = global_get->call(empty_args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(nullptr, results[0].release_ref());
   args[0] = Val::ref(host1.get()->copy());
-  trap = global_set->call(args, nullptr);
+  trap = global_set->call(args, empty_rets);
   EXPECT_EQ(nullptr, trap);
-  trap = global_get->call(nullptr, results);
+  trap = global_get->call(empty_args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_TRUE(results[0].release_ref()->same(host1.get()));
   args[0] = Val::ref(host2.get()->copy());
-  trap = global_set->call(args, nullptr);
+  trap = global_set->call(args, empty_rets);
   EXPECT_EQ(nullptr, trap);
-  trap = global_get->call(nullptr, results);
+  trap = global_get->call(empty_args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_TRUE(results[0].release_ref()->same(host2.get()));
   args[0] = Val::ref(own<Ref>());
-  trap = global_set->call(args, nullptr);
+  trap = global_set->call(args, empty_rets);
   EXPECT_EQ(nullptr, trap);
-  trap = global_get->call(nullptr, results);
+  trap = global_get->call(empty_args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_EQ(nullptr, results[0].release_ref());
 
   EXPECT_EQ(nullptr, global->get().release_ref());
   global->set(Val(host2->copy()));
-  trap = global_get->call(nullptr, results);
+  trap = global_get->call(empty_args, results);
   EXPECT_EQ(nullptr, trap);
   EXPECT_TRUE(results[0].release_ref()->same(host2.get()));
   EXPECT_TRUE(global->get().release_ref()->same(host2.get()));
@@ -128,11 +134,11 @@ TEST_F(WasmCapiTest, HostRef) {
   EXPECT_EQ(nullptr, results[0].release_ref());
   args[0] = Val::i32(0);
   args[1] = Val::ref(host1.get()->copy());
-  trap = table_set->call(args, nullptr);
+  trap = table_set->call(args, empty_rets);
   EXPECT_EQ(nullptr, trap);
   args[0] = Val::i32(1);
   args[1] = Val::ref(host2.get()->copy());
-  trap = table_set->call(args, nullptr);
+  trap = table_set->call(args, empty_rets);
   EXPECT_EQ(nullptr, trap);
   args[0] = Val::i32(0);
   trap = table_get->call(args, results);
@@ -144,7 +150,7 @@ TEST_F(WasmCapiTest, HostRef) {
   EXPECT_TRUE(results[0].release_ref()->same(host2.get()));
   args[0] = Val::i32(0);
   args[1] = Val::ref(own<Ref>());
-  trap = table_set->call(args, nullptr);
+  trap = table_set->call(args, empty_rets);
   EXPECT_EQ(nullptr, trap);
   trap = table_get->call(args, results);
   EXPECT_EQ(nullptr, trap);

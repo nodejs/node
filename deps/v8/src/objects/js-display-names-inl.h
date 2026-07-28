@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_DISPLAY_NAMES_INL_H_
+#define V8_OBJECTS_JS_DISPLAY_NAMES_INL_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
-#ifndef V8_OBJECTS_JS_DISPLAY_NAMES_INL_H_
-#define V8_OBJECTS_JS_DISPLAY_NAMES_INL_H_
-
 #include "src/objects/js-display-names.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -18,12 +20,14 @@
 namespace v8 {
 namespace internal {
 
-ACCESSORS(JSDisplayNames, internal, Managed<DisplayNamesInternal>,
+#include "torque-generated/src/objects/js-display-names-tq-inl.inc"
+
+ACCESSORS(JSDisplayNames, internal, Tagged<Managed<DisplayNamesInternal>>,
           kInternalOffset)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisplayNames)
 
 inline void JSDisplayNames::set_style(Style style) {
-  DCHECK_GE(StyleBits::kMax, style);
+  DCHECK(StyleBits::is_valid(style));
   set_flags(StyleBits::update(flags(), style));
 }
 
@@ -32,16 +36,24 @@ inline JSDisplayNames::Style JSDisplayNames::style() const {
 }
 
 inline void JSDisplayNames::set_fallback(Fallback fallback) {
-  DCHECK_GE(FallbackBit::kMax, fallback);
-  int hints = flags();
-  hints = FallbackBit::update(hints, fallback);
-  set_flags(hints);
+  DCHECK(FallbackBit::is_valid(fallback));
+  set_flags(FallbackBit::update(flags(), fallback));
 }
 
 inline JSDisplayNames::Fallback JSDisplayNames::fallback() const {
   return FallbackBit::decode(flags());
 }
 
+inline void JSDisplayNames::set_language_display(
+    LanguageDisplay language_display) {
+  DCHECK(LanguageDisplayBit::is_valid(language_display));
+  set_flags(LanguageDisplayBit::update(flags(), language_display));
+}
+
+inline JSDisplayNames::LanguageDisplay JSDisplayNames::language_display()
+    const {
+  return LanguageDisplayBit::decode(flags());
+}
 }  // namespace internal
 }  // namespace v8
 

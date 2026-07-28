@@ -6,15 +6,17 @@ const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const fs = require('fs');
-const path = require('path');
 
-if (!common.isMainThread)
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) {
   common.skip('Worker bootstrapping works differently -> different async IDs');
+}
 
 tmpdir.refresh();
 
-const file1 = path.join(tmpdir.path, 'file1');
-const file2 = path.join(tmpdir.path, 'file2');
+const file1 = tmpdir.resolve('file1');
+const file2 = tmpdir.resolve('file2');
 
 const onchangex = (x) => (curr, prev) => {
   console.log(`Watcher: ${x}`);
@@ -22,13 +24,13 @@ const onchangex = (x) => (curr, prev) => {
   console.log('previous stat data:', prev);
 };
 
-const checkWatcherStart = (name, watcher) => {
+const checkWatcherStart = common.mustCall((name, watcher) => {
   assert.strictEqual(watcher.type, 'STATWATCHER');
   assert.strictEqual(typeof watcher.uid, 'number');
   assert.strictEqual(watcher.triggerAsyncId, 1);
   checkInvocations(watcher, { init: 1 },
                    `${name}: when started to watch file`);
-};
+}, 2);
 
 const hooks = initHooks();
 hooks.enable();
@@ -57,23 +59,48 @@ checkInvocations(statwatcher1, { init: 1 },
                  'watcher1: when started to watch second file');
 checkWatcherStart('watcher2', statwatcher2);
 
-setTimeout(() => fs.writeFileSync(file1, 'foo++'),
-           common.platformTimeout(100));
+let w2Initialized = false;
+let writeFile2AfterW1 = false;
+
+const onW2Initialized = (curr, prev) => {
+  if (curr.nlink !== 0 || prev.nlink !== 0)
+    return;
+
+  w2.removeListener('change', onW2Initialized);
+  w2Initialized = true;
+  if (writeFile2AfterW1) {
+    setTimeout(() => fs.writeFileSync(file2, 'bar++'),
+               common.platformTimeout(100));
+  }
+};
+w2.on('change', onW2Initialized);
+
 w1.on('change', common.mustCallAtLeast((curr, prev) => {
   console.log('w1 change to', curr, 'from', prev);
+  // Wait for the initial ENOENT poll before creating the file. Otherwise the
+  // first stat can race with the write and use the created file as the baseline.
+  if (curr.nlink === 0 && prev.nlink === 0) {
+    setTimeout(() => fs.writeFileSync(file1, 'foo++'),
+               common.platformTimeout(100));
+    return;
+  }
+
   // Wait until we get the write above.
   if (prev.size !== 0 || curr.size !== 5)
     return;
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     checkInvocations(statwatcher1,
                      { init: 1, before: w1HookCount, after: w1HookCount },
                      'watcher1: when unwatched first file');
     checkInvocations(statwatcher2, { init: 1 },
                      'watcher2: when unwatched first file');
 
-    setTimeout(() => fs.writeFileSync(file2, 'bar++'),
-               common.platformTimeout(100));
+    writeFile2AfterW1 = true;
+    if (w2Initialized) {
+      setTimeout(() => fs.writeFileSync(file2, 'bar++'),
+                 common.platformTimeout(100));
+    }
     w2.on('change', common.mustCallAtLeast((curr, prev) => {
       console.log('w2 change to', curr, 'from', prev);
       // Wait until we get the write above.
@@ -91,7 +118,7 @@ w1.on('change', common.mustCallAtLeast((curr, prev) => {
         fs.unwatchFile(file2);
       });
     }));
-  });
+  }));
 }));
 
 process.once('exit', () => {

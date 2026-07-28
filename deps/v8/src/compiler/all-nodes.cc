@@ -4,30 +4,30 @@
 
 #include "src/compiler/all-nodes.h"
 
-#include "src/compiler/graph.h"
+#include "src/compiler/turbofan-graph.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-AllNodes::AllNodes(Zone* local_zone, const Graph* graph, bool only_inputs)
+AllNodes::AllNodes(Zone* local_zone, const TFGraph* graph, bool only_inputs)
     : reachable(local_zone),
-      is_reachable_(graph->NodeCount(), false, local_zone),
+      is_reachable_(static_cast<int>(graph->NodeCount()), local_zone),
       only_inputs_(only_inputs) {
   Mark(local_zone, graph->end(), graph);
 }
 
-AllNodes::AllNodes(Zone* local_zone, Node* end, const Graph* graph,
+AllNodes::AllNodes(Zone* local_zone, Node* end, const TFGraph* graph,
                    bool only_inputs)
     : reachable(local_zone),
-      is_reachable_(graph->NodeCount(), false, local_zone),
+      is_reachable_(static_cast<int>(graph->NodeCount()), local_zone),
       only_inputs_(only_inputs) {
   Mark(local_zone, end, graph);
 }
 
-void AllNodes::Mark(Zone* local_zone, Node* end, const Graph* graph) {
+void AllNodes::Mark(Zone* local_zone, Node* end, const TFGraph* graph) {
   DCHECK_LT(end->id(), graph->NodeCount());
-  is_reachable_[end->id()] = true;
+  is_reachable_.Add(end->id());
   reachable.push_back(end);
   // Find all nodes reachable from {end}.
   for (size_t i = 0; i < reachable.size(); i++) {
@@ -36,8 +36,8 @@ void AllNodes::Mark(Zone* local_zone, Node* end, const Graph* graph) {
         // TODO(titzer): print a warning.
         continue;
       }
-      if (!is_reachable_[input->id()]) {
-        is_reachable_[input->id()] = true;
+      if (!is_reachable_.Contains(input->id())) {
+        is_reachable_.Add(input->id());
         reachable.push_back(input);
       }
     }
@@ -46,8 +46,8 @@ void AllNodes::Mark(Zone* local_zone, Node* end, const Graph* graph) {
         if (use == nullptr || use->id() >= graph->NodeCount()) {
           continue;
         }
-        if (!is_reachable_[use->id()]) {
-          is_reachable_[use->id()] = true;
+        if (!is_reachable_.Contains(use->id())) {
+          is_reachable_.Add(use->id());
           reachable.push_back(use);
         }
       }

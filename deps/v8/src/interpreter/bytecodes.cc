@@ -6,7 +6,6 @@
 
 #include <iomanip>
 
-#include "src/base/bits.h"
 #include "src/interpreter/bytecode-traits.h"
 
 namespace v8 {
@@ -16,40 +15,40 @@ namespace interpreter {
 // clang-format off
 const OperandType* const Bytecodes::kOperandTypes[] = {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kOperandTypes,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
 };
 
 const OperandTypeInfo* const Bytecodes::kOperandTypeInfos[] = {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kOperandTypeInfos,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
 };
 
 const int Bytecodes::kOperandCount[] = {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kOperandCount,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
 };
 
-const AccumulatorUse Bytecodes::kAccumulatorUse[] = {
-#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kAccumulatorUse,
-  BYTECODE_LIST(ENTRY)
+const ImplicitRegisterUse Bytecodes::kImplicitRegisterUse[] = {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kImplicitRegisterUse,
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
 };
 
-const int Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
+const uint8_t Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
   {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
   }, {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kDoubleScaleSize,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
   }, {
 #define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleSize,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
   }
 };
@@ -58,17 +57,36 @@ const OperandSize* const Bytecodes::kOperandSizes[3][kBytecodeCount] = {
   {
 #define ENTRY(Name, ...)  \
     BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandSizes,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
   }, {
 #define ENTRY(Name, ...)  \
     BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandSizes,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
   }, {
 #define ENTRY(Name, ...)  \
     BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandSizes,
-  BYTECODE_LIST(ENTRY)
+  BYTECODE_LIST(ENTRY, ENTRY)
+#undef ENTRY
+  }
+};
+
+const int* const Bytecodes::kOperandOffsets[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandOffsets.data(),
+  BYTECODE_LIST(ENTRY, ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandOffsets.data(),
+  BYTECODE_LIST(ENTRY, ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandOffsets.data(),
+  BYTECODE_LIST(ENTRY, ENTRY)
 #undef ENTRY
   }
 };
@@ -94,13 +112,20 @@ Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
 };
 // clang-format on
 
+// Make sure kFirstShortStar and kLastShortStar are set correctly.
+#define ASSERT_SHORT_STAR_RANGE(Name, ...)                        \
+  static_assert(Bytecode::k##Name >= Bytecode::kFirstShortStar && \
+                Bytecode::k##Name <= Bytecode::kLastShortStar);
+SHORT_STAR_BYTECODE_LIST(ASSERT_SHORT_STAR_RANGE)
+#undef ASSERT_SHORT_STAR_RANGE
+
 // static
 const char* Bytecodes::ToString(Bytecode bytecode) {
   switch (bytecode) {
 #define CASE(Name, ...)   \
   case Bytecode::k##Name: \
     return #Name;
-    BYTECODE_LIST(CASE)
+    BYTECODE_LIST(CASE, CASE)
 #undef CASE
   }
   UNREACHABLE();
@@ -135,37 +160,6 @@ Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
   }
   DEBUG_BREAK_PLAIN_BYTECODE_LIST(RETURN_IF_DEBUG_BREAK_SIZE_MATCHES)
 #undef RETURN_IF_DEBUG_BREAK_SIZE_MATCHES
-  UNREACHABLE();
-}
-
-// static
-int Bytecodes::GetOperandOffset(Bytecode bytecode, int i,
-                                OperandScale operand_scale) {
-  DCHECK_LT(i, Bytecodes::NumberOfOperands(bytecode));
-  // TODO(oth): restore this to a statically determined constant.
-  int offset = 1;
-  for (int operand_index = 0; operand_index < i; ++operand_index) {
-    OperandSize operand_size =
-        GetOperandSize(bytecode, operand_index, operand_scale);
-    offset += static_cast<int>(operand_size);
-  }
-  return offset;
-}
-
-// static
-Bytecode Bytecodes::GetJumpWithoutToBoolean(Bytecode bytecode) {
-  switch (bytecode) {
-    case Bytecode::kJumpIfToBooleanTrue:
-      return Bytecode::kJumpIfTrue;
-    case Bytecode::kJumpIfToBooleanFalse:
-      return Bytecode::kJumpIfFalse;
-    case Bytecode::kJumpIfToBooleanTrueConstant:
-      return Bytecode::kJumpIfTrueConstant;
-    case Bytecode::kJumpIfToBooleanFalseConstant:
-      return Bytecode::kJumpIfFalseConstant;
-    default:
-      break;
-  }
   UNREACHABLE();
 }
 
@@ -231,6 +225,7 @@ bool Bytecodes::IsRegisterInputOperandType(OperandType operand_type) {
   case OperandType::k##Name: \
     return true;
     REGISTER_INPUT_OPERAND_TYPE_LIST(CASE)
+    CASE(RegInOut, _)
 #undef CASE
 #define CASE(Name, _)        \
   case OperandType::k##Name: \
@@ -249,6 +244,7 @@ bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
   case OperandType::k##Name: \
     return true;
     REGISTER_OUTPUT_OPERAND_TYPE_LIST(CASE)
+    CASE(RegInOut, _)
 #undef CASE
 #define CASE(Name, _)        \
   case OperandType::k##Name: \
@@ -264,6 +260,11 @@ bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
 bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
   if (operand_scale == OperandScale::kSingle) {
     switch (bytecode) {
+      // Short-star lookahead is required for correctness on kDebugBreak0. The
+      // handler for all short-star codes re-reads the opcode from the bytecode
+      // array and would not work correctly if it instead read kDebugBreak0.
+      case Bytecode::kDebugBreak0:
+
       case Bytecode::kLdaZero:
       case Bytecode::kLdaSmi:
       case Bytecode::kLdaNull:
@@ -271,10 +272,12 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kLdaConstant:
       case Bytecode::kLdaUndefined:
       case Bytecode::kLdaGlobal:
-      case Bytecode::kLdaNamedProperty:
-      case Bytecode::kLdaKeyedProperty:
-      case Bytecode::kLdaContextSlot:
-      case Bytecode::kLdaCurrentContextSlot:
+      case Bytecode::kGetNamedProperty:
+      case Bytecode::kGetKeyedProperty:
+      case Bytecode::kLdaContextSlotNoCell:
+      case Bytecode::kLdaImmutableContextSlot:
+      case Bytecode::kLdaCurrentContextSlotNoCell:
+      case Bytecode::kLdaImmutableCurrentContextSlot:
       case Bytecode::kAdd:
       case Bytecode::kSub:
       case Bytecode::kMul:
@@ -284,7 +287,6 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kDec:
       case Bytecode::kTypeOf:
       case Bytecode::kCallAnyReceiver:
-      case Bytecode::kCallNoFeedback:
       case Bytecode::kCallProperty:
       case Bytecode::kCallProperty0:
       case Bytecode::kCallProperty1:
@@ -295,6 +297,10 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kCallUndefinedReceiver2:
       case Bytecode::kConstruct:
       case Bytecode::kConstructWithSpread:
+      case Bytecode::kCreateObjectLiteral:
+      case Bytecode::kCreateArrayLiteral:
+      case Bytecode::kThrowReferenceErrorIfHole:
+      case Bytecode::kGetTemplateObject:
         return true;
       default:
         return false;
@@ -326,7 +332,8 @@ bool Bytecodes::IsUnsignedOperandType(OperandType operand_type) {
 // static
 bool Bytecodes::BytecodeHasHandler(Bytecode bytecode,
                                    OperandScale operand_scale) {
-  return operand_scale == OperandScale::kSingle ||
+  return (operand_scale == OperandScale::kSingle &&
+          (!IsShortStar(bytecode) || bytecode == Bytecode::kStar0)) ||
          Bytecodes::IsBytecodeWithScalableOperands(bytecode);
 }
 

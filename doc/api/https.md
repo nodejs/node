@@ -9,7 +9,43 @@
 HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
+## Determining if crypto support is unavailable
+
+It is possible for Node.js to be built without including support for the
+`node:crypto` module. In such cases, attempting to `import` from `https` or
+calling `require('node:https')` will result in an error being thrown.
+
+When using CommonJS, the error thrown can be caught using try/catch:
+
+```cjs
+let https;
+try {
+  https = require('node:https');
+} catch (err) {
+  console.error('https support is disabled!');
+}
+```
+
+When using the lexical ESM `import` keyword, the error can only be
+caught if a handler for `process.on('uncaughtException')` is registered
+_before_ any attempt to load the module is made (using, for instance,
+a preload module).
+
+When using ESM, if there is a chance that the code may be run on a build
+of Node.js where crypto support is not enabled, consider using the
+[`import()`][] function instead of the lexical `import` keyword:
+
+```mjs
+let https;
+try {
+  https = await import('node:https');
+} catch (err) {
+  console.error('https support is disabled!');
+}
+```
+
 ## Class: `https.Agent`
+
 <!-- YAML
 added: v0.4.5
 changes:
@@ -25,9 +61,26 @@ changes:
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
+Like `http.Agent`, the `createConnection(options[, callback])` method can be overridden
+to customize how TLS connections are established.
+
+> See [`agent.createConnection()`][] for details on overriding this method,
+> including asynchronous socket creation with a callback.
+
 ### `new Agent([options])`
+
 <!-- YAML
 changes:
+  - version:
+    - v24.5.0
+    - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `proxyEnv`.
+  - version:
+    - v24.5.0
+    - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `defaultPort` and `protocol`.
   - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28209
     description: do not automatically set servername if the target host was
@@ -48,6 +101,7 @@ changes:
     See [`Session Resumption`][] for information about TLS session reuse.
 
 #### Event: `'keylog'`
+
 <!-- YAML
 added:
  - v13.2.0
@@ -75,6 +129,7 @@ https.globalAgent.on('keylog', (line, tlsSocket) => {
 ```
 
 ## Class: `https.Server`
+
 <!-- YAML
 added: v0.3.4
 -->
@@ -84,6 +139,7 @@ added: v0.3.4
 See [`http.Server`][] for more information.
 
 ### `server.close([callback])`
+
 <!-- YAML
 added: v0.1.90
 -->
@@ -91,16 +147,46 @@ added: v0.1.90
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`server.close()`][`http.close()`] from the HTTP module for details.
+See [`server.close()`][] in the `node:http` module.
+
+### `server[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v20.4.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
+-->
+
+Calls [`server.close()`][httpsServerClose] and returns a promise that
+fulfills when the server has closed.
+
+### `server.closeAllConnections()`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+See [`server.closeAllConnections()`][] in the `node:http` module.
+
+### `server.closeIdleConnections()`
+
+<!-- YAML
+added: v18.2.0
+-->
+
+See [`server.closeIdleConnections()`][] in the `node:http` module.
 
 ### `server.headersTimeout`
+
 <!-- YAML
 added: v11.3.0
 -->
 
-* {number} **Default:** `60000`
+* Type: {number} **Default:** `60000`
 
-See [`http.Server#headersTimeout`][].
+See [`server.headersTimeout`][] in the `node:http` module.
 
 ### `server.listen()`
 
@@ -109,20 +195,27 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### `server.maxHeadersCount`
 
-* {number} **Default:** `2000`
+* Type: {number} **Default:** `2000`
 
-See [`http.Server#maxHeadersCount`][].
+See [`server.maxHeadersCount`][] in the `node:http` module.
 
 ### `server.requestTimeout`
+
 <!-- YAML
 added: v14.11.0
+changes:
+  - version: v18.0.0
+    pr-url: https://github.com/nodejs/node/pull/41263
+    description: The default request timeout changed
+                 from no timeout to 300s (5 minutes).
 -->
 
-* {number} **Default:** `0`
+* Type: {number} **Default:** `300000`
 
-See [`http.Server#requestTimeout`][].
+See [`server.requestTimeout`][] in the `node:http` module.
 
 ### `server.setTimeout([msecs][, callback])`
+
 <!-- YAML
 added: v0.11.2
 -->
@@ -131,9 +224,10 @@ added: v0.11.2
 * `callback` {Function}
 * Returns: {https.Server}
 
-See [`http.Server#setTimeout()`][].
+See [`server.setTimeout()`][] in the `node:http` module.
 
 ### `server.timeout`
+
 <!-- YAML
 added: v0.11.2
 changes:
@@ -142,20 +236,22 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* {number} **Default:** 0 (no timeout)
+* Type: {number} **Default:** 0 (no timeout)
 
-See [`http.Server#timeout`][].
+See [`server.timeout`][] in the `node:http` module.
 
 ### `server.keepAliveTimeout`
+
 <!-- YAML
 added: v8.0.0
 -->
 
-* {number} **Default:** `5000` (5 seconds)
+* Type: {number} **Default:** `5000` (5 seconds)
 
-See [`http.Server#keepAliveTimeout`][].
+See [`server.keepAliveTimeout`][] in the `node:http` module.
 
 ## `https.createServer([options][, requestListener])`
+
 <!-- YAML
 added: v0.3.4
 -->
@@ -165,14 +261,30 @@ added: v0.3.4
 * `requestListener` {Function} A listener to be added to the `'request'` event.
 * Returns: {https.Server}
 
-```js
+```mjs
 // curl -k https://localhost:8000/
-const https = require('https');
-const fs = require('fs');
+import { createServer } from 'node:https';
+import { readFileSync } from 'node:fs';
 
 const options = {
-  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
+  key: readFileSync('private-key.pem'),
+  cert: readFileSync('certificate.pem'),
+};
+
+createServer(options, (req, res) => {
+  res.writeHead(200);
+  res.end('hello world\n');
+}).listen(8000);
+```
+
+```cjs
+// curl -k https://localhost:8000/
+const https = require('node:https');
+const fs = require('node:fs');
+
+const options = {
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem'),
 };
 
 https.createServer(options, (req, res) => {
@@ -183,13 +295,28 @@ https.createServer(options, (req, res) => {
 
 Or
 
-```js
-const https = require('https');
-const fs = require('fs');
+```mjs
+import { createServer } from 'node:https';
+import { readFileSync } from 'node:fs';
 
 const options = {
-  pfx: fs.readFileSync('test/fixtures/test_cert.pfx'),
-  passphrase: 'sample'
+  pfx: readFileSync('test_cert.pfx'),
+  passphrase: 'sample',
+};
+
+createServer(options, (req, res) => {
+  res.writeHead(200);
+  res.end('hello world\n');
+}).listen(8000);
+```
+
+```cjs
+const https = require('node:https');
+const fs = require('node:fs');
+
+const options = {
+  pfx: fs.readFileSync('test_cert.pfx'),
+  passphrase: 'sample',
 };
 
 https.createServer(options, (req, res) => {
@@ -198,8 +325,24 @@ https.createServer(options, (req, res) => {
 }).listen(8000);
 ```
 
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout private-key.pem -out certificate.pem
+```
+
+Then, to generate the `pfx` certificate for this example, run:
+
+```bash
+openssl pkcs12 -certpbe AES-256-CBC -export -out test_cert.pfx \
+  -inkey private-key.pem -in certificate.pem -passout pass:sample
+```
+
 ## `https.get(options[, callback])`
+
 ## `https.get(url[, options][, callback])`
+
 <!-- YAML
 added: v0.3.6
 changes:
@@ -214,8 +357,9 @@ changes:
 
 * `url` {string | URL}
 * `options` {Object | string | URL} Accepts the same `options` as
-  [`https.request()`][], with the `method` always set to `GET`.
+  [`https.request()`][], with the method set to GET by default.
 * `callback` {Function}
+* Returns: {http.ClientRequest}
 
 Like [`http.get()`][] but for HTTPS.
 
@@ -223,8 +367,25 @@ Like [`http.get()`][] but for HTTPS.
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
-```js
-const https = require('https');
+```mjs
+import { get } from 'node:https';
+import process from 'node:process';
+
+get('https://encrypted.google.com/', (res) => {
+  console.log('statusCode:', res.statusCode);
+  console.log('headers:', res.headers);
+
+  res.on('data', (d) => {
+    process.stdout.write(d);
+  });
+
+}).on('error', (e) => {
+  console.error(e);
+});
+```
+
+```cjs
+const https = require('node:https');
 
 https.get('https://encrypted.google.com/', (res) => {
   console.log('statusCode:', res.statusCode);
@@ -240,20 +401,46 @@ https.get('https://encrypted.google.com/', (res) => {
 ```
 
 ## `https.globalAgent`
+
 <!-- YAML
 added: v0.5.9
+changes:
+  - version:
+      - v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/43522
+    description: The agent now uses HTTP Keep-Alive and a 5 second timeout by
+                 default.
 -->
 
-Global instance of [`https.Agent`][] for all HTTPS client requests.
+Global instance of [`https.Agent`][] for all HTTPS client requests. Diverges
+from a default [`https.Agent`][] configuration by having `keepAlive` enabled and
+a `timeout` of 5 seconds.
 
 ## `https.request(options[, callback])`
+
 ## `https.request(url[, options][, callback])`
+
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63966
+    description: The `clientCertEngine` option is runtime deprecated.
   - version:
-    - v14.1.0
-    - v13.14.0
+    - v22.4.0
+    - v20.16.0
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: The `clientCertEngine` option depends on custom engine
+                 support in OpenSSL which is deprecated in OpenSSL 3.
+  - version:
+      - v16.7.0
+      - v14.18.0
+    pr-url: https://github.com/nodejs/node/pull/39310
+    description: When using a `URL` object parsed username
+                 and password will now be properly URI decoded.
+  - version:
+      - v14.1.0
+      - v13.14.0
     pr-url: https://github.com/nodejs/node/pull/32786
     description: The `highWaterMark` option is accepted now.
   - version: v10.9.0
@@ -275,11 +462,12 @@ changes:
   * `port` **Default:** `443`
   * `agent` **Default:** `https.globalAgent`
 * `callback` {Function}
+* Returns: {http.ClientRequest}
 
 Makes a request to a secure web server.
 
 The following additional `options` from [`tls.connect()`][] are also accepted:
-`ca`, `cert`, `ciphers`, `clientCertEngine`, `crl`, `dhparam`, `ecdhCurve`,
+`ca`, `cert`, `ciphers`, `clientCertEngine` (deprecated), `crl`, `dhparam`, `ecdhCurve`,
 `honorCipherOrder`, `key`, `passphrase`, `pfx`, `rejectUnauthorized`,
 `secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`,
 `highWaterMark`.
@@ -288,14 +476,44 @@ The following additional `options` from [`tls.connect()`][] are also accepted:
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]
 object, it will be automatically converted to an ordinary `options` object.
 
-```js
-const https = require('https');
+`https.request()` returns an instance of the [`http.ClientRequest`][]
+class. The `ClientRequest` instance is a writable stream. If one needs to
+upload a file with a POST request, then write to the `ClientRequest` object.
+
+```mjs
+import { request } from 'node:https';
+import process from 'node:process';
 
 const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
-  method: 'GET'
+  method: 'GET',
+};
+
+const req = request(options, (res) => {
+  console.log('statusCode:', res.statusCode);
+  console.log('headers:', res.headers);
+
+  res.on('data', (d) => {
+    process.stdout.write(d);
+  });
+});
+
+req.on('error', (e) => {
+  console.error(e);
+});
+req.end();
+```
+
+```cjs
+const https = require('node:https');
+
+const options = {
+  hostname: 'encrypted.google.com',
+  port: 443,
+  path: '/',
+  method: 'GET',
 };
 
 const req = https.request(options, (res) => {
@@ -321,8 +539,8 @@ const options = {
   port: 443,
   path: '/',
   method: 'GET',
-  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem'),
 };
 options.agent = new https.Agent(options);
 
@@ -339,9 +557,9 @@ const options = {
   port: 443,
   path: '/',
   method: 'GET',
-  key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
-  agent: false
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem'),
+  agent: false,
 };
 
 const req = https.request(options, (res) => {
@@ -362,10 +580,83 @@ const req = https.request(options, (res) => {
 Example pinning on certificate fingerprint, or the public key (similar to
 `pin-sha256`):
 
-```js
-const tls = require('tls');
-const https = require('https');
-const crypto = require('crypto');
+```mjs
+import { checkServerIdentity } from 'node:tls';
+import { Agent, request } from 'node:https';
+import { createHash } from 'node:crypto';
+
+function sha256(s) {
+  return createHash('sha256').update(s).digest('base64');
+}
+const options = {
+  hostname: 'github.com',
+  port: 443,
+  path: '/',
+  method: 'GET',
+  checkServerIdentity: function(host, cert) {
+    // Make sure the certificate is issued to the host we are connected to
+    const err = checkServerIdentity(host, cert);
+    if (err) {
+      return err;
+    }
+
+    // Pin the public key, similar to HPKP pin-sha256 pinning
+    const pubkey256 = 'SIXvRyDmBJSgatgTQRGbInBaAK+hZOQ18UmrSwnDlK8=';
+    if (sha256(cert.pubkey) !== pubkey256) {
+      const msg = 'Certificate verification error: ' +
+        `The public key of '${cert.subject.CN}' ` +
+        'does not match our pinned fingerprint';
+      return new Error(msg);
+    }
+
+    // Pin the exact certificate, rather than the pub key
+    const cert256 = 'FD:6E:9B:0E:F3:98:BC:D9:04:C3:B2:EC:16:7A:7B:' +
+      '0F:DA:72:01:C9:03:C5:3A:6A:6A:E5:D0:41:43:63:EF:65';
+    if (cert.fingerprint256 !== cert256) {
+      const msg = 'Certificate verification error: ' +
+        `The certificate of '${cert.subject.CN}' ` +
+        'does not match our pinned fingerprint';
+      return new Error(msg);
+    }
+
+    // This loop is informational only.
+    // Print the certificate and public key fingerprints of all certs in the
+    // chain. Its common to pin the public key of the issuer on the public
+    // internet, while pinning the public key of the service in sensitive
+    // environments.
+    let lastprint256;
+    do {
+      console.log('Subject Common Name:', cert.subject.CN);
+      console.log('  Certificate SHA256 fingerprint:', cert.fingerprint256);
+
+      const hash = createHash('sha256');
+      console.log('  Public key ping-sha256:', sha256(cert.pubkey));
+
+      lastprint256 = cert.fingerprint256;
+      cert = cert.issuerCertificate;
+    } while (cert.fingerprint256 !== lastprint256);
+
+  },
+};
+
+options.agent = new Agent(options);
+const req = request(options, (res) => {
+  console.log('All OK. Server matched our pinned cert or public key');
+  console.log('statusCode:', res.statusCode);
+
+  res.on('data', (d) => {});
+});
+
+req.on('error', (e) => {
+  console.error(e.message);
+});
+req.end();
+```
+
+```cjs
+const tls = require('node:tls');
+const https = require('node:https');
+const crypto = require('node:crypto');
 
 function sha256(s) {
   return crypto.createHash('sha256').update(s).digest('base64');
@@ -382,8 +673,8 @@ const options = {
       return err;
     }
 
-    // Pin the public key, similar to HPKP pin-sha25 pinning
-    const pubkey256 = 'pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=';
+    // Pin the public key, similar to HPKP pin-sha256 pinning
+    const pubkey256 = 'SIXvRyDmBJSgatgTQRGbInBaAK+hZOQ18UmrSwnDlK8=';
     if (sha256(cert.pubkey) !== pubkey256) {
       const msg = 'Certificate verification error: ' +
         `The public key of '${cert.subject.CN}' ` +
@@ -392,8 +683,8 @@ const options = {
     }
 
     // Pin the exact certificate, rather than the pub key
-    const cert256 = '25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:' +
-      'D8:3E:4C:1D:98:DB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16';
+    const cert256 = 'FD:6E:9B:0E:F3:98:BC:D9:04:C3:B2:EC:16:7A:7B:' +
+      '0F:DA:72:01:C9:03:C5:3A:6A:6A:E5:D0:41:43:63:EF:65';
     if (cert.fingerprint256 !== cert256) {
       const msg = 'Certificate verification error: ' +
         `The certificate of '${cert.subject.CN}' ` +
@@ -424,8 +715,6 @@ options.agent = new https.Agent(options);
 const req = https.request(options, (res) => {
   console.log('All OK. Server matched our pinned cert or public key');
   console.log('statusCode:', res.statusCode);
-  // Print the HPKP values
-  console.log('headers:', res.headers['public-key-pins']);
 
   res.on('data', (d) => {});
 });
@@ -440,41 +729,49 @@ Outputs for example:
 
 ```text
 Subject Common Name: github.com
-  Certificate SHA256 fingerprint: 25:FE:39:32:D9:63:8C:8A:FC:A1:9A:29:87:D8:3E:4C:1D:98:DB:71:E4:1A:48:03:98:EA:22:6A:BD:8B:93:16
-  Public key ping-sha256: pL1+qb9HTMRZJmuC/bB/ZI9d302BYrrqiVuRyW+DGrU=
-Subject Common Name: DigiCert SHA2 Extended Validation Server CA
-  Certificate SHA256 fingerprint: 40:3E:06:2A:26:53:05:91:13:28:5B:AF:80:A0:D4:AE:42:2C:84:8C:9F:78:FA:D0:1F:C9:4B:C5:B8:7F:EF:1A
-  Public key ping-sha256: RRM1dGqnDFsCJXBTHky16vi1obOlCgFFn/yOhI/y+ho=
-Subject Common Name: DigiCert High Assurance EV Root CA
-  Certificate SHA256 fingerprint: 74:31:E5:F4:C3:C1:CE:46:90:77:4F:0B:61:E0:54:40:88:3B:A9:A0:1E:D0:0B:A6:AB:D7:80:6E:D3:B1:18:CF
-  Public key ping-sha256: WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18=
+  Certificate SHA256 fingerprint: FD:6E:9B:0E:F3:98:BC:D9:04:C3:B2:EC:16:7A:7B:0F:DA:72:01:C9:03:C5:3A:6A:6A:E5:D0:41:43:63:EF:65
+  Public key ping-sha256: SIXvRyDmBJSgatgTQRGbInBaAK+hZOQ18UmrSwnDlK8=
+Subject Common Name: Sectigo ECC Domain Validation Secure Server CA
+  Certificate SHA256 fingerprint: 61:E9:73:75:E9:F6:DA:98:2F:F5:C1:9E:2F:94:E6:6C:4E:35:B6:83:7C:E3:B9:14:D2:24:5C:7F:5F:65:82:5F
+  Public key ping-sha256: Eep0p/AsSa9lFUH6KT2UY+9s1Z8v7voAPkQ4fGknZ2g=
+Subject Common Name: USERTrust ECC Certification Authority
+  Certificate SHA256 fingerprint: A6:CF:64:DB:B4:C8:D5:FD:19:CE:48:89:60:68:DB:03:B5:33:A8:D1:33:6C:62:56:A8:7D:00:CB:B3:DE:F3:EA
+  Public key ping-sha256: UJM2FOhG9aTNY0Pg4hgqjNzZ/lQBiMGRxPD5Y2/e0bw=
+Subject Common Name: AAA Certificate Services
+  Certificate SHA256 fingerprint: D7:A7:A0:FB:5D:7E:27:31:D7:71:E9:48:4E:BC:DE:F7:1D:5F:0C:3E:0A:29:48:78:2B:C8:3E:E0:EA:69:9E:F4
+  Public key ping-sha256: vRU+17BDT2iGsXvOi76E7TQMcTLXAqj0+jGPdW7L1vM=
 All OK. Server matched our pinned cert or public key
 statusCode: 200
-headers: max-age=0; pin-sha256="WoiWRyIOVNa9ihaBciRSC7XHjliYS9VwUGOIud4PB18="; pin-sha256="RRM1dGqnDFsCJXBTHky16vi1obOlCgFFn/yOhI/y+ho="; pin-sha256="k2v657xBsOVe1PQRwOsHsw3bsGT2VzIqz5K+59sNQws="; pin-sha256="K87oWBWM9UZfyddvDfoxL+8lpNyoUB2ptGtn0fv6G2Q="; pin-sha256="IQBnNBEiFuhj+8x6X8XLgh01V9Ic5/V3IRQLNFFc7v4="; pin-sha256="iie1VXtL7HzAMF+/PVPR9xzT80kQxdZeJ+zduCB3uj0="; pin-sha256="LvRiGEjRqfzurezaWuj8Wie2gyHMrW5Q06LspMnox7A="; includeSubDomains
 ```
 
-[`Agent`]: #https_class_https_agent
-[`Session Resumption`]: tls.md#tls_session_resumption
-[`URL`]: url.md#url_the_whatwg_url_api
-[`http.Agent(options)`]: http.md#http_new_agent_options
-[`http.Agent`]: http.md#http_class_http_agent
-[`http.Server#headersTimeout`]: http.md#http_server_headerstimeout
-[`http.Server#keepAliveTimeout`]: http.md#http_server_keepalivetimeout
-[`http.Server#maxHeadersCount`]: http.md#http_server_maxheaderscount
-[`http.Server#requestTimeout`]: http.md#http_server_requesttimeout
-[`http.Server#setTimeout()`]: http.md#http_server_settimeout_msecs_callback
-[`http.Server#timeout`]: http.md#http_server_timeout
-[`http.Server`]: http.md#http_class_http_server
-[`http.close()`]: http.md#http_server_close_callback
-[`http.createServer()`]: http.md#http_http_createserver_options_requestlistener
-[`http.get()`]: http.md#http_http_get_options_callback
-[`http.request()`]: http.md#http_http_request_options_callback
-[`https.Agent`]: #https_class_https_agent
-[`https.request()`]: #https_https_request_options_callback
-[`net.Server`]: net.md#net_class_net_server
-[`new URL()`]: url.md#url_new_url_input_base
-[`server.listen()`]: net.md#net_server_listen
-[`tls.connect()`]: tls.md#tls_tls_connect_options_callback
-[`tls.createSecureContext()`]: tls.md#tls_tls_createsecurecontext_options
-[`tls.createServer()`]: tls.md#tls_tls_createserver_options_secureconnectionlistener
+[`Agent`]: #class-httpsagent
+[`Session Resumption`]: tls.md#session-resumption
+[`URL`]: url.md#the-whatwg-url-api
+[`agent.createConnection()`]: http.md#agentcreateconnectionoptions-callback
+[`http.Agent(options)`]: http.md#new-agentoptions
+[`http.Agent`]: http.md#class-httpagent
+[`http.ClientRequest`]: http.md#class-httpclientrequest
+[`http.Server`]: http.md#class-httpserver
+[`http.createServer()`]: http.md#httpcreateserveroptions-requestlistener
+[`http.get()`]: http.md#httpgetoptions-callback
+[`http.request()`]: http.md#httprequestoptions-callback
+[`https.Agent`]: #class-httpsagent
+[`https.request()`]: #httpsrequestoptions-callback
+[`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
+[`net.Server`]: net.md#class-netserver
+[`new URL()`]: url.md#new-urlinput-base
+[`server.close()`]: http.md#serverclosecallback
+[`server.closeAllConnections()`]: http.md#servercloseallconnections
+[`server.closeIdleConnections()`]: http.md#servercloseidleconnections
+[`server.headersTimeout`]: http.md#serverheaderstimeout
+[`server.keepAliveTimeout`]: http.md#serverkeepalivetimeout
+[`server.listen()`]: net.md#serverlisten
+[`server.maxHeadersCount`]: http.md#servermaxheaderscount
+[`server.requestTimeout`]: http.md#serverrequesttimeout
+[`server.setTimeout()`]: http.md#serversettimeoutmsecs-callback
+[`server.timeout`]: http.md#servertimeout
+[`tls.connect()`]: tls.md#tlsconnectoptions-callback
+[`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
+[`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
+[httpsServerClose]: #serverclosecallback
 [sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication

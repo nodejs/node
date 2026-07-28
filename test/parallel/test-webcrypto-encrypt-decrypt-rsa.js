@@ -6,7 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const {
   passing
@@ -23,19 +23,18 @@ async function importVectorKey(
     subtle.importKey(
       'spki', publicKeyBuffer, { name, hash }, false, publicUsages),
     subtle.importKey(
-      'pkcs8', privateKeyBuffer, { name, hash }, false, privateUsages)
+      'pkcs8', privateKeyBuffer, { name, hash }, false, privateUsages),
   ]);
 
   return { publicKey, privateKey };
 }
 
-async function testDecryption({
-  ciphertext,
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testDecryption({ ciphertext,
+                                algorithm,
+                                plaintext,
+                                hash,
+                                publicKeyBuffer,
+                                privateKeyBuffer }) {
   if (ciphertext === undefined)
     return;
 
@@ -108,12 +107,11 @@ async function testEncryption(
     encodedPlaintext);
 }
 
-async function testEncryptionLongPlaintext({
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testEncryptionLongPlaintext({ algorithm,
+                                             plaintext,
+                                             hash,
+                                             publicKeyBuffer,
+                                             privateKeyBuffer }) {
   const {
     publicKey,
   } = await importVectorKey(
@@ -129,16 +127,15 @@ async function testEncryptionLongPlaintext({
 
   return assert.rejects(
     subtle.encrypt(algorithm, publicKey, newplaintext), {
-      message: /data too large/
+      name: 'OperationError'
     });
 }
 
-async function testEncryptionWrongKey({
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testEncryptionWrongKey({ algorithm,
+                                        plaintext,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   const {
     privateKey,
   } = await importVectorKey(
@@ -150,16 +147,15 @@ async function testEncryptionWrongKey({
     ['decrypt']);
   return assert.rejects(
     subtle.encrypt(algorithm, privateKey, plaintext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to encrypt/
     });
 }
 
-async function testEncryptionBadUsage({
-  algorithm,
-  plaintext,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testEncryptionBadUsage({ algorithm,
+                                        plaintext,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   const {
     publicKey,
   } = await importVectorKey(
@@ -171,16 +167,15 @@ async function testEncryptionBadUsage({
     ['decrypt']);
   return assert.rejects(
     subtle.encrypt(algorithm, publicKey, plaintext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to encrypt/
     });
 }
 
-async function testDecryptionWrongKey({
-  ciphertext,
-  algorithm,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testDecryptionWrongKey({ ciphertext,
+                                        algorithm,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   if (ciphertext === undefined)
     return;
 
@@ -196,16 +191,15 @@ async function testDecryptionWrongKey({
 
   return assert.rejects(
     subtle.decrypt(algorithm, publicKey, ciphertext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to decrypt/
     });
 }
 
-async function testDecryptionBadUsage({
-  ciphertext,
-  algorithm,
-  hash,
-  publicKeyBuffer,
-  privateKeyBuffer }) {
+async function testDecryptionBadUsage({ ciphertext,
+                                        algorithm,
+                                        hash,
+                                        publicKeyBuffer,
+                                        privateKeyBuffer }) {
   if (ciphertext === undefined)
     return;
 
@@ -221,7 +215,7 @@ async function testDecryptionBadUsage({
 
   return assert.rejects(
     subtle.decrypt(algorithm, publicKey, ciphertext), {
-      message: /The requested operation is not valid/
+      message: /Unable to use this key to decrypt/
     });
 }
 

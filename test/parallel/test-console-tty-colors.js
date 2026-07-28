@@ -10,7 +10,7 @@ function check(isTTY, colorMode, expectedColorMode, inspectOptions) {
     1,
     { a: 2 },
     [ 'foo' ],
-    { '\\a': '\\bar' }
+    { '\\a': '\\bar' },
   ];
 
   let i = 0;
@@ -67,7 +67,7 @@ check(false, false, false);
         });
       },
       {
-        message: `The argument 'colorMode' is invalid. Received ${received}`,
+        message: `The argument 'colorMode' must be one of: 'auto', true, false. Received ${received}`,
         code: 'ERR_INVALID_ARG_VALUE'
       }
     );

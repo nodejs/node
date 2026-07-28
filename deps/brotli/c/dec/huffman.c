@@ -6,13 +6,10 @@
 
 /* Utilities for building Huffman decoding tables. */
 
-#include "./huffman.h"
-
-#include <string.h>  /* memcpy, memset */
+#include "huffman.h"
 
 #include "../common/constants.h"
 #include "../common/platform.h"
-#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -25,7 +22,8 @@ extern "C" {
   ((sizeof(brotli_reg_t) << 3) - BROTLI_REVERSE_BITS_MAX)
 #else
 #define BROTLI_REVERSE_BITS_BASE 0
-static uint8_t kReverseBits[1 << BROTLI_REVERSE_BITS_MAX] = {
+static BROTLI_MODEL("small")
+uint8_t kReverseBits[1 << BROTLI_REVERSE_BITS_MAX] = {
   0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0,
   0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
   0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8,
@@ -117,11 +115,13 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   int bits_count;
   BROTLI_DCHECK(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH <=
                 BROTLI_REVERSE_BITS_MAX);
+  BROTLI_DCHECK(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH == 5);
 
   /* Generate offsets into sorted symbol table by code length. */
   symbol = -1;
   bits = 1;
-  BROTLI_REPEAT(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH, {
+  /* BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH == 5 */
+  BROTLI_REPEAT_5({
     symbol += count[bits];
     offset[bits] = symbol;
     bits++;
@@ -132,7 +132,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   /* Sort symbols by length, by symbol order within each length. */
   symbol = BROTLI_CODE_LENGTH_CODES;
   do {
-    BROTLI_REPEAT(6, {
+    BROTLI_REPEAT_6({
       symbol--;
       sorted[offset[code_lengths[symbol]]--] = symbol;
     });

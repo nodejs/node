@@ -1,18 +1,24 @@
 /*
- * Copyright 2006-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * Camellia low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/opensslv.h>
 #include <openssl/camellia.h>
 #include "cmll_local.h"
 
 int Camellia_set_key(const unsigned char *userKey, const int bits,
-                     CAMELLIA_KEY *key)
+    CAMELLIA_KEY *key)
 {
     if (!userKey || !key)
         return -1;
@@ -23,13 +29,13 @@ int Camellia_set_key(const unsigned char *userKey, const int bits,
 }
 
 void Camellia_encrypt(const unsigned char *in, unsigned char *out,
-                      const CAMELLIA_KEY *key)
+    const CAMELLIA_KEY *key)
 {
     Camellia_EncryptBlock_Rounds(key->grand_rounds, in, key->u.rd_key, out);
 }
 
 void Camellia_decrypt(const unsigned char *in, unsigned char *out,
-                      const CAMELLIA_KEY *key)
+    const CAMELLIA_KEY *key)
 {
     Camellia_DecryptBlock_Rounds(key->grand_rounds, in, key->u.rd_key, out);
 }

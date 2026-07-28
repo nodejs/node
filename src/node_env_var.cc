@@ -2,9 +2,12 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "node_process.h"
+#include "node_i18n.h"
+#include "node_process-inl.h"
+#include "util.h"
 
 #include <time.h>  // tzset(), _tzset()
+#include <optional>
 
 namespace node {
 using v8::Array;
@@ -12,21 +15,24 @@ using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::DontEnum;
-using v8::EscapableHandleScope;
+using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::IndexedPropertyHandlerConfiguration;
 using v8::Integer;
+using v8::Intercepted;
 using v8::Isolate;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
-using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
+using v8::PropertyDescriptor;
 using v8::PropertyHandlerFlags;
 using v8::ReadOnly;
 using v8::String;
@@ -35,23 +41,23 @@ using v8::Value;
 class RealEnvStore final : public KVStore {
  public:
   MaybeLocal<String> Get(Isolate* isolate, Local<String> key) const override;
-  Maybe<std::string> Get(const char* key) const override;
+  std::optional<std::string> Get(const char* key) const override;
   void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
   int32_t Query(Isolate* isolate, Local<String> key) const override;
   int32_t Query(const char* key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
-  Local<Array> Enumerate(Isolate* isolate) const override;
+  MaybeLocal<Array> Enumerate(Isolate* isolate) const override;
 };
 
 class MapKVStore final : public KVStore {
  public:
   MaybeLocal<String> Get(Isolate* isolate, Local<String> key) const override;
-  Maybe<std::string> Get(const char* key) const override;
+  std::optional<std::string> Get(const char* key) const override;
   void Set(Isolate* isolate, Local<String> key, Local<String> value) override;
   int32_t Query(Isolate* isolate, Local<String> key) const override;
   int32_t Query(const char* key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
-  Local<Array> Enumerate(Isolate* isolate) const override;
+  MaybeLocal<Array> Enumerate(Isolate* isolate) const override;
 
   std::shared_ptr<KVStore> Clone(Isolate* isolate) const override;
 
@@ -69,19 +75,36 @@ std::shared_ptr<KVStore> system_environment = std::make_shared<RealEnvStore>();
 }  // namespace per_process
 
 template <typename T>
-void DateTimeConfigurationChangeNotification(Isolate* isolate, const T& key) {
+void DateTimeConfigurationChangeNotification(
+    Isolate* isolate,
+    const T& key,
+    const char* val = nullptr) {
   if (key.length() == 2 && key[0] == 'T' && key[1] == 'Z') {
 #ifdef __POSIX__
     tzset();
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kRedetect);
 #else
     _tzset();
+
+# if defined(NODE_HAVE_I18N_SUPPORT)
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kSkip);
+
+    // On windows, the TZ environment is not supported out of the box.
+    // By default, v8 will only be able to detect the system configured
+    // timezone. This supports using the TZ environment variable to set
+    // the default timezone instead.
+    if (val != nullptr) i18n::SetDefaultTimeZone(val);
+# else
+    isolate->DateTimeConfigurationChangeNotification(
+        Isolate::TimeZoneDetection::kRedetect);
+# endif
 #endif
-    auto constexpr time_zone_detection = Isolate::TimeZoneDetection::kRedetect;
-    isolate->DateTimeConfigurationChangeNotification(time_zone_detection);
   }
 }
 
-Maybe<std::string> RealEnvStore::Get(const char* key) const {
+std::optional<std::string> RealEnvStore::Get(const char* key) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
 
   size_t init_sz = 256;
@@ -96,21 +119,25 @@ Maybe<std::string> RealEnvStore::Get(const char* key) const {
   }
 
   if (ret >= 0) {  // Env key value fetch success.
-    return Just(std::string(*val, init_sz));
+    return std::string(*val, init_sz);
   }
 
-  return Nothing<std::string>();
+  return std::nullopt;
 }
 
 MaybeLocal<String> RealEnvStore::Get(Isolate* isolate,
                                      Local<String> property) const {
   node::Utf8Value key(isolate, property);
-  Maybe<std::string> value = Get(*key);
+  std::optional<std::string> value = Get(*key);
 
-  if (value.IsJust()) {
-    std::string val = value.FromJust();
-    return String::NewFromUtf8(
-        isolate, val.data(), NewStringType::kNormal, val.size());
+  if (value.has_value()) {
+    std::string val = value.value();
+    Local<Value> ret;
+    if (!ToV8Value(isolate->GetCurrentContext(), val).ToLocal(&ret)) {
+      return {};
+    }
+    DCHECK(ret->IsString());
+    return ret.As<String>();
   }
 
   return MaybeLocal<String>();
@@ -128,7 +155,7 @@ void RealEnvStore::Set(Isolate* isolate,
   if (key.length() > 0 && key[0] == '=') return;
 #endif
   uv_os_setenv(*key, *val);
-  DateTimeConfigurationChangeNotification(isolate, key);
+  DateTimeConfigurationChangeNotification(isolate, key, *val);
 }
 
 int32_t RealEnvStore::Query(const char* key) const {
@@ -166,7 +193,7 @@ void RealEnvStore::Delete(Isolate* isolate, Local<String> property) {
   DateTimeConfigurationChangeNotification(isolate, key);
 }
 
-Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
+MaybeLocal<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   Mutex::ScopedLock lock(per_process::env_var_mutex);
   uv_env_item_t* items;
   int count;
@@ -181,12 +208,12 @@ Local<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
     // If the key starts with '=' it is a hidden environment variable.
     if (items[i].name[0] == '=') continue;
 #endif
-    MaybeLocal<String> str = String::NewFromUtf8(isolate, items[i].name);
-    if (str.IsEmpty()) {
+    Local<Value> str;
+    if (!String::NewFromUtf8(isolate, items[i].name).ToLocal(&str)) {
       isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
-      return Local<Array>();
+      return {};
     }
-    env_v[env_v_index++] = str.ToLocalChecked();
+    env_v[env_v_index++] = str;
   }
 
   return Array::New(isolate, env_v.out(), env_v_index);
@@ -197,31 +224,43 @@ std::shared_ptr<KVStore> KVStore::Clone(Isolate* isolate) const {
   Local<Context> context = isolate->GetCurrentContext();
 
   std::shared_ptr<KVStore> copy = KVStore::CreateMapKVStore();
-  Local<Array> keys = Enumerate(isolate);
+  Local<Array> keys;
+  if (!Enumerate(isolate).ToLocal(&keys)) {
+    return nullptr;
+  }
   uint32_t keys_length = keys->Length();
   for (uint32_t i = 0; i < keys_length; i++) {
-    Local<Value> key = keys->Get(context, i).ToLocalChecked();
+    Local<Value> key;
+    Local<Value> value;
+    if (!keys->Get(context, i).ToLocal(&key)) {
+      return nullptr;
+    }
     CHECK(key->IsString());
-    copy->Set(isolate,
-              key.As<String>(),
-              Get(isolate, key.As<String>()).ToLocalChecked());
+    if (!Get(isolate, key.As<String>()).ToLocal(&value)) {
+      return nullptr;
+    }
+    copy->Set(isolate, key.As<String>(), value.As<String>());
   }
   return copy;
 }
 
-Maybe<std::string> MapKVStore::Get(const char* key) const {
+std::optional<std::string> MapKVStore::Get(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
   auto it = map_.find(key);
-  return it == map_.end() ? Nothing<std::string>() : Just(it->second);
+  return it == map_.end() ? std::nullopt : std::make_optional(it->second);
 }
 
 MaybeLocal<String> MapKVStore::Get(Isolate* isolate, Local<String> key) const {
   Utf8Value str(isolate, key);
-  Maybe<std::string> value = Get(*str);
-  if (value.IsNothing()) return Local<String>();
-  std::string val = value.FromJust();
-  return String::NewFromUtf8(
-      isolate, val.data(), NewStringType::kNormal, val.size());
+  std::optional<std::string> value = Get(*str);
+  if (!value.has_value()) return MaybeLocal<String>();
+  std::string val = value.value();
+  Local<Value> ret;
+  if (!ToV8Value(isolate->GetCurrentContext(), val).ToLocal(&ret)) {
+    return {};
+  }
+  DCHECK(ret->IsString());
+  return ret.As<String>();
 }
 
 void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
@@ -236,7 +275,7 @@ void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
 
 int32_t MapKVStore::Query(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
-  return map_.find(key) == map_.end() ? -1 : 0;
+  return map_.contains(key) ? 0 : -1;
 }
 
 int32_t MapKVStore::Query(Isolate* isolate, Local<String> key) const {
@@ -250,15 +289,16 @@ void MapKVStore::Delete(Isolate* isolate, Local<String> key) {
   map_.erase(std::string(*str, str.length()));
 }
 
-Local<Array> MapKVStore::Enumerate(Isolate* isolate) const {
+MaybeLocal<Array> MapKVStore::Enumerate(Isolate* isolate) const {
   Mutex::ScopedLock lock(mutex_);
-  std::vector<Local<Value>> values;
+  LocalVector<Value> values(isolate);
   values.reserve(map_.size());
   for (const auto& pair : map_) {
-    values.emplace_back(
-        String::NewFromUtf8(isolate, pair.first.data(),
-                            NewStringType::kNormal, pair.first.size())
-            .ToLocalChecked());
+    Local<Value> val;
+    if (!ToV8Value(isolate->GetCurrentContext(), pair.first).ToLocal(&val)) {
+      return {};
+    }
+    values.emplace_back(val);
   }
   return Array::New(isolate, values.data(), values.size());
 }
@@ -271,50 +311,146 @@ std::shared_ptr<KVStore> KVStore::CreateMapKVStore() {
   return std::make_shared<MapKVStore>();
 }
 
-Maybe<bool> KVStore::AssignFromObject(Local<Context> context,
+Maybe<void> KVStore::AssignFromObject(Local<Context> context,
                                       Local<Object> entries) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
   Local<Array> keys;
   if (!entries->GetOwnPropertyNames(context).ToLocal(&keys))
-    return Nothing<bool>();
+    return Nothing<void>();
   uint32_t keys_length = keys->Length();
   for (uint32_t i = 0; i < keys_length; i++) {
     Local<Value> key;
-    if (!keys->Get(context, i).ToLocal(&key))
-      return Nothing<bool>();
+    if (!keys->Get(context, i).ToLocal(&key)) return Nothing<void>();
     if (!key->IsString()) continue;
 
     Local<Value> value;
     Local<String> value_string;
     if (!entries->Get(context, key).ToLocal(&value) ||
         !value->ToString(context).ToLocal(&value_string)) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     Set(isolate, key.As<String>(), value_string);
   }
-  return Just(true);
+  return JustVoid();
 }
 
-static void EnvGetter(Local<Name> property,
-                      const PropertyCallbackInfo<Value>& info) {
+// TODO(bnoordhuis) Not super efficient but called infrequently. Not worth
+// the trouble yet of specializing for RealEnvStore and MapKVStore.
+Maybe<void> KVStore::AssignToObject(v8::Isolate* isolate,
+                                    v8::Local<v8::Context> context,
+                                    v8::Local<v8::Object> object) {
+  HandleScope scope(isolate);
+  Local<Array> keys;
+  if (!Enumerate(isolate).ToLocal(&keys)) {
+    return Nothing<void>();
+  }
+  uint32_t keys_length = keys->Length();
+  for (uint32_t i = 0; i < keys_length; i++) {
+    Local<Value> key;
+    Local<String> value;
+    bool ok = keys->Get(context, i).ToLocal(&key);
+    ok = ok && key->IsString();
+    ok = ok && Get(isolate, key.As<String>()).ToLocal(&value);
+    ok = ok && object->Set(context, key, value).To(&ok);
+    if (!ok) return Nothing<void>();
+  }
+  return JustVoid();
+}
+
+struct TraceEnvVarOptions {
+  bool print_message : 1 = false;
+  bool print_js_stack : 1 = false;
+  bool print_native_stack : 1 = false;
+};
+
+template <typename... Args>
+inline void TraceEnvVarImpl(Environment* env,
+                            TraceEnvVarOptions options,
+                            const char* format,
+                            Args&&... args) {
+  if (options.print_message) {
+    fprintf(stderr, format, std::forward<Args>(args)...);
+  }
+  if (options.print_native_stack) {
+    DumpNativeBacktrace(stderr);
+  }
+  if (options.print_js_stack) {
+    DumpJavaScriptBacktrace(stderr);
+  }
+}
+
+TraceEnvVarOptions GetTraceEnvVarOptions(Environment* env) {
+  TraceEnvVarOptions options;
+  auto cli_options = env != nullptr
+                         ? env->options()
+                         : per_process::cli_options->per_isolate->per_env;
+  if (cli_options->trace_env) {
+    options.print_message = true;
+  };
+  if (cli_options->trace_env_js_stack) {
+    options.print_js_stack = true;
+  };
+  if (cli_options->trace_env_native_stack) {
+    options.print_native_stack = true;
+  };
+  return options;
+}
+
+void TraceEnvVar(Environment* env, const char* message) {
+  TraceEnvVarImpl(
+      env, GetTraceEnvVarOptions(env), "[--trace-env] %s\n", message);
+}
+
+void TraceEnvVar(Environment* env, const char* message, const char* key) {
+  TraceEnvVarImpl(env,
+                  GetTraceEnvVarOptions(env),
+                  "[--trace-env] %s \"%s\"\n",
+                  message,
+                  key);
+}
+
+void TraceEnvVar(Environment* env,
+                 const char* message,
+                 v8::Local<v8::String> key) {
+  TraceEnvVarOptions options = GetTraceEnvVarOptions(env);
+  if (options.print_message) {
+    Utf8Value key_utf8(env->isolate(), key);
+    TraceEnvVarImpl(env,
+                    options,
+                    "[--trace-env] %s \"%.*s\"\n",
+                    message,
+                    static_cast<int>(key_utf8.length()),
+                    key_utf8.out());
+  }
+}
+
+static Intercepted EnvGetter(Local<Name> property,
+                             const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsSymbol()) {
-    return info.GetReturnValue().SetUndefined();
+    info.GetReturnValue().SetUndefined();
+    return Intercepted::kYes;
   }
   CHECK(property->IsString());
   MaybeLocal<String> value_string =
       env->env_vars()->Get(env->isolate(), property.As<String>());
-  if (!value_string.IsEmpty()) {
-    info.GetReturnValue().Set(value_string.ToLocalChecked());
+
+  TraceEnvVar(env, "get", property.As<String>());
+
+  Local<Value> ret;
+  if (!value_string.ToLocal(&ret)) {
+    return Intercepted::kNo;
   }
+  info.GetReturnValue().Set(ret);
+  return Intercepted::kYes;
 }
 
-static void EnvSetter(Local<Name> property,
-                      Local<Value> value,
-                      const PropertyCallbackInfo<Value>& info) {
+static Intercepted EnvSetter(Local<Name> property,
+                             Local<Value> value,
+                             const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   // calling env->EmitProcessEnvWarning() sets a variable indicating that
@@ -330,61 +466,179 @@ static void EnvSetter(Local<Name> property,
             "the "
             "value to a string before setting process.env with it.",
             "DEP0104")
-            .IsNothing())
-      return;
+            .IsNothing()) {
+      return Intercepted::kNo;
+    }
   }
 
   Local<String> key;
   Local<String> value_string;
   if (!property->ToString(env->context()).ToLocal(&key) ||
       !value->ToString(env->context()).ToLocal(&value_string)) {
-    return;
+    return Intercepted::kNo;
   }
 
   env->env_vars()->Set(env->isolate(), key, value_string);
+  TraceEnvVar(env, "set", key);
 
-  // Whether it worked or not, always return value.
-  info.GetReturnValue().Set(value);
+  return Intercepted::kYes;
 }
 
-static void EnvQuery(Local<Name> property,
-                     const PropertyCallbackInfo<Integer>& info) {
+static Intercepted EnvQuery(Local<Name> property,
+                            const PropertyCallbackInfo<Integer>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
     int32_t rc = env->env_vars()->Query(env->isolate(), property.As<String>());
-    if (rc != -1) info.GetReturnValue().Set(rc);
+    bool has_env = (rc != -1);
+    TraceEnvVar(env, "query", property.As<String>());
+    if (has_env) {
+      // Return attributes for the property.
+      info.GetReturnValue().Set(v8::None);
+      return Intercepted::kYes;
+    }
   }
+  return Intercepted::kNo;
 }
 
-static void EnvDeleter(Local<Name> property,
-                       const PropertyCallbackInfo<Boolean>& info) {
+static Intercepted EnvDeleter(Local<Name> property,
+                              const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   if (property->IsString()) {
     env->env_vars()->Delete(env->isolate(), property.As<String>());
+
+    TraceEnvVar(env, "delete", property.As<String>());
   }
 
   // process.env never has non-configurable properties, so always
   // return true like the tc39 delete operator.
   info.GetReturnValue().Set(true);
+  return Intercepted::kYes;
 }
 
 static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
 
-  info.GetReturnValue().Set(
-      env->env_vars()->Enumerate(env->isolate()));
+  TraceEnvVar(env, "enumerate environment variables");
+
+  Local<Array> ret;
+  if (env->env_vars()->Enumerate(env->isolate()).ToLocal(&ret)) {
+    info.GetReturnValue().Set(ret);
+  }
 }
 
-MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
-  EscapableHandleScope scope(isolate);
-  Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
+static Intercepted EnvDefiner(Local<Name> property,
+                              const PropertyDescriptor& desc,
+                              const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (desc.has_value()) {
+    if (!desc.has_writable() ||
+        !desc.has_enumerable() ||
+        !desc.has_configurable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable "
+                                               "data descriptor");
+      return Intercepted::kYes;
+    } else if (!desc.configurable() ||
+               !desc.enumerable() ||
+               !desc.writable()) {
+      THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                               "'process.env' only accepts a "
+                                               "configurable, writable,"
+                                               " and enumerable "
+                                               "data descriptor");
+      return Intercepted::kYes;
+    } else {
+      return EnvSetter(property, desc.value(), info);
+    }
+  } else if (desc.has_get() || desc.has_set()) {
+    // we don't accept a getter/setter in 'process.env'
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                             "'process.env' does not accept an"
+                                             " accessor(getter/setter)"
+                                             " descriptor");
+    return Intercepted::kYes;
+  } else {
+    THROW_ERR_INVALID_OBJECT_DEFINE_PROPERTY(env,
+                                             "'process.env' only accepts a "
+                                             "configurable, writable,"
+                                             " and enumerable "
+                                             "data descriptor");
+    return Intercepted::kYes;
+  }
+}
+
+static Intercepted EnvGetterIndexed(uint32_t index,
+                                    const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvGetter(name, info);
+}
+
+static Intercepted EnvSetterIndexed(uint32_t index,
+                                    Local<Value> value,
+                                    const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvSetter(name, value, info);
+}
+
+static Intercepted EnvQueryIndexed(uint32_t index,
+                                   const PropertyCallbackInfo<Integer>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvQuery(name, info);
+}
+
+static Intercepted EnvDeleterIndexed(
+    uint32_t index, const PropertyCallbackInfo<Boolean>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvDeleter(name, info);
+}
+
+static Intercepted EnvDefinerIndexed(uint32_t index,
+                                     const PropertyDescriptor& desc,
+                                     const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvDefiner(name, desc, info);
+}
+
+void CreateEnvProxyTemplate(IsolateData* isolate_data) {
+  Isolate* isolate = isolate_data->isolate();
+  HandleScope scope(isolate);
+  if (!isolate_data->env_proxy_template().IsEmpty()) return;
+  Local<FunctionTemplate> env_proxy_ctor_template =
+      FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> env_proxy_template =
+      ObjectTemplate::New(isolate, env_proxy_ctor_template);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
-      EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, Local<Value>(),
+      EnvGetter,
+      EnvSetter,
+      EnvQuery,
+      EnvDeleter,
+      EnvEnumerator,
+      EnvDefiner,
+      nullptr,
+      Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
-  return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
+  env_proxy_template->SetHandler(IndexedPropertyHandlerConfiguration(
+      EnvGetterIndexed,
+      EnvSetterIndexed,
+      EnvQueryIndexed,
+      EnvDeleterIndexed,
+      nullptr,
+      EnvDefinerIndexed,
+      nullptr,
+      Local<Value>(),
+      PropertyHandlerFlags::kHasNoSideEffect));
+  isolate_data->set_env_proxy_template(env_proxy_template);
+  isolate_data->set_env_proxy_ctor_template(env_proxy_ctor_template);
 }
 
 void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
@@ -393,7 +647,13 @@ void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EnvQuery);
   registry->Register(EnvDeleter);
   registry->Register(EnvEnumerator);
+  registry->Register(EnvDefiner);
+  registry->Register(EnvGetterIndexed);
+  registry->Register(EnvSetterIndexed);
+  registry->Register(EnvQueryIndexed);
+  registry->Register(EnvDeleterIndexed);
+  registry->Register(EnvDefinerIndexed);
 }
 }  // namespace node
 
-NODE_MODULE_EXTERNAL_REFERENCE(env_var, node::RegisterEnvVarExternalReferences)
+NODE_BINDING_EXTERNAL_REFERENCE(env_var, node::RegisterEnvVarExternalReferences)

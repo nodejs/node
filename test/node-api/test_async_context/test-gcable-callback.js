@@ -34,7 +34,7 @@ const test_hook = async_hooks.createHook({
 test_hook.enable();
 const asyncResource = createAsyncResource(
   { foo: 'bar' },
-  /* destroy_on_finalizer */false
+  /* destroy_on_finalizer */false,
 );
 
 // Trigger GC. This does *not* use global.gc(), because what we want to verify
@@ -46,20 +46,17 @@ for (let i = 0; i < arr.length; i++)
   arr[i] = {};
 
 assert.strictEqual(hook_result.destroy_called, false);
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.strictEqual(hook_result.destroy_called, false);
-  makeCallback(asyncResource, process, () => {
+  makeCallback(asyncResource, process, common.mustCall(() => {
     const executionAsyncResource = async_hooks.executionAsyncResource();
-    // Assuming the executionAsyncResource was created for the absence of the
-    // initial `{ foo: 'bar' }`.
-    // This is the worst path of `napi_async_context` related API of
-    // recovering from the condition and not break the executionAsyncResource
-    // shape, although the executionAsyncResource might not be correct.
+    // Previous versions of Node-API would have gargbage-collected
+    // the `asyncResource` object, now we can just assert that it is intact.
     assert.strictEqual(typeof executionAsyncResource, 'object');
-    assert.strictEqual(executionAsyncResource.foo, undefined);
+    assert.strictEqual(executionAsyncResource.foo, 'bar');
     destroyAsyncResource(asyncResource);
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       assert.strictEqual(hook_result.destroy_called, true);
-    });
-  });
-});
+    }));
+  }));
+}));

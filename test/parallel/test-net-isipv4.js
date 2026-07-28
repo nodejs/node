@@ -19,7 +19,7 @@ const v4 = [
   '192.0.2.235',
   '99.198.122.146',
   '46.51.197.88',
-  '173.194.34.134'
+  '173.194.34.134',
 ];
 
 const v4not = [
@@ -34,13 +34,13 @@ const v4not = [
   '1000.2.3.4',
   '999.2.3.4',
   '0000000192.168.0.200',
-  '192.168.0.2000000000'
+  '192.168.0.2000000000',
 ];
 
-v4.forEach((ip) => {
+for (const ip of v4) {
   assert.strictEqual(net.isIPv4(ip), true);
-});
+}
 
-v4not.forEach((ip) => {
+for (const ip of v4not) {
   assert.strictEqual(net.isIPv4(ip), false);
-});
+}

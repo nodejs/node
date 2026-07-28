@@ -8,39 +8,47 @@ const { addresses } = require('../common/internet');
 const assert = require('assert');
 
 assert.rejects(
-  dnsPromises.lookup(addresses.INVALID_HOST, {
+  dnsPromises.lookup(addresses.NOT_FOUND, {
     hints: 0,
     family: 0,
-    all: false
+    all: false,
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
-  }
-);
+    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`,
+  },
+).then(common.mustCall());
 
 assert.rejects(
-  dnsPromises.lookup(addresses.INVALID_HOST, {
+  dnsPromises.lookup(addresses.NOT_FOUND, {
     hints: 0,
     family: 0,
-    all: true
+    all: true,
   }),
   {
     code: 'ENOTFOUND',
-    message: `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
-  }
-);
+    message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`,
+  },
+).then(common.mustCall());
 
-dns.lookup(addresses.INVALID_HOST, {
+dns.lookup(addresses.NOT_FOUND, {
   hints: 0,
   family: 0,
-  all: true
+  all: true,
 }, common.mustCall((error) => {
   assert.strictEqual(error.code, 'ENOTFOUND');
   assert.strictEqual(
     error.message,
-    `getaddrinfo ENOTFOUND ${addresses.INVALID_HOST}`
+    `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`,
   );
   assert.strictEqual(error.syscall, 'getaddrinfo');
-  assert.strictEqual(error.hostname, addresses.INVALID_HOST);
+  assert.strictEqual(error.hostname, addresses.NOT_FOUND);
 }));
+
+assert.throws(
+  () => dnsPromises.lookup(addresses.NOT_FOUND, {
+    family: 'ipv4',
+    all: 'all',
+  }),
+  { code: 'ERR_INVALID_ARG_VALUE' },
+);

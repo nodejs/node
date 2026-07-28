@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer --harmony-atomics-waitasync
+d8.file.execute("test/mjsunit/harmony/atomics-waitasync-helpers.js");
 
-load("test/mjsunit/harmony/atomics-waitasync-helpers.js");
-
-const script = `
+function workerCode() {
   onmessage = function() {
     const sab = new SharedArrayBuffer(16);
     const i32a = new Int32Array(sab);
@@ -17,10 +15,11 @@ const script = `
     result.value.then(
       (value) => { postMessage("result " + value); },
       () => { postMessage("unexpected"); });
-  }`;
+  };
+}
 
 const expected_messages = [
   "result timed-out"
 ];
 
-runTestWithWorker(script, expected_messages);
+runTestWithWorker(workerCode, expected_messages);

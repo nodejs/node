@@ -62,7 +62,7 @@ private:
     int32_t   count;
 
     int32_t   capacity;
-
+    
     int32_t   maxCapacity;   // Limit beyond which capacity is not permitted to grow.
 
     int64_t*  elements;
@@ -85,12 +85,12 @@ public:
      * equal if they are of the same size and all elements are equal,
      * as compared using this object's comparer.
      */
-    UBool operator==(const UVector64& other);
+    bool operator==(const UVector64& other);
 
     /**
      * Equivalent to !operator==()
      */
-    inline UBool operator!=(const UVector64& other);
+    inline bool operator!=(const UVector64& other);
 
     //------------------------------------------------------------
     // subset of java.util.Vector API
@@ -101,12 +101,12 @@ public:
     void setElementAt(int64_t elem, int32_t index);
 
     void insertElementAt(int64_t elem, int32_t index, UErrorCode &status);
-
+    
     inline int64_t elementAti(int32_t index) const;
 
     //UBool equals(const UVector64 &other) const;
 
-    inline int64_t lastElementi(void) const;
+    inline int64_t lastElementi() const;
 
     //int32_t indexOf(int64_t elem, int32_t startIndex = 0) const;
 
@@ -122,9 +122,9 @@ public:
 
     void removeAllElements();
 
-    inline int32_t size(void) const;
+    inline int32_t size() const;
 
-    inline UBool isEmpty(void) const { return count == 0; }
+    inline UBool isEmpty() const { return count == 0; }
 
     // Inline.  Use this one for speedy size check.
     inline UBool ensureCapacity(int32_t minimumCapacity, UErrorCode &status);
@@ -170,28 +170,28 @@ public:
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
 private:
     void _init(int32_t initialCapacity, UErrorCode &status);
 
     // Disallow
-    UVector64(const UVector64&);
+    UVector64(const UVector64&) = delete;
 
     // Disallow
-    UVector64& operator=(const UVector64&);
+    UVector64& operator=(const UVector64&) = delete;
 
 
     //  API Functions for Stack operations.
     //  In the original UVector, these were in a separate derived class, UStack.
     //  Here in UVector64, they are all together.
 public:
-    //UBool empty(void) const;   // TODO:  redundant, same as empty().  Remove it?
+    //UBool empty() const;   // TODO:  redundant, same as empty().  Remove it?
 
-    //int64_t peeki(void) const;
-
-    inline int64_t popi(void);
-
+    //int64_t peeki() const;
+    
+    inline int64_t popi();
+    
     inline int64_t push(int64_t i, UErrorCode &status);
 
     inline int64_t *reserveBlock(int32_t size, UErrorCode &status);
@@ -223,7 +223,7 @@ inline void UVector64::addElement(int64_t elem, UErrorCode &status) {
 
 inline int64_t *UVector64::reserveBlock(int32_t size, UErrorCode &status) {
     if (ensureCapacity(count+size, status) == false) {
-        return NULL;
+        return nullptr;
     }
     int64_t  *rp = elements+count;
     count += size;
@@ -241,15 +241,15 @@ inline int64_t *UVector64::popFrame(int32_t size) {
 
 
 
-inline int32_t UVector64::size(void) const {
+inline int32_t UVector64::size() const {
     return count;
 }
 
-inline int64_t UVector64::lastElementi(void) const {
+inline int64_t UVector64::lastElementi() const {
     return elementAti(count-1);
 }
 
-inline UBool UVector64::operator!=(const UVector64& other) {
+inline bool UVector64::operator!=(const UVector64& other) {
     return !operator==(other);
 }
 
@@ -265,7 +265,7 @@ inline int64_t UVector64::push(int64_t i, UErrorCode &status) {
     return i;
 }
 
-inline int64_t UVector64::popi(void) {
+inline int64_t UVector64::popi() {
     int64_t result = 0;
     if (count > 0) {
         count--;

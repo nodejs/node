@@ -4,10 +4,10 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   const buf = Buffer.from('foobar');
 
-  cluster.setupMaster({
+  cluster.setupPrimary({
     stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe']
   });
 
@@ -33,8 +33,8 @@ if (cluster.isMaster) {
   const pipe = new net.Socket({ fd: 4 });
 
   pipe.unref();
-  pipe.on('data', (data) => {
+  pipe.on('data', common.mustCallAtLeast((data) => {
     assert.ok(data instanceof Buffer);
     pipe.write(data);
-  });
+  }));
 }

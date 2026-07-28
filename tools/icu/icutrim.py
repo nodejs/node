@@ -316,7 +316,7 @@ def removeList(count=0):
             erritems = fi.readlines()
             fi.close()
             #Item zone/zh_Hant_TW.res depends on missing item zone/zh_Hant.res
-            pat = re.compile(bytes(r"^Item ([^ ]+) depends on missing item ([^ ]+).*", 'utf-8'))
+            pat = re.compile(br"^Item ([^ ]+) depends on missing item ([^ ]+).*")
             for i in range(len(erritems)):
                 line = erritems[i].strip()
                 m = pat.match(line)
@@ -339,17 +339,17 @@ def removeList(count=0):
 removeList(1)
 
 # now, fixup res_index, one at a time
-for tree in trees:
+for tree, value in trees.items():
     # skip trees that don't have res_index
-    if "hasIndex" not in trees[tree]:
+    if "hasIndex" not in value:
         continue
     treebunddir = options.tmpdir
-    if(trees[tree]["treeprefix"]):
-        treebunddir = os.path.join(treebunddir, trees[tree]["treeprefix"])
+    if(value["treeprefix"]):
+        treebunddir = os.path.join(treebunddir, value["treeprefix"])
     if not (os.path.isdir(treebunddir)):
         os.mkdir(treebunddir)
     treebundres = os.path.join(treebunddir,RES_INDX)
     treebundtxt = "%s.txt" % (treebundres[0:-4])
     runcmd("iculslocs", "-i %s -N %s -T %s -b %s" % (outfile, dataname, tree, treebundtxt))
     runcmd("genrb","-d %s -s %s res_index.txt" % (treebunddir, treebunddir))
-    runcmd("icupkg","-s %s -a %s%s %s" % (options.tmpdir, trees[tree]["treeprefix"], RES_INDX, outfile))
+    runcmd("icupkg","-s %s -a %s%s %s" % (options.tmpdir, value["treeprefix"], RES_INDX, outfile))

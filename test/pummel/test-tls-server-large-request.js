@@ -33,16 +33,13 @@ const request = Buffer.from('ABCD'.repeat(1024 * 256 - 1)); // 1mb
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 };
 
 class Mediator extends stream.Writable {
-  constructor() {
-    super();
-    this.buf = '';
-  }
+  buf = '';
 
-  _write(data, enc, cb) {
+  _write = common.mustCallAtLeast((data, enc, cb) => {
     this.buf += data;
     setTimeout(cb, 0);
 
@@ -50,7 +47,7 @@ class Mediator extends stream.Writable {
       assert.strictEqual(this.buf, request.toString());
       server.close();
     }
-  }
+  });
 }
 
 const mediator = new Mediator();
@@ -62,7 +59,7 @@ const server = tls.Server(options, common.mustCall(function(socket) {
 server.listen(0, common.mustCall(() => {
   const client1 = tls.connect({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
   }, common.mustCall(function() {
     client1.end(request);
   }));

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDE_V8_VALUE_SERIALIZER_VERSION_H_
+#define INCLUDE_V8_VALUE_SERIALIZER_VERSION_H_
+
 /**
  * Compile-time constants.
  *
@@ -10,14 +13,11 @@
  * to V8.
  */
 
-#ifndef INCLUDE_V8_VALUE_SERIALIZER_VERSION_H_
-#define INCLUDE_V8_VALUE_SERIALIZER_VERSION_H_
-
 #include <stdint.h>
 
 namespace v8 {
 
-constexpr uint32_t CurrentValueSerializerFormatVersion() { return 13; }
+constexpr uint32_t CurrentValueSerializerFormatVersion() { return 15; }
 
 }  // namespace v8
 

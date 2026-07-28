@@ -20,7 +20,8 @@ const msg = {};
 const pem = (n) => fixtures.readKey(`${n}.pem`);
 const server = tls.createServer({
   key: pem('agent1-key'),
-  cert: pem('agent1-cert')
+  cert: pem('agent1-cert'),
+  ...(process.features.openssl_is_boringssl ? { maxVersion: 'TLSv1.2' } : {}),
 }, common.mustCall((alice) => {
   msg.server = {
     alice: alice.getFinished(),
@@ -32,7 +33,8 @@ const server = tls.createServer({
 server.listen(0, common.mustCall(() => {
   const bob = tls.connect({
     port: server.address().port,
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    ...(process.features.openssl_is_boringssl ? { maxVersion: 'TLSv1.2' } : {}),
   }, common.mustCall(() => {
     msg.client = {
       alice: bob.getPeerFinished(),

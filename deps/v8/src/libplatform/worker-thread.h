@@ -9,7 +9,6 @@
 
 #include "include/libplatform/libplatform-export.h"
 #include "src/base/compiler-specific.h"
-#include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {
@@ -23,13 +22,14 @@ class V8_PLATFORM_EXPORT WorkerThread : public NON_EXPORTED_BASE(base::Thread) {
   explicit WorkerThread(TaskQueue* queue);
   ~WorkerThread() override;
 
+  WorkerThread(const WorkerThread&) = delete;
+  WorkerThread& operator=(const WorkerThread&) = delete;
+
   // Thread implementation.
   void Run() override;
 
  private:
   TaskQueue* queue_;
-
-  DISALLOW_COPY_AND_ASSIGN(WorkerThread);
 };
 
 }  // namespace platform

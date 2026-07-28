@@ -5,39 +5,51 @@
 #ifndef V8_OBJECTS_JS_FUNCTION_H_
 #define V8_OBJECTS_JS_FUNCTION_H_
 
+#include <optional>
+
 #include "src/objects/code-kind.h"
 #include "src/objects/js-objects.h"
-#include "torque-generated/class-definitions.h"
-#include "torque-generated/field-offsets.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+class AbstractCode;
+class ClosureFeedbackCellArray;
+
+#include "torque-generated/src/objects/js-function-tq.inc"
 
 // An abstract superclass for classes representing JavaScript function values.
 // It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
-class JSFunctionOrBoundFunction
-    : public TorqueGeneratedJSFunctionOrBoundFunction<JSFunctionOrBoundFunction,
-                                                      JSObject> {
+class JSFunctionOrBoundFunctionOrWrappedFunction
+    : public TorqueGeneratedJSFunctionOrBoundFunctionOrWrappedFunction<
+          JSFunctionOrBoundFunctionOrWrappedFunction, JSObject> {
  public:
-  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunction)
+  static const int kLengthDescriptorIndex = 0;
+  static const int kNameDescriptorIndex = 1;
+
+  // https://tc39.es/proposal-shadowrealm/#sec-copynameandlength
+  static Maybe<bool> CopyNameAndLength(
+      Isolate* isolate,
+      DirectHandle<JSFunctionOrBoundFunctionOrWrappedFunction> function,
+      DirectHandle<JSReceiver> target, DirectHandle<String> prefix,
+      int arg_count);
+
+  static_assert(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(JSFunctionOrBoundFunctionOrWrappedFunction)
 };
 
 // JSBoundFunction describes a bound function exotic object.
 class JSBoundFunction
-    : public TorqueGeneratedJSBoundFunction<JSBoundFunction,
-                                            JSFunctionOrBoundFunction> {
+    : public TorqueGeneratedJSBoundFunction<
+          JSBoundFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
-                                     Handle<JSBoundFunction> function);
+                                     DirectHandle<JSBoundFunction> function);
   static Maybe<int> GetLength(Isolate* isolate,
-                              Handle<JSBoundFunction> function);
-  static MaybeHandle<NativeContext> GetFunctionRealm(
-      Handle<JSBoundFunction> function);
+                              DirectHandle<JSBoundFunction> function);
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -45,50 +57,120 @@ class JSBoundFunction
 
   // The bound function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSBoundFunction> function);
+  static DirectHandle<String> ToString(Isolate* isolate,
+                                       DirectHandle<JSBoundFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
 
+// JSWrappedFunction describes a wrapped function exotic object.
+class JSWrappedFunction
+    : public TorqueGeneratedJSWrappedFunction<
+          JSWrappedFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
+ public:
+  static MaybeHandle<String> GetName(Isolate* isolate,
+                                     DirectHandle<JSWrappedFunction> function);
+  static Maybe<int> GetLength(Isolate* isolate,
+                              DirectHandle<JSWrappedFunction> function);
+  // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
+  static MaybeDirectHandle<Object> Create(
+      Isolate* isolate, DirectHandle<NativeContext> creation_context,
+      DirectHandle<JSReceiver> value);
+
+  // Dispatched behavior.
+  DECL_PRINTER(JSWrappedFunction)
+  DECL_VERIFIER(JSWrappedFunction)
+
+  // The wrapped function's string representation implemented according
+  // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
+  static DirectHandle<String> ToString(
+      Isolate* isolate, DirectHandle<JSWrappedFunction> function);
+
+  TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
+};
+
+enum class BudgetModification { kReduce, kRaise, kReset };
+
 // JSFunction describes JavaScript functions.
-class JSFunction : public JSFunctionOrBoundFunction {
+class JSFunction : public TorqueGeneratedJSFunction<
+                       JSFunction, JSFunctionOrBoundFunctionOrWrappedFunction> {
  public:
   // [prototype_or_initial_map]:
-  DECL_ACCESSORS(prototype_or_initial_map, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(prototype_or_initial_map,
+                                 Tagged<UnionOf<JSPrototype, Map, TheHole>>)
 
-  // [shared]: The information about the function that
-  // can be shared by instances.
-  DECL_ACCESSORS(shared, SharedFunctionInfo)
+  void TraceOptimizationStatus(const char* reason, ...);
 
-  static const int kLengthDescriptorIndex = 0;
-  static const int kNameDescriptorIndex = 1;
-  // Home object descriptor index when function has a [[HomeObject]] slot.
-  static const int kMaybeHomeObjectDescriptorIndex = 2;
+  // [shared]: The information about the function that can be shared by
+  // instances.
+  DECL_ACCESSORS(shared, Tagged<SharedFunctionInfo>)
+  DECL_RELAXED_GETTER(shared, Tagged<SharedFunctionInfo>)
+
   // Fast binding requires length and name accessors.
-  static const int kMinDescriptorsForFastBind = 2;
+  static const int kMinDescriptorsForFastBindAndWrap = 2;
+
+  static DirectHandle<Object> GetFunctionPrototype(
+      Isolate* isolate, DirectHandle<JSFunction> function);
 
   // [context]: The context for this function.
-  inline Context context();
+  inline Tagged<Context> context();
+  DECL_RELAXED_GETTER(context, Tagged<Context>)
   inline bool has_context() const;
-  inline void set_context(HeapObject context);
-  inline JSGlobalProxy global_proxy();
-  inline NativeContext native_context();
+  using TorqueGeneratedClass::context;
+  using TorqueGeneratedClass::set_context;
+  DECL_RELEASE_ACQUIRE_ACCESSORS(context, Tagged<Context>)
+  inline Tagged<JSGlobalProxy> global_proxy();
+  inline Tagged<NativeContext> native_context();
   inline int length();
 
-  static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
-  static Handle<NativeContext> GetFunctionRealm(Handle<JSFunction> function);
+  static Handle<String> GetName(Isolate* isolate,
+                                DirectHandle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
   // 8.6.2, page 27.
-  inline Code code() const;
-  inline void set_code(Code code);
-  inline void set_code_no_write_barrier(Code code);
+  // Release/Acquire accessors are used when storing a newly-created
+  // optimized code object, or when reading from the background thread.
+  // Storing a builtin doesn't require release semantics because these objects
+  // are fully initialized.
+  DECL_TRUSTED_POINTER_GETTERS(code, Code)
+
+  inline void UpdateOptimizedCode(
+      Isolate* isolate, Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void UpdateCode(
+      Isolate* isolate, Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void UpdateCodeKeepTieringRequests(
+      Isolate* isolate, Tagged<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
+  // Returns the raw content of the Code field. When reading from a background
+  // thread, the code field may still be uninitialized, in which case the field
+  // contains Smi::zero().
+  inline Tagged<Object> raw_code(IsolateForSandbox isolate) const;
+  inline Tagged<Object> raw_code(IsolateForSandbox isolate,
+                                 AcquireLoadTag) const;
+
+  // Returns the address of the function code's instruction start.
+  inline Address instruction_start(IsolateForSandbox isolate) const;
 
   // Get the abstract code associated with the function, which will either be
-  // a Code object or a BytecodeArray.
-  inline AbstractCode abstract_code();
+  // an InstructionStream object or a BytecodeArray.
+  template <typename IsolateT>
+  inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
+
+  static inline JSDispatchHandle AllocateDispatchHandle(
+      Handle<JSFunction> function, Isolate* isolate, uint16_t parameter_count,
+      DirectHandle<Code> code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void clear_dispatch_handle();
+  inline JSDispatchHandle dispatch_handle() const;
+  inline JSDispatchHandle dispatch_handle(AcquireLoadTag) const;
+  inline void set_dispatch_handle(
+      JSDispatchHandle handle,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // The predicates for querying code kinds related to this function have
   // specific terminology:
@@ -99,56 +181,87 @@ class JSFunction : public JSFunctionOrBoundFunction {
   //   indirect means such as the feedback vector's optimized code cache.
   // - Active: the single code kind that would be executed if this function
   //   were called in its current state. Note that there may not be an active
-  //   code kind if the function is not compiled.
+  //   code kind if the function is not compiled. Also, asm/wasm functions are
+  //   currently not supported.
   //
   // Note: code objects that are marked_for_deoptimization are not part of the
   // attached/available/active sets. This is because the JSFunction might have
   // been already deoptimized but its code() still needs to be unlinked, which
   // will happen on its next activation.
 
+  bool HasAvailableHigherTierCodeThan(IsolateForSandbox isolate,
+                                      CodeKind kind) const;
+  // As above but only considers available code kinds passing the filter mask.
+  bool HasAvailableHigherTierCodeThanWithFilter(IsolateForSandbox isolate,
+                                                CodeKind kind,
+                                                CodeKinds filter_mask) const;
+
   // True, iff any generated code kind is attached/available to this function.
-  V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;
-  bool HasAvailableOptimizedCode() const;
+  V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode(
+      IsolateForSandbox isolate) const;
+  bool HasAvailableOptimizedCode(IsolateForSandbox isolate) const;
 
-  bool HasAvailableCodeKind(CodeKind kind) const;
+  bool HasAttachedCodeKind(IsolateForSandbox isolate, CodeKind kind) const;
+  bool HasAvailableCodeKind(IsolateForSandbox isolate, CodeKind kind) const;
 
-  V8_EXPORT_PRIVATE bool ActiveTierIsIgnition() const;
-  bool ActiveTierIsTurbofan() const;
-  bool ActiveTierIsNCI() const;
-
-  CodeKind NextTier() const;
+  std::optional<CodeKind> GetActiveTier(IsolateForSandbox isolate) const;
+  V8_EXPORT_PRIVATE bool ActiveTierIsIgnition(IsolateForSandbox isolate) const;
+  bool ActiveTierIsBaseline(IsolateForSandbox isolate) const;
+  bool ActiveTierIsMaglev(IsolateForSandbox isolate) const;
+  bool ActiveTierIsTurbofan(IsolateForSandbox isolate) const;
 
   // Similar to SharedFunctionInfo::CanDiscardCompiled. Returns true, if the
   // attached code can be recreated at a later point by replacing it with
   // CompileLazy.
-  bool CanDiscardCompiled() const;
+  bool CanDiscardCompiled(IsolateForSandbox isolate) const;
 
-  // Tells whether or not this function checks its optimization marker in its
-  // feedback vector.
-  inline bool ChecksOptimizationMarker();
+  // Tells whether function's code object checks its tiering state (some code
+  // kinds, e.g. TURBOFAN, ignore the tiering state).
+  inline bool ChecksTieringState(IsolateForSandbox isolate);
 
-  // Tells whether or not this function has a (non-zero) optimization marker.
-  inline bool HasOptimizationMarker();
 
-  // Mark this function for lazy recompilation. The function will be recompiled
+  // Tiering up a function happens as follows:
+  // 1. RequestOptimization is called
+  //    -> From now on `IsOptimizationRequested` and also
+  //    `IsTieringRequestedOrInProgress` return true.
+  // 2. On the next function invocation the optimization is triggered. While the
+  //    optimization progresses in the background both
+  //    `IsTieringRequestedOrInProgress` and `tiering_in_progress` return
+  //    true. It also means the optimization is no longer requested (i.e.,
+  //    `IsOptimizationRequested` returns false).
+  // 3. Once the compilation job is finalized the functions code is installed
+  //    via `UpdateCode` and any remaining flags cleared by
+  //    `ResetTieringRequests`.
+  // NB: Osr tiering state is tracked separately from these.
+
+  // Mark this function for optimization. The function will be recompiled
   // the next time it is executed.
-  inline void MarkForOptimization(ConcurrencyMode mode);
+  void RequestOptimization(Isolate* isolate, CodeKind target_kind,
+                           ConcurrencyMode mode = ConcurrencyMode::kConcurrent);
 
-  // Tells whether or not the function is already marked for lazy recompilation.
-  inline bool IsMarkedForOptimization();
-  inline bool IsMarkedForConcurrentOptimization();
+  inline bool IsLoggingRequested(Isolate* isolate) const;
+  inline bool IsOptimizationRequested(Isolate* isolate) const;
+  inline bool IsMaglevRequested(Isolate* isolate) const;
+  inline bool IsTurbofanRequested(Isolate* isolate) const;
+  V8_INLINE std::optional<CodeKind> GetRequestedOptimizationIfAny(
+      Isolate* isolate,
+      ConcurrencyMode mode = ConcurrencyMode::kConcurrent) const;
 
-  // Tells whether or not the function is on the concurrent recompilation queue.
-  inline bool IsInOptimizationQueue();
+  inline bool tiering_in_progress() const;
+  // NB: Tiering includes Optimization and Logging requests.
+  inline bool IsTieringRequestedOrInProgress(Isolate* isolate) const;
 
-  // Clears the optimized code slot in the function's feedback vector.
-  inline void ClearOptimizedCodeSlot(const char* reason);
+  inline void SetTieringInProgress(
+      Isolate* isolate, bool in_progress,
+      BytecodeOffset osr_offset = BytecodeOffset::None());
+  inline void ResetTieringRequests(Isolate* isolate);
 
-  // Sets the optimization marker in the function's feedback vector.
-  inline void SetOptimizationMarker(OptimizationMarker marker);
+  inline bool osr_tiering_in_progress();
 
-  // Clears the optimization marker in the function's feedback vector.
-  inline void ClearOptimizationMarker();
+  // Sets the interrupt budget based on whether the function has a feedback
+  // vector and any optimized code.
+  void SetInterruptBudget(Isolate* isolate, BudgetModification kind,
+                          std::optional<CodeKind> override_active_tier = {});
 
   // If slack tracking is active, it computes instance size of the initial map
   // with minimum permissible object slack.  If it is not active, it simply
@@ -156,64 +269,109 @@ class JSFunction : public JSFunctionOrBoundFunction {
   int ComputeInstanceSizeWithMinSlack(Isolate* isolate);
 
   // Completes inobject slack tracking on initial map if it is active.
-  inline void CompleteInobjectSlackTrackingIfActive();
+  inline void CompleteInobjectSlackTrackingIfActive(Isolate* isolate);
 
   // [raw_feedback_cell]: Gives raw access to the FeedbackCell used to hold the
   /// FeedbackVector eventually. Generally this shouldn't be used to get the
   // feedback_vector, instead use feedback_vector() which correctly deals with
   // the JSFunction's bytecode being flushed.
-  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
+  DECL_ACCESSORS(raw_feedback_cell, Tagged<FeedbackCell>)
+
+  // [raw_feedback_cell] (synchronized version) When this is initialized from a
+  // newly allocated object (instead of a root sentinel), it should
+  // be written with release store semantics.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_feedback_cell, Tagged<FeedbackCell>)
 
   // Functions related to feedback vector. feedback_vector() can be used once
   // the function has feedback vectors allocated. feedback vectors may not be
   // available after compile when lazily allocating feedback vectors.
-  inline FeedbackVector feedback_vector() const;
-  inline bool has_feedback_vector() const;
+  DECL_GETTER(feedback_vector, Tagged<FeedbackVector>)
+  DECL_GETTER(has_feedback_vector, bool)
   V8_EXPORT_PRIVATE static void EnsureFeedbackVector(
-      Handle<JSFunction> function, IsCompiledScope* compiled_scope);
+      Isolate* isolate, DirectHandle<JSFunction> function,
+      IsCompiledScope* compiled_scope);
+  static void CreateAndAttachFeedbackVector(Isolate* isolate,
+                                            DirectHandle<JSFunction> function,
+                                            IsCompiledScope* compiled_scope);
 
   // Functions related to closure feedback cell array that holds feedback cells
   // used to create closures from this function. We allocate closure feedback
   // cell arrays after compile, when we want to allocate feedback vectors
   // lazily.
   inline bool has_closure_feedback_cell_array() const;
-  inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
-  static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
+  inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
+  static void EnsureClosureFeedbackCellArray(Isolate* isolate,
+                                             DirectHandle<JSFunction> function);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
   // initialized to the closure feedback cell array that holds the feedback
   // cells for create closure calls from this function. In the regular mode,
   // this allocates feedback vector.
-  static void InitializeFeedbackCell(Handle<JSFunction> function,
-                                     IsCompiledScope* compiled_scope);
+  static void InitializeFeedbackCell(Isolate* isolate,
+                                     DirectHandle<JSFunction> function,
+                                     IsCompiledScope* compiled_scope,
+                                     bool reset_budget_for_feedback_allocation);
 
-  // Unconditionally clear the type feedback vector.
-  void ClearTypeFeedbackInfo();
+  // Unconditionally clear the type feedback vector, even those that we usually
+  // keep (e.g.: BinaryOp feedback).
+  void ClearAllTypeFeedbackInfoForTesting(Isolate* isolate);
 
   // Resets function to clear compiled data after bytecode has been flushed.
-  inline bool NeedsResetDueToFlushedBytecode();
-  inline void ResetIfBytecodeFlushed(
-      base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                        HeapObject target)>>
-          gc_notify_updated_slot = base::nullopt);
+  inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate);
+  inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate,
+                                             Tagged<SharedFunctionInfo> sfi,
+                                             Tagged<Code> code);
+  inline void ResetIfCodeFlushed(
+      Isolate* isolate,
+      std::optional<
+          std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                             Tagged<HeapObject> target)>>
+          gc_notify_updated_slot = std::nullopt);
+
+  // Returns if the closure's code field has to be updated because it has
+  // stale baseline code.
+  inline bool NeedsResetDueToFlushedBaselineCode(IsolateForSandbox isolate);
+
+  // Returns if baseline code is a candidate for flushing. This method is called
+  // from concurrent marking so we should be careful when accessing data fields.
+  inline bool ShouldFlushBaselineCode(
+      base::EnumSet<CodeFlushMode> code_flush_mode);
 
   DECL_GETTER(has_prototype_slot, bool)
 
   // The initial map for an object created by this constructor.
-  DECL_GETTER(initial_map, Map)
+  DECL_GETTER(initial_map, Tagged<Map>)
 
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<HeapObject> prototype);
+  static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
+                            DirectHandle<Map> map,
+                            DirectHandle<JSPrototype> prototype);
+  static void SetInitialMap(Isolate* isolate, DirectHandle<JSFunction> function,
+                            DirectHandle<Map> map,
+                            DirectHandle<JSPrototype> prototype,
+                            DirectHandle<JSFunction> constructor);
+
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
-      Handle<JSFunction> function);
+      Isolate* isolate, DirectHandle<JSFunction> function);
 
   // Creates a map that matches the constructor's initial map, but with
   // [[prototype]] being new.target.prototype. Because new.target can be a
   // JSProxy, this can call back into JavaScript.
-  static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
-      Isolate* isolate, Handle<JSFunction> constructor,
-      Handle<JSReceiver> new_target);
+  V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<Map> GetDerivedMap(
+      Isolate* isolate, DirectHandle<JSFunction> constructor,
+      DirectHandle<JSReceiver> new_target);
+
+  // Like GetDerivedMap, but returns a map with a RAB / GSAB ElementsKind.
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Map>
+  GetDerivedRabGsabTypedArrayMap(Isolate* isolate,
+                                 DirectHandle<JSFunction> constructor,
+                                 DirectHandle<JSReceiver> new_target);
+
+  // Like GetDerivedMap, but can be used for DataViews for retrieving / creating
+  // a map with a JS_RAB_GSAB_DATA_VIEW instance type.
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Map>
+  GetDerivedRabGsabDataViewMap(Isolate* isolate,
+                               DirectHandle<JSReceiver> new_target);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial
@@ -221,29 +379,28 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // until an initial map is needed.
   DECL_GETTER(has_prototype, bool)
   DECL_GETTER(has_instance_prototype, bool)
-  DECL_GETTER(prototype, Object)
-  DECL_GETTER(instance_prototype, HeapObject)
+  DECL_GETTER(prototype, Tagged<Object>)
+  DECL_GETTER(instance_prototype, Tagged<JSPrototype>)
   DECL_GETTER(has_prototype_property, bool)
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
-  static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
+  static void SetPrototype(Isolate* isolate, DirectHandle<JSFunction> function,
+                           DirectHandle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
-  inline bool is_compiled() const;
+  inline bool is_compiled(IsolateForSandbox isolate) const;
 
   static int GetHeaderSize(bool function_has_prototype_slot) {
     return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
                                        : JSFunction::kSizeWithoutPrototype;
   }
 
-  // Prints the name of the function using PrintF.
+  std::unique_ptr<char[]> DebugNameCStr();
   void PrintName(FILE* out = stdout);
-
-  DECL_CAST(JSFunction)
 
   // Calculate the instance size and in-object properties count.
   // {CalculateExpectedNofProperties} can trigger compilation.
   static V8_WARN_UNUSED_RESULT int CalculateExpectedNofProperties(
-      Isolate* isolate, Handle<JSFunction> function);
+      Isolate* isolate, DirectHandle<JSFunction> function);
   static void CalculateInstanceSizeHelper(InstanceType instance_type,
                                           bool has_prototype_slot,
                                           int requested_embedder_fields,
@@ -255,43 +412,60 @@ class JSFunction : public JSFunctionOrBoundFunction {
   DECL_PRINTER(JSFunction)
   DECL_VERIFIER(JSFunction)
 
-  // The function's name if it is configured, otherwise shared function info
-  // debug name.
-  static Handle<String> GetName(Handle<JSFunction> function);
+  static DirectHandle<String> GetName(DirectHandle<JSFunction> function);
 
   // ES6 section 9.2.11 SetFunctionName
   // Because of the way this abstract operation is used in the spec,
   // it should never fail, but in practice it will fail if the generated
   // function name's length exceeds String::kMaxLength.
-  static V8_WARN_UNUSED_RESULT bool SetName(Handle<JSFunction> function,
-                                            Handle<Name> name,
-                                            Handle<String> prefix);
+  static V8_WARN_UNUSED_RESULT bool SetName(Isolate* isolate,
+                                            DirectHandle<JSFunction> function,
+                                            DirectHandle<Name> name,
+                                            DirectHandle<String> prefix);
 
-  // The function's displayName if it is set, otherwise name if it is
-  // configured, otherwise shared function info
+  // The function's name if it is configured, otherwise shared function info
   // debug name.
-  static Handle<String> GetDebugName(Handle<JSFunction> function);
+  static DirectHandle<String> GetDebugName(Isolate* isolate,
+                                           DirectHandle<JSFunction> function);
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSFunction> function);
+  static DirectHandle<String> ToString(Isolate* isolate,
+                                       DirectHandle<JSFunction> function);
 
-  struct FieldOffsets {
-    DEFINE_FIELD_OFFSET_CONSTANTS(JSFunctionOrBoundFunction::kHeaderSize,
-                                  TORQUE_GENERATED_JS_FUNCTION_FIELDS)
-  };
-  static constexpr int kSharedFunctionInfoOffset =
-      FieldOffsets::kSharedFunctionInfoOffset;
-  static constexpr int kContextOffset = FieldOffsets::kContextOffset;
-  static constexpr int kFeedbackCellOffset = FieldOffsets::kFeedbackCellOffset;
-  static constexpr int kCodeOffset = FieldOffsets::kCodeOffset;
-  static constexpr int kPrototypeOrInitialMapOffset =
-      FieldOffsets::kPrototypeOrInitialMapOffset;
+  class BodyDescriptor;
+
+  // Returns the set of code kinds of compilation artifacts (bytecode,
+  // generated code) attached to this JSFunction.
+  // Note that attached code objects that are marked_for_deoptimization are not
+  // included in this set.
+  // Also considers locations outside of this JSFunction. For example the
+  // optimized code cache slot in the feedback vector, and the shared function
+  // info.
+  CodeKinds GetAvailableCodeKinds(IsolateForSandbox isolate) const;
 
  private:
   // JSFunction doesn't have a fixed header size:
-  // Hide JSFunctionOrBoundFunction::kHeaderSize to avoid confusion.
+  // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
   static const int kHeaderSize;
+
+
+  inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
+                             WriteBarrierMode mode, bool keep_tiering_request);
+
+  // Updates the Code in this function's dispatch table entry.
+  inline void UpdateDispatchEntry(
+      Isolate* isolate, Tagged<Code> new_code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void UpdateDispatchEntryKeepTieringRequest(
+      Isolate* isolate, Tagged<Code> new_code,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
+  // Hide generated accessors; custom accessors are called "shared".
+  DECL_ACCESSORS(shared_function_info, Tagged<SharedFunctionInfo>)
+
+  // Hide generated accessors; custom accessors are called "raw_feedback_cell".
+  DECL_ACCESSORS(feedback_cell, Tagged<FeedbackCell>)
 
   // Returns the set of code kinds of compilation artifacts (bytecode,
   // generated code) attached to this JSFunction.
@@ -300,22 +474,16 @@ class JSFunction : public JSFunctionOrBoundFunction {
   // TODO(jgruber): Currently at most one code kind can be attached. Consider
   // adding a NOT_COMPILED kind and changing this function to simply return the
   // kind if this becomes more convenient in the future.
-  CodeKinds GetAttachedCodeKinds() const;
-
-  // As above, but also considers locations outside of this JSFunction. For
-  // example the optimized code cache slot in the feedback vector, and the
-  // shared function info.
-  CodeKinds GetAvailableCodeKinds() const;
+  CodeKinds GetAttachedCodeKinds(IsolateForSandbox isolate) const;
 
  public:
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
-  static constexpr int kSizeWithPrototype = FieldOffsets::kHeaderSize;
+  static constexpr int kSizeWithPrototype = TorqueGeneratedClass::kHeaderSize;
 
-  OBJECT_CONSTRUCTORS(JSFunction, JSFunctionOrBoundFunction);
+  TQ_OBJECT_CONSTRUCTORS(JSFunction)
 };
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

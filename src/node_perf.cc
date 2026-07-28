@@ -1,9 +1,12 @@
-#include "aliased_buffer.h"
-#include "memory_tracker-inl.h"
-#include "node_internals.h"
 #include "node_perf.h"
+#include "aliased_buffer-inl.h"
+#include "env-inl.h"
+#include "histogram-inl.h"
+#include "memory_tracker-inl.h"
 #include "node_buffer.h"
-#include "node_process.h"
+#include "node_external_reference.h"
+#include "node_internals.h"
+#include "node_process-inl.h"
 #include "util-inl.h"
 
 #include <cinttypes>
@@ -11,36 +14,36 @@
 namespace node {
 namespace performance {
 
+using v8::Array;
 using v8::Context;
 using v8::DontDelete;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
 using v8::GCType;
-using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::Map;
 using v8::MaybeLocal;
-using v8::Number;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
-using v8::String;
 using v8::Value;
 
 // Microseconds in a millisecond, as a float.
 #define MICROS_PER_MILLIS 1e3
+// Nanoseconds in a millisecond, as a float.
+#define NANOS_PER_MILLIS 1e6
 
-// https://w3c.github.io/hr-time/#dfn-time-origin
-const uint64_t timeOrigin = PERFORMANCE_NOW();
-// https://w3c.github.io/hr-time/#dfn-time-origin-timestamp
-const double timeOriginTimestamp = GetCurrentTimeInMicroseconds();
+const uint64_t performance_process_start = PERFORMANCE_NOW();
+const double performance_process_start_timestamp =
+    GetCurrentTimeInMicroseconds();
 uint64_t performance_v8_start;
 
 PerformanceState::PerformanceState(Isolate* isolate,
+                                   uint64_t time_origin,
+                                   double time_origin_timestamp,
                                    const PerformanceState::SerializeInfo* info)
     : root(isolate,
            sizeof(performance_state_internal),
@@ -56,24 +59,55 @@ PerformanceState::PerformanceState(Isolate* isolate,
                 root,
                 MAYBE_FIELD_PTR(info, observers)) {
   if (info == nullptr) {
-    for (size_t i = 0; i < milestones.Length(); i++) milestones[i] = -1.;
+    // For performance states initialized from scratch, reset
+    // all the milestones and initialize the time origin.
+    // For deserialized performance states, we will do the
+    // initialization in the deserialize callback.
+    ResetMilestones();
+    Initialize(time_origin, time_origin_timestamp);
+  }
+}
+
+void PerformanceState::ResetMilestones() {
+  size_t milestones_length = milestones.Length();
+  for (size_t i = 0; i < milestones_length; ++i) {
+    milestones[i] = -1;
   }
 }
 
 PerformanceState::SerializeInfo PerformanceState::Serialize(
     v8::Local<v8::Context> context, v8::SnapshotCreator* creator) {
+  // Reset all the milestones to improve determinism in the snapshot.
+  // We'll re-initialize them after deserialization.
+  ResetMilestones();
+
   SerializeInfo info{root.Serialize(context, creator),
                      milestones.Serialize(context, creator),
                      observers.Serialize(context, creator)};
   return info;
 }
 
-void PerformanceState::Deserialize(v8::Local<v8::Context> context) {
+void PerformanceState::Initialize(uint64_t time_origin,
+                                  double time_origin_timestamp) {
+  // We are only reusing the milestone array to store the time origin
+  // and time origin timestamp, so do not use the Mark() method.
+  // The time origin milestone is not exposed to user land.
+  this->milestones[NODE_PERFORMANCE_MILESTONE_TIME_ORIGIN] =
+      static_cast<double>(time_origin);
+  this->milestones[NODE_PERFORMANCE_MILESTONE_TIME_ORIGIN_TIMESTAMP] =
+      time_origin_timestamp;
+}
+
+void PerformanceState::Deserialize(v8::Local<v8::Context> context,
+                                   uint64_t time_origin,
+                                   double time_origin_timestamp) {
+  // Resets the pointers.
   root.Deserialize(context);
-  // This is just done to set up the pointers, we will actually reset
-  // all the milestones after deserialization.
   milestones.Deserialize(context);
   observers.Deserialize(context);
+
+  // Re-initialize the time origin and timestamp i.e. the process start time.
+  Initialize(time_origin, time_origin_timestamp);
 }
 
 std::ostream& operator<<(std::ostream& o,
@@ -86,248 +120,104 @@ std::ostream& operator<<(std::ostream& o,
   return o;
 }
 
-void PerformanceState::Mark(enum PerformanceMilestone milestone,
-                             uint64_t ts) {
-  this->milestones[milestone] = ts;
+void PerformanceState::Mark(PerformanceMilestone milestone, uint64_t ts) {
+  this->milestones[milestone] = static_cast<double>(ts);
   TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(
       TRACING_CATEGORY_NODE1(bootstrap),
       GetPerformanceMilestoneName(milestone),
       TRACE_EVENT_SCOPE_THREAD, ts / 1000);
 }
 
-// Initialize the performance entry object properties
-inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
-  Environment* env = entry.env();
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-  PropertyAttribute attr =
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  obj->DefineOwnProperty(context,
-                         env->name_string(),
-                         String::NewFromUtf8(isolate,
-                                             entry.name().c_str())
-                             .ToLocalChecked(),
-                         attr)
-      .Check();
-  obj->DefineOwnProperty(context,
-                         env->entry_type_string(),
-                         String::NewFromUtf8(isolate,
-                                             entry.type().c_str())
-                             .ToLocalChecked(),
-                         attr)
-      .Check();
-  obj->DefineOwnProperty(context,
-                         env->start_time_string(),
-                         Number::New(isolate, entry.startTime()),
-                         attr).Check();
-  obj->DefineOwnProperty(context,
-                         env->duration_string(),
-                         Number::New(isolate, entry.duration()),
-                         attr).Check();
-}
-
-// Create a new PerformanceEntry object
-MaybeLocal<Object> PerformanceEntry::ToObject() const {
-  Local<Object> obj;
-  if (!env_->performance_entry_template()
-           ->NewInstance(env_->context())
-           .ToLocal(&obj)) {
-    return MaybeLocal<Object>();
-  }
-  InitObject(*this, obj);
-  return obj;
-}
-
-// Allow creating a PerformanceEntry object from JavaScript
-void PerformanceEntry::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Utf8Value name(isolate, args[0]);
-  Utf8Value type(isolate, args[1]);
-  uint64_t now = PERFORMANCE_NOW();
-  PerformanceEntry entry(env, *name, *type, now, now);
-  Local<Object> obj = args.This();
-  InitObject(entry, obj);
-  PerformanceEntry::Notify(env, entry.kind(), obj);
-}
-
-// Pass the PerformanceEntry object to the PerformanceObservers
-void PerformanceEntry::Notify(Environment* env,
-                              PerformanceEntryType type,
-                              Local<Value> object) {
-  Context::Scope scope(env->context());
-  AliasedUint32Array& observers = env->performance_state()->observers;
-  if (!env->performance_entry_callback().IsEmpty() &&
-      type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID && observers[type]) {
-    node::MakeSyncCallback(env->isolate(),
-                           object.As<Object>(),
-                           env->performance_entry_callback(),
-                           1, &object);
-  }
-}
-
-// Create a User Timing Mark
-void Mark(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
-  Utf8Value name(env->isolate(), args[0]);
-  uint64_t now = PERFORMANCE_NOW();
-  auto marks = env->performance_marks();
-  (*marks)[*name] = now;
-
-  TRACE_EVENT_COPY_MARK_WITH_TIMESTAMP(
-      TRACING_CATEGORY_NODE2(perf, usertiming),
-      *name, now / 1000);
-
-  PerformanceEntry entry(env, *name, "mark", now, now);
-  Local<Object> obj;
-  if (!entry.ToObject().ToLocal(&obj)) return;
-  PerformanceEntry::Notify(env, entry.kind(), obj);
-  args.GetReturnValue().Set(obj);
-}
-
-void ClearMark(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  auto marks = env->performance_marks();
-
-  if (args.Length() == 0) {
-    marks->clear();
-  } else {
-    Utf8Value name(env->isolate(), args[0]);
-    marks->erase(*name);
-  }
-}
-
-inline uint64_t GetPerformanceMark(Environment* env, const std::string& name) {
-  auto marks = env->performance_marks();
-  auto res = marks->find(name);
-  return res != marks->end() ? res->second : 0;
-}
-
-// Create a User Timing Measure. A Measure is a PerformanceEntry that
-// measures the duration between two distinct user timing marks
-void Measure(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HandleScope scope(env->isolate());
-  Utf8Value name(env->isolate(), args[0]);
-  Utf8Value startMark(env->isolate(), args[1]);
-
-  AliasedFloat64Array& milestones = env->performance_state()->milestones;
-
-  uint64_t startTimestamp = timeOrigin;
-  uint64_t start = GetPerformanceMark(env, *startMark);
-  if (start != 0) {
-    startTimestamp = start;
-  } else {
-    PerformanceMilestone milestone = ToPerformanceMilestoneEnum(*startMark);
-    if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
-      startTimestamp = milestones[milestone];
-  }
-
-  uint64_t endTimestamp = 0;
-  if (args[2]->IsUndefined()) {
-    endTimestamp = PERFORMANCE_NOW();
-  } else {
-    Utf8Value endMark(env->isolate(), args[2]);
-    endTimestamp = GetPerformanceMark(env, *endMark);
-    if (endTimestamp == 0) {
-      PerformanceMilestone milestone = ToPerformanceMilestoneEnum(*endMark);
-      if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
-        endTimestamp = milestones[milestone];
-    }
-  }
-
-  if (endTimestamp < startTimestamp)
-    endTimestamp = startTimestamp;
-
-  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
-      TRACING_CATEGORY_NODE2(perf, usertiming),
-      *name, *name, startTimestamp / 1000);
-  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-      TRACING_CATEGORY_NODE2(perf, usertiming),
-      *name, *name, endTimestamp / 1000);
-
-  PerformanceEntry entry(env, *name, "measure", startTimestamp, endTimestamp);
-  Local<Object> obj;
-  if (!entry.ToObject().ToLocal(&obj)) return;
-  PerformanceEntry::Notify(env, entry.kind(), obj);
-  args.GetReturnValue().Set(obj);
-}
-
-// Allows specific Node.js lifecycle milestones to be set from JavaScript
-void MarkMilestone(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  PerformanceMilestone milestone =
-      static_cast<PerformanceMilestone>(
-          args[0]->Int32Value(context).ToChecked());
-  if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
-    env->performance_state()->Mark(milestone);
-}
-
-
 void SetupPerformanceObservers(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Realm* realm = Realm::GetCurrent(args);
+  // TODO(legendecas): Remove this check once the sub-realms are supported.
+  CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
   CHECK(args[0]->IsFunction());
-  env->set_performance_entry_callback(args[0].As<Function>());
-}
-
-// Creates a GC Performance Entry and passes it to observers
-void PerformanceGCCallback(Environment* env,
-                           std::unique_ptr<GCPerformanceEntry> entry) {
-  HandleScope scope(env->isolate());
-  Local<Context> context = env->context();
-
-  AliasedUint32Array& observers = env->performance_state()->observers;
-  if (observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) {
-    Local<Object> obj;
-    if (!entry->ToObject().ToLocal(&obj)) return;
-    PropertyAttribute attr =
-        static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-    obj->DefineOwnProperty(context,
-                           env->kind_string(),
-                           Integer::New(env->isolate(), entry->gckind()),
-                           attr).Check();
-    obj->DefineOwnProperty(context,
-                           env->flags_string(),
-                           Integer::New(env->isolate(), entry->gcflags()),
-                           attr).Check();
-    PerformanceEntry::Notify(env, entry->kind(), obj);
-  }
+  realm->set_performance_entry_callback(args[0].As<Function>());
 }
 
 // Marks the start of a GC cycle
-void MarkGarbageCollectionStart(Isolate* isolate,
-                                GCType type,
-                                GCCallbackFlags flags,
-                                void* data) {
+void MarkGarbageCollectionStart(
+    Isolate* isolate,
+    GCType type,
+    GCCallbackFlags flags,
+    void* data) {
   Environment* env = static_cast<Environment*>(data);
+  // Prevent gc callback from reentering with different type
+  // See https://github.com/nodejs/node/issues/44046
+  if (env->performance_state()->current_gc_type != 0) {
+    return;
+  }
   env->performance_state()->performance_last_gc_start_mark = PERFORMANCE_NOW();
+  env->performance_state()->current_gc_type = type;
+}
+
+MaybeLocal<Object> GCPerformanceEntryTraits::GetDetails(
+    Environment* env,
+    const GCPerformanceEntry& entry) {
+  Local<Object> obj = Object::New(env->isolate());
+
+  if (!obj->Set(
+          env->context(),
+          env->kind_string(),
+          Integer::NewFromUnsigned(
+              env->isolate(),
+              entry.details.kind)).IsJust()) {
+    return MaybeLocal<Object>();
+  }
+
+  if (!obj->Set(
+          env->context(),
+          env->flags_string(),
+          Integer::NewFromUnsigned(
+              env->isolate(),
+              entry.details.flags)).IsJust()) {
+    return MaybeLocal<Object>();
+  }
+
+  return obj;
 }
 
 // Marks the end of a GC cycle
-void MarkGarbageCollectionEnd(Isolate* isolate,
-                              GCType type,
-                              GCCallbackFlags flags,
-                              void* data) {
+void MarkGarbageCollectionEnd(
+    Isolate* isolate,
+    GCType type,
+    GCCallbackFlags flags,
+    void* data) {
   Environment* env = static_cast<Environment*>(data);
   PerformanceState* state = env->performance_state();
-  // If no one is listening to gc performance entries, do not create them.
-  if (!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC])
+  if (type != state->current_gc_type) {
     return;
-  auto entry = std::make_unique<GCPerformanceEntry>(
-      env,
-      static_cast<PerformanceGCKind>(type),
-      static_cast<PerformanceGCFlags>(flags),
-      state->performance_last_gc_start_mark,
-      PERFORMANCE_NOW());
-  env->SetImmediate([entry = std::move(entry)](Environment* env) mutable {
-    PerformanceGCCallback(env, std::move(entry));
+  }
+  env->performance_state()->current_gc_type = 0;
+  // If no one is listening to gc performance entries, do not create them.
+  if (!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) [[likely]] {
+    return;
+  }
+
+  double start_time =
+      (state->performance_last_gc_start_mark - env->time_origin()) /
+      NANOS_PER_MILLIS;
+  double duration = (PERFORMANCE_NOW() / NANOS_PER_MILLIS) -
+                    (state->performance_last_gc_start_mark / NANOS_PER_MILLIS);
+
+  std::unique_ptr<GCPerformanceEntry> entry =
+      std::make_unique<GCPerformanceEntry>(
+          "gc",
+          start_time,
+          duration,
+          GCPerformanceEntry::Details(static_cast<PerformanceGCKind>(type),
+                                      static_cast<PerformanceGCFlags>(flags)));
+
+  env->SetImmediate([entry = std::move(entry)](Environment* env) {
+    entry->Notify(env);
   }, CallbackFlags::kUnrefed);
 }
 
 void GarbageCollectionCleanupHook(void* data) {
   Environment* env = static_cast<Environment*>(data);
+  // Reset current_gc_type to 0
+  env->performance_state()->current_gc_type = 0;
   env->isolate()->RemoveGCPrologueCallback(MarkGarbageCollectionStart, data);
   env->isolate()->RemoveGCEpilogueCallback(MarkGarbageCollectionEnd, data);
 }
@@ -335,7 +225,8 @@ void GarbageCollectionCleanupHook(void* data) {
 static void InstallGarbageCollectionTracking(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
+  // Reset current_gc_type to 0
+  env->performance_state()->current_gc_type = 0;
   env->isolate()->AddGCPrologueCallback(MarkGarbageCollectionStart,
                                         static_cast<void*>(env));
   env->isolate()->AddGCEpilogueCallback(MarkGarbageCollectionEnd,
@@ -349,80 +240,6 @@ static void RemoveGarbageCollectionTracking(
 
   env->RemoveCleanupHook(GarbageCollectionCleanupHook, env);
   GarbageCollectionCleanupHook(env);
-}
-
-// Gets the name of a function
-inline Local<Value> GetName(Local<Function> fn) {
-  Local<Value> val = fn->GetDebugName();
-  if (val.IsEmpty() || val->IsUndefined()) {
-    Local<Value> boundFunction = fn->GetBoundFunction();
-    if (!boundFunction.IsEmpty() && !boundFunction->IsUndefined()) {
-      val = GetName(boundFunction.As<Function>());
-    }
-  }
-  return val;
-}
-
-// Executes a wrapped Function and captures timing information, causing a
-// Function PerformanceEntry to be emitted to PerformanceObservers after
-// execution.
-void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
-  CHECK_NOT_NULL(env);
-  Local<Function> fn = args.Data().As<Function>();
-  size_t count = args.Length();
-  size_t idx;
-  SlicedArguments call_args(args);
-  Utf8Value name(isolate, GetName(fn));
-  bool is_construct_call = args.IsConstructCall();
-
-  uint64_t start = PERFORMANCE_NOW();
-  TRACE_EVENT_COPY_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
-      TRACING_CATEGORY_NODE2(perf, timerify),
-      *name, *name, start / 1000);
-  v8::MaybeLocal<Value> ret;
-
-  if (is_construct_call) {
-    ret = fn->NewInstance(context, call_args.length(), call_args.out())
-        .FromMaybe(Local<Object>());
-  } else {
-    ret = fn->Call(context, args.This(), call_args.length(), call_args.out());
-  }
-
-  uint64_t end = PERFORMANCE_NOW();
-  TRACE_EVENT_COPY_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-      TRACING_CATEGORY_NODE2(perf, timerify),
-      *name, *name, end / 1000);
-
-  if (ret.IsEmpty())
-    return;
-  args.GetReturnValue().Set(ret.ToLocalChecked());
-
-  AliasedUint32Array& observers = env->performance_state()->observers;
-  if (!observers[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION])
-    return;
-
-  PerformanceEntry entry(env, *name, "function", start, end);
-  Local<Object> obj;
-  if (!entry.ToObject().ToLocal(&obj)) return;
-  for (idx = 0; idx < count; idx++)
-    obj->Set(context, idx, args[idx]).Check();
-  PerformanceEntry::Notify(env, entry.kind(), obj);
-}
-
-// Wraps a Function in a TimerFunctionCall
-void Timerify(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsNumber());
-  Local<Function> fn = args[0].As<Function>();
-  int length = args[1]->IntegerValue(context).ToChecked();
-  Local<Function> wrap =
-      Function::New(context, TimerFunctionCall, fn, length).ToLocalChecked();
-  args.GetReturnValue().Set(wrap);
 }
 
 // Notify a custom PerformanceEntry to observers
@@ -443,165 +260,102 @@ void Notify(const FunctionCallbackInfo<Value>& args) {
 void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint64_t idle_time = uv_metrics_idle_time(env->event_loop());
-  args.GetReturnValue().Set(1.0 * idle_time / 1e6);
+  args.GetReturnValue().Set(1.0 * idle_time / NANOS_PER_MILLIS);
 }
 
-
-// Event Loop Timing Histogram
-namespace {
-static void ELDHistogramMin(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Min());
-  args.GetReturnValue().Set(value);
-}
-
-static void ELDHistogramMax(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Max());
-  args.GetReturnValue().Set(value);
-}
-
-static void ELDHistogramMean(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Mean());
-}
-
-static void ELDHistogramExceeds(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>(histogram->Exceeds());
-  args.GetReturnValue().Set(value);
-}
-
-static void ELDHistogramStddev(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Stddev());
-}
-
-static void ELDHistogramPercentile(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsNumber());
-  double percentile = args[0].As<Number>()->Value();
-  args.GetReturnValue().Set(histogram->Percentile(percentile));
-}
-
-static void ELDHistogramPercentiles(const FunctionCallbackInfo<Value>& args) {
+void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsMap());
-  Local<Map> map = args[0].As<Map>();
-  histogram->Percentiles([&](double key, double value) {
-    map->Set(env->context(),
-             Number::New(env->isolate(), key),
-             Number::New(env->isolate(), value)).IsEmpty();
-  });
+  Isolate* isolate = env->isolate();
+  uv_metrics_t metrics;
+  // uv_metrics_info always return 0
+  CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
+  Local<Value> data[] = {
+      Integer::New(isolate, metrics.loop_count),
+      Integer::New(isolate, metrics.events),
+      Integer::New(isolate, metrics.events_waiting),
+  };
+  Local<Array> arr = Array::New(env->isolate(), data, arraysize(data));
+  args.GetReturnValue().Set(arr);
 }
 
-static void ELDHistogramEnable(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Enable());
-}
-
-static void ELDHistogramDisable(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(histogram->Disable());
-}
-
-static void ELDHistogramReset(const FunctionCallbackInfo<Value>& args) {
-  ELDHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  histogram->ResetState();
-}
-
-static void ELDHistogramNew(const FunctionCallbackInfo<Value>& args) {
+void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(args.IsConstructCall());
-  int32_t resolution = args[0]->IntegerValue(env->context()).FromJust();
-  CHECK_GT(resolution, 0);
-  new ELDHistogram(env, args.This(), resolution);
-}
-}  // namespace
-
-ELDHistogram::ELDHistogram(
-    Environment* env,
-    Local<Object> wrap,
-    int32_t resolution) : HandleWrap(env,
-                                     wrap,
-                                     reinterpret_cast<uv_handle_t*>(&timer_),
-                                     AsyncWrap::PROVIDER_ELDHISTOGRAM),
-                          Histogram(1, 3.6e12),
-                          resolution_(resolution) {
-  MakeWeak();
-  uv_timer_init(env->event_loop(), &timer_);
-}
-
-void ELDHistogram::DelayIntervalCallback(uv_timer_t* req) {
-  ELDHistogram* histogram = ContainerOf(&ELDHistogram::timer_, req);
-  histogram->RecordDelta();
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "min", histogram->Min());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "max", histogram->Max());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "mean", histogram->Mean());
-  TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                 "stddev", histogram->Stddev());
-}
-
-bool ELDHistogram::RecordDelta() {
-  uint64_t time = uv_hrtime();
-  bool ret = true;
-  if (prev_ > 0) {
-    int64_t delta = time - prev_;
-    if (delta > 0) {
-      ret = Record(delta);
-      TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
-                     "delay", delta);
-      if (!ret) {
-        if (exceeds_ < 0xFFFFFFFF)
-          exceeds_++;
-        ProcessEmitWarning(
-            env(),
-            "Event loop delay exceeded 1 hour: %" PRId64 " nanoseconds",
-            delta);
-      }
-    }
+  int64_t interval = args[0].As<Integer>()->Value();
+  CHECK_GT(interval, 0);
+  if (args[1]->IsTrue()) {
+    BaseObjectPtr<IterationHistogram> histogram =
+        IterationHistogram::Create(env, Histogram::Options{1});
+    args.GetReturnValue().Set(histogram->object());
+    return;
   }
-  prev_ = time;
-  return ret;
+  BaseObjectPtr<IntervalHistogram> histogram =
+      IntervalHistogram::Create(env, interval, [](Histogram& histogram) {
+        uint64_t delta = histogram.RecordDelta();
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                        "delay", delta);
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "min", histogram.Min());
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "max", histogram.Max());
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "mean", histogram.Mean());
+        TRACE_COUNTER1(TRACING_CATEGORY_NODE2(perf, event_loop),
+                      "stddev", histogram.Stddev());
+      }, Histogram::Options { 1000 });
+  args.GetReturnValue().Set(histogram->object());
 }
 
-bool ELDHistogram::Enable() {
-  if (enabled_ || IsHandleClosing()) return false;
-  enabled_ = true;
-  prev_ = 0;
-  uv_timer_start(&timer_,
-                 DelayIntervalCallback,
-                 resolution_,
-                 resolution_);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
-  return true;
+void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
+  realm->env()->performance_state()->Mark(
+      performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
 }
 
-bool ELDHistogram::Disable() {
-  if (!enabled_ || IsHandleClosing()) return false;
-  enabled_ = false;
-  uv_timer_stop(&timer_);
-  return true;
+static double PerformanceNowImpl() {
+  return static_cast<double>(uv_hrtime() - performance_process_start) /
+         NANOS_PER_MILLIS;
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
+static double FastPerformanceNow(v8::Local<v8::Value> receiver) {
+  return PerformanceNowImpl();
+}
+
+static void SlowPerformanceNow(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(PerformanceNowImpl());
+}
+
+static v8::CFunction fast_performance_now(
+    v8::CFunction::Make(FastPerformanceNow));
+
+static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                       Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+
+  HistogramBase::Initialize(isolate_data, target);
+
+  SetMethod(isolate, target, "setupObservers", SetupPerformanceObservers);
+  SetMethod(isolate,
+            target,
+            "installGarbageCollectionTracking",
+            InstallGarbageCollectionTracking);
+  SetMethod(isolate,
+            target,
+            "removeGarbageCollectionTracking",
+            RemoveGarbageCollectionTracking);
+  SetMethod(isolate, target, "notify", Notify);
+  SetMethod(isolate, target, "loopIdleTime", LoopIdleTime);
+  SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(isolate, target, "markBootstrapComplete", MarkBootstrapComplete);
+  SetMethod(isolate, target, "uvMetricsInfo", UvMetricsInfo);
+  SetFastMethodNoSideEffect(
+      isolate, target, "now", SlowPerformanceNow, &fast_performance_now);
+}
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   PerformanceState* state = env->performance_state();
@@ -613,34 +367,11 @@ void Initialize(Local<Object> target,
               FIXED_ONE_BYTE_STRING(isolate, "milestones"),
               state->milestones.GetJSArray()).Check();
 
-  Local<String> performanceEntryString =
-      FIXED_ONE_BYTE_STRING(isolate, "PerformanceEntry");
-
-  Local<FunctionTemplate> pe = FunctionTemplate::New(isolate);
-  pe->SetClassName(performanceEntryString);
-  Local<Function> fn = pe->GetFunction(context).ToLocalChecked();
-  target->Set(context, performanceEntryString, fn).Check();
-  env->set_performance_entry_template(fn);
-
-  env->SetMethod(target, "clearMark", ClearMark);
-  env->SetMethod(target, "mark", Mark);
-  env->SetMethod(target, "measure", Measure);
-  env->SetMethod(target, "markMilestone", MarkMilestone);
-  env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
-  env->SetMethod(target, "timerify", Timerify);
-  env->SetMethod(target,
-                 "installGarbageCollectionTracking",
-                 InstallGarbageCollectionTracking);
-  env->SetMethod(target,
-                 "removeGarbageCollectionTracking",
-                 RemoveGarbageCollectionTracking);
-  env->SetMethod(target, "notify", Notify);
-  env->SetMethod(target, "loopIdleTime", LoopIdleTime);
-
   Local<Object> constants = Object::New(isolate);
 
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_MAJOR);
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_MINOR);
+  NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP);
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_INCREMENTAL);
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_WEAKCB);
 
@@ -672,44 +403,31 @@ void Initialize(Local<Object> target,
   PropertyAttribute attr =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
 
-  target->DefineOwnProperty(context,
-                            FIXED_ONE_BYTE_STRING(isolate, "timeOrigin"),
-                            Number::New(isolate, timeOrigin / 1e6),
-                            attr).ToChecked();
-
-  target->DefineOwnProperty(
-      context,
-      FIXED_ONE_BYTE_STRING(isolate, "timeOriginTimestamp"),
-      Number::New(isolate, timeOriginTimestamp / MICROS_PER_MILLIS),
-      attr).ToChecked();
-
-  target->DefineOwnProperty(context,
-                            env->constants_string(),
-                            constants,
-                            attr).ToChecked();
-
-  Local<String> eldh_classname = FIXED_ONE_BYTE_STRING(isolate, "ELDHistogram");
-  Local<FunctionTemplate> eldh =
-      env->NewFunctionTemplate(ELDHistogramNew);
-  eldh->SetClassName(eldh_classname);
-  eldh->InstanceTemplate()->SetInternalFieldCount(
-      ELDHistogram::kInternalFieldCount);
-  eldh->Inherit(BaseObject::GetConstructorTemplate(env));
-  env->SetProtoMethod(eldh, "exceeds", ELDHistogramExceeds);
-  env->SetProtoMethod(eldh, "min", ELDHistogramMin);
-  env->SetProtoMethod(eldh, "max", ELDHistogramMax);
-  env->SetProtoMethod(eldh, "mean", ELDHistogramMean);
-  env->SetProtoMethod(eldh, "stddev", ELDHistogramStddev);
-  env->SetProtoMethod(eldh, "percentile", ELDHistogramPercentile);
-  env->SetProtoMethod(eldh, "percentiles", ELDHistogramPercentiles);
-  env->SetProtoMethod(eldh, "enable", ELDHistogramEnable);
-  env->SetProtoMethod(eldh, "disable", ELDHistogramDisable);
-  env->SetProtoMethod(eldh, "reset", ELDHistogramReset);
-  target->Set(context, eldh_classname,
-              eldh->GetFunction(env->context()).ToLocalChecked()).Check();
+  target->DefineOwnProperty(context, env->constants_string(), constants, attr)
+      .ToChecked();
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SetupPerformanceObservers);
+  registry->Register(InstallGarbageCollectionTracking);
+  registry->Register(RemoveGarbageCollectionTracking);
+  registry->Register(Notify);
+  registry->Register(LoopIdleTime);
+  registry->Register(CreateELDHistogram);
+  registry->Register(MarkBootstrapComplete);
+  registry->Register(UvMetricsInfo);
+  registry->Register(SlowPerformanceNow);
+  registry->Register(fast_performance_now);
+  HistogramBase::RegisterExternalReferences(registry);
+  IntervalHistogram::RegisterExternalReferences(registry);
+  IterationHistogram::RegisterExternalReferences(registry);
+}
 }  // namespace performance
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(performance, node::performance::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+    performance, node::performance::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(performance,
+                              node::performance::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(performance,
+                                node::performance::RegisterExternalReferences)

@@ -19,7 +19,8 @@ struct HasFinalizeGarbageCollectedObject : std::false_type {};
 
 template <typename T>
 struct HasFinalizeGarbageCollectedObject<
-    T, void_t<decltype(std::declval<T>().FinalizeGarbageCollectedObject())>>
+    T,
+    std::void_t<decltype(std::declval<T>().FinalizeGarbageCollectedObject())>>
     : std::true_type {};
 
 // The FinalizerTraitImpl specifies how to finalize objects.
@@ -69,13 +70,15 @@ struct FinalizerTrait {
   // - a destructor.
   static constexpr bool kNonTrivialFinalizer =
       internal::HasFinalizeGarbageCollectedObject<T>::value ||
-      !std::is_trivially_destructible<typename std::remove_cv<T>::type>::value;
+      !std::is_trivially_destructible_v<std::remove_cv_t<T>>;
 
   static void Finalize(void* obj) {
     internal::FinalizerTraitImpl<T, kNonTrivialFinalizer>::Finalize(obj);
   }
 
  public:
+  static constexpr bool HasFinalizer() { return kNonTrivialFinalizer; }
+
   // The callback used to finalize an object of type T.
   static constexpr FinalizationCallback kCallback =
       kNonTrivialFinalizer ? Finalize : nullptr;

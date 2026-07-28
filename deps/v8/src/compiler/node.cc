@@ -57,8 +57,6 @@ struct NodeWithInLineInputs {};
 template <typename NodePtrT>
 Node* Node::NewImpl(Zone* zone, NodeId id, const Operator* op, int input_count,
                     NodePtrT const* inputs, bool has_extensible_inputs) {
-  // Node uses compressed pointers, so zone must support pointer compression.
-  DCHECK_IMPLIES(kCompressGraphZone, zone->supports_compression());
   DCHECK_GE(input_count, 0);
 
   ZoneNodePtr* input_ptr;
@@ -162,7 +160,7 @@ void Node::AppendInput(Zone* zone, Node* new_to) {
     bit_field_ = InlineCountField::update(bit_field_, inline_count + 1);
     *GetInputPtr(inline_count) = new_to;
     Use* use = GetUsePtr(inline_count);
-    STATIC_ASSERT(InlineCapacityField::kMax <= Use::InputIndexField::kMax);
+    static_assert(InlineCapacityField::kMax <= Use::InputIndexField::kMax);
     use->bit_field_ = Use::InputIndexField::encode(inline_count) |
                       Use::InlineField::encode(true);
     new_to->AppendUse(use);
@@ -218,9 +216,9 @@ void Node::InsertInputs(Zone* zone, int index, int count) {
   DCHECK_LT(0, count);
   DCHECK_LT(index, InputCount());
   for (int i = 0; i < count; i++) {
-    AppendInput(zone, InputAt(Max(InputCount() - count, 0)));
+    AppendInput(zone, InputAt(std::max(InputCount() - count, 0)));
   }
-  for (int i = InputCount() - count - 1; i >= Max(index, count); --i) {
+  for (int i = InputCount() - count - 1; i >= std::max(index, count); --i) {
     ReplaceInput(i, InputAt(i - count));
   }
   for (int i = 0; i < count; i++) {
@@ -293,6 +291,15 @@ int Node::UseCount() const {
   return use_count;
 }
 
+int Node::BranchUseCount() const {
+  int use_count = 0;
+  for (Use* use = first_use_; use; use = use->next) {
+    if (use->from()->opcode() == IrOpcode::kBranch) {
+      ++use_count;
+    }
+  }
+  return use_count;
+}
 
 void Node::ReplaceUses(Node* that) {
   DCHECK(this->first_use_ == nullptr || this->first_use_->prev == nullptr);
@@ -314,15 +321,12 @@ void Node::ReplaceUses(Node* that) {
 }
 
 bool Node::OwnedBy(Node const* owner) const {
-  unsigned mask = 0;
   for (Use* use = first_use_; use; use = use->next) {
-    if (use->from() == owner) {
-      mask |= 1;
-    } else {
+    if (use->from() != owner) {
       return false;
     }
   }
-  return mask == 1;
+  return first_use_ != nullptr;
 }
 
 bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
@@ -352,11 +356,11 @@ void PrintNode(const Node* node, std::ostream& os, int depth,
     os << "  ";
   }
   if (node) {
-    os << *node;
+    os << *node << std::endl;
   } else {
-    os << "(NULL)";
+    os << "(NULL)" << std::endl;
+    return;
   }
-  os << std::endl;
   if (depth <= 0) return;
   for (Node* input : node->inputs()) {
     PrintNode(input, os, depth - 1, indentation + 1);
@@ -392,14 +396,13 @@ Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
                  InlineCapacityField::encode(inline_capacity)),
       first_use_(nullptr) {
   // Check that the id didn't overflow.
-  STATIC_ASSERT(IdField::kMax < std::numeric_limits<NodeId>::max());
+  static_assert(IdField::kMax < std::numeric_limits<NodeId>::max());
   CHECK(IdField::is_valid(id));
 
   // Inputs must either be out of line or within the inline capacity.
   DCHECK(inline_count == kOutlineMarker || inline_count <= inline_capacity);
   DCHECK_LE(inline_capacity, kMaxInlineCapacity);
 }
-
 
 void Node::AppendUse(Use* use) {
   DCHECK(first_use_ == nullptr || first_use_->prev == nullptr);
@@ -499,3 +502,7 @@ bool Node::Uses::empty() const { return begin() == end(); }
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+V8_DEBUGGING_EXPORT extern void _v8_internal_Node_Print(void* object) {
+  reinterpret_cast<i::compiler::Node*>(object)->Print();
+}

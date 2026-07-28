@@ -5,7 +5,9 @@
 #ifndef V8_DIAGNOSTICS_UNWINDING_INFO_WIN64_H_
 #define V8_DIAGNOSTICS_UNWINDING_INFO_WIN64_H_
 
-#include "include/v8.h"
+#include <vector>
+
+#include "include/v8-callbacks.h"
 #include "include/v8config.h"
 #include "src/common/globals.h"
 

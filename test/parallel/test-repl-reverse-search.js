@@ -7,16 +7,20 @@ const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { inspect } = require('util');
 
-common.skipIfDumbTerminal();
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
+
+common.skipIfInspectorDisabled();
+
 common.allowGlobals('aaaa');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {
@@ -26,7 +30,9 @@ class ActionStream extends stream.Stream {
       const next = _iter.next();
       if (next.done) {
         // Close the repl. Note that it must have a clean prompt to do so.
-        this.emit('keypress', '', { ctrl: true, name: 'd' });
+        setImmediate(() => {
+          this.emit('keypress', '', { ctrl: true, name: 'd' });
+        });
         return;
       }
       const action = next.value;
@@ -34,7 +40,7 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', `${action}`);
+        this.emit('data', action);
       }
       setImmediate(doAction);
     };
@@ -71,7 +77,7 @@ const tests = [
       'ab = "aaaa"', ENTER,
       '555 - 909', ENTER,
       '{key : {key2 :[] }}', ENTER,
-      'Array(100).fill(1)', ENTER
+      'Array(100).fill(1)', ENTER,
     ],
     expected: [],
     clean: false
@@ -99,7 +105,7 @@ const tests = [
       SEARCH_BACKWARDS, // 15
       SEARCH_FORWARDS,
       ESCAPE,           // 17
-      ENTER
+      ENTER,
     ],
     // A = Cursor n up
     // B = Cursor n down
@@ -179,14 +185,13 @@ const tests = [
       '\x1B[1G', '\x1B[0J',
       prompt,
       '\x1B[3G',
-      '\r\n'
+      '\r\n',
     ],
     clean: false
   },
   {
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     showEscapeCodes: true,
-    skip: !process.features.inspector,
     checkTotal: true,
     useColors: false,
     test: [
@@ -207,14 +212,12 @@ const tests = [
       UP,                // 15
       DOWN,
       SEARCH_FORWARDS,   // 17
-      '\n'
+      '\n',
     ],
     expected: [
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
-      'f', 'u', ' // nction',
-      '\x1B[5G', '\x1B[0K',
-      '\nbck-i-search: _', '\x1B[1A', '\x1B[5G',
+      'f', 'u', '\nbck-i-search: _', '\x1B[1A', '\x1B[5G',
       '\x1B[3G', '\x1B[0J',
       '{key : {key2 :[] }}\nbck-i-search: }_', '\x1B[1A', '\x1B[21G',
       '\x1B[3G', '\x1B[0J',
@@ -240,8 +243,7 @@ const tests = [
       '2\n',
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
-      '2', '\n// 2', '\x1B[4G', '\x1B[1A',
-      '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '2',
       '\nbck-i-search: _', '\x1B[1A', '\x1B[4G',
       '\x1B[3G', '\x1B[0J',
       'Array(100).fill(1)\nbck-i-search: r_', '\x1B[1A', '\x1B[5G',
@@ -262,10 +264,10 @@ const tests = [
       '-1\n',
       '\x1B[1G', '\x1B[0J',
       prompt, '\x1B[3G',
-      '\r\n'
+      '\r\n',
     ],
     clean: false
-  }
+  },
 ];
 const numtests = tests.length;
 
@@ -286,13 +288,7 @@ function runTest() {
   const opts = tests.shift();
   if (!opts) return; // All done
 
-  const { expected, skip } = opts;
-
-  // Test unsupported on platform.
-  if (skip) {
-    setImmediate(runTestWrap, true);
-    return;
-  }
+  const { expected } = opts;
 
   const lastChunks = [];
   let i = 0;
@@ -300,7 +296,7 @@ function runTest() {
   REPL.createInternalRepl(opts.env, {
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
 
         if (!opts.showEscapeCodes &&
@@ -324,19 +320,21 @@ function runTest() {
         }
 
         next();
-      }
+      }),
     }),
     completer: opts.completer,
     prompt,
-    useColors: opts.useColors || false,
+    // Keep syntax highlighting out of the reverse-search transcript. Result
+    // colors are enabled below after readline has been initialized.
+    useColors: false,
     terminal: true
-  }, function(err, repl) {
+  }, common.mustCall((err, repl) => {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
-    repl.once('close', () => {
+    repl.once('close', common.mustCall(() => {
       if (opts.clean)
         cleanupTmpFile();
 
@@ -348,7 +346,12 @@ function runTest() {
       }
 
       setImmediate(runTestWrap, true);
-    });
+    }));
+
+    if (opts.useColors) {
+      repl.useColors = true;
+      repl.writer.options.colors = true;
+    }
 
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {
@@ -357,7 +360,7 @@ function runTest() {
       });
     }
     repl.inputStream.run(opts.test);
-  });
+  }));
 }
 
 // run the tests

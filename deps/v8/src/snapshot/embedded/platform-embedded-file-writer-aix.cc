@@ -4,6 +4,8 @@
 
 #include "src/snapshot/embedded/platform-embedded-file-writer-aix.h"
 
+#include "src/objects/instruction-stream.h"
+
 namespace v8 {
 namespace internal {
 
@@ -27,11 +29,7 @@ const char* DirectiveAsString(DataDirective directive) {
 }  // namespace
 
 void PlatformEmbeddedFileWriterAIX::SectionText() {
-  fprintf(fp_, ".csect .text[PR]\n");
-}
-
-void PlatformEmbeddedFileWriterAIX::SectionData() {
-  fprintf(fp_, ".csect .data[RW]\n");
+  fprintf(fp_, ".csect [GL], 6\n");
 }
 
 void PlatformEmbeddedFileWriterAIX::SectionRoData() {
@@ -48,14 +46,6 @@ void PlatformEmbeddedFileWriterAIX::DeclareUint32(const char* name,
   Newline();
 }
 
-void PlatformEmbeddedFileWriterAIX::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  AlignToCodeAlignment();
-  DeclareLabel(name);
-  fprintf(fp_, "  %s %s\n", DirectiveAsString(PointerSizeDirective()), target);
-  Newline();
-}
-
 void PlatformEmbeddedFileWriterAIX::DeclareSymbolGlobal(const char* name) {
   // These symbols are not visible outside of the final binary, this allows for
   // reduced binary size, and less work for the dynamic linker.
@@ -63,10 +53,11 @@ void PlatformEmbeddedFileWriterAIX::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToCodeAlignment() {
-  fprintf(fp_, ".align 5\n");
+  fprintf(fp_, ".align %d\n", kCodeAlignmentBits);
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToDataAlignment() {
+  static_assert((1 << 3) >= InstructionStream::kMetadataAlignment);
   fprintf(fp_, ".align 3\n");
 }
 

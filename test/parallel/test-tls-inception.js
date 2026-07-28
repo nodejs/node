@@ -59,8 +59,8 @@ const b = tls.createServer(options, function(socket) {
   socket.end(body);
 });
 
-a.listen(0, function() {
-  b.listen(0, function() {
+a.listen(0, common.mustCall(function() {
+  b.listen(0, common.mustCall(function() {
     const myOptions = {
       host: '127.0.0.1',
       port: a.address().port,
@@ -82,5 +82,5 @@ a.listen(0, function() {
       a.close();
       b.close();
     }));
-  });
-});
+  }));
+}));

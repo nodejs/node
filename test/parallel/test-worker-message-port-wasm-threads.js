@@ -1,10 +1,9 @@
-// Flags: --experimental-wasm-threads
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const { MessageChannel, Worker } = require('worker_threads');
 
-// Test that SharedArrayBuffer instances created from WASM are transferrable
+// Test that SharedArrayBuffer instances created from WASM are transferable
 // through MessageChannels (without crashing).
 
 const fixtures = require('../common/fixtures');

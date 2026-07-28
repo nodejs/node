@@ -1,1 +1,1 @@
-import secret from '../experimental.json';
+import secret from '../experimental.json' with { type: 'json' };

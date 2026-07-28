@@ -27,8 +27,14 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
-#endif /* NGHTTP2_SUBMIT_H */
+#include "nghttp2_outbound_item.h"
+
+int nghttp2_submit_data_shared(nghttp2_session *session, uint8_t flags,
+                               int32_t stream_id,
+                               const nghttp2_data_provider_wrap *dpw);
+
+#endif /* !defined(NGHTTP2_SUBMIT_H) */

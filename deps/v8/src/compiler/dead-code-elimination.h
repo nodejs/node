@@ -7,7 +7,6 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
-#include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -39,9 +38,11 @@ class CommonOperatorBuilder;
 class V8_EXPORT_PRIVATE DeadCodeElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  DeadCodeElimination(Editor* editor, Graph* graph,
+  DeadCodeElimination(Editor* editor, TFGraph* graph,
                       CommonOperatorBuilder* common, Zone* temp_zone);
   ~DeadCodeElimination() final = default;
+  DeadCodeElimination(const DeadCodeElimination&) = delete;
+  DeadCodeElimination& operator=(const DeadCodeElimination&) = delete;
 
   const char* reducer_name() const override { return "DeadCodeElimination"; }
 
@@ -68,16 +69,14 @@ class V8_EXPORT_PRIVATE DeadCodeElimination final
   Node* DeadValue(Node* none_node,
                   MachineRepresentation rep = MachineRepresentation::kNone);
 
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   CommonOperatorBuilder* common() const { return common_; }
   Node* dead() const { return dead_; }
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   CommonOperatorBuilder* const common_;
   Node* const dead_;
   Zone* zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(DeadCodeElimination);
 };
 
 }  // namespace compiler

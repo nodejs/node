@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 
@@ -32,8 +32,8 @@ client.send(
   message.length,
   41234,
   'localhost',
-  function(err, bytes) {
+  common.mustCall((err, bytes) => {
     assert.strictEqual(bytes, message.length);
     client.close();
-  }
+  }),
 );

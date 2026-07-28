@@ -6,7 +6,7 @@ const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
   method: ['property', 'string', 'variable', 'symbol'],
-  n: [1e9]
+  n: [1e9],
 });
 
 function runProperty(n) {

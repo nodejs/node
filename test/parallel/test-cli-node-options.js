@@ -6,14 +6,17 @@ if (process.config.variables.node_without_node_options)
 // Test options specified by env variable.
 
 const assert = require('assert');
+const path = require('path');
 const exec = require('child_process').execFile;
 const { Worker } = require('worker_threads');
 
+const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
+const { hasOpenSSL3 } = require('../common/crypto');
 tmpdir.refresh();
 
-const printA = require.resolve('../fixtures/printA.js');
-const printSpaceA = require.resolve('../fixtures/print A.js');
+const printA = path.relative(tmpdir.path, fixtures.path('printA.js'));
+const printSpaceA = path.relative(tmpdir.path, fixtures.path('print A.js'));
 
 expectNoWorker(` -r ${printA} `, 'A\nB\n');
 expectNoWorker(`-r ${printA}`, 'A\nB\n');
@@ -26,6 +29,7 @@ expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--no_warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
+expect('--no-extra-info-on-fatal-exception', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
 expect('--trace-sync-io', 'B\n');
@@ -61,15 +65,20 @@ if (common.isLinux) {
 if (common.hasCrypto) {
   expectNoWorker('--use-openssl-ca', 'B\n');
   expectNoWorker('--use-bundled-ca', 'B\n');
-  expectNoWorker('--openssl-config=_ossl_cfg', 'B\n');
+  if (!hasOpenSSL3)
+    expectNoWorker('--openssl-config=_ossl_cfg', 'B\n');
+  if (common.isMacOS) {
+    expect('--use-system-ca', 'B\n');
+  }
 }
 
 // V8 options
 expect('--abort_on-uncaught_exception', 'B\n');
 expect('--disallow-code-generation-from-strings', 'B\n');
-expect('--huge-max-old-generation-size', 'B\n');
+expect('--expose-gc', 'B\n');
 expect('--jitless', 'B\n');
 expect('--max-old-space-size=0', 'B\n');
+expect('--max-semi-space-size=0', 'B\n');
 expect('--stack-trace-limit=100',
        /(\s*at f \(\[(eval|worker eval)\]:1:\d*\)\r?\n)/,
        '(function f() { f(); })();',
@@ -89,7 +98,12 @@ function expectNoWorker(opt, want, command, wantsError) {
 function expect(
   opt, want, command = 'console.log("B")', wantsError = false, testWorker = true
 ) {
-  const argv = ['-e', command];
+  const argv = [
+    // --perf-basic-prof and --perf-basic-prof-only-functions write to /tmp by default.
+    `--perf-basic-prof-path=${tmpdir.path}`,
+    '-e',
+    command,
+  ];
   const opts = {
     cwd: tmpdir.path,
     env: Object.assign({}, process.env, { NODE_OPTIONS: opt }),
@@ -98,7 +112,7 @@ function expect(
   if (typeof want === 'string')
     want = new RegExp(want);
 
-  const test = (type) => common.mustCall((err, stdout) => {
+  const test = common.mustCallAtLeast((type) => common.mustCall((err, stdout) => {
     const o = JSON.stringify(opt);
     if (wantsError) {
       assert.ok(err, `${type}: expected error for ${o}`);
@@ -111,7 +125,7 @@ function expect(
     assert.fail(
       `${type}: for ${o}, failed to find ${want} in: <\n${stdout}\n>`
     );
-  });
+  }));
 
   exec(process.execPath, argv, opts, test('child process'));
   if (testWorker)
@@ -143,6 +157,6 @@ function workerTest(opts, command, wantsError, test) {
     assert.strictEqual(code, wantsError ? 1 : 0);
     collectStream(worker.stdout).then((stdout) => {
       test(workerError, stdout);
-    });
+    }).then(common.mustCall());
   }));
 }

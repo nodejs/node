@@ -23,7 +23,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { readKey } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const https = require('https');
@@ -31,8 +31,8 @@ const url = require('url');
 
 // https options
 const httpsOptions = {
-  key: readKey('agent1-key.pem'),
-  cert: readKey('agent1-cert.pem')
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 function check(request) {
@@ -48,7 +48,7 @@ const server = https.createServer(httpsOptions, function(request, response) {
   server.close();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const testURL = url.parse(`https://localhost:${this.address().port}`);
   testURL.rejectUnauthorized = false;
 
@@ -58,4 +58,4 @@ server.listen(0, function() {
   // make sure that the request uses the https.Agent
   assert.ok(clientRequest.agent instanceof https.Agent);
   clientRequest.end();
-});
+}));

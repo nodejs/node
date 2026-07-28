@@ -1,8 +1,9 @@
 {
   "name": "smart-buffer",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "smart-buffer is a Buffer wrapper that adds automatic read & write offset tracking, string operations, data insertions, and more.",
   "main": "build/smartbuffer.js",
+  "contributors": ["syvita"],
   "homepage": "https://github.com/JoshGlazebrook/smart-buffer/",
   "repository": {
     "type": "git",

@@ -354,3 +354,36 @@
     await test(one);
   })());
 })();
+
+// test thenable job
+(function() {
+  async function one(x) {
+    await two(x);
+  }
+
+  async function two(x) {
+    await x;
+    await { then() { throw new Error() } };
+  }
+
+  async function test(f) {
+    try {
+      await f(1);
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, Error);
+      assertMatches(/Error.+at Object\.then.+at async two.+at async one.+at async test/ms, e.stack);
+    }
+  }
+
+  assertPromiseResult((async () => {
+    %PrepareFunctionForOptimization(one);
+    %PrepareFunctionForOptimization(two);
+    await test(one);
+    await test(one);
+    %OptimizeFunctionOnNextCall(two);
+    await test(one);
+    %OptimizeFunctionOnNextCall(one);
+    await test(one);
+  })());
+})();

@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const { spawnSync } = require('child_process');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 // FIXME add sunos support
 if (common.isSunOS)
@@ -19,4 +19,4 @@ if (common.isWindows)
 
 const xs = 'x'.repeat(1024);
 const proc = spawnSync(process.execPath, ['-p', 'process.title', xs]);
-strictEqual(proc.stdout.toString().trim(), process.execPath);
+assert.strictEqual(proc.stdout.toString().trim(), process.execPath);

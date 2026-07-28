@@ -6,12 +6,18 @@
 #define V8_PROFILER_ALLOCATION_TRACKER_H_
 
 #include <map>
+#include <unordered_map>
 #include <vector>
 
+#include "include/v8-persistent-handle.h"
 #include "include/v8-profiler.h"
+#include "include/v8-unwinder.h"
 #include "src/base/hashmap.h"
-#include "src/utils/vector.h"
+#include "src/base/vector.h"
+#include "src/debug/debug-interface.h"
 #include "src/handles/handles.h"
+#include "src/objects/script.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -28,6 +34,8 @@ class AllocationTraceNode {
   AllocationTraceNode(AllocationTraceTree* tree,
                       unsigned function_info_index);
   ~AllocationTraceNode();
+  AllocationTraceNode(const AllocationTraceNode&) = delete;
+  AllocationTraceNode& operator=(const AllocationTraceNode&) = delete;
   AllocationTraceNode* FindChild(unsigned function_info_index);
   AllocationTraceNode* FindOrAddChild(unsigned function_info_index);
   void AddAllocation(unsigned size);
@@ -49,8 +57,6 @@ class AllocationTraceNode {
   unsigned allocation_count_;
   unsigned id_;
   std::vector<AllocationTraceNode*> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(AllocationTraceNode);
 };
 
 
@@ -58,7 +64,9 @@ class AllocationTraceTree {
  public:
   AllocationTraceTree();
   ~AllocationTraceTree() = default;
-  AllocationTraceNode* AddPathFromEnd(const Vector<unsigned>& path);
+  AllocationTraceTree(const AllocationTraceTree&) = delete;
+  AllocationTraceTree& operator=(const AllocationTraceTree&) = delete;
+  AllocationTraceNode* AddPathFromEnd(base::Vector<const unsigned> path);
   AllocationTraceNode* root() { return &root_; }
   unsigned next_node_id() { return next_node_id_++; }
   V8_EXPORT_PRIVATE void Print(AllocationTracker* tracker);
@@ -66,8 +74,6 @@ class AllocationTraceTree {
  private:
   unsigned next_node_id_;
   AllocationTraceNode root_;
-
-  DISALLOW_COPY_AND_ASSIGN(AllocationTraceTree);
 };
 
 class V8_EXPORT_PRIVATE AddressToTraceMap {
@@ -102,14 +108,16 @@ class AllocationTracker {
     SnapshotObjectId function_id;
     const char* script_name;
     int script_id;
+    int start_position;
     int line;
     int column;
   };
 
   AllocationTracker(HeapObjectsMap* ids, StringsStorage* names);
   ~AllocationTracker();
+  AllocationTracker(const AllocationTracker&) = delete;
+  AllocationTracker& operator=(const AllocationTracker&) = delete;
 
-  V8_EXPORT_PRIVATE void PrepareForSerialization();
   void AllocationEvent(Address addr, int size);
 
   AllocationTraceTree* trace_tree() { return &trace_tree_; }
@@ -119,22 +127,13 @@ class AllocationTracker {
   AddressToTraceMap* address_to_trace() { return &address_to_trace_; }
 
  private:
-  unsigned AddFunctionInfo(SharedFunctionInfo info, SnapshotObjectId id);
+  unsigned AddFunctionInfo(Tagged<SharedFunctionInfo> info, SnapshotObjectId id,
+                           Isolate* isolate);
+  String::LineEndsVector& GetOrCreateLineEnds(Tagged<Script> script,
+                                              Isolate* isolate);
+  Script::PositionInfo GetScriptPositionInfo(Tagged<Script> script,
+                                             Isolate* isolate, int start);
   unsigned functionInfoIndexForVMState(StateTag state);
-
-  class UnresolvedLocation {
-   public:
-    UnresolvedLocation(Script script, int start, FunctionInfo* info);
-    ~UnresolvedLocation();
-    void Resolve();
-
-   private:
-    static void HandleWeakScript(const v8::WeakCallbackInfo<void>& data);
-
-    Handle<Script> script_;
-    int start_position_;
-    FunctionInfo* info_;
-  };
 
   static const int kMaxAllocationTraceLength = 64;
   HeapObjectsMap* ids_;
@@ -143,11 +142,24 @@ class AllocationTracker {
   unsigned allocation_trace_buffer_[kMaxAllocationTraceLength];
   std::vector<FunctionInfo*> function_info_list_;
   base::HashMap id_to_function_info_index_;
-  std::vector<UnresolvedLocation*> unresolved_locations_;
   unsigned info_index_for_other_state_;
   AddressToTraceMap address_to_trace_;
+  using ScriptId = int;
+  class ScriptData {
+   public:
+    ScriptData(Tagged<Script>, Isolate*, AllocationTracker*);
+    ~ScriptData();
+    String::LineEndsVector& line_ends() { return line_ends_; }
 
-  DISALLOW_COPY_AND_ASSIGN(AllocationTracker);
+   private:
+    static void HandleWeakScript(const v8::WeakCallbackInfo<ScriptData>&);
+    Global<debug::Script> script_;
+    ScriptId script_id_;
+    String::LineEndsVector line_ends_;
+    AllocationTracker* tracker_;
+  };
+  using ScriptsDataMap = std::unordered_map<ScriptId, ScriptData>;
+  ScriptsDataMap scripts_data_map_;
 };
 
 }  // namespace internal

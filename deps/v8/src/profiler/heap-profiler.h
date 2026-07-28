@@ -13,6 +13,7 @@
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
 #include "src/heap/heap.h"
+#include "src/profiler/heap-snapshot-common.h"
 
 namespace v8 {
 namespace internal {
@@ -20,18 +21,57 @@ namespace internal {
 // Forward declarations.
 class AllocationTracker;
 class HeapObjectsMap;
+class HeapProfiler;
 class HeapSnapshot;
 class SamplingHeapProfiler;
 class StringsStorage;
 
+// A class which can notify the corresponding HeapProfiler when the embedder
+// heap moves its objects to different locations, so that heap snapshots can
+// generate consistent IDs for moved objects.
+class HeapProfilerNativeMoveListener {
+ public:
+  explicit HeapProfilerNativeMoveListener(HeapProfiler* profiler)
+      : profiler_(profiler) {}
+  HeapProfilerNativeMoveListener(const HeapProfilerNativeMoveListener& other) =
+      delete;
+  HeapProfilerNativeMoveListener& operator=(
+      const HeapProfilerNativeMoveListener& other) = delete;
+
+  // The subclass's destructor implementation should stop listening.
+  virtual ~HeapProfilerNativeMoveListener() = default;
+
+  // Functionality required in concrete subclass:
+  virtual void StartListening() = 0;
+  virtual void StopListening() = 0;
+
+ protected:
+  void ObjectMoveEvent(Address from, Address to, int size);
+
+ private:
+  HeapProfiler* profiler_;
+};
+
 class HeapProfiler : public HeapObjectAllocationTracker {
+  using HeapSnapshotMode = v8::HeapProfiler::HeapSnapshotMode;
+
  public:
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler() override;
+  HeapProfiler(const HeapProfiler&) = delete;
+  HeapProfiler& operator=(const HeapProfiler&) = delete;
 
-  HeapSnapshot* TakeSnapshot(v8::ActivityControl* control,
-                             v8::HeapProfiler::ObjectNameResolver* resolver,
-                             bool treat_global_objects_as_roots);
+  HeapSnapshot* TakeSnapshot(
+      const v8::HeapProfiler::HeapSnapshotOptions options);
+
+  // Implementation of --heap-snapshot-on-oom.
+  void WriteSnapshotToDiskAfterGC(
+      HeapSnapshotMode snapshot_mode = HeapSnapshotMode::kRegular);
+  // Just takes a snapshot performing GC as part of the snapshot.
+  void TakeSnapshotToFile(const v8::HeapProfiler::HeapSnapshotOptions options,
+                          std::string filename);
+  V8_EXPORT_PRIVATE std::string TakeSnapshotToString(
+      const v8::HeapProfiler::HeapSnapshotOptions options);
 
   bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
                                  v8::HeapProfiler::SamplingFlags);
@@ -52,12 +92,15 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   int GetSnapshotsCount() const;
   bool IsTakingSnapshot() const;
   HeapSnapshot* GetSnapshot(int index);
-  SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
+  SnapshotObjectId GetSnapshotObjectId(DirectHandle<Object> obj);
   SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
-  void ObjectMoveEvent(Address from, Address to, int size);
+  std::vector<v8::Local<v8::Value>> GetDetachedJSWrapperObjects();
+
+  void ObjectMoveEvent(Address from, Address to, int size,
+                       bool is_native_object);
 
   void AllocationEvent(Address addr, int size) override;
 
@@ -67,21 +110,50 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
   void RemoveBuildEmbedderGraphCallback(
       v8::HeapProfiler::BuildEmbedderGraphCallback callback, void* data);
-  void BuildEmbedderGraph(Isolate* isolate, v8::EmbedderGraph* graph);
+  void BuildEmbedderGraph(
+      Isolate* isolate, v8::EmbedderGraph* graph,
+      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
   bool HasBuildEmbedderGraphCallback() {
-    return !build_embedder_graph_callbacks_.empty();
+    return internal_build_embedder_graph_callback_.first != nullptr ||
+           !build_embedder_graph_callbacks_.empty();
   }
+
+  // Internal version of `v8::HeapProfiler::BuildEmbedderGraphCallback`, which
+  // additionally receives the set of `CppHeapExternalObject`s to link to
+  // embedder nodes.
+  typedef void (*InternalBuildEmbedderGraphCallback)(
+      v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data,
+      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
+  void SetInternalBuildEmbedderGraphCallback(
+      InternalBuildEmbedderGraphCallback callback, void* data);
+
+  void SetGetDetachednessCallback(
+      v8::HeapProfiler::GetDetachednessCallback callback, void* data);
+  bool HasGetDetachednessCallback() const {
+    return get_detachedness_callback_.first != nullptr;
+  }
+  v8::EmbedderGraph::Node::Detachedness GetDetachedness(
+      const v8::Local<v8::Value> v8_value, uint16_t class_id);
+
+  const char* CopyNameForHeapSnapshot(const char* name);
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
-  Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
+  DirectHandle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ClearHeapObjectMap();
 
   Isolate* isolate() const;
 
-  void QueryObjects(Handle<Context> context,
-                    debug::QueryObjectPredicate* predicate,
-                    v8::PersistentValueVector<v8::Object>* objects);
+  void QueryObjects(DirectHandle<Context> context,
+                    QueryObjectPredicate* predicate,
+                    std::vector<v8::Global<v8::Object>>* objects);
+  void set_native_move_listener(
+      std::unique_ptr<HeapProfilerNativeMoveListener> listener) {
+    native_move_listener_ = std::move(listener);
+    if (is_tracking_object_moves() && native_move_listener_) {
+      native_move_listener_->StartListening();
+    }
+  }
 
  private:
   void MaybeClearStringsStorage();
@@ -99,8 +171,11 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
   std::vector<std::pair<v8::HeapProfiler::BuildEmbedderGraphCallback, void*>>
       build_embedder_graph_callbacks_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
+  std::pair<InternalBuildEmbedderGraphCallback, void*>
+      internal_build_embedder_graph_callback_;
+  std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
+      get_detachedness_callback_;
+  std::unique_ptr<HeapProfilerNativeMoveListener> native_move_listener_;
 };
 
 }  // namespace internal

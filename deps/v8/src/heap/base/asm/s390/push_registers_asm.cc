@@ -13,23 +13,25 @@
 
 // S390 ABI source:
 // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html
-asm(".globl PushAllRegistersAndIterateStack             \n"
+asm(".text                                              \n"
+    ".align 8                                           \n"
+    ".globl PushAllRegistersAndIterateStack             \n"
     ".type PushAllRegistersAndIterateStack, %function   \n"
     ".hidden PushAllRegistersAndIterateStack            \n"
     "PushAllRegistersAndIterateStack:                   \n"
     // Push all callee-saved registers.
     // r6-r13, r14 and sp(r15)
-    "  stmg %r6, %sp, 48(%sp)                           \n"
+    "  stmg %r6, %r15, 48(%r15)                         \n"
     // Allocate frame.
-    "  lay %sp, -160(%sp)                               \n"
+    "  lay %r15, -160(%r15)                             \n"
     // Pass 1st parameter (r2) unchanged (Stack*).
     // Pass 2nd parameter (r3) unchanged (StackVisitor*).
     // Save 3rd parameter (r4; IterateStackCallback).
     "  lgr %r5, %r4                                     \n"
     // Pass sp as 3rd parameter. 160+48 to point
     // to callee saved region stored above.
-    "  lay %r4, 208(%sp)                                \n"
+    "  lay %r4, 208(%r15)                               \n"
     // Call the callback.
     "  basr %r14, %r5                                   \n"
-    "  lmg %r14,%sp, 272(%sp)                           \n"
+    "  lmg %r14,%r15, 272(%r15)                         \n"
     "  br %r14                                          \n");

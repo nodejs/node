@@ -5,12 +5,11 @@
 #ifndef V8_COMPILER_SCHEDULER_H_
 #define V8_COMPILER_SCHEDULER_H_
 
+#include <optional>
+
 #include "src/base/flags.h"
-#include "src/common/globals.h"
 #include "src/compiler/node.h"
-#include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/zone-stats.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -24,7 +23,7 @@ namespace compiler {
 // Forward declarations.
 class CFGBuilder;
 class ControlEquivalence;
-class Graph;
+class TFGraph;
 class SpecialRPONumberer;
 
 // Computes a schedule from a graph, placing nodes into basic blocks and
@@ -37,7 +36,7 @@ class V8_EXPORT_PRIVATE Scheduler {
 
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.
-  static Schedule* ComputeSchedule(Zone* temp_zone, Graph* graph, Flags flags,
+  static Schedule* ComputeSchedule(Zone* temp_zone, TFGraph* graph, Flags flags,
                                    TickCounter* tick_counter,
                                    const ProfileDataFromFile* profile_data);
 
@@ -68,6 +67,9 @@ class V8_EXPORT_PRIVATE Scheduler {
   // reachable from the end.
   enum Placement { kUnknown, kSchedulable, kFixed, kCoupled, kScheduled };
 
+  // Implements a two-dimensional map: (int, int) -> BasicBlock*.
+  using CommonDominatorCache = ZoneMap<int, ZoneMap<int, BasicBlock*>*>;
+
   // Per-node data tracked during scheduling.
   struct SchedulerData {
     BasicBlock* minimum_block_;  // Minimum legal RPO placement.
@@ -77,7 +79,7 @@ class V8_EXPORT_PRIVATE Scheduler {
   };
 
   Zone* zone_;
-  Graph* graph_;
+  TFGraph* graph_;
   Schedule* schedule_;
   Flags flags_;
   ZoneVector<NodeVector*>
@@ -90,8 +92,9 @@ class V8_EXPORT_PRIVATE Scheduler {
   ControlEquivalence* equivalence_;      // Control dependence equivalence.
   TickCounter* const tick_counter_;
   const ProfileDataFromFile* profile_data_;
+  CommonDominatorCache common_dominator_cache_;
 
-  Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
+  Scheduler(Zone* zone, TFGraph* graph, Schedule* schedule, Flags flags,
             size_t node_count_hint_, TickCounter* tick_counter,
             const ProfileDataFromFile* profile_data);
 
@@ -103,11 +106,19 @@ class V8_EXPORT_PRIVATE Scheduler {
   void UpdatePlacement(Node* node, Placement placement);
   bool IsLive(Node* node);
 
-  inline bool IsCoupledControlEdge(Node* node, int index);
-  void IncrementUnscheduledUseCount(Node* node, int index, Node* from);
-  void DecrementUnscheduledUseCount(Node* node, int index, Node* from);
+  // If the node is coupled, returns the coupled control edge index.
+  inline std::optional<int> GetCoupledControlEdge(Node* node);
+  void IncrementUnscheduledUseCount(Node* node, Node* from);
+  void DecrementUnscheduledUseCount(Node* node, Node* from);
 
   static void PropagateImmediateDominators(BasicBlock* block);
+
+  // Uses {common_dominator_cache_} to speed up repeated calls.
+  BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
+  // Returns the common dominator of {b1} and {b2} if it can be found in
+  // {common_dominator_cache_}, or nullptr otherwise.
+  // Not meant to be called directly, only from {GetCommonDominator}.
+  BasicBlock* GetCommonDominatorIfCached(BasicBlock* b1, BasicBlock* b2);
 
   // Phase 1: Build control-flow graph.
   friend class CFGBuilder;

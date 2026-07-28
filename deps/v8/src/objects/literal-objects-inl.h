@@ -6,136 +6,213 @@
 #define V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 
 #include "src/objects/literal-objects.h"
+// Include the non-inl header before the rest of the headers.
+
+#include <optional>
 
 #include "src/objects/objects-inl.h"
+#include "src/objects/trusted-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+#include "torque-generated/src/objects/literal-objects-tq-inl.inc"
 
 //
 // ObjectBoilerplateDescription
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription, FixedArray)
+// static
+template <class IsolateT>
+Handle<ObjectBoilerplateDescription> ObjectBoilerplateDescription::New(
+    IsolateT* isolate, int boilerplate, int all_properties, int index_keys,
+    bool has_seen_proto, AllocationType allocation) {
+  DCHECK_GE(boilerplate, 0);
+  DCHECK_GE(all_properties, index_keys);
+  DCHECK_GE(index_keys, 0);
 
-CAST_ACCESSOR(ObjectBoilerplateDescription)
+  int capacity = boilerplate * kElementsPerEntry;
+  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
 
-SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
-              FixedArray::OffsetOfElementAt(kLiteralTypeOffset))
+  int backing_store_size =
+      all_properties - index_keys - (has_seen_proto ? 1 : 0);
+  DCHECK_GE(backing_store_size, 0);
 
-Object ObjectBoilerplateDescription::name(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return name(isolate, index);
-}
+  // Note we explicitly do NOT canonicalize to the
+  // empty_object_boilerplate_description here since `flags` may be modified
+  // even on empty descriptions.
 
-Object ObjectBoilerplateDescription::name(const Isolate* isolate,
-                                          int index) const {
-  // get() already checks for out of bounds access, but we do not want to allow
-  // access to the last element, if it is the number of properties.
-  DCHECK_NE(size(), index);
-  return get(isolate, 2 * index + kDescriptionStartIndex);
-}
-
-Object ObjectBoilerplateDescription::value(int index) const {
-  const Isolate* isolate = GetIsolateForPtrCompr(*this);
-  return value(isolate, index);
-}
-
-Object ObjectBoilerplateDescription::value(const Isolate* isolate,
-                                           int index) const {
-  return get(isolate, 2 * index + 1 + kDescriptionStartIndex);
-}
-
-void ObjectBoilerplateDescription::set_key_value(int index, Object key,
-                                                 Object value) {
-  DCHECK_LT(index, size());
-  DCHECK_GE(index, 0);
-  set(2 * index + kDescriptionStartIndex, key);
-  set(2 * index + 1 + kDescriptionStartIndex, value);
-}
-
-int ObjectBoilerplateDescription::size() const {
-  DCHECK_EQ(0, (length() - kDescriptionStartIndex -
-                (this->has_number_of_properties() ? 1 : 0)) %
-                   2);
-  // Rounding is intended.
-  return (length() - kDescriptionStartIndex) / 2;
-}
-
-bool ObjectBoilerplateDescription::has_number_of_properties() const {
-  return (length() - kDescriptionStartIndex) % 2 != 0;
+  std::optional<DisallowGarbageCollection> no_gc;
+  auto result = Cast<ObjectBoilerplateDescription>(
+      Allocate(isolate, capacity, &no_gc, allocation));
+  result->set_flags(0);
+  result->set_backing_store_size(backing_store_size);
+  MemsetTagged((*result)->RawFieldOfFirstElement(),
+               ReadOnlyRoots{isolate}.undefined_value(), capacity);
+  return result;
 }
 
 int ObjectBoilerplateDescription::backing_store_size() const {
-  if (has_number_of_properties()) {
-    // If present, the last entry contains the number of properties.
-    return Smi::ToInt(this->get(length() - 1));
-  }
-  // If the number is not given explicitly, we assume there are no
-  // properties with computed names.
-  return size();
+  return backing_store_size_.load().value();
+}
+void ObjectBoilerplateDescription::set_backing_store_size(int value) {
+  backing_store_size_.store(this, Smi::FromInt(value));
+}
+int ObjectBoilerplateDescription::flags() const {
+  return flags_.load().value();
+}
+void ObjectBoilerplateDescription::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
 }
 
-void ObjectBoilerplateDescription::set_backing_store_size(
-    int backing_store_size) {
-  DCHECK(has_number_of_properties());
-  DCHECK_NE(size(), backing_store_size);
-  CHECK(Smi::IsValid(backing_store_size));
-  // TODO(ishell): move this value to the header
-  set(length() - 1, Smi::FromInt(backing_store_size));
+Tagged<Object> ObjectBoilerplateDescription::name(int index) const {
+  return get(NameIndex(index));
+}
+
+Tagged<Object> ObjectBoilerplateDescription::value(int index) const {
+  return get(ValueIndex(index));
+}
+
+void ObjectBoilerplateDescription::set_key_value(int index, Tagged<Object> key,
+                                                 Tagged<Object> value) {
+  DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
+  set(NameIndex(index), key);
+  set(ValueIndex(index), value);
+}
+
+void ObjectBoilerplateDescription::set_value(int index, Tagged<Object> value) {
+  DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
+  set(ValueIndex(index), value);
+}
+
+int ObjectBoilerplateDescription::boilerplate_properties_count() const {
+  DCHECK_EQ(0, capacity() % kElementsPerEntry);
+  return capacity() / kElementsPerEntry;
 }
 
 //
 // ClassBoilerplate
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
-CAST_ACCESSOR(ClassBoilerplate)
+int ClassBoilerplate::arguments_count() const {
+  return arguments_count_.load().value();
+}
+void ClassBoilerplate::set_arguments_count(int value) {
+  arguments_count_.store(this, Smi::FromInt(value));
+}
 
-SMI_ACCESSORS(ClassBoilerplate, arguments_count,
-              FixedArray::OffsetOfElementAt(kArgumentsCountIndex))
+Tagged<Object> ClassBoilerplate::static_properties_template() const {
+  return static_properties_template_.load();
+}
+void ClassBoilerplate::set_static_properties_template(Tagged<Object> value,
+                                                      WriteBarrierMode mode) {
+  static_properties_template_.store(this, value, mode);
+}
 
-ACCESSORS(ClassBoilerplate, static_properties_template, Object,
-          FixedArray::OffsetOfElementAt(kClassPropertiesTemplateIndex))
+Tagged<Object> ClassBoilerplate::static_elements_template() const {
+  return static_elements_template_.load();
+}
+void ClassBoilerplate::set_static_elements_template(Tagged<Object> value,
+                                                    WriteBarrierMode mode) {
+  static_elements_template_.store(this, value, mode);
+}
 
-ACCESSORS(ClassBoilerplate, static_elements_template, Object,
-          FixedArray::OffsetOfElementAt(kClassElementsTemplateIndex))
+Tagged<FixedArray> ClassBoilerplate::static_computed_properties() const {
+  return static_computed_properties_.load();
+}
+void ClassBoilerplate::set_static_computed_properties(Tagged<FixedArray> value,
+                                                      WriteBarrierMode mode) {
+  static_computed_properties_.store(this, value, mode);
+}
 
-ACCESSORS(ClassBoilerplate, static_computed_properties, FixedArray,
-          FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex))
+Tagged<Object> ClassBoilerplate::instance_properties_template() const {
+  return instance_properties_template_.load();
+}
+void ClassBoilerplate::set_instance_properties_template(Tagged<Object> value,
+                                                        WriteBarrierMode mode) {
+  instance_properties_template_.store(this, value, mode);
+}
 
-ACCESSORS(ClassBoilerplate, instance_properties_template, Object,
-          FixedArray::OffsetOfElementAt(kPrototypePropertiesTemplateIndex))
+Tagged<Object> ClassBoilerplate::instance_elements_template() const {
+  return instance_elements_template_.load();
+}
+void ClassBoilerplate::set_instance_elements_template(Tagged<Object> value,
+                                                      WriteBarrierMode mode) {
+  instance_elements_template_.store(this, value, mode);
+}
 
-ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
-          FixedArray::OffsetOfElementAt(kPrototypeElementsTemplateIndex))
-
-ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
-          FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex))
+Tagged<FixedArray> ClassBoilerplate::instance_computed_properties() const {
+  return instance_computed_properties_.load();
+}
+void ClassBoilerplate::set_instance_computed_properties(
+    Tagged<FixedArray> value, WriteBarrierMode mode) {
+  instance_computed_properties_.store(this, value, mode);
+}
 
 //
 // ArrayBoilerplateDescription
 //
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription)
+Tagged<Smi> ArrayBoilerplateDescription::flags() const { return flags_.load(); }
+void ArrayBoilerplateDescription::set_flags(Tagged<Smi> value,
+                                            WriteBarrierMode mode) {
+  flags_.store(this, value, mode);
+}
+
+Tagged<FixedArrayBase> ArrayBoilerplateDescription::constant_elements() const {
+  return constant_elements_.load();
+}
+void ArrayBoilerplateDescription::set_constant_elements(
+    Tagged<FixedArrayBase> value, WriteBarrierMode mode) {
+  constant_elements_.store(this, value, mode);
+}
 
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
-  return static_cast<ElementsKind>(flags());
+  return static_cast<ElementsKind>(flags().value());
 }
 
 void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
-  set_flags(kind);
+  set_flags(Smi::FromInt(kind));
 }
 
 bool ArrayBoilerplateDescription::is_empty() const {
-  return constant_elements().length() == 0;
+  return constant_elements()->length() == 0;
 }
 
-}  // namespace internal
-}  // namespace v8
+//
+// RegExpBoilerplateDescription
+//
+
+Tagged<RegExpData> RegExpBoilerplateDescription::data(
+    IsolateForSandbox isolate) const {
+  return data_.load(isolate);
+}
+
+void RegExpBoilerplateDescription::set_data(Tagged<RegExpData> value,
+                                            WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+Tagged<String> RegExpBoilerplateDescription::source() const {
+  return source_.load();
+}
+void RegExpBoilerplateDescription::set_source(Tagged<String> value,
+                                              WriteBarrierMode mode) {
+  source_.store(this, value, mode);
+}
+
+int RegExpBoilerplateDescription::flags() const {
+  return flags_.load().value();
+}
+void RegExpBoilerplateDescription::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
+
+TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeSharedClosureInfo)
+
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

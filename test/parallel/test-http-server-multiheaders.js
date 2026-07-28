@@ -24,11 +24,11 @@
 // of the same header as per RFC2616: joining the handful of fields by ', '
 // that support it, and dropping duplicates for other fields.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCall((req, res) => {
   assert.strictEqual(req.headers.accept, 'abc, def, ghijklmnopqrst');
   assert.strictEqual(req.headers.host, 'foo');
   assert.strictEqual(req.headers['www-authenticate'], 'foo, bar, baz');
@@ -44,7 +44,7 @@ const server = http.createServer(function(req, res) {
   res.end('EOF');
 
   server.close();
-});
+}));
 
 server.listen(0, function() {
   http.get({

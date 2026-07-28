@@ -42,7 +42,7 @@ function FakeStream() {
   this.readable = true;
 }
 
-FakeStream.prototype = Object.create(Stream.prototype);
+FakeStream.prototype = { __proto__: Stream.prototype };
 
 FakeStream.prototype.write = function(chunk) {
   console.error(this.ID, 'write', this.wait);

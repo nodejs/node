@@ -25,7 +25,7 @@ U_NAMESPACE_BEGIN
 
 /* Can't use #ifndef U_HIDE_INTERNAL_API for the entire EnumSet class, needed in .h file declarations */
 /**
- * enum bitset for boolean fields. Similar to Java EnumSet<>.
+ * enum bitset for boolean fields. Similar to Java EnumSet<>. 
  * Needs to range check. Used for private instance variables.
  * @internal
  * \cond
@@ -49,9 +49,9 @@ public:
         fBools = other.fBools;
         return *this;
     }
-
+  
     inline uint32_t getAll() const {
-        return fBools;
+        return fBools; 
     }
 #endif /* U_HIDE_INTERNAL_API */
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-dynamic-import
+// Flags: --allow-natives-syntax
 // Resources: test/mjsunit/regress/modules-skip-regress-797581-1.js
 // Resources: test/mjsunit/regress/modules-skip-regress-797581-2.js
 // Resources: test/mjsunit/regress/modules-skip-regress-797581-3.js

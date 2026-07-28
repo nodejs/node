@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,8 @@
 #define THIRD_PARTY_ZLIB_GOOGLE_ZIP_INTERNAL_H_
 
 #include <string>
+
+#include <stdint.h>
 
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -35,7 +37,7 @@ namespace internal {
 // Windows.
 unzFile OpenForUnzipping(const std::string& file_name_utf8);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Opens the file referred to by |zip_fd| for unzipping.
 unzFile OpenFdForUnzipping(int zip_fd);
 #endif
@@ -54,19 +56,35 @@ unzFile PrepareMemoryForUnzipping(const std::string& data);
 // Windows. |append_flag| will be passed to zipOpen2().
 zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) || defined(OS_FUCHSIA)
 // Opens the file referred to by |zip_fd| for zipping. |append_flag| will be
 // passed to zipOpen2().
 zipFile OpenFdForZipping(int zip_fd, int append_flag);
 #endif
 
-// Wrapper around zipOpenNewFileInZip4 which passes most common options.
+// Compression methods.
+enum Compression {
+  kStored = 0,             // Stored (no compression)
+  kDeflated = Z_DEFLATED,  // Deflated
+};
+
+// Adds a file (or directory) entry to the ZIP archive.
 bool ZipOpenNewFileInZip(zipFile zip_file,
                          const std::string& str_path,
-                         base::Time last_modified_time);
+                         base::Time last_modified_time,
+                         Compression compression);
 
-const int kZipMaxPath = 256;
-const int kZipBufSize = 8192;
+// Selects the best compression method for the given file. The heuristic is
+// based on the filename extension. By default, the compression method is
+// kDeflated. But if the given path has an extension indicating a well known
+// file format which is likely to be already compressed (eg ZIP, RAR, JPG,
+// PNG...) then the compression method is simply kStored.
+Compression GetCompressionMethod(const base::FilePath& path);
+
+// ZIP file names are up to 2^16 - 1, buffers should be 1 larger (for \0).
+inline constexpr int kZipMaxPath = UINT16_MAX + 1;
+
+inline constexpr int kZipBufSize = 8192;
 
 }  // namespace internal
 }  // namespace zip

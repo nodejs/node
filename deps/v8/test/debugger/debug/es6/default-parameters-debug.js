@@ -19,13 +19,13 @@ function listener(event, exec_state, event_data, data) {
       // Break point in initializer for parameter `a`, invoked by
       // initializer for parameter `b`
       assertEquals('default', exec_state.frame(0).evaluate('mode').value());
-      assertTrue(exec_state.frame(1).evaluate('b').isUndefined());
-      assertTrue(exec_state.frame(1).evaluate('c').isUndefined());
+      assertThrows(() => exec_state.frame(1).evaluate('b'));
+      assertThrows(() => exec_state.frame(1).evaluate('c'));
     } else if (breakPointCount == 2) {
       // Break point in IIFE initializer for parameter `c`
       assertEquals('modeFn', exec_state.frame(1).evaluate('a.name').value());
       assertEquals('default', exec_state.frame(1).evaluate('b').value());
-      assertTrue(exec_state.frame(1).evaluate('c').isUndefined());
+      assertThrows(() => exec_state.frame(1).evaluate('c'));
     } else if (breakPointCount == 3) {
       // Break point in function body --- `c` parameter is shadowed
       assertEquals('modeFn', exec_state.frame(0).evaluate('a.name').value());

@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * RC4 low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/rc4.h>
 #include "rc4_local.h"
@@ -39,12 +45,15 @@ void RC4_set_key(RC4_KEY *key, int len, const unsigned char *data)
     key->y = 0;
     id1 = id2 = 0;
 
-#define SK_LOOP(d,n) { \
-                tmp=d[(n)]; \
-                id2 = (data[id1] + tmp + id2) & 0xff; \
-                if (++id1 == len) id1=0; \
-                d[(n)]=d[id2]; \
-                d[id2]=tmp; }
+#define SK_LOOP(d, n)                         \
+    {                                         \
+        tmp = d[(n)];                         \
+        id2 = (data[id1] + tmp + id2) & 0xff; \
+        if (++id1 == len)                     \
+            id1 = 0;                          \
+        d[(n)] = d[id2];                      \
+        d[id2] = tmp;                         \
+    }
 
     for (i = 0; i < 256; i++)
         d[i] = i;

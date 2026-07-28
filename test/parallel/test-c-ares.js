@@ -29,9 +29,9 @@ const dnsPromises = dns.promises;
 (async function() {
   let res;
 
-  res = await dnsPromises.lookup(null);
-  assert.strictEqual(res.address, null);
-  assert.strictEqual(res.family, 4);
+  await assert.rejects(dnsPromises.lookup(null), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
 
   res = await dnsPromises.lookup('127.0.0.1');
   assert.strictEqual(res.address, '127.0.0.1');
@@ -43,10 +43,9 @@ const dnsPromises = dns.promises;
 })().then(common.mustCall());
 
 // Try resolution without hostname.
-dns.lookup(null, common.mustSucceed((result, addressType) => {
-  assert.strictEqual(result, null);
-  assert.strictEqual(addressType, 4);
-}));
+assert.throws(() => dns.lookup(null, common.mustNotCall()), {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
 dns.lookup('127.0.0.1', common.mustSucceed((result, addressType) => {
   assert.strictEqual(result, '127.0.0.1');
@@ -77,17 +76,3 @@ dns.lookup('::1', common.mustSucceed((result, addressType) => {
 
   assert.throws(() => dnsPromises.resolve('www.google.com', val), err);
 });
-
-// Windows doesn't usually have an entry for localhost 127.0.0.1 in
-// C:\Windows\System32\drivers\etc\hosts
-// so we disable this test on Windows.
-// IBMi reports `ENOTFOUND` when get hostname by address 127.0.0.1
-if (!common.isWindows && !common.isIBMi) {
-  dns.reverse('127.0.0.1', common.mustSucceed((domains) => {
-    assert.ok(Array.isArray(domains));
-  }));
-
-  (async function() {
-    assert.ok(Array.isArray(await dnsPromises.reverse('127.0.0.1')));
-  })().then(common.mustCall());
-}

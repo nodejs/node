@@ -11,8 +11,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/handles/handles-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 
 using testing::_;
 using testing::MakeMatcher;
@@ -23,7 +21,8 @@ using testing::StringMatchResultListener;
 namespace v8 {
 namespace internal {
 
-bool operator==(Handle<HeapObject> const& lhs, Handle<HeapObject> const& rhs) {
+bool operator==(DirectHandle<HeapObject> const& lhs,
+                DirectHandle<HeapObject> const& rhs) {
   return lhs.is_identical_to(rhs);
 }
 
@@ -100,6 +99,36 @@ class IsBranchMatcher final : public TestNodeMatcher {
  private:
   const Matcher<Node*> value_matcher_;
   const Matcher<Node*> control_matcher_;
+};
+
+class IsLoopExitValueMatcher final : public TestNodeMatcher {
+ public:
+  IsLoopExitValueMatcher(const Matcher<MachineRepresentation>& rep_matcher,
+                         const Matcher<Node*>& value_matcher)
+      : TestNodeMatcher(IrOpcode::kLoopExitValue),
+        rep_matcher_(rep_matcher),
+        value_matcher_(value_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    TestNodeMatcher::DescribeTo(os);
+    *os << ") whose rep (";
+    rep_matcher_.DescribeTo(os);
+    *os << " and value (";
+    value_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (TestNodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(LoopExitValueRepresentationOf(node->op()),
+                                 "representation", rep_matcher_, listener)) &&
+           PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "value",
+                                value_matcher_, listener);
+  }
+
+ private:
+  const Matcher<MachineRepresentation> rep_matcher_;
+  const Matcher<Node*> value_matcher_;
 };
 
 class IsSwitchMatcher final : public TestNodeMatcher {
@@ -447,6 +476,29 @@ class IsConstantMatcher final : public TestNodeMatcher {
 
  private:
   const Matcher<T> value_matcher_;
+};
+
+class IsFloat64ConstantMatcher final : public TestNodeMatcher {
+ public:
+  IsFloat64ConstantMatcher(IrOpcode::Value opcode,
+                           const Matcher<double>& value_matcher)
+      : TestNodeMatcher(opcode), value_matcher_(value_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    TestNodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    value_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (TestNodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<Float64>(node->op()).get_scalar(),
+                                 "value", value_matcher_, listener));
+  }
+
+ private:
+  const Matcher<double> value_matcher_;
 };
 
 class IsSelectMatcher final : public TestNodeMatcher {
@@ -1120,13 +1172,49 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
 
 LOAD_MATCHER(Load)
 LOAD_MATCHER(UnalignedLoad)
-LOAD_MATCHER(PoisonedLoad)
 LOAD_MATCHER(LoadFromObject)
 
-#define STORE_MATCHER(kStore)                                                 \
+class IsLoadImmutableMatcher final : public TestNodeMatcher {
+ public:
+  IsLoadImmutableMatcher(const Matcher<LoadRepresentation>& rep_matcher,
+                         const Matcher<Node*>& base_matcher,
+                         const Matcher<Node*>& index_matcher)
+      : TestNodeMatcher(IrOpcode::kLoadImmutable),
+        rep_matcher_(rep_matcher),
+        base_matcher_(base_matcher),
+        index_matcher_(index_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    TestNodeMatcher::DescribeTo(os);
+    *os << " whose rep (";
+    rep_matcher_.DescribeTo(os);
+    *os << "), base (";
+    base_matcher_.DescribeTo(os);
+    *os << ") and index (";
+    index_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    LoadRepresentation rep = LoadRepresentationOf(node->op());
+    return TestNodeMatcher::MatchAndExplain(node, listener) &&
+           PrintMatchAndExplain(rep, "rep", rep_matcher_, listener) &&
+           PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
+                                base_matcher_, listener) &&
+           PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "index",
+                                index_matcher_, listener);
+  }
+
+ private:
+  const Matcher<LoadRepresentation> rep_matcher_;
+  const Matcher<Node*> base_matcher_;
+  const Matcher<Node*> index_matcher_;
+};
+
+#define STORE_MATCHER(kStore, representation)                                 \
   class Is##kStore##Matcher final : public TestNodeMatcher {                  \
    public:                                                                    \
-    Is##kStore##Matcher(const Matcher<kStore##Representation>& rep_matcher,   \
+    Is##kStore##Matcher(const Matcher<representation>& rep_matcher,           \
                         const Matcher<Node*>& base_matcher,                   \
                         const Matcher<Node*>& index_matcher,                  \
                         const Matcher<Node*>& value_matcher,                  \
@@ -1168,9 +1256,8 @@ LOAD_MATCHER(LoadFromObject)
         control_node = NodeProperties::GetControlInput(node);                 \
       }                                                                       \
       return (TestNodeMatcher::MatchAndExplain(node, listener) &&             \
-              PrintMatchAndExplain(                                           \
-                  OpParameter<kStore##Representation>(node->op()), "rep",     \
-                  rep_matcher_, listener) &&                                  \
+              PrintMatchAndExplain(OpParameter<representation>(node->op()),   \
+                                   "rep", rep_matcher_, listener) &&          \
               PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),    \
                                    "base", base_matcher_, listener) &&        \
               PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),    \
@@ -1184,7 +1271,7 @@ LOAD_MATCHER(LoadFromObject)
     }                                                                         \
                                                                               \
    private:                                                                   \
-    const Matcher<kStore##Representation> rep_matcher_;                       \
+    const Matcher<representation> rep_matcher_;                               \
     const Matcher<Node*> base_matcher_;                                       \
     const Matcher<Node*> index_matcher_;                                      \
     const Matcher<Node*> value_matcher_;                                      \
@@ -1192,8 +1279,9 @@ LOAD_MATCHER(LoadFromObject)
     const Matcher<Node*> control_matcher_;                                    \
   };
 
-STORE_MATCHER(Store)
-STORE_MATCHER(UnalignedStore)
+STORE_MATCHER(Store, StoreRepresentation)
+STORE_MATCHER(UnalignedStore, UnalignedStoreRepresentation)
+STORE_MATCHER(StoreToObject, ObjectAccess)
 
 class IsStackSlotMatcher final : public TestNodeMatcher {
  public:
@@ -1262,11 +1350,11 @@ class IsToNumberMatcher final : public TestNodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
-class IsLoadContextMatcher final : public TestNodeMatcher {
+class IsLoadContextNoCellMatcher final : public TestNodeMatcher {
  public:
-  IsLoadContextMatcher(const Matcher<ContextAccess>& access_matcher,
-                       const Matcher<Node*>& context_matcher)
-      : TestNodeMatcher(IrOpcode::kJSLoadContext),
+  IsLoadContextNoCellMatcher(const Matcher<ContextAccess>& access_matcher,
+                             const Matcher<Node*>& context_matcher)
+      : TestNodeMatcher(IrOpcode::kJSLoadContextNoCell),
         access_matcher_(access_matcher),
         context_matcher_(context_matcher) {}
 
@@ -1556,6 +1644,10 @@ Matcher<Node*> IsLoop(const Matcher<Node*>& control0_matcher,
                                            control1_matcher, control2_matcher));
 }
 
+Matcher<Node*> IsLoopExitValue(const Matcher<MachineRepresentation> rep_matcher,
+                               const Matcher<Node*>& value_matcher) {
+  return MakeMatcher(new IsLoopExitValueMatcher(rep_matcher, value_matcher));
+}
 
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsControl1Matcher(IrOpcode::kIfTrue, control_matcher));
@@ -1660,7 +1752,7 @@ Matcher<Node*> IsFloat32Constant(const Matcher<float>& value_matcher) {
 
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher) {
   return MakeMatcher(
-      new IsConstantMatcher<double>(IrOpcode::kFloat64Constant, value_matcher));
+      new IsFloat64ConstantMatcher(IrOpcode::kFloat64Constant, value_matcher));
 }
 
 
@@ -2032,16 +2124,6 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                        effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsPoisonedLoad(const Matcher<LoadRepresentation>& rep_matcher,
-                              const Matcher<Node*>& base_matcher,
-                              const Matcher<Node*>& index_matcher,
-                              const Matcher<Node*>& effect_matcher,
-                              const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsPoisonedLoadMatcher(rep_matcher, base_matcher,
-                                               index_matcher, effect_matcher,
-                                               control_matcher));
-}
-
 Matcher<Node*> IsUnalignedLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                const Matcher<Node*>& base_matcher,
                                const Matcher<Node*>& index_matcher,
@@ -2060,6 +2142,13 @@ Matcher<Node*> IsLoadFromObject(const Matcher<LoadRepresentation>& rep_matcher,
   return MakeMatcher(new IsLoadFromObjectMatcher(rep_matcher, base_matcher,
                                                  index_matcher, effect_matcher,
                                                  control_matcher));
+}
+
+Matcher<Node*> IsLoadImmutable(const Matcher<LoadRepresentation>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher) {
+  return MakeMatcher(
+      new IsLoadImmutableMatcher(rep_matcher, base_matcher, index_matcher));
 }
 
 Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
@@ -2083,6 +2172,17 @@ Matcher<Node*> IsUnalignedStore(
       control_matcher));
 }
 
+Matcher<Node*> IsStoreToObject(const Matcher<ObjectAccess>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher,
+                               const Matcher<Node*>& value_matcher,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsStoreToObjectMatcher(
+      rep_matcher, base_matcher, index_matcher, value_matcher, effect_matcher,
+      control_matcher));
+}
+
 Matcher<Node*> IsStackSlot(
     const Matcher<StackSlotRepresentation>& rep_matcher) {
   return MakeMatcher(new IsStackSlotMatcher(rep_matcher));
@@ -2096,12 +2196,11 @@ Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                                            effect_matcher, control_matcher));
 }
 
-
-Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
-                             const Matcher<Node*>& context_matcher) {
-  return MakeMatcher(new IsLoadContextMatcher(access_matcher, context_matcher));
+Matcher<Node*> IsLoadContextNoCell(const Matcher<ContextAccess>& access_matcher,
+                                   const Matcher<Node*>& context_matcher) {
+  return MakeMatcher(
+      new IsLoadContextNoCellMatcher(access_matcher, context_matcher));
 }
-
 
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
   return MakeMatcher(new IsParameterMatcher(index_matcher));
@@ -2187,6 +2286,7 @@ IS_BINOP_MATCHER(Int64Add)
 IS_BINOP_MATCHER(Int64Div)
 IS_BINOP_MATCHER(Int64Sub)
 IS_BINOP_MATCHER(Int64Mul)
+IS_BINOP_MATCHER(Int64MulHigh)
 IS_BINOP_MATCHER(Int64LessThan)
 IS_BINOP_MATCHER(Uint64LessThan)
 IS_BINOP_MATCHER(JSAdd)
@@ -2277,7 +2377,6 @@ IS_UNOP_MATCHER(Word32Ctz)
 IS_UNOP_MATCHER(Word32Popcnt)
 IS_UNOP_MATCHER(Word32ReverseBytes)
 IS_UNOP_MATCHER(SpeculativeToNumber)
-IS_UNOP_MATCHER(TaggedPoisonOnSpeculation)
 #undef IS_UNOP_MATCHER
 
 // Special-case Bitcast operators which are disabled when ENABLE_VERIFY_CSA is

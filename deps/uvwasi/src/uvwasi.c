@@ -8,6 +8,8 @@
 # include <dirent.h>
 # include <time.h>
 #else
+# define _CRT_INTERNAL_NONSTDC_NAMES 1
+# include <sys/stat.h>
 # include <io.h>
 #endif /* _WIN32 */
 
@@ -15,6 +17,10 @@
 
 #if !defined(_WIN32) && !defined(__ANDROID__)
 # define UVWASI_FD_READDIR_SUPPORTED 1
+#endif
+
+#if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+  #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
 #include "uvwasi.h"
@@ -25,6 +31,7 @@
 #include "clocks.h"
 #include "path_resolver.h"
 #include "poll_oneoff.h"
+#include "sync_helpers.h"
 #include "wasi_rights.h"
 #include "wasi_serdes.h"
 #include "debug.h"
@@ -36,10 +43,13 @@
 
 #define VALIDATE_FSTFLAGS_OR_RETURN(flags)                                    \
   do {                                                                        \
-    if ((flags) & ~(UVWASI_FILESTAT_SET_ATIM |                                \
-                    UVWASI_FILESTAT_SET_ATIM_NOW |                            \
-                    UVWASI_FILESTAT_SET_MTIM |                                \
-                    UVWASI_FILESTAT_SET_MTIM_NOW)) {                          \
+    uvwasi_fstflags_t f = flags;                                              \
+    if (((f) & ~(UVWASI_FILESTAT_SET_ATIM | UVWASI_FILESTAT_SET_ATIM_NOW |    \
+                 UVWASI_FILESTAT_SET_MTIM | UVWASI_FILESTAT_SET_MTIM_NOW)) || \
+        ((f) & (UVWASI_FILESTAT_SET_ATIM | UVWASI_FILESTAT_SET_ATIM_NOW))     \
+            == (UVWASI_FILESTAT_SET_ATIM | UVWASI_FILESTAT_SET_ATIM_NOW) ||   \
+        ((f) & (UVWASI_FILESTAT_SET_MTIM | UVWASI_FILESTAT_SET_MTIM_NOW))     \
+            == (UVWASI_FILESTAT_SET_MTIM | UVWASI_FILESTAT_SET_MTIM_NOW)) {   \
       return UVWASI_EINVAL;                                                   \
     }                                                                         \
   } while (0)
@@ -127,6 +137,9 @@ void* uvwasi__malloc(const uvwasi_t* uvwasi, size_t size) {
 }
 
 void uvwasi__free(const uvwasi_t* uvwasi, void* ptr) {
+  if (ptr == NULL)
+    return;
+
   uvwasi->allocator->free(ptr, uvwasi->allocator->mem_user_data);
 }
 
@@ -228,8 +241,15 @@ static uvwasi_errno_t uvwasi__setup_ciovs(const uvwasi_t* uvwasi,
   return UVWASI_ESUCCESS;
 }
 
+typedef struct new_connection_data_s {
+  int done;
+} new_connection_data_t;
 
-uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options) {
+void on_new_connection(uv_stream_t *server, int status) {
+  // just do nothing
+}
+
+uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, const uvwasi_options_t* options) {
   uv_fs_t realpath_req;
   uv_fs_t open_req;
   uvwasi_errno_t err;
@@ -240,11 +260,16 @@ uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options) {
   uvwasi_size_t env_buf_size;
   uvwasi_size_t i;
   int r;
+  struct sockaddr_in addr;
 
   if (uvwasi == NULL || options == NULL || options->fd_table_size == 0)
     return UVWASI_EINVAL;
 
+  // loop is only needed if there were pre-open sockets
+  uvwasi->loop = NULL;
+
   uvwasi->allocator = options->allocator;
+
   if (uvwasi->allocator == NULL)
     uvwasi->allocator = &default_allocator;
 
@@ -325,6 +350,14 @@ uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options) {
     }
   }
 
+  for (i = 0; i < options->preopen_socketc; ++i) {
+    if (options->preopen_sockets[i].address == NULL ||
+        options->preopen_sockets[i].port > 65535) {
+      err = UVWASI_EINVAL;
+      goto exit;
+    }
+  }
+
   err = uvwasi_fd_table_init(uvwasi, options);
   if (err != UVWASI_ESUCCESS)
     goto exit;
@@ -360,6 +393,40 @@ uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options) {
       goto exit;
   }
 
+  if (options->preopen_socketc > 0) {
+    uvwasi->loop = uvwasi__malloc(uvwasi, sizeof(uv_loop_t));
+
+    if (uvwasi->loop == NULL)
+      return UVWASI_ENOMEM;
+
+    r = uv_loop_init(uvwasi->loop);
+    if (r != 0) {
+      err = uvwasi__translate_uv_error(r);
+      goto exit;
+    }
+  }
+
+  for (i = 0; i < options->preopen_socketc; ++i) {
+    uv_tcp_t* socket = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
+    uv_tcp_init(uvwasi->loop, socket);
+
+    uv_ip4_addr(options->preopen_sockets[i].address, options->preopen_sockets[i].port, &addr);
+
+    uv_tcp_bind(socket, (const struct sockaddr*)&addr, 0);
+    r = uv_listen((uv_stream_t*) socket, 128, on_new_connection);
+    if (r != 0) {
+      err = uvwasi__translate_uv_error(r);
+      goto exit;
+    }
+
+    err = uvwasi_fd_table_insert_preopen_socket(uvwasi,
+                                         uvwasi->fds,
+                                         socket);
+
+    if (err != UVWASI_ESUCCESS)
+      goto exit;
+  }
+
   return UVWASI_ESUCCESS;
 
 exit:
@@ -377,6 +444,12 @@ void uvwasi_destroy(uvwasi_t* uvwasi) {
   uvwasi__free(uvwasi, uvwasi->argv);
   uvwasi__free(uvwasi, uvwasi->env_buf);
   uvwasi__free(uvwasi, uvwasi->env);
+  if (uvwasi->loop != NULL) {
+    uv_stop(uvwasi->loop);
+    uv_loop_close(uvwasi->loop);
+    uvwasi__free(uvwasi, uvwasi->loop);
+    uvwasi->loop = NULL;
+  }
   uvwasi->fds = NULL;
   uvwasi->argv_buf = NULL;
   uvwasi->argv = NULL;
@@ -398,6 +471,8 @@ void uvwasi_options_init(uvwasi_options_t* options) {
   options->envp = NULL;
   options->preopenc = 0;
   options->preopens = NULL;
+  options->preopen_socketc = 0;
+  options->preopen_sockets = NULL;
   options->allocator = NULL;
 }
 
@@ -562,9 +637,10 @@ uvwasi_errno_t uvwasi_fd_advise(uvwasi_t* uvwasi,
                                 uvwasi_advice_t advice) {
   struct uvwasi_fd_wrap_t* wrap;
   uvwasi_errno_t err;
+  uv_fs_t req;
+  int r;
 #ifdef POSIX_FADV_NORMAL
   int mapped_advice;
-  int r;
 #endif /* POSIX_FADV_NORMAL */
 
   UVWASI_DEBUG("uvwasi_fd_advise(uvwasi=%p, fd=%d, offset=%"PRIu64", "
@@ -617,6 +693,17 @@ uvwasi_errno_t uvwasi_fd_advise(uvwasi_t* uvwasi,
   if (err != UVWASI_ESUCCESS)
     return err;
 
+  r = uv_fs_fstat(NULL, &req, wrap->fd, NULL);
+  if (r == -1) {
+    err = uvwasi__translate_uv_error(r);
+    goto exit;
+  }
+
+  if (S_ISDIR(req.statbuf.st_mode)) {
+    err = UVWASI_EBADF;
+    goto exit;
+  }
+
   err = UVWASI_ESUCCESS;
 
 #ifdef POSIX_FADV_NORMAL
@@ -624,7 +711,9 @@ uvwasi_errno_t uvwasi_fd_advise(uvwasi_t* uvwasi,
   if (r != 0)
     err = uvwasi__translate_uv_error(uv_translate_sys_error(r));
 #endif /* POSIX_FADV_NORMAL */
+exit:
   uv_mutex_unlock(&wrap->mutex);
+  uv_fs_req_cleanup(&req);
   return err;
 }
 
@@ -691,10 +780,9 @@ exit:
   return err;
 }
 
-
 uvwasi_errno_t uvwasi_fd_close(uvwasi_t* uvwasi, uvwasi_fd_t fd) {
   struct uvwasi_fd_wrap_t* wrap;
-  uvwasi_errno_t err;
+  uvwasi_errno_t err = 0;
   uv_fs_t req;
   int r;
 
@@ -709,9 +797,18 @@ uvwasi_errno_t uvwasi_fd_close(uvwasi_t* uvwasi, uvwasi_fd_t fd) {
   if (err != UVWASI_ESUCCESS)
     goto exit;
 
-  r = uv_fs_close(NULL, &req, wrap->fd, NULL);
-  uv_mutex_unlock(&wrap->mutex);
-  uv_fs_req_cleanup(&req);
+  if (wrap->sock == NULL) {
+    r = uv_fs_close(NULL, &req, wrap->fd, NULL);
+    uv_mutex_unlock(&wrap->mutex);
+    uv_fs_req_cleanup(&req);
+  } else {
+    r = 0;
+    err = free_handle_sync(uvwasi, (uv_handle_t*) wrap->sock);
+    uv_mutex_unlock(&wrap->mutex);
+    if (err != UVWASI_ESUCCESS) {
+      goto exit;
+    }
+  }
 
   if (r != 0) {
     err = uvwasi__translate_uv_error(r);
@@ -1065,7 +1162,7 @@ uvwasi_errno_t uvwasi_fd_pread(uvwasi_t* uvwasi,
                offset,
                nread);
 
-  if (uvwasi == NULL || iovs == NULL || nread == NULL)
+  if (uvwasi == NULL || (iovs == NULL && iovs_len > 0) || nread == NULL || offset > INT64_MAX)
     return UVWASI_EINVAL;
 
   err = uvwasi_fd_table_get(uvwasi->fds,
@@ -1075,6 +1172,14 @@ uvwasi_errno_t uvwasi_fd_pread(uvwasi_t* uvwasi,
                             0);
   if (err != UVWASI_ESUCCESS)
     return err;
+
+  // libuv returns EINVAL in this case.  To behave consistently with other
+  // Wasm runtimes, return OK here with a no-op.
+  if (iovs_len == 0) {
+    uv_mutex_unlock(&wrap->mutex);
+    *nread = 0;
+    return UVWASI_ESUCCESS;
+  }
 
   err = uvwasi__setup_iovs(uvwasi, &bufs, iovs, iovs_len);
   if (err != UVWASI_ESUCCESS) {
@@ -1119,7 +1224,7 @@ uvwasi_errno_t uvwasi_fd_prestat_get(uvwasi_t* uvwasi,
   }
 
   buf->pr_type = UVWASI_PREOPENTYPE_DIR;
-  buf->u.dir.pr_name_len = strlen(wrap->path) + 1;
+  buf->u.dir.pr_name_len = strlen(wrap->path);
   err = UVWASI_ESUCCESS;
 exit:
   uv_mutex_unlock(&wrap->mutex);
@@ -1153,7 +1258,7 @@ uvwasi_errno_t uvwasi_fd_prestat_dir_name(uvwasi_t* uvwasi,
     goto exit;
   }
 
-  size = strlen(wrap->path) + 1;
+  size = strlen(wrap->path);
   if (size > (size_t) path_len) {
     err = UVWASI_ENOBUFS;
     goto exit;
@@ -1189,7 +1294,7 @@ uvwasi_errno_t uvwasi_fd_pwrite(uvwasi_t* uvwasi,
                offset,
                nwritten);
 
-  if (uvwasi == NULL || iovs == NULL || nwritten == NULL)
+  if (uvwasi == NULL || (iovs == NULL && iovs_len > 0) || nwritten == NULL || offset > INT64_MAX)
     return UVWASI_EINVAL;
 
   err = uvwasi_fd_table_get(uvwasi->fds,
@@ -1199,6 +1304,14 @@ uvwasi_errno_t uvwasi_fd_pwrite(uvwasi_t* uvwasi,
                             0);
   if (err != UVWASI_ESUCCESS)
     return err;
+
+  // libuv returns EINVAL in this case.  To behave consistently with other
+  // Wasm runtimes, return OK here with a no-op.
+  if (iovs_len == 0) {
+    uv_mutex_unlock(&wrap->mutex);
+    *nwritten = 0;
+    return UVWASI_ESUCCESS;
+  }
 
   err = uvwasi__setup_ciovs(uvwasi, &bufs, iovs, iovs_len);
   if (err != UVWASI_ESUCCESS) {
@@ -1239,13 +1352,20 @@ uvwasi_errno_t uvwasi_fd_read(uvwasi_t* uvwasi,
                iovs,
                iovs_len,
                nread);
-
-  if (uvwasi == NULL || iovs == NULL || nread == NULL)
+  if (uvwasi == NULL || (iovs == NULL && iovs_len > 0) || nread == NULL)
     return UVWASI_EINVAL;
 
   err = uvwasi_fd_table_get(uvwasi->fds, fd, &wrap, UVWASI_RIGHT_FD_READ, 0);
   if (err != UVWASI_ESUCCESS)
     return err;
+
+  // libuv returns EINVAL in this case.  To behave consistently with other
+  // Wasm runtimes, return OK here with a no-op.
+  if (iovs_len == 0) {
+    uv_mutex_unlock(&wrap->mutex);
+    *nread = 0;
+    return UVWASI_ESUCCESS;
+  }
 
   err = uvwasi__setup_iovs(uvwasi, &bufs, iovs, iovs_len);
   if (err != UVWASI_ESUCCESS) {
@@ -1276,6 +1396,7 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
 #if defined(UVWASI_FD_READDIR_SUPPORTED)
   /* TODO(cjihrig): Avoid opening and closing the directory on each call. */
   struct uvwasi_fd_wrap_t* wrap;
+  uvwasi_dircookie_t cur_cookie;
   uvwasi_dirent_t dirent;
   uv_dirent_t dirents[UVWASI__READDIR_NUM_ENTRIES];
   uv_dir_t* dir;
@@ -1284,7 +1405,6 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
   size_t name_len;
   size_t available;
   size_t size_to_cp;
-  long tell;
   int i;
   int r;
 #endif /* defined(UVWASI_FD_READDIR_SUPPORTED) */
@@ -1324,8 +1444,22 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
   uv_fs_req_cleanup(&req);
 
   /* Seek to the proper location in the directory. */
-  if (cookie != UVWASI_DIRCOOKIE_START)
-    seekdir(dir->dir, cookie);
+  cur_cookie = 0;
+  while (cur_cookie < cookie) {
+    r = uv_fs_readdir(NULL, &req, dir, NULL);
+    if (r < 0) {
+      err = uvwasi__translate_uv_error(r);
+      uv_fs_req_cleanup(&req);
+      goto exit;
+    }
+
+    cur_cookie += (uvwasi_dircookie_t)r;
+    uv_fs_req_cleanup(&req);
+
+    if (r == 0) {
+      break;
+    }
+  }
 
   /* Read the directory entries into the provided buffer. */
   err = UVWASI_ESUCCESS;
@@ -1340,15 +1474,9 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
     available = 0;
 
     for (i = 0; i < r; i++) {
-      tell = telldir(dir->dir);
-      if (tell < 0) {
-        err = uvwasi__translate_uv_error(uv_translate_sys_error(errno));
-        uv_fs_req_cleanup(&req);
-        goto exit;
-      }
-
+      cur_cookie++;
       name_len = strlen(dirents[i].name);
-      dirent.d_next = (uvwasi_dircookie_t) tell;
+      dirent.d_next = (uvwasi_dircookie_t) cur_cookie;
       /* TODO(cjihrig): libuv doesn't provide d_ino, and d_type is not
                         supported on all platforms. Use stat()? */
       dirent.d_ino = 0;
@@ -1381,8 +1509,14 @@ uvwasi_errno_t uvwasi_fd_readdir(uvwasi_t* uvwasi,
       }
 
       /* Write dirent to the buffer if it will fit. */
-      if (UVWASI_SERDES_SIZE_dirent_t + *bufused > buf_len)
+      if (UVWASI_SERDES_SIZE_dirent_t + *bufused > buf_len) {
+        /* If there are more entries to be written to the buffer we set
+         * bufused, which is the return value, to the length of the buffer
+         * which indicates that there are more entries to be read.
+         */
+        *bufused = buf_len;
         break;
+      }
 
       uvwasi_serdes_write_dirent_t(buf, *bufused, &dirent);
       *bufused += UVWASI_SERDES_SIZE_dirent_t;
@@ -1535,12 +1669,20 @@ uvwasi_errno_t uvwasi_fd_write(uvwasi_t* uvwasi,
                iovs_len,
                nwritten);
 
-  if (uvwasi == NULL || iovs == NULL || nwritten == NULL)
+  if (uvwasi == NULL || (iovs == NULL && iovs_len > 0) || nwritten == NULL)
     return UVWASI_EINVAL;
 
   err = uvwasi_fd_table_get(uvwasi->fds, fd, &wrap, UVWASI_RIGHT_FD_WRITE, 0);
   if (err != UVWASI_ESUCCESS)
     return err;
+
+  // libuv returns EINVAL in this case.  To behave consistently with other
+  // Wasm runtimes, return OK here with a no-op.
+  if (iovs_len == 0) {
+    uv_mutex_unlock(&wrap->mutex);
+    *nwritten = 0;
+    return UVWASI_ESUCCESS;
+  }
 
   err = uvwasi__setup_ciovs(uvwasi, &bufs, iovs, iovs_len);
   if (err != UVWASI_ESUCCESS) {
@@ -1699,8 +1841,6 @@ uvwasi_errno_t uvwasi_path_filestat_set_times(uvwasi_t* uvwasi,
   if (uvwasi == NULL || path == NULL)
     return UVWASI_EINVAL;
 
-  VALIDATE_FSTFLAGS_OR_RETURN(fst_flags);
-
   err = uvwasi_fd_table_get(uvwasi->fds,
                             fd,
                             &wrap,
@@ -1708,6 +1848,8 @@ uvwasi_errno_t uvwasi_path_filestat_set_times(uvwasi_t* uvwasi,
                             0);
   if (err != UVWASI_ESUCCESS)
     return err;
+
+  VALIDATE_FSTFLAGS_OR_RETURN(fst_flags);
 
   err = uvwasi__resolve_path(uvwasi,
                              wrap,
@@ -1975,8 +2117,13 @@ uvwasi_errno_t uvwasi_path_open(uvwasi_t* uvwasi,
   if (err != UVWASI_ESUCCESS)
     goto close_file_and_error_exit;
 
-  if ((o_flags & UVWASI_O_DIRECTORY) != 0 &&
-      filetype != UVWASI_FILETYPE_DIRECTORY) {
+  if (
+    (filetype != UVWASI_FILETYPE_DIRECTORY)
+    && (
+      (o_flags & UVWASI_O_DIRECTORY) != 0
+      || (resolved_path[strlen(resolved_path) - 1] == '/')
+    )
+  ) {
     err = UVWASI_ENOTDIR;
     goto close_file_and_error_exit;
   }
@@ -1988,6 +2135,7 @@ uvwasi_errno_t uvwasi_path_open(uvwasi_t* uvwasi,
   err = uvwasi_fd_table_insert(uvwasi,
                                uvwasi->fds,
                                r,
+                               NULL,
                                resolved_path,
                                resolved_path,
                                filetype,
@@ -2068,7 +2216,7 @@ uvwasi_errno_t uvwasi_path_readlink(uvwasi_t* uvwasi,
 
   memcpy(buf, req.ptr, len);
   buf[len] = '\0';
-  *bufused = len + 1;
+  *bufused = len;
   uv_fs_req_cleanup(&req);
   return UVWASI_ESUCCESS;
 }
@@ -2229,6 +2377,8 @@ uvwasi_errno_t uvwasi_path_symlink(uvwasi_t* uvwasi,
                                    uvwasi_fd_t fd,
                                    const char* new_path,
                                    uvwasi_size_t new_path_len) {
+  char* truncated_old_path;
+  char* resolved_old_path;
   char* resolved_new_path;
   struct uvwasi_fd_wrap_t* wrap;
   uvwasi_errno_t err;
@@ -2255,28 +2405,60 @@ uvwasi_errno_t uvwasi_path_symlink(uvwasi_t* uvwasi,
   if (err != UVWASI_ESUCCESS)
     return err;
 
+  resolved_old_path = NULL;
+  resolved_new_path = NULL;
+  truncated_old_path = NULL;
+
+  truncated_old_path = uvwasi__malloc(uvwasi, old_path_len + 1);
+  if (truncated_old_path == NULL) {
+    err = UVWASI_ENOMEM;
+    goto exit;
+  }
+
+  memcpy(truncated_old_path, old_path, old_path_len);
+  truncated_old_path[old_path_len] = '\0';
+
+  if (old_path_len > 0 && old_path[0] == '/') {
+    err = UVWASI_EPERM;
+    goto exit;
+  }
+
+  err = uvwasi__resolve_path(uvwasi,
+                             wrap,
+                             old_path,
+                             old_path_len,
+                             &resolved_old_path,
+                             0);
+  if (err != UVWASI_ESUCCESS)
+    goto exit;
+
   err = uvwasi__resolve_path(uvwasi,
                              wrap,
                              new_path,
                              new_path_len,
                              &resolved_new_path,
                              0);
-  if (err != UVWASI_ESUCCESS) {
-    uv_mutex_unlock(&wrap->mutex);
-    return err;
-  }
+  if (err != UVWASI_ESUCCESS)
+    goto exit;
+
 
   /* Windows support may require setting the flags option. */
-  r = uv_fs_symlink(NULL, &req, old_path, resolved_new_path, 0, NULL);
-  uv_mutex_unlock(&wrap->mutex);
-  uvwasi__free(uvwasi, resolved_new_path);
+  r = uv_fs_symlink(NULL, &req, truncated_old_path, resolved_new_path, 0, NULL);
   uv_fs_req_cleanup(&req);
-  if (r != 0)
-    return uvwasi__translate_uv_error(r);
+  if (r != 0) {
+    err = uvwasi__translate_uv_error(r);
+    goto exit;
+  }
 
-  return UVWASI_ESUCCESS;
+  err = UVWASI_ESUCCESS;
+exit:
+  uv_mutex_unlock(&wrap->mutex);
+  uvwasi__free(uvwasi, resolved_old_path);
+  uvwasi__free(uvwasi, resolved_new_path);
+  uvwasi__free(uvwasi, truncated_old_path);
+
+  return err;
 }
-
 
 uvwasi_errno_t uvwasi_path_unlink_file(uvwasi_t* uvwasi,
                                        uvwasi_fd_t fd,
@@ -2511,7 +2693,6 @@ uvwasi_errno_t uvwasi_sched_yield(uvwasi_t* uvwasi) {
   return UVWASI_ESUCCESS;
 }
 
-
 uvwasi_errno_t uvwasi_sock_recv(uvwasi_t* uvwasi,
                                 uvwasi_fd_t sock,
                                 const uvwasi_iovec_t* ri_data,
@@ -2519,10 +2700,50 @@ uvwasi_errno_t uvwasi_sock_recv(uvwasi_t* uvwasi,
                                 uvwasi_riflags_t ri_flags,
                                 uvwasi_size_t* ro_datalen,
                                 uvwasi_roflags_t* ro_flags) {
-  /* TODO(cjihrig): Waiting to implement, pending
-                    https://github.com/WebAssembly/WASI/issues/4 */
-  UVWASI_DEBUG("uvwasi_sock_recv(uvwasi=%p, unimplemented)\n", uvwasi);
-  return UVWASI_ENOTSUP;
+  struct uvwasi_fd_wrap_t* wrap;
+  uvwasi_errno_t err = 0;
+  recv_data_t recv_data;
+
+  UVWASI_DEBUG("uvwasi_sock_recv(uvwasi=%p, sock=%d, ri_data=%p, "
+	       "ri_data_len=%d, ri_flags=%d, ro_datalen=%p, ro_flags=%p)\n",
+               uvwasi,
+               sock,
+               ri_data,
+               ri_data_len,
+               ri_flags,
+               ro_datalen,
+               ro_flags);
+
+  if (uvwasi == NULL || ri_data == NULL || ro_datalen == NULL || ro_flags == NULL)
+    return UVWASI_EINVAL;
+
+  if (ri_flags != 0)
+    return UVWASI_ENOTSUP;
+
+  err = uvwasi_fd_table_get(uvwasi->fds,
+                            sock,
+                            &wrap,
+                            UVWASI__RIGHTS_SOCKET_BASE,
+                            0);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  recv_data.base = ri_data->buf;
+  recv_data.len = ri_data->buf_len;
+  err = read_stream_sync(uvwasi, (uv_stream_t*) wrap->sock, &recv_data);
+  uv_mutex_unlock(&wrap->mutex);
+  if (err != 0) {
+    return err;
+  }
+
+  if (recv_data.nread == 0) {
+    return UVWASI_EAGAIN;
+  } else if (recv_data.nread < 0) {
+    return uvwasi__translate_uv_error(recv_data.nread);
+  }
+
+  *ro_datalen = recv_data.nread;
+  return UVWASI_ESUCCESS;
 }
 
 
@@ -2532,20 +2753,198 @@ uvwasi_errno_t uvwasi_sock_send(uvwasi_t* uvwasi,
                                 uvwasi_size_t si_data_len,
                                 uvwasi_siflags_t si_flags,
                                 uvwasi_size_t* so_datalen) {
-  /* TODO(cjihrig): Waiting to implement, pending
-                    https://github.com/WebAssembly/WASI/issues/4 */
-  UVWASI_DEBUG("uvwasi_sock_send(uvwasi=%p, unimplemented)\n", uvwasi);
-  return UVWASI_ENOTSUP;
-}
 
+  struct uvwasi_fd_wrap_t* wrap;
+  uvwasi_errno_t err = 0;
+  uv_buf_t* bufs;
+  int r = 0;
+
+  UVWASI_DEBUG("uvwasi_sock_send(uvwasi=%p, sock=%d, si_data=%p, "
+	       "si_data_len=%d, si_flags=%d, so_datalen=%p)\n",
+               uvwasi,
+               sock,
+               si_data,
+               si_data_len,
+               si_flags,
+               so_datalen);
+
+  if (uvwasi == NULL || si_data == NULL || so_datalen == NULL ||
+      si_flags != 0)
+    return UVWASI_EINVAL;
+
+  err = uvwasi_fd_table_get(uvwasi->fds,
+                            sock,
+                            &wrap,
+                            UVWASI__RIGHTS_SOCKET_BASE,
+                            0);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  err = uvwasi__setup_ciovs(uvwasi, &bufs, si_data, si_data_len);
+  if (err != UVWASI_ESUCCESS) {
+    uv_mutex_unlock(&wrap->mutex);
+    return err;
+  }
+
+  r = uv_try_write((uv_stream_t*) wrap->sock, bufs, si_data_len);
+  uvwasi__free(uvwasi, bufs);
+  uv_mutex_unlock(&wrap->mutex);
+  if (r < 0)
+    return uvwasi__translate_uv_error(r);
+
+  *so_datalen = (uvwasi_size_t) r;
+  return UVWASI_ESUCCESS;
+}
 
 uvwasi_errno_t uvwasi_sock_shutdown(uvwasi_t* uvwasi,
                                     uvwasi_fd_t sock,
                                     uvwasi_sdflags_t how) {
-  /* TODO(cjihrig): Waiting to implement, pending
-                    https://github.com/WebAssembly/WASI/issues/4 */
-  UVWASI_DEBUG("uvwasi_sock_shutdown(uvwasi=%p, unimplemented)\n", uvwasi);
-  return UVWASI_ENOTSUP;
+  struct uvwasi_fd_wrap_t* wrap;
+  uvwasi_errno_t err = 0;
+  shutdown_data_t shutdown_data = {0};
+
+  if (how & ~UVWASI_SHUT_WR)
+    return UVWASI_ENOTSUP;
+
+  UVWASI_DEBUG("uvwasi_sock_shutdown(uvwasi=%p, sock=%d, how=%d)\n",
+               uvwasi,
+               sock,
+               how);
+
+  if (uvwasi == NULL)
+    return UVWASI_EINVAL;
+
+  err = uvwasi_fd_table_get(uvwasi->fds,
+                            sock,
+                            &wrap,
+                            UVWASI__RIGHTS_SOCKET_BASE,
+                            0);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  if (how & UVWASI_SHUT_WR) {
+    err = shutdown_stream_sync(uvwasi, (uv_stream_t*) wrap->sock, &shutdown_data);
+    if (err != UVWASI_ESUCCESS) {
+      uv_mutex_unlock(&wrap->mutex);
+      return err;
+    }
+  }
+
+  uv_mutex_unlock(&wrap->mutex);
+
+  if (shutdown_data.status != 0)
+    return uvwasi__translate_uv_error(shutdown_data.status);
+
+  return UVWASI_ESUCCESS;
+}
+
+uvwasi_errno_t uvwasi_sock_accept(uvwasi_t* uvwasi,
+                                  uvwasi_fd_t sock,
+                                  uvwasi_fdflags_t flags,
+                                  uvwasi_fd_t* connect_sock) {
+  struct uvwasi_fd_wrap_t* wrap;
+  struct uvwasi_fd_wrap_t* connected_wrap;
+  uvwasi_errno_t err = 0;
+  uv_loop_t* sock_loop = NULL;
+  int r = 0;
+
+  UVWASI_DEBUG("uvwasi_sock_accept(uvwasi=%p, sock=%d, flags=%d, "
+               "connect_sock=%p)\n",
+               uvwasi,
+               sock,
+               flags,
+               connect_sock);
+
+  if (uvwasi == NULL || connect_sock == NULL)
+    return UVWASI_EINVAL;
+
+  if (flags & ~UVWASI_FDFLAG_NONBLOCK)
+    return UVWASI_ENOTSUP;
+
+  err = uvwasi_fd_table_get(uvwasi->fds,
+                            sock,
+                            &wrap,
+                            UVWASI__RIGHTS_SOCKET_BASE,
+                            0);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  sock_loop = uv_handle_get_loop((uv_handle_t*) wrap->sock);
+  uv_tcp_t* uv_connect_sock = (uv_tcp_t*) uvwasi__malloc(uvwasi, sizeof(uv_tcp_t));
+
+  if (uv_connect_sock == NULL)
+    return UVWASI_ENOMEM;
+
+  uv_tcp_init(sock_loop, uv_connect_sock);
+
+  r = uv_accept((uv_stream_t*) wrap->sock, (uv_stream_t*) uv_connect_sock);
+  if (r != 0) {
+    if (r == UV_EAGAIN) {
+      // if not blocking then just return as we have to wait for a connection
+      if (flags & UVWASI_FDFLAG_NONBLOCK) {
+        err = free_handle_sync(uvwasi, (uv_handle_t*) uv_connect_sock);
+        uv_mutex_unlock(&wrap->mutex);
+        if (err != UVWASI_ESUCCESS) {
+          return err;
+	}
+        return UVWASI_EAGAIN;
+      }
+    } else {
+      err = uvwasi__translate_uv_error(r);
+      goto close_sock_and_error_exit;
+    }
+
+    // request was blocking and we have no connection yet. run
+    // the loop until a connection comes in
+    while (1) {
+      err = 0;
+      if (uv_run(sock_loop, UV_RUN_ONCE) == 0) {
+        err = UVWASI_ECONNABORTED;
+        goto close_sock_and_error_exit;
+      }
+
+      r = uv_accept((uv_stream_t*) wrap->sock, (uv_stream_t*) uv_connect_sock);
+      if (r == UV_EAGAIN) {
+	// still no connection or error so run the loop again
+        continue;
+      }
+
+      if (r != 0) {
+	// An error occurred accepting the connection. Break out of the loop and
+	// report an error.
+        err = uvwasi__translate_uv_error(r);
+        goto close_sock_and_error_exit;
+      }
+
+      // if we get here a new connection was successfully accepted
+      break;
+    }
+  }
+
+  err = uvwasi_fd_table_insert(uvwasi,
+                               uvwasi->fds,
+                               -1,
+                               uv_connect_sock,
+                               NULL,
+                               NULL,
+                               UVWASI_FILETYPE_SOCKET_STREAM,
+                               UVWASI__RIGHTS_SOCKET_BASE,
+                               UVWASI__RIGHTS_SOCKET_INHERITING,
+                               1,
+                               &connected_wrap);
+
+  if (err != UVWASI_ESUCCESS)
+    goto close_sock_and_error_exit;
+
+  *connect_sock = connected_wrap->id;
+  uv_mutex_unlock(&wrap->mutex);
+  uv_mutex_unlock(&connected_wrap->mutex);
+  return UVWASI_ESUCCESS;
+
+close_sock_and_error_exit:
+  uvwasi__free(uvwasi, uv_connect_sock);
+  uv_mutex_unlock(&wrap->mutex);
+  return err;
 }
 
 

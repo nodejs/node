@@ -21,25 +21,26 @@ let module_bytes = builder.toArray();
 let wasm_script_id = undefined;
 Protocol.Debugger.onPaused(printPauseLocationAndStep);
 
-(async function test() {
-  await Protocol.Debugger.enable();
-  WasmInspectorTest.instantiate(module_bytes);
-  [, {params: {scriptId: wasm_script_id}}] = await Protocol.Debugger.onceScriptParsed(2);
+InspectorTest.runAsyncTestSuite([
+  async function test() {
+    await Protocol.Runtime.enable();
+    await Protocol.Debugger.enable();
+    WasmInspectorTest.instantiate(module_bytes);
+    [, {params: {scriptId: wasm_script_id}}] = await Protocol.Debugger.onceScriptParsed(2);
 
-  // Set a breakpoint at the beginning of 'fun'.
-  const offset = fun.body_offset;
-  InspectorTest.log(`Setting breakpoint at offset ${offset}.`);
-  let bpmsg = await Protocol.Debugger.setBreakpoint({
-    location: {scriptId: wasm_script_id, lineNumber: 0, columnNumber: offset}
-  });
+    // Set a breakpoint at the beginning of 'fun'.
+    const offset = fun.body_offset;
+    InspectorTest.log(`Setting breakpoint at offset ${offset}.`);
+    let bpmsg = await Protocol.Debugger.setBreakpoint({
+      location: {scriptId: wasm_script_id, lineNumber: 0, columnNumber: offset}
+    });
 
-  for (let value of [0, -1, 13]) {
-    await Protocol.Runtime.evaluate(
-        {expression: `instance.exports.fun(${value})`});
+    for (let value of [0, -1, 13]) {
+      await Protocol.Runtime.evaluate(
+          {expression: `instance.exports.fun(${value})`});
+    }
   }
-  InspectorTest.log('Finished.');
-})().catch(reason => InspectorTest.log(`Failed: ${reason}`))
-    .finally(InspectorTest.completeTest);
+]);
 
 async function printPauseLocationAndStep(msg) {
   // If we are outside of wasm, continue.
@@ -54,10 +55,17 @@ async function printPauseLocationAndStep(msg) {
   let scopes = {};
   for (let scope of frame.scopeChain) {
     if (scope.type == 'module') continue;
-    let scope_properties =
-        await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    scopes[scope.type] = scope_properties.result.result.map(
-        elem => WasmInspectorTest.getWasmValue(elem.value));
+    var { objectId } = scope.object;
+    if (scope.type == 'wasm-expression-stack') {
+      objectId = (await Protocol.Runtime.callFunctionOn({
+        functionDeclaration: 'function() { return this.stack }',
+        objectId
+      })).result.result.objectId;
+    }
+    var scope_properties =
+        await Protocol.Runtime.getProperties({objectId});
+    scopes[scope.type] = await Promise.all(scope_properties.result.result.map(
+        elem => WasmInspectorTest.getWasmValue(elem.value)));
   }
   let values = scopes['local'].concat(scopes['wasm-expression-stack']).join(', ');
   InspectorTest.log(`Paused at offset ${loc.columnNumber}: [${values}]`);

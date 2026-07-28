@@ -7,7 +7,7 @@
 # Visual Studio Code on Linux distributions where for whatever reason there
 # is no good way to do so via the package manager.
 
-# Version of this script: 2020.07.04
+# Version of this script: 2022.11.12
 
 # Basic checking of arguments: want at least one, and it's not --help.
 VERSION="$1"
@@ -27,12 +27,24 @@ die() {
 
 if [ "$VERSION" == "--auto" -o "$VERSION" == "auto" ]; then
   echo "Searching online for latest available version..."
-  # Where to find the latest available version (we assume that it's mentioned
-  # in the first 1000 characters, which is true as of 2020-07).
-  AVAILABLE_PACKAGES_URL="https://packages.microsoft.com/repos/vscode/dists/stable/main/binary-amd64/Packages"
-  VERSION=$(curl "$AVAILABLE_PACKAGES_URL" --range 0-1000 --silent \
-            | grep "^Version: " \
-            | sed 's/[^0-9]*\([0-9.]*\).*/\1/')
+  # Where to find the latest available version.
+  AVAILABLE_PACKAGES_URL="https://packages.microsoft.com/repos/vscode/dists/stable/main/binary-amd64/Packages.gz"
+  VERSION=$(curl "$AVAILABLE_PACKAGES_URL" --silent \
+            | gunzip \
+            | gawk '
+              BEGIN { engaged = 0 }
+              # Look at blocks starting with "Package: code".
+              /^Package: code$/ { engaged = 1 }
+              # Stop looking at the empty line indicating the end of a block.
+              /^$/ { engaged = 0 }
+              # In interesting blocks, print the relevant part of the
+              # "Version: " line.
+              match($0, /^Version: ([0-9.]*)/, groups) {
+                if (engaged == 1) print groups[1]
+              }
+              ' - \
+            | sort -rV \
+            | head -1)
   if [ -z "$VERSION" ]; then
     die "Detecting latest version failed, please specify it manually."
   else

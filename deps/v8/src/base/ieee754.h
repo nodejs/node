@@ -7,6 +7,10 @@
 
 #include "src/base/base-export.h"
 
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+#include "third_party/glibc/src/sysdeps/ieee754/dbl-64/trig.h"  // nogncheck
+#endif
+
 namespace v8 {
 namespace base {
 namespace ieee754 {
@@ -33,8 +37,24 @@ V8_BASE_EXPORT double atan(double x);
 // the two arguments to determine the quadrant of the result.
 V8_BASE_EXPORT double atan2(double y, double x);
 
-// Returns the cosine of |x|, where |x| is given in radians.
+#if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
+// To ensure there aren't problems with libm's sin/cos, both implementations
+// are shipped. The plan is to transition to libm once we ensure there are no
+// compatibility or performance issues.
+V8_BASE_EXPORT double fdlibm_sin(double x);
+V8_BASE_EXPORT double fdlibm_cos(double x);
+
+#if !defined(BUILDING_V8_BASE_SHARED) && !defined(USING_V8_BASE_SHARED)
+inline double libm_sin(double x) { return glibc_sin(x); }
+inline double libm_cos(double x) { return glibc_cos(x); }
+#else
+V8_BASE_EXPORT double libm_sin(double x);
+V8_BASE_EXPORT double libm_cos(double x);
+#endif
+#else
 V8_BASE_EXPORT double cos(double x);
+V8_BASE_EXPORT double sin(double x);
+#endif
 
 // Returns the base-e exponential of |x|.
 V8_BASE_EXPORT double exp(double x);
@@ -60,6 +80,11 @@ V8_BASE_EXPORT double cbrt(double x);
 // Returns exp(x)-1, the exponential of |x| minus 1.
 V8_BASE_EXPORT double expm1(double x);
 
+namespace legacy {
+
+// This function should not be used directly. Instead, use
+// v8::internal::math::pow.
+
 // Returns |x| to the power of |y|.
 // The result of base ** exponent when base is 1 or -1 and exponent is
 // +Infinity or -Infinity differs from IEEE 754-2008. The first edition
@@ -68,8 +93,7 @@ V8_BASE_EXPORT double expm1(double x);
 // behaviour is preserved for compatibility reasons.
 V8_BASE_EXPORT double pow(double x, double y);
 
-// Returns the sine of |x|, where |x| is given in radians.
-V8_BASE_EXPORT double sin(double x);
+}  // namespace legacy
 
 // Returns the tangent of |x|, where |x| is given in radians.
 V8_BASE_EXPORT double tan(double x);

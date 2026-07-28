@@ -1,47 +1,78 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+/*
+ * RSA low level APIs are deprecated for public use, but still ok for
+ * internal use.
+ */
+#include "internal/deprecated.h"
+
 #include "internal/cryptlib.h"
 #include "crypto/bn.h"
 #include "rsa_local.h"
 #include "internal/constant_time.h"
+#include <openssl/evp.h>
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
 
 static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
-                                  unsigned char *to, RSA *rsa, int padding);
+    unsigned char *to, RSA *rsa, int padding);
 static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
-                                   unsigned char *to, RSA *rsa, int padding);
+    unsigned char *to, RSA *rsa, int padding);
 static int rsa_ossl_public_decrypt(int flen, const unsigned char *from,
-                                  unsigned char *to, RSA *rsa, int padding);
+    unsigned char *to, RSA *rsa, int padding);
 static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
-                                   unsigned char *to, RSA *rsa, int padding);
+    unsigned char *to, RSA *rsa, int padding);
 static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *i, RSA *rsa,
-                           BN_CTX *ctx);
+    BN_CTX *ctx);
 static int rsa_ossl_init(RSA *rsa);
 static int rsa_ossl_finish(RSA *rsa);
+#ifdef S390X_MOD_EXP
+static int rsa_ossl_s390x_mod_exp(BIGNUM *r0, const BIGNUM *i, RSA *rsa,
+    BN_CTX *ctx);
 static RSA_METHOD rsa_pkcs1_ossl_meth = {
     "OpenSSL PKCS#1 RSA",
     rsa_ossl_public_encrypt,
-    rsa_ossl_public_decrypt,     /* signature verification */
-    rsa_ossl_private_encrypt,    /* signing */
+    rsa_ossl_public_decrypt, /* signature verification */
+    rsa_ossl_private_encrypt, /* signing */
     rsa_ossl_private_decrypt,
-    rsa_ossl_mod_exp,
-    BN_mod_exp_mont,            /* XXX probably we should not use Montgomery
-                                 * if e == 3 */
+    rsa_ossl_s390x_mod_exp,
+    s390x_mod_exp,
     rsa_ossl_init,
     rsa_ossl_finish,
-    RSA_FLAG_FIPS_METHOD,       /* flags */
+    RSA_FLAG_FIPS_METHOD, /* flags */
     NULL,
-    0,                          /* rsa_sign */
-    0,                          /* rsa_verify */
-    NULL,                       /* rsa_keygen */
-    NULL                        /* rsa_multi_prime_keygen */
+    0, /* rsa_sign */
+    0, /* rsa_verify */
+    NULL, /* rsa_keygen */
+    NULL /* rsa_multi_prime_keygen */
 };
+#else
+static RSA_METHOD rsa_pkcs1_ossl_meth = {
+    "OpenSSL PKCS#1 RSA",
+    rsa_ossl_public_encrypt,
+    rsa_ossl_public_decrypt, /* signature verification */
+    rsa_ossl_private_encrypt, /* signing */
+    rsa_ossl_private_decrypt,
+    rsa_ossl_mod_exp,
+    BN_mod_exp_mont, /* XXX probably we should not use Montgomery
+                      * if e == 3 */
+    rsa_ossl_init,
+    rsa_ossl_finish,
+    RSA_FLAG_FIPS_METHOD, /* flags */
+    NULL,
+    0, /* rsa_sign */
+    0, /* rsa_verify */
+    NULL, /* rsa_keygen */
+    NULL /* rsa_multi_prime_keygen */
+};
+#endif
 
 static const RSA_METHOD *default_RSA_meth = &rsa_pkcs1_ossl_meth;
 
@@ -66,7 +97,7 @@ const RSA_METHOD *RSA_null_method(void)
 }
 
 static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
-                                  unsigned char *to, RSA *rsa, int padding)
+    unsigned char *to, RSA *rsa, int padding)
 {
     BIGNUM *f, *ret;
     int i, num = 0, r = -1;
@@ -74,50 +105,48 @@ static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
     BN_CTX *ctx = NULL;
 
     if (BN_num_bits(rsa->n) > OPENSSL_RSA_MAX_MODULUS_BITS) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_ENCRYPT, RSA_R_MODULUS_TOO_LARGE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_MODULUS_TOO_LARGE);
         return -1;
     }
 
     if (BN_ucmp(rsa->n, rsa->e) <= 0) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_ENCRYPT, RSA_R_BAD_E_VALUE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_BAD_E_VALUE);
         return -1;
     }
 
     /* for large moduli, enforce exponent limit */
     if (BN_num_bits(rsa->n) > OPENSSL_RSA_SMALL_MODULUS_BITS) {
         if (BN_num_bits(rsa->e) > OPENSSL_RSA_MAX_PUBEXP_BITS) {
-            RSAerr(RSA_F_RSA_OSSL_PUBLIC_ENCRYPT, RSA_R_BAD_E_VALUE);
+            ERR_raise(ERR_LIB_RSA, RSA_R_BAD_E_VALUE);
             return -1;
         }
     }
 
-    if ((ctx = BN_CTX_new()) == NULL)
+    if ((ctx = BN_CTX_new_ex(rsa->libctx)) == NULL)
         goto err;
     BN_CTX_start(ctx);
     f = BN_CTX_get(ctx);
     ret = BN_CTX_get(ctx);
     num = BN_num_bytes(rsa->n);
     buf = OPENSSL_malloc(num);
-    if (ret == NULL || buf == NULL) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_ENCRYPT, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL || buf == NULL)
         goto err;
-    }
 
     switch (padding) {
     case RSA_PKCS1_PADDING:
-        i = RSA_padding_add_PKCS1_type_2(buf, num, from, flen);
+        i = ossl_rsa_padding_add_PKCS1_type_2_ex(rsa->libctx, buf, num,
+            from, flen);
         break;
     case RSA_PKCS1_OAEP_PADDING:
-        i = RSA_padding_add_PKCS1_OAEP(buf, num, from, flen, NULL, 0);
-        break;
-    case RSA_SSLV23_PADDING:
-        i = RSA_padding_add_SSLv23(buf, num, from, flen);
+        i = ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(rsa->libctx, buf, num,
+            from, flen, NULL, 0,
+            NULL, NULL);
         break;
     case RSA_NO_PADDING:
         i = RSA_padding_add_none(buf, num, from, flen);
         break;
     default:
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_ENCRYPT, RSA_R_UNKNOWN_PADDING_TYPE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_UNKNOWN_PADDING_TYPE);
         goto err;
     }
     if (i <= 0)
@@ -126,20 +155,44 @@ static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
     if (BN_bin2bn(buf, num, f) == NULL)
         goto err;
 
-    if (BN_ucmp(f, rsa->n) >= 0) {
-        /* usually the padding functions would catch this */
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_ENCRYPT,
-               RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
-        goto err;
+#ifdef FIPS_MODULE
+    /*
+     * See SP800-56Br2, section 7.1.1.1
+     * RSAEP: 1 < f < (n – 1).
+     * (where f is the plaintext).
+     */
+    if (padding == RSA_NO_PADDING) {
+        BIGNUM *nminus1 = BN_CTX_get(ctx);
+
+        if (BN_ucmp(f, BN_value_one()) <= 0) {
+            ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_SMALL);
+            goto err;
+        }
+        if (nminus1 == NULL
+            || BN_copy(nminus1, rsa->n) == NULL
+            || !BN_sub_word(nminus1, 1))
+            goto err;
+        if (BN_ucmp(f, nminus1) >= 0) {
+            ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+            goto err;
+        }
+    } else
+#endif
+    {
+        if (BN_ucmp(f, rsa->n) >= 0) {
+            /* usually the padding functions would catch this */
+            ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+            goto err;
+        }
     }
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
         if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
-                                    rsa->n, ctx))
+                rsa->n, ctx))
             goto err;
 
     if (!rsa->meth->bn_mod_exp(ret, f, rsa->e, rsa->n, ctx,
-                               rsa->_method_mod_n))
+            rsa->_method_mod_n))
         goto err;
 
     /*
@@ -147,7 +200,7 @@ static int rsa_ossl_public_encrypt(int flen, const unsigned char *from,
      * the length of the modulus.
      */
     r = BN_bn2binpad(ret, to, num);
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     OPENSSL_clear_free(buf, num);
@@ -158,10 +211,21 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
 {
     BN_BLINDING *ret;
 
-    CRYPTO_THREAD_write_lock(rsa->lock);
+    if (!CRYPTO_THREAD_read_lock(rsa->lock))
+        return NULL;
 
     if (rsa->blinding == NULL) {
-        rsa->blinding = RSA_setup_blinding(rsa, ctx);
+        /*
+         * This dance with upgrading the lock from read to write will be
+         * slower in cases of a single use RSA object, but should be
+         * significantly better in multi-thread cases (e.g. servers). It's
+         * probably worth it.
+         */
+        CRYPTO_THREAD_unlock(rsa->lock);
+        if (!CRYPTO_THREAD_write_lock(rsa->lock))
+            return NULL;
+        if (rsa->blinding == NULL)
+            rsa->blinding = RSA_setup_blinding(rsa, ctx);
     }
 
     ret = rsa->blinding;
@@ -183,18 +247,22 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
         *local = 0;
 
         if (rsa->mt_blinding == NULL) {
-            rsa->mt_blinding = RSA_setup_blinding(rsa, ctx);
+            CRYPTO_THREAD_unlock(rsa->lock);
+            if (!CRYPTO_THREAD_write_lock(rsa->lock))
+                return NULL;
+            if (rsa->mt_blinding == NULL)
+                rsa->mt_blinding = RSA_setup_blinding(rsa, ctx);
         }
         ret = rsa->mt_blinding;
     }
 
- err:
+err:
     CRYPTO_THREAD_unlock(rsa->lock);
     return ret;
 }
 
 static int rsa_blinding_convert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
-                                BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     if (unblind == NULL) {
         /*
@@ -207,7 +275,9 @@ static int rsa_blinding_convert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
          */
         int ret;
 
-        BN_BLINDING_lock(b);
+        if (!BN_BLINDING_lock(b))
+            return 0;
+
         ret = BN_BLINDING_convert_ex(f, unblind, b, ctx);
         BN_BLINDING_unlock(b);
 
@@ -216,7 +286,7 @@ static int rsa_blinding_convert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
 }
 
 static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
-                               BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     /*
      * For local blinding, unblind is set to NULL, and BN_BLINDING_invert_ex
@@ -226,12 +296,13 @@ static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
      * will only read the modulus from BN_BLINDING. In both cases it's safe
      * to access the blinding without a lock.
      */
+    BN_set_flags(f, BN_FLG_CONSTTIME);
     return BN_BLINDING_invert_ex(f, unblind, b, ctx);
 }
 
 /* signing */
 static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
-                                   unsigned char *to, RSA *rsa, int padding)
+    unsigned char *to, RSA *rsa, int padding)
 {
     BIGNUM *f, *ret, *res;
     int i, num = 0, r = -1;
@@ -246,17 +317,15 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
     BIGNUM *unblind = NULL;
     BN_BLINDING *blinding = NULL;
 
-    if ((ctx = BN_CTX_new()) == NULL)
+    if ((ctx = BN_CTX_new_ex(rsa->libctx)) == NULL)
         goto err;
     BN_CTX_start(ctx);
     f = BN_CTX_get(ctx);
     ret = BN_CTX_get(ctx);
     num = BN_num_bytes(rsa->n);
     buf = OPENSSL_malloc(num);
-    if (ret == NULL || buf == NULL) {
-        RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL || buf == NULL)
         goto err;
-    }
 
     switch (padding) {
     case RSA_PKCS1_PADDING:
@@ -268,9 +337,8 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
     case RSA_NO_PADDING:
         i = RSA_padding_add_none(buf, num, from, flen);
         break;
-    case RSA_SSLV23_PADDING:
     default:
-        RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, RSA_R_UNKNOWN_PADDING_TYPE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_UNKNOWN_PADDING_TYPE);
         goto err;
     }
     if (i <= 0)
@@ -281,55 +349,50 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
 
     if (BN_ucmp(f, rsa->n) >= 0) {
         /* usually the padding functions would catch this */
-        RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT,
-               RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+        ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
         goto err;
     }
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
         if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
-                                    rsa->n, ctx))
+                rsa->n, ctx))
             goto err;
 
     if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
         blinding = rsa_get_blinding(rsa, &local_blinding, ctx);
         if (blinding == NULL) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, ERR_R_INTERNAL_ERROR);
+            ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
             goto err;
         }
     }
 
     if (blinding != NULL) {
         if (!local_blinding && ((unblind = BN_CTX_get(ctx)) == NULL)) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
             goto err;
         }
         if (!rsa_blinding_convert(blinding, f, unblind, ctx))
             goto err;
     }
 
-    if ((rsa->flags & RSA_FLAG_EXT_PKEY) ||
-        (rsa->version == RSA_ASN1_VERSION_MULTI) ||
-        ((rsa->p != NULL) &&
-         (rsa->q != NULL) &&
-         (rsa->dmp1 != NULL) && (rsa->dmq1 != NULL) && (rsa->iqmp != NULL))) {
+    if ((rsa->flags & RSA_FLAG_EXT_PKEY) || (rsa->version == RSA_ASN1_VERSION_MULTI) || ((rsa->p != NULL) && (rsa->q != NULL) && (rsa->dmp1 != NULL) && (rsa->dmq1 != NULL) && (rsa->iqmp != NULL))) {
         if (!rsa->meth->rsa_mod_exp(ret, f, rsa, ctx))
             goto err;
     } else {
         BIGNUM *d = BN_new();
         if (d == NULL) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
             goto err;
         }
         if (rsa->d == NULL) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_ENCRYPT, RSA_R_MISSING_PRIVATE_KEY);
+            ERR_raise(ERR_LIB_RSA, RSA_R_MISSING_PRIVATE_KEY);
             BN_free(d);
             goto err;
         }
         BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
 
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
-                                   rsa->_method_mod_n)) {
+                rsa->_method_mod_n)) {
             BN_free(d);
             goto err;
         }
@@ -357,19 +420,105 @@ static int rsa_ossl_private_encrypt(int flen, const unsigned char *from,
      * the length of the modulus.
      */
     r = BN_bn2binpad(res, to, num);
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     OPENSSL_clear_free(buf, num);
     return r;
 }
 
+static int derive_kdk(int flen, const unsigned char *from, RSA *rsa,
+    unsigned char *buf, int num, unsigned char *kdk)
+{
+    int ret = 0;
+    HMAC_CTX *hmac = NULL;
+    EVP_MD *md = NULL;
+    unsigned int md_len = SHA256_DIGEST_LENGTH;
+    unsigned char d_hash[SHA256_DIGEST_LENGTH] = { 0 };
+    /*
+     * because we use d as a handle to rsa->d we need to keep it local and
+     * free before any further use of rsa->d
+     */
+    BIGNUM *d = BN_new();
+
+    if (d == NULL) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_CRYPTO_LIB);
+        goto err;
+    }
+    if (rsa->d == NULL) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_MISSING_PRIVATE_KEY);
+        BN_free(d);
+        goto err;
+    }
+    BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
+    if (BN_bn2binpad(d, buf, num) < 0) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
+        BN_free(d);
+        goto err;
+    }
+    BN_free(d);
+
+    /*
+     * we use hardcoded hash so that migrating between versions that use
+     * different hash doesn't provide a Bleichenbacher oracle:
+     * if the attacker can see that different versions return different
+     * messages for the same ciphertext, they'll know that the message is
+     * synthetically generated, which means that the padding check failed
+     */
+    md = EVP_MD_fetch(rsa->libctx, "sha256", NULL);
+    if (md == NULL) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_FETCH_FAILED);
+        goto err;
+    }
+
+    if (EVP_Digest(buf, num, d_hash, NULL, md, NULL) <= 0) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    hmac = HMAC_CTX_new();
+    if (hmac == NULL) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_CRYPTO_LIB);
+        goto err;
+    }
+
+    if (HMAC_Init_ex(hmac, d_hash, sizeof(d_hash), md, NULL) <= 0) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    if (flen < num) {
+        memset(buf, 0, num - flen);
+        if (HMAC_Update(hmac, buf, num - flen) <= 0) {
+            ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
+            goto err;
+        }
+    }
+    if (HMAC_Update(hmac, from, flen) <= 0) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    md_len = SHA256_DIGEST_LENGTH;
+    if (HMAC_Final(hmac, kdk, &md_len) <= 0) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+    ret = 1;
+
+err:
+    HMAC_CTX_free(hmac);
+    EVP_MD_free(md);
+    return ret;
+}
+
 static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
-                                   unsigned char *to, RSA *rsa, int padding)
+    unsigned char *to, RSA *rsa, int padding)
 {
     BIGNUM *f, *ret;
     int j, num = 0, r = -1;
     unsigned char *buf = NULL;
+    unsigned char kdk[SHA256_DIGEST_LENGTH] = { 0 };
     BN_CTX *ctx = NULL;
     int local_blinding = 0;
     /*
@@ -380,25 +529,37 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
     BIGNUM *unblind = NULL;
     BN_BLINDING *blinding = NULL;
 
-    if ((ctx = BN_CTX_new()) == NULL)
+    /*
+     * we need the value of the private exponent to perform implicit rejection
+     */
+    if ((rsa->flags & RSA_FLAG_EXT_PKEY) && (padding == RSA_PKCS1_PADDING))
+        padding = RSA_PKCS1_NO_IMPLICIT_REJECT_PADDING;
+
+    if ((ctx = BN_CTX_new_ex(rsa->libctx)) == NULL)
         goto err;
     BN_CTX_start(ctx);
     f = BN_CTX_get(ctx);
     ret = BN_CTX_get(ctx);
-    num = BN_num_bytes(rsa->n);
-    buf = OPENSSL_malloc(num);
-    if (ret == NULL || buf == NULL) {
-        RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
         goto err;
     }
+    num = BN_num_bytes(rsa->n);
+    buf = OPENSSL_malloc(num);
+    if (buf == NULL)
+        goto err;
 
     /*
      * This check was for equality but PGP does evil things and chops off the
      * top '0' bytes
      */
     if (flen > num) {
-        RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT,
-               RSA_R_DATA_GREATER_THAN_MOD_LEN);
+        ERR_raise(ERR_LIB_RSA, RSA_R_DATA_GREATER_THAN_MOD_LEN);
+        goto err;
+    }
+
+    if (flen < 1) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_SMALL);
         goto err;
     }
 
@@ -406,23 +567,51 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
     if (BN_bin2bn(from, (int)flen, f) == NULL)
         goto err;
 
-    if (BN_ucmp(f, rsa->n) >= 0) {
-        RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT,
-               RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
-        goto err;
+#ifdef FIPS_MODULE
+    /*
+     * See SP800-56Br2, section 7.1.2.1
+     * RSADP: 1 < f < (n – 1)
+     * (where f is the ciphertext).
+     */
+    if (padding == RSA_NO_PADDING) {
+        BIGNUM *nminus1 = BN_CTX_get(ctx);
+
+        if (BN_ucmp(f, BN_value_one()) <= 0) {
+            ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_SMALL);
+            goto err;
+        }
+        if (nminus1 == NULL
+            || BN_copy(nminus1, rsa->n) == NULL
+            || !BN_sub_word(nminus1, 1))
+            goto err;
+        if (BN_ucmp(f, nminus1) >= 0) {
+            ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+            goto err;
+        }
+    } else
+#endif
+    {
+        if (BN_ucmp(f, rsa->n) >= 0) {
+            ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+            goto err;
+        }
     }
+    if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+        if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
+                rsa->n, ctx))
+            goto err;
 
     if (!(rsa->flags & RSA_FLAG_NO_BLINDING)) {
         blinding = rsa_get_blinding(rsa, &local_blinding, ctx);
         if (blinding == NULL) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, ERR_R_INTERNAL_ERROR);
+            ERR_raise(ERR_LIB_RSA, ERR_R_INTERNAL_ERROR);
             goto err;
         }
     }
 
     if (blinding != NULL) {
         if (!local_blinding && ((unblind = BN_CTX_get(ctx)) == NULL)) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
             goto err;
         }
         if (!rsa_blinding_convert(blinding, f, unblind, ctx))
@@ -430,34 +619,23 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
     }
 
     /* do the decrypt */
-    if ((rsa->flags & RSA_FLAG_EXT_PKEY) ||
-        (rsa->version == RSA_ASN1_VERSION_MULTI) ||
-        ((rsa->p != NULL) &&
-         (rsa->q != NULL) &&
-         (rsa->dmp1 != NULL) && (rsa->dmq1 != NULL) && (rsa->iqmp != NULL))) {
+    if ((rsa->flags & RSA_FLAG_EXT_PKEY) || (rsa->version == RSA_ASN1_VERSION_MULTI) || ((rsa->p != NULL) && (rsa->q != NULL) && (rsa->dmp1 != NULL) && (rsa->dmq1 != NULL) && (rsa->iqmp != NULL))) {
         if (!rsa->meth->rsa_mod_exp(ret, f, rsa, ctx))
             goto err;
     } else {
         BIGNUM *d = BN_new();
         if (d == NULL) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
             goto err;
         }
         if (rsa->d == NULL) {
-            RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, RSA_R_MISSING_PRIVATE_KEY);
+            ERR_raise(ERR_LIB_RSA, RSA_R_MISSING_PRIVATE_KEY);
             BN_free(d);
             goto err;
         }
         BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
-
-        if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
-            if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
-                                        rsa->n, ctx)) {
-                BN_free(d);
-                goto err;
-            }
         if (!rsa->meth->bn_mod_exp(ret, f, d, rsa->n, ctx,
-                                   rsa->_method_mod_n)) {
+                rsa->_method_mod_n)) {
             BN_free(d);
             goto err;
         }
@@ -469,29 +647,47 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
         if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
             goto err;
 
+    /*
+     * derive the Key Derivation Key from private exponent and public
+     * ciphertext
+     */
+    if (padding == RSA_PKCS1_PADDING) {
+        if (derive_kdk(flen, from, rsa, buf, num, kdk) == 0)
+            goto err;
+    }
+
     j = BN_bn2binpad(ret, buf, num);
+    if (j < 0)
+        goto err;
 
     switch (padding) {
-    case RSA_PKCS1_PADDING:
+    case RSA_PKCS1_NO_IMPLICIT_REJECT_PADDING:
         r = RSA_padding_check_PKCS1_type_2(to, num, buf, j, num);
+        break;
+    case RSA_PKCS1_PADDING:
+        r = ossl_rsa_padding_check_PKCS1_type_2(rsa->libctx, to, num, buf, j, num, kdk);
         break;
     case RSA_PKCS1_OAEP_PADDING:
         r = RSA_padding_check_PKCS1_OAEP(to, num, buf, j, num, NULL, 0);
-        break;
-    case RSA_SSLV23_PADDING:
-        r = RSA_padding_check_SSLv23(to, num, buf, j, num);
         break;
     case RSA_NO_PADDING:
         memcpy(to, buf, (r = j));
         break;
     default:
-        RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, RSA_R_UNKNOWN_PADDING_TYPE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_UNKNOWN_PADDING_TYPE);
         goto err;
     }
-    RSAerr(RSA_F_RSA_OSSL_PRIVATE_DECRYPT, RSA_R_PADDING_CHECK_FAILED);
+#ifndef FIPS_MODULE
+    /*
+     * This trick doesn't work in the FIPS provider because libcrypto manages
+     * the error stack. Instead we opt not to put an error on the stack at all
+     * in case of padding failure in the FIPS provider.
+     */
+    ERR_raise(ERR_LIB_RSA, RSA_R_PADDING_CHECK_FAILED);
     err_clear_last_constant_time(1 & ~constant_time_msb(r));
+#endif
 
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     OPENSSL_clear_free(buf, num);
@@ -500,7 +696,7 @@ static int rsa_ossl_private_decrypt(int flen, const unsigned char *from,
 
 /* signature verification */
 static int rsa_ossl_public_decrypt(int flen, const unsigned char *from,
-                                  unsigned char *to, RSA *rsa, int padding)
+    unsigned char *to, RSA *rsa, int padding)
 {
     BIGNUM *f, *ret;
     int i, num = 0, r = -1;
@@ -508,41 +704,43 @@ static int rsa_ossl_public_decrypt(int flen, const unsigned char *from,
     BN_CTX *ctx = NULL;
 
     if (BN_num_bits(rsa->n) > OPENSSL_RSA_MAX_MODULUS_BITS) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT, RSA_R_MODULUS_TOO_LARGE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_MODULUS_TOO_LARGE);
         return -1;
     }
 
     if (BN_ucmp(rsa->n, rsa->e) <= 0) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT, RSA_R_BAD_E_VALUE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_BAD_E_VALUE);
         return -1;
     }
 
     /* for large moduli, enforce exponent limit */
     if (BN_num_bits(rsa->n) > OPENSSL_RSA_SMALL_MODULUS_BITS) {
         if (BN_num_bits(rsa->e) > OPENSSL_RSA_MAX_PUBEXP_BITS) {
-            RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT, RSA_R_BAD_E_VALUE);
+            ERR_raise(ERR_LIB_RSA, RSA_R_BAD_E_VALUE);
             return -1;
         }
     }
 
-    if ((ctx = BN_CTX_new()) == NULL)
+    if ((ctx = BN_CTX_new_ex(rsa->libctx)) == NULL)
         goto err;
     BN_CTX_start(ctx);
     f = BN_CTX_get(ctx);
     ret = BN_CTX_get(ctx);
-    num = BN_num_bytes(rsa->n);
-    buf = OPENSSL_malloc(num);
-    if (ret == NULL || buf == NULL) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL) {
+        ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
         goto err;
     }
+    num = BN_num_bytes(rsa->n);
+    buf = OPENSSL_malloc(num);
+    if (buf == NULL)
+        goto err;
 
     /*
      * This check was for equality but PGP does evil things and chops off the
      * top '0' bytes
      */
     if (flen > num) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT, RSA_R_DATA_GREATER_THAN_MOD_LEN);
+        ERR_raise(ERR_LIB_RSA, RSA_R_DATA_GREATER_THAN_MOD_LEN);
         goto err;
     }
 
@@ -550,25 +748,27 @@ static int rsa_ossl_public_decrypt(int flen, const unsigned char *from,
         goto err;
 
     if (BN_ucmp(f, rsa->n) >= 0) {
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT,
-               RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
+        ERR_raise(ERR_LIB_RSA, RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
         goto err;
     }
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
         if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
-                                    rsa->n, ctx))
+                rsa->n, ctx))
             goto err;
 
     if (!rsa->meth->bn_mod_exp(ret, f, rsa->e, rsa->n, ctx,
-                               rsa->_method_mod_n))
+            rsa->_method_mod_n))
         goto err;
 
+    /* For X9.31: Assuming e is odd it does a 12 mod 16 test */
     if ((padding == RSA_X931_PADDING) && ((bn_get_words(ret)[0] & 0xf) != 12))
         if (!BN_sub(ret, rsa->n, ret))
             goto err;
 
     i = BN_bn2binpad(ret, buf, num);
+    if (i < 0)
+        goto err;
 
     switch (padding) {
     case RSA_PKCS1_PADDING:
@@ -581,13 +781,13 @@ static int rsa_ossl_public_decrypt(int flen, const unsigned char *from,
         memcpy(to, buf, (r = i));
         break;
     default:
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT, RSA_R_UNKNOWN_PADDING_TYPE);
+        ERR_raise(ERR_LIB_RSA, RSA_R_UNKNOWN_PADDING_TYPE);
         goto err;
     }
     if (r < 0)
-        RSAerr(RSA_F_RSA_OSSL_PUBLIC_DECRYPT, RSA_R_PADDING_CHECK_FAILED);
+        ERR_raise(ERR_LIB_RSA, RSA_R_PADDING_CHECK_FAILED);
 
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
     OPENSSL_clear_free(buf, num);
@@ -596,23 +796,31 @@ static int rsa_ossl_public_decrypt(int flen, const unsigned char *from,
 
 static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 {
-    BIGNUM *r1, *m1, *vrfy, *r2, *m[RSA_MAX_PRIME_NUM - 2];
-    int ret = 0, i, ex_primes = 0, smooth = 0;
+    BIGNUM *r1, *m1, *vrfy;
+    int ret = 0, smooth = 0;
+#ifndef FIPS_MODULE
+    BIGNUM *r2, *m[RSA_MAX_PRIME_NUM - 2];
+    int i, ex_primes = 0;
     RSA_PRIME_INFO *pinfo;
+#endif
 
     BN_CTX_start(ctx);
 
     r1 = BN_CTX_get(ctx);
+#ifndef FIPS_MODULE
     r2 = BN_CTX_get(ctx);
+#endif
     m1 = BN_CTX_get(ctx);
     vrfy = BN_CTX_get(ctx);
     if (vrfy == NULL)
         goto err;
 
+#ifndef FIPS_MODULE
     if (rsa->version == RSA_ASN1_VERSION_MULTI
         && ((ex_primes = sk_RSA_PRIME_INFO_num(rsa->prime_infos)) <= 0
-             || ex_primes > RSA_MAX_PRIME_NUM - 2))
+            || ex_primes > RSA_MAX_PRIME_NUM - 2))
         goto err;
+#endif
 
     if (rsa->flags & RSA_FLAG_CACHE_PRIVATE) {
         BIGNUM *factor = BN_new();
@@ -625,14 +833,15 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
          * BN_FLG_CONSTTIME flag
          */
         if (!(BN_with_flags(factor, rsa->p, BN_FLG_CONSTTIME),
-              BN_MONT_CTX_set_locked(&rsa->_method_mod_p, rsa->lock,
-                                     factor, ctx))
+                BN_MONT_CTX_set_locked(&rsa->_method_mod_p, rsa->lock,
+                    factor, ctx))
             || !(BN_with_flags(factor, rsa->q, BN_FLG_CONSTTIME),
-                 BN_MONT_CTX_set_locked(&rsa->_method_mod_q, rsa->lock,
-                                        factor, ctx))) {
+                BN_MONT_CTX_set_locked(&rsa->_method_mod_q, rsa->lock,
+                    factor, ctx))) {
             BN_free(factor);
             goto err;
         }
+#ifndef FIPS_MODULE
         for (i = 0; i < ex_primes; i++) {
             pinfo = sk_RSA_PRIME_INFO_value(rsa->prime_infos, i);
             BN_with_flags(factor, pinfo->r, BN_FLG_CONSTTIME);
@@ -641,19 +850,22 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
                 goto err;
             }
         }
+#endif
         /*
          * We MUST free |factor| before any further use of the prime factors
          */
         BN_free(factor);
 
-        smooth = (ex_primes == 0)
-                 && (rsa->meth->bn_mod_exp == BN_mod_exp_mont)
-                 && (BN_num_bits(rsa->q) == BN_num_bits(rsa->p));
+        smooth = (rsa->meth->bn_mod_exp == BN_mod_exp_mont)
+#ifndef FIPS_MODULE
+            && (ex_primes == 0)
+#endif
+            && (BN_num_bits(rsa->q) == BN_num_bits(rsa->p));
     }
 
     if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
         if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, rsa->lock,
-                                    rsa->n, ctx))
+                rsa->n, ctx))
             goto err;
 
     if (smooth) {
@@ -667,15 +879,20 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
         if (/* m1 = I moq q */
             !bn_from_mont_fixed_top(m1, I, rsa->_method_mod_q, ctx)
             || !bn_to_mont_fixed_top(m1, m1, rsa->_method_mod_q, ctx)
-            /* m1 = m1^dmq1 mod q */
-            || !BN_mod_exp_mont_consttime(m1, m1, rsa->dmq1, rsa->q, ctx,
-                                          rsa->_method_mod_q)
             /* r1 = I mod p */
             || !bn_from_mont_fixed_top(r1, I, rsa->_method_mod_p, ctx)
             || !bn_to_mont_fixed_top(r1, r1, rsa->_method_mod_p, ctx)
-            /* r1 = r1^dmp1 mod p */
-            || !BN_mod_exp_mont_consttime(r1, r1, rsa->dmp1, rsa->p, ctx,
-                                          rsa->_method_mod_p)
+            /*
+             * Use parallel exponentiations optimization if possible,
+             * otherwise fallback to two sequential exponentiations:
+             *    m1 = m1^dmq1 mod q
+             *    r1 = r1^dmp1 mod p
+             */
+            || !BN_mod_exp_mont_consttime_x2(m1, m1, rsa->dmq1, rsa->q,
+                rsa->_method_mod_q,
+                r1, r1, rsa->dmp1, rsa->p,
+                rsa->_method_mod_p,
+                ctx)
             /* r1 = (r1 - m1) mod p */
             /*
              * bn_mod_sub_fixed_top is not regular modular subtraction,
@@ -688,7 +905,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
             /* r1 = r1 * iqmp mod p */
             || !bn_to_mont_fixed_top(r1, r1, rsa->_method_mod_p, ctx)
             || !bn_mul_mont_fixed_top(r1, r1, rsa->iqmp, rsa->_method_mod_p,
-                                      ctx)
+                ctx)
             /* r0 = r1 * q + m1 */
             || !bn_mul_fixed_top(r0, r1, rsa->q, ctx)
             || !bn_mod_add_fixed_top(r0, r0, m1, rsa->n))
@@ -719,7 +936,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 
             /* compute r1^dmq1 mod q */
             if (!rsa->meth->bn_mod_exp(m1, r1, dmq1, rsa->q, ctx,
-                                       rsa->_method_mod_q)) {
+                    rsa->_method_mod_q)) {
                 BN_free(c);
                 BN_free(dmq1);
                 goto err;
@@ -745,7 +962,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 
         /* compute r1^dmp1 mod p */
         if (!rsa->meth->bn_mod_exp(r0, r1, dmp1, rsa->p, ctx,
-                                   rsa->_method_mod_p)) {
+                rsa->_method_mod_p)) {
             BN_free(dmp1);
             goto err;
         }
@@ -753,16 +970,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
         BN_free(dmp1);
     }
 
-    /*
-     * calculate m_i in multi-prime case
-     *
-     * TODO:
-     * 1. squash the following two loops and calculate |m_i| there.
-     * 2. remove cc and reuse |c|.
-     * 3. remove |dmq1| and |dmp1| in previous block and use |di|.
-     *
-     * If these things are done, the code will be more readable.
-     */
+#ifndef FIPS_MODULE
     if (ex_primes > 0) {
         BIGNUM *di = BN_new(), *cc = BN_new();
 
@@ -802,6 +1010,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
         BN_free(cc);
         BN_free(di);
     }
+#endif
 
     if (!BN_sub(r0, r0, m1))
         goto err;
@@ -845,6 +1054,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
     if (!BN_add(r0, r1, m1))
         goto err;
 
+#ifndef FIPS_MODULE
     /* add m_i to m in multi-prime case */
     if (ex_primes > 0) {
         BIGNUM *pr2 = BN_new();
@@ -887,17 +1097,18 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
         }
         BN_free(pr2);
     }
+#endif
 
- tail:
+tail:
     if (rsa->e && rsa->n) {
         if (rsa->meth->bn_mod_exp == BN_mod_exp_mont) {
             if (!BN_mod_exp_mont(vrfy, r0, rsa->e, rsa->n, ctx,
-                                 rsa->_method_mod_n))
+                    rsa->_method_mod_n))
                 goto err;
         } else {
             bn_correct_top(r0);
             if (!rsa->meth->bn_mod_exp(vrfy, r0, rsa->e, rsa->n, ctx,
-                                       rsa->_method_mod_n))
+                    rsa->_method_mod_n))
                 goto err;
         }
         /*
@@ -911,7 +1122,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
         if (BN_is_zero(vrfy)) {
             bn_correct_top(r0);
             ret = 1;
-            goto err;   /* not actually error */
+            goto err; /* not actually error */
         }
         if (!BN_mod(vrfy, vrfy, rsa->n, ctx))
             goto err;
@@ -931,7 +1142,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
             BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
 
             if (!rsa->meth->bn_mod_exp(r0, I, d, rsa->n, ctx,
-                                       rsa->_method_mod_n)) {
+                    rsa->_method_mod_n)) {
                 BN_free(d);
                 goto err;
             }
@@ -949,7 +1160,7 @@ static int rsa_ossl_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
      */
     bn_correct_top(r0);
     ret = 1;
- err:
+err:
     BN_CTX_end(ctx);
     return ret;
 }
@@ -962,15 +1173,31 @@ static int rsa_ossl_init(RSA *rsa)
 
 static int rsa_ossl_finish(RSA *rsa)
 {
+#ifndef FIPS_MODULE
     int i;
     RSA_PRIME_INFO *pinfo;
 
-    BN_MONT_CTX_free(rsa->_method_mod_n);
-    BN_MONT_CTX_free(rsa->_method_mod_p);
-    BN_MONT_CTX_free(rsa->_method_mod_q);
     for (i = 0; i < sk_RSA_PRIME_INFO_num(rsa->prime_infos); i++) {
         pinfo = sk_RSA_PRIME_INFO_value(rsa->prime_infos, i);
         BN_MONT_CTX_free(pinfo->m);
     }
+#endif
+
+    BN_MONT_CTX_free(rsa->_method_mod_n);
+    BN_MONT_CTX_free(rsa->_method_mod_p);
+    BN_MONT_CTX_free(rsa->_method_mod_q);
     return 1;
 }
+
+#ifdef S390X_MOD_EXP
+static int rsa_ossl_s390x_mod_exp(BIGNUM *r0, const BIGNUM *i, RSA *rsa,
+    BN_CTX *ctx)
+{
+    if (rsa->version != RSA_ASN1_VERSION_MULTI) {
+        if (s390x_crt(r0, i, rsa->p, rsa->q, rsa->dmp1, rsa->dmq1, rsa->iqmp) == 1)
+            return 1;
+    }
+    return rsa_ossl_mod_exp(r0, i, rsa, ctx);
+}
+
+#endif

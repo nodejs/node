@@ -1,10 +1,10 @@
 #include "crypto/crypto_keygen.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "ncrypto.h"
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
@@ -12,12 +12,14 @@
 
 namespace node {
 
+using ncrypto::DataPointer;
+using ncrypto::EVPKeyCtxPointer;
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
-using v8::Nothing;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -32,7 +34,7 @@ namespace crypto {
 //   6. Private Type
 //   7. Cipher
 //   8. Passphrase
-Maybe<bool> NidKeyPairGenTraits::AdditionalConfig(
+Maybe<void> NidKeyPairGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
@@ -42,66 +44,65 @@ Maybe<bool> NidKeyPairGenTraits::AdditionalConfig(
 
   *offset += 1;
 
-  return Just(true);
+  return JustVoid();
 }
 
 EVPKeyCtxPointer NidKeyPairGenTraits::Setup(NidKeyPairGenConfig* params) {
-  EVPKeyCtxPointer ctx =
-      EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(params->params.id, nullptr));
-  if (!ctx || EVP_PKEY_keygen_init(ctx.get()) <= 0)
-    return EVPKeyCtxPointer();
-
+  auto ctx = EVPKeyCtxPointer::NewFromID(params->params.id);
+  if (!ctx || !ctx.initForKeygen()) return {};
   return ctx;
 }
 
 void SecretKeyGenConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (out != nullptr)
-    tracker->TrackFieldWithSize("out", length);
+  if (out) tracker->TrackFieldWithSize("out", length);
 }
 
-Maybe<bool> SecretKeyGenTraits::AdditionalConfig(
+Maybe<void> SecretKeyGenTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     SecretKeyGenConfig* params) {
-  Environment* env = Environment::GetCurrent(args);
   CHECK(args[*offset]->IsUint32());
-  params->length = std::trunc(args[*offset].As<Uint32>()->Value() / CHAR_BIT);
-  if (params->length > INT_MAX) {
-    const std::string msg{
-      SPrintF("length must be less than or equal to %s bits",
-              static_cast<uint64_t>(INT_MAX) * CHAR_BIT)
-    };
-    THROW_ERR_OUT_OF_RANGE(env, msg.c_str());
-    return Nothing<bool>();
+  uint32_t bits = args[*offset].As<Uint32>()->Value();
+  params->length_bits = bits;
+  if (mode == kCryptoJobWebCrypto) {
+    params->length = NumBitsToBytes(static_cast<size_t>(bits));
+    params->truncate_to_bit_length = bits % CHAR_BIT != 0;
+  } else {
+    params->length = bits / CHAR_BIT;
   }
   *offset += 1;
-  return Just(true);
+  return JustVoid();
 }
 
-KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(
-    Environment* env,
-    SecretKeyGenConfig* params) {
-  CHECK_LE(params->length, INT_MAX);
-  params->out = MallocOpenSSL<char>(params->length);
-  EntropySource(reinterpret_cast<unsigned char*>(params->out), params->length);
+KeyGenJobStatus SecretKeyGenTraits::DoKeyGen(Environment* env,
+                                             SecretKeyGenConfig* params) {
+  auto bytes = DataPointer::Alloc(params->length);
+  if (!ncrypto::CSPRNG(static_cast<unsigned char*>(bytes.get()),
+                       params->length)) {
+    return KeyGenJobStatus::FAILED;
+  }
+  params->out = ByteSource::Allocated(bytes.release());
+  if (params->truncate_to_bit_length)
+    TruncateToBitLength(params->length_bits, &params->out);
   return KeyGenJobStatus::OK;
 }
 
-Maybe<bool> SecretKeyGenTraits::EncodeKey(
-    Environment* env,
-    SecretKeyGenConfig* params,
-    Local<Value>* result) {
-  ByteSource out = ByteSource::Allocated(params->out, params->length);
-  std::shared_ptr<KeyObjectData> data =
-      KeyObjectData::CreateSecret(std::move(out));
-  return Just(KeyObjectHandle::Create(env, data).ToLocal(result));
+MaybeLocal<Value> SecretKeyGenTraits::EncodeKey(Environment* env,
+                                                SecretKeyGenConfig* params) {
+  auto data = KeyObjectData::CreateSecret(std::move(params->out));
+  return KeyObjectHandle::Create(env, data).FromMaybe(Local<Value>());
 }
 
 namespace Keygen {
 void Initialize(Environment* env, Local<Object> target) {
   NidKeyPairGenJob::Initialize(env, target);
   SecretKeyGenJob::Initialize(env, target);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  NidKeyPairGenJob::RegisterExternalReferences(registry);
+  SecretKeyGenJob::RegisterExternalReferences(registry);
 }
 }  // namespace Keygen
 }  // namespace crypto

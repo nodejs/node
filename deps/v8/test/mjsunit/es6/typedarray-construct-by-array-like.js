@@ -175,48 +175,11 @@ tests.push(function TestConstructFromTypedArray(constr) {
   }
 });
 
-tests.push(function TestFromTypedArraySpecies(constr) {
-  var b = new ArrayBuffer(16);
-  var a1 = new constr(b);
-
-  var constructor_read = 0;
-  var cons = b.constructor;
-
-  Object.defineProperty(b, 'constructor', {
-    get: function() {
-      constructor_read++;
-      return cons;
-    }
-  });
-
-  var a2 = new constr(a1);
-
-  assertEquals(1, constructor_read);
-});
-
-tests.push(function TestFromTypedArraySpeciesDetachsBuffer(constr) {
-  var b = new ArrayBuffer(16);
-  var a1 = new constr(b);
-
-  var constructor_read = 0;
-  var cons = b.constructor;
-
-  Object.defineProperty(b, 'constructor', {
-    get: function() {
-      %ArrayBufferDetach(b);
-      return cons;
-    }
-  });
-
-  assertThrows(() => new constr(a1));
-});
-
 tests.push(function TestTypedArrayMaxLength(constr) {
-  var myObject = { 0: 5, 1: 6, length: %TypedArrayMaxLength() + 1 };
+  var maxLength = %ArrayBufferMaxByteLength() / constr.BYTES_PER_ELEMENT;
+  var myObject = { 0: 5, 1: 6, length: maxLength + 1 };
 
-  assertThrows(function() {
-    new constr(myObject);
-  }, RangeError);
+  assertThrows(() => new constr(myObject), RangeError);
 });
 
 tests.push(function TestProxyHoleConverted(constr) {

@@ -9,10 +9,10 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdarg.h>
-#include <strings.h>    // index
-#include <sys/mman.h>   // mmap & munmap
+#include <strings.h>   // index
+#include <sys/mman.h>  // mmap & munmap
 #include <sys/time.h>
-#include <unistd.h>     // sysconf
+#include <unistd.h>  // sysconf
 
 #include <cmath>
 
@@ -76,7 +76,7 @@ class CygwinTimezoneCache : public PosixTimezoneCache {
 
 const char* CygwinTimezoneCache::LocalTimezone(double time) {
   if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
+  time_t tv = static_cast<time_t>(std::floor(time / msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
   if (nullptr == t) return "";
@@ -118,7 +118,7 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
   if (base == aligned_base) return reinterpret_cast<void*>(base);
 
   // Otherwise, free it and try a larger allocation.
-  CHECK(Free(base, size));
+  Free(base, size);
 
   // Clear the hint. It's unlikely we can allocate at this address.
   hint = nullptr;
@@ -134,7 +134,7 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 
     // Try to trim the allocation by freeing the padded allocation and then
     // calling VirtualAlloc at the aligned base.
-    CHECK(Free(base, padded_size));
+    Free(base, padded_size);
     aligned_base = RoundUp(base, alignment);
     base = reinterpret_cast<uint8_t*>(
         VirtualAlloc(aligned_base, size, flags, protect));
@@ -147,18 +147,18 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
 }
 
 // static
-bool OS::Free(void* address, const size_t size) {
+void OS::Free(void* address, const size_t size) {
   DCHECK_EQ(0, static_cast<uintptr_t>(address) % AllocatePageSize());
   DCHECK_EQ(0, size % AllocatePageSize());
   USE(size);
-  return VirtualFree(address, 0, MEM_RELEASE) != 0;
+  CHECK_NE(0, VirtualFree(address, 0, MEM_RELEASE));
 }
 
 // static
-bool OS::Release(void* address, size_t size) {
+void OS::Release(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
-  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+  CHECK_NE(0, VirtualFree(address, size, MEM_DECOMMIT));
 }
 
 // static
@@ -170,6 +170,11 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   }
   DWORD protect = GetProtectionFromMemoryPermission(access);
   return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
+}
+
+// static
+bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
+  return SetPermissions(address, size, access);
 }
 
 // static
@@ -198,6 +203,9 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
   CHECK(ptr);
   return ptr;
 }
+
+// static
+bool OS::SealPages(void* address, size_t size) { return false; }
 
 // static
 bool OS::HasLazyCommits() {
@@ -247,8 +255,8 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         lib_name[strlen(lib_name) - 1] = '\0';
       } else {
         // No library name found, just record the raw address range.
-        snprintf(lib_name, kLibNameLen,
-                 "%08" V8PRIxPTR "-%08" V8PRIxPTR, start, end);
+        snprintf(lib_name, kLibNameLen, "%08" V8PRIxPTR "-%08" V8PRIxPTR, start,
+                 end);
       }
       result.push_back(SharedLibraryAddress(lib_name, start, end));
     } else {
@@ -270,6 +278,12 @@ void OS::SignalCodeMovingGC() {
 }
 
 void OS::AdjustSchedulingParams() {}
+
+std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
+    OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
+    size_t alignment) {
+  return std::nullopt;
+}
 
 }  // namespace base
 }  // namespace v8

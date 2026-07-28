@@ -1,8 +1,9 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
 const assert = require('assert');
 const https = require('https');
@@ -16,14 +17,16 @@ const server = net.createServer(function(s) {
   });
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const req = https.request({ port: this.address().port });
   req.end();
 
+  // Different OpenSSL versions report different errors for junk data on a
+  // TLS connection, depending on which record validation check fires first.
+  const expectedErrorMessage =
+    /wrong[ _]version[ _]number|packet length too long|bad record type/i;
   req.once('error', common.mustCall(function(err) {
-    // OpenSSL 1.0.x and 1.1.x use different error messages for junk inputs.
-    assert(/unknown protocol/.test(err.message) ||
-           /wrong version number/.test(err.message));
+    assert.match(err.message, expectedErrorMessage);
     server.close();
   }));
-});
+}));

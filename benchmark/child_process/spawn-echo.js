@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
-  n: [1000]
+  n: [1000],
 });
 
 const spawn = require('child_process').spawn;

@@ -35,7 +35,7 @@ const msgErrBuf = Buffer.from(`${msgErr}\n`);
 
 const args = [
   '-e',
-  `console.log("${msgOut}"); console.error("${msgErr}");`
+  `console.log("${msgOut}"); console.error("${msgErr}");`,
 ];
 
 let ret;
@@ -65,7 +65,6 @@ if (process.argv.includes('spawnchild')) {
       checkSpawnSyncRet(ret);
       break;
   }
-  process.exit(0);
   return;
 }
 

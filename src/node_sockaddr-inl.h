@@ -16,14 +16,6 @@ namespace node {
 
 static constexpr uint32_t kLabelMask = 0xFFFFF;
 
-inline void hash_combine(size_t* seed) { }
-
-template <typename T, typename... Args>
-inline void hash_combine(size_t* seed, const T& value, Args... rest) {
-    *seed ^= std::hash<T>{}(value) + 0x9e3779b9 + (*seed << 6) + (*seed >> 2);
-    hash_combine(seed, rest...);
-}
-
 bool SocketAddress::is_numeric_host(const char* hostname) {
   return is_numeric_host(hostname, AF_INET) ||
          is_numeric_host(hostname, AF_INET6);
@@ -79,12 +71,16 @@ SocketAddress::SocketAddress(const SocketAddress& addr) {
 }
 
 SocketAddress& SocketAddress::operator=(const sockaddr* addr) {
-  memcpy(&address_, addr, GetLength(addr));
+  if (reinterpret_cast<const sockaddr*>(&address_) != addr) {
+    memcpy(&address_, addr, GetLength(addr));
+  }
   return *this;
 }
 
 SocketAddress& SocketAddress::operator=(const SocketAddress& addr) {
-  memcpy(&address_, &addr.address_, addr.length());
+  if (this != &addr) {
+    memcpy(&address_, &addr.address_, addr.length());
+  }
   return *this;
 }
 
@@ -157,7 +153,7 @@ void SocketAddress::Update(const sockaddr* data, size_t len) {
   memcpy(&address_, data, len);
 }
 
-v8::Local<v8::Object> SocketAddress::ToJS(
+v8::MaybeLocal<v8::Object> SocketAddress::ToJS(
     Environment* env,
     v8::Local<v8::Object> info) const {
   return AddressToJS(env, data(), info);
@@ -172,22 +168,9 @@ bool SocketAddress::operator!=(const SocketAddress& other) const {
   return !(*this == other);
 }
 
-bool SocketAddress::operator<(const SocketAddress& other) const {
-  return compare(other) == CompareResult::LESS_THAN;
-}
-
-bool SocketAddress::operator>(const SocketAddress& other) const {
-  return compare(other) == CompareResult::GREATER_THAN;
-}
-
-bool SocketAddress::operator<=(const SocketAddress& other) const {
-  CompareResult c = compare(other);
-  return c == CompareResult::NOT_COMPARABLE ? false :
-              c <= CompareResult::SAME;
-}
-
-bool SocketAddress::operator>=(const SocketAddress& other) const {
-  return compare(other) >= CompareResult::SAME;
+std::partial_ordering SocketAddress::operator<=>(
+    const SocketAddress& other) const {
+  return compare(other);
 }
 
 template <typename T>
@@ -203,10 +186,10 @@ typename T::Type* SocketAddressLRU<T>::Peek(
 }
 
 template <typename T>
-void SocketAddressLRU<T>::CheckExpired() {
+void SocketAddressLRU<T>::CheckExpired(uint64_t now) {
   auto it = list_.rbegin();
   while (it != list_.rend()) {
-    if (T::CheckExpired(it->first, it->second)) {
+    if (T::CheckExpired(it->first, it->second, now)) {
       map_.erase(it->first);
       list_.pop_back();
       it = list_.rbegin();
@@ -228,21 +211,20 @@ void SocketAddressLRU<T>::MemoryInfo(MemoryTracker* tracker) const {
 // cache and adjust if necessary. Whether the item exists or not,
 // purge expired items.
 template <typename T>
-typename T::Type* SocketAddressLRU<T>::Upsert(
-    const SocketAddress& address) {
-
-  auto on_exit = OnScopeLeave([&]() { CheckExpired(); });
+typename T::Type* SocketAddressLRU<T>::Upsert(const SocketAddress& address,
+                                              uint64_t now) {
+  auto on_exit = OnScopeLeave([&]() { CheckExpired(now); });
 
   auto it = map_.find(address);
   if (it != std::end(map_)) {
     list_.splice(list_.begin(), list_, it->second);
-    T::Touch(it->first, &it->second->second);
+    T::Touch(it->first, &it->second->second, now);
     return &it->second->second;
   }
 
   list_.push_front(Pair(address, { }));
   map_[address] = list_.begin();
-  T::Touch(list_.begin()->first, &list_.begin()->second);
+  T::Touch(list_.begin()->first, &list_.begin()->second, now);
 
   // Drop the last item in the list if we are
   // over the size limit...
@@ -262,5 +244,5 @@ v8::MaybeLocal<v8::Value> SocketAddressBlockList::Rule::ToV8String(
 }
 }  // namespace node
 
-#endif  // NODE_WANT_INTERNALS
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_NODE_SOCKADDR_INL_H_

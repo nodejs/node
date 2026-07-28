@@ -16,6 +16,28 @@ Data types
 
     TCP handle type.
 
+.. c:enum:: uv_tcp_flags
+
+    Flags used in :c:func:`uv_tcp_bind`.
+
+    ::
+
+        enum uv_tcp_flags {
+            /* Used with uv_tcp_bind, when an IPv6 address is used. */
+            UV_TCP_IPV6ONLY = 1,
+
+            /* Enable SO_REUSEPORT socket option when binding the handle.
+             * This allows completely duplicate bindings by multiple processes
+             * or threads if they all set SO_REUSEPORT before binding the port.
+             * Incoming connections are distributed across the participating
+             * listener sockets.
+             *
+             * This flag is available only on Linux 3.9+, DragonFlyBSD 3.6+,
+             * FreeBSD 12.0+, Solaris 11.4, and AIX 7.2.5+ for now.
+             */
+            UV_TCP_REUSEPORT = 2,
+        };
+
 
 Public members
 ^^^^^^^^^^^^^^
@@ -65,6 +87,39 @@ API
     at the end of this procedure, then the handle is destroyed with a
     ``UV_ETIMEDOUT`` error passed to the corresponding callback.
 
+    If `delay` is less than 1 then ``UV_EINVAL`` is returned.
+
+    .. versionchanged:: 1.49.0 If `delay` is less than 1 then ``UV_EINVAL``` is returned.
+
+.. c:function:: int uv_tcp_keepalive_ex(uv_tcp_t* handle, int on, unsigned int idle, unsigned int intvl, unsigned int cnt)
+
+    Enable / disable TCP keep-alive with all socket options: `TCP_KEEPIDLE`, `TCP_KEEPINTVL` and `TCP_KEEPCNT`.
+    `idle` is the value for `TCP_KEEPIDLE`, `intvl` is the value for `TCP_KEEPINTVL`,
+    `cnt` is the value for `TCP_KEEPCNT`, ignored when `on` is zero.
+
+    With TCP keep-alive enabled, `idle` is the time (in seconds) the connection needs to remain idle before
+    TCP starts sending keep-alive probes. `intvl` is the time (in seconds) between individual keep-alive probes.
+    TCP will drop the connection after sending `cnt` probes without getting any replies from the peer, then the
+    handle is destroyed with a ``UV_ETIMEDOUT`` error passed to the corresponding callback.
+
+    If one of `idle`, `intvl`, or `cnt` is less than 1, ``UV_EINVAL`` is returned.
+
+    .. versionchanged:: 1.52.0 added support of setting `TCP_KEEPINTVL` and `TCP_KEEPCNT` socket options.
+
+    .. note::
+        Ensure that the socket options are supported by the underlying operating system.
+        Currently supported platforms:
+          - AIX
+          - DragonFlyBSD
+          - FreeBSD
+          - HP-UX
+          - illumos
+          - Linux
+          - macOS
+          - NetBSD
+          - Solaris
+          - Windows
+
 .. c:function:: int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable)
 
     Enable / disable simultaneous asynchronous accept requests that are
@@ -77,17 +132,34 @@ API
 
 .. c:function:: int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr* addr, unsigned int flags)
 
-    Bind the handle to an address and port. `addr` should point to an
-    initialized ``struct sockaddr_in`` or ``struct sockaddr_in6``.
+    Bind the handle to an address and port.
 
     When the port is already taken, you can expect to see an ``UV_EADDRINUSE``
-    error from either :c:func:`uv_tcp_bind`, :c:func:`uv_listen` or
-    :c:func:`uv_tcp_connect`. That is, a successful call to this function does
-    not guarantee that the call to :c:func:`uv_listen` or :c:func:`uv_tcp_connect`
-    will succeed as well.
+    error from :c:func:`uv_listen` or :c:func:`uv_tcp_connect` unless you specify
+    ``UV_TCP_REUSEPORT`` in `flags` for all the binding sockets. That is, a successful
+    call to this function does not guarantee that the call to :c:func:`uv_listen` or
+    :c:func:`uv_tcp_connect` will succeed as well.
 
-    `flags` can contain ``UV_TCP_IPV6ONLY``, in which case dual-stack support
-    is disabled and only IPv6 is used.
+    :param handle: TCP handle. It should have been initialized with :c:func:`uv_tcp_init`.
+
+    :param addr: Address to bind to. It should point to an initialized ``struct sockaddr_in``
+        or ``struct sockaddr_in6``.
+
+    :param flags: Flags that control the behavior of binding the socket.
+        ``UV_TCP_IPV6ONLY`` can be contained in `flags` to disable dual-stack
+        support and only use IPv6. 
+        ``UV_TCP_REUSEPORT`` can be contained in `flags` to enable the socket option
+        `SO_REUSEPORT` with the capability of load balancing that distribute incoming
+        connections across all listening sockets in multiple processes or threads. 
+
+    :returns: 0 on success, or an error code < 0 on failure.
+
+    .. versionchanged:: 1.49.0 added the ``UV_TCP_REUSEPORT`` flag.
+
+    .. note::
+        ``UV_TCP_REUSEPORT`` flag is available only on Linux 3.9+, DragonFlyBSD 3.6+,
+        FreeBSD 12.0+, Solaris 11.4, and AIX 7.2.5+ at the moment. On other platforms
+        this function will return an UV_ENOTSUP error.
 
 .. c:function:: int uv_tcp_getsockname(const uv_tcp_t* handle, struct sockaddr* name, int* namelen)
 
@@ -128,3 +200,20 @@ API
     :c:func:`uv_tcp_close_reset` calls is not allowed.
 
     .. versionadded:: 1.32.0
+
+.. c:function:: int uv_socketpair(int type, int protocol, uv_os_sock_t socket_vector[2], int flags0, int flags1)
+
+    Create a pair of connected sockets with the specified properties.
+    The resulting handles can be passed to `uv_tcp_open`, used with `uv_spawn`,
+    or for any other purpose.
+
+    Valid values for `flags0` and `flags1` are:
+
+      - UV_NONBLOCK_PIPE: Opens the specified socket handle for `OVERLAPPED`
+        or `FIONBIO`/`O_NONBLOCK` I/O usage.
+        This is recommended for handles that will be used by libuv,
+        and not usually recommended otherwise.
+
+    Equivalent to :man:`socketpair(2)` with a domain of AF_UNIX.
+
+    .. versionadded:: 1.41.0

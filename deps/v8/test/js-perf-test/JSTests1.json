@@ -66,6 +66,24 @@
       "path": ["BigInt"],
       "tests": [
         {
+          "name": "Shift",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["shift.js", "bigint-util.js"],
+          "test_flags": ["shift"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "ShiftLeft-Small" },
+            { "name": "ShiftLeft-Random" },
+            { "name": "ShiftLeft-Growing" },
+            { "name": "ShiftRight-Maximum" },
+            { "name": "ShiftRight-ToZero" },
+            { "name": "ShiftRight-Small" },
+            { "name": "ShiftRight-Random" },
+            { "name": "ShiftRight-Shrinking" }
+          ]
+        },
+        {
           "name": "ToBoolean",
           "main": "run.js",
           "resources": ["to-boolean.js"],
@@ -80,28 +98,18 @@
         {
           "name": "Add",
           "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
           "resources": ["add.js", "bigint-util.js"],
           "test_flags": ["add"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
           "tests": [
-            { "name": "Add-TypeError" },
             { "name": "Add-Zero" },
             { "name": "Add-SameSign-32" },
             { "name": "Add-DifferentSign-32" },
             { "name": "Add-SameSign-64" },
             { "name": "Add-DifferentSign-64" },
-            { "name": "Add-SameSign-128" },
-            { "name": "Add-DifferentSign-128" },
-            { "name": "Add-SameSign-256" },
-            { "name": "Add-DifferentSign-256" },
-            { "name": "Add-SameSign-512" },
-            { "name": "Add-DifferentSign-512" },
             { "name": "Add-SameSign-1024" },
             { "name": "Add-DifferentSign-1024" },
-            { "name": "Add-SameSign-2048" },
-            { "name": "Add-DifferentSign-2048" },
-            { "name": "Add-SameSign-4096" },
-            { "name": "Add-DifferentSign-4096" },
             { "name": "Add-SameSign-8192" },
             { "name": "Add-DifferentSign-8192" },
             { "name": "Add-Random" }
@@ -110,36 +118,69 @@
         {
           "name": "Subtract",
           "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
           "resources": ["subtract.js", "bigint-util.js"],
           "test_flags": ["subtract"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
           "tests": [
-            { "name": "Subtract-TypeError" },
             { "name": "Subtract-Zero" },
             { "name": "Subtract-SameSign-32" },
             { "name": "Subtract-DifferentSign-32" },
             { "name": "Subtract-SameSign-64" },
             { "name": "Subtract-DifferentSign-64" },
-            { "name": "Subtract-SameSign-128" },
-            { "name": "Subtract-DifferentSign-128" },
-            { "name": "Subtract-SameSign-256" },
-            { "name": "Subtract-DifferentSign-256" },
-            { "name": "Subtract-SameSign-512" },
-            { "name": "Subtract-DifferentSign-512" },
             { "name": "Subtract-SameSign-1024" },
             { "name": "Subtract-DifferentSign-1024" },
-            { "name": "Subtract-SameSign-2048" },
-            { "name": "Subtract-DifferentSign-2048" },
-            { "name": "Subtract-SameSign-4096" },
-            { "name": "Subtract-DifferentSign-4096" },
             { "name": "Subtract-SameSign-8192" },
             { "name": "Subtract-DifferentSign-8192" },
             { "name": "Subtract-Random" }
           ]
         },
         {
+          "name": "Multiply",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["multiply.js", "bigint-util.js"],
+          "test_flags": ["multiply"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Multiply-Zero" },
+            { "name": "Multiply-Small"},
+            { "name": "Multiply-Small-Truncated" },
+            { "name": "Multiply-Random" }
+          ]
+        },
+        {
+          "name": "Divide",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["divide.js", "bigint-util.js"],
+          "test_flags": ["divide"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "Divide-One" },
+            { "name": "Divide-Small"},
+            { "name": "Divide-Small-Truncated" },
+            { "name": "Divide-Random" }
+          ]
+        },
+        {
+          "name": "BitwiseAnd",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["bitwise-and.js", "bigint-util.js"],
+          "test_flags": ["bitwise-and"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "BitwiseAnd-Zero" },
+            { "name": "BitwiseAnd-Small" },
+            { "name": "BitwiseAnd-Small-Truncated" },
+            { "name": "BitwiseAnd-Random" }
+          ]
+        },
+        {
           "name": "AsUintN",
           "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
           "resources": ["as-uint-n.js", "bigint-util.js"],
           "test_flags": ["as-uint-n"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
@@ -156,6 +197,28 @@
             { "name": "AsUint8-64" },
             { "name": "AsUint8-128" },
             { "name": "AsUint8-256" }
+          ]
+        },
+        {
+          "name": "AsIntN",
+          "main": "run.js",
+          "flags": ["--allow-natives-syntax"],
+          "resources": ["as-int-n.js", "bigint-util.js"],
+          "test_flags": ["as-int-n"],
+          "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
+          "tests": [
+            { "name": "AsInt64-32" },
+            { "name": "AsInt64-64" },
+            { "name": "AsInt64-128" },
+            { "name": "AsInt64-256" },
+            { "name": "AsInt32-32" },
+            { "name": "AsInt32-64" },
+            { "name": "AsInt32-128" },
+            { "name": "AsInt32-256" },
+            { "name": "AsInt8-32" },
+            { "name": "AsInt8-64" },
+            { "name": "AsInt8-128" },
+            { "name": "AsInt8-256" }
           ]
         }
       ]

@@ -1,13 +1,12 @@
 'use strict';
 const common = require('../common.js');
-const { URLSearchParams } = require('url');
 const querystring = require('querystring');
 const searchParams = common.searchParams;
 
 const bench = common.createBenchmark(main, {
   searchParam: Object.keys(searchParams),
   method: ['legacy', 'whatwg'],
-  n: [1e6]
+  n: [1e6],
 });
 
 function useLegacy(n, input) {

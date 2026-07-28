@@ -5,41 +5,73 @@
 #ifndef V8_OBJECTS_FOREIGN_INL_H_
 #define V8_OBJECTS_FOREIGN_INL_H_
 
-#include "src/common/globals.h"
 #include "src/objects/foreign.h"
+// Include the non-inl header before the rest of the headers.
 
-#include "src/common/external-pointer-inl.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate-utils-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/isolate-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+#include "torque-generated/src/objects/foreign-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
 
-// static
-bool Foreign::IsNormalized(Object value) {
-  if (value == Smi::zero()) return true;
-  return Foreign::cast(value).foreign_address() != kNullAddress;
+template <ExternalPointerTag tag>
+Address Foreign::foreign_address(IsolateForSandbox isolate) const {
+  return HeapObject::ReadExternalPointerField<tag>(kForeignAddressOffset,
+                                                   isolate);
 }
 
-DEF_GETTER(Foreign, foreign_address, Address) {
-  ExternalPointer_t encoded_value =
-      ReadField<ExternalPointer_t>(kForeignAddressOffset);
-  Address value = DecodeExternalPointer(isolate, encoded_value);
-  return value;
+template <ExternalPointerTag tag>
+Address Foreign::foreign_address() const {
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return ReadExternalPointerField<tag>(kForeignAddressOffset, isolate);
 }
 
-void Foreign::set_foreign_address(Isolate* isolate, Address value) {
-  ExternalPointer_t encoded_value = EncodeExternalPointer(isolate, value);
-  WriteField<ExternalPointer_t>(kForeignAddressOffset, encoded_value);
+template <ExternalPointerTag tag>
+void Foreign::set_foreign_address(IsolateForSandbox isolate,
+                                  const Address value) {
+  WriteExternalPointerField<tag>(kForeignAddressOffset, isolate, value);
 }
 
-}  // namespace internal
-}  // namespace v8
+template <ExternalPointerTag tag>
+void Foreign::init_foreign_address(IsolateForSandbox isolate,
+                                   const Address initial_value) {
+  InitExternalPointerField<tag>(kForeignAddressOffset, isolate, initial_value);
+}
+
+Address Foreign::foreign_address_unchecked(IsolateForSandbox isolate) const {
+  return ReadExternalPointerField<kAnyForeignExternalPointerTagRange>(
+      kForeignAddressOffset, isolate);
+}
+
+Address Foreign::foreign_address_unchecked() const {
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return foreign_address_unchecked(isolate);
+}
+
+ExternalPointerTag Foreign::GetTag() const {
+#ifdef V8_ENABLE_SANDBOX
+  ExternalPointerHandle handle =
+      RawExternalPointerField(kForeignAddressOffset,
+                              kAnyForeignExternalPointerTagRange)
+          .Relaxed_LoadHandle();
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return isolate.GetExternalPointerTableTagFor(*this, handle);
+#endif  // V8_ENABLE_SANDBOX
+  // Without the sandbox the address is stored untagged.
+  return kExternalPointerNullTag;
+}
+
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

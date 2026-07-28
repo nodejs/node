@@ -20,14 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
-const file = path.join(tmpdir.path, 'write.txt');
+const file = tmpdir.resolve('write.txt');
 
 tmpdir.refresh();
 
@@ -42,12 +41,12 @@ fs.open = function() {
   return _fs_open.apply(fs, arguments);
 };
 
-fs.close = function(fd) {
+fs.close = common.mustCall(function(fd) {
   assert.ok(fd, 'fs.close must not be called with an undefined fd.');
   fs.close = _fs_close;
   fs.open = _fs_open;
   fs.closeSync(fd);
-};
+});
 
 stream.write('foo');
 stream.end();

@@ -49,12 +49,12 @@ function makeConnection(index) {
   const c = net.createConnection(server.address().port);
   let gotData = false;
 
-  c.on('connect', function() {
+  c.on('connect', common.mustCall(() => {
     if (index + 1 < N) {
       makeConnection(index + 1);
     }
 
-    c.on('close', function() {
+    c.on('close', common.mustCall(() => {
       console.error(`closed ${index}`);
       closes++;
 
@@ -68,7 +68,7 @@ function makeConnection(index) {
       if (closes === N / 2) {
         let cb;
         console.error('calling wait callback.');
-        while (cb = waits.shift()) {
+        while ((cb = waits.shift()) !== undefined) {
           cb();
         }
         server.close();
@@ -81,15 +81,15 @@ function makeConnection(index) {
         assert.strictEqual(gotData, false,
                            `${index} got data, but shouldn't have`);
       }
-    });
-  });
+    }));
+  }));
 
   c.on('end', function() { c.end(); });
 
-  c.on('data', function(b) {
+  c.on('data', common.mustCallAtLeast((b) => {
     gotData = true;
     assert.ok(b.length > 0);
-  });
+  }, 0));
 
   c.on('error', function(e) {
     // Retry if SmartOS and ECONNREFUSED. See

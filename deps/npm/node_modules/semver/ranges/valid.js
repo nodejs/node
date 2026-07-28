@@ -1,3 +1,5 @@
+'use strict'
+
 const Range = require('../classes/range')
 const validRange = (range, options) => {
   try {

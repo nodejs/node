@@ -1,10 +1,9 @@
 {
   "targets": [
     {
-      "target_name": "binding",
+      "target_name": "4_object_factory",
       "sources": [
-        "../entry_point.c",
-        "binding.c"
+        "4_object_factory.c"
       ]
     }
   ]

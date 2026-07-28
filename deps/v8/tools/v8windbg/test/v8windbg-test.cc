@@ -20,7 +20,7 @@ namespace {
 
 // Loads a named extension library upon construction and unloads it upon
 // destruction.
-class LoadExtensionScope {
+class V8_NODISCARD LoadExtensionScope {
  public:
   LoadExtensionScope(WRL::ComPtr<IDebugControl4> p_debug_control,
                      std::wstring extension_path)
@@ -49,7 +49,7 @@ class LoadExtensionScope {
 };
 
 // Initializes COM upon construction and uninitializes it upon destruction.
-class ComScope {
+class V8_NODISCARD ComScope {
  public:
   ComScope() { hr_ = CoInitializeEx(nullptr, COINIT_MULTITHREADED); }
   ~ComScope() {
@@ -117,6 +117,12 @@ void RunAndCheckOutput(const char* friendly_name, const char* command,
 
 }  // namespace
 
+bool FileExists(const std::wstring& path) {
+  DWORD attr = GetFileAttributesW(path.c_str());
+  return (attr != INVALID_FILE_ATTRIBUTES &&
+          !(attr & FILE_ATTRIBUTE_DIRECTORY));
+}
+
 void RunTests() {
   // Initialize COM... Though it doesn't seem to matter if you don't!
   ComScope com_scope;
@@ -156,10 +162,20 @@ void RunTests() {
   hr = p_client->SetEventCallbacks(&callback);
   CHECK(SUCCEEDED(hr));
 
+  // The test file can be copied in different places depending on if we are in
+  // an Edge or V8 enlistment.
+  std::wstring test_file_path =
+      std::wstring(this_module_path) +
+      L"\\obj\\tools\\v8windbg\\v8windbg-test-script.js";
+  if (!FileExists(test_file_path)) {
+    test_file_path = std::wstring(this_module_path) +
+                     L"\\obj\\v8\\tools\\v8windbg\\v8windbg-test-script.js";
+  }
   // Launch the process with the debugger attached
   std::wstring command_line =
-      std::wstring(L"\"") + this_module_path + L"\\d8.exe\" \"" +
-      this_module_path + L"\\obj\\tools\\v8windbg\\v8windbg-test-script.js\"";
+      std::wstring(L"\"") + this_module_path + std::wstring(L"\\d8.exe\" \"") +
+      test_file_path + std::wstring(L"\" \"--expose-externalize-string\"");
+
   DEBUG_CREATE_PROCESS_OPTIONS proc_options;
   proc_options.CreateFlags = DEBUG_PROCESS;
   proc_options.EngCreateFlags = 0;
@@ -194,7 +210,7 @@ void RunTests() {
   CHECK(SUCCEEDED(hr));
 
   ULONG type, proc_id, thread_id, desc_used;
-  byte desc[1024];
+  uint8_t desc[1024];
   hr = p_debug_control->GetLastEventInformation(
       &type, &proc_id, &thread_id, nullptr, 0, nullptr,
       reinterpret_cast<PSTR>(desc), 1024, &desc_used);
@@ -217,21 +233,61 @@ void RunTests() {
                     "p;dx replacer.Value.shared_function_info.flags",
                     {"kNamedExpression"}, &output, p_debug_control.Get());
 
-  RunAndCheckOutput("in-object properties",
-                    "dx object.Value.@\"in-object properties\"[1]",
-                    {"NullValue", "Oddball"}, &output, p_debug_control.Get());
+#ifdef V8_ENABLE_SANDBOX
+  // "raw_characters" only available when the sandbox and pointer compression
+  // are enabled.
+  RunAndCheckOutput(
+      "in-object properties", "dx object.Value.@\"in-object properties\"[1]",
+      {"raw_characters", "\"external\""}, &output, p_debug_control.Get());
+#endif
 
   RunAndCheckOutput(
       "arrays of structs",
       "dx object.Value.map.instance_descriptors.descriptors[1].key",
       {"\"secondProp\"", "SeqOneByteString"}, &output, p_debug_control.Get());
 
-  RunAndCheckOutput(
-      "local variables",
-      "dx -r1 @$curthread.Stack.Frames.Where(f => "
-      "f.ToDisplayString().Contains(\"InterpreterEntryTrampoline\")).Skip(1)."
-      "First().LocalVariables.@\"memory interpreted as Objects\"",
-      {"\"hello\""}, &output, p_debug_control.Get());
+  // TODO(v8:11527): enable this when symbol information for the in-Isolate
+  // builtins is available.
+  // RunAndCheckOutput(
+  //     "local variables",
+  //     "dx -r1 @$curthread.Stack.Frames.Where(f => "
+  //     "f.ToDisplayString().Contains(\"InterpreterEntryTrampoline\")).Skip(1)."
+  //     "First().LocalVariables.@\"memory interpreted as Objects\"",
+  //     {"\"hello\""}, &output, p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[0].function_name",
+                    {"\"a\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
+
+  // Ensure script metadata is readable (script name/source strings surfaced).
+  RunAndCheckOutput("js stack script_name", "dx @$jsstack()[0].script_name",
+                    {"script.js"}, &output, p_debug_control.Get());
+
+  RunAndCheckOutput("js stack script_source", "dx @$jsstack()[0].script_source",
+                    {"externalizeString"}, &output, p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[1].function_name",
+                    {"\"b\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
+
+  RunAndCheckOutput("js stack", "dx @$jsstack()[2].function_name",
+                    {"empty_string \"\"", "SeqOneByteString"}, &output,
+                    p_debug_control.Get());
+
+  // Test for @$curisolate(). This should have the same output with
+  // `dx v8::internal::g_current_isolate_`.
+  output.ClearLog();
+  CHECK(SUCCEEDED(p_debug_control->Execute(
+      DEBUG_OUTCTL_ALL_CLIENTS, "dx v8::internal::g_current_isolate_",
+      DEBUG_EXECUTE_ECHO)));
+  size_t addr_pos = output.GetLog().find("0x");
+  CHECK(addr_pos != std::string::npos);
+  std::string expected_output = output.GetLog().substr(addr_pos);
+
+  output.ClearLog();
+  CHECK(SUCCEEDED(p_debug_control->Execute(
+      DEBUG_OUTCTL_ALL_CLIENTS, "dx @$curisolate()", DEBUG_EXECUTE_ECHO)));
+  CHECK_EQ(output.GetLog().substr(output.GetLog().find("0x")), expected_output);
 
   // Detach before exiting
   hr = p_client->DetachProcesses();

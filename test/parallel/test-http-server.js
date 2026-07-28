@@ -20,17 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const http = require('http');
 const url = require('url');
 const qs = require('querystring');
 
-// TODO: documentation does not allow Array as an option, so testing that
-// should fail, but currently http.Server does not typecheck further than
-// if `option` is `typeof object` - so we don't test that here right now
-const invalid_options = [ 'foo', 42, true ];
+const invalid_options = [ 'foo', 42, true, [] ];
 
 invalid_options.forEach((option) => {
   assert.throws(() => {
@@ -45,9 +42,11 @@ let requests_sent = 0;
 let server_response = '';
 let client_got_eof = false;
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
+
+  assert.strictEqual(res.req, req);
 
   if (req.id === 0) {
     assert.strictEqual(req.method, 'GET');
@@ -76,32 +75,37 @@ const server = http.createServer(function(req, res) {
     res.end();
   }, 1);
 
-});
+}));
 server.listen(0);
 
 server.httpAllowHalfOpen = true;
 
-server.on('listening', function() {
+server.on('listening', common.mustCall(function() {
   const c = net.createConnection(this.address().port);
 
   c.setEncoding('utf8');
 
   c.on('connect', function() {
-    c.write('GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n');
+    c.write(
+      'GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n' +
+      'Host: example.com\r\n\r\n');
     requests_sent += 1;
   });
 
-  c.on('data', function(chunk) {
+  c.on('data', common.mustCallAtLeast((chunk) => {
     server_response += chunk;
 
     if (requests_sent === 1) {
-      c.write('POST /quit HTTP/1.1\r\n\r\n');
+      c.write(
+        'POST /quit HTTP/1.1\r\n' +
+        'Host: example.com\r\n\r\n'
+      );
       requests_sent += 1;
     }
 
     if (requests_sent === 2) {
-      c.write('GET / HTTP/1.1\r\nX-X: foo\r\n\r\n' +
-              'GET / HTTP/1.1\r\nX-X: bar\r\n\r\n');
+      c.write('GET / HTTP/1.1\r\nX-X: foo\r\nHost: example.com\r\n\r\n' +
+              'GET / HTTP/1.1\r\nX-X: bar\r\nHost: example.com\r\n\r\n');
       // Note: we are making the connection half-closed here
       // before we've gotten the response from the server. This
       // is a pretty bad thing to do and not really supported
@@ -113,26 +117,27 @@ server.on('listening', function() {
       requests_sent += 2;
     }
 
-  });
+  }));
 
   c.on('end', function() {
     client_got_eof = true;
   });
 
-  c.on('close', function() {
+  c.on('close', common.mustCall(() => {
     assert.strictEqual(c.readyState, 'closed');
-  });
-});
+  }));
+}));
 
 process.on('exit', function() {
   assert.strictEqual(request_number, 4);
   assert.strictEqual(requests_sent, 4);
 
   const hello = new RegExp('/hello');
-  assert.ok(hello.test(server_response));
+  assert.match(server_response, hello);
 
   const quit = new RegExp('/quit');
-  assert.ok(quit.test(server_response));
+  assert.match(server_response, quit);
 
   assert.strictEqual(client_got_eof, true);
+  assert.strictEqual(server.close(), server);
 });

@@ -20,13 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const implementations = [
   function(fn) {
+    // eslint-disable-next-line node-core/must-call-assert
     Promise.resolve().then(fn);
-  }
+  },
 ];
 
 let expected = 0;
@@ -40,16 +41,16 @@ function test(scheduleMicrotask) {
   let nextTickCalled = false;
   expected++;
 
-  scheduleMicrotask(function() {
+  scheduleMicrotask(common.mustCall(() => {
     process.nextTick(function() {
       nextTickCalled = true;
     });
 
-    setTimeout(function() {
+    setTimeout(common.mustCall(() => {
       assert(nextTickCalled);
       done++;
-    }, 0);
-  });
+    }), 0);
+  }));
 }
 
 // first tick case

@@ -454,3 +454,13 @@ function forceDictionaryMode(obj) {
   obj1.x = "added";
   assertEquals("added", obj1.x);
 })();
+
+// Regression test for crbug.com/1139786
+(function HomeObjectProtoIsInt8ArrayAndReceiverIsSmi() {
+  class A extends Int8Array {
+    f() {
+      super.toString();
+    }
+  };
+  A.prototype.f.call(42);
+})();

@@ -1,19 +1,35 @@
 #include "env-inl.h"
 #include "memory_tracker.h"
 #include "node.h"
+#include "node_builtins.h"
+#include "node_external_reference.h"
 #include "node_i18n.h"
-#include "node_native_module_env.h"
 #include "node_options.h"
 #include "util-inl.h"
+
+#if HAVE_OPENSSL
+#include "ncrypto.h"  // Ensure OPENSSL_IS_BORINGSSL is defined if applicable
+#endif
 
 namespace node {
 
 using v8::Context;
+using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
 using v8::Value;
+
+void GetDefaultLocale(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  std::string locale = isolate->GetDefaultLocale();
+  Local<Value> result;
+  if (ToV8Value(context, locale).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
 
 // The config binding is used to provide an internal view of compile time
 // config options that are required internally by lib/*.js code. This is an
@@ -23,7 +39,7 @@ using v8::Value;
 // Command line arguments are already accessible in the JS land via
 // require('internal/options').getOptionValue('--some-option'). Do not add them
 // here.
-static void Initialize(Local<Object> target,
+static void InitConfig(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
                        void* priv) {
@@ -36,15 +52,19 @@ static void Initialize(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "isDebugBuild");
 #endif  // defined(DEBUG) && DEBUG
 
+#ifdef OPENSSL_IS_BORINGSSL
+  READONLY_TRUE_PROPERTY(target, "openSSLIsBoringSSL");
+#else
+  READONLY_FALSE_PROPERTY(target, "openSSLIsBoringSSL");
+#endif  // OPENSSL_IS_BORINGSSL
+
 #if HAVE_OPENSSL
   READONLY_TRUE_PROPERTY(target, "hasOpenSSL");
 #else
   READONLY_FALSE_PROPERTY(target, "hasOpenSSL");
 #endif  // HAVE_OPENSSL
 
-#ifdef NODE_FIPS_MODE
   READONLY_TRUE_PROPERTY(target, "fipsMode");
-#endif
 
 #ifdef NODE_HAVE_I18N_SUPPORT
 
@@ -77,15 +97,16 @@ static void Initialize(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "noBrowserGlobals");
 #endif  // NODE_NO_BROWSER_GLOBALS
 
-  READONLY_PROPERTY(target,
-                    "bits",
-                    Number::New(isolate, 8 * sizeof(intptr_t)));
+  READONLY_PROPERTY(target, "bits", Number::New(isolate, 8 * sizeof(intptr_t)));
 
-#if defined HAVE_DTRACE || defined HAVE_ETW
-  READONLY_TRUE_PROPERTY(target, "hasDtrace");
-#endif
+  SetMethodNoSideEffect(context, target, "getDefaultLocale", GetDefaultLocale);
 }  // InitConfig
+
+void RegisterConfigExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetDefaultLocale);
+}
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(config, node::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(config, node::InitConfig)
+NODE_BINDING_EXTERNAL_REFERENCE(config, node::RegisterConfigExternalReferences)

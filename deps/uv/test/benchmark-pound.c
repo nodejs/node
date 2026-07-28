@@ -114,30 +114,30 @@ static void connect_cb(uv_connect_t* req, int status) {
     return;
   }
 
-  ASSERT(req != NULL);
-  ASSERT(status == 0);
+  ASSERT_NOT_NULL(req);
+  ASSERT_OK(status);
 
   conn = (conn_rec*)req->data;
-  ASSERT(conn != NULL);
+  ASSERT_NOT_NULL(conn);
 
 #if DEBUG
   printf("connect_cb %d\n", conn->i);
 #endif
 
   r = uv_read_start(&conn->stream, alloc_cb, read_cb);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   buf.base = buffer;
   buf.len = sizeof(buffer) - 1;
 
   r = uv_write(&conn->write_req, &conn->stream, &buf, 1, after_write);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 }
 
 
 static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
 
-  ASSERT(stream != NULL);
+  ASSERT_NOT_NULL(stream);
 
 #if DEBUG
   printf("read_cb %d\n", p->i);
@@ -161,7 +161,7 @@ static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
 static void close_cb(uv_handle_t* handle) {
   conn_rec* p = (conn_rec*)handle->data;
 
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   closed_streams++;
 
 #if DEBUG
@@ -200,9 +200,9 @@ static void tcp_make_connect(conn_rec* p) {
   tp = (tcp_conn_rec*) p;
 
   r = uv_tcp_init(loop, (uv_tcp_t*)&p->stream);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
-  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_tcp_connect(&tp->conn_req,
                      (uv_tcp_t*) &p->stream,
@@ -227,7 +227,7 @@ static void pipe_make_connect(conn_rec* p) {
   int r;
 
   r = uv_pipe_init(loop, (uv_pipe_t*)&p->stream, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   uv_pipe_connect(&((pipe_conn_rec*) p)->conn_req,
                   (uv_pipe_t*) &p->stream,
@@ -306,7 +306,7 @@ static int pound_it(int concurrency,
           conns_failed);
   fflush(stderr);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 

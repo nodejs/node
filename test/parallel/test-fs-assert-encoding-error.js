@@ -1,8 +1,10 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
-const fs = require('fs');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const tmpdir = require('../common/tmpdir');
 
+const testPath = tmpdir.resolve('assert-encoding-error');
 const options = 'test';
 const expectedError = {
   code: 'ERR_INVALID_ARG_VALUE',
@@ -10,69 +12,69 @@ const expectedError = {
 };
 
 assert.throws(() => {
-  fs.readFile('path', options, common.mustNotCall());
+  fs.readFile(testPath, options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.readFileSync('path', options);
+  fs.readFileSync(testPath, options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.readdir('path', options, common.mustNotCall());
+  fs.readdir(testPath, options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.readdirSync('path', options);
+  fs.readdirSync(testPath, options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.readlink('path', options, common.mustNotCall());
+  fs.readlink(testPath, options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.readlinkSync('path', options);
+  fs.readlinkSync(testPath, options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.writeFile('path', 'data', options, common.mustNotCall());
+  fs.writeFile(testPath, 'data', options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.writeFileSync('path', 'data', options);
+  fs.writeFileSync(testPath, 'data', options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.appendFile('path', 'data', options, common.mustNotCall());
+  fs.appendFile(testPath, 'data', options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.appendFileSync('path', 'data', options);
+  fs.appendFileSync(testPath, 'data', options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.watch('path', options, common.mustNotCall());
+  fs.watch(testPath, options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.realpath('path', options, common.mustNotCall());
+  fs.realpath(testPath, options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.realpathSync('path', options);
+  fs.realpathSync(testPath, options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.mkdtemp('path', options, common.mustNotCall());
+  fs.mkdtemp(testPath, options, common.mustNotCall());
 }, expectedError);
 
 assert.throws(() => {
-  fs.mkdtempSync('path', options);
+  fs.mkdtempSync(testPath, options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.ReadStream('path', options);
+  fs.ReadStream(testPath, options);
 }, expectedError);
 
 assert.throws(() => {
-  fs.WriteStream('path', options);
+  fs.WriteStream(testPath, options);
 }, expectedError);

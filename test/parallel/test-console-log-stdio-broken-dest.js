@@ -15,7 +15,7 @@ const stream = new Writable({
 });
 const myConsole = new Console(stream, stream);
 
-process.on('warning', common.mustNotCall);
+process.on('warning', common.mustNotCall());
 
 stream.cork();
 for (let i = 0; i < EventEmitter.defaultMaxListeners + 1; i++) {

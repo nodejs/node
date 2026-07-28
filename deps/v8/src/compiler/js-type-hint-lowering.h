@@ -7,14 +7,13 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/js-operator.h"
 #include "src/deoptimizer/deoptimize-reason.h"
-#include "src/handles/handles.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class FeedbackNexus;
 class FeedbackSlot;
 
 namespace compiler {
@@ -43,6 +42,8 @@ class JSTypeHintLowering {
 
   JSTypeHintLowering(JSHeapBroker* broker, JSGraph* jsgraph,
                      FeedbackVectorRef feedback_vector, Flags flags);
+  JSTypeHintLowering(const JSTypeHintLowering&) = delete;
+  JSTypeHintLowering& operator=(const JSTypeHintLowering&) = delete;
 
   // {LoweringResult} describes the result of lowering. The following outcomes
   // are possible:
@@ -111,6 +112,11 @@ class JSTypeHintLowering {
                                        Node* right, Node* effect, Node* control,
                                        FeedbackSlot slot) const;
 
+  LoweringResult ReduceBinaryOperationWithEmbeddedHint(const Operator* op,
+                                                       Node* left, Node* right,
+                                                       Node* effect,
+                                                       Node* control) const;
+
   // Potential reduction to for..in operations
   LoweringResult ReduceForInNextOperation(Node* receiver, Node* cache_array,
                                           Node* cache_type, Node* index,
@@ -125,11 +131,6 @@ class JSTypeHintLowering {
                                          Node* control,
                                          FeedbackSlot slot) const;
 
-  // Potential reduction of call operations.
-  LoweringResult ReduceCallOperation(const Operator* op, Node* const* args,
-                                     int arg_count, Node* effect, Node* control,
-                                     FeedbackSlot slot) const;
-
   // Potential reduction of construct operations.
   LoweringResult ReduceConstructOperation(const Operator* op, Node* const* args,
                                           int arg_count, Node* effect,
@@ -143,8 +144,8 @@ class JSTypeHintLowering {
                                             FeedbackSlot call_slot) const;
 
   // Potential reduction of property access operations.
-  LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* obj,
-                                          Node* effect, Node* control,
+  LoweringResult ReduceLoadNamedOperation(const Operator* op, Node* effect,
+                                          Node* control,
                                           FeedbackSlot slot) const;
   LoweringResult ReduceLoadKeyedOperation(const Operator* op, Node* obj,
                                           Node* key, Node* effect,
@@ -164,21 +165,23 @@ class JSTypeHintLowering {
 
   BinaryOperationHint GetBinaryOperationHint(FeedbackSlot slot) const;
   CompareOperationHint GetCompareOperationHint(FeedbackSlot slot) const;
-  Node* TryBuildSoftDeopt(FeedbackSlot slot, Node* effect, Node* control,
-                          DeoptimizeReason reson) const;
+  Node* BuildDeoptIfFeedbackIsInsufficient(FeedbackSlot slot, Node* effect,
+                                           Node* control,
+                                           DeoptimizeReason reason) const;
+  Node* BuildDeoptIfFeedbackIsInsufficient(
+      const EmbeddedHintParameter& embedded_hint, Node* effect, Node* control,
+      DeoptimizeReason reason) const;
 
   JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
   Flags flags() const { return flags_; }
-  FeedbackVectorRef const& feedback_vector() const { return feedback_vector_; }
+  FeedbackVectorRef feedback_vector() const { return feedback_vector_; }
 
   JSHeapBroker* const broker_;
   JSGraph* const jsgraph_;
   Flags const flags_;
   FeedbackVectorRef const feedback_vector_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSTypeHintLowering);
 };
 
 }  // namespace compiler

@@ -7,171 +7,282 @@
 
 #include <stdint.h>
 
-#include <memory>
+#include <optional>
 
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
-#include "src/utils/pointer-with-payload.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 class Isolate;
-class PerThreadAssertData;
-
-template <>
-struct PointerWithPayloadTraits<PerThreadAssertData> {
-  static constexpr int value = 1;
-};
 
 enum PerThreadAssertType {
-  GARBAGE_COLLECTION_ASSERT,
+  // Dummy type for indicating a valid PerThreadAsserts data. This is
+  // represented by an always-on bit, and is cleared when a scope's saved data
+  // is zeroed -- it should never be set or cleared on the actual per-thread
+  // data by a scope.
+  ASSERT_TYPE_IS_VALID_MARKER,
+
+  SAFEPOINTS_ASSERT,
   HEAP_ALLOCATION_ASSERT,
   HANDLE_ALLOCATION_ASSERT,
   HANDLE_DEREFERENCE_ASSERT,
+  HANDLE_USAGE_ON_ALL_THREADS_ASSERT,
   CODE_DEPENDENCY_CHANGE_ASSERT,
-  LAST_PER_THREAD_ASSERT_TYPE
+  CODE_ALLOCATION_ASSERT,
+  // Dummy type for disabling GC mole.
+  GC_MOLE,
+  POSITION_INFO_SLOW_ASSERT,
 };
 
-enum PerIsolateAssertType {
-  JAVASCRIPT_EXECUTION_ASSERT,
-  JAVASCRIPT_EXECUTION_THROWS,
-  JAVASCRIPT_EXECUTION_DUMP,
-  DEOPTIMIZATION_ASSERT,
-  COMPILATION_ASSERT,
-  NO_EXCEPTION_ASSERT
+using PerThreadAsserts = base::EnumSet<PerThreadAssertType, uint32_t>;
+
+// Empty assert scope, used for debug-only scopes in release mode so that
+// the release-enabled PerThreadAssertScope is always an alias for, or a
+// subclass of PerThreadAssertScopeDebugOnly, and can be used in place of it.
+// This class is also templated so that it still has distinct instances for each
+// debug scope -- this is necessary for GCMole to be able to recognise
+// DisableGCMole scopes as distinct from other assert scopes.
+template <bool kAllow, PerThreadAssertType... kTypes>
+class V8_NODISCARD PerThreadAssertScopeEmpty {
+ public:
+  // Define a constructor to avoid unused variable warnings.
+  // NOLINTNEXTLINE
+  PerThreadAssertScopeEmpty() {}
+  void Release() {}
 };
 
-template <PerThreadAssertType kType, bool kAllow>
-class PerThreadAssertScope {
+template <bool kAllow, PerThreadAssertType... kTypes>
+class V8_NODISCARD PerThreadAssertScope
+    : public PerThreadAssertScopeEmpty<kAllow, kTypes...> {
  public:
   V8_EXPORT_PRIVATE PerThreadAssertScope();
   V8_EXPORT_PRIVATE ~PerThreadAssertScope();
+
+  PerThreadAssertScope(const PerThreadAssertScope&) = delete;
+  PerThreadAssertScope& operator=(const PerThreadAssertScope&) = delete;
 
   V8_EXPORT_PRIVATE static bool IsAllowed();
 
   void Release();
 
  private:
-  PointerWithPayload<PerThreadAssertData, bool, 1> data_and_old_state_;
-
-  V8_INLINE void set_data(PerThreadAssertData* data) {
-    data_and_old_state_.SetPointer(data);
-  }
-
-  V8_INLINE PerThreadAssertData* data() const {
-    return data_and_old_state_.GetPointer();
-  }
-
-  V8_INLINE void set_old_state(bool old_state) {
-    return data_and_old_state_.SetPayload(old_state);
-  }
-
-  V8_INLINE bool old_state() const { return data_and_old_state_.GetPayload(); }
-
-  DISALLOW_COPY_AND_ASSIGN(PerThreadAssertScope);
+  PerThreadAsserts old_data_;
 };
 
-template <PerIsolateAssertType type, bool allow>
-class PerIsolateAssertScope {
- public:
-  V8_EXPORT_PRIVATE explicit PerIsolateAssertScope(Isolate* isolate);
-  V8_EXPORT_PRIVATE ~PerIsolateAssertScope();
+// Per-isolate assert scopes.
 
-  static bool IsAllowed(Isolate* isolate);
+#define PER_ISOLATE_DCHECK_TYPE(V, enable)                              \
+  /* Scope to document where we do not expect javascript execution. */  \
+  /* Scope to introduce an exception to DisallowJavascriptExecution. */ \
+  V(AllowJavascriptExecution, DisallowJavascriptExecution,              \
+    javascript_execution_assert, enable)                                \
+  /* Scope to document where we do not expect deoptimization. */        \
+  /* Scope to introduce an exception to DisallowDeoptimization. */      \
+  V(AllowDeoptimization, DisallowDeoptimization, deoptimization_assert, \
+    enable)                                                             \
+  /* Scope to document where we do not expect deoptimization. */        \
+  /* Scope to introduce an exception to DisallowDeoptimization. */      \
+  V(AllowCompilation, DisallowCompilation, compilation_assert, enable)  \
+  /* Scope to document where we do not expect exceptions. */            \
+  /* Scope to introduce an exception to DisallowExceptions. */          \
+  V(AllowExceptions, DisallowExceptions, no_exception_assert, enable)
 
- private:
-  Isolate* isolate_;
-  uint32_t old_data_;
+#define PER_ISOLATE_CHECK_TYPE(V, enable)                                    \
+  /* Scope in which javascript execution leads to exception being thrown. */ \
+  /* Scope to introduce an exception to ThrowOnJavascriptExecution. */       \
+  V(NoThrowOnJavascriptExecution, ThrowOnJavascriptExecution,                \
+    javascript_execution_throws, enable)                                     \
+  /* Scope in which javascript execution causes dumps. */                    \
+  /* Scope in which javascript execution doesn't cause dumps. */             \
+  V(NoDumpOnJavascriptExecution, DumpOnJavascriptExecution,                  \
+    javascript_execution_dump, enable)
 
-  DISALLOW_COPY_AND_ASSIGN(PerIsolateAssertScope);
-};
+#define PER_ISOLATE_ASSERT_SCOPE_DECLARATION(ScopeType)              \
+  class V8_NODISCARD ScopeType {                                     \
+   public:                                                           \
+    V8_EXPORT_PRIVATE ScopeType();                                   \
+    V8_EXPORT_PRIVATE explicit ScopeType(Isolate* isolate);          \
+    ScopeType(const ScopeType&) = delete;                            \
+    ScopeType& operator=(const ScopeType&) = delete;                 \
+    V8_EXPORT_PRIVATE ~ScopeType();                                  \
+                                                                     \
+    static bool IsAllowed(Isolate* isolate);                         \
+                                                                     \
+    V8_EXPORT_PRIVATE static void Open(Isolate* isolate,             \
+                                       bool* was_execution_allowed); \
+    V8_EXPORT_PRIVATE static void Close(Isolate* isolate,            \
+                                        bool was_execution_allowed); \
+                                                                     \
+   private:                                                          \
+    Isolate* isolate_;                                               \
+    bool old_data_;                                                  \
+  };
 
-template <PerThreadAssertType type, bool allow>
+#define PER_ISOLATE_ASSERT_ENABLE_SCOPE(EnableType, _1, _2, _3) \
+  PER_ISOLATE_ASSERT_SCOPE_DECLARATION(EnableType)
+
+#define PER_ISOLATE_ASSERT_DISABLE_SCOPE(_1, DisableType, _2, _3) \
+  PER_ISOLATE_ASSERT_SCOPE_DECLARATION(DisableType)
+
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_ASSERT_ENABLE_SCOPE, true)
+PER_ISOLATE_CHECK_TYPE(PER_ISOLATE_ASSERT_ENABLE_SCOPE, true)
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_ASSERT_DISABLE_SCOPE, false)
+PER_ISOLATE_CHECK_TYPE(PER_ISOLATE_ASSERT_DISABLE_SCOPE, false)
+
 #ifdef DEBUG
-class PerThreadAssertScopeDebugOnly : public PerThreadAssertScope<type, allow> {
+#define PER_ISOLATE_DCHECK_ENABLE_SCOPE(EnableType, DisableType, field, _)    \
+  class EnableType##DebugOnly : public EnableType {                           \
+   public:                                                                    \
+    explicit EnableType##DebugOnly(Isolate* isolate) : EnableType(isolate) {} \
+  };
 #else
-class PerThreadAssertScopeDebugOnly {
- public:
-  PerThreadAssertScopeDebugOnly() {  // NOLINT (modernize-use-equals-default)
-    // Define a constructor to avoid unused variable warnings.
-  }
-  void Release() {}
+#define PER_ISOLATE_DCHECK_ENABLE_SCOPE(EnableType, DisableType, field, _) \
+  class V8_NODISCARD EnableType##DebugOnly {                               \
+   public:                                                                 \
+    explicit EnableType##DebugOnly(Isolate* isolate) {}                    \
+  };
 #endif
-};
 
-template <PerIsolateAssertType type, bool allow>
 #ifdef DEBUG
-class PerIsolateAssertScopeDebugOnly
-    : public PerIsolateAssertScope<type, allow> {
- public:
-  explicit PerIsolateAssertScopeDebugOnly(Isolate* isolate)
-      : PerIsolateAssertScope<type, allow>(isolate) {}
+#define PER_ISOLATE_DCHECK_DISABLE_SCOPE(EnableType, DisableType, field, _) \
+  class DisableType##DebugOnly : public DisableType {                       \
+   public:                                                                  \
+    DisableType##DebugOnly() : DisableType() {}                             \
+    explicit DisableType##DebugOnly(Isolate* isolate)                       \
+        : DisableType(isolate) {}                                           \
+  };
 #else
-class PerIsolateAssertScopeDebugOnly {
- public:
-  explicit PerIsolateAssertScopeDebugOnly(Isolate* isolate) {}
+#define PER_ISOLATE_DCHECK_DISABLE_SCOPE(EnableType, DisableType, field, _) \
+  class V8_NODISCARD DisableType##DebugOnly {                               \
+   public:                                                                  \
+    DisableType##DebugOnly() {}                                             \
+    explicit DisableType##DebugOnly(Isolate* isolate) {}                    \
+  };
 #endif
-};
+
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_DCHECK_ENABLE_SCOPE, true)
+PER_ISOLATE_DCHECK_TYPE(PER_ISOLATE_DCHECK_DISABLE_SCOPE, false)
+
+#ifdef DEBUG
+template <bool kAllow, PerThreadAssertType... kTypes>
+using PerThreadAssertScopeDebugOnly = PerThreadAssertScope<kAllow, kTypes...>;
+#else
+template <bool kAllow, PerThreadAssertType... kTypes>
+using PerThreadAssertScopeDebugOnly =
+    PerThreadAssertScopeEmpty<kAllow, kTypes...>;
+#endif
 
 // Per-thread assert scopes.
 
 // Scope to document where we do not expect handles to be created.
 using DisallowHandleAllocation =
-    PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, false>;
+    PerThreadAssertScopeDebugOnly<false, HANDLE_ALLOCATION_ASSERT>;
 
 // Scope to introduce an exception to DisallowHandleAllocation.
 using AllowHandleAllocation =
-    PerThreadAssertScopeDebugOnly<HANDLE_ALLOCATION_ASSERT, true>;
+    PerThreadAssertScopeDebugOnly<true, HANDLE_ALLOCATION_ASSERT>;
 
-// Scope to document where we do not expect garbage collections. It differs from
-// DisallowHeapAllocation by also forbiding safepoints.
-using DisallowGarbageCollection =
-    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, false>;
+// Scope to document where we do not expect safepoints to be entered.
+using DisallowSafepoints =
+    PerThreadAssertScopeDebugOnly<false, SAFEPOINTS_ASSERT>;
 
-// Scope to introduce an exception to DisallowGarbageCollection.
-using AllowGarbageCollection =
-    PerThreadAssertScopeDebugOnly<GARBAGE_COLLECTION_ASSERT, true>;
+// Scope to introduce an exception to DisallowSafepoints.
+using AllowSafepoints = PerThreadAssertScopeDebugOnly<true, SAFEPOINTS_ASSERT>;
 
-// Scope to document where we do not expect any allocation and GC. Deprecated
-// and will eventually be removed, use DisallowGarbageCollection instead.
+// Scope to document where we do not expect any allocation.
 using DisallowHeapAllocation =
-    PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, false>;
-#ifdef DEBUG
-#define DISALLOW_HEAP_ALLOCATION(name) DisallowHeapAllocation name;
-#else
-#define DISALLOW_HEAP_ALLOCATION(name)
-#endif
+    PerThreadAssertScopeDebugOnly<false, HEAP_ALLOCATION_ASSERT>;
 
 // Scope to introduce an exception to DisallowHeapAllocation.
 using AllowHeapAllocation =
-    PerThreadAssertScopeDebugOnly<HEAP_ALLOCATION_ASSERT, true>;
+    PerThreadAssertScopeDebugOnly<true, HEAP_ALLOCATION_ASSERT>;
+
+// Like AllowHeapAllocation, but enabled in release builds.
+using AllowHeapAllocationInRelease =
+    PerThreadAssertScope<true, HEAP_ALLOCATION_ASSERT>;
 
 // Scope to document where we do not expect any handle dereferences.
 using DisallowHandleDereference =
-    PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, false>;
+    PerThreadAssertScopeDebugOnly<false, HANDLE_DEREFERENCE_ASSERT>;
 
 // Scope to introduce an exception to DisallowHandleDereference.
 using AllowHandleDereference =
-    PerThreadAssertScopeDebugOnly<HANDLE_DEREFERENCE_ASSERT, true>;
+    PerThreadAssertScopeDebugOnly<true, HANDLE_DEREFERENCE_ASSERT>;
+
+// Explicitly allow handle dereference and creation for all threads/isolates on
+// one particular thread.
+using AllowHandleUsageOnAllThreads =
+    PerThreadAssertScopeDebugOnly<true, HANDLE_USAGE_ON_ALL_THREADS_ASSERT>;
 
 // Scope to document where we do not expect code dependencies to change.
 using DisallowCodeDependencyChange =
-    PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, false>;
+    PerThreadAssertScopeDebugOnly<false, CODE_DEPENDENCY_CHANGE_ASSERT>;
 
 // Scope to introduce an exception to DisallowCodeDependencyChange.
 using AllowCodeDependencyChange =
-    PerThreadAssertScopeDebugOnly<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
+    PerThreadAssertScopeDebugOnly<true, CODE_DEPENDENCY_CHANGE_ASSERT>;
 
-class DisallowHeapAccess {
-  DisallowCodeDependencyChange no_dependency_change_;
-  DisallowHandleAllocation no_handle_allocation_;
-  DisallowHandleDereference no_handle_dereference_;
-  DisallowHeapAllocation no_heap_allocation_;
-};
+// Scope to document where we do not expect code to be allocated.
+using DisallowCodeAllocation =
+    PerThreadAssertScopeDebugOnly<false, CODE_ALLOCATION_ASSERT>;
+
+// Scope to introduce an exception to DisallowCodeAllocation.
+using AllowCodeAllocation =
+    PerThreadAssertScopeDebugOnly<true, CODE_ALLOCATION_ASSERT>;
+
+// Scope to document where we do not expect garbage collections. It differs from
+// DisallowHeapAllocation by also forbidding safepoints.
+using DisallowGarbageCollection =
+    PerThreadAssertScopeDebugOnly<false, SAFEPOINTS_ASSERT,
+                                  HEAP_ALLOCATION_ASSERT>;
+
+// Like DisallowGarbageCollection, but enabled in release builds.
+using DisallowGarbageCollectionInRelease =
+    PerThreadAssertScope<false, SAFEPOINTS_ASSERT, HEAP_ALLOCATION_ASSERT>;
+
+// Scope to skip gc mole verification in places where we do tricky raw
+// work.
+using DisableGCMole = PerThreadAssertScopeDebugOnly<false, GC_MOLE>;
+
+// Scope to ensure slow path for obtaining position info is not called
+using DisallowPositionInfoSlow =
+    PerThreadAssertScopeDebugOnly<false, POSITION_INFO_SLOW_ASSERT>;
+
+// Scope to add an exception to disallowing position info slow path
+using AllowPositionInfoSlow =
+    PerThreadAssertScopeDebugOnly<true, POSITION_INFO_SLOW_ASSERT>;
+
+// The DISALLOW_GARBAGE_COLLECTION macro can be used to define a
+// DisallowGarbageCollection field in classes that isn't present in release
+// builds.
+#ifdef DEBUG
+#define DISALLOW_GARBAGE_COLLECTION(name) DisallowGarbageCollection name;
+#else
+#define DISALLOW_GARBAGE_COLLECTION(name)
+#endif
+
+// Scope to introduce an exception to DisallowGarbageCollection.
+using AllowGarbageCollection =
+    PerThreadAssertScopeDebugOnly<true, SAFEPOINTS_ASSERT,
+                                  HEAP_ALLOCATION_ASSERT>;
+
+// Like AllowGarbageCollection, but enabled in release builds.
+using AllowGarbageCollectionInRelease =
+    PerThreadAssertScope<true, SAFEPOINTS_ASSERT, HEAP_ALLOCATION_ASSERT>;
+
+// Scope to document where we do not expect any access to the heap.
+using DisallowHeapAccess = PerThreadAssertScopeDebugOnly<
+    false, CODE_DEPENDENCY_CHANGE_ASSERT, HANDLE_DEREFERENCE_ASSERT,
+    HANDLE_ALLOCATION_ASSERT, HEAP_ALLOCATION_ASSERT>;
+
+// Scope to introduce an exception to DisallowHeapAccess.
+using AllowHeapAccess = PerThreadAssertScopeDebugOnly<
+    true, CODE_DEPENDENCY_CHANGE_ASSERT, HANDLE_DEREFERENCE_ASSERT,
+    HANDLE_ALLOCATION_ASSERT, HEAP_ALLOCATION_ASSERT>;
 
 class DisallowHeapAccessIf {
  public:
@@ -180,15 +291,15 @@ class DisallowHeapAccessIf {
   }
 
  private:
-  base::Optional<DisallowHeapAccess> maybe_disallow_;
+  std::optional<DisallowHeapAccess> maybe_disallow_;
 };
 
-// Like MutexGuard but also asserts that no heap allocation happens while
+// Like MutexGuard but also asserts that no garbage collection happens while
 // we're holding the mutex.
-class NoHeapAllocationMutexGuard {
+class V8_NODISCARD NoGarbageCollectionMutexGuard {
  public:
-  explicit NoHeapAllocationMutexGuard(base::Mutex* mutex)
-      : guard_(mutex), mutex_(mutex), no_gc_(new DisallowHeapAllocation()) {}
+  explicit NoGarbageCollectionMutexGuard(base::Mutex* mutex)
+      : guard_(mutex), mutex_(mutex), no_gc_(std::in_place) {}
 
   void Unlock() {
     mutex_->Unlock();
@@ -196,96 +307,42 @@ class NoHeapAllocationMutexGuard {
   }
   void Lock() {
     mutex_->Lock();
-    no_gc_.reset(new DisallowHeapAllocation());
+    no_gc_.emplace();
   }
 
  private:
   base::MutexGuard guard_;
   base::Mutex* mutex_;
-  std::unique_ptr<DisallowHeapAllocation> no_gc_;
+  std::optional<DisallowGarbageCollection> no_gc_;
 };
 
-// Per-isolate assert scopes.
-
-// Scope to document where we do not expect javascript execution.
-using DisallowJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowJavascriptExecution.
-using AllowJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
-
-// Scope to document where we do not expect javascript execution (debug only)
-using DisallowJavascriptExecutionDebugOnly =
-    PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowJavascriptExecutionDebugOnly.
-using AllowJavascriptExecutionDebugOnly =
-    PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, true>;
-
-// Scope in which javascript execution leads to exception being thrown.
-using ThrowOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
-
-// Scope to introduce an exception to ThrowOnJavascriptExecution.
-using NoThrowOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
-
-// Scope in which javascript execution causes dumps.
-using DumpOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
-
-// Scope in which javascript execution causes dumps.
-using NoDumpOnJavascriptExecution =
-    PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
-
-// Scope to document where we do not expect deoptimization.
-using DisallowDeoptimization =
-    PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowDeoptimization.
-using AllowDeoptimization =
-    PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, true>;
-
-// Scope to document where we do not expect deoptimization.
-using DisallowCompilation =
-    PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowDeoptimization.
-using AllowCompilation =
-    PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>;
-
-// Scope to document where we do not expect exceptions.
-using DisallowExceptions =
-    PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, false>;
-
-// Scope to introduce an exception to DisallowExceptions.
-using AllowExceptions =
-    PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, true>;
-
 // Explicit instantiation declarations.
-extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, false>;
-extern template class PerThreadAssertScope<HEAP_ALLOCATION_ASSERT, true>;
-extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, false>;
-extern template class PerThreadAssertScope<HANDLE_ALLOCATION_ASSERT, true>;
-extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, false>;
-extern template class PerThreadAssertScope<HANDLE_DEREFERENCE_ASSERT, true>;
-extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT,
-                                           false>;
-extern template class PerThreadAssertScope<CODE_DEPENDENCY_CHANGE_ASSERT, true>;
-
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, true>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, false>;
-extern template class PerIsolateAssertScope<JAVASCRIPT_EXECUTION_DUMP, true>;
-extern template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
-extern template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
-extern template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
-extern template class PerIsolateAssertScope<COMPILATION_ASSERT, true>;
-extern template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, false>;
-extern template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, true>;
+extern template class PerThreadAssertScope<false, HEAP_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<true, HEAP_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<false, SAFEPOINTS_ASSERT>;
+extern template class PerThreadAssertScope<true, SAFEPOINTS_ASSERT>;
+extern template class PerThreadAssertScope<false, HANDLE_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<true, HANDLE_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<false, HANDLE_DEREFERENCE_ASSERT>;
+extern template class PerThreadAssertScope<true, HANDLE_DEREFERENCE_ASSERT>;
+extern template class PerThreadAssertScope<false,
+                                           CODE_DEPENDENCY_CHANGE_ASSERT>;
+extern template class PerThreadAssertScope<true, CODE_DEPENDENCY_CHANGE_ASSERT>;
+extern template class PerThreadAssertScope<false, CODE_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<true, CODE_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<false, GC_MOLE>;
+extern template class PerThreadAssertScope<false, POSITION_INFO_SLOW_ASSERT>;
+extern template class PerThreadAssertScope<true, POSITION_INFO_SLOW_ASSERT>;
+extern template class PerThreadAssertScope<false, SAFEPOINTS_ASSERT,
+                                           HEAP_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<true, SAFEPOINTS_ASSERT,
+                                           HEAP_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<
+    false, CODE_DEPENDENCY_CHANGE_ASSERT, HANDLE_DEREFERENCE_ASSERT,
+    HANDLE_ALLOCATION_ASSERT, HEAP_ALLOCATION_ASSERT>;
+extern template class PerThreadAssertScope<
+    true, CODE_DEPENDENCY_CHANGE_ASSERT, HANDLE_DEREFERENCE_ASSERT,
+    HANDLE_ALLOCATION_ASSERT, HEAP_ALLOCATION_ASSERT>;
 
 }  // namespace internal
 }  // namespace v8

@@ -5,7 +5,6 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 
-#include "src/base/compiler-specific.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecodes.h"
@@ -14,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 class BytecodeArray;
+class TrustedByteArray;
 class SourcePositionTableBuilder;
 
 namespace interpreter {
@@ -36,6 +36,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   BytecodeArrayWriter(
       Zone* zone, ConstantArrayBuilder* constant_array_builder,
       SourcePositionTableBuilder::RecordingMode source_position_mode);
+  BytecodeArrayWriter(const BytecodeArrayWriter&) = delete;
+  BytecodeArrayWriter& operator=(const BytecodeArrayWriter&) = delete;
 
   void Write(BytecodeNode* node);
   void WriteJump(BytecodeNode* node, BytecodeLabel* label);
@@ -51,24 +53,28 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   void BindTryRegionEnd(HandlerTableBuilder* handler_table_builder,
                         int handler_id);
 
+  void PatchJumpTableSize(BytecodeJumpTable* jump_table, int new_size);
+
   void SetFunctionEntrySourcePosition(int position);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate,
-                                        int register_count, int parameter_count,
-                                        Handle<ByteArray> handler_table);
+  Handle<BytecodeArray> ToBytecodeArray(
+      IsolateT* isolate, int register_count, uint16_t parameter_count,
+      uint16_t max_arguments, DirectHandle<TrustedByteArray> handler_table);
 
-  template <typename LocalIsolate>
+  template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
+  DirectHandle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
 
 #ifdef DEBUG
   // Returns -1 if they match or the offset of the first mismatching byte.
-  int CheckBytecodeMatches(BytecodeArray bytecode);
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
 #endif
 
   bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }
+
+  size_t current_bytecode_size() const { return bytecodes_.size(); }
 
  private:
   // Maximum sized packed bytecode is comprised of a prefix bytecode,
@@ -112,6 +118,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   ConstantArrayBuilder* constant_array_builder() {
     return constant_array_builder_;
   }
+  Zone* zone() { return bytecodes_.zone(); }
 
   ZoneVector<uint8_t> bytecodes_;
   int unbound_jumps_;
@@ -126,7 +133,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   bool exit_seen_in_block_;
 
   friend class bytecode_array_writer_unittest::BytecodeArrayWriterUnittest;
-  DISALLOW_COPY_AND_ASSIGN(BytecodeArrayWriter);
 };
 
 }  // namespace interpreter

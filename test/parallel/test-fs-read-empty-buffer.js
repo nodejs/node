@@ -29,7 +29,7 @@ assert.throws(
 );
 
 (async () => {
-  const filehandle = await fsPromises.open(filepath, 'r');
+  await using filehandle = await fsPromises.open(filepath, 'r');
   assert.rejects(
     () => filehandle.read(buffer, 0, 1, 0),
     {
@@ -37,5 +37,5 @@ assert.throws(
       message: 'The argument \'buffer\' is empty and cannot be written. ' +
                'Received Uint8Array(0) []'
     }
-  );
+  ).then(common.mustCall());
 })().then(common.mustCall());

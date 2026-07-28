@@ -4,17 +4,18 @@
 
 #include "src/torque/csa-generator.h"
 
+#include <optional>
+
+#include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
-base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
+std::optional<Stack<std::string>> CSAGenerator::EmitGraph(
     Stack<std::string> parameters) {
   for (BottomOffset i = {0}; i < parameters.AboveTop(); ++i) {
     SetDefinitionVariable(DefinitionLocation::Parameter(i.offset),
@@ -63,7 +64,7 @@ base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
     out() << "\n";
     return EmitBlock(*cfg_.end());
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
@@ -83,7 +84,7 @@ Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
   out() << "    ca_.Bind(&" << BlockName(block) << phi_names.str() << ");\n";
 
   for (const Instruction& instruction : block->instructions()) {
-    EmitInstruction(instruction, &stack);
+    TorqueCodeGenerator::EmitInstruction(instruction, &stack);
   }
   return stack;
 }
@@ -99,57 +100,10 @@ void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
   }
 }
 
-bool CSAGenerator::IsEmptyInstruction(const Instruction& instruction) {
-  switch (instruction.kind()) {
-    case InstructionKind::kPeekInstruction:
-    case InstructionKind::kPokeInstruction:
-    case InstructionKind::kDeleteRangeInstruction:
-    case InstructionKind::kPushUninitializedInstruction:
-    case InstructionKind::kPushBuiltinPointerInstruction:
-    case InstructionKind::kUnsafeCastInstruction:
-      return true;
-    default:
-      return false;
-  }
-}
-
-void CSAGenerator::EmitInstruction(const Instruction& instruction,
-                                   Stack<std::string>* stack) {
-#ifdef DEBUG
-  if (!IsEmptyInstruction(instruction)) {
-    EmitSourcePosition(instruction->pos);
-  }
-#endif
-
-  switch (instruction.kind()) {
-#define ENUM_ITEM(T)          \
-  case InstructionKind::k##T: \
-    return EmitInstruction(instruction.Cast<T>(), stack);
-    TORQUE_INSTRUCTION_LIST(ENUM_ITEM)
-#undef ENUM_ITEM
-  }
-}
-
-void CSAGenerator::EmitInstruction(const PeekInstruction& instruction,
-                                   Stack<std::string>* stack) {
-  stack->Push(stack->Peek(instruction.slot));
-}
-
-void CSAGenerator::EmitInstruction(const PokeInstruction& instruction,
-                                   Stack<std::string>* stack) {
-  stack->Poke(instruction.slot, stack->Top());
-  stack->Pop();
-}
-
-void CSAGenerator::EmitInstruction(const DeleteRangeInstruction& instruction,
-                                   Stack<std::string>* stack) {
-  stack->DeleteRange(instruction.range);
-}
-
 void CSAGenerator::EmitInstruction(
     const PushUninitializedInstruction& instruction,
     Stack<std::string>* stack) {
-  // TODO(tebbi): This can trigger an error in CSA if it is used. Instead, we
+  // TODO(turbofan): This can trigger an error in CSA if it is used. Instead, we
   // should prevent usage of uninitialized in the type system. This
   // requires "if constexpr" being evaluated at Torque time.
   const std::string str = "ca_.Uninitialized<" +
@@ -162,7 +116,7 @@ void CSAGenerator::EmitInstruction(
     const PushBuiltinPointerInstruction& instruction,
     Stack<std::string>* stack) {
   const std::string str =
-      "ca_.UncheckedCast<BuiltinPtr>(ca_.SmiConstant(Builtins::k" +
+      "ca_.UncheckedCast<BuiltinPtr>(ca_.SmiConstant(Builtin::k" +
       instruction.external_name + "))";
   stack->Push(str);
   SetDefinitionVariable(instruction.GetValueDefinition(), str);
@@ -198,35 +152,33 @@ void CSAGenerator::EmitInstruction(
   }
 }
 
-void CSAGenerator::ProcessArgumentsCommon(
-    const TypeVector& parameter_types, std::vector<std::string>* args,
-    std::vector<std::string>* constexpr_arguments, Stack<std::string>* stack) {
-  for (auto it = parameter_types.rbegin(); it != parameter_types.rend(); ++it) {
-    const Type* type = *it;
-    VisitResult arg;
+std::vector<std::string> CSAGenerator::ProcessArgumentsCommon(
+    const TypeVector& parameter_types,
+    std::vector<std::string> constexpr_arguments, Stack<std::string>* stack) {
+  std::vector<std::string> args;
+  for (const Type* type : base::Reversed(parameter_types)) {
     if (type->IsConstexpr()) {
-      args->push_back(std::move(constexpr_arguments->back()));
-      constexpr_arguments->pop_back();
+      args.push_back(std::move(constexpr_arguments.back()));
+      constexpr_arguments.pop_back();
     } else {
       std::stringstream s;
       size_t slot_count = LoweredSlotCount(type);
       VisitResult arg = VisitResult(type, stack->TopRange(slot_count));
       EmitCSAValue(arg, *stack, s);
-      args->push_back(s.str());
+      args.push_back(s.str());
       stack->PopMany(slot_count);
     }
   }
-  std::reverse(args->begin(), args->end());
+  std::reverse(args.begin(), args.end());
+  return args;
 }
 
 void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
                                    Stack<std::string>* stack) {
-  std::vector<std::string> constexpr_arguments =
-      instruction.constexpr_arguments;
-  std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.intrinsic->signature().parameter_types.types;
-  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.intrinsic->signature().return_type;
@@ -275,7 +227,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       }
     }
   } else if (instruction.intrinsic->ExternalName() == "%GetClassMapConstant") {
-    if (parameter_types.size() != 0) {
+    if (!parameter_types.empty()) {
       ReportError("%GetClassMapConstant must not take parameters");
     }
     if (instruction.specialization_types.size() != 1) {
@@ -324,8 +276,14 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       out() << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
       out() << "ca_.Int32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+      out() << "TNode<Uint8T>::UncheckedCast(ca_.Uint32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
       out() << "ca_.Uint32Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetInt64Type())) {
+      out() << "ca_.Int64Constant";
+    } else if (return_type->IsSubtypeOf(TypeOracle::GetUint64Type())) {
+      out() << "ca_.Uint64Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetBoolType())) {
       out() << "ca_.BoolConstant";
     } else {
@@ -345,6 +303,9 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   PrintCommaSeparatedList(out(), args);
   if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     out() << ")";
+    if (return_type->IsSubtypeOf(TypeOracle::GetUint8Type())) {
+      out() << ")";
+    }
   }
   if (return_type->StructSupertype()) {
     out() << ").Flatten();\n";
@@ -355,12 +316,10 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
                                    Stack<std::string>* stack) {
-  std::vector<std::string> constexpr_arguments =
-      instruction.constexpr_arguments;
-  std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.macro->signature().parameter_types.types;
-  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.macro->signature().return_type;
@@ -409,12 +368,10 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
 void CSAGenerator::EmitInstruction(
     const CallCsaMacroAndBranchInstruction& instruction,
     Stack<std::string>* stack) {
-  std::vector<std::string> constexpr_arguments =
-      instruction.constexpr_arguments;
-  std::vector<std::string> args;
   TypeVector parameter_types =
       instruction.macro->signature().parameter_types.types;
-  ProcessArgumentsCommon(parameter_types, &args, &constexpr_arguments, stack);
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
 
   Stack<std::string> pre_call_stack = *stack;
   std::vector<std::string> results;
@@ -530,14 +487,54 @@ void CSAGenerator::EmitInstruction(
   }
 }
 
+void CSAGenerator::EmitInstruction(const MakeLazyNodeInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  TypeVector parameter_types =
+      instruction.macro->signature().parameter_types.types;
+  std::vector<std::string> args = ProcessArgumentsCommon(
+      parameter_types, instruction.constexpr_arguments, stack);
+
+  std::string result_name =
+      DefinitionToVariable(instruction.GetValueDefinition());
+
+  stack->Push(result_name);
+
+  decls() << "  " << instruction.result_type->GetGeneratedTypeName() << " "
+          << result_name << ";\n";
+
+  // We assume here that the CodeAssemblerState will outlive any usage of
+  // the generated std::function that binds it. Likewise, copies of TNode values
+  // are only valid during generation of the current builtin.
+  out() << "    " << result_name << " = [=] () { return ";
+  bool first = true;
+  if (const ExternMacro* extern_macro =
+          ExternMacro::DynamicCast(instruction.macro)) {
+    out() << extern_macro->external_assembler_name() << "(state_)."
+          << extern_macro->ExternalName() << "(";
+  } else {
+    out() << instruction.macro->ExternalName() << "(state_";
+    first = false;
+  }
+  if (!args.empty()) {
+    if (!first) out() << ", ";
+    PrintCommaSeparatedList(out(), args);
+  }
+  out() << "); };\n";
+}
+
 void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
                                    Stack<std::string>* stack) {
   std::vector<std::string> arguments = stack->PopMany(instruction.argc);
   std::vector<const Type*> result_types =
       LowerType(instruction.builtin->signature().return_type);
   if (instruction.is_tailcall) {
-    out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtins::k"
-          << instruction.builtin->ExternalName();
+    if (instruction.builtin->IsJavaScript()) {
+      out() << "   CodeStubAssembler(state_).TailCallJSBuiltin(Builtin::k"
+            << instruction.builtin->ExternalName();
+    } else {
+      out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtin::k"
+            << instruction.builtin->ExternalName();
+    }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the TailCallBuiltin signature.
       out() << ", TNode<Object>()";
@@ -547,23 +544,58 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     }
     out() << ");\n";
   } else {
-    std::string result_name;
-    if (result_types.size() == 1) {
-      result_name = DefinitionToVariable(instruction.GetValueDefinition(0));
-      decls() << "  TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
-              << "> " << result_name << ";\n";
+    std::vector<std::string> result_names(result_types.size());
+    for (size_t i = 0; i < result_types.size(); ++i) {
+      result_names[i] = DefinitionToVariable(instruction.GetValueDefinition(i));
+      decls() << "  TNode<" << result_types[i]->GetGeneratedTNodeTypeName()
+              << "> " << result_names[i] << ";\n";
     }
+
+    std::string lhs_name;
+    std::string lhs_type;
+    switch (result_types.size()) {
+      case 0:
+        // If a builtin call is annotated to never return, it has 0 return
+        // types (defining true void builtins is not allowed).
+        break;
+      case 1:
+        lhs_name = result_names[0];
+        lhs_type = result_types[0]->GetGeneratedTNodeTypeName();
+        break;
+      case 2:
+        // If a builtin returns two values, the return type is represented as a
+        // TNode containing a pair. We need a temporary place to store that
+        // result so we can unpack it into separate TNodes.
+        lhs_name = result_names[0] + "_and_" + result_names[1];
+        lhs_type = "PairT<" + result_types[0]->GetGeneratedTNodeTypeName() +
+                   ", " + result_types[1]->GetGeneratedTNodeTypeName() + ">";
+        decls() << "  TNode<" << lhs_type << "> " << lhs_name << ";\n";
+        break;
+      default:
+        ReportError(
+            "Torque can only call builtins that return one or two values, not ",
+            result_types.size());
+    }
+
     std::string catch_name =
         PreCallableExceptionPreparation(instruction.catch_block);
     Stack<std::string> pre_call_stack = *stack;
 
-    DCHECK_EQ(1, result_types.size());
-    std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
-    stack->Push(result_name);
-    out() << "    " << result_name << " = ";
-    if (generated_type != "Object") out() << "TORQUE_CAST(";
-    out() << "CodeStubAssembler(state_).CallBuiltin(Builtins::k"
-          << instruction.builtin->ExternalName();
+    for (const std::string& name : result_names) {
+      stack->Push(name);
+    }
+    // Currently we don't support calling javascript builtins directly. If ever
+    // needed, supporting that should be as easy as generating a call to
+    // CodeStubAssembler::CallJSBuiltin here though.
+    DCHECK(!instruction.builtin->IsJavaScript());
+    if (result_types.empty()) {
+      out() << "ca_.CallBuiltinVoid(Builtin::k"
+            << instruction.builtin->ExternalName();
+    } else {
+      out() << "    " << lhs_name << " = ";
+      out() << "ca_.CallBuiltin<" << lhs_type << ">(Builtin::k"
+            << instruction.builtin->ExternalName();
+    }
     if (!instruction.builtin->signature().HasContextParameter()) {
       // Add dummy context parameter to satisfy the CallBuiltin signature.
       out() << ", TNode<Object>()";
@@ -571,12 +603,18 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     for (const std::string& argument : arguments) {
       out() << ", " << argument;
     }
-    if (generated_type != "Object") out() << ")";
     out() << ");\n";
+
+    if (result_types.size() > 1) {
+      for (size_t i = 0; i < result_types.size(); ++i) {
+        out() << "    " << result_names[i] << " = ca_.Projection<" << i << ">("
+              << lhs_name << ");\n";
+      }
+    }
 
     PostCallableExceptionPreparation(
         catch_name,
-        result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
+        result_types.empty() ? TypeOracle::GetVoidType() : result_types[0],
         instruction.catch_block, &pre_call_stack,
         instruction.GetExceptionObjectDefinition());
   }
@@ -603,11 +641,9 @@ void CSAGenerator::EmitInstruction(
   out() << stack->Top() << " = ";
   if (generated_type != "Object") out() << "TORQUE_CAST(";
   out() << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
-           "CallableFor(ca_."
-           "isolate(),"
+           "CallInterfaceDescriptorFor("
            "ExampleBuiltinForTorqueFunctionPointerType("
-        << instruction.type->function_pointer_type_id() << ")).descriptor(), "
-        << function;
+        << instruction.type->function_pointer_type_id() << ")), " << function;
   if (!instruction.type->HasContextParameter()) {
     // Add dummy context parameter to satisfy the CallBuiltinPointer signature.
     out() << ", TNode<Object>()";
@@ -621,7 +657,7 @@ void CSAGenerator::EmitInstruction(
 }
 
 std::string CSAGenerator::PreCallableExceptionPreparation(
-    base::Optional<Block*> catch_block) {
+    std::optional<Block*> catch_block) {
   std::string catch_name;
   if (catch_block) {
     catch_name = FreshCatchName();
@@ -635,8 +671,8 @@ std::string CSAGenerator::PreCallableExceptionPreparation(
 
 void CSAGenerator::PostCallableExceptionPreparation(
     const std::string& catch_name, const Type* return_type,
-    base::Optional<Block*> catch_block, Stack<std::string>* stack,
-    const base::Optional<DefinitionLocation>& exception_object_definition) {
+    std::optional<Block*> catch_block, Stack<std::string>* stack,
+    const std::optional<DefinitionLocation>& exception_object_definition) {
   if (catch_block) {
     DCHECK(exception_object_definition);
     std::string block_name = BlockName(*catch_block);
@@ -647,7 +683,7 @@ void CSAGenerator::PostCallableExceptionPreparation(
     if (!return_type->IsNever()) {
       out() << "      ca_.Goto(&" << catch_name << "_skip);\n";
     }
-    decls() << "      TNode<Object> "
+    decls() << "      TNode<JSAny> "
             << DefinitionToVariable(*exception_object_definition) << ";\n";
     out() << "      ca_.Bind(&" << catch_name << "__label, &"
           << DefinitionToVariable(*exception_object_definition) << ");\n";
@@ -733,7 +769,7 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
 void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
                                    Stack<std::string>* stack) {
   out() << "    ca_.Branch(" << stack->Pop() << ", &"
-        << BlockName(instruction.if_true) << ", std::vector<Node*>{";
+        << BlockName(instruction.if_true) << ", std::vector<compiler::Node*>{";
 
   const auto& true_definitions = instruction.if_true->InputDefinitions();
   DCHECK_EQ(stack->Size(), true_definitions.Size());
@@ -746,7 +782,8 @@ void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
     }
   }
 
-  out() << "}, &" << BlockName(instruction.if_false) << ", std::vector<Node*>{";
+  out() << "}, &" << BlockName(instruction.if_false)
+        << ", std::vector<compiler::Node*>{";
 
   const auto& false_definitions = instruction.if_false->InputDefinitions();
   DCHECK_EQ(stack->Size(), false_definitions.Size());
@@ -822,13 +859,14 @@ void CSAGenerator::EmitInstruction(const ReturnInstruction& instruction,
   } else {
     out() << "    CodeStubAssembler(state_).Return(";
   }
-  out() << stack->Pop() << ");\n";
+  std::vector<std::string> values = stack->PopMany(instruction.count);
+  PrintCommaSeparatedList(out(), values);
+  out() << ");\n";
 }
 
-void CSAGenerator::EmitInstruction(
-    const PrintConstantStringInstruction& instruction,
-    Stack<std::string>* stack) {
-  out() << "    CodeStubAssembler(state_).Print("
+void CSAGenerator::EmitInstruction(const PrintErrorInstruction& instruction,
+                                   Stack<std::string>* stack) {
+  out() << "    CodeStubAssembler(state_).PrintErr("
         << StringLiteralQuote(instruction.message) << ");\n";
 }
 
@@ -870,6 +908,10 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
+  // We should never load or store builtin pointers because the heap may be
+  // corrupted.
+  CHECK(!instruction.type->IsBuiltinPointerType());
+
   std::string result_name =
       DefinitionToVariable(instruction.GetValueDefinition());
 
@@ -888,6 +930,10 @@ void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
+  // We should never load or store builtin pointers because the heap may be
+  // corrupted.
+  CHECK(!instruction.type->IsBuiltinPointerType());
+
   std::string value = stack->Pop();
   std::string offset = stack->Pop();
   std::string object = stack->Pop();
@@ -1031,11 +1077,9 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
     out << "}";
   } else {
     DCHECK_EQ(1, result.stack_range().Size());
-    out << "TNode<" << result.type()->GetGeneratedTNodeTypeName() << ">{"
+    out << result.type()->GetGeneratedTypeName() << "{"
         << values.Peek(result.stack_range().begin()) << "}";
   }
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

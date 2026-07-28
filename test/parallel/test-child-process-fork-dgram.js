@@ -92,9 +92,7 @@ if (process.argv[2] === 'child') {
           msg.length,
           serverPort,
           '127.0.0.1',
-          (err) => {
-            assert.ifError(err);
-          }
+          common.mustSucceed(),
         );
       }
     }, 1);

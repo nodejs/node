@@ -5,7 +5,7 @@
 libuv is a multi-platform support library with a focus on asynchronous I/O. It
 was primarily developed for use by [Node.js][], but it's also
 used by [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
-[pyuv](https://github.com/saghul/pyuv), and [others](https://github.com/libuv/libuv/wiki/Projects-that-use-libuv).
+[uvloop](https://github.com/MagicStack/uvloop), and [others](https://github.com/libuv/libuv/blob/v1.x/LINKS.md).
 
 ## Feature highlights
 
@@ -43,14 +43,16 @@ The ABI/API changes can be tracked [here](http://abi-laboratory.pro/tracker/time
 
 ## Licensing
 
-libuv is licensed under the MIT license. Check the [LICENSE file](LICENSE).
-The documentation is licensed under the CC BY 4.0 license. Check the [LICENSE-docs file](LICENSE-docs).
+libuv is licensed under the MIT license. Check the [LICENSE](LICENSE) and
+[LICENSE-extra](LICENSE-extra) files.
+
+The documentation is licensed under the CC BY 4.0 license. Check the
+[LICENSE-docs file](LICENSE-docs).
 
 ## Community
 
- * [Support](https://github.com/libuv/help)
+ * [Support](https://github.com/libuv/libuv/discussions)
  * [Mailing list](http://groups.google.com/group/libuv)
- * [IRC chatroom (#libuv@irc.freenode.org)](http://webchat.freenode.net?channels=libuv&uio=d4)
 
 ## Documentation
 
@@ -187,9 +189,7 @@ $ make install
 To build with [CMake][]:
 
 ```bash
-$ mkdir -p build
-
-$ (cd build && cmake .. -DBUILD_TESTING=ON) # generate project with tests
+$ cmake -B build -DBUILD_TESTING=ON         # generate project with tests
 $ cmake --build build                       # add `-j <n>` with cmake >= 3.12
 
 # Run tests:
@@ -215,11 +215,32 @@ $ cmake ../..                 \
 $ brew install --HEAD libuv
 ```
 
-Note to OS X users:
+Note to macOS users:
 
 Make sure that you specify the architecture you wish to build for in the
 "ARCHS" flag. You can specify more than one by delimiting with a space
 (e.g. "x86_64 i386").
+
+### Install with vcpkg
+
+```bash
+$ git clone https://github.com/microsoft/vcpkg.git
+$ ./bootstrap-vcpkg.bat # for powershell
+$ ./bootstrap-vcpkg.sh # for bash
+$ ./vcpkg install libuv
+```
+
+### Install with Conan
+
+You can install pre-built binaries for libuv or build it from source using [Conan](https://conan.io/). Use the following command:
+
+```bash
+conan install --requires="libuv/[*]" --build=missing
+```
+
+The libuv Conan recipe is kept up to date by Conan maintainers and community contributors.
+If the version is out of date, please [create an issue or pull request](https://github.com/conan-io/conan-center-index) on the ConanCenterIndex repository.
+
 
 ### Running tests
 
@@ -286,6 +307,16 @@ listed in `test/benchmark-list.h`.
 
 Check the [SUPPORTED_PLATFORMS file](SUPPORTED_PLATFORMS.md).
 
+### `-fno-strict-aliasing`
+
+It is recommended to turn on the `-fno-strict-aliasing` compiler flag in
+projects that use libuv. The use of ad hoc "inheritance" in the libuv API
+may not be safe in the presence of compiler optimizations that depend on
+strict aliasing.
+
+MSVC does not have an equivalent flag but it also does not appear to need it
+at the time of writing (December 2019.)
+
 ### AIX Notes
 
 AIX compilation using IBM XL C/C++ requires version 12.1 or greater.
@@ -297,6 +328,13 @@ that is detected by `autoconf`.
 describes the package in more detail.
 
 ### z/OS Notes
+
+z/OS compilation requires [ZOSLIB](https://github.com/ibmruntimes/zoslib) to be installed. When building with [CMake][], use the flag `-DZOSLIB_DIR` to specify the path to [ZOSLIB](https://github.com/ibmruntimes/zoslib):
+
+```bash
+$ (cd build && cmake .. -DBUILD_TESTING=ON -DZOSLIB_DIR=/path/to/zoslib)
+$ cmake --build build
+```
 
 z/OS creates System V semaphores and message queues. These persist on the system
 after the process terminates unless the event loop is closed.

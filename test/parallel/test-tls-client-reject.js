@@ -30,7 +30,8 @@ const fixtures = require('../common/fixtures');
 
 const options = {
   key: fixtures.readKey('rsa_private.pem'),
-  cert: fixtures.readKey('rsa_cert.crt')
+  cert: fixtures.readKey('rsa_cert.crt'),
+  ...(process.features.openssl_is_boringssl ? { maxVersion: 'TLSv1.2' } : {}),
 };
 
 const server = tls.createServer(options, function(socket) {
@@ -46,7 +47,8 @@ function unauthorized() {
   const socket = tls.connect({
     port: server.address().port,
     servername: 'localhost',
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    ...(process.features.openssl_is_boringssl ? { maxVersion: 'TLSv1.2' } : {}),
   }, common.mustCall(function() {
     let _data;
     assert(!socket.authorized);
@@ -59,8 +61,7 @@ function unauthorized() {
     }));
     socket.on('end', () => rejectUnauthorized());
   }));
-  socket.once('session', common.mustCall(() => {
-  }));
+  socket.once('session', common.mustCall());
   socket.on('error', common.mustNotCall());
   socket.end('ok');
 }
@@ -68,7 +69,22 @@ function unauthorized() {
 function rejectUnauthorized() {
   console.log('reject unauthorized');
   const socket = tls.connect(server.address().port, {
-    servername: 'localhost'
+    servername: 'localhost',
+    ...(process.features.openssl_is_boringssl ? { maxVersion: 'TLSv1.2' } : {}),
+  }, common.mustNotCall());
+  socket.on('data', common.mustNotCall());
+  socket.on('error', common.mustCall(function(err) {
+    rejectUnauthorizedUndefined();
+  }));
+  socket.end('ng');
+}
+
+function rejectUnauthorizedUndefined() {
+  console.log('reject unauthorized undefined');
+  const socket = tls.connect(server.address().port, {
+    servername: 'localhost',
+    rejectUnauthorized: undefined,
+    ...(process.features.openssl_is_boringssl ? { maxVersion: 'TLSv1.2' } : {}),
   }, common.mustNotCall());
   socket.on('data', common.mustNotCall());
   socket.on('error', common.mustCall(function(err) {
@@ -81,7 +97,8 @@ function authorized() {
   console.log('connect authorized');
   const socket = tls.connect(server.address().port, {
     ca: [fixtures.readKey('rsa_cert.crt')],
-    servername: 'localhost'
+    servername: 'localhost',
+    ...(process.features.openssl_is_boringssl ? { maxVersion: 'TLSv1.2' } : {}),
   }, common.mustCall(function() {
     console.log('... authorized');
     assert(socket.authorized);

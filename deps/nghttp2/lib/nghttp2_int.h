@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -39,7 +39,6 @@ typedef int (*nghttp2_less)(const void *lhs, const void *rhs);
 /* Internal error code. They must be in the range [-499, -100],
    inclusive. */
 typedef enum {
-  NGHTTP2_ERR_CREDENTIAL_PENDING = -101,
   NGHTTP2_ERR_IGN_HEADER_BLOCK = -103,
   NGHTTP2_ERR_IGN_PAYLOAD = -104,
   /*
@@ -52,7 +51,11 @@ typedef enum {
    * Unlike NGHTTP2_ERR_IGN_HTTP_HEADER, this does not invoke
    * nghttp2_on_invalid_header_callback.
    */
-  NGHTTP2_ERR_REMOVE_HTTP_HEADER = -106
+  NGHTTP2_ERR_REMOVE_HTTP_HEADER = -106,
+  /*
+   * Cancel pushed stream.
+   */
+  NGHTTP2_ERR_PUSH_CANCEL = -107,
 } nghttp2_internal_error;
 
-#endif /* NGHTTP2_INT_H */
+#endif /* !defined(NGHTTP2_INT_H) */

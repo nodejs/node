@@ -1,84 +1,25 @@
 /*
- * Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
+#include <string.h> /* strlen */
 #include <openssl/crypto.h>
-#include <openssl/err.h>
+#include "internal/cryptlib.h"
 #include "ec_local.h"
-
-BIGNUM *EC_POINT_point2bn(const EC_GROUP *group,
-                          const EC_POINT *point,
-                          point_conversion_form_t form,
-                          BIGNUM *ret, BN_CTX *ctx)
-{
-    size_t buf_len = 0;
-    unsigned char *buf;
-
-    buf_len = EC_POINT_point2buf(group, point, form, &buf, ctx);
-
-    if (buf_len == 0)
-        return NULL;
-
-    ret = BN_bin2bn(buf, buf_len, ret);
-
-    OPENSSL_free(buf);
-
-    return ret;
-}
-
-EC_POINT *EC_POINT_bn2point(const EC_GROUP *group,
-                            const BIGNUM *bn, EC_POINT *point, BN_CTX *ctx)
-{
-    size_t buf_len = 0;
-    unsigned char *buf;
-    EC_POINT *ret;
-
-    if ((buf_len = BN_num_bytes(bn)) == 0)
-        buf_len = 1;
-    if ((buf = OPENSSL_malloc(buf_len)) == NULL) {
-        ECerr(EC_F_EC_POINT_BN2POINT, ERR_R_MALLOC_FAILURE);
-        return NULL;
-    }
-
-    if (!BN_bn2binpad(bn, buf, buf_len)) {
-        OPENSSL_free(buf);
-        return NULL;
-    }
-
-    if (point == NULL) {
-        if ((ret = EC_POINT_new(group)) == NULL) {
-            OPENSSL_free(buf);
-            return NULL;
-        }
-    } else
-        ret = point;
-
-    if (!EC_POINT_oct2point(group, ret, buf, buf_len, ctx)) {
-        if (ret != point)
-            EC_POINT_clear_free(ret);
-        OPENSSL_free(buf);
-        return NULL;
-    }
-
-    OPENSSL_free(buf);
-    return ret;
-}
-
-static const char *HEX_DIGITS = "0123456789ABCDEF";
 
 /* the return value must be freed (using OPENSSL_free()) */
 char *EC_POINT_point2hex(const EC_GROUP *group,
-                         const EC_POINT *point,
-                         point_conversion_form_t form, BN_CTX *ctx)
+    const EC_POINT *point,
+    point_conversion_form_t form, BN_CTX *ctx)
 {
     char *ret, *p;
-    size_t buf_len = 0, i;
-    unsigned char *buf = NULL, *pbuf;
+    size_t buf_len, i;
+    unsigned char *buf = NULL;
 
     buf_len = EC_POINT_point2buf(group, point, form, &buf, ctx);
 
@@ -86,36 +27,53 @@ char *EC_POINT_point2hex(const EC_GROUP *group,
         return NULL;
 
     ret = OPENSSL_malloc(buf_len * 2 + 2);
-    if (ret == NULL) {
-        OPENSSL_free(buf);
-        return NULL;
-    }
+    if (ret == NULL)
+        goto err;
+
     p = ret;
-    pbuf = buf;
-    for (i = buf_len; i > 0; i--) {
-        int v = (int)*(pbuf++);
-        *(p++) = HEX_DIGITS[v >> 4];
-        *(p++) = HEX_DIGITS[v & 0x0F];
-    }
+    for (i = 0; i < buf_len; ++i)
+        p += ossl_to_hex(p, buf[i]);
     *p = '\0';
 
+err:
     OPENSSL_free(buf);
-
     return ret;
 }
 
 EC_POINT *EC_POINT_hex2point(const EC_GROUP *group,
-                             const char *buf, EC_POINT *point, BN_CTX *ctx)
+    const char *hex, EC_POINT *point, BN_CTX *ctx)
 {
-    EC_POINT *ret = NULL;
-    BIGNUM *tmp_bn = NULL;
+    int ok = 0;
+    unsigned char *oct_buf = NULL;
+    size_t len, oct_buf_len = 0;
+    EC_POINT *pt = NULL;
 
-    if (!BN_hex2bn(&tmp_bn, buf))
+    if (group == NULL || hex == NULL)
         return NULL;
 
-    ret = EC_POINT_bn2point(group, tmp_bn, point, ctx);
+    if (point == NULL) {
+        pt = EC_POINT_new(group);
+        if (pt == NULL)
+            goto err;
+    } else {
+        pt = point;
+    }
 
-    BN_clear_free(tmp_bn);
+    len = strlen(hex) / 2;
+    oct_buf = OPENSSL_malloc(len);
+    if (oct_buf == NULL)
+        goto err;
 
-    return ret;
+    if (!OPENSSL_hexstr2buf_ex(oct_buf, len, &oct_buf_len, hex, '\0')
+        || !EC_POINT_oct2point(group, pt, oct_buf, oct_buf_len, ctx))
+        goto err;
+    ok = 1;
+err:
+    OPENSSL_clear_free(oct_buf, oct_buf_len);
+    if (!ok) {
+        if (pt != point)
+            EC_POINT_clear_free(pt);
+        pt = NULL;
+    }
+    return pt;
 }

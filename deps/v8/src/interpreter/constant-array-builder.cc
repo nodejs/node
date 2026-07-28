@@ -9,11 +9,12 @@
 #include <set>
 
 #include "src/ast/ast-value-factory.h"
-#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/interpreter/bytecode-operands.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -65,15 +66,16 @@ const ConstantArrayBuilder::Entry& ConstantArrayBuilder::ConstantArraySlice::At(
 }
 
 #if DEBUG
-template <typename LocalIsolate>
+template <typename IsolateT>
 void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
-    LocalIsolate* isolate) const {
-  std::set<Smi> smis;
+    IsolateT* isolate) const {
+  std::set<Tagged<Smi>> smis;
   std::set<double> heap_numbers;
   std::set<const AstRawString*> strings;
+  std::set<const AstConsString*> cons_strings;
   std::set<const char*> bigints;
   std::set<const Scope*> scopes;
-  std::set<Object, Object::Comparer> deferred_objects;
+  std::set<Tagged<Object>, Object::Comparer> deferred_objects;
   for (const Entry& entry : constants_) {
     bool duplicate = false;
     switch (entry.tag_) {
@@ -85,6 +87,9 @@ void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
         break;
       case Entry::Tag::kRawString:
         duplicate = !strings.insert(entry.raw_string_).second;
+        break;
+      case Entry::Tag::kConsString:
+        duplicate = !cons_strings.insert(entry.cons_string_).second;
         break;
       case Entry::Tag::kBigInt:
         duplicate = !bigints.insert(entry.bigint_.c_str()).second;
@@ -164,9 +169,9 @@ ConstantArrayBuilder::ConstantArraySlice* ConstantArrayBuilder::IndexToSlice(
   UNREACHABLE();
 }
 
-template <typename LocalIsolate>
+template <typename IsolateT>
 MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
-                                             LocalIsolate* isolate) const {
+                                             IsolateT* isolate) const {
   const ConstantArraySlice* slice = IndexToSlice(index);
   DCHECK_LT(index, slice->capacity());
   if (index < slice->start_index() + slice->size()) {
@@ -183,10 +188,13 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
                                                  LocalIsolate* isolate) const;
 
-template <typename LocalIsolate>
-Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(LocalIsolate* isolate) {
-  Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArrayWithHoles(
-      static_cast<int>(size()), AllocationType::kOld);
+template <typename IsolateT>
+Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
+    IsolateT* isolate) {
+  Handle<TrustedFixedArray> fixed_array =
+      isolate->factory()->NewTrustedFixedArray(static_cast<int>(size()));
+  MemsetTagged(fixed_array->RawFieldOfFirstElement(),
+               *isolate->factory()->the_hole_value(), size());
   int array_index = 0;
   for (const ConstantArraySlice* slice : idx_slice_) {
     DCHECK_EQ(slice->reserved(), 0);
@@ -199,7 +207,7 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(LocalIsolate* isolate) {
 #endif
     // Copy objects from slice into array.
     for (size_t i = 0; i < slice->size(); ++i) {
-      Handle<Object> value =
+      DirectHandle<Object> value =
           slice->At(slice->start_index() + i).ToHandle(isolate);
       fixed_array->set(array_index++, *value);
     }
@@ -215,12 +223,13 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(LocalIsolate* isolate) {
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate);
+    Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
+        Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(
+    Handle<TrustedFixedArray> ConstantArrayBuilder::ToFixedArray(
         LocalIsolate* isolate);
 
-size_t ConstantArrayBuilder::Insert(Smi smi) {
+size_t ConstantArrayBuilder::Insert(Tagged<Smi> smi) {
   auto entry = smi_map_.find(smi);
   if (entry == smi_map_.end()) {
     return AllocateReservedEntry(smi);
@@ -244,6 +253,15 @@ size_t ConstantArrayBuilder::Insert(const AstRawString* raw_string) {
       .LookupOrInsert(reinterpret_cast<intptr_t>(raw_string),
                       raw_string->Hash(),
                       [&]() { return AllocateIndex(Entry(raw_string)); })
+      ->value;
+}
+
+size_t ConstantArrayBuilder::Insert(const AstConsString* cons_string) {
+  const AstRawString* last = cons_string->last();
+  uint32_t hash = last == nullptr ? 0 : last->Hash();
+  return constants_map_
+      .LookupOrInsert(reinterpret_cast<intptr_t>(cons_string), hash,
+                      [&]() { return AllocateIndex(Entry(cons_string)); })
       ->value;
 }
 
@@ -321,7 +339,7 @@ void ConstantArrayBuilder::SetDeferredAt(size_t index, Handle<Object> object) {
   return slice->At(index).SetDeferred(object);
 }
 
-void ConstantArrayBuilder::SetJumpTableSmi(size_t index, Smi smi) {
+void ConstantArrayBuilder::SetJumpTableSmi(size_t index, Tagged<Smi> smi) {
   ConstantArraySlice* slice = IndexToSlice(index);
   // Allow others to reuse these Smis, but insert using emplace to avoid
   // overwriting existing values in the Smi map (which may have a smaller
@@ -330,9 +348,11 @@ void ConstantArrayBuilder::SetJumpTableSmi(size_t index, Smi smi) {
   return slice->At(index).SetJumpTableSmi(smi);
 }
 
-OperandSize ConstantArrayBuilder::CreateReservedEntry() {
+OperandSize ConstantArrayBuilder::CreateReservedEntry(
+    OperandSize minimum_operand_size) {
   for (size_t i = 0; i < arraysize(idx_slice_); ++i) {
-    if (idx_slice_[i]->available() > 0) {
+    if (idx_slice_[i]->available() > 0 &&
+        idx_slice_[i]->operand_size() >= minimum_operand_size) {
       idx_slice_[i]->Reserve();
       return idx_slice_[i]->operand_size();
     }
@@ -341,14 +361,14 @@ OperandSize ConstantArrayBuilder::CreateReservedEntry() {
 }
 
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateReservedEntry(
-    Smi value) {
+    Tagged<Smi> value) {
   index_t index = static_cast<index_t>(AllocateIndex(Entry(value)));
   smi_map_[value] = index;
   return index;
 }
 
 size_t ConstantArrayBuilder::CommitReservedEntry(OperandSize operand_size,
-                                                 Smi value) {
+                                                 Tagged<Smi> value) {
   DiscardReservedEntry(operand_size);
   size_t index;
   auto entry = smi_map_.find(value);
@@ -372,9 +392,8 @@ void ConstantArrayBuilder::DiscardReservedEntry(OperandSize operand_size) {
   OperandSizeToSlice(operand_size)->Unreserve();
 }
 
-template <typename LocalIsolate>
-Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
-    LocalIsolate* isolate) const {
+template <typename IsolateT>
+Handle<Object> ConstantArrayBuilder::Entry::ToHandle(IsolateT* isolate) const {
   switch (tag_) {
     case Tag::kDeferred:
       // We shouldn't have any deferred entries by now.
@@ -385,10 +404,11 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
     case Tag::kJumpTableSmi:
       return handle(smi_, isolate);
     case Tag::kUninitializedJumpTableSmi:
-      // TODO(leszeks): There's probably a better value we could use here.
-      return isolate->factory()->the_hole_value();
+      UNREACHABLE();
     case Tag::kRawString:
       return raw_string_->string();
+    case Tag::kConsString:
+      return cons_string_->AllocateFlat(isolate);
     case Tag::kHeapNumber:
       return isolate->factory()->template NewNumber<AllocationType::kOld>(
           heap_number_);

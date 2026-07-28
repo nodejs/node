@@ -45,7 +45,7 @@ function listener(event, exec_state, event_data, data) {
         assertEquals(expected_function_name, event_data.func().name());
         state = 4;
       } else {
-        exec_state.prepareStep(Debug.StepAction.StepIn);
+        exec_state.prepareStep(Debug.StepAction.StepInto);
         state++;
       }
     }

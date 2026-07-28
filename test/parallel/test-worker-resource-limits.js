@@ -35,9 +35,10 @@ if (!process.env.HAS_STARTED_WORKER) {
 assert.deepStrictEqual(resourceLimits, testResourceLimits);
 const array = [];
 while (true) {
-  // Leave 10 % wiggle room here.
   const usedMB = v8.getHeapStatistics().used_heap_size / 1024 / 1024;
-  assert(usedMB < resourceLimits.maxOldGenerationSizeMb * 1.1);
+  const maxReservedSize = resourceLimits.maxOldGenerationSizeMb +
+                          resourceLimits.maxYoungGenerationSizeMb;
+  assert(usedMB < maxReservedSize);
 
   let seenSpaces = 0;
   for (const { space_name, space_size } of v8.getHeapSpaceStatistics()) {

@@ -1,7 +1,7 @@
 /*
- * Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -44,10 +44,10 @@
 #include <dirent.h>
 #include <errno.h>
 #ifndef LPDIR_H
-# include "LPdir.h"
+#include "LPdir.h"
 #endif
 #ifdef __VMS
-# include <ctype.h>
+#include <ctype.h>
 #endif
 
 /*
@@ -57,9 +57,9 @@
  * if it doesn't exist, use NAME_MAX.
  */
 #if defined(PATH_MAX)
-# define LP_ENTRY_SIZE PATH_MAX
+#define LP_ENTRY_SIZE PATH_MAX
 #elif defined(NAME_MAX)
-# define LP_ENTRY_SIZE NAME_MAX
+#define LP_ENTRY_SIZE NAME_MAX
 #endif
 
 /*
@@ -68,9 +68,9 @@
  * small value (HP-UX offers 14), so we need to check if we got a result, and
  * if it meets a minimum standard, and create or change it if not.
  */
-#if !defined(LP_ENTRY_SIZE) || LP_ENTRY_SIZE<255
-# undef LP_ENTRY_SIZE
-# define LP_ENTRY_SIZE 255
+#if !defined(LP_ENTRY_SIZE) || LP_ENTRY_SIZE < 255
+#undef LP_ENTRY_SIZE
+#define LP_ENTRY_SIZE 255
 #endif
 
 struct LP_dir_context_st {
@@ -121,9 +121,9 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 
 #ifdef __VMS
     strncpy((*ctx)->previous_entry_name, (*ctx)->entry_name,
-            sizeof((*ctx)->previous_entry_name));
+        sizeof((*ctx)->previous_entry_name));
 
- again:
+again:
 #endif
 
     direntry = readdir((*ctx)->dir);
@@ -132,16 +132,18 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
     }
 
     OPENSSL_strlcpy((*ctx)->entry_name, direntry->d_name,
-                    sizeof((*ctx)->entry_name));
+        sizeof((*ctx)->entry_name));
 #ifdef __VMS
     if ((*ctx)->expect_file_generations) {
         char *p = (*ctx)->entry_name + strlen((*ctx)->entry_name);
 
-        while(p > (*ctx)->entry_name && isdigit(p[-1]))
+        while (p > (*ctx)->entry_name && isdigit((unsigned char)p[-1]))
             p--;
         if (p > (*ctx)->entry_name && p[-1] == ';')
             p[-1] = '\0';
-        if (strcasecmp((*ctx)->entry_name, (*ctx)->previous_entry_name) == 0)
+        if (OPENSSL_strcasecmp((*ctx)->entry_name,
+                (*ctx)->previous_entry_name)
+            == 0)
             goto again;
     }
 #endif

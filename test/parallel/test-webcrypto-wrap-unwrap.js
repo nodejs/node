@@ -5,8 +5,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
-const { subtle } = require('crypto').webcrypto;
+const { subtle } = globalThis.crypto;
 
 const kWrappingData = {
   'RSA-OAEP': {
@@ -41,8 +43,28 @@ const kWrappingData = {
     generate: { length: 128 },
     wrap: { },
     pair: false
+  },
+  'ChaCha20-Poly1305': {
+    wrap: {
+      iv: new Uint8Array(12),
+      additionalData: new Uint8Array(16),
+      tagLength: 128
+    },
+    pair: false
   }
 };
+
+if (hasOpenSSL(3)) {
+  kWrappingData['AES-OCB'] = {
+    generate: { length: 128 },
+    wrap: {
+      iv: new Uint8Array(15),
+      additionalData: new Uint8Array(16),
+      tagLength: 128
+    },
+    pair: false
+  };
+}
 
 function generateWrappingKeys() {
   return Promise.all(Object.keys(kWrappingData).map(async (name) => {
@@ -64,7 +86,7 @@ async function generateKeysToWrap() {
   const parameters = [
     {
       algorithm: {
-        name: 'RSASSA-PKCS1-V1_5',
+        name: 'RSASSA-PKCS1-v1_5',
         modulusLength: 1024,
         publicExponent: new Uint8Array([1, 0, 1]),
         hash: 'SHA-256'
@@ -115,6 +137,22 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
+        name: 'Ed25519',
+      },
+      privateUsages: ['sign'],
+      publicUsages: ['verify'],
+      pair: true,
+    },
+    {
+      algorithm: {
+        name: 'X25519',
+      },
+      privateUsages: ['deriveBits'],
+      publicUsages: [],
+      pair: true,
+    },
+    {
+      algorithm: {
         name: 'AES-CTR',
         length: 128
       },
@@ -138,6 +176,15 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
+        name: 'HMAC',
+        length: 128,
+        hash: 'SHA-256'
+      },
+      usages: ['sign', 'verify'],
+      pair: false,
+    },
+    {
+      algorithm: {
         name: 'AES-KW',
         length: 128
       },
@@ -146,14 +193,46 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'HMAC',
-        length: 128,
-        hash: 'SHA-256'
+        name: 'ChaCha20-Poly1305'
       },
-      usages: ['sign', 'verify'],
+      usages: ['encrypt', 'decrypt'],
       pair: false,
-    }
+    },
   ];
+
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+    for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+      parameters.push({
+        algorithm: { name },
+        privateUsages: ['sign'],
+        publicUsages: ['verify'],
+        pair: true,
+      });
+    }
+  }
+
+  if (!process.features.openssl_is_boringssl) {
+    parameters.push(
+      {
+        algorithm: {
+          name: 'Ed448',
+        },
+        privateUsages: ['sign'],
+        publicUsages: ['verify'],
+        pair: true,
+      },
+      {
+        algorithm: {
+          name: 'X448',
+        },
+        privateUsages: ['deriveBits'],
+        publicUsages: [],
+        pair: true,
+      },
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported Curve test cases');
+  }
 
   const allkeys = await Promise.all(parameters.map(async (params) => {
     const usages = 'usages' in params ?
@@ -173,24 +252,44 @@ async function generateKeysToWrap() {
           algorithm: params.algorithm,
           usages: params.privateUsages,
           key: keys.privateKey,
-        }
+        },
       ];
     }
 
     return [{
       algorithm: params.algorithm,
       usages: params.usages,
-      key: keys }];
+      key: keys,
+    }];
   }));
 
   return allkeys.flat();
 }
 
 function getFormats(key) {
-  switch (key.key.type) {
-    case 'secret': return ['raw', 'jwk'];
-    case 'public': return ['spki', 'jwk'];
-    case 'private': return ['pkcs8', 'jwk'];
+  switch (key.type) {
+    case 'secret': {
+      if (key.algorithm.name === 'ChaCha20-Poly1305') return ['raw-secret', 'jwk'];
+      return ['raw-secret', 'raw', 'jwk'];
+    };
+    case 'public': {
+      switch (key.algorithm.name.slice(0, 2)) {
+        case 'EC': // ECDSA, ECDH
+          return ['spki', 'jwk', 'raw', 'raw-public'];
+        case 'ML': // ML-DSA
+          return ['jwk', 'raw-public'];
+        default:
+          return ['spki', 'jwk'];
+      }
+    }
+    case 'private': {
+      switch (key.algorithm.name.slice(0, 2)) {
+        case 'ML': // ML-DSA
+          return ['jwk', 'raw-seed'];
+        default:
+          return ['pkcs8', 'jwk'];
+      }
+    }
   }
 }
 
@@ -198,6 +297,10 @@ function getFormats(key) {
 // material length must be a multiple of 8.
 // If the wrapping algorithm is RSA-OAEP, the exported key
 // material maximum length is a factor of the modulusLength
+//
+// As per the NOTE in step 13 https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
+// we're padding AES-KW wrapped JWK to make sure it is always a multiple of 8 bytes
+// in length
 async function wrappingIsPossible(name, exported) {
   if ('byteLength' in exported) {
     switch (name) {
@@ -206,13 +309,8 @@ async function wrappingIsPossible(name, exported) {
       case 'RSA-OAEP':
         return exported.byteLength <= 446;
     }
-  } else if ('kty' in exported) {
-    switch (name) {
-      case 'AES-KW':
-        return JSON.stringify(exported).length % 8 === 0;
-      case 'RSA-OAEP':
-        return JSON.stringify(exported).length <= 478;
-    }
+  } else if ('kty' in exported && name === 'RSA-OAEP') {
+    return JSON.stringify(exported).length <= 478;
   }
   return true;
 }
@@ -243,7 +341,7 @@ async function testWrap(wrappingKey, unwrappingKey, key, wrap, format) {
   assert.deepStrictEqual(exported, exportedAgain);
 }
 
-async function testWrapping(name, keys, ecdhPeerKey) {
+function testWrapping(name, keys) {
   const variations = [];
 
   const {
@@ -253,24 +351,192 @@ async function testWrapping(name, keys, ecdhPeerKey) {
   } = kWrappingData[name];
 
   keys.forEach((key) => {
-    getFormats(key).forEach((format) => {
+    getFormats(key.key).forEach((format) => {
       variations.push(testWrap(wrappingKey, unwrappingKey, key, wrap, format));
     });
   });
 
-  return Promise.all(variations);
+  return variations;
 }
 
 (async function() {
   await generateWrappingKeys();
   const keys = await generateKeysToWrap();
-  const ecdhPeerKey = await subtle.generateKey({
-    name: 'ECDH',
-    namedCurve: 'P-384'
-  }, true, ['deriveBits']);
   const variations = [];
   Object.keys(kWrappingData).forEach((name) => {
-    return testWrapping(name, keys, ecdhPeerKey);
+    variations.push(...testWrapping(name, keys));
   });
   await Promise.all(variations);
+})().then(common.mustCall());
+
+async function testNonByteLengthWrapUnwrap({
+  key,
+  formats,
+  rawFormat,
+  explicitAlgorithm,
+  implicitAlgorithm,
+}) {
+  const wrappingKey = await subtle.generateKey(
+    { name: 'AES-GCM', length: 128 },
+    true,
+    ['wrapKey', 'unwrapKey']);
+  const expectedRaw = new Uint8Array(await subtle.exportKey(rawFormat, key));
+
+  for (const [i, format] of formats.entries()) {
+    const wrapAlgorithm = {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12).fill(i),
+    };
+    const wrapped = await subtle.wrapKey(format, key, wrappingKey, wrapAlgorithm);
+
+    // The serialized key material carries bytes, not the requested bit length.
+    const explicit = await subtle.unwrapKey(
+      format,
+      wrapped,
+      wrappingKey,
+      wrapAlgorithm,
+      explicitAlgorithm,
+      true,
+      ['sign', 'verify']);
+    assert.strictEqual(explicit.algorithm.length, 9);
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.exportKey(rawFormat, explicit)),
+      expectedRaw);
+
+    const implicit = await subtle.unwrapKey(
+      format,
+      wrapped,
+      wrappingKey,
+      wrapAlgorithm,
+      implicitAlgorithm,
+      true,
+      ['sign', 'verify']);
+    assert.strictEqual(implicit.algorithm.length, expectedRaw.byteLength * 8);
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.exportKey(rawFormat, implicit)),
+      expectedRaw);
+  }
+}
+
+(async function() {
+  const hmacAlgorithm = { name: 'HMAC', hash: 'SHA-256' };
+  const hmacKey = await subtle.importKey(
+    'raw',
+    new Uint8Array([0xff, 0xff]),
+    { ...hmacAlgorithm, length: 9 },
+    true,
+    ['sign', 'verify']);
+  await testNonByteLengthWrapUnwrap({
+    key: hmacKey,
+    formats: ['raw', 'jwk'],
+    rawFormat: 'raw',
+    explicitAlgorithm: { ...hmacAlgorithm, length: 9 },
+    implicitAlgorithm: hmacAlgorithm,
+  });
+
+  if (hasOpenSSL(3)) {
+    const kmacAlgorithm = { name: 'KMAC128' };
+    const kmacKey = await subtle.importKey(
+      'raw-secret',
+      new Uint8Array([0xff, 0xff]),
+      { ...kmacAlgorithm, length: 9 },
+      true,
+      ['sign', 'verify']);
+    await testNonByteLengthWrapUnwrap({
+      key: kmacKey,
+      formats: ['raw-secret', 'jwk'],
+      rawFormat: 'raw-secret',
+      explicitAlgorithm: { ...kmacAlgorithm, length: 9 },
+      implicitAlgorithm: kmacAlgorithm,
+    });
+  }
+})().then(common.mustCall());
+
+// Test that wrapKey/unwrapKey validate the wrapping/unwrapping key's
+// algorithm and usage before proceeding.
+// Spec: https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
+// Steps 9-10 (wrapping key checks) must precede step 12 (exportKey).
+(async function() {
+  const hmacKey = await subtle.generateKey(
+    { name: 'HMAC', hash: 'SHA-256' },
+    true,
+    ['sign', 'verify'],
+  );
+
+  const ecKey = await subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify'],
+  );
+
+  // Wrong algorithm: wrapping key is HMAC but algorithm says AES-GCM.
+  // Even though exporting ecKey.privateKey as 'spki' would also fail
+  // (wrong key type for spki), the wrapping key check must come first.
+  await assert.rejects(
+    subtle.wrapKey('spki', ecKey.privateKey, hmacKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }), {
+      name: 'InvalidAccessError',
+      message: 'Key algorithm mismatch',
+    });
+
+  // Missing wrapKey usage: aesKey only has encrypt/decrypt, not wrapKey.
+  // Even though exporting ecKey.privateKey as 'spki' would also fail,
+  // the usage check must come first.
+  const aesKey = await subtle.generateKey(
+    { name: 'AES-GCM', length: 128 },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+
+  await assert.rejects(
+    subtle.wrapKey('spki', ecKey.privateKey, aesKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }), {
+      name: 'InvalidAccessError',
+      message: 'Unable to use this key to wrapKey',
+    });
+
+  // Correct wrapping key algorithm and usage results in the expected
+  // exportKey error (not the wrapping key validation error).
+  const wrapKey = await subtle.generateKey(
+    { name: 'AES-GCM', length: 128 },
+    true,
+    ['wrapKey'],
+  );
+
+  await assert.rejects(
+    subtle.wrapKey('spki', ecKey.privateKey, wrapKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }), {
+      // exportKey('spki', privateKey) throws NotSupportedError
+      name: 'NotSupportedError',
+    });
+
+  // --- unwrapKey validation tests ---
+
+  const ciphertext = new Uint8Array(32); // Dummy ciphertext
+
+  // Wrong algorithm: unwrapping key is HMAC but algorithm says AES-GCM.
+  await assert.rejects(
+    subtle.unwrapKey('raw', ciphertext, hmacKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }, { name: 'AES-GCM', length: 128 }, true, ['encrypt']), {
+      name: 'InvalidAccessError',
+      message: 'Key algorithm mismatch',
+    });
+
+  // Missing unwrapKey usage: aesKey only has encrypt/decrypt, not unwrapKey.
+  await assert.rejects(
+    subtle.unwrapKey('raw', ciphertext, aesKey, {
+      name: 'AES-GCM',
+      iv: new Uint8Array(12),
+    }, { name: 'AES-GCM', length: 128 }, true, ['encrypt']), {
+      name: 'InvalidAccessError',
+      message: 'Unable to use this key to unwrapKey',
+    });
 })().then(common.mustCall());

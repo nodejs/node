@@ -34,7 +34,7 @@ U_NAMESPACE_BEGIN
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(BreakTransliterator)
 
-static const UChar SPACE       = 32;  // ' '
+static const char16_t SPACE       = 32;  // ' '
 
 
 /**
@@ -43,7 +43,7 @@ static const UChar SPACE       = 32;  // ' '
  */
 BreakTransliterator::BreakTransliterator(UnicodeFilter* adoptedFilter) :
         Transliterator(UNICODE_STRING("Any-BreakInternal", 17), adoptedFilter),
-        cachedBI(NULL), cachedBoundaries(NULL), fInsertion(SPACE) {
+        cachedBI(nullptr), cachedBoundaries(nullptr), fInsertion(SPACE) {
     }
 
 
@@ -57,7 +57,7 @@ BreakTransliterator::~BreakTransliterator() {
  * Copy constructor.
  */
 BreakTransliterator::BreakTransliterator(const BreakTransliterator& o) :
-        Transliterator(o), cachedBI(NULL), cachedBoundaries(NULL), fInsertion(o.fInsertion) {
+        Transliterator(o), cachedBI(nullptr), cachedBoundaries(nullptr), fInsertion(o.fInsertion) {
 }
 
 
@@ -106,7 +106,7 @@ void BreakTransliterator::handleTransliterate(Replaceable& text, UTransPosition&
         int32_t boundary;
         for(boundary = bi->next(); boundary != UBRK_DONE && boundary < offsets.limit; boundary = bi->next()) {
             if (boundary == 0) continue;
-            // HACK: Check to see that preceeding item was a letter
+            // HACK: Check to see that preceding item was a letter
 
             UChar32 cp = sText.char32At(boundary-1);
             int type = u_charType(cp);
@@ -182,7 +182,7 @@ void BreakTransliterator::setInsertion(const UnicodeString &insertion) {
 UnicodeString BreakTransliterator::replaceableAsString(Replaceable &r) {
     UnicodeString s;
     UnicodeString *rs = dynamic_cast<UnicodeString *>(&r);
-    if (rs != NULL) {
+    if (rs != nullptr) {
         s = *rs;
     } else {
         r.extractBetween(0, r.length(), s);

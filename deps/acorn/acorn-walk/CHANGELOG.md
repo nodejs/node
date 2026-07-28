@@ -1,3 +1,75 @@
+## 8.3.5 (2026-02-19)
+
+### Bug fixes
+
+Emit a more informative error message when trying to walk a node type that has no walker function.
+
+Specify callbacks in types to receive `AnyNode` type, so that they can be narrowed more easily.
+
+Support import attributes.
+
+## 8.3.4 (2024-09-09)
+
+### Bug fixes
+
+Walk SwitchCase nodes as separate nodes.
+
+## 8.3.3 (2024-01-11)
+
+### Bug fixes
+
+Make acorn a dependency because acorn-walk uses the types from that package.
+
+## 8.3.2 (2024-01-11)
+
+### Bug fixes
+
+Add missing type for `findNodeBefore`.
+
+## 8.3.1 (2023-12-06)
+
+### Bug fixes
+
+Add `Function` and `Class` to the `AggregateType` type, so that they can be used in walkers without raising a type error.
+
+Visitor functions are now called in such a way that their `this` refers to the object they are part of.
+
+## 8.3.0 (2023-10-26)
+
+### New features
+
+Use a set of new, much more precise, TypeScript types.
+
+## 8.2.0 (2021-09-06)
+
+### New features
+
+Add support for walking ES2022 class static blocks.
+
+## 8.1.1 (2021-06-29)
+
+### Bug fixes
+
+Include `base` in the type declarations.
+
+## 8.1.0 (2021-04-24)
+
+### New features
+
+Support node types for class fields and private methods.
+
+## 8.0.2 (2021-01-25)
+
+### Bug fixes
+
+Adjust package.json to work with Node 12.16.0 and 13.0-13.6.
+
+## 8.0.0 (2021-01-05)
+
+### Bug fixes
+
+Fix a bug where `full` and `fullAncestor` would skip nodes with overridden types.
+
 ## 8.0.0 (2020-08-12)
 
 ### New features

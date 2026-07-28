@@ -2,21 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/diagnostics/unwinder.h"
+
 #include <algorithm>
 
-#include "include/v8.h"
-#include "src/common/globals.h"
+#include "include/v8-unwinder.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/pointer-authentication.h"
 
 namespace v8 {
 
+// Architecture specific. Implemented in unwinder-<arch>.cc.
+void GetCalleeSavedRegistersFromEntryFrame(void* fp,
+                                           RegisterState* register_state);
+
+i::Address Load(i::Address address) {
+  return *reinterpret_cast<i::Address*>(address);
+}
+
 namespace {
 
-const i::byte* CalculateEnd(const void* start, size_t length_in_bytes) {
+const uint8_t* CalculateEnd(const void* start, size_t length_in_bytes) {
   // Given that the length of the memory range is in bytes and it is not
-  // necessarily aligned, we need to do the pointer arithmetic in byte* here.
-  const i::byte* start_as_byte = reinterpret_cast<const i::byte*>(start);
+  // necessarily aligned, we need to do the pointer arithmetic in uint8_t* here.
+  const uint8_t* start_as_byte = reinterpret_cast<const uint8_t*>(start);
   return start_as_byte + length_in_bytes;
 }
 
@@ -61,13 +70,15 @@ bool IsInUnsafeJSEntryRange(const JSEntryStubs& entry_stubs, void* pc) {
   // within JSEntry.
 }
 
-i::Address Load(i::Address address) {
-  return *reinterpret_cast<i::Address*>(address);
+bool AddressIsInStack(const void* address, const void* stack_base,
+                      const void* stack_top) {
+  return address <= stack_base && address >= stack_top;
 }
 
 void* GetReturnAddressFromFP(void* fp, void* pc,
                              const JSEntryStubs& entry_stubs) {
   int caller_pc_offset = i::CommonFrameConstants::kCallerPCOffset;
+// TODO(solanes): Implement the JSEntry range case also for x64 here and below.
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
   if (IsInJSEntryRange(entry_stubs, pc)) {
     caller_pc_offset = i::EntryFrameConstants::kDirectCallerPCOffset;
@@ -98,11 +109,6 @@ void* GetCallerSPFromFP(void* fp, void* pc, const JSEntryStubs& entry_stubs) {
 #endif
   return reinterpret_cast<void*>(reinterpret_cast<i::Address>(fp) +
                                  caller_sp_offset);
-}
-
-bool AddressIsInStack(const void* address, const void* stack_base,
-                      const void* stack_top) {
-  return address <= stack_base && address >= stack_top;
 }
 
 }  // namespace
@@ -145,6 +151,10 @@ bool Unwinder::TryUnwindV8Frames(const JSEntryStubs& entry_stubs,
 
     // Link register no longer valid after unwinding.
     register_state->lr = nullptr;
+
+    if (IsInJSEntryRange(entry_stubs, pc)) {
+      GetCalleeSavedRegistersFromEntryFrame(current_fp, register_state);
+    }
     return true;
   }
   return false;

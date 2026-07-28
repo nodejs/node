@@ -27,13 +27,7 @@
 #include <termios.h>
 #include <sys/msg.h>
 
-#define CW_INTRPT 1
-#define CW_CONDVAR 32
-
-#pragma linkage(BPX4CTW, OS)
-#pragma linkage(BPX1CTW, OS)
-
-static QUEUE global_epoll_queue;
+static struct uv__queue global_epoll_queue;
 static uv_mutex_t global_epoll_lock;
 static uv_once_t once = UV_ONCE_INIT;
 
@@ -55,7 +49,7 @@ int scandir(const char* maindir, struct dirent*** namelist,
   if (!mdir)
     return -1;
 
-  while (1) {
+  for (;;) {
     dirent = readdir(mdir);
     if (!dirent)
       break;
@@ -142,6 +136,11 @@ static void maybe_resize(uv__os390_epoll* lst, unsigned int len) {
 }
 
 
+void uv__os390_cleanup(void) {
+  msgctl(uv_backend_fd(uv_default_loop()), IPC_RMID, NULL);
+}
+
+
 static void init_message_queue(uv__os390_epoll* lst) {
   struct {
     long int header;
@@ -179,18 +178,18 @@ static void after_fork(void) {
 
 
 static void child_fork(void) {
-  QUEUE* q;
+  struct uv__queue* q;
   uv_once_t child_once = UV_ONCE_INIT;
 
   /* reset once */
   memcpy(&once, &child_once, sizeof(child_once));
 
   /* reset epoll list */
-  while (!QUEUE_EMPTY(&global_epoll_queue)) {
+  while (!uv__queue_empty(&global_epoll_queue)) {
     uv__os390_epoll* lst;
-    q = QUEUE_HEAD(&global_epoll_queue);
-    QUEUE_REMOVE(q);
-    lst = QUEUE_DATA(q, uv__os390_epoll, member);
+    q = uv__queue_head(&global_epoll_queue);
+    uv__queue_remove(q);
+    lst = uv__queue_data(q, uv__os390_epoll, member);
     uv__free(lst->items);
     lst->items = NULL;
     lst->size = 0;
@@ -202,7 +201,7 @@ static void child_fork(void) {
 
 
 static void epoll_init(void) {
-  QUEUE_INIT(&global_epoll_queue);
+  uv__queue_init(&global_epoll_queue);
   if (uv_mutex_init(&global_epoll_lock))
     abort();
 
@@ -226,7 +225,7 @@ uv__os390_epoll* epoll_create1(int flags) {
     lst->items[lst->size - 1].revents = 0;
     uv_once(&once, epoll_init);
     uv_mutex_lock(&global_epoll_lock);
-    QUEUE_INSERT_TAIL(&global_epoll_queue, &lst->member);
+    uv__queue_insert_tail(&global_epoll_queue, &lst->member);
     uv_mutex_unlock(&global_epoll_lock);
   }
 
@@ -285,6 +284,8 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
   nmsgsfds_t size;
   struct pollfd* pfds;
   int pollret;
+  int pollfdret;
+  int pollmsgret;
   int reventcount;
   int nevents;
   struct pollfd msg_fd;
@@ -305,24 +306,24 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
     return -1;
   }
 
-  if (lst->size > 0)
-    _SET_FDS_MSGS(size, 1, lst->size - 1);
-  else
-    _SET_FDS_MSGS(size, 0, 0);
+  assert(lst->size > 0);
+  _SET_FDS_MSGS(size, 1, lst->size - 1);
   pfds = lst->items;
   pollret = poll(pfds, size, timeout);
   if (pollret <= 0)
     return pollret;
 
-  assert(lst->size > 0);
-
-  pollret = _NFDS(pollret) + _NMSGS(pollret);
+  pollfdret = _NFDS(pollret);
+  pollmsgret = _NMSGS(pollret);
 
   reventcount = 0;
   nevents = 0;
-  msg_fd = pfds[lst->size - 1];
+  msg_fd = pfds[lst->size - 1]; /* message queue is always last entry */
+  maxevents = maxevents - pollmsgret; /* allow spot for message queue */
   for (i = 0;
-       i < lst->size && i < maxevents && reventcount < pollret; ++i) {
+       i < lst->size - 1 &&
+       nevents < maxevents &&
+       reventcount < pollfdret; ++i) {
     struct epoll_event ev;
     struct pollfd* pfd;
 
@@ -333,32 +334,32 @@ int epoll_wait(uv__os390_epoll* lst, struct epoll_event* events,
     ev.fd = pfd->fd;
     ev.events = pfd->revents;
     ev.is_msg = 0;
-    if (pfd->revents & POLLIN && pfd->revents & POLLOUT)
-      reventcount += 2;
-    else if (pfd->revents & (POLLIN | POLLOUT))
-      ++reventcount;
 
-    pfd->revents = 0;
+    reventcount++;
     events[nevents++] = ev;
   }
 
-  if (msg_fd.revents != 0 && msg_fd.fd != -1)
-    if (i == lst->size)
-      events[nevents - 1].is_msg = 1;
+  if (pollmsgret > 0 && msg_fd.revents != 0 && msg_fd.fd != -1) {
+    struct epoll_event ev;
+    ev.fd = msg_fd.fd;
+    ev.events = msg_fd.revents;
+    ev.is_msg = 1;
+    events[nevents++] = ev;
+  }
 
   return nevents;
 }
 
 
 int epoll_file_close(int fd) {
-  QUEUE* q;
+  struct uv__queue* q;
 
   uv_once(&once, epoll_init);
   uv_mutex_lock(&global_epoll_lock);
-  QUEUE_FOREACH(q, &global_epoll_queue) {
+  uv__queue_foreach(q, &global_epoll_queue) {
     uv__os390_epoll* lst;
 
-    lst = QUEUE_DATA(q, uv__os390_epoll, member);
+    lst = uv__queue_data(q, uv__os390_epoll, member);
     if (fd < lst->size && lst->items != NULL && lst->items[fd].fd != -1)
       lst->items[fd].fd = -1;
   }
@@ -370,7 +371,7 @@ int epoll_file_close(int fd) {
 void epoll_queue_close(uv__os390_epoll* lst) {
   /* Remove epoll instance from global queue */
   uv_mutex_lock(&global_epoll_lock);
-  QUEUE_REMOVE(&lst->member);
+  uv__queue_remove(&lst->member);
   uv_mutex_unlock(&global_epoll_lock);
 
   /* Free resources */
@@ -378,46 +379,6 @@ void epoll_queue_close(uv__os390_epoll* lst) {
   lst->msg_queue = -1;
   uv__free(lst->items);
   lst->items = NULL;
-}
-
-
-int nanosleep(const struct timespec* req, struct timespec* rem) {
-  unsigned nano;
-  unsigned seconds;
-  unsigned events;
-  unsigned secrem;
-  unsigned nanorem;
-  int rv;
-  int err;
-  int rsn;
-
-  nano = (int)req->tv_nsec;
-  seconds = req->tv_sec;
-  events = CW_CONDVAR | CW_INTRPT;
-  secrem = 0;
-  nanorem = 0;
-
-#if defined(_LP64)
-  BPX4CTW(&seconds, &nano, &events, &secrem, &nanorem, &rv, &err, &rsn);
-#else
-  BPX1CTW(&seconds, &nano, &events, &secrem, &nanorem, &rv, &err, &rsn);
-#endif
-
-  /* Don't clobber errno unless BPX1CTW/BPX4CTW errored.
-   * Don't leak EAGAIN, that just means the timeout expired.
-   */
-  if (rv == -1)
-    if (err == EAGAIN)
-      rv = 0;
-    else
-      errno = err;
-
-  if (rem != NULL && (rv == 0 || err == EINTR)) {
-    rem->tv_nsec = nanorem;
-    rem->tv_sec = secrem;
-  }
-
-  return rv;
 }
 
 
@@ -547,15 +508,6 @@ ssize_t os390_readlink(const char* path, char* buf, size_t len) {
   uv__free(tmpbuf);
 
   return rlen;
-}
-
-
-size_t strnlen(const char* str, size_t maxlen) {
-  char* p = memchr(str, 0, maxlen);
-  if (p == NULL)
-    return maxlen;
-  else
-    return p - str;
 }
 
 

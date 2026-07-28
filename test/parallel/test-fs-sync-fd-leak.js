@@ -21,20 +21,18 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const { internalBinding } = require('internal/test/binding');
-const { UV_EBADF } = internalBinding('uv');
 
 // Ensure that (read|write|append)FileSync() closes the file descriptor
 fs.openSync = function() {
   return 42;
 };
-fs.closeSync = function(fd) {
+fs.closeSync = common.mustCall((fd) => {
   assert.strictEqual(fd, 42);
-  close_called++;
-};
+}, 2);
 fs.readSync = function() {
   throw new Error('BAM');
 };
@@ -42,33 +40,29 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
-internalBinding('fs').fstat = function(fd, bigint, _, ctx) {
-  ctx.errno = UV_EBADF;
-  ctx.syscall = 'fstat';
+// Internal fast paths are pure C++, can't error inside write
+internalBinding('fs').writeFileUtf8 = common.mustCall(function() {
+  // Fake close
+  throw new Error('BAM');
+}, 2);
+
+internalBinding('fs').fstat = function() {
+  throw new Error('EBADF: bad file descriptor, fstat');
 };
 
-let close_called = 0;
-ensureThrows(function() {
-  fs.readFileSync('dummy');
-}, 'EBADF: bad file descriptor, fstat');
-ensureThrows(function() {
+assert.throws(function() {
+  // Fast path: writeFileSync utf8
   fs.writeFileSync('dummy', 'xxx');
-}, 'BAM');
-ensureThrows(function() {
+}, { message: 'BAM' });
+assert.throws(function() {
+  // Non-fast path
+  fs.writeFileSync('dummy', 'xxx', { encoding: 'base64' });
+}, { message: 'BAM' });
+assert.throws(function() {
+  // Fast path: writeFileSync utf8
   fs.appendFileSync('dummy', 'xxx');
-}, 'BAM');
-
-function ensureThrows(cb, message) {
-  let got_exception = false;
-
-  close_called = 0;
-  try {
-    cb();
-  } catch (e) {
-    assert.strictEqual(e.message, message);
-    got_exception = true;
-  }
-
-  assert.strictEqual(close_called, 1);
-  assert.strictEqual(got_exception, true);
-}
+}, { message: 'BAM' });
+assert.throws(function() {
+  // Non-fast path
+  fs.appendFileSync('dummy', 'xxx', { encoding: 'base64' });
+}, { message: 'BAM' });

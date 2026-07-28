@@ -11,7 +11,7 @@ void MakeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   assert(args[1]->IsFunction() || args[1]->IsString());
   auto isolate = args.GetIsolate();
   auto recv = args[0].As<v8::Object>();
-  std::vector<v8::Local<v8::Value>> argv;
+  v8::LocalVector<v8::Value> argv(isolate);
   for (size_t n = 2; n < static_cast<size_t>(args.Length()); n += 1) {
     argv.push_back(args[n]);
   }

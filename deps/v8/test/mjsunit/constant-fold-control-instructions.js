@@ -14,15 +14,15 @@ function test() {
   assertEquals("object", typeof {});
   assertEquals("object", typeof /regex/);
 
-  assertTrue(%_IsSmi(1));
-  assertFalse(%_IsSmi(1.1));
-  assertFalse(%_IsSmi({}));
+  assertTrue(%IsSmi(1));
+  assertFalse(%IsSmi(1.1));
+  assertFalse(%IsSmi({}));
 
-  assertTrue(%_IsArray([1]));
-  assertFalse(%_IsArray(function() {}));
+  assertTrue(%IsArray([1]));
+  assertFalse(%IsArray(function() {}));
 
-  assertTrue(%_IsJSReceiver(new Date()));
-  assertFalse(%_IsJSReceiver(1));
+  assertTrue(%IsJSReceiver(new Date()));
+  assertFalse(%IsJSReceiver(1));
 }
 
 %PrepareFunctionForOptimization(test);

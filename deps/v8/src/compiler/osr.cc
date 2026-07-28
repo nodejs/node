@@ -6,9 +6,7 @@
 
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/frame.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
-#include "src/objects/shared-function-info.h"
+#include "src/objects/js-array-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -16,9 +14,9 @@ namespace compiler {
 
 OsrHelper::OsrHelper(OptimizedCompilationInfo* info)
     : parameter_count_(info->bytecode_array()->parameter_count()),
-      stack_slot_count_(InterpreterFrameConstants::RegisterStackSlotCount(
+      stack_slot_count_(UnoptimizedFrameConstants::RegisterStackSlotCount(
                             info->bytecode_array()->register_count()) +
-                        InterpreterFrameConstants::kExtraSlotCount) {}
+                        UnoptimizedFrameConstants::kExtraSlotCount) {}
 
 void OsrHelper::SetupFrame(Frame* frame) {
   // The optimized frame will subsume the unoptimized frame. Do so by reserving

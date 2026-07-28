@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/objects/js-array-buffer.h"
-#include "src/objects/js-array-buffer-inl.h"
 
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/property-descriptor.h"
 
 namespace v8 {
@@ -14,104 +14,307 @@ namespace internal {
 
 namespace {
 
-bool CanonicalNumericIndexString(Isolate* isolate, Handle<Object> s,
-                                 Handle<Object>* index) {
-  DCHECK(s->IsString() || s->IsSmi());
+// ES#sec-canonicalnumericindexstring
+// Returns true if the lookup_key represents a valid index string.
+bool CanonicalNumericIndexString(Isolate* isolate,
+                                 const PropertyKey& lookup_key,
+                                 bool* is_minus_zero) {
+  // 1. Assert: Type(argument) is String.
+  DCHECK(lookup_key.is_element() || IsString(*lookup_key.name()));
+  *is_minus_zero = false;
+  if (lookup_key.is_element()) return true;
 
-  Handle<Object> result;
-  if (s->IsSmi()) {
-    result = s;
+  DirectHandle<String> key = Cast<String>(lookup_key.name());
+
+  // 3. Let n be ! ToNumber(argument).
+  DirectHandle<Object> result = String::ToNumber(isolate, key);
+  if (IsMinusZero(*result)) {
+    // 2. If argument is "-0", return -0𝔽.
+    // We are not performing SaveValue check for -0 because it'll be rejected
+    // anyway.
+    *is_minus_zero = true;
   } else {
-    result = String::ToNumber(isolate, Handle<String>::cast(s));
-    if (!result->IsMinusZero()) {
-      Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
-      // Avoid treating strings like "2E1" and "20" as the same key.
-      if (!str->SameValue(*s)) return false;
-    }
+    // 4. If SameValue(! ToString(n), argument) is false, return undefined.
+    DirectHandle<String> str =
+        Object::ToString(isolate, result).ToHandleChecked();
+    // Avoid treating strings like "2E1" and "20" as the same key.
+    if (!Object::SameValue(*str, *key)) return false;
   }
-  *index = result;
   return true;
 }
 }  // anonymous namespace
 
-void JSArrayBuffer::Setup(SharedFlag shared,
-                          std::shared_ptr<BackingStore> backing_store) {
+void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
+                          std::shared_ptr<BackingStore> backing_store,
+                          Isolate* isolate, Tagged<MaybeObject> views) {
+  auto finish_setup = [shared, isolate]() {
+    // Count usage may lead to a blink allocation, through the callback, which
+    // may trigger a GC. It is important to delay this, until the array buffer
+    // is properly initialized.
+    if (shared == SharedFlag::kShared) {
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
+    }
+  };
   clear_padding();
+  init_extension();
+  set_views_or_detach_key(views);
   set_bit_field(0);
   set_is_shared(shared == SharedFlag::kShared);
+  set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
   set_is_detachable(shared != SharedFlag::kShared);
+  SetupLazilyInitializedCppHeapPointerField(
+      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
   }
-  set_extension(nullptr);
   if (!backing_store) {
-    set_backing_store(GetIsolate(), nullptr);
+    set_backing_store(isolate, EmptyBackingStoreBuffer());
     set_byte_length(0);
-  } else {
-    Attach(std::move(backing_store));
+    set_max_byte_length(0);
+    finish_setup();
+    return;
   }
-  if (shared == SharedFlag::kShared) {
-    GetIsolate()->CountUsage(
-        v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
-  }
-}
-
-void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
-  DCHECK_NOT_NULL(backing_store);
+  // Rest of the code here deals with attaching the BackingStore.
   DCHECK_EQ(is_shared(), backing_store->is_shared());
-  DCHECK(!was_detached());
-  Isolate* isolate = GetIsolate();
-  set_backing_store(isolate, backing_store->buffer_start());
-  set_byte_length(backing_store->byte_length());
-  if (backing_store->is_wasm_memory()) set_is_detachable(false);
-  if (!backing_store->free_on_destruct()) set_is_external(true);
-  Heap* heap = isolate->heap();
-  ArrayBufferExtension* extension = EnsureExtension();
-  size_t bytes = backing_store->PerIsolateAccountingLength();
-  extension->set_accounting_length(bytes);
-  extension->set_backing_store(std::move(backing_store));
-  heap->AppendArrayBufferExtension(*this, extension);
+  DCHECK((is_resizable_by_js() == backing_store->is_resizable_by_js()) ||
+         (backing_store->is_wasm_memory() && is_shared()));
+  DCHECK_IMPLIES(
+      !backing_store->is_wasm_memory() && !backing_store->is_resizable_by_js(),
+      backing_store->byte_length() == backing_store->max_byte_length());
+
+  void* backing_store_buffer = backing_store->buffer_start();
+  // Wasm memory always needs a backing store; this is guaranteed by reserving
+  // at least one page for the BackingStore (so {IsEmpty()} is always false).
+  DCHECK_IMPLIES(backing_store->is_wasm_memory(), !backing_store->IsEmpty());
+  // Non-empty backing stores must start at a non-null pointer.
+  DCHECK_IMPLIES(backing_store_buffer == EmptyBackingStoreBuffer(),
+                 backing_store->IsEmpty());
+  // Empty backing stores can be backed by an empty buffer pointer or by an
+  // externally provided pointer: Either is acceptable. However, the pointer
+  // must always point into the sandbox, so nullptr is not acceptable if the
+  // sandbox is enabled.
+  DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, backing_store_buffer != nullptr);
+  set_backing_store(isolate, backing_store_buffer);
+
+  // GSABs need to read their byte_length from the BackingStore. Maintain the
+  // invariant that their byte_length field is always 0.
+  auto byte_len =
+      (is_shared() && is_resizable_by_js()) ? 0 : backing_store->byte_length();
+  CHECK_LE(backing_store->byte_length(), kMaxByteLength);
+  set_byte_length(byte_len);
+
+  // For Wasm memories, it is possible for the backing store maximum to be
+  // different from the JSArrayBuffer maximum. The maximum pages allowed on a
+  // Wasm memory are tracked on the Wasm memory object, and not the
+  // JSArrayBuffer associated with it.
+  auto max_byte_len = is_resizable_by_js() ? backing_store->max_byte_length()
+                                           : backing_store->byte_length();
+  set_max_byte_length(max_byte_len);
+
+  if (backing_store->is_wasm_memory()) {
+    set_is_detachable(false);
+  }
+
+  CreateExtension(isolate, std::move(backing_store));
+  finish_setup();
 }
 
-void JSArrayBuffer::Detach(bool force_for_wasm_memory) {
-  if (was_detached()) return;
+Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
+                                  bool force_for_wasm_memory,
+                                  DirectHandle<Object> maybe_key) {
+  Isolate* const isolate = Isolate::Current();
+
+  bool key_mismatch = false;
+
+  auto key = buffer->DetachKey(isolate);
+  if (!IsUndefined(key)) {
+    key_mismatch =
+        maybe_key.is_null() || !Object::StrictEquals(*maybe_key, key);
+  } else {
+    // Detach key is undefined; allow not passing maybe_key but disallow passing
+    // something else than undefined.
+    key_mismatch = !maybe_key.is_null() && !IsUndefined(*maybe_key, isolate);
+  }
+  if (key_mismatch) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kArrayBufferDetachKeyDoesntMatch));
+  }
+
+  if (buffer->is_immutable()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kTypedArrayImmutableBufferErrorOperation,
+                     isolate->factory()->NewStringFromAsciiChecked(
+                         "DetachArrayBuffer")));
+  }
+
+  if (buffer->was_detached()) return Just(true);
 
   if (force_for_wasm_memory) {
     // Skip the is_detachable() check.
-  } else if (!is_detachable()) {
+  } else if (!buffer->is_detachable()) {
     // Not detachable, do nothing.
-    return;
+    return Just(true);
   }
 
-  Isolate* const isolate = GetIsolate();
-  if (backing_store()) {
-    std::shared_ptr<BackingStore> backing_store;
-      backing_store = RemoveExtension();
+  DetachInternal(buffer, force_for_wasm_memory, isolate);
+  return Just(true);
+}
+
+// static
+void JSArrayBuffer::SetDetachKey(DirectHandle<JSArrayBuffer> array_buffer,
+                                 DirectHandle<Object> key, Isolate* isolate) {
+  if (IsUndefined(*key) && !array_buffer->has_detach_key()) {
+    return;
+  }
+  DirectHandle<Cell> cell = isolate->factory()->NewCell();
+  cell->set_value(*key);
+  array_buffer->set_detach_key(*cell);
+}
+
+// static
+void JSTypedArray::MarkDetached(DirectHandle<JSTypedArray> typed_array,
+                                Isolate* isolate) {
+  DCHECK(!typed_array->is_on_heap());
+  DirectHandle<Map> current_map(typed_array->map(), isolate);
+  MapUpdater update(isolate, current_map);
+  DirectHandle<Map> new_map = update.ChangeInstanceType(
+      MapUpdater::InstanceTypeChange::kTypedArrayDetaching);
+  JSObject::MigrateToMap(isolate, typed_array, new_map);
+  typed_array->WriteBoundedSizeField(kRawLengthOffset, 0);
+  // TODO(olivf, 467645277): Set the buffer to a canonical detached ab value.
+}
+
+// static
+bool JSArrayBuffer::TryDetachViews(DirectHandle<JSArrayBuffer> array_buffer,
+                                   Isolate* isolate) {
+  if (!v8_flags.track_array_buffer_views) return false;
+
+  Tagged<MaybeObject> views = array_buffer->views();
+  if (views == kNoView) return true;
+  if (views == kManyViews) return false;
+  Tagged<HeapObject> view_heap_object;
+  if (!views.GetHeapObjectIfWeak(&view_heap_object)) {
+    return true;
+  }
+  if (IsJSTypedArray(view_heap_object)) {
+    DirectHandle<JSTypedArray> typed_array(Cast<JSTypedArray>(view_heap_object),
+                                           isolate);
+    JSTypedArray::MarkDetached(typed_array, isolate);
+    array_buffer->set_views(JSArrayBuffer::kNoView);
+    return true;
+  }
+  // No need to track further if we failed to update the view.
+  array_buffer->set_views(kManyViews);
+  return false;
+}
+
+// static
+void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
+                                   bool force_for_wasm_memory,
+                                   Isolate* isolate) {
+  ArrayBufferExtension* extension = array_buffer->extension();
+
+  if (extension) {
+    DisallowGarbageCollection disallow_gc;
+    isolate->heap()->DetachArrayBufferExtension(extension);
+    std::shared_ptr<BackingStore> backing_store =
+        array_buffer->RemoveExtension();
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
-  if (Protectors::IsArrayBufferDetachingIntact(isolate)) {
+  array_buffer->set_was_detached(true);
+
+  if (Protectors::IsArrayBufferDetachingIntact(isolate) &&
+      !TryDetachViews(array_buffer, isolate)) {
     Protectors::InvalidateArrayBufferDetaching(isolate);
   }
 
-  DCHECK(!is_shared());
-  DCHECK(!is_asmjs_memory());
-  set_backing_store(isolate, nullptr);
-  set_byte_length(0);
-  set_was_detached(true);
+  DCHECK(!array_buffer->is_shared());
+  array_buffer->set_backing_store(isolate, EmptyBackingStoreBuffer());
+  array_buffer->set_byte_length(0);
 }
 
-std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() {
-    if (!extension()) return nullptr;
-    return extension()->backing_store();
+size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
+                                     Address raw_array_buffer) {
+  // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
+  // in bounds checks to minimize the need for calling this function.
+  DisallowGarbageCollection no_gc;
+  DisallowJavascriptExecution no_js(isolate);
+  Tagged<JSArrayBuffer> buffer =
+      Cast<JSArrayBuffer>(Tagged<Object>(raw_array_buffer));
+  CHECK(buffer->is_resizable_by_js());
+  CHECK(buffer->is_shared());
+  return buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
 }
 
-ArrayBufferExtension* JSArrayBuffer::EnsureExtension() {
-  ArrayBufferExtension* extension = this->extension();
-  if (extension != nullptr) return extension;
+// static
+Maybe<bool> JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+    Isolate* isolate, size_t byte_length, size_t max_byte_length,
+    ShouldThrow should_throw, size_t* page_size, size_t* initial_pages,
+    size_t* max_pages) {
+  DCHECK_NOT_NULL(page_size);
+  DCHECK_NOT_NULL(initial_pages);
+  DCHECK_NOT_NULL(max_pages);
 
-  extension = new ArrayBufferExtension(std::shared_ptr<BackingStore>());
+  *page_size = AllocatePageSize();
+
+  if (!RoundUpToPageSize(byte_length, *page_size, JSArrayBuffer::kMaxByteLength,
+                         initial_pages)) {
+    if (should_throw == kDontThrow) return Nothing<bool>();
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+  }
+
+  if (!RoundUpToPageSize(max_byte_length, *page_size,
+                         JSArrayBuffer::kMaxByteLength, max_pages)) {
+    if (should_throw == kDontThrow) return Nothing<bool>();
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
+  }
+
+  return Just(true);
+}
+
+// static
+std::optional<MessageTemplate>
+JSArrayBuffer::GetResizableBackingStorePageConfigurationImpl(
+    Isolate* isolate, size_t byte_length, size_t max_byte_length,
+    size_t* page_size, size_t* initial_pages, size_t* max_pages) {
+  DCHECK_NOT_NULL(page_size);
+  DCHECK_NOT_NULL(initial_pages);
+  DCHECK_NOT_NULL(max_pages);
+
+  *page_size = AllocatePageSize();
+
+  if (!RoundUpToPageSize(byte_length, *page_size, JSArrayBuffer::kMaxByteLength,
+                         initial_pages)) {
+    return MessageTemplate::kInvalidArrayBufferLength;
+  }
+
+  if (!RoundUpToPageSize(max_byte_length, *page_size,
+                         JSArrayBuffer::kMaxByteLength, max_pages)) {
+    return MessageTemplate::kInvalidArrayBufferMaxLength;
+  }
+  return {};
+}
+
+ArrayBufferExtension* JSArrayBuffer::CreateExtension(
+    Isolate* isolate, std::shared_ptr<BackingStore> backing_store) {
+  // `Heap::InYoungGeneration` during full GC with sticky markbits is generally
+  // inaccurate. However, a full GC will sweep both lists and promote all to
+  // old, so it doesn't matter which list initially holds the extension in this
+  // case.
+  const auto age =
+      HeapLayout::InYoungGeneration(UncheckedCast<JSArrayBuffer>(*this))
+          ? ArrayBufferExtension::Age::kYoung
+          : ArrayBufferExtension::Age::kOld;
+  ArrayBufferExtension* extension =
+      new ArrayBufferExtension(std::move(backing_store), age);
   set_extension(extension);
+  isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
 }
 
@@ -125,41 +328,19 @@ std::shared_ptr<BackingStore> JSArrayBuffer::RemoveExtension() {
   return result;
 }
 
-void JSArrayBuffer::MarkExtension() {
-  ArrayBufferExtension* extension = this->extension();
-  if (extension) {
-    extension->Mark();
-  }
-}
-
-void JSArrayBuffer::YoungMarkExtension() {
-  ArrayBufferExtension* extension = this->extension();
-  if (extension) {
-    extension->YoungMark();
-  }
-}
-
-void JSArrayBuffer::YoungMarkExtensionPromoted() {
-  ArrayBufferExtension* extension = this->extension();
-  if (extension) {
-    extension->YoungMarkPromoted();
-  }
-}
-
-Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
-  Isolate* isolate = GetIsolate();
-  Handle<JSTypedArray> self(*this, isolate);
-  DCHECK(IsTypedArrayElementsKind(self->GetElementsKind()));
-
-  Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(self->buffer()),
+Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
+  DirectHandle<JSTypedArray> self(*this, isolate);
+  DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));
+  Handle<JSArrayBuffer> array_buffer(Cast<JSArrayBuffer>(self->buffer()),
                                      isolate);
   if (!is_on_heap()) {
     // Already is off heap, so return the existing buffer.
     return array_buffer;
   }
+  DCHECK(!array_buffer->is_resizable_by_js());
 
   // The existing array buffer should be empty.
-  DCHECK_NULL(array_buffer->backing_store());
+  DCHECK(array_buffer->IsEmpty());
 
   // Allocate a new backing store and attach it to the existing array buffer.
   size_t byte_length = self->byte_length();
@@ -176,8 +357,14 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
     memcpy(backing_store->buffer_start(), self->DataPtr(), byte_length);
   }
 
+  // Since the buffer was never materialized before it can only have this one
+  // view.
+  DCHECK_IMPLIES(v8_flags.track_array_buffer_views,
+                 array_buffer->views().GetHeapObject() == *self);
+
   // Attach the backing store to the array buffer.
-  array_buffer->Setup(SharedFlag::kNotShared, std::move(backing_store));
+  array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+                      std::move(backing_store), isolate, array_buffer->views());
 
   // Clear the elements of the typed array.
   self->set_elements(ReadOnlyRoots(isolate).empty_byte_array());
@@ -190,100 +377,160 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
 // ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
-                                            Handle<JSTypedArray> o,
-                                            Handle<Object> key,
+                                            DirectHandle<JSTypedArray> o,
+                                            DirectHandle<Object> key,
                                             PropertyDescriptor* desc,
                                             Maybe<ShouldThrow> should_throw) {
-  // 1. Assert: IsPropertyKey(P) is true.
-  DCHECK(key->IsName() || key->IsNumber());
-  // 2. Assert: O is an Object that has a [[ViewedArrayBuffer]] internal slot.
-  // 3. If Type(P) is String, then
-  if (key->IsString() || key->IsSmi()) {
-    // 3a. Let numericIndex be ! CanonicalNumericIndexString(P)
-    // 3b. If numericIndex is not undefined, then
-    Handle<Object> numeric_index;
-    if (CanonicalNumericIndexString(isolate, key, &numeric_index)) {
-      // 3b i. If IsInteger(numericIndex) is false, return false.
-      // 3b ii. If numericIndex = -0, return false.
-      // 3b iii. If numericIndex < 0, return false.
-      size_t index;
-      if (numeric_index->IsMinusZero() ||
-          !numeric_index->ToIntegerIndex(&index)) {
+  DCHECK(IsName(*key) || IsNumber(*key));
+  // 1. If Type(P) is String, then
+  PropertyKey lookup_key(isolate, key);
+  if (lookup_key.is_element() || IsSmi(*key) || IsString(*key)) {
+    // 1a. Let numericIndex be ! CanonicalNumericIndexString(P)
+    // 1b. If numericIndex is not undefined, then
+    bool is_minus_zero = false;
+    if (IsSmi(*key) ||  // Smi keys are definitely canonical
+        CanonicalNumericIndexString(isolate, lookup_key, &is_minus_zero)) {
+      // 1b i. If IsValidIntegerIndex(O, numericIndex) is false, return false.
+
+      // IsValidIntegerIndex:
+      size_t index = lookup_key.index();
+      bool out_of_bounds = false;
+      size_t length = o->GetLengthOrOutOfBounds(out_of_bounds);
+      if (o->WasDetached() || out_of_bounds || index >= length) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
-      // 3b iv. Let length be O.[[ArrayLength]].
-      size_t length = o->length();
-      // 3b v. If numericIndex ≥ length, return false.
-      if (o->WasDetached() || index >= length) {
+      if (Cast<JSArrayBuffer>(o->buffer())->is_immutable()) {
+        // 10.4.5.3 [[DefineOwnProperty]] ( P, Desc )
+        // step 1.b.ii. If IsImmutableBuffer(O.[[ViewedArrayBuffer]]) is true...
+        // We need to validate that the new descriptor is compatible with the
+        // existing immutable property (which is non-configurable,
+        // non-writable).
+
+        Handle<Object> current_value;
+        LookupIterator it(isolate, o, index, LookupIterator::OWN);
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, current_value, Object::GetProperty(&it), Nothing<bool>());
+
+        if (PropertyDescriptor::IsAccessorDescriptor(desc) ||
+            (desc->has_configurable() && desc->configurable()) ||
+            (desc->has_enumerable() && !desc->enumerable()) ||
+            (desc->has_writable() && desc->writable()) ||
+            (desc->has_value() &&
+             !Object::SameValue(*desc->value(), *current_value))) {
+          RETURN_FAILURE(
+              isolate, GetShouldThrow(isolate, should_throw),
+              NewTypeError(MessageTemplate::kRedefineDisallowed, key));
+        }
+        return Just(true);
+      }
+      if (!lookup_key.is_element() || is_minus_zero) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
-      // 3b vi. If IsAccessorDescriptor(Desc) is true, return false.
+
+      // 1b ii. If Desc has a [[Configurable]] field and if
+      //     Desc.[[Configurable]] is false, return false.
+      // 1b iii. If Desc has an [[Enumerable]] field and if Desc.[[Enumerable]]
+      //     is false, return false.
+      // 1b iv. If IsAccessorDescriptor(Desc) is true, return false.
+      // 1b v. If Desc has a [[Writable]] field and if Desc.[[Writable]] is
+      //     false, return false.
+
       if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kRedefineDisallowed, key));
       }
-      // 3b vii. If Desc has a [[Configurable]] field and if
-      //         Desc.[[Configurable]] is true, return false.
-      // 3b viii. If Desc has an [[Enumerable]] field and if Desc.[[Enumerable]]
-      //          is false, return false.
-      // 3b ix. If Desc has a [[Writable]] field and if Desc.[[Writable]] is
-      //        false, return false.
-      if ((desc->has_configurable() && desc->configurable()) ||
+
+      if ((desc->has_configurable() && !desc->configurable()) ||
           (desc->has_enumerable() && !desc->enumerable()) ||
           (desc->has_writable() && !desc->writable())) {
         RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kRedefineDisallowed, key));
       }
-      // 3b x. If Desc has a [[Value]] field, then
-      //   3b x 1. Let value be Desc.[[Value]].
-      //   3b x 2. Return ? IntegerIndexedElementSet(O, numericIndex, value).
+
+      // 1b vi. If Desc has a [[Value]] field, perform
+      // ? IntegerIndexedElementSet(O, numericIndex, Desc.[[Value]]).
       if (desc->has_value()) {
-        if (!desc->has_configurable()) desc->set_configurable(false);
+        if (!desc->has_configurable()) desc->set_configurable(true);
         if (!desc->has_enumerable()) desc->set_enumerable(true);
         if (!desc->has_writable()) desc->set_writable(true);
-        Handle<Object> value = desc->value();
+        DirectHandle<Object> value = desc->value();
         LookupIterator it(isolate, o, index, LookupIterator::OWN);
         RETURN_ON_EXCEPTION_VALUE(
             isolate,
             DefineOwnPropertyIgnoreAttributes(&it, value, desc->ToAttributes()),
             Nothing<bool>());
       }
-      // 3b xi. Return true.
+      // 1b vii. Return true.
       return Just(true);
     }
   }
   // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-  return OrdinaryDefineOwnProperty(isolate, o, key, desc, should_throw);
+  return OrdinaryDefineOwnProperty(isolate, o, lookup_key, desc, should_throw);
 }
 
-ExternalArrayType JSTypedArray::type() {
-  switch (map().elements_kind()) {
-#define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                                      \
-    return kExternal##Type##Array;
-
-    TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
-#undef ELEMENTS_KIND_TO_ARRAY_TYPE
-
-    default:
-      UNREACHABLE();
-  }
+ExternalArrayType JSTypedArray::type() const {
+  return TypeAndElementSizeFor(map()->elements_kind()).first;
 }
 
-size_t JSTypedArray::element_size() {
-  switch (map().elements_kind()) {
-#define ELEMENTS_KIND_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                                        \
-    return sizeof(ctype);
+size_t JSTypedArray::element_size() const {
+  return TypeAndElementSizeFor(map()->elements_kind()).second;
+}
 
-    TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
-#undef ELEMENTS_KIND_TO_ELEMENT_SIZE
+size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
+    Isolate* isolate, Address raw_array) {
+  // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
+  // in bounds checks to minimize the need for calling this function.
+  DisallowGarbageCollection no_gc;
+  DisallowJavascriptExecution no_js(isolate);
+  Tagged<JSTypedArray> array = Cast<JSTypedArray>(Tagged<Object>(raw_array));
+  CHECK(array->is_length_tracking());
+  Tagged<JSArrayBuffer> buffer = array->buffer();
+  CHECK(buffer->is_resizable_by_js());
+  CHECK(buffer->is_shared());
+  size_t backing_byte_length =
+      buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  CHECK_GE(backing_byte_length, array->byte_offset());
+  auto element_byte_size = ElementsKindToByteSize(array->GetElementsKind());
+  return (backing_byte_length - array->byte_offset()) / element_byte_size;
+}
 
-    default:
-      UNREACHABLE();
+size_t JSTypedArray::GetVariableByteLengthOrOutOfBounds(
+    bool& out_of_bounds) const {
+  DCHECK(!WasDetached());
+  size_t own_byte_offset = byte_offset();
+  if (is_length_tracking()) {
+    size_t own_element_size = element_size();
+    if (is_backed_by_rab()) {
+      size_t buffer_byte_length = buffer()->byte_length();
+      if (own_byte_offset > buffer_byte_length) {
+        out_of_bounds = true;
+        return 0;
+      }
+      // Round down to the nearest multiple of element size.
+      return RoundDown(buffer_byte_length - own_byte_offset, own_element_size);
+    }
+    // GSAB-backed TypedArrays can't be out of bounds.
+    size_t buffer_byte_length =
+        buffer()->GetBackingStore()->byte_length(std::memory_order_seq_cst);
+    SBXCHECK(own_byte_offset <= buffer_byte_length);
+    // Round down to the nearest multiple of element size.
+    return RoundDown(buffer_byte_length - own_byte_offset, own_element_size);
   }
+  DCHECK(is_backed_by_rab());
+  size_t own_byte_length = byte_length();
+  size_t buffer_byte_length = buffer()->byte_length();
+  if (own_byte_length > buffer_byte_length ||
+      own_byte_offset > buffer_byte_length - own_byte_length) {
+    out_of_bounds = true;
+    return 0;
+  }
+  return own_byte_length;
+}
+
+size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
+  return GetVariableByteLengthOrOutOfBounds(out_of_bounds) / element_size();
 }
 
 }  // namespace internal

@@ -1,6 +1,6 @@
 // © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
-/*
+/*  
 **********************************************************************
 *   Copyright (C) 2002-2015, International Business Machines
 *   Corporation and others.  All Rights Reserved.
@@ -52,12 +52,12 @@ static void  U_CALLCONV
 _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                                UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source;
+    const char16_t *source;
     char *target;
     int32_t *offsets;
 
     uint32_t targetCapacity, length, sourceIndex;
-    UChar c, trail;
+    char16_t c, trail;
     char overflow[4];
 
     source=pArgs->source;
@@ -92,7 +92,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* c!=0 indicates in several places outside the main loops that a surrogate was found */
 
-    if((c=(UChar)cnv->fromUChar32)!=0 && U16_IS_TRAIL(trail=*source) && targetCapacity>=4) {
+    if((c=(char16_t)cnv->fromUChar32)!=0 && U16_IS_TRAIL(trail=*source) && targetCapacity>=4) {
         /* the last buffer ended with a lead surrogate, output the surrogate pair */
         ++source;
         --length;
@@ -102,7 +102,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         target[3]=(uint8_t)trail;
         target+=4;
         targetCapacity-=4;
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             *offsets++=-1;
             *offsets++=-1;
             *offsets++=-1;
@@ -123,7 +123,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         count>>=1;
         length-=count;
 
-        if(offsets==NULL) {
+        if(offsets==nullptr) {
             while(count>0) {
                 c=*source++;
                 if(U16_IS_SINGLE(c)) {
@@ -199,7 +199,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
     } else {
         length=0; /* from here on, length counts the bytes in overflow[] */
     }
-
+    
     if(c!=0) {
         /*
          * c is a surrogate, and
@@ -236,10 +236,10 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         /* output length bytes with overflow (length>targetCapacity>0) */
         ucnv_fromUWriteBytes(cnv,
                              overflow, length,
-                             (char **)&target, pArgs->targetLimit,
+                             &target, pArgs->targetLimit,
                              &offsets, sourceIndex,
                              pErrorCode);
-        targetCapacity=(uint32_t)(pArgs->targetLimit-(char *)target);
+        targetCapacity = static_cast<uint32_t>(pArgs->targetLimit - target);
     }
 
     if(U_SUCCESS(*pErrorCode) && source<pArgs->sourceLimit && targetCapacity==0) {
@@ -248,7 +248,7 @@ _UTF16BEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* write back the updated pointers */
     pArgs->source=source;
-    pArgs->target=(char *)target;
+    pArgs->target = target;
     pArgs->offsets=offsets;
 }
 
@@ -257,11 +257,11 @@ _UTF16BEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                              UErrorCode *pErrorCode) {
     UConverter *cnv;
     const uint8_t *source;
-    UChar *target;
+    char16_t *target;
     int32_t *offsets;
 
     uint32_t targetCapacity, length, count, sourceIndex;
-    UChar c, trail;
+    char16_t c, trail;
 
     if(pArgs->converter->mode<8) {
         _UTF16ToUnicodeWithOffsets(pArgs, pErrorCode);
@@ -287,7 +287,7 @@ _UTF16BEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
     sourceIndex=0;
     c=0;
 
-    /* complete a partial UChar or pair from the last call */
+    /* complete a partial char16_t or pair from the last call */
     if(cnv->toUnicodeStatus!=0) {
         /*
          * special case: single byte from a previous buffer,
@@ -306,11 +306,11 @@ _UTF16BEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             ++sourceIndex;
             --length;
             if(count==2) {
-                c=((UChar)p[0]<<8)|p[1];
+                c=((char16_t)p[0]<<8)|p[1];
                 if(U16_IS_SINGLE(c)) {
                     /* output the BMP code point */
                     *target++=c;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=-1;
                     }
                     --targetCapacity;
@@ -325,14 +325,14 @@ _UTF16BEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                     break;
                 }
             } else if(count==4) {
-                c=((UChar)p[0]<<8)|p[1];
-                trail=((UChar)p[2]<<8)|p[3];
+                c=((char16_t)p[0]<<8)|p[1];
+                trail=((char16_t)p[2]<<8)|p[3];
                 if(U16_IS_TRAIL(trail)) {
                     /* output the surrogate pair */
                     *target++=c;
                     if(targetCapacity>=2) {
                         *target++=trail;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=-1;
                             *offsets++=-1;
                         }
@@ -384,14 +384,14 @@ _UTF16BEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         length-=count;
         count>>=1;
         targetCapacity-=count;
-        if(offsets==NULL) {
+        if(offsets==nullptr) {
             do {
-                c=((UChar)source[0]<<8)|source[1];
+                c=((char16_t)source[0]<<8)|source[1];
                 source+=2;
                 if(U16_IS_SINGLE(c)) {
                     *target++=c;
                 } else if(U16_IS_SURROGATE_LEAD(c) && count>=2 &&
-                          U16_IS_TRAIL(trail=((UChar)source[0]<<8)|source[1])
+                          U16_IS_TRAIL(trail=((char16_t)source[0]<<8)|source[1])
                 ) {
                     source+=2;
                     --count;
@@ -403,14 +403,14 @@ _UTF16BEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             } while(--count>0);
         } else {
             do {
-                c=((UChar)source[0]<<8)|source[1];
+                c=((char16_t)source[0]<<8)|source[1];
                 source+=2;
                 if(U16_IS_SINGLE(c)) {
                     *target++=c;
                     *offsets++=sourceIndex;
                     sourceIndex+=2;
                 } else if(U16_IS_SURROGATE_LEAD(c) && count>=2 &&
-                          U16_IS_TRAIL(trail=((UChar)source[0]<<8)|source[1])
+                          U16_IS_TRAIL(trail=((char16_t)source[0]<<8)|source[1])
                 ) {
                     source+=2;
                     --count;
@@ -447,12 +447,12 @@ _UTF16BEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
 
         if(U16_IS_SURROGATE_LEAD(c)) {
             if(length>=2) {
-                if(U16_IS_TRAIL(trail=((UChar)source[0]<<8)|source[1])) {
+                if(U16_IS_TRAIL(trail=((char16_t)source[0]<<8)|source[1])) {
                     /* output the surrogate pair, will overflow (see conditions comment above) */
                     source+=2;
                     length-=2;
                     *target++=c;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     cnv->UCharErrorBuffer[0]=trail;
@@ -509,7 +509,7 @@ _UTF16BEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
     }
 
     if(s+2>sourceLimit) {
-        /* only one byte: truncated UChar */
+        /* only one byte: truncated char16_t */
         pArgs->converter->toUBytes[0]=*s++;
         pArgs->converter->toULength=1;
         pArgs->source=(const char *)s;
@@ -517,7 +517,7 @@ _UTF16BEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
         return 0xffff;
     }
 
-    /* get one UChar */
+    /* get one char16_t */
     c=((UChar32)*s<<8)|s[1];
     s+=2;
 
@@ -525,10 +525,10 @@ _UTF16BEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
     if(U_IS_SURROGATE(c)) {
         if(U16_IS_SURROGATE_LEAD(c)) {
             if(s+2<=sourceLimit) {
-                UChar trail;
+                char16_t trail;
 
-                /* get a second UChar and see if it is a trail surrogate */
-                trail=((UChar)*s<<8)|s[1];
+                /* get a second char16_t and see if it is a trail surrogate */
+                trail=((char16_t)*s<<8)|s[1];
                 if(U16_IS_TRAIL(trail)) {
                     c=U16_GET_SUPPLEMENTARY(c, trail);
                     s+=2;
@@ -567,7 +567,7 @@ _UTF16BEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
 
     pArgs->source=(const char *)s;
     return c;
-}
+} 
 
 static void  U_CALLCONV
 _UTF16BEReset(UConverter *cnv, UConverterResetChoice choice) {
@@ -610,11 +610,11 @@ U_CDECL_END
 static const UConverterImpl _UTF16BEImpl={
     UCNV_UTF16_BigEndian,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _UTF16BEOpen,
-    NULL,
+    nullptr,
     _UTF16BEReset,
 
     _UTF16BEToUnicodeWithOffsets,
@@ -623,21 +623,21 @@ static const UConverterImpl _UTF16BEImpl={
     _UTF16BEFromUnicodeWithOffsets,
     _UTF16BEGetNextUChar,
 
-    NULL,
+    nullptr,
     _UTF16BEGetName,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _UTF16BEStaticData={
     sizeof(UConverterStaticData),
     "UTF-16BE",
     1200, UCNV_IBM, UCNV_UTF16_BigEndian, 2, 2,
-    { 0xff, 0xfd, 0, 0 },2,FALSE,FALSE,
+    { 0xff, 0xfd, 0, 0 },2,false,false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -653,12 +653,12 @@ static void  U_CALLCONV
 _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                                UErrorCode *pErrorCode) {
     UConverter *cnv;
-    const UChar *source;
+    const char16_t *source;
     char *target;
     int32_t *offsets;
 
     uint32_t targetCapacity, length, sourceIndex;
-    UChar c, trail;
+    char16_t c, trail;
     char overflow[4];
 
     source=pArgs->source;
@@ -693,7 +693,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* c!=0 indicates in several places outside the main loops that a surrogate was found */
 
-    if((c=(UChar)cnv->fromUChar32)!=0 && U16_IS_TRAIL(trail=*source) && targetCapacity>=4) {
+    if((c=(char16_t)cnv->fromUChar32)!=0 && U16_IS_TRAIL(trail=*source) && targetCapacity>=4) {
         /* the last buffer ended with a lead surrogate, output the surrogate pair */
         ++source;
         --length;
@@ -703,7 +703,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         target[3]=(uint8_t)(trail>>8);
         target+=4;
         targetCapacity-=4;
-        if(offsets!=NULL) {
+        if(offsets!=nullptr) {
             *offsets++=-1;
             *offsets++=-1;
             *offsets++=-1;
@@ -724,7 +724,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
         count>>=1;
         length-=count;
 
-        if(offsets==NULL) {
+        if(offsets==nullptr) {
             while(count>0) {
                 c=*source++;
                 if(U16_IS_SINGLE(c)) {
@@ -800,7 +800,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
     } else {
         length=0; /* from here on, length counts the bytes in overflow[] */
     }
-
+    
     if(c!=0) {
         /*
          * c is a surrogate, and
@@ -840,7 +840,7 @@ _UTF16LEFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                              &target, pArgs->targetLimit,
                              &offsets, sourceIndex,
                              pErrorCode);
-        targetCapacity=(uint32_t)(pArgs->targetLimit-(char *)target);
+        targetCapacity = static_cast<uint32_t>(pArgs->targetLimit - target);
     }
 
     if(U_SUCCESS(*pErrorCode) && source<pArgs->sourceLimit && targetCapacity==0) {
@@ -858,11 +858,11 @@ _UTF16LEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                              UErrorCode *pErrorCode) {
     UConverter *cnv;
     const uint8_t *source;
-    UChar *target;
+    char16_t *target;
     int32_t *offsets;
 
     uint32_t targetCapacity, length, count, sourceIndex;
-    UChar c, trail;
+    char16_t c, trail;
 
     if(pArgs->converter->mode<8) {
         _UTF16ToUnicodeWithOffsets(pArgs, pErrorCode);
@@ -888,7 +888,7 @@ _UTF16LEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
     sourceIndex=0;
     c=0;
 
-    /* complete a partial UChar or pair from the last call */
+    /* complete a partial char16_t or pair from the last call */
     if(cnv->toUnicodeStatus!=0) {
         /*
          * special case: single byte from a previous buffer,
@@ -907,11 +907,11 @@ _UTF16LEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             ++sourceIndex;
             --length;
             if(count==2) {
-                c=((UChar)p[1]<<8)|p[0];
+                c=((char16_t)p[1]<<8)|p[0];
                 if(U16_IS_SINGLE(c)) {
                     /* output the BMP code point */
                     *target++=c;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=-1;
                     }
                     --targetCapacity;
@@ -926,14 +926,14 @@ _UTF16LEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
                     break;
                 }
             } else if(count==4) {
-                c=((UChar)p[1]<<8)|p[0];
-                trail=((UChar)p[3]<<8)|p[2];
+                c=((char16_t)p[1]<<8)|p[0];
+                trail=((char16_t)p[3]<<8)|p[2];
                 if(U16_IS_TRAIL(trail)) {
                     /* output the surrogate pair */
                     *target++=c;
                     if(targetCapacity>=2) {
                         *target++=trail;
-                        if(offsets!=NULL) {
+                        if(offsets!=nullptr) {
                             *offsets++=-1;
                             *offsets++=-1;
                         }
@@ -985,14 +985,14 @@ _UTF16LEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
         length-=count;
         count>>=1;
         targetCapacity-=count;
-        if(offsets==NULL) {
+        if(offsets==nullptr) {
             do {
-                c=((UChar)source[1]<<8)|source[0];
+                c=((char16_t)source[1]<<8)|source[0];
                 source+=2;
                 if(U16_IS_SINGLE(c)) {
                     *target++=c;
                 } else if(U16_IS_SURROGATE_LEAD(c) && count>=2 &&
-                          U16_IS_TRAIL(trail=((UChar)source[1]<<8)|source[0])
+                          U16_IS_TRAIL(trail=((char16_t)source[1]<<8)|source[0])
                 ) {
                     source+=2;
                     --count;
@@ -1004,14 +1004,14 @@ _UTF16LEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
             } while(--count>0);
         } else {
             do {
-                c=((UChar)source[1]<<8)|source[0];
+                c=((char16_t)source[1]<<8)|source[0];
                 source+=2;
                 if(U16_IS_SINGLE(c)) {
                     *target++=c;
                     *offsets++=sourceIndex;
                     sourceIndex+=2;
                 } else if(U16_IS_SURROGATE_LEAD(c) && count>=2 &&
-                          U16_IS_TRAIL(trail=((UChar)source[1]<<8)|source[0])
+                          U16_IS_TRAIL(trail=((char16_t)source[1]<<8)|source[0])
                 ) {
                     source+=2;
                     --count;
@@ -1048,12 +1048,12 @@ _UTF16LEToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
 
         if(U16_IS_SURROGATE_LEAD(c)) {
             if(length>=2) {
-                if(U16_IS_TRAIL(trail=((UChar)source[1]<<8)|source[0])) {
+                if(U16_IS_TRAIL(trail=((char16_t)source[1]<<8)|source[0])) {
                     /* output the surrogate pair, will overflow (see conditions comment above) */
                     source+=2;
                     length-=2;
                     *target++=c;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     cnv->UCharErrorBuffer[0]=trail;
@@ -1110,7 +1110,7 @@ _UTF16LEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
     }
 
     if(s+2>sourceLimit) {
-        /* only one byte: truncated UChar */
+        /* only one byte: truncated char16_t */
         pArgs->converter->toUBytes[0]=*s++;
         pArgs->converter->toULength=1;
         pArgs->source=(const char *)s;
@@ -1118,7 +1118,7 @@ _UTF16LEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
         return 0xffff;
     }
 
-    /* get one UChar */
+    /* get one char16_t */
     c=((UChar32)s[1]<<8)|*s;
     s+=2;
 
@@ -1126,10 +1126,10 @@ _UTF16LEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
     if(U_IS_SURROGATE(c)) {
         if(U16_IS_SURROGATE_LEAD(c)) {
             if(s+2<=sourceLimit) {
-                UChar trail;
+                char16_t trail;
 
-                /* get a second UChar and see if it is a trail surrogate */
-                trail=((UChar)s[1]<<8)|*s;
+                /* get a second char16_t and see if it is a trail surrogate */
+                trail=((char16_t)s[1]<<8)|*s;
                 if(U16_IS_TRAIL(trail)) {
                     c=U16_GET_SUPPLEMENTARY(c, trail);
                     s+=2;
@@ -1168,7 +1168,7 @@ _UTF16LEGetNextUChar(UConverterToUnicodeArgs *pArgs, UErrorCode *err) {
 
     pArgs->source=(const char *)s;
     return c;
-}
+} 
 
 static void  U_CALLCONV
 _UTF16LEReset(UConverter *cnv, UConverterResetChoice choice) {
@@ -1211,11 +1211,11 @@ U_CDECL_END
 static const UConverterImpl _UTF16LEImpl={
     UCNV_UTF16_LittleEndian,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _UTF16LEOpen,
-    NULL,
+    nullptr,
     _UTF16LEReset,
 
     _UTF16LEToUnicodeWithOffsets,
@@ -1224,14 +1224,14 @@ static const UConverterImpl _UTF16LEImpl={
     _UTF16LEFromUnicodeWithOffsets,
     _UTF16LEGetNextUChar,
 
-    NULL,
+    nullptr,
     _UTF16LEGetName,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 
@@ -1239,7 +1239,7 @@ static const UConverterStaticData _UTF16LEStaticData={
     sizeof(UConverterStaticData),
     "UTF-16LE",
     1202, UCNV_IBM, UCNV_UTF16_LittleEndian, 2, 2,
-    { 0xfd, 0xff, 0, 0 },2,FALSE,FALSE,
+    { 0xfd, 0xff, 0, 0 },2,false,false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -1447,7 +1447,7 @@ _UTF16ToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
     }
 
     /* add BOM size to offsets - see comment at offsetDelta declaration */
-    if(offsets!=NULL && offsetDelta!=0) {
+    if(offsets!=nullptr && offsetDelta!=0) {
         int32_t *offsetsLimit=pArgs->offsets;
         while(offsets<offsetsLimit) {
             *offsets++ += offsetDelta;
@@ -1493,11 +1493,11 @@ U_CDECL_END
 static const UConverterImpl _UTF16Impl = {
     UCNV_UTF16,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _UTF16Open,
-    NULL,
+    nullptr,
     _UTF16Reset,
 
     _UTF16ToUnicodeWithOffsets,
@@ -1506,14 +1506,14 @@ static const UConverterImpl _UTF16Impl = {
     _UTF16PEFromUnicodeWithOffsets,
     _UTF16GetNextUChar,
 
-    NULL, /* ### TODO implement getStarters for all Unicode encodings?! */
+    nullptr, /* ### TODO implement getStarters for all Unicode encodings?! */
     _UTF16GetName,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _UTF16StaticData = {
@@ -1526,7 +1526,7 @@ static const UConverterStaticData _UTF16StaticData = {
 #else
     { 0xfd, 0xff, 0, 0 }, 2,
 #endif
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */
@@ -1538,11 +1538,11 @@ const UConverterSharedData _UTF16Data =
 static const UConverterImpl _UTF16v2Impl = {
     UCNV_UTF16,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _UTF16Open,
-    NULL,
+    nullptr,
     _UTF16Reset,
 
     _UTF16ToUnicodeWithOffsets,
@@ -1551,14 +1551,14 @@ static const UConverterImpl _UTF16v2Impl = {
     _UTF16BEFromUnicodeWithOffsets,
     _UTF16GetNextUChar,
 
-    NULL, /* ### TODO implement getStarters for all Unicode encodings?! */
+    nullptr, /* ### TODO implement getStarters for all Unicode encodings?! */
     _UTF16GetName,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     ucnv_getNonSurrogateUnicodeSet,
 
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _UTF16v2StaticData = {
@@ -1567,7 +1567,7 @@ static const UConverterStaticData _UTF16v2StaticData = {
     1204, /* CCSID for BOM sensitive UTF-16 */
     UCNV_IBM, UCNV_UTF16, 2, 2,
     { 0xff, 0xfd, 0, 0 }, 2,
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */

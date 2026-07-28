@@ -12,11 +12,10 @@ namespace internal {
 
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
-  TestTransitionsAccessor(Isolate* isolate, Map map,
-                          DisallowHeapAllocation* no_gc)
-      : TransitionsAccessor(isolate, map, no_gc) {}
-  TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
+  TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
       : TransitionsAccessor(isolate, map) {}
+  TestTransitionsAccessor(Isolate* isolate, DirectHandle<Map> map)
+      : TransitionsAccessor(isolate, *map) {}
 
   // Expose internals for tests.
   bool IsUninitializedEncoding() { return encoding() == kUninitialized; }
@@ -28,7 +27,9 @@ class TestTransitionsAccessor : public TransitionsAccessor {
 
   int Capacity() { return TransitionsAccessor::Capacity(); }
 
-  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
+  Tagged<TransitionArray> transitions() {
+    return TransitionsAccessor::transitions();
+  }
 };
 
 }  // namespace internal

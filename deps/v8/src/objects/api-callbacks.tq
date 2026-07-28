@@ -2,37 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@generateCppClass
-extern class CallHandlerInfo extends Struct {
-  callback: NonNullForeign|Undefined|Zero;
-  js_callback: NonNullForeign|Undefined|Zero;
-  data: Object;
-}
-
 bitfield struct InterceptorInfoFlags extends uint31 {
   can_intercept_symbols: bool: 1 bit;
-  all_can_read: bool: 1 bit;
   non_masking: bool: 1 bit;
   named: bool: 1 bit;
   has_no_side_effect: bool: 1 bit;
+  has_new_callbacks_signature: bool: 1 bit;
+  has_dont_delete_property: bool: 1 bit;
 }
 
-@generateCppClass
-@generatePrint
-extern class InterceptorInfo extends Struct {
-  getter: NonNullForeign|Zero|Undefined;
-  setter: NonNullForeign|Zero|Undefined;
-  query: NonNullForeign|Zero|Undefined;
-  descriptor: NonNullForeign|Zero|Undefined;
-  deleter: NonNullForeign|Zero|Undefined;
-  enumerator: NonNullForeign|Zero|Undefined;
-  definer: NonNullForeign|Zero|Undefined;
+extern class InterceptorInfo extends HeapObject {
   data: Object;
-  flags: SmiTagged<InterceptorInfoFlags>;
+  flags: InterceptorInfoFlags;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  getter: ExternalPointer;
+  setter: ExternalPointer;
+  query: ExternalPointer;
+  descriptor: ExternalPointer;
+  deleter: ExternalPointer;
+  enumerator: ExternalPointer;
+  definer: ExternalPointer;
 }
 
-@generateCppClass
-@generatePrint
+@cppObjectLayoutDefinition
 extern class AccessCheckInfo extends Struct {
   callback: Foreign|Zero|Undefined;
   named_interceptor: InterceptorInfo|Zero|Undefined;
@@ -42,10 +35,7 @@ extern class AccessCheckInfo extends Struct {
 
 type SideEffectType extends int32 constexpr 'SideEffectType';
 
-bitfield struct AccessorInfoFlags extends uint31 {
-  all_can_read: bool: 1 bit;
-  all_can_write: bool: 1 bit;
-  is_special_data_property: bool: 1 bit;
+bitfield struct AccessorInfoFlags extends uint32 {
   is_sloppy: bool: 1 bit;
   replace_on_access: bool: 1 bit;
   getter_side_effect_type: SideEffectType: 2 bit;
@@ -53,16 +43,23 @@ bitfield struct AccessorInfoFlags extends uint31 {
   initial_attributes: PropertyAttributes: 3 bit;
 }
 
-@generateCppClass
-@generatePrint
-extern class AccessorInfo extends Struct {
-  name: Name;
-  flags: SmiTagged<AccessorInfoFlags>;
-  expected_receiver_type: Object;
-  setter: NonNullForeign|Zero;
-  getter: NonNullForeign|Zero;
-  // This either points at the same as above, or a trampoline in case we are
-  // running with the simulator. Use these entries from generated code.
-  js_getter: NonNullForeign|Zero;
+extern class AccessorInfo extends HeapObject {
   data: Object;
+  // This name is used for the two purposes:
+  // 1) for native accessor properties added to an object template via Api this
+  //    field stores property name until the object template is instantiated,
+  // 2) CPU profiler machinery uses this name for mapping getter/setter
+  //    C++ function pointers back to property name. Note that this mapping
+  //    might be incorrect in case a getter/setter C++ callbacks are used for
+  //    multiple different properties (for example, see
+  //    Accessors::MakeModuleNamespaceEntryInfo).
+  name: Name;
+  // For simulator builds this field contains the address of the trampoline
+  // callable from generated code and for native builds - the address of
+  // the getter C function.
+  getter: ExternalPointer;
+  setter: ExternalPointer;
+  flags: AccessorInfoFlags;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }

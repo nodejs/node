@@ -1,7 +1,10 @@
 'use strict';
 const common = require('../common');
-if (!common.isMainThread)
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) {
   common.skip("Workers don't have process-like stdio");
+}
 
 // Test if Node handles accessing process.stdin if it is a redirected
 // pipe without deadlocking
@@ -18,12 +21,13 @@ switch (who) {
                 { 'stdio': 'inherit' });
     }
     break;
-  case 'parent':
+  case 'parent': {
     const middle = spawn(process.argv0,
                          [process.argv[1], 'middle'],
                          { 'stdio': 'pipe' });
     middle.stdout.on('data', () => {});
     break;
+  }
   case 'middle':
     spawn(process.argv0,
           [process.argv[1], 'bottom'],

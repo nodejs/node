@@ -10,7 +10,7 @@ const fs = require('fs');
   const fh = await fs.promises.open(__filename);
   fs.closeSync(fh.fd);
 
-  assert.rejects(() => fh.close(), {
+  await assert.rejects(() => fh.close(), {
     code: 'EBADF',
     syscall: 'close'
   });

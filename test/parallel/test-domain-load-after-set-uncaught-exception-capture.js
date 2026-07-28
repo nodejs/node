@@ -1,17 +1,22 @@
 'use strict';
+// Tests that domain can be loaded after setUncaughtExceptionCaptureCallback
+// has been called. This verifies that the mutual exclusivity has been removed.
 const common = require('../common');
-const assert = require('assert');
 
+// Set up a capture callback first
 process.setUncaughtExceptionCaptureCallback(common.mustNotCall());
 
-assert.throws(
-  () => require('domain'),
-  {
-    code: 'ERR_DOMAIN_CALLBACK_NOT_AVAILABLE',
-    name: 'Error',
-    message: /^A callback was registered.*with using the `domain` module/
-  }
-);
+// Loading domain should not throw (coexistence is now supported)
+const domain = require('domain');
 
+// Verify domain module loaded successfully
+const assert = require('assert');
+assert.ok(domain);
+assert.ok(domain.create);
+
+// Clean up
 process.setUncaughtExceptionCaptureCallback(null);
-require('domain'); // Should not throw.
+
+// Domain should still be usable
+const d = domain.create();
+assert.ok(d);

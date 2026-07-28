@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Test that live-editing a frame that uses new.target fails.
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --inspector-live-edit
 
 Debug = debug.Debug
 var calls = 0;
@@ -46,7 +46,7 @@ function Replace(fun, original, patch) {
     try {
       %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(original, patch));
     } catch (e) {
-      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME');
+      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_ACTIVE_FUNCTION');
       exceptions++;
     }
   });

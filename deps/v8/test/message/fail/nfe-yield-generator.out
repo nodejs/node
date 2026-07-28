@@ -1,4 +1,4 @@
-*%(basename)s:5: SyntaxError: Unexpected identifier
+*%(basename)s:5: SyntaxError: Unexpected identifier 'yield'
 (function* yield() {})
            ^^^^^
-SyntaxError: Unexpected identifier
+SyntaxError: Unexpected identifier 'yield'

@@ -1,7 +1,8 @@
 'use strict';
 // Flags: --expose-gc
 
-const { gcUntil, buildType } = require('../../common');
+const { buildType } = require('../../common');
+const { gcUntil } = require('../../common/gc');
 const assert = require('assert');
 
 const test_reference = require(`./build/${buildType}/test_reference`);
@@ -14,6 +15,46 @@ assert.strictEqual(test_reference.finalizeCount, 0);
 // Run each test function in sequence,
 // with an async delay and GC call between each.
 async function runTests() {
+  (() => {
+    const symbol = test_reference.createSymbol('testSym');
+    test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+  })();
+  test_reference.deleteReference();
+
+  (() => {
+    const symbol = test_reference.createSymbolFor('testSymFor');
+    test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+  })();
+  test_reference.deleteReference();
+
+  (() => {
+    const symbol = test_reference.createSymbolFor('testSymFor');
+    test_reference.createReference(symbol, 1);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+    assert.strictEqual(test_reference.referenceValue, Symbol.for('testSymFor'));
+  })();
+  test_reference.deleteReference();
+
+  (() => {
+    const symbol = test_reference.createSymbolForEmptyString();
+    test_reference.createReference(symbol, 0);
+    assert.strictEqual(test_reference.referenceValue, Symbol.for(''));
+  })();
+  test_reference.deleteReference();
+
+  (() => {
+    const symbol = test_reference.createSymbolForEmptyString();
+    test_reference.createReference(symbol, 1);
+    assert.strictEqual(test_reference.referenceValue, symbol);
+    assert.strictEqual(test_reference.referenceValue, Symbol.for(''));
+  })();
+  test_reference.deleteReference();
+
+  assert.throws(() => test_reference.createSymbolForIncorrectLength(),
+                /Invalid argument/);
+
   (() => {
     const value = test_reference.createExternal();
     assert.strictEqual(test_reference.finalizeCount, 0);
@@ -101,7 +142,7 @@ runTests();
 // reference (there is a finalizer behind the scenes even
 // though it cannot be passed to napi_create_reference).
 //
-// Since the order is not guarranteed, run the
+// Since the order is not guaranteed, run the
 // test a number of times maximize the chance that we
 // get a run with the desired order for the test.
 //

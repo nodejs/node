@@ -11,7 +11,7 @@
 
 #include "src/asmjs/asm-names.h"
 #include "src/base/logging.h"
-#include "src/common/globals.h"
+#include "src/base/strings.h"
 
 namespace v8 {
 namespace internal {
@@ -135,10 +135,45 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   };
   // clang-format on
 
-  static constexpr uc32 kEndOfInputU = static_cast<uc32>(kEndOfInput);
-
  private:
-  Utf16CharacterStream* stream_;
+  // Consume multiple characters.
+  void ConsumeIdentifier(base::uc32 ch);
+  void ConsumeNumber(base::uc32 ch);
+  bool ConsumeCComment();
+  void ConsumeCPPComment();
+  void ConsumeString(base::uc32 quote);
+  void ConsumeCompareOrShift(base::uc32 ch);
+
+  // Classify character categories.
+  bool IsIdentifierStart(base::uc32 ch);
+  bool IsIdentifierPart(base::uc32 ch);
+  bool IsNumberStart(base::uc32 ch);
+
+  bool HasMoreChars() const { return input_position_ < input_.size(); }
+  base::uc32 PeekChar() const {
+    DCHECK(HasMoreChars());
+    return input_[input_position_];
+  }
+  base::uc32 NextChar() {
+    DCHECK(HasMoreChars());
+    return input_[input_position_++];
+  }
+  bool Consume(base::uc32 next) {
+    if (!HasMoreChars() || PeekChar() != next) return false;
+    ++input_position_;
+    return true;
+  }
+  void Advance() {
+    DCHECK(HasMoreChars());
+    ++input_position_;
+  }
+
+  std::vector<base::uc32> input_;
+  // Start position of the input stream; i.e. offset of `input_position_`.
+  size_t input_offset_;
+  // Current position inside `input_`.
+  size_t input_position_ = 0;
+
   token_t token_;
   token_t preceding_token_;
   token_t next_token_;         // Only set when in {rewind} state.
@@ -155,19 +190,6 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   double double_value_;
   uint32_t unsigned_value_;
   bool preceded_by_newline_;
-
-  // Consume multiple characters.
-  void ConsumeIdentifier(uc32 ch);
-  void ConsumeNumber(uc32 ch);
-  bool ConsumeCComment();
-  void ConsumeCPPComment();
-  void ConsumeString(uc32 quote);
-  void ConsumeCompareOrShift(uc32 ch);
-
-  // Classify character categories.
-  bool IsIdentifierStart(uc32 ch);
-  bool IsIdentifierPart(uc32 ch);
-  bool IsNumberStart(uc32 ch);
 };
 
 }  // namespace internal

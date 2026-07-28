@@ -22,16 +22,17 @@ server.on('session', common.mustCall(function(session) {
   }));
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const stream = client.request({ ':method': 'POST' });
   stream.on('response', common.mustCall(function(headers) {
     assert.strictEqual(headers[':status'], 200);
   }));
+  stream.on('error', () => {});
   stream.on('close', common.mustCall(() => {
     client.close();
     server.close();
   }));
   stream.resume();
   stream.end();
-});
+}));

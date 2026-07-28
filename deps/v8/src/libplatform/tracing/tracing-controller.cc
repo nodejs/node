@@ -7,24 +7,29 @@
 #include <string.h>
 
 #include "include/libplatform/v8-tracing.h"
-
 #include "src/base/atomicops.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/ext/trace_processor/export_json.h"
-#include "perfetto/trace_processor/trace_processor.h"
+#ifdef V8_USE_PERFETTO_SDK
+#include "perfetto.h"  // NOLINT(build/include_directory)
+#else
 #include "perfetto/tracing/tracing.h"
 #include "protos/perfetto/config/data_source_config.gen.h"
 #include "protos/perfetto/config/trace_config.gen.h"
 #include "protos/perfetto/config/track_event/track_event_config.gen.h"
+#endif  // V8_USE_PERFETTO_SDK
+#ifdef V8_USE_PERFETTO_JSON_EXPORT
+#include "perfetto/ext/trace_processor/export_json.h"
+#include "perfetto/trace_processor/trace_processor.h"
+#endif  // V8_USE_PERFETTO_JSON_EXPORT
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/libplatform/tracing/trace-event-listener.h"
 #endif  // V8_USE_PERFETTO
 
-#ifdef V8_USE_PERFETTO
+#ifdef V8_USE_PERFETTO_JSON_EXPORT
 class JsonOutputWriter : public perfetto::trace_processor::json::OutputWriter {
  public:
   explicit JsonOutputWriter(std::ostream* stream) : stream_(stream) {}
@@ -38,7 +43,7 @@ class JsonOutputWriter : public perfetto::trace_processor::json::OutputWriter {
  private:
   std::ostream* stream_;
 };
-#endif  // V8_USE_PERFETTO
+#endif  // V8_USE_PERFETTO_JSON_EXPORT
 
 namespace v8 {
 namespace platform {
@@ -106,7 +111,7 @@ void TracingController::Initialize(TraceBuffer* trace_buffer) {
 }
 
 int64_t TracingController::CurrentTimestampMicroseconds() {
-  return base::TimeTicks::HighResolutionNow().ToInternalValue();
+  return base::TimeTicks::Now().ToInternalValue();
 }
 
 int64_t TracingController::CurrentCpuTimestampMicroseconds() {
@@ -183,10 +188,13 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 #ifdef V8_USE_PERFETTO
   DCHECK_NOT_NULL(output_stream_);
   DCHECK(output_stream_->good());
+
+#ifdef V8_USE_PERFETTO_JSON_EXPORT
   perfetto::trace_processor::Config processor_config;
   trace_processor_ =
       perfetto::trace_processor::TraceProcessorStorage::CreateInstance(
           processor_config);
+#endif  // V8_USE_PERFETTO_JSON_EXPORT
 
   ::perfetto::TraceConfig perfetto_trace_config;
   perfetto_trace_config.add_buffers()->set_size_kb(4096);
@@ -206,18 +214,19 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 #endif  // V8_USE_PERFETTO
 
   trace_config_.reset(trace_config);
+  recording_.store(true, std::memory_order_release);
+
+#ifndef V8_USE_PERFETTO
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
     base::MutexGuard lock(mutex_.get());
-    recording_.store(true, std::memory_order_release);
-#ifndef V8_USE_PERFETTO
     UpdateCategoryGroupEnabledFlags();
-#endif
     observers_copy = observers_;
   }
   for (auto o : observers_copy) {
     o->OnTraceEnabled();
   }
+#endif  // !defined(V8_USE_PERFETTO)
 }
 
 void TracingController::StopTracing() {
@@ -225,22 +234,13 @@ void TracingController::StopTracing() {
   if (!recording_.compare_exchange_strong(expected, false)) {
     return;
   }
-#ifndef V8_USE_PERFETTO
-  UpdateCategoryGroupEnabledFlags();
-#endif
-  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
-  {
-    base::MutexGuard lock(mutex_.get());
-    observers_copy = observers_;
-  }
-  for (auto o : observers_copy) {
-    o->OnTraceDisabled();
-  }
 
 #ifdef V8_USE_PERFETTO
   tracing_session_->StopBlocking();
 
   std::vector<char> trace = tracing_session_->ReadTraceBlocking();
+
+#ifdef V8_USE_PERFETTO_JSON_EXPORT
   std::unique_ptr<uint8_t[]> trace_bytes(new uint8_t[trace.size()]);
   std::copy(&trace[0], &trace[0] + trace.size(), &trace_bytes[0]);
   trace_processor_->Parse(std::move(trace_bytes), trace.size());
@@ -249,11 +249,22 @@ void TracingController::StopTracing() {
   auto status = perfetto::trace_processor::json::ExportJson(
       trace_processor_.get(), &output_writer, nullptr, nullptr, nullptr);
   DCHECK(status.ok());
-
-  if (listener_for_testing_) listener_for_testing_->ParseFromArray(trace);
-
   trace_processor_.reset();
 #else
+  output_stream_->write(&trace[0], trace.size());
+#endif  // V8_USE_PERFETTO_JSON_EXPORT
+
+  if (listener_for_testing_) listener_for_testing_->ParseFromArray(trace);
+#else
+  UpdateCategoryGroupEnabledFlags();
+  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
+  {
+    base::MutexGuard lock(mutex_.get());
+    observers_copy = observers_;
+  }
+  for (auto o : observers_copy) {
+    o->OnTraceDisabled();
+  }
 
   {
     base::MutexGuard lock(mutex_.get());
@@ -341,7 +352,6 @@ const uint8_t* TracingController::GetCategoryGroupEnabled(
   }
   return category_group_enabled;
 }
-#endif  // !defined(V8_USE_PERFETTO)
 
 void TracingController::AddTraceStateObserver(
     v8::TracingController::TraceStateObserver* observer) {
@@ -360,6 +370,7 @@ void TracingController::RemoveTraceStateObserver(
   DCHECK(observers_.find(observer) != observers_.end());
   observers_.erase(observer);
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 }  // namespace tracing
 }  // namespace platform

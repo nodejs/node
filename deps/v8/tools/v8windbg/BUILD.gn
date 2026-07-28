@@ -5,9 +5,6 @@
 import("../../gni/v8.gni")
 
 config("v8windbg_config") {
-  # Required for successful compilation of SDK header file DbgModel.h.
-  cflags_cc = [ "/Zc:twoPhase-" ]
-
   include_dirs = [ "../.." ]
 }
 
@@ -30,6 +27,10 @@ source_set("v8windbg_base") {
   ]
 
   public_configs = [ ":v8windbg_config" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # An extension DLL that can be loaded into WinDbg with `.load v8windbg`.
@@ -40,8 +41,8 @@ v8_shared_library("v8windbg") {
     "base/dbgext.def",
     "src/cur-isolate.cc",
     "src/cur-isolate.h",
-    "src/list-chunks.cc",
-    "src/list-chunks.h",
+    "src/js-stack.cc",
+    "src/js-stack.h",
     "src/local-variables.cc",
     "src/local-variables.h",
     "src/object-inspection.cc",
@@ -54,8 +55,15 @@ v8_shared_library("v8windbg") {
 
   deps = [
     ":v8windbg_base",
+    "../../:v8_flags",
+    "../../:v8_libbase",
+    "../../:v8_shared_internal_headers",
     "../debug_helper:v8_debug_helper",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs = [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # Copies Windows SDK files that v8windbg_test needs.
@@ -72,8 +80,8 @@ action("copy_prereqs") {
   outputs = [ "$root_out_dir/dbgeng.dll" ]
 
   args = [
-    rebase_path("//build"),
-    rebase_path(root_out_dir),
+    rebase_path("//build", root_build_dir),
+    rebase_path(root_out_dir, root_build_dir),
     target_cpu,
   ]
 }

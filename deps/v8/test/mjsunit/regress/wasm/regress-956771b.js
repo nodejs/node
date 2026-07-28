@@ -4,7 +4,7 @@
 
 // Flags: --wasm-lazy-compilation --wasm-test-streaming
 
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function testLazyModuleStreamingCompilation() {
   print(arguments.callee.name);
@@ -12,8 +12,11 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction("some", kSig_i_ii);
   let bytes = builder.toBuffer();
   assertPromiseResult(WebAssembly.compileStreaming(Promise.resolve(bytes))
-    .then(assertUnreachable,
-          error => assertEquals("WebAssembly.compileStreaming(): function " +
-                                "body must end with \"end\" opcode @+26",
-                                error.message)));
+                          .then(
+                              assertUnreachable,
+                              error => assertEquals(
+                                  'WebAssembly.compileStreaming(): Compiling ' +
+                                      'function #0:"some" failed: function ' +
+                                      'body must end with "end" opcode @+26',
+                                  error.message)));
 })();

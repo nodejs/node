@@ -9,19 +9,19 @@ const util = require('util');
 // run the function with those settings.
 // If not, then queue up a bunch of child processes.
 const bench = common.createBenchmark(main, {
-  len: [102400, 1024 * 1024 * 16],
+  len: [102400, 1024 * 64 * 16],
   type: ['utf', 'asc', 'buf'],
-  dur: [5]
+  dur: [5],
 }, {
   test: { len: 1024 },
-  flags: [ '--expose-internals', '--no-warnings' ]
+  flags: [ '--expose-internals', '--no-warnings' ],
 });
 
 function main({ dur, len, type }) {
   const {
     TCP,
     TCPConnectWrap,
-    constants: TCPConstants
+    constants: TCPConstants,
   } = common.binding('tcp_wrap');
   const { WriteWrap } = common.binding('stream_wrap');
   const PORT = common.PORT;

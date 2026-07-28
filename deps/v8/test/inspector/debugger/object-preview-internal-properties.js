@@ -1,8 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// Flags: --harmony-class-fields
 
 let {session, contextGroup, Protocol} = InspectorTest.start("Check internal properties reported in object preview.");
 
@@ -45,6 +43,15 @@ InspectorTest.runTestSuite([
       .then(next);
   },
 
+  function symbolsAsKeysInEntries(next)
+  {
+    checkExpression("new Map([[Symbol('key1'), 1]])")
+      .then(() => checkExpression("new Set([Symbol('key2')])"))
+      .then(() => checkExpression("new WeakMap([[Symbol('key3'), 2]])"))
+      .then(() => checkExpression("new WeakSet([Symbol('key4')])"))
+      .then(next);
+  },
+
   function iteratorObject(next)
   {
     checkExpression("(new Map([[1,2]])).entries()")
@@ -66,6 +73,7 @@ InspectorTest.runTestSuite([
     checkExpression("[1,2,3]")
       .then(() => checkExpression("/123/"))
       .then(() => checkExpression("({})"))
+      .then(() => checkExpression("Boolean.prototype"))
       .then(next);
   },
 

@@ -7,8 +7,9 @@
 // Test configuration.
 const TEST_ITERATIONS = 1000;
 const SLOW_TEST_ITERATIONS = 50;
-const BITS_CASES = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192];
+const BITS_CASES = [32, 64, 1024, 8192];
 const RANDOM_BIGINTS_MAX_BITS = 64 * 100;
+const BIGINT_MAX_BITS = %BigIntMaxLengthBits();
 
 
 function RandomHexDigit(allow_zero) {
@@ -46,9 +47,7 @@ function MaxBigIntWithBits(bits) {
   }
 
   let s = "0x";
-  for (; bits > 0; bits -= 4) {
-    s += "F";
-  }
+  s += "F".repeat(bits / 4);
   return BigInt(s);
 }
 

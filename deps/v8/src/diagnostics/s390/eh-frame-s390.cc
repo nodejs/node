@@ -38,7 +38,6 @@ int EhFrameWriter::RegisterToDwarfCode(Register name) {
       return kR0DwarfCode;
     default:
       UNIMPLEMENTED();
-      return -1;
   }
 }
 
@@ -55,7 +54,6 @@ const char* EhFrameDisassembler::DwarfRegisterCodeToString(int code) {
       return "sp";
     default:
       UNIMPLEMENTED();
-      return nullptr;
   }
 }
 

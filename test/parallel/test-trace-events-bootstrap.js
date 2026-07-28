@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 const names = [
@@ -12,7 +11,7 @@ const names = [
   'v8Start',
   'loopStart',
   'loopExit',
-  'bootstrapComplete'
+  'bootstrapComplete',
 ];
 
 if (process.argv[2] === 'child') {
@@ -25,15 +24,15 @@ if (process.argv[2] === 'child') {
                          cwd: tmpdir.path,
                          execArgv: [
                            '--trace-event-categories',
-                           'node.bootstrap'
+                           'node.bootstrap',
                          ]
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = path.join(tmpdir.path, 'node_trace.1.log');
+    const file = tmpdir.resolve('node_trace.1.log');
 
     assert(fs.existsSync(file));
-    fs.readFile(file, common.mustCall((err, data) => {
+    fs.readFile(file, common.mustSucceed((data) => {
       const traces = JSON.parse(data.toString()).traceEvents
         .filter((trace) => trace.cat !== '__metadata');
       traces.forEach((trace) => {

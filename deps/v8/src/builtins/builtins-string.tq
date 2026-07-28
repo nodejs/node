@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include 'src/builtins/builtins-string-gen.h'
+#include['csa'] 'src/builtins/builtins-string-gen.h'
+#include['tsa'] 'src/builtins/builtins-string-tsa-inl.h'
 
 namespace string {
 
@@ -10,6 +11,8 @@ namespace runtime {
 extern transitioning runtime ToString(Context, JSAny): String;
 }
 
+// LINT.IfChange
+@supportsTSA
 @export
 transitioning macro ToStringImpl(context: Context, o: JSAny): String {
   let result: JSAny = o;
@@ -24,39 +27,60 @@ transitioning macro ToStringImpl(context: Context, o: JSAny): String {
       case (oddball: Oddball): {
         return oddball.to_string;
       }
-      case (JSReceiver): {
-        result = NonPrimitiveToPrimitive_String(context, result);
+      case (receiver: JSReceiver): {
+        result = conversion::NonPrimitiveToPrimitive_String_Inline(receiver);
         continue;
       }
       case (Symbol): {
         ThrowTypeError(MessageTemplate::kSymbolToString);
       }
       case (JSAny): {
-        return runtime::ToString(context, o);
+        return runtime::ToString(context, result);
       }
     }
   }
   unreachable;
 }
+// LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
+// LINT.IfChange
+@ifnot(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS_WITHOUT_TQ_TO_TSA)
+@supportsTSA
 transitioning builtin ToString(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
+@if(V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS_WITHOUT_TQ_TO_TSA)
+extern transitioning builtin ToString(Context, JSAny): String;
+// LINT.ThenChange(/src/builtins/builtins-string-tsa.cc)
 
-extern macro StringBuiltinsAssembler::SubString(
-    String, uintptr, uintptr): String;
+transitioning builtin ToStringConvertSymbol(context: Context, o: JSAny):
+    String {
+  typeswitch (o) {
+    case (value: Symbol): {
+      return SymbolDescriptiveString(value);
+    }
+    case (value: JSAny): {
+      return ToStringImpl(context, value);
+    }
+  }
+}
+
+transitioning macro ToString_Inline(context: Context, o: JSAny): String {
+  return ToStringImpl(context, o);
+}
+
+extern macro StringBuiltinsAssembler::SubString(String, uintptr, uintptr):
+    String;
 
 // ES6 #sec-string.prototype.tostring
-transitioning javascript builtin
-StringPrototypeToString(
+transitioning javascript builtin StringPrototypeToString(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
       receiver, PrimitiveType::kString, 'String.prototype.toString');
 }
 
 // ES6 #sec-string.prototype.valueof
-transitioning javascript builtin
-StringPrototypeValueOf(
+transitioning javascript builtin StringPrototypeValueOf(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
       receiver, PrimitiveType::kString, 'String.prototype.valueOf');
@@ -68,16 +92,15 @@ extern macro StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
     int32): String;
 
 // This function assumes StringPrimitiveWithNoCustomIteration is true.
-transitioning builtin StringToList(implicit context: Context)(string: String):
-    JSArray {
+transitioning builtin StringToList(implicit context: Context)(
+                                   string: String): JSArray {
   const kind = ElementsKind::PACKED_ELEMENTS;
   const stringLength: intptr = string.length_intptr;
 
   const nativeContext = LoadNativeContext(context);
   const map: Map = LoadJSArrayElementsMap(kind, nativeContext);
-  const array: JSArray = AllocateJSArray(
-      kind, map, stringLength, SmiTag(stringLength),
-      AllocationFlag::kAllowLargeObjectAllocation);
+  const array: JSArray =
+      AllocateJSArray(kind, map, stringLength, SmiTag(stringLength));
   const elements = UnsafeCast<FixedArray>(array.elements);
   const encoding = UnicodeEncoding::UTF16;
   let arrayLength: Smi = 0;
@@ -90,15 +113,15 @@ transitioning builtin StringToList(implicit context: Context)(string: String):
     i = i + value.length_intptr;
     arrayLength++;
   }
-  assert(arrayLength >= 0);
-  assert(SmiTag(stringLength) >= arrayLength);
+  dcheck(arrayLength >= 0);
+  dcheck(SmiTag(stringLength) >= arrayLength);
   array.length = arrayLength;
 
   return array;
 }
 
-transitioning macro GenerateStringAt(implicit context: Context)(
-    receiver: JSAny, position: JSAny,
+transitioning macro GenerateStringAt(
+    implicit context: Context)(receiver: JSAny, position: JSAny,
     methodName: constexpr string): never labels
 IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -116,14 +139,12 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
       const index: uintptr = Unsigned(Convert<intptr>(indexSmi));
       // Max string length fits Smi range, so we can do an unsigned bounds
       // check.
-      const kMaxStringLengthFitsSmi: constexpr bool =
-          kStringMaxLengthUintptr < kSmiMaxValue;
-      static_assert(kMaxStringLengthFitsSmi);
+      StaticAssertStringLengthFitsSmi();
       if (index >= length) goto IfOutOfBounds;
       goto IfInBounds(string, index, length);
     }
     case (indexHeapNumber: HeapNumber): {
-      assert(IsNumberNormalized(indexHeapNumber));
+      dcheck(IsNumberNormalized(indexHeapNumber));
       // Valid string indices fit into Smi range, so HeapNumber index is
       // definitely an out of bounds case.
       goto IfOutOfBounds;
@@ -133,13 +154,13 @@ IfInBounds(String, uintptr, uintptr), IfOutOfBounds {
 
 // ES6 #sec-string.prototype.charat
 transitioning javascript builtin StringPrototypeCharAt(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(position: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    position: JSAny): JSAny {
   try {
     GenerateStringAt(receiver, position, 'String.prototype.charAt')
         otherwise IfInBounds, IfOutOfBounds;
   } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
-    const code: int32 = StringCharCodeAt(string, index);
+    const code: char16 = StringCharCodeAt(string, index);
     return StringFromSingleCharCode(code);
   } label IfOutOfBounds {
     return kEmptyString;
@@ -148,13 +169,13 @@ transitioning javascript builtin StringPrototypeCharAt(
 
 // ES6 #sec-string.prototype.charcodeat
 transitioning javascript builtin StringPrototypeCharCodeAt(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(position: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    position: JSAny): JSAny {
   try {
     GenerateStringAt(receiver, position, 'String.prototype.charCodeAt')
         otherwise IfInBounds, IfOutOfBounds;
   } label IfInBounds(string: String, index: uintptr, _length: uintptr) {
-    const code: int32 = StringCharCodeAt(string, index);
+    const code: uint32 = StringCharCodeAt(string, index);
     return Convert<Smi>(code);
   } label IfOutOfBounds {
     return kNaN;
@@ -163,8 +184,8 @@ transitioning javascript builtin StringPrototypeCharCodeAt(
 
 // ES6 #sec-string.prototype.codepointat
 transitioning javascript builtin StringPrototypeCodePointAt(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(position: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    position: JSAny): JSAny {
   try {
     GenerateStringAt(receiver, position, 'String.prototype.codePointAt')
         otherwise IfInBounds, IfOutOfBounds;
@@ -195,8 +216,8 @@ transitioning javascript builtin StringPrototypeConcat(
   return string;
 }
 
-extern transitioning runtime
-SymbolDescriptiveString(implicit context: Context)(Symbol): String;
+extern transitioning runtime SymbolDescriptiveString(
+    implicit context: Context)(Symbol): String;
 
 // ES #sec-string-constructor
 // https://tc39.github.io/ecma262/#sec-string-constructor
@@ -228,6 +249,12 @@ transitioning javascript builtin StringConstructor(
   if (newTarget == Undefined) {
     return s;
   }
+
+  // We might be creating a string wrapper with a custom @@toPrimitive.
+  if (target != newTarget) {
+    InvalidateStringWrapperToPrimitiveProtector();
+  }
+
   // 4. Return ! StringCreate(s, ? GetPrototypeFromConstructor(NewTarget,
   // "%String.prototype%")).
   const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
@@ -237,21 +264,56 @@ transitioning javascript builtin StringConstructor(
   return obj;
 }
 
-transitioning builtin StringAddConvertLeft(implicit context: Context)(
-    left: JSAny, right: String): String {
+javascript builtin StringCreateLazyDeoptContinuation(
+    js-implicit context: NativeContext)(value: JSAny): JSAny {
+  const function = GetStringFunction();
+  const initialMap = UnsafeCast<Map>(function.prototype_or_initial_map);
+  const obj = UnsafeCast<JSPrimitiveWrapper>(
+      AllocateFastOrSlowJSObjectFromMap(initialMap));
+  obj.value = UnsafeCast<String>(value);
+  return obj;
+}
+
+transitioning builtin StringAddConvertLeft(
+    implicit context: Context)(left: JSAny, right: String): String {
   return ToStringImpl(context, ToPrimitiveDefault(left)) + right;
 }
 
-transitioning builtin StringAddConvertRight(implicit context: Context)(
-    left: String, right: JSAny): String {
+transitioning builtin StringAddConvertRight(
+    implicit context: Context)(left: String, right: JSAny): String {
   return left + ToStringImpl(context, ToPrimitiveDefault(right));
 }
 
-builtin StringCharAt(implicit context: Context)(
-    receiver: String, position: uintptr): String {
+builtin StringCharAt(
+    implicit context: Context)(receiver: String, position: uintptr): String {
   // Load the character code at the {position} from the {receiver}.
-  const code: int32 = StringCharCodeAt(receiver, position);
+  const code: char16 = StringCharCodeAt(receiver, position);
   // And return the single character string with only that {code}
   return StringFromSingleCharCode(code);
 }
+}
+
+// Check two slices for equal content.
+// Checking from both ends simultaniously allows us to detect differences
+// quickly even when the slices share a prefix or a suffix.
+macro EqualContent<T1: type, T2: type>(
+    a: ConstSlice<T1>, b: ConstSlice<T2>): bool {
+  const length = a.length;
+  if (length != b.length) return false;
+  if (a.GCUnsafeStartPointer() == b.GCUnsafeStartPointer()) return true;
+  // This creates references to the first and last characters of the slices,
+  // which can be out-of-bounds if the slices are empty. But in this case,
+  // the references will never be accessed.
+  let aFirst = a.UncheckedAtIndex(0);
+  let bFirst = b.UncheckedAtIndex(0);
+  let aLast = a.UncheckedAtIndex(length - 1);
+  let bLast = b.UncheckedAtIndex(length - 1);
+  while (aFirst.offset <= aLast.offset) {
+    if (*aFirst != *bFirst || *aLast != *bLast) return false;
+    aFirst = unsafe::AddOffset(aFirst, 1);
+    aLast = unsafe::AddOffset(aLast, -1);
+    bFirst = unsafe::AddOffset(bFirst, 1);
+    bLast = unsafe::AddOffset(bLast, -1);
+  }
+  return true;
 }

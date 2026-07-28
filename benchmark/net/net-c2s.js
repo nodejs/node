@@ -6,11 +6,11 @@ const net = require('net');
 const PORT = common.PORT;
 
 const bench = common.createBenchmark(main, {
-  len: [64, 102400, 1024 * 1024 * 16],
+  len: [64, 102400, 1024 * 64 * 16],
   type: ['utf', 'asc', 'buf'],
   dur: [5],
 }, {
-  test: { len: 1024 }
+  test: { len: 1024 },
 });
 
 let chunk;

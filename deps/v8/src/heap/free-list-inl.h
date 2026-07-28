@@ -6,6 +6,9 @@
 #define V8_HEAP_FREE_LIST_INL_H_
 
 #include "src/heap/free-list.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/normal-page-inl.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -20,14 +23,22 @@ void FreeListCategory::UpdateCountersAfterAllocation(size_t allocation_size) {
   available_ -= allocation_size;
 }
 
-Page* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
+NormalPage* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
   FreeListCategory* category_top = top(type);
   if (category_top != nullptr) {
     DCHECK(!category_top->top().is_null());
-    return Page::FromHeapObject(category_top->top());
+    return NormalPage::FromHeapObject(category_top->top());
   } else {
     return nullptr;
   }
+}
+
+bool FreeList::IsEmpty() {
+  bool empty = true;
+  ForAllFreeListCategories([&empty](FreeListCategory* category) {
+    if (!category->is_empty()) empty = false;
+  });
+  return empty;
 }
 
 }  // namespace internal

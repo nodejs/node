@@ -7,16 +7,16 @@
 #include "src/ast/ast.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors-inl.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/processed-feedback.h"
-#include "src/objects/feedback-cell.h"
-#include "src/objects/feedback-vector.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/template-objects-inl.h"
 
@@ -43,9 +43,15 @@ JSGenericLowering::~JSGenericLowering() = default;
 
 Reduction JSGenericLowering::Reduce(Node* node) {
   switch (node->opcode()) {
-#define DECLARE_CASE(x, ...) \
-  case IrOpcode::k##x:       \
-    Lower##x(node);          \
+#define DECLARE_CASE(x, ...)                                                  \
+  case IrOpcode::k##x:                                                        \
+    if constexpr (IrOpcode::k##x == IrOpcode::kJSStackCheck) {                \
+      /* We don't want to lower stack checks so early, and we don't want to   \
+       * return `Changed` for them, otherwise we'll loop infinitely trying to \
+       * lower them. */                                                       \
+      return NoChange();                                                      \
+    }                                                                         \
+    Lower##x(node);                                                           \
     break;
     JS_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
@@ -58,11 +64,13 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 
 #define REPLACE_STUB_CALL(Name)                       \
   void JSGenericLowering::LowerJS##Name(Node* node) { \
-    ReplaceWithBuiltinCall(node, Builtins::k##Name);  \
+    ReplaceWithBuiltinCall(node, Builtin::k##Name);   \
   }
 REPLACE_STUB_CALL(ToLength)
 REPLACE_STUB_CALL(ToNumber)
 REPLACE_STUB_CALL(ToNumberConvertBigInt)
+REPLACE_STUB_CALL(ToBigInt)
+REPLACE_STUB_CALL(ToBigIntConvertNumber)
 REPLACE_STUB_CALL(ToNumeric)
 REPLACE_STUB_CALL(ToName)
 REPLACE_STUB_CALL(ToObject)
@@ -78,8 +86,7 @@ REPLACE_STUB_CALL(RejectPromise)
 REPLACE_STUB_CALL(ResolvePromise)
 #undef REPLACE_STUB_CALL
 
-void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
-                                               Builtins::Name builtin) {
+void JSGenericLowering::ReplaceWithBuiltinCall(Node* node, Builtin builtin) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = Builtins::CallableFor(isolate(), builtin);
   ReplaceWithBuiltinCall(node, callable, flags);
@@ -97,7 +104,7 @@ void JSGenericLowering::ReplaceWithBuiltinCall(
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(), flags,
       properties);
-  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
   node->InsertInput(zone(), 0, stub_code);
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
@@ -120,35 +127,17 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 }
 
 void JSGenericLowering::ReplaceUnaryOpWithBuiltinCall(
-    Node* node, Builtins::Name builtin_without_feedback,
-    Builtins::Name builtin_with_feedback) {
+    Node* node, Builtin builtin_without_feedback,
+    Builtin builtin_with_feedback) {
   DCHECK(JSOperator::IsUnaryWithFeedback(node->opcode()));
-  const FeedbackParameter& p = FeedbackParameterOf(node->op());
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Callable callable = Builtins::CallableFor(isolate(), builtin_with_feedback);
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
-    const CallInterfaceDescriptor& descriptor = callable.descriptor();
-    CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), descriptor, descriptor.GetStackParameterCount(), flags,
-        node->op()->properties());
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    STATIC_ASSERT(JSUnaryOpNode::ValueIndex() == 0);
-    STATIC_ASSERT(JSUnaryOpNode::FeedbackVectorIndex() == 1);
-    DCHECK_EQ(node->op()->ValueInputCount(), 2);
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, slot);
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    node->RemoveInput(JSUnaryOpNode::FeedbackVectorIndex());
-    ReplaceWithBuiltinCall(node, builtin_without_feedback);
-  }
+  node->RemoveInput(JSUnaryOpNode::FeedbackVectorIndex());
+  ReplaceWithBuiltinCall(node, builtin_without_feedback);
 }
 
-#define DEF_UNARY_LOWERING(Name)                                     \
-  void JSGenericLowering::LowerJS##Name(Node* node) {                \
-    ReplaceUnaryOpWithBuiltinCall(node, Builtins::k##Name,           \
-                                  Builtins::k##Name##_WithFeedback); \
+#define DEF_UNARY_LOWERING(Name)                                    \
+  void JSGenericLowering::LowerJS##Name(Node* node) {               \
+    ReplaceUnaryOpWithBuiltinCall(node, Builtin::k##Name,           \
+                                  Builtin::k##Name##_WithFeedback); \
   }
 DEF_UNARY_LOWERING(BitwiseNot)
 DEF_UNARY_LOWERING(Decrement)
@@ -157,32 +146,28 @@ DEF_UNARY_LOWERING(Negate)
 #undef DEF_UNARY_LOWERING
 
 void JSGenericLowering::ReplaceBinaryOpWithBuiltinCall(
-    Node* node, Builtins::Name builtin_without_feedback,
-    Builtins::Name builtin_with_feedback) {
-  DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()));
-  Builtins::Name builtin_id;
-  const FeedbackParameter& p = FeedbackParameterOf(node->op());
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
-    STATIC_ASSERT(JSBinaryOpNode::LeftIndex() == 0);
-    STATIC_ASSERT(JSBinaryOpNode::RightIndex() == 1);
-    STATIC_ASSERT(JSBinaryOpNode::FeedbackVectorIndex() == 2);
-    DCHECK_EQ(node->op()->ValueInputCount(), 3);
-    node->InsertInput(zone(), 2, slot);
-    builtin_id = builtin_with_feedback;
-  } else {
+    Node* node, Builtin builtin_without_feedback,
+    Builtin builtin_with_feedback) {
+  DCHECK(JSOperator::IsBinaryWithFeedback(node->opcode()) ||
+         (JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode())));
+  if (JSOperator::IsBinaryWithFeedback(node->opcode())) {
     node->RemoveInput(JSBinaryOpNode::FeedbackVectorIndex());
-    builtin_id = builtin_without_feedback;
   }
-
-  ReplaceWithBuiltinCall(node, builtin_id);
+  ReplaceWithBuiltinCall(node, builtin_without_feedback);
 }
 
-#define DEF_BINARY_LOWERING(Name)                                     \
-  void JSGenericLowering::LowerJS##Name(Node* node) {                 \
-    ReplaceBinaryOpWithBuiltinCall(node, Builtins::k##Name,           \
-                                   Builtins::k##Name##_WithFeedback); \
+#define DEF_BINARY_LOWERING(Name)                                    \
+  void JSGenericLowering::LowerJS##Name(Node* node) {                \
+    ReplaceBinaryOpWithBuiltinCall(node, Builtin::k##Name,           \
+                                   Builtin::k##Name##_WithFeedback); \
   }
+
+#define DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(Name)                     \
+  void JSGenericLowering::LowerJS##Name(Node* node) {                        \
+    ReplaceBinaryOpWithBuiltinCall(node, Builtin::k##Name,                   \
+                                   Builtin::k##Name##_WithEmbeddedFeedback); \
+  }
+
 // Binary ops.
 DEF_BINARY_LOWERING(Add)
 DEF_BINARY_LOWERING(BitwiseAnd)
@@ -197,12 +182,12 @@ DEF_BINARY_LOWERING(ShiftRight)
 DEF_BINARY_LOWERING(ShiftRightLogical)
 DEF_BINARY_LOWERING(Subtract)
 // Compare ops.
-DEF_BINARY_LOWERING(Equal)
-DEF_BINARY_LOWERING(GreaterThan)
-DEF_BINARY_LOWERING(GreaterThanOrEqual)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(Equal)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(GreaterThan)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(GreaterThanOrEqual)
 DEF_BINARY_LOWERING(InstanceOf)
-DEF_BINARY_LOWERING(LessThan)
-DEF_BINARY_LOWERING(LessThanOrEqual)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThan)
+DEF_BINARY_WITH_EMBEDDED_FEEDBACK_LOWERING(LessThanOrEqual)
 #undef DEF_BINARY_LOWERING
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
@@ -211,30 +196,21 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
   DCHECK_EQ(node->op()->ControlInputCount(), 1);
   node->RemoveInput(NodeProperties::FirstControlIndex(node));
 
-  Builtins::Name builtin_id;
-  const FeedbackParameter& p = FeedbackParameterOf(node->op());
-  if (CollectFeedbackInGenericLowering() && p.feedback().IsValid()) {
-    Node* slot = jsgraph()->UintPtrConstant(p.feedback().slot.ToInt());
-    STATIC_ASSERT(JSStrictEqualNode::LeftIndex() == 0);
-    STATIC_ASSERT(JSStrictEqualNode::RightIndex() == 1);
-    STATIC_ASSERT(JSStrictEqualNode::FeedbackVectorIndex() == 2);
-    DCHECK_EQ(node->op()->ValueInputCount(), 3);
-    node->InsertInput(zone(), 2, slot);
-    builtin_id = Builtins::kStrictEqual_WithFeedback;
-  } else {
-    node->RemoveInput(JSStrictEqualNode::FeedbackVectorIndex());
-    builtin_id = Builtins::kStrictEqual;
-  }
-
-  Callable callable = Builtins::CallableFor(isolate(), builtin_id);
+  Callable callable = Builtins::CallableFor(isolate(), Builtin::kStrictEqual);
   ReplaceWithBuiltinCall(node, callable, CallDescriptor::kNoFlags,
                          Operator::kEliminatable);
 }
 
 namespace {
-bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
-                                     JSHeapBroker* broker) {
-  ProcessedFeedback const& feedback = broker->GetFeedback(source);
+
+// The megamorphic load/store builtin can be used as a performance optimization
+// in some cases - unlike the full builtin, the megamorphic builtin does fewer
+// checks and does not collect feedback.
+bool ShouldUseMegamorphicAccessBuiltin(FeedbackSource const& source,
+                                       OptionalNameRef name, AccessMode mode,
+                                       JSHeapBroker* broker) {
+  ProcessedFeedback const& feedback =
+      broker->GetFeedbackForPropertyAccess(source, mode, name);
 
   if (feedback.kind() == ProcessedFeedback::kElementAccess) {
     return feedback.AsElementAccess().transition_groups().empty();
@@ -245,19 +221,27 @@ bool ShouldUseMegamorphicLoadBuiltin(FeedbackSource const& source,
   }
   UNREACHABLE();
 }
+
 }  // namespace
+
+void JSGenericLowering::LowerJSDetachContextCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSDetachContextCell, node->opcode());
+  int index = OpParameter<int>(node->op());
+  node->ReplaceInput(2, jsgraph()->IntPtrConstant(index));
+  ReplaceWithBuiltinCall(node, Builtin::kDetachContextCell);
+}
 
 void JSGenericLowering::LowerJSHasProperty(Node* node) {
   JSHasPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   if (!p.feedback().IsValid()) {
     node->RemoveInput(JSHasPropertyNode::FeedbackVectorIndex());
-    ReplaceWithBuiltinCall(node, Builtins::kHasProperty);
+    ReplaceWithBuiltinCall(node, Builtin::kHasProperty);
   } else {
-    STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
+    static_assert(n.FeedbackVectorIndex() == 2);
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtins::kKeyedHasIC);
+    ReplaceWithBuiltinCall(node, Builtin::kKeyedHasIC);
   }
 }
 
@@ -265,23 +249,25 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   JSLoadPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();
-  FrameState outer_state = frame_state.outer_frame_state();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 2);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
-                  ? Builtins::kKeyedLoadICTrampoline_Megamorphic
-                  : Builtins::kKeyedLoadICTrampoline);
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kLoad, broker())
+                  ? Builtin::kKeyedLoadICTrampoline_Megamorphic
+                  : Builtin::kKeyedLoadICTrampoline);
   } else {
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
-                  ? Builtins::kKeyedLoadIC_Megamorphic
-                  : Builtins::kKeyedLoadIC);
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kLoad, broker())
+                  ? Builtin::kKeyedLoadIC_Megamorphic
+                  : Builtin::kKeyedLoadIC);
   }
 }
 
@@ -289,37 +275,59 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   JSLoadNamedNode n(node);
   NamedAccess const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
-  FrameState outer_state = frame_state.outer_frame_state();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 1);
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 1);
   if (!p.feedback().IsValid()) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-    ReplaceWithBuiltinCall(node, Builtins::kGetProperty);
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
+    ReplaceWithBuiltinCall(node, Builtin::kGetProperty);
   } else if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
-                  ? Builtins::kLoadICTrampoline_Megamorphic
-                  : Builtins::kLoadICTrampoline);
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), p.name(),
+                                                AccessMode::kLoad, broker())
+                  ? Builtin::kLoadICTrampoline_Megamorphic
+                  : Builtin::kLoadICTrampoline);
   } else {
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
-        node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
-                  ? Builtins::kLoadIC_Megamorphic
-                  : Builtins::kLoadIC);
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), p.name(),
+                                                AccessMode::kLoad, broker())
+                  ? Builtin::kLoadIC_Megamorphic
+                  : Builtin::kLoadIC);
   }
 }
 
 void JSGenericLowering::LowerJSLoadNamedFromSuper(Node* node) {
   JSLoadNamedFromSuperNode n(node);
   NamedAccess const& p = n.Parameters();
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.name()));
-  ReplaceWithRuntimeCall(node, Runtime::kLoadFromSuper);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  // Node inputs: receiver, home object, FeedbackVector.
+  // LoadSuperIC expects: receiver, lookup start object, name, slot,
+  // FeedbackVector.
+  Node* home_object_map = effect = graph()->NewNode(
+      jsgraph()->simplified()->LoadField(AccessBuilder::ForMap()),
+      n.home_object(), effect, control);
+  Node* home_object_proto = effect = graph()->NewNode(
+      jsgraph()->simplified()->LoadField(AccessBuilder::ForMapPrototype()),
+      home_object_map, effect, control);
+  n->ReplaceInput(n.HomeObjectIndex(), home_object_proto);
+  NodeProperties::ReplaceEffectInput(node, effect);
+  static_assert(n.FeedbackVectorIndex() == 2);
+  // If the code below will be used for the invalid feedback case, it needs to
+  // be double-checked that the FeedbackVector parameter will be the
+  // UndefinedConstant.
+  DCHECK(p.feedback().IsValid());
+  node->InsertInput(zone(), 2, jsgraph()->ConstantNoHole(p.name(), broker()));
+  node->InsertInput(zone(), 3,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
+  ReplaceWithBuiltinCall(node, Builtin::kLoadSuperIC);
 }
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
@@ -327,17 +335,17 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   const LoadGlobalParameters& p = n.Parameters();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   FrameState frame_state = n.frame_state();
-  FrameState outer_state = frame_state.outer_frame_state();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 0);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 1,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     Callable callable = CodeFactory::LoadGlobalIC(isolate(), p.typeof_mode());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 1,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
     Callable callable =
@@ -363,74 +371,119 @@ void JSGenericLowering::LowerJSGetIterator(Node* node) {
       jsgraph()->TaggedIndexConstant(p.loadFeedback().slot.ToInt());
   Node* call_slot =
       jsgraph()->TaggedIndexConstant(p.callFeedback().slot.ToInt());
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 1);
+  static_assert(n.FeedbackVectorIndex() == 1);
   node->InsertInput(zone(), 1, load_slot);
   node->InsertInput(zone(), 2, call_slot);
 
-  ReplaceWithBuiltinCall(node, Builtins::kGetIteratorWithFeedback);
+  ReplaceWithBuiltinCall(node, Builtin::kGetIteratorWithFeedback);
 }
 
-void JSGenericLowering::LowerJSStoreProperty(Node* node) {
-  JSStorePropertyNode n(node);
+void JSGenericLowering::LowerJSSetKeyedProperty(Node* node) {
+  JSSetKeyedPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();
-  FrameState outer_state = frame_state.outer_frame_state();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 3);
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 3);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtins::kKeyedStoreICTrampoline);
+
+    // KeyedStoreIC is currently a base class for multiple keyed property store
+    // operations and contains mixed logic for set and define operations,
+    // the paths are controlled by feedback.
+    // TODO(v8:12548): refactor SetKeyedIC as a subclass of KeyedStoreIC, which
+    // can be called here.
+    ReplaceWithBuiltinCall(
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kStore, broker())
+                  ? Builtin::kKeyedStoreICTrampoline_Megamorphic
+                  : Builtin::kKeyedStoreICTrampoline);
   } else {
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtins::kKeyedStoreIC);
+    ReplaceWithBuiltinCall(
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kStore, broker())
+                  ? Builtin::kKeyedStoreIC_Megamorphic
+                  : Builtin::kKeyedStoreIC);
   }
 }
 
-void JSGenericLowering::LowerJSStoreNamed(Node* node) {
-  JSStoreNamedNode n(node);
+void JSGenericLowering::LowerJSDefineKeyedOwnProperty(Node* node) {
+  JSDefineKeyedOwnPropertyNode n(node);
+  const PropertyAccess& p = n.Parameters();
+  FrameState frame_state = n.frame_state();
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 4);
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
+    n->RemoveInput(n.FeedbackVectorIndex());
+    node->InsertInput(zone(), 4,
+                      jsgraph()->TaggedIndexConstant(p.feedback().index()));
+    ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnICTrampoline);
+  } else {
+    node->InsertInput(zone(), 4,
+                      jsgraph()->TaggedIndexConstant(p.feedback().index()));
+    ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnIC);
+  }
+}
+
+void JSGenericLowering::LowerJSSetNamedProperty(Node* node) {
+  JSSetNamedPropertyNode n(node);
   NamedAccess const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
-  FrameState outer_state = frame_state.outer_frame_state();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 2);
   if (!p.feedback().IsValid()) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     ReplaceWithRuntimeCall(node, Runtime::kSetNamedProperty);
   } else if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtins::kStoreICTrampoline);
+    // StoreIC is currently a base class for multiple property store operations
+    // and contains mixed logic for named and keyed, set and define operations,
+    // the paths are controlled by feedback.
+    // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can
+    // be called here.
+    ReplaceWithBuiltinCall(
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kStore, broker())
+                  ? Builtin::kStoreICTrampoline_Megamorphic
+                  : Builtin::kStoreICTrampoline);
   } else {
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtins::kStoreIC);
+    ReplaceWithBuiltinCall(
+        node, ShouldUseMegamorphicAccessBuiltin(p.feedback(), {},
+                                                AccessMode::kStore, broker())
+                  ? Builtin::kStoreIC_Megamorphic
+                  : Builtin::kStoreIC);
   }
 }
 
-void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
-  JSStoreNamedOwnNode n(node);
+void JSGenericLowering::LowerJSDefineNamedOwnProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  StoreNamedOwnParameters const& p = n.Parameters();
+  JSDefineNamedOwnPropertyNode n(node);
+  DefineNamedOwnPropertyParameters const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
-  FrameState outer_state = frame_state.outer_frame_state();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 2);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::StoreOwnIC(isolate());
+    Callable callable = CodeFactory::DefineNamedOwnIC(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+    Callable callable = CodeFactory::DefineNamedOwnICInOptimizedCode(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   }
 }
@@ -439,48 +492,67 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   JSStoreGlobalNode n(node);
   const StoreGlobalParameters& p = n.Parameters();
   FrameState frame_state = n.frame_state();
-  FrameState outer_state = frame_state.outer_frame_state();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 1);
+  Node* outer_state = frame_state.outer_frame_state();
+  static_assert(n.FeedbackVectorIndex() == 1);
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtins::kStoreGlobalICTrampoline);
+    ReplaceWithBuiltinCall(node, Builtin::kStoreGlobalICTrampoline);
   } else {
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
+    node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(p.name(), broker()));
     node->InsertInput(zone(), 2,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtins::kStoreGlobalIC);
+    ReplaceWithBuiltinCall(node, Builtin::kStoreGlobalIC);
   }
 }
 
-void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
-  JSStoreDataPropertyInLiteralNode n(node);
+void JSGenericLowering::LowerJSDefineKeyedOwnPropertyInLiteral(Node* node) {
+  JSDefineKeyedOwnPropertyInLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 4);
+  static_assert(n.FeedbackVectorIndex() == 4);
   RelaxControls(node);
   node->InsertInput(zone(), 5,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  ReplaceWithRuntimeCall(node, Runtime::kDefineDataPropertyInLiteral);
+  ReplaceWithRuntimeCall(node, Runtime::kDefineKeyedOwnPropertyInLiteral);
 }
 
 void JSGenericLowering::LowerJSStoreInArrayLiteral(Node* node) {
   JSStoreInArrayLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 3);
+  static_assert(n.FeedbackVectorIndex() == 3);
   RelaxControls(node);
   node->InsertInput(zone(), 3,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  ReplaceWithBuiltinCall(node, Builtins::kStoreInArrayLiteralIC);
+  ReplaceWithBuiltinCall(node, Builtin::kStoreInArrayLiteralIC);
 }
 
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kDeleteProperty);
+  ReplaceWithBuiltinCall(node, Builtin::kDeleteProperty);
 }
 
 void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kGetSuperConstructor);
+  Node* active_function = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  Node* function_map = effect = graph()->NewNode(
+      jsgraph()->simplified()->LoadField(AccessBuilder::ForMap()),
+      active_function, effect, control);
+
+  RelaxControls(node);
+  node->ReplaceInput(0, function_map);
+  node->ReplaceInput(1, effect);
+  node->ReplaceInput(2, control);
+  node->TrimInputCount(3);
+  NodeProperties::ChangeOp(node, jsgraph()->simplified()->LoadField(
+                                     AccessBuilder::ForMapPrototype()));
+}
+
+void JSGenericLowering::LowerJSFindNonDefaultConstructorOrConstruct(
+    Node* node) {
+  ReplaceWithBuiltinCall(node, Builtin::kFindNonDefaultConstructorOrConstruct);
 }
 
 void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {
@@ -488,10 +560,14 @@ void JSGenericLowering::LowerJSHasInPrototypeChain(Node* node) {
 }
 
 void JSGenericLowering::LowerJSOrdinaryHasInstance(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kOrdinaryHasInstance);
+  ReplaceWithBuiltinCall(node, Builtin::kOrdinaryHasInstance);
 }
 
 void JSGenericLowering::LowerJSHasContextExtension(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
+void JSGenericLowering::LowerJSLoadContextNoCell(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
@@ -499,14 +575,16 @@ void JSGenericLowering::LowerJSLoadContext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-
-void JSGenericLowering::LowerJSStoreContext(Node* node) {
+void JSGenericLowering::LowerJSStoreContextNoCell(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+void JSGenericLowering::LowerJSStoreContext(Node* node) {
+  UNREACHABLE();  // Eliminated in context specialization.
+}
 
 void JSGenericLowering::LowerJSCreate(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kFastNewObject);
+  ReplaceWithBuiltinCall(node, Builtin::kFastNewObject);
 }
 
 
@@ -538,13 +616,11 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   // between top of stack and JS arguments.
   DCHECK_EQ(interface_descriptor.GetStackParameterCount(), 0);
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
-  Node* stub_arity = jsgraph()->Int32Constant(arity);
-  MaybeHandle<AllocationSite> const maybe_site = p.site();
-  Handle<AllocationSite> site;
-  DCHECK_IMPLIES(broker()->is_native_context_independent(),
-                 maybe_site.is_null());
-  Node* type_info = maybe_site.ToHandle(&site) ? jsgraph()->HeapConstant(site)
-                                               : jsgraph()->UndefinedConstant();
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arity));
+  OptionalAllocationSiteRef const site = p.site();
+  Node* type_info = site.has_value()
+                        ? jsgraph()->ConstantNoHole(site.value(), broker())
+                        : jsgraph()->UndefinedConstant();
   Node* receiver = jsgraph()->UndefinedConstant();
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 3, stub_arity);
@@ -574,28 +650,33 @@ void JSGenericLowering::LowerJSObjectIsArray(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateObject(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kCreateObjectWithoutProperties);
+  ReplaceWithBuiltinCall(node, Builtin::kCreateObjectWithoutProperties);
+}
+
+void JSGenericLowering::LowerJSCreateStringWrapper(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSParseInt(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kParseInt);
+  ReplaceWithBuiltinCall(node, Builtin::kParseInt);
 }
 
 void JSGenericLowering::LowerJSRegExpTest(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kRegExpPrototypeTestFast);
+  ReplaceWithBuiltinCall(node, Builtin::kRegExpPrototypeTestFast);
 }
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   JSCreateClosureNode n(node);
   CreateClosureParameters const& p = n.Parameters();
-  Handle<SharedFunctionInfo> const shared_info = p.shared_info();
-  STATIC_ASSERT(n.FeedbackCellIndex() == 0);
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
+  SharedFunctionInfoRef shared_info = p.shared_info();
+  static_assert(n.FeedbackCellIndex() == 0);
+  node->InsertInput(zone(), 0,
+                    jsgraph()->ConstantNoHole(shared_info, broker()));
   node->RemoveInput(4);  // control
 
   // Use the FastNewClosure builtin only for functions allocated in new space.
   if (p.allocation() == AllocationType::kYoung) {
-    ReplaceWithBuiltinCall(node, Builtins::kFastNewClosure);
+    ReplaceWithBuiltinCall(node, Builtin::kFastNewClosure);
   } else {
     ReplaceWithRuntimeCall(node, Runtime::kNewClosure_Tenured);
   }
@@ -604,7 +685,7 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
-  Handle<ScopeInfo> scope_info = parameters.scope_info();
+  ScopeInfoRef scope_info = parameters.scope_info();
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
@@ -612,22 +693,24 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
     Callable callable =
         CodeFactory::FastNewFunctionContext(isolate(), scope_type);
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
+    node->InsertInput(zone(), 0,
+                      jsgraph()->ConstantNoHole(scope_info, broker()));
     node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
+    node->InsertInput(zone(), 0,
+                      jsgraph()->ConstantNoHole(scope_info, broker()));
     ReplaceWithRuntimeCall(node, Runtime::kNewFunctionContext);
   }
 }
 
 void JSGenericLowering::LowerJSCreateGeneratorObject(Node* node) {
   node->RemoveInput(4);  // control
-  ReplaceWithBuiltinCall(node, Builtins::kCreateGeneratorObject);
+  ReplaceWithBuiltinCall(node, Builtin::kCreateGeneratorObject);
 }
 
 void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kCreateIterResultObject);
+  ReplaceWithBuiltinCall(node, Builtin::kCreateIterResultObject);
 }
 
 void JSGenericLowering::LowerJSCreateStringIterator(Node* node) {
@@ -643,67 +726,88 @@ void JSGenericLowering::LowerJSCreatePromise(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateTypedArray(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kCreateTypedArray);
+  ReplaceWithBuiltinCall(node, Builtin::kCreateTypedArray);
 }
 
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   JSCreateLiteralArrayNode n(node);
   CreateLiteralParameters const& p = n.Parameters();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
+  static_assert(n.FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 1,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->ConstantNoHole(p.constant(), broker()));
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
   // Use the CreateShallowArrayLiteral builtin only for shallow boilerplates
   // without properties up to the number of elements that the stubs can handle.
   if ((p.flags() & AggregateLiteral::kIsShallow) != 0 &&
       p.length() < ConstructorBuiltins::kMaximumClonedShallowArrayElements) {
-    ReplaceWithBuiltinCall(node, Builtins::kCreateShallowArrayLiteral);
+    ReplaceWithBuiltinCall(node, Builtin::kCreateShallowArrayLiteral);
   } else {
-    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
-    ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
+    ReplaceWithBuiltinCall(node, Builtin::kCreateArrayFromSlowBoilerplate);
   }
 }
 
 void JSGenericLowering::LowerJSGetTemplateObject(Node* node) {
   JSGetTemplateObjectNode n(node);
   GetTemplateObjectParameters const& p = n.Parameters();
-  SharedFunctionInfoRef shared(broker(), p.shared());
-  TemplateObjectDescriptionRef description(broker(), p.description());
+  SharedFunctionInfoRef shared = p.shared();
+  TemplateObjectDescriptionRef description = p.description();
 
   DCHECK_EQ(node->op()->ControlInputCount(), 1);
   node->RemoveInput(NodeProperties::FirstControlIndex(node));
 
-  STATIC_ASSERT(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
-  node->InsertInput(zone(), 0, jsgraph()->Constant(shared));
-  node->InsertInput(zone(), 1, jsgraph()->Constant(description));
+  static_assert(JSGetTemplateObjectNode::FeedbackVectorIndex() == 0);
+  node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(shared, broker()));
+  node->InsertInput(zone(), 1,
+                    jsgraph()->ConstantNoHole(description, broker()));
   node->InsertInput(zone(), 2,
                     jsgraph()->UintPtrConstant(p.feedback().index()));
 
-  ReplaceWithBuiltinCall(node, Builtins::kGetTemplateObject);
+  ReplaceWithBuiltinCall(node, Builtin::kGetTemplateObject);
 }
 
 void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
   JSCreateEmptyLiteralArrayNode n(node);
   FeedbackParameter const& p = n.Parameters();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
+  static_assert(n.FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 1,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
   node->RemoveInput(4);  // control
-  ReplaceWithBuiltinCall(node, Builtins::kCreateEmptyArrayLiteral);
+  ReplaceWithBuiltinCall(node, Builtin::kCreateEmptyArrayLiteral);
 }
 
 void JSGenericLowering::LowerJSCreateArrayFromIterable(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kIterableToListWithSymbolLookup);
+  ReplaceWithBuiltinCall(node, Builtin::kIterableToListWithSymbolLookup);
+}
+
+void JSGenericLowering::LowerJSSetPrototypeProperties(Node* node) {
+  SetPrototypePropertiesParameters const& p =
+      SetPrototypePropertiesParametersOf(node->op());
+  Node* boilerplate_desc = jsgraph()->HeapConstantNoHole(p.constant.object());
+  Node* feedback_array =
+      jsgraph()->HeapConstantNoHole(broker()->CanonicalPersistentHandle(
+          p.source.vector->closure_feedback_cell_array()));
+  Node* slot = jsgraph()->SmiConstant(p.source.index());
+
+  // Shuffling inputs.
+  // Before (from BytecodeGraphBuilder): {acc}
+  node->InsertInput(zone(), 1, boilerplate_desc);
+  node->InsertInput(zone(), 2, feedback_array);
+  node->InsertInput(zone(), 3, slot);
+  // After: {acc, boileplate, feedback_array, slot_idx}
+  ReplaceWithRuntimeCall(node, Runtime::kSetPrototypeProperties);
 }
 
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   JSCreateLiteralObjectNode n(node);
   CreateLiteralParameters const& p = n.Parameters();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
+  static_assert(n.FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 1,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->ConstantNoHole(p.constant(), broker()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
   // Use the CreateShallowObjectLiteratal builtin only for shallow boilerplates
@@ -711,72 +815,56 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   if ((p.flags() & AggregateLiteral::kIsShallow) != 0 &&
       p.length() <=
           ConstructorBuiltins::kMaximumClonedShallowObjectProperties) {
-    ReplaceWithBuiltinCall(node, Builtins::kCreateShallowObjectLiteral);
+    ReplaceWithBuiltinCall(node, Builtin::kCreateShallowObjectLiteral);
   } else {
-    ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+    ReplaceWithBuiltinCall(node, Builtin::kCreateObjectFromSlowBoilerplate);
   }
 }
 
 void JSGenericLowering::LowerJSCloneObject(Node* node) {
   JSCloneObjectNode n(node);
   CloneObjectParameters const& p = n.Parameters();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 1);
+  static_assert(n.FeedbackVectorIndex() == 1);
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.flags()));
   node->InsertInput(zone(), 2,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  ReplaceWithBuiltinCall(node, Builtins::kCloneObjectIC);
+  ReplaceWithBuiltinCall(node, Builtin::kCloneObjectIC);
 }
 
 void JSGenericLowering::LowerJSCreateEmptyLiteralObject(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kCreateEmptyLiteralObject);
+  ReplaceWithBuiltinCall(node, Builtin::kCreateEmptyLiteralObject);
 }
 
 void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
   JSCreateLiteralRegExpNode n(node);
   CreateLiteralParameters const& p = n.Parameters();
-  STATIC_ASSERT(n.FeedbackVectorIndex() == 0);
+  static_assert(n.FeedbackVectorIndex() == 0);
   node->InsertInput(zone(), 1,
                     jsgraph()->TaggedIndexConstant(p.feedback().index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->ConstantNoHole(p.constant(), broker()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
-  ReplaceWithBuiltinCall(node, Builtins::kCreateRegExpLiteral);
+  ReplaceWithBuiltinCall(node, Builtin::kCreateRegExpLiteral);
 }
 
 
 void JSGenericLowering::LowerJSCreateCatchContext(Node* node) {
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ScopeInfoRef scope_info = ScopeInfoOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(scope_info, broker()));
   ReplaceWithRuntimeCall(node, Runtime::kPushCatchContext);
 }
 
 void JSGenericLowering::LowerJSCreateWithContext(Node* node) {
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(scope_info));
+  ScopeInfoRef scope_info = ScopeInfoOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->ConstantNoHole(scope_info, broker()));
   ReplaceWithRuntimeCall(node, Runtime::kPushWithContext);
 }
 
 void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
+  ScopeInfoRef scope_info = ScopeInfoOf(node->op());
+  node->InsertInput(zone(), 0, jsgraph()->ConstantNoHole(scope_info, broker()));
   ReplaceWithRuntimeCall(node, Runtime::kPushBlockContext);
 }
-
-namespace {
-
-bool CollectCallAndConstructFeedback(JSHeapBroker* broker) {
-  // Call and construct feedback is a special case. Besides shape feedback, we
-  // also increment the call count, which is later used to make inlining
-  // decisions.  The call count is only comparable/reliable if it is incremented
-  // for all calls inside a function. This is not the case in default turbofan
-  // mode, in which many calls may be inlined and will thus never reach generic
-  // lowering (where we insert the feedback-collecting builtin call).
-  // Therefore it should only be collected in native context independent code,
-  // where we 1. know every call will reach generic lowering, and 2. we must
-  // collect full feedback to properly tier up later.
-  return broker->is_native_context_independent();
-}
-
-}  // namespace
 
 // TODO(jgruber,v8:8888): Should this collect feedback?
 void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
@@ -791,14 +879,41 @@ void JSGenericLowering::LowerJSConstructForwardVarargs(Node* node) {
   DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), arg_count + 1, flags);
-  Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
   Node* start_index = jsgraph()->Uint32Constant(p.start_index());
   Node* receiver = jsgraph()->UndefinedConstant();
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 3, stub_arity);
   node->InsertInput(zone(), 4, start_index);
   node->InsertInput(zone(), 5, receiver);
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+}
+
+void JSGenericLowering::LowerJSConstructForwardAllArgs(Node* node) {
+  // Inlined JSConstructForwardAllArgs are reduced earlier in the pipeline in
+  // JSCallReducer.
+  DCHECK(FrameState{NodeProperties::GetFrameStateInput(node)}
+             .outer_frame_state()
+             ->opcode() != IrOpcode::kFrameState);
+
+  JSConstructForwardAllArgsNode n(node);
+
+  // Call a builtin for forwarding the arguments of non-inlined (i.e. outermost)
+  // frames.
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kConstructForwardAllArgs);
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), 0, CallDescriptor::kNeedsFrameState);
+
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+
+  // Shuffling inputs.
+  // Before: {target, new target, feedback vector}
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  // After: {code, target, new target}
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
@@ -809,65 +924,22 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
   static constexpr int kReceiver = 1;
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count + kReceiver + kMaybeFeedbackVector;
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kConstruct_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
-    Node* receiver = jsgraph()->UndefinedConstant();
-#ifdef V8_REVERSE_JSARGS
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-#endif
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
-    node->InsertInput(zone(), 5, feedback_vector);
-    node->InsertInput(zone(), 6, receiver);
-    // After: {code, target, new_target, arity, slot, vector, receiver,
-    // ...args}.
-#else
-    node->InsertInput(zone(), 5, receiver);
-    // After: {code, target, new_target, arity, slot, receiver, ...args,
-    // vector}.
-#endif
+  const int stack_argument_count = arg_count + kReceiver;
+  Callable callable = Builtins::CallableFor(isolate(), Builtin::kConstruct);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
+  Node* receiver = jsgraph()->UndefinedConstant();
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 3, stub_arity);
+  node->InsertInput(zone(), 4, receiver);
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count + kReceiver;
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kConstruct);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, receiver);
+  // After: {code, target, new_target, arity, receiver, ...args}.
 
-    // After: {code, target, new_target, arity, receiver, ...args}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
@@ -879,66 +951,25 @@ void JSGenericLowering::LowerJSConstructWithArrayLike(Node* node) {
 
   static constexpr int kReceiver = 1;
   static constexpr int kArgumentList = 1;
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count - kArgumentList + kReceiver + kMaybeFeedbackVector;
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtins::kConstructWithArrayLike_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = jsgraph()->UndefinedConstant();
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
-#ifdef V8_REVERSE_JSARGS
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-#endif
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
-    node->InsertInput(zone(), 5, feedback_vector);
-    node->InsertInput(zone(), 6, receiver);
-    // After: {code, target, new_target, arguments_list, slot, vector,
-    // receiver}.
-#else
-    node->InsertInput(zone(), 5, receiver);
-    // After: {code, target, new_target, arguments_list, slot, receiver,
-    // vector}.
-#endif
+  const int stack_argument_count = arg_count - kArgumentList + kReceiver;
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kConstructWithArrayLike);
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+  Node* receiver = jsgraph()->UndefinedConstant();
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 4, receiver);
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count - kArgumentList + kReceiver;
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kConstructWithArrayLike);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = jsgraph()->UndefinedConstant();
-    node->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 4, receiver);
+  // After: {code, target, new_target, arguments_list, receiver}.
 
-    // After: {code, target, new_target, arguments_list, receiver}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
@@ -950,84 +981,35 @@ void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
 
   static constexpr int kReceiver = 1;
   static constexpr int kTheSpread = 1;  // Included in `arg_count`.
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count + kReceiver + kMaybeFeedbackVector;
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtins::kConstructWithSpread_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kTheSpread + kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+  const int stack_argument_count = arg_count + kReceiver - kTheSpread;
+  Callable callable = CodeFactory::ConstructWithSpread(isolate());
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
 
-    // The single available register is needed for `slot`, thus `spread` remains
-    // on the stack here.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
-    Node* receiver = jsgraph()->UndefinedConstant();
-#ifdef V8_REVERSE_JSARGS
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
-#endif
+  // We pass the spread in a register, not on the stack.
+  Node* stub_arity =
+      jsgraph()->Int32Constant(JSParameterCount(arg_count - kTheSpread));
+  Node* receiver = jsgraph()->UndefinedConstant();
+  DCHECK(n.FeedbackVectorIndex() > n.LastArgumentIndex());
+  node->RemoveInput(n.FeedbackVectorIndex());
+  Node* spread = node->RemoveInput(n.LastArgumentIndex());
 
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
-    node->InsertInput(zone(), 5, spread);
-    node->InsertInput(zone(), 6, feedback_vector);
-    node->InsertInput(zone(), 7, receiver);
-    // After: {code, target, new_target, arity, slot, spread, vector, receiver,
-    // ...args}.
-#else
-    node->InsertInput(zone(), 5, receiver);
-    // After: {code, target, new_target, arity, slot, receiver, ...args, spread,
-    // vector}.
-#endif
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 3, stub_arity);
+  node->InsertInput(zone(), 4, spread);
+  node->InsertInput(zone(), 5, receiver);
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count + kReceiver - kTheSpread;
-    Callable callable = CodeFactory::ConstructWithSpread(isolate());
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  // After: {code, target, new_target, arity, spread, receiver, ...args}.
 
-    // We pass the spread in a register, not on the stack.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
-    Node* receiver = jsgraph()->UndefinedConstant();
-    DCHECK(n.FeedbackVectorIndex() > n.LastArgumentIndex());
-    node->RemoveInput(n.FeedbackVectorIndex());
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
-
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, stub_arity);
-    node->InsertInput(zone(), 4, spread);
-    node->InsertInput(zone(), 5, receiver);
-
-    // After: {code, target, new_target, arity, spread, receiver, ...args}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
-// TODO(jgruber,v8:8888): Should this collect feedback?
 void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
@@ -1035,8 +1017,8 @@ void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   Callable callable = CodeFactory::CallForwardVarargs(isolate());
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), callable.descriptor(), arg_count + 1, flags);
-  Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
   Node* start_index = jsgraph()->Uint32Constant(p.start_index());
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 2, stub_arity);
@@ -1050,34 +1032,17 @@ void JSGenericLowering::LowerJSCall(Node* node) {
   int const arg_count = p.arity_without_implicit_args();
   ConvertReceiverMode const mode = p.convert_mode();
 
-  Node* feedback_vector = n.feedback_vector();
   node->RemoveInput(n.FeedbackVectorIndex());
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    Callable callable = CodeFactory::Call_WithFeedback(isolate(), mode);
-    CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), arg_count + 1, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    node->InsertInput(zone(), 3, slot);
-    node->InsertInput(zone(), 4, feedback_vector);
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    Callable callable = CodeFactory::Call(isolate(), mode);
-    CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), arg_count + 1, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count);
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  Callable callable = CodeFactory::Call(isolate(), mode);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), arg_count + 1, flags);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(JSParameterCount(arg_count));
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 2, stub_arity);
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
@@ -1090,55 +1055,25 @@ void JSGenericLowering::LowerJSCallWithArrayLike(Node* node) {
   static constexpr int kArgumentsList = 1;
   static constexpr int kReceiver = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtins::kCallWithArrayLike_WithFeedback);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = n.receiver();
-    Node* arguments_list = n.Argument(0);
-    Node* feedback_vector = n.feedback_vector();
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+  const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
+  Callable callable = CodeFactory::CallWithArrayLike(isolate());
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+  Node* receiver = n.receiver();
+  Node* arguments_list = n.Argument(0);
 
-    // Shuffling inputs.
-    // Before: {target, receiver, arguments_list, vector}.
+  // Shuffling inputs.
+  // Before: {target, receiver, arguments_list, vector}.
 
-    node->ReplaceInput(1, arguments_list);
-    node->ReplaceInput(2, feedback_vector);
-    node->ReplaceInput(3, receiver);
+  node->RemoveInput(n.FeedbackVectorIndex());
+  node->InsertInput(zone(), 0, stub_code);
+  node->ReplaceInput(2, arguments_list);
+  node->ReplaceInput(3, receiver);
 
-    // Now: {target, arguments_list, vector, receiver}.
+  // After: {code, target, arguments_list, receiver}.
 
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 3, slot);
-
-    // After: {code, target, arguments_list, slot, vector, receiver}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count - kArgumentsList + kReceiver;
-    Callable callable = CodeFactory::CallWithArrayLike(isolate());
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* receiver = n.receiver();
-    Node* arguments_list = n.Argument(0);
-
-    // Shuffling inputs.
-    // Before: {target, receiver, arguments_list, vector}.
-
-    node->RemoveInput(n.FeedbackVectorIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->ReplaceInput(2, arguments_list);
-    node->ReplaceInput(3, receiver);
-
-    // After: {code, target, arguments_list, receiver}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
@@ -1150,79 +1085,34 @@ void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
 
   static constexpr int kReceiver = 1;
   static constexpr int kTheSpread = 1;
-  static constexpr int kMaybeFeedbackVector = 1;
 
-  if (CollectFeedbackInGenericLowering() &&
-      CollectCallAndConstructFeedback(broker()) && p.feedback().IsValid()) {
-    const int stack_argument_count =
-        arg_count - kTheSpread + kReceiver + kMaybeFeedbackVector;
-    Callable callable = Builtins::CallableFor(
-        isolate(), Builtins::kCallWithSpread_WithFeedback);
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(),
-              kMaybeFeedbackVector);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* slot = jsgraph()->Int32Constant(p.feedback().index());
+  const int stack_argument_count = arg_count - kTheSpread + kReceiver;
+  Callable callable = CodeFactory::CallWithSpread(isolate());
+  // If this fails, we might need to update the parameter reordering code
+  // to ensure that the additional arguments passed via stack are pushed
+  // between top of stack and JS arguments.
+  DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      zone(), callable.descriptor(), stack_argument_count, flags);
+  Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
 
-    // We pass the spread in a register, not on the stack.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
+  // We pass the spread in a register, not on the stack.
+  Node* stub_arity =
+      jsgraph()->Int32Constant(JSParameterCount(arg_count - kTheSpread));
 
-    // Register argument inputs are followed by stack argument inputs (such as
-    // feedback_vector). Both are listed in ascending order. Note that
-    // the receiver is implicitly placed on the stack and is thus inserted
-    // between explicitly-specified register and stack arguments.
-    // TODO(jgruber): Implement a simpler way to specify these mutations.
+  // Shuffling inputs.
+  // Before: {target, receiver, ...args, spread, vector}.
 
-    // Shuffling inputs.
-    // Before: {target, receiver, ...args, spread, vector}.
-#ifdef V8_REVERSE_JSARGS
-    Node* feedback_vector = node->RemoveInput(n.FeedbackVectorIndex());
-#endif
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    node->InsertInput(zone(), 3, spread);
-    node->InsertInput(zone(), 4, slot);
-#ifdef V8_REVERSE_JSARGS
-    node->InsertInput(zone(), 5, feedback_vector);
-    // After: {code, target, arity, spread, slot, vector, receiver, ...args}.
-#else
-    // After: {code, target, arity, spread, slot, receiver, ...args, vector}.
-#endif
+  node->RemoveInput(n.FeedbackVectorIndex());
+  Node* spread = node->RemoveInput(n.LastArgumentIndex());
 
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    const int stack_argument_count = arg_count - kTheSpread + kReceiver;
-    Callable callable = CodeFactory::CallWithSpread(isolate());
-    // If this fails, we might need to update the parameter reordering code
-    // to ensure that the additional arguments passed via stack are pushed
-    // between top of stack and JS arguments.
-    DCHECK_EQ(callable.descriptor().GetStackParameterCount(), 0);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        zone(), callable.descriptor(), stack_argument_count, flags);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 2, stub_arity);
+  node->InsertInput(zone(), 3, spread);
 
-    // We pass the spread in a register, not on the stack.
-    Node* stub_arity = jsgraph()->Int32Constant(arg_count - kTheSpread);
+  // After: {code, target, arity, spread, receiver, ...args}.
 
-    // Shuffling inputs.
-    // Before: {target, receiver, ...args, spread, vector}.
-
-    node->RemoveInput(n.FeedbackVectorIndex());
-    Node* spread = node->RemoveInput(n.LastArgumentIndex());
-
-    node->InsertInput(zone(), 0, stub_code);
-    node->InsertInput(zone(), 2, stub_arity);
-    node->InsertInput(zone(), 3, spread);
-
-    // After: {code, target, arity, spread, receiver, ...args}.
-
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
 void JSGenericLowering::LowerJSCallRuntime(Node* node) {
@@ -1230,12 +1120,28 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+// Will be lowered in SimplifiedLowering.
+void JSGenericLowering::LowerJSWasmCall(Node* node) {}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+void JSGenericLowering::LowerJSForInPrepare(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSForInNext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSForInPrepare(Node* node) {
-  UNREACHABLE();  // Eliminated in typed lowering.
+void JSGenericLowering::LowerJSForOfNext(Node* node) {
+  JSForOfNextNode n(node);
+  ForOfNextParameters const& p = n.Parameters();
+
+  Node* call_slot = jsgraph()->SmiConstant(p.callFeedback().slot.ToInt());
+  static_assert(n.FeedbackVectorIndex() == 2);
+
+  node->InsertInput(zone(), 3, call_slot);
+  ReplaceWithBuiltinCall(node, Builtin::kForOfNext);
 }
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {
@@ -1267,7 +1173,7 @@ void JSGenericLowering::LowerJSGeneratorRestoreContinuation(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSGeneratorRestoreContext(Node* node) {
+void JSGenericLowering::LowerJSGeneratorRestoreContextNoCell(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
@@ -1279,78 +1185,12 @@ void JSGenericLowering::LowerJSGeneratorRestoreRegister(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-namespace {
-
-StackCheckKind StackCheckKindOfJSStackCheck(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSStackCheck);
-  return OpParameter<StackCheckKind>(op);
-}
-
-}  // namespace
-
 void JSGenericLowering::LowerJSStackCheck(Node* node) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  Node* limit = effect =
-      graph()->NewNode(machine()->Load(MachineType::Pointer()),
-                       jsgraph()->ExternalConstant(
-                           ExternalReference::address_of_jslimit(isolate())),
-                       jsgraph()->IntPtrConstant(0), effect, control);
-
-  StackCheckKind stack_check_kind = StackCheckKindOfJSStackCheck(node->op());
-  Node* check = effect = graph()->NewNode(
-      machine()->StackPointerGreaterThan(stack_check_kind), limit, effect);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  NodeProperties::ReplaceControlInput(node, if_false);
-  NodeProperties::ReplaceEffectInput(node, effect);
-  Node* efalse = if_false = node;
-
-  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
-
-  // Wire the new diamond into the graph, {node} can still throw.
-  NodeProperties::ReplaceUses(node, node, ephi, merge, merge);
-  NodeProperties::ReplaceControlInput(merge, if_false, 1);
-  NodeProperties::ReplaceEffectInput(ephi, efalse, 1);
-
-  // This iteration cuts out potential {IfSuccess} or {IfException} projection
-  // uses of the original node and places them inside the diamond, so that we
-  // can change the original {node} into the slow-path runtime call.
-  for (Edge edge : merge->use_edges()) {
-    if (!NodeProperties::IsControlEdge(edge)) continue;
-    if (edge.from()->opcode() == IrOpcode::kIfSuccess) {
-      NodeProperties::ReplaceUses(edge.from(), nullptr, nullptr, merge);
-      NodeProperties::ReplaceControlInput(merge, edge.from(), 1);
-      edge.UpdateTo(node);
-    }
-    if (edge.from()->opcode() == IrOpcode::kIfException) {
-      NodeProperties::ReplaceEffectInput(edge.from(), node);
-      edge.UpdateTo(node);
-    }
-  }
-
-  // Turn the stack check into a runtime call. At function entry, the runtime
-  // function takes an offset argument which is subtracted from the stack
-  // pointer prior to the stack check (i.e. the check is `sp - offset >=
-  // limit`).
-  if (stack_check_kind == StackCheckKind::kJSFunctionEntry) {
-    node->InsertInput(zone(), 0,
-                      graph()->NewNode(machine()->LoadStackCheckOffset()));
-    ReplaceWithRuntimeCall(node, Runtime::kStackGuardWithGap);
-  } else {
-    ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
-  }
+  UNREACHABLE();  // Lowered later in Turboshaft.
 }
 
 void JSGenericLowering::LowerJSDebugger(Node* node) {
-  ReplaceWithBuiltinCall(node, Builtins::kHandleDebuggerStatement);
+  ReplaceWithRuntimeCall(node, Runtime::kHandleDebuggerStatement);
 }
 
 Zone* JSGenericLowering::zone() const { return graph()->zone(); }
@@ -1358,9 +1198,7 @@ Zone* JSGenericLowering::zone() const { return graph()->zone(); }
 
 Isolate* JSGenericLowering::isolate() const { return jsgraph()->isolate(); }
 
-
-Graph* JSGenericLowering::graph() const { return jsgraph()->graph(); }
-
+TFGraph* JSGenericLowering::graph() const { return jsgraph()->graph(); }
 
 CommonOperatorBuilder* JSGenericLowering::common() const {
   return jsgraph()->common();

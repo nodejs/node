@@ -8,9 +8,11 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
 #include "../../third_party/inspector_protocol/crdtp/protocol_core.h"
 #include "include/v8-inspector.h"
+#include "include/v8-memory-span.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
@@ -44,14 +46,18 @@ class StringUtil {
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
 class V8_EXPORT Binary {
  public:
-  Binary() = default;
+  Binary() : bytes_(std::make_shared<std::vector<uint8_t>>()) {}
 
   const uint8_t* data() const { return bytes_->data(); }
   size_t size() const { return bytes_->size(); }
   String toBase64() const;
   static Binary fromBase64(const String& base64, bool* success);
-  static Binary fromSpan(const uint8_t* data, size_t size) {
-    return Binary(std::make_shared<std::vector<uint8_t>>(data, data + size));
+  static Binary fromSpan(v8_crdtp::span<uint8_t> span) {
+    return fromSpan(v8::MemorySpan<const uint8_t>(span.begin(), span.size()));
+  }
+  static Binary fromSpan(v8::MemorySpan<const uint8_t> span) {
+    return Binary(
+        std::make_shared<std::vector<uint8_t>>(span.begin(), span.end()));
   }
 
  private:
@@ -69,8 +75,12 @@ v8::Local<v8::String> toV8String(v8::Isolate*, const StringView&);
 // TODO(dgozman): rename to toString16.
 String16 toProtocolString(v8::Isolate*, v8::Local<v8::String>);
 String16 toProtocolStringWithTypeCheck(v8::Isolate*, v8::Local<v8::Value>);
-String16 toString16(const StringView&);
-StringView toStringView(const String16&);
+V8_EXPORT_PRIVATE String16 toString16(const StringView&);
+V8_EXPORT_PRIVATE StringView toStringView(const String16&);
+template <size_t N>
+StringView toStringView(const char* str[N]) {
+  return StringView(reinterpret_cast<const uint8_t*>(str), N);
+}
 bool stringViewStartsWith(const StringView&, const char*);
 
 // Creates a string buffer instance which owns |str|, a 16 bit string.
@@ -103,25 +113,6 @@ struct ProtocolTypeTraits<v8_inspector::protocol::Binary> {
   static void Serialize(const v8_inspector::protocol::Binary& value,
                         std::vector<uint8_t>* bytes);
 };
-
-template <>
-struct SerializerTraits<v8_inspector::protocol::Binary> {
-  static void Serialize(const v8_inspector::protocol::Binary& binary,
-                        std::vector<uint8_t>* out);
-};
-
-namespace detail {
-template <>
-struct MaybeTypedef<v8_inspector::String16> {
-  typedef ValueMaybe<v8_inspector::String16> type;
-};
-
-template <>
-struct MaybeTypedef<v8_inspector::protocol::Binary> {
-  typedef ValueMaybe<v8_inspector::protocol::Binary> type;
-};
-
-}  // namespace detail
 
 }  // namespace v8_crdtp
 

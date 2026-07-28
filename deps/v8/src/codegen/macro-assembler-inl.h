@@ -5,8 +5,10 @@
 #ifndef V8_CODEGEN_MACRO_ASSEMBLER_INL_H_
 #define V8_CODEGEN_MACRO_ASSEMBLER_INL_H_
 
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/codegen/assembler-inl.h"
 
 #if V8_TARGET_ARCH_ARM64
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"

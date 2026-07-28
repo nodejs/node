@@ -15,6 +15,27 @@ namespace v8 {
 namespace internal {
 
 std::ostream& operator<<(std::ostream& os,
+                         const Representation& representation) {
+  switch (representation.kind()) {
+    case Representation::kNone:
+      return os << "none";
+    case Representation::kSmi:
+      return os << "smi";
+    case Representation::kDouble:
+      return os << "double";
+    case Representation::kHeapObject:
+      return os << "heap-object";
+    case Representation::kTagged:
+      return os << "tagged";
+    case Representation::kWasmValue:
+      return os << "wasm-value";
+    case Representation::kNumRepresentations:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
+
+std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes) {
   os << "[";
   os << (((attributes & READ_ONLY) == 0) ? "W" : "_");    // writable
@@ -36,73 +57,81 @@ std::ostream& operator<<(std::ostream& os, PropertyConstness constness) {
 
 Descriptor::Descriptor() : details_(Smi::zero()) {}
 
-Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
-                       PropertyKind kind, PropertyAttributes attributes,
-                       PropertyLocation location, PropertyConstness constness,
+Descriptor::Descriptor(DirectHandle<Name> key,
+                       const MaybeObjectDirectHandle& value, PropertyKind kind,
+                       PropertyAttributes attributes, PropertyLocation location,
+                       PropertyConstness constness,
                        Representation representation, int field_index)
     : key_(key),
       value_(value),
       details_(kind, attributes, location, constness, representation,
                field_index) {
-  DCHECK(key->IsUniqueName());
-  DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
+  DCHECK(IsUniqueName(*key));
+  DCHECK_IMPLIES(key->IsAnyPrivate(), !details_.IsEnumerable());
 }
 
-Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
+Descriptor::Descriptor(DirectHandle<Name> key,
+                       const MaybeObjectDirectHandle& value,
                        PropertyDetails details)
     : key_(key), value_(value), details_(details) {
-  DCHECK(key->IsUniqueName());
-  DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
+  DCHECK(IsUniqueName(*key));
+  DCHECK_IMPLIES(key->IsAnyPrivate(), !details_.IsEnumerable());
 }
 
-Descriptor Descriptor::DataField(Isolate* isolate, Handle<Name> key,
+Descriptor Descriptor::DataField(Isolate* isolate, DirectHandle<Name> key,
                                  int field_index, PropertyAttributes attributes,
                                  Representation representation) {
   return DataField(key, field_index, attributes, PropertyConstness::kMutable,
-                   representation, MaybeObjectHandle(FieldType::Any(isolate)));
+                   representation,
+                   MaybeObjectDirectHandle(FieldType::Any(isolate)));
 }
 
-Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
-                                 PropertyAttributes attributes,
-                                 PropertyConstness constness,
-                                 Representation representation,
-                                 const MaybeObjectHandle& wrapped_field_type) {
-  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeak());
-  PropertyDetails details(kData, attributes, kField, constness, representation,
+Descriptor Descriptor::DataField(
+    DirectHandle<Name> key, int field_index, PropertyAttributes attributes,
+    PropertyConstness constness, Representation representation,
+    const MaybeObjectDirectHandle& wrapped_field_type) {
+  DCHECK(IsSmi(*wrapped_field_type) || IsWeak(*wrapped_field_type));
+  PropertyDetails details(PropertyKind::kData, attributes,
+                          PropertyLocation::kField, constness, representation,
                           field_index);
   return Descriptor(key, wrapped_field_type, details);
 }
 
-Descriptor Descriptor::DataConstant(Handle<Name> key, Handle<Object> value,
+Descriptor Descriptor::DataConstant(DirectHandle<Name> key,
+                                    DirectHandle<Object> value,
                                     PropertyAttributes attributes) {
-  const Isolate* isolate = GetIsolateForPtrCompr(*key);
-  return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
-                    kDescriptor, PropertyConstness::kConst,
-                    value->OptimalRepresentation(isolate), 0);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*key);
+  return Descriptor(key, MaybeObjectDirectHandle(value), PropertyKind::kData,
+                    attributes, PropertyLocation::kDescriptor,
+                    PropertyConstness::kConst,
+                    Object::OptimalRepresentation(*value, cage_base), 0);
 }
 
-Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,
-                                    int field_index, Handle<Object> value,
+Descriptor Descriptor::DataConstant(Isolate* isolate, DirectHandle<Name> key,
+                                    int field_index, DirectHandle<Object> value,
                                     PropertyAttributes attributes) {
-  MaybeObjectHandle any_type(FieldType::Any(), isolate);
+  MaybeObjectDirectHandle any_type(FieldType::Any(), isolate);
   return DataField(key, field_index, attributes, PropertyConstness::kConst,
                    Representation::Tagged(), any_type);
 }
 
-Descriptor Descriptor::AccessorConstant(Handle<Name> key,
-                                        Handle<Object> foreign,
+Descriptor Descriptor::AccessorConstant(DirectHandle<Name> key,
+                                        DirectHandle<Object> foreign,
                                         PropertyAttributes attributes) {
-  return Descriptor(key, MaybeObjectHandle(foreign), kAccessor, attributes,
-                    kDescriptor, PropertyConstness::kConst,
+  return Descriptor(key, MaybeObjectDirectHandle(foreign),
+                    PropertyKind::kAccessor, attributes,
+                    PropertyLocation::kDescriptor, PropertyConstness::kConst,
                     Representation::Tagged(), 0);
 }
 
 // Outputs PropertyDetails as a dictionary details.
-void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
+void PropertyDetails::PrintAsSlowTo(std::ostream& os, bool print_dict_index) {
   os << "(";
   if (constness() == PropertyConstness::kConst) os << "const ";
-  os << (kind() == kData ? "data" : "accessor");
-  os << ", dict_index: " << dictionary_index();
+  os << (kind() == PropertyKind::kData ? "data" : "accessor");
+  if (print_dict_index) {
+    os << ", dict_index: " << dictionary_index();
+  }
   os << ", attrs: " << attributes() << ")";
 }
 
@@ -110,8 +139,8 @@ void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
 void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
   os << "(";
   if (constness() == PropertyConstness::kConst) os << "const ";
-  os << (kind() == kData ? "data" : "accessor");
-  if (location() == kField) {
+  os << (kind() == PropertyKind::kData ? "data" : "accessor");
+  if (location() == PropertyLocation::kField) {
     os << " field";
     if (mode & kPrintFieldIndex) {
       os << " " << field_index();
@@ -135,7 +164,7 @@ void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
 void PropertyDetails::Print(bool dictionary_mode) {
   StdoutStream os;
   if (dictionary_mode) {
-    PrintAsSlowTo(os);
+    PrintAsSlowTo(os, true);
   } else {
     PrintAsFastTo(os, PrintMode::kPrintFull);
   }

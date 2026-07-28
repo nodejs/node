@@ -16,9 +16,7 @@
 #include "numparse_impl.h"
 
 U_NAMESPACE_BEGIN
-namespace number {
-namespace impl {
-
+namespace number::impl {
 
 class AutoAffixPatternProvider;
 class CurrencyPluralInfoAffixProvider;
@@ -38,23 +36,25 @@ class PropertiesAffixPatternProvider : public AffixPatternProvider, public UMemo
 
     // AffixPatternProvider Methods:
 
-    char16_t charAt(int32_t flags, int32_t i) const U_OVERRIDE;
+    char16_t charAt(int32_t flags, int32_t i) const override;
 
-    int32_t length(int32_t flags) const U_OVERRIDE;
+    int32_t length(int32_t flags) const override;
 
-    UnicodeString getString(int32_t flags) const U_OVERRIDE;
+    UnicodeString getString(int32_t flags) const override;
 
-    bool hasCurrencySign() const U_OVERRIDE;
+    bool hasCurrencySign() const override;
 
-    bool positiveHasPlusSign() const U_OVERRIDE;
+    bool positiveHasPlusSign() const override;
 
-    bool hasNegativeSubpattern() const U_OVERRIDE;
+    bool hasNegativeSubpattern() const override;
 
-    bool negativeHasMinusSign() const U_OVERRIDE;
+    bool negativeHasMinusSign() const override;
 
-    bool containsSymbolType(AffixPatternType, UErrorCode&) const U_OVERRIDE;
+    bool containsSymbolType(AffixPatternType, UErrorCode&) const override;
 
-    bool hasBody() const U_OVERRIDE;
+    bool hasBody() const override;
+
+    bool currencyAsDecimal() const override;
 
   private:
     UnicodeString posPrefix;
@@ -62,6 +62,7 @@ class PropertiesAffixPatternProvider : public AffixPatternProvider, public UMemo
     UnicodeString negPrefix;
     UnicodeString negSuffix;
     bool isCurrencyPattern;
+    bool fCurrencyAsDecimal;
 
     PropertiesAffixPatternProvider() = default; // puts instance in valid but undefined state
 
@@ -89,23 +90,25 @@ class CurrencyPluralInfoAffixProvider : public AffixPatternProvider, public UMem
 
     // AffixPatternProvider Methods:
 
-    char16_t charAt(int32_t flags, int32_t i) const U_OVERRIDE;
+    char16_t charAt(int32_t flags, int32_t i) const override;
 
-    int32_t length(int32_t flags) const U_OVERRIDE;
+    int32_t length(int32_t flags) const override;
 
-    UnicodeString getString(int32_t flags) const U_OVERRIDE;
+    UnicodeString getString(int32_t flags) const override;
 
-    bool hasCurrencySign() const U_OVERRIDE;
+    bool hasCurrencySign() const override;
 
-    bool positiveHasPlusSign() const U_OVERRIDE;
+    bool positiveHasPlusSign() const override;
 
-    bool hasNegativeSubpattern() const U_OVERRIDE;
+    bool hasNegativeSubpattern() const override;
 
-    bool negativeHasMinusSign() const U_OVERRIDE;
+    bool negativeHasMinusSign() const override;
 
-    bool containsSymbolType(AffixPatternType, UErrorCode&) const U_OVERRIDE;
+    bool containsSymbolType(AffixPatternType, UErrorCode&) const override;
 
-    bool hasBody() const U_OVERRIDE;
+    bool hasBody() const override;
+
+    bool currencyAsDecimal() const override;
 
   private:
     PropertiesAffixPatternProvider affixesByPlural[StandardPlural::COUNT];
@@ -137,9 +140,9 @@ class AutoAffixPatternProvider {
     }
 
     inline void setTo(const AffixPatternProvider* provider, UErrorCode& status) {
-        if (auto ptr = dynamic_cast<const PropertiesAffixPatternProvider*>(provider)) {
+        if (const auto* ptr = dynamic_cast<const PropertiesAffixPatternProvider*>(provider)) {
             propertiesAPP = *ptr;
-        } else if (auto ptr = dynamic_cast<const CurrencyPluralInfoAffixProvider*>(provider)) {
+        } else if (const auto* ptr = dynamic_cast<const CurrencyPluralInfoAffixProvider*>(provider)) {
             currencyPluralInfoAPP = *ptr;
         } else {
             status = U_INTERNAL_PROGRAM_ERROR;
@@ -252,9 +255,7 @@ class NumberPropertyMapper {
                                DecimalFormatProperties* exportedProperties, UErrorCode& status);
 };
 
-
-} // namespace impl
-} // namespace numparse
+} // namespace number::impl
 U_NAMESPACE_END
 
 #endif //__NUMBER_MAPPER_H__

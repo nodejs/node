@@ -55,7 +55,7 @@ function main({ dur, len, type }) {
 
       function send() {
         socket.cork();
-        while (socket.write(chunk, encoding)) {}
+        while (socket.write(chunk, encoding));
         socket.uncork();
       }
     });

@@ -2,8 +2,6 @@
 'use strict';
 const common = require('../common');
 
-common.disableCrashOnUnhandledRejection();
-
 const expectedValueWarning = ['Symbol()'];
 const expectedPromiseWarning = ['Unhandled promise rejection. ' +
   'This error originated either by throwing ' +
@@ -18,7 +16,7 @@ const expectedPromiseWarning = ['Unhandled promise rejection. ' +
 common.expectWarning({
   UnhandledPromiseRejectionWarning: [
     expectedValueWarning,
-    expectedPromiseWarning
+    expectedPromiseWarning,
   ],
 });
 

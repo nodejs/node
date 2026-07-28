@@ -43,13 +43,13 @@ void ConstrainedFieldPosition::setInt64IterationContext(int64_t context) {
 UBool ConstrainedFieldPosition::matchesField(int32_t category, int32_t field) const {
     switch (fConstraint) {
     case UCFPOS_CONSTRAINT_NONE:
-        return TRUE;
+        return true;
     case UCFPOS_CONSTRAINT_CATEGORY:
         return fCategory == category;
     case UCFPOS_CONSTRAINT_FIELD:
         return fCategory == category && fField == field;
     default:
-        UPRV_UNREACHABLE;
+        UPRV_UNREACHABLE_EXIT;
     }
 }
 
@@ -193,7 +193,12 @@ ucfpos_close(UConstrainedFieldPosition* ptr) {
 }
 
 
-U_CAPI const UChar* U_EXPORT2
+// -Wreturn-local-addr first found in https://gcc.gnu.org/onlinedocs/gcc-4.8.5/gcc/Warning-Options.html#Warning-Options
+#if U_GCC_MAJOR_MINOR >= 409
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreturn-local-addr"
+#endif
+U_CAPI const char16_t* U_EXPORT2
 ufmtval_getString(
         const UFormattedValue* ufmtval,
         int32_t* pLength,
@@ -209,8 +214,13 @@ ufmtval_getString(
     if (pLength != nullptr) {
         *pLength = readOnlyAlias.length();
     }
+    // Note: this line triggers -Wreturn-local-addr, but it is safe because toTempString is
+    // defined to return memory owned by the ufmtval argument.
     return readOnlyAlias.getBuffer();
 }
+#if U_GCC_MAJOR_MINOR >= 409
+#pragma GCC diagnostic pop
+#endif
 
 
 U_CAPI UBool U_EXPORT2
@@ -221,7 +231,7 @@ ufmtval_nextPosition(
     const auto* fmtval = UFormattedValueApiHelper::validate(ufmtval, *ec);
     auto* cfpos = UConstrainedFieldPositionImpl::validate(ucfpos, *ec);
     if (U_FAILURE(*ec)) {
-        return FALSE;
+        return false;
     }
     return fmtval->fFormattedValue->nextPosition(cfpos->fImpl, *ec);
 }

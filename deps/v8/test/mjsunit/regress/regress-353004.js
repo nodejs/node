@@ -36,23 +36,6 @@ assertThrows(() =>
 assertTrue(convertedOffset);
 assertTrue(convertedLength);
 
-var buffer3 = new ArrayBuffer(100 * 1024 * 1024);
-var dataView1 = new DataView(buffer3, {valueOf : function() {
-  %ArrayBufferDetach(buffer3);
-  return 0;
-}});
-
-assertEquals(0, dataView1.byteLength);
-
-var buffer4 = new ArrayBuffer(100 * 1024);
-assertThrows(function() {
-  var dataView2 = new DataView(buffer4, 0, {valueOf : function() {
-    %ArrayBufferDetach(buffer4);
-    return 100 * 1024 * 1024;
-  }});
-}, RangeError);
-
-
 var buffer5 = new ArrayBuffer(100 * 1024);
 assertThrows(function() {
   buffer5.slice({valueOf : function() {

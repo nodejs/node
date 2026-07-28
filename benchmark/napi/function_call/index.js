@@ -24,7 +24,7 @@ let napi_binding;
 try {
   napi_binding = require(`./build/${common.buildType}/napi_binding`);
 } catch {
-  console.error('misc/function_call/index.js NAPI-Binding failed to load');
+  console.error('misc/function_call/index.js Node-API binding failed to load');
   process.exit(0);
 }
 const napi = napi_binding.hello;
@@ -38,7 +38,7 @@ assert(js() === cxx());
 
 const bench = common.createBenchmark(main, {
   type: ['js', 'cxx', 'napi'],
-  n: [1e6, 1e7, 5e7]
+  n: [1e6, 1e7, 5e7],
 });
 
 function main({ n, type }) {

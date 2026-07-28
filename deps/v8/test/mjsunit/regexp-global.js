@@ -252,3 +252,27 @@ var replacement = "\x80";
 var result = subject.replace(/~/g, replacement);
 for (var i = 0; i < 5; i++) result += result;
 new RegExp(result);
+
+// Global Atom RegExp with a single char pattern.
+// We chose a match count greater then 255*16, as this is the maximum count
+// we can keep in a vector register before it overflows.
+// In addition the string length shouldn't be a multiple of 16 to also test
+// the scalar part.
+// See RegExpMatchGlobalAtom_OneCharPattern() for details.
+let text = 'a'.repeat(255*17+5);
+assertEquals(4340, text.match(/a/g).length);
+
+// Two-byte.
+const smiley = '\u{D83D}\u{DE0A}';
+text = smiley.repeat(255*17+5)
+assertEquals(4340, text.match(new RegExp(smiley,'g')).length);
+
+// Two-byte subject with one-byte pattern.
+text = smiley + 'a'.repeat(255*17+5);
+assertEquals(4340, text.match(/a/g).length);
+
+// Test the cache with a slice.
+text = 'a'.repeat(255*17+5).substring(1);
+assertEquals(4339, text.match(/a/g).length);
+assertEquals(4339, text.match(/a/g).length);
+assertEquals(4339, text.match(/a/g).length);

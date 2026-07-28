@@ -39,9 +39,10 @@
 
 #ifndef V8_CODEGEN_S390_ASSEMBLER_S390_H_
 #define V8_CODEGEN_S390_ASSEMBLER_S390_H_
+
 #include <stdio.h>
 #include <memory>
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390X && !V8_OS_ZOS
 // elf.h include is required for auxv check for STFLE facility used
 // for hardware detection, which is sensible only on s390 hosts.
 #include <elf.h>
@@ -49,35 +50,14 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <vector>
 
+#include "src/base/platform/platform.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
 #include "src/codegen/s390/constants-s390.h"
 #include "src/codegen/s390/register-s390.h"
 #include "src/objects/smi.h"
-
-#define ABI_USES_FUNCTION_DESCRIPTORS 0
-
-#define ABI_PASSES_HANDLES_IN_REGS 1
-
-// ObjectPair is defined under runtime/runtime-util.h.
-// On 31-bit, ObjectPair == uint64_t.  ABI dictates long long
-//            be returned with the lower addressed half in r2
-//            and the higher addressed half in r3. (Returns in Regs)
-// On 64-bit, ObjectPair is a Struct.  ABI dictaes Structs be
-//            returned in a storage buffer allocated by the caller,
-//            with the address of this buffer passed as a hidden
-//            argument in r2. (Does NOT return in Regs)
-// For x86 linux, ObjectPair is returned in registers.
-#if V8_TARGET_ARCH_S390X
-#define ABI_RETURNS_OBJECTPAIR_IN_REGS 0
-#else
-#define ABI_RETURNS_OBJECTPAIR_IN_REGS 1
-#endif
-
-#define ABI_CALL_VIA_IP 1
 
 namespace v8 {
 namespace internal {
@@ -93,7 +73,7 @@ class V8_EXPORT_PRIVATE Operand {
  public:
   // immediate
   V8_INLINE explicit Operand(intptr_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NONE)
+                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -103,7 +83,7 @@ class V8_EXPORT_PRIVATE Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NONE) {
+  V8_INLINE explicit Operand(Tagged<Smi> value) : rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
 
@@ -111,7 +91,6 @@ class V8_EXPORT_PRIVATE Operand {
   V8_INLINE explicit Operand(Register rm);
 
   static Operand EmbeddedNumber(double value);  // Smi or HeapNumber
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
@@ -120,13 +99,13 @@ class V8_EXPORT_PRIVATE Operand {
 
   inline intptr_t immediate() const {
     DCHECK(!rm_.is_valid());
-    DCHECK(!is_heap_object_request());
+    DCHECK(!is_heap_number_request());
     return value_.immediate;
   }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(is_heap_object_request());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(is_heap_number_request());
+    return value_.heap_number_request;
   }
 
   inline void setBits(int n) {
@@ -136,12 +115,12 @@ class V8_EXPORT_PRIVATE Operand {
 
   Register rm() const { return rm_; }
 
-  bool is_heap_object_request() const {
-    DCHECK_IMPLIES(is_heap_object_request_, !rm_.is_valid());
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool is_heap_number_request() const {
+    DCHECK_IMPLIES(is_heap_number_request_, !rm_.is_valid());
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
   RelocInfo::Mode rmode() const { return rmode_; }
@@ -150,10 +129,10 @@ class V8_EXPORT_PRIVATE Operand {
   Register rm_ = no_reg;
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
     intptr_t immediate;                     // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
 
   RelocInfo::Mode rmode_;
 
@@ -226,23 +205,33 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // own buffer. Otherwise it takes ownership of the provided buffer.
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
+  // For compatibility with assemblers that require a zone.
+  Assembler(const MaybeAssemblerZone&, const AssemblerOptions& options,
+            std::unique_ptr<AssemblerBuffer> buffer = {})
+      : Assembler(options, std::move(buffer)) {}
 
   virtual ~Assembler() {}
 
+  static RegList DefaultTmpList();
+  static DoubleRegList DefaultFPTmpList();
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
-  void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+  void ClearInternalState() {}
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -281,19 +270,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                                                       Address constant_pool);
   V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   inline static void set_target_compressed_address_at(
       Address pc, Address constant_pool, Tagged_t target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   inline Handle<Object> code_target_object_handle_at(Address pc);
   inline Handle<HeapObject> compressed_embedded_object_handle_at(
       Address pc, Address constant_pool);
-  // This sets the branch destination.
-  // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -301,8 +288,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      WritableJitAllocation* jit_allocation,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the IIHF/IILF instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -312,16 +306,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // a target is resolved and written.
   static constexpr int kSpecialTargetSize = 0;
 // Number of bytes for instructions used to store pointer sized constant.
-#if V8_TARGET_ARCH_S390X
   static constexpr int kBytesForPtrConstant = 12;  // IIHF + IILF
-#else
-  static constexpr int kBytesForPtrConstant = 6;  // IILF
-#endif
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+  DoubleRegList* GetScratchDoubleRegisterList() {
+    return &scratch_double_register_list_;
+  }
 
   // ---------------------------------------------------------------------------
-  // Code generation
+  // InstructionStream generation
 
   template <class T, int size, int lo, int hi>
   inline T getfield(T value) {
@@ -402,6 +395,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   S390_RRE_OPCODE_LIST(DECLARE_S390_RRE_INSTRUCTIONS)
   // Special format
   void lzdr(DoubleRegister r1) { rre_format(LZDR, r1.code(), 0); }
+  void lzer(DoubleRegister r1) { rre_format(LZER, r1.code(), 0); }
 #undef DECLARE_S390_RRE_INSTRUCTIONS
 
 #define DECLARE_S390_RX_INSTRUCTIONS(name, op_name, op_value)            \
@@ -532,7 +526,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define DECLARE_S390_RS_SHIFT_FORMAT(name, opcode)                             \
   void name(Register r1, Register r2, const Operand& opnd = Operand::Zero()) { \
-    DCHECK(r2 != r0);                                                          \
     rs_format(opcode, r1.code(), r0.code(), r2.code(), opnd.immediate());      \
   }                                                                            \
   void name(Register r1, const Operand& opnd) {                                \
@@ -676,15 +669,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   S390_RRF_E_OPCODE_LIST(DECLARE_S390_RRF_E_INSTRUCTIONS)
 #undef DECLARE_S390_RRF_E_INSTRUCTIONS
-
-  enum FIDBRA_FLAGS {
-    FIDBRA_CURRENT_ROUNDING_MODE = 0,
-    FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0 = 1,
-    // ...
-    FIDBRA_ROUND_TOWARD_0 = 5,
-    FIDBRA_ROUND_TOWARD_POS_INF = 6,
-    FIDBRA_ROUND_TOWARD_NEG_INF = 7
-  };
 
   inline void rsi_format(Opcode op, int f1, int f2, int f3) {
     DCHECK(is_uint8(op));
@@ -956,17 +940,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Conditional Branch Instruction - Generates either BRC / BRCL
-  void branchOnCond(Condition c, int branch_offset, bool is_bound = false);
+  void branchOnCond(Condition c, int branch_offset, bool is_bound = false,
+                    bool force_long_branch = false);
 
   // Helpers for conditional branch to Label
-  void b(Condition cond, Label* l, Label::Distance dist = Label::kFar) {
+  void b(Condition cond, Label* l, Label::Distance dist = Label::kFar,
+         bool force_long_branch = false) {
     branchOnCond(cond, branch_offset(l),
-                 l->is_bound() || (dist == Label::kNear));
+                 l->is_bound() || (dist == Label::kNear), force_long_branch);
   }
 
   void bc_short(Condition cond, Label* l, Label::Distance dist = Label::kFar) {
     b(cond, l, Label::kNear);
   }
+  void bc_long(Condition cond, Label* l) { b(cond, l, Label::kFar, true); }
   // Helpers for conditional branch to Label
   void beq(Label* l, Label::Distance dist = Label::kFar) { b(eq, l, dist); }
   void bne(Label* l, Label::Distance dist = Label::kFar) { b(ne, l, dist); }
@@ -1050,7 +1037,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // ---------------------------------------------------------------------------
-  // Code generation
+  // InstructionStream generation
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -1061,6 +1048,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void SwitchTargetAlign() { CodeTargetAlign(); }
+  void BranchTargetAlign() {}
+  void LoopHeaderAlign() { CodeTargetAlign(); }
 
   void breakpoint(bool do_print) {
     if (do_print) {
@@ -1277,6 +1267,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Load Address Instructions
   void larl(Register r, Label* l);
+  void lgrl(Register r, Label* l);
 
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
@@ -1290,6 +1281,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     NON_MARKING_NOP = 0,
     GROUP_ENDING_NOP,
     DEBUG_BREAK_NOP,
+#if V8_OS_ZOS
+    BASR_CALL_TYPE_NOP,
+    BRAS_CALL_TYPE_NOP,
+    BRASL_CALL_TYPE_NOP,
+#endif
     // IC markers.
     PROPERTY_ACCESS_INLINED,
     PROPERTY_ACCESS_INLINED_CONTEXT,
@@ -1310,12 +1306,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
-                         int id);
+  void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
+                         SourcePosition position, int id);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
+  void dh(uint16_t data);
   void dd(uint32_t data);
   void dq(uint64_t data);
   void dp(uintptr_t data);
@@ -1334,18 +1331,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return Instruction::InstructionLength(buffer_start_ + pos);
   }
 
-  static SixByteInstr instr_at(byte* pc) {
+  static SixByteInstr instr_at(uint8_t* pc) {
     return Instruction::InstructionBits(pc);
   }
 
   static Condition GetCondition(Instr instr);
 
   static bool IsBranch(Instr instr);
-#if V8_TARGET_ARCH_S390X
   static bool Is64BitLoadIntoIP(SixByteInstr instr1, SixByteInstr instr2);
-#else
-  static bool Is32BitLoadIntoIP(SixByteInstr instr);
-#endif
 
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);
@@ -1362,7 +1355,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_label_addr(Label* label);
 
  public:
-  byte* buffer_pos() const { return buffer_start_; }
+  uint8_t* buffer_pos() const { return buffer_start_; }
+
+  // InstructionStream generation
+  // The relocation writer's position is at least kGap bytes below the end of
+  // the generated instructions. This is so that multi-instruction sequences do
+  // not have to check for overflow. The same is true for writes of large
+  // relocation info entries.
+  static constexpr int kGap = 32;
+  static_assert(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
@@ -1381,14 +1382,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512 * MB;
 
-  // Code generation
-  // The relocation writer's position is at least kGap bytes below the end of
-  // the generated instructions. This is so that multi-instruction sequences do
-  // not have to check for overflow. The same is true for writes of large
-  // relocation info entries.
-  static constexpr int kGap = 32;
-  STATIC_ASSERT(AssemblerBase::kMinimalBufferSize >= 2 * kGap);
-
   // Relocation info generation
   // Each relocation is encoded as a variable size value
   static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
@@ -1397,6 +1390,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
+  DoubleRegList scratch_double_register_list_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -1470,7 +1464,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void bind_to(Label* L, int pos);
   void next(Label* L);
 
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
 
@@ -1485,22 +1479,69 @@ class EnsureSpace {
   explicit EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 };
 
-class V8_EXPORT_PRIVATE UseScratchRegisterScope {
+class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : assembler_(assembler),
+        old_available_(*assembler->GetScratchRegisterList()),
+        old_available_double_(*assembler->GetScratchDoubleRegisterList()) {}
 
-  Register Acquire();
+  ~UseScratchRegisterScope() {
+    *assembler_->GetScratchRegisterList() = old_available_;
+    *assembler_->GetScratchDoubleRegisterList() = old_available_double_;
+  }
+
+  Register Acquire() {
+    return assembler_->GetScratchRegisterList()->PopFirst();
+  }
+
+  DoubleRegister AcquireDouble() {
+    return assembler_->GetScratchDoubleRegisterList()->PopFirst();
+  }
 
   // Check if we have registers available to acquire.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquire() const {
+    return !assembler_->GetScratchRegisterList()->is_empty();
+  }
+
+  void Include(const Register& reg1, const Register& reg2 = no_reg) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK(!available->has(reg1));
+    DCHECK(!available->has(reg2));
+    available->set(reg1);
+    available->set(reg2);
+  }
+  void Include(RegList list) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    *available = *available | list;
+  }
+  void Include(DoubleRegList list) {
+    DoubleRegList* available = assembler_->GetScratchDoubleRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available & list).bits(), 0x0);
+    *available = *available | list;
+  }
+
+  DoubleRegList AvailableDoubleRegList() {
+    return *assembler_->GetScratchDoubleRegisterList();
+  }
+  void SetAvailableDoubleRegList(DoubleRegList available) {
+    *assembler_->GetScratchDoubleRegisterList() = available;
+  }
+  RegList Available() { return *assembler_->GetScratchRegisterList(); }
+  void SetAvailable(RegList available) {
+    *assembler_->GetScratchRegisterList() = available;
+  }
 
  private:
   friend class Assembler;
-  friend class TurboAssembler;
+  friend class MacroAssembler;
 
   Assembler* assembler_;
   RegList old_available_;
+  DoubleRegList old_available_double_;
 };
 
 }  // namespace internal

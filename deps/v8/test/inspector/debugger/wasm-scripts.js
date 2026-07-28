@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
-
 utils.load('test/inspector/wasm-inspector-test.js');
 
 InspectorTest.log("Tests how wasm scripts are reported");
@@ -22,7 +20,7 @@ function createModule(...customSections) {
   var builder = new WasmModuleBuilder();
   builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);
   builder.addFunction('main', kSig_v_v)
-      .addBody([kExprBlock, kWasmStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
+      .addBody([kExprBlock, kWasmVoid, kExprI32Const, 2, kExprDrop, kExprEnd])
       .exportAs('main');
   for (var { name, value } of customSections) {
     builder.addCustomSection(name, value);
@@ -108,6 +106,9 @@ sessions[0]
 
       // Source map + Embedded DWARF (different order)
       testFunction([${createModule(sourceMapSection, embeddedDWARFSection)}]);
+
+      // Source map + Embedded DWARF + External DWARF
+      testFunction([${createModule(sourceMapSection, embeddedDWARFSection, externalDWARFSection)}]);
       `
     })
     .then(
@@ -127,6 +128,11 @@ function trackScripts(debuggerParams) {
   Protocol.Debugger.enable(debuggerParams);
   Protocol.Debugger.onScriptParsed(handleScriptParsed);
 
+  function printDebugSymbols(symbols) {
+    const symbolsLog = symbols.map(symbol => `${symbol.type}:${symbol.externalURL}`);
+    return `debug symbols: [${symbolsLog}]`;
+  }
+
   async function loadScript({
     url,
     scriptId,
@@ -139,8 +145,8 @@ function trackScripts(debuggerParams) {
     let stableId = nextStableId(scriptId);
     InspectorTest.log(`Session #${sessionId}: Script #${
         scripts.length} parsed. URL: ${url}. Script ID: ${
-        stableId}, Source map URL: ${sourceMapURL}, debug symbols: ${
-        debugSymbols.type}:${debugSymbols.externalURL}. module begin: ${
+        stableId}, Source map URL: ${sourceMapURL}, ${
+        printDebugSymbols(debugSymbols)}. module begin: ${
         startColumn}, module end: ${endColumn}, code offset: ${codeOffset}`);
     let {result: {scriptSource, bytecode}} =
         await Protocol.Debugger.getScriptSource({scriptId});

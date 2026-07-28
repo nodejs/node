@@ -8,7 +8,7 @@ let {session, contextGroup, Protocol} =
 (async function test() {
   session.setupScriptMap();
   await Protocol.Debugger.enable();
-  contextGroup.addScript(`debugger;//# sourceURL=test.js`, -3, -3);
+  contextGroup.addScript(`debugger;`, -3, -3, 'test.js');
   let {params:{callFrames}} = await Protocol.Debugger.oncePaused();
   session.logCallFrames(callFrames);
   InspectorTest.completeTest();

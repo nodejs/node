@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
@@ -10,14 +10,14 @@ const inner = {};
 function testInner() {
   assert.strictEqual(asyncLocalStorage.getStore(), outer);
 
-  asyncLocalStorage.run(inner, () => {
+  asyncLocalStorage.run(inner, common.mustCall(() => {
     assert.strictEqual(asyncLocalStorage.getStore(), inner);
-  });
+  }));
   assert.strictEqual(asyncLocalStorage.getStore(), outer);
 
-  asyncLocalStorage.exit(() => {
+  asyncLocalStorage.exit(common.mustCall(() => {
     assert.strictEqual(asyncLocalStorage.getStore(), undefined);
-  });
+  }));
   assert.strictEqual(asyncLocalStorage.getStore(), outer);
 }
 

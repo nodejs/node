@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -60,10 +60,8 @@ int BIO_fd_should_retry(int s);
 static const BIO_METHOD methods_fdp = {
     BIO_TYPE_FD,
     "file descriptor",
-    /* TODO: Convert to new style write function */
     bwrite_conv,
     fd_write,
-    /* TODO: Convert to new style read function */
     bread_conv,
     fd_read,
     fd_puts,
@@ -71,7 +69,7 @@ static const BIO_METHOD methods_fdp = {
     fd_ctrl,
     fd_new,
     fd_free,
-    NULL,                       /* fd_callback_ctrl */
+    NULL, /* fd_callback_ctrl */
 };
 
 const BIO_METHOD *BIO_s_fd(void)
@@ -94,7 +92,7 @@ static int fd_new(BIO *bi)
     bi->init = 0;
     bi->num = -1;
     bi->ptr = NULL;
-    bi->flags = BIO_FLAGS_UPLINK; /* essentially redundant */
+    bi->flags = BIO_FLAGS_UPLINK_INTERNAL; /* essentially redundant */
     return 1;
 }
 
@@ -107,7 +105,7 @@ static int fd_free(BIO *a)
             UP_close(a->num);
         }
         a->init = 0;
-        a->flags = BIO_FLAGS_UPLINK;
+        a->flags = BIO_FLAGS_UPLINK_INTERNAL;
     }
     return 1;
 }
@@ -151,7 +149,7 @@ static long fd_ctrl(BIO *b, int cmd, long num, void *ptr)
     switch (cmd) {
     case BIO_CTRL_RESET:
         num = 0;
-        /* fall thru */
+        /* fall through */
     case BIO_C_FILE_SEEK:
         ret = (long)UP_lseek(b->num, num, 0);
         break;
@@ -189,7 +187,7 @@ static long fd_ctrl(BIO *b, int cmd, long num, void *ptr)
         ret = 1;
         break;
     case BIO_CTRL_EOF:
-        ret = (b->flags & BIO_FLAGS_IN_EOF) != 0 ? 1 : 0;
+        ret = (b->flags & BIO_FLAGS_IN_EOF) != 0;
         break;
     default:
         ret = 0;
@@ -215,7 +213,7 @@ static int fd_gets(BIO *bp, char *buf, int size)
 
     while (ptr < end && fd_read(bp, ptr, 1) > 0) {
         if (*ptr++ == '\n')
-           break;
+            break;
     }
 
     ptr[0] = '\0';
@@ -241,41 +239,41 @@ int BIO_fd_non_fatal_error(int err)
 {
     switch (err) {
 
-# ifdef EWOULDBLOCK
-#  ifdef WSAEWOULDBLOCK
-#   if WSAEWOULDBLOCK != EWOULDBLOCK
+#ifdef EWOULDBLOCK
+#ifdef WSAEWOULDBLOCK
+#if WSAEWOULDBLOCK != EWOULDBLOCK
     case EWOULDBLOCK:
-#   endif
-#  else
+#endif
+#else
     case EWOULDBLOCK:
-#  endif
-# endif
+#endif
+#endif
 
-# if defined(ENOTCONN)
+#if defined(ENOTCONN)
     case ENOTCONN:
-# endif
+#endif
 
-# ifdef EINTR
+#ifdef EINTR
     case EINTR:
-# endif
+#endif
 
-# ifdef EAGAIN
-#  if EWOULDBLOCK != EAGAIN
+#ifdef EAGAIN
+#if EWOULDBLOCK != EAGAIN
     case EAGAIN:
-#  endif
-# endif
+#endif
+#endif
 
-# ifdef EPROTO
+#ifdef EPROTO
     case EPROTO:
-# endif
+#endif
 
-# ifdef EINPROGRESS
+#ifdef EINPROGRESS
     case EINPROGRESS:
-# endif
+#endif
 
-# ifdef EALREADY
+#ifdef EALREADY
     case EALREADY:
-# endif
+#endif
         return 1;
     default:
         break;

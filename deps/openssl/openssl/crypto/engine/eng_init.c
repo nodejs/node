@@ -1,17 +1,20 @@
 /*
- * Copyright 2001-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"
+/* We need to use some engine deprecated APIs */
+#define OPENSSL_SUPPRESS_DEPRECATED
+
+#include "internal/e_os.h"
 #include "eng_local.h"
 
 /*
- * Initialise a engine type for use (or up its functional reference count if
+ * Initialise an engine type for use (or up its functional reference count if
  * it's already in use). This version is only used internally.
  */
 int engine_unlocked_init(ENGINE *e)
@@ -25,20 +28,25 @@ int engine_unlocked_init(ENGINE *e)
          */
         to_return = e->init(e);
     if (to_return) {
+        int ref;
+
         /*
          * OK, we return a functional reference which is also a structural
          * reference.
          */
-        e->struct_ref++;
+        if (!CRYPTO_UP_REF(&e->struct_ref, &ref)) {
+            e->finish(e);
+            return 0;
+        }
         e->funct_ref++;
-        engine_ref_debug(e, 0, 1);
-        engine_ref_debug(e, 1, 1);
+        ENGINE_REF_PRINT(e, 0, 1);
+        ENGINE_REF_PRINT(e, 1, 1);
     }
     return to_return;
 }
 
 /*
- * Free a functional reference to a engine type. This version is only used
+ * Free a functional reference to an engine type. This version is only used
  * internally.
  */
 int engine_unlocked_finish(ENGINE *e, int unlock_for_handlers)
@@ -54,20 +62,21 @@ int engine_unlocked_finish(ENGINE *e, int unlock_for_handlers)
      * to 0 without either calling finish().
      */
     e->funct_ref--;
-    engine_ref_debug(e, 1, -1);
+    ENGINE_REF_PRINT(e, 1, -1);
     if ((e->funct_ref == 0) && e->finish) {
         if (unlock_for_handlers)
             CRYPTO_THREAD_unlock(global_engine_lock);
         to_return = e->finish(e);
         if (unlock_for_handlers)
-            CRYPTO_THREAD_write_lock(global_engine_lock);
+            if (!CRYPTO_THREAD_write_lock(global_engine_lock))
+                return 0;
         if (!to_return)
             return 0;
     }
     REF_ASSERT_ISNT(e->funct_ref < 0);
     /* Release the structural reference too */
     if (!engine_free_util(e, 0)) {
-        ENGINEerr(ENGINE_F_ENGINE_UNLOCKED_FINISH, ENGINE_R_FINISH_FAILED);
+        ERR_raise(ERR_LIB_ENGINE, ENGINE_R_FINISH_FAILED);
         return 0;
     }
     return to_return;
@@ -78,14 +87,16 @@ int ENGINE_init(ENGINE *e)
 {
     int ret;
     if (e == NULL) {
-        ENGINEerr(ENGINE_F_ENGINE_INIT, ERR_R_PASSED_NULL_PARAMETER);
+        ERR_raise(ERR_LIB_ENGINE, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
     if (!RUN_ONCE(&engine_lock_init, do_engine_lock_init)) {
-        ENGINEerr(ENGINE_F_ENGINE_INIT, ERR_R_MALLOC_FAILURE);
+        /* Maybe this should be raised in do_engine_lock_init() */
+        ERR_raise(ERR_LIB_ENGINE, ERR_R_CRYPTO_LIB);
         return 0;
     }
-    CRYPTO_THREAD_write_lock(global_engine_lock);
+    if (!CRYPTO_THREAD_write_lock(global_engine_lock))
+        return 0;
     ret = engine_unlocked_init(e);
     CRYPTO_THREAD_unlock(global_engine_lock);
     return ret;
@@ -98,11 +109,12 @@ int ENGINE_finish(ENGINE *e)
 
     if (e == NULL)
         return 1;
-    CRYPTO_THREAD_write_lock(global_engine_lock);
+    if (!CRYPTO_THREAD_write_lock(global_engine_lock))
+        return 0;
     to_return = engine_unlocked_finish(e, 1);
     CRYPTO_THREAD_unlock(global_engine_lock);
     if (!to_return) {
-        ENGINEerr(ENGINE_F_ENGINE_FINISH, ENGINE_R_FINISH_FAILED);
+        ERR_raise(ERR_LIB_ENGINE, ENGINE_R_FINISH_FAILED);
         return 0;
     }
     return to_return;

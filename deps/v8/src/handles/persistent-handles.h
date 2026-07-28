@@ -10,6 +10,7 @@
 #include "include/v8-internal.h"
 #include "src/api/api.h"
 #include "src/base/macros.h"
+#include "src/execution/isolate.h"
 #include "src/objects/visitors.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -32,17 +33,30 @@ class PersistentHandles {
   V8_EXPORT_PRIVATE void Iterate(RootVisitor* visitor);
 
   template <typename T>
-  Handle<T> NewHandle(T obj) {
+  IndirectHandle<T> NewHandle(Tagged<T> obj) {
 #ifdef DEBUG
     CheckOwnerIsNotParked();
 #endif
-    return Handle<T>(GetHandle(obj.ptr()));
+    return IndirectHandle<T>(GetHandle(obj.ptr()));
   }
 
   template <typename T>
-  Handle<T> NewHandle(Handle<T> obj) {
+  IndirectHandle<T> NewHandle(IndirectHandle<T> obj) {
     return NewHandle(*obj);
   }
+
+  template <typename T>
+  IndirectHandle<T> NewHandle(DirectHandle<T> obj) {
+    return NewHandle(*obj);
+  }
+
+  template <typename T>
+  IndirectHandle<T> NewHandle(T obj) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return NewHandle(Tagged<T>(obj));
+  }
+
+  Isolate* isolate() const { return isolate_; }
 
 #ifdef DEBUG
   V8_EXPORT_PRIVATE bool Contains(Address* location);
@@ -102,7 +116,7 @@ class PersistentHandlesList {
 
 // PersistentHandlesScope sets up a scope in which all created main thread
 // handles become persistent handles that can be sent to another thread.
-class PersistentHandlesScope {
+class V8_NODISCARD PersistentHandlesScope {
  public:
   V8_EXPORT_PRIVATE explicit PersistentHandlesScope(Isolate* isolate);
   V8_EXPORT_PRIVATE ~PersistentHandlesScope();
@@ -110,7 +124,12 @@ class PersistentHandlesScope {
   // Moves all blocks of this scope into PersistentHandles and returns it.
   V8_EXPORT_PRIVATE std::unique_ptr<PersistentHandles> Detach();
 
+  // Returns true if the current active handle scope is a persistent handle
+  // scope, thus all handles created become persistent handles.
+  V8_EXPORT_PRIVATE static bool IsActive(Isolate* isolate);
+
  private:
+  Address* first_block_;
   Address* prev_limit_;
   Address* prev_next_;
   HandleScopeImplementer* const impl_;

@@ -26,105 +26,105 @@ Tests that the peephole CompareEq optimization for the case where one side is pr
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
-PASS foo({f:42}, null) threw exception TypeError: Cannot read property 'f' of null.
+PASS foo({f:42}, null) threw exception TypeError: Cannot read properties of null (reading 'f').
 PASS foo(o, o) is [42, 42, true]
 PASS successfullyParsed is true
 

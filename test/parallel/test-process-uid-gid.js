@@ -23,6 +23,7 @@
 const common = require('../common');
 
 const assert = require('assert');
+const { isMainThread } = require('worker_threads');
 
 if (common.isWindows) {
   // uid/gid functions are POSIX only.
@@ -33,8 +34,9 @@ if (common.isWindows) {
   return;
 }
 
-if (!common.isMainThread)
+if (!isMainThread) {
   return;
+}
 
 assert.throws(() => {
   process.setuid({});
@@ -50,6 +52,17 @@ assert.throws(() => {
   code: 'ERR_UNKNOWN_CREDENTIAL',
   message: 'User identifier does not exist: fhqwhgadshgnsdhjsdbkhsdabkfabkveyb'
 });
+
+// Passing -0 shouldn't crash the process
+// Refs: https://github.com/nodejs/node/issues/32750
+// And neither should values exceeding 2 ** 31 - 1.
+for (const id of [-0, 2 ** 31, 2 ** 32 - 1]) {
+  for (const fn of [process.setuid, process.setuid, process.setgid, process.setegid]) {
+    try { fn(id); } catch {
+      // Continue regardless of error.
+    }
+  }
+}
 
 // If we're not running as super user...
 if (process.getuid() !== 0) {
@@ -79,6 +92,7 @@ try {
   }
   process.setgid('nogroup');
 }
+
 const newgid = process.getgid();
 assert.notStrictEqual(newgid, oldgid);
 

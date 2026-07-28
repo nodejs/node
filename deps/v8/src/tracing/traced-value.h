@@ -25,6 +25,8 @@ class V8_EXPORT_PRIVATE TracedValue : public ConvertableToTraceFormat
 {
  public:
   ~TracedValue() override;
+  TracedValue(const TracedValue&) = delete;
+  TracedValue& operator=(const TracedValue&) = delete;
 
   static std::unique_ptr<TracedValue> Create();
 
@@ -33,6 +35,7 @@ class V8_EXPORT_PRIVATE TracedValue : public ConvertableToTraceFormat
 
   // These methods assume that |name| is a long lived "quoted" string.
   void SetInteger(const char* name, int value);
+  void SetUnsignedInteger(const char* name, uint64_t value);
   void SetDouble(const char* name, double value);
   void SetBoolean(const char* name, bool value);
   void SetString(const char* name, const char* value);
@@ -78,8 +81,6 @@ class V8_EXPORT_PRIVATE TracedValue : public ConvertableToTraceFormat
 
   std::string data_;
   bool first_item_;
-
-  DISALLOW_COPY_AND_ASSIGN(TracedValue);
 };
 
 }  // namespace tracing

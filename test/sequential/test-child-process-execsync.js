@@ -30,9 +30,13 @@ const { execFileSync, execSync, spawnSync } = require('child_process');
 const { getSystemErrorName } = require('util');
 
 const TIMER = 200;
-const SLEEP = 2000;
-
-const execOpts = { encoding: 'utf8', shell: true };
+let SLEEP = 2000;
+if (common.isWindows) {
+  // Some of the windows machines in the CI need more time to launch
+  // and receive output from child processes.
+  // https://github.com/nodejs/build/issues/3014
+  SLEEP = 10000;
+}
 
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
@@ -48,8 +52,8 @@ let caught = false;
 let ret, err;
 const start = Date.now();
 try {
-  const cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
-  ret = execSync(cmd, { timeout: TIMER });
+  const cmd = `"${common.isWindows ? process.execPath : '$NODE'}" -e "setTimeout(function(){}, ${SLEEP});"`;
+  ret = execSync(cmd, { env: { ...process.env, NODE: process.execPath }, timeout: TIMER });
 } catch (e) {
   caught = true;
   assert.strictEqual(getSystemErrorName(e.errno), 'ETIMEDOUT');
@@ -60,7 +64,7 @@ try {
   assert.ok(caught, 'execSync should throw');
   const end = Date.now() - start;
   assert(end < SLEEP);
-  assert(err.status > 128 || err.signal);
+  assert(err.status > 128 || err.signal, `status: ${err.status}, signal: ${err.signal}`);
 }
 
 assert.throws(function() {
@@ -72,22 +76,23 @@ const msgBuf = Buffer.from(`${msg}\n`);
 
 // console.log ends every line with just '\n', even on Windows.
 
-const cmd = `"${process.execPath}" -e "console.log('${msg}');"`;
+const cmd = `"${common.isWindows ? process.execPath : '$NODE'}" -e "console.log('${msg}');"`;
+const env = common.isWindows ? process.env : { ...process.env, NODE: process.execPath };
 
 {
-  const ret = execSync(cmd);
+  const ret = execSync(cmd, common.isWindows ? undefined : { env });
   assert.strictEqual(ret.length, msgBuf.length);
   assert.deepStrictEqual(ret, msgBuf);
 }
 
 {
-  const ret = execSync(cmd, { encoding: 'utf8' });
+  const ret = execSync(cmd, { encoding: 'utf8', env });
   assert.strictEqual(ret, `${msg}\n`);
 }
 
 const args = [
   '-e',
-  `console.log("${msg}");`
+  `console.log("${msg}");`,
 ];
 {
   const ret = execFileSync(process.execPath, args);
@@ -128,7 +133,7 @@ const args = [
     'signal',
     'status',
     'stderr',
-    'stdout'
+    'stdout',
   ]);
 
   assert.throws(() => {
@@ -142,12 +147,14 @@ const args = [
     assert.strictEqual(typeof err.pid, 'number');
     spawnSyncKeys
       .filter((key) => key !== 'pid')
-      .forEach((key) => {
+      .forEach(common.mustCallAtLeast((key) => {
         assert.deepStrictEqual(err[key], spawnSyncResult[key]);
-      });
+      }));
     return true;
   });
 }
 
 // Verify the shell option works properly
-execFileSync(process.execPath, [], execOpts);
+execFileSync(`"${common.isWindows ? process.execPath : '$NODE'}"`, [], {
+  encoding: 'utf8', shell: true, env,
+});

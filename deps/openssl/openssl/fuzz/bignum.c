@@ -1,7 +1,7 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL licenses, (the "License");
+ * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  * https://www.openssl.org/source/license.html
@@ -18,11 +18,10 @@
 #include <openssl/err.h>
 #include "fuzzer.h"
 
-
 int FuzzerInitialize(int *argc, char ***argv)
 {
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
-    ERR_get_state();
+    ERR_clear_error();
 
     return 1;
 }
@@ -52,11 +51,12 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
      */
     if (len > 2) {
         len -= 3;
-        l1 = (buf[0] * len) / 255;
+        /* limit l1, l2, and l3 to be no more than 512 bytes */
+        l1 = ((buf[0] * len) / 255) % 512;
         ++buf;
-        l2 = (buf[0] * (len - l1)) / 255;
+        l2 = ((buf[0] * (len - l1)) / 255) % 512;
         ++buf;
-        l3 = len - l1 - l2;
+        l3 = (len - l1 - l2) % 512;
 
         s1 = buf[0] & 1;
         s3 = buf[0] & 4;
@@ -91,7 +91,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         putchar('\n');
     }
 
- done:
+done:
     OPENSSL_assert(success);
     BN_free(b1);
     BN_free(b2);

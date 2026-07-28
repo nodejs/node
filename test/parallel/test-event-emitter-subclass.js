@@ -36,8 +36,6 @@ function MyEE(cb) {
 
 const myee = new MyEE(common.mustCall());
 
-myee.hasOwnProperty('usingDomains');
-
 Object.setPrototypeOf(ErrorEE.prototype, EventEmitter.prototype);
 Object.setPrototypeOf(ErrorEE, EventEmitter);
 function ErrorEE() {

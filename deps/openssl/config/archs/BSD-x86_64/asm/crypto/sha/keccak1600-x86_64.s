@@ -447,10 +447,12 @@ SHA3_squeeze:
 .cfi_offset	%r14,-32
 
 	shrq	$3,%rcx
-	movq	%rdi,%r8
+	movq	%rdi,%r9
 	movq	%rsi,%r12
 	movq	%rdx,%r13
 	movq	%rcx,%r14
+	btl	$0,%r8d
+	jc	.Lnext_block
 	jmp	.Loop_squeeze
 
 .align	32
@@ -458,8 +460,8 @@ SHA3_squeeze:
 	cmpq	$8,%r13
 	jb	.Ltail_squeeze
 
-	movq	(%r8),%rax
-	leaq	8(%r8),%r8
+	movq	(%r9),%rax
+	leaq	8(%r9),%r9
 	movq	%rax,(%r12)
 	leaq	8(%r12),%r12
 	subq	$8,%r13
@@ -467,14 +469,14 @@ SHA3_squeeze:
 
 	subq	$1,%rcx
 	jnz	.Loop_squeeze
-
+.Lnext_block:
 	call	KeccakF1600
-	movq	%rdi,%r8
+	movq	%rdi,%r9
 	movq	%r14,%rcx
 	jmp	.Loop_squeeze
 
 .Ltail_squeeze:
-	movq	%r8,%rsi
+	movq	%r9,%rsi
 	movq	%r12,%rdi
 	movq	%r13,%rcx
 .byte	0xf3,0xa4
@@ -492,6 +494,7 @@ SHA3_squeeze:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	SHA3_squeeze,.-SHA3_squeeze
+.section	.rodata
 .align	256
 .quad	0,0,0,0,0,0,0,0
 .type	iotas,@object
@@ -522,3 +525,24 @@ iotas:
 .quad	0x8000000080008008
 .size	iotas,.-iotas
 .byte	75,101,99,99,97,107,45,49,54,48,48,32,97,98,115,111,114,98,32,97,110,100,32,115,113,117,101,101,122,101,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
+	.section ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 3
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 3
+4:

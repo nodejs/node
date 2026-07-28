@@ -24,61 +24,58 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-function pingPongTest(host, on_complete) {
+{
   const N = 100;
   const DELAY = 1;
   let count = 0;
   let client_ended = false;
 
-  const server = net.createServer({ allowHalfOpen: true }, function(socket) {
+  const server = net.createServer({ allowHalfOpen: true }, common.mustCall((socket) => {
     socket.setEncoding('utf8');
 
-    socket.on('data', function(data) {
+    socket.on('data', common.mustCallAtLeast((data) => {
       console.log(data);
       assert.strictEqual(data, 'PING');
       assert.strictEqual(socket.readyState, 'open');
       assert.strictEqual(count <= N, true);
-      setTimeout(function() {
+      setTimeout(common.mustCall(() => {
         assert.strictEqual(socket.readyState, 'open');
         socket.write('PONG');
-      }, DELAY);
-    });
+      }), DELAY);
+    }));
 
-    socket.on('timeout', function() {
-      console.error('server-side timeout!!');
-      assert.strictEqual(false, true);
-    });
+    socket.on('timeout', common.mustNotCall('server-side timeout!!'));
 
-    socket.on('end', function() {
+    socket.on('end', common.mustCall(() => {
       console.log('server-side socket EOF');
       assert.strictEqual(socket.readyState, 'writeOnly');
       socket.end();
-    });
+    }));
 
-    socket.on('close', function(had_error) {
+    socket.on('close', common.mustCall((had_error) => {
       console.log('server-side socket.end');
       assert.strictEqual(had_error, false);
       assert.strictEqual(socket.readyState, 'closed');
       socket.server.close();
-    });
-  });
+    }));
+  }));
 
-  server.listen(0, host, common.mustCall(function() {
-    const client = net.createConnection(server.address().port, host);
+  server.listen(0, undefined, common.mustCall(() => {
+    const client = net.createConnection(server.address().port, undefined);
 
     client.setEncoding('utf8');
 
-    client.on('connect', function() {
+    client.on('connect', common.mustCall(() => {
       assert.strictEqual(client.readyState, 'open');
       client.write('PING');
-    });
+    }));
 
-    client.on('data', function(data) {
+    client.on('data', common.mustCallAtLeast((data) => {
       console.log(data);
       assert.strictEqual(data, 'PONG');
       assert.strictEqual(client.readyState, 'open');
 
-      setTimeout(function() {
+      setTimeout(common.mustCall(() => {
         assert.strictEqual(client.readyState, 'open');
         if (count++ < N) {
           client.write('PING');
@@ -87,21 +84,15 @@ function pingPongTest(host, on_complete) {
           client.end();
           client_ended = true;
         }
-      }, DELAY);
-    });
+      }), DELAY);
+    }));
 
-    client.on('timeout', function() {
-      console.error('client-side timeout!!');
-      assert.strictEqual(false, true);
-    });
+    client.on('timeout', common.mustNotCall('client-side timeout!!'));
 
     client.on('close', common.mustCall(function() {
       console.log('client.end');
       assert.strictEqual(count, N + 1);
       assert.ok(client_ended);
-      if (on_complete) on_complete();
     }));
   }));
 }
-
-pingPongTest();

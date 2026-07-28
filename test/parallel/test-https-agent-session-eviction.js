@@ -2,22 +2,30 @@
 'use strict';
 
 const common = require('../common');
-const { readKey } = require('../common/fixtures');
 
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
+
+const fixtures = require('../common/fixtures');
+const { hasOpenSSL } = require('../common/crypto');
 
 const https = require('https');
 const { SSL_OP_NO_TICKET } = require('crypto').constants;
 
 const options = {
-  key: readKey('agent1-key.pem'),
-  cert: readKey('agent1-cert.pem'),
-  secureOptions: SSL_OP_NO_TICKET
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem'),
+  secureOptions: SSL_OP_NO_TICKET,
 };
+
+if (!process.features.openssl_is_boringssl) {
+  options.ciphers = 'RSA@SECLEVEL=0';
+}
 
 // Create TLS1.2 server
 https.createServer(options, function(req, res) {
+  res.writeHead(200, { 'Connection': 'close' });
   res.end('ohai');
 }).listen(0, function() {
   first(this);
@@ -43,6 +51,7 @@ function first(server) {
 function faultyServer(port) {
   options.secureProtocol = 'TLSv1_method';
   https.createServer(options, function(req, res) {
+    res.writeHead(200, { 'Connection': 'close' });
     res.end('hello faulty');
   }).listen(port, function() {
     second(this);
@@ -53,6 +62,7 @@ function faultyServer(port) {
 function second(server, session) {
   const req = https.request({
     port: server.address().port,
+    ciphers: (hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
     rejectUnauthorized: false
   }, function(res) {
     res.resume();

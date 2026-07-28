@@ -3,26 +3,10 @@
 // found in the LICENSE file.
 
 @abstract
-@generatePrint
-@generateCppClass
-extern class Struct extends HeapObject {
-}
+extern class Struct extends HeapObject {}
 
-@generatePrint
-@generateCppClass
-extern class Tuple2 extends Struct {
-  value1: Object;
-  value2: Object;
-}
+extern class Tuple2 extends Struct;
 
-@generateCppClass
-extern class ClassPositions extends Struct {
-  start: Smi;
-  end: Smi;
-}
+extern class ClassPositions extends Struct;
 
-@generateCppClass
-extern class AccessorPair extends Struct {
-  getter: Object;
-  setter: Object;
-}
+extern class AccessorPair extends Struct;

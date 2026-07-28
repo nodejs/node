@@ -22,13 +22,12 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
 
 
-const filepath = path.join(tmpdir.path, 'write_pos.txt');
+const filepath = tmpdir.resolve('write_pos.txt');
 
 
 const cb_expected = 'write open close write open close write open close ';
@@ -66,7 +65,7 @@ function run_test_1() {
     cb_occurred += 'open ';
   });
 
-  file.on('close', function() {
+  file.on('close', common.mustCall(() => {
     cb_occurred += 'close ';
     console.log('    (debug: bytesWritten  ', file.bytesWritten);
     console.log('    (debug: start         ', file.start);
@@ -78,7 +77,7 @@ function run_test_1() {
     assert.strictEqual(fileData, fileDataExpected_1);
 
     run_test_2();
-  });
+  }));
 
   file.on('error', function(err) {
     cb_occurred += 'error ';
@@ -108,7 +107,7 @@ function run_test_2() {
     cb_occurred += 'open ';
   });
 
-  file.on('close', function() {
+  file.on('close', common.mustCall(() => {
     cb_occurred += 'close ';
     console.log('    (debug: bytesWritten  ', file.bytesWritten);
     console.log('    (debug: start         ', file.start);
@@ -120,7 +119,7 @@ function run_test_2() {
     assert.strictEqual(fileData, fileDataExpected_2);
 
     run_test_3();
-  });
+  }));
 
   file.on('error', function(err) {
     cb_occurred += 'error ';
@@ -149,7 +148,7 @@ function run_test_3() {
     cb_occurred += 'open ';
   });
 
-  file.on('close', function() {
+  file.on('close', common.mustCall(() => {
     cb_occurred += 'close ';
     console.log('    (debug: bytesWritten  ', file.bytesWritten);
     console.log('    (debug: start         ', file.start);
@@ -162,7 +161,7 @@ function run_test_3() {
 
     run_test_4();
     run_test_5();
-  });
+  }));
 
   file.on('error', function(err) {
     cb_occurred += 'error ';

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -7,8 +7,6 @@
 
 These functions are executed via gyp-mac-tool when using the Makefile generator.
 """
-
-from __future__ import print_function
 
 import fcntl
 import fnmatch
@@ -23,19 +21,16 @@ import subprocess
 import sys
 import tempfile
 
-PY3 = bytes != str
-
 
 def main(args):
     executor = MacTool()
-    exit_code = executor.Dispatch(args)
-    if exit_code is not None:
+    if (exit_code := executor.Dispatch(args)) is not None:
         sys.exit(exit_code)
 
 
-class MacTool(object):
+class MacTool:
     """This class performs all the Mac tooling steps. The methods can either be
-  executed directly, or dispatched from an argument list."""
+    executed directly, or dispatched from an argument list."""
 
     def Dispatch(self, args):
         """Dispatches a string command to a method."""
@@ -51,7 +46,7 @@ class MacTool(object):
 
     def ExecCopyBundleResource(self, source, dest, convert_to_binary):
         """Copies a resource file to the bundle/Resources directory, performing any
-    necessary compilation on each resource."""
+        necessary compilation on each resource."""
         convert_to_binary = convert_to_binary == "True"
         extension = os.path.splitext(source)[1].lower()
         if os.path.isdir(source):
@@ -62,9 +57,7 @@ class MacTool(object):
             if os.path.exists(dest):
                 shutil.rmtree(dest)
             shutil.copytree(source, dest)
-        elif extension == ".xib":
-            return self._CopyXIBFile(source, dest)
-        elif extension == ".storyboard":
+        elif extension in {".xib", ".storyboard"}:
             return self._CopyXIBFile(source, dest)
         elif extension == ".strings" and not convert_to_binary:
             self._CopyStringsFile(source, dest)
@@ -73,7 +66,7 @@ class MacTool(object):
                 os.unlink(dest)
             shutil.copy(source, dest)
 
-        if convert_to_binary and extension in (".plist", ".strings"):
+        if convert_to_binary and extension in {".plist", ".strings"}:
             self._ConvertToBinary(dest)
 
     def _CopyXIBFile(self, source, dest):
@@ -147,7 +140,7 @@ class MacTool(object):
         #     CFPropertyListCreateFromXMLData(): Old-style plist parser: missing
         #     semicolon in dictionary.
         # on invalid files. Do the same kind of validation.
-        import CoreFoundation
+        import CoreFoundation  # noqa: PLC0415
 
         with open(source, "rb") as in_file:
             s = in_file.read()
@@ -161,17 +154,15 @@ class MacTool(object):
 
     def _DetectInputEncoding(self, file_name):
         """Reads the first few bytes from file_name and tries to guess the text
-    encoding. Returns None as a guess if it can't detect it."""
+        encoding. Returns None as a guess if it can't detect it."""
         with open(file_name, "rb") as fp:
             try:
                 header = fp.read(3)
             except Exception:
                 return None
-        if header.startswith(b"\xFE\xFF"):
+        if header.startswith((b"\xfe\xff", b"\xff\xfe")):
             return "UTF-16"
-        elif header.startswith(b"\xFF\xFE"):
-            return "UTF-16"
-        elif header.startswith(b"\xEF\xBB\xBF"):
+        elif header.startswith(b"\xef\xbb\xbf"):
             return "UTF-8"
         else:
             return None
@@ -179,7 +170,7 @@ class MacTool(object):
     def ExecCopyInfoPlist(self, source, dest, convert_to_binary, *keys):
         """Copies the |source| Info.plist to the destination directory |dest|."""
         # Read the source Info.plist into memory.
-        with open(source, "r") as fd:
+        with open(source) as fd:
             lines = fd.read()
 
         # Insert synthesized key/value pairs (e.g. BuildMachineOSBuild).
@@ -251,7 +242,7 @@ class MacTool(object):
 
         dest = os.path.join(os.path.dirname(info_plist), "PkgInfo")
         with open(dest, "w") as fp:
-            fp.write("%s%s" % (package_type, signature_code))
+            fp.write(f"{package_type}{signature_code}")
 
     def ExecFlock(self, lockfile, *cmd_list):
         """Emulates the most basic behavior of Linux's flock(1)."""
@@ -262,9 +253,9 @@ class MacTool(object):
 
     def ExecFilterLibtool(self, *cmd_list):
         """Calls libtool and filters out '/path/to/libtool: file: foo.o has no
-    symbols'."""
+        symbols'."""
         libtool_re = re.compile(
-            r"^.*libtool: (?:for architecture: \S* )?" r"file: .* has no symbols$"
+            r"^.*libtool: (?:for architecture: \S* )?file: .* has no symbols$"
         )
         libtool_re5 = re.compile(
             r"^.*libtool: warning for library: "
@@ -278,9 +269,7 @@ class MacTool(object):
         # epoch=0, e.g. 1970-1-1 or 1969-12-31 depending on timezone.
         env["ZERO_AR_DATE"] = "1"
         libtoolout = subprocess.Popen(cmd_list, stderr=subprocess.PIPE, env=env)
-        _, err = libtoolout.communicate()
-        if PY3:
-            err = err.decode("utf-8")
+        err = libtoolout.communicate()[1].decode("utf-8")
         for line in err.splitlines():
             if not libtool_re.match(line) and not libtool_re5.match(line):
                 print(line, file=sys.stderr)
@@ -313,7 +302,7 @@ class MacTool(object):
 
     def ExecPackageFramework(self, framework, version):
         """Takes a path to Something.framework and the Current version of that and
-    sets up all the symlinks."""
+        sets up all the symlinks."""
         # Find the name of the binary based on the part before the ".framework".
         binary = os.path.basename(framework).split(".")[0]
 
@@ -342,7 +331,7 @@ class MacTool(object):
 
     def _Relink(self, dest, link):
         """Creates a symlink to |dest| named |link|. If |link| already exists,
-    it is overwritten."""
+        it is overwritten."""
         if os.path.lexists(link):
             os.remove(link)
         os.symlink(dest, link)
@@ -367,14 +356,14 @@ class MacTool(object):
     def ExecCompileXcassets(self, keys, *inputs):
         """Compiles multiple .xcassets files into a single .car file.
 
-    This invokes 'actool' to compile all the inputs .xcassets files. The
-    |keys| arguments is a json-encoded dictionary of extra arguments to
-    pass to 'actool' when the asset catalogs contains an application icon
-    or a launch image.
+        This invokes 'actool' to compile all the inputs .xcassets files. The
+        |keys| arguments is a json-encoded dictionary of extra arguments to
+        pass to 'actool' when the asset catalogs contains an application icon
+        or a launch image.
 
-    Note that 'actool' does not create the Assets.car file if the asset
-    catalogs does not contains imageset.
-    """
+        Note that 'actool' does not create the Assets.car file if the asset
+        catalogs does not contains imageset.
+        """
         command_line = [
             "xcrun",
             "actool",
@@ -447,13 +436,13 @@ class MacTool(object):
     def ExecCodeSignBundle(self, key, entitlements, provisioning, path, preserve):
         """Code sign a bundle.
 
-    This function tries to code sign an iOS bundle, following the same
-    algorithm as Xcode:
-      1. pick the provisioning profile that best match the bundle identifier,
-         and copy it into the bundle as embedded.mobileprovision,
-      2. copy Entitlements.plist from user or SDK next to the bundle,
-      3. code sign the bundle.
-    """
+        This function tries to code sign an iOS bundle, following the same
+        algorithm as Xcode:
+          1. pick the provisioning profile that best match the bundle identifier,
+             and copy it into the bundle as embedded.mobileprovision,
+          2. copy Entitlements.plist from user or SDK next to the bundle,
+          3. code sign the bundle.
+        """
         substitutions, overrides = self._InstallProvisioningProfile(
             provisioning, self._GetCFBundleIdentifier()
         )
@@ -472,16 +461,16 @@ class MacTool(object):
     def _InstallProvisioningProfile(self, profile, bundle_identifier):
         """Installs embedded.mobileprovision into the bundle.
 
-    Args:
-      profile: string, optional, short name of the .mobileprovision file
-        to use, if empty or the file is missing, the best file installed
-        will be used
-      bundle_identifier: string, value of CFBundleIdentifier from Info.plist
+        Args:
+          profile: string, optional, short name of the .mobileprovision file
+            to use, if empty or the file is missing, the best file installed
+            will be used
+          bundle_identifier: string, value of CFBundleIdentifier from Info.plist
 
-    Returns:
-      A tuple containing two dictionary: variables substitutions and values
-      to overrides when generating the entitlements file.
-    """
+        Returns:
+          A tuple containing two dictionary: variables substitutions and values
+          to overrides when generating the entitlements file.
+        """
         source_path, provisioning_data, team_id = self._FindProvisioningProfile(
             profile, bundle_identifier
         )
@@ -497,24 +486,24 @@ class MacTool(object):
     def _FindProvisioningProfile(self, profile, bundle_identifier):
         """Finds the .mobileprovision file to use for signing the bundle.
 
-    Checks all the installed provisioning profiles (or if the user specified
-    the PROVISIONING_PROFILE variable, only consult it) and select the most
-    specific that correspond to the bundle identifier.
+        Checks all the installed provisioning profiles (or if the user specified
+        the PROVISIONING_PROFILE variable, only consult it) and select the most
+        specific that correspond to the bundle identifier.
 
-    Args:
-      profile: string, optional, short name of the .mobileprovision file
-        to use, if empty or the file is missing, the best file installed
-        will be used
-      bundle_identifier: string, value of CFBundleIdentifier from Info.plist
+        Args:
+          profile: string, optional, short name of the .mobileprovision file
+            to use, if empty or the file is missing, the best file installed
+            will be used
+          bundle_identifier: string, value of CFBundleIdentifier from Info.plist
 
-    Returns:
-      A tuple of the path to the selected provisioning profile, the data of
-      the embedded plist in the provisioning profile and the team identifier
-      to use for code signing.
+        Returns:
+          A tuple of the path to the selected provisioning profile, the data of
+          the embedded plist in the provisioning profile and the team identifier
+          to use for code signing.
 
-    Raises:
-      SystemExit: if no .mobileprovision can be used to sign the bundle.
-    """
+        Raises:
+          SystemExit: if no .mobileprovision can be used to sign the bundle.
+        """
         profiles_dir = os.path.join(
             os.environ["HOME"], "Library", "MobileDevice", "Provisioning Profiles"
         )
@@ -540,7 +529,7 @@ class MacTool(object):
                 "application-identifier", ""
             )
             for team_identifier in profile_data.get("TeamIdentifier", []):
-                app_id = "%s.%s" % (team_identifier, bundle_identifier)
+                app_id = f"{team_identifier}.{bundle_identifier}"
                 if fnmatch.fnmatch(app_id, app_id_pattern):
                     valid_provisioning_profiles[app_id_pattern] = (
                         profile_path,
@@ -556,18 +545,18 @@ class MacTool(object):
         # If the user has multiple provisioning profiles installed that can be
         # used for ${bundle_identifier}, pick the most specific one (ie. the
         # provisioning profile whose pattern is the longest).
-        selected_key = max(valid_provisioning_profiles, key=lambda v: len(v))
+        selected_key = max(valid_provisioning_profiles, key=len)
         return valid_provisioning_profiles[selected_key]
 
     def _LoadProvisioningProfile(self, profile_path):
         """Extracts the plist embedded in a provisioning profile.
 
-    Args:
-      profile_path: string, path to the .mobileprovision file
+        Args:
+          profile_path: string, path to the .mobileprovision file
 
-    Returns:
-      Content of the plist embedded in the provisioning profile as a dictionary.
-    """
+        Returns:
+          Content of the plist embedded in the provisioning profile as a dictionary.
+        """
         with tempfile.NamedTemporaryFile() as temp:
             subprocess.check_call(
                 ["security", "cms", "-D", "-i", profile_path, "-o", temp.name]
@@ -590,16 +579,16 @@ class MacTool(object):
     def _LoadPlistMaybeBinary(self, plist_path):
         """Loads into a memory a plist possibly encoded in binary format.
 
-    This is a wrapper around plistlib.readPlist that tries to convert the
-    plist to the XML format if it can't be parsed (assuming that it is in
-    the binary format).
+        This is a wrapper around plistlib.readPlist that tries to convert the
+        plist to the XML format if it can't be parsed (assuming that it is in
+        the binary format).
 
-    Args:
-      plist_path: string, path to a plist file, in XML or binary format
+        Args:
+          plist_path: string, path to a plist file, in XML or binary format
 
-    Returns:
-      Content of the plist as a dictionary.
-    """
+        Returns:
+          Content of the plist as a dictionary.
+        """
         try:
             # First, try to read the file using plistlib that only supports XML,
             # and if an exception is raised, convert a temporary copy to XML and
@@ -615,13 +604,13 @@ class MacTool(object):
     def _GetSubstitutions(self, bundle_identifier, app_identifier_prefix):
         """Constructs a dictionary of variable substitutions for Entitlements.plist.
 
-    Args:
-      bundle_identifier: string, value of CFBundleIdentifier from Info.plist
-      app_identifier_prefix: string, value for AppIdentifierPrefix
+        Args:
+          bundle_identifier: string, value of CFBundleIdentifier from Info.plist
+          app_identifier_prefix: string, value for AppIdentifierPrefix
 
-    Returns:
-      Dictionary of substitutions to apply when generating Entitlements.plist.
-    """
+        Returns:
+          Dictionary of substitutions to apply when generating Entitlements.plist.
+        """
         return {
             "CFBundleIdentifier": bundle_identifier,
             "AppIdentifierPrefix": app_identifier_prefix,
@@ -630,9 +619,9 @@ class MacTool(object):
     def _GetCFBundleIdentifier(self):
         """Extracts CFBundleIdentifier value from Info.plist in the bundle.
 
-    Returns:
-      Value of CFBundleIdentifier in the Info.plist located in the bundle.
-    """
+        Returns:
+          Value of CFBundleIdentifier in the Info.plist located in the bundle.
+        """
         info_plist_path = os.path.join(
             os.environ["TARGET_BUILD_DIR"], os.environ["INFOPLIST_PATH"]
         )
@@ -642,19 +631,19 @@ class MacTool(object):
     def _InstallEntitlements(self, entitlements, substitutions, overrides):
         """Generates and install the ${BundleName}.xcent entitlements file.
 
-    Expands variables "$(variable)" pattern in the source entitlements file,
-    add extra entitlements defined in the .mobileprovision file and the copy
-    the generated plist to "${BundlePath}.xcent".
+        Expands variables "$(variable)" pattern in the source entitlements file,
+        add extra entitlements defined in the .mobileprovision file and the copy
+        the generated plist to "${BundlePath}.xcent".
 
-    Args:
-      entitlements: string, optional, path to the Entitlements.plist template
-        to use, defaults to "${SDKROOT}/Entitlements.plist"
-      substitutions: dictionary, variable substitutions
-      overrides: dictionary, values to add to the entitlements
+        Args:
+          entitlements: string, optional, path to the Entitlements.plist template
+            to use, defaults to "${SDKROOT}/Entitlements.plist"
+          substitutions: dictionary, variable substitutions
+          overrides: dictionary, values to add to the entitlements
 
-    Returns:
-      Path to the generated entitlements file.
-    """
+        Returns:
+          Path to the generated entitlements file.
+        """
         source_path = entitlements
         target_path = os.path.join(
             os.environ["BUILT_PRODUCTS_DIR"], os.environ["PRODUCT_NAME"] + ".xcent"
@@ -674,15 +663,15 @@ class MacTool(object):
     def _ExpandVariables(self, data, substitutions):
         """Expands variables "$(variable)" in data.
 
-    Args:
-      data: object, can be either string, list or dictionary
-      substitutions: dictionary, variable substitutions to perform
+        Args:
+          data: object, can be either string, list or dictionary
+          substitutions: dictionary, variable substitutions to perform
 
-    Returns:
-      Copy of data where each references to "$(variable)" has been replaced
-      by the corresponding value found in substitutions, or left intact if
-      the key was not found.
-    """
+        Returns:
+          Copy of data where each references to "$(variable)" has been replaced
+          by the corresponding value found in substitutions, or left intact if
+          the key was not found.
+        """
         if isinstance(data, str):
             for key, value in substitutions.items():
                 data = data.replace("$(%s)" % key, value)
@@ -701,15 +690,15 @@ def NextGreaterPowerOf2(x):
 def WriteHmap(output_name, filelist):
     """Generates a header map based on |filelist|.
 
-  Per Mark Mentovai:
-    A header map is structured essentially as a hash table, keyed by names used
-    in #includes, and providing pathnames to the actual files.
+    Per Mark Mentovai:
+      A header map is structured essentially as a hash table, keyed by names used
+      in #includes, and providing pathnames to the actual files.
 
-  The implementation below and the comment above comes from inspecting:
-    http://www.opensource.apple.com/source/distcc/distcc-2503/distcc_dist/include_server/headermap.py?txt
-  while also looking at the implementation in clang in:
-    https://llvm.org/svn/llvm-project/cfe/trunk/lib/Lex/HeaderMap.cpp
-  """
+    The implementation below and the comment above comes from inspecting:
+      http://www.opensource.apple.com/source/distcc/distcc-2503/distcc_dist/include_server/headermap.py?txt
+    while also looking at the implementation in clang in:
+      https://llvm.org/svn/llvm-project/cfe/trunk/lib/Lex/HeaderMap.cpp
+    """
     magic = 1751998832
     version = 1
     _reserved = 0

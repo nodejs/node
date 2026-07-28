@@ -1,15 +1,20 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
-const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
+const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/required-modules');
 
-new RuleTester().run('required-modules', rule, {
+new RuleTester({
+  languageOptions: {
+    sourceType: 'script',
+  },
+}).run('required-modules', rule, {
   valid: [
     {
       code: 'require("common")',
@@ -46,6 +51,6 @@ new RuleTester().run('required-modules', rule, {
       code: 'require("somethingElse")',
       options: [{ common: 'common' }],
       errors: [{ message: 'Mandatory module "common" must be loaded.' }]
-    }
+    },
   ]
 });

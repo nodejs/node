@@ -27,7 +27,7 @@
 require('../common');
 const assert = require('assert');
 const SD = require('string_decoder').StringDecoder;
-const encodings = ['base64', 'hex', 'utf8', 'utf16le', 'ucs2'];
+const encodings = ['base64', 'base64url', 'hex', 'utf8', 'utf16le', 'ucs2'];
 
 const bufs = [ '☃💩', 'asdf' ].map((b) => Buffer.from(b));
 
@@ -78,6 +78,13 @@ testEnd('base64', Buffer.of(0x61, 0x61), Buffer.of(), 'YWE=');
 testEnd('base64', Buffer.of(0x61, 0x61), Buffer.of(0x61), 'YWE=YQ==');
 testEnd('base64', Buffer.of(0x61, 0x61, 0x61), Buffer.of(), 'YWFh');
 testEnd('base64', Buffer.of(0x61, 0x61, 0x61), Buffer.of(0x61), 'YWFhYQ==');
+
+testEnd('base64url', Buffer.of(0x61), Buffer.of(), 'YQ');
+testEnd('base64url', Buffer.of(0x61), Buffer.of(0x61), 'YQYQ');
+testEnd('base64url', Buffer.of(0x61, 0x61), Buffer.of(), 'YWE');
+testEnd('base64url', Buffer.of(0x61, 0x61), Buffer.of(0x61), 'YWEYQ');
+testEnd('base64url', Buffer.of(0x61, 0x61, 0x61), Buffer.of(), 'YWFh');
+testEnd('base64url', Buffer.of(0x61, 0x61, 0x61), Buffer.of(0x61), 'YWFhYQ');
 
 function testEncoding(encoding) {
   bufs.forEach((buf) => {

@@ -5,6 +5,10 @@
 #ifndef V8_WASM_WASM_TIER_H_
 #define V8_WASM_WASM_TIER_H_
 
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
+
 #include <cstdint>
 
 namespace v8 {
@@ -14,6 +18,9 @@ namespace wasm {
 // All the tiers of Wasm execution.
 enum class ExecutionTier : int8_t {
   kNone,
+#if V8_ENABLE_DRUMBRAKE
+  kInterpreter,
+#endif  // V8_ENABLE_DRUMBRAKE
   kLiftoff,
   kTurbofan,
 };
@@ -24,6 +31,10 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
       return "turbofan";
     case ExecutionTier::kLiftoff:
       return "liftoff";
+#if V8_ENABLE_DRUMBRAKE
+    case ExecutionTier::kInterpreter:
+      return "interpreter";
+#endif  // V8_ENABLE_DRUMBRAKE
     case ExecutionTier::kNone:
       return "none";
   }
@@ -33,13 +44,13 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
 // the code also contains breakpoints, and {kForStepping} for code that is
 // flooded with breakpoints.
 enum ForDebugging : int8_t {
-  kNoDebugging = 0,
+  kNotForDebugging = 0,
   kForDebugging,
   kWithBreakpoints,
   kForStepping
 };
 
-enum TieringState : int8_t { kTieredUp, kTieredDown };
+enum DebugState : bool { kNotDebugging = false, kDebugging = true };
 
 }  // namespace wasm
 }  // namespace internal

@@ -1,24 +1,39 @@
 #include "crypto/crypto_sig.h"
-#include "crypto/crypto_ecdh.h"
-#include "crypto/crypto_keys.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_ec.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_pqc.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "openssl/ec.h"
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::ClearErrorOnReturn;
+using ncrypto::DataPointer;
+using ncrypto::Digest;
+using ncrypto::ECDSASigPointer;
+using ncrypto::EVPKeyCtxPointer;
+using ncrypto::EVPKeyPointer;
+using ncrypto::EVPMDCtxPointer;
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
-using v8::Just;
+using v8::Isolate;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
@@ -26,270 +41,431 @@ using v8::Value;
 
 namespace crypto {
 namespace {
-bool ValidateDSAParameters(EVP_PKEY* key) {
-#ifdef NODE_FIPS_MODE
-  /* Validate DSA2 parameters from FIPS 186-4 */
-  if (FIPS_mode() && EVP_PKEY_DSA == EVP_PKEY_base_id(key)) {
-    DSA* dsa = EVP_PKEY_get0_DSA(key);
-    const BIGNUM* p;
-    DSA_get0_pqg(dsa, &p, nullptr, nullptr);
-    size_t L = BN_num_bits(p);
-    const BIGNUM* q;
-    DSA_get0_pqg(dsa, nullptr, &q, nullptr);
-    size_t N = BN_num_bits(q);
-
-    return (L == 1024 && N == 160) ||
-           (L == 2048 && N == 224) ||
-           (L == 2048 && N == 256) ||
-           (L == 3072 && N == 256);
+int GetPaddingFromJS(const EVPKeyPointer& key, Local<Value> val) {
+  int padding = key.getDefaultSignPadding();
+  if (!val->IsUndefined()) [[likely]] {
+    CHECK(val->IsInt32());
+    padding = val.As<Int32>()->Value();
   }
-#endif  // NODE_FIPS_MODE
-
-  return true;
+  return padding;
 }
 
-bool ApplyRSAOptions(const ManagedEVPPKey& pkey,
+std::optional<int> GetSaltLenFromJS(Local<Value> val) {
+  std::optional<int> salt_len;
+  if (!val->IsUndefined()) [[likely]] {
+    CHECK(val->IsInt32());
+    salt_len = val.As<Int32>()->Value();
+  }
+  return salt_len;
+}
+
+DSASigEnc GetDSASigEncFromJS(Local<Value> val) {
+  CHECK(val->IsInt32());
+  int i = val.As<Int32>()->Value();
+  if (i < 0 || i >= static_cast<int>(DSASigEnc::Invalid)) [[unlikely]] {
+    return DSASigEnc::Invalid;
+  }
+  return static_cast<DSASigEnc>(val.As<Int32>()->Value());
+}
+
+bool ApplyRSAOptions(const EVPKeyPointer& pkey,
                      EVP_PKEY_CTX* pkctx,
                      int padding,
-                     const Maybe<int>& salt_len) {
-  if (EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA ||
-      EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA2 ||
-      EVP_PKEY_id(pkey.get()) == EVP_PKEY_RSA_PSS) {
-    if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
-      return false;
-    if (padding == RSA_PKCS1_PSS_PADDING && salt_len.IsJust()) {
-      if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, salt_len.FromJust()) <= 0)
-        return false;
-    }
+                     std::optional<int> salt_len) {
+  if (pkey.isRsaVariant()) {
+    return EVPKeyCtxPointer::setRsaPadding(pkctx, padding, salt_len);
   }
-
   return true;
 }
 
-AllocatedBuffer Node_SignFinal(Environment* env,
-                               EVPMDPointer&& mdctx,
-                               const ManagedEVPPKey& pkey,
-                               int padding,
-                               Maybe<int> pss_salt_len) {
-  unsigned char m[EVP_MAX_MD_SIZE];
-  unsigned int m_len;
+constexpr size_t kEd25519PointSize = 32;
+constexpr size_t kEd448PointSize = 57;
 
-  if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
-    return AllocatedBuffer();
+// Ed25519 has cofactor 8, so the first eight entries are the full
+// canonical small-order subgroup: identity, one point of order 2,
+// two points of order 4, and four points of order 8.
+constexpr unsigned char kEd25519SmallOrderPoints[][kEd25519PointSize] = {
+    // Identity.
+    {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // Order 2.
+    {0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+    // Order 4.
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80},
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // Order 8.
+    {0xc7, 0x17, 0x6a, 0x70, 0x3d, 0x4d, 0xd8, 0x4f, 0xba, 0x3c, 0x0b,
+     0x76, 0x0d, 0x10, 0x67, 0x0f, 0x2a, 0x20, 0x53, 0xfa, 0x2c, 0x39,
+     0xcc, 0xc6, 0x4e, 0xc7, 0xfd, 0x77, 0x92, 0xac, 0x03, 0x7a},
+    {0xc7, 0x17, 0x6a, 0x70, 0x3d, 0x4d, 0xd8, 0x4f, 0xba, 0x3c, 0x0b,
+     0x76, 0x0d, 0x10, 0x67, 0x0f, 0x2a, 0x20, 0x53, 0xfa, 0x2c, 0x39,
+     0xcc, 0xc6, 0x4e, 0xc7, 0xfd, 0x77, 0x92, 0xac, 0x03, 0xfa},
+    {0x26, 0xe8, 0x95, 0x8f, 0xc2, 0xb2, 0x27, 0xb0, 0x45, 0xc3, 0xf4,
+     0x89, 0xf2, 0xef, 0x98, 0xf0, 0xd5, 0xdf, 0xac, 0x05, 0xd3, 0xc6,
+     0x33, 0x39, 0xb1, 0x38, 0x02, 0x88, 0x6d, 0x53, 0xfc, 0x05},
+    {0x26, 0xe8, 0x95, 0x8f, 0xc2, 0xb2, 0x27, 0xb0, 0x45, 0xc3, 0xf4,
+     0x89, 0xf2, 0xef, 0x98, 0xf0, 0xd5, 0xdf, 0xac, 0x05, 0xd3, 0xc6,
+     0x33, 0x39, 0xb1, 0x38, 0x02, 0x88, 0x6d, 0x53, 0xfc, 0x85},
+    // Non-canonical encodings of the same small-order points.
+    {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80},
+    {0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+    {0xee, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+    {0xee, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+    {0xed, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+    {0xed, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f},
+};
 
-  int signed_sig_len = EVP_PKEY_size(pkey.get());
-  CHECK_GE(signed_sig_len, 0);
-  size_t sig_len = static_cast<size_t>(signed_sig_len);
-  AllocatedBuffer sig = AllocatedBuffer::AllocateManaged(env, sig_len);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(sig.data());
+// Ed448 has cofactor 4, so these four entries are the full canonical
+// small-order subgroup: identity, one point of order 2, and two points
+// of order 4.
+constexpr unsigned char kEd448SmallOrderPoints[][kEd448PointSize] = {
+    // Identity.
+    {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    // Order 2.
+    {0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00},
+    // Order 4.
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80},
+};
 
-  EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
-  if (pkctx &&
-      EVP_PKEY_sign_init(pkctx.get()) &&
+template <size_t PointSize, size_t Count>
+bool ContainsPoint(const unsigned char* candidate,
+                   const unsigned char (&points)[Count][PointSize]) {
+  for (const auto& point : points) {
+    if (memcmp(candidate, point, PointSize) == 0) return true;
+  }
+  return false;
+}
+
+bool IsSmallOrderEdDsaPoint(int id,
+                            const unsigned char* candidate,
+                            size_t size) {
+  switch (id) {
+    case EVP_PKEY_ED25519:
+      return size == kEd25519PointSize &&
+             ContainsPoint(candidate, kEd25519SmallOrderPoints);
+    case EVP_PKEY_ED448:
+      return size == kEd448PointSize &&
+             ContainsPoint(candidate, kEd448SmallOrderPoints);
+    default:
+      return false;
+  }
+}
+
+bool HasSmallOrderEdDsaPoint(const EVPKeyPointer& key,
+                             const ByteSource& signature) {
+  const int id = key.id();
+  size_t point_size;
+
+  switch (id) {
+    case EVP_PKEY_ED25519:
+      point_size = kEd25519PointSize;
+      break;
+    case EVP_PKEY_ED448:
+      point_size = kEd448PointSize;
+      break;
+    default:
+      return false;
+  }
+
+  if (signature.size() != point_size * 2) return false;
+
+  if (IsSmallOrderEdDsaPoint(id, signature.data<unsigned char>(), point_size)) {
+    return true;
+  }
+
+  unsigned char raw_public_key[kEd448PointSize];
+  size_t raw_public_key_size = point_size;
+  if (EVP_PKEY_get_raw_public_key(
+          key.get(), raw_public_key, &raw_public_key_size) != 1) {
+    return false;
+  }
+
+  return IsSmallOrderEdDsaPoint(id, raw_public_key, raw_public_key_size);
+}
+
+std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
+                                             EVPMDCtxPointer&& mdctx,
+                                             const EVPKeyPointer& pkey,
+                                             int padding,
+                                             std::optional<int> pss_salt_len) {
+  auto data = mdctx.digestFinal(mdctx.getExpectedSize());
+  if (!data) [[unlikely]]
+    return nullptr;
+
+  auto sig = ArrayBuffer::NewBackingStore(env->isolate(), pkey.size());
+  ncrypto::Buffer<unsigned char> sig_buf{
+      .data = static_cast<unsigned char*>(sig->Data()),
+      .len = pkey.size(),
+  };
+
+  EVPKeyCtxPointer pkctx = pkey.newCtx();
+  if (pkctx.initForSign() > 0 &&
       ApplyRSAOptions(pkey, pkctx.get(), padding, pss_salt_len) &&
-      EVP_PKEY_CTX_set_signature_md(pkctx.get(), EVP_MD_CTX_md(mdctx.get())) &&
-      EVP_PKEY_sign(pkctx.get(), ptr, &sig_len, m, m_len)) {
-    sig.Resize(sig_len);
+      pkctx.setSignatureMd(mdctx) && pkctx.signInto(data, &sig_buf))
+      [[likely]] {
+    CHECK_LE(sig_buf.len, sig->ByteLength());
+    if (sig_buf.len < sig->ByteLength()) {
+      auto new_sig = ArrayBuffer::NewBackingStore(
+          env->isolate(),
+          sig_buf.len,
+          BackingStoreInitializationMode::kUninitialized);
+      if (sig_buf.len > 0) [[likely]] {
+        memcpy(new_sig->Data(), sig->Data(), sig_buf.len);
+      }
+      sig = std::move(new_sig);
+    }
     return sig;
   }
 
-  return AllocatedBuffer();
-}
-
-int GetDefaultSignPadding(const ManagedEVPPKey& key) {
-  return EVP_PKEY_id(key.get()) == EVP_PKEY_RSA_PSS ? RSA_PKCS1_PSS_PADDING :
-                                                      RSA_PKCS1_PADDING;
-}
-
-unsigned int GetBytesOfRS(const ManagedEVPPKey& pkey) {
-  int bits, base_id = EVP_PKEY_base_id(pkey.get());
-
-  if (base_id == EVP_PKEY_DSA) {
-    DSA* dsa_key = EVP_PKEY_get0_DSA(pkey.get());
-    // Both r and s are computed mod q, so their width is limited by that of q.
-    bits = BN_num_bits(DSA_get0_q(dsa_key));
-  } else if (base_id == EVP_PKEY_EC) {
-    EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(pkey.get());
-    const EC_GROUP* ec_group = EC_KEY_get0_group(ec_key);
-    bits = EC_GROUP_order_bits(ec_group);
-  } else {
-    return kNoDsaSignature;
-  }
-
-  return (bits + 7) / 8;
+  return nullptr;
 }
 
 // Returns the maximum size of each of the integers (r, s) of the DSA signature.
-AllocatedBuffer ConvertSignatureToP1363(Environment* env,
-                                        const ManagedEVPPKey& pkey,
-                                        AllocatedBuffer&& signature) {
-  unsigned int n = GetBytesOfRS(pkey);
-  if (n == kNoDsaSignature)
+std::unique_ptr<BackingStore> ConvertSignatureToP1363(
+    Environment* env,
+    const EVPKeyPointer& pkey,
+    std::unique_ptr<BackingStore>&& signature) {
+  uint32_t n = pkey.getBytesOfRS().value_or(kNoDsaSignature);
+  if (n == kNoDsaSignature) return std::move(signature);
+
+  auto buf = ArrayBuffer::NewBackingStore(
+      env->isolate(), 2 * n, BackingStoreInitializationMode::kUninitialized);
+
+  ncrypto::Buffer<const unsigned char> sig_buffer{
+      .data = static_cast<const unsigned char*>(signature->Data()),
+      .len = signature->ByteLength(),
+  };
+
+  if (!ncrypto::extractP1363(
+          sig_buffer, static_cast<unsigned char*>(buf->Data()), n)) {
     return std::move(signature);
-
-  const unsigned char* sig_data =
-      reinterpret_cast<unsigned char*>(signature.data());
-
-  ECDSASigPointer asn1_sig(d2i_ECDSA_SIG(nullptr, &sig_data, signature.size()));
-  if (!asn1_sig)
-    return AllocatedBuffer();
-
-  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, 2 * n);
-  unsigned char* data = reinterpret_cast<unsigned char*>(buf.data());
-
-  const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig.get());
-  const BIGNUM* s = ECDSA_SIG_get0_s(asn1_sig.get());
-  CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(r, data, n)));
-  CHECK_EQ(n, static_cast<unsigned int>(BN_bn2binpad(s, data + n, n)));
+  }
 
   return buf;
 }
 
+// Returns the maximum size of each of the integers (r, s) of the DSA signature.
+ByteSource ConvertSignatureToP1363(Environment* env,
+                                   const EVPKeyPointer& pkey,
+                                   const ByteSource& signature) {
+  unsigned int n = pkey.getBytesOfRS().value_or(kNoDsaSignature);
+  if (n == kNoDsaSignature) [[unlikely]]
+    return {};
 
-ByteSource ConvertSignatureToDER(
-      const ManagedEVPPKey& pkey,
-      const ArrayBufferOrViewContents<char>& signature) {
-  unsigned int n = GetBytesOfRS(pkey);
-  if (n == kNoDsaSignature)
-    return signature.ToByteSource();
+  auto data = DataPointer::Alloc(n * 2);
+  if (!data) [[unlikely]]
+    return {};
+  unsigned char* out = static_cast<unsigned char*>(data.get());
 
-  const unsigned char* sig_data =
-      reinterpret_cast<const  unsigned char*>(signature.data());
+  // Extracting the signature may not actually use all of the allocated space.
+  // We need to ensure that the buffer is zeroed out before use.
+  data.zero();
 
-  if (signature.size() != 2 * n)
-    return ByteSource();
+  if (!ncrypto::extractP1363(signature, out, n)) [[unlikely]] {
+    return {};
+  }
 
-  ECDSASigPointer asn1_sig(ECDSA_SIG_new());
+  return ByteSource::Allocated(data.release());
+}
+
+ByteSource ConvertSignatureToDER(const EVPKeyPointer& pkey, ByteSource&& out) {
+  unsigned int n = pkey.getBytesOfRS().value_or(kNoDsaSignature);
+  if (n == kNoDsaSignature) return std::move(out);
+
+  const unsigned char* sig_data = out.data<unsigned char>();
+
+  if (out.size() != 2 * n) return {};
+
+  auto asn1_sig = ECDSASigPointer::New();
   CHECK(asn1_sig);
-  BIGNUM* r = BN_new();
-  CHECK_NOT_NULL(r);
-  BIGNUM* s = BN_new();
-  CHECK_NOT_NULL(s);
-  CHECK_EQ(r, BN_bin2bn(sig_data, n, r));
-  CHECK_EQ(s, BN_bin2bn(sig_data + n, n, s));
-  CHECK_EQ(1, ECDSA_SIG_set0(asn1_sig.get(), r, s));
+  BignumPointer r(sig_data, n);
+  CHECK(r);
+  BignumPointer s(sig_data + n, n);
+  CHECK(s);
+  CHECK(asn1_sig.setParams(std::move(r), std::move(s)));
 
-  unsigned char* data = nullptr;
-  int len = i2d_ECDSA_SIG(asn1_sig.get(), &data);
+  auto buf = asn1_sig.encode();
+  if (buf.len <= 0) [[unlikely]]
+    return {};
 
-  if (len <= 0)
-    return ByteSource();
-
-  CHECK_NOT_NULL(data);
-
-  return ByteSource::Allocated(reinterpret_cast<char*>(data), len);
+  CHECK_NOT_NULL(buf.data);
+  return ByteSource::Allocated(buf);
 }
 
 void CheckThrow(Environment* env, SignBase::Error error) {
   HandleScope scope(env->isolate());
 
   switch (error) {
-    case SignBase::Error::kSignUnknownDigest:
+    case SignBase::Error::UnknownDigest:
       return THROW_ERR_CRYPTO_INVALID_DIGEST(env);
 
-    case SignBase::Error::kSignNotInitialised:
+    case SignBase::Error::NotInitialised:
       return THROW_ERR_CRYPTO_INVALID_STATE(env, "Not initialised");
 
-    case SignBase::Error::kSignMalformedSignature:
+    case SignBase::Error::MalformedSignature:
       return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Malformed signature");
 
-    case SignBase::Error::kSignInit:
-    case SignBase::Error::kSignUpdate:
-    case SignBase::Error::kSignPrivateKey:
-    case SignBase::Error::kSignPublicKey:
-      {
-        unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
-        if (err)
-          return ThrowCryptoError(env, err);
-        switch (error) {
-          case SignBase::Error::kSignInit:
-            return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                "EVP_SignInit_ex failed");
-          case SignBase::Error::kSignUpdate:
-            return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                "EVP_SignUpdate failed");
-          case SignBase::Error::kSignPrivateKey:
-            return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                "PEM_read_bio_PrivateKey failed");
-          case SignBase::Error::kSignPublicKey:
-            return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                "PEM_read_bio_PUBKEY failed");
-          default:
-            ABORT();
-        }
-      }
+    case SignBase::Error::ContextUnsupported:
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Context parameter is unsupported");
 
-    case SignBase::Error::kSignOk:
+    case SignBase::Error::Init:
+    case SignBase::Error::Update:
+    case SignBase::Error::PrivateKey:
+    case SignBase::Error::PublicKey: {
+      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
+      if (err) return ThrowCryptoError(env, err);
+      switch (error) {
+        case SignBase::Error::Init:
+          return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                                   "EVP_SignInit_ex failed");
+        case SignBase::Error::Update:
+          return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                                   "EVP_SignUpdate failed");
+        case SignBase::Error::PrivateKey:
+          return THROW_ERR_CRYPTO_OPERATION_FAILED(
+              env, "PEM_read_bio_PrivateKey failed");
+        case SignBase::Error::PublicKey:
+          return THROW_ERR_CRYPTO_OPERATION_FAILED(
+              env, "PEM_read_bio_PUBKEY failed");
+        default:
+          ABORT();
+      }
+    }
+
+    case SignBase::Error::Ok:
       return;
   }
 }
+
+bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
+  return key.isSigVariant() && dsa_encoding == DSASigEnc::P1363;
+}
+
+bool SupportsContextString(const EVPKeyPointer& key) {
+  if (!OPENSSL_WITH_SIGNATURE_CONTEXT_STRING) return false;
+
+  const int id = key.id();
+#if OPENSSL_WITH_PQC
+  if (IsPqcSignatureKeyId(id)) return true;
+#endif
+#ifndef OPENSSL_IS_BORINGSSL
+  if (id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448) return true;
+#endif
+  return false;
+}
 }  // namespace
 
-SignBase::Error SignBase::Init(const char* sign_type) {
+SignBase::Error SignBase::Init(const char* digest) {
   CHECK_NULL(mdctx_);
-  // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
-  // exposed through the public API.
-  if (strcmp(sign_type, "dss1") == 0 ||
-      strcmp(sign_type, "DSS1") == 0) {
-    sign_type = "SHA1";
-  }
-  const EVP_MD* md = EVP_get_digestbyname(sign_type);
-  if (md == nullptr)
-    return kSignUnknownDigest;
+  auto md = Digest::FromName(digest);
+  if (!md) [[unlikely]]
+    return Error::UnknownDigest;
 
-  mdctx_.reset(EVP_MD_CTX_new());
-  if (!mdctx_ || !EVP_DigestInit_ex(mdctx_.get(), md, nullptr)) {
+  mdctx_ = EVPMDCtxPointer::New();
+
+  if (!mdctx_.digestInit(md)) [[unlikely]] {
     mdctx_.reset();
-    return kSignInit;
+    return Error::Init;
   }
 
-  return kSignOk;
+  return Error::Ok;
 }
 
 SignBase::Error SignBase::Update(const char* data, size_t len) {
-  if (mdctx_ == nullptr)
-    return kSignNotInitialised;
-  if (!EVP_DigestUpdate(mdctx_.get(), data, len))
-    return kSignUpdate;
-  return kSignOk;
+  if (mdctx_ == nullptr) [[unlikely]]
+    return Error::NotInitialised;
+
+  ncrypto::Buffer<const void> buf{
+      .data = data,
+      .len = len,
+  };
+
+  return mdctx_.digestUpdate(buf) ? Error::Ok : Error::Update;
 }
 
 SignBase::SignBase(Environment* env, Local<Object> wrap)
-    : BaseObject(env, wrap) {}
+    : BaseObject(env, wrap) {
+  MakeWeak();
+}
 
 void SignBase::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("mdctx", mdctx_ ? kSizeOf_EVP_MD_CTX : 0);
 }
 
-Sign::Sign(Environment* env, Local<Object> wrap) : SignBase(env, wrap) {
-  MakeWeak();
-}
+Sign::Sign(Environment* env, Local<Object> wrap) : SignBase(env, wrap) {}
 
 void Sign::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(
-      SignBase::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(Sign::kInternalFieldCount);
 
-  env->SetProtoMethod(t, "init", SignInit);
-  env->SetProtoMethod(t, "update", SignUpdate);
-  env->SetProtoMethod(t, "sign", SignFinal);
+  SetProtoMethod(isolate, t, "init", SignInit);
+  SetProtoMethod(isolate, t, "update", SignUpdate);
+  SetProtoMethod(isolate, t, "sign", SignFinal);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Sign"),
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
-
-  env->SetMethod(target, "signOneShot", Sign::SignSync);
+  SetConstructorFunction(env->context(), target, "Sign", t);
 
   SignJob::Initialize(env, target);
 
-  constexpr int kSignJobModeSign = SignConfiguration::kSign;
-  constexpr int kSignJobModeVerify = SignConfiguration::kVerify;
+  constexpr int kSignJobModeSign =
+      static_cast<int>(SignConfiguration::Mode::Sign);
+  constexpr int kSignJobModeVerify =
+      static_cast<int>(SignConfiguration::Mode::Verify);
+
+  constexpr auto kSigEncDER = DSASigEnc::DER;
+  constexpr auto kSigEncP1363 = DSASigEnc::P1363;
 
   NODE_DEFINE_CONSTANT(target, kSignJobModeSign);
   NODE_DEFINE_CONSTANT(target, kSignJobModeVerify);
+  NODE_DEFINE_CONSTANT(target, kSigEncDER);
+  NODE_DEFINE_CONSTANT(target, kSigEncP1363);
   NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
+}
+
+void Sign::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(SignInit);
+  registry->Register(SignUpdate);
+  registry->Register(SignFinal);
+  SignJob::RegisterExternalReferences(registry);
 }
 
 void Sign::New(const FunctionCallbackInfo<Value>& args) {
@@ -300,9 +476,9 @@ void Sign::New(const FunctionCallbackInfo<Value>& args) {
 void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Sign* sign;
-  ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sign, args.This());
 
-  const node::Utf8Value sign_type(args.GetIsolate(), args[0]);
+  const node::Utf8Value sign_type(env->isolate(), args[0]);
   crypto::CheckThrow(env, sign->Init(*sign_type));
 }
 
@@ -310,32 +486,33 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
   Decode<Sign>(args, [](Sign* sign, const FunctionCallbackInfo<Value>& args,
                         const char* data, size_t size) {
     Environment* env = Environment::GetCurrent(args);
-    if (UNLIKELY(size > INT_MAX))
+    if (size > INT_MAX) [[unlikely]]
       return THROW_ERR_OUT_OF_RANGE(env, "data is too long");
     Error err = sign->Update(data, size);
     crypto::CheckThrow(sign->env(), err);
   });
 }
 
-Sign::SignResult Sign::SignFinal(
-    const ManagedEVPPKey& pkey,
-    int padding,
-    const Maybe<int>& salt_len,
-    DSASigEnc dsa_sig_enc) {
-  if (!mdctx_)
-    return SignResult(kSignNotInitialised);
+Sign::SignResult Sign::SignFinal(const EVPKeyPointer& pkey,
+                                 int padding,
+                                 std::optional<int> salt_len,
+                                 DSASigEnc dsa_sig_enc) {
+  if (!mdctx_) [[unlikely]] {
+    return SignResult(Error::NotInitialised);
+  }
 
-  EVPMDPointer mdctx = std::move(mdctx_);
+  EVPMDCtxPointer mdctx = std::move(mdctx_);
 
-  if (!ValidateDSAParameters(pkey.get()))
-    return SignResult(kSignPrivateKey);
+  if (!pkey.validateDsaParameters()) {
+    return SignResult(Error::PrivateKey);
+  }
 
-  AllocatedBuffer buffer =
+  auto buffer =
       Node_SignFinal(env(), std::move(mdctx), pkey, padding, salt_len);
-  Error error = buffer.data() == nullptr ? kSignPrivateKey : kSignOk;
-  if (error == kSignOk && dsa_sig_enc == kSigEncP1363) {
+  Error error = buffer ? Error::Ok : Error::PrivateKey;
+  if (error == Error::Ok && dsa_sig_enc == DSASigEnc::P1363) {
     buffer = ConvertSignatureToP1363(env(), pkey, std::move(buffer));
-    CHECK_NOT_NULL(buffer.data());
+    CHECK_NOT_NULL(buffer->Data());
   }
   return SignResult(error, std::move(buffer));
 }
@@ -343,64 +520,62 @@ Sign::SignResult Sign::SignFinal(
 void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Sign* sign;
-  ASSIGN_OR_RETURN_UNWRAP(&sign, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&sign, args.This());
 
   ClearErrorOnReturn clear_error_on_return;
 
   unsigned int offset = 0;
-  ManagedEVPPKey key = ManagedEVPPKey::GetPrivateKeyFromJs(args, &offset, true);
-  if (!key)
+  auto data = KeyObjectData::GetPrivateKeyFromJs(args, &offset, true);
+  if (!data) [[unlikely]]
+    return;
+  const auto& key = data.GetAsymmetricKey();
+  if (!key) [[unlikely]]
     return;
 
-  int padding = GetDefaultSignPadding(key);
-  if (!args[offset]->IsUndefined()) {
-    CHECK(args[offset]->IsInt32());
-    padding = args[offset].As<Int32>()->Value();
+  if (key.isOneShotVariant()) [[unlikely]] {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
   }
 
-  Maybe<int> salt_len = Nothing<int>();
-  if (!args[offset + 1]->IsUndefined()) {
-    CHECK(args[offset + 1]->IsInt32());
-    salt_len = Just<int>(args[offset + 1].As<Int32>()->Value());
+  int padding = GetPaddingFromJS(key, args[offset]);
+  std::optional<int> salt_len = GetSaltLenFromJS(args[offset + 1]);
+  DSASigEnc dsa_sig_enc = GetDSASigEncFromJS(args[offset + 2]);
+  if (dsa_sig_enc == DSASigEnc::Invalid) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "invalid signature encoding");
+    return;
   }
 
-  CHECK(args[offset + 2]->IsInt32());
-  DSASigEnc dsa_sig_enc =
-      static_cast<DSASigEnc>(args[offset + 2].As<Int32>()->Value());
+  SignResult ret = sign->SignFinal(key, padding, salt_len, dsa_sig_enc);
 
-  SignResult ret = sign->SignFinal(
-      key,
-      padding,
-      salt_len,
-      dsa_sig_enc);
-
-  if (ret.error != kSignOk)
+  if (ret.error != Error::Ok) [[unlikely]] {
     return crypto::CheckThrow(env, ret.error);
+  }
 
-  args.GetReturnValue().Set(ret.signature.ToBuffer().FromMaybe(Local<Value>()));
+  auto ab = ArrayBuffer::New(env->isolate(), std::move(ret.signature));
+  args.GetReturnValue().Set(
+      Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>()));
 }
 
-Verify::Verify(Environment* env, Local<Object> wrap)
-  : SignBase(env, wrap) {
-  MakeWeak();
-}
+Verify::Verify(Environment* env, Local<Object> wrap) : SignBase(env, wrap) {}
 
 void Verify::Initialize(Environment* env, Local<Object> target) {
-  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  Isolate* isolate = env->isolate();
+  Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(
-      SignBase::kInternalFieldCount);
-  t->Inherit(BaseObject::GetConstructorTemplate(env));
+  t->InstanceTemplate()->SetInternalFieldCount(Verify::kInternalFieldCount);
 
-  env->SetProtoMethod(t, "init", VerifyInit);
-  env->SetProtoMethod(t, "update", VerifyUpdate);
-  env->SetProtoMethod(t, "verify", VerifyFinal);
+  SetProtoMethod(isolate, t, "init", VerifyInit);
+  SetProtoMethod(isolate, t, "update", VerifyUpdate);
+  SetProtoMethod(isolate, t, "verify", VerifyFinal);
 
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "Verify"),
-              t->GetFunction(env->context()).ToLocalChecked()).Check();
+  SetConstructorFunction(env->context(), target, "Verify", t);
+}
 
-  env->SetMethod(target, "verifyOneShot", Verify::VerifySync);
+void Verify::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(VerifyInit);
+  registry->Register(VerifyUpdate);
+  registry->Register(VerifyFinal);
 }
 
 void Verify::New(const FunctionCallbackInfo<Value>& args) {
@@ -411,9 +586,9 @@ void Verify::New(const FunctionCallbackInfo<Value>& args) {
 void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Verify* verify;
-  ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&verify, args.This());
 
-  const node::Utf8Value verify_type(args.GetIsolate(), args[0]);
+  const node::Utf8Value verify_type(env->isolate(), args[0]);
   crypto::CheckThrow(env, verify->Init(*verify_type));
 }
 
@@ -422,41 +597,41 @@ void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
                           const FunctionCallbackInfo<Value>& args,
                           const char* data, size_t size) {
     Environment* env = Environment::GetCurrent(args);
-    if (UNLIKELY(size > INT_MAX))
+    if (size > INT_MAX) [[unlikely]] {
       return THROW_ERR_OUT_OF_RANGE(env, "data is too long");
+    }
     Error err = verify->Update(data, size);
     crypto::CheckThrow(verify->env(), err);
   });
 }
 
-SignBase::Error Verify::VerifyFinal(const ManagedEVPPKey& pkey,
+SignBase::Error Verify::VerifyFinal(const EVPKeyPointer& pkey,
                                     const ByteSource& sig,
                                     int padding,
-                                    const Maybe<int>& saltlen,
+                                    std::optional<int> saltlen,
                                     bool* verify_result) {
-  if (!mdctx_)
-    return kSignNotInitialised;
+  if (!mdctx_) [[unlikely]]
+    return Error::NotInitialised;
 
-  unsigned char m[EVP_MAX_MD_SIZE];
-  unsigned int m_len;
   *verify_result = false;
-  EVPMDPointer mdctx = std::move(mdctx_);
+  EVPMDCtxPointer mdctx = std::move(mdctx_);
 
-  if (!EVP_DigestFinal_ex(mdctx.get(), m, &m_len))
-    return kSignPublicKey;
+  auto data = mdctx.digestFinal(mdctx.getExpectedSize());
+  if (!data) [[unlikely]]
+    return Error::PublicKey;
 
-  EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
-  if (pkctx &&
-      EVP_PKEY_verify_init(pkctx.get()) > 0 &&
-      ApplyRSAOptions(pkey, pkctx.get(), padding, saltlen) &&
-      EVP_PKEY_CTX_set_signature_md(pkctx.get(),
-                                    EVP_MD_CTX_md(mdctx.get())) > 0) {
-    const unsigned char* s = reinterpret_cast<const unsigned char*>(sig.get());
-    const int r = EVP_PKEY_verify(pkctx.get(), s, sig.size(), m, m_len);
-    *verify_result = r == 1;
+  EVPKeyCtxPointer pkctx = pkey.newCtx();
+  if (pkctx) [[likely]] {
+    const int init_ret = pkctx.initForVerify();
+    if (init_ret == -2) [[unlikely]]
+      return Error::PublicKey;
+    if (init_ret > 0 && ApplyRSAOptions(pkey, pkctx.get(), padding, saltlen) &&
+        pkctx.setSignatureMd(mdctx)) {
+      *verify_result = pkctx.verify(sig, data);
+    }
   }
 
-  return kSignOk;
+  return Error::Ok;
 }
 
 void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
@@ -464,205 +639,47 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
 
   Verify* verify;
-  ASSIGN_OR_RETURN_UNWRAP(&verify, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&verify, args.This());
 
   unsigned int offset = 0;
-  ManagedEVPPKey pkey =
-      ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
-  if (!pkey)
+  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  if (!data) [[unlikely]]
     return;
+  const auto& key = data.GetAsymmetricKey();
+  if (!key) [[unlikely]]
+    return;
+
+  if (key.isOneShotVariant()) [[unlikely]] {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
 
   ArrayBufferOrViewContents<char> hbuf(args[offset]);
-  if (UNLIKELY(!hbuf.CheckSizeInt32()))
+  if (!hbuf.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
-
-  int padding = GetDefaultSignPadding(pkey);
-  if (!args[offset + 1]->IsUndefined()) {
-    CHECK(args[offset + 1]->IsInt32());
-    padding = args[offset + 1].As<Int32>()->Value();
   }
 
-  Maybe<int> salt_len = Nothing<int>();
-  if (!args[offset + 2]->IsUndefined()) {
-    CHECK(args[offset + 2]->IsInt32());
-    salt_len = Just<int>(args[offset + 2].As<Int32>()->Value());
+  int padding = GetPaddingFromJS(key, args[offset + 1]);
+  std::optional<int> salt_len = GetSaltLenFromJS(args[offset + 2]);
+  DSASigEnc dsa_sig_enc = GetDSASigEncFromJS(args[offset + 3]);
+  if (dsa_sig_enc == DSASigEnc::Invalid) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "invalid signature encoding");
+    return;
   }
-
-  CHECK(args[offset + 3]->IsInt32());
-  DSASigEnc dsa_sig_enc =
-      static_cast<DSASigEnc>(args[offset + 3].As<Int32>()->Value());
 
   ByteSource signature = hbuf.ToByteSource();
-  if (dsa_sig_enc == kSigEncP1363) {
-    signature = ConvertSignatureToDER(pkey, hbuf);
-    if (signature.get() == nullptr)
-      return crypto::CheckThrow(env, Error::kSignMalformedSignature);
+  if (dsa_sig_enc == DSASigEnc::P1363) {
+    signature = ConvertSignatureToDER(key, hbuf.ToByteSource());
+    if (signature.data() == nullptr) [[unlikely]] {
+      return crypto::CheckThrow(env, Error::MalformedSignature);
+    }
   }
 
   bool verify_result;
-  Error err = verify->VerifyFinal(pkey, signature, padding,
-                                  salt_len, &verify_result);
-  if (err != kSignOk)
+  Error err =
+      verify->VerifyFinal(key, signature, padding, salt_len, &verify_result);
+  if (err != Error::Ok) [[unlikely]]
     return crypto::CheckThrow(env, err);
-  args.GetReturnValue().Set(verify_result);
-}
-
-void Sign::SignSync(const FunctionCallbackInfo<Value>& args) {
-  ClearErrorOnReturn clear_error_on_return;
-  Environment* env = Environment::GetCurrent(args);
-
-  unsigned int offset = 0;
-  ManagedEVPPKey key = ManagedEVPPKey::GetPrivateKeyFromJs(args, &offset, true);
-  if (!key)
-    return;
-
-  if (!ValidateDSAParameters(key.get()))
-    return crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
-
-  ArrayBufferOrViewContents<char> data(args[offset]);
-  if (UNLIKELY(!data.CheckSizeInt32()))
-    return THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-
-  const EVP_MD* md;
-  if (args[offset + 1]->IsNullOrUndefined()) {
-    md = nullptr;
-  } else {
-    const node::Utf8Value sign_type(args.GetIsolate(), args[offset + 1]);
-    md = EVP_get_digestbyname(*sign_type);
-    if (md == nullptr)
-      return crypto::CheckThrow(env, SignBase::Error::kSignUnknownDigest);
-  }
-
-  int rsa_padding = GetDefaultSignPadding(key);
-  if (!args[offset + 2]->IsUndefined()) {
-    CHECK(args[offset + 2]->IsInt32());
-    rsa_padding = args[offset + 2].As<Int32>()->Value();
-  }
-
-  Maybe<int> rsa_salt_len = Nothing<int>();
-  if (!args[offset + 3]->IsUndefined()) {
-    CHECK(args[offset + 3]->IsInt32());
-    rsa_salt_len = Just<int>(args[offset + 3].As<Int32>()->Value());
-  }
-
-  CHECK(args[offset + 4]->IsInt32());
-  DSASigEnc dsa_sig_enc =
-      static_cast<DSASigEnc>(args[offset + 4].As<Int32>()->Value());
-
-  EVP_PKEY_CTX* pkctx = nullptr;
-  EVPMDPointer mdctx(EVP_MD_CTX_new());
-
-  if (!mdctx ||
-      !EVP_DigestSignInit(mdctx.get(), &pkctx, md, nullptr, key.get())) {
-    return crypto::CheckThrow(env, SignBase::Error::kSignInit);
-  }
-
-  if (!ApplyRSAOptions(key, pkctx, rsa_padding, rsa_salt_len))
-    return crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
-
-  const unsigned char* input =
-    reinterpret_cast<const unsigned char*>(data.data());
-  size_t sig_len;
-  if (!EVP_DigestSign(mdctx.get(), nullptr, &sig_len, input, data.size()))
-    return crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
-
-  AllocatedBuffer signature = AllocatedBuffer::AllocateManaged(env, sig_len);
-  if (!EVP_DigestSign(mdctx.get(),
-                      reinterpret_cast<unsigned char*>(signature.data()),
-                      &sig_len,
-                      input,
-                      data.size())) {
-    return crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
-  }
-
-  signature.Resize(sig_len);
-
-  if (dsa_sig_enc == kSigEncP1363) {
-    signature = ConvertSignatureToP1363(env, key, std::move(signature));
-  }
-
-  args.GetReturnValue().Set(signature.ToBuffer().FromMaybe(Local<Value>()));
-}
-
-void Verify::VerifySync(const FunctionCallbackInfo<Value>& args) {
-  ClearErrorOnReturn clear_error_on_return;
-  Environment* env = Environment::GetCurrent(args);
-
-  unsigned int offset = 0;
-  ManagedEVPPKey key =
-      ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
-  if (!key)
-    return;
-
-  ArrayBufferOrViewContents<char> sig(args[offset]);
-  ArrayBufferOrViewContents<char> data(args[offset + 1]);
-
-  if (UNLIKELY(!sig.CheckSizeInt32()))
-    return THROW_ERR_OUT_OF_RANGE(env, "sig is too big");
-  if (UNLIKELY(!data.CheckSizeInt32()))
-    return THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-
-  const EVP_MD* md;
-  if (args[offset + 2]->IsNullOrUndefined()) {
-    md = nullptr;
-  } else {
-    const node::Utf8Value sign_type(args.GetIsolate(), args[offset + 2]);
-    md = EVP_get_digestbyname(*sign_type);
-    if (md == nullptr)
-      return crypto::CheckThrow(env, SignBase::Error::kSignUnknownDigest);
-  }
-
-  int rsa_padding = GetDefaultSignPadding(key);
-  if (!args[offset + 3]->IsUndefined()) {
-    CHECK(args[offset + 3]->IsInt32());
-    rsa_padding = args[offset + 3].As<Int32>()->Value();
-  }
-
-  Maybe<int> rsa_salt_len = Nothing<int>();
-  if (!args[offset + 4]->IsUndefined()) {
-    CHECK(args[offset + 4]->IsInt32());
-    rsa_salt_len = Just<int>(args[offset + 4].As<Int32>()->Value());
-  }
-
-  CHECK(args[offset + 5]->IsInt32());
-  DSASigEnc dsa_sig_enc =
-      static_cast<DSASigEnc>(args[offset + 5].As<Int32>()->Value());
-
-  EVP_PKEY_CTX* pkctx = nullptr;
-  EVPMDPointer mdctx(EVP_MD_CTX_new());
-  if (!mdctx ||
-      !EVP_DigestVerifyInit(mdctx.get(), &pkctx, md, nullptr, key.get())) {
-    return crypto::CheckThrow(env, SignBase::Error::kSignInit);
-  }
-
-  if (!ApplyRSAOptions(key, pkctx, rsa_padding, rsa_salt_len))
-    return crypto::CheckThrow(env, SignBase::Error::kSignPublicKey);
-
-  ByteSource sig_bytes = ByteSource::Foreign(sig.data(), sig.size());
-  if (dsa_sig_enc == kSigEncP1363) {
-    sig_bytes = ConvertSignatureToDER(key, sig);
-    if (!sig_bytes)
-      return crypto::CheckThrow(env, SignBase::Error::kSignMalformedSignature);
-  }
-
-  bool verify_result;
-  const int r = EVP_DigestVerify(
-    mdctx.get(),
-    sig_bytes.data<unsigned char>(),
-    sig_bytes.size(),
-    reinterpret_cast<const unsigned char*>(data.data()),
-    data.size());
-  switch (r) {
-    case 1:
-      verify_result = true;
-      break;
-    case 0:
-      verify_result = false;
-      break;
-    default:
-      return crypto::CheckThrow(env, SignBase::Error::kSignPublicKey);
-  }
-
   args.GetReturnValue().Set(verify_result);
 }
 
@@ -675,7 +692,9 @@ SignConfiguration::SignConfiguration(SignConfiguration&& other) noexcept
       digest(other.digest),
       flags(other.flags),
       padding(other.padding),
-      salt_length(other.salt_length) {}
+      salt_length(other.salt_length),
+      dsa_encoding(other.dsa_encoding),
+      context_string(std::move(other.context_string)) {}
 
 SignConfiguration& SignConfiguration::operator=(
     SignConfiguration&& other) noexcept {
@@ -685,196 +704,218 @@ SignConfiguration& SignConfiguration::operator=(
 }
 
 void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("key", key.get());
-  if (job_mode == kCryptoJobAsync) {
+  tracker->TrackField("key", key);
+  if (IsCryptoJobAsync(job_mode)) {
     tracker->TrackFieldWithSize("data", data.size());
     tracker->TrackFieldWithSize("signature", signature.size());
+    tracker->TrackFieldWithSize("context_string", context_string.size());
   }
 }
 
-Maybe<bool> SignTraits::AdditionalConfig(
+Maybe<void> SignTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     SignConfiguration* params) {
+  ClearErrorOnReturn clear_error_on_return;
   Environment* env = Environment::GetCurrent(args);
 
   params->job_mode = mode;
 
   CHECK(args[offset]->IsUint32());  // Sign Mode
-  CHECK(args[offset + 1]->IsObject());  // Key
 
   params->mode =
       static_cast<SignConfiguration::Mode>(args[offset].As<Uint32>()->Value());
 
-  KeyObjectHandle* key;
-  ASSIGN_OR_RETURN_UNWRAP(&key, args[offset + 1], Nothing<bool>());
-  params->key = key->Data();
-
-  ArrayBufferOrViewContents<char> data(args[offset + 2]);
-  if (UNLIKELY(!data.CheckSizeInt32())) {
-    THROW_ERR_OUT_OF_RANGE(env, "data is too big");
-    return Nothing<bool>();
+  unsigned int keyParamOffset = offset + 1;
+  if (params->mode == SignConfiguration::Mode::Verify) {
+    auto data =
+        KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &keyParamOffset);
+    if (!data) return Nothing<void>();
+    params->key = std::move(data);
+  } else {
+    auto data = KeyObjectData::GetPrivateKeyFromJs(args, &keyParamOffset, true);
+    if (!data) return Nothing<void>();
+    params->key = std::move(data);
   }
-  params->data = mode == kCryptoJobAsync
-      ? data.ToCopy()
-      : data.ToByteSource();
 
-  if (args[offset + 3]->IsString()) {
-    Utf8Value digest(env->isolate(), args[offset + 3]);
-    params->digest = EVP_get_digestbyname(*digest);
-    if (params->digest == nullptr) {
-      THROW_ERR_CRYPTO_INVALID_DIGEST(env);
-      return Nothing<bool>();
+  ArrayBufferOrViewContents<char> data(args[offset + 6]);
+  if (!data.CheckSizeInt32()) [[unlikely]] {
+    THROW_ERR_OUT_OF_RANGE(env, "data is too big");
+    return Nothing<void>();
+  }
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
+
+  if (args[offset + 7]->IsString()) {
+    Utf8Value digest(env->isolate(), args[offset + 7]);
+    params->digest = Digest::FromName(*digest);
+    if (!params->digest) [[unlikely]] {
+      THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
+      return Nothing<void>();
     }
   }
 
-  if (args[offset + 4]->IsUint32()) {  // Salt length
+  if (args[offset + 8]->IsInt32()) {  // Salt length
     params->flags |= SignConfiguration::kHasSaltLength;
-    params->salt_length = args[offset + 4].As<Uint32>()->Value();
+    params->salt_length =
+        GetSaltLenFromJS(args[offset + 8]).value_or(params->salt_length);
   }
-  if (args[offset + 5]->IsUint32()) {  // Padding
+  if (args[offset + 9]->IsUint32()) {  // Padding
     params->flags |= SignConfiguration::kHasPadding;
-    params->padding = args[offset + 5].As<Uint32>()->Value();
+    params->padding =
+        GetPaddingFromJS(params->key.GetAsymmetricKey(), args[offset + 9]);
   }
 
-  if (params->mode == SignConfiguration::kVerify) {
-    ArrayBufferOrViewContents<char> signature(args[offset + 6]);
-    if (UNLIKELY(!signature.CheckSizeInt32())) {
+  if (args[offset + 10]->IsUint32()) {  // DSA Encoding
+    params->dsa_encoding = GetDSASigEncFromJS(args[offset + 10]);
+    if (params->dsa_encoding == DSASigEnc::Invalid) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "invalid signature encoding");
+      return Nothing<void>();
+    }
+  }
+
+  if (!args[offset + 11]->IsUndefined()) {  // Context string
+    ArrayBufferOrViewContents<char> context_string(args[offset + 11]);
+    if (context_string.size() > 255) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "context string must be at most 255 bytes");
+      return Nothing<void>();
+    }
+    params->flags |= SignConfiguration::kHasContextString;
+    params->context_string = IsCryptoJobAsync(mode)
+                                 ? context_string.ToCopy()
+                                 : context_string.ToByteSource();
+  }
+
+  if (params->mode == SignConfiguration::Mode::Verify) {
+    ArrayBufferOrViewContents<char> signature(args[offset + 12]);
+    if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
-      return Nothing<bool>();
+      return Nothing<void>();
     }
     // If this is an EC key (assuming ECDSA) we need to convert the
     // the signature from WebCrypto format into DER format...
-    if (EVP_PKEY_id(params->key->GetAsymmetricKey().get()) == EVP_PKEY_EC) {
-      params->signature =
-          ConvertFromWebCryptoSignature(
-              params->key->GetAsymmetricKey(),
-              signature.ToByteSource());
+    Mutex::ScopedLock lock(params->key.mutex());
+    const auto& akey = params->key.GetAsymmetricKey();
+    if (UseP1363Encoding(akey, params->dsa_encoding)) {
+      params->signature = ConvertSignatureToDER(akey, signature.ToByteSource());
     } else {
-      params->signature = mode == kCryptoJobAsync
-          ? signature.ToCopy()
-          : signature.ToByteSource();
+      params->signature = IsCryptoJobAsync(mode) ? signature.ToCopy()
+                                                 : signature.ToByteSource();
     }
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
-bool SignTraits::DeriveBits(
-    Environment* env,
-    const SignConfiguration& params,
-    ByteSource* out) {
-  EVPMDPointer context(EVP_MD_CTX_new());
-  EVP_PKEY_CTX* ctx = nullptr;
+bool SignTraits::DeriveBits(Environment* env,
+                            const SignConfiguration& params,
+                            ByteSource* out,
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
+  auto context = EVPMDCtxPointer::New();
+  if (!context) [[unlikely]]
+    return false;
+  const auto& key = params.key.GetAsymmetricKey();
 
-  switch (params.mode) {
-    case SignConfiguration::kSign:
-      CHECK_EQ(params.key->GetKeyType(), kKeyTypePrivate);
-      if (!EVP_DigestSignInit(
-              context.get(),
-              &ctx,
-              params.digest,
-              nullptr,
-              params.key->GetAsymmetricKey().get())) {
-        return false;
+  bool has_context = (params.flags & SignConfiguration::kHasContextString &&
+                      params.context_string.size() > 0);
+
+  if (has_context && !SupportsContextString(key)) {
+    errors->Insert(NodeCryptoError::CONTEXT_UNSUPPORTED);
+    errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
+    return false;
+  }
+
+  auto ctx = ([&] {
+    if (has_context) {
+      ncrypto::Buffer<const unsigned char> context_buf{
+          .data = params.context_string.data<unsigned char>(),
+          .len = params.context_string.size(),
+      };
+
+      switch (params.mode) {
+        case SignConfiguration::Mode::Sign:
+          return context.signInitWithContext(key, params.digest, context_buf);
+        case SignConfiguration::Mode::Verify:
+          return context.verifyInitWithContext(key, params.digest, context_buf);
       }
-      break;
-    case SignConfiguration::kVerify:
-      CHECK_EQ(params.key->GetKeyType(), kKeyTypePublic);
-      if (!EVP_DigestVerifyInit(
-              context.get(),
-              &ctx,
-              params.digest,
-              nullptr,
-              params.key->GetAsymmetricKey().get())) {
-        return false;
+    } else {
+      switch (params.mode) {
+        case SignConfiguration::Mode::Sign:
+          return context.signInit(key, params.digest);
+        case SignConfiguration::Mode::Verify:
+          return context.verifyInit(key, params.digest);
       }
-      break;
+    }
+    UNREACHABLE();
+  })();
+
+  if (!ctx.has_value()) [[unlikely]] {
+    return false;
   }
 
   int padding = params.flags & SignConfiguration::kHasPadding
-      ? params.padding
-      : GetDefaultSignPadding(params.key->GetAsymmetricKey());
+                    ? params.padding
+                    : key.getDefaultSignPadding();
 
-  Maybe<int> salt_length = params.flags & SignConfiguration::kHasSaltLength
-      ? Just<int>(params.salt_length) : Nothing<int>();
+  std::optional<int> salt_length =
+      params.flags & SignConfiguration::kHasSaltLength
+          ? std::optional<int>(params.salt_length)
+          : std::nullopt;
 
-  if (!ApplyRSAOptions(
-          params.key->GetAsymmetricKey(),
-          ctx,
-          padding,
-          salt_length)) {
+  if (!ApplyRSAOptions(key, *ctx, padding, salt_length)) {
     return false;
   }
 
   switch (params.mode) {
-    case SignConfiguration::kSign: {
-      size_t len;
-      if (!EVP_DigestSignUpdate(
-              context.get(),
-              params.data.data<unsigned char>(),
-              params.data.size()) ||
-          !EVP_DigestSignFinal(context.get(), nullptr, &len)) {
-        return false;
-      }
-      char* data = MallocOpenSSL<char>(len);
-      ByteSource buf = ByteSource::Allocated(data, len);
-      unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
-      if (!EVP_DigestSignFinal(context.get(), ptr, &len))
-        return false;
-
-      // If this is an EC key (assuming ECDSA) we have to
-      // convert the signature in to the proper format.
-      if (EVP_PKEY_id(params.key->GetAsymmetricKey().get()) == EVP_PKEY_EC) {
-        *out = ConvertToWebCryptoSignature(params.key->GetAsymmetricKey(), buf);
+    case SignConfiguration::Mode::Sign: {
+      if (key.isOneShotVariant()) {
+        auto data = context.signOneShot(params.data);
+        if (!data) [[unlikely]] {
+          return false;
+        }
+        DCHECK(!data.isSecure());
+        *out = ByteSource::Allocated(data.release());
       } else {
-        buf.Resize(len);
-        *out = std::move(buf);
+        auto data = context.sign(params.data);
+        if (!data) [[unlikely]] {
+          return false;
+        }
+        DCHECK(!data.isSecure());
+        auto bs = ByteSource::Allocated(data.release());
+
+        if (UseP1363Encoding(key, params.dsa_encoding)) {
+          *out = ConvertSignatureToP1363(env, key, std::move(bs));
+        } else {
+          *out = std::move(bs);
+        }
       }
       break;
     }
-    case SignConfiguration::kVerify: {
-      char* data = MallocOpenSSL<char>(1);
-      data[0] = 0;
-      *out = ByteSource::Allocated(data, 1);
-      if (!EVP_DigestVerifyUpdate(
-              context.get(),
-              params.data.data<unsigned char>(),
-              params.data.size())) {
-        return false;
+    case SignConfiguration::Mode::Verify: {
+      auto buf = DataPointer::Alloc(1);
+      static_cast<char*>(buf.get())[0] = 0;
+      if (context.verify(params.data, params.signature) &&
+          !HasSmallOrderEdDsaPoint(key, params.signature)) {
+        static_cast<char*>(buf.get())[0] = 1;
       }
-
-      if (EVP_DigestVerifyFinal(
-              context.get(),
-              params.signature.data<unsigned char>(),
-              params.signature.size()) == 1) {
-        data[0] = 1;
-      }
+      *out = ByteSource::Allocated(buf.release());
     }
   }
 
   return true;
 }
 
-Maybe<bool> SignTraits::EncodeOutput(
-    Environment* env,
-    const SignConfiguration& params,
-    ByteSource* out,
-    Local<Value>* result) {
+MaybeLocal<Value> SignTraits::EncodeOutput(Environment* env,
+                                           const SignConfiguration& params,
+                                           ByteSource* out) {
   switch (params.mode) {
-    case SignConfiguration::kSign:
-      *result = out->ToArrayBuffer(env);
-      break;
-    case SignConfiguration::kVerify:
-      *result = out->get()[0] == 1
-          ? v8::True(env->isolate())
-          : v8::False(env->isolate());
-      break;
-    default:
-      UNREACHABLE();
+    case SignConfiguration::Mode::Sign:
+      return out->ToArrayBuffer(env);
+    case SignConfiguration::Mode::Verify:
+      return Boolean::New(env->isolate(), out->data<char>()[0] == 1);
   }
-  return Just(!result->IsEmpty());
+  UNREACHABLE();
 }
 
 }  // namespace crypto

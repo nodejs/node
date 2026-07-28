@@ -1,0 +1,5 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Foo::takes_mut: found &T in output where T is a custom type, but not opaque. T = Foo

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --opt --allow-natives-syntax --no-always-opt
+// Flags: --turbofan --allow-natives-syntax
 
 function foo(n) {
   try {
@@ -25,10 +25,11 @@ assertEquals(foo(1), 0);
 assertOptimized(foo);
 %PrepareFunctionForOptimization(foo);
 assertEquals(foo(2), 1);
-assertUnoptimized(foo);
+if (%Is64Bit()) {
+  assertUnoptimized(foo);
+}
 // Check that we learned something and do not loop deoptimizations.
 %OptimizeFunctionOnNextCall(foo);
 assertEquals(foo(1), 0);
 assertOptimized(foo);
 assertEquals(foo(2), 1);
-assertOptimized(foo);

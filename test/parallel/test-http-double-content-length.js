@@ -9,12 +9,12 @@ const assert = require('assert');
 // Content-Length header is received.
 const server = http.createServer(common.mustNotCall());
 server.on('clientError', common.mustCall((err, socket) => {
-  assert(/^Parse Error/.test(err.message));
+  assert.match(err.message, /^Parse Error/);
   assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
   socket.destroy();
 }));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const req = http.get({
     port: server.address().port,
     // Send two content-length header values.
@@ -23,4 +23,4 @@ server.listen(0, () => {
   req.on('error', common.mustCall(() => {
     server.close();
   }));
-});
+}));

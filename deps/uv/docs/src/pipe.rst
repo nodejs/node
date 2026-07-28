@@ -55,17 +55,61 @@ API
 
     Bind the pipe to a file path (Unix) or a name (Windows).
 
+    Does not support Linux abstract namespace sockets,
+    unlike :c:func:`uv_pipe_bind2`.
+
+    Alias for ``uv_pipe_bind2(handle, name, strlen(name), 0)``.
+
     .. note::
-        Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes, typically between
-        92 and 108 bytes.
+        Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes,
+        typically between 92 and 108 bytes.
+
+.. c:function:: int uv_pipe_bind2(uv_pipe_t* handle, const char* name, size_t namelen, unsigned int flags)
+
+    Bind the pipe to a file path (Unix) or a name (Windows).
+
+    ``flags`` must be zero or ``UV_PIPE_NO_TRUNCATE``. Returns ``UV_EINVAL``
+    for unsupported flags without performing the bind operation.
+
+    Supports Linux abstract namespace sockets. ``namelen`` must include
+    the leading nul byte but not the trailing nul byte.
+
+    .. versionadded:: 1.46.0
+
+    .. note::
+        Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes,
+        typically between 92 and 108 bytes, unless the ``UV_PIPE_NO_TRUNCATE``
+        flag is specified, in which case an ``UV_EINVAL`` error is returned.
 
 .. c:function:: void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle, const char* name, uv_connect_cb cb)
 
-    Connect to the Unix domain socket or the named pipe.
+    Connect to the Unix domain socket or the Windows named pipe.
+
+    Does not support Linux abstract namespace sockets,
+    unlike :c:func:`uv_pipe_connect2`.
+
+    Alias for ``uv_pipe_connect2(req, handle, name, strlen(name), 0, cb)``.
 
     .. note::
-        Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes, typically between
-        92 and 108 bytes.
+        Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes,
+        typically between 92 and 108 bytes.
+
+.. c:function:: int uv_pipe_connect2(uv_connect_t* req, uv_pipe_t* handle, const char* name, size_t namelen, unsigned int flags, uv_connect_cb cb)
+
+    Connect to the Unix domain socket or the Windows named pipe.
+
+    ``flags`` must be zero or ``UV_PIPE_NO_TRUNCATE``. Returns ``UV_EINVAL``
+    for unsupported flags without performing the connect operation.
+
+    Supports Linux abstract namespace sockets. ``namelen`` must include
+    the leading nul byte but not the trailing nul byte.
+
+    .. versionadded:: 1.46.0
+
+    .. note::
+        Paths on Unix get truncated to ``sizeof(sockaddr_un.sun_path)`` bytes,
+        typically between 92 and 108 bytes, unless the ``UV_PIPE_NO_TRUNCATE``
+        flag is specified, in which case an ``UV_EINVAL`` error is returned.
 
 .. c:function:: int uv_pipe_getsockname(const uv_pipe_t* handle, char* buffer, size_t* size)
 
@@ -118,3 +162,21 @@ API
     function is blocking.
 
     .. versionadded:: 1.16.0
+
+.. c:function:: int uv_pipe(uv_file fds[2], int read_flags, int write_flags)
+
+    Create a pair of connected pipe handles.
+    Data may be written to `fds[1]` and read from `fds[0]`.
+    The resulting handles can be passed to `uv_pipe_open`, used with `uv_spawn`,
+    or for any other purpose.
+
+    Valid values for `flags` are:
+
+      - UV_NONBLOCK_PIPE: Opens the specified socket handle for `OVERLAPPED`
+        or `FIONBIO`/`O_NONBLOCK` I/O usage.
+        This is recommended for handles that will be used by libuv,
+        and not usually recommended otherwise.
+
+    Equivalent to :man:`pipe(2)` with the `O_CLOEXEC` flag set.
+
+    .. versionadded:: 1.41.0

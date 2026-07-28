@@ -8,6 +8,8 @@
 
 namespace node {
 namespace mem {
+static constexpr size_t kReserveSizeAndAlign =
+    std::max(sizeof(size_t), alignof(max_align_t));
 
 template <typename Class, typename AllocatorStruct>
 AllocatorStruct NgLibMemoryManager<Class, AllocatorStruct>::MakeAllocator() {
@@ -30,19 +32,18 @@ void* NgLibMemoryManager<Class, T>::ReallocImpl(void* ptr,
   char* original_ptr = nullptr;
 
   // We prepend each allocated buffer with a size_t containing the full
-  // size of the allocation.
-  if (size > 0) size += sizeof(size_t);
+  // size of the allocation, while keeping the returned pointer aligned.
+  if (size > 0) size += kReserveSizeAndAlign;
 
   if (ptr != nullptr) {
     // We are free()ing or re-allocating.
-    original_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+    original_ptr = static_cast<char*>(ptr) - kReserveSizeAndAlign;
     previous_size = *reinterpret_cast<size_t*>(original_ptr);
     // This means we called StopTracking() on this pointer before.
     if (previous_size == 0) {
       // Fall back to the standard Realloc() function.
       char* ret = UncheckedRealloc(original_ptr, size);
-      if (ret != nullptr)
-        ret += sizeof(size_t);
+      if (ret != nullptr) ret += kReserveSizeAndAlign;
       return ret;
     }
   }
@@ -54,19 +55,19 @@ void* NgLibMemoryManager<Class, T>::ReallocImpl(void* ptr,
   if (mem != nullptr) {
     // Adjust the memory info counter.
     // TODO(addaleax): Avoid the double bookkeeping we do with
-    // current_nghttp2_memory_ + AdjustAmountOfExternalAllocatedMemory
+    // current_nghttp2_memory_ + ExternalMemoryAccounter
     // and provide versions of our memory allocation utilities that take an
     // Environment*/Isolate* parameter and call the V8 method transparently.
     const int64_t new_size = size - previous_size;
     manager->IncreaseAllocatedSize(new_size);
-    manager->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
-        new_size);
+    manager->env()->external_memory_accounter()->Update(
+        manager->env()->isolate(), new_size);
     *reinterpret_cast<size_t*>(mem) = size;
-    mem += sizeof(size_t);
+    mem += kReserveSizeAndAlign;
   } else if (size == 0) {
     manager->DecreaseAllocatedSize(previous_size);
-    manager->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
-        -static_cast<int64_t>(previous_size));
+    manager->env()->external_memory_accounter()->Decrease(
+        manager->env()->isolate(), previous_size);
   }
   return mem;
 }
@@ -95,12 +96,12 @@ void* NgLibMemoryManager<Class, T>::CallocImpl(size_t nmemb,
 
 template <typename Class, typename T>
 void NgLibMemoryManager<Class, T>::StopTrackingMemory(void* ptr) {
-  size_t* original_ptr = reinterpret_cast<size_t*>(
-      static_cast<char*>(ptr) - sizeof(size_t));
+  size_t* original_ptr =
+      reinterpret_cast<size_t*>(static_cast<char*>(ptr) - kReserveSizeAndAlign);
   Class* manager = static_cast<Class*>(this);
   manager->DecreaseAllocatedSize(*original_ptr);
-  manager->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<int64_t>(*original_ptr));
+  manager->env()->external_memory_accounter()->Decrease(
+      manager->env()->isolate(), *original_ptr);
   *original_ptr = 0;
 }
 

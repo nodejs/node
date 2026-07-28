@@ -1,15 +1,30 @@
 # Diagnostic report
 
 <!--introduced_in=v11.8.0-->
-<!-- type=misc -->
 
-> Stability: 2 - Stable
+<!-- type=misc -->
 
 <!-- name=report -->
 
+<!-- YAML
+changes:
+  - version:
+    - v23.3.0
+    - v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/55697
+    description: Added `--report-exclude-env` option for excluding environment variables from report generation.
+  - version:
+    - v22.0.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/51645
+    description: Added `--report-exclude-network` option for excluding networking operations that can slow down report generation in some cases.
+-->
+
+> Stability: 2 - Stable
+
 Delivers a JSON-formatted diagnostic summary, written to a file.
 
-The report is intended for development, test and production use, to capture
+The report is intended for development, test, and production use, to capture
 and preserve information for problem determination. It includes JavaScript
 and native stack traces, heap statistics, platform information, resource
 usage etc. With the report option enabled, diagnostic reports can be triggered
@@ -22,7 +37,7 @@ is provided below for reference.
 ```json
 {
   "header": {
-    "reportVersion": 1,
+    "reportVersion": 5,
     "event": "exception",
     "trigger": "Exception",
     "filename": "report.20181221.005011.8974.0.001.json",
@@ -130,11 +145,20 @@ is provided below for reference.
     }
   ],
   "javascriptHeap": {
-    "totalMemory": 6127616,
-    "totalCommittedMemory": 4357352,
-    "usedMemory": 3221136,
-    "availableMemory": 1521370240,
-    "memoryLimit": 1526909922,
+    "totalMemory": 5660672,
+    "executableMemory": 524288,
+    "totalCommittedMemory": 5488640,
+    "availableMemory": 4341379928,
+    "totalGlobalHandlesMemory": 8192,
+    "usedGlobalHandlesMemory": 3136,
+    "usedMemory": 4816432,
+    "memoryLimit": 4345298944,
+    "mallocedMemory": 254128,
+    "externalMemory": 315644,
+    "peakMallocedMemory": 98752,
+    "nativeContextCount": 1,
+    "detachedContextCount": 0,
+    "doesZapGarbage": 0,
     "heapSpaces": {
       "read_only_space": {
         "memorySize": 524288,
@@ -188,10 +212,17 @@ is provided below for reference.
     }
   },
   "resourceUsage": {
-    "userCpuSeconds": 0.069595,
-    "kernelCpuSeconds": 0.019163,
-    "cpuConsumptionPercent": 0.000000,
-    "maxRss": 18079744,
+    "rss": "35766272",
+    "free_memory": "1598337024",
+    "total_memory": "17179869184",
+    "available_memory": "1598337024",
+    "maxRss": "36624662528",
+    "constrained_memory": "36624662528",
+    "userCpuSeconds": 0.040072,
+    "kernelCpuSeconds": 0.016029,
+    "cpuConsumptionPercent": 5.6101,
+    "userCpuConsumptionPercent": 4.0072,
+    "kernelCpuConsumptionPercent": 1.6029,
     "pageFaults": {
       "IORequired": 0,
       "IONotRequired": 4610
@@ -202,9 +233,11 @@ is provided below for reference.
     }
   },
   "uvthreadResourceUsage": {
-    "userCpuSeconds": 0.068457,
-    "kernelCpuSeconds": 0.019127,
-    "cpuConsumptionPercent": 0.000000,
+    "userCpuSeconds": 0.039843,
+    "kernelCpuSeconds": 0.015937,
+    "cpuConsumptionPercent": 5.578,
+    "userCpuConsumptionPercent": 3.9843,
+    "kernelCpuConsumptionPercent": 1.5937,
     "fsActivity": {
       "reads": 0,
       "writes": 0
@@ -294,6 +327,28 @@ is provided below for reference.
       "is_active": true,
       "address": "0x000055fc7b2cb180",
       "loopIdleTimeSeconds": 22644.8
+    },
+    {
+      "type": "tcp",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055e70fcb85d8",
+      "localEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1",
+        "port": 48986
+      },
+      "remoteEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1",
+        "port": 38573
+      },
+      "sendBufferSize": 2626560,
+      "recvBufferSize": 131072,
+      "fd": 24,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true
     }
   ],
   "workers": [],
@@ -339,7 +394,7 @@ is provided below for reference.
       "soft": "",
       "hard": "unlimited"
     },
-    "data_seg_size_kbytes": {
+    "data_seg_size_bytes": {
       "soft": "unlimited",
       "hard": "unlimited"
     },
@@ -351,7 +406,7 @@ is provided below for reference.
       "soft": "unlimited",
       "hard": 65536
     },
-    "max_memory_size_kbytes": {
+    "max_memory_size_bytes": {
       "soft": "unlimited",
       "hard": "unlimited"
     },
@@ -371,7 +426,7 @@ is provided below for reference.
       "soft": "unlimited",
       "hard": 4127290
     },
-    "virtual_memory_kbytes": {
+    "virtual_memory_bytes": {
       "soft": "unlimited",
       "hard": "unlimited"
     }
@@ -432,6 +487,14 @@ meaning of `SIGUSR2` for the said purposes.
 
 * `--report-signal` Sets or resets the signal for report generation
   (not supported on Windows). Default signal is `SIGUSR2`.
+
+* `--report-exclude-network` Exclude `header.networkInterfaces` and disable the reverse DNS queries
+  in `libuv.*.(remote|local)Endpoint.host` from the diagnostic report.
+  By default this is not set and the network interfaces are included.
+
+* `--report-exclude-env` Exclude `environmentVariables` from the
+  diagnostic report. By default this is not set and the environment
+  variables are included.
 
 A report can also be triggered via an API call from a JavaScript application:
 
@@ -498,9 +561,9 @@ the application, in expectation of self-adjusting the resource consumption,
 load balancing, monitoring etc.
 
 The content of the report consists of a header section containing the event
-type, date, time, PID and Node.js version, sections containing JavaScript and
+type, date, time, PID, and Node.js version, sections containing JavaScript and
 native stack traces, a section containing V8 heap information, a section
-containing `libuv` handle information and an OS platform information section
+containing `libuv` handle information, and an OS platform information section
 showing CPU and memory usage and system limits. An example report can be
 triggered using the Node.js REPL:
 
@@ -514,9 +577,161 @@ Node.js report completed
 
 When a report is written, start and end messages are issued to stderr
 and the filename of the report is returned to the caller. The default filename
-includes the date, time, PID and a sequence number. The sequence number helps
+includes the date, time, PID, and a sequence number. The sequence number helps
 in associating the report dump with the runtime state if generated multiple
 times for the same Node.js process.
+
+## Report Version
+
+Diagnostic report has an associated single-digit version number (`report.header.reportVersion`),
+uniquely representing the report format. The version number is bumped
+when new key is added or removed, or the data type of a value is changed.
+Report version definitions are consistent across LTS releases.
+
+### Version history
+
+#### Version 5
+
+<!-- YAML
+changes:
+  - version:
+    - v23.5.0
+    - v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/56068
+    description: Fix typos in the memory limit units.
+-->
+
+Replace the keys `data_seg_size_kbytes`, `max_memory_size_kbytes`, and `virtual_memory_kbytes`
+with `data_seg_size_bytes`, `max_memory_size_bytes`, and `virtual_memory_bytes`
+respectively in the `userLimits` section, as these values are given in bytes.
+
+```json
+{
+  "userLimits": {
+    // Skip some keys ...
+    "data_seg_size_bytes": { // replacing data_seg_size_kbytes
+      "soft": "unlimited",
+      "hard": "unlimited"
+    },
+    // ...
+    "max_memory_size_bytes": { // replacing max_memory_size_kbytes
+      "soft": "unlimited",
+      "hard": "unlimited"
+    },
+    // ...
+    "virtual_memory_bytes": { // replacing virtual_memory_kbytes
+      "soft": "unlimited",
+      "hard": "unlimited"
+    }
+  }
+}
+```
+
+#### Version 4
+
+<!-- YAML
+changes:
+  - version:
+    - v23.3.0
+    - v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/55697
+    description: Added `--report-exclude-env` option for excluding environment variables from report generation.
+-->
+
+New fields `ipv4` and `ipv6` are added to `tcp` and `udp` libuv handles endpoints. Examples:
+
+```json
+{
+  "libuv": [
+    {
+      "type": "tcp",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055e70fcb85d8",
+      "localEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1", // new key
+        "port": 48986
+      },
+      "remoteEndpoint": {
+        "host": "localhost",
+        "ip4": "127.0.0.1", // new key
+        "port": 38573
+      },
+      "sendBufferSize": 2626560,
+      "recvBufferSize": 131072,
+      "fd": 24,
+      "writeQueueSize": 0,
+      "readable": true,
+      "writable": true
+    },
+    {
+      "type": "tcp",
+      "is_active": true,
+      "is_referenced": true,
+      "address": "0x000055e70fcd68c8",
+      "localEndpoint": {
+        "host": "ip6-localhost",
+        "ip6": "::1", // new key
+        "port": 52266
+      },
+      "remoteEndpoint": {
+        "host": "ip6-localhost",
+        "ip6": "::1", // new key
+        "port": 38573
+      },
+      "sendBufferSize": 2626560,
+      "recvBufferSize": 131072,
+      "fd": 25,
+      "writeQueueSize": 0,
+      "readable": false,
+      "writable": false
+    }
+  ]
+}
+```
+
+#### Version 3
+
+<!-- YAML
+changes:
+  - version:
+    - v19.1.0
+    - v18.13.0
+    pr-url: https://github.com/nodejs/node/pull/45254
+    description: Add more memory info.
+-->
+
+The following memory usage keys are added to the `resourceUsage` section.
+
+```json
+{
+  "resourceUsage": {
+    "rss": "35766272",
+    "free_memory": "1598337024",
+    "total_memory": "17179869184",
+    "available_memory": "1598337024",
+    "constrained_memory": "36624662528"
+  }
+}
+```
+
+#### Version 2
+
+<!-- YAML
+changes:
+  - version:
+      - v13.9.0
+      - v12.16.2
+    pr-url: https://github.com/nodejs/node/pull/31386
+    description: Workers are now included in the report.
+-->
+
+Added [`Worker`][] support. Refer to [Interaction with workers](#interaction-with-workers) section for more details.
+
+#### Version 1
+
+This is the first version of the diagnostic report.
 
 ## Configuration
 
@@ -541,11 +756,13 @@ Special meaning is attached to `stdout` and `stderr`. Usage of these
 will result in report being written to the associated standard streams.
 In cases where standard streams are used, the value in `directory` is ignored.
 URLs are not supported. Defaults to a composite filename that contains
-timestamp, PID and sequence number.
+timestamp, PID, and sequence number.
 
-`directory` specifies the filesystem directory where the report will be written.
-URLs are not supported. Defaults to the current working directory of the
-Node.js process.
+`directory` specifies the file system directory where the report will be
+written. URLs are not supported. Defaults to the current working directory of
+the Node.js process.
+
+`excludeNetwork` excludes `header.networkInterfaces` from the diagnostic report.
 
 ```js
 // Trigger report only on uncaught exceptions.
@@ -563,6 +780,9 @@ process.report.reportOnFatalError = false;
 process.report.reportOnUncaughtException = false;
 process.report.reportOnSignal = true;
 process.report.signal = 'SIGQUIT';
+
+// Disable network interfaces reporting
+process.report.excludeNetwork = true;
 ```
 
 Configuration on module initialization is also available via
@@ -579,6 +799,7 @@ Specific API documentation can be found under
 [`process API documentation`][] section.
 
 ## Interaction with workers
+
 <!-- YAML
 changes:
   - version:

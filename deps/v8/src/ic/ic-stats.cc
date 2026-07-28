@@ -35,7 +35,7 @@ void ICStats::End() {
 }
 
 void ICStats::Reset() {
-  for (auto ic_info : ic_infos_) {
+  for (auto& ic_info : ic_infos_) {
     ic_info.Reset();
   }
   pos_ = 0;
@@ -54,39 +54,35 @@ void ICStats::Dump() {
   Reset();
 }
 
-const char* ICStats::GetOrCacheScriptName(Script script) {
+const char* ICStats::GetOrCacheScriptName(Tagged<Script> script) {
   Address script_ptr = script.ptr();
   if (script_name_map_.find(script_ptr) != script_name_map_.end()) {
     return script_name_map_[script_ptr].get();
   }
-  Object script_name_raw = script.name();
-  if (script_name_raw.IsString()) {
-    String script_name = String::cast(script_name_raw);
-    char* c_script_name =
-        script_name.ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
-            .release();
+  Tagged<Object> script_name_raw = script->name();
+  if (IsString(script_name_raw)) {
+    Tagged<String> script_name = Cast<String>(script_name_raw);
+    char* c_script_name = script_name->ToCString().release();
     script_name_map_.insert(
         std::make_pair(script_ptr, std::unique_ptr<char[]>(c_script_name)));
     return c_script_name;
-  } else {
-    script_name_map_.insert(
-        std::make_pair(script_ptr, std::unique_ptr<char[]>(nullptr)));
-    return nullptr;
   }
+  script_name_map_.insert(
+      std::make_pair(script_ptr, std::unique_ptr<char[]>(nullptr)));
   return nullptr;
 }
 
-const char* ICStats::GetOrCacheFunctionName(JSFunction function) {
+const char* ICStats::GetOrCacheFunctionName(IsolateForSandbox isolate,
+                                            Tagged<JSFunction> function) {
   Address function_ptr = function.ptr();
-  if (function_name_map_.find(function_ptr) != function_name_map_.end()) {
-    return function_name_map_[function_ptr].get();
+  // Lookup the function name or add a null unique_ptr if no entry exists.
+  std::unique_ptr<char[]>& function_name = function_name_map_[function_ptr];
+  if (!function_name) {
+    ic_infos_[pos_].is_optimized = function->HasAttachedOptimizedCode(isolate);
+    // Update the map entry with the actual debug name.
+    function_name = function->shared()->DebugNameCStr();
   }
-  SharedFunctionInfo shared = function.shared();
-  ic_infos_[pos_].is_optimized = function.HasAttachedOptimizedCode();
-  char* function_name = shared.DebugName().ToCString().release();
-  function_name_map_.insert(
-      std::make_pair(function_ptr, std::unique_ptr<char[]>(function_name)));
-  return function_name;
+  return function_name.get();
 }
 
 ICInfo::ICInfo()

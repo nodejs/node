@@ -1,45 +1,97 @@
-const npm = require('../npm.js')
-const output = require('./output.js')
-const opener = require('opener')
+const { open } = require('@npmcli/promise-spawn')
+const { output, input, META } = require('proc-log')
+const { URL } = require('node:url')
+const readline = require('node:readline/promises')
+const { once } = require('node:events')
 
-const { URL } = require('url')
-
-const isUrlValid = url => {
+const assertValidUrl = (url) => {
   try {
-    return /^(https?|file):$/.test(new URL(url).protocol)
-  } catch (_) {
-    return false
+    if (!/^https?:$/.test(new URL(url).protocol)) {
+      throw new Error()
+    }
+  } catch {
+    throw new Error('Invalid URL: ' + url)
+  }
+}
+
+const outputMsg = (json, title, url) => {
+  if (json) {
+    output.buffer({ title, url })
+  } else {
+    // These urls are sometimes specifically login urls so we have to turn off redaction to standard output
+    output.standard(`${title}:\n${url}`, { [META]: true, redact: false })
   }
 }
 
 // attempt to open URL in web-browser, print address otherwise:
-module.exports = function open (url, errMsg, cb, browser = npm.config.get('browser')) {
-  function printAlternateMsg () {
-    const json = npm.config.get('json')
-    const alternateMsg = json
-      ? JSON.stringify({
-        title: errMsg,
-        url,
-      }, null, 2)
-      : `${errMsg}:\n  ${url}\n`
-
-    output(alternateMsg)
-  }
+const openUrl = async (npm, url, title, isFile) => {
+  url = encodeURI(url)
+  const browser = npm.config.get('browser')
+  const json = npm.config.get('json')
 
   if (browser === false) {
-    printAlternateMsg()
-    return cb()
+    outputMsg(json, title, url)
+    return
   }
 
-  if (!isUrlValid(url))
-    return cb(new Error('Invalid URL: ' + url))
+  // We pass this in as true from the help command so we know we don't have to check the protocol
+  if (!isFile) {
+    assertValidUrl(url)
+  }
 
-  const command = browser === true ? null : browser
-  opener(url, { command }, (er) => {
-    if (er && er.code === 'ENOENT') {
-      printAlternateMsg()
-      return cb()
-    } else
-      return cb(er)
+  try {
+    await input.start(() => open(url, {
+      command: browser === true ? null : browser,
+    }))
+  } catch (err) {
+    if (err.code !== 127) {
+      throw err
+    }
+    outputMsg(json, title, url)
+  }
+}
+
+// Prompt to open URL in browser if possible
+const openUrlPrompt = async (npm, url, title, prompt, { signal }) => {
+  const browser = npm.config.get('browser')
+  const json = npm.config.get('json')
+
+  assertValidUrl(url)
+  outputMsg(json, title, url)
+
+  if (browser === false || !process.stdin.isTTY || !process.stdout.isTTY) {
+    return
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
   })
+
+  try {
+    await input.read(() => Promise.race([
+      rl.question(prompt, { signal }),
+      once(rl, 'error'),
+      once(rl, 'SIGINT').then(() => {
+        throw new Error('canceled')
+      }),
+    ]))
+    rl.close()
+    await openUrl(npm, url, 'Browser unavailable. Please open the URL manually')
+  } catch (err) {
+    rl.close()
+    if (err.name !== 'AbortError') {
+      throw err
+    }
+  }
+}
+
+// Rearrange arguments and return a function that takes the two arguments returned from the npm-profile methods that take an opener
+const createOpener = (npm, title, prompt = 'Press ENTER to open in the browser...') =>
+  (url, opts) => openUrlPrompt(npm, url, title, prompt, opts)
+
+module.exports = {
+  openUrl,
+  openUrlPrompt,
+  createOpener,
 }

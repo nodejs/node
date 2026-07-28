@@ -2,7 +2,7 @@
   'variables': {
     'configuring_node%': 0,
     'asan%': 0,
-    'werror': '',                     # Turn off -Werror in V8 build.
+    'ubsan%': 0,
     'visibility%': 'hidden',          # V8's visibility setting
     'target_arch%': 'ia32',           # set v8's target architecture
     'host_arch%': 'ia32',             # set v8's host architecture
@@ -12,23 +12,29 @@
     'msvs_multi_core_compile': '0',   # we do enable multicore compiles, but not using the V8 way
     'enable_pgo_generate%': '0',
     'enable_pgo_use%': '0',
+    'clang_profile_lib%': '',
     'python%': 'python',
+    'emulator%': [],
 
     'node_shared%': 'false',
+    'node_enable_experimentals%': 'false',
     'force_dynamic_crt%': 0,
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_module_version%': '',
     'node_with_ltcg%': '',
     'node_shared_openssl%': 'false',
+    'openssl_is_boringssl%': 'false',
 
     'node_tag%': '',
     'uv_library%': 'static_library',
 
     'clang%': 0,
     'error_on_warn%': 'false',
+    'suppress_all_error_on_warn%': 'false',
+    'control_flow_guard%': 'false',
 
-    'openssl_fips%': '',
+    'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
     'openssl_no_asm%': 0,
 
     # Don't use ICU data file (icudtl.dat) from V8, we use our own.
@@ -36,7 +42,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.21',
+    'v8_embedder_string': '-node.27',
 
     ##### V8 defaults for Node.js #####
 
@@ -66,9 +72,8 @@
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
 
-    # Disable V8 untrusted code mitigations.
-    # See https://github.com/v8/v8/wiki/Untrusted-code-mitigations
-    'v8_untrusted_code_mitigations': 0,
+    # Disable v8 hugepage by default.
+    'v8_enable_hugepage%': 0,
 
     # This is more of a V8 dev setting
     # https://github.com/nodejs/node/pull/22920/files#r222779926
@@ -76,8 +81,14 @@
 
     'v8_win64_unwinding_info': 1,
 
-    # TODO(refack): make v8-perfetto happen
-    'v8_use_perfetto': 0,
+    # Variables controlling external defines exposed in public headers.
+    'v8_enable_map_packing%': 0,
+    'v8_enable_pointer_compression_shared_cage%': 0,
+    'v8_enable_external_code_space%': 0,
+    'v8_enable_sandbox%': 0,
+    'v8_enable_v8_checks%': 0,
+    'v8_use_perfetto%': 0,
+    'tsan%': 0,
 
     ##### end V8 defaults #####
 
@@ -98,21 +109,27 @@
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
         'v8_base': '<(PRODUCT_DIR)/obj.target/tools/v8_gypfiles/libv8_snapshot.a',
       }],
-      ['openssl_fips != ""', {
-        'openssl_product': '<(STATIC_LIB_PREFIX)crypto<(STATIC_LIB_SUFFIX)',
-      }, {
-        'openssl_product': '<(STATIC_LIB_PREFIX)openssl<(STATIC_LIB_SUFFIX)',
-      }],
       ['OS=="mac"', {
-        'clang%': 1,
         'obj_dir%': '<(PRODUCT_DIR)/obj.target',
         'v8_base': '<(PRODUCT_DIR)/libv8_snapshot.a',
+      }],
+      # V8 pointer compression only supports 64bit architectures.
+      ['target_arch in "arm ia32 mips mipsel"', {
+        'v8_enable_pointer_compression': 0,
+        'v8_enable_pointer_compression_shared_cage': 0,
+        'v8_enable_31bit_smis_on_64bit_arch': 0,
+        'v8_enable_external_code_space': 0,
+        'v8_enable_sandbox': 0
       }],
       ['target_arch in "ppc64 s390x"', {
         'v8_enable_backtrace': 1,
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         'node_section_ordering_info%': ''
+      }],
+      ['OS == "zos"', {
+        # use ICU data file on z/OS
+        'icu_use_data_file_flag%': 1
       }]
     ],
   },
@@ -131,16 +148,19 @@
             }],
           ],
         },
-        'defines': [ 'DEBUG', '_DEBUG', 'V8_ENABLE_CHECKS' ],
+        'defines': [ 'DEBUG', '_DEBUG' ],
         'cflags': [ '-g', '-O0' ],
         'conditions': [
-          ['OS=="aix"', {
+          ['OS in "aix os400"', {
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
           }],
           ['OS == "android"', {
             'cflags': [ '-fPIC' ],
             'ldflags': [ '-fPIC' ]
+          }],
+          ['clang==1', {
+            'msbuild_toolset': 'ClangCL',
           }],
         ],
         'msvs_settings': {
@@ -164,18 +184,29 @@
           'v8_enable_handle_zapping': 0,
           'pgo_generate': ' -fprofile-generate ',
           'pgo_use': ' -fprofile-use -fprofile-correction ',
-          'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
           'conditions': [
             ['node_shared != "true"', {
               'MSVC_runtimeType': 0    # MultiThreaded (/MT)
             }, {
               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
             }],
+            ['clang==1', {
+              'lto': ' -flto ', # Clang
+            }, {
+              'lto': ' -flto=4 -ffat-lto-objects ', # GCC
+            }],
           ],
         },
         'cflags': [ '-O3' ],
         'conditions': [
-          ['OS=="linux"', {
+          ['enable_lto=="true"', {
+            'cflags': ['<(lto)'],
+            'ldflags': ['<(lto)'],
+            'xcode_settings': {
+              'LLVM_LTO': 'YES',
+            },
+          }],
+          ['OS=="linux" or OS=="openharmony"', {
             'conditions': [
               ['node_section_ordering_info!=""', {
                 'cflags': [
@@ -193,10 +224,17 @@
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
           }],
-          ['OS!="mac" and OS!="win"', {
+          ['OS=="zos"', {
+            # increase performance, number from experimentation
+            'cflags': [ '-qINLINE=::150:100000' ]
+          }],
+          ['OS!="mac" and OS!="win" and OS!="zos"', {
+            # -fno-omit-frame-pointer is necessary for the --perf_basic_prof
+            # flag to work correctly. perf(1) gets confused about JS stack
+            # frames otherwise, even with --call-graph dwarf.
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="openharmony"', {
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'cflags': ['<(pgo_generate)'],
@@ -206,15 +244,80 @@
                 'cflags': ['<(pgo_use)'],
                 'ldflags': ['<(pgo_use)'],
               },],
+            ],
+          },],
+          ['OS=="win"', {
+            'conditions': [
               ['enable_lto=="true"', {
-                'cflags': ['<(lto)'],
-                'ldflags': ['<(lto)'],
+                'msvs_settings': {
+                  'VCCLCompilerTool': {
+                    'AdditionalOptions': ['-flto=full'],
+                  },
+                  'VCLibrarianTool': {
+                    'AdditionalOptions': ['-flto=full'],
+                  },
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['-flto=full'],
+                  },
+                },
+              },],
+              ['enable_thin_lto=="true"', {
+                'msvs_settings': {
+                  'VCCLCompilerTool': {
+                    'AdditionalOptions': ['-flto=thin'],
+                  },
+                  'VCLibrarianTool': {
+                    'AdditionalOptions': ['-flto=thin'],
+                  },
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['-flto=thin'],
+                  },
+                },
+              },],
+              ['(enable_thin_lto=="true" or enable_lto=="true") and lto_jobs!=""', {
+                'msvs_settings': {
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['/opt:lldltojobs=<(lto_jobs)'],
+                  },
+                },
+              },],
+            ],
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'conditions': [
+                  ['enable_pgo_generate=="true"', {
+                    'msvs_settings': {
+                      'VCCLCompilerTool': {
+                        'AdditionalOptions': ['-fprofile-generate'],
+                      },
+                      'VCLinkerTool': {
+                        'AdditionalOptions': [
+                          '/NODEFAULTLIB:clang_rt.profile.lib',
+                          '"<(clang_profile_lib)"',
+                        ],
+                      },
+                    },
+                  },],
+                  ['enable_pgo_use=="true"', {
+                    'msvs_settings': {
+                      'VCCLCompilerTool': {
+                        'AdditionalOptions': ['-fprofile-use=$(SolutionDir)node.profdata'],
+                      },
+                      'VCLinkerTool': {
+                        'AdditionalOptions': ['-fprofile-use=$(SolutionDir)node.profdata'],
+                      },
+                    },
+                  },],
+                ],
               },],
             ],
           },],
           ['OS == "android"', {
-            'cflags': [ '-fPIC' ],
+            'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
             'ldflags': [ '-fPIC' ]
+          }],
+          ['clang==1', {
+            'msbuild_toolset': 'ClangCL',
           }],
         ],
         'msvs_settings': {
@@ -240,11 +343,12 @@
       }
     },
 
-    # Defines these mostly for node-gyp to pickup, and warn addon authors of
-    # imminent V8 deprecations, also to sync how dependencies are configured.
+    # Defines these mostly for node-gyp to pickup.
     'defines': [
-      'V8_DEPRECATION_WARNINGS',
-      'V8_IMMINENT_DEPRECATION_WARNINGS',
+      '_GLIBCXX_USE_CXX11_ABI=1',
+      # This help forks when building Node.js on a 32-bit arch as
+      # libuv is always compiled with _FILE_OFFSET_BITS=64
+      '_FILE_OFFSET_BITS=64'
     ],
 
     # Forcibly disable -Werror.  We support a wide range of compilers, it's
@@ -260,6 +364,32 @@
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
+        # TODO(targos): Remove condition and always use LanguageStandard options
+        # once node-gyp supports them.
+        'conditions': [
+          ['clang==1', {
+            'LanguageStandard': 'stdcpp20',
+            'LanguageStandard_C': 'stdc11',
+            'AdditionalOptions': [
+              '/Zc:__cplusplus',
+              # The following option reduces the "error C1060: compiler is out of heap space"
+              '/Zm2000',
+            ],
+          }, {
+            'AdditionalOptions': [
+              '/Zc:__cplusplus',
+              # The following option enables c++20 on Windows. This is needed for V8 v12.4+
+              '-std:c++20',
+              # The following option reduces the "error C1060: compiler is out of heap space"
+              '/Zm2000',
+            ],
+          }],
+          ['control_flow_guard=="true"', {
+            'AdditionalOptions': [
+              '/guard:cf',                        # Control Flow Guard
+            ],
+          }],
+        ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files
         'ExceptionHandling': 0,               # /EHsc
@@ -284,6 +414,11 @@
           }],
           ['target_arch=="arm64"', {
             'TargetMachine' : 0,              # NotSet. MACHINE:ARM64 is inferred from the input files.
+          }],
+          ['control_flow_guard=="true"', {
+            'AdditionalOptions': [
+              '/guard:cf',                        # Control Flow Guard
+            ],
           }],
         ],
         'GenerateDebugInformation': 'true',
@@ -319,7 +454,7 @@
       [ 'target_arch=="arm64"', {
         'msvs_configuration_platform': 'arm64',
       }],
-      ['asan == 1 and OS != "mac"', {
+      ['asan == 1 and OS != "mac" and OS != "zos"', {
         'cflags+': [
           '-fno-omit-frame-pointer',
           '-fsanitize=address',
@@ -347,11 +482,69 @@
           }],
         ],
       }],
+      ['ubsan == 1 and OS != "mac" and OS != "zos"', {
+        'cflags+': [
+          '-fno-omit-frame-pointer',
+          '-fsanitize=undefined',
+        ],
+        'defines': [ 'UNDEFINED_SANITIZER'],
+        'cflags!': [ '-fno-omit-frame-pointer' ],
+        'ldflags': [ '-fsanitize=undefined' ],
+      }],
+      ['ubsan == 1 and OS == "mac"', {
+        'xcode_settings': {
+          'OTHER_CFLAGS+': [
+            '-fno-omit-frame-pointer',
+            '-fsanitize=undefined',
+            '-DUNDEFINED_SANITIZER'
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=undefined']},
+          }],
+        ],
+      }],
+      # The defines bellow must include all things from the external_v8_defines
+      # list in v8/BUILD.gn.
+      ['node_enable_experimentals == "true"', {
+        'defines': ['EXPERIMENTALS_DEFAULT_VALUE=true'],
+      }],
+      ['v8_enable_v8_checks == 1', {
+        'defines': ['V8_ENABLE_CHECKS'],
+      }],
       ['v8_enable_pointer_compression == 1', {
         'defines': ['V8_COMPRESS_POINTERS'],
       }],
+      ['v8_enable_pointer_compression == 1 and v8_enable_pointer_compression_shared_cage != 1', {
+        'defines': ['V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES'],
+      }],
+      ['v8_enable_pointer_compression_shared_cage == 1', {
+        'defines': ['V8_COMPRESS_POINTERS_IN_SHARED_CAGE'],
+      }],
       ['v8_enable_pointer_compression == 1 or v8_enable_31bit_smis_on_64bit_arch == 1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH'],
+      }],
+      ['v8_enable_sandbox == 1', {
+        'defines': ['V8_ENABLE_SANDBOX',],
+      }],
+      ['v8_enable_external_code_space == 1', {
+        'defines': ['V8_EXTERNAL_CODE_SPACE',],
+      }],
+      ['v8_deprecation_warnings == 1', {
+        'defines': ['V8_DEPRECATION_WARNINGS',],
+      }],
+      ['v8_imminent_deprecation_warnings == 1', {
+        'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
+      }],
+      ['v8_use_perfetto == 1', {
+        'defines': ['V8_USE_PERFETTO',],
+      }],
+      ['v8_enable_map_packing == 1', {
+        'defines': ['V8_MAP_PACKING',],
+      }],
+      ['tsan == 1', {
+        'defines': ['V8_IS_TSAN',],
       }],
       ['OS == "win"', {
         'defines': [
@@ -366,15 +559,24 @@
           '_HAS_EXCEPTIONS=0',
           'BUILDING_V8_SHARED=1',
           'BUILDING_UV_SHARED=1',
+          # Stop <windows.h> from defining macros that conflict with
+          # std::min() and std::max().  We don't use <windows.h> (much)
+          # but we still inherit it from uv.h.
+          'NOMINMAX',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris aix"', {
+      [ 'OS in "linux freebsd openbsd solaris aix os400 openharmony"', {
         'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android aix cloudabi"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi openharmony"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++1y' ],
+        'cflags_cc': [
+          '-fno-rtti',
+          '-fno-exceptions',
+          '-fno-strict-aliasing',
+          '-std=gnu++20',
+        ],
         'defines': [ '__STDC_FORMAT_MACROS' ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
@@ -386,32 +588,58 @@
             'cflags': [ '-I/usr/local/include' ],
             'ldflags': [ '-Wl,-z,wxneeded' ],
           }],
+          ['_toolset=="host"', {
+            'conditions': [
+              [ 'host_arch=="ia32"', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ],
+              }],
+              [ 'host_arch=="x64"', {
+                'cflags': [ '-m64' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'host_arch=="ppc64" and OS not in "aix os400"', {
+                'conditions': [
+                  [ 'clang==0', {
+                    'cflags': [ '-mminimal-toc' ],
+                  }],
+                ],
+                'cflags': [ '-m64' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'host_arch=="s390x" and OS=="linux"', {
+                'cflags': [ '-m64', '-march=z196' ],
+                'ldflags': [ '-m64', '-march=z196' ],
+              }],
+            ],
+          }],
+          ['_toolset=="target"', {
+            'conditions': [
+              [ 'target_arch=="ia32"', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ],
+              }],
+              [ 'target_arch=="x64"', {
+                'cflags': [ '-m64' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'target_arch=="ppc64" and OS not in "aix os400"', {
+                'conditions': [
+                  [ 'clang==0', {
+                    'cflags': [ '-mminimal-toc' ],
+                  }],
+                ],
+                'cflags': [ '-m64' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'target_arch=="s390x" and OS=="linux"', {
+                'cflags': [ '-m64', '-march=z196' ],
+                'ldflags': [ '-m64', '-march=z196' ],
+              }],
+            ],
+          }],
         ],
         'conditions': [
-          [ 'target_arch=="ia32"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
-          [ 'target_arch=="x32"', {
-            'cflags': [ '-mx32' ],
-            'ldflags': [ '-mx32' ],
-          }],
-          [ 'target_arch=="x64"', {
-            'cflags': [ '-m64' ],
-            'ldflags': [ '-m64' ],
-          }],
-          [ 'target_arch=="ppc" and OS!="aix"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
-          [ 'target_arch=="ppc64" and OS!="aix"', {
-            'cflags': [ '-m64', '-mminimal-toc' ],
-            'ldflags': [ '-m64' ],
-          }],
-          [ 'target_arch=="s390x"', {
-            'cflags': [ '-m64', '-march=z196' ],
-            'ldflags': [ '-m64', '-march=z196' ],
-          }],
           [ 'OS=="solaris"', {
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
@@ -420,10 +648,11 @@
           }],
           [ 'node_shared=="true"', {
             'cflags': [ '-fPIC' ],
+            'ldflags': [ '-fPIC' ],
           }],
         ],
       }],
-      [ 'OS=="aix"', {
+      [ 'OS in "aix os400"', {
         'variables': {
           # Used to differentiate `AIX` and `OS400`(IBM i).
           'aix_variant_name': '<!(uname -s)',
@@ -435,12 +664,27 @@
           '-maix64',
         ],
         'conditions': [
+          [ 'clang==1', {
+            'cflags': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+            'cflags_cc': [
+              '-fno-integrated-as',
+              '-fno-xl-pragma-pack',
+              '-mcpu=power9',
+            ],
+          }],
           [ '"<(aix_variant_name)"=="OS400"', {            # a.k.a. `IBM i`
             'ldflags': [
               '-Wl,-blibpath:/QOpenSys/pkgs/lib:/QOpenSys/usr/lib',
               '-Wl,-brtl',
             ],
           }, {                                             # else it's `AIX`
+            'variables': {
+              'gcc_major': '<!(sh -c "${CXX:-g++} -dumpversion")'
+            },
             # Disable the following compiler warning:
             #
             #   warning: visibility attribute not supported in this
@@ -451,7 +695,7 @@
             # out more relevant warnings.
             'cflags': [ '-Wno-attributes' ],
             'ldflags': [
-              '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread/ppc64',
+              '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/gcc/powerpc-ibm-aix7.3.0.0/>(gcc_major)/pthread/ppc64:/opt/freeware/lib/gcc/powerpc-ibm-aix7.2.0.0/>(gcc_major)/pthread/ppc64:/opt/freeware/lib/pthread/ppc64',
             ],
           }],
         ],
@@ -478,12 +722,10 @@
           'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
+          'GCC_STRICT_ALIASING': 'NO',              # -fno-strict-aliasing
           'PREBINDING': 'NO',                       # No -Wl,-prebind
-          'MACOSX_DEPLOYMENT_TARGET': '10.13',      # -mmacosx-version-min=10.13
+          'MACOSX_DEPLOYMENT_TARGET': '13.5',       # -mmacosx-version-min=13.5
           'USE_HEADERMAP': 'NO',
-          'OTHER_CFLAGS': [
-            '-fno-strict-aliasing',
-          ],
           'WARNING_CFLAGS': [
             '-Wall',
             '-Wendif-labels',
@@ -518,14 +760,11 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++1y',  # -std=gnu++1y
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++20',  # -std=gnu++20
               'CLANG_CXX_LIBRARY': 'libc++',
             },
           }],
         ],
-      }],
-      ['OS=="freebsd" and node_use_dtrace=="true"', {
-        'libraries': [ '-lelf' ],
       }],
       ['OS=="freebsd"', {
         'ldflags': [
@@ -554,6 +793,50 @@
         'defines': [
           'OPENSSL_NO_ASM',
         ],
+      }],
+      ['OS == "zos"', {
+        'defines': [
+          '_XOPEN_SOURCE_EXTENDED',
+          '_XOPEN_SOURCE=600',
+          '_UNIX03_THREADS',
+          '_UNIX03_WITHDRAWN',
+          '_UNIX03_SOURCE',
+          '_OPEN_SYS_SOCK_IPV6',
+          '_OPEN_SYS_FILE_EXT=1',
+          '_POSIX_SOURCE',
+          '_OPEN_SYS',
+          '_OPEN_SYS_IF_EXT',
+          '_OPEN_SYS_SOCK_IPV6',
+          '_OPEN_MSGQ_EXT',
+          '_LARGE_TIME_API',
+          '_ALL_SOURCE',
+          '_AE_BIMODAL=1',
+          '__IBMCPP_TR1__',
+          'NODE_PLATFORM="os390"',
+          'PATH_MAX=1024',
+          '_ENHANCED_ASCII_EXT=0xFFFFFFFF',
+          '_Export=extern',
+          '__static_assert=static_assert',
+        ],
+        'cflags': [
+          '-q64',
+          '-Wc,DLL',
+          '-Wa,GOFF',
+          '-qARCH=10',
+          '-qASCII',
+          '-qTUNE=12',
+          '-qENUM=INT',
+          '-qEXPORTALL',
+          '-qASM',
+        ],
+        'cflags_cc': [
+          '-qxclang=-std=c++14',
+        ],
+        'ldflags': [
+          '-q64',
+        ],
+        # for addons due to v8config.h include of "zos-base.h":
+        'include_dirs':  ['<(zoslib_include_dir)'],
       }],
     ],
   }

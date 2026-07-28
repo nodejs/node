@@ -12,8 +12,7 @@
 #include "string_segment.h"
 
 U_NAMESPACE_BEGIN
-namespace numparse {
-namespace impl {
+namespace numparse::impl {
 
 // Forward-declarations
 class ParsedNumber;
@@ -67,7 +66,7 @@ class CompactUnicodeString {
     CompactUnicodeString(const UnicodeString& text, UErrorCode& status)
             : fBuffer(text.length() + 1, status) {
         if (U_FAILURE(status)) { return; }
-        uprv_memcpy(fBuffer.getAlias(), text.getBuffer(), sizeof(UChar) * text.length());
+        uprv_memcpy(fBuffer.getAlias(), text.getBuffer(), sizeof(char16_t) * text.length());
         fBuffer[text.length()] = 0;
     }
 
@@ -81,7 +80,7 @@ class CompactUnicodeString {
     }
 
   private:
-    MaybeStackArray<UChar, stackCapacity> fBuffer;
+    MaybeStackArray<char16_t, stackCapacity> fBuffer;
 };
 
 
@@ -125,7 +124,7 @@ class U_I18N_API ParsedNumber {
     /**
      * The currency that got consumed.
      */
-    UChar currencyCode[4];
+    char16_t currencyCode[4];
 
     ParsedNumber();
 
@@ -263,9 +262,7 @@ class U_I18N_API MutableMatcherCollection {
     virtual void addMatcher(NumberParseMatcher& matcher) = 0;
 };
 
-
-} // namespace impl
-} // namespace numparse
+} // namespace numparse::impl
 U_NAMESPACE_END
 
 #endif //__NUMPARSE_TYPES_H__

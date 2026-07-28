@@ -1,9 +1,10 @@
 'use strict';
-require('../common');
-const assert = require('assert');
-const inspect = require('util').inspect;
+const { hasIntl } = require('../common');
 
-const url = require('url');
+const assert = require('node:assert');
+const { inspect } = require('node:util');
+const url = require('node:url');
+const { test } = require('node:test');
 
 // URLs to parse, and expected data
 // { url : parsed }
@@ -840,7 +841,7 @@ const parseTests = {
     hostname: 'a.b',
     hash: null,
     pathname: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E',
-    path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz', // eslint-disable-line max-len
+    path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
     search: '?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
     query: 'mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
     href: 'http://a.b/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz'
@@ -849,47 +850,31 @@ const parseTests = {
   'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
     protocol: 'http:',
     slashes: true,
-    auth: 'a\r" \t\n<\'b:b',
-    host: 'c',
+    auth: 'a" <\'b:b',
+    host: 'cd',
     port: null,
-    hostname: 'c',
+    hostname: 'cd',
     hash: null,
     search: '?f',
     query: 'f',
-    pathname: '%0D%0Ad/e',
-    path: '%0D%0Ad/e?f',
-    href: 'http://a%0D%22%20%09%0A%3C\'b:b@c/%0D%0Ad/e?f'
-  },
-
-  // Git urls used by npm
-  'git+ssh://git@github.com:npm/npm': {
-    protocol: 'git+ssh:',
-    slashes: true,
-    auth: 'git',
-    host: 'github.com',
-    port: null,
-    hostname: 'github.com',
-    hash: null,
-    search: null,
-    query: null,
-    pathname: '/:npm/npm',
-    path: '/:npm/npm',
-    href: 'git+ssh://git@github.com/:npm/npm'
+    pathname: '/e',
+    path: '/e?f',
+    href: 'http://a%22%20%3C\'b:b@cd/e?f'
   },
 
   'https://*': {
     protocol: 'https:',
     slashes: true,
     auth: null,
-    host: '',
+    host: '*',
     port: null,
-    hostname: '',
+    hostname: '*',
     hash: null,
     search: null,
     query: null,
-    pathname: '/*',
-    path: '/*',
-    href: 'https:///*'
+    pathname: '/',
+    path: '/',
+    href: 'https://*/'
   },
 
   // The following two URLs are the same, but they differ for a capital A.
@@ -942,39 +927,117 @@ const parseTests = {
     pathname: '/',
     path: '/',
     href: 'wss://www.example.com/'
+  },
+
+  '//fhqwhgads@example.com/everybody-to-the-limit': {
+    protocol: null,
+    slashes: true,
+    auth: 'fhqwhgads',
+    host: 'example.com',
+    port: null,
+    hostname: 'example.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/everybody-to-the-limit',
+    path: '/everybody-to-the-limit',
+    href: '//fhqwhgads@example.com/everybody-to-the-limit'
+  },
+
+  '//fhqwhgads@example.com/everybody#to-the-limit': {
+    protocol: null,
+    slashes: true,
+    auth: 'fhqwhgads',
+    host: 'example.com',
+    port: null,
+    hostname: 'example.com',
+    hash: '#to-the-limit',
+    search: null,
+    query: null,
+    pathname: '/everybody',
+    path: '/everybody',
+    href: '//fhqwhgads@example.com/everybody#to-the-limit'
+  },
+
+  '\bhttp://example.com/\b': {
+    protocol: 'http:',
+    slashes: true,
+    auth: null,
+    host: 'example.com',
+    port: null,
+    hostname: 'example.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/',
+    path: '/',
+    href: 'http://example.com/'
+  },
+
+  'https://evil.com$.example.com': {
+    protocol: 'https:',
+    slashes: true,
+    auth: null,
+    host: 'evil.com$.example.com',
+    port: null,
+    hostname: 'evil.com$.example.com',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/',
+    path: '/',
+    href: 'https://evil.com$.example.com/'
+  },
+
+  // Validate the output of hostname with commas.
+  'x://0.0,1.1/': {
+    protocol: 'x:',
+    slashes: true,
+    auth: null,
+    host: '0.0,1.1',
+    port: null,
+    hostname: '0.0,1.1',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/',
+    path: '/',
+    href: 'x://0.0,1.1/'
   }
 };
 
-for (const u in parseTests) {
-  let actual = url.parse(u);
-  const spaced = url.parse(`     \t  ${u}\n\t`);
-  let expected = Object.assign(new url.Url(), parseTests[u]);
+test('should parse and format', { skip: !hasIntl }, () => {
+  for (const u in parseTests) {
+    let actual = url.parse(u);
+    const spaced = url.parse(`     \t  ${u}\n\t`);
+    let expected = Object.assign(new url.Url(), parseTests[u]);
 
-  Object.keys(actual).forEach(function(i) {
-    if (expected[i] === undefined && actual[i] === null) {
-      expected[i] = null;
-    }
-  });
+    Object.keys(actual).forEach(function(i) {
+      if (expected[i] === undefined && actual[i] === null) {
+        expected[i] = null;
+      }
+    });
 
-  assert.deepStrictEqual(
-    actual,
-    expected,
-    `expected ${inspect(expected)}, got ${inspect(actual)}`
-  );
-  assert.deepStrictEqual(
-    spaced,
-    expected,
-    `expected ${inspect(expected)}, got ${inspect(spaced)}`
-  );
+    assert.deepStrictEqual(
+      actual,
+      expected,
+      `parsing ${u} and expected ${inspect(expected)} but got ${inspect(actual)}`
+    );
+    assert.deepStrictEqual(
+      spaced,
+      expected,
+      `expected ${inspect(expected)}, got ${inspect(spaced)}`
+    );
 
-  expected = parseTests[u].href;
-  actual = url.format(parseTests[u]);
+    expected = parseTests[u].href;
+    actual = url.format(parseTests[u]);
 
-  assert.strictEqual(actual, expected,
-                     `format(${u}) == ${u}\nactual:${actual}`);
-}
+    assert.strictEqual(actual, expected,
+                       `format(${u}) == ${u}\nactual:${actual}`);
+  }
+});
 
-{
+test('parse result should equal new url.Url()', { skip: !hasIntl }, () => {
   const parsed = url.parse('http://nodejs.org/')
     .resolveObject('jAvascript:alert(1);a=\x27@white-listed.com\x27');
 
@@ -994,4 +1057,4 @@ for (const u in parseTests) {
   });
 
   assert.deepStrictEqual(parsed, expected);
-}
+});

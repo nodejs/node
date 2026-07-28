@@ -8,7 +8,8 @@ const {
   Module,
   SourceTextModule,
   SyntheticModule,
-  createContext
+  createContext,
+  compileFunction,
 } = require('vm');
 const util = require('util');
 
@@ -36,22 +37,22 @@ const util = require('util');
 
 (async () => {
   const m = new SourceTextModule(`
-    global.vmResultFoo = "foo";
-    global.vmResultTypeofProcess = Object.prototype.toString.call(process);
+    globalThis.vmResultFoo = "foo";
+    globalThis.vmResultTypeofProcess = Object.prototype.toString.call(process);
   `);
   await m.link(common.mustNotCall());
   await m.evaluate();
-  assert.strictEqual(global.vmResultFoo, 'foo');
-  assert.strictEqual(global.vmResultTypeofProcess, '[object process]');
-  delete global.vmResultFoo;
-  delete global.vmResultTypeofProcess;
+  assert.strictEqual(globalThis.vmResultFoo, 'foo');
+  assert.strictEqual(globalThis.vmResultTypeofProcess, '[object process]');
+  delete globalThis.vmResultFoo;
+  delete globalThis.vmResultTypeofProcess;
 })().then(common.mustCall());
 
 (async () => {
   const m = new SourceTextModule('while (true) {}');
   await m.link(common.mustNotCall());
   await m.evaluate({ timeout: 500 })
-    .then(() => assert(false), () => {});
+    .then(() => assert.fail(), () => {});
 })().then(common.mustCall());
 
 // Check the generated identifier for each module
@@ -83,13 +84,12 @@ const util = require('util');
 
   assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
 
-  assert.throws(
-    () => m[util.inspect.custom].call(Object.create(null)),
-    {
-      code: 'ERR_VM_MODULE_NOT_MODULE',
-      message: 'Provided module is not an instance of Module'
-    },
-  );
+  for (const value of [null, { __proto__: null }, SourceTextModule.prototype]) {
+    assert.throws(
+      () => m[util.inspect.custom].call(value),
+      { code: 'ERR_INVALID_THIS' },
+    );
+  }
 }
 
 {
@@ -99,7 +99,7 @@ const util = require('util');
   assert.strictEqual(
     util.inspect(m),
     `SyntheticModule {
-  status: 'unlinked',
+  status: 'linked',
   identifier: 'vm:module(0)',
   context: { foo: 'bar' }
 }`
@@ -159,4 +159,20 @@ const util = require('util');
       ' Received null',
     name: 'TypeError'
   });
+}
+
+// Test compileFunction importModuleDynamically
+{
+  const module = new SyntheticModule([], () => {});
+  module.link(() => {});
+  const f = compileFunction('return import("x")', [], {
+    importModuleDynamically: common.mustCall((specifier, referrer) => {
+      assert.strictEqual(specifier, 'x');
+      assert.strictEqual(referrer, f);
+      return module;
+    }),
+  });
+  f().then((ns) => {
+    assert.strictEqual(ns, module.namespace);
+  }).then(common.mustCall());
 }

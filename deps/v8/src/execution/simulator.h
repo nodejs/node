@@ -9,6 +9,8 @@
 #include "src/objects/code.h"
 
 #if !defined(USE_SIMULATOR)
+#include "src/base/platform/platform.h"
+#include "src/execution/isolate.h"
 #include "src/utils/utils.h"
 #endif
 
@@ -18,17 +20,23 @@
 #include "src/execution/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/execution/arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/execution/ppc/simulator-ppc.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/execution/mips/simulator-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/simulator-mips64.h"
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_LOONG64
+#include "src/execution/loong64/simulator-loong64.h"
+#elif V8_TARGET_ARCH_S390X
 #include "src/execution/s390/simulator-s390.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/execution/riscv/simulator-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif
+
+namespace heap::base {
+class StackVisitor;
+}
 
 namespace v8 {
 namespace internal {
@@ -46,6 +54,28 @@ class SimulatorStack : public v8::internal::AllStatic {
                                             uintptr_t c_limit) {
     return Simulator::current(isolate)->StackLimit(c_limit);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Includes the safety stack limit gap.
+  static inline base::Vector<uint8_t> GetCentralStackView(
+      v8::internal::Isolate* isolate) {
+    return Simulator::current(isolate)->GetCentralStackView();
+  }
+
+  // Size of the safety stack limit gap.
+  static int JSStackLimitMargin() { return Simulator::JSStackLimitMargin(); }
+#endif
+
+  // Iterates the simulator registers and stack for conservative stack scanning.
+  static void IterateRegistersAndStack(Isolate* isolate,
+                                       ::heap::base::StackVisitor* visitor) {
+    DCHECK_NOT_NULL(isolate);
+    Simulator::current(isolate)->IterateRegistersAndStack(visitor);
+  }
+
+  // When running on the simulator, we should leave the C stack limits alone
+  // when switching stacks for Wasm.
+  static inline bool ShouldSwitchCStackForWasmStackSwitching() { return false; }
 
   // Returns the current stack address on the simulator stack frame.
   // The returned address is comparable with JS stack address.
@@ -77,6 +107,27 @@ class SimulatorStack : public v8::internal::AllStatic {
     return c_limit;
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  static inline base::Vector<uint8_t> GetCentralStackView(
+      v8::internal::Isolate* isolate) {
+    uintptr_t upper_bound = base::Stack::GetStackStart();
+    size_t size = isolate->stack_size() + JSStackLimitMargin();
+    uintptr_t lower_bound = upper_bound - size;
+    return base::VectorOf(reinterpret_cast<uint8_t*>(lower_bound), size);
+  }
+
+  static int JSStackLimitMargin() {
+    return wasm::StackMemory::JSCentralStackLimitMarginKB() * KB;
+  }
+#endif
+
+  static void IterateRegistersAndStack(Isolate* isolate,
+                                       ::heap::base::StackVisitor* visitor) {}
+
+  // When running on real hardware, we should also switch the C stack limit
+  // when switching stacks for Wasm.
+  static inline bool ShouldSwitchCStackForWasmStackSwitching() { return true; }
+
   // Returns the current stack address on the native stack frame.
   // The returned address is comparable with JS stack address.
   static inline uintptr_t RegisterJSStackComparableAddress(
@@ -104,20 +155,27 @@ class GeneratedCode {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(addr));
   }
 
-  static GeneratedCode FromBuffer(Isolate* isolate, byte* buffer) {
+  static GeneratedCode FromBuffer(Isolate* isolate, uint8_t* buffer) {
     return GeneratedCode(isolate, reinterpret_cast<Signature*>(buffer));
   }
 
-  static GeneratedCode FromCode(Code code) {
-    return FromAddress(code.GetIsolate(), code.entry());
+  static GeneratedCode FromCode(Isolate* isolate, Tagged<Code> code) {
+    return FromAddress(isolate, code->instruction_start());
   }
 
 #ifdef USE_SIMULATOR
   // Defined in simulator-base.h.
   Return Call(Args... args) {
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
-    FATAL("Generated code execution not possible during cross-compilation.");
-#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
+// Starboard is a platform abstraction interface that also include Windows
+// platforms like UWP.
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) && \
+    !defined(V8_OS_STARBOARD) && !defined(V8_TARGET_ARCH_ARM)
+    FATAL(
+        "Generated code execution not possible during cross-compilation."
+        "Also, generic C function calls are not implemented on 32-bit arm "
+        "yet.");
+#endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) &&
+        // !defined(V8_OS_STARBOARD) && !defined(V8_TARGET_ARCH_ARM)
     return Simulator::current(isolate_)->template Call<Return>(
         reinterpret_cast<Address>(fn_ptr_), args...);
   }
@@ -125,24 +183,45 @@ class GeneratedCode {
 
   DISABLE_CFI_ICALL Return Call(Args... args) {
     // When running without a simulator we call the entry directly.
-#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
+// Starboard is a platform abstraction interface that also include Windows
+// platforms like UWP.
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN) && \
+    !defined(V8_OS_STARBOARD)
     FATAL("Generated code execution not possible during cross-compilation.");
 #endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
 #if ABI_USES_FUNCTION_DESCRIPTORS
-    // AIX ABI requires function descriptors (FD).  Artificially create a pseudo
-    // FD to ensure correct dispatch to generated code.  The 'volatile'
-    // declaration is required to avoid the compiler from not observing the
-    // alias of the pseudo FD to the function pointer, and hence, optimizing the
-    // pseudo FD declaration/initialization away.
-    volatile Address function_desc[] = {reinterpret_cast<Address>(fn_ptr_), 0,
-                                        0};
+#if V8_OS_ZOS
+    // z/OS ABI requires function descriptors (FD). Artificially create a pseudo
+    // FD to ensure correct dispatch to generated code.
+    void* function_desc[2] = {0, reinterpret_cast<void*>(fn_ptr_)};
+    asm volatile(" stg 5,%0 " : "=m"(function_desc[0])::"r5");
     Signature* fn = reinterpret_cast<Signature*>(function_desc);
     return fn(args...);
+#else
+    // AIX ABI requires function descriptors (FD).  Artificially create a pseudo
+    // FD to ensure correct dispatch to generated code.
+    void* function_desc[3];
+    Signature* fn;
+    asm("std %1, 0(%2)\n\t"
+        "li 0, 0\n\t"
+        "std 0, 8(%2)\n\t"
+        "std 0, 16(%2)\n\t"
+        "mr %0, %2\n\t"
+        : "=r"(fn)
+        : "r"(fn_ptr_), "r"(function_desc)
+        : "memory", "0");
+    return fn(args...);
+#endif  // V8_OS_ZOS
 #else
     return fn_ptr_(args...);
 #endif  // ABI_USES_FUNCTION_DESCRIPTORS
   }
 #endif  // USE_SIMULATOR
+
+  DISABLE_CFI_ICALL Return CallSandboxed(Args... args) {
+    EnterSandboxScope sandboxed;
+    return Call(args...);
+  }
 
  private:
   friend class GeneratedCode<Return(Args...)>;

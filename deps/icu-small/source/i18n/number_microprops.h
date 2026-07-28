@@ -18,9 +18,10 @@
 #include "number_roundingutils.h"
 #include "decNumber.h"
 #include "charstr.h"
+#include "util.h"
 
-U_NAMESPACE_BEGIN namespace number {
-namespace impl {
+U_NAMESPACE_BEGIN
+namespace number::impl {
 
 /**
  * A copyable container for the integer values of mixed unit measurements.
@@ -36,8 +37,7 @@ class IntMeasures : public MaybeStackArray<int64_t, 2> {
      * Stack Capacity: most mixed units are expected to consist of two or three
      * subunits, so one or two integer measures should be enough.
      */
-    IntMeasures() : MaybeStackArray<int64_t, 2>() {
-    }
+    IntMeasures() : MaybeStackArray<int64_t, 2>() {}
 
     /**
      * Copy constructor.
@@ -67,25 +67,39 @@ class IntMeasures : public MaybeStackArray<int64_t, 2> {
     UErrorCode status = U_ZERO_ERROR;
 };
 
+struct SimpleMicroProps : public UMemory {
+    Grouper grouping;
+    bool useCurrency = false;
+    UNumberDecimalSeparatorDisplay decimal = UNUM_DECIMAL_SEPARATOR_AUTO;
+
+    // Currency symbol to be used as the decimal separator
+    UnicodeString currencyAsDecimal = ICU_Utility::makeBogusString();
+
+    // Note: This struct has no direct ownership of the following pointer.
+    const DecimalFormatSymbols* symbols = nullptr;
+};
+
 /**
  * MicroProps is the first MicroPropsGenerator that should be should be called,
  * producing an initialized MicroProps instance that will be passed on and
  * modified throughout the rest of the chain of MicroPropsGenerator instances.
  */
 struct MicroProps : public MicroPropsGenerator {
+    SimpleMicroProps simple;
 
     // NOTE: All of these fields are properly initialized in NumberFormatterImpl.
     RoundingImpl rounder;
-    Grouper grouping;
     Padder padding;
     IntegerWidth integerWidth;
     UNumberSignDisplay sign;
-    UNumberDecimalSeparatorDisplay decimal;
-    bool useCurrency;
     char nsName[9];
 
+    // No ownership: must point at a string which will outlive MicroProps
+    // instances, e.g. a string with static storage duration, or just a string
+    // that will never be deallocated or modified.
+    const char *gender;
+
     // Note: This struct has no direct ownership of the following pointers.
-    const DecimalFormatSymbols* symbols;
 
     // Pointers to Modifiers provided by the number formatting pipeline (when
     // the value is known):
@@ -122,9 +136,14 @@ struct MicroProps : public MicroPropsGenerator {
     // play.
     MeasureUnit outputUnit;
 
-    // In the case of mixed units, this is the set of integer-only units
-    // *preceding* the final unit.
+    // Contains all the values of each unit in mixed units. For quantity (which is the floating value of
+    // the smallest unit in the mixed unit), the value stores in `quantity`.
+    // NOTE: the value of quantity in `mixedMeasures` will be left unset.
     IntMeasures mixedMeasures;
+
+    // Points to quantity position, -1 if the position is not set yet.
+    int32_t indexOfQuantity = -1;
+
     // Number of mixedMeasures that have been populated
     int32_t mixedMeasuresCount = 0;
 
@@ -149,7 +168,7 @@ struct MicroProps : public MicroPropsGenerator {
      * not already `*this`, it will be overwritten with a copy of `*this`.
      */
     void processQuantity(DecimalQuantity &quantity, MicroProps &micros,
-                         UErrorCode &status) const U_OVERRIDE {
+                         UErrorCode &status) const override {
         (void) quantity;
         (void) status;
         if (this == &micros) {
@@ -169,8 +188,7 @@ struct MicroProps : public MicroPropsGenerator {
     bool exhausted = false;
 };
 
-} // namespace impl
-} // namespace number
+} // namespace number::impl
 U_NAMESPACE_END
 
 #endif // __NUMBER_MICROPROPS_H__

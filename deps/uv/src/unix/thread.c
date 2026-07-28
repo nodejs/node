@@ -23,6 +23,9 @@
 #include "internal.h"
 
 #include <pthread.h>
+#ifdef __OpenBSD__
+#include <pthread_np.h>
+#endif
 #include <assert.h>
 #include <errno.h>
 
@@ -41,162 +44,47 @@
 #include <gnu/libc-version.h>  /* gnu_get_libc_version() */
 #endif
 
+#if defined(__linux__)
+# include <sched.h>
+# define uv__cpu_set_t cpu_set_t
+#elif defined(__FreeBSD__)
+# include <sys/param.h>
+# include <sys/cpuset.h>
+# include <pthread_np.h>
+# define uv__cpu_set_t cpuset_t
+#endif
+
+
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
 
-#if defined(PTHREAD_BARRIER_SERIAL_THREAD)
-STATIC_ASSERT(sizeof(uv_barrier_t) == sizeof(pthread_barrier_t));
-#endif
-
-/* Note: guard clauses should match uv_barrier_t's in include/uv/unix.h. */
-#if defined(_AIX) || \
-    defined(__OpenBSD__) || \
-    !defined(PTHREAD_BARRIER_SERIAL_THREAD)
-int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
-  struct _uv_barrier* b;
-  int rc;
-
-  if (barrier == NULL || count == 0)
-    return UV_EINVAL;
-
-  b = uv__malloc(sizeof(*b));
-  if (b == NULL)
-    return UV_ENOMEM;
-
-  b->in = 0;
-  b->out = 0;
-  b->threshold = count;
-
-  rc = uv_mutex_init(&b->mutex);
-  if (rc != 0)
-    goto error2;
-
-  rc = uv_cond_init(&b->cond);
-  if (rc != 0)
-    goto error;
-
-  barrier->b = b;
-  return 0;
-
-error:
-  uv_mutex_destroy(&b->mutex);
-error2:
-  uv__free(b);
-  return rc;
-}
-
-
-int uv_barrier_wait(uv_barrier_t* barrier) {
-  struct _uv_barrier* b;
-  int last;
-
-  if (barrier == NULL || barrier->b == NULL)
-    return UV_EINVAL;
-
-  b = barrier->b;
-  uv_mutex_lock(&b->mutex);
-
-  if (++b->in == b->threshold) {
-    b->in = 0;
-    b->out = b->threshold;
-    uv_cond_signal(&b->cond);
-  } else {
-    do
-      uv_cond_wait(&b->cond, &b->mutex);
-    while (b->in != 0);
-  }
-
-  last = (--b->out == 0);
-  if (!last)
-    uv_cond_signal(&b->cond);  /* Not needed for last thread. */
-
-  uv_mutex_unlock(&b->mutex);
-  return last;
-}
-
-
-void uv_barrier_destroy(uv_barrier_t* barrier) {
-  struct _uv_barrier* b;
-
-  b = barrier->b;
-  uv_mutex_lock(&b->mutex);
-
-  assert(b->in == 0);
-  assert(b->out == 0);
-
-  if (b->in != 0 || b->out != 0)
-    abort();
-
-  uv_mutex_unlock(&b->mutex);
-  uv_mutex_destroy(&b->mutex);
-  uv_cond_destroy(&b->cond);
-
-  uv__free(barrier->b);
-  barrier->b = NULL;
-}
-
-#else
-
-int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
-  return UV__ERR(pthread_barrier_init(barrier, NULL, count));
-}
-
-
-int uv_barrier_wait(uv_barrier_t* barrier) {
-  int rc;
-
-  rc = pthread_barrier_wait(barrier);
-  if (rc != 0)
-    if (rc != PTHREAD_BARRIER_SERIAL_THREAD)
-      abort();
-
-  return rc == PTHREAD_BARRIER_SERIAL_THREAD;
-}
-
-
-void uv_barrier_destroy(uv_barrier_t* barrier) {
-  if (pthread_barrier_destroy(barrier))
-    abort();
-}
-
-#endif
-
-
-/* On MacOS, threads other than the main thread are created with a reduced
- * stack size by default.  Adjust to RLIMIT_STACK aligned to the page size.
+/* Musl's PTHREAD_STACK_MIN is 2 KB on all architectures, which is
+ * too small to safely receive signals on.
  *
- * On Linux, threads created by musl have a much smaller stack than threads
+ * Musl's PTHREAD_STACK_MIN + MINSIGSTKSZ == 8192 on arm64 (which has
+ * the largest MINSIGSTKSZ of the architectures that musl supports) so
+ * let's use that as a lower bound.
+ *
+ * We use a hardcoded value because PTHREAD_STACK_MIN + MINSIGSTKSZ
+ * is between 28 and 133 KB when compiling against glibc, depending
+ * on the architecture.
+ */
+static size_t uv__min_stack_size(void) {
+  static const size_t min = 8192;
+
+#ifdef PTHREAD_STACK_MIN  /* Not defined on NetBSD. */
+  if (min < (size_t) PTHREAD_STACK_MIN)
+    return PTHREAD_STACK_MIN;
+#endif  /* PTHREAD_STACK_MIN */
+
+  return min;
+}
+
+
+/* On Linux, threads created by musl have a much smaller stack than threads
  * created by glibc (80 vs. 2048 or 4096 kB.)  Follow glibc for consistency.
  */
-static size_t thread_stack_size(void) {
-#if defined(__APPLE__) || defined(__linux__)
-  struct rlimit lim;
-
-  /* getrlimit() can fail on some aarch64 systems due to a glibc bug where
-   * the system call wrapper invokes the wrong system call. Don't treat
-   * that as fatal, just use the default stack size instead.
-   */
-  if (0 == getrlimit(RLIMIT_STACK, &lim) && lim.rlim_cur != RLIM_INFINITY) {
-    /* pthread_attr_setstacksize() expects page-aligned values. */
-    lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
-
-    /* Musl's PTHREAD_STACK_MIN is 2 KB on all architectures, which is
-     * too small to safely receive signals on.
-     *
-     * Musl's PTHREAD_STACK_MIN + MINSIGSTKSZ == 8192 on arm64 (which has
-     * the largest MINSIGSTKSZ of the architectures that musl supports) so
-     * let's use that as a lower bound.
-     *
-     * We use a hardcoded value because PTHREAD_STACK_MIN + MINSIGSTKSZ
-     * is between 28 and 133 KB when compiling against glibc, depending
-     * on the architecture.
-     */
-    if (lim.rlim_cur >= 8192)
-      if (lim.rlim_cur >= PTHREAD_STACK_MIN)
-        return lim.rlim_cur;
-  }
-#endif
-
+static size_t uv__default_stack_size(void) {
 #if !defined(__linux__)
   return 0;
 #elif defined(__PPC__) || defined(__ppc__) || defined(__powerpc__)
@@ -207,11 +95,45 @@ static size_t thread_stack_size(void) {
 }
 
 
+/* On MacOS, threads other than the main thread are created with a reduced
+ * stack size by default.  Adjust to RLIMIT_STACK aligned to the page size.
+ */
+size_t uv__thread_stack_size(void) {
+#if defined(__APPLE__) || defined(__linux__)
+  struct rlimit lim;
+
+  /* getrlimit() can fail on some aarch64 systems due to a glibc bug where
+   * the system call wrapper invokes the wrong system call. Don't treat
+   * that as fatal, just use the default stack size instead.
+   */
+  if (getrlimit(RLIMIT_STACK, &lim))
+    return uv__default_stack_size();
+
+  if (lim.rlim_cur == RLIM_INFINITY)
+    return uv__default_stack_size();
+
+  /* pthread_attr_setstacksize() expects page-aligned values. */
+  lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
+
+  if (lim.rlim_cur >= (rlim_t) uv__min_stack_size())
+    return lim.rlim_cur;
+#endif
+
+  return uv__default_stack_size();
+}
+
+
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   uv_thread_options_t params;
   params.flags = UV_THREAD_NO_FLAGS;
   return uv_thread_create_ex(tid, &params, entry, arg);
 }
+
+
+int uv_thread_detach(uv_thread_t *tid) {
+  return UV__ERR(pthread_detach(*tid));
+}
+
 
 int uv_thread_create_ex(uv_thread_t* tid,
                         const uv_thread_options_t* params,
@@ -222,6 +144,7 @@ int uv_thread_create_ex(uv_thread_t* tid,
   pthread_attr_t attr_storage;
   size_t pagesize;
   size_t stack_size;
+  size_t min_stack_size;
 
   /* Used to squelch a -Wcast-function-type warning. */
   union {
@@ -234,15 +157,14 @@ int uv_thread_create_ex(uv_thread_t* tid,
 
   attr = NULL;
   if (stack_size == 0) {
-    stack_size = thread_stack_size();
+    stack_size = uv__thread_stack_size();
   } else {
     pagesize = (size_t)getpagesize();
     /* Round up to the nearest page boundary. */
     stack_size = (stack_size + pagesize - 1) &~ (pagesize - 1);
-#ifdef PTHREAD_STACK_MIN
-    if (stack_size < PTHREAD_STACK_MIN)
-      stack_size = PTHREAD_STACK_MIN;
-#endif
+    min_stack_size = uv__min_stack_size();
+    if (stack_size < min_stack_size)
+      stack_size = min_stack_size;
   }
 
   if (stack_size > 0) {
@@ -264,6 +186,106 @@ int uv_thread_create_ex(uv_thread_t* tid,
   return UV__ERR(err);
 }
 
+#if UV__CPU_AFFINITY_SUPPORTED
+
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  int i;
+  int r;
+  uv__cpu_set_t cpuset;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  if (cpumasksize < 0)
+    return cpumasksize;
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  if (oldmask != NULL) {
+    r = uv_thread_getaffinity(tid, oldmask, mask_size);
+    if (r < 0)
+      return r;
+  }
+
+  CPU_ZERO(&cpuset);
+  for (i = 0; i < cpumasksize; i++)
+    if (cpumask[i])
+      CPU_SET(i, &cpuset);
+
+#if defined(__ANDROID__) || defined(__OHOS__)
+  if (sched_setaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
+    r = errno;
+  else
+    r = 0;
+#else
+  r = pthread_setaffinity_np(*tid, sizeof(cpuset), &cpuset);
+#endif
+
+  return UV__ERR(r);
+}
+
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  int r;
+  int i;
+  uv__cpu_set_t cpuset;
+  int cpumasksize;
+
+  cpumasksize = uv_cpumask_size();
+  if (cpumasksize < 0)
+    return cpumasksize;
+  if (mask_size < (size_t)cpumasksize)
+    return UV_EINVAL;
+
+  CPU_ZERO(&cpuset);
+#if defined(__ANDROID__) || defined(__OHOS__)
+  if (sched_getaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
+    r = errno;
+  else
+    r = 0;
+#else
+  r = pthread_getaffinity_np(*tid, sizeof(cpuset), &cpuset);
+#endif
+  if (r)
+    return UV__ERR(r);
+  for (i = 0; i < cpumasksize; i++)
+    cpumask[i] = !!CPU_ISSET(i, &cpuset);
+
+  return 0;
+}
+#else
+int uv_thread_setaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          char* oldmask,
+                          size_t mask_size) {
+  return UV_ENOTSUP;
+}
+
+
+int uv_thread_getaffinity(uv_thread_t* tid,
+                          char* cpumask,
+                          size_t mask_size) {
+  return UV_ENOTSUP;
+}
+#endif /* defined(__linux__) || defined(UV_BSD_H) */
+
+int uv_thread_getcpu(void) {
+#if UV__CPU_AFFINITY_SUPPORTED
+  int cpu;
+
+  cpu = sched_getcpu();
+  if (cpu < 0)
+    return UV__ERR(errno);
+
+  return cpu;
+#else
+  return UV_ENOTSUP;
+#endif
+}
 
 uv_thread_t uv_thread_self(void) {
   return pthread_self();
@@ -278,6 +300,18 @@ int uv_thread_equal(const uv_thread_t* t1, const uv_thread_t* t2) {
   return pthread_equal(*t1, *t2);
 }
 
+int uv_thread_setname(const char* name) {
+  if (name == NULL)
+    return UV_EINVAL;
+  return uv__thread_setname(name);
+}
+
+int uv_thread_getname(uv_thread_t* tid, char* name, size_t size) {
+  if (name == NULL || size == 0)
+    return UV_EINVAL;
+
+  return uv__thread_getname(tid, name, size);
+}
 
 int uv_mutex_init(uv_mutex_t* mutex) {
 #if defined(NDEBUG) || !defined(PTHREAD_MUTEX_ERRORCHECK)
@@ -565,7 +599,7 @@ static void uv__custom_sem_post(uv_sem_t* sem_) {
   uv_mutex_lock(&sem->mutex);
   sem->value++;
   if (sem->value == 1)
-    uv_cond_signal(&sem->cond);
+    uv_cond_signal(&sem->cond); /* Release one to replace us. */
   uv_mutex_unlock(&sem->mutex);
 }
 
@@ -776,11 +810,33 @@ void uv_cond_broadcast(uv_cond_t* cond) {
     abort();
 }
 
+#if defined(__APPLE__) && defined(__MACH__)
+
+void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
+  int r;
+
+  errno = 0;
+  r = pthread_cond_wait(cond, mutex);
+
+  /* Workaround for a bug in OS X at least up to 13.6
+   * See https://github.com/libuv/libuv/issues/4165
+   */
+  if (r == EINVAL)
+    if (errno == EBUSY)
+      return;
+
+  if (r)
+    abort();
+}
+
+#else /* !(defined(__APPLE__) && defined(__MACH__)) */
+
 void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
   if (pthread_cond_wait(cond, mutex))
     abort();
 }
 
+#endif
 
 int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   int r;
@@ -814,9 +870,7 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
     return UV_ETIMEDOUT;
 
   abort();
-#ifndef __SUNPRO_C
   return UV_EINVAL;  /* Satisfy the compiler. */
-#endif
 }
 
 
@@ -840,3 +894,80 @@ void uv_key_set(uv_key_t* key, void* value) {
   if (pthread_setspecific(*key, value))
     abort();
 }
+
+#if defined(_AIX) || defined(__MVS__) || defined(__PASE__)
+int uv__thread_setname(const char* name) {
+  return UV_ENOSYS;
+}
+#elif defined(__APPLE__)
+int uv__thread_setname(const char* name) {
+  char namebuf[UV_PTHREAD_MAX_NAMELEN_NP];
+  strncpy(namebuf, name, sizeof(namebuf) - 1);
+  namebuf[sizeof(namebuf) - 1] = '\0';
+  int err = pthread_setname_np(namebuf);
+  if (err)
+    return UV__ERR(errno);
+  return 0;
+}
+#elif defined(__NetBSD__)
+int uv__thread_setname(const char* name) {
+  char namebuf[UV_PTHREAD_MAX_NAMELEN_NP];
+  strncpy(namebuf, name, sizeof(namebuf) - 1);
+  namebuf[sizeof(namebuf) - 1] = '\0';
+  return UV__ERR(pthread_setname_np(pthread_self(), "%s", namebuf));
+}
+#elif defined(__OpenBSD__)
+int uv__thread_setname(const char* name) {
+  char namebuf[UV_PTHREAD_MAX_NAMELEN_NP];
+  strncpy(namebuf, name, sizeof(namebuf) - 1);
+  namebuf[sizeof(namebuf) - 1] = '\0';
+  pthread_set_name_np(pthread_self(), namebuf);
+  return 0;
+}
+#else
+int uv__thread_setname(const char* name) {
+  char namebuf[UV_PTHREAD_MAX_NAMELEN_NP];
+  strncpy(namebuf, name, sizeof(namebuf) - 1);
+  namebuf[sizeof(namebuf) - 1] = '\0';
+  return UV__ERR(pthread_setname_np(pthread_self(), namebuf));
+}
+#endif
+
+#if (defined(__ANDROID_API__) && __ANDROID_API__ < 26) || \
+    defined(_AIX) || \
+    defined(__MVS__) || \
+    defined(__PASE__)
+int uv__thread_getname(uv_thread_t* tid, char* name, size_t size) {
+  return UV_ENOSYS;
+}
+#elif defined(__OpenBSD__)
+int uv__thread_getname(uv_thread_t* tid, char* name, size_t size) {
+  char thread_name[UV_PTHREAD_MAX_NAMELEN_NP];
+  pthread_get_name_np(*tid, thread_name, sizeof(thread_name));
+  strncpy(name, thread_name, size - 1);
+  name[size - 1] = '\0';
+  return 0;
+}
+#elif defined(__APPLE__)
+int uv__thread_getname(uv_thread_t* tid, char* name, size_t size) {
+  char thread_name[UV_PTHREAD_MAX_NAMELEN_NP];
+  if (pthread_getname_np(*tid, thread_name, sizeof(thread_name)) != 0)
+    return UV__ERR(errno);
+
+  strncpy(name, thread_name, size - 1);
+  name[size - 1] = '\0';
+  return 0;
+}
+#else
+int uv__thread_getname(uv_thread_t* tid, char* name, size_t size) {
+  int r;
+  char thread_name[UV_PTHREAD_MAX_NAMELEN_NP];
+  r = pthread_getname_np(*tid, thread_name, sizeof(thread_name));
+  if (r != 0)
+    return UV__ERR(r);
+
+  strncpy(name, thread_name, size - 1);
+  name[size - 1] = '\0';
+  return 0;
+}
+#endif

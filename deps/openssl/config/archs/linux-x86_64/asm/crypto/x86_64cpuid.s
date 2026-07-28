@@ -1,11 +1,11 @@
 
+
 .hidden	OPENSSL_cpuid_setup
 .section	.init
 	call	OPENSSL_cpuid_setup
 
 .hidden	OPENSSL_ia32cap_P
-.comm	OPENSSL_ia32cap_P,16,4
-
+.comm	OPENSSL_ia32cap_P,40,4
 .text	
 
 .globl	OPENSSL_atomic_add
@@ -13,6 +13,7 @@
 .align	16
 OPENSSL_atomic_add:
 .cfi_startproc	
+.byte	243,15,30,250
 	movl	(%rdi),%eax
 .Lspin:	leaq	(%rsi,%rax,1),%r8
 .byte	0xf0
@@ -29,6 +30,7 @@ OPENSSL_atomic_add:
 .align	16
 OPENSSL_rdtsc:
 .cfi_startproc	
+.byte	243,15,30,250
 	rdtsc
 	shlq	$32,%rdx
 	orq	%rdx,%rax
@@ -41,6 +43,7 @@ OPENSSL_rdtsc:
 .align	16
 OPENSSL_ia32_cpuid:
 .cfi_startproc	
+.byte	243,15,30,250
 	movq	%rbx,%r8
 .cfi_register	%rbx,%r8
 
@@ -160,6 +163,7 @@ OPENSSL_ia32_cpuid:
 	movl	$7,%eax
 	xorl	%ecx,%ecx
 	cpuid
+	movd	%eax,%xmm1
 	btl	$26,%r9d
 	jc	.Lnotknights
 	andl	$0xfff7ffff,%ebx
@@ -170,9 +174,31 @@ OPENSSL_ia32_cpuid:
 	jne	.Lnotskylakex
 	andl	$0xfffeffff,%ebx
 
+
 .Lnotskylakex:
 	movl	%ebx,8(%rdi)
 	movl	%ecx,12(%rdi)
+	movl	%edx,16(%rdi)
+
+	movd	%xmm1,%eax
+	cmpl	$0x1,%eax
+	jb	.Lno_extended_info
+	movl	$0x7,%eax
+	movl	$0x1,%ecx
+	cpuid
+	movl	%eax,20(%rdi)
+	movl	%edx,24(%rdi)
+	movl	%ebx,28(%rdi)
+	movl	%ecx,32(%rdi)
+
+	andl	$0x80000,%edx
+	cmpl	$0x0,%edx
+	je	.Lno_extended_info
+	movl	$0x24,%eax
+	movl	$0x0,%ecx
+	cpuid
+	movl	%ebx,36(%rdi)
+
 .Lno_extended_info:
 
 	btl	$27,%r9d
@@ -191,6 +217,9 @@ OPENSSL_ia32_cpuid:
 	cmpl	$6,%eax
 	je	.Ldone
 .Lclear_avx:
+	andl	$0xff7fffff,20(%rdi)
+
+
 	movl	$0xefffe7ff,%eax
 	andl	%eax,%r9d
 	movl	$0x3fdeffdf,%eax
@@ -210,6 +239,7 @@ OPENSSL_ia32_cpuid:
 .align	16
 OPENSSL_cleanse:
 .cfi_startproc	
+.byte	243,15,30,250
 	xorq	%rax,%rax
 	cmpq	$15,%rsi
 	jae	.Lot
@@ -247,6 +277,7 @@ OPENSSL_cleanse:
 .align	16
 CRYPTO_memcmp:
 .cfi_startproc	
+.byte	243,15,30,250
 	xorq	%rax,%rax
 	xorq	%r10,%r10
 	cmpq	$0,%rdx
@@ -282,6 +313,7 @@ CRYPTO_memcmp:
 .align	16
 OPENSSL_wipe_cpu:
 .cfi_startproc	
+.byte	243,15,30,250
 	pxor	%xmm0,%xmm0
 	pxor	%xmm1,%xmm1
 	pxor	%xmm2,%xmm2
@@ -315,6 +347,7 @@ OPENSSL_wipe_cpu:
 .align	16
 OPENSSL_instrument_bus:
 .cfi_startproc	
+.byte	243,15,30,250
 	movq	%rdi,%r10
 	movq	%rsi,%rcx
 	movq	%rsi,%r11
@@ -349,6 +382,7 @@ OPENSSL_instrument_bus:
 .align	16
 OPENSSL_instrument_bus2:
 .cfi_startproc	
+.byte	243,15,30,250
 	movq	%rdi,%r10
 	movq	%rsi,%rcx
 	movq	%rdx,%r11
@@ -398,6 +432,7 @@ OPENSSL_instrument_bus2:
 .align	16
 OPENSSL_ia32_rdrand_bytes:
 .cfi_startproc	
+.byte	243,15,30,250
 	xorq	%rax,%rax
 	cmpq	$0,%rsi
 	je	.Ldone_rdrand_bytes
@@ -441,6 +476,7 @@ OPENSSL_ia32_rdrand_bytes:
 .align	16
 OPENSSL_ia32_rdseed_bytes:
 .cfi_startproc	
+.byte	243,15,30,250
 	xorq	%rax,%rax
 	cmpq	$0,%rsi
 	je	.Ldone_rdseed_bytes
@@ -479,3 +515,24 @@ OPENSSL_ia32_rdseed_bytes:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	OPENSSL_ia32_rdseed_bytes,.-OPENSSL_ia32_rdseed_bytes
+	.section ".note.gnu.property", "a"
+	.p2align 3
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	# "GNU" encoded with .byte, since .asciz isn't supported
+	# on Solaris.
+	.byte 0x47
+	.byte 0x4e
+	.byte 0x55
+	.byte 0
+1:
+	.p2align 3
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 3
+4:

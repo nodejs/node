@@ -45,7 +45,14 @@ class V8_BASE_EXPORT PageAllocator
   bool SetPermissions(void* address, size_t size,
                       PageAllocator::Permission access) override;
 
+  bool RecommitPages(void* address, size_t size,
+                     PageAllocator::Permission access) override;
+
   bool DiscardSystemPages(void* address, size_t size) override;
+
+  bool DecommitPages(void* address, size_t size) override;
+
+  bool SealPages(void* address, size_t size) override;
 
  private:
   friend class v8::base::SharedMemory;

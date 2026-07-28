@@ -27,29 +27,29 @@ U_NAMESPACE_BEGIN
 ResourceBundle::ResourceBundle( const UnicodeString&    path,
                                 const Locale&           locale,
                                 UErrorCode&              error)
-                                :UObject(), fLocale(NULL)
+                                :UObject(), fLocale(nullptr)
 {
     constructForLocale(path, locale, error);
 }
 
 ResourceBundle::ResourceBundle( const UnicodeString&    path,
                                 UErrorCode&              error)
-                                :UObject(), fLocale(NULL)
+                                :UObject(), fLocale(nullptr)
 {
     constructForLocale(path, Locale::getDefault(), error);
 }
 
-void
+void 
 ResourceBundle::constructForLocale(const UnicodeString& path,
                                    const Locale& locale,
                                    UErrorCode& error)
 {
     if (path.isEmpty()) {
-        fResource = ures_open(NULL, locale.getName(), &error);
+        fResource = ures_open(nullptr, locale.getName(), &error);
     }
     else {
         UnicodeString nullTerminatedPath(path);
-        nullTerminatedPath.append((UChar)0);
+        nullTerminatedPath.append(static_cast<char16_t>(0));
         fResource = ures_openU(nullTerminatedPath.getBuffer(), locale.getName(), &error);
     }
 }

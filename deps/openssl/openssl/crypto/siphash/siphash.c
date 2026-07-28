@@ -1,7 +1,7 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -28,46 +28,38 @@
 #include <openssl/crypto.h>
 
 #include "crypto/siphash.h"
-#include "siphash_local.h"
-
-/* default: SipHash-2-4 */
-#define SIPHASH_C_ROUNDS 2
-#define SIPHASH_D_ROUNDS 4
 
 #define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
-#define U32TO8_LE(p, v)                                                        \
-    (p)[0] = (uint8_t)((v));                                                   \
-    (p)[1] = (uint8_t)((v) >> 8);                                              \
-    (p)[2] = (uint8_t)((v) >> 16);                                             \
+#define U32TO8_LE(p, v)            \
+    (p)[0] = (uint8_t)((v));       \
+    (p)[1] = (uint8_t)((v) >> 8);  \
+    (p)[2] = (uint8_t)((v) >> 16); \
     (p)[3] = (uint8_t)((v) >> 24);
 
-#define U64TO8_LE(p, v)                                                        \
-    U32TO8_LE((p), (uint32_t)((v)));                                           \
+#define U64TO8_LE(p, v)              \
+    U32TO8_LE((p), (uint32_t)((v))); \
     U32TO8_LE((p) + 4, (uint32_t)((v) >> 32));
 
-#define U8TO64_LE(p)                                                           \
-    (((uint64_t)((p)[0])) | ((uint64_t)((p)[1]) << 8) |                        \
-     ((uint64_t)((p)[2]) << 16) | ((uint64_t)((p)[3]) << 24) |                 \
-     ((uint64_t)((p)[4]) << 32) | ((uint64_t)((p)[5]) << 40) |                 \
-     ((uint64_t)((p)[6]) << 48) | ((uint64_t)((p)[7]) << 56))
+#define U8TO64_LE(p) \
+    (((uint64_t)((p)[0])) | ((uint64_t)((p)[1]) << 8) | ((uint64_t)((p)[2]) << 16) | ((uint64_t)((p)[3]) << 24) | ((uint64_t)((p)[4]) << 32) | ((uint64_t)((p)[5]) << 40) | ((uint64_t)((p)[6]) << 48) | ((uint64_t)((p)[7]) << 56))
 
-#define SIPROUND                                                               \
-    do {                                                                       \
-        v0 += v1;                                                              \
-        v1 = ROTL(v1, 13);                                                     \
-        v1 ^= v0;                                                              \
-        v0 = ROTL(v0, 32);                                                     \
-        v2 += v3;                                                              \
-        v3 = ROTL(v3, 16);                                                     \
-        v3 ^= v2;                                                              \
-        v0 += v3;                                                              \
-        v3 = ROTL(v3, 21);                                                     \
-        v3 ^= v0;                                                              \
-        v2 += v1;                                                              \
-        v1 = ROTL(v1, 17);                                                     \
-        v1 ^= v2;                                                              \
-        v2 = ROTL(v2, 32);                                                     \
+#define SIPROUND           \
+    do {                   \
+        v0 += v1;          \
+        v1 = ROTL(v1, 13); \
+        v1 ^= v0;          \
+        v0 = ROTL(v0, 32); \
+        v2 += v3;          \
+        v3 = ROTL(v3, 16); \
+        v3 ^= v2;          \
+        v0 += v3;          \
+        v3 = ROTL(v3, 21); \
+        v3 ^= v0;          \
+        v2 += v1;          \
+        v1 = ROTL(v1, 17); \
+        v1 ^= v2;          \
+        v2 = ROTL(v2, 32); \
     } while (0)
 
 size_t SipHash_ctx_size(void)
@@ -146,7 +138,7 @@ void SipHash_Update(SIPHASH *ctx, const unsigned char *in, size_t inlen)
     uint64_t m;
     const uint8_t *end;
     int left;
-    int i;
+    unsigned int i;
     uint64_t v0 = ctx->v0;
     uint64_t v1 = ctx->v1;
     uint64_t v2 = ctx->v2;
@@ -177,7 +169,7 @@ void SipHash_Update(SIPHASH *ctx, const unsigned char *in, size_t inlen)
             SIPROUND;
         v0 ^= m;
     }
-    left = inlen & (SIPHASH_BLOCK_SIZE-1); /* gets put into leavings */
+    left = inlen & (SIPHASH_BLOCK_SIZE - 1); /* gets put into leavings */
     end = in + inlen - left;
 
     for (; in != end; in += 8) {
@@ -202,35 +194,35 @@ void SipHash_Update(SIPHASH *ctx, const unsigned char *in, size_t inlen)
 int SipHash_Final(SIPHASH *ctx, unsigned char *out, size_t outlen)
 {
     /* finalize hash */
-    int i;
+    unsigned int i;
     uint64_t b = ctx->total_inlen << 56;
     uint64_t v0 = ctx->v0;
     uint64_t v1 = ctx->v1;
     uint64_t v2 = ctx->v2;
     uint64_t v3 = ctx->v3;
 
-    if (outlen != (size_t)ctx->hash_size)
+    if (ctx->crounds == 0 || outlen == 0 || outlen != (size_t)ctx->hash_size)
         return 0;
 
     switch (ctx->len) {
     case 7:
         b |= ((uint64_t)ctx->leavings[6]) << 48;
-        /* fall thru */
+        /* fall through */
     case 6:
         b |= ((uint64_t)ctx->leavings[5]) << 40;
-        /* fall thru */
+        /* fall through */
     case 5:
         b |= ((uint64_t)ctx->leavings[4]) << 32;
-        /* fall thru */
+        /* fall through */
     case 4:
         b |= ((uint64_t)ctx->leavings[3]) << 24;
-        /* fall thru */
+        /* fall through */
     case 3:
         b |= ((uint64_t)ctx->leavings[2]) << 16;
-        /* fall thru */
+        /* fall through */
     case 2:
-        b |= ((uint64_t)ctx->leavings[1]) <<  8;
-        /* fall thru */
+        b |= ((uint64_t)ctx->leavings[1]) << 8;
+        /* fall through */
     case 1:
         b |= ((uint64_t)ctx->leavings[0]);
     case 0:
@@ -247,14 +239,14 @@ int SipHash_Final(SIPHASH *ctx, unsigned char *out, size_t outlen)
         v2 ^= 0xff;
     for (i = 0; i < ctx->drounds; ++i)
         SIPROUND;
-    b = v0 ^ v1 ^ v2  ^ v3;
+    b = v0 ^ v1 ^ v2 ^ v3;
     U64TO8_LE(out, b);
     if (ctx->hash_size == SIPHASH_MIN_DIGEST_SIZE)
         return 1;
     v1 ^= 0xdd;
     for (i = 0; i < ctx->drounds; ++i)
         SIPROUND;
-    b = v0 ^ v1 ^ v2  ^ v3;
+    b = v0 ^ v1 ^ v2 ^ v3;
     U64TO8_LE(out + 8, b);
     return 1;
 }

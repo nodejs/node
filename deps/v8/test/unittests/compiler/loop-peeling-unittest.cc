@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/access-builder.h"
-#include "src/compiler/graph.h"
-#include "src/compiler/graph-visualizer.h"
-#include "src/compiler/js-graph.h"
 #include "src/compiler/loop-peeling.h"
+
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
-#include "src/compiler/node-properties.h"
-#include "test/unittests/compiler/compiler-test-utils.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
+#include "src/compiler/turbofan-graph.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -62,7 +59,7 @@ class LoopPeelingTest : public GraphTest {
   MachineOperatorBuilder* machine() { return &machine_; }
 
   LoopTree* GetLoopTree() {
-    if (FLAG_trace_turbo_graph) {
+    if (v8_flags.trace_turbo_graph) {
       StdoutStream{} << AsRPO(*graph());
     }
     Zone zone(isolate()->allocator(), ZONE_NAME);
@@ -82,7 +79,7 @@ class LoopPeelingTest : public GraphTest {
   PeeledIteration* Peel(LoopPeeler peeler, LoopTree::Loop* loop) {
     EXPECT_TRUE(peeler.CanPeel(loop));
     PeeledIteration* peeled = peeler.Peel(loop);
-    if (FLAG_trace_turbo_graph) {
+    if (v8_flags.trace_turbo_graph) {
       StdoutStream{} << AsRPO(*graph());
     }
     return peeled;
@@ -144,7 +141,9 @@ class LoopPeelingTest : public GraphTest {
                              c.base, c.base, w->loop);
     c.add = graph()->NewNode(machine()->Int32Add(), c.phi, c.inc);
     c.phi->ReplaceInput(1, c.add);
-    c.exit_marker = graph()->NewNode(common()->LoopExitValue(), c.phi, w->exit);
+    c.exit_marker = graph()->NewNode(
+        common()->LoopExitValue(MachineRepresentation::kTagged), c.phi,
+        w->exit);
     return c;
   }
 };
@@ -372,7 +371,8 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithPhi) {
   loop->ReplaceInput(2, b2.if_false);
 
   Node* exit = graph()->NewNode(common()->LoopExit(), b1.if_false, loop);
-  Node* exit_marker = graph()->NewNode(common()->LoopExitValue(), phi, exit);
+  Node* exit_marker = graph()->NewNode(
+      common()->LoopExitValue(MachineRepresentation::kTagged), phi, exit);
   Node* r = InsertReturn(exit_marker, start(), exit);
 
   PeeledIteration* peeled = PeelOne();
@@ -426,7 +426,8 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithCounter) {
   loop->ReplaceInput(2, b2.if_false);
 
   Node* exit = graph()->NewNode(common()->LoopExit(), b1.if_false, loop);
-  Node* exit_marker = graph()->NewNode(common()->LoopExitValue(), phi, exit);
+  Node* exit_marker = graph()->NewNode(
+      common()->LoopExitValue(MachineRepresentation::kTagged), phi, exit);
   Node* r = InsertReturn(exit_marker, start(), exit);
 
   PeeledIteration* peeled = PeelOne();
@@ -519,10 +520,10 @@ TEST_F(LoopPeelingTest, SimpleLoopWithUnmarkedExit) {
 
   {
     LoopTree* loop_tree = GetLoopTree();
-    LoopTree::Loop* loop = loop_tree->outer_loops()[0];
+    LoopTree::Loop* outer_loop = loop_tree->outer_loops()[0];
     LoopPeeler peeler(graph(), common(), loop_tree, zone(), source_positions(),
                       node_origins());
-    EXPECT_FALSE(peeler.CanPeel(loop));
+    EXPECT_FALSE(peeler.CanPeel(outer_loop));
   }
 }
 

@@ -5,13 +5,19 @@
 #ifndef V8_BASE_LOGGING_H_
 #define V8_BASE_LOGGING_H_
 
+#include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
+#include "src/base/abort-mode.h"
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/immediate-crash.h"
 #include "src/base/template-utils.h"
 
 V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
@@ -23,35 +29,61 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 [[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* file, int line, const char* format, ...);
 #define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) \
+  V8_Fatal((loc).FileName(), static_cast<int>((loc).Line()), __VA_ARGS__)
 
-#elif !defined(OFFICIAL_BUILD)
+// The following can be used instead of FATAL() to prevent calling
+// IMMEDIATE_CRASH in official mode. Please only use if needed for testing.
+// See v8:13945
+#define GRACEFUL_FATAL(...) FATAL(__VA_ARGS__)
+
+#else
+[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
+    void V8_Fatal(const char* format, ...);
+#define GRACEFUL_FATAL(...) V8_Fatal(__VA_ARGS__)
+
+#if !defined(OFFICIAL_BUILD)
 // In non-official release, include full error message, but drop file & line
 // numbers. It saves binary size to drop the |file| & |line| as opposed to just
 // passing in "", 0 for them.
-[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
-    void V8_Fatal(const char* format, ...);
 #define FATAL(...) V8_Fatal(__VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
 #else
-// In official builds, include only messages that contain parameters because
-// single-message errors can always be derived from stack traces.
-[[noreturn]] V8_BASE_EXPORT V8_NOINLINE void V8_FatalNoContext();
-[[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
-    void V8_Fatal(const char* format, ...);
-// FATAL(msg) -> V8_FatalNoContext()
-// FATAL(msg, ...) -> V8_Fatal()
+// FATAL(msg) -> IMMEDIATE_CRASH()
+// FATAL(msg, ...) -> V8_Fatal(msg, ...)
 #define FATAL_HELPER(_7, _6, _5, _4, _3, _2, _1, _0, ...) _0
-#define FATAL_DISCARD_ARG(arg) V8_FatalNoContext()
+#define FATAL_DISCARD_ARG(arg) IMMEDIATE_CRASH()
 #define FATAL(...)                                                            \
   FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
-               V8_Fatal, V8_Fatal, FATAL_DISCARD_ARG)                         \
+               V8_Fatal, FATAL_DISCARD_ARG)                                   \
   (__VA_ARGS__)
-#endif
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
+#endif  // !defined(OFFICIAL_BUILD)
+#endif  // DEBUG
 
-#define UNIMPLEMENTED() FATAL("unimplemented code")
-#define UNREACHABLE() FATAL("unreachable code")
+namespace v8::base {
+// These string constants are pattern-matched by fuzzers.
+constexpr const char* kUnimplementedCodeMessage = "unimplemented code";
+constexpr const char* kUnreachableCodeMessage = "unreachable code";
+}  // namespace v8::base
+
+#define UNIMPLEMENTED() FATAL(::v8::base::kUnimplementedCodeMessage)
+// UNREACHABLE is used both to mark areas of the code that should never be
+// reached, and to guard against UB issues with the sandbox given an in-sandbox
+// corruption.
+#define UNREACHABLE() FATAL(::v8::base::kUnreachableCodeMessage)
+// g++ versions <= 8 cannot use UNREACHABLE() in a constexpr function.
+// TODO(miladfarca): Remove once all compilers handle this properly.
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ <= 8)
+#define CONSTEXPR_UNREACHABLE() abort()
+#else
+#define CONSTEXPR_UNREACHABLE() UNREACHABLE()
+#endif
 
 namespace v8 {
 namespace base {
+
+class CheckMessageStream : public std::ostringstream {};
 
 // Overwrite the default function that prints a stack trace.
 V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
@@ -59,6 +91,32 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 // Override the default function that handles DCHECKs.
 V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
                                                               const char*));
+
+// Override the default function invoked during V8_Fatal.
+V8_BASE_EXPORT void SetFatalFunction(void (*fatal_Function)(const char*, int,
+                                                            const char*));
+
+enum class OOMType {
+  // We ran out of memory in the JavaScript heap.
+  kJavaScript,
+  // The process ran out of memory.
+  kProcess,
+};
+
+// A simpler version of V8::FatalProcessOutOfMemory that is available in
+// src/base. Will simply terminate the process with an OOM message that is
+// recognizes as such by fuzzers and other tooling.
+[[noreturn]] V8_BASE_EXPORT void FatalOOM(OOMType type, const char* msg);
+
+// A variant of Fatal that makes it clear that the failure does not have any
+// security impact. This is useful for automatic vulnerability discover systems
+// (e.g. fuzzers) to ignore or discard such crashes.
+//
+// USE WITH CARE! Using this function means that fuzzers will *not* report
+// situations in which the function is reached. Legitimate use cases include
+// expected crashes due to misconfigurations (e.g. invalid runtime flags) or
+// invalid use of (debug-only) runtime functions exposed to JS.
+[[noreturn]] V8_BASE_EXPORT void FatalNoSecurityImpact(const char* format, ...);
 
 // In official builds, assume all check failures can be debugged given just the
 // stack trace.
@@ -82,14 +140,32 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
   } while (false)
 #define CHECK(condition) CHECK_WITH_MSG(condition, #condition)
 
+// Special version of CHECK that makes it clear that the CHECK's failure has no
+// security impact.
+// USE WITH CARE! See also the comments above FatalNoSecurityImpact.
+#define CHECK_NO_SECURITY_IMPACT(condition)    \
+  do {                                         \
+    if (V8_UNLIKELY(!(condition))) {           \
+      base::FatalNoSecurityImpact(#condition); \
+    }                                          \
+  } while (false)
+
 #ifdef DEBUG
 
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                    \
+  do {                                                                      \
+    if (V8_UNLIKELY(!(condition))) {                                        \
+      V8_Dcheck((loc).FileName(), static_cast<int>((loc).Line()), message); \
+    }                                                                       \
+  } while (false)
 #define DCHECK_WITH_MSG(condition, message)   \
   do {                                        \
     if (V8_UNLIKELY(!(condition))) {          \
       V8_Dcheck(__FILE__, __LINE__, message); \
     }                                         \
   } while (false)
+#define DCHECK_WITH_LOC(condition, loc) \
+  DCHECK_WITH_MSG_AND_LOC(condition, #condition, loc)
 #define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
 
 // Helper macro for binary operators.
@@ -134,22 +210,37 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 
 #endif
 
-#if V8_HAS_CXX14_CONSTEXPR
-#define CONSTEXPR_DCHECK(cond) DCHECK(cond)
-#else
-#define CONSTEXPR_DCHECK(cond)
-#endif
-
-// Define PrintCheckOperand<T> for each T which defines operator<< for ostream.
-template <typename T>
-typename std::enable_if<
-    !std::is_function<typename std::remove_pointer<T>::type>::value &&
-        has_output_operator<T>::value,
-    std::string>::type
-PrintCheckOperand(T val) {
-  std::ostringstream oss;
-  oss << std::forward<T>(val);
+namespace detail {
+template <typename... Ts>
+std::string PrintToString(Ts&&... ts) {
+  CheckMessageStream oss;
+  (..., (oss << std::forward<Ts>(ts)));
   return oss.str();
+}
+
+template <typename T>
+auto GetUnderlyingEnumTypeForPrinting(T val) {
+  auto underlying_val = static_cast<std::underlying_type_t<T>>(val);
+  // For single-byte enums, return a 16-bit integer to avoid printing the value
+  // as a character.
+  if constexpr (sizeof(underlying_val) == 1) {
+    constexpr bool kIsSigned = std::is_signed_v<decltype(underlying_val)>;
+    using int_t = std::conditional_t<kIsSigned, int16_t, uint16_t>;
+    return static_cast<int_t>(underlying_val);
+  } else {
+    return underlying_val;
+  }
+}
+
+}  // namespace detail
+
+// Define PrintCheckOperand<T> for each T which defines operator<< for ostream,
+// except types explicitly specialized below.
+template <typename T>
+  requires(!std::is_function_v<std::remove_pointer_t<T>> &&
+           !std::is_enum_v<T> && has_output_operator<T, CheckMessageStream>)
+std::string PrintCheckOperand(T val) {
+  return detail::PrintToString(std::forward<T>(val));
 }
 
 // Provide an overload for functions and function pointers. Function pointers
@@ -158,34 +249,59 @@ PrintCheckOperand(T val) {
 // standards-conforming here and converts function pointers to regular
 // pointers, so this is a no-op for MSVC.)
 template <typename T>
-typename std::enable_if<
-    std::is_function<typename std::remove_pointer<T>::type>::value,
-    std::string>::type
-PrintCheckOperand(T val) {
+  requires(std::is_function_v<typename std::remove_pointer_t<T>>)
+std::string PrintCheckOperand(T val) {
   return PrintCheckOperand(reinterpret_cast<const void*>(val));
 }
 
-// Define PrintCheckOperand<T> for enums which have no operator<<.
+// Define PrintCheckOperand<T> for enums.
 template <typename T>
-typename std::enable_if<
-    std::is_enum<T>::value && !has_output_operator<T>::value, std::string>::type
-PrintCheckOperand(T val) {
-  using underlying_t = typename std::underlying_type<T>::type;
-  // 8-bit types are not printed as number, so extend them to 16 bit.
-  using int_t = typename std::conditional<
-      std::is_same<underlying_t, uint8_t>::value, uint16_t,
-      typename std::conditional<std::is_same<underlying_t, int8_t>::value,
-                                int16_t, underlying_t>::type>::type;
-  return PrintCheckOperand(static_cast<int_t>(static_cast<underlying_t>(val)));
+  requires(std::is_enum_v<T>)
+std::string PrintCheckOperand(T val) {
+  std::string int_str =
+      detail::PrintToString(detail::GetUnderlyingEnumTypeForPrinting(val));
+  if constexpr (has_output_operator<T, CheckMessageStream>) {
+    std::string val_str = detail::PrintToString(val);
+    // Printing the original enum might have printed a single non-printable
+    // character. Ignore it in that case. Also ignore if it printed the same as
+    // the integral representation.
+    // TODO(clemensb): Can we somehow statically find out if the output operator
+    // is the default one, printing the integral value?
+    if ((val_str.length() == 1 && !std::isprint(val_str[0])) ||
+        val_str == int_str) {
+      return int_str;
+    }
+    return detail::PrintToString(val_str, " (", int_str, ")");
+  } else {
+    return int_str;
+  }
 }
 
-// Define default PrintCheckOperand<T> for non-printable types.
+// Define PrintCheckOperand<T> for forward iterable containers without an output
+// operator.
 template <typename T>
-typename std::enable_if<!has_output_operator<T>::value &&
-                            !std::is_enum<T>::value,
-                        std::string>::type
-PrintCheckOperand(T val) {
-  return "<unprintable>";
+  requires(!has_output_operator<T, CheckMessageStream> &&
+           requires(T t) {
+             { std::begin(t) } -> std::forward_iterator;
+           })
+std::string PrintCheckOperand(const T& container) {
+  CheckMessageStream oss;
+  const size_t size = std::size(container);
+  oss << size << " element" << (size == 1 ? "" : "s");
+  if constexpr (requires(const T& t) { PrintCheckOperand(*std::begin(t)); }) {
+    oss << ": {";
+    bool first = true;
+    for (const auto& val : container) {
+      if (!first) {
+        oss << ",";
+      } else {
+        first = false;
+      }
+      oss << PrintCheckOperand(val);
+    }
+    oss << "}";
+  }
+  return oss.str();
 }
 
 // Define specializations for character types, defined in logging.cc.
@@ -208,16 +324,27 @@ DEFINE_PRINT_CHECK_OPERAND_CHAR(unsigned char)
 // takes ownership of the returned string.
 template <typename Lhs, typename Rhs>
 V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
-  std::string lhs_str = PrintCheckOperand<Lhs>(lhs);
-  std::string rhs_str = PrintCheckOperand<Rhs>(rhs);
-  std::ostringstream ss;
+  constexpr bool kLhsIsPrintable = requires { PrintCheckOperand(lhs); };
+  constexpr bool kRhsIsPrintable = requires { PrintCheckOperand(rhs); };
+
+  CheckMessageStream ss;
   ss << msg;
-  constexpr size_t kMaxInlineLength = 50;
-  if (lhs_str.size() <= kMaxInlineLength &&
-      rhs_str.size() <= kMaxInlineLength) {
-    ss << " (" << lhs_str << " vs. " << rhs_str << ")";
-  } else {
-    ss << "\n   " << lhs_str << "\n vs.\n   " << rhs_str << "\n";
+  if constexpr (kLhsIsPrintable || kRhsIsPrintable) {
+    std::string tmp_lhs_str;
+    std::string tmp_rhs_str;
+    if constexpr (kLhsIsPrintable) tmp_lhs_str = PrintCheckOperand(lhs);
+    if constexpr (kRhsIsPrintable) tmp_rhs_str = PrintCheckOperand(rhs);
+    std::string_view lhs_str{kLhsIsPrintable ? std::string_view{tmp_lhs_str}
+                                             : "<unprintable>"};
+    std::string_view rhs_str{kRhsIsPrintable ? std::string_view{tmp_rhs_str}
+                                             : "<unprintable>"};
+
+    constexpr size_t kMaxInlineLength = 50;
+    if (std::max(lhs_str.size(), rhs_str.size()) <= kMaxInlineLength) {
+      ss << " (" << lhs_str << " vs. " << rhs_str << ")";
+    } else {
+      ss << "\n   " << lhs_str << "\n vs.\n   " << rhs_str << "\n";
+    }
   }
   return new std::string(ss.str());
 }
@@ -239,22 +366,20 @@ EXPLICIT_CHECK_OP_INSTANTIATION(void const*)
 #undef EXPLICIT_CHECK_OP_INSTANTIATION
 
 // comparison_underlying_type provides the underlying integral type of an enum,
-// or std::decay<T>::type if T is not an enum. Booleans are converted to
+// or std::decay_t<T> if T is not an enum. Booleans are converted to
 // "unsigned int", to allow "unsigned int == bool" comparisons.
 template <typename T>
 struct comparison_underlying_type {
   // std::underlying_type must only be used with enum types, thus use this
   // {Dummy} type if the given type is not an enum.
   enum Dummy {};
-  using decay = typename std::decay<T>::type;
-  static constexpr bool is_enum = std::is_enum<decay>::value;
-  using underlying = typename std::underlying_type<
-      typename std::conditional<is_enum, decay, Dummy>::type>::type;
-  using type_or_bool =
-      typename std::conditional<is_enum, underlying, decay>::type;
-  using type =
-      typename std::conditional<std::is_same<type_or_bool, bool>::value,
-                                unsigned int, type_or_bool>::type;
+  using decay = std::decay_t<T>;
+  static constexpr bool is_enum = std::is_enum_v<decay>;
+  using underlying =
+      std::underlying_type_t<std::conditional_t<is_enum, decay, Dummy>>;
+  using type_or_bool = std::conditional_t<is_enum, underlying, decay>;
+  using type = std::conditional_t<std::is_same_v<type_or_bool, bool>,
+                                  unsigned int, type_or_bool>;
 };
 // Cast a value to its underlying type
 #define MAKE_UNDERLYING(Type, value) \
@@ -266,27 +391,49 @@ template <typename Lhs, typename Rhs>
 struct is_signed_vs_unsigned {
   using lhs_underlying = typename comparison_underlying_type<Lhs>::type;
   using rhs_underlying = typename comparison_underlying_type<Rhs>::type;
-  static constexpr bool value = std::is_integral<lhs_underlying>::value &&
-                                std::is_integral<rhs_underlying>::value &&
-                                std::is_signed<lhs_underlying>::value &&
-                                std::is_unsigned<rhs_underlying>::value;
+  static constexpr bool value = std::is_integral_v<lhs_underlying> &&
+                                std::is_integral_v<rhs_underlying> &&
+                                std::is_signed_v<lhs_underlying> &&
+                                std::is_unsigned_v<rhs_underlying>;
 };
 // Same thing, other way around: Lhs is unsigned, Rhs signed.
 template <typename Lhs, typename Rhs>
 struct is_unsigned_vs_signed : public is_signed_vs_unsigned<Rhs, Lhs> {};
 
-// Specialize the compare functions for signed vs. unsigned comparisons.
-// std::enable_if ensures that this template is only instantiable if both Lhs
-// and Rhs are integral types, and their signedness does not match.
-#define MAKE_UNSIGNED(Type, value)         \
-  static_cast<typename std::make_unsigned< \
-      typename comparison_underlying_type<Type>::type>::type>(value)
-#define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)            \
-  template <typename Lhs, typename Rhs>                           \
-  V8_INLINE constexpr                                             \
-      typename std::enable_if<CHECK<Lhs, Rhs>::value, bool>::type \
-          Cmp##NAME##Impl(Lhs lhs, Rhs rhs) {                     \
-    return IMPL;                                                  \
+static_assert(!is_signed_vs_unsigned<unsigned, int>::value);
+static_assert(is_unsigned_vs_signed<unsigned, int>::value);
+static_assert(is_signed_vs_unsigned<int, unsigned>::value);
+static_assert(!is_unsigned_vs_signed<int, unsigned>::value);
+static_assert(!is_signed_vs_unsigned<unsigned, unsigned>::value);
+static_assert(!is_signed_vs_unsigned<int, int>::value);
+
+// Define the default implementation of Cmp##NAME##Impl to be used by
+// CHECK##NAME##Impl.
+// Note the specializations below for integral types with mismatching
+// signedness.
+#define DEFINE_CMP_IMPL(NAME, op)                              \
+  template <typename Lhs, typename Rhs>                        \
+  V8_INLINE constexpr bool Cmp##NAME##Impl(Lhs lhs, Rhs rhs) { \
+    return lhs op rhs;                                         \
+  }
+DEFINE_CMP_IMPL(EQ, ==)
+DEFINE_CMP_IMPL(NE, !=)
+DEFINE_CMP_IMPL(LE, <=)
+DEFINE_CMP_IMPL(LT, <)
+DEFINE_CMP_IMPL(GE, >=)
+DEFINE_CMP_IMPL(GT, >)
+#undef DEFINE_CMP_IMPL
+
+// Specialize the compare functions for signed vs. unsigned comparisons (via the
+// `requires` clause).
+#define MAKE_UNSIGNED(Type, value)           \
+  static_cast<typename std::make_unsigned_t< \
+      typename comparison_underlying_type<Type>::type>>(value)
+#define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)         \
+  template <typename Lhs, typename Rhs>                        \
+    requires(CHECK<Lhs, Rhs>::value)                           \
+  V8_INLINE constexpr bool Cmp##NAME##Impl(Lhs lhs, Rhs rhs) { \
+    return IMPL;                                               \
   }
 DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, EQ,
                             lhs >= 0 && MAKE_UNSIGNED(Lhs, lhs) ==
@@ -309,37 +456,25 @@ DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, GE, CmpLEImpl(rhs, lhs))
 #undef MAKE_UNSIGNED
 #undef DEFINE_SIGNED_MISMATCH_COMP
 
-// Helper functions for CHECK_OP macro.
-// The (float, float) and (double, double) instantiations are explicitly
-// externalized to ensure proper 32/64-bit comparisons on x86.
-// The Cmp##NAME##Impl function is only instantiable if one of the two types is
-// not integral or their signedness matches (i.e. whenever no specialization is
-// required, see above). Otherwise it is disabled by the enable_if construct,
-// and the compiler will pick a specialization from above.
-#define DEFINE_CHECK_OP_IMPL(NAME, op)                                        \
-  template <typename Lhs, typename Rhs>                                       \
-  V8_INLINE constexpr                                                         \
-      typename std::enable_if<!is_signed_vs_unsigned<Lhs, Rhs>::value &&      \
-                                  !is_unsigned_vs_signed<Lhs, Rhs>::value,    \
-                              bool>::type Cmp##NAME##Impl(Lhs lhs, Rhs rhs) { \
-    return lhs op rhs;                                                        \
-  }                                                                           \
-  template <typename Lhs, typename Rhs>                                       \
-  V8_INLINE constexpr std::string* Check##NAME##Impl(Lhs lhs, Rhs rhs,        \
-                                                     char const* msg) {       \
-    using LhsPassT = typename pass_value_or_ref<Lhs>::type;                   \
-    using RhsPassT = typename pass_value_or_ref<Rhs>::type;                   \
-    bool cmp = Cmp##NAME##Impl<LhsPassT, RhsPassT>(lhs, rhs);                 \
-    return V8_LIKELY(cmp)                                                     \
-               ? nullptr                                                      \
-               : MakeCheckOpString<LhsPassT, RhsPassT>(lhs, rhs, msg);        \
+// Define the implementation of Check##NAME##Impl, using Cmp##NAME##Impl defined
+// above.
+#define DEFINE_CHECK_OP_IMPL(NAME)                                      \
+  template <typename Lhs, typename Rhs>                                 \
+  V8_INLINE constexpr std::string* Check##NAME##Impl(Lhs lhs, Rhs rhs,  \
+                                                     char const* msg) { \
+    using LhsPassT = typename pass_value_or_ref<Lhs>::type;             \
+    using RhsPassT = typename pass_value_or_ref<Rhs>::type;             \
+    bool cmp = Cmp##NAME##Impl<LhsPassT, RhsPassT>(lhs, rhs);           \
+    return V8_LIKELY(cmp)                                               \
+               ? nullptr                                                \
+               : MakeCheckOpString<LhsPassT, RhsPassT>(lhs, rhs, msg);  \
   }
-DEFINE_CHECK_OP_IMPL(EQ, ==)
-DEFINE_CHECK_OP_IMPL(NE, !=)
-DEFINE_CHECK_OP_IMPL(LE, <=)
-DEFINE_CHECK_OP_IMPL(LT, < )
-DEFINE_CHECK_OP_IMPL(GE, >=)
-DEFINE_CHECK_OP_IMPL(GT, > )
+DEFINE_CHECK_OP_IMPL(EQ)
+DEFINE_CHECK_OP_IMPL(NE)
+DEFINE_CHECK_OP_IMPL(LE)
+DEFINE_CHECK_OP_IMPL(LT)
+DEFINE_CHECK_OP_IMPL(GE)
+DEFINE_CHECK_OP_IMPL(GT)
 #undef DEFINE_CHECK_OP_IMPL
 
 #define CHECK_EQ(lhs, rhs) CHECK_OP(EQ, ==, lhs, rhs)
@@ -352,6 +487,11 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
 #define CHECK_IMPLIES(lhs, rhs) \
   CHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
+// Performs a single (unsigned) comparison to check that {index} is
+// in range [0, limit).
+#define CHECK_BOUNDS(index, limit)                                    \
+  CHECK_LT(static_cast<std::make_unsigned_t<decltype(index)>>(index), \
+           static_cast<std::make_unsigned_t<decltype(limit)>>(limit))
 
 }  // namespace base
 }  // namespace v8
@@ -370,8 +510,13 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DCHECK_NOT_NULL(val) DCHECK((val) != nullptr)
 #define DCHECK_IMPLIES(lhs, rhs) \
   DCHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
+#define DCHECK_BOUNDS(index, limit)                                    \
+  DCHECK_LT(static_cast<std::make_unsigned_t<decltype(index)>>(index), \
+            static_cast<std::make_unsigned_t<decltype(limit)>>(limit))
 #else
 #define DCHECK(condition)      ((void) 0)
+#define DCHECK_WITH_LOC(condition, location) ((void)0)
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, location) ((void)0)
 #define DCHECK_EQ(v1, v2)      ((void) 0)
 #define DCHECK_NE(v1, v2)      ((void) 0)
 #define DCHECK_GT(v1, v2)      ((void) 0)
@@ -381,6 +526,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define DCHECK_NULL(val)       ((void) 0)
 #define DCHECK_NOT_NULL(val)   ((void) 0)
 #define DCHECK_IMPLIES(v1, v2) ((void) 0)
+#define DCHECK_BOUNDS(index, limit) ((void)0)
 #endif
 
 #endif  // V8_BASE_LOGGING_H_

@@ -1,10 +1,9 @@
 'use strict';
-
+// Flags: --expose-internals --no-warnings
 const common = require('../common');
+const { kWeakHandler } = require('internal/event_target');
 
-const {
-  deepStrictEqual,
-} = require('assert');
+const assert = require('assert');
 
 const { getEventListeners, EventEmitter } = require('events');
 
@@ -17,9 +16,9 @@ const { getEventListeners, EventEmitter } = require('events');
   emitter.on('foo', fn2);
   emitter.on('baz', fn1);
   emitter.on('baz', fn1);
-  deepStrictEqual(getEventListeners(emitter, 'foo'), [fn1, fn2]);
-  deepStrictEqual(getEventListeners(emitter, 'bar'), []);
-  deepStrictEqual(getEventListeners(emitter, 'baz'), [fn1, fn1]);
+  assert.deepStrictEqual(getEventListeners(emitter, 'foo'), [fn1, fn2]);
+  assert.deepStrictEqual(getEventListeners(emitter, 'bar'), []);
+  assert.deepStrictEqual(getEventListeners(emitter, 'baz'), [fn1, fn1]);
 }
 // Test getEventListeners on EventTarget
 {
@@ -30,7 +29,21 @@ const { getEventListeners, EventEmitter } = require('events');
   target.addEventListener('foo', fn2);
   target.addEventListener('baz', fn1);
   target.addEventListener('baz', fn1);
-  deepStrictEqual(getEventListeners(target, 'foo'), [fn1, fn2]);
-  deepStrictEqual(getEventListeners(target, 'bar'), []);
-  deepStrictEqual(getEventListeners(target, 'baz'), [fn1]);
+  assert.deepStrictEqual(getEventListeners(target, 'foo'), [fn1, fn2]);
+  assert.deepStrictEqual(getEventListeners(target, 'bar'), []);
+  assert.deepStrictEqual(getEventListeners(target, 'baz'), [fn1]);
+}
+
+{
+  assert.throws(() => {
+    getEventListeners('INVALID_EMITTER');
+  }, /ERR_INVALID_ARG_TYPE/);
+}
+{
+  // Test weak listeners
+  const target = new EventTarget();
+  const fn = common.mustNotCall();
+  target.addEventListener('foo', fn, { [kWeakHandler]: {} });
+  const listeners = getEventListeners(target, 'foo');
+  assert.deepStrictEqual(listeners, [fn]);
 }

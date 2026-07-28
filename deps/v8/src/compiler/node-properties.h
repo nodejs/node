@@ -5,30 +5,30 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
+#include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
+#include "src/compiler/heap-refs.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/types.h"
-#include "src/objects/map.h"
-#include "src/zone/zone-handle-set.h"
+#include "src/compiler/turbofan-types.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class Operator;
 class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
-class V8_EXPORT_PRIVATE NodeProperties final {
+class V8_EXPORT_PRIVATE NodeProperties {
  public:
   // ---------------------------------------------------------------------------
   // Input layout.
   // Inputs are always arranged in order as follows:
   //     0 [ values, context, frame state, effects, control ] node->InputCount()
 
-  static int FirstValueIndex(Node* node) { return 0; }
+  static int FirstValueIndex(const Node* node) { return 0; }
   static int FirstContextIndex(Node* node) { return PastValueIndex(node); }
   static int FirstFrameStateIndex(Node* node) { return PastContextIndex(node); }
   static int FirstEffectIndex(Node* node) { return PastFrameStateIndex(node); }
@@ -60,6 +60,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Input accessors.
 
   static Node* GetValueInput(Node* node, int index) {
+    CHECK_LE(0, index);
+    CHECK_LT(index, node->op()->ValueInputCount());
+    return node->InputAt(FirstValueIndex(node) + index);
+  }
+
+  static const Node* GetValueInput(const Node* node, int index) {
     CHECK_LE(0, index);
     CHECK_LT(index, node->op()->ValueInputCount());
     return node->InputAt(FirstValueIndex(node) + index);
@@ -111,6 +117,11 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static bool IsPhi(Node* node) {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
+#if V8_ENABLE_WEBASSEMBLY
+  static bool IsSimd128Operation(Node* node) {
+    return IrOpcode::IsSimd128Opcode(node->opcode());
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Determines whether exceptions thrown by the given node are handled locally
   // within the graph (i.e. an IfException projection is present). Optionally
@@ -120,6 +131,18 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Returns the node producing the successful control output of {node}. This is
   // the IfSuccess projection of {node} if present and {node} itself otherwise.
   static Node* FindSuccessfulControlProjection(Node* node);
+
+  // Returns whether the node acts as the identity function on a value
+  // input. The input that is passed through is returned via {out_value}.
+  static bool IsValueIdentity(Node* node, Node** out_value) {
+    switch (node->opcode()) {
+      case IrOpcode::kTypeGuard:
+        *out_value = GetValueInput(node, 0);
+        return true;
+      default:
+        return false;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Miscellaneous mutators.
@@ -137,13 +160,13 @@ class V8_EXPORT_PRIVATE NodeProperties final {
 
   // Merge the control node {node} into the end of the graph, introducing a
   // merge node or expanding an existing merge node if necessary.
-  static void MergeControlToEnd(Graph* graph, CommonOperatorBuilder* common,
+  static void MergeControlToEnd(TFGraph* graph, CommonOperatorBuilder* common,
                                 Node* node);
 
   // Removes the control node {node} from the end of the graph, reducing the
   // existing merge node's input count.
-  static void RemoveControlFromEnd(Graph* graph, CommonOperatorBuilder* common,
-                                   Node* node);
+  static void RemoveControlFromEnd(TFGraph* graph,
+                                   CommonOperatorBuilder* common, Node* node);
 
   // Replace all uses of {node} with the given replacement nodes. All occurring
   // use kinds need to be replaced, {nullptr} is only valid if a use kind is
@@ -154,6 +177,8 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Safe wrapper to mutate the operator of a node. Checks that the node is
   // currently in a state that satisfies constraints of the new operator.
   static void ChangeOp(Node* node, const Operator* new_op);
+  // Like `ChangeOp`, but without checking constraints.
+  static void ChangeOpUnchecked(Node* node, const Operator* new_op);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.
@@ -176,6 +201,9 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   //  - Switch: [ IfValue, ..., IfDefault ]
   static void CollectControlProjections(Node* node, Node** proj, size_t count);
 
+  // Return the MachineRepresentation of a Projection based on its input.
+  static MachineRepresentation GetProjectionType(Node const* projection);
+
   // Checks if two nodes are the same, looking past {CheckHeapObject}.
   static bool IsSame(Node* a, Node* b);
 
@@ -188,19 +216,18 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Walks up the {effect} chain to find a witness that provides map
   // information about the {receiver}. Can look through potentially
   // side effecting nodes.
-  enum InferReceiverMapsResult {
-    kNoReceiverMaps,         // No receiver maps inferred.
-    kReliableReceiverMaps,   // Receiver maps can be trusted.
-    kUnreliableReceiverMaps  // Receiver maps might have changed (side-effect).
+  enum InferMapsResult {
+    kNoMaps,         // No maps inferred.
+    kReliableMaps,   // Maps can be trusted.
+    kUnreliableMaps  // Maps might have changed (side-effect).
   };
-  // DO NOT USE InferReceiverMapsUnsafe IN NEW CODE. Use MapInference instead.
-  static InferReceiverMapsResult InferReceiverMapsUnsafe(
-      JSHeapBroker* broker, Node* receiver, Node* effect,
-      ZoneHandleSet<Map>* maps_return);
+  // DO NOT USE InferMapsUnsafe IN NEW CODE. Use MapInference instead.
+  static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* receiver,
+                                         Effect effect,
+                                         ZoneRefSet<Map>* maps_out);
 
   // Return the initial map of the new-target if the allocation can be inlined.
-  static base::Optional<MapRef> GetJSCreateMap(JSHeapBroker* broker,
-                                               Node* receiver);
+  static OptionalMapRef GetJSCreateMap(JSHeapBroker* broker, Node* receiver);
 
   // Walks up the {effect} chain to check that there's no observable side-effect
   // between the {effect} and it's {dominator}. Aborts the walk if there's join
@@ -211,12 +238,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // definitely a JavaScript object); might walk up the {effect} chain to
   // find map checks on {receiver}.
   static bool CanBePrimitive(JSHeapBroker* broker, Node* receiver,
-                             Node* effect);
+                             Effect effect);
 
   // Returns true if the {receiver} can be null or undefined. Might walk
   // up the {effect} chain to find map checks for {receiver}.
   static bool CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
-                                   Node* effect);
+                                   Effect effect);
 
   // ---------------------------------------------------------------------------
   // Context.
@@ -229,12 +256,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // ---------------------------------------------------------------------------
   // Type.
 
-  static bool IsTyped(Node* node) { return !node->type().IsInvalid(); }
-  static Type GetType(Node* node) {
+  static bool IsTyped(const Node* node) { return !node->type().IsInvalid(); }
+  static Type GetType(const Node* node) {
     DCHECK(IsTyped(node));
     return node->type();
   }
-  static Type GetTypeOrAny(Node* node);
+  static Type GetTypeOrAny(const Node* node);
   static void SetType(Node* node, Type type) {
     DCHECK(!type.IsInvalid());
     node->set_type(type);

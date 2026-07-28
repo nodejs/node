@@ -329,6 +329,48 @@ assertEquals('{\n "a": "b",\n "c": "d"\n}',
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x']));
 assertEquals('{"y":6,"x":5}', JSON.stringify({x:5,y:6}, ['y', 'x', 'x', 'y']));
 
+// Test encoding changes.
+let smiley = '\u{D83D}\u{DE0A}';
+assertEquals(`"${smiley}"`, JSON.stringify(smiley));
+assertEquals(`[0,"${smiley}",9]`, JSON.stringify([0, smiley, 9]));
+assertEquals(
+    `{"a":"x","b":[0,"${smiley}",9],"c":"y"}`,
+    JSON.stringify({a: 'x', b: [0, smiley, 9], c: 'y'}));
+assertEquals(`{"a":"${smiley}"}`, JSON.stringify({a: smiley}));
+assertEquals(
+    `{"a":42,"b":"${smiley}","c":"foo"}`,
+    JSON.stringify({a: 42, b: smiley, c: 'foo'}));
+assertEquals(
+    `{"outer1":{"a":42,"b":"${smiley}","c":"foo"},"outer2":{}}`,
+    JSON.stringify({outer1: {a: 42, b: smiley, c: 'foo'}, outer2: {}}));
+
+assertEquals(`{"${smiley}":"a"}`, JSON.stringify({[smiley]: 'a'}));
+assertEquals(
+    `{"a":42,"${smiley}":"b","c":"foo"}`,
+    JSON.stringify({a: 42, [smiley]: 'b', c: 'foo'}));
+assertEquals(
+    `{"outer1":{"a":42,"${smiley}":"b","c":"foo"},"outer2":{}}`,
+    JSON.stringify({outer1: {a: 42, [smiley]: 'b', c: 'foo'}, outer2: {}}));
+assertEquals(
+    `{"${smiley}":[1,2,3,4]}`, JSON.stringify({[smiley]: [1, 2, 3, 4]}));
+assertEquals(
+    `{"${smiley}":{"a":42,"b":"foo"}}`,
+    JSON.stringify({[smiley]: {a: 42, b: 'foo'}}));
+assertEquals(
+    `{"a":42,"${smiley}":[1,2,3,4],"c":"foo"}`,
+    JSON.stringify({a: 42, [smiley]: [1, 2, 3, 4], c: 'foo'}));
+assertEquals(
+    `{"a":42,"${smiley}":{"a":42,"b":"foo"},"c":"foo"}`,
+    JSON.stringify({a: 42, [smiley]: {a: 42, b: 'foo'}, c: 'foo'}));
+assertEquals(
+    `{"outer1":{"a":42,"${smiley}":[1,2,3,4],"c":"foo"},"outer2":{}}`,
+    JSON.stringify(
+        {outer1: {a: 42, [smiley]: [1, 2, 3, 4], c: 'foo'}, outer2: {}}));
+assertEquals(
+    `{"outer1":{"a":42,"${smiley}":{"a":42,"b":"foo"},"c":"foo"},"outer2":{}}`,
+    JSON.stringify(
+        {outer1: {a: 42, [smiley]: {a: 42, b: 'foo'}, c: 'foo'}, outer2: {}}));
+
 // toJSON get string keys.
 var checker = {};
 var array = [checker];
@@ -358,6 +400,8 @@ TestStringify("[null,null,null]", [undefined,,function(){}]);
 
 // Objects with undefined or function properties (including replaced properties)
 // have those properties ignored.
+assertEquals('{"c":42,"d":42}',
+             JSON.stringify({a: undefined, b: undefined, c: 42, d: 42}));
 assertEquals('{}',
              JSON.stringify({a: undefined, b: function(){}, c: 42, d: 42},
                             function(k, v) { if (k == "c") return undefined;
@@ -462,6 +506,9 @@ oddball2.__proto__ = { __proto__: null,
                        toJSON: function () { return oddball3; } }
 TestStringify('"true"', oddball2);
 
+let arr = [];
+arr.toJSON = function() { return 'foo' };
+TestStringify('"foo"', arr);
 
 var falseNum = Object("37");
 falseNum.__proto__ = Number.prototype;
@@ -489,6 +536,9 @@ assertTrue(Object.prototype.isPrototypeOf(o2));
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 TestStringify(json, JSON.parse(json));
 
+// TODO(v8:12955): JSON parse with source access will assert failed when the
+// reviver modifies the json value like this. See
+// https://github.com/tc39/proposal-json-parse-with-source/issues/35.
 
 // https://bugs.chromium.org/p/v8/issues/detail?id=3139
 
@@ -523,3 +573,61 @@ assertEquals('{"":"inf"}', JSON.stringify({"":Infinity}, reviver));
 
 assertEquals([10.4, "\u1234"], JSON.parse("[10.4, \"\u1234\"]"));
 assertEquals(10, JSON.parse('{"10":10}')["10"]);
+
+assertEquals(`[
+          1,
+          2
+]`, JSON.stringify([1,2], undefined, 1000000000000000));
+
+let obj = { x: 0, y: 1 };
+let other = {};
+let called = false;
+let count = 0;
+
+obj.__defineGetter__(undefined, function() {
+  count++;
+  if (called) {
+    obj["__proto__"] = other["__lookupSetter__"];
+  } else {
+    obj["toLocaleString"] = other["__lookupSetter__"];
+    called = true;
+  }
+});
+
+assertEquals('{"x":0,"y":1}', JSON.stringify(obj));
+assertEquals(1, count);
+assertEquals('{"x":0,"y":1}', JSON.stringify(obj));
+assertEquals(2, count);
+
+function sharedConstructor(baseConstructor) {
+  class SharedTypedArray extends Object.getPrototypeOf(baseConstructor) {}
+  Object.defineProperty(SharedTypedArray, "name", {
+    value: baseConstructor.name
+  });
+  return SharedTypedArray;
+}
+sharedTypedArrayConstructors = [Float64Array].map(sharedConstructor);
+for (var __v_0 of sharedTypedArrayConstructors) {}
+var __v_1 = 0;
+var __v_2 = {
+  get: function () {
+    __v_1++;
+    return (
+      __v_0
+    );
+  },
+};
+assertEquals('[null]', JSON.stringify(Object.defineProperty([], "0", __v_2)));
+assertEquals(1, __v_1);
+
+
+// Test last since we are modifying Object/Array prototypes
+Object.prototype.toJSON = function() {
+  return 'obj proto';
+};
+TestStringify('"obj proto"', {});
+TestStringify('"obj proto"', []);
+Array.prototype.toJSON = function() {
+  return 'arr proto';
+};
+TestStringify('"arr proto"', []);

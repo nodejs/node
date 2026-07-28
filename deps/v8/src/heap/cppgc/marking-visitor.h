@@ -16,36 +16,78 @@ namespace internal {
 class HeapBase;
 class HeapObjectHeader;
 class Marker;
-class MarkingState;
+class BasicMarkingState;
+class MutatorMarkingState;
+class ConcurrentMarkingState;
 
-class V8_EXPORT_PRIVATE MarkingVisitor : public VisitorBase {
+class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
  public:
-  MarkingVisitor(HeapBase&, MarkingState&);
-  ~MarkingVisitor() override = default;
+  MarkingVisitorBase(HeapBase&, BasicMarkingState&);
+  ~MarkingVisitorBase() override = default;
 
  protected:
   void Visit(const void*, TraceDescriptor) final;
+  void VisitMultipleUncompressedMember(const void*, size_t,
+                                       TraceDescriptorCallback) final;
+#if defined(CPPGC_POINTER_COMPRESSION)
+  void VisitMultipleCompressedMember(const void*, size_t,
+                                     TraceDescriptorCallback) final;
+#endif  // defined(CPPGC_POINTER_COMPRESSION)
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
-  void VisitRoot(const void*, TraceDescriptor) final;
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback,
-                     const void*) final;
+  void VisitEphemeron(const void*, const void*, TraceDescriptor) final;
+  void VisitWeakContainer(const void* object, TraceDescriptor strong_desc,
+                          TraceDescriptor weak_desc, WeakCallback callback,
+                          const void* data) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
+  void HandleMovableReference(const void**) final;
 
-  MarkingState& marking_state_;
+  BasicMarkingState& marking_state_;
+};
+
+class V8_EXPORT_PRIVATE MutatorMarkingVisitor : public MarkingVisitorBase {
+ public:
+  MutatorMarkingVisitor(HeapBase&, MutatorMarkingState&);
+  ~MutatorMarkingVisitor() override = default;
+};
+
+class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
+    : public MarkingVisitorBase {
+ public:
+  ConcurrentMarkingVisitor(HeapBase&, ConcurrentMarkingState&);
+  ~ConcurrentMarkingVisitor() override = default;
+
+ protected:
+  bool DeferTraceToMutatorThreadIfConcurrent(const void*, TraceCallback,
+                                             size_t) final;
+  bool IsConcurrent() const final { return true; }
+};
+
+class V8_EXPORT_PRIVATE RootMarkingVisitor : public RootVisitorBase {
+ public:
+  explicit RootMarkingVisitor(MutatorMarkingState&);
+  ~RootMarkingVisitor() override = default;
+
+ protected:
+  void VisitRoot(const void*, TraceDescriptor, SourceLocation) final;
+  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
+                     SourceLocation) final;
+
+  MutatorMarkingState& mutator_marking_state_;
 };
 
 class ConservativeMarkingVisitor : public ConservativeTracingVisitor,
                                    public heap::base::StackVisitor {
  public:
-  ConservativeMarkingVisitor(HeapBase&, MarkingState&, cppgc::Visitor&);
+  ConservativeMarkingVisitor(HeapBase&, MutatorMarkingState&, cppgc::Visitor&);
   ~ConservativeMarkingVisitor() override = default;
 
  private:
-  void VisitConservatively(HeapObjectHeader&,
-                           TraceConservativelyCallback) final;
+  void VisitFullyConstructedConservatively(HeapObjectHeader&) final;
+  void VisitInConstructionConservatively(HeapObjectHeader&,
+                                         TraceConservativelyCallback) final;
   void VisitPointer(const void*) final;
 
-  MarkingState& marking_state_;
+  MutatorMarkingState& marking_state_;
 };
 
 }  // namespace internal

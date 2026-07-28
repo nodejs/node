@@ -5,12 +5,12 @@
 
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "base_object.h"
 #include "env.h"
 #include "memory_tracker.h"
 #include "v8.h"
 
+#include <climits>
 #include <string>
 
 namespace node {
@@ -21,6 +21,7 @@ class CipherBase : public BaseObject {
   static void GetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(CipherBase)
@@ -38,41 +39,36 @@ class CipherBase : public BaseObject {
   };
   enum AuthTagState {
     kAuthTagUnknown,
-    kAuthTagKnown,
-    kAuthTagPassedToOpenSSL
+    kAuthTagSetByUser,
+    kAuthTagComputed,
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
   void CommonInit(const char* cipher_type,
-                  const EVP_CIPHER* cipher,
+                  const ncrypto::Cipher& cipher,
                   const unsigned char* key,
                   int key_len,
                   const unsigned char* iv,
                   int iv_len,
                   unsigned int auth_tag_len);
-  void Init(const char* cipher_type,
-            const ArrayBufferOrViewContents<unsigned char>& key_buf,
-            unsigned int auth_tag_len);
   void InitIv(const char* cipher_type,
               const ByteSource& key_buf,
               const ArrayBufferOrViewContents<unsigned char>& iv_buf,
               unsigned int auth_tag_len);
-  bool InitAuthenticated(const char* cipher_type, int iv_len,
+  bool InitAuthenticated(const char* cipher_type,
+                         int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
-  UpdateResult Update(const char* data, size_t len, AllocatedBuffer* out);
-  bool Final(AllocatedBuffer* out);
+  UpdateResult Update(const char* data, size_t len,
+                      std::unique_ptr<v8::BackingStore>* out);
+  bool Final(std::unique_ptr<v8::BackingStore>* out);
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
-  bool SetAAD(
-      const ArrayBufferOrViewContents<unsigned char>& data,
-      int plaintext_len);
-  bool MaybePassAuthTagToOpenSSL();
+  bool SetAAD(const ArrayBufferOrViewContents<unsigned char>& data,
+              int plaintext_len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InitIv(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAutoPadding(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -84,41 +80,37 @@ class CipherBase : public BaseObject {
   CipherBase(Environment* env, v8::Local<v8::Object> wrap, CipherKind kind);
 
  private:
-  DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
+  ncrypto::CipherCtxPointer ctx_;
   const CipherKind kind_;
   AuthTagState auth_tag_state_;
   unsigned int auth_tag_len_;
-  char auth_tag_[EVP_GCM_TLS_TAG_LEN];
+  char auth_tag_[ncrypto::Cipher::MAX_AUTH_TAG_LENGTH];
   bool pending_auth_failed_;
   int max_message_size_;
 };
 
 class PublicKeyCipher {
  public:
-  typedef int (*EVP_PKEY_cipher_init_t)(EVP_PKEY_CTX* ctx);
-  typedef int (*EVP_PKEY_cipher_t)(EVP_PKEY_CTX* ctx,
-                                   unsigned char* out, size_t* outlen,
-                                   const unsigned char* in, size_t inlen);
+  using Cipher_t =
+      ncrypto::DataPointer(const ncrypto::EVPKeyPointer&,
+                           const ncrypto::Cipher::CipherParams& params,
+                           const ncrypto::Buffer<const void>);
 
   enum Operation {
     kPublic,
     kPrivate
   };
 
-  template <Operation operation,
-            EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
-            EVP_PKEY_cipher_t EVP_PKEY_cipher>
+  template <Cipher_t cipher>
   static bool Cipher(Environment* env,
-                     const ManagedEVPPKey& pkey,
+                     const ncrypto::EVPKeyPointer& pkey,
                      int padding,
-                     const EVP_MD* digest,
+                     const ncrypto::Digest& digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
-                     AllocatedBuffer* out);
+                     std::unique_ptr<v8::BackingStore>* out);
 
-  template <Operation operation,
-            EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
-            EVP_PKEY_cipher_t EVP_PKEY_cipher>
+  template <Operation operation, Cipher_t cipher>
   static void Cipher(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
@@ -132,6 +124,18 @@ enum class WebCryptoCipherStatus {
   INVALID_KEY_TYPE,
   FAILED
 };
+
+inline bool TryGetIntCipherOutputLength(size_t input_len,
+                                        size_t output_overhead,
+                                        int* output_len) {
+  static constexpr size_t kMaxLength = INT_MAX;
+  if (output_overhead > kMaxLength ||
+      input_len > kMaxLength - output_overhead) {
+    return false;
+  }
+  *output_len = static_cast<int>(input_len + output_overhead);
+  return true;
+}
 
 // CipherJob is a base implementation class for implementations of
 // one-shot sync and async ciphers. It has been added primarily to
@@ -151,10 +155,8 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     CryptoJobMode mode = GetCryptoJobMode(args[0]);
 
     CHECK(args[1]->IsUint32());  // Cipher Mode
-
-    uint32_t cmode = args[1].As<v8::Uint32>()->Value();
-    CHECK_LE(cmode, WebCryptoCipherMode::kWebCryptoCipherDecrypt);
-    WebCryptoCipherMode cipher_mode = static_cast<WebCryptoCipherMode>(cmode);
+    auto cipher_mode =
+        static_cast<WebCryptoCipherMode>(args[1].As<v8::Uint32>()->Value());
 
     CHECK(args[2]->IsObject());  // KeyObject
     KeyObjectHandle* key;
@@ -175,13 +177,7 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     }
 
     new CipherJob<CipherTraits>(
-        env,
-        args.This(),
-        mode,
-        key,
-        cipher_mode,
-        data,
-        std::move(params));
+        env, args.This(), mode, key, cipher_mode, data, std::move(params));
   }
 
   static void Initialize(
@@ -190,82 +186,96 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     CryptoJob<CipherTraits>::Initialize(New, env, target);
   }
 
-  CipherJob(
-      Environment* env,
-      v8::Local<v8::Object> object,
-      CryptoJobMode mode,
-      KeyObjectHandle* key,
-      WebCryptoCipherMode cipher_mode,
-      const ArrayBufferOrViewContents<char>& data,
-      AdditionalParams&& params)
-      : CryptoJob<CipherTraits>(
-            env,
-            object,
-            AsyncWrap::PROVIDER_CIPHERREQUEST,
-            mode,
-            std::move(params)),
-        key_(key->Data()),
-        cipher_mode_(cipher_mode),
-        in_(mode == kCryptoJobAsync
-            ? data.ToCopy()
-            : data.ToByteSource()) {}
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+    CryptoJob<CipherTraits>::RegisterExternalReferences(New, registry);
+  }
 
-  std::shared_ptr<KeyObjectData> key() const { return key_; }
+  CipherJob(Environment* env,
+            v8::Local<v8::Object> object,
+            CryptoJobMode mode,
+            KeyObjectHandle* key,
+            WebCryptoCipherMode cipher_mode,
+            const ArrayBufferOrViewContents<char>& data,
+            AdditionalParams&& params)
+      : CryptoJob<CipherTraits>(env,
+                                object,
+                                AsyncWrap::PROVIDER_CIPHERREQUEST,
+                                mode,
+                                std::move(params)),
+        key_(key->Data().addRef()),
+        cipher_mode_(cipher_mode),
+        in_(IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource()) {}
+
+  const KeyObjectData& key() const { return key_; }
 
   WebCryptoCipherMode cipher_mode() const { return cipher_mode_; }
 
   void DoThreadPoolWork() override {
-    switch (CipherTraits::DoCipher(
-                AsyncWrap::env(),
-                key(),
-                cipher_mode_,
-                *CryptoJob<CipherTraits>::params(),
-                in_,
-                &out_)) {
-      case WebCryptoCipherStatus::OK:
-        // Success!
-        break;
-      case WebCryptoCipherStatus::INVALID_KEY_TYPE:
-        // Fall through
-        // TODO(@jasnell): Separate error for this
-      case WebCryptoCipherStatus::FAILED: {
-        CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
-        errors->Capture();
-        if (errors->empty())
-          errors->push_back(std::string("Cipher job failed."));
+    const WebCryptoCipherStatus status =
+        CipherTraits::DoCipher(
+            AsyncWrap::env(),
+            key(),
+            cipher_mode_,
+            *CryptoJob<CipherTraits>::params(),
+            in_,
+            &out_);
+    if (status == WebCryptoCipherStatus::OK) {
+      // Success!
+      return;
+    }
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
+    errors->Capture();
+    if (errors->Empty()) {
+      switch (status) {
+        case WebCryptoCipherStatus::OK:
+          UNREACHABLE();
+          break;
+        case WebCryptoCipherStatus::INVALID_KEY_TYPE:
+          errors->Insert(NodeCryptoError::INVALID_KEY_TYPE);
+          break;
+        case WebCryptoCipherStatus::FAILED:
+          errors->Insert(NodeCryptoError::CIPHER_JOB_FAILED);
+          break;
       }
     }
   }
 
-  v8::Maybe<bool> ToResult(
-      v8::Local<v8::Value>* err,
-      v8::Local<v8::Value>* result) override {
+  v8::Maybe<void> ToResult(v8::Local<v8::Value>* err,
+                           v8::Local<v8::Value>* result) override {
     Environment* env = AsyncWrap::env();
-    CryptoErrorVector* errors = CryptoJob<CipherTraits>::errors();
-    if (out_.size() > 0) {
-      CHECK(errors->empty());
+    CryptoErrorStore* errors = CryptoJob<CipherTraits>::errors();
+
+    if (errors->Empty())
+      errors->Capture();
+
+    if (out_.size() > 0 || errors->Empty()) {
+      CHECK(errors->Empty());
       *err = v8::Undefined(env->isolate());
       *result = out_.ToArrayBuffer(env);
-      return v8::Just(!result->IsEmpty());
+      if (result->IsEmpty()) {
+        return v8::Nothing<void>();
+      }
+    } else {
+      *result = v8::Undefined(env->isolate());
+      if (!errors->ToException(env).ToLocal(err)) {
+        return v8::Nothing<void>();
+      }
     }
-
-    if (errors->empty())
-      errors->Capture();
-    CHECK(!errors->empty());
-    *result = v8::Undefined(env->isolate());
-    return v8::Just(errors->ToException(env).ToLocal(err));
+    CHECK(!result->IsEmpty());
+    CHECK(!err->IsEmpty());
+    return v8::JustVoid();
   }
 
   SET_SELF_SIZE(CipherJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    if (CryptoJob<CipherTraits>::mode() == kCryptoJobAsync)
+    if (IsCryptoJobAsync(CryptoJob<CipherTraits>::mode()))
       tracker->TrackFieldWithSize("in", in_.size());
     tracker->TrackFieldWithSize("out", out_.size());
     CryptoJob<CipherTraits>::MemoryInfo(tracker);
   }
 
  private:
-  std::shared_ptr<KeyObjectData> key_;
+  KeyObjectData key_;
   WebCryptoCipherMode cipher_mode_;
   ByteSource in_;
   ByteSource out_;

@@ -24,7 +24,7 @@ const common = require('../common');
 
 // Check `id -G` and `process.getgroups()` return same groups.
 
-if (common.isOSX)
+if (common.isMacOS)
   common.skip('Output of `id -G` is unreliable on Darwin.');
 
 const assert = require('assert');
@@ -34,13 +34,12 @@ if (typeof process.getgroups === 'function') {
   const groups = unique(process.getgroups());
   assert(Array.isArray(groups));
   assert(groups.length > 0);
-  exec('id -G', function(err, stdout) {
-    assert.ifError(err);
+  exec('id -G', common.mustSucceed((stdout) => {
     const real_groups = unique(stdout.match(/\d+/g).map(Number));
     assert.deepStrictEqual(groups, real_groups);
     check(groups, real_groups);
     check(real_groups, groups);
-  });
+  }));
 }
 
 function check(a, b) {

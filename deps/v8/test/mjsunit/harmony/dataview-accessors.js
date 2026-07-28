@@ -36,7 +36,7 @@ var initialArray =
   [204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204, 204,
     204, 204, 204];
 
-var arayBuffer = null;
+var arrayBuffer = null;
 var view = null;
 var viewStart = 0;
 var viewLength = 0;
@@ -449,3 +449,10 @@ function TestInsufficientArguments() {
 }
 
 TestInsufficientArguments();
+
+(function TestErrorMessages() {
+  assertThrows(
+      () => { DataView.prototype.getInt32.call('xyz', 0); },
+      TypeError,
+      'Method DataView.prototype.getInt32 called on incompatible receiver xyz');
+})();

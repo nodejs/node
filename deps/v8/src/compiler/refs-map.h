@@ -6,7 +6,6 @@
 #define V8_COMPILER_REFS_MAP_H_
 
 #include "src/base/hashmap.h"
-#include "src/common/globals.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -41,7 +40,8 @@ class RefsMap
 
   // Wrappers around methods from UnderlyingMap
   Entry* Lookup(const Address& key) const;
-  Entry* LookupOrInsert(const Address& key);
+  Entry* InsertNew(const Address& key);
+  ObjectData* Remove(const Address& key);
 
  private:
   static uint32_t Hash(Address addr);

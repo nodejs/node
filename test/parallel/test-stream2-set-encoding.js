@@ -22,7 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const R = require('_stream_readable');
+const { Readable: R } = require('stream');
 
 class TestReader extends R {
   constructor(n, opts) {

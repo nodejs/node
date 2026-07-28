@@ -4,15 +4,15 @@
 
 #include "src/torque/type-inference.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+#include <optional>
+
+namespace v8::internal::torque {
 
 TypeArgumentInference::TypeArgumentInference(
     const GenericParameters& type_parameters,
     const TypeVector& explicit_type_arguments,
     const std::vector<TypeExpression*>& term_parameters,
-    const std::vector<base::Optional<const Type*>>& term_argument_types)
+    const std::vector<std::optional<const Type*>>& term_argument_types)
     : num_explicit_(explicit_type_arguments.size()),
       type_parameter_from_name_(type_parameters.size()),
       inferred_(type_parameters.size()) {
@@ -51,7 +51,7 @@ TypeVector TypeArgumentInference::GetResult() const {
   TypeVector result(inferred_.size());
   std::transform(
       inferred_.begin(), inferred_.end(), result.begin(),
-      [](base::Optional<const Type*> maybe_type) { return *maybe_type; });
+      [](std::optional<const Type*> maybe_type) { return *maybe_type; });
   return result;
 }
 
@@ -61,13 +61,13 @@ void TypeArgumentInference::Match(TypeExpression* parameter,
           BasicTypeExpression::DynamicCast(parameter)) {
     // If the parameter is referring to one of the type parameters, substitute
     if (basic->namespace_qualification.empty() && !basic->is_constexpr) {
-      auto result = type_parameter_from_name_.find(basic->name);
+      auto result = type_parameter_from_name_.find(basic->name->value);
       if (result != type_parameter_from_name_.end()) {
         size_t type_parameter_index = result->second;
         if (type_parameter_index < num_explicit_) {
           return;
         }
-        base::Optional<const Type*>& maybe_inferred =
+        std::optional<const Type*>& maybe_inferred =
             inferred_[type_parameter_index];
         if (maybe_inferred && *maybe_inferred != argument_type) {
           Fail("found conflicting types for generic parameter");
@@ -92,7 +92,7 @@ void TypeArgumentInference::Match(TypeExpression* parameter,
 void TypeArgumentInference::MatchGeneric(BasicTypeExpression* parameter,
                                          const Type* argument_type) {
   QualifiedName qualified_name{parameter->namespace_qualification,
-                               parameter->name};
+                               parameter->name->value};
   GenericType* generic_type =
       Declarations::LookupUniqueGenericType(qualified_name);
   auto& specialized_from = argument_type->GetSpecializedFrom();
@@ -114,6 +114,4 @@ void TypeArgumentInference::MatchGeneric(BasicTypeExpression* parameter,
   }
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

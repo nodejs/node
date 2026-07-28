@@ -39,8 +39,9 @@ struct UFormattedNumberRange;
  * returns the keyword for the first condition that matches the number.
  * If none match, the default rule(other) is returned.
  *
- * For more information, see the LDML spec, C.11 Language Plural Rules:
- * http://www.unicode.org/reports/tr35/#Language_Plural_Rules
+ * For more information, see the
+ * LDML spec, Part 3.5 Language Plural Rules:
+ * https://www.unicode.org/reports/tr35/tr35-numbers.html#Language_Plural_Rules
  *
  * Keywords: ICU locale data has 6 predefined values -
  * 'zero', 'one', 'two', 'few', 'many' and 'other'. Callers need to check
@@ -48,7 +49,7 @@ struct UFormattedNumberRange;
  *
  * These are based on CLDR <i>Language Plural Rules</i>. For these
  * predefined rules, see the CLDR page at
- * http://unicode.org/repos/cldr-tmp/trunk/diff/supplemental/language_plural_rules.html
+ * https://unicode-org.github.io/cldr-staging/charts/latest/supplemental/language_plural_rules.html
  */
 
 /**
@@ -180,7 +181,6 @@ uplrules_selectFormatted(const UPluralRules *uplrules,
                UChar *keyword, int32_t capacity,
                UErrorCode *status);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Given a formatted number range, returns the overall plural form of the
  * range. For example, "3-5" returns "other" in English.
@@ -194,14 +194,13 @@ uplrules_selectFormatted(const UPluralRules *uplrules,
  * @param capacity The capacity of the keyword buffer.
  * @param status A pointer to a UErrorCode to receive any errors.
  * @return The length of the keyword.
- * @draft ICU 68
+ * @stable ICU 68
  */
 U_CAPI int32_t U_EXPORT2
 uplrules_selectForRange(const UPluralRules *uplrules,
                const struct UFormattedNumberRange* urange,
                UChar *keyword, int32_t capacity,
                UErrorCode *status);
-#endif // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_INTERNAL_API
 /**

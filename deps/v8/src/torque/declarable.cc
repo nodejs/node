@@ -6,17 +6,27 @@
 
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <string_view>
 
 #include "src/torque/ast.h"
 #include "src/torque/global-context.h"
 #include "src/torque/type-inference.h"
 #include "src/torque/type-visitor.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(CurrentScope)
+QualifiedName QualifiedName::Parse(std::string_view qualified_name) {
+  std::vector<std::string> qualifications;
+  while (true) {
+    size_t namespace_delimiter_index = qualified_name.find("::");
+    if (namespace_delimiter_index == std::string::npos) break;
+    qualifications.emplace_back(
+        qualified_name.substr(0, namespace_delimiter_index));
+    qualified_name = qualified_name.substr(namespace_delimiter_index + 2);
+  }
+  return QualifiedName(std::move(qualifications), std::string(qualified_name));
+}
 
 std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {
   for (const std::string& qualifier : name.namespace_qualification) {
@@ -70,18 +80,17 @@ std::ostream& operator<<(std::ostream& os, const GenericCallable& g) {
 }
 
 SpecializationRequester::SpecializationRequester(SourcePosition position,
-                                                 Scope* scope, std::string name)
+                                                 Scope* s, std::string name)
     : position(position), name(std::move(name)) {
   // Skip scopes that are not related to template specializations, they might be
   // stack-allocated and not live for long enough.
-  while (scope && scope->GetSpecializationRequester().IsNone())
-    scope = scope->ParentScope();
-  this->scope = scope;
+  while (s && s->GetSpecializationRequester().IsNone()) s = s->ParentScope();
+  this->scope = s;
 }
 
 std::vector<Declarable*> Scope::Lookup(const QualifiedName& name) {
-  if (name.namespace_qualification.size() >= 1 &&
-      name.namespace_qualification[0] == "") {
+  if (!name.namespace_qualification.empty() &&
+      name.namespace_qualification[0].empty()) {
     return GlobalContext::GetDefaultNamespace()->Lookup(
         name.DropFirstNamespaceQualification());
   }
@@ -95,7 +104,7 @@ std::vector<Declarable*> Scope::Lookup(const QualifiedName& name) {
   return result;
 }
 
-base::Optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
+std::optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
   if (upper_bound && !type->IsSubtypeOf(*upper_bound)) {
     if (type->IsTopType()) {
       return TopType::cast(type)->reason();
@@ -104,10 +113,10 @@ base::Optional<std::string> TypeConstraint::IsViolated(const Type* type) const {
           ToString("expected ", *type, " to be a subtype of ", **upper_bound)};
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
-base::Optional<std::string> FindConstraintViolation(
+std::optional<std::string> FindConstraintViolation(
     const std::vector<const Type*>& types,
     const std::vector<TypeConstraint>& constraints) {
   DCHECK_EQ(constraints.size(), types.size());
@@ -116,7 +125,7 @@ base::Optional<std::string> FindConstraintViolation(
       return {"Could not instantiate generic, " + *violation + "."};
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 std::vector<TypeConstraint> ComputeConstraints(
@@ -136,7 +145,7 @@ std::vector<TypeConstraint> ComputeConstraints(
 
 TypeArgumentInference GenericCallable::InferSpecializationTypes(
     const TypeVector& explicit_specialization_types,
-    const std::vector<base::Optional<const Type*>>& arguments) {
+    const std::vector<std::optional<const Type*>>& arguments) {
   const std::vector<TypeExpression*>& parameters =
       declaration()->parameters.types;
   CurrentScope::Scope generic_scope(ParentScope());
@@ -152,14 +161,14 @@ TypeArgumentInference GenericCallable::InferSpecializationTypes(
   return inference;
 }
 
-base::Optional<Statement*> GenericCallable::CallableBody() {
-  if (auto* decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
-    return decl->body;
-  } else if (auto* decl =
+std::optional<Statement*> GenericCallable::CallableBody() {
+  if (auto* macro_decl = TorqueMacroDeclaration::DynamicCast(declaration())) {
+    return macro_decl->body;
+  } else if (auto* builtin_decl =
                  TorqueBuiltinDeclaration::DynamicCast(declaration())) {
-    return decl->body;
+    return builtin_decl->body;
   } else {
-    return base::nullopt;
+    return std::nullopt;
   }
 }
 
@@ -185,6 +194,4 @@ const Type* TypeAlias::Resolve() const {
   return *type_;
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque

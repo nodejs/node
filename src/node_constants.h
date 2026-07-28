@@ -27,6 +27,9 @@
 #include "node.h"
 #include "v8.h"
 
+#define EXTENSIONLESS_FORMAT_JAVASCRIPT (0)
+#define EXTENSIONLESS_FORMAT_WASM (1)
+
 #if HAVE_OPENSSL
 
 #ifndef RSA_PSS_SALTLEN_DIGEST
@@ -73,11 +76,6 @@
                                  "!CAMELLIA"
 #endif  // NODE_OPENSSL_DEFAULT_CIPHER_LIST
 #endif  // HAVE_OPENSSL
-
-namespace node {
-
-void DefineConstants(v8::Isolate* isolate, v8::Local<v8::Object> target);
-}  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-threads
-
-load('test/mjsunit/wasm/wasm-module-builder.js');
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const kNumberOfWorker = 4;
 
-const workerOnMessage = function(msg) {
+const workerOnMessage = function({data:msg}) {
   if (msg.module) {
     let module = msg.module;
     let mem = msg.mem;

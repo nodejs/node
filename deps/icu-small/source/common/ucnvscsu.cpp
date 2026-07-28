@@ -16,7 +16,7 @@
 *   created by: Markus W. Scherer
 *
 *   This is an implementation of the Standard Compression Scheme for Unicode
-*   as defined in http://www.unicode.org/unicode/reports/tr6/ .
+*   as defined in https://www.unicode.org/reports/tr6/ .
 *   Reserved commands and window settings are treated as illegal sequences and
 *   will result in callback calls.
 */
@@ -119,7 +119,7 @@ enum {
 };
 
 typedef struct SCSUData {
-    /* dynamic window offsets, intitialize to default values from initialDynamicOffsets */
+    /* dynamic window offsets, initialize to default values from initialDynamicOffsets */
     uint32_t toUDynamicOffsets[8];
     uint32_t fromUDynamicOffsets[8];
 
@@ -163,7 +163,7 @@ _SCSUReset(UConverter *cnv, UConverterResetChoice choice) {
         /* reset toUnicode */
         uprv_memcpy(scsu->toUDynamicOffsets, initialDynamicOffsets, 32);
 
-        scsu->toUIsSingleByteMode=TRUE;
+        scsu->toUIsSingleByteMode=true;
         scsu->toUState=readCommand;
         scsu->toUQuoteWindow=scsu->toUDynamicWindow=0;
         scsu->toUByteOne=0;
@@ -174,7 +174,7 @@ _SCSUReset(UConverter *cnv, UConverterResetChoice choice) {
         /* reset fromUnicode */
         uprv_memcpy(scsu->fromUDynamicOffsets, initialDynamicOffsets, 32);
 
-        scsu->fromUIsSingleByteMode=TRUE;
+        scsu->fromUIsSingleByteMode=true;
         scsu->fromUDynamicWindow=0;
 
         scsu->nextWindowUseIndex=0;
@@ -200,8 +200,8 @@ _SCSUOpen(UConverter *cnv,
         return;
     }
     cnv->extraInfo=uprv_malloc(sizeof(SCSUData));
-    if(cnv->extraInfo!=NULL) {
-        if(locale!=NULL && locale[0]=='j' && locale[1]=='a' && (locale[2]==0 || locale[2]=='_')) {
+    if(cnv->extraInfo!=nullptr) {
+        if(locale!=nullptr && locale[0]=='j' && locale[1]=='a' && (locale[2]==0 || locale[2]=='_')) {
             ((SCSUData *)cnv->extraInfo)->locale=l_ja;
         } else {
             ((SCSUData *)cnv->extraInfo)->locale=lGeneric;
@@ -218,11 +218,11 @@ _SCSUOpen(UConverter *cnv,
 
 static void U_CALLCONV
 _SCSUClose(UConverter *cnv) {
-    if(cnv->extraInfo!=NULL) {
+    if(cnv->extraInfo!=nullptr) {
         if(!cnv->isExtraLocal) {
             uprv_free(cnv->extraInfo);
         }
-        cnv->extraInfo=NULL;
+        cnv->extraInfo=nullptr;
     }
 }
 
@@ -234,8 +234,8 @@ _SCSUToUnicodeWithOffsets(UConverterToUnicodeArgs *pArgs,
     UConverter *cnv;
     SCSUData *scsu;
     const uint8_t *source, *sourceLimit;
-    UChar *target;
-    const UChar *targetLimit;
+    char16_t *target;
+    const char16_t *targetLimit;
     int32_t *offsets;
     UBool isSingleByteMode;
     uint8_t state, byteOne;
@@ -294,33 +294,33 @@ fastSingle:
                 ++nextSourceIndex;
                 if(b<=0x7f) {
                     /* write US-ASCII graphic character or DEL */
-                    *target++=(UChar)b;
-                    if(offsets!=NULL) {
+                    *target++=(char16_t)b;
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                 } else {
                     /* write from dynamic window */
                     uint32_t c=scsu->toUDynamicOffsets[dynamicWindow]+(b&0x7f);
                     if(c<=0xffff) {
-                        *target++=(UChar)c;
-                        if(offsets!=NULL) {
+                        *target++=(char16_t)c;
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                         }
                     } else {
                         /* output surrogate pair */
-                        *target++=(UChar)(0xd7c0+(c>>10));
+                        *target++=(char16_t)(0xd7c0+(c>>10));
                         if(target<targetLimit) {
-                            *target++=(UChar)(0xdc00|(c&0x3ff));
-                            if(offsets!=NULL) {
+                            *target++=(char16_t)(0xdc00|(c&0x3ff));
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                                 *offsets++=sourceIndex;
                             }
                         } else {
                             /* target overflow */
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                             }
-                            cnv->UCharErrorBuffer[0]=(UChar)(0xdc00|(c&0x3ff));
+                            cnv->UCharErrorBuffer[0]=(char16_t)(0xdc00|(c&0x3ff));
                             cnv->UCharErrorBufferLength=1;
                             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             goto endloop;
@@ -347,8 +347,8 @@ singleByteMode:
                 /* here: b<0x20 because otherwise we would be in fastSingle */
                 if((1UL<<b)&0x2601 /* binary 0010 0110 0000 0001, check for b==0xd || b==0xa || b==9 || b==0 */) {
                     /* CR/LF/TAB/NUL */
-                    *target++=(UChar)b;
-                    if(offsets!=NULL) {
+                    *target++=(char16_t)b;
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     sourceIndex=nextSourceIndex;
@@ -371,7 +371,7 @@ singleByteMode:
                     state=quotePairOne;
                 } else if(b==SCU) {
                     sourceIndex=nextSourceIndex;
-                    isSingleByteMode=FALSE;
+                    isSingleByteMode=false;
                     goto fastUnicode;
                 } else /* Srs */ {
                     /* callback(illegal) */
@@ -392,8 +392,8 @@ singleByteMode:
                 state=quotePairTwo;
                 break;
             case quotePairTwo:
-                *target++=(UChar)((byteOne<<8)|b);
-                if(offsets!=NULL) {
+                *target++=(char16_t)((byteOne<<8)|b);
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 sourceIndex=nextSourceIndex;
@@ -402,33 +402,33 @@ singleByteMode:
             case quoteOne:
                 if(b<0x80) {
                     /* all static offsets are in the BMP */
-                    *target++=(UChar)(staticOffsets[quoteWindow]+b);
-                    if(offsets!=NULL) {
+                    *target++=(char16_t)(staticOffsets[quoteWindow]+b);
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                 } else {
                     /* write from dynamic window */
                     uint32_t c=scsu->toUDynamicOffsets[quoteWindow]+(b&0x7f);
                     if(c<=0xffff) {
-                        *target++=(UChar)c;
-                        if(offsets!=NULL) {
+                        *target++=(char16_t)c;
+                        if(offsets!=nullptr) {
                             *offsets++=sourceIndex;
                         }
                     } else {
                         /* output surrogate pair */
-                        *target++=(UChar)(0xd7c0+(c>>10));
+                        *target++=(char16_t)(0xd7c0+(c>>10));
                         if(target<targetLimit) {
-                            *target++=(UChar)(0xdc00|(c&0x3ff));
-                            if(offsets!=NULL) {
+                            *target++=(char16_t)(0xdc00|(c&0x3ff));
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                                 *offsets++=sourceIndex;
                             }
                         } else {
                             /* target overflow */
-                            if(offsets!=NULL) {
+                            if(offsets!=nullptr) {
                                 *offsets++=sourceIndex;
                             }
-                            cnv->UCharErrorBuffer[0]=(UChar)(0xdc00|(c&0x3ff));
+                            cnv->UCharErrorBuffer[0]=(char16_t)(0xdc00|(c&0x3ff));
                             cnv->UCharErrorBufferLength=1;
                             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             goto endloop;
@@ -478,8 +478,8 @@ singleByteMode:
         if(state==readCommand) {
 fastUnicode:
             while(source+1<sourceLimit && target<targetLimit && (uint8_t)((b=*source)-UC0)>(Urs-UC0)) {
-                *target++=(UChar)((b<<8)|source[1]);
-                if(offsets!=NULL) {
+                *target++=(char16_t)((b<<8)|source[1]);
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 sourceIndex=nextSourceIndex;
@@ -508,17 +508,17 @@ fastUnicode:
                 } else if(/* UC0<=b && */ b<=UC7) {
                     dynamicWindow=(int8_t)(b-UC0);
                     sourceIndex=nextSourceIndex;
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     goto fastSingle;
                 } else if(/* UD0<=b && */ b<=UD7) {
                     dynamicWindow=(int8_t)(b-UD0);
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     cnv->toUBytes[0]=b;
                     cnv->toULength=1;
                     state=defineOne;
                     goto singleByteMode;
                 } else if(b==UDX) {
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     cnv->toUBytes[0]=b;
                     cnv->toULength=1;
                     state=definePairOne;
@@ -542,8 +542,8 @@ fastUnicode:
                 state=quotePairTwo;
                 break;
             case quotePairTwo:
-                *target++=(UChar)((byteOne<<8)|b);
-                if(offsets!=NULL) {
+                *target++=(char16_t)((byteOne<<8)|b);
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 sourceIndex=nextSourceIndex;
@@ -572,7 +572,6 @@ endloop:
     pArgs->source=(const char *)source;
     pArgs->target=target;
     pArgs->offsets=offsets;
-    return;
 }
 
 /*
@@ -588,8 +587,8 @@ _SCSUToUnicode(UConverterToUnicodeArgs *pArgs,
     UConverter *cnv;
     SCSUData *scsu;
     const uint8_t *source, *sourceLimit;
-    UChar *target;
-    const UChar *targetLimit;
+    char16_t *target;
+    const char16_t *targetLimit;
     UBool isSingleByteMode;
     uint8_t state, byteOne;
     int8_t quoteWindow, dynamicWindow;
@@ -639,20 +638,20 @@ fastSingle:
                 ++source;
                 if(b<=0x7f) {
                     /* write US-ASCII graphic character or DEL */
-                    *target++=(UChar)b;
+                    *target++=(char16_t)b;
                 } else {
                     /* write from dynamic window */
                     uint32_t c=scsu->toUDynamicOffsets[dynamicWindow]+(b&0x7f);
                     if(c<=0xffff) {
-                        *target++=(UChar)c;
+                        *target++=(char16_t)c;
                     } else {
                         /* output surrogate pair */
-                        *target++=(UChar)(0xd7c0+(c>>10));
+                        *target++=(char16_t)(0xd7c0+(c>>10));
                         if(target<targetLimit) {
-                            *target++=(UChar)(0xdc00|(c&0x3ff));
+                            *target++=(char16_t)(0xdc00|(c&0x3ff));
                         } else {
                             /* target overflow */
-                            cnv->UCharErrorBuffer[0]=(UChar)(0xdc00|(c&0x3ff));
+                            cnv->UCharErrorBuffer[0]=(char16_t)(0xdc00|(c&0x3ff));
                             cnv->UCharErrorBufferLength=1;
                             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             goto endloop;
@@ -677,7 +676,7 @@ singleByteMode:
                 /* here: b<0x20 because otherwise we would be in fastSingle */
                 if((1UL<<b)&0x2601 /* binary 0010 0110 0000 0001, check for b==0xd || b==0xa || b==9 || b==0 */) {
                     /* CR/LF/TAB/NUL */
-                    *target++=(UChar)b;
+                    *target++=(char16_t)b;
                     goto fastSingle;
                 } else if(SC0<=b) {
                     if(b<=SC7) {
@@ -695,7 +694,7 @@ singleByteMode:
                 } else if(b==SQU) {
                     state=quotePairOne;
                 } else if(b==SCU) {
-                    isSingleByteMode=FALSE;
+                    isSingleByteMode=false;
                     goto fastUnicode;
                 } else /* Srs */ {
                     /* callback(illegal) */
@@ -716,26 +715,26 @@ singleByteMode:
                 state=quotePairTwo;
                 break;
             case quotePairTwo:
-                *target++=(UChar)((byteOne<<8)|b);
+                *target++=(char16_t)((byteOne<<8)|b);
                 state=readCommand;
                 goto fastSingle;
             case quoteOne:
                 if(b<0x80) {
                     /* all static offsets are in the BMP */
-                    *target++=(UChar)(staticOffsets[quoteWindow]+b);
+                    *target++=(char16_t)(staticOffsets[quoteWindow]+b);
                 } else {
                     /* write from dynamic window */
                     uint32_t c=scsu->toUDynamicOffsets[quoteWindow]+(b&0x7f);
                     if(c<=0xffff) {
-                        *target++=(UChar)c;
+                        *target++=(char16_t)c;
                     } else {
                         /* output surrogate pair */
-                        *target++=(UChar)(0xd7c0+(c>>10));
+                        *target++=(char16_t)(0xd7c0+(c>>10));
                         if(target<targetLimit) {
-                            *target++=(UChar)(0xdc00|(c&0x3ff));
+                            *target++=(char16_t)(0xdc00|(c&0x3ff));
                         } else {
                             /* target overflow */
-                            cnv->UCharErrorBuffer[0]=(UChar)(0xdc00|(c&0x3ff));
+                            cnv->UCharErrorBuffer[0]=(char16_t)(0xdc00|(c&0x3ff));
                             cnv->UCharErrorBufferLength=1;
                             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
                             goto endloop;
@@ -782,7 +781,7 @@ singleByteMode:
         if(state==readCommand) {
 fastUnicode:
             while(source+1<sourceLimit && target<targetLimit && (uint8_t)((b=*source)-UC0)>(Urs-UC0)) {
-                *target++=(UChar)((b<<8)|source[1]);
+                *target++=(char16_t)((b<<8)|source[1]);
                 source+=2;
             }
         }
@@ -805,17 +804,17 @@ fastUnicode:
                     state=quotePairTwo;
                 } else if(/* UC0<=b && */ b<=UC7) {
                     dynamicWindow=(int8_t)(b-UC0);
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     goto fastSingle;
                 } else if(/* UD0<=b && */ b<=UD7) {
                     dynamicWindow=(int8_t)(b-UD0);
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     cnv->toUBytes[0]=b;
                     cnv->toULength=1;
                     state=defineOne;
                     goto singleByteMode;
                 } else if(b==UDX) {
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     cnv->toUBytes[0]=b;
                     cnv->toULength=1;
                     state=definePairOne;
@@ -839,7 +838,7 @@ fastUnicode:
                 state=quotePairTwo;
                 break;
             case quotePairTwo:
-                *target++=(UChar)((byteOne<<8)|b);
+                *target++=(char16_t)((byteOne<<8)|b);
                 state=readCommand;
                 goto fastUnicode;
             }
@@ -864,7 +863,6 @@ endloop:
     /* write back the updated pointers */
     pArgs->source=(const char *)source;
     pArgs->target=target;
-    return;
 }
 U_CDECL_END
 /* SCSU-from-Unicode conversion functions ----------------------------------- */
@@ -885,8 +883,8 @@ static int8_t
 getWindow(const uint32_t offsets[8], uint32_t c) {
     int i;
     for(i=0; i<8; ++i) {
-        if((uint32_t)(c-offsets[i])<=0x7f) {
-            return (int8_t)(i);
+        if (c - offsets[i] <= 0x7f) {
+            return static_cast<int8_t>(i);
         }
     }
     return -1;
@@ -895,9 +893,9 @@ getWindow(const uint32_t offsets[8], uint32_t c) {
 /* is the character in the dynamic window starting at the offset, or in the direct-encoded range? */
 static UBool
 isInOffsetWindowOrDirect(uint32_t offset, uint32_t c) {
-    return (UBool)(c<=offset+0x7f &&
+    return c<=offset+0x7f &&
           (c>=offset || (c<=0x7f &&
-                        (c>=0x20 || (1UL<<c)&0x2601))));
+                        (c>=0x20 || (1UL<<c)&0x2601)));
                                 /* binary 0010 0110 0000 0001,
                                    check for b==0xd || b==0xa || b==9 || b==0 */
 }
@@ -965,7 +963,7 @@ getDynamicOffset(uint32_t c, uint32_t *pOffset) {
     int i;
 
     for(i=0; i<7; ++i) {
-        if((uint32_t)(c-fixedOffsets[i])<=0x7f) {
+        if (c - fixedOffsets[i] <= 0x7f) {
             *pOffset=fixedOffsets[i];
             return 0xf9+i;
         }
@@ -975,16 +973,16 @@ getDynamicOffset(uint32_t c, uint32_t *pOffset) {
         /* No dynamic window for US-ASCII. */
         return -1;
     } else if(c<0x3400 ||
-              (uint32_t)(c-0x10000)<(0x14000-0x10000) ||
-              (uint32_t)(c-0x1d000)<=(0x1ffff-0x1d000)
+              c - 0x10000 < 0x14000 - 0x10000 ||
+              c - 0x1d000 <= 0x1ffff - 0x1d000
     ) {
         /* This character is in a code range for a "small", i.e., reasonably windowable, script. */
         *pOffset=c&0x7fffff80;
-        return (int)(c>>7);
+        return static_cast<int>(c >> 7);
     } else if(0xe000<=c && c!=0xfeff && c<0xfff0) {
         /* For these characters we need to take the gapOffset into account. */
         *pOffset=c&0x7fffff80;
-        return (int)((c-gapOffset)>>7);
+        return static_cast<int>((c - gapOffset) >> 7);
     } else {
         return -1;
     }
@@ -1012,7 +1010,7 @@ _SCSUFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
                             UErrorCode *pErrorCode) {
     UConverter *cnv;
     SCSUData *scsu;
-    const UChar *source, *sourceLimit;
+    const char16_t *source, *sourceLimit;
     uint8_t *target;
     int32_t targetCapacity;
     int32_t *offsets;
@@ -1029,7 +1027,7 @@ _SCSUFromUnicodeWithOffsets(UConverterFromUnicodeArgs *pArgs,
 
     /* variables for compression heuristics */
     uint32_t offset;
-    UChar lead, trail;
+    char16_t lead, trail;
     int code;
     int8_t window;
 
@@ -1076,7 +1074,7 @@ loop:
             if((c-0x20)<=0x5f) {
                 /* pass US-ASCII graphic character through */
                 *target++=(uint8_t)c;
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 --targetCapacity;
@@ -1084,7 +1082,7 @@ loop:
                 if((1UL<<c)&0x2601 /* binary 0010 0110 0000 0001, check for b==0xd || b==0xa || b==9 || b==0 */) {
                     /* CR/LF/TAB/NUL */
                     *target++=(uint8_t)c;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     --targetCapacity;
@@ -1097,14 +1095,14 @@ loop:
             } else if((delta=c-currentOffset)<=0x7f) {
                 /* use the current dynamic window */
                 *target++=(uint8_t)(delta|0x80);
-                if(offsets!=NULL) {
+                if(offsets!=nullptr) {
                     *offsets++=sourceIndex;
                 }
                 --targetCapacity;
             } else if(U16_IS_SURROGATE(c)) {
                 if(U16_IS_SURROGATE_LEAD(c)) {
 getTrailSingle:
-                    lead=(UChar)c;
+                    lead=(char16_t)c;
                     if(source<sourceLimit) {
                         /* test the following code unit */
                         trail=*source;
@@ -1135,7 +1133,7 @@ getTrailSingle:
                 if((delta=c-currentOffset)<=0x7f) {
                     /* use the current dynamic window */
                     *target++=(uint8_t)(delta|0x80);
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     --targetCapacity;
@@ -1159,9 +1157,9 @@ getTrailSingle:
                     goto outputBytes;
                 } else {
                     /* change to Unicode mode and output this (lead, trail) pair */
-                    isSingleByteMode=FALSE;
+                    isSingleByteMode=false;
                     *target++=(uint8_t)SCU;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                     }
                     --targetCapacity;
@@ -1210,15 +1208,15 @@ getTrailSingle:
                     c=((uint32_t)(SD0+dynamicWindow)<<16)|((uint32_t)code<<8)|(c-currentOffset)|0x80;
                     length=3;
                     goto outputBytes;
-                } else if((uint32_t)(c-0x3400)<(0xd800-0x3400) &&
-                          (source>=sourceLimit || (uint32_t)(*source-0x3400)<(0xd800-0x3400))
+                } else if ((c - 0x3400) < (0xd800 - 0x3400) &&
+                           (source >= sourceLimit || (uint32_t)(*source - 0x3400) < (0xd800 - 0x3400))
                 ) {
                     /*
                      * this character is not compressible (a BMP ideograph or similar);
                      * switch to Unicode mode if this is the last character in the block
                      * or there is at least one more ideograph following immediately
                      */
-                    isSingleByteMode=FALSE;
+                    isSingleByteMode=false;
                     c|=SCU<<16;
                     length=3;
                     goto outputBytes;
@@ -1250,12 +1248,12 @@ getTrailSingle:
             c=*source++;
             ++nextSourceIndex;
 
-            if((uint32_t)(c-0x3400)<(0xd800-0x3400)) {
+            if ((c - 0x3400) < (0xd800 - 0x3400)) {
                 /* not compressible, write character directly */
                 if(targetCapacity>=2) {
                     *target++=(uint8_t)(c>>8);
                     *target++=(uint8_t)c;
-                    if(offsets!=NULL) {
+                    if(offsets!=nullptr) {
                         *offsets++=sourceIndex;
                         *offsets++=sourceIndex;
                     }
@@ -1264,18 +1262,18 @@ getTrailSingle:
                     length=2;
                     goto outputBytes;
                 }
-            } else if((uint32_t)(c-0x3400)>=(0xf300-0x3400) /* c<0x3400 || c>=0xf300 */) {
+            } else if (c - 0x3400 >= 0xf300 - 0x3400 /* c<0x3400 || c>=0xf300 */) {
                 /* compress BMP character if the following one is not an uncompressible ideograph */
                 if(!(source<sourceLimit && (uint32_t)(*source-0x3400)<(0xd800-0x3400))) {
-                    if(((uint32_t)(c-0x30)<10 || (uint32_t)(c-0x61)<26 || (uint32_t)(c-0x41)<26)) {
+                    if (c - 0x30 < 10 || c - 0x61 < 26 || c - 0x41 < 26) {
                         /* ASCII digit or letter */
-                        isSingleByteMode=TRUE;
+                        isSingleByteMode=true;
                         c|=((uint32_t)(UC0+dynamicWindow)<<8)|c;
                         length=2;
                         goto outputBytes;
                     } else if((window=getWindow(scsu->fromUDynamicOffsets, c))>=0) {
                         /* there is a dynamic window that contains this character, change to it */
-                        isSingleByteMode=TRUE;
+                        isSingleByteMode=true;
                         dynamicWindow=window;
                         currentOffset=scsu->fromUDynamicOffsets[dynamicWindow];
                         useDynamicWindow(scsu, dynamicWindow);
@@ -1284,7 +1282,7 @@ getTrailSingle:
                         goto outputBytes;
                     } else if((code=getDynamicOffset(c, &offset))>=0) {
                         /* define a dynamic window with this character */
-                        isSingleByteMode=TRUE;
+                        isSingleByteMode=true;
                         dynamicWindow=getNextDynamicWindow(scsu);
                         currentOffset=scsu->fromUDynamicOffsets[dynamicWindow]=offset;
                         useDynamicWindow(scsu, dynamicWindow);
@@ -1301,7 +1299,7 @@ getTrailSingle:
                 /* c is a surrogate */
                 if(U16_IS_SURROGATE_LEAD(c)) {
 getTrailUnicode:
-                    lead=(UChar)c;
+                    lead=(char16_t)c;
                     if(source<sourceLimit) {
                         /* test the following code unit */
                         trail=*source;
@@ -1337,7 +1335,7 @@ getTrailUnicode:
                      * the following character is not uncompressible,
                      * change to the window
                      */
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     dynamicWindow=window;
                     currentOffset=scsu->fromUDynamicOffsets[dynamicWindow];
                     useDynamicWindow(scsu, dynamicWindow);
@@ -1348,7 +1346,7 @@ getTrailUnicode:
                           (code=getDynamicOffset(c, &offset))>=0
                 ) {
                     /* two supplementary characters in (probably) the same window - define an extended one */
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     code-=0x200;
                     dynamicWindow=getNextDynamicWindow(scsu);
                     currentOffset=scsu->fromUDynamicOffsets[dynamicWindow]=offset;
@@ -1392,7 +1390,7 @@ outputBytes:
     /* write the output character bytes from c and length [code copied from ucnvmbcs.c] */
     /* from the first if in the loop we know that targetCapacity>0 */
     if(length<=targetCapacity) {
-        if(offsets==NULL) {
+        if(offsets==nullptr) {
             switch(length) {
                 /* each branch falls through to the next one */
             case 4:
@@ -1480,19 +1478,19 @@ outputBytes:
             /* each branch falls through to the next one */
         case 3:
             *target++=(uint8_t)(c>>16);
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 *offsets++=sourceIndex;
             }
             U_FALLTHROUGH;
         case 2:
             *target++=(uint8_t)(c>>8);
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 *offsets++=sourceIndex;
             }
             U_FALLTHROUGH;
         case 1:
             *target++=(uint8_t)c;
-            if(offsets!=NULL) {
+            if(offsets!=nullptr) {
                 *offsets++=sourceIndex;
             }
             U_FALLTHROUGH;
@@ -1520,7 +1518,7 @@ _SCSUFromUnicode(UConverterFromUnicodeArgs *pArgs,
                  UErrorCode *pErrorCode) {
     UConverter *cnv;
     SCSUData *scsu;
-    const UChar *source, *sourceLimit;
+    const char16_t *source, *sourceLimit;
     uint8_t *target;
     int32_t targetCapacity;
 
@@ -1534,7 +1532,7 @@ _SCSUFromUnicode(UConverterFromUnicodeArgs *pArgs,
 
     /* variables for compression heuristics */
     uint32_t offset;
-    UChar lead, trail;
+    char16_t lead, trail;
     int code;
     int8_t window;
 
@@ -1594,7 +1592,7 @@ loop:
             } else if(U16_IS_SURROGATE(c)) {
                 if(U16_IS_SURROGATE_LEAD(c)) {
 getTrailSingle:
-                    lead=(UChar)c;
+                    lead=(char16_t)c;
                     if(source<sourceLimit) {
                         /* test the following code unit */
                         trail=*source;
@@ -1645,7 +1643,7 @@ getTrailSingle:
                     goto outputBytes;
                 } else {
                     /* change to Unicode mode and output this (lead, trail) pair */
-                    isSingleByteMode=FALSE;
+                    isSingleByteMode=false;
                     *target++=(uint8_t)SCU;
                     --targetCapacity;
                     c=((uint32_t)lead<<16)|trail;
@@ -1693,15 +1691,15 @@ getTrailSingle:
                     c=((uint32_t)(SD0+dynamicWindow)<<16)|((uint32_t)code<<8)|(c-currentOffset)|0x80;
                     length=3;
                     goto outputBytes;
-                } else if((uint32_t)(c-0x3400)<(0xd800-0x3400) &&
-                          (source>=sourceLimit || (uint32_t)(*source-0x3400)<(0xd800-0x3400))
+                } else if (c - 0x3400 < 0xd800 - 0x3400 &&
+                           (source >= sourceLimit || static_cast<uint32_t>(*source - 0x3400) < 0xd800 - 0x3400)
                 ) {
                     /*
                      * this character is not compressible (a BMP ideograph or similar);
                      * switch to Unicode mode if this is the last character in the block
                      * or there is at least one more ideograph following immediately
                      */
-                    isSingleByteMode=FALSE;
+                    isSingleByteMode=false;
                     c|=SCU<<16;
                     length=3;
                     goto outputBytes;
@@ -1731,7 +1729,7 @@ getTrailSingle:
             }
             c=*source++;
 
-            if((uint32_t)(c-0x3400)<(0xd800-0x3400)) {
+            if (c - 0x3400 < 0xd800 - 0x3400) {
                 /* not compressible, write character directly */
                 if(targetCapacity>=2) {
                     *target++=(uint8_t)(c>>8);
@@ -1741,18 +1739,18 @@ getTrailSingle:
                     length=2;
                     goto outputBytes;
                 }
-            } else if((uint32_t)(c-0x3400)>=(0xf300-0x3400) /* c<0x3400 || c>=0xf300 */) {
+            } else if (c - 0x3400 >= 0xf300 - 0x3400 /* c<0x3400 || c>=0xf300 */) {
                 /* compress BMP character if the following one is not an uncompressible ideograph */
                 if(!(source<sourceLimit && (uint32_t)(*source-0x3400)<(0xd800-0x3400))) {
-                    if(((uint32_t)(c-0x30)<10 || (uint32_t)(c-0x61)<26 || (uint32_t)(c-0x41)<26)) {
+                    if (c - 0x30 < 10 || c - 0x61 < 26 || c - 0x41 < 26) {
                         /* ASCII digit or letter */
-                        isSingleByteMode=TRUE;
+                        isSingleByteMode=true;
                         c|=((uint32_t)(UC0+dynamicWindow)<<8)|c;
                         length=2;
                         goto outputBytes;
                     } else if((window=getWindow(scsu->fromUDynamicOffsets, c))>=0) {
                         /* there is a dynamic window that contains this character, change to it */
-                        isSingleByteMode=TRUE;
+                        isSingleByteMode=true;
                         dynamicWindow=window;
                         currentOffset=scsu->fromUDynamicOffsets[dynamicWindow];
                         useDynamicWindow(scsu, dynamicWindow);
@@ -1761,7 +1759,7 @@ getTrailSingle:
                         goto outputBytes;
                     } else if((code=getDynamicOffset(c, &offset))>=0) {
                         /* define a dynamic window with this character */
-                        isSingleByteMode=TRUE;
+                        isSingleByteMode=true;
                         dynamicWindow=getNextDynamicWindow(scsu);
                         currentOffset=scsu->fromUDynamicOffsets[dynamicWindow]=offset;
                         useDynamicWindow(scsu, dynamicWindow);
@@ -1778,7 +1776,7 @@ getTrailSingle:
                 /* c is a surrogate */
                 if(U16_IS_SURROGATE_LEAD(c)) {
 getTrailUnicode:
-                    lead=(UChar)c;
+                    lead=(char16_t)c;
                     if(source<sourceLimit) {
                         /* test the following code unit */
                         trail=*source;
@@ -1813,7 +1811,7 @@ getTrailUnicode:
                      * the following character is not uncompressible,
                      * change to the window
                      */
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     dynamicWindow=window;
                     currentOffset=scsu->fromUDynamicOffsets[dynamicWindow];
                     useDynamicWindow(scsu, dynamicWindow);
@@ -1824,7 +1822,7 @@ getTrailUnicode:
                           (code=getDynamicOffset(c, &offset))>=0
                 ) {
                     /* two supplementary characters in (probably) the same window - define an extended one */
-                    isSingleByteMode=TRUE;
+                    isSingleByteMode=true;
                     code-=0x200;
                     dynamicWindow=getNextDynamicWindow(scsu);
                     currentOffset=scsu->fromUDynamicOffsets[dynamicWindow]=offset;
@@ -1923,7 +1921,7 @@ outputBytes:
         cnv->charErrorBufferLength=(int8_t)length;
 
         /* now output what fits into the regular target */
-        c>>=8*length; /* length was reduced by targetCapacity */
+        c = (length == 4) ? 0 : c >> 8*length; /* length was reduced by targetCapacity */
         switch(targetCapacity) {
             /* each branch falls through to the next one */
         case 3:
@@ -1969,21 +1967,21 @@ struct cloneSCSUStruct
 };
 
 static UConverter *  U_CALLCONV
-_SCSUSafeClone(const UConverter *cnv,
-               void *stackBuffer,
-               int32_t *pBufferSize,
+_SCSUSafeClone(const UConverter *cnv, 
+               void *stackBuffer, 
+               int32_t *pBufferSize, 
                UErrorCode *status)
 {
     struct cloneSCSUStruct * localClone;
     int32_t bufferSizeNeeded = sizeof(struct cloneSCSUStruct);
 
     if (U_FAILURE(*status)){
-        return 0;
+        return nullptr;
     }
 
     if (*pBufferSize == 0){ /* 'preflighting' request - set needed size into *pBufferSize */
         *pBufferSize = bufferSizeNeeded;
-        return 0;
+        return nullptr;
     }
 
     localClone = (struct cloneSCSUStruct *)stackBuffer;
@@ -1991,7 +1989,7 @@ _SCSUSafeClone(const UConverter *cnv,
 
     uprv_memcpy(&localClone->mydata, cnv->extraInfo, sizeof(SCSUData));
     localClone->cnv.extraInfo = &localClone->mydata;
-    localClone->cnv.isExtraLocal = TRUE;
+    localClone->cnv.isExtraLocal = true;
 
     return &localClone->cnv;
 }
@@ -2000,8 +1998,8 @@ U_CDECL_END
 static const UConverterImpl _SCSUImpl={
     UCNV_SCSU,
 
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
 
     _SCSUOpen,
     _SCSUClose,
@@ -2011,15 +2009,15 @@ static const UConverterImpl _SCSUImpl={
     _SCSUToUnicodeWithOffsets,
     _SCSUFromUnicode,
     _SCSUFromUnicodeWithOffsets,
-    NULL,
+    nullptr,
 
-    NULL,
+    nullptr,
     _SCSUGetName,
-    NULL,
+    nullptr,
     _SCSUSafeClone,
     ucnv_getCompleteUnicodeSet,
-    NULL,
-    NULL
+    nullptr,
+    nullptr
 };
 
 static const UConverterStaticData _SCSUStaticData={
@@ -2027,13 +2025,13 @@ static const UConverterStaticData _SCSUStaticData={
     "SCSU",
     1212, /* CCSID for SCSU */
     UCNV_IBM, UCNV_SCSU,
-    1, 3, /* one UChar generates at least 1 byte and at most 3 bytes */
+    1, 3, /* one char16_t generates at least 1 byte and at most 3 bytes */
     /*
      * The subchar here is ignored because _SCSUOpen() sets U+fffd as a Unicode
      * substitution string.
      */
     { 0x0e, 0xff, 0xfd, 0 }, 3,
-    FALSE, FALSE,
+    false, false,
     0,
     0,
     { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } /* reserved */

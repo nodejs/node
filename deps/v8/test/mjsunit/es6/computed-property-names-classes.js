@@ -78,10 +78,7 @@ function ID(x) {
   assertEquals('C', C.c());
   assertEquals('D', C.d());
   assertArrayEquals([], Object.keys(C));
-  // TODO(arv): It is not clear that we are adding the "standard" properties
-  // in the right order. As far as I can tell the spec adds them in alphabetical
-  // order.
-  assertArrayEquals(['length', 'prototype', 'a', 'b', 'c', 'd', 'name'],
+  assertArrayEquals(['length', 'name', 'prototype', 'a', 'b', 'c', 'd'],
                     Object.getOwnPropertyNames(C));
 })();
 
@@ -99,7 +96,7 @@ function ID(x) {
   assertEquals('D', C[2]());
   // Array indexes first.
   assertArrayEquals([], Object.keys(C));
-  assertArrayEquals(['1', '2', 'length', 'prototype', 'a', 'c', 'name'],
+  assertArrayEquals(['1', '2', 'length', 'name', 'prototype', 'a', 'c'],
                     Object.getOwnPropertyNames(C));
 })();
 
@@ -118,7 +115,7 @@ function ID(x) {
   assertEquals('C', C.c());
   assertEquals('D', C[sym2]());
   assertArrayEquals([], Object.keys(C));
-  assertArrayEquals(['length', 'prototype', 'a', 'c', 'name'],
+  assertArrayEquals(['length', 'name', 'prototype', 'a', 'c'],
                     Object.getOwnPropertyNames(C));
   assertArrayEquals([sym1, sym2], Object.getOwnPropertySymbols(C));
 })();
@@ -508,4 +505,230 @@ function assertIteratorResult(value, done, result) {
       set [C](_) { }
     }
   }, ReferenceError);
+})();
+
+
+// The following tests deal with computed and statically known properties
+// of the same name overwriting each other.
+//
+// More concretely, we consider the cases where:
+// The computed property appears ...
+//   - before an existing data property           (case 1)
+//   - after an existing data property            (case 2)
+//   - before an existing getter and setter pair  (case 3)
+//   - before an existing getter xor setter       (case 4)
+//   - after an existing getter and setter pair   (case 5)
+//   - after an existing getter xor setter        (case 6)
+//   - in between two existing accessors          (case 7)
+//
+// For each of the 7 cases above, there exists A and B variants, indicating
+// whether the computed property refers to an accessor (variant A) or a
+// plain property (variant B).
+
+
+// |expect_getter| and |expect_setter| must be undefined if and only if we are
+// expecting |b| to be a data property.
+function TestOverwritingHelper(clazz, expect_getter, expect_setter) {
+  var proto = clazz.prototype;
+  var desc = Object.getOwnPropertyDescriptor(proto, 'b');
+
+  if (desc.hasOwnProperty('value')) {
+    assertEquals(undefined, expect_getter);
+    assertEquals(undefined, expect_setter);
+
+    assertEquals('B', proto.b());
+  } else {
+    assertEquals("boolean", typeof expect_getter);
+    assertEquals("boolean", typeof expect_setter);
+
+    if (expect_getter) {
+      assertEquals('B', proto.b);
+    } else {
+      assertEquals(undefined, desc.getter);
+    }
+
+      assertEquals(expect_setter, desc.set !== undefined);
+  }
+
+  assertEquals('A', proto.a());
+  assertEquals('C', proto.c());
+  assertEquals('D', proto.d());
+
+  assertArrayEquals([], Object.keys(proto));
+  assertArrayEquals(['constructor', 'a', 'b', 'c', 'd'],
+                    Object.getOwnPropertyNames(proto));
+}
+
+
+(function TestOverwriting1A() {
+  class C {
+    a() { return 'A'}
+    get [ID('b')]() { return 'Bx'; }
+    c() { return 'C'; }
+    b() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C);
+})();
+
+
+(function TestOverwriting1B() {
+  class C {
+    a() { return 'A'}
+    [ID('b')]() { return 'Bx'; }
+    c() { return 'C'; }
+    b() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C);
+})();
+
+
+(function TestOverwriting2A() {
+  class C {
+    a() { return 'A'}
+    b() { return 'Bx'; }
+    c() { return 'C'; }
+    get [ID('b')]() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C, true, false);
+})();
+
+
+(function TestOverwriting2B() {
+  class C {
+    a() { return 'A'}
+    b() { return 'Bx'; }
+    c() { return 'C'; }
+    [ID('b')]() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C);
+})();
+
+
+(function TestOverwriting3A() {
+  class C {
+    a() { return 'A'}
+    get [ID('b')]() { return 'Bx'; }
+    c() { return 'C'; }
+    get b() { return 'B'; }
+    set b(foo) { this.x = foo; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C, true, true);
+})();
+
+
+(function TestOverwriting3B() {
+  class C {
+    a() { return 'A'}
+    [ID('b')]() { return 'Bx'; }
+    c() { return 'C'; }
+    get b() { return 'B'; }
+    set b(foo) { this.x = foo; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C, true, true);
+})();
+
+
+(function TestOverwriting4A() {
+  class C {
+    a() { return 'A'}
+    get [ID('b')]() { return 'Bx'; }
+    c() { return 'C'; }
+    get b() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C, true, false);
+})();
+
+
+(function TestOverwriting4B() {
+  class C {
+    a() { return 'A'}
+    [ID('b')]() { return 'Bx'; }
+    c() { return 'C'; }
+    get b() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C, true, false);
+})();
+
+
+(function TestOverwriting5A() {
+  class C {
+    a() { return 'A'}
+    get b() { return 'Bx'; }
+    set b(foo) { this.x = foo; }
+    c() { return 'C'; }
+    get [ID('b')]() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C, true, true);
+})();
+
+
+(function TestOverwriting5B() {
+  class C {
+    a() { return 'A'}
+    get b() { return 'Bx'; }
+    set b(foo) { this.x = foo; }
+    c() { return 'C'; }
+    [ID('b')]() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C);
+})();
+
+
+(function TestOverwriting6A() {
+  class C {
+    a() { return 'A'}
+    set b(foo) { this.x = foo; }
+    c() { return 'C'; }
+    get [ID('b')]() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C, true, true);
+})();
+
+
+(function TestOverwriting6B() {
+  class C {
+    a() { return 'A'}
+    set b(foo) { this.x = foo; }
+    c() { return 'C'; }
+    [ID('b')]() { return 'B'; }
+    d() { return 'D'; }
+  }
+  TestOverwritingHelper(C);
+})();
+
+
+(function TestOverwriting7A() {
+  class C {
+    a() { return 'A'}
+    get b() { return 'Bx'; }
+    c() { return 'C'; }
+    get [ID('b')]() { return 'B'; }
+    d() { return 'D'; }
+    set b(foo) { this.x = foo; }
+  }
+  TestOverwritingHelper(C, true, true);
+})();
+
+
+(function TestOverwriting7B() {
+  class C {
+    a() { return 'A'}
+    set b(foo) { this.x = foo; }
+    c() { return 'C'; }
+    [ID('b')]() { return 'Bx'; }
+    d() { return 'D'; }
+    get b() { return 'B'; }
+  }
+  TestOverwritingHelper(C, true, false);
 })();

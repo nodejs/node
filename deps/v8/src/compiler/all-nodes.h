@@ -6,7 +6,7 @@
 #define V8_COMPILER_ALL_NODES_H_
 
 #include "src/compiler/node.h"
-#include "src/zone/zone-containers.h"
+#include "src/utils/bit-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -19,11 +19,11 @@ class AllNodes {
   // Constructor. Traverses the graph and builds the {reachable} set of nodes
   // reachable from {end}. When {only_inputs} is true, find the nodes
   // reachable through input edges; these are all live nodes.
-  AllNodes(Zone* local_zone, Node* end, const Graph* graph,
+  AllNodes(Zone* local_zone, Node* end, const TFGraph* graph,
            bool only_inputs = true);
   // Constructor. Traverses the graph and builds the {reachable} set of nodes
   // reachable from the End node.
-  AllNodes(Zone* local_zone, const Graph* graph, bool only_inputs = true);
+  AllNodes(Zone* local_zone, const TFGraph* graph, bool only_inputs = true);
 
   bool IsLive(const Node* node) const {
     CHECK(only_inputs_);
@@ -32,16 +32,16 @@ class AllNodes {
 
   bool IsReachable(const Node* node) const {
     if (!node) return false;
-    size_t id = node->id();
-    return id < is_reachable_.size() && is_reachable_[id];
+    int id = node->id();
+    return id < is_reachable_.length() && is_reachable_.Contains(id);
   }
 
   NodeVector reachable;  // Nodes reachable from end.
 
  private:
-  void Mark(Zone* local_zone, Node* end, const Graph* graph);
+  void Mark(Zone* local_zone, Node* end, const TFGraph* graph);
 
-  BoolVector is_reachable_;
+  BitVector is_reachable_;
   const bool only_inputs_;
 };
 

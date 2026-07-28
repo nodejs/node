@@ -7,6 +7,11 @@ const assert = require('assert');
 const http2 = require('http2');
 const Countdown = require('../common/countdown');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'http2Stream.priority is longer supported after priority signalling was deprecated in RFC 9113',
+  'DEP0194');
+
 const server = http2.createServer();
 const largeBuffer = Buffer.alloc(1e4);
 
@@ -19,7 +24,7 @@ server.on('stream', common.mustCall((stream) => {
   });
 }, 3));
 server.on('session', common.mustCall((session) => {
-  session.on('priority', (id, parent, weight, exclusive) => {
+  session.on('priority', common.mustCallAtLeast((id, parent, weight, exclusive) => {
     assert.strictEqual(weight, 16);
     assert.strictEqual(exclusive, false);
     switch (id) {
@@ -35,7 +40,7 @@ server.on('session', common.mustCall((session) => {
       default:
         assert.fail('should not happen');
     }
-  });
+  }, 0));
 }));
 
 server.listen(0, common.mustCall(() => {

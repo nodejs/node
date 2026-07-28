@@ -91,8 +91,8 @@ int32_t ICU_Utility::parsePattern(const UnicodeString& rule, int32_t pos, int32_
     int32_t p;
     int32_t intCount = 0; // number of integers parsed
     for (int32_t i=0; i<pattern.length(); ++i) {
-        UChar cpat = pattern.charAt(i);
-        UChar c;
+        char16_t cpat = pattern.charAt(i);
+        char16_t c;
         switch (cpat) {
         case 32 /*' '*/:
             if (pos >= limit) {
@@ -120,7 +120,7 @@ int32_t ICU_Utility::parsePattern(const UnicodeString& rule, int32_t pos, int32_
             if (pos >= limit) {
                 return -1;
             }
-            c = (UChar) u_tolower(rule.charAt(pos++));
+            c = static_cast<char16_t>(u_tolower(rule.charAt(pos++)));
             if (c != cpat) {
                 return -1;
             }
@@ -135,7 +135,7 @@ int32_t ICU_Utility::parsePattern(const UnicodeString& rule, int32_t pos, int32_
  * position.  Return the identifier, or an empty string if there
  * is no identifier.
  * @param str the string to parse
- * @param pos INPUT-OUPUT parameter.  On INPUT, pos is the
+ * @param pos INPUT-OUTPUT parameter.  On INPUT, pos is the
  * first character to examine.  It must be less than str.length(),
  * and it must not point to a whitespace character.  That is, must
  * have pos < str.length().  On
@@ -198,12 +198,11 @@ int32_t ICU_Utility::parseNumber(const UnicodeString& text,
         if (d < 0) {
             break;
         }
-        n = radix*n + d;
-        // ASSUME that when a 32-bit integer overflows it becomes
-        // negative.  E.g., 214748364 * 10 + 8 => negative value.
-        if (n < 0) {
+        int64_t update = radix*static_cast<int64_t>(n) + d;
+        if (update > INT32_MAX) {
             return -1;
         }
+        n = static_cast<int32_t>(update);
         ++p;
     }
     if (p == pos) {
@@ -214,3 +213,4 @@ int32_t ICU_Utility::parseNumber(const UnicodeString& text,
 }
 
 U_NAMESPACE_END
+

@@ -27,15 +27,39 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 #include "nghttp2_frame.h"
 #include "nghttp2_mem.h"
 
+#define NGHTTP2_DATA_PROVIDER_V1 1
+#define NGHTTP2_DATA_PROVIDER_V2 2
+
+typedef struct nghttp2_data_provider_wrap {
+  int version;
+  union {
+    nghttp2_data_provider v1;
+    nghttp2_data_provider2 v2;
+  } data_prd;
+} nghttp2_data_provider_wrap;
+
+nghttp2_data_provider_wrap *
+nghttp2_data_provider_wrap_v1(nghttp2_data_provider_wrap *dpw,
+                              const nghttp2_data_provider *data_prd);
+
+nghttp2_data_provider_wrap *
+nghttp2_data_provider_wrap_v2(nghttp2_data_provider_wrap *dpw,
+                              const nghttp2_data_provider2 *data_prd);
+
+/* nghttp2_data_provider_wrap_contains_read_callback returns nonzero
+   if |dpw| contains read_callback in either version. */
+int nghttp2_data_provider_wrap_contains_read_callback(
+  const nghttp2_data_provider_wrap *dpw);
+
 /* struct used for HEADERS and PUSH_PROMISE frame */
 typedef struct {
-  nghttp2_data_provider data_prd;
+  nghttp2_data_provider_wrap dpw;
   void *stream_user_data;
   /* error code when request HEADERS is canceled by RST_STREAM while
      it is in queue. */
@@ -50,7 +74,7 @@ typedef struct {
   /**
    * The data to be sent for this DATA frame.
    */
-  nghttp2_data_provider data_prd;
+  nghttp2_data_provider_wrap dpw;
   /**
    * The flags of DATA frame.  We use separate flags here and
    * nghttp2_data frame.  The latter contains flags actually sent to
@@ -87,6 +111,12 @@ typedef struct {
   uint8_t flags;
 } nghttp2_goaway_aux_data;
 
+typedef struct {
+  /* nonzero if RST_STREAM should be sent even if stream is not
+     found. */
+  uint8_t continue_without_stream;
+} nghttp2_rst_stream_aux_data;
+
 /* struct used for extension frame */
 typedef struct {
   /* nonzero if this extension frame is serialized by library
@@ -99,6 +129,7 @@ typedef union {
   nghttp2_data_aux_data data;
   nghttp2_headers_aux_data headers;
   nghttp2_goaway_aux_data goaway;
+  nghttp2_rst_stream_aux_data rst_stream;
   nghttp2_ext_aux_data ext;
 } nghttp2_aux_data;
 
@@ -111,7 +142,7 @@ struct nghttp2_outbound_item {
      to this structure to avoid frequent memory allocation. */
   nghttp2_ext_frame_payload ext_frame_payload;
   nghttp2_aux_data aux_data;
-  /* The priority used in priority comparion.  Smaller is served
+  /* The priority used in priority comparison.  Smaller is served
      earlier.  For PING, SETTINGS and non-DATA frames (excluding
      response HEADERS frame) have dedicated cycle value defined above.
      For DATA frame, cycle is computed by taking into account of
@@ -163,4 +194,4 @@ void nghttp2_outbound_queue_pop(nghttp2_outbound_queue *q);
 /* Returns the size of the queue */
 #define nghttp2_outbound_queue_size(Q) ((Q)->n)
 
-#endif /* NGHTTP2_OUTBOUND_ITEM_H */
+#endif /* !defined(NGHTTP2_OUTBOUND_ITEM_H) */

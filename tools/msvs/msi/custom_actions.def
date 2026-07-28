@@ -1,5 +1,0 @@
-LIBRARY "custom_actions"
-
-EXPORTS
-SetInstallScope
-BroadcastEnvironmentUpdate

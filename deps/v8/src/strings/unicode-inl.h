@@ -5,9 +5,12 @@
 #ifndef V8_STRINGS_UNICODE_INL_H_
 #define V8_STRINGS_UNICODE_INL_H_
 
-#include "src/base/logging.h"
 #include "src/strings/unicode.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/base/logging.h"
 #include "src/utils/utils.h"
+#include "third_party/simdutf/simdutf.h"
 
 namespace unibrow {
 
@@ -59,14 +62,19 @@ int Mapping<T, s>::CalculateValue(uchar c, uchar n, uchar* result) {
 }
 #endif  // !V8_INTL_SUPPORT
 
+bool Utf16::HasUnpairedSurrogate(const uint16_t* code_units, size_t length) {
+  return !simdutf::validate_utf16(reinterpret_cast<const char16_t*>(code_units),
+                                  length);
+}
+
 // Decodes UTF-8 bytes incrementally, allowing the decoding of bytes as they
 // stream in. This **must** be followed by a call to ValueOfIncrementalFinish
 // when the stream is complete, to ensure incomplete sequences are handled.
-uchar Utf8::ValueOfIncremental(const byte** cursor, State* state,
+uchar Utf8::ValueOfIncremental(const uint8_t** cursor, State* state,
                                Utf8IncrementalBuffer* buffer) {
   DCHECK_NOT_NULL(buffer);
   State old_state = *state;
-  byte next = **cursor;
+  uint8_t next = **cursor;
   *cursor += 1;
 
   if (V8_LIKELY(next <= kMaxOneByteChar && old_state == State::kAccept)) {
@@ -112,10 +120,11 @@ unsigned Utf8::EncodeOneByte(char* str, uint8_t c) {
   if (c <= kMaxOneByteChar) {
     str[0] = c;
     return 1;
+  } else {
+    str[0] = 0xC0 | (c >> 6);
+    str[1] = 0x80 | (c & kMask);
+    return 2;
   }
-  str[0] = 0xC0 | (c >> 6);
-  str[1] = 0x80 | (c & kMask);
-  return 2;
 }
 
 // Encode encodes the UTF-16 code units c and previous into the given str
@@ -156,15 +165,23 @@ unsigned Utf8::Encode(char* str, uchar c, int previous, bool replace_invalid) {
   }
 }
 
-uchar Utf8::ValueOf(const byte* bytes, size_t length, size_t* cursor) {
-  if (length <= 0) return kBadChar;
-  byte first = bytes[0];
+uchar Utf8::ValueOf(const uint8_t* bytes, size_t length, size_t* cursor) {
+  if (length == 0) return kBadChar;
+  uint8_t first = bytes[0];
   // Characters between 0000 and 007F are encoded as a single character
   if (V8_LIKELY(first <= kMaxOneByteChar)) {
     *cursor += 1;
     return first;
   }
   return CalculateValue(bytes, length, cursor);
+}
+
+unsigned Utf8::LengthOneByte(uint8_t c) {
+  if (c <= kMaxOneByteChar) {
+    return 1;
+  } else {
+    return 2;
+  }
 }
 
 unsigned Utf8::Length(uchar c, int previous) {
@@ -187,6 +204,80 @@ bool Utf8::IsValidCharacter(uchar c) {
   return c < 0xD800u || (c >= 0xE000u && c < 0xFDD0u) ||
          (c > 0xFDEFu && c <= 0x10FFFFu && (c & 0xFFFEu) != 0xFFFEu &&
           c != kBadChar);
+}
+
+template <typename Char>
+Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
+                                  char* buffer, size_t capacity,
+                                  bool write_null, bool replace_invalid_utf8) {
+  constexpr bool kSourceIsOneByte = sizeof(Char) == 1;
+
+  if constexpr (kSourceIsOneByte) {
+    // Only 16-bit characters can contain invalid unicode.
+    replace_invalid_utf8 = false;
+  }
+
+  size_t write_index = 0;
+  const Char* characters = string.begin();
+  size_t content_capacity = capacity - write_null;
+  CHECK_LE(content_capacity, capacity);
+  size_t read_index = 0;
+  if (kSourceIsOneByte) {
+    size_t writeable = std::min(string.size(), content_capacity);
+    size_t ascii_length =
+        Utf8::WriteLeadingAscii(characters, buffer, writeable);
+    read_index = ascii_length;
+    write_index = ascii_length;
+  }
+  uint16_t last = Utf16::kNoPreviousCharacter;
+  for (; read_index < string.size(); read_index++) {
+    Char character = characters[read_index];
+
+    size_t required_capacity;
+    if constexpr (kSourceIsOneByte) {
+      required_capacity = Utf8::LengthOneByte(character);
+    } else {
+      required_capacity = Utf8::Length(character, last);
+    }
+    size_t remaining_capacity = content_capacity - write_index;
+    if (remaining_capacity < required_capacity) {
+      // Not enough space left, so stop here.
+      if (Utf16::IsSurrogatePair(last, character)) {
+        DCHECK_GE(write_index, Utf8::kSizeOfUnmatchedSurrogate);
+        // We're in the middle of a surrogate pair. Delete the first part again.
+        write_index -= Utf8::kSizeOfUnmatchedSurrogate;
+        // We've already read at least one character which is a lead surrogate
+        DCHECK_NE(read_index, 0);
+        --read_index;
+      }
+      break;
+    }
+
+    if constexpr (kSourceIsOneByte) {
+      write_index += Utf8::EncodeOneByte(buffer + write_index, character);
+    } else {
+      // Handle the case where we cut off in the middle of a surrogate pair.
+      if ((read_index + 1 < string.size()) &&
+          Utf16::IsSurrogatePair(character, characters[read_index + 1])) {
+        write_index += Utf8::kSizeOfUnmatchedSurrogate;
+      } else {
+        write_index += Utf8::Encode(buffer + write_index, character, last,
+                                    replace_invalid_utf8);
+      }
+    }
+
+    last = character;
+  }
+  DCHECK_LE(write_index, capacity);
+
+  if (write_null) {
+    DCHECK_LT(write_index, capacity);
+    buffer[write_index++] = '\0';
+  }
+
+  size_t bytes_written = write_index;
+  size_t characters_processed = read_index;
+  return {bytes_written, characters_processed};
 }
 
 }  // namespace unibrow

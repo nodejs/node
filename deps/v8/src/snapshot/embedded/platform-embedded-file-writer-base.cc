@@ -11,6 +11,7 @@
 #include "src/snapshot/embedded/platform-embedded-file-writer-generic.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-mac.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-win.h"
+#include "src/snapshot/embedded/platform-embedded-file-writer-zos.h"
 
 namespace v8 {
 namespace internal {
@@ -115,10 +116,12 @@ EmbeddedTargetArch ToEmbeddedTargetArch(const char* s) {
 EmbeddedTargetOs DefaultEmbeddedTargetOs() {
 #if defined(V8_OS_AIX)
   return EmbeddedTargetOs::kAIX;
-#elif defined(V8_OS_MACOSX)
+#elif defined(V8_OS_DARWIN)
   return EmbeddedTargetOs::kMac;
 #elif defined(V8_OS_WIN)
   return EmbeddedTargetOs::kWin;
+#elif defined(V8_OS_ZOS)
+  return EmbeddedTargetOs::kZOS;
 #else
   return EmbeddedTargetOs::kGeneric;
 #endif
@@ -130,8 +133,11 @@ EmbeddedTargetOs ToEmbeddedTargetOs(const char* s) {
   }
 
   std::string string(s);
-  if (string == "aix") {
+  // Python 3.9+ on IBM i returns os400 as sys.platform instead of aix
+  if (string == "aix" || string == "os400") {
     return EmbeddedTargetOs::kAIX;
+  } else if (string == "android") {
+    return EmbeddedTargetOs::kAndroid;
   } else if (string == "chromeos") {
     return EmbeddedTargetOs::kChromeOS;
   } else if (string == "fuchsia") {
@@ -140,6 +146,10 @@ EmbeddedTargetOs ToEmbeddedTargetOs(const char* s) {
     return EmbeddedTargetOs::kMac;
   } else if (string == "win") {
     return EmbeddedTargetOs::kWin;
+  } else if (string == "starboard") {
+    return EmbeddedTargetOs::kStarboard;
+  } else if (string == "zos") {
+    return EmbeddedTargetOs::kZOS;
   } else {
     return EmbeddedTargetOs::kGeneric;
   }
@@ -152,6 +162,27 @@ std::unique_ptr<PlatformEmbeddedFileWriterBase> NewPlatformEmbeddedFileWriter(
   auto embedded_target_arch = ToEmbeddedTargetArch(target_arch);
   auto embedded_target_os = ToEmbeddedTargetOs(target_os);
 
+  if (embedded_target_os == EmbeddedTargetOs::kStarboard) {
+    // target OS is "Starboard" for all starboard build so we need to
+    // use host OS macros to decide which writer to use.
+    // Cobalt also has Windows-based Posix target platform,
+    // in which case generic writer should be used.
+    switch (DefaultEmbeddedTargetOs()) {
+      case EmbeddedTargetOs::kMac:
+#if defined(V8_TARGET_OS_WIN)
+      case EmbeddedTargetOs::kWin:
+        // V8_TARGET_OS_WIN is used to enable WINDOWS-specific assembly code,
+        // for windows-hosted non-windows targets, we should still fallback to
+        // the generic writer.
+#endif
+        embedded_target_os = DefaultEmbeddedTargetOs();
+        break;
+      default:
+        // In the block below, we will use WriterGeneric for other cases.
+        break;
+    }
+  }
+
   if (embedded_target_os == EmbeddedTargetOs::kAIX) {
     return std::make_unique<PlatformEmbeddedFileWriterAIX>(embedded_target_arch,
                                                            embedded_target_os);
@@ -160,6 +191,9 @@ std::unique_ptr<PlatformEmbeddedFileWriterBase> NewPlatformEmbeddedFileWriter(
                                                            embedded_target_os);
   } else if (embedded_target_os == EmbeddedTargetOs::kWin) {
     return std::make_unique<PlatformEmbeddedFileWriterWin>(embedded_target_arch,
+                                                           embedded_target_os);
+  } else if (embedded_target_os == EmbeddedTargetOs::kZOS) {
+    return std::make_unique<PlatformEmbeddedFileWriterZOS>(embedded_target_arch,
                                                            embedded_target_os);
   } else {
     return std::make_unique<PlatformEmbeddedFileWriterGeneric>(

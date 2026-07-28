@@ -1,248 +1,490 @@
-// The order of the code in this file is relevant, because a lot of things
-// require('npm.js'), but also we need to use some of those modules.  So,
-// we define and instantiate the singleton ahead of loading any modules
-// required for its methods.
-
-// these are all dependencies used in the ctor
-const EventEmitter = require('events')
-const { resolve, dirname } = require('path')
+const { resolve, dirname, join } = require('node:path')
 const Config = require('@npmcli/config')
+const which = require('which')
+const fs = require('node:fs/promises')
+const { definitions, flatten, nerfDarts, shorthands } = require('@npmcli/config/lib/definitions')
+const usage = require('./utils/npm-usage.js')
+const LogFile = require('./utils/log-file.js')
+const Timers = require('./utils/timers.js')
+const Display = require('./utils/display.js')
+const { log, time, output, META } = require('proc-log')
+const { redactLog: replaceInfo } = require('@npmcli/redact')
+const pkg = require('../package.json')
+const { deref } = require('./utils/cmd-list.js')
+const { jsonError, outputError } = require('./utils/output-error.js')
 
-// Patch the global fs module here at the app level
-require('graceful-fs').gracefulify(require('fs'))
-
-const procLogListener = require('./utils/proc-log-listener.js')
-
-const hasOwnProperty = (obj, key) =>
-  Object.prototype.hasOwnProperty.call(obj, key)
-
-// the first time `npm.commands.xyz` is loaded, it gets added
-// to the cmds object, so we don't have to load it again.
-const proxyCmds = (npm) => {
-  const cmds = {}
-  return new Proxy(cmds, {
-    get: (prop, cmd) => {
-      if (hasOwnProperty(cmds, cmd))
-        return cmds[cmd]
-
-      const actual = deref(cmd)
-      if (!actual) {
-        cmds[cmd] = undefined
-        return cmds[cmd]
-      }
-      if (cmds[actual]) {
-        cmds[cmd] = cmds[actual]
-        return cmds[cmd]
-      }
-      cmds[actual] = makeCmd(actual)
-      cmds[cmd] = cmds[actual]
-      return cmds[cmd]
-    },
-  })
-}
-
-const makeCmd = cmd => {
-  const impl = require(`./${cmd}.js`)
-  const fn = (args, cb) => npm[_runCmd](cmd, impl, args, cb)
-  Object.assign(fn, impl)
-  return fn
-}
-
-const { types, defaults, shorthands } = require('./utils/config.js')
-
-let warnedNonDashArg = false
-const _runCmd = Symbol('_runCmd')
-const _load = Symbol('_load')
-const _flatOptions = Symbol('_flatOptions')
-const _tmpFolder = Symbol('_tmpFolder')
-const _title = Symbol('_title')
-const npm = module.exports = new class extends EventEmitter {
-  constructor () {
-    super()
-    require('./utils/perf.js')
-    this.modes = {
-      exec: 0o755,
-      file: 0o644,
-      umask: 0o22,
-    }
-    this.started = Date.now()
-    this.command = null
-    this.commands = proxyCmds(this)
-    procLogListener()
-    process.emit('time', 'npm')
-    this.version = require('../package.json').version
-    this.config = new Config({
-      npmPath: dirname(__dirname),
-      types,
-      defaults,
-      shorthands,
-    })
-    this[_title] = process.title
-    this.updateNotification = null
+class Npm {
+  static get version () {
+    return pkg.version
   }
 
-  deref (c) {
-    return deref(c)
-  }
-
-  // this will only ever be called with cmd set to the canonical command name
-  [_runCmd] (cmd, impl, args, cb) {
-    if (!this.loaded) {
-      throw new Error(
-        'Call npm.load(cb) before using this command.\n' +
-        'See the README.md or bin/npm-cli.js for example usage.'
-      )
-    }
-
-    process.emit('time', `command:${cmd}`)
-    // since 'test', 'start', 'stop', etc. commands re-enter this function
-    // to call the run-script command, we need to only set it one time.
-    if (!this.command) {
-      process.env.npm_command = cmd
-      this.command = cmd
-    }
-
-    // Options are prefixed by a hyphen-minus (-, \u2d).
-    // Other dash-type chars look similar but are invalid.
-    if (!warnedNonDashArg) {
-      args.filter(arg => /^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg))
-        .forEach(arg => {
-          warnedNonDashArg = true
-          log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
-        })
-    }
-
-    if (this.config.get('usage')) {
-      console.log(impl.usage)
-      cb()
-    } else {
-      impl(args, er => {
-        process.emit('timeEnd', `command:${cmd}`)
-        cb(er)
+  static cmd (c) {
+    const command = deref(c)
+    if (!command) {
+      throw Object.assign(new Error(`Unknown command ${c}`), {
+        code: 'EUNKNOWNCOMMAND',
+        command: c,
       })
     }
+    return require(`./commands/${command}`)
   }
 
-  // call with parsed CLI options and a callback when done loading
-  // XXX promisify this and stop taking a callback
-  load (cb) {
-    if (!cb || typeof cb !== 'function')
-      throw new TypeError('must call as: npm.load(callback)')
+  unrefPromises = []
+  updateNotification = null
+  argv = []
 
-    this.once('load', cb)
-    if (this.loaded || this.loadErr) {
-      this.emit('load', this.loadErr)
-      return
-    }
-    if (this.loading)
-      return
+  #command = null
+  #runId = new Date().toISOString().replace(/[.:]/g, '_')
+  #title = 'npm'
+  #argvClean = []
+  #npmRoot = null
 
-    this.loading = true
+  #display = null
+  #logFile = new LogFile()
+  #timers = new Timers()
 
-    process.emit('time', 'npm:load')
-    this.log.pause()
-    return this[_load]().catch(er => er).then((er) => {
-      this.loading = false
-      this.loadErr = er
-      if (!er && this.config.get('force'))
-        this.log.warn('using --force', 'Recommended protections disabled.')
-
-      if (!er && !this[_flatOptions])
-        this[_flatOptions] = require('./utils/flat-options.js')(this)
-
-      process.emit('timeEnd', 'npm:load')
-      this.emit('load', er)
+  // All these options are only used by tests in order to make testing more closely resemble real world usage.
+  // For now, npm has no programmatic API so it is ok to add stuff here, but we should not rely on it more than necessary.
+  // XXX: make these options not necessary by refactoring @npmcli/config
+  //   - npmRoot: this is where npm looks for docs files and the builtin config
+  //   - argv: this allows tests to extend argv in the same way the argv would be passed in via a CLI arg.
+  //   - excludeNpmCwd: this is a hack to get @npmcli/config to stop walking up dirs to set a local prefix when it encounters the `npmRoot`.
+  //       this allows tests created by tap inside this repo to not set the local prefix to `npmRoot` since that is the first dir it would encounter when doing implicit detection
+  constructor ({
+    stdout = process.stdout,
+    stderr = process.stderr,
+    npmRoot = dirname(__dirname),
+    argv = [],
+    excludeNpmCwd = false,
+  } = {}) {
+    this.#display = new Display({ stdout, stderr })
+    this.#npmRoot = npmRoot
+    this.config = new Config({
+      npmPath: this.#npmRoot,
+      definitions,
+      flatten,
+      nerfDarts,
+      shorthands,
+      argv: [...process.argv, ...argv],
+      excludeNpmCwd,
+      warn: false,
     })
+  }
+
+  async load () {
+    let err
+    try {
+      return await time.start('npm:load', () => this.#load())
+    } catch (e) {
+      err = e
+    }
+    return this.#handleError(err)
+  }
+
+  async #load () {
+    await time.start('npm:load:whichnode', async () => {
+      // TODO should we throw here?
+      const node = await which(process.argv[0]).catch(() => {})
+      if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
+        log.verbose('node symlink', node)
+        process.execPath = node
+        this.config.execPath = node
+      }
+    })
+
+    await time.start('npm:load:configload', () => this.config.load())
+
+    // npm --versions
+    if (this.config.get('versions', 'cli')) {
+      this.argv = ['version']
+      this.config.set('usage', false, 'cli')
+    } else {
+      this.argv = [...this.config.parsedArgv.remain]
+    }
+
+    // Remove first argv since that is our command as typed
+    // Note that this might not be the actual name of the command due to aliases, etc.
+    // But we use the raw form of it later in user output so it must be preserved as is.
+    const commandArg = this.argv.shift()
+
+    // This is the actual name of the command that will be run or undefined if deref could not find a match
+    const command = deref(commandArg)
+
+    await this.#display.load({
+      command,
+      loglevel: this.config.get('loglevel'),
+      stdoutColor: this.color,
+      stderrColor: this.logColor,
+      timing: this.config.get('timing'),
+      unicode: this.config.get('unicode'),
+      progress: this.flatOptions.progress,
+      json: this.config.get('json'),
+      heading: this.config.get('heading'),
+    })
+    process.env.COLOR = this.color ? '1' : '0'
+
+    // npm -v
+    // return from here early so we don't create any caches/logfiles/timers etc
+    if (this.config.get('version', 'cli')) {
+      output.standard(this.version)
+      return { exec: false }
+    }
+
+    // mkdir this separately since the logs dir can be set to a different location.
+    // if this fails, then we don't have a cache dir, but we don't want to fail immediately since the command might not need a cache dir (like `npm --version`)
+    await time.start('npm:load:mkdirpcache', () =>
+      fs.mkdir(this.cache, { recursive: true })
+        .catch((e) => log.verbose('cache', `could not create cache: ${e}`)))
+
+    // it's ok if this fails. user might have specified an invalid dir which we will tell them about at the end
+    if (this.config.get('logs-max') > 0) {
+      await time.start('npm:load:mkdirplogs', () =>
+        fs.mkdir(this.#logsDir, { recursive: true })
+          .catch((e) => log.verbose('logfile', `could not create logs-dir: ${e}`)))
+    }
+
+    // note: this MUST be shorter than the actual argv length, because it uses the same memory, so node will truncate it if it's too long.
+    // We time this because setting process.title is slow sometimes but we have to do it for security reasons. But still helpful to know how slow it is.
+    time.start('npm:load:setTitle', () => {
+      const { parsedArgv: { cooked, remain } } = this.config
+      // Secrets are mostly in configs, so title is set using only the positional args to keep those from being leaked.
+      // We still do a best effort replaceInfo.
+      this.#title = ['npm'].concat(replaceInfo(remain)).join(' ').trim()
+      process.title = this.#title
+      // The cooked argv is also logged separately for debugging purposes.
+      // It is cleaned as a best effort by replacing known secrets like basic auth password and strings that look like npm tokens.
+      // XXX: for this to be safer the config should create a sanitized version of the argv as it has the full context of what each option contains.
+      this.#argvClean = replaceInfo(cooked)
+      log.verbose('title', this.title)
+      log.verbose('argv', this.#argvClean.map(JSON.stringify).join(' '))
+    })
+
+    // logFile.load returns a promise that resolves when old logs are done being cleaned.
+    // We save this promise to an array so that we can await it in tests to ensure more deterministic logging behavior.
+    // The process will also hang open if this were to take a long time to resolve, but that is why process.exit is called explicitly in the exit-handler.
+    this.unrefPromises.push(this.#logFile.load({
+      command,
+      path: this.logPath,
+      logsMax: this.config.get('logs-max'),
+      timing: this.config.get('timing'),
+    }))
+
+    this.#timers.load({
+      path: this.logPath,
+      timing: this.config.get('timing'),
+    })
+
+    const configScope = this.config.get('scope')
+    if (configScope && !/^@/.test(configScope)) {
+      this.config.set('scope', `@${configScope}`, this.config.find('scope'))
+    }
+
+    if (this.config.get('force')) {
+      log.warn('using --force', 'Recommended protections disabled.')
+    }
+
+    return { exec: true, command: commandArg, args: this.argv }
+  }
+
+  async exec (cmd, args = this.argv) {
+    if (!this.#command) {
+      let err
+      try {
+        await this.#exec(cmd, args)
+      } catch (e) {
+        err = e
+      }
+      return this.#handleError(err)
+    } else {
+      return this.#exec(cmd, args)
+    }
+  }
+
+  // Call an npm command
+  async #exec (cmd, args) {
+    const Command = this.constructor.cmd(cmd)
+    const command = new Command(this)
+
+    // since 'test', 'start', 'stop', etc. commands re-enter this function to call the run command, we need to only set it one time.
+    if (!this.#command) {
+      this.#command = command
+      process.env.npm_command = this.command
+    }
+
+    // Only log warnings for legacy commands without definitions or subcommands
+    // Commands with definitions will handle warnings in base-cmd flags()
+    // Commands with subcommands will delegate to the subcommand to handle warnings
+    if (!Command.definitions && !Command.subcommands) {
+      this.config.logWarnings()
+    }
+
+    // this needs to be rest after because some commands run this.npm.config.checkUnknown('publishConfig', key)
+    this.config.warn = true
+
+    return this.execCommandClass(command, args, [cmd])
+  }
+
+  // Unified command execution for both top-level commands and subcommands
+  // Supports n-depth subcommands, workspaces, and definitions
+  async execCommandClass (commandInstance, args, commandPath = []) {
+    const Command = commandInstance.constructor
+    const commandName = commandPath.join(':')
+
+    // Handle subcommands if present
+    if (Command.subcommands) {
+      const subcommandName = args[0]
+
+      // If help is requested without a subcommand, show main command help
+      if (this.config.get('usage') && !subcommandName) {
+        return output.standard(commandInstance.usage)
+      }
+
+      // If no subcommand provided, show usage error
+      if (!subcommandName) {
+        throw commandInstance.usageError()
+      }
+
+      // Check if the subcommand exists
+      const SubCommand = Command.subcommands[subcommandName]
+      if (!SubCommand) {
+        throw commandInstance.usageError(`Unknown subcommand: ${subcommandName}`)
+      }
+
+      // Check if help is requested for the subcommand
+      if (this.config.get('usage')) {
+        const parentName = commandPath.join(' ')
+        return output.standard(SubCommand.getUsage(parentName))
+      }
+
+      // Create subcommand instance and recurse
+      const subcommandInstance = new SubCommand(this)
+      subcommandInstance.parentName = commandPath.join(' ')
+      const subcommandArgs = args.slice(1) // Remove subcommand name from args
+      const subcommandPath = [...commandPath, subcommandName]
+
+      return time.start(`command:${subcommandPath.join(':')}`, () =>
+        this.execCommandClass(subcommandInstance, subcommandArgs, subcommandPath))
+    }
+
+    // No subcommands - execute this command
+    if (this.config.get('usage')) {
+      return output.standard(commandInstance.usage)
+    }
+
+    let execWorkspaces = false
+    const hasWsConfig = this.config.get('workspaces') || this.config.get('workspace').length
+    // if cwd is a workspace, the default is set to [that workspace]
+    const implicitWs = this.config.get('workspace', 'default').length
+    // (-ws || -w foo) && (cwd is not a workspace || command is not ignoring implicit workspaces)
+    if (hasWsConfig && (!implicitWs || !Command.ignoreImplicitWorkspace)) {
+      if (this.global) {
+        throw new Error('Workspaces not supported for global packages')
+      }
+      if (!Command.workspaces) {
+        throw Object.assign(new Error('This command does not support workspaces.'), {
+          code: 'ENOWORKSPACES',
+        })
+      }
+      execWorkspaces = true
+    }
+
+    // Check dev engines if needed
+    if (commandInstance.checkDevEngines && !this.global) {
+      await commandInstance.checkDevEngines()
+    }
+
+    // Execute command with or without definitions
+    if (Command.definitions) {
+      // config.argv contains the full argv with flags (set by Config in production, by MockNpm in tests)
+      // Pass depth so flags() knows how many command names to skip
+      const [flags, positionalArgs] = commandInstance.flags(commandPath.length)
+      return time.start(`command:${commandName}`, () =>
+        execWorkspaces
+          ? commandInstance.execWorkspaces(positionalArgs, flags)
+          : commandInstance.exec(positionalArgs, flags))
+    } else {
+      // Legacy commands without definitions
+      this.config.logWarnings()
+      return time.start(`command:${commandName}`, () =>
+        execWorkspaces ? commandInstance.execWorkspaces(args) : commandInstance.exec(args))
+    }
+  }
+
+  // This gets called at the end of the exit handler and during any tests to cleanup all of our listeners
+  // Everything in here should be synchronous
+  unload () {
+    this.#timers.off()
+    this.#display.off()
+    this.#logFile.off()
+  }
+
+  finish (err) {
+    // Finish all our timer work, this will write the file if requested, end timers, etc
+    this.#timers.finish({
+      id: this.#runId,
+      command: this.#argvClean,
+      logfiles: this.logFiles,
+      version: this.version,
+    })
+
+    output.flush({
+      [META]: true,
+      // json can be set during a command so we send the final value of it to the display layer here
+      json: this.loaded && this.config.get('json'),
+      jsonError: jsonError(err, this),
+    })
+  }
+
+  exitErrorMessage () {
+    if (this.logFiles.length) {
+      return `A complete log of this run can be found in: ${this.logFiles}`
+    }
+
+    const logsMax = this.config.get('logs-max')
+    if (logsMax <= 0) {
+      // user specified no log file
+      return `Log files were not written due to the config logs-max=${logsMax}`
+    }
+
+    // could be an error writing to the directory
+    return `Log files were not written due to an error writing to the directory: ${this.#logsDir}` +
+      '\nYou can rerun the command with `--loglevel=verbose` to see the logs in your terminal'
+  }
+
+  async #handleError (err) {
+    if (err) {
+      // Get the local package if it exists for a more helpful error message
+      const localPkg = await require('@npmcli/package-json')
+        .normalize(this.localPrefix)
+        .then(p => p.content)
+        .catch(() => null)
+      Object.assign(err, this.#getError(err, { pkg: localPkg }))
+    }
+
+    this.finish(err)
+
+    if (err) {
+      throw err
+    }
+  }
+
+  #getError (rawErr, opts) {
+    const { files = [], ...error } = require('./utils/error-message.js').getError(rawErr, {
+      npm: this,
+      command: this.#command,
+      ...opts,
+    })
+
+    const { writeFileSync } = require('node:fs')
+    for (const [file, content] of files) {
+      const filePath = `${this.logPath}${file}`
+      const fileContent = `'Log files:\n${this.logFiles.join('\n')}\n\n${content.trim()}\n`
+      try {
+        writeFileSync(filePath, fileContent)
+        error.detail.push(['', `\n\nFor a full report see:\n${filePath}`])
+      } catch (fileErr) {
+        log.warn('', `Could not write error message to ${file} due to ${fileErr}`)
+      }
+    }
+
+    outputError(error)
+
+    return error
+  }
+
+  get title () {
+    return this.#title
   }
 
   get loaded () {
     return this.config.loaded
   }
 
-  get title () {
-    return this[_title]
+  get version () {
+    return this.constructor.version
   }
 
-  set title (t) {
-    process.title = t
-    this[_title] = t
-  }
-
-  async [_load] () {
-    const node = await which(process.argv[0]).catch(er => null)
-    if (node && node.toUpperCase() !== process.execPath.toUpperCase()) {
-      log.verbose('node symlink', node)
-      process.execPath = node
-    }
-    this.config.execPath = node
-
-    await this.config.load()
-    this.argv = this.config.parsedArgv.remain
-    // note: this MUST be shorter than the actual argv length, because it
-    // uses the same memory, so node will truncate it if it's too long.
-    // if it's a token revocation, then the argv contains a secret, so
-    // don't show that.  (Regrettable historical choice to put it there.)
-    // Any other secrets are configs only, so showing only the positional
-    // args keeps those from being leaked.
-    const tokrev = deref(this.argv[0]) === 'token' && this.argv[1] === 'revoke'
-    this.title = tokrev ? 'npm token revoke' + (this.argv[2] ? ' ***' : '')
-      : ['npm', ...this.argv].join(' ')
-
-    this.color = setupLog(this.config, this)
-    process.env.COLOR = this.color ? '1' : '0'
-
-    cleanUpLogFiles(this.cache, this.config.get('logs-max'), log.warn)
-
-    log.resume()
-    const umask = this.config.get('umask')
-    this.modes = {
-      exec: 0o777 & (~umask),
-      file: 0o666 & (~umask),
-      umask,
-    }
-
-    const configScope = this.config.get('scope')
-    if (configScope && !/^@/.test(configScope))
-      this.config.set('scope', `@${configScope}`, this.config.find('scope'))
-
-    this.projectScope = this.config.get('scope') ||
-      getProjectScope(this.prefix)
+  get command () {
+    return this.#command?.name
   }
 
   get flatOptions () {
-    return this[_flatOptions]
+    const { flat } = this.config
+    flat.nodeVersion = process.version
+    flat.npmVersion = pkg.version
+    if (this.command) {
+      flat.npmCommand = this.command
+    }
+    return flat
+  }
+
+  // color and logColor are a special derived values that takes into consideration not only the config, but whether or not we are operating in a tty with the associated output (stdout/stderr)
+  get color () {
+    return this.flatOptions.color
+  }
+
+  get logColor () {
+    return this.flatOptions.logColor
+  }
+
+  get noColorChalk () {
+    return this.#display.chalk.noColor
+  }
+
+  get chalk () {
+    return this.#display.chalk.stdout
+  }
+
+  get logChalk () {
+    return this.#display.chalk.stderr
+  }
+
+  get global () {
+    return this.config.get('global') || this.config.get('location') === 'global'
+  }
+
+  get silent () {
+    return this.flatOptions.silent
   }
 
   get lockfileVersion () {
     return 2
   }
 
-  get log () {
-    return log
+  get started () {
+    return this.#timers.started
+  }
+
+  get logFiles () {
+    return this.#logFile.files
+  }
+
+  get #logsDir () {
+    return this.config.get('logs-dir') || join(this.cache, '_logs')
+  }
+
+  get logPath () {
+    return resolve(this.#logsDir, `${this.#runId}-`)
+  }
+
+  get npmRoot () {
+    return this.#npmRoot
   }
 
   get cache () {
     return this.config.get('cache')
   }
 
-  set cache (r) {
-    this.config.set('cache', r)
-  }
-
   get globalPrefix () {
     return this.config.globalPrefix
-  }
-
-  set globalPrefix (r) {
-    this.config.globalPrefix = r
   }
 
   get localPrefix () {
     return this.config.localPrefix
   }
 
-  set localPrefix (r) {
-    this.config.localPrefix = r
+  get localPackage () {
+    return this.config.localPackage
   }
 
   get globalDir () {
@@ -256,7 +498,7 @@ const npm = module.exports = new class extends EventEmitter {
   }
 
   get dir () {
-    return (this.config.get('global')) ? this.globalDir : this.localDir
+    return this.global ? this.globalDir : this.localDir
   }
 
   get globalBin () {
@@ -269,39 +511,16 @@ const npm = module.exports = new class extends EventEmitter {
   }
 
   get bin () {
-    return this.config.get('global') ? this.globalBin : this.localBin
+    return this.global ? this.globalBin : this.localBin
   }
 
   get prefix () {
-    return this.config.get('global') ? this.globalPrefix : this.localPrefix
+    return this.global ? this.globalPrefix : this.localPrefix
   }
 
-  set prefix (r) {
-    const k = this.config.get('global') ? 'globalPrefix' : 'localPrefix'
-    this[k] = r
+  get usage () {
+    return usage(this)
   }
+}
 
-  // XXX add logging to see if we actually use this
-  get tmp () {
-    if (!this[_tmpFolder]) {
-      const rand = require('crypto').randomBytes(4).toString('hex')
-      this[_tmpFolder] = `npm-${process.pid}-${rand}`
-    }
-    return resolve(this.config.get('tmp'), this[_tmpFolder])
-  }
-}()
-
-// now load everything required by the class methods
-
-const log = require('npmlog')
-const { promisify } = require('util')
-
-const which = promisify(require('which'))
-
-const deref = require('./utils/deref-command.js')
-const setupLog = require('./utils/setup-log.js')
-const cleanUpLogFiles = require('./utils/cleanup-log-files.js')
-const getProjectScope = require('./utils/get-project-scope.js')
-
-if (require.main === module)
-  require('./cli.js')(process)
+module.exports = Npm

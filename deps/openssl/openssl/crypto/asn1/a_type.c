@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -16,8 +16,8 @@
 int ASN1_TYPE_get(const ASN1_TYPE *a)
 {
     if (a->type == V_ASN1_BOOLEAN
-            || a->type == V_ASN1_NULL
-            || a->value.ptr != NULL)
+        || a->type == V_ASN1_NULL
+        || a->value.ptr != NULL)
         return a->type;
     else
         return 0;
@@ -26,10 +26,10 @@ int ASN1_TYPE_get(const ASN1_TYPE *a)
 void ASN1_TYPE_set(ASN1_TYPE *a, int type, void *value)
 {
     if (a->type != V_ASN1_BOOLEAN
-            && a->type != V_ASN1_NULL
-            && a->value.ptr != NULL) {
+        && a->type != V_ASN1_NULL
+        && a->value.ptr != NULL) {
         ASN1_TYPE **tmp_a = &a;
-        asn1_primitive_free((ASN1_VALUE **)tmp_a, NULL, 0);
+        ossl_asn1_primitive_free((ASN1_VALUE **)tmp_a, NULL, 0);
     }
     a->type = type;
     if (type == V_ASN1_BOOLEAN)
@@ -75,7 +75,7 @@ int ASN1_TYPE_cmp(const ASN1_TYPE *a, const ASN1_TYPE *b)
         result = a->value.boolean - b->value.boolean;
         break;
     case V_ASN1_NULL:
-        result = 0;             /* They do not have content. */
+        result = 0; /* They do not have content. */
         break;
     case V_ASN1_INTEGER:
     case V_ASN1_ENUMERATED:
@@ -99,7 +99,7 @@ int ASN1_TYPE_cmp(const ASN1_TYPE *a, const ASN1_TYPE *b)
     case V_ASN1_OTHER:
     default:
         result = ASN1_STRING_cmp((ASN1_STRING *)a->value.ptr,
-                                 (ASN1_STRING *)b->value.ptr);
+            (ASN1_STRING *)b->value.ptr);
         break;
     }
 

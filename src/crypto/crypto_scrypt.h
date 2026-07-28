@@ -41,8 +41,8 @@ struct ScryptConfig final : public MemoryRetainer {
   ScryptConfig& operator=(ScryptConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ScryptConfig);
-  SET_SELF_SIZE(ScryptConfig);
+  SET_MEMORY_INFO_NAME(ScryptConfig)
+  SET_SELF_SIZE(ScryptConfig)
 };
 
 struct ScryptTraits final {
@@ -51,22 +51,21 @@ struct ScryptTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_SCRYPTREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       ScryptConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const ScryptConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const ScryptConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const ScryptConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const ScryptConfig& params,
+                                                ByteSource* out);
 };
 
 using ScryptJob = DeriveBitsJob<ScryptTraits>;
@@ -77,8 +76,8 @@ struct ScryptJob {
   static void Initialize(
       Environment* env,
       v8::Local<v8::Object> target) {}
-}
-#endif  // !OPENSSL_NO_SCRIPT
+};
+#endif  // !OPENSSL_NO_SCRYPT
 
 }  // namespace crypto
 }  // namespace node

@@ -16,7 +16,7 @@ zipper.write('A'.repeat(17000));
 zipper.flush();
 
 let received = 0;
-unzipper.on('data', common.mustCall((d) => {
+unzipper.on('data', common.mustCallAtLeast((d) => {
   received += d.length;
 }, 2));
 

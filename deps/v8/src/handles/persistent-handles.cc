@@ -25,8 +25,9 @@ PersistentHandles::~PersistentHandles() {
   isolate_->persistent_handles_list()->Remove(this);
 
   for (Address* block_start : blocks_) {
-#if ENABLE_HANDLE_ZAPPING
-    HandleScope::ZapRange(block_start, block_start + kHandleBlockSize);
+#if ENABLE_GLOBAL_HANDLE_ZAPPING
+    HandleScope::ZapRange(block_start, block_start + kHandleBlockSize,
+                          kPersistentHandleZapValue);
 #endif
     DeleteArray(block_start);
   }
@@ -122,8 +123,7 @@ void PersistentHandlesList::Remove(PersistentHandles* persistent_handles) {
 }
 
 void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {
-  DCHECK_IMPLIES(FLAG_local_heaps, isolate->heap()->safepoint()->IsActive());
-  base::MutexGuard guard(&persistent_handles_mutex_);
+  isolate->heap()->safepoint()->AssertActive();
   for (PersistentHandles* current = persistent_handles_head_; current;
        current = current->next_) {
     current->Iterate(visitor);
@@ -132,21 +132,17 @@ void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {
 
 PersistentHandlesScope::PersistentHandlesScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
-  impl_->BeginDeferredScope();
+  impl_->BeginPersistentScope();
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Address* new_next = impl_->GetSpareOrNewBlock();
   Address* new_limit = &new_next[kHandleBlockSize];
-  // Check that at least one HandleScope with at least one Handle in it exists,
-  // see the class description.
-  DCHECK(!impl_->blocks()->empty());
-  // Check that we are not in a SealHandleScope.
-  DCHECK(data->limit == &impl_->blocks()->back()[kHandleBlockSize]);
   impl_->blocks()->push_back(new_next);
 
 #ifdef DEBUG
   prev_level_ = data->level;
 #endif
   data->level++;
+  first_block_ = new_next;
   prev_limit_ = data->limit;
   prev_next_ = data->next;
   data->next = new_next;
@@ -160,7 +156,7 @@ PersistentHandlesScope::~PersistentHandlesScope() {
 }
 
 std::unique_ptr<PersistentHandles> PersistentHandlesScope::Detach() {
-  std::unique_ptr<PersistentHandles> ph = impl_->DetachPersistent(prev_limit_);
+  std::unique_ptr<PersistentHandles> ph = impl_->DetachPersistent(first_block_);
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   data->next = prev_next_;
   data->limit = prev_limit_;
@@ -168,6 +164,11 @@ std::unique_ptr<PersistentHandles> PersistentHandlesScope::Detach() {
   handles_detached_ = true;
 #endif
   return ph;
+}
+
+// static
+bool PersistentHandlesScope::IsActive(Isolate* isolate) {
+  return isolate->handle_scope_implementer()->HasPersistentScope();
 }
 
 }  // namespace internal

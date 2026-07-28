@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "file": "scope-variables.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global",
+    "GLOBAL_CONSTANT1",
+    "GLOBAL_CONSTANT2",
+    "toplevelFunction1",
+    "function",
+    "functionScopedVariable1",
+    "functionScopedVariable2",
+    "functionScopedVariable3",
+    "toplevelFunction2",
+    "block",
+    "blockScopedVariable1",
+    "blockScopedVariable2"
+  ],
+  "scopes": "BCAAA,DCC,BHKFGI,DGCC,CJB,BHGFKA,DF,BCBIK,DKC,CDF,CBB,CBA"
+}

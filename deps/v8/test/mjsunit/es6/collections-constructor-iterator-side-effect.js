@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --turbofan
 
 function TestSetWithModifiedIterator(ctor) {
   const k1 = {};
@@ -26,6 +26,8 @@ function TestSetWithModifiedIterator(ctor) {
   arrayIteratorProto.next = originalNext;
 }
 %PrepareFunctionForOptimization(TestSetWithModifiedIterator);
+%EnsureFeedbackVectorForFunction(assertTrue);
+%EnsureFeedbackVectorForFunction(assertEquals);
 TestSetWithModifiedIterator(Set);
 TestSetWithModifiedIterator(Set);
 TestSetWithModifiedIterator(Set);

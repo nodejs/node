@@ -4,7 +4,6 @@
 
 require('../common');
 const assert = require('assert');
-const URLSearchParams = require('url').URLSearchParams;
 
 function makeIterableFunc(array) {
   return Object.assign(() => {}, {
@@ -29,8 +28,14 @@ function makeIterableFunc(array) {
   let params;
   params = new URLSearchParams(undefined);
   assert.strictEqual(params.toString(), '');
+  // Per WebIDL union resolution, null is coerced to the USVString "null".
+  // Refs: https://url.spec.whatwg.org/#interface-urlsearchparams
   params = new URLSearchParams(null);
-  assert.strictEqual(params.toString(), '');
+  assert.strictEqual(params.toString(), 'null=');
+  params = new URLSearchParams(false);
+  assert.strictEqual(params.toString(), 'false=');
+  params = new URLSearchParams(0);
+  assert.strictEqual(params.toString(), '0=');
   params = new URLSearchParams(
     makeIterableFunc([['key', 'val'], ['key2', 'val2']])
   );
@@ -39,8 +44,13 @@ function makeIterableFunc(array) {
     makeIterableFunc([['key', 'val'], ['key2', 'val2']].map(makeIterableFunc))
   );
   assert.strictEqual(params.toString(), 'key=val&key2=val2');
+  params = new URLSearchParams({ hasOwnProperty: 1 });
+  assert.strictEqual(params.get('hasOwnProperty'), '1');
+  assert.strictEqual(params.toString(), 'hasOwnProperty=1');
   assert.throws(() => new URLSearchParams([[1]]), tupleError);
   assert.throws(() => new URLSearchParams([[1, 2, 3]]), tupleError);
+  assert.throws(() => new URLSearchParams({ [Symbol('test')]: 42 }),
+                TypeError);
   assert.throws(() => new URLSearchParams({ [Symbol.iterator]: 42 }),
                 iterableError);
   assert.throws(() => new URLSearchParams([{}]), tupleError);
@@ -48,6 +58,10 @@ function makeIterableFunc(array) {
   assert.throws(() => new URLSearchParams([null]), tupleError);
   assert.throws(() => new URLSearchParams([{ [Symbol.iterator]: 42 }]),
                 tupleError);
+
+  assert.throws(() => new URLSearchParams(
+    makeIterableFunc([['key', 'val', 'val2']])
+  ), tupleError);
 }
 
 {

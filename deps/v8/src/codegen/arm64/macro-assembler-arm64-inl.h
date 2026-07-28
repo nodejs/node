@@ -7,12 +7,12 @@
 
 #include <ctype.h>
 
-#include "src/common/globals.h"
-
 #include "src/base/bits.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate-data.h"
 
 namespace v8 {
 namespace internal {
@@ -21,26 +21,46 @@ MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
 
-void TurboAssembler::And(const Register& rd, const Register& rn,
+// Provides access to exit frame parameters (GC-ed).
+MemOperand ExitFrameStackSlotOperand(int offset) {
+  // The slot at [sp] is reserved in all ExitFrames for storing the return
+  // address before doing the actual call, it's necessary for frame iteration
+  // (see StoreReturnAddressAndCall for details).
+  static constexpr int kSPOffset = 1 * kSystemPointerSize;
+  return MemOperand(sp, kSPOffset + offset);
+}
+
+// Provides access to exit frame parameters (GC-ed).
+MemOperand ExitFrameCallerStackSlotOperand(int index) {
+  return MemOperand(fp, (ExitFrameConstants::kFixedSlotCountAboveFp + index) *
+                            kSystemPointerSize);
+}
+
+MemOperand MacroAssembler::AsMemOperand(IsolateFieldId id) {
+  DCHECK(root_array_available());
+  return MemOperand(kRootRegister, IsolateData::GetOffset(id));
+}
+
+void MacroAssembler::And(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, AND);
 }
 
-void TurboAssembler::Ands(const Register& rd, const Register& rn,
+void MacroAssembler::Ands(const Register& rd, const Register& rn,
                           const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, ANDS);
 }
 
-void TurboAssembler::Tst(const Register& rn, const Operand& operand) {
+void MacroAssembler::Tst(const Register& rn, const Operand& operand) {
   DCHECK(allow_macro_instructions());
   LogicalMacro(AppropriateZeroRegFor(rn), rn, operand, ANDS);
 }
 
-void TurboAssembler::Bic(const Register& rd, const Register& rn,
+void MacroAssembler::Bic(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -54,35 +74,35 @@ void MacroAssembler::Bics(const Register& rd, const Register& rn,
   LogicalMacro(rd, rn, operand, BICS);
 }
 
-void TurboAssembler::Orr(const Register& rd, const Register& rn,
+void MacroAssembler::Orr(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, ORR);
 }
 
-void TurboAssembler::Orn(const Register& rd, const Register& rn,
+void MacroAssembler::Orn(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, ORN);
 }
 
-void TurboAssembler::Eor(const Register& rd, const Register& rn,
+void MacroAssembler::Eor(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, EOR);
 }
 
-void TurboAssembler::Eon(const Register& rd, const Register& rn,
+void MacroAssembler::Eon(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   LogicalMacro(rd, rn, operand, EON);
 }
 
-void TurboAssembler::Ccmp(const Register& rn, const Operand& operand,
+void MacroAssembler::Ccmp(const Register& rn, const Operand& operand,
                           StatusFlags nzcv, Condition cond) {
   DCHECK(allow_macro_instructions());
   if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
@@ -92,7 +112,7 @@ void TurboAssembler::Ccmp(const Register& rn, const Operand& operand,
   }
 }
 
-void TurboAssembler::CcmpTagged(const Register& rn, const Operand& operand,
+void MacroAssembler::CcmpTagged(const Register& rn, const Operand& operand,
                                 StatusFlags nzcv, Condition cond) {
   if (COMPRESS_POINTERS_BOOL) {
     Ccmp(rn.W(), operand.ToW(), nzcv, cond);
@@ -111,18 +131,29 @@ void MacroAssembler::Ccmn(const Register& rn, const Operand& operand,
   }
 }
 
-void TurboAssembler::Add(const Register& rd, const Register& rn,
+void MacroAssembler::Add(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
-      IsImmAddSub(-operand.ImmediateValue())) {
-    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, SUB);
-  } else {
-    AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
+  if (operand.IsImmediate()) {
+    int64_t imm = operand.ImmediateValue();
+    if ((imm > 0) && IsImmAddSub(imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(imm), ADD);
+      return;
+    } else if ((imm < 0) && IsImmAddSub(-imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(-imm), SUB);
+      return;
+    }
+  } else if (operand.IsShiftedRegister() && (operand.shift_amount() == 0)) {
+    if (!rd.IsSP() && !rn.IsSP() && !operand.reg().IsSP() &&
+        !operand.reg().IsZero()) {
+      DataProcPlainRegister(rd, rn, operand.reg(), ADD);
+      return;
+    }
   }
+  AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
 }
 
-void TurboAssembler::Adds(const Register& rd, const Register& rn,
+void MacroAssembler::Adds(const Register& rd, const Register& rn,
                           const Operand& operand) {
   DCHECK(allow_macro_instructions());
   if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
@@ -133,18 +164,29 @@ void TurboAssembler::Adds(const Register& rd, const Register& rn,
   }
 }
 
-void TurboAssembler::Sub(const Register& rd, const Register& rn,
+void MacroAssembler::Sub(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
-      IsImmAddSub(-operand.ImmediateValue())) {
-    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, ADD);
-  } else {
-    AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
+  if (operand.IsImmediate()) {
+    int64_t imm = operand.ImmediateValue();
+    if ((imm > 0) && IsImmAddSub(imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(imm), SUB);
+      return;
+    } else if ((imm < 0) && IsImmAddSub(-imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(-imm), ADD);
+      return;
+    }
+  } else if (operand.IsShiftedRegister() && (operand.shift_amount() == 0)) {
+    if (!rd.IsSP() && !rn.IsSP() && !operand.reg().IsSP() &&
+        !operand.reg().IsZero()) {
+      DataProcPlainRegister(rd, rn, operand.reg(), SUB);
+      return;
+    }
   }
+  AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
 }
 
-void TurboAssembler::Subs(const Register& rd, const Register& rn,
+void MacroAssembler::Subs(const Register& rd, const Register& rn,
                           const Operand& operand) {
   DCHECK(allow_macro_instructions());
   if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
@@ -155,17 +197,23 @@ void TurboAssembler::Subs(const Register& rd, const Register& rn,
   }
 }
 
-void TurboAssembler::Cmn(const Register& rn, const Operand& operand) {
+void MacroAssembler::Cmn(const Register& rn, const Operand& operand) {
   DCHECK(allow_macro_instructions());
   Adds(AppropriateZeroRegFor(rn), rn, operand);
 }
 
-void TurboAssembler::Cmp(const Register& rn, const Operand& operand) {
+void MacroAssembler::Cmp(const Register& rn, const Operand& operand) {
   DCHECK(allow_macro_instructions());
+  if (operand.IsShiftedRegister() && operand.shift_amount() == 0) {
+    if (!rn.IsSP() && !operand.reg().IsSP()) {
+      CmpPlainRegister(rn, operand.reg());
+      return;
+    }
+  }
   Subs(AppropriateZeroRegFor(rn), rn, operand);
 }
 
-void TurboAssembler::CmpTagged(const Register& rn, const Operand& operand) {
+void MacroAssembler::CmpTagged(const Register& rn, const Operand& operand) {
   if (COMPRESS_POINTERS_BOOL) {
     Cmp(rn.W(), operand.ToW());
   } else {
@@ -173,7 +221,7 @@ void TurboAssembler::CmpTagged(const Register& rn, const Operand& operand) {
   }
 }
 
-void TurboAssembler::Neg(const Register& rd, const Operand& operand) {
+void MacroAssembler::Neg(const Register& rd, const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   if (operand.IsImmediate()) {
@@ -183,12 +231,12 @@ void TurboAssembler::Neg(const Register& rd, const Operand& operand) {
   }
 }
 
-void TurboAssembler::Negs(const Register& rd, const Operand& operand) {
+void MacroAssembler::Negs(const Register& rd, const Operand& operand) {
   DCHECK(allow_macro_instructions());
   Subs(rd, AppropriateZeroRegFor(rd), operand);
 }
 
-void TurboAssembler::Adc(const Register& rd, const Register& rn,
+void MacroAssembler::Adc(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -230,14 +278,14 @@ void MacroAssembler::Ngcs(const Register& rd, const Operand& operand) {
   Sbcs(rd, zr, operand);
 }
 
-void TurboAssembler::Mvn(const Register& rd, uint64_t imm) {
+void MacroAssembler::Mvn(const Register& rd, uint64_t imm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   Mov(rd, ~imm);
 }
 
 #define DEFINE_FUNCTION(FN, REGTYPE, REG, OP)                          \
-  void TurboAssembler::FN(const REGTYPE REG, const MemOperand& addr) { \
+  void MacroAssembler::FN(const REGTYPE REG, const MemOperand& addr) { \
     DCHECK(allow_macro_instructions());                                \
     LoadStoreMacro(REG, addr, OP);                                     \
   }
@@ -245,7 +293,7 @@ LS_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
 #define DEFINE_FUNCTION(FN, REGTYPE, REG, REG2, OP)              \
-  void TurboAssembler::FN(const REGTYPE REG, const REGTYPE REG2, \
+  void MacroAssembler::FN(const REGTYPE REG, const REGTYPE REG2, \
                           const MemOperand& addr) {              \
     DCHECK(allow_macro_instructions());                          \
     LoadStorePairMacro(REG, REG2, addr, OP);                     \
@@ -253,49 +301,94 @@ LS_MACRO_LIST(DEFINE_FUNCTION)
 LSPAIR_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
-#define DECLARE_FUNCTION(FN, OP)                                    \
-  void TurboAssembler::FN(const Register& rt, const Register& rn) { \
+#define DEFINE_FUNCTION(FN, OP)                                     \
+  void MacroAssembler::FN(const Register& rt, const Register& rn) { \
     DCHECK(allow_macro_instructions());                             \
     OP(rt, rn);                                                     \
   }
-LDA_STL_MACRO_LIST(DECLARE_FUNCTION)
-#undef DECLARE_FUNCTION
+LDA_STL_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
 
-#define DECLARE_FUNCTION(FN, OP)                                  \
+#define DEFINE_FUNCTION(FN, OP)                                   \
   void MacroAssembler::FN(const Register& rs, const Register& rt, \
                           const Register& rn) {                   \
     DCHECK(allow_macro_instructions());                           \
     OP(rs, rt, rn);                                               \
   }
-STLX_MACRO_LIST(DECLARE_FUNCTION)
-#undef DECLARE_FUNCTION
+STLX_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
 
-void TurboAssembler::Asr(const Register& rd, const Register& rn,
+#define DEFINE_FUNCTION(FN, OP)                                   \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const MemOperand& src) {                \
+    DCHECK(allow_macro_instructions());                           \
+    OP(rs, rt, src);                                              \
+  }
+CAS_SINGLE_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
+#define DEFINE_FUNCTION(FN, OP)                                    \
+  void MacroAssembler::FN(const Register& rs, const Register& rs2, \
+                          const Register& rt, const Register& rt2, \
+                          const MemOperand& src) {                 \
+    DCHECK(allow_macro_instructions());                            \
+    OP(rs, rs2, rt, rt2, src);                                     \
+  }
+CAS_PAIR_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
+#define DEFINE_LOAD_FUNCTION(FN, OP)                              \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const MemOperand& src) {                \
+    DCHECK(allow_macro_instructions_);                            \
+    OP(rs, rt, src);                                              \
+  }
+#define DEFINE_STORE_FUNCTION(FN, OP)                                  \
+  void MacroAssembler::FN(const Register& rs, const MemOperand& src) { \
+    DCHECK(allow_macro_instructions_);                                 \
+    OP(rs, src);                                                       \
+  }
+
+ATOMIC_MEMORY_SIMPLE_MACRO_LIST(ATOMIC_MEMORY_LOAD_MACRO_MODES,
+                                DEFINE_LOAD_FUNCTION, Ld, ld)
+ATOMIC_MEMORY_SIMPLE_MACRO_LIST(ATOMIC_MEMORY_STORE_MACRO_MODES,
+                                DEFINE_STORE_FUNCTION, St, st)
+
+#define DEFINE_SWP_FUNCTION(FN, OP)                               \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const MemOperand& src) {                \
+    DCHECK(allow_macro_instructions_);                            \
+    OP(rs, rt, src);                                              \
+  }
+
+ATOMIC_MEMORY_LOAD_MACRO_MODES(DEFINE_SWP_FUNCTION, Swp, swp)
+
+void MacroAssembler::Asr(const Register& rd, const Register& rn,
                          unsigned shift) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   asr(rd, rn, shift);
 }
 
-void TurboAssembler::Asr(const Register& rd, const Register& rn,
+void MacroAssembler::Asr(const Register& rd, const Register& rn,
                          const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   asrv(rd, rn, rm);
 }
 
-void TurboAssembler::B(Label* label) {
+void MacroAssembler::B(Label* label) {
   DCHECK(allow_macro_instructions());
   b(label);
   CheckVeneerPool(false, false);
 }
 
-void TurboAssembler::B(Condition cond, Label* label) {
+void MacroAssembler::B(Condition cond, Label* label) {
   DCHECK(allow_macro_instructions());
   B(label, cond);
 }
 
-void TurboAssembler::Bfi(const Register& rd, const Register& rn, unsigned lsb,
+void MacroAssembler::Bfi(const Register& rd, const Register& rn, unsigned lsb,
                          unsigned width) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -309,7 +402,7 @@ void MacroAssembler::Bfxil(const Register& rd, const Register& rn, unsigned lsb,
   bfxil(rd, rn, lsb, width);
 }
 
-void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
+void MacroAssembler::Bind(Label* label, BranchTargetIdentifier id) {
   DCHECK(allow_macro_instructions());
   if (id == BranchTargetIdentifier::kNone) {
     bind(label);
@@ -326,21 +419,21 @@ void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
   }
 }
 
-void TurboAssembler::CodeEntry() { CallTarget(); }
+void MacroAssembler::CodeEntry() { CallTarget(); }
 
-void TurboAssembler::ExceptionHandler() { JumpTarget(); }
+void MacroAssembler::ExceptionHandler() { JumpTarget(); }
 
-void TurboAssembler::BindExceptionHandler(Label* label) {
+void MacroAssembler::BindExceptionHandler(Label* label) {
   BindJumpTarget(label);
 }
 
-void TurboAssembler::JumpTarget() {
+void MacroAssembler::JumpTarget() {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   bti(BranchTargetIdentifier::kBtiJump);
 #endif
 }
 
-void TurboAssembler::BindJumpTarget(Label* label) {
+void MacroAssembler::BindJumpTarget(Label* label) {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Bind(label, BranchTargetIdentifier::kBtiJump);
 #else
@@ -348,19 +441,27 @@ void TurboAssembler::BindJumpTarget(Label* label) {
 #endif
 }
 
-void TurboAssembler::CallTarget() {
+void MacroAssembler::CallTarget() {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   bti(BranchTargetIdentifier::kBtiCall);
 #endif
 }
 
-void TurboAssembler::JumpOrCallTarget() {
+void MacroAssembler::JumpOrCallTarget() {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   bti(BranchTargetIdentifier::kBtiJumpCall);
 #endif
 }
 
-void TurboAssembler::BindJumpOrCallTarget(Label* label) {
+void MacroAssembler::BindCallTarget(Label* label) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Bind(label, BranchTargetIdentifier::kBtiCall);
+#else
+  Bind(label);
+#endif
+}
+
+void MacroAssembler::BindJumpOrCallTarget(Label* label) {
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
   Bind(label, BranchTargetIdentifier::kBtiJumpCall);
 #else
@@ -368,24 +469,26 @@ void TurboAssembler::BindJumpOrCallTarget(Label* label) {
 #endif
 }
 
-void TurboAssembler::Bl(Label* label) {
+void MacroAssembler::Call(Label* label) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   bl(label);
 }
 
-void TurboAssembler::Blr(const Register& xn) {
+void MacroAssembler::Call(const Register& xn) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   DCHECK(!xn.IsZero());
   blr(xn);
 }
 
-void TurboAssembler::Br(const Register& xn) {
+void MacroAssembler::Br(const Register& xn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!xn.IsZero());
   br(xn);
 }
 
-void TurboAssembler::Brk(int code) {
+void MacroAssembler::Brk(int code) {
   DCHECK(allow_macro_instructions());
   brk(code);
 }
@@ -406,24 +509,42 @@ void MacroAssembler::Cinv(const Register& rd, const Register& rn,
   cinv(rd, rn, cond);
 }
 
-void TurboAssembler::Cls(const Register& rd, const Register& rn) {
+void MacroAssembler::Cls(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   cls(rd, rn);
 }
 
-void TurboAssembler::Clz(const Register& rd, const Register& rn) {
+void MacroAssembler::Clz(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   clz(rd, rn);
 }
 
-void TurboAssembler::Cneg(const Register& rd, const Register& rn,
+void MacroAssembler::Cneg(const Register& rd, const Register& rn,
                           Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   DCHECK((cond != al) && (cond != nv));
   cneg(rd, rn, cond);
+}
+
+void MacroAssembler::Abs(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  abs(rd, rn);
+}
+
+void MacroAssembler::Cnt(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  cnt(rd, rn);
+}
+
+void MacroAssembler::Ctz(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  ctz(rd, rn);
 }
 
 // Conditionally zero the destination register. Only X registers are supported
@@ -437,7 +558,7 @@ void MacroAssembler::CzeroX(const Register& rd, Condition cond) {
 
 // Conditionally move a value into the destination register. Only X registers
 // are supported due to the truncation side-effect when used on W registers.
-void TurboAssembler::CmovX(const Register& rd, const Register& rn,
+void MacroAssembler::CmovX(const Register& rd, const Register& rn,
                            Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsSP());
@@ -448,26 +569,26 @@ void TurboAssembler::CmovX(const Register& rd, const Register& rn,
   }
 }
 
-void TurboAssembler::Csdb() {
+void MacroAssembler::Csdb() {
   DCHECK(allow_macro_instructions());
   csdb();
 }
 
-void TurboAssembler::Cset(const Register& rd, Condition cond) {
+void MacroAssembler::Cset(const Register& rd, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   DCHECK((cond != al) && (cond != nv));
   cset(rd, cond);
 }
 
-void TurboAssembler::Csetm(const Register& rd, Condition cond) {
+void MacroAssembler::Csetm(const Register& rd, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   DCHECK((cond != al) && (cond != nv));
   csetm(rd, cond);
 }
 
-void TurboAssembler::Csinc(const Register& rd, const Register& rn,
+void MacroAssembler::Csinc(const Register& rd, const Register& rn,
                            const Register& rm, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -491,17 +612,49 @@ void MacroAssembler::Csneg(const Register& rd, const Register& rn,
   csneg(rd, rn, rm, cond);
 }
 
-void TurboAssembler::Dmb(BarrierDomain domain, BarrierType type) {
+void MacroAssembler::Cpy(const Register& rd, const Register& rs,
+                         const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(rd.Is64Bits());
+  DCHECK(rs.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(!rd.IsZero());
+  DCHECK(!rs.IsZero());
+  DCHECK(!rn.IsZero());
+
+  // TODO(sparker): Check whether forward copies, ones that either don't
+  // overlap or where the source address is greater than the destination, could
+  // be faster.
+  cpyp(rd, rs, rn);
+  cpym(rd, rs, rn);
+  cpye(rd, rs, rn);
+}
+
+void MacroAssembler::Set(const Register& rd, const Register& rn,
+                         const Register& rs) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(rd.Is64Bits());
+  DCHECK(rn.Is64Bits());
+  DCHECK(rs.Is64Bits());
+  DCHECK(!rd.IsZero());
+  DCHECK(!rn.IsZero());
+
+  setp(rd, rn, rs);
+  setm(rd, rn, rs);
+  sete(rd, rn, rs);
+}
+
+void MacroAssembler::Dmb(BarrierDomain domain, BarrierType type) {
   DCHECK(allow_macro_instructions());
   dmb(domain, type);
 }
 
-void TurboAssembler::Dsb(BarrierDomain domain, BarrierType type) {
+void MacroAssembler::Dsb(BarrierDomain domain, BarrierType type) {
   DCHECK(allow_macro_instructions());
   dsb(domain, type);
 }
 
-void TurboAssembler::Debug(const char* message, uint32_t code, Instr params) {
+void MacroAssembler::Debug(const char* message, uint32_t code, Instr params) {
   DCHECK(allow_macro_instructions());
   debug(message, code, params);
 }
@@ -513,30 +666,39 @@ void MacroAssembler::Extr(const Register& rd, const Register& rn,
   extr(rd, rn, rm, lsb);
 }
 
-void TurboAssembler::Fabs(const VRegister& fd, const VRegister& fn) {
+void MacroAssembler::Fabs(const VRegister& fd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   fabs(fd, fn);
 }
 
-void TurboAssembler::Fadd(const VRegister& fd, const VRegister& fn,
+void MacroAssembler::Fadd(const VRegister& fd, const VRegister& fn,
                           const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fadd(fd, fn, fm);
 }
 
-void TurboAssembler::Fccmp(const VRegister& fn, const VRegister& fm,
+void MacroAssembler::Fccmp(const VRegister& fn, const VRegister& fm,
                            StatusFlags nzcv, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK((cond != al) && (cond != nv));
   fccmp(fn, fm, nzcv, cond);
 }
 
-void TurboAssembler::Fcmp(const VRegister& fn, const VRegister& fm) {
+void MacroAssembler::Fccmp(const VRegister& fn, const double value,
+                           StatusFlags nzcv, Condition cond) {
+  DCHECK(allow_macro_instructions());
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireSameSizeAs(fn);
+  Fmov(tmp, value);
+  Fccmp(fn, tmp, nzcv, cond);
+}
+
+void MacroAssembler::Fcmp(const VRegister& fn, const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fcmp(fn, fm);
 }
 
-void TurboAssembler::Fcmp(const VRegister& fn, double value) {
+void MacroAssembler::Fcmp(const VRegister& fn, double value) {
   DCHECK(allow_macro_instructions());
   if (value != 0.0) {
     UseScratchRegisterScope temps(this);
@@ -555,59 +717,59 @@ void MacroAssembler::Fcsel(const VRegister& fd, const VRegister& fn,
   fcsel(fd, fn, fm, cond);
 }
 
-void TurboAssembler::Fcvt(const VRegister& fd, const VRegister& fn) {
+void MacroAssembler::Fcvt(const VRegister& fd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   fcvt(fd, fn);
 }
 
-void TurboAssembler::Fcvtas(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtas(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtas(rd, fn);
 }
 
-void TurboAssembler::Fcvtau(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtau(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtau(rd, fn);
 }
 
-void TurboAssembler::Fcvtms(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtms(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtms(rd, fn);
 }
 
-void TurboAssembler::Fcvtmu(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtmu(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtmu(rd, fn);
 }
 
-void TurboAssembler::Fcvtns(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtns(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtns(rd, fn);
 }
 
-void TurboAssembler::Fcvtnu(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtnu(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtnu(rd, fn);
 }
 
-void TurboAssembler::Fcvtzs(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtzs(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtzs(rd, fn);
 }
-void TurboAssembler::Fcvtzu(const Register& rd, const VRegister& fn) {
+void MacroAssembler::Fcvtzu(const Register& rd, const VRegister& fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fcvtzu(rd, fn);
 }
 
-void TurboAssembler::Fdiv(const VRegister& fd, const VRegister& fn,
+void MacroAssembler::Fdiv(const VRegister& fd, const VRegister& fn,
                           const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fdiv(fd, fn, fm);
@@ -619,7 +781,7 @@ void MacroAssembler::Fmadd(const VRegister& fd, const VRegister& fn,
   fmadd(fd, fn, fm, fa);
 }
 
-void TurboAssembler::Fmax(const VRegister& fd, const VRegister& fn,
+void MacroAssembler::Fmax(const VRegister& fd, const VRegister& fn,
                           const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fmax(fd, fn, fm);
@@ -631,7 +793,7 @@ void MacroAssembler::Fmaxnm(const VRegister& fd, const VRegister& fn,
   fmaxnm(fd, fn, fm);
 }
 
-void TurboAssembler::Fmin(const VRegister& fd, const VRegister& fn,
+void MacroAssembler::Fmin(const VRegister& fd, const VRegister& fn,
                           const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fmin(fd, fn, fm);
@@ -643,7 +805,7 @@ void MacroAssembler::Fminnm(const VRegister& fd, const VRegister& fn,
   fminnm(fd, fn, fm);
 }
 
-void TurboAssembler::Fmov(VRegister fd, VRegister fn) {
+void MacroAssembler::Fmov(VRegister fd, VRegister fn) {
   DCHECK(allow_macro_instructions());
   // Only emit an instruction if fd and fn are different, and they are both D
   // registers. fmov(s0, s0) is not a no-op because it clears the top word of
@@ -654,13 +816,19 @@ void TurboAssembler::Fmov(VRegister fd, VRegister fn) {
   }
 }
 
-void TurboAssembler::Fmov(VRegister fd, Register rn) {
+void MacroAssembler::Fmov(VRegister fd, Register rn) {
   DCHECK(allow_macro_instructions());
   fmov(fd, rn);
 }
 
-void TurboAssembler::Fmov(VRegister vd, double imm) {
+void MacroAssembler::Fmov(VRegister vd, double imm) {
   DCHECK(allow_macro_instructions());
+  uint64_t bits = base::bit_cast<uint64_t>(imm);
+
+  if (bits == 0) {
+    Movi(vd.D(), 0);
+    return;
+  }
 
   if (vd.Is1S() || vd.Is2S() || vd.Is4S()) {
     Fmov(vd, static_cast<float>(imm));
@@ -668,53 +836,41 @@ void TurboAssembler::Fmov(VRegister vd, double imm) {
   }
 
   DCHECK(vd.Is1D() || vd.Is2D());
-  if (IsImmFP64(imm)) {
+  if (IsImmFP64(bits)) {
     fmov(vd, imm);
   } else {
-    uint64_t bits = bit_cast<uint64_t>(imm);
-    if (vd.IsScalar()) {
-      if (bits == 0) {
-        fmov(vd, xzr);
-      } else {
-        UseScratchRegisterScope temps(this);
-        Register tmp = temps.AcquireX();
-        Mov(tmp, bits);
-        fmov(vd, tmp);
-      }
-    } else {
-      Movi(vd, bits);
-    }
+    Movi64bitHelper(vd, bits);
   }
 }
 
-void TurboAssembler::Fmov(VRegister vd, float imm) {
+void MacroAssembler::Fmov(VRegister vd, float imm) {
   DCHECK(allow_macro_instructions());
+  uint32_t bits = base::bit_cast<uint32_t>(imm);
+
+  if (bits == 0) {
+    Movi(vd.D(), 0);
+    return;
+  }
+
   if (vd.Is1D() || vd.Is2D()) {
     Fmov(vd, static_cast<double>(imm));
     return;
   }
 
   DCHECK(vd.Is1S() || vd.Is2S() || vd.Is4S());
-  if (IsImmFP32(imm)) {
+  if (IsImmFP32(bits)) {
     fmov(vd, imm);
+  } else if (vd.IsScalar()) {
+    UseScratchRegisterScope temps(this);
+    Register tmp = temps.AcquireW();
+    Mov(tmp, bits);
+    Fmov(vd, tmp);
   } else {
-    uint32_t bits = bit_cast<uint32_t>(imm);
-    if (vd.IsScalar()) {
-      if (bits == 0) {
-        fmov(vd, wzr);
-      } else {
-        UseScratchRegisterScope temps(this);
-        Register tmp = temps.AcquireW();
-        Mov(tmp, bits);
-        Fmov(vd, tmp);
-      }
-    } else {
-      Movi(vd, bits);
-    }
+    Movi(vd, bits);
   }
 }
 
-void TurboAssembler::Fmov(Register rd, VRegister fn) {
+void MacroAssembler::Fmov(Register rd, VRegister fn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   fmov(rd, fn);
@@ -726,7 +882,7 @@ void MacroAssembler::Fmsub(const VRegister& fd, const VRegister& fn,
   fmsub(fd, fn, fm, fa);
 }
 
-void TurboAssembler::Fmul(const VRegister& fd, const VRegister& fn,
+void MacroAssembler::Fmul(const VRegister& fd, const VRegister& fn,
                           const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fmul(fd, fn, fm);
@@ -744,7 +900,7 @@ void MacroAssembler::Fnmsub(const VRegister& fd, const VRegister& fn,
   fnmsub(fd, fn, fm, fa);
 }
 
-void TurboAssembler::Fsub(const VRegister& fd, const VRegister& fn,
+void MacroAssembler::Fsub(const VRegister& fd, const VRegister& fn,
                           const VRegister& fm) {
   DCHECK(allow_macro_instructions());
   fsub(fd, fn, fm);
@@ -760,52 +916,52 @@ void MacroAssembler::Hlt(int code) {
   hlt(code);
 }
 
-void TurboAssembler::Isb() {
+void MacroAssembler::Isb() {
   DCHECK(allow_macro_instructions());
   isb();
 }
 
-void TurboAssembler::Ldr(const CPURegister& rt, const Operand& operand) {
+void MacroAssembler::Ldr(const CPURegister& rt, const Operand& operand) {
   DCHECK(allow_macro_instructions());
   ldr(rt, operand);
 }
 
-void TurboAssembler::Lsl(const Register& rd, const Register& rn,
+void MacroAssembler::Lsl(const Register& rd, const Register& rn,
                          unsigned shift) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   lsl(rd, rn, shift);
 }
 
-void TurboAssembler::Lsl(const Register& rd, const Register& rn,
+void MacroAssembler::Lsl(const Register& rd, const Register& rn,
                          const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   lslv(rd, rn, rm);
 }
 
-void TurboAssembler::Lsr(const Register& rd, const Register& rn,
+void MacroAssembler::Lsr(const Register& rd, const Register& rn,
                          unsigned shift) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   lsr(rd, rn, shift);
 }
 
-void TurboAssembler::Lsr(const Register& rd, const Register& rn,
+void MacroAssembler::Lsr(const Register& rd, const Register& rn,
                          const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   lsrv(rd, rn, rm);
 }
 
-void TurboAssembler::Madd(const Register& rd, const Register& rn,
+void MacroAssembler::Madd(const Register& rd, const Register& rn,
                           const Register& rm, const Register& ra) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   madd(rd, rn, rm, ra);
 }
 
-void TurboAssembler::Mneg(const Register& rd, const Register& rn,
+void MacroAssembler::Mneg(const Register& rd, const Register& rn,
                           const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -818,44 +974,38 @@ void MacroAssembler::Movk(const Register& rd, uint64_t imm, int shift) {
   movk(rd, imm, shift);
 }
 
-void TurboAssembler::Mrs(const Register& rt, SystemRegister sysreg) {
+void MacroAssembler::Mrs(const Register& rt, SystemRegister sysreg) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rt.IsZero());
   mrs(rt, sysreg);
 }
 
-void TurboAssembler::Msr(SystemRegister sysreg, const Register& rt) {
+void MacroAssembler::Msr(SystemRegister sysreg, const Register& rt) {
   DCHECK(allow_macro_instructions());
   msr(sysreg, rt);
 }
 
-void TurboAssembler::Msub(const Register& rd, const Register& rn,
+void MacroAssembler::Msub(const Register& rd, const Register& rn,
                           const Register& rm, const Register& ra) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   msub(rd, rn, rm, ra);
 }
 
-void TurboAssembler::Mul(const Register& rd, const Register& rn,
+void MacroAssembler::Mul(const Register& rd, const Register& rn,
                          const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   mul(rd, rn, rm);
 }
 
-void TurboAssembler::Rbit(const Register& rd, const Register& rn) {
+void MacroAssembler::Rbit(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   rbit(rd, rn);
 }
 
-void TurboAssembler::Rev(const Register& rd, const Register& rn) {
-  DCHECK(allow_macro_instructions());
-  DCHECK(!rd.IsZero());
-  rev(rd, rn);
-}
-
-void TurboAssembler::Ret(const Register& xn) {
+void MacroAssembler::Ret(const Register& xn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!xn.IsZero());
   ret(xn);
@@ -868,53 +1018,46 @@ void MacroAssembler::Rev(const Register& rd, const Register& rn) {
   rev(rd, rn);
 }
 
-void TurboAssembler::Rev16(const Register& rd, const Register& rn) {
+void MacroAssembler::Rev16(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   rev16(rd, rn);
 }
 
-void TurboAssembler::Rev32(const Register& rd, const Register& rn) {
+void MacroAssembler::Rev32(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   rev32(rd, rn);
 }
 
-void TurboAssembler::Ror(const Register& rd, const Register& rs,
+void MacroAssembler::Ror(const Register& rd, const Register& rs,
                          unsigned shift) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   ror(rd, rs, shift);
 }
 
-void TurboAssembler::Ror(const Register& rd, const Register& rn,
+void MacroAssembler::Ror(const Register& rd, const Register& rn,
                          const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   rorv(rd, rn, rm);
 }
 
-void MacroAssembler::Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
-                           unsigned width) {
-  DCHECK(allow_macro_instructions());
-  DCHECK(!rd.IsZero());
-  sbfiz(rd, rn, lsb, width);
-}
-
-void TurboAssembler::Sbfx(const Register& rd, const Register& rn, unsigned lsb,
+void MacroAssembler::Sbfx(const Register& rd, const Register& rn, unsigned lsb,
                           unsigned width) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   sbfx(rd, rn, lsb, width);
 }
 
-void TurboAssembler::Scvtf(const VRegister& fd, const Register& rn,
+void MacroAssembler::Scvtf(const VRegister& fd, const Register& rn,
                            unsigned fbits) {
   DCHECK(allow_macro_instructions());
   scvtf(fd, rn, fbits);
 }
 
-void TurboAssembler::Sdiv(const Register& rd, const Register& rn,
+void MacroAssembler::Sdiv(const Register& rd, const Register& rn,
                           const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -935,7 +1078,7 @@ void MacroAssembler::Smsubl(const Register& rd, const Register& rn,
   smsubl(rd, rn, rm, ra);
 }
 
-void TurboAssembler::Smull(const Register& rd, const Register& rn,
+void MacroAssembler::Smull(const Register& rd, const Register& rn,
                            const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -949,52 +1092,66 @@ void MacroAssembler::Smulh(const Register& rd, const Register& rn,
   smulh(rd, rn, rm);
 }
 
-void TurboAssembler::Umull(const Register& rd, const Register& rn,
+void MacroAssembler::Umull(const Register& rd, const Register& rn,
                            const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   umaddl(rd, rn, rm, xzr);
 }
 
-void TurboAssembler::Sxtb(const Register& rd, const Register& rn) {
+void MacroAssembler::Umulh(const Register& rd, const Register& rn,
+                           const Register& rm) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  umulh(rd, rn, rm);
+}
+
+void MacroAssembler::Sxtb(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   sxtb(rd, rn);
 }
 
-void TurboAssembler::Sxth(const Register& rd, const Register& rn) {
+void MacroAssembler::Sxth(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   sxth(rd, rn);
 }
 
-void TurboAssembler::Sxtw(const Register& rd, const Register& rn) {
+void MacroAssembler::Sxtw(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   sxtw(rd, rn);
 }
 
-void TurboAssembler::Ubfiz(const Register& rd, const Register& rn, unsigned lsb,
+void MacroAssembler::Ubfiz(const Register& rd, const Register& rn, unsigned lsb,
                            unsigned width) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   ubfiz(rd, rn, lsb, width);
 }
 
-void TurboAssembler::Ubfx(const Register& rd, const Register& rn, unsigned lsb,
+void MacroAssembler::Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
+                           unsigned width) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  sbfiz(rd, rn, lsb, width);
+}
+
+void MacroAssembler::Ubfx(const Register& rd, const Register& rn, unsigned lsb,
                           unsigned width) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   ubfx(rd, rn, lsb, width);
 }
 
-void TurboAssembler::Ucvtf(const VRegister& fd, const Register& rn,
+void MacroAssembler::Ucvtf(const VRegister& fd, const Register& rn,
                            unsigned fbits) {
   DCHECK(allow_macro_instructions());
   ucvtf(fd, rn, fbits);
 }
 
-void TurboAssembler::Udiv(const Register& rd, const Register& rn,
+void MacroAssembler::Udiv(const Register& rd, const Register& rn,
                           const Register& rm) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -1015,27 +1172,32 @@ void MacroAssembler::Umsubl(const Register& rd, const Register& rn,
   umsubl(rd, rn, rm, ra);
 }
 
-void TurboAssembler::Uxtb(const Register& rd, const Register& rn) {
+void MacroAssembler::Uxtb(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   uxtb(rd, rn);
 }
 
-void TurboAssembler::Uxth(const Register& rd, const Register& rn) {
+void MacroAssembler::Uxth(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   uxth(rd, rn);
 }
 
-void TurboAssembler::Uxtw(const Register& rd, const Register& rn) {
+void MacroAssembler::Uxtw(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   uxtw(rd, rn);
 }
 
-void TurboAssembler::InitializeRootRegister() {
+void MacroAssembler::InitializeRootRegister() {
   ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
   Mov(kRootRegister, Operand(isolate_root));
+  Fmov(fp_zero, 0.0);
+
+#ifdef V8_COMPRESS_POINTERS
+  LoadRootRelative(kPtrComprCageBaseRegister, IsolateData::cage_base_offset());
+#endif
 }
 
 void MacroAssembler::SmiTag(Register dst, Register src) {
@@ -1046,21 +1208,20 @@ void MacroAssembler::SmiTag(Register dst, Register src) {
 
 void MacroAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
 
-void TurboAssembler::SmiUntag(Register dst, Register src) {
+void MacroAssembler::SmiUntag(Register dst, Register src) {
   DCHECK(dst.Is64Bits() && src.Is64Bits());
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     AssertSmi(src);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
-    Asr(dst.W(), src.W(), kSmiShift);
-    Sxtw(dst, dst);
+    Sbfx(dst, src.W(), kSmiShift, kSmiValueSize);
   } else {
     Asr(dst, src, kSmiShift);
   }
 }
 
-void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
+void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
   DCHECK(dst.Is64Bits());
   if (SmiValuesAre32Bits()) {
     if (src.IsImmediateOffset() && src.shift_amount() == 0) {
@@ -1086,11 +1247,26 @@ void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
   }
 }
 
-void TurboAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
+void MacroAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
 
-void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
+void MacroAssembler::SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
+
+void MacroAssembler::SmiToInt32(Register dst, Register smi) {
+  DCHECK(dst.Is64Bits());
+  if (v8_flags.enable_slow_asserts) {
+    AssertSmi(smi);
+  }
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+  if (COMPRESS_POINTERS_BOOL) {
+    Asr(dst.W(), smi.W(), kSmiShift);
+  } else {
+    Lsr(dst, smi, kSmiShift);
+  }
+}
+
+void MacroAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Label* not_smi_label) {
-  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
+  static_assert((kSmiTagSize == 1) && (kSmiTag == 0));
   // Check if the tag bit is set.
   if (smi_label) {
     Tbz(value, 0, smi_label);
@@ -1103,22 +1279,33 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
   }
 }
 
-void TurboAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
+void MacroAssembler::JumpIfEqual(Register x, int32_t y, Label* dest) {
   CompareAndBranch(x, y, eq, dest);
 }
 
-void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
+void MacroAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   CompareAndBranch(x, y, lt, dest);
+}
+
+void MacroAssembler::JumpIfUnsignedLessThan(Register x, int32_t y,
+                                            Label* dest) {
+  CompareAndBranch(x, y, lo, dest);
 }
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
   JumpIfSmi(value, nullptr, not_smi_label);
 }
 
-void TurboAssembler::jmp(Label* L) { B(L); }
+inline void MacroAssembler::AssertFeedbackVector(Register object) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  AssertFeedbackVector(object, scratch);
+}
 
-template <TurboAssembler::StoreLRMode lr_mode>
-void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
+void MacroAssembler::jmp(Label* L) { B(L); }
+
+template <MacroAssembler::StoreLRMode lr_mode>
+void MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
                           const CPURegister& src2, const CPURegister& src3) {
   DCHECK(AreSameSizeAndType(src0, src1, src2, src3));
   DCHECK_IMPLIES((lr_mode == kSignLR), ((src0 == lr) || (src1 == lr) ||
@@ -1139,8 +1326,8 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
   PushHelper(count, size, src0, src1, src2, src3);
 }
 
-template <TurboAssembler::StoreLRMode lr_mode>
-void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
+template <MacroAssembler::StoreLRMode lr_mode>
+void MacroAssembler::Push(const Register& src0, const VRegister& src1) {
   DCHECK_IMPLIES((lr_mode == kSignLR), ((src0 == lr) || (src1 == lr)));
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), ((src0 != lr) && (src1 != lr)));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
@@ -1158,8 +1345,8 @@ void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
   str(src0, MemOperand(sp, src1.SizeInBytes()));
 }
 
-template <TurboAssembler::LoadLRMode lr_mode>
-void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
+template <MacroAssembler::LoadLRMode lr_mode>
+void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
                          const CPURegister& dst2, const CPURegister& dst3) {
   // It is not valid to pop into the same register more than once in one
   // instruction, not even into the zero register.
@@ -1185,8 +1372,8 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 #endif
 }
 
-template <TurboAssembler::StoreLRMode lr_mode>
-void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
+template <MacroAssembler::StoreLRMode lr_mode>
+void MacroAssembler::Poke(const CPURegister& src, const Operand& offset) {
   DCHECK_IMPLIES((lr_mode == kSignLR), (src == lr));
   DCHECK_IMPLIES((lr_mode == kDontStoreLR), (src != lr));
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
@@ -1197,7 +1384,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
 
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (emit_debug_code()) {
+  } else if (v8_flags.debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
@@ -1205,11 +1392,11 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
   Str(src, MemOperand(sp, offset));
 }
 
-template <TurboAssembler::LoadLRMode lr_mode>
-void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
+template <MacroAssembler::LoadLRMode lr_mode>
+void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
     DCHECK_GE(offset.ImmediateValue(), 0);
-  } else if (emit_debug_code()) {
+  } else if (v8_flags.debug_code) {
     Cmp(xzr, offset);
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
@@ -1225,76 +1412,7 @@ void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
 #endif
 }
 
-template <TurboAssembler::StoreLRMode lr_mode>
-void TurboAssembler::PushCPURegList(CPURegList registers) {
-  DCHECK_IMPLIES((lr_mode == kDontStoreLR), !registers.IncludesAliasOf(lr));
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  if (lr_mode == kSignLR && registers.IncludesAliasOf(lr)) {
-    Pacibsp();
-  }
-#endif
-
-  int size = registers.RegisterSizeInBytes();
-  DCHECK_EQ(0, (size * registers.Count()) % 16);
-
-  // Push up to four registers at a time.
-  while (!registers.IsEmpty()) {
-    int count_before = registers.Count();
-    const CPURegister& src0 = registers.PopHighestIndex();
-    const CPURegister& src1 = registers.PopHighestIndex();
-    const CPURegister& src2 = registers.PopHighestIndex();
-    const CPURegister& src3 = registers.PopHighestIndex();
-    int count = count_before - registers.Count();
-    PushHelper(count, size, src0, src1, src2, src3);
-  }
-}
-
-template <TurboAssembler::LoadLRMode lr_mode>
-void TurboAssembler::PopCPURegList(CPURegList registers) {
-  int size = registers.RegisterSizeInBytes();
-  DCHECK_EQ(0, (size * registers.Count()) % 16);
-
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  bool contains_lr = registers.IncludesAliasOf(lr);
-  DCHECK_IMPLIES((lr_mode == kDontLoadLR), !contains_lr);
-#endif
-
-  // Pop up to four registers at a time.
-  while (!registers.IsEmpty()) {
-    int count_before = registers.Count();
-    const CPURegister& dst0 = registers.PopLowestIndex();
-    const CPURegister& dst1 = registers.PopLowestIndex();
-    const CPURegister& dst2 = registers.PopLowestIndex();
-    const CPURegister& dst3 = registers.PopLowestIndex();
-    int count = count_before - registers.Count();
-    PopHelper(count, size, dst0, dst1, dst2, dst3);
-  }
-
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  if (lr_mode == kAuthLR && contains_lr) {
-    Autibsp();
-  }
-#endif
-}
-
-void TurboAssembler::Push(Handle<HeapObject> handle) {
-  UseScratchRegisterScope temps(this);
-  Register tmp = temps.AcquireX();
-  Mov(tmp, Operand(handle));
-  // This is only used in test-heap.cc, for generating code that is not
-  // executed. Push a padding slot together with the handle here, to
-  // satisfy the alignment requirement.
-  Push(padreg, tmp);
-}
-
-void TurboAssembler::Push(Smi smi) {
-  UseScratchRegisterScope temps(this);
-  Register tmp = temps.AcquireX();
-  Mov(tmp, Operand(smi));
-  Push(tmp);
-}
-
-void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
+void MacroAssembler::Claim(int64_t count, uint64_t unit_size) {
   DCHECK_GE(count, 0);
   uint64_t size = count * unit_size;
 
@@ -1302,7 +1420,7 @@ void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
     return;
   }
   DCHECK_EQ(size % 16, 0);
-#if V8_OS_WIN
+#ifdef V8_TARGET_OS_WIN
   while (size > kStackPageSize) {
     Sub(sp, sp, kStackPageSize);
     Str(xzr, MemOperand(sp));
@@ -1312,7 +1430,8 @@ void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
   Sub(sp, sp, size);
 }
 
-void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
+void MacroAssembler::Claim(const Register& count, uint64_t unit_size,
+                           bool assume_sp_aligned) {
   if (unit_size == 0) return;
   DCHECK(base::bits::IsPowerOfTwo(unit_size));
 
@@ -1324,7 +1443,7 @@ void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
   }
   AssertPositiveOrZero(count);
 
-#if V8_OS_WIN
+#ifdef V8_TARGET_OS_WIN
   // "Functions that allocate 4k or more worth of stack must ensure that each
   // page prior to the final page is touched in order." Source:
   // https://docs.microsoft.com/en-us/cpp/build/arm64-windows-abi-conventions?view=vs-2019#stack
@@ -1340,7 +1459,13 @@ void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
   Bind(&touch_next_page);
   Sub(sp, sp, kStackPageSize);
   // Just to touch the page, before we increment further.
-  Str(xzr, MemOperand(sp));
+  if (assume_sp_aligned) {
+    Str(xzr, MemOperand(sp));
+  } else {
+    Register sp_copy = temps.AcquireX();
+    Mov(sp_copy, sp);
+    Str(xzr, MemOperand(sp_copy));
+  }
   Sub(bytes_scratch, bytes_scratch, kStackPageSize);
 
   Bind(&check_offset);
@@ -1353,7 +1478,7 @@ void TurboAssembler::Claim(const Register& count, uint64_t unit_size) {
 #endif
 }
 
-void TurboAssembler::Drop(int64_t count, uint64_t unit_size) {
+void MacroAssembler::Drop(int64_t count, uint64_t unit_size) {
   DCHECK_GE(count, 0);
   uint64_t size = count * unit_size;
 
@@ -1365,7 +1490,7 @@ void TurboAssembler::Drop(int64_t count, uint64_t unit_size) {
   DCHECK_EQ(size % 16, 0);
 }
 
-void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
+void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
   if (unit_size == 0) return;
   DCHECK(base::bits::IsPowerOfTwo(unit_size));
 
@@ -1380,50 +1505,51 @@ void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
   Add(sp, sp, size);
 }
 
-void TurboAssembler::DropArguments(const Register& count,
-                                   ArgumentsCountMode mode) {
-  int extra_slots = 1;  // Padding slot.
-  if (mode == kCountExcludesReceiver) {
-    // Add a slot for the receiver.
-    ++extra_slots;
-  }
+void MacroAssembler::DropArguments(const Register& count, int extra_slots) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
-  Add(tmp, count, extra_slots);
+  Add(tmp, count, extra_slots + 1);  // +1 is for rounding the count up to 2.
   Bic(tmp, tmp, 1);
   Drop(tmp, kXRegSize);
 }
 
-void TurboAssembler::DropArguments(int64_t count, ArgumentsCountMode mode) {
-  if (mode == kCountExcludesReceiver) {
-    // Add a slot for the receiver.
-    ++count;
-  }
+void MacroAssembler::DropArguments(int64_t count) {
   Drop(RoundUp(count, 2), kXRegSize);
 }
 
-void TurboAssembler::DropSlots(int64_t count) {
+void MacroAssembler::DropSlots(int64_t count) {
   Drop(RoundUp(count, 2), kXRegSize);
 }
 
-void TurboAssembler::PushArgument(const Register& arg) { Push(padreg, arg); }
+void MacroAssembler::PushArgument(const Register& arg) { Push(padreg, arg); }
 
-void TurboAssembler::CompareAndBranch(const Register& lhs, const Operand& rhs,
+void MacroAssembler::CompareAndBranch(const Register& lhs, const Operand& rhs,
                                       Condition cond, Label* label) {
-  if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0) &&
-      ((cond == eq) || (cond == ne))) {
-    if (cond == eq) {
-      Cbz(lhs, label);
-    } else {
-      Cbnz(lhs, label);
+  if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0)) {
+    switch (cond) {
+      case eq:
+      case ls:
+        Cbz(lhs, label);
+        return;
+      case lt:
+        Tbnz(lhs, lhs.SizeInBits() - 1, label);
+        return;
+      case ge:
+        Tbz(lhs, lhs.SizeInBits() - 1, label);
+        return;
+      case ne:
+      case hi:
+        Cbnz(lhs, label);
+        return;
+      default:
+        break;
     }
-  } else {
-    Cmp(lhs, rhs);
-    B(cond, label);
   }
+  Cmp(lhs, rhs);
+  B(cond, label);
 }
 
-void TurboAssembler::CompareTaggedAndBranch(const Register& lhs,
+void MacroAssembler::CompareTaggedAndBranch(const Register& lhs,
                                             const Operand& rhs, Condition cond,
                                             Label* label) {
   if (COMPRESS_POINTERS_BOOL) {
@@ -1433,7 +1559,7 @@ void TurboAssembler::CompareTaggedAndBranch(const Register& lhs,
   }
 }
 
-void TurboAssembler::TestAndBranchIfAnySet(const Register& reg,
+void MacroAssembler::TestAndBranchIfAnySet(const Register& reg,
                                            const uint64_t bit_pattern,
                                            Label* label) {
   int bits = reg.SizeInBits();
@@ -1446,7 +1572,7 @@ void TurboAssembler::TestAndBranchIfAnySet(const Register& reg,
   }
 }
 
-void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
+void MacroAssembler::TestAndBranchIfAllClear(const Register& reg,
                                              const uint64_t bit_pattern,
                                              Label* label) {
   int bits = reg.SizeInBits();
@@ -1458,6 +1584,33 @@ void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
     B(eq, label);
   }
 }
+
+#define MINMAX(V)         \
+  V(Smax, smax, is_int8)  \
+  V(Smin, smin, is_int8)  \
+  V(Umax, umax, is_uint8) \
+  V(Umin, umin, is_uint8)
+
+#define DEFINE_MASM_FUNC(MASM, ASM, RANGE)                          \
+  void MacroAssembler::MASM(const Register& rd, const Register& rn, \
+                            const Operand& op) {                    \
+    DCHECK(allow_macro_instructions());                             \
+    DCHECK(!rd.IsZero());                                           \
+    if (op.IsImmediate()) {                                         \
+      int64_t imm = op.ImmediateValue();                            \
+      if (!RANGE(imm)) {                                            \
+        UseScratchRegisterScope temps(this);                        \
+        Register temp = temps.AcquireSameSizeAs(rd);                \
+        Mov(temp, imm);                                             \
+        MASM(rd, rn, temp);                                         \
+        return;                                                     \
+      }                                                             \
+    }                                                               \
+    ASM(rd, rn, op);                                                \
+  }
+MINMAX(DEFINE_MASM_FUNC)
+#undef DEFINE_MASM_FUNC
+#undef MINMAX
 
 }  // namespace internal
 }  // namespace v8

@@ -4,7 +4,7 @@ const PORT = common.PORT;
 
 const cluster = require('cluster');
 let bench;
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   bench = common.createBenchmark(main, {
     // Unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
@@ -34,7 +34,7 @@ function main({ type, len, c, duration }) {
       bench.http({
         path: path,
         connections: c,
-        duration
+        duration,
       }, () => {
         w1.destroy();
         w2.destroy();

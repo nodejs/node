@@ -15,37 +15,38 @@ namespace v8 {
 namespace internal {
 
 void MathRandom::InitializeContext(Isolate* isolate,
-                                   Handle<Context> native_context) {
-  Handle<FixedDoubleArray> cache = Handle<FixedDoubleArray>::cast(
+                                   DirectHandle<Context> native_context) {
+  auto cache = Cast<FixedDoubleArray>(
       isolate->factory()->NewFixedDoubleArray(kCacheSize));
   for (int i = 0; i < kCacheSize; i++) cache->set(i, 0);
   native_context->set_math_random_cache(*cache);
-  Handle<PodArray<State>> pod =
+  DirectHandle<PodArray<State>> pod =
       PodArray<State>::New(isolate, 1, AllocationType::kOld);
   native_context->set_math_random_state(*pod);
   ResetContext(*native_context);
 }
 
-void MathRandom::ResetContext(Context native_context) {
-  native_context.set_math_random_index(Smi::zero());
+void MathRandom::ResetContext(Tagged<Context> native_context) {
+  native_context->set_math_random_index(Smi::zero());
   State state = {0, 0};
-  PodArray<State>::cast(native_context.math_random_state()).set(0, state);
+  Cast<PodArray<State>>(native_context->math_random_state())->set(0, state);
 }
 
 Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
-  Context native_context = Context::cast(Object(raw_native_context));
-  DisallowHeapAllocation no_gc;
-  PodArray<State> pod =
-      PodArray<State>::cast(native_context.math_random_state());
-  State state = pod.get(0);
+  Tagged<Context> native_context =
+      Cast<Context>(Tagged<Object>(raw_native_context));
+  DisallowGarbageCollection no_gc;
+  Tagged<PodArray<State>> pod =
+      Cast<PodArray<State>>(native_context->math_random_state());
+  State state = pod->get(0);
   // Initialize state if not yet initialized. If a fixed random seed was
   // requested, use it to reset our state the first time a script asks for
   // random numbers in this context. This ensures the script sees a consistent
   // sequence.
   if (state.s0 == 0 && state.s1 == 0) {
     uint64_t seed;
-    if (FLAG_random_seed != 0) {
-      seed = FLAG_random_seed;
+    if (v8_flags.random_seed != 0) {
+      seed = v8_flags.random_seed;
     } else {
       isolate->random_number_generator()->NextBytes(&seed, sizeof(seed));
     }
@@ -54,18 +55,19 @@ Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
     CHECK(state.s0 != 0 || state.s1 != 0);
   }
 
-  FixedDoubleArray cache =
-      FixedDoubleArray::cast(native_context.math_random_cache());
+  Tagged<FixedDoubleArray> cache =
+      Cast<FixedDoubleArray>(native_context->math_random_cache());
   // Create random numbers.
   for (int i = 0; i < kCacheSize; i++) {
     // Generate random numbers using xorshift128+.
-    base::RandomNumberGenerator::XorShift128(&state.s0, &state.s1);
-    cache.set(i, base::RandomNumberGenerator::ToDouble(state.s0));
+    uint64_t random =
+        base::RandomNumberGenerator::XorShift128(&state.s0, &state.s1);
+    cache->set(i, base::RandomNumberGenerator::ToDouble(random));
   }
-  pod.set(0, state);
+  pod->set(0, state);
 
-  Smi new_index = Smi::FromInt(kCacheSize);
-  native_context.set_math_random_index(new_index);
+  Tagged<Smi> new_index = Smi::FromInt(kCacheSize);
+  native_context->set_math_random_index(new_index);
   return new_index.ptr();
 }
 

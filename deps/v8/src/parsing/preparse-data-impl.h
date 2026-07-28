@@ -17,18 +17,28 @@ namespace internal {
 // a header for tests.
 
 // Wraps a ZoneVector<uint8_t> to have with functions named the same as
-// PodArray<uint8_t>.
+// Tagged<PodArray<uint8_t>>.
 class ZoneVectorWrapper {
  public:
+  class Inner {
+   public:
+    Inner() = default;
+    explicit Inner(ZoneVector<uint8_t>* data) : data_(data) {}
+
+    int data_length() const { return static_cast<int>(data_->size()); }
+    uint8_t get(int index) const { return data_->at(index); }
+
+   private:
+    ZoneVector<uint8_t>* data_ = nullptr;
+  };
+
   ZoneVectorWrapper() = default;
-  explicit ZoneVectorWrapper(ZoneVector<uint8_t>* data) : data_(data) {}
+  explicit ZoneVectorWrapper(ZoneVector<uint8_t>* data) : inner_(data) {}
 
-  int data_length() const { return static_cast<int>(data_->size()); }
-
-  uint8_t get(int index) const { return data_->at(index); }
+  const Inner* operator->() const { return &inner_; }
 
  private:
-  ZoneVector<uint8_t>* data_ = nullptr;
+  Inner inner_;
 };
 
 template <class Data>
@@ -37,9 +47,9 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   class ByteData : public PreparseByteDataConstants {
    public:
     // Reading from the ByteData is only allowed when a ReadingScope is on the
-    // stack. This ensures that we have a DisallowHeapAllocation in place
+    // stack. This ensures that we have a DisallowGarbageCollection in place
     // whenever ByteData holds a raw pointer into the heap.
-    class ReadingScope {
+    class V8_NODISCARD ReadingScope {
      public:
       ReadingScope(ByteData* consumed_data, Data data)
           : consumed_data_(consumed_data) {
@@ -58,33 +68,33 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
      private:
       ByteData* consumed_data_;
-      DISALLOW_HEAP_ALLOCATION(no_gc)
+      DISALLOW_GARBAGE_COLLECTION(no_gc)
     };
 
     void SetPosition(int position) {
-      DCHECK_LE(position, data_.data_length());
+      DCHECK_LE(position, data_->data_length());
       index_ = position;
     }
 
     size_t RemainingBytes() const {
       DCHECK(has_data_);
-      DCHECK_LE(index_, data_.data_length());
-      return data_.data_length() - index_;
+      DCHECK_LE(index_, data_->data_length());
+      return data_->data_length() - index_;
     }
 
     bool HasRemainingBytes(size_t bytes) const {
       DCHECK(has_data_);
-      return index_ <= data_.data_length() && bytes <= RemainingBytes();
+      return index_ <= data_->data_length() && bytes <= RemainingBytes();
     }
 
     int32_t ReadUint32() {
       DCHECK(has_data_);
       DCHECK(HasRemainingBytes(kUint32Size));
       // Check that there indeed is an integer following.
-      DCHECK_EQ(data_.get(index_++), kUint32Size);
-      int32_t result = data_.get(index_) + (data_.get(index_ + 1) << 8) +
-                       (data_.get(index_ + 2) << 16) +
-                       (data_.get(index_ + 3) << 24);
+      DCHECK_EQ(data_->get(index_++), kUint32Size);
+      int32_t result = data_->get(index_) + (data_->get(index_ + 1) << 8) +
+                       (data_->get(index_ + 2) << 16) +
+                       (data_->get(index_ + 3) << 24);
       index_ += 4;
       stored_quarters_ = 0;
       return result;
@@ -92,17 +102,17 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
     int32_t ReadVarint32() {
       DCHECK(HasRemainingBytes(kVarint32MinSize));
-      DCHECK_EQ(data_.get(index_++), kVarint32MinSize);
+      DCHECK_EQ(data_->get(index_++), kVarint32MinSize);
       int32_t value = 0;
       bool has_another_byte;
       unsigned shift = 0;
       do {
-        uint8_t byte = data_.get(index_++);
+        uint8_t byte = data_->get(index_++);
         value |= static_cast<int32_t>(byte & 0x7F) << shift;
         shift += 7;
         has_another_byte = byte & 0x80;
       } while (has_another_byte);
-      DCHECK_EQ(data_.get(index_++), kVarint32EndMarker);
+      DCHECK_EQ(data_->get(index_++), kVarint32EndMarker);
       stored_quarters_ = 0;
       return value;
     }
@@ -111,9 +121,9 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
       DCHECK(has_data_);
       DCHECK(HasRemainingBytes(kUint8Size));
       // Check that there indeed is a byte following.
-      DCHECK_EQ(data_.get(index_++), kUint8Size);
+      DCHECK_EQ(data_->get(index_++), kUint8Size);
       stored_quarters_ = 0;
-      return data_.get(index_++);
+      return data_->get(index_++);
     }
 
     uint8_t ReadQuarter() {
@@ -121,8 +131,8 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
       if (stored_quarters_ == 0) {
         DCHECK(HasRemainingBytes(kUint8Size));
         // Check that there indeed are quarters following.
-        DCHECK_EQ(data_.get(index_++), kQuarterMarker);
-        stored_byte_ = data_.get(index_++);
+        DCHECK_EQ(data_->get(index_++), kQuarterMarker);
+        stored_byte_ = data_->get(index_++);
         stored_quarters_ = 4;
       }
       // Read the first 2 bits from stored_byte_.
@@ -144,6 +154,8 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   };
 
   BaseConsumedPreparseData() : scope_data_(new ByteData()), child_index_(0) {}
+  BaseConsumedPreparseData(const BaseConsumedPreparseData&) = delete;
+  BaseConsumedPreparseData& operator=(const BaseConsumedPreparseData&) = delete;
 
   virtual Data GetScopeData() = 0;
 
@@ -174,29 +186,31 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   // When consuming the data, these indexes point to the data we're going to
   // consume next.
   int child_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(BaseConsumedPreparseData);
 };
 
 // Implementation of ConsumedPreparseData for on-heap data.
 class OnHeapConsumedPreparseData final
-    : public BaseConsumedPreparseData<PreparseData> {
+    : public BaseConsumedPreparseData<Tagged<PreparseData>> {
  public:
-  OnHeapConsumedPreparseData(Isolate* isolate, Handle<PreparseData> data);
+  OnHeapConsumedPreparseData(LocalIsolate* isolate, Handle<PreparseData> data);
 
-  PreparseData GetScopeData() final;
+  Tagged<PreparseData> GetScopeData() final;
   ProducedPreparseData* GetChildData(Zone* zone, int child_index) final;
 
  private:
-  Isolate* isolate_;
+  LocalIsolate* isolate_;
   Handle<PreparseData> data_;
 };
 
 // A serialized PreparseData in zone memory (as apposed to being on-heap).
 class ZonePreparseData : public ZoneObject {
  public:
-  V8_EXPORT_PRIVATE ZonePreparseData(Zone* zone, Vector<uint8_t>* byte_data,
+  V8_EXPORT_PRIVATE ZonePreparseData(Zone* zone,
+                                     base::Vector<uint8_t>* byte_data,
                                      int child_length);
+
+  ZonePreparseData(const ZonePreparseData&) = delete;
+  ZonePreparseData& operator=(const ZonePreparseData&) = delete;
 
   Handle<PreparseData> Serialize(Isolate* isolate);
   Handle<PreparseData> Serialize(LocalIsolate* isolate);
@@ -215,8 +229,6 @@ class ZonePreparseData : public ZoneObject {
  private:
   ZoneVector<uint8_t> byte_data_;
   ZoneVector<ZonePreparseData*> children_;
-
-  DISALLOW_COPY_AND_ASSIGN(ZonePreparseData);
 };
 
 ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(

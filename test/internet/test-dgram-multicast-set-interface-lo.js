@@ -25,7 +25,7 @@ const networkInterfaces = require('os').networkInterfaces();
 const fork = require('child_process').fork;
 const MULTICASTS = {
   IPv4: ['224.0.0.115', '224.0.0.116', '224.0.0.117'],
-  IPv6: ['ff02::1:115', 'ff02::1:116', 'ff02::1:117']
+  IPv6: ['ff02::1:115', 'ff02::1:116', 'ff02::1:117'],
 };
 const LOOPBACK = { IPv4: '127.0.0.1', IPv6: '::1' };
 const ANY = { IPv4: '0.0.0.0', IPv6: '::' };
@@ -70,7 +70,7 @@ const messages = [
   { tail: 'Fourth message to send', mcast: MULTICASTS[FAM][2] },
   { tail: 'Fifth message to send', mcast: MULTICASTS[FAM][1], rcv: true },
   { tail: 'Sixth message to send', mcast: MULTICASTS[FAM][2], rcv: true,
-    newAddr: LOOPBACK[FAM] }
+    newAddr: LOOPBACK[FAM] },
 ];
 
 
@@ -144,7 +144,7 @@ if (process.argv[2] !== 'child') {
       }
     });
 
-    worker.on('message', (msg) => {
+    worker.on('message', common.mustCallAtLeast((msg) => {
       if (msg.listening) {
         listening += 1;
 
@@ -168,7 +168,7 @@ if (process.argv[2] !== 'child') {
                         'required number of ' +
                         'messages. Will now compare.');
 
-          Object.keys(workers).forEach((pid) => {
+          for (const pid of Object.keys(workers)) {
             const worker = workers[pid];
 
             let count = 0;
@@ -189,19 +189,19 @@ if (process.argv[2] !== 'child') {
             assert.strictEqual(count, worker.messagesNeeded.length,
                                'A worker received ' +
                                'an invalid multicast message');
-          });
+          }
 
           clearTimeout(timer);
           console.error('[PARENT] Success');
           killSubprocesses(workers);
         }
       }
-    });
+    }));
   }
 
   const sendSocket = dgram.createSocket({
     type: UDP[FAM],
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   // Don't bind the address explicitly when sending and start with
@@ -234,14 +234,13 @@ if (process.argv[2] !== 'child') {
       buf.length,
       PORTS[msg.mcast],
       msg.mcast,
-      (err) => {
-        assert.ifError(err);
+      common.mustSucceed(() => {
         console.error('[PARENT] sent %s to %s:%s',
                       util.inspect(buf.toString()),
                       msg.mcast, PORTS[msg.mcast]);
 
         process.nextTick(sendSocket.sendNext);
-      }
+      }),
     );
   };
 }
@@ -256,7 +255,7 @@ if (process.argv[2] === 'child') {
   console.error(`pid ${process.pid} iface ${IFACE} MULTICAST ${MULTICAST}`);
   const listenSocket = dgram.createSocket({
     type: UDP[FAM],
-    reuseAddr: true
+    reuseAddr: true,
   });
 
   listenSocket.on('message', (buf, rinfo) => {

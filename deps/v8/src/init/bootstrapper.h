@@ -5,10 +5,14 @@
 #ifndef V8_INIT_BOOTSTRAPPER_H_
 #define V8_INIT_BOOTSTRAPPER_H_
 
+#include "include/v8-context.h"
+#include "include/v8-local-handle.h"
+#include "include/v8-snapshot.h"
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/visitors.h"
+#include "src/snapshot/serializer-deserializer.h"
 
 namespace v8 {
 namespace internal {
@@ -19,27 +23,31 @@ namespace internal {
 class SourceCodeCache final {
  public:
   explicit SourceCodeCache(Script::Type type) : type_(type) {}
+  SourceCodeCache(const SourceCodeCache&) = delete;
+  SourceCodeCache& operator=(const SourceCodeCache&) = delete;
 
   void Initialize(Isolate* isolate, bool create_heap_objects);
 
   void Iterate(RootVisitor* v);
 
-  bool Lookup(Isolate* isolate, Vector<const char> name,
-              Handle<SharedFunctionInfo>* handle);
+  bool Lookup(Isolate* isolate, base::Vector<const char> name,
+              DirectHandle<SharedFunctionInfo>* handle);
 
-  void Add(Isolate* isolate, Vector<const char> name,
-           Handle<SharedFunctionInfo> shared);
+  void Add(Isolate* isolate, base::Vector<const char> name,
+           DirectHandle<SharedFunctionInfo> shared);
 
  private:
   Script::Type type_;
-  FixedArray cache_;
-  DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
+  Tagged<FixedArray> cache_;
 };
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
 class Bootstrapper final {
  public:
+  Bootstrapper(const Bootstrapper&) = delete;
+  Bootstrapper& operator=(const Bootstrapper&) = delete;
+
   static void InitializeOncePerProcess();
 
   // Requires: Heap::SetUp has been called.
@@ -48,33 +56,30 @@ class Bootstrapper final {
 
   // Creates a JavaScript Global Context with initial object graph.
   // The returned value is a global handle casted to V8Environment*.
-  Handle<Context> CreateEnvironment(
-      MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+  DirectHandle<NativeContext> CreateEnvironment(
+      MaybeDirectHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+      DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       v8::MicrotaskQueue* microtask_queue);
 
   // Used for testing context deserialization. No code runs in the generated
   // context. It only needs to pass heap verification.
-  Handle<Context> CreateEnvironmentForTesting() {
-    MaybeHandle<JSGlobalProxy> no_global_proxy;
+  DirectHandle<NativeContext> CreateEnvironmentForTesting() {
+    MaybeDirectHandle<JSGlobalProxy> no_global_proxy;
     v8::Local<v8::ObjectTemplate> no_global_object_template;
     ExtensionConfiguration no_extensions;
     static constexpr int kDefaultContextIndex = 0;
-    v8::DeserializeEmbedderFieldsCallback no_callback;
+    DeserializeEmbedderFieldsCallback no_callback;
     v8::MicrotaskQueue* no_microtask_queue = nullptr;
     return CreateEnvironment(no_global_proxy, no_global_object_template,
                              &no_extensions, kDefaultContextIndex, no_callback,
                              no_microtask_queue);
   }
 
-  Handle<JSGlobalProxy> NewRemoteContext(
-      MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+  DirectHandle<JSGlobalProxy> NewRemoteContext(
+      MaybeDirectHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template);
-
-  // Detach the environment from its outer global object.
-  void DetachGlobal(Handle<Context> env);
 
   // Traverses the pointers for memory management.
   void Iterate(RootVisitor* v);
@@ -89,7 +94,7 @@ class Bootstrapper final {
   void FreeThreadResources();
 
   // Used for new context creation.
-  bool InstallExtensions(Handle<Context> native_context,
+  bool InstallExtensions(DirectHandle<NativeContext> native_context,
                          v8::ExtensionConfiguration* extensions);
 
   SourceCodeCache* extensions_cache() { return &extensions_cache_; }
@@ -108,8 +113,6 @@ class Bootstrapper final {
   friend class NativesExternalStringResource;
 
   explicit Bootstrapper(Isolate* isolate);
-
-  DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
 };
 
 class BootstrapperActive final {
@@ -118,14 +121,26 @@ class BootstrapperActive final {
       : bootstrapper_(bootstrapper) {
     ++bootstrapper_->nesting_;
   }
+  BootstrapperActive(const BootstrapperActive&) = delete;
+  BootstrapperActive& operator=(const BootstrapperActive&) = delete;
 
   ~BootstrapperActive() { --bootstrapper_->nesting_; }
 
  private:
   Bootstrapper* bootstrapper_;
-
-  DISALLOW_COPY_AND_ASSIGN(BootstrapperActive);
 };
+
+// Exposed for Wasm bootstrapping.
+V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
+    Isolate* isolate, DirectHandle<JSObject> base, const char* name,
+    Builtin call, int len, AdaptArguments adapt,
+    PropertyAttributes attrs = DONT_ENUM);
+
+// Exposed for Wasm bootstrapping.
+V8_NOINLINE void InstallError(
+    Isolate* isolate, DirectHandle<JSObject> global, DirectHandle<String> name,
+    int context_index, Builtin error_constructor = Builtin::kErrorConstructor,
+    int error_function_length = 1);
 
 }  // namespace internal
 }  // namespace v8

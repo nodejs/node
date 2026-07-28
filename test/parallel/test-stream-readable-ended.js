@@ -7,21 +7,21 @@ const assert = require('assert');
 // basic
 {
   // Find it on Readable.prototype
-  assert(Readable.prototype.hasOwnProperty('readableEnded'));
+  assert(Object.hasOwn(Readable.prototype, 'readableEnded'));
 }
 
 // event
 {
   const readable = new Readable();
 
-  readable._read = () => {
+  readable._read = common.mustCall(() => {
     // The state ended should start in false.
     assert.strictEqual(readable.readableEnded, false);
     readable.push('asd');
     assert.strictEqual(readable.readableEnded, false);
     readable.push(null);
     assert.strictEqual(readable.readableEnded, false);
-  };
+  });
 
   readable.on('end', common.mustCall(() => {
     assert.strictEqual(readable.readableEnded, true);

@@ -18,13 +18,19 @@ Register JavaScriptFrame::fp_register() { return ebp; }
 Register JavaScriptFrame::context_register() { return esi; }
 Register JavaScriptFrame::constant_pool_pointer_register() { UNREACHABLE(); }
 
-int InterpreterFrameConstants::RegisterStackSlotCount(int register_count) {
+int UnoptimizedFrameConstants::RegisterStackSlotCount(int register_count) {
   return register_count;
 }
 
 int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
   USE(register_count);
   return 0;
+}
+
+// static
+intptr_t MaglevFrame::StackGuardFrameSize(int register_input_count) {
+  USE(register_input_count);
+  UNREACHABLE();
 }
 
 }  // namespace internal

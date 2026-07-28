@@ -39,6 +39,8 @@ const invalidArgTypeError = {
   name: 'TypeError'
 };
 
+const invalidRangeError = { code: 'ERR_OUT_OF_RANGE', name: 'RangeError' };
+
 assert.throws(function() {
   spawn(invalidcmd, 'this is not an array');
 }, invalidArgTypeError);
@@ -77,11 +79,11 @@ assert.throws(function() {
 
 assert.throws(function() {
   spawn(cmd, [], { uid: 2 ** 63 });
-}, invalidArgTypeError);
+}, invalidRangeError);
 
 assert.throws(function() {
   spawn(cmd, [], { gid: 2 ** 63 });
-}, invalidArgTypeError);
+}, invalidRangeError);
 
 // Argument types for combinatorics.
 const a = [];
@@ -106,10 +108,10 @@ spawn(cmd, u, o);
 spawn(cmd, n, o);
 spawn(cmd, a, u);
 
-assert.throws(function() { spawn(cmd, a, n); }, invalidArgTypeError);
-
-assert.throws(function() { spawn(cmd, s); }, invalidArgTypeError);
-assert.throws(function() { spawn(cmd, a, s); }, invalidArgTypeError);
+assert.throws(() => { spawn(cmd, a, n); }, invalidArgTypeError);
+assert.throws(() => { spawn(cmd, s); }, invalidArgTypeError);
+assert.throws(() => { spawn(cmd, a, s); }, invalidArgTypeError);
+assert.throws(() => { spawn(cmd, a, a); }, invalidArgTypeError);
 
 
 // Verify that execFile has same argument parsing behavior as spawn.
@@ -158,17 +160,18 @@ execFile(cmd, c, n);
 // String is invalid in arg position (this may seem strange, but is
 // consistent across node API, cf. `net.createServer('not options', 'not
 // callback')`.
-assert.throws(function() { execFile(cmd, s, o, c); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, a, s, c); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, a, o, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, a, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, o, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, u, u, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, n, n, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, a, u, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, a, n, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, u, o, s); }, invalidArgValueError);
-assert.throws(function() { execFile(cmd, n, o, s); }, invalidArgValueError);
+assert.throws(() => { execFile(cmd, s, o, c); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, a, s, c); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, a, o, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, a, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, o, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, u, u, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, n, n, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, a, u, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, a, n, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, u, o, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, n, o, s); }, invalidArgTypeError);
+assert.throws(() => { execFile(cmd, a, a); }, invalidArgTypeError);
 
 execFile(cmd, c, s); // Should not throw.
 
@@ -190,5 +193,6 @@ fork(empty, n, n);
 fork(empty, n, o);
 fork(empty, a, n);
 
-assert.throws(function() { fork(empty, s); }, invalidArgValueError);
-assert.throws(function() { fork(empty, a, s); }, invalidArgValueError);
+assert.throws(() => { fork(empty, s); }, invalidArgTypeError);
+assert.throws(() => { fork(empty, a, s); }, invalidArgTypeError);
+assert.throws(() => { fork(empty, a, a); }, invalidArgTypeError);

@@ -45,7 +45,6 @@ static int uv__signal_start(uv_signal_t* handle,
                             uv_signal_cb signal_cb,
                             int signum,
                             int oneshot);
-static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);
 static void uv__signal_unregister_handler(int signum);
@@ -195,7 +194,7 @@ static void uv__signal_handler(int signum) {
 
   for (handle = uv__signal_first_handle(signum);
        handle != NULL && handle->signum == signum;
-       handle = RB_NEXT(uv__signal_tree_s, &uv__signal_tree, handle)) {
+       handle = RB_NEXT(uv__signal_tree_s, handle)) {
     int r;
 
     msg.signum = signum;
@@ -259,46 +258,69 @@ static void uv__signal_unregister_handler(int signum) {
 
 
 static int uv__signal_loop_once_init(uv_loop_t* loop) {
+  int* pipefd;
   int err;
 
   /* Return if already initialized. */
-  if (loop->signal_pipefd[0] != -1)
+  pipefd = loop->signal_pipefd;
+  if (pipefd[0] != -1)
     return 0;
 
-  err = uv__make_pipe(loop->signal_pipefd, UV__F_NONBLOCK);
+  err = uv__make_pipe(pipefd, UV_NONBLOCK_PIPE);
   if (err)
     return err;
 
-  uv__io_init(&loop->signal_io_watcher,
-              uv__signal_event,
-              loop->signal_pipefd[0]);
-  uv__io_start(loop, &loop->signal_io_watcher, POLLIN);
+  err = uv__io_init_start(loop, &loop->signal_io_watcher, UV__SIGNAL_EVENT,
+                          pipefd[0], POLLIN);
+  if (err) {
+    uv__close(pipefd[0]);
+    uv__close(pipefd[1]);
+    pipefd[0] = -1;
+    pipefd[1] = -1;
+  }
 
-  return 0;
+  return err;
 }
 
 
 int uv__signal_loop_fork(uv_loop_t* loop) {
+  struct uv__queue* q;
+
+  if (loop->signal_pipefd[0] == -1)
+    return 0;
   uv__io_stop(loop, &loop->signal_io_watcher, POLLIN);
   uv__close(loop->signal_pipefd[0]);
   uv__close(loop->signal_pipefd[1]);
   loop->signal_pipefd[0] = -1;
   loop->signal_pipefd[1] = -1;
+
+  uv__queue_foreach(q, &loop->handle_queue) {
+    uv_handle_t* handle = uv__queue_data(q, uv_handle_t, handle_queue);
+    uv_signal_t* sh;
+
+    if (handle->type != UV_SIGNAL)
+      continue;
+
+    sh = (uv_signal_t*) handle;
+    sh->caught_signals = 0;
+    sh->dispatched_signals = 0;
+  }
+
   return uv__signal_loop_once_init(loop);
 }
 
 
 void uv__signal_loop_cleanup(uv_loop_t* loop) {
-  QUEUE* q;
+  struct uv__queue* q;
 
   /* Stop all the signal watchers that are still attached to this loop. This
    * ensures that the (shared) signal tree doesn't contain any invalid entries
    * entries, and that signal handlers are removed when appropriate.
-   * It's safe to use QUEUE_FOREACH here because the handles and the handle
+   * It's safe to use uv__queue_foreach here because the handles and the handle
    * queue are not modified by uv__signal_stop().
    */
-  QUEUE_FOREACH(q, &loop->handle_queue) {
-    uv_handle_t* handle = QUEUE_DATA(q, uv_handle_t, handle_queue);
+  uv__queue_foreach(q, &loop->handle_queue) {
+    uv_handle_t* handle = uv__queue_data(q, uv_handle_t, handle_queue);
 
     if (handle->type == UV_SIGNAL)
       uv__signal_stop((uv_signal_t*) handle);
@@ -413,9 +435,7 @@ static int uv__signal_start(uv_signal_t* handle,
 }
 
 
-static void uv__signal_event(uv_loop_t* loop,
-                             uv__io_t* w,
-                             unsigned int events) {
+void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   uv__signal_msg_t* msg;
   uv_signal_t* handle;
   char buf[sizeof(uv__signal_msg_t) * 32];

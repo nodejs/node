@@ -32,7 +32,7 @@ server.on('stream', (stream) => {
   stream.respondWithFD(fd);
   stream.on('error', errorCheck);
 });
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
 
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
@@ -40,10 +40,11 @@ server.listen(0, () => {
   req.on('response', common.mustCall());
   req.on('error', errorCheck);
   req.on('data', common.mustNotCall());
-  req.on('end', common.mustCall(() => {
+  req.on('end', common.mustNotCall());
+  req.on('close', common.mustCall(() => {
     assert.strictEqual(req.rstCode, NGHTTP2_INTERNAL_ERROR);
     client.close();
     server.close();
   }));
   req.end();
-});
+}));

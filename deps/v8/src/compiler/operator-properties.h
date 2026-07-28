@@ -6,7 +6,6 @@
 #define V8_COMPILER_OPERATOR_PROPERTIES_H_
 
 #include "src/base/macros.h"
-#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -17,6 +16,9 @@ class Operator;
 
 class V8_EXPORT_PRIVATE OperatorProperties final {
  public:
+  OperatorProperties(const OperatorProperties&) = delete;
+  OperatorProperties& operator=(const OperatorProperties&) = delete;
+
   static bool HasContextInput(const Operator* op);
   static int GetContextInputCount(const Operator* op) {
     return HasContextInput(op) ? 1 : 0;
@@ -32,9 +34,6 @@ class V8_EXPORT_PRIVATE OperatorProperties final {
   static int GetTotalInputCount(const Operator* op);
 
   static bool IsBasicBlockBegin(const Operator* op);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(OperatorProperties);
 };
 
 }  // namespace compiler

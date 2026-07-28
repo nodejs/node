@@ -23,12 +23,11 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const { URL } = require('url');
 const f = __filename;
 
-assert.throws(() => fs.exists(f), { code: 'ERR_INVALID_CALLBACK' });
-assert.throws(() => fs.exists(), { code: 'ERR_INVALID_CALLBACK' });
-assert.throws(() => fs.exists(f, {}), { code: 'ERR_INVALID_CALLBACK' });
+assert.throws(() => fs.exists(f), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => fs.exists(), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => fs.exists(f, {}), { code: 'ERR_INVALID_ARG_TYPE' });
 
 fs.exists(f, common.mustCall(function(y) {
   assert.strictEqual(y, true);
@@ -52,6 +51,8 @@ assert(fs.existsSync(f));
 assert(!fs.existsSync(`${f}-NO`));
 
 // fs.existsSync() never throws
+const msg = 'Passing invalid argument types to fs.existsSync is deprecated';
+common.expectWarning('DeprecationWarning', msg, 'DEP0187');
 assert(!fs.existsSync());
 assert(!fs.existsSync({}));
 assert(!fs.existsSync(new URL('https://foo')));

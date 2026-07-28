@@ -269,6 +269,57 @@
                 "protocol": "https:",
                 "port": ""
             }
+        },
+        {
+            "comment": "Tab and newline are stripped",
+            "href": "http://test/",
+            "new_value": "h\u000D\u000Att\u0009ps",
+            "expected": {
+              "href": "https://test/",
+              "protocol": "https:",
+              "port": ""
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000D",
+            "expected": {
+              "href": "https://test/",
+              "protocol": "https:"
+            }
+        },
+        {
+            "comment": "Non-tab/newline C0 controls result in no-op",
+            "href": "http://test/",
+            "new_value": "https\u0000",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000C",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u000E",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
+        },
+        {
+            "href": "http://test/",
+            "new_value": "https\u0020",
+            "expected": {
+              "href": "http://test/",
+              "protocol": "http:"
+            }
         }
     ],
     "username": [
@@ -775,6 +826,17 @@
             }
         },
         {
+            "comment": "Stuff after a ? delimiter is ignored, trailing 'port'",
+            "href": "http://example.net/path",
+            "new_value": "example.com?stuff:8080",
+            "expected": {
+                "href": "http://example.com/path",
+                "host": "example.com",
+                "hostname": "example.com",
+                "port": ""
+            }
+        },
+        {
             "comment": "Stuff after a ? delimiter is ignored",
             "href": "http://example.net/path",
             "new_value": "example.com:8080?stuff",
@@ -870,6 +932,39 @@
                 "href": "http://example.com:8080/path",
                 "host": "example.com:8080",
                 "hostname": "example.com",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Anything other than ASCII digit stops the port parser in a setter but is not an error",
+            "href": "http://example.net:8080",
+            "new_value": "example.com:invalid",
+            "expected": {
+                "href": "http://example.com:8080/",
+                "host": "example.com:8080",
+                "hostname": "example.com",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Anything other than ASCII digit stops the port parser in a setter but is not an error",
+            "href": "http://example.net:8080/test",
+            "new_value": "[::1]:invalid",
+            "expected": {
+                "href": "http://[::1]:8080/test",
+                "host": "[::1]:8080",
+                "hostname": "[::1]",
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "IPv6 without port",
+            "href": "http://example.net:8080/test",
+            "new_value": "[::1]",
+            "expected": {
+                "href": "http://[::1]:8080/test",
+                "host": "[::1]:8080",
+                "hostname": "[::1]",
                 "port": "8080"
             }
         },
@@ -989,6 +1084,125 @@
                 "host": "test:12",
                 "hostname": "test",
                 "port": "12"
+            }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "http://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "http://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "sc://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "*",
+            "expected": {
+                "href": "https://*/",
+                "host": "*",
+                "hostname": "*"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "x@x",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "foo\t\r\nbar",
+            "expected": {
+                "href": "https://foobar/",
+                "host": "foobar",
+                "hostname": "foobar"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "><",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/@aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/:aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
+            }
+        },
+        {
+            "href": "foo://path/to",
+            "new_value": ":80",
+            "expected": {
+                "href": "foo://path/to",
+                "host": "path",
+                "port": ""
             }
         }
     ],
@@ -1153,24 +1367,24 @@
             }
         },
         {
-            "comment": "Stuff after a : delimiter is ignored",
+            "comment": ": delimiter invalidates entire value",
             "href": "http://example.net/path",
             "new_value": "example.com:8080",
             "expected": {
-                "href": "http://example.com/path",
-                "host": "example.com",
-                "hostname": "example.com",
+                "href": "http://example.net/path",
+                "host": "example.net",
+                "hostname": "example.net",
                 "port": ""
             }
         },
         {
-            "comment": "Stuff after a : delimiter is ignored",
+            "comment": ": delimiter invalidates entire value",
             "href": "http://example.net:8080/path",
             "new_value": "example.com:",
             "expected": {
-                "href": "http://example.com:8080/path",
-                "host": "example.com:8080",
-                "hostname": "example.com",
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
                 "port": "8080"
             }
         },
@@ -1345,6 +1559,116 @@
                 "hostname": "",
                 "pathname": "//p"
             }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "http://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "http://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "comment": "Leading / is not stripped",
+            "href": "sc://example.com/",
+            "new_value": "///bad.com",
+            "expected": {
+                "href": "sc:///",
+                "host": "",
+                "hostname": ""
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "a%C2%ADb",
+            "expected": {
+                "href": "https://ab/",
+                "host": "ab",
+                "hostname": "ab"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "\u00AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "%C2%AD",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://example.com/",
+            "new_value": "xn--",
+            "expected": {
+                "href": "https://example.com/",
+                "host": "example.com",
+                "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "*",
+            "expected": {
+                "href": "https://*/",
+                "host": "*",
+                "hostname": "*"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "x@x",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "foo\t\r\nbar",
+            "expected": {
+                "href": "https://foobar/",
+                "host": "foobar",
+                "hostname": "foobar"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "><",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/@aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/:aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
+            }
         }
     ],
     "port": [
@@ -1502,6 +1826,17 @@
             }
         },
         {
+            "comment": "Setting port to a string that doesn't parse as a number",
+            "href": "http://example.net:8080/path",
+            "new_value": "randomstring",
+            "expected": {
+                "href": "http://example.net:8080/path",
+                "host": "example.net:8080",
+                "hostname": "example.net",
+                "port": "8080"
+            }
+        },
+        {
             "comment": "Port numbers are 16 bit integers, overflowing is an error",
             "href": "non-special://example.net:8080/path",
             "new_value": "65536",
@@ -1559,16 +1894,115 @@
                 "href": "javascript://x:12/",
                 "port": "12"
             }
+        },
+        {
+            "comment": "Leading u0009 on special scheme",
+            "href": "https://domain.com:443",
+            "new_value": "\u00098080",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Leading u0009 on non-special scheme",
+            "href": "wpt++://domain.com:443",
+            "new_value": "\u00098080",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "comment": "Should use all ascii prefixed characters as port",
+            "href": "https://www.google.com:4343",
+            "new_value": "4wpt",
+            "expected": {
+                "port": "4"
+            }
+        },
+        {
+            "href": "https://domain.com:3000",
+            "new_value": "\n\t80\n\t80\n\t",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "href": "https://domain.com:3000",
+            "new_value": "\n\n\t\t",
+            "expected": {
+                "port": "3000"
+            }
         }
     ],
     "pathname": [
         {
-            "comment": "Cannot-be-a-base don’t have a path",
+            "comment": "Opaque paths cannot be set",
             "href": "mailto:me@example.net",
             "new_value": "/foo",
             "expected": {
                 "href": "mailto:me@example.net",
                 "pathname": "me@example.net"
+            }
+        },
+        {
+            "href": "data:original",
+            "new_value": "new value",
+            "expected": {
+                "href": "data:original",
+                "pathname": "original"
+            }
+        },
+        {
+            "href": "sc:original",
+            "new_value": "new value",
+            "expected": {
+                "href": "sc:original",
+                "pathname": "original"
+            }
+        },
+        {
+            "comment": "Special URLs cannot have their paths erased",
+            "href": "file:///some/path",
+            "new_value": "",
+            "expected": {
+                "href": "file:///",
+                "pathname": "/"
+            }
+        },
+        {
+            "comment": "Non-special URLs can have their paths erased",
+            "href": "foo://somehost/some/path",
+            "new_value": "",
+            "expected": {
+                "href": "foo://somehost",
+                "pathname": ""
+            }
+        },
+        {
+            "comment": "Non-special URLs with an empty host can have their paths erased",
+            "href": "foo:///some/path",
+            "new_value": "",
+            "expected": {
+                "href": "foo://",
+                "pathname": ""
+            }
+        },
+        {
+            "comment": "Path-only URLs cannot have their paths erased",
+            "href": "foo:/some/path",
+            "new_value": "",
+            "expected": {
+                "href": "foo:/",
+                "pathname": "/"
+            }
+        },
+        {
+            "comment": "Path-only URLs always have an initial slash",
+            "href": "foo:/some/path",
+            "new_value": "test",
+            "expected": {
+                "href": "foo:/test",
+                "pathname": "/test"
             }
         },
         {
@@ -1618,8 +2052,8 @@
             "href": "a:/",
             "new_value": "\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
             "expected": {
-                "href": "a:/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9",
-                "pathname": "/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
+                "href": "a:/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]%5E_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "pathname": "/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]%5E_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
             }
         },
         {
@@ -1665,6 +2099,24 @@
             "expected": {
                 "href": "sc://example.net/%23",
                 "pathname": "/%23"
+            }
+        },
+        {
+            "comment": "? doesn't mess up encoding",
+            "href": "http://example.net",
+            "new_value": "/?é",
+            "expected": {
+                "href": "http://example.net/%3F%C3%A9",
+                "pathname": "/%3F%C3%A9"
+            }
+        },
+        {
+            "comment": "# doesn't mess up encoding",
+            "href": "http://example.net",
+            "new_value": "/#é",
+            "expected": {
+                "href": "http://example.net/%23%C3%A9",
+                "pathname": "/%23%C3%A9"
             }
         },
         {
@@ -1726,6 +2178,49 @@
             "expected": {
                 "href": "non-spec:/p",
                 "pathname": "/p"
+            }
+        },
+        {
+            "comment": "Non-special URLs with non-opaque paths percent-encode U+0020",
+            "href": "data:/nospace",
+            "new_value": "space ",
+            "expected": {
+                "href": "data:/space%20",
+                "pathname": "/space%20"
+            }
+        },
+        {
+            "href": "sc:/nospace",
+            "new_value": "space ",
+            "expected": {
+                "href": "sc:/space%20",
+                "pathname": "/space%20"
+            }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/%20",
+                "pathname": "/%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/%00",
+                "pathname": "/%00"
+            }
+        },
+        {
+            "href": "foo://path/to",
+            "new_value": "/..",
+            "expected": {
+                "href": "foo://path/",
+                "pathname": "/"
             }
         }
     ],
@@ -1810,6 +2305,60 @@
             "expected": {
                 "href": "http://example.net/?%c3%89t%C3%A9",
                 "search": "?%c3%89t%C3%A9"
+            }
+        },
+        {
+            "comment": "Trailing spaces and opaque paths",
+            "href": "data:space ?query",
+            "new_value": "",
+            "expected": {
+                "href": "data:space%20",
+                "pathname": "space%20",
+                "search": ""
+            }
+        },
+        {
+            "href": "sc:space ?query",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space%20",
+                "pathname": "space%20",
+                "search": ""
+            }
+        },
+        {
+            "comment": "Trailing spaces and opaque paths",
+            "href": "data:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space %20#fragment",
+                "search": ""
+            }
+        },
+        {
+            "href": "sc:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space %20#fragment",
+                "search": ""
+            }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/?%20",
+                "search": "?%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/?%00",
+                "search": "?%00"
             }
         }
     ],
@@ -1944,6 +2493,106 @@
             "expected": {
                 "href": "javascript:alert(1)#castle",
                 "hash": "#castle"
+            }
+        },
+        {
+            "comment": "Trailing spaces and opaque paths",
+            "href": "data:space                                                                                                                                  #fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space                                                                                                                                 %20",
+                "pathname": "space                                                                                                                                 %20",
+                "hash": ""
+            }
+        },
+        {
+            "href": "sc:space    #fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space   %20",
+                "pathname": "space   %20",
+                "hash": ""
+            }
+        },
+        {
+            "comment": "Trailing spaces and opaque paths",
+            "href": "data:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "data:space %20?query",
+                "hash": ""
+            }
+        },
+        {
+            "href": "sc:space  ?query#fragment",
+            "new_value": "",
+            "expected": {
+                "href": "sc:space %20?query",
+                "hash": ""
+            }
+        },
+        {
+            "comment": "Trailing space should be encoded",
+            "href": "http://example.net",
+            "new_value": " ",
+            "expected": {
+                "href": "http://example.net/#%20",
+                "hash": "#%20"
+            }
+        },
+        {
+            "comment": "Trailing C0 control should be encoded",
+            "href": "http://example.net",
+            "new_value": "\u0000",
+            "expected": {
+                "href": "http://example.net/#%00",
+                "hash": "#%00"
+            }
+        },
+        {
+            "comment": "Fragment with <> on data: URI",
+            "href": "data:text/plain,test",
+            "new_value": "#<foo> <bar>",
+            "expected": {
+                "href": "data:text/plain,test#%3Cfoo%3E%20%3Cbar%3E",
+                "hash": "#%3Cfoo%3E%20%3Cbar%3E"
+            }
+        },
+        {
+            "comment": "Fragment with <> on about:blank",
+            "href": "about:blank",
+            "new_value": "#<foo> <bar>",
+            "expected": {
+                "href": "about:blank#%3Cfoo%3E%20%3Cbar%3E",
+                "hash": "#%3Cfoo%3E%20%3Cbar%3E"
+            }
+        },
+        {
+            "comment": "Fragment percent-encode set on data: URI; tabs and newlines are removed",
+            "href": "data:text/plain,test",
+            "new_value": "#\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
+            "expected": {
+                "href": "data:text/plain,test#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "hash": "#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
+        },
+        {
+            "comment": "Fragment percent-encode set on about:blank; tabs and newlines are removed",
+            "href": "about:blank",
+            "new_value": "#\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
+            "expected": {
+                "href": "about:blank#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "hash": "#%00%01%1F%20!%22#$%&'()*+,-./09:;%3C=%3E?@AZ[\\]^_%60az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
+            }
+        }
+    ],
+    "href": [
+        {
+            "href": "file:///var/log/system.log",
+            "new_value": "http://0300.168.0xF0",
+            "expected": {
+                "href": "http://192.168.0.240/",
+                "protocol": "http:"
             }
         }
     ]

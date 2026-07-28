@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax
 
-load('test/mjsunit/test-async.js');
+d8.file.execute('test/mjsunit/test-async.js');
 
 // We store the index in the hash code field of the Promise.all resolve
 // element closures, so make sure we properly handle the cases where this

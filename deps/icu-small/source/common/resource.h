@@ -45,7 +45,7 @@ class ResourceValue;
 class U_COMMON_API ResourceArray {
 public:
     /** Constructs an empty array object. */
-    ResourceArray() : items16(NULL), items32(NULL), length(0) {}
+    ResourceArray() : items16(nullptr), items32(nullptr), length(0) {}
 
     /** Only for implementation use. @internal */
     ResourceArray(const uint16_t *i16, const uint32_t *i32, int32_t len,
@@ -80,7 +80,7 @@ private:
 class U_COMMON_API ResourceTable {
 public:
     /** Constructs an empty table object. */
-    ResourceTable() : keys16(NULL), keys32(NULL), items16(NULL), items32(NULL), length(0) {}
+    ResourceTable() : keys16(nullptr), keys32(nullptr), items16(nullptr), items32(nullptr), length(0) {}
 
     /** Only for implementation use. @internal */
     ResourceTable(const uint16_t *k16, const int32_t *k32,
@@ -136,22 +136,22 @@ public:
      *
      * @see ures_getString()
      */
-    virtual const UChar *getString(int32_t &length, UErrorCode &errorCode) const = 0;
+    virtual const char16_t *getString(int32_t &length, UErrorCode &errorCode) const = 0;
 
     inline UnicodeString getUnicodeString(UErrorCode &errorCode) const {
         int32_t len = 0;
-        const UChar *r = getString(len, errorCode);
+        const char16_t *r = getString(len, errorCode);
         return UnicodeString(true, r, len);
     }
 
     /**
      * Sets U_RESOURCE_TYPE_MISMATCH if this is not an alias resource.
      */
-    virtual const UChar *getAliasString(int32_t &length, UErrorCode &errorCode) const = 0;
+    virtual const char16_t *getAliasString(int32_t &length, UErrorCode &errorCode) const = 0;
 
     inline UnicodeString getAliasUnicodeString(UErrorCode &errorCode) const {
         int32_t len = 0;
-        const UChar *r = getAliasString(len, errorCode);
+        const char16_t *r = getAliasString(len, errorCode);
         return UnicodeString(true, r, len);
     }
 
@@ -274,8 +274,10 @@ public:
      *
      * @param key The key string of the enumeration-start resource.
      *     Empty if the enumeration starts at the top level of the bundle.
-     * @param value Call getArray() or getTable() as appropriate.
-     *     Then reuse for output values from Array and Table getters.
+     * @param value Call getArray() or getTable() as appropriate. Then reuse for
+     *     output values from Array and Table getters. Note: ResourceTable and
+     *     ResourceArray instances must outlive the ResourceValue instance for
+     *     ResourceTracer to be happy.
      * @param noFallback true if the bundle has no parent;
      *     that is, its top-level table has the nofallback attribute,
      *     or it is the root bundle of a locale tree.
@@ -284,8 +286,8 @@ public:
                      UErrorCode &errorCode) = 0;
 
 private:
-    ResourceSink(const ResourceSink &);  // no copy constructor
-    ResourceSink &operator=(const ResourceSink &);  // no assignment operator
+    ResourceSink(const ResourceSink &) = delete;  // no copy constructor
+    ResourceSink &operator=(const ResourceSink &) = delete;  // no assignment operator
 };
 
 U_NAMESPACE_END

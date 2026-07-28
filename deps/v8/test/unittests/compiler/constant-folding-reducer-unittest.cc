@@ -3,26 +3,22 @@
 // found in the LICENSE file.
 
 #include "src/compiler/constant-folding-reducer.h"
-#include "src/codegen/code-factory.h"
-#include "src/compiler/access-builder.h"
+
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties.h"
-#include "src/compiler/operator-properties.h"
 #include "src/execution/isolate-inl.h"
-#include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
-
-using testing::IsNaN;
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 namespace constant_folding_reducer_unittest {
+
+using testing::IsNaN;
 
 namespace {
 
@@ -62,10 +58,7 @@ const double kIntegerValues[] = {-V8_INFINITY, INT_MIN, -1000.0,  -42.0,
 class ConstantFoldingReducerTest : public TypedGraphTest {
  public:
   ConstantFoldingReducerTest()
-      : TypedGraphTest(3),
-        broker_(isolate(), zone()),
-        simplified_(zone()),
-        deps_(&broker_, zone()) {}
+      : TypedGraphTest(3), simplified_(zone()), deps_(broker(), zone()) {}
   ~ConstantFoldingReducerTest() override = default;
 
  protected:
@@ -86,18 +79,15 @@ class ConstantFoldingReducerTest : public TypedGraphTest {
   }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
-  JSHeapBroker* broker() { return &broker_; }
 
  private:
-  JSHeapBroker broker_;
   SimplifiedOperatorBuilder simplified_;
   CompilationDependencies deps_;
 };
 
 TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
   {
-    Node* node = Parameter(
-        Type::Constant(broker(), factory()->minus_zero_value(), zone()));
+    Node* node = Parameter(Type::Constant(-0.0, zone()));
     Node* use_value = UseValue(node);
     Reduction r = Reduce(node);
     ASSERT_TRUE(r.Changed());
@@ -111,9 +101,8 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithMinusZero) {
     EXPECT_THAT(use_value->InputAt(1), IsNumberConstant(-0.0));
   }
   {
-    Node* node = Parameter(Type::Union(
-        Type::MinusZero(),
-        Type::Constant(broker(), factory()->NewNumber(0), zone()), zone()));
+    Node* node = Parameter(
+        Type::Union(Type::MinusZero(), Type::Constant(0, zone()), zone()));
     UseValue(node);
     Reduction r = Reduce(node);
     EXPECT_FALSE(r.Changed());
@@ -143,16 +132,15 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
                           std::numeric_limits<double>::quiet_NaN(),
                           std::numeric_limits<double>::signaling_NaN()};
   TRACED_FOREACH(double, nan, kNaNs) {
-    Handle<Object> constant = factory()->NewNumber(nan);
-    Node* node = Parameter(Type::Constant(broker(), constant, zone()));
+    Node* node = Parameter(Type::Constant(nan, zone()));
     Node* use_value = UseValue(node);
     Reduction r = Reduce(node);
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(use_value->InputAt(1), IsNumberConstant(IsNaN()));
   }
   {
-    Node* node =
-        Parameter(Type::Constant(broker(), factory()->nan_value(), zone()));
+    Node* node = Parameter(
+        Type::Constant(ReadOnlyRoots(isolate()).nan_value()->value(), zone()));
     Node* use_value = UseValue(node);
     Reduction r = Reduce(node);
     ASSERT_TRUE(r.Changed());
@@ -169,8 +157,7 @@ TEST_F(ConstantFoldingReducerTest, ParameterWithNaN) {
 
 TEST_F(ConstantFoldingReducerTest, ParameterWithPlainNumber) {
   TRACED_FOREACH(double, value, kFloat64Values) {
-    Handle<Object> constant = factory()->NewNumber(value);
-    Node* node = Parameter(Type::Constant(broker(), constant, zone()));
+    Node* node = Parameter(Type::Constant(value, zone()));
     Node* use_value = UseValue(node);
     Reduction r = Reduce(node);
     ASSERT_TRUE(r.Changed());
@@ -219,7 +206,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
                       Type::Union(
                           Type::Undetectable(),
                           Type::Union(
-                              Type::Constant(broker(), factory()->false_value(),
+                              Type::Constant(broker(), broker()->false_value(),
                                              zone()),
                               Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
@@ -238,7 +225,7 @@ TEST_F(ConstantFoldingReducerTest, ToBooleanWithFalsish) {
 TEST_F(ConstantFoldingReducerTest, ToBooleanWithTruish) {
   Node* input = Parameter(
       Type::Union(
-          Type::Constant(broker(), factory()->true_value(), zone()),
+          Type::Constant(broker(), broker()->true_value(), zone()),
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);

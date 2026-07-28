@@ -1,8 +1,12 @@
 # Contributing to gyp-next
 
+## Start contributing
+
+Read the docs at [`./docs/Hacking.md`](./docs/Hacking.md) to get started.
+
 ## Code of Conduct
 
-This project is bound to the [Node.js Code of Conduct](https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md).
+This project is bound to the [Node.js Code of Conduct](https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md).
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1

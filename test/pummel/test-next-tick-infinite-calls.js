@@ -20,7 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
+
+if (common.isPi()) {
+  common.skip('Too slow for Raspberry Pi devices');
+}
 
 let complete = 0;
 

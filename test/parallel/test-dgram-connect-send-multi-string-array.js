@@ -10,8 +10,8 @@ socket.on('message', common.mustCall((msg, rinfo) => {
   assert.deepStrictEqual(msg.toString(), data.join(''));
 }));
 
-socket.bind(0, () => {
+socket.bind(0, common.mustCall(() => {
   socket.connect(socket.address().port, common.mustCall(() => {
     socket.send(data);
   }));
-});
+}));

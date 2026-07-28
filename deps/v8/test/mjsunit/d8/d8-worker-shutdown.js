@@ -8,12 +8,11 @@ const kBatchSize = 10;
 const kNumBatches = 10;
 
 function RunWorkerBatch(count) {
-  let script = `onmessage =
-   function(msg) {
-     if (msg.array) {
-        msg.array[0] = 99;
-        postMessage({array : msg.array});
-     }
+  let script = `onmessage = function({data:msg}) {
+    if (msg.array) {
+      msg.array[0] = 99;
+      postMessage({array : msg.array});
+    }
 }`;
 
   // Launch workers.
@@ -27,7 +26,11 @@ function RunWorkerBatch(count) {
     let array = new Int32Array([55, -77]);
     workers[i].postMessage({array : array});
     // terminate half of the workers early.
-    if ((i & 1) == 1) workers[i].terminate();
+    if ((i & 1) == 1) {
+      workers[i].terminate();
+      // A second terminate should have no effect.
+      workers[i].terminate();
+    }
   }
 
   // Wait for replies.

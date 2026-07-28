@@ -39,6 +39,12 @@ MeasureUnit FormattedNumber::getOutputUnit(UErrorCode& status) const {
     return fData->outputUnit;
 }
 
+UDisplayOptionsNounClass FormattedNumber::getNounClass(UErrorCode &status) const {
+    UPRV_FORMATTED_VALUE_METHOD_GUARD(UDISPOPT_NOUN_CLASS_UNDEFINED);
+    const char *nounClass = fData->gender;
+    return udispopt_fromNounClassIdentifier(nounClass);
+}
+
 void FormattedNumber::getDecimalQuantity(impl::DecimalQuantity& output, UErrorCode& status) const {
     UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)
     output = fData->quantity;
@@ -51,16 +57,6 @@ impl::UFormattedNumberData::~UFormattedNumberData() = default;
 UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedNumberRange)
 
 #define UPRV_NOARG
-
-UnicodeString FormattedNumberRange::getFirstDecimal(UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
-    return fData->quantity1.toScientificString();
-}
-
-UnicodeString FormattedNumberRange::getSecondDecimal(UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
-    return fData->quantity2.toScientificString();
-}
 
 void FormattedNumberRange::getDecimalNumbers(ByteSink& sink1, ByteSink& sink2, UErrorCode& status) const {
     UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)

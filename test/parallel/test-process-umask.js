@@ -22,8 +22,9 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread) {
+if (!isMainThread) {
   assert.strictEqual(typeof process.umask(), 'number');
   assert.throws(() => {
     process.umask('0664');
@@ -53,9 +54,7 @@ assert.strictEqual(process.umask(), old);
 assert.throws(() => {
   process.umask({});
 }, {
-  code: 'ERR_INVALID_ARG_VALUE',
-  message: 'The argument \'mask\' must be a 32-bit unsigned integer ' +
-           'or an octal string. Received {}'
+  code: 'ERR_INVALID_ARG_TYPE',
 });
 
 ['123x', 'abc', '999'].forEach((value) => {
@@ -63,7 +62,5 @@ assert.throws(() => {
     process.umask(value);
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
-    message: 'The argument \'mask\' must be a 32-bit unsigned integer ' +
-             `or an octal string. Received '${value}'`
   });
 });

@@ -26,7 +26,7 @@ const fork = require('child_process').fork;
 const net = require('net');
 
 if (process.argv[2] !== 'child') {
-  console.error(`[${process.pid}] master`);
+  console.error(`[${process.pid}] primary`);
 
   const worker = fork(__filename, ['child']);
   let called = false;
@@ -36,10 +36,10 @@ if (process.argv[2] !== 'child') {
     assert.ok(handle);
     worker.send('got');
 
-    handle.on('data', function(data) {
+    handle.on('data', common.mustCall((data) => {
       called = true;
       assert.strictEqual(data.toString(), 'hello');
-    });
+    }));
 
     handle.on('end', function() {
       worker.kill();
@@ -59,13 +59,13 @@ if (process.argv[2] !== 'child') {
       process.send('handle', socket);
   }
 
-  const server = net.createServer(function(c) {
+  const server = net.createServer(common.mustCall((c) => {
     process.once('message', common.mustCall(function(msg) {
       assert.strictEqual(msg, 'got');
       c.end('hello');
     }));
     socketConnected();
-  });
+  }));
 
   server.listen(0, function() {
     socket = net.connect(server.address().port, '127.0.0.1', socketConnected);

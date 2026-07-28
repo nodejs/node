@@ -6,15 +6,14 @@
 #define V8_TORQUE_INSTRUCTIONS_H_
 
 #include <memory>
+#include <optional>
 
 #include "src/torque/ast.h"
 #include "src/torque/source-positions.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 class Block;
 class Builtin;
@@ -24,31 +23,40 @@ class Macro;
 class NamespaceConstant;
 class RuntimeFunction;
 
-#define TORQUE_INSTRUCTION_LIST(V)    \
-  V(PeekInstruction)                  \
-  V(PokeInstruction)                  \
-  V(DeleteRangeInstruction)           \
-  V(PushUninitializedInstruction)     \
-  V(PushBuiltinPointerInstruction)    \
-  V(LoadReferenceInstruction)         \
-  V(StoreReferenceInstruction)        \
-  V(LoadBitFieldInstruction)          \
-  V(StoreBitFieldInstruction)         \
-  V(CallCsaMacroInstruction)          \
-  V(CallIntrinsicInstruction)         \
-  V(NamespaceConstantInstruction)     \
-  V(CallCsaMacroAndBranchInstruction) \
-  V(CallBuiltinInstruction)           \
-  V(CallRuntimeInstruction)           \
-  V(CallBuiltinPointerInstruction)    \
-  V(BranchInstruction)                \
-  V(ConstexprBranchInstruction)       \
-  V(GotoInstruction)                  \
-  V(GotoExternalInstruction)          \
-  V(ReturnInstruction)                \
-  V(PrintConstantStringInstruction)   \
-  V(AbortInstruction)                 \
+// Instructions where all backends generate code the same way.
+#define TORQUE_BACKEND_AGNOSTIC_INSTRUCTION_LIST(V) \
+  V(PeekInstruction)                                \
+  V(PokeInstruction)                                \
+  V(DeleteRangeInstruction)
+
+// Instructions where different backends may generate different code.
+#define TORQUE_BACKEND_DEPENDENT_INSTRUCTION_LIST(V) \
+  V(PushUninitializedInstruction)                    \
+  V(PushBuiltinPointerInstruction)                   \
+  V(LoadReferenceInstruction)                        \
+  V(StoreReferenceInstruction)                       \
+  V(LoadBitFieldInstruction)                         \
+  V(StoreBitFieldInstruction)                        \
+  V(CallCsaMacroInstruction)                         \
+  V(CallIntrinsicInstruction)                        \
+  V(NamespaceConstantInstruction)                    \
+  V(CallCsaMacroAndBranchInstruction)                \
+  V(CallBuiltinInstruction)                          \
+  V(CallRuntimeInstruction)                          \
+  V(CallBuiltinPointerInstruction)                   \
+  V(BranchInstruction)                               \
+  V(ConstexprBranchInstruction)                      \
+  V(GotoInstruction)                                 \
+  V(GotoExternalInstruction)                         \
+  V(MakeLazyNodeInstruction)                         \
+  V(ReturnInstruction)                               \
+  V(PrintErrorInstruction)                           \
+  V(AbortInstruction)                                \
   V(UnsafeCastInstruction)
+
+#define TORQUE_INSTRUCTION_LIST(V)            \
+  TORQUE_BACKEND_AGNOSTIC_INSTRUCTION_LIST(V) \
+  TORQUE_BACKEND_DEPENDENT_INSTRUCTION_LIST(V)
 
 #define TORQUE_INSTRUCTION_BOILERPLATE()                                  \
   static const InstructionKind kKind;                                     \
@@ -272,22 +280,40 @@ class Instruction {
 struct PeekInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
 
-  PeekInstruction(BottomOffset slot, base::Optional<const Type*> widened_type)
+  PeekInstruction(BottomOffset slot, std::optional<const Type*> widened_type)
       : slot(slot), widened_type(widened_type) {}
 
   BottomOffset slot;
-  base::Optional<const Type*> widened_type;
+  std::optional<const Type*> widened_type;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const PeekInstruction& instruction) {
+  os << "Peek " << instruction.slot;
+  if (instruction.widened_type) {
+    os << ", " << **instruction.widened_type;
+  }
+  return os;
+}
 
 struct PokeInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
 
-  PokeInstruction(BottomOffset slot, base::Optional<const Type*> widened_type)
+  PokeInstruction(BottomOffset slot, std::optional<const Type*> widened_type)
       : slot(slot), widened_type(widened_type) {}
 
   BottomOffset slot;
-  base::Optional<const Type*> widened_type;
+  std::optional<const Type*> widened_type;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const PokeInstruction& instruction) {
+  os << "Poke " << instruction.slot;
+  if (instruction.widened_type) {
+    os << ", " << **instruction.widened_type;
+  }
+  return os;
+}
 
 // Preserve the top {preserved_slots} number of slots, and delete
 // {deleted_slots} number or slots below.
@@ -298,6 +324,11 @@ struct DeleteRangeInstruction : InstructionBase {
   StackRange range;
 };
 
+inline std::ostream& operator<<(std::ostream& os,
+                                const DeleteRangeInstruction& instruction) {
+  return os << "DeleteRange " << instruction.range;
+}
+
 struct PushUninitializedInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   explicit PushUninitializedInstruction(const Type* type) : type(type) {}
@@ -306,6 +337,11 @@ struct PushUninitializedInstruction : InstructionBase {
 
   const Type* type;
 };
+
+inline std::ostream& operator<<(
+    std::ostream& os, const PushUninitializedInstruction& instruction) {
+  return os << "PushUninitialized " << *instruction.type;
+}
 
 struct PushBuiltinPointerInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
@@ -320,6 +356,13 @@ struct PushBuiltinPointerInstruction : InstructionBase {
   const Type* type;
 };
 
+inline std::ostream& operator<<(
+    std::ostream& os, const PushBuiltinPointerInstruction& instruction) {
+  return os << "PushBuiltinPointer "
+            << StringLiteralQuote(instruction.external_name) << ", "
+            << *instruction.type;
+}
+
 struct NamespaceConstantInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   explicit NamespaceConstantInstruction(NamespaceConstant* constant)
@@ -331,20 +374,36 @@ struct NamespaceConstantInstruction : InstructionBase {
   NamespaceConstant* constant;
 };
 
+std::ostream& operator<<(std::ostream& os,
+                         const NamespaceConstantInstruction& instruction);
+
 struct LoadReferenceInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  explicit LoadReferenceInstruction(const Type* type) : type(type) {}
+  explicit LoadReferenceInstruction(const Type* type,
+                                    FieldSynchronization synchronization)
+      : type(type), synchronization(synchronization) {}
 
   DefinitionLocation GetValueDefinition() const;
 
   const Type* type;
+  FieldSynchronization synchronization;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const LoadReferenceInstruction& instruction) {
+  return os << "LoadReference " << *instruction.type;
+}
 
 struct StoreReferenceInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   explicit StoreReferenceInstruction(const Type* type) : type(type) {}
   const Type* type;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const StoreReferenceInstruction& instruction) {
+  return os << "StoreReference " << *instruction.type;
+}
 
 // Pops a bitfield struct; pushes a bitfield value extracted from it.
 struct LoadBitFieldInstruction : InstructionBase {
@@ -358,6 +417,12 @@ struct LoadBitFieldInstruction : InstructionBase {
   const Type* bit_field_struct_type;
   BitField bit_field;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const LoadBitFieldInstruction& instruction) {
+  return os << "LoadBitField " << *instruction.bit_field_struct_type << ", "
+            << instruction.bit_field.name_and_type.name;
+}
 
 // Pops a bitfield value and a bitfield struct; pushes a new bitfield struct
 // containing the updated value.
@@ -377,6 +442,16 @@ struct StoreBitFieldInstruction : InstructionBase {
   bool starts_as_zero;
 };
 
+inline std::ostream& operator<<(std::ostream& os,
+                                const StoreBitFieldInstruction& instruction) {
+  os << "StoreBitField " << *instruction.bit_field_struct_type << ", "
+     << instruction.bit_field.name_and_type.name;
+  if (instruction.starts_as_zero) {
+    os << ", starts_as_zero";
+  }
+  return os;
+}
+
 struct CallIntrinsicInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   CallIntrinsicInstruction(Intrinsic* intrinsic,
@@ -394,11 +469,14 @@ struct CallIntrinsicInstruction : InstructionBase {
   std::vector<std::string> constexpr_arguments;
 };
 
+std::ostream& operator<<(std::ostream& os,
+                         const CallIntrinsicInstruction& instruction);
+
 struct CallCsaMacroInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   CallCsaMacroInstruction(Macro* macro,
                           std::vector<std::string> constexpr_arguments,
-                          base::Optional<Block*> catch_block)
+                          std::optional<Block*> catch_block)
       : macro(macro),
         constexpr_arguments(constexpr_arguments),
         catch_block(catch_block) {}
@@ -406,22 +484,25 @@ struct CallCsaMacroInstruction : InstructionBase {
     if (catch_block) block_list->push_back(*catch_block);
   }
 
-  base::Optional<DefinitionLocation> GetExceptionObjectDefinition() const;
+  std::optional<DefinitionLocation> GetExceptionObjectDefinition() const;
   std::size_t GetValueDefinitionCount() const;
   DefinitionLocation GetValueDefinition(std::size_t index) const;
 
   Macro* macro;
   std::vector<std::string> constexpr_arguments;
-  base::Optional<Block*> catch_block;
+  std::optional<Block*> catch_block;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallCsaMacroInstruction& instruction);
 
 struct CallCsaMacroAndBranchInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   CallCsaMacroAndBranchInstruction(Macro* macro,
                                    std::vector<std::string> constexpr_arguments,
-                                   base::Optional<Block*> return_continuation,
+                                   std::optional<Block*> return_continuation,
                                    std::vector<Block*> label_blocks,
-                                   base::Optional<Block*> catch_block)
+                                   std::optional<Block*> catch_block)
       : macro(macro),
         constexpr_arguments(constexpr_arguments),
         return_continuation(return_continuation),
@@ -440,20 +521,41 @@ struct CallCsaMacroAndBranchInstruction : InstructionBase {
                                              std::size_t index) const;
   std::size_t GetValueDefinitionCount() const;
   DefinitionLocation GetValueDefinition(std::size_t index) const;
-  base::Optional<DefinitionLocation> GetExceptionObjectDefinition() const;
+  std::optional<DefinitionLocation> GetExceptionObjectDefinition() const;
 
   Macro* macro;
   std::vector<std::string> constexpr_arguments;
-  base::Optional<Block*> return_continuation;
+  std::optional<Block*> return_continuation;
   std::vector<Block*> label_blocks;
-  base::Optional<Block*> catch_block;
+  std::optional<Block*> catch_block;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallCsaMacroAndBranchInstruction& instruction);
+
+struct MakeLazyNodeInstruction : InstructionBase {
+  TORQUE_INSTRUCTION_BOILERPLATE()
+  MakeLazyNodeInstruction(Macro* macro, const Type* result_type,
+                          std::vector<std::string> constexpr_arguments)
+      : macro(macro),
+        result_type(result_type),
+        constexpr_arguments(std::move(constexpr_arguments)) {}
+
+  DefinitionLocation GetValueDefinition() const;
+
+  Macro* macro;
+  const Type* result_type;
+  std::vector<std::string> constexpr_arguments;
+};
+
+std::ostream& operator<<(std::ostream& os,
+                         const MakeLazyNodeInstruction& instruction);
 
 struct CallBuiltinInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   bool IsBlockTerminator() const override { return is_tailcall; }
   CallBuiltinInstruction(bool is_tailcall, Builtin* builtin, size_t argc,
-                         base::Optional<Block*> catch_block)
+                         std::optional<Block*> catch_block)
       : is_tailcall(is_tailcall),
         builtin(builtin),
         argc(argc),
@@ -464,13 +566,16 @@ struct CallBuiltinInstruction : InstructionBase {
 
   std::size_t GetValueDefinitionCount() const;
   DefinitionLocation GetValueDefinition(std::size_t index) const;
-  base::Optional<DefinitionLocation> GetExceptionObjectDefinition() const;
+  std::optional<DefinitionLocation> GetExceptionObjectDefinition() const;
 
   bool is_tailcall;
   Builtin* builtin;
   size_t argc;
-  base::Optional<Block*> catch_block;
+  std::optional<Block*> catch_block;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallBuiltinInstruction& instruction);
 
 struct CallBuiltinPointerInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
@@ -487,12 +592,22 @@ struct CallBuiltinPointerInstruction : InstructionBase {
   size_t argc;
 };
 
+inline std::ostream& operator<<(
+    std::ostream& os, const CallBuiltinPointerInstruction& instruction) {
+  os << "CallBuiltinPointer " << *instruction.type
+     << ", argc: " << instruction.argc;
+  if (instruction.is_tailcall) {
+    os << ", is_tailcall";
+  }
+  return os;
+}
+
 struct CallRuntimeInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   bool IsBlockTerminator() const override;
 
   CallRuntimeInstruction(bool is_tailcall, RuntimeFunction* runtime_function,
-                         size_t argc, base::Optional<Block*> catch_block)
+                         size_t argc, std::optional<Block*> catch_block)
       : is_tailcall(is_tailcall),
         runtime_function(runtime_function),
         argc(argc),
@@ -503,13 +618,16 @@ struct CallRuntimeInstruction : InstructionBase {
 
   std::size_t GetValueDefinitionCount() const;
   DefinitionLocation GetValueDefinition(std::size_t index) const;
-  base::Optional<DefinitionLocation> GetExceptionObjectDefinition() const;
+  std::optional<DefinitionLocation> GetExceptionObjectDefinition() const;
 
   bool is_tailcall;
   RuntimeFunction* runtime_function;
   size_t argc;
-  base::Optional<Block*> catch_block;
+  std::optional<Block*> catch_block;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const CallRuntimeInstruction& instruction);
 
 struct BranchInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
@@ -525,6 +643,9 @@ struct BranchInstruction : InstructionBase {
   Block* if_true;
   Block* if_false;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const BranchInstruction& instruction);
 
 struct ConstexprBranchInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
@@ -543,6 +664,9 @@ struct ConstexprBranchInstruction : InstructionBase {
   Block* if_false;
 };
 
+std::ostream& operator<<(std::ostream& os,
+                         const ConstexprBranchInstruction& instruction);
+
 struct GotoInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   bool IsBlockTerminator() const override { return true; }
@@ -554,6 +678,8 @@ struct GotoInstruction : InstructionBase {
 
   Block* destination;
 };
+
+std::ostream& operator<<(std::ostream& os, const GotoInstruction& instruction);
 
 struct GotoExternalInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
@@ -568,18 +694,41 @@ struct GotoExternalInstruction : InstructionBase {
   std::vector<std::string> variable_names;
 };
 
+inline std::ostream& operator<<(std::ostream& os,
+                                const GotoExternalInstruction& instruction) {
+  os << "GotoExternal " << instruction.destination;
+  for (const std::string& name : instruction.variable_names) {
+    os << ", " << name;
+  }
+  return os;
+}
+
 struct ReturnInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
+  explicit ReturnInstruction(size_t count) : count(count) {}
   bool IsBlockTerminator() const override { return true; }
+
+  size_t count;  // How many values to return.
 };
 
-struct PrintConstantStringInstruction : InstructionBase {
+inline std::ostream& operator<<(std::ostream& os,
+                                const ReturnInstruction& instruction) {
+  return os << "Return count: " << instruction.count;
+}
+
+struct PrintErrorInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  explicit PrintConstantStringInstruction(std::string message)
+  explicit PrintErrorInstruction(std::string message)
       : message(std::move(message)) {}
 
   std::string message;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const PrintErrorInstruction& instruction) {
+  return os << "PrintConstantString "
+            << StringLiteralQuote(instruction.message);
+}
 
 struct AbortInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
@@ -587,10 +736,26 @@ struct AbortInstruction : InstructionBase {
   bool IsBlockTerminator() const override { return kind != Kind::kDebugBreak; }
   explicit AbortInstruction(Kind kind, std::string message = "")
       : kind(kind), message(std::move(message)) {}
+  static const char* KindToString(Kind kind) {
+    switch (kind) {
+      case Kind::kDebugBreak:
+        return "kDebugBreak";
+      case Kind::kUnreachable:
+        return "kUnreachable";
+      case Kind::kAssertionFailure:
+        return "kAssertionFailure";
+    }
+  }
 
   Kind kind;
   std::string message;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const AbortInstruction& instruction) {
+  return os << "Abort " << AbortInstruction::KindToString(instruction.kind)
+            << ", " << StringLiteralQuote(instruction.message);
+}
 
 struct UnsafeCastInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
@@ -602,8 +767,11 @@ struct UnsafeCastInstruction : InstructionBase {
   const Type* destination_type;
 };
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+inline std::ostream& operator<<(std::ostream& os,
+                                const UnsafeCastInstruction& instruction) {
+  return os << "UnsafeCast " << *instruction.destination_type;
+}
+
+}  // namespace v8::internal::torque
 
 #endif  // V8_TORQUE_INSTRUCTIONS_H_

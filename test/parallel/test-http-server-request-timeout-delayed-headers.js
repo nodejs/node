@@ -9,40 +9,53 @@ const { connect } = require('net');
 // after server.requestTimeout if the client
 // pauses before start sending the request.
 
-const server = createServer(common.mustNotCall());
+let sendDelayedRequestHeaders;
+const requestTimeout = common.platformTimeout(2000);
+const server = createServer({
+  headersTimeout: 0,
+  requestTimeout,
+  keepAliveTimeout: 0,
+  connectionsCheckingInterval: requestTimeout / 4,
+}, common.mustNotCall());
+server.on('connection', common.mustCall(() => {
+  assert.strictEqual(typeof sendDelayedRequestHeaders, 'function');
+  sendDelayedRequestHeaders();
+}));
 
-// 0 seconds is the default
-assert.strictEqual(server.requestTimeout, 0);
-const requestTimeout = common.platformTimeout(1000);
-server.requestTimeout = requestTimeout;
 assert.strictEqual(server.requestTimeout, requestTimeout);
 
 server.listen(0, common.mustCall(() => {
   const client = connect(server.address().port);
   let response = '';
 
+  client.setEncoding('utf8');
   client.on('data', common.mustCall((chunk) => {
-    response += chunk.toString('utf-8');
+    response += chunk;
   }));
 
-  const errOrEnd = common.mustCall(function(err) {
-    console.log(err);
+  client.on('error', () => {
+    // Ignore errors like 'write EPIPE' that might occur while the request is
+    // sent.
+  });
+
+  client.on('close', common.mustCall(() => {
     assert.strictEqual(
       response,
       'HTTP/1.1 408 Request Timeout\r\nConnection: close\r\n\r\n'
     );
     server.close();
-  });
-
-  client.on('end', errOrEnd);
-  client.on('error', errOrEnd);
+  }));
 
   client.resume();
 
-  setTimeout(() => {
-    client.write('POST / HTTP/1.1\r\n');
-    client.write('Content-Length: 20\r\n');
-    client.write('Connection: close\r\n\r\n');
-    client.write('12345678901234567890\r\n\r\n');
-  }, common.platformTimeout(2000)).unref();
+  sendDelayedRequestHeaders = common.mustCall(() => {
+    setTimeout(() => {
+      client.write(
+        'POST / HTTP/1.1\r\n' +
+        'Content-Length: 20\r\n' +
+        'Connection: close\r\n\r\n' +
+        '12345678901234567890\r\n\r\n'
+      );
+    }, common.platformTimeout(requestTimeout * 2)).unref();
+  });
 }));

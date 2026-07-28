@@ -2,9 +2,8 @@
 const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
-const file = path.join(tmpdir.path, 'read_stream_filehandle_worker.txt');
+const file = tmpdir.resolve('read_stream_filehandle_worker.txt');
 const input = 'hello world';
 const { Worker, isMainThread, workerData } = require('worker_threads');
 
@@ -18,18 +17,23 @@ if (isMainThread || !workerData) {
       workerData: { handle },
       transferList: [handle]
     });
-  });
-  fs.promises.open(file, 'r').then((handle) => {
-    fs.createReadStream(null, { fd: handle });
-    assert.throws(() => {
-      new Worker(__filename, {
-        workerData: { handle },
-        transferList: [handle]
+  }).then(common.mustCall());
+  fs.promises.open(file, 'r').then(async (handle) => {
+    try {
+      fs.createReadStream(null, { fd: handle });
+      assert.throws(() => {
+        new Worker(__filename, {
+          workerData: { handle },
+          transferList: [handle]
+        });
+      }, {
+        code: 25,
+        name: 'DataCloneError',
       });
-    }, {
-      code: 25,
-    });
-  });
+    } finally {
+      await handle.close();
+    }
+  }).then(common.mustCall());
 } else {
   let output = '';
 

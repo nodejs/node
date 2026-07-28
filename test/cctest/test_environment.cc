@@ -1,13 +1,20 @@
+#include "libplatform/libplatform.h"
 #include "node_buffer.h"
 #include "node_internals.h"
-#include "libplatform/libplatform.h"
+#include "node_url.h"
+#include "util.h"
 
 #include <string>
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
+#include <stdio.h>
+#include <cstdio>
 
 using node::AtExit;
 using node::RunAtExit;
+using node::USE;
+using v8::Context;
+using v8::Local;
 
 static bool called_cb_1 = false;
 static bool called_cb_2 = false;
@@ -24,13 +31,46 @@ static std::string cb_1_arg;  // NOLINT(runtime/string)
 class EnvironmentTest : public EnvironmentTestFixture {
  private:
   void TearDown() override {
-    NodeTestFixture::TearDown();
+    EnvironmentTestFixture::TearDown();
     called_cb_1 = false;
     called_cb_2 = false;
     called_cb_ordered_1 = false;
     called_cb_ordered_2 = false;
   }
 };
+
+TEST_F(EnvironmentTest, EnvironmentWithoutBrowserGlobals) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoBrowserGlobals};
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 0);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const assert = require('assert');"
+      "const path = require('path');"
+      "const relativeRequire = "
+      "  require('module').createRequire(path.join(process.cwd(), 'stub.js'));"
+      "const { intrinsics, nodeGlobals } = "
+      "  relativeRequire('./test/common/globals');"
+      "const items = Object.getOwnPropertyNames(globalThis);"
+      "const leaks = [];"
+      "for (const item of items) {"
+      "  if (intrinsics.has(item)) {"
+      "    continue;"
+      "  }"
+      "  if (nodeGlobals.has(item)) {"
+      "    continue;"
+      "  }"
+      "  leaks.push(item);"
+      "}"
+      "assert.deepStrictEqual(leaks, []);");
+}
 
 TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
   const v8::HandleScope handle_scope(isolate_);
@@ -66,7 +106,34 @@ TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
       "})()");
 }
 
+class RedirectStdErr {
+ public:
+  explicit RedirectStdErr(const char* filename) : filename_(filename) {
+    fflush(stderr);
+    fgetpos(stderr, &pos_);
+    fd_ = dup(fileno(stderr));
+    USE(freopen(filename_, "w", stderr));
+  }
+
+  ~RedirectStdErr() {
+    fflush(stderr);
+    dup2(fd_, fileno(stderr));
+    close(fd_);
+    remove(filename_);
+    clearerr(stderr);
+    fsetpos(stderr, &pos_);
+  }
+
+ private:
+  int fd_;
+  fpos_t pos_;
+  const char* filename_;
+};
+
 TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
+  // The following line will cause stderr to get redirected to avoid the
+  // error that would otherwise be printed to the console by this test.
+  RedirectStdErr redirect_scope("environment_test.log");
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
   Env env {handle_scope, argv, node::EnvironmentFlags::kNoRegisterESMLoader};
@@ -300,8 +367,8 @@ static void at_exit_js(void* arg) {
   v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
-  assert(!obj.IsEmpty());  // Assert VM is still alive.
-  assert(obj->IsObject());
+  EXPECT_FALSE(obj.IsEmpty());  // Assert VM is still alive.
+  EXPECT_TRUE(obj->IsObject());
   called_at_exit_js = true;
 }
 
@@ -332,6 +399,69 @@ TEST_F(EnvironmentTest, SetImmediateCleanup) {
 
   EXPECT_EQ(called, 1);
   EXPECT_EQ(called_unref, 0);
+}
+
+TEST_F(EnvironmentTest, RunAndClearNativeImmediatesSkipsEmptyScope) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+  v8::Local<v8::Context> context = env.context();
+
+  using IntVec = std::vector<int>;
+  IntVec callback_calls;
+  v8::Local<v8::Function> must_call =
+      v8::Function::New(
+          context,
+          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+            IntVec* callback_calls =
+                static_cast<IntVec*>(info.Data().As<v8::External>()->Value(
+                    v8::kExternalPointerTypeTagDefault));
+            callback_calls->push_back(info[0].As<v8::Int32>()->Value());
+          },
+          v8::External::New(isolate_,
+                            static_cast<void*>(&callback_calls),
+                            v8::kExternalPointerTypeTagDefault))
+          .ToLocalChecked();
+  context->Global()
+      ->Set(context,
+            v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
+            must_call)
+      .Check();
+
+  v8::Local<v8::Function> eval_in_env =
+      node::LoadEnvironment(*env, "return eval;")
+          .ToLocalChecked()
+          .As<v8::Function>();
+
+  v8::Local<v8::Value> queue_microtask = v8::String::NewFromUtf8Literal(
+      isolate_, "Promise.resolve().then(() => mustCall(1));");
+  eval_in_env->Call(context, v8::Null(isolate_), 1, &queue_microtask)
+      .ToLocalChecked();
+  EXPECT_TRUE(callback_calls.empty());
+  (*env)->RunAndClearNativeImmediates();
+  EXPECT_TRUE(callback_calls.empty());
+
+  context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
+  EXPECT_EQ(callback_calls, (IntVec{1}));
+  callback_calls.clear();
+
+  queue_microtask = v8::String::NewFromUtf8Literal(
+      isolate_, "Promise.resolve().then(() => mustCall(2));");
+  eval_in_env->Call(context, v8::Null(isolate_), 1, &queue_microtask)
+      .ToLocalChecked();
+  EXPECT_TRUE(callback_calls.empty());
+
+  bool native_immediate_called = false;
+  (*env)->SetImmediate(
+      [&](node::Environment* env_arg) {
+        EXPECT_EQ(env_arg, *env);
+        native_immediate_called = true;
+      },
+      node::CallbackFlags::kRefed);
+
+  (*env)->RunAndClearNativeImmediates();
+  EXPECT_TRUE(native_immediate_called);
+  EXPECT_EQ(callback_calls, (IntVec{2}));
 }
 
 static char hello[] = "hello";
@@ -372,6 +502,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   // This test sets a global variable in the child Environment, and reads it
   // back both through the inspector and inside the child Environment, and
   // makes sure that those correspond to the value that was originally set.
+  v8::Locker locker(isolate_);
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env env {handle_scope, argv};
@@ -441,6 +572,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
     CHECK_NOT_NULL(isolate);
 
     {
+      v8::Locker locker(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
 
@@ -476,8 +608,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
       node::FreeIsolateData(isolate_data);
     }
 
-    data->platform->UnregisterIsolate(isolate);
-    isolate->Dispose();
+    data->platform->DisposeIsolate(isolate);
     uv_run(&loop, UV_RUN_DEFAULT);
     CHECK_EQ(uv_loop_close(&loop), 0);
 
@@ -520,7 +651,9 @@ TEST_F(EnvironmentTest, ExitHandlerTest) {
     callback_calls++;
     node::Stop(*env);
   });
-  node::LoadEnvironment(*env, "process.exit(42)").ToLocalChecked();
+  // When terminating, v8 throws makes the current embedder call bail out
+  // with MaybeLocal<>()
+  EXPECT_TRUE(node::LoadEnvironment(*env, "process.exit(42)").IsEmpty());
   EXPECT_EQ(callback_calls, 1);
 }
 
@@ -552,12 +685,12 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
 
 #ifndef _WIN32  // No SIGINT on Windows.
 TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
-  // We need to go through the whole setup dance here because we want to
-  // set only_terminate_in_safe_scope.
   // Allocate and initialize Isolate.
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
-  create_params.only_terminate_in_safe_scope = true;
+  create_params.cpp_heap =
+      v8::CppHeap::Create(platform.get(), v8::CppHeapCreateParams{{}})
+          .release();
   v8::Isolate* isolate = v8::Isolate::Allocate();
   CHECK_NOT_NULL(isolate);
   platform->RegisterIsolate(isolate, &current_loop);
@@ -565,6 +698,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
 
   // Try creating Context + IsolateData + Environment.
   {
+    v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
@@ -607,8 +741,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   }
 
   // Cleanup.
-  platform->UnregisterIsolate(isolate);
-  isolate->Dispose();
+  platform->DisposeIsolate(isolate);
 }
 #endif  // _WIN32
 
@@ -616,34 +749,40 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
 
-  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(isolate_);
-  v8::Local<v8::Context> context = v8::Context::New(
-      isolate_, nullptr, {}, {}, {}, queue.get());
+  std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(
+      isolate_, v8::MicrotasksPolicy::kExplicit);
+  v8::Local<v8::Context> context =
+      v8::Context::New(isolate_,
+                       nullptr,
+                       {},
+                       {},
+                       v8::DeserializeInternalFieldsCallback(),
+                       queue.get());
   node::InitializeContext(context);
   v8::Context::Scope context_scope(context);
 
   using IntVec = std::vector<int>;
   IntVec callback_calls;
-  v8::Local<v8::Function> must_call = v8::Function::New(
-      context,
-      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
-        IntVec* callback_calls = static_cast<IntVec*>(
-            info.Data().As<v8::External>()->Value());
-        callback_calls->push_back(info[0].As<v8::Int32>()->Value());
-      },
-      v8::External::New(isolate_, static_cast<void*>(&callback_calls)))
+  v8::Local<v8::Function> must_call =
+      v8::Function::New(
+          context,
+          [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+            IntVec* callback_calls =
+                static_cast<IntVec*>(info.Data().As<v8::External>()->Value(
+                    v8::kExternalPointerTypeTagDefault));
+            callback_calls->push_back(info[0].As<v8::Int32>()->Value());
+          },
+          v8::External::New(isolate_,
+                            static_cast<void*>(&callback_calls),
+                            v8::kExternalPointerTypeTagDefault))
           .ToLocalChecked();
   context->Global()->Set(
       context,
       v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
       must_call).Check();
 
-  node::IsolateData* isolate_data = node::CreateIsolateData(
-      isolate_, &NodeTestFixture::current_loop, platform.get());
-  CHECK_NE(nullptr, isolate_data);
-
-  node::Environment* env = node::CreateEnvironment(
-      isolate_data, context, {}, {});
+  node::Environment* env =
+      node::CreateEnvironment(isolate_data_, context, {}, {});
   CHECK_NE(nullptr, env);
 
   v8::Local<v8::Function> eval_in_env = node::LoadEnvironment(
@@ -682,5 +821,383 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7, 5 }));
 
   node::FreeEnvironment(env);
-  node::FreeIsolateData(isolate_data);
+}
+
+static bool interrupted = false;
+static void OnInterrupt(void* arg) {
+  interrupted = true;
+}
+TEST_F(EnvironmentTest, RequestInterruptAtExit) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+
+  Local<Context> context = node::NewContext(isolate_);
+  CHECK(!context.IsEmpty());
+  context->Enter();
+
+  std::vector<std::string> args(*argv, *argv + 1);
+  std::vector<std::string> exec_args(*argv, *argv + 1);
+  node::Environment* environment =
+      node::CreateEnvironment(isolate_data_, context, args, exec_args);
+  CHECK_NE(nullptr, environment);
+
+  node::RequestInterrupt(environment, OnInterrupt, nullptr);
+  node::FreeEnvironment(environment);
+  EXPECT_TRUE(interrupted);
+
+  context->Exit();
+}
+
+TEST_F(EnvironmentTest, EmbedderPreload) {
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = node::NewContext(isolate_);
+  v8::Context::Scope context_scope(context);
+
+  node::EmbedderPreloadCallback preload = [](node::Environment* env,
+                                             v8::Local<v8::Value> process,
+                                             v8::Local<v8::Value> require) {
+    CHECK(process->IsObject());
+    CHECK(require->IsFunction());
+    process.As<v8::Object>()
+        ->Set(env->context(),
+              v8::String::NewFromUtf8Literal(env->isolate(), "prop"),
+              v8::String::NewFromUtf8Literal(env->isolate(), "preload"))
+        .Check();
+  };
+
+  std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)> env(
+      node::CreateEnvironment(isolate_data_, context, {}, {}),
+      node::FreeEnvironment);
+
+  v8::Local<v8::Value> main_ret =
+      node::LoadEnvironment(env.get(), "return process.prop;", preload)
+          .ToLocalChecked();
+  node::Utf8Value main_ret_str(isolate_, main_ret);
+  EXPECT_EQ(std::string(*main_ret_str), "preload");
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithESModule) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  node::ModuleData entry_point;
+  std::string source =
+      "import importedProcess from 'process';\n"
+      "export const process = importedProcess;\n"
+      "const stack = new Error().stack.split('\\n');\n"
+      "export const frame = stack.filter(line => /at /.test(line))[0];\n";
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kModule);
+  entry_point.set_resource_name("embedded:esm.mjs");
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  // The ESM entry point returns the module namespace object.
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  v8::Local<v8::String> process_str =
+      v8::String::NewFromUtf8Literal(isolate_, "process");
+  v8::Local<v8::Value> process_value =
+      result.As<v8::Object>()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(process_value->IsObject());
+  v8::Local<v8::Value> global_process_value =
+      context->Global()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(global_process_value->IsObject());
+  EXPECT_TRUE(process_value->StrictEquals(global_process_value));
+
+  v8::Local<v8::Value> frame_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "frame"))
+          .ToLocalChecked();
+  EXPECT_TRUE(frame_value->IsString());
+  node::Utf8Value frame_str(isolate_, frame_value);
+  printf("Frame: %s\n", *frame_str);
+  EXPECT_EQ(frame_str.ToString(), "    at embedded:esm.mjs:3:15");
+}
+
+static const char* dynamic_import_source =
+    "const importedProcess = import('node:process');\n"
+    "const importedNonBuiltin = import('./non-existent.mjs');\n"
+    "importedNonBuiltin.catch((err) => \n"
+    "  globalThis.importedNonBuiltinStack = err.stack)\n";
+void CheckDynamicImportResult(v8::Isolate* isolate,
+                              v8::Local<v8::Value> result) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  // Check the result of import('node:process').
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Value> imported_process =
+      result.As<v8::Object>()
+          ->Get(context,
+                v8::String::NewFromUtf8Literal(isolate, "importedProcess"))
+          .ToLocalChecked();
+  EXPECT_TRUE(imported_process->IsPromise());
+  EXPECT_EQ(imported_process.As<v8::Promise>()->State(),
+            v8::Promise::kFulfilled);
+  v8::Local<v8::Value> imported_value =
+      imported_process.As<v8::Promise>()->Result();
+  EXPECT_TRUE(imported_value->IsObject());
+  v8::Local<v8::Value> dynamic_process =
+      imported_value.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate, "default"))
+          .ToLocalChecked();
+  EXPECT_TRUE(dynamic_process->IsObject());
+
+  v8::Local<v8::Value> global_process_value =
+      context->Global()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate, "process"))
+          .ToLocalChecked();
+  EXPECT_TRUE(global_process_value->IsObject());
+  EXPECT_TRUE(dynamic_process->StrictEquals(global_process_value));
+
+  // Check the result of import('./non-existent.mjs')
+  v8::Local<v8::Value> imported_non_builtin =
+      result.As<v8::Object>()
+          ->Get(context,
+                v8::String::NewFromUtf8Literal(isolate, "importedNonBuiltin"))
+          .ToLocalChecked();
+  EXPECT_TRUE(imported_non_builtin->IsPromise());
+  EXPECT_EQ(imported_non_builtin.As<v8::Promise>()->State(),
+            v8::Promise::kRejected);
+
+  // Check the error message
+  v8::Local<v8::Value> imported_non_builtin_stack =
+      context->Global()
+          ->Get(context,
+                v8::String::NewFromUtf8Literal(isolate,
+                                               "importedNonBuiltinStack"))
+          .ToLocalChecked();
+  EXPECT_TRUE(imported_non_builtin_stack->IsString());
+  node::Utf8Value error_str(isolate, imported_non_builtin_stack);
+  // Error stack should include "ERR_UNKNOWN_BUILTIN_MODULE"
+  EXPECT_NE(error_str.ToString().find("ERR_UNKNOWN_BUILTIN_MODULE"),
+            std::string::npos);
+  // Error stack should include "No such built-in module: ./non-existent.mjs"
+  EXPECT_NE(
+      error_str.ToString().find("No such built-in module: ./non-existent.mjs"),
+      std::string::npos);
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithESModuleDynamicImport) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  // Test dynamic import('node:process') in entry point.
+  std::string source = std::string(dynamic_import_source) +
+                       "export { importedProcess, importedNonBuiltin };\n";
+  node::ModuleData entry_point;
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kModule);
+  entry_point.set_resource_name("embedded:dynamic-import.mjs");
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  // Finish the await.
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
+  CheckDynamicImportResult(isolate_, result);
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithCommonJSDynamicImport) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  std::string source = std::string(dynamic_import_source) +
+                       "return { importedProcess, importedNonBuiltin };\n";
+  node::ModuleData entry_point;
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kCommonJS);
+  entry_point.set_resource_name("/test-cjs-dynamic-import.js");
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  // Finish the await.
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  context->GetMicrotaskQueue()->PerformCheckpoint(isolate_);
+  CheckDynamicImportResult(isolate_, result);
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithESModuleImportMeta) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  node::ModuleData entry_point;
+  // Test import.meta properties in ESM entry point.
+  std::string source = "export const url = import.meta.url;\n"
+                       "export const main = import.meta.main;\n"
+                       "export const filename = import.meta.filename;\n"
+                       "export const dirname = import.meta.dirname;\n";
+  std::string exec_path = (*env)->exec_path();
+  std::string url = node::url::FromFilePath(exec_path);
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kModule);
+  entry_point.set_resource_name(url);
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  // Check import.meta.url
+  v8::Local<v8::Value> url_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "url"))
+          .ToLocalChecked();
+  EXPECT_TRUE(url_value->IsString());
+  node::Utf8Value url_str(isolate_, url_value);
+  EXPECT_EQ(url_str.ToStringView(), url);
+
+  // Check import.meta.main
+  v8::Local<v8::Value> main_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "main"))
+          .ToLocalChecked();
+  EXPECT_TRUE(main_value->IsBoolean());
+  EXPECT_TRUE(main_value->BooleanValue(isolate_));
+
+  // Check import.meta.filename
+  v8::Local<v8::Value> filename_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "filename"))
+          .ToLocalChecked();
+  EXPECT_TRUE(filename_value->IsString());
+  node::Utf8Value filename_str(isolate_, filename_value);
+  EXPECT_EQ(filename_str.ToStringView(), exec_path);
+
+  // Check import.meta.dirname
+  v8::Local<v8::Value> dirname_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "dirname"))
+          .ToLocalChecked();
+  EXPECT_TRUE(dirname_value->IsString());
+  node::Utf8Value dirname_str(isolate_, dirname_value);
+  // Just check that dirname is a substring of exec_path
+  EXPECT_NE(exec_path.find(dirname_str.ToStringView()), std::string::npos);
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithCallbackWithCommonJSModule) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::MaybeLocal<v8::Value> maybe = node::LoadEnvironment(
+      *env,
+      [&](const node::StartExecutionCallbackInfoWithModule& info)
+          -> v8::MaybeLocal<v8::Value> {
+        EXPECT_NE(nullptr, info.env());
+        EXPECT_TRUE(info.process_object()->IsObject());
+        EXPECT_TRUE(info.native_require()->IsFunction());
+        EXPECT_TRUE(info.run_module()->IsFunction());
+
+        // require("process") === process
+        v8::Local<v8::String> process_str =
+            v8::String::NewFromUtf8Literal(isolate_, "process");
+        v8::Local<v8::Value> require_args[] = {process_str};
+        v8::Local<v8::Value> required_process =
+            info.native_require()
+                ->Call(context, v8::Null(isolate_), 1, require_args)
+                .ToLocalChecked();
+        EXPECT_TRUE(required_process->IsObject());
+        EXPECT_TRUE(required_process->StrictEquals(info.process_object()));
+
+        // Test running a CJS entry point via run_module.
+        v8::Local<v8::Value> cjs_source = v8::String::NewFromUtf8Literal(
+            isolate_,
+            "globalThis.processInModule = require('process');\n"
+            "const stack = new Error().stack.split('\\n');\n"
+            "globalThis.frame = stack.filter(line => /at /.test(line))[0];\n"
+            "return 42;\n");
+        v8::Local<v8::Value> format = v8::Integer::New(
+            isolate_, static_cast<int32_t>(node::ModuleFormat::kCommonJS));
+        v8::Local<v8::Value> resource_name =
+            v8::String::NewFromUtf8Literal(isolate_, "/test-cjs.js");
+        v8::Local<v8::Value> args[] = {cjs_source, format, resource_name};
+        v8::Local<v8::Value> result =
+            info.run_module()
+                ->Call(context, v8::Null(isolate_), 3, args)
+                .ToLocalChecked();
+        EXPECT_TRUE(result->IsUint32());
+        EXPECT_EQ(result.As<v8::Uint32>()->Value(), static_cast<uint32_t>(42));
+        v8::Local<v8::Value> process_in_module =
+            context->Global()
+                ->Get(
+                    context,
+                    v8::String::NewFromUtf8Literal(isolate_, "processInModule"))
+                .ToLocalChecked();
+        EXPECT_TRUE(process_in_module->IsObject());
+        EXPECT_TRUE(process_in_module->StrictEquals(info.process_object()));
+        return result;
+      },
+      nullptr);
+
+  EXPECT_TRUE(!maybe.IsEmpty());
+  v8::Local<v8::Value> frame_value =
+      context->Global()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "frame"))
+          .ToLocalChecked();
+  EXPECT_TRUE(frame_value->IsString());
+  node::Utf8Value frame_str(isolate_, frame_value);
+  printf("Frame: %s\n", *frame_str);
+  EXPECT_EQ(frame_str.ToString(), "    at /test-cjs.js:2:15");
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithCallbackWithESModule) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::MaybeLocal<v8::Value> maybe = node::LoadEnvironment(
+      *env,
+      [&](const node::StartExecutionCallbackInfoWithModule& info)
+          -> v8::MaybeLocal<v8::Value> {
+        // Test running an ESM entry point via run_module.
+        v8::Local<v8::Value> source_str = v8::String::NewFromUtf8Literal(
+            isolate_,
+            "import importedProcess from 'process';\n"
+            "export const process = importedProcess;\n"
+            "const stack = new Error().stack.split('\\n');\n"
+            "export const frame = stack.filter(line => /at "
+            "/.test(line))[0];\n");
+        v8::Local<v8::Value> format = v8::Integer::New(
+            isolate_, static_cast<int32_t>(node::ModuleFormat::kModule));
+        v8::Local<v8::Value> resource_name =
+            v8::String::NewFromUtf8Literal(isolate_, "embedded:esm.mjs");
+        v8::Local<v8::Value> args[] = {source_str, format, resource_name};
+        return info.run_module()->Call(context, v8::Null(isolate_), 3, args);
+      },
+      nullptr);
+
+  v8::Local<v8::Value> result = maybe.ToLocalChecked();
+
+  v8::Local<v8::String> process_str =
+      v8::String::NewFromUtf8Literal(isolate_, "process");
+  // The ESM entry point returns the module namespace object.
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Value> process_value =
+      result.As<v8::Object>()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(process_value->IsObject());
+  v8::Local<v8::Value> global_process_value =
+      context->Global()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(global_process_value->IsObject());
+  EXPECT_TRUE(process_value->StrictEquals(global_process_value));
+
+  v8::Local<v8::Value> frame_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "frame"))
+          .ToLocalChecked();
+  EXPECT_TRUE(frame_value->IsString());
+  node::Utf8Value frame_str(isolate_, frame_value);
+  printf("Frame: %s\n", *frame_str);
+  EXPECT_EQ(frame_str.ToString(), "    at embedded:esm.mjs:3:15");
 }

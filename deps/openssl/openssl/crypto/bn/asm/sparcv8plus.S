@@ -3,9 +3,9 @@
 
 /*
  * ====================================================================
- * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2016 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -496,7 +496,7 @@ bn_add_words:
 	inc	16,%o1
 	addccc	%g1,%g2,%g1
 	stuw	%g1,[%o0+4]
-	
+
 	inc	16,%o2
 	addccc	%g3,%g4,%g3
 	stuw	%g3,[%o0+8]
@@ -1126,7 +1126,7 @@ bn_mul_comba4:
 	srlx	t_1,32,c_12	!=
 	stuw	t_1,rp(6)	!r[6]=c1;
 	stuw	c_12,rp(7)	!r[7]=c2;
-	
+
 	ret
 	restore	%g0,%g0,%o0
 
@@ -1548,7 +1548,7 @@ bn_sqr_comba4:
 	srlx	t_1,32,c_12
 	stuw	t_1,rp(6)	!r[6]=c1;
 	stuw	c_12,rp(7)	!r[7]=c2;
-	
+
 	ret
 	restore	%g0,%g0,%o0
 

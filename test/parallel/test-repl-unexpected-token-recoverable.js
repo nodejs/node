@@ -2,8 +2,10 @@
 
 // This is a regression test for https://github.com/joyent/node/issues/8874.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
+
+common.skipIfInspectorDisabled();
 
 const spawn = require('child_process').spawn;
 // Use -i to force node into interactive mode, despite stdout not being a TTY
@@ -11,8 +13,8 @@ const args = [ '-i' ];
 const child = spawn(process.execPath, args);
 
 const input = 'const foo = "bar\\\nbaz"';
-// Match '...' as well since it marks a multi-line statement
-const expectOut = /> \.\.\. undefined\n/;
+// Match '|' as well since it marks a multi-line statement
+const expectOut = /> \| undefined\n/;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', (d) => {
@@ -25,9 +27,9 @@ child.stdout.on('data', (d) => {
   out += d;
 });
 
-child.stdout.on('end', () => {
-  assert(expectOut.test(out));
+child.stdout.on('end', common.mustCall(() => {
+  assert.match(out, expectOut);
   console.log('ok');
-});
+}));
 
 child.stdin.end(input);

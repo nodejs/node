@@ -10,9 +10,10 @@
 #endif
 
 #include <cmath>
-#include <cstdio>
 #include <sstream>
-#include <string>
+
+#include "node_metadata.h"
+#include "util.h"
 
 #if defined(_STLP_VENDOR_CSTD)
 // STLPort doesn't import fpclassify into the std namespace.
@@ -94,7 +95,7 @@ std::string DoubleToCString(double v) {
     default:
       // This is a far less sophisticated version than the one used inside v8.
       std::ostringstream stream;
-      stream.imbue(std::locale("C"));  // Ignore locale
+      stream.imbue(std::locale::classic());  // Ignore current locale
       stream << v;
       return stream.str();
   }
@@ -217,6 +218,61 @@ void TracedValue::AppendAsTraceFormat(std::string* out) const {
   *out += data_;
   *out += root_is_array_ ? ']' : '}';
 }
+
+std::unique_ptr<v8::ConvertableToTraceFormat> EnvironmentArgs::Cast() const {
+  auto traced_value = tracing::TracedValue::Create();
+  traced_value->BeginArray("args");
+  for (const std::string& arg : args_) traced_value->AppendString(arg);
+  traced_value->EndArray();
+  traced_value->BeginArray("exec_args");
+  for (const std::string& arg : exec_args_) traced_value->AppendString(arg);
+  traced_value->EndArray();
+  return traced_value;
+}
+
+std::unique_ptr<v8::ConvertableToTraceFormat> AsyncWrapArgs::Cast() const {
+  auto data = tracing::TracedValue::Create();
+  data->SetInteger("executionAsyncId", execution_async_id_);
+  data->SetInteger("triggerAsyncId", trigger_async_id_);
+  return data;
+}
+
+std::unique_ptr<v8::ConvertableToTraceFormat> ProcessMeta::Cast() const {
+  auto trace_process = tracing::TracedValue::Create();
+  trace_process->BeginDictionary("versions");
+  for (const auto& version : per_process::metadata.versions.pairs()) {
+    trace_process->SetString(version.first.data(), version.second.data());
+  }
+  trace_process->EndDictionary();
+
+  trace_process->SetString("arch", per_process::metadata.arch.c_str());
+  trace_process->SetString("platform", per_process::metadata.platform.c_str());
+
+  trace_process->BeginDictionary("release");
+  trace_process->SetString("name", per_process::metadata.release.name.c_str());
+#if NODE_VERSION_IS_LTS
+  trace_process->SetString("lts", per_process::metadata.release.lts.c_str());
+#endif
+  trace_process->EndDictionary();
+
+  return trace_process;
+}
+
+#if defined(V8_USE_PERFETTO)
+void ProcessMeta::WriteIntoTrace(perfetto::TracedValue context) const {
+  auto dict = std::move(context).WriteDictionary();
+  auto versions_dict = dict.AddDictionary("versions");
+  for (const auto& version : per_process::metadata.versions.pairs()) {
+    versions_dict.Add(perfetto::DynamicString(std::string(version.first)),
+                      version.second);
+  }
+  dict.Add("arch", per_process::metadata.arch.c_str());
+  dict.Add("platform", per_process::metadata.platform.c_str());
+
+  auto release_dict = dict.AddDictionary("release");
+  release_dict.Add("name", per_process::metadata.release.name.c_str());
+}
+#endif
 
 }  // namespace tracing
 }  // namespace node

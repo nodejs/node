@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 
-load('../base.js');
-load('super.js');
-load('default-constructor.js');
-load('leaf-constructors.js');
+d8.file.execute('../base.js');
+d8.file.execute('super.js');
+d8.file.execute('default-constructor.js');
+d8.file.execute('leaf-constructors.js');
 
 
 var success = true;

@@ -13,8 +13,17 @@ assert.strictEqual(a.buffer, b.buffer);
 const length = a.length;
 
 const { port1 } = new MessageChannel();
-port1.postMessage(a, [ a.buffer ]);
+assert.throws(() => port1.postMessage(a, [ a.buffer ]), {
+  code: 25,
+  name: 'DataCloneError',
+});
 
 // Verify that the pool ArrayBuffer has not actually been transferred:
 assert.strictEqual(a.buffer, b.buffer);
 assert.strictEqual(a.length, length);
+
+// Verify that ArrayBuffer.prototype.transfer() also throws.
+assert.throws(() => a.buffer.transfer(), {
+  name: 'TypeError',
+});
+assert.strictEqual(a.buffer, b.buffer);

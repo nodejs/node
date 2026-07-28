@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_INTERRUPTS_SCOPE_H_
 #define V8_EXECUTION_INTERRUPTS_SCOPE_H_
 
+#include "src/execution/isolate.h"
 #include "src/execution/stack-guard.h"
 
 namespace v8 {
@@ -14,15 +15,26 @@ class Isolate;
 
 // Scope intercepts only interrupt which is part of its interrupt_mask and does
 // not affect other interrupts.
-class InterruptsScope {
+class V8_NODISCARD InterruptsScope {
  public:
-  enum Mode { kPostponeInterrupts, kRunInterrupts, kNoop };
+  enum Mode : uint8_t { kPostponeInterrupts, kRunInterrupts, kNoop };
 
-  V8_EXPORT_PRIVATE InterruptsScope(Isolate* isolate, intptr_t intercept_mask,
-                                    Mode mode);
+  V8_EXPORT_PRIVATE InterruptsScope(Isolate* isolate, uint32_t intercept_mask,
+                                    Mode mode)
+      : stack_guard_(nullptr),
+        intercept_mask_(intercept_mask),
+        intercepted_flags_(0),
+        mode_(mode) {
+    if (mode_ != kNoop) {
+      stack_guard_ = isolate->stack_guard();
+      stack_guard_->PushInterruptsScope(this);
+    }
+  }
 
-  virtual ~InterruptsScope() {
-    if (mode_ != kNoop) stack_guard_->PopInterruptsScope();
+  ~InterruptsScope() {
+    if (mode_ != kNoop) {
+      stack_guard_->PopInterruptsScope();
+    }
   }
 
   // Find the scope that intercepts this interrupt.
@@ -33,10 +45,10 @@ class InterruptsScope {
 
  private:
   StackGuard* stack_guard_;
-  intptr_t intercept_mask_;
-  intptr_t intercepted_flags_;
-  Mode mode_;
   InterruptsScope* prev_;
+  const uint32_t intercept_mask_;
+  uint32_t intercepted_flags_;
+  const Mode mode_;
 
   friend class StackGuard;
 };
@@ -45,25 +57,23 @@ class InterruptsScope {
 // postpone scope is left the interrupts will be re-enabled and any
 // interrupts that occurred while in the scope will be taken into
 // account.
-class PostponeInterruptsScope : public InterruptsScope {
+class V8_NODISCARD PostponeInterruptsScope : public InterruptsScope {
  public:
-  PostponeInterruptsScope(Isolate* isolate,
-                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
+  explicit PostponeInterruptsScope(
+      Isolate* isolate, uint32_t intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kPostponeInterrupts) {}
-  ~PostponeInterruptsScope() override = default;
 };
 
 // Support for overriding PostponeInterruptsScope. Interrupt is not ignored if
 // innermost scope is SafeForInterruptsScope ignoring any outer
 // PostponeInterruptsScopes.
-class SafeForInterruptsScope : public InterruptsScope {
+class V8_NODISCARD SafeForInterruptsScope : public InterruptsScope {
  public:
-  SafeForInterruptsScope(Isolate* isolate,
-                         int intercept_mask = StackGuard::ALL_INTERRUPTS)
+  explicit SafeForInterruptsScope(
+      Isolate* isolate, uint32_t intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kRunInterrupts) {}
-  ~SafeForInterruptsScope() override = default;
 };
 
 }  // namespace internal

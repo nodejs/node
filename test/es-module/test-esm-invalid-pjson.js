@@ -1,27 +1,30 @@
 'use strict';
 
-const { mustCall, isWindows } = require('../common');
-const fixtures = require('../common/fixtures');
-const { spawn } = require('child_process');
-const { strictEqual, ok } = require('assert');
+const { spawnPromisified } = require('../common');
+const fixtures = require('../common/fixtures.js');
+const assert = require('node:assert');
+const path = require('node:path');
+const { execPath } = require('node:process');
+const { describe, it } = require('node:test');
 
-const entry = fixtures.path('/es-modules/import-invalid-pjson.mjs');
-const invalidJson = fixtures.path('/node_modules/invalid-pjson/package.json');
 
-const child = spawn(process.execPath, [entry]);
-child.stderr.setEncoding('utf8');
-let stderr = '';
-child.stderr.on('data', (data) => {
-  stderr += data;
+describe('ESM: Package.json', { concurrency: !process.env.TEST_PARALLEL }, () => {
+  it('should throw on invalid pson', async () => {
+    const entry = fixtures.path('/es-modules/import-invalid-pjson.mjs');
+    const invalidJson = fixtures.path('/node_modules/invalid-pjson/package.json');
+
+    const { code, signal, stderr } = await spawnPromisified(execPath, [entry]);
+
+    assert.ok(stderr.includes('code: \'ERR_INVALID_PACKAGE_CONFIG\''), stderr);
+    assert.ok(
+      stderr.includes(
+        `Invalid package config ${path.toNamespacedPath(invalidJson)} while importing "invalid-pjson" from ${entry}.`
+      ) || stderr.includes(
+        `Invalid package config ${path.toNamespacedPath(invalidJson)} while importing "invalid-pjson" from ${path.toNamespacedPath(entry)}.`
+      ),
+      stderr
+    );
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
 });
-child.on('close', mustCall((code, signal) => {
-  strictEqual(code, 1);
-  strictEqual(signal, null);
-  ok(
-    stderr.includes(
-      `[ERR_INVALID_PACKAGE_CONFIG]: Invalid package config ${invalidJson} ` +
-      `while importing "invalid-pjson" from ${entry}. ` +
-      `Unexpected token } in JSON at position ${isWindows ? 16 : 14}`
-    ),
-    stderr);
-}));

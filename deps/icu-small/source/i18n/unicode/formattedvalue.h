@@ -20,7 +20,7 @@ U_NAMESPACE_BEGIN
 /**
  * \file
  * \brief C++ API: Abstract operations for localized strings.
- *
+ * 
  * This file contains declarations for classes that deal with formatted strings. A number
  * of APIs throughout ICU use these classes for expressing their localized output.
  */
@@ -65,7 +65,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
 
     /**
      * Sets a constraint on the field category.
-     *
+     * 
      * When this instance of ConstrainedFieldPosition is passed to FormattedValue#nextPosition,
      * positions are skipped unless they have the given category.
      *
@@ -89,7 +89,7 @@ class U_I18N_API ConstrainedFieldPosition : public UMemory {
 
     /**
      * Sets a constraint on the category and field.
-     *
+     * 
      * When this instance of ConstrainedFieldPosition is passed to FormattedValue#nextPosition,
      * positions are skipped unless they have the given category and field.
      *

@@ -1,0 +1,133 @@
+.TH "NPM-INSTALL-SCRIPTS" "1" "June 2026" "NPM@11.18.0" ""
+.SH "NAME"
+\fBnpm-install-scripts\fR - Manage install-script approvals for dependencies
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm install-scripts approve <pkg> \[lB]<pkg> ...\[rB]
+npm install-scripts approve --all
+npm install-scripts deny <pkg> \[lB]<pkg> ...\[rB]
+npm install-scripts deny --all
+npm install-scripts ls
+npm install-scripts prune
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Manages the \fBallowScripts\fR field in your project's \fBpackage.json\fR, which records which of your dependencies are permitted to run install scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR, and \fBprepare\fR for non-registry sources). This is the recommended way to maintain that field.
+.P
+Dependency install scripts are blocked by default. Install commands silently skip lifecycle scripts for any dependency that does not have a matching entry in \fBallowScripts\fR, and end with a list of the packages whose scripts were skipped so you can review them here.
+.P
+This command only works inside a project that has a \fBpackage.json\fR. Running it with \fB--global\fR (\fB-g\fR) fails with an \fBEGLOBAL\fR error, since global installs (\fBnpm install -g\fR) and one-off executions (\fBnpm exec\fR / \fBnpx\fR) have no project \fBpackage.json\fR to write to. To allow install scripts in those contexts, use the \fB--allow-scripts\fR flag at install time (for example \fBnpm install -g --allow-scripts=canvas,sharp\fR) or persist the setting with \fBnpm config set allow-scripts=canvas,sharp --location=user\fR.
+.P
+There are four subcommands:
+.P
+.RS 2
+.nf
+npm install-scripts approve <pkg> \[lB]<pkg> ...\[rB]
+npm install-scripts approve --all
+npm install-scripts deny <pkg> \[lB]<pkg> ...\[rB]
+npm install-scripts deny --all
+npm install-scripts ls
+npm install-scripts prune
+.fi
+.RE
+.P
+\fBapprove\fR allows install scripts for the named packages. \fB<pkg>\fR matches every installed version of that package. By default it writes pinned entries (\fBpkg@1.2.3\fR), which keep their approval narrowed to the specific version you reviewed. Pass \fB--no-allow-scripts-pin\fR to write name-only entries that allow any future version. \fB--all\fR approves every package with unreviewed install scripts in one go.
+.P
+\fBdeny\fR records an explicit denial for the named packages (a name-only \fBfalse\fR entry), which survives \fBnpm install-scripts approve --all\fR and excludes the package from any future blanket approval. \fB--all\fR denies every package with unreviewed install scripts.
+.P
+\fBls\fR is read-only: it lists every package whose install scripts are not yet covered by \fBallowScripts\fR, without modifying \fBpackage.json\fR.
+.P
+\fBprune\fR removes \fBallowScripts\fR entries that no longer match an installed package with an install script, either because the package is no longer installed (a transitive dependency changed, or a pinned \fBpkg@1.2.3\fR was upgraded) or because it no longer has an install script. Both approvals (\fBtrue\fR) and denials (\fBfalse\fR) are removed. It edits only the \fBallowScripts\fR field in \fBpackage.json\fR, never \fB.npmrc\fR or \fB--allow-scripts\fR. Pass \fB--dry-run\fR to preview without writing. Unparseable keys are left alone.
+.P
+\fBapprove\fR honours the asymmetric pin rule: if you re-approve a package whose installed version has changed, the existing pin is rewritten to track the new installed version. Multi-version statements (\fBpkg@1 || 2\fR) are left alone, since they likely capture intent that the command cannot infer. Existing \fBfalse\fR entries always win; \fBapprove\fR will not silently re-allow a package you previously denied.
+.P
+The standalone commands npm help approve-scripts and npm help deny-scripts are aliases for \fBnpm install-scripts approve\fR and \fBnpm install-scripts deny\fR.
+.SS "Examples"
+.P
+.RS 2
+.nf
+# Approve all currently-installed install scripts after reviewing them
+npm install-scripts approve --all
+
+# Approve specific packages, pinned to their installed version
+npm install-scripts approve canvas sharp
+
+# Deny a package so it stays blocked
+npm install-scripts deny telemetry-pkg
+
+# Preview which packages still need review
+npm install-scripts ls
+
+# Preview stale allowScripts entries, then remove them
+npm install-scripts prune --dry-run
+npm install-scripts prune
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBall\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Show or act on all packages, not just the ones your project directly depends on. For \fBnpm outdated\fR and \fBnpm ls\fR this lists every outdated or installed package. For \fBnpm approve-scripts\fR and \fBnpm deny-scripts\fR it selects every package with pending install scripts.
+.SS "\fBallow-scripts-pin\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Write pinned (\fBpkg@version\fR) entries when approving install scripts. Set to \fBfalse\fR to write name-only entries that allow any version. Has no effect on \fBnpm deny-scripts\fR, which always writes name-only entries regardless of this setting.
+.SS "\fBdry-run\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR.
+.P
+Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help approve-scripts
+.IP \(bu 4
+npm help deny-scripts
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help rebuild
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.RE 0

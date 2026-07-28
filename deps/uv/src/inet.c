@@ -17,12 +17,7 @@
 
 #include <stdio.h>
 #include <string.h>
-
-#if defined(_MSC_VER) && _MSC_VER < 1600
-# include "uv/stdint-msvc2008.h"
-#else
-# include <stdint.h>
-#endif
+#include <stdint.h>
 
 #include "uv.h"
 #include "uv-common.h"
@@ -135,14 +130,15 @@ static int inet_ntop6(const unsigned char *src, char *dst, size_t size) {
       tp += strlen(tp);
       break;
     }
-    tp += sprintf(tp, "%x", words[i]);
+    tp += snprintf(tp, sizeof tmp - (tp - tmp), "%x", words[i]);
   }
   /* Was it a trailing run of 0x00's? */
   if (best.base != -1 && (best.base + best.len) == ARRAY_SIZE(words))
     *tp++ = ':';
   *tp++ = '\0';
-  if (UV_E2BIG == uv__strscpy(dst, tmp, size))
+  if ((size_t) (tp - tmp) > size)
     return UV_ENOSPC;
+  uv__strscpy(dst, tmp, size);
   return 0;
 }
 
@@ -155,19 +151,19 @@ int uv_inet_pton(int af, const char* src, void* dst) {
   case AF_INET:
     return (inet_pton4(src, dst));
   case AF_INET6: {
-    int len;
-    char tmp[UV__INET6_ADDRSTRLEN], *s, *p;
-    s = (char*) src;
+    const char *p;
     p = strchr(src, '%');
     if (p != NULL) {
-      s = tmp;
+      int len;
+      char s[UV__INET6_ADDRSTRLEN];
       len = p - src;
       if (len > UV__INET6_ADDRSTRLEN-1)
         return UV_EINVAL;
       memcpy(s, src, len);
       s[len] = '\0';
-    }
-    return inet_pton6(s, dst);
+      return inet_pton6(s, dst);
+    } else
+      return inet_pton6(src, dst);
   }
   default:
     return UV_EAFNOSUPPORT;

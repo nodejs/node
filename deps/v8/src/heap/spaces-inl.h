@@ -5,185 +5,105 @@
 #ifndef V8_HEAP_SPACES_INL_H_
 #define V8_HEAP_SPACES_INL_H_
 
+#include "src/heap/spaces.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/atomic-utils.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
-#include "src/heap/heap-inl.h"
-#include "src/heap/incremental-marking.h"
+#include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/memory-chunk-inl.h"
+#include "src/heap/main-allocator-inl.h"
+#include "src/heap/mutable-page-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
-#include "src/heap/spaces.h"
-#include "src/objects/code-inl.h"
 
 namespace v8 {
 namespace internal {
 
-template <class PAGE_TYPE>
-PageIteratorImpl<PAGE_TYPE>& PageIteratorImpl<PAGE_TYPE>::operator++() {
+template <class PageType>
+PageIteratorImpl<PageType>& PageIteratorImpl<PageType>::operator++() {
   p_ = p_->next_page();
   return *this;
 }
 
-template <class PAGE_TYPE>
-PageIteratorImpl<PAGE_TYPE> PageIteratorImpl<PAGE_TYPE>::operator++(int) {
-  PageIteratorImpl<PAGE_TYPE> tmp(*this);
+template <class PageType>
+PageIteratorImpl<PageType> PageIteratorImpl<PageType>::operator++(int) {
+  PageIteratorImpl<PageType> tmp(*this);
   operator++();
   return tmp;
 }
 
-PageRange::PageRange(Address start, Address limit)
-    : begin_(Page::FromAddress(start)),
-      end_(Page::FromAllocationAreaAddress(limit)->next_page()) {
-#ifdef DEBUG
-  if (begin_->InNewSpace()) {
-    SemiSpace::AssertValidRange(start, limit);
-  }
-#endif  // DEBUG
-}
-
-void Space::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                               size_t amount) {
-  base::CheckedIncrement(&external_backing_store_bytes_[type], amount);
-  heap()->IncrementExternalBackingStoreBytes(type, amount);
-}
-
-void Space::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                               size_t amount) {
-  base::CheckedDecrement(&external_backing_store_bytes_[type], amount);
-  heap()->DecrementExternalBackingStoreBytes(type, amount);
-}
-
-void Space::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          Space* from, Space* to,
-                                          size_t amount) {
-  if (from == to) return;
-
-  base::CheckedDecrement(&(from->external_backing_store_bytes_[type]), amount);
-  base::CheckedIncrement(&(to->external_backing_store_bytes_[type]), amount);
-}
-
-void Page::MarkNeverAllocateForTesting() {
-  DCHECK(this->owner_identity() != NEW_SPACE);
-  DCHECK(!IsFlagSet(NEVER_ALLOCATE_ON_PAGE));
-  SetFlag(NEVER_ALLOCATE_ON_PAGE);
-  SetFlag(NEVER_EVACUATE);
-  reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
-}
-
-void Page::MarkEvacuationCandidate() {
-  DCHECK(!IsFlagSet(NEVER_EVACUATE));
-  DCHECK_NULL(slot_set<OLD_TO_OLD>());
-  DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  SetFlag(EVACUATION_CANDIDATE);
-  reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
-}
-
-void Page::ClearEvacuationCandidate() {
-  if (!IsFlagSet(COMPACTION_WAS_ABORTED)) {
-    DCHECK_NULL(slot_set<OLD_TO_OLD>());
-    DCHECK_NULL(typed_slot_set<OLD_TO_OLD>());
-  }
-  ClearFlag(EVACUATION_CANDIDATE);
-  InitializeFreeListCategories();
-}
+PageRange::PageRange(NormalPage* page) : PageRange(page, page->next_page()) {}
+ConstPageRange::ConstPageRange(const NormalPage* page)
+    : ConstPageRange(page, page->next_page()) {}
 
 OldGenerationMemoryChunkIterator::OldGenerationMemoryChunkIterator(Heap* heap)
-    : heap_(heap),
-      state_(kOldSpaceState),
-      old_iterator_(heap->old_space()->begin()),
-      code_iterator_(heap->code_space()->begin()),
-      map_iterator_(heap->map_space()->begin()),
-      lo_iterator_(heap->lo_space()->begin()),
-      code_lo_iterator_(heap->code_lo_space()->begin()) {}
+    : heap_(heap), state_(kOldSpace), iterator_(heap->old_space()->begin()) {}
 
-MemoryChunk* OldGenerationMemoryChunkIterator::next() {
+MutablePage* OldGenerationMemoryChunkIterator::next() {
   switch (state_) {
-    case kOldSpaceState: {
-      if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
-      state_ = kMapState;
-      V8_FALLTHROUGH;
+    case kOldSpace: {
+      PageIterator& iterator = std::get<PageIterator>(iterator_);
+      if (iterator != heap_->old_space()->end()) return *(iterator++);
+      state_ = kCodeSpace;
+      iterator_ = heap_->code_space()->begin();
+      [[fallthrough]];
     }
-    case kMapState: {
-      if (map_iterator_ != heap_->map_space()->end()) return *(map_iterator_++);
-      state_ = kCodeState;
-      V8_FALLTHROUGH;
+    case kCodeSpace: {
+      PageIterator& iterator = std::get<PageIterator>(iterator_);
+      if (iterator != heap_->code_space()->end()) return *(iterator++);
+      state_ = kLargeObjectSpace;
+      iterator_ = heap_->lo_space()->begin();
+      [[fallthrough]];
     }
-    case kCodeState: {
-      if (code_iterator_ != heap_->code_space()->end())
-        return *(code_iterator_++);
-      state_ = kLargeObjectState;
-      V8_FALLTHROUGH;
+    case kLargeObjectSpace: {
+      LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
+      if (iterator != heap_->lo_space()->end()) return *(iterator++);
+      state_ = kCodeLargeObjectSpace;
+      iterator_ = heap_->code_lo_space()->begin();
+      [[fallthrough]];
     }
-    case kLargeObjectState: {
-      if (lo_iterator_ != heap_->lo_space()->end()) return *(lo_iterator_++);
-      state_ = kCodeLargeObjectState;
-      V8_FALLTHROUGH;
+    case kCodeLargeObjectSpace: {
+      LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
+      if (iterator != heap_->code_lo_space()->end()) return *(iterator++);
+      state_ = kTrustedSpace;
+      iterator_ = heap_->trusted_space()->begin();
+      [[fallthrough]];
     }
-    case kCodeLargeObjectState: {
-      if (code_lo_iterator_ != heap_->code_lo_space()->end())
-        return *(code_lo_iterator_++);
-      state_ = kFinishedState;
-      V8_FALLTHROUGH;
+    case kTrustedSpace: {
+      PageIterator& iterator = std::get<PageIterator>(iterator_);
+      if (iterator != heap_->trusted_space()->end()) return *(iterator++);
+      state_ = kTrustedLargeObjectSpace;
+      iterator_ = heap_->trusted_lo_space()->begin();
+      [[fallthrough]];
     }
-    case kFinishedState:
+    case kTrustedLargeObjectSpace: {
+      LargePageIterator& iterator = std::get<LargePageIterator>(iterator_);
+      if (iterator != heap_->trusted_lo_space()->end()) return *(iterator++);
+      state_ = kFinished;
+      [[fallthrough]];
+    }
+    case kFinished:
       return nullptr;
-    default:
-      break;
   }
-  UNREACHABLE();
 }
 
-AllocationResult LocalAllocationBuffer::AllocateRawAligned(
-    int size_in_bytes, AllocationAlignment alignment) {
-  Address current_top = allocation_info_.top();
-  int filler_size = Heap::GetFillToAlign(current_top, alignment);
+bool MemoryChunkIterator::HasNext() {
+  if (current_chunk_) return true;
 
-  Address new_top = current_top + filler_size + size_in_bytes;
-  if (new_top > allocation_info_.limit()) return AllocationResult::Retry();
-
-  allocation_info_.set_top(new_top);
-  if (filler_size > 0) {
-    return Heap::PrecedeWithFiller(ReadOnlyRoots(heap_),
-                                   HeapObject::FromAddress(current_top),
-                                   filler_size);
+  while (space_iterator_.HasNext()) {
+    Space* space = space_iterator_.Next();
+    current_chunk_ = space->first_page();
+    if (current_chunk_) return true;
   }
 
-  return AllocationResult(HeapObject::FromAddress(current_top));
-}
-
-LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
-                                                        AllocationResult result,
-                                                        intptr_t size) {
-  if (result.IsRetry()) return InvalidBuffer();
-  HeapObject obj;
-  bool ok = result.To(&obj);
-  USE(ok);
-  DCHECK(ok);
-  Address top = HeapObject::cast(obj).address();
-  return LocalAllocationBuffer(heap, LinearAllocationArea(top, top + size));
-}
-
-
-bool LocalAllocationBuffer::TryMerge(LocalAllocationBuffer* other) {
-  if (allocation_info_.top() == other->allocation_info_.limit()) {
-    allocation_info_.set_top(other->allocation_info_.top());
-    other->allocation_info_.Reset(kNullAddress, kNullAddress);
-    return true;
-  }
   return false;
 }
 
-bool LocalAllocationBuffer::TryFreeLast(HeapObject object, int object_size) {
-  if (IsValid()) {
-    const Address object_address = object.address();
-    if ((allocation_info_.top() - object_size) == object_address) {
-      allocation_info_.set_top(object_address);
-      return true;
-    }
-  }
-  return false;
+MutablePage* MemoryChunkIterator::Next() {
+  MutablePage* chunk = current_chunk_;
+  current_chunk_ = chunk->list_node().next();
+  return chunk;
 }
 
 }  // namespace internal

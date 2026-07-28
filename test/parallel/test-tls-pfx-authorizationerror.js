@@ -23,12 +23,12 @@ const server = tls
     },
     common.mustCall(function(c) {
       assert.strictEqual(c.getPeerCertificate().serialNumber,
-                         'ECC9B856270DA9A8');
+                         '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
       assert.strictEqual(c.authorizationError, null);
       c.end();
     })
   )
-  .listen(0, function() {
+  .listen(0, common.mustCall(function() {
     const client = tls.connect(
       {
         port: this.address().port,
@@ -36,16 +36,16 @@ const server = tls
         passphrase: 'sample',
         rejectUnauthorized: false
       },
-      function() {
+      common.mustCall(() => {
         for (let i = 0; i < 10; ++i) {
           // Calling this repeatedly is a regression test that verifies
           // that .getCertificate() does not accidentally decrease the
           // reference count of the X509* certificate on the native side.
           assert.strictEqual(client.getCertificate().serialNumber,
-                             'ECC9B856270DA9A8');
+                             '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
         }
         client.end();
         server.close();
-      }
+      }),
     );
-  });
+  }));

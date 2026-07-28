@@ -13,9 +13,8 @@
 #include "formatted_string_builder.h"
 #include "formattedval_impl.h"
 
-U_NAMESPACE_BEGIN namespace number {
-namespace impl {
-
+U_NAMESPACE_BEGIN
+namespace number::impl {
 
 /** Helper function used in upluralrules.cpp */
 const DecimalQuantity* validateUFormattedNumberToDecimalQuantity(
@@ -35,6 +34,9 @@ public:
     UFormattedNumberData() : FormattedValueStringBuilderImpl(kUndefinedField) {}
     virtual ~UFormattedNumberData();
 
+    UFormattedNumberData(UFormattedNumberData&&) = default;
+    UFormattedNumberData& operator=(UFormattedNumberData&&) = default;
+
     // The formatted quantity.
     DecimalQuantity quantity;
 
@@ -42,11 +44,12 @@ public:
     // TODO(units,hugovdm): populate this correctly for the general case - it's
     // currently only implemented for the .usage() use case.
     MeasureUnit outputUnit;
+
+    // The gender of the formatted output.
+    const char *gender = "";
 };
 
-
-} // namespace impl
-} // namespace number
+} // namespace number::impl
 U_NAMESPACE_END
 
 #endif //__SOURCE_NUMBER_UTYPES_H__

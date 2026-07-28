@@ -6,7 +6,8 @@ namespace string {
 
 // ES6 #sec-string.prototype.substring
 transitioning javascript builtin StringPrototypeSubstring(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   // Check that {receiver} is coercible to Object and convert it to a String.
   const string: String = ToThisString(receiver, 'String.prototype.substring');
   const length: uintptr = string.length_uintptr;

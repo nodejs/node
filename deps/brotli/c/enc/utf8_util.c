@@ -6,9 +6,9 @@
 
 /* Heuristics for deciding about the UTF8-ness of strings. */
 
-#include "./utf8_util.h"
+#include "utf8_util.h"
 
-#include <brotli/types.h>
+#include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

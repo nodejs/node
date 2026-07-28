@@ -4,7 +4,7 @@
 
 // Flags: --no-liftoff --no-force-slow-path
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // This constant was chosen as it is the smallest number of cases that still
 // triggers the input count overflow. The new limit put into place is smaller.
@@ -15,7 +15,7 @@ const NUM_CASES = 0xfffd;
   let cases = new Array(NUM_CASES).fill(0);
   builder.addFunction('main', kSig_v_i)
       .addBody([].concat([
-        kExprBlock, kWasmStmt,
+        kExprBlock, kWasmVoid,
           kExprLocalGet, 0,
           kExprBrTable], wasmSignedLeb(NUM_CASES),
           cases, [0,

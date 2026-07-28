@@ -5,17 +5,14 @@
 #ifndef V8_AST_PRETTYPRINTER_H_
 #define V8_AST_PRETTYPRINTER_H_
 
-#include <memory>
-
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
+#include "src/execution/isolate.h"
 #include "src/objects/function-kind.h"
-#include "src/utils/allocation.h"
+#include "src/strings/string-builder.h"
 
 namespace v8 {
 namespace internal {
-
-class IncrementalStringBuilder;  // to avoid including string-builder-inl.h
 
 class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
@@ -28,8 +25,8 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
   // The following routine prints the node with position |position| into a
   // string.
-  Handle<String> Print(FunctionLiteral* program, int position);
-  enum ErrorHint {
+  DirectHandle<String> Print(FunctionLiteral* program, int position);
+  enum class ErrorHint {
     kNone,
     kNormalIterator,
     kAsyncIterator,
@@ -52,15 +49,17 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 #undef DECLARE_VISIT
 
  private:
+  void Print(char c);
   void Print(const char* str);
-  void Print(Handle<String> str);
+  void Print(DirectHandle<String> str);
+
+  bool ShouldPrint();
 
   void Find(AstNode* node, bool print = false);
 
   Isolate* isolate_;
   int num_prints_;
-  // Allocate the builder on the heap simply because it's forward declared.
-  std::unique_ptr<IncrementalStringBuilder> builder_;
+  IncrementalStringBuilder builder_;
   int position_;  // position of ast node to print
   bool found_;
   bool done_;
@@ -76,7 +75,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  protected:
-  void PrintLiteral(Handle<Object> value, bool quote);
+  void PrintLiteral(DirectHandle<Object> value, bool quote);
   void PrintLiteral(const AstRawString* value, bool quote);
   void FindStatements(const ZonePtrList<Statement>* statements);
   void FindArguments(const ZonePtrList<Expression>* arguments);
@@ -133,8 +132,11 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
                            const char* prefix = "");
   void PrintObjectProperties(
       const ZonePtrList<ObjectLiteral::Property>* properties);
+  void PrintClassProperty(ClassLiteral::Property* property);
   void PrintClassProperties(
       const ZonePtrList<ClassLiteral::Property>* properties);
+  void PrintClassStaticElements(
+      const ZonePtrList<ClassLiteral::StaticElement>* static_elements);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }

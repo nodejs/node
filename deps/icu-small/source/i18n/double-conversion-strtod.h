@@ -54,10 +54,24 @@ double Strtod(Vector<const char> buffer, int exponent);
 // contain a dot or a sign. It must not start with '0', and must not be empty.
 float Strtof(Vector<const char> buffer, int exponent);
 
-// For special use cases, the heart of the Strtod() function is also available
-// separately, it assumes that 'trimmed' is as produced by TrimAndCut(), i.e.
-// no leading or trailing zeros, also no lone zero, and not 'too many' digits.
+// Same as Strtod, but assumes that 'trimmed' is already trimmed, as if run
+// through TrimAndCut. That is, 'trimmed' must have no leading or trailing
+// zeros, must not be a lone zero, and must not have 'too many' digits.
 double StrtodTrimmed(Vector<const char> trimmed, int exponent);
+
+// Same as Strtof, but assumes that 'trimmed' is already trimmed, as if run
+// through TrimAndCut. That is, 'trimmed' must have no leading or trailing
+// zeros, must not be a lone zero, and must not have 'too many' digits.
+float StrtofTrimmed(Vector<const char> trimmed, int exponent);
+
+inline Vector<const char> TrimTrailingZeros(Vector<const char> buffer) {
+  for (int i = buffer.length() - 1; i >= 0; --i) {
+    if (buffer[i] != '0') {
+      return buffer.SubVector(0, i + 1);
+    }
+  }
+  return Vector<const char>(buffer.start(), 0);
+}
 
 }  // namespace double_conversion
 

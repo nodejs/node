@@ -4,13 +4,8 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/execution/protectors-inl.h"
-#include "src/heap/heap.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +14,7 @@ void TestArrayBufferViewContents(LocalContext* env, bool should_use_buffer) {
   v8::Local<v8::Object> obj_a = v8::Local<v8::Object>::Cast(
       (*env)
           ->Global()
-          ->Get((*env)->GetIsolate()->GetCurrentContext(), v8_str("a"))
+          ->Get(env->isolate()->GetCurrentContext(), v8_str("a"))
           .ToLocalChecked());
   CHECK(obj_a->IsArrayBufferView());
   v8::Local<v8::ArrayBufferView> array_buffer_view =
@@ -36,7 +31,7 @@ void TestArrayBufferViewContents(LocalContext* env, bool should_use_buffer) {
 
 TEST(CopyContentsTypedArray) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   CompileRun(
       "var a = new Uint8Array(4);"
       "a[0] = 0;"
@@ -49,7 +44,7 @@ TEST(CopyContentsTypedArray) {
 
 TEST(CopyContentsArray) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   CompileRun("var a = new Uint8Array([0, 1, 2, 3]);");
   TestArrayBufferViewContents(&env, false);
 }
@@ -57,7 +52,7 @@ TEST(CopyContentsArray) {
 
 TEST(CopyContentsView) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   CompileRun(
       "var b = new ArrayBuffer(6);"
       "var c = new Uint8Array(b);"
@@ -69,30 +64,6 @@ TEST(CopyContentsView) {
       "c[5] = 3;"
       "var a = new DataView(b, 2);");
   TestArrayBufferViewContents(&env, true);
-}
-
-
-TEST(AllocateNotExternal) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  void* memory = reinterpret_cast<Isolate*>(env->GetIsolate())
-                     ->array_buffer_allocator()
-                     ->Allocate(1024);
-
-// Keep the test until the functions are removed.
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-  v8::Local<v8::ArrayBuffer> buffer =
-      v8::ArrayBuffer::New(env->GetIsolate(), memory, 1024,
-                           v8::ArrayBufferCreationMode::kInternalized);
-  CHECK(!buffer->IsExternal());
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-
-  CHECK_EQ(memory, buffer->GetBackingStore()->Data());
 }
 
 void TestSpeciesProtector(char* code,
@@ -144,17 +115,20 @@ void TestSpeciesProtector(char* code,
 }
 
 UNINITIALIZED_TEST(SpeciesConstructor) {
+  v8_flags.js_float16array = true;
   char code[] = "x.constructor = MyTypedArray";
   TestSpeciesProtector(code);
 }
 
 UNINITIALIZED_TEST(SpeciesConstructorAccessor) {
+  v8_flags.js_float16array = true;
   char code[] =
       "Object.defineProperty(x, 'constructor',{get() {return MyTypedArray;}})";
   TestSpeciesProtector(code);
 }
 
 UNINITIALIZED_TEST(SpeciesModified) {
+  v8_flags.js_float16array = true;
   char code[] =
       "Object.defineProperty(constructor, Symbol.species, "
       "{value:MyTypedArray})";
@@ -162,6 +136,7 @@ UNINITIALIZED_TEST(SpeciesModified) {
 }
 
 UNINITIALIZED_TEST(SpeciesParentConstructor) {
+  v8_flags.js_float16array = true;
   char code[] = "constructor.prototype.constructor = MyTypedArray";
   TestSpeciesProtector(code);
 }

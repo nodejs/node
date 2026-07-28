@@ -6,17 +6,10 @@
 #define V8_COMPILER_COMMON_NODE_CACHE_H_
 
 #include "src/compiler/node-cache.h"
+#include "src/utils/boxed-float.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class ExternalReference;
-class HeapObject;
-template <typename>
-class Handle;
-
-
 namespace compiler {
 
 // Bundles various caches for common nodes.
@@ -36,6 +29,9 @@ class CommonNodeCache final {
         relocatable_int64_constants_(zone) {}
   ~CommonNodeCache() = default;
 
+  CommonNodeCache(const CommonNodeCache&) = delete;
+  CommonNodeCache& operator=(const CommonNodeCache&) = delete;
+
   Node** FindInt32Constant(int32_t value) {
     return int32_constants_.Find(value);
   }
@@ -50,12 +46,12 @@ class CommonNodeCache final {
 
   Node** FindFloat32Constant(float value) {
     // We canonicalize float constants at the bit representation level.
-    return float32_constants_.Find(bit_cast<int32_t>(value));
+    return float32_constants_.Find(base::bit_cast<int32_t>(value));
   }
 
-  Node** FindFloat64Constant(double value) {
+  Node** FindFloat64Constant(Float64 value) {
     // We canonicalize double constants at the bit representation level.
-    return float64_constants_.Find(bit_cast<int64_t>(value));
+    return float64_constants_.Find(value.get_bits());
   }
 
   Node** FindExternalConstant(ExternalReference value);
@@ -66,7 +62,7 @@ class CommonNodeCache final {
 
   Node** FindNumberConstant(double value) {
     // We canonicalize double constants at the bit representation level.
-    return number_constants_.Find(bit_cast<int64_t>(value));
+    return number_constants_.Find(base::bit_cast<int64_t>(value));
   }
 
   Node** FindHeapConstant(Handle<HeapObject> value);
@@ -94,8 +90,6 @@ class CommonNodeCache final {
   IntPtrNodeCache heap_constants_;
   RelocInt32NodeCache relocatable_int32_constants_;
   RelocInt64NodeCache relocatable_int64_constants_;
-
-  DISALLOW_COPY_AND_ASSIGN(CommonNodeCache);
 };
 
 }  // namespace compiler

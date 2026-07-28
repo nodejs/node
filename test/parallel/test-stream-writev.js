@@ -51,11 +51,10 @@ function test(decode, uncork, multi, next) {
   function cnt(msg) {
     expectCount++;
     const expect = expectCount;
-    return function(er) {
-      assert.ifError(er);
+    return common.mustSucceed(() => {
       counter++;
       assert.strictEqual(counter, expect);
-    };
+    });
   }
 
   const w = new stream.Writable({ decodeStrings: decode });
@@ -71,13 +70,13 @@ function test(decode, uncork, multi, next) {
     { encoding: 'buffer',
       chunk: [10, 97, 110, 100, 32, 116, 104, 101, 110, 46, 46, 46] },
     { encoding: 'buffer',
-      chunk: [250, 206, 190, 167, 222, 173, 190, 239, 222, 202, 251, 173] }
+      chunk: [250, 206, 190, 167, 222, 173, 190, 239, 222, 202, 251, 173] },
   ] : [
     { encoding: 'ascii', chunk: 'hello, ' },
     { encoding: 'utf8', chunk: 'world' },
     { encoding: 'buffer', chunk: [33] },
     { encoding: 'latin1', chunk: '\nand then...' },
-    { encoding: 'hex', chunk: 'facebea7deadbeefdecafbad' }
+    { encoding: 'hex', chunk: 'facebea7deadbeefdecafbad' },
   ];
 
   let actualChunks;
@@ -112,12 +111,12 @@ function test(decode, uncork, multi, next) {
 
   w.end(cnt('end'));
 
-  w.on('finish', function() {
+  w.on('finish', common.mustCall(() => {
     // Make sure finish comes after all the write cb
     cnt('finish')();
     assert.deepStrictEqual(actualChunks, expectChunks);
     next();
-  });
+  }));
 }
 
 {

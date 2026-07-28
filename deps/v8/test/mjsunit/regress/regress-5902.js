@@ -52,4 +52,5 @@ Object.getOwnPropertyNames(global).forEach(function(name) {
 });
 
 // There should be no dictionary mode builtin objects.
-assertEquals([], log);
+if (!%IsDictPropertyConstTrackingEnabled())
+  assertEquals([], log);

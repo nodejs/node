@@ -87,9 +87,9 @@ function expect(expected) {
 {
   const ee = new events.EventEmitter();
   let expectLength = 2;
-  ee.on('removeListener', function(name, noop) {
+  ee.on('removeListener', common.mustCallAtLeast(function(name, noop) {
     assert.strictEqual(expectLength--, this.listeners('baz').length);
-  });
+  }));
   ee.on('baz', common.mustNotCall());
   ee.on('baz', common.mustNotCall());
   ee.on('baz', common.mustNotCall());

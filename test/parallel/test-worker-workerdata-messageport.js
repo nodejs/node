@@ -1,14 +1,14 @@
 'use strict';
 
-require('../common');
-const assert = require('assert');
+const common = require('../common');
+const assert = require('node:assert');
 
 const {
   Worker, MessageChannel
-} = require('worker_threads');
+} = require('node:worker_threads');
 
 const channel = new MessageChannel();
-const workerData = { mesage: channel.port1 };
+const workerData = { message: channel.port1 };
 const transferList = [channel.port1];
 const meowScript = () => 'meow';
 
@@ -28,7 +28,7 @@ const meowScript = () => 'meow';
 
 {
   const uint8Array = new Uint8Array([ 1, 2, 3, 4 ]);
-  assert.deepStrictEqual(uint8Array.length, 4);
+  assert.strictEqual(uint8Array.length, 4);
   new Worker(`
     const { parentPort, workerData } = require('worker_threads');
     parentPort.postMessage(workerData);
@@ -38,10 +38,10 @@ const meowScript = () => 'meow';
     transferList: [uint8Array.buffer]
   }).on(
     'message',
-    (message) =>
+    common.mustCall((message) =>
       assert.deepStrictEqual(message, Uint8Array.of(1, 2, 3, 4))
-  );
-  assert.deepStrictEqual(uint8Array.length, 0);
+    ));
+  assert.strictEqual(uint8Array.length, 0);
 }
 
 {
@@ -54,8 +54,36 @@ const meowScript = () => 'meow';
     workerData,
     transferList: []
   }), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
     message: 'Object that needs transfer was found in message but not ' +
              'listed in transferList'
   });
+}
+
+{
+  // Should not crash when MessagePort is transferred to another context.
+  // https://github.com/nodejs/node/issues/49075
+  const channel = new MessageChannel();
+  new Worker(`
+    const { runInContext, createContext } = require('node:vm')
+    const { workerData } = require('worker_threads');
+    const context = createContext(Object.create(null));
+    context.messagePort = workerData.messagePort;
+    runInContext(
+      \`messagePort.postMessage("Meow")\`,
+      context,
+      { displayErrors: true }
+    );
+    `, {
+    eval: true,
+    workerData: { messagePort: channel.port2 },
+    transferList: [channel.port2]
+  });
+  channel.port1.on(
+    'message',
+    common.mustCall((message) =>
+      assert.strictEqual(message, 'Meow')
+    ));
 }

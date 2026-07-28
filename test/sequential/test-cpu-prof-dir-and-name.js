@@ -16,12 +16,12 @@ const {
   getCpuProfiles,
   kCpuProfInterval,
   env,
-  verifyFrames
+  verifyFrames,
 } = require('../common/cpu-prof');
 
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('prof');
   const file = path.join(dir, 'test.cpuprofile');
   const output = spawnSync(process.execPath, [
     '--cpu-prof',
@@ -34,7 +34,7 @@ const {
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());

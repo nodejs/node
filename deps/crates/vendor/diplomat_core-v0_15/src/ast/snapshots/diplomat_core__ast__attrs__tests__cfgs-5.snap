@@ -1,0 +1,14 @@
+---
+source: core/src/ast/attrs.rs
+expression: attr_cfg
+---
+Any:
+  - All:
+      - Star
+      - BackendName: cpp
+      - NameValue:
+          - has
+          - overloading
+  - Not:
+      BackendName: js
+

@@ -20,6 +20,8 @@ class V8_EXPORT_PRIVATE ConstantFoldingReducer final
   ConstantFoldingReducer(Editor* editor, JSGraph* jsgraph,
                          JSHeapBroker* broker);
   ~ConstantFoldingReducer() final;
+  ConstantFoldingReducer(const ConstantFoldingReducer&) = delete;
+  ConstantFoldingReducer& operator=(const ConstantFoldingReducer&) = delete;
 
   const char* reducer_name() const override { return "ConstantFoldingReducer"; }
 
@@ -31,8 +33,6 @@ class V8_EXPORT_PRIVATE ConstantFoldingReducer final
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
-
-  DISALLOW_COPY_AND_ASSIGN(ConstantFoldingReducer);
 };
 
 }  // namespace compiler

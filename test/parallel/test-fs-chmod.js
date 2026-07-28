@@ -22,7 +22,6 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 let mode_async;
@@ -74,8 +73,8 @@ if (common.isWindows) {
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const file1 = path.join(tmpdir.path, 'a.js');
-const file2 = path.join(tmpdir.path, 'a1.js');
+const file1 = tmpdir.resolve('a.js');
+const file2 = tmpdir.resolve('a1.js');
 
 // Create file1.
 fs.closeSync(fs.openSync(file1, 'w'));
@@ -106,10 +105,7 @@ fs.open(file2, 'w', common.mustSucceed((fd) => {
     assert.throws(
       () => fs.fchmod(fd, {}),
       {
-        code: 'ERR_INVALID_ARG_VALUE',
-        name: 'TypeError',
-        message: 'The argument \'mode\' must be a 32-bit unsigned integer ' +
-                 'or an octal string. Received {}'
+        code: 'ERR_INVALID_ARG_TYPE',
       }
     );
 
@@ -126,7 +122,7 @@ fs.open(file2, 'w', common.mustSucceed((fd) => {
 
 // lchmod
 if (fs.lchmod) {
-  const link = path.join(tmpdir.path, 'symbolic-link');
+  const link = tmpdir.resolve('symbolic-link');
 
   fs.symlinkSync(file2, link);
 

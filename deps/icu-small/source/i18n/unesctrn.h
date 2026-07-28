@@ -46,7 +46,7 @@ class UnescapeTransliterator : public Transliterator {
      * and suffix.  The end is marked by a header of length one
      * consisting of the character END.
      */
-    UChar* spec; // owned; may not be NULL
+    char16_t* spec; // owned; may not be nullptr
 
  public:
 
@@ -62,7 +62,7 @@ class UnescapeTransliterator : public Transliterator {
      * @param spec the encoded spec array
      */
     UnescapeTransliterator(const UnicodeString& ID,
-                           const UChar *spec);
+                           const char16_t *spec);
 
     /**
      * Copy constructor.
@@ -77,12 +77,12 @@ class UnescapeTransliterator : public Transliterator {
     /**
      * Transliterator API.
      */
-    virtual UnescapeTransliterator* clone() const;
+    virtual UnescapeTransliterator* clone() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -101,7 +101,7 @@ class UnescapeTransliterator : public Transliterator {
      *                    pos.contextLimit.  Otherwise, assume the text is complete.
      */
     virtual void handleTransliterate(Replaceable& text, UTransPosition& offset,
-                             UBool isIncremental) const;
+                             UBool isIncremental) const override;
 
 };
 

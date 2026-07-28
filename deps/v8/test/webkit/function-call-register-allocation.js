@@ -21,6 +21,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// This neuters too low stack size passed by the flag fuzzer.
+// Flags: --stack-size=864
+
 description(
 "This test checks for a specific regression that caused function calls to allocate too many temporary registers."
 );

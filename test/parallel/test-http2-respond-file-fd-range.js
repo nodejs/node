@@ -30,7 +30,7 @@ function getOffsetLength(range) {
 }
 
 const server = http2.createServer();
-server.on('stream', (stream, headers) => {
+server.on('stream', common.mustCallAtLeast((stream, headers) => {
 
   const [ offset, length ] = getOffsetLength(headers.range);
 
@@ -46,10 +46,10 @@ server.on('stream', (stream, headers) => {
     offset: offset,
     length: length
   });
-});
+}));
 server.on('close', common.mustCall(() => fs.closeSync(fd)));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
   const countdown = new Countdown(2, () => {
@@ -91,4 +91,4 @@ server.listen(0, () => {
     req.end();
   }
 
-});
+}));

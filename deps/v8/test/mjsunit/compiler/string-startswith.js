@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --turbofan
 
 (function() {
   function foo(string) { return string.startsWith('a'); }
@@ -78,4 +78,17 @@
   f();
   %OptimizeFunctionOnNextCall(f);
   assertEquals(false, f(1073741824));
+})();
+
+(function() {
+  function f(str) {
+    return str.startsWith('');
+  }
+
+  %PrepareFunctionForOptimization(f);
+  f('foo');
+  f('');
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals(f('foo'), true);
+  assertEquals(f(''), true);
 })();

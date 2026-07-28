@@ -11,66 +11,11 @@ function newBenchmark(name, handlers) {
 
 // ----------------------------------------------------------------------------
 
+var obj;
+var p;
 var result;
-var foo = () => {}
-
-newBenchmark("ProxyConstructorWithArrowFunc", {
-  setup() { },
-  run() {
-    var proxy = new Proxy(foo, {});
-    result = proxy;
-  },
-  teardown() {
-    return (typeof result == 'function');
-  }
-});
-
-// ----------------------------------------------------------------------------
-
 class Class {};
-
-newBenchmark("ProxyConstructorWithClass", {
-  setup() { },
-  run() {
-    var proxy = new Proxy(Class, {});
-    result = proxy;
-  },
-  teardown() {
-    return (typeof result == 'function');
-  }
-});
-
-// ----------------------------------------------------------------------------
-
-let obj = {};
-
-newBenchmark("ProxyConstructorWithObject", {
-  setup() { },
-  run() {
-    var proxy = new Proxy(obj, {});
-    result = proxy;
-  },
-  teardown() {
-    return (typeof result == 'function');
-  }
-});
-
-// ----------------------------------------------------------------------------
-
-var p = new Proxy({}, {});
-
-newBenchmark("ProxyConstructorWithProxy", {
-  setup() { },
-  run() {
-    var proxy = new Proxy(p, {});
-    result = proxy;
-  },
-  teardown() {
-    return (typeof result == 'function');
-  }
-});
-
-// ----------------------------------------------------------------------------
+const symbol = Symbol();
 
 const SOME_NUMBER = 42;
 const SOME_OTHER_NUMBER = 1337;
@@ -83,11 +28,11 @@ newBenchmark("CallProxyWithoutTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p();
+      result = p();
     }
   },
   teardown() {
-    return (result === SOME_NUMBER);
+    assert(result === SOME_NUMBER, `wrong result: ${result}`);
   }
 });
 
@@ -104,31 +49,27 @@ newBenchmark("CallProxyWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p();
+      result = p();
     }
   },
   teardown() {
-    return (result === SOME_OTHER_NUMBER);
+    assert(result === SOME_OTHER_NUMBER, `wrong result: ${result}`);
   }
 });
-
-var instance;
-class MyClass {
-};
 
 // ----------------------------------------------------------------------------
 
 newBenchmark("ConstructProxyWithoutTrap", {
   setup() {
-    p = new Proxy(MyClass, {});
+    p = new Proxy(Class, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      instance = new p();
+      result = new p();
     }
   },
   teardown() {
-    return instance instanceof MyClass;
+    assert(result instanceof Class, `result not an instance of class`);
   }
 });
 
@@ -138,38 +79,35 @@ newBenchmark("ConstructProxyWithTrap", {
   setup() {
     p = new Proxy(Object, {
       construct: function(target, argumentsList, newTarget) {
-        return new MyClass;
+        return new Class;
       }
     });
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      instance = new p();
+      result = new p();
     }
   },
   teardown() {
-    return instance instanceof MyClass;
+    assert(result instanceof Class, `result not an instance of class`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj = {
-  prop: SOME_NUMBER
-}
-let value;
-
 newBenchmark("GetStringWithoutTrap", {
   setup() {
-    p = new Proxy(obj, {});
+    p = new Proxy({
+      prop: SOME_NUMBER
+    }, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = p.prop;
+      result = p.prop;
     }
   },
   teardown() {
-    return value === SOME_NUMBER;
+    assert(result === SOME_NUMBER, `wrong result: ${result}`);
   }
 });
 
@@ -177,7 +115,9 @@ newBenchmark("GetStringWithoutTrap", {
 
 newBenchmark("GetStringWithTrap", {
   setup() {
-    p = new Proxy(obj, {
+    p = new Proxy({
+      prop: SOME_NUMBER
+    }, {
       get: function(target, propertyKey, receiver) {
         return SOME_OTHER_NUMBER;
       }
@@ -185,29 +125,27 @@ newBenchmark("GetStringWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = p.prop;
+      result = p.prop;
     }
   },
   teardown() {
-    return value === SOME_OTHER_NUMBER;
+    assert(result === SOME_OTHER_NUMBER, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj = [SOME_NUMBER];
-
 newBenchmark("GetIndexWithoutTrap", {
   setup() {
-    p = new Proxy(obj, {});
+    p = new Proxy([SOME_NUMBER], {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = p[0];
+      result = p[0];
     }
   },
   teardown() {
-    return value === SOME_NUMBER;
+    assert(result === SOME_NUMBER, `wrong result: ${result}`);
   }
 });
 
@@ -215,7 +153,7 @@ newBenchmark("GetIndexWithoutTrap", {
 
 newBenchmark("GetIndexWithTrap", {
   setup() {
-    p = new Proxy(obj, {
+    p = new Proxy([SOME_NUMBER], {
       get: function(target, propertyKey, receiver) {
         return SOME_OTHER_NUMBER;
       }
@@ -223,30 +161,27 @@ newBenchmark("GetIndexWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = p[0];
+      result = p[0];
     }
   },
   teardown() {
-    return value === SOME_OTHER_NUMBER;
+    assert(result === SOME_OTHER_NUMBER, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-var symbol = Symbol();
-obj[symbol] = SOME_NUMBER;
-
 newBenchmark("GetSymbolWithoutTrap", {
   setup() {
-    p = new Proxy(obj, {});
+    p = new Proxy({[symbol]: SOME_NUMBER}, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = p[symbol];
+      result = p[symbol];
     }
   },
   teardown() {
-    return value === SOME_NUMBER;
+    assert(result === SOME_NUMBER, `wrong result: ${result}`);
   }
 });
 
@@ -254,7 +189,7 @@ newBenchmark("GetSymbolWithoutTrap", {
 
 newBenchmark("GetSymbolWithTrap", {
   setup() {
-    p = new Proxy(obj, {
+    p = new Proxy({[symbol]: SOME_NUMBER}, {
       get: function(target, propertyKey, receiver) {
         return SOME_OTHER_NUMBER;
       }
@@ -262,29 +197,27 @@ newBenchmark("GetSymbolWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = p[symbol];
+      result = p[symbol];
     }
   },
   teardown() {
-    return value === SOME_OTHER_NUMBER;
+    assert(result === SOME_OTHER_NUMBER, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj = {};
-
 newBenchmark("HasStringWithoutTrap", {
   setup() {
-    p = new Proxy(obj, {});
+    p = new Proxy({prop: 42}, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = ('prop' in p);
+      result = ('prop' in p);
     }
   },
   teardown() {
-    return value === true;
+    assert(result === true, `wrong result: ${result}`);
   }
 });
 
@@ -292,7 +225,7 @@ newBenchmark("HasStringWithoutTrap", {
 
 newBenchmark("HasStringWithTrap", {
   setup() {
-    p = new Proxy(obj, {
+    p = new Proxy({}, {
       has: function(target, propertyKey) {
         return true;
       }
@@ -300,29 +233,27 @@ newBenchmark("HasStringWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = ('prop' in p);
+      result = ('prop' in p);
     }
   },
   teardown() {
-    return value === true;
+    assert(result === true, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj[symbol] = SOME_NUMBER;
-
 newBenchmark("HasSymbolWithoutTrap", {
   setup() {
-    p = new Proxy(obj, {});
+    p = new Proxy({[symbol]: SOME_NUMBER}, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = (symbol in p);
+      result = (symbol in p);
     }
   },
   teardown() {
-    return value === true;
+    assert(result === true, `wrong result: ${result}`);
   }
 });
 
@@ -330,7 +261,7 @@ newBenchmark("HasSymbolWithoutTrap", {
 
 newBenchmark("HasSymbolWithTrap", {
   setup() {
-    p = new Proxy(obj, {
+    p = new Proxy({}, {
       has: function(target, propertyKey) {
         return true;
       }
@@ -338,32 +269,28 @@ newBenchmark("HasSymbolWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = (symbol in p);
+      result = (symbol in p);
     }
   },
   teardown() {
-    return value === true;
+    assert(result === true, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj = {
-  prop: undefined
-}
-value = SOME_NUMBER;
-
 newBenchmark("SetStringWithoutTrap", {
   setup() {
+    obj = {prop: 0};
     p = new Proxy(obj, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p.prop = value;
+      p.prop = SOME_NUMBER;
     }
   },
   teardown() {
-    return value === SOME_NUMBER;
+    assert(obj.prop === SOME_NUMBER, `wrong result: ${obj.prop}`);
   }
 });
 
@@ -371,6 +298,7 @@ newBenchmark("SetStringWithoutTrap", {
 
 newBenchmark("SetStringWithTrap", {
   setup() {
+    obj = {prop: 0};
     p = new Proxy(obj, {
       set: function(target, propertyKey, value, receiver) {
         target[propertyKey] = SOME_OTHER_NUMBER;
@@ -380,30 +308,28 @@ newBenchmark("SetStringWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p.prop = value;
+      p.prop = SOME_NUMBER;
     }
   },
   teardown() {
-    return value === SOME_OTHER_NUMBER;
+    assert(obj.prop === SOME_OTHER_NUMBER, `wrong result: ${obj.prop}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj = [undefined];
-value = SOME_NUMBER;
-
 newBenchmark("SetIndexWithoutTrap", {
   setup() {
+    obj = [undefined];
     p = new Proxy(obj, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p[0] = value;
+      p[0] = SOME_NUMBER;
     }
   },
   teardown() {
-    return value === SOME_NUMBER;
+    assert(obj[0] === SOME_NUMBER, `wrong result: ${obj[0]}`);
   }
 });
 
@@ -411,6 +337,7 @@ newBenchmark("SetIndexWithoutTrap", {
 
 newBenchmark("SetIndexWithTrap", {
   setup() {
+    obj = [undefined];
     p = new Proxy(obj, {
       set: function(target, propertyKey, value, receiver) {
         target[propertyKey] = SOME_OTHER_NUMBER;
@@ -420,29 +347,28 @@ newBenchmark("SetIndexWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p[0] = value;
+      p[0] = SOME_NUMBER;
     }
   },
   teardown() {
-    return value === SOME_OTHER_NUMBER;
+    assert(obj[0] === SOME_OTHER_NUMBER, `wrong result: ${obj[0]}`);
   }
 });
-// ----------------------------------------------------------------------------
 
-obj[symbol] = undefined;
-value = SOME_NUMBER;
+// ----------------------------------------------------------------------------
 
 newBenchmark("SetSymbolWithoutTrap", {
   setup() {
+    obj = {[symbol]: 0};
     p = new Proxy(obj, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p[symbol] = value;
+      p[symbol] = SOME_NUMBER;
     }
   },
   teardown() {
-    return value === SOME_NUMBER;
+    assert(obj[symbol] === SOME_NUMBER, `wrong result: ${obj[symbol]}`);
   }
 });
 
@@ -450,6 +376,7 @@ newBenchmark("SetSymbolWithoutTrap", {
 
 newBenchmark("SetSymbolWithTrap", {
   setup() {
+    obj = {[symbol]: 0};
     p = new Proxy(obj, {
       set: function(target, propertyKey, value, receiver) {
         target[propertyKey] = SOME_OTHER_NUMBER;
@@ -459,82 +386,71 @@ newBenchmark("SetSymbolWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      p[symbol] = value;
+      p[symbol] = SOME_NUMBER;
     }
   },
   teardown() {
-    return value === SOME_OTHER_NUMBER;
+    assert(obj[symbol] === SOME_OTHER_NUMBER, `wrong result: ${obj[symbol]}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-var obj20prop = {};
-var measured;
-
 newBenchmark("HasInIdiom", {
   setup() {
+    obj = {};
     for (var i = 0; i < 20; ++i) {
-      obj20prop['prop' + i] = SOME_NUMBER;
+      obj['prop' + i] = SOME_OTHER_NUMBER;
     }
-    p = new Proxy(obj20prop, {
+    p = new Proxy(obj, {
       has: function(target, propertyKey) {
         return true;
       },
       get: function(target, propertyKey, receiver) {
-        if (typeof propertyKey == 'string' && propertyKey.match('prop'))
+        if (typeof propertyKey == 'string' && propertyKey.match('prop')) {
           return SOME_NUMBER;
-        else
-          return Reflect.get(target, propertyKey, receiver);
+        } else {
+          throw new Error(`Unexpected property access: ${propertyKey}`);
+        }
       },
     });
-    measured = function measured(o) {
-      var result = 0;
-      for (var x in o) {
-        if (Object.prototype.hasOwnProperty(o, x)) {
-          var v = o[x];
-          result += v;
-        }
-      }
-      return result;
-    }
   },
   run() {
-    result = measured(p);
+    var o = p;
+    var sum = 0;
+    for (var x in o) {
+      if (Object.hasOwnProperty.call(o, x)) {
+        sum += o[x];
+      }
+    }
+    result = sum;
   },
   teardown() {
-    return result === 20 * SOME_NUMBER;
+    assert(result === 20 * SOME_NUMBER, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
-
-obj = {};
-value = false;
 
 newBenchmark("IsExtensibleWithoutTrap", {
   setup() {
-    p = new Proxy(obj, {});
+    p = new Proxy({}, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.isExtensible(p);
+      result = Object.isExtensible(p);
     }
-    return value;
   },
   teardown() {
-    return value === true;
+    assert(result === true, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj = {};
-value = false;
-
 newBenchmark("IsExtensibleWithTrap", {
   setup() {
-    p = new Proxy(obj, {
+    p = new Proxy({}, {
       isExtensible: function(target) {
         return true;
       }
@@ -542,41 +458,33 @@ newBenchmark("IsExtensibleWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.isExtensible(p);
+      result = Object.isExtensible(p);
     }
-    return value;
   },
   teardown() {
-    return value === true;
+    assert(result === true, `wrong result: ${result}`);
   }
 });
 
 // ----------------------------------------------------------------------------
 
-obj = {};
-value = false;
-
 newBenchmark("PreventExtensionsWithoutTrap", {
   setup() {
-    p = new Proxy(obj, {});
+    p = new Proxy({}, {});
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.preventExtensions(p);
+      result = Object.preventExtensions(p);
     }
-    return value;
   },
   teardown() {}
 });
 
 // ----------------------------------------------------------------------------
 
-obj = {};
-value = false;
-
 newBenchmark("PreventExtensionsWithTrap", {
   setup() {
-    p = new Proxy(obj, {
+    p = new Proxy({}, {
       preventExtensions: function(target) {
         Object.preventExtensions(target);
         return true;
@@ -585,9 +493,8 @@ newBenchmark("PreventExtensionsWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.preventExtensions(p);
+      result = Object.preventExtensions(p);
     }
-    return value;
   },
   teardown() {}
 });
@@ -600,11 +507,12 @@ newBenchmark("GetPrototypeOfWithoutTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.getPrototypeOf(p);
+      result = Object.getPrototypeOf(p);
     }
-    return value;
   },
-  teardown() {}
+  teardown() {
+    assert(result === Object.prototype, `wrong prototype: ${result}`);
+  }
 });
 
 // ----------------------------------------------------------------------------
@@ -619,11 +527,12 @@ newBenchmark("GetPrototypeOfWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.getPrototypeOf(p);
+      result = Object.getPrototypeOf(p);
     }
-    return value;
   },
-  teardown() {}
+  teardown() {
+    assert(result === Array.prototype, `wrong prototype: ${result}`);
+  }
 });
 
 // ----------------------------------------------------------------------------
@@ -636,9 +545,8 @@ newBenchmark("SetPrototypeOfWithoutTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.setPrototypeOf(p, [1]);
+      result = Object.setPrototypeOf(p, [1]);
     }
-    return value;
   },
   teardown() {}
 });
@@ -658,9 +566,8 @@ newBenchmark("SetPrototypeOfWithTrap", {
   },
   run() {
     for(var i = 0; i < ITERATIONS; i++) {
-      value = Object.setPrototypeOf(p, [1]);
+      result = Object.setPrototypeOf(p, [1]);
     }
-    return value;
   },
   teardown() {}
 });

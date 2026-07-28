@@ -5,22 +5,27 @@
 #include "src/torque/torque-compiler.h"
 
 #include <fstream>
+#include <optional>
+
+#include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/torque-parser.h"
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+#include "src/torque/tsa-generator.h"
+#endif
 #include "src/torque/type-oracle.h"
+#include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 namespace {
 
-base::Optional<std::string> ReadFile(const std::string& path) {
+std::optional<std::string> ReadFile(const std::string& path) {
   std::ifstream file_stream(path);
-  if (!file_stream.good()) return base::nullopt;
+  if (!file_stream.good()) return std::nullopt;
 
   return std::string{std::istreambuf_iterator<char>(file_stream),
                      std::istreambuf_iterator<char>()};
@@ -46,14 +51,21 @@ void ReadAndParseTorqueFile(const std::string& path) {
 }
 
 void CompileCurrentAst(TorqueCompilerOptions options) {
+  std::string output_directory = options.output_directory;
+
   GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
   if (options.collect_language_server_data) {
     GlobalContext::SetCollectLanguageServerData();
   }
+  if (options.collect_kythe_data) {
+    GlobalContext::SetCollectKytheData();
+  }
   if (options.force_assert_statements) {
     GlobalContext::SetForceAssertStatements();
   }
-  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
+  if (options.annotate_ir) {
+    GlobalContext::SetAnnotateIR();
+  }
   TypeOracle::Scope type_oracle;
   CurrentScope::Scope current_namespace(GlobalContext::GetDefaultNamespace());
 
@@ -69,13 +81,24 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   // mutually refer to each others.
   TypeOracle::FinalizeAggregateTypes();
 
-  std::string output_directory = options.output_directory;
+  if (options.output_tsa) {
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+#ifdef DEBUG
+    std::cout << "=== RUNNING TORQUE TO GENERATE TSA ===" << std::endl;
+#endif
+    GenerateTSA(*GlobalContext::ast(), output_directory);
+    return;
+#else
+    UNREACHABLE();
+#endif
+  }
 
   ImplementationVisitor implementation_visitor;
-  implementation_visitor.SetDryRun(output_directory.length() == 0);
+  implementation_visitor.SetDryRun(output_directory.empty());
 
   implementation_visitor.GenerateInstanceTypes(output_directory);
-  implementation_visitor.BeginCSAFiles();
+  implementation_visitor.BeginGeneratedFiles();
+  implementation_visitor.BeginDebugMacrosFile();
 
   implementation_visitor.VisitAllDeclarables();
 
@@ -83,7 +106,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
   implementation_visitor.GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       output_directory);
-  implementation_visitor.GenerateClassFieldOffsets(output_directory);
+  implementation_visitor.GenerateVisitorLists(output_directory);
   implementation_visitor.GenerateBitFields(output_directory);
   implementation_visitor.GeneratePrintDefinitions(output_directory);
   implementation_visitor.GenerateClassDefinitions(output_directory);
@@ -94,7 +117,8 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
 
-  implementation_visitor.EndCSAFiles();
+  implementation_visitor.EndGeneratedFiles();
+  implementation_visitor.EndDebugMacrosFile();
   implementation_visitor.GenerateImplementation(output_directory);
 
   if (GlobalContext::collect_language_server_data()) {
@@ -107,6 +131,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
 
 TorqueCompilerResult CompileTorque(const std::string& source,
                                    TorqueCompilerOptions options) {
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   SourceFileMap::Scope source_map_scope(options.v8_root);
   CurrentSourceFile::Scope no_file_scope(
       SourceFileMap::AddSource("dummy-filename.tq"));
@@ -130,8 +155,9 @@ TorqueCompilerResult CompileTorque(const std::string& source,
   return result;
 }
 
-TorqueCompilerResult CompileTorque(std::vector<std::string> files,
+TorqueCompilerResult CompileTorque(const std::vector<std::string>& files,
                                    TorqueCompilerOptions options) {
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
   SourceFileMap::Scope source_map_scope(options.v8_root);
   CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope;
@@ -156,6 +182,37 @@ TorqueCompilerResult CompileTorque(std::vector<std::string> files,
   return result;
 }
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+TorqueCompilerResult CompileTorqueForKythe(
+    std::vector<TorqueCompilationUnit> units, TorqueCompilerOptions options,
+    KytheConsumer* consumer) {
+  TargetArchitecture::Scope target_architecture(options.force_32bit_output);
+  SourceFileMap::Scope source_map_scope(options.v8_root);
+  CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
+  CurrentAst::Scope ast_scope;
+  TorqueMessages::Scope messages_scope;
+  LanguageServerData::Scope server_data_scope;
+  KytheData::Scope kythe_scope;
+
+  KytheData::Get().SetConsumer(consumer);
+
+  TorqueCompilerResult result;
+  try {
+    for (const auto& unit : units) {
+      SourceId source_id = SourceFileMap::AddSource(unit.source_file_path);
+      CurrentSourceFile::Scope source_id_scope(source_id);
+      ParseTorque(unit.file_content);
+    }
+    CompileCurrentAst(options);
+  } catch (TorqueAbortCompilation&) {
+    // Do nothing. The relevant TorqueMessage is part of the
+    // TorqueMessages contextual.
+  }
+
+  result.source_file_map = SourceFileMap::Get();
+  result.language_server_data = std::move(LanguageServerData::Get());
+  result.messages = std::move(TorqueMessages::Get());
+
+  return result;
+}
+
+}  // namespace v8::internal::torque

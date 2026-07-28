@@ -5,9 +5,8 @@ const fs = require('fs');
 const http = require('http');
 const fixtures = require('../common/fixtures');
 const { spawn } = require('child_process');
-const { parse: parseURL } = require('url');
-const { pathToFileURL } = require('url');
-const { EventEmitter } = require('events');
+const { URL, pathToFileURL } = require('url');
+const { EventEmitter, once } = require('events');
 
 const _MAINSCRIPT = fixtures.path('loop.js');
 const DEBUG = false;
@@ -25,7 +24,6 @@ function spawnChildProcess(inspectorFlags, scriptContents, scriptFile) {
   const handler = tearDown.bind(null, child);
   process.on('exit', handler);
   process.on('uncaughtException', handler);
-  common.disableCrashOnUnhandledRejection();
   process.on('unhandledRejection', handler);
   process.on('SIGINT', handler);
 
@@ -153,6 +151,7 @@ class InspectorSession {
     });
   }
 
+
   waitForServerDisconnect() {
     return this._terminationPromise;
   }
@@ -256,8 +255,8 @@ class InspectorSession {
       const callFrame = message.params.callFrames[0];
       const location = callFrame.location;
       const scriptPath = this._scriptsIdsByUrl.get(location.scriptId);
-      assert.strictEqual(scriptPath.toString(),
-                         expectedScriptPath.toString(),
+      assert.strictEqual(decodeURIComponent(scriptPath),
+                         decodeURIComponent(expectedScriptPath),
                          `${scriptPath} !== ${expectedScriptPath}`);
       assert.strictEqual(location.lineNumber, line);
       return true;
@@ -270,6 +269,14 @@ class InspectorSession {
         (notification) =>
           this._isBreakOnLineNotification(notification, line, url),
         `break on ${url}:${line}`);
+  }
+
+  waitForPauseOnStart() {
+    return this
+      .waitForNotification(
+        (notification) =>
+          notification.method === 'Debugger.paused' && notification.params.reason === 'Break on start',
+        'break on start');
   }
 
   pausedDetails() {
@@ -304,9 +311,16 @@ class InspectorSession {
     console.log('[test]', 'Verify node waits for the frontend to disconnect');
     await this.send({ 'method': 'Debugger.resume' });
     await this.waitForNotification((notification) => {
+      if (notification.method === 'Debugger.paused') {
+        this.send({ 'method': 'Debugger.resume' });
+      }
       return notification.method === 'Runtime.executionContextDestroyed' &&
         notification.params.executionContextId === 1;
     });
+    await this.waitForDisconnect();
+  }
+
+  async waitForDisconnect() {
     while ((await this._instance.nextStderrString()) !==
               'Waiting for the debugger to disconnect...');
     await this.disconnect();
@@ -328,13 +342,15 @@ class InspectorSession {
 class NodeInstance extends EventEmitter {
   constructor(inspectorFlags = ['--inspect-brk=0', '--expose-internals'],
               scriptContents = '',
-              scriptFile = _MAINSCRIPT) {
+              scriptFile = _MAINSCRIPT,
+              logger = console) {
     super();
 
+    this._logger = logger;
     this._scriptPath = scriptFile;
     this._script = scriptFile ? null : scriptContents;
     this._portCallback = null;
-    this.portPromise = new Promise((resolve) => this._portCallback = resolve);
+    this.resetPort();
     this._process = spawnChildProcess(inspectorFlags, scriptContents,
                                       scriptFile);
     this._running = true;
@@ -344,7 +360,7 @@ class NodeInstance extends EventEmitter {
     this._process.stdout.on('data', makeBufferingDataCallback(
       (line) => {
         this.emit('stdout', line);
-        console.log('[out]', line);
+        this._logger.log('[out]', line);
       }));
 
     this._process.stderr.on('data', makeBufferingDataCallback(
@@ -353,7 +369,7 @@ class NodeInstance extends EventEmitter {
     this._shutdownPromise = new Promise((resolve) => {
       this._process.once('exit', (exitCode, signal) => {
         if (signal) {
-          console.error(`[err] child process crashed, signal ${signal}`);
+          this._logger.error(`[err] child process crashed, signal ${signal}`);
         }
         resolve({ exitCode, signal });
         this._running = false;
@@ -361,19 +377,27 @@ class NodeInstance extends EventEmitter {
     });
   }
 
+  get pid() {
+    return this._process.pid;
+  }
+
+  resetPort() {
+    this.portPromise = new Promise((resolve) => this._portCallback = resolve);
+  }
+
   static async startViaSignal(scriptContents) {
     const instance = new NodeInstance(
-      ['--expose-internals'],
+      ['--expose-internals', '--inspect-port=0'],
       `${scriptContents}\nprocess._rawDebug('started');`, undefined);
     const msg = 'Timed out waiting for process to start';
-    while (await fires(instance.nextStderrString(), msg, TIMEOUT) !==
-             'started') {}
+    while (await fires(instance.nextStderrString(), msg, TIMEOUT) !== 'started');
     process._debugProcess(instance._process.pid);
     return instance;
   }
 
   onStderrLine(line) {
-    console.log('[err]', line);
+    this.emit('stderr', line);
+    this._logger.log('[err]', line);
     if (this._portCallback) {
       const matches = line.match(/Debugger listening on ws:\/\/.+:(\d+)\/.+/);
       if (matches) {
@@ -390,10 +414,10 @@ class NodeInstance extends EventEmitter {
   }
 
   httpGet(host, path, hostHeaderValue) {
-    console.log('[test]', `Testing ${path}`);
+    this._logger.log('[test]', `Testing ${path}`);
     const headers = hostHeaderValue ? { 'Host': hostHeaderValue } : null;
     return this.portPromise.then((port) => new Promise((resolve, reject) => {
-      const req = http.get({ host, port, path, headers }, (res) => {
+      const req = http.get({ host, port, family: 4, path, headers }, (res) => {
         let response = '';
         res.setEncoding('utf8');
         res
@@ -419,18 +443,19 @@ class NodeInstance extends EventEmitter {
     const port = await this.portPromise;
     return http.get({
       port,
-      path: parseURL(devtoolsUrl).path,
+      family: 4,
+      path: new URL(devtoolsUrl).pathname,
       headers: {
         'Connection': 'Upgrade',
         'Upgrade': 'websocket',
         'Sec-WebSocket-Version': 13,
-        'Sec-WebSocket-Key': 'key=='
-      }
+        'Sec-WebSocket-Key': 'key==',
+      },
     });
   }
 
   async connectInspectorSession() {
-    console.log('[test]', 'Connecting to a child Node process');
+    this._logger.log('[test]', 'Connecting to a child Node process');
     const upgradeRequest = await this.sendUpgradeRequest();
     return new Promise((resolve) => {
       upgradeRequest
@@ -441,7 +466,7 @@ class NodeInstance extends EventEmitter {
   }
 
   async expectConnectionDeclined() {
-    console.log('[test]', 'Checking upgrade is not possible');
+    this._logger.log('[test]', 'Checking upgrade is not possible');
     const upgradeRequest = await this.sendUpgradeRequest();
     return new Promise((resolve) => {
       upgradeRequest
@@ -515,10 +540,38 @@ function fires(promise, error, timeoutMs) {
   const timeout = timeoutPromise(error, timeoutMs);
   return Promise.race([
     onResolvedOrRejected(promise, () => timeout.clear()),
-    timeout
+    timeout,
   ]);
 }
 
+/**
+ * When waiting for inspector events, there might be no handles on the event
+ * loop, and leads to process exits.
+ *
+ * This function provides a utility to wait until a inspector event for a certain
+ * time.
+ * @returns {Promise}
+ */
+function waitUntil(session, eventName, timeout = 1000) {
+  const resolvers = Promise.withResolvers();
+  const timer = setTimeout(() => {
+    resolvers.reject(new Error(`Wait for inspector event ${eventName} timed out`));
+  }, timeout);
+
+  once(session, eventName)
+    .then((res) => {
+      resolvers.resolve(res);
+      clearTimeout(timer);
+    }, (error) => {
+      // This should never happen.
+      resolvers.reject(error);
+      clearTimeout(timer);
+    });
+
+  return resolvers.promise;
+}
+
 module.exports = {
-  NodeInstance
+  NodeInstance,
+  waitUntil,
 };

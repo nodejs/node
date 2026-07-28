@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_COLLATOR_H_
+#define V8_OBJECTS_JS_COLLATOR_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_COLLATOR_H_
-#define V8_OBJECTS_JS_COLLATOR_H_
 
 #include <set>
 #include <string>
@@ -29,22 +29,24 @@ class Collator;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-collator-tq.inc"
+
 class JSCollator : public TorqueGeneratedJSCollator<JSCollator, JSObject> {
  public:
   // ecma402/#sec-initializecollator
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> New(
-      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-      Handle<Object> options, const char* service);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> New(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options, const char* service);
 
   // ecma402/#sec-intl.collator.prototype.resolvedoptions
-  static Handle<JSObject> ResolvedOptions(Isolate* isolate,
-                                          Handle<JSCollator> collator);
+  static DirectHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, DirectHandle<JSCollator> collator);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   DECL_PRINTER(JSCollator)
 
-  DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
+  DECL_ACCESSORS(icu_collator, Tagged<Managed<icu::Collator>>)
 
   TQ_OBJECT_CONSTRUCTORS(JSCollator)
 };

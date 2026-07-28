@@ -14,7 +14,7 @@ server.listen(common.mustCall(() => {
     });
   };
 
-  const cb = common.mustCall(() => {}, 3);
+  const cb = common.mustCall(3);
 
   connect(cb);
   connect('foo', cb);

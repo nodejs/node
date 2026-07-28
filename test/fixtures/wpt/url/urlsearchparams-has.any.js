@@ -22,3 +22,24 @@ test(function() {
     params.delete('first');
     assert_false(params.has('first'), 'Search params object has no name "first"');
 }, 'has() following delete()');
+
+test(() => {
+  const params = new URLSearchParams("a=b&a=d&c&e&");
+  assert_true(params.has('a', 'b'));
+  assert_false(params.has('a', 'c'));
+  assert_true(params.has('a', 'd'));
+  assert_true(params.has('e', ''));
+  params.append('first', null);
+  assert_false(params.has('first', ''));
+  assert_true(params.has('first', 'null'));
+  params.delete('a', 'b');
+  assert_true(params.has('a', 'd'));
+}, "Two-argument has()");
+
+test(() => {
+  const params = new URLSearchParams("a=b&a=d&c&e&");
+  assert_true(params.has('a', 'b'));
+  assert_false(params.has('a', 'c'));
+  assert_true(params.has('a', 'd'));
+  assert_true(params.has('a', undefined));
+}, "Two-argument has() respects undefined as second arg");

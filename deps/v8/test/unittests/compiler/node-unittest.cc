@@ -3,9 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/compiler/node.h"
+
 #include "src/compiler/operator.h"
 #include "test/unittests/test-utils.h"
-#include "testing/gmock-support.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 using testing::Contains;
 using testing::ElementsAre;
@@ -19,7 +20,7 @@ namespace node_unittest {
 
 class NodeTest : public TestWithZone {
  public:
-  NodeTest() : TestWithZone(kCompressGraphZone) {}
+  NodeTest() = default;
 };
 
 const IrOpcode::Value kOpcode0 = static_cast<IrOpcode::Value>(0);

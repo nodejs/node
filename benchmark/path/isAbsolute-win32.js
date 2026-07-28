@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
     'C:baz\\..',
     'bar\\baz',
   ],
-  n: [1e5]
+  n: [1e5],
 });
 
 function main({ n, path }) {

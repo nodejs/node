@@ -2,22 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// The test needs --wasm-tier-up because we can't serialize and deserialize
-// Liftoff code.
-// Flags: --allow-natives-syntax --experimental-wasm-reftypes --wasm-tier-up
+// Force TurboFan code for serialization.
+// Flags: --no-liftoff --no-wasm-lazy-compilation
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExternRefNull() {
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_r_v)
-      .addBody([kExprRefNull, kWasmExternRef])
+      .addBody([kExprRefNull, kExternRefCode])
       .exportFunc();
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module);
 
   assertEquals(null, instance.exports.main());
@@ -31,8 +30,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module);
 
   assertEquals(0, instance.exports.main({'hello' : 'world'}));

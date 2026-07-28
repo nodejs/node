@@ -7,6 +7,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -15,16 +16,14 @@
 #include "src/torque/source-positions.h"
 #include "src/torque/types.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 class ControlFlowGraph;
 
 class Block {
  public:
   explicit Block(ControlFlowGraph* cfg, size_t id,
-                 base::Optional<Stack<const Type*>> input_types,
+                 std::optional<Stack<const Type*>> input_types,
                  bool is_deferred)
       : cfg_(cfg),
         input_types_(std::move(input_types)),
@@ -35,7 +34,7 @@ class Block {
     instructions_.push_back(std::move(instruction));
   }
 
-  bool HasInputTypes() const { return input_types_ != base::nullopt; }
+  bool HasInputTypes() const { return input_types_ != std::nullopt; }
   const Stack<const Type*>& InputTypes() const { return *input_types_; }
   void SetInputTypes(const Stack<const Type*>& input_types);
   void Retype() {
@@ -75,7 +74,7 @@ class Block {
     if (changed && worklist) worklist->Enqueue(this);
   }
   bool HasInputDefinitions() const {
-    return input_definitions_ != base::nullopt;
+    return input_definitions_ != std::nullopt;
   }
   const Stack<DefinitionLocation>& InputDefinitions() const {
     DCHECK(HasInputDefinitions());
@@ -87,8 +86,8 @@ class Block {
  private:
   ControlFlowGraph* cfg_;
   std::vector<Instruction> instructions_;
-  base::Optional<Stack<const Type*>> input_types_;
-  base::Optional<Stack<DefinitionLocation>> input_definitions_;
+  std::optional<Stack<const Type*>> input_types_;
+  std::optional<Stack<DefinitionLocation>> input_definitions_;
   const size_t id_;
   bool is_deferred_;
 };
@@ -100,7 +99,7 @@ class ControlFlowGraph {
     PlaceBlock(start_);
   }
 
-  Block* NewBlock(base::Optional<Stack<const Type*>> input_types,
+  Block* NewBlock(std::optional<Stack<const Type*>> input_types,
                   bool is_deferred) {
     blocks_.emplace_back(this, next_block_id_++, std::move(input_types),
                          is_deferred);
@@ -114,15 +113,20 @@ class ControlFlowGraph {
     placed_blocks_.erase(newEnd, placed_blocks_.end());
   }
   Block* start() const { return start_; }
-  base::Optional<Block*> end() const { return end_; }
+  std::optional<Block*> end() const { return end_; }
   void set_end(Block* end) { end_ = end; }
-  void SetReturnType(const Type* t) {
+  void SetReturnType(TypeVector t) {
     if (!return_type_) {
       return_type_ = t;
       return;
     }
     if (t != *return_type_) {
-      ReportError("expected return type ", **return_type_, " instead of ", *t);
+      std::stringstream message;
+      message << "expected return type ";
+      PrintCommaSeparatedList(message, *return_type_);
+      message << " instead of ";
+      PrintCommaSeparatedList(message, t);
+      ReportError(message.str());
     }
   }
   const std::vector<Block*>& blocks() const { return placed_blocks_; }
@@ -135,8 +139,8 @@ class ControlFlowGraph {
   std::list<Block> blocks_;
   Block* start_;
   std::vector<Block*> placed_blocks_;
-  base::Optional<Block*> end_;
-  base::Optional<const Type*> return_type_;
+  std::optional<Block*> end_;
+  std::optional<TypeVector> return_type_;
   size_t next_block_id_ = 0;
 };
 
@@ -155,9 +159,8 @@ class CfgAssembler {
     return cfg_;
   }
 
-  Block* NewBlock(
-      base::Optional<Stack<const Type*>> input_types = base::nullopt,
-      bool is_deferred = false) {
+  Block* NewBlock(std::optional<Stack<const Type*>> input_types = std::nullopt,
+                  bool is_deferred = false) {
     return cfg_.NewBlock(std::move(input_types), is_deferred);
   }
 
@@ -193,9 +196,9 @@ class CfgAssembler {
   // Delete the specified range of slots, moving upper slots to fill the gap.
   void DeleteRange(StackRange range);
   void DropTo(BottomOffset new_level);
-  StackRange Peek(StackRange range, base::Optional<const Type*> type);
+  StackRange Peek(StackRange range, std::optional<const Type*> type);
   void Poke(StackRange destination, StackRange origin,
-            base::Optional<const Type*> type);
+            std::optional<const Type*> type);
   void Print(std::string s);
   void AssertionFailure(std::string message);
   void Unreachable();
@@ -212,7 +215,7 @@ class CfgAssembler {
   Block* current_block_ = cfg_.start();
 };
 
-class CfgAssemblerScopedTemporaryBlock {
+class V8_NODISCARD CfgAssemblerScopedTemporaryBlock {
  public:
   CfgAssemblerScopedTemporaryBlock(CfgAssembler* assembler, Block* block)
       : assembler_(assembler), saved_block_(block) {
@@ -235,8 +238,6 @@ class CfgAssemblerScopedTemporaryBlock {
   Block* saved_block_;
 };
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque
 
 #endif  // V8_TORQUE_CFG_H_

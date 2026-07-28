@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Default iterator objects</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  const iterator1 = new URLSearchParams()[Symbol.iterator]();
+  const iterator2 = new URLSearchParams().keys();
+  const iterator3 = new URLSearchParams().values();
+  const iterator4 = new URLSearchParams().entries();
+  assert_equals(Object.getPrototypeOf(iterator1), Object.getPrototypeOf(iterator2));
+  assert_equals(Object.getPrototypeOf(iterator1), Object.getPrototypeOf(iterator3));
+  assert_equals(Object.getPrototypeOf(iterator1), Object.getPrototypeOf(iterator4));
+}, "Default iterator objects for an interface have the same prototype");
+
+test(() => {
+  const iterator = new URLSearchParams().entries();
+  assert_equals(Object.prototype.toString.call(iterator), "[object URLSearchParams Iterator]");
+}, "Object.prototype.toString returns correct value");
+
+test(() => {
+  const iterator = new URLSearchParams().entries();
+  assert_equals(iterator[Symbol.toStringTag], "URLSearchParams Iterator");
+  assert_equals(Object.getOwnPropertyDescriptor(iterator, Symbol.toStringTag), undefined);
+}, "@@toStringTag has correct value from prototype");
+</script>

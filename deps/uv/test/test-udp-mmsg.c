@@ -27,16 +27,17 @@
 #include <string.h>
 
 #define CHECK_HANDLE(handle) \
-  ASSERT((uv_udp_t*)(handle) == &recver || (uv_udp_t*)(handle) == &sender)
+  ASSERT_NE((uv_udp_t*)(handle) == &recver || (uv_udp_t*)(handle) == &sender, 0)
 
-#define BUFFER_MULTIPLIER 4
+#define BUFFER_MULTIPLIER 20
 #define MAX_DGRAM_SIZE (64 * 1024)
-#define NUM_SENDS 8
-#define EXPECTED_MMSG_ALLOCS (NUM_SENDS / BUFFER_MULTIPLIER)
+#define NUM_SENDS 40
 
 static uv_udp_t recver;
 static uv_udp_t sender;
 static int recv_cb_called;
+static int received_datagrams;
+static int read_bytes;
 static int close_cb_called;
 static int alloc_cb_called;
 
@@ -54,7 +55,7 @@ static void alloc_cb(uv_handle_t* handle,
 
   /* Actually malloc to exercise free'ing the buffer later */
   buf->base = malloc(buffer_size);
-  ASSERT(buf->base != NULL);
+  ASSERT_NOT_NULL(buf->base);
   buf->len = buffer_size;
   alloc_cb_called++;
 }
@@ -68,28 +69,35 @@ static void close_cb(uv_handle_t* handle) {
 
 
 static void recv_cb(uv_udp_t* handle,
-                       ssize_t nread,
-                       const uv_buf_t* rcvbuf,
-                       const struct sockaddr* addr,
-                       unsigned flags) {
+                    ssize_t nread,
+                    const uv_buf_t* rcvbuf,
+                    const struct sockaddr* addr,
+                    unsigned flags) {
   ASSERT_GE(nread, 0);
+  read_bytes += nread;
 
   /* free and return if this is a mmsg free-only callback invocation */
   if (flags & UV_UDP_MMSG_FREE) {
-    ASSERT_EQ(nread, 0);
-    ASSERT(addr == NULL);
+    ASSERT_OK(nread);
+    ASSERT_NULL(addr);
     free(rcvbuf->base);
     return;
   }
 
-  ASSERT_EQ(nread, 4);
-  ASSERT(addr != NULL);
-  ASSERT_MEM_EQ("PING", rcvbuf->base, nread);
+  if (nread == 0) {
+    /* There can be no more available data for the time being. */
+    ASSERT_NULL(addr);
+  } else {
+    ASSERT_EQ(4, nread);
+    ASSERT_NOT_NULL(addr);
+    ASSERT_MEM_EQ("PING", rcvbuf->base, nread);
+    received_datagrams++;
+  }
 
   recv_cb_called++;
-  if (recv_cb_called == NUM_SENDS) {
-    uv_close((uv_handle_t*)handle, close_cb);
-    uv_close((uv_handle_t*)&sender, close_cb);
+  if (received_datagrams == NUM_SENDS) {
+    uv_close((uv_handle_t*) handle, close_cb);
+    uv_close((uv_handle_t*) &sender, close_cb);
   }
 
   /* Don't free if the buffer could be reused via mmsg */
@@ -103,40 +111,40 @@ TEST_IMPL(udp_mmsg) {
   uv_buf_t buf;
   int i;
 
-  ASSERT_EQ(0, uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
+  ASSERT_OK(uv_ip4_addr("0.0.0.0", TEST_PORT, &addr));
 
-  ASSERT_EQ(0, uv_udp_init_ex(uv_default_loop(), &recver,
-                              AF_UNSPEC | UV_UDP_RECVMMSG));
+  ASSERT_OK(uv_udp_init_ex(uv_default_loop(), &recver,
+                           AF_UNSPEC | UV_UDP_RECVMMSG));
 
-  ASSERT_EQ(0, uv_udp_bind(&recver, (const struct sockaddr*) &addr, 0));
+  ASSERT_OK(uv_udp_bind(&recver, (const struct sockaddr*) &addr, 0));
 
-  ASSERT_EQ(0, uv_udp_recv_start(&recver, alloc_cb, recv_cb));
+  ASSERT_OK(uv_udp_recv_start(&recver, alloc_cb, recv_cb));
 
-  ASSERT_EQ(0, uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  ASSERT_EQ(0, uv_udp_init(uv_default_loop(), &sender));
+  ASSERT_OK(uv_udp_init(uv_default_loop(), &sender));
 
   buf = uv_buf_init("PING", 4);
   for (i = 0; i < NUM_SENDS; i++) {
     ASSERT_EQ(4, uv_udp_try_send(&sender, &buf, 1, (const struct sockaddr*) &addr));
   }
 
-  ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  ASSERT_EQ(close_cb_called, 2);
-  ASSERT_EQ(recv_cb_called, NUM_SENDS);
+  ASSERT_EQ(2, close_cb_called);
+  ASSERT_EQ(received_datagrams, NUM_SENDS);
 
-  ASSERT_EQ(sender.send_queue_size, 0);
-  ASSERT_EQ(recver.send_queue_size, 0);
+  ASSERT_OK(sender.send_queue_size);
+  ASSERT_OK(recver.send_queue_size);
 
   printf("%d allocs for %d recvs\n", alloc_cb_called, recv_cb_called);
 
   /* On platforms that don't support mmsg, each recv gets its own alloc */
   if (uv_udp_using_recvmmsg(&recver))
-    ASSERT_EQ(alloc_cb_called, EXPECTED_MMSG_ALLOCS);
+    ASSERT_EQ(read_bytes, NUM_SENDS * 4); /* we're sending 4 bytes per datagram */
   else
     ASSERT_EQ(alloc_cb_called, recv_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

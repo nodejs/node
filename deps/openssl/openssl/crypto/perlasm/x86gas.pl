@@ -1,7 +1,7 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
@@ -124,6 +124,7 @@ sub ::function_begin_B
     push(@out,".align\t$align\n");
     push(@out,"$func:\n");
     push(@out,"$begin:\n")		if ($global);
+    &::endbranch();
     $::stack=4;
 }
 
@@ -166,12 +167,33 @@ sub ::file_end
 	}
     }
     if (grep {/\b${nmdecor}OPENSSL_ia32cap_P\b/i} @out) {
-	my $tmp=".comm\t${nmdecor}OPENSSL_ia32cap_P,16";
+    # OPENSSL_ia32cap_P size should match with internal/cryptlib.h OPENSSL_IA32CAP_P_MAX_INDEXES
+	my $tmp=".comm\t${nmdecor}OPENSSL_ia32cap_P,40";
 	if ($::macosx)	{ push (@out,"$tmp,2\n"); }
 	elsif ($::elf)	{ push (@out,"$tmp,4\n"); }
 	else		{ push (@out,"$tmp\n"); }
     }
     push(@out,$initseg) if ($initseg);
+    if ($::elf) {
+	push(@out,"
+	.section \".note.gnu.property\", \"a\"
+	.p2align 2
+	.long 1f - 0f
+	.long 4f - 1f
+	.long 5
+0:
+	.asciz \"GNU\"
+1:
+	.p2align 2
+	.long 0xc0000002
+	.long 3f - 2f
+2:
+	.long 3
+3:
+	.p2align 2
+4:
+");
+    }
 }
 
 sub ::data_byte	{   push(@out,".byte\t".join(',',@_)."\n");   }

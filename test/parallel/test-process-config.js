@@ -31,10 +31,13 @@ const fs = require('fs');
 const path = require('path');
 
 // Check for existence of `process.config`.
-assert(process.hasOwnProperty('config'));
+assert(Object.hasOwn(process, 'config'));
 
 // Ensure that `process.config` is an Object.
 assert.strictEqual(Object(process.config), process.config);
+
+// Ensure that you can't change config values
+assert.throws(() => { process.config.variables = 42; }, TypeError);
 
 const configPath = path.resolve(__dirname, '..', '..', 'config.gypi');
 
@@ -46,8 +49,7 @@ let config = fs.readFileSync(configPath, 'utf8');
 
 // Clean up comment at the first line.
 config = config.split('\n').slice(1).join('\n');
-config = config.replace(/"/g, '\\"');
-config = config.replace(/'/g, '"');
+// Turn pseudo-booleans strings into booleans.
 config = JSON.parse(config, (key, value) => {
   if (value === 'true') return true;
   if (value === 'false') return false;

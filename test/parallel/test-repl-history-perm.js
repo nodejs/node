@@ -12,8 +12,9 @@ if (common.isWindows) {
               'read access.');
 }
 
+common.skipIfInspectorDisabled();
+
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const repl = require('internal/repl');
 const Duplex = require('stream').Duplex;
@@ -33,7 +34,7 @@ stream.readable = stream.writable = true;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-const replHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const replHistoryPath = tmpdir.resolve('.node_repl_history');
 
 const checkResults = common.mustSucceed((r) => {
   const stat = fs.statSync(replHistoryPath);

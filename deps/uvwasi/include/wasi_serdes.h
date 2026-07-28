@@ -6,7 +6,9 @@
 /* Basic uint{8,16,32,64}_t read/write functions. */
 
 #define BASIC_TYPE(name, type)                                                \
+  UVWASI_EXPORT                                                               \
   void uvwasi_serdes_write_##name(void* ptr, size_t offset, type value);      \
+  UVWASI_EXPORT                                                               \
   type uvwasi_serdes_read_##name(const void* ptr, size_t offset);             \
 
 #define BASIC_TYPE_UVWASI(type) BASIC_TYPE(type, uvwasi_##type)
@@ -83,15 +85,18 @@ BASIC_TYPE_UVWASI(whence_t)
 /* WASI structure read/write functions. */
 
 #define STRUCT(name)                                                          \
+  UVWASI_EXPORT                                                               \
   void uvwasi_serdes_write_##name(void* ptr,                                  \
                                   size_t offset,                              \
                                   const uvwasi_##name* value);                \
+  UVWASI_EXPORT                                                               \
   void uvwasi_serdes_read_##name(const void* ptr,                             \
                                  size_t offset,                               \
                                  uvwasi_##name* value);
 
 /* iovs currently only need to be read from WASM memory. */
 #define IOVS_STRUCT(name)                                                     \
+  UVWASI_EXPORT                                                               \
   uvwasi_errno_t uvwasi_serdes_read_##name(const void* ptr,                   \
                                            size_t end,                        \
                                            size_t offset,                     \
@@ -124,12 +129,14 @@ STRUCT(subscription_t)
 #undef STRUCT
 #undef IOVS_STRUCT
 
+UVWASI_EXPORT
 uvwasi_errno_t uvwasi_serdes_readv_ciovec_t(const void* ptr,
                                             size_t end,
                                             size_t offset,
                                             uvwasi_ciovec_t* iovs,
                                             uvwasi_size_t iovs_len);
 
+UVWASI_EXPORT
 uvwasi_errno_t uvwasi_serdes_readv_iovec_t(const void* ptr,
                                            size_t end,
                                            size_t offset,
@@ -137,7 +144,9 @@ uvwasi_errno_t uvwasi_serdes_readv_iovec_t(const void* ptr,
                                            uvwasi_size_t iovs_len);
 
 /* Helper functions for memory bounds checking. */
+UVWASI_EXPORT
 int uvwasi_serdes_check_bounds(size_t offset, size_t end, size_t size);
+UVWASI_EXPORT
 int uvwasi_serdes_check_array_bounds(size_t offset,
                                      size_t end,
                                      size_t size,

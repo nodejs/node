@@ -47,7 +47,7 @@ syn keyword torqueType Arguments void never
 syn keyword torqueType Tagged Smi HeapObject Object
 syn keyword torqueType int32 uint32 int64 intptr uintptr float32 float64
 syn keyword torqueType bool string
-syn keyword torqueType int31 RawPtr AbstractCode Code JSReceiver Context String
+syn keyword torqueType int31 RawPtr AbstractCode InstructionStream JSReceiver Context String
 syn keyword torqueType Oddball HeapNumber Number BigInt Numeric Boolean JSProxy
 syn keyword torqueType JSObject JSArray JSFunction JSBoundFunction Callable Map
 

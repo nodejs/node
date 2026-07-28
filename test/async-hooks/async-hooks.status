@@ -15,7 +15,11 @@ prefix async-hooks
 [$arch==arm || $arch==arm64]
 
 [$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/43457
+test-callback-error: PASS, FLAKY
 
 [$system==freebsd]
 
 [$system==aix]
+# https://github.com/nodejs/node/issues/50245
+test-emit-after-on-destroyed: PASS, FLAKY

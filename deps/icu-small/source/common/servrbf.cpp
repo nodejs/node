@@ -22,9 +22,9 @@
 #include "ucln_cmn.h"
 #include "uassert.h"
 
-#define UNDERSCORE_CHAR ((UChar)0x005f)
-#define AT_SIGN_CHAR    ((UChar)64)
-#define PERIOD_CHAR     ((UChar)46)
+#define UNDERSCORE_CHAR ((char16_t)0x005f)
+#define AT_SIGN_CHAR    ((char16_t)64)
+#define PERIOD_CHAR     ((char16_t)46)
 
 U_NAMESPACE_BEGIN
 
@@ -48,7 +48,7 @@ ICUResourceBundleFactory::getSupportedIDs(UErrorCode& status) const
     if (U_SUCCESS(status)) {
         return LocaleUtility::getAvailableLocaleNames(_bundleName);
     }
-    return NULL;
+    return nullptr;
 }
 
 UObject*
@@ -61,13 +61,13 @@ ICUResourceBundleFactory::handleCreate(const Locale& loc, int32_t /* kind */, co
                 // who made this change? -- dlf
         char pkg[20];
         int32_t length;
-        length=_bundleName.extract(0, INT32_MAX, pkg, (int32_t)sizeof(pkg), US_INV);
-        if(length>=(int32_t)sizeof(pkg)) {
-            return NULL;
+        length = _bundleName.extract(0, INT32_MAX, pkg, static_cast<int32_t>(sizeof(pkg)), US_INV);
+        if (length >= static_cast<int32_t>(sizeof(pkg))) {
+            return nullptr;
         }
         return new ResourceBundle(pkg, loc, status);
     }
-    return NULL;
+    return nullptr;
 }
 
 #ifdef SERVICE_DEBUG
@@ -92,3 +92,5 @@ U_NAMESPACE_END
 
 /* !UCONFIG_NO_SERVICE */
 #endif
+
+

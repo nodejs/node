@@ -89,7 +89,7 @@ const initialWindowSizeList = [
   (1 << 8) - 1,
   1 << 8,
   1 << 17,
-  undefined // Use default window size which is (1 << 16) - 1
+  undefined, // Use default window size which is (1 << 16) - 1
 ];
 
 // Call `run` on each element in the cartesian product of buffersList and
@@ -100,4 +100,4 @@ for (const buffers of buffersList) {
     p = p.then(() => run(buffers, initialWindowSize));
   }
 }
-p.then(common.mustCall(() => {}));
+p.then(common.mustCall());

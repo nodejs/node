@@ -3,22 +3,20 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "crypto/crypto_keys.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "base_object.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_util.h"
 #include "v8.h"
 
 namespace node {
 namespace crypto {
-static constexpr size_t kMaxDigestMultiplier = 255;
-
 struct HKDFConfig final : public MemoryRetainer {
   CryptoJobMode mode;
   size_t length;
-  const EVP_MD* digest;
-  std::shared_ptr<KeyObjectData> key;
+  ncrypto::Digest digest;
+  KeyObjectData key;
+  ByteSource key_data;
   ByteSource salt;
   ByteSource info;
 
@@ -29,8 +27,8 @@ struct HKDFConfig final : public MemoryRetainer {
   HKDFConfig& operator=(HKDFConfig&& other) noexcept;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(HKDFConfig);
-  SET_SELF_SIZE(HKDFConfig);
+  SET_MEMORY_INFO_NAME(HKDFConfig)
+  SET_SELF_SIZE(HKDFConfig)
 };
 
 struct HKDFTraits final {
@@ -39,22 +37,21 @@ struct HKDFTraits final {
   static constexpr AsyncWrap::ProviderType Provider =
       AsyncWrap::PROVIDER_DERIVEBITSREQUEST;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       HKDFConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const HKDFConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const HKDFConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
-  static v8::Maybe<bool> EncodeOutput(
-      Environment* env,
-      const HKDFConfig& params,
-      ByteSource* out,
-      v8::Local<v8::Value>* result);
+  static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
+                                                const HKDFConfig& params,
+                                                ByteSource* out);
 };
 
 using HKDFJob = DeriveBitsJob<HKDFTraits>;

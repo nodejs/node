@@ -1,11 +1,17 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+/*
+ * BF low level APIs are deprecated for public use, but still ok for internal
+ * use.
+ */
+#include "internal/deprecated.h"
 
 #include <openssl/blowfish.h>
 #include "bf_local.h"
@@ -17,7 +23,7 @@
  */
 
 #if (BF_ROUNDS != 16) && (BF_ROUNDS != 20)
-# error If you set BF_ROUNDS to some value other than 16 or 20, you will have \
+#error If you set BF_ROUNDS to some value other than 16 or 20, you will have \
 to modify the code.
 #endif
 
@@ -48,12 +54,12 @@ void BF_encrypt(BF_LONG *data, const BF_KEY *key)
     BF_ENC(l, r, s, p[14]);
     BF_ENC(r, l, s, p[15]);
     BF_ENC(l, r, s, p[16]);
-# if BF_ROUNDS == 20
+#if BF_ROUNDS == 20
     BF_ENC(r, l, s, p[17]);
     BF_ENC(l, r, s, p[18]);
     BF_ENC(r, l, s, p[19]);
     BF_ENC(l, r, s, p[20]);
-# endif
+#endif
     r ^= p[BF_ROUNDS + 1];
 
     data[1] = l & 0xffffffffU;
@@ -71,12 +77,12 @@ void BF_decrypt(BF_LONG *data, const BF_KEY *key)
     r = data[1];
 
     l ^= p[BF_ROUNDS + 1];
-#  if BF_ROUNDS == 20
+#if BF_ROUNDS == 20
     BF_ENC(r, l, s, p[20]);
     BF_ENC(l, r, s, p[19]);
     BF_ENC(r, l, s, p[18]);
     BF_ENC(l, r, s, p[17]);
-#  endif
+#endif
     BF_ENC(r, l, s, p[16]);
     BF_ENC(l, r, s, p[15]);
     BF_ENC(r, l, s, p[14]);
@@ -100,7 +106,7 @@ void BF_decrypt(BF_LONG *data, const BF_KEY *key)
 }
 
 void BF_cbc_encrypt(const unsigned char *in, unsigned char *out, long length,
-                    const BF_KEY *schedule, unsigned char *ivec, int encrypt)
+    const BF_KEY *schedule, unsigned char *ivec, int encrypt)
 {
     register BF_LONG tin0, tin1;
     register BF_LONG tout0, tout1, xor0, xor1;

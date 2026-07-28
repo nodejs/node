@@ -9,9 +9,7 @@ Acorn is open source software released under an
 
 You are welcome to
 [report bugs](https://github.com/acornjs/acorn/issues) or create pull
-requests on [github](https://github.com/acornjs/acorn). For questions
-and discussion, please use the
-[Tern discussion forum](https://discuss.ternjs.net).
+requests on [github](https://github.com/acornjs/acorn).
 
 ## Installation
 
@@ -28,6 +26,24 @@ git clone https://github.com/acornjs/acorn.git
 cd acorn
 npm install
 ```
+## Importing acorn
+
+ESM as well as CommonJS is supported for all 3: `acorn`, `acorn-walk` and `acorn-loose`.
+
+ESM example for `acorn`:
+
+```js
+import * as acorn from "acorn"
+```
+
+CommonJS example for `acorn`:
+
+```js
+let acorn = require("acorn")
+```
+
+ESM is preferred, as it allows better editor auto-completions by offering TypeScript support.
+For this reason, following examples will use ESM imports.
 
 ## Interface
 
@@ -38,8 +54,8 @@ syntax tree object as specified by the [ESTree
 spec](https://github.com/estree/estree).
 
 ```javascript
-let acorn = require("acorn");
-console.log(acorn.parse("1 + 1", {ecmaVersion: 2020}));
+import * as acorn from "acorn"
+console.log(acorn.parse("1 + 1", {ecmaVersion: 2020}))
 ```
 
 When encountering a syntax error, the parser will raise a
@@ -52,22 +68,26 @@ Options are provided by in a second argument, which should be an
 object containing any of these fields (only `ecmaVersion` is
 required):
 
-- **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6 (or 2015), 7 (2016), 8 (2017), 9 (2018), 10 (2019),
-  11 (2020), or 12 (2021, partial support), or `"latest"` (the latest
-  the library supports). This influences support for strict mode, the
-  set of reserved words, and support for new syntax features.
+- **ecmaVersion**: Indicates the ECMAScript version to parse. Can be a
+  number, either in year (`2022`) or plain version number (`6`) form,
+  or `"latest"` (the latest the library supports). This influences
+  support for strict mode, the set of reserved words, and support for
+  new syntax features.
 
   **NOTE**: Only 'stage 4' (finalized) ECMAScript features are being
   implemented by Acorn. Other proposed new features must be
   implemented through plugins.
 
 - **sourceType**: Indicate the mode the code should be parsed in. Can be
-  either `"script"` or `"module"`. This influences global strict mode
+  either `"script"`, `"module"` or `"commonjs"`. This influences global strict mode
   and parsing of `import` and `export` declarations.
 
   **NOTE**: If set to `"module"`, then static `import` / `export` syntax
-  will be valid, even if `ecmaVersion` is less than 6.
+  will be valid, even if `ecmaVersion` is less than 6. If set to `"commonjs"`,
+  it is the same as `"script"` except that the top-level scope behaves like a function.
+
+- **strict**: When set to true, enable strict parsing mode even if
+  `sourceType` is `"script"`.
 
 - **onInsertedSemicolon**: If given a callback, that callback will be
   called whenever a missing semicolon is inserted by the parser. The
@@ -90,16 +110,27 @@ required):
 
 - **allowImportExportEverywhere**: By default, `import` and `export`
   declarations can only appear at a program's top level. Setting this
-  option to `true` allows them anywhere where a statement is allowed.
-  
-- **allowAwaitOutsideFunction**: By default, `await` expressions can
-  only appear inside `async` functions. Setting this option to
-  `true` allows to have top-level `await` expressions. They are
-  still not allowed in non-`async` functions, though.
+  option to `true` allows them anywhere where a statement is allowed,
+  and also allows `import.meta` expressions to appear in scripts
+  (when `sourceType` is not `"module"`).
 
-- **allowHashBang**: When this is enabled (off by default), if the
-  code starts with the characters `#!` (as in a shellscript), the
-  first line will be treated as a comment.
+- **allowAwaitOutsideFunction**: If `false`, `await` expressions can
+  only appear inside `async` functions. Defaults to `true` in modules
+  for `ecmaVersion` 2022 and later, `false` for lower versions.
+  Setting this option to `true` allows to have top-level `await`
+  expressions. They are still not allowed in non-`async` functions,
+  though. Setting this option to `true` is not allowed when `sourceType: "commonjs"`.
+
+- **allowSuperOutsideMethod**: By default, `super` outside a method
+  raises an error. Set this to `true` to accept such code.
+
+- **allowHashBang**: When this is enabled, if the code starts with the
+  characters `#!` (as in a shellscript), the first line will be
+  treated as a comment. Defaults to true when `ecmaVersion` >= 2023.
+
+- **checkPrivateFields**: By default, the parser will verify that
+  private properties are only used in places where they are valid and
+  have been declared. Set this to false to turn such checks off.
 
 - **locations**: When `true`, each node has a `loc` object attached
   with `start` and `end` subobjects, each of which contains the
@@ -192,6 +223,13 @@ option is enabled). When the token's type is `tokTypes.eof`, you
 should stop calling the method, since it will keep returning that same
 token forever.
 
+Note that tokenizing JavaScript without parsing it is, in modern
+versions of the language, not really possible due to the way syntax is
+overloaded in ways that can only be disambiguated by the parse
+context. This package applies a bunch of heuristics to try and do a
+reasonable job, but you are advised to use `parse` with the `onToken`
+option instead of this.
+
 In ES6 environment, returned result can be used as any other
 protocol-compliant iterable:
 
@@ -201,7 +239,7 @@ for (let token of acorn.tokenizer(str)) {
 }
 
 // transform code to array of tokens:
-var tokens = [...acorn.tokenizer(str)];
+var tokens = [...acorn.tokenizer(str)]
 ```
 
 **tokTypes** holds an object mapping names to the token type objects
@@ -222,10 +260,10 @@ on the extended version of the class. To extend a parser with plugins,
 you can use its static `extend` method.
 
 ```javascript
-var acorn = require("acorn");
-var jsx = require("acorn-jsx");
-var JSXParser = acorn.Parser.extend(jsx());
-JSXParser.parse("foo(<bar/>)", {ecmaVersion: 2020});
+var acorn = require("acorn")
+var jsx = require("acorn-jsx")
+var JSXParser = acorn.Parser.extend(jsx())
+JSXParser.parse("foo(<bar/>)", {ecmaVersion: 2020})
 ```
 
 The `extend` method takes any number of plugin values, and returns a
@@ -250,6 +288,9 @@ options:
 - `--allow-hash-bang`: If the code starts with the characters #! (as
   in a shellscript), the first line will be treated as a comment.
 
+- `--allow-await-outside-function`: Allows top-level `await` expressions.
+  See the `allowAwaitOutsideFunction` option for more information.
+
 - `--compact`: No whitespace is used in the AST output.
 
 - `--silent`: Do not output the AST, just return the exit status.
@@ -261,10 +302,3 @@ The utility spits out the syntax tree as JSON data.
 ## Existing plugins
 
  - [`acorn-jsx`](https://github.com/RReverser/acorn-jsx): Parse [Facebook JSX syntax extensions](https://github.com/facebook/jsx)
- 
-Plugins for ECMAScript proposals:
- 
- - [`acorn-stage3`](https://github.com/acornjs/acorn-stage3): Parse most stage 3 proposals, bundling:
-   - [`acorn-class-fields`](https://github.com/acornjs/acorn-class-fields): Parse [class fields proposal](https://github.com/tc39/proposal-class-fields)
-   - [`acorn-import-meta`](https://github.com/acornjs/acorn-import-meta): Parse [import.meta proposal](https://github.com/tc39/proposal-import-meta)
-   - [`acorn-private-methods`](https://github.com/acornjs/acorn-private-methods): parse [private methods, getters and setters proposal](https://github.com/tc39/proposal-private-methods)n

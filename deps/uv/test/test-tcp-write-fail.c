@@ -41,26 +41,26 @@ static void close_socket(uv_tcp_t* sock) {
   int r;
 
   r = uv_fileno((uv_handle_t*)sock, &fd);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 #ifdef _WIN32
   r = closesocket((uv_os_sock_t)fd);
 #else
   r = close(fd);
 #endif
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 }
 
 
 static void close_cb(uv_handle_t* handle) {
-  ASSERT(handle != NULL);
+  ASSERT_NOT_NULL(handle);
   close_cb_called++;
 }
 
 
 static void write_cb(uv_write_t* req, int status) {
-  ASSERT(req != NULL);
+  ASSERT_NOT_NULL(req);
 
-  ASSERT(status != 0);
+  ASSERT(status);
   fprintf(stderr, "uv_write error: %s\n", uv_strerror(status));
   write_cb_called++;
 
@@ -73,8 +73,8 @@ static void connect_cb(uv_connect_t* req, int status) {
   uv_stream_t* stream;
   int r;
 
-  ASSERT(req == &connect_req);
-  ASSERT(status == 0);
+  ASSERT_PTR_EQ(req, &connect_req);
+  ASSERT_OK(status);
 
   stream = req->handle;
   connect_cb_called++;
@@ -84,32 +84,47 @@ static void connect_cb(uv_connect_t* req, int status) {
 
   buf = uv_buf_init("hello\n", 6);
   r = uv_write(&write_req, stream, &buf, 1, write_cb);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 }
 
 
 TEST_IMPL(tcp_write_fail) {
   struct sockaddr_in addr;
   uv_tcp_t client;
+  uv_buf_t buf;
   int r;
 
-  ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
   r = uv_tcp_init(uv_default_loop(), &client);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
+
+  r = uv_write(&write_req,
+               (uv_stream_t*) &client,
+               &buf,
+               0,  /* Illegal. Worse, senseless. */
+               write_cb);
+  ASSERT_EQ(UV_EINVAL, r);
+
+  r = uv_write(&write_req,
+               (uv_stream_t*) &client,
+               &buf,
+               -42,  /* Undergoes sign conversion. */
+               write_cb);
+  ASSERT_EQ(UV_EINVAL, r);
 
   r = uv_tcp_connect(&connect_req,
                      &client,
                      (const struct sockaddr*) &addr,
                      connect_cb);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(connect_cb_called == 1);
-  ASSERT(write_cb_called == 1);
-  ASSERT(close_cb_called == 1);
+  ASSERT_EQ(1, connect_cb_called);
+  ASSERT_EQ(1, write_cb_called);
+  ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

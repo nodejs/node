@@ -37,7 +37,7 @@ var values = [];
 // Debug event listener which steps until the global variable done is true.
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
-    if (!done) exec_state.prepareStep(Debug.StepAction.StepNext);
+    if (!done) exec_state.prepareStep(Debug.StepAction.StepOver);
     step_count++;
   }
 };

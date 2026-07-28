@@ -7,6 +7,8 @@
 
 #include "src/objects/fixed-array.h"
 #include "src/objects/struct.h"
+#include "src/objects/tagged-field.h"
+#include "src/objects/torque-defined-classes.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,33 +16,41 @@
 namespace v8 {
 namespace internal {
 
-// CachedTemplateObject is a tuple used to cache a TemplateObject that has been
-// created. All the CachedTemplateObject's for a given SharedFunctionInfo form a
-// linked list via the next fields.
-class CachedTemplateObject final
-    : public TorqueGeneratedCachedTemplateObject<CachedTemplateObject, Struct> {
- public:
-  static Handle<CachedTemplateObject> New(Isolate* isolate, int slot_id,
-                                          Handle<JSArray> template_object,
-                                          Handle<HeapObject> next);
+class Oddball;
+class StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(CachedTemplateObject)
-};
+#include "torque-generated/src/objects/template-objects-tq.inc"
 
 // TemplateObjectDescription is a tuple of raw strings and cooked strings for
 // tagged template literals. Used to communicate with the runtime for template
 // object creation within the {Runtime_GetTemplateObject} method.
-class TemplateObjectDescription final
-    : public TorqueGeneratedTemplateObjectDescription<TemplateObjectDescription,
-                                                      Struct> {
+V8_OBJECT class TemplateObjectDescription final : public StructLayout {
  public:
-  static Handle<JSArray> GetTemplateObject(
-      Isolate* isolate, Handle<NativeContext> native_context,
-      Handle<TemplateObjectDescription> description,
-      Handle<SharedFunctionInfo> shared_info, int slot_id);
+  static DirectHandle<JSArray> GetTemplateObject(
+      Isolate* isolate, DirectHandle<NativeContext> native_context,
+      DirectHandle<TemplateObjectDescription> description,
+      DirectHandle<SharedFunctionInfo> shared_info, int slot_id);
 
-  TQ_OBJECT_CONSTRUCTORS(TemplateObjectDescription)
-};
+  inline Tagged<FixedArray> raw_strings() const;
+  inline void set_raw_strings(Tagged<FixedArray> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> cooked_strings() const;
+  inline void set_cooked_strings(Tagged<FixedArray> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  DECL_PRINTER(TemplateObjectDescription)
+  DECL_VERIFIER(TemplateObjectDescription)
+
+ private:
+  friend class Factory;
+  friend class TorqueGeneratedTemplateObjectDescriptionAsserts;
+
+  TaggedMember<FixedArray> raw_strings_;
+  TaggedMember<FixedArray> cooked_strings_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

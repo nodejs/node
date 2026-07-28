@@ -7,13 +7,15 @@
 
 #include "include/v8config.h"
 
-// Annotate a  using ALLOW_UNUSED_TYPE = or function indicating it's ok if it's
-// not used. Use like:
-//    using Bar = Foo;
+// Annotation to silence compiler warnings about unused
+// types/functions/variables. Use like:
+//
+//   using V8_ALLOW_UNUSED Bar = Foo;
+//   V8_ALLOW_UNUSED void foo() {}
 #if V8_HAS_ATTRIBUTE_UNUSED
-#define ALLOW_UNUSED_TYPE __attribute__((unused))
+#define V8_ALLOW_UNUSED __attribute__((unused))
 #else
-#define ALLOW_UNUSED_TYPE
+#define V8_ALLOW_UNUSED
 #endif
 
 // Tell the compiler a function is using a printf-style format string.
@@ -96,10 +98,10 @@
 // do not support adding noexcept to default members.
 // Disabled on MSVC because constructors of standard containers are not noexcept
 // there.
-#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                      \
-      !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64) && \
-      !defined(V8_TARGET_ARCH_PPC) && !defined(V8_TARGET_ARCH_PPC64)) ||  \
-     (defined(__clang__) && __cplusplus > 201300L))
+#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                           \
+      !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_PPC64) &&     \
+      !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_RISCV32)) || \
+     defined(__clang__))
 #define V8_NOEXCEPT noexcept
 #else
 #define V8_NOEXCEPT
@@ -130,6 +132,20 @@
 #define ALIGNAS(byte_alignment) __declspec(align(byte_alignment))
 #else
 #define ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
+#endif
+
+// Functions called from GDB.
+// Forces the linker to not optimize out the function.
+#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_RETAIN && \
+    V8_HAS_ATTRIBUTE_OPTNONE && V8_HAS_ATTRIBUTE_VISIBILITY
+#define V8_DEBUGGING_EXPORT \
+  __attribute__((used, retain, optnone, visibility("default")))
+#else
+#define V8_DEBUGGING_EXPORT
+#endif
+
+#if __cplusplus >= 202002L
+#define HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS 1
 #endif
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

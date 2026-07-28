@@ -6,7 +6,6 @@
 #define V8_LIBPLATFORM_V8_TRACING_H_
 
 #include <atomic>
-#include <fstream>
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -15,9 +14,11 @@
 #include "v8-platform.h"  // NOLINT(build/include_directory)
 
 namespace perfetto {
+#if defined(V8_USE_PERFETTO_JSON_EXPORT)
 namespace trace_processor {
 class TraceProcessorStorage;
 }
+#endif  // defined(V8_USE_PERFETTO_JSON_EXPORT)
 class TracingSession;
 }
 
@@ -37,7 +38,6 @@ const int kTraceMaxNumArgs = 2;
 class V8_PLATFORM_EXPORT TraceObject {
  public:
   union ArgValue {
-    V8_DEPRECATED("use as_uint ? true : false") bool as_bool;
     uint64_t as_uint;
     int64_t as_int;
     double as_double;
@@ -124,6 +124,8 @@ class V8_PLATFORM_EXPORT TraceWriter {
   static TraceWriter* CreateJSONTraceWriter(std::ostream& stream);
   static TraceWriter* CreateJSONTraceWriter(std::ostream& stream,
                                             const std::string& tag);
+
+  static TraceWriter* CreateSystemInstrumentationTraceWriter();
 
  private:
   // Disallow copy and assign
@@ -231,6 +233,12 @@ class V8_PLATFORM_EXPORT TraceConfig {
 #define V8_PLATFORM_NON_EXPORTED_BASE(code) code
 #endif  // defined(_MSC_VER)
 
+/**
+ * V8 Tracing controller default implementation.
+ *
+ * Will become obsolete in Perfetto build
+ * (v8_use_perfetto_json_export = true).
+ */
 class V8_PLATFORM_EXPORT TracingController
     : public V8_PLATFORM_NON_EXPORTED_BASE(v8::TracingController) {
  public:
@@ -281,12 +289,12 @@ class V8_PLATFORM_EXPORT TracingController
                                 const char* name, uint64_t handle) override;
 
   static const char* GetCategoryGroupName(const uint8_t* category_enabled_flag);
-#endif  // !defined(V8_USE_PERFETTO)
 
   void AddTraceStateObserver(
       v8::TracingController::TraceStateObserver* observer) override;
   void RemoveTraceStateObserver(
       v8::TracingController::TraceStateObserver* observer) override;
+#endif  // !defined(V8_USE_PERFETTO)
 
   void StartTracing(TraceConfig* trace_config);
   void StopTracing();
@@ -306,15 +314,18 @@ class V8_PLATFORM_EXPORT TracingController
   std::unique_ptr<base::Mutex> mutex_;
   std::unique_ptr<TraceConfig> trace_config_;
   std::atomic_bool recording_{false};
-  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_;
+
+#if defined(V8_USE_PERFETTO_JSON_EXPORT)
+  std::unique_ptr<perfetto::trace_processor::TraceProcessorStorage>
+      trace_processor_;
+#endif
 
 #if defined(V8_USE_PERFETTO)
   std::ostream* output_stream_ = nullptr;
-  std::unique_ptr<perfetto::trace_processor::TraceProcessorStorage>
-      trace_processor_;
   TraceEventListener* listener_for_testing_ = nullptr;
   std::unique_ptr<perfetto::TracingSession> tracing_session_;
 #else   // !defined(V8_USE_PERFETTO)
+  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_;
   std::unique_ptr<TraceBuffer> trace_buffer_;
 #endif  // !defined(V8_USE_PERFETTO)
 

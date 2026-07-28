@@ -73,39 +73,47 @@ $L$enc4x_body:
 $L$enc4x_loop_grande:
 	mov	DWORD[24+rsp],edx
 	xor	edx,edx
+
 	mov	ecx,DWORD[((-64))+rdi]
 	mov	r8,QWORD[((-80))+rdi]
 	cmp	ecx,edx
 	mov	r12,QWORD[((-72))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm2,XMMWORD[((-56))+rdi]
 	mov	DWORD[32+rsp],ecx
 	cmovle	r8,rsp
+
 	mov	ecx,DWORD[((-24))+rdi]
 	mov	r9,QWORD[((-40))+rdi]
 	cmp	ecx,edx
 	mov	r13,QWORD[((-32))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm3,XMMWORD[((-16))+rdi]
 	mov	DWORD[36+rsp],ecx
 	cmovle	r9,rsp
+
 	mov	ecx,DWORD[16+rdi]
 	mov	r10,QWORD[rdi]
 	cmp	ecx,edx
 	mov	r14,QWORD[8+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm4,XMMWORD[24+rdi]
 	mov	DWORD[40+rsp],ecx
 	cmovle	r10,rsp
+
 	mov	ecx,DWORD[56+rdi]
 	mov	r11,QWORD[40+rdi]
 	cmp	ecx,edx
 	mov	r15,QWORD[48+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm5,XMMWORD[64+rdi]
 	mov	DWORD[44+rsp],ecx
 	cmovle	r11,rsp
@@ -285,6 +293,7 @@ DB	102,15,56,221,232
 
 
 
+
 	lea	rdi,[160+rdi]
 	dec	edx
 	jnz	NEAR $L$enc4x_loop_grande
@@ -387,39 +396,47 @@ $L$dec4x_body:
 $L$dec4x_loop_grande:
 	mov	DWORD[24+rsp],edx
 	xor	edx,edx
+
 	mov	ecx,DWORD[((-64))+rdi]
 	mov	r8,QWORD[((-80))+rdi]
 	cmp	ecx,edx
 	mov	r12,QWORD[((-72))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm6,XMMWORD[((-56))+rdi]
 	mov	DWORD[32+rsp],ecx
 	cmovle	r8,rsp
+
 	mov	ecx,DWORD[((-24))+rdi]
 	mov	r9,QWORD[((-40))+rdi]
 	cmp	ecx,edx
 	mov	r13,QWORD[((-32))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm7,XMMWORD[((-16))+rdi]
 	mov	DWORD[36+rsp],ecx
 	cmovle	r9,rsp
+
 	mov	ecx,DWORD[16+rdi]
 	mov	r10,QWORD[rdi]
 	cmp	ecx,edx
 	mov	r14,QWORD[8+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm8,XMMWORD[24+rdi]
 	mov	DWORD[40+rsp],ecx
 	cmovle	r10,rsp
+
 	mov	ecx,DWORD[56+rdi]
 	mov	r11,QWORD[40+rdi]
 	cmp	ecx,edx
 	mov	r15,QWORD[48+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	movdqu	xmm9,XMMWORD[64+rdi]
 	mov	DWORD[44+rsp],ecx
 	cmovle	r11,rsp
@@ -687,89 +704,121 @@ $L$enc8x_body:
 $L$enc8x_loop_grande:
 
 	xor	edx,edx
+
 	mov	ecx,DWORD[((-144))+rdi]
+
 	mov	r8,QWORD[((-160))+rdi]
 	cmp	ecx,edx
+
 	mov	rbx,QWORD[((-152))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm2,XMMWORD[((-136))+rdi]
 	mov	DWORD[32+rsp],ecx
 	cmovle	r8,rsp
 	sub	rbx,r8
 	mov	QWORD[64+rsp],rbx
+
 	mov	ecx,DWORD[((-104))+rdi]
+
 	mov	r9,QWORD[((-120))+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[((-112))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm3,XMMWORD[((-96))+rdi]
 	mov	DWORD[36+rsp],ecx
 	cmovle	r9,rsp
 	sub	rbp,r9
 	mov	QWORD[72+rsp],rbp
+
 	mov	ecx,DWORD[((-64))+rdi]
+
 	mov	r10,QWORD[((-80))+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[((-72))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm4,XMMWORD[((-56))+rdi]
 	mov	DWORD[40+rsp],ecx
 	cmovle	r10,rsp
 	sub	rbp,r10
 	mov	QWORD[80+rsp],rbp
+
 	mov	ecx,DWORD[((-24))+rdi]
+
 	mov	r11,QWORD[((-40))+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[((-32))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm5,XMMWORD[((-16))+rdi]
 	mov	DWORD[44+rsp],ecx
 	cmovle	r11,rsp
 	sub	rbp,r11
 	mov	QWORD[88+rsp],rbp
+
 	mov	ecx,DWORD[16+rdi]
+
 	mov	r12,QWORD[rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[8+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm6,XMMWORD[24+rdi]
 	mov	DWORD[48+rsp],ecx
 	cmovle	r12,rsp
 	sub	rbp,r12
 	mov	QWORD[96+rsp],rbp
+
 	mov	ecx,DWORD[56+rdi]
+
 	mov	r13,QWORD[40+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[48+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm7,XMMWORD[64+rdi]
 	mov	DWORD[52+rsp],ecx
 	cmovle	r13,rsp
 	sub	rbp,r13
 	mov	QWORD[104+rsp],rbp
+
 	mov	ecx,DWORD[96+rdi]
+
 	mov	r14,QWORD[80+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[88+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm8,XMMWORD[104+rdi]
 	mov	DWORD[56+rsp],ecx
 	cmovle	r14,rsp
 	sub	rbp,r14
 	mov	QWORD[112+rsp],rbp
+
 	mov	ecx,DWORD[136+rdi]
+
 	mov	r15,QWORD[120+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[128+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm9,XMMWORD[144+rdi]
 	mov	DWORD[60+rsp],ecx
 	cmovle	r15,rsp
@@ -1176,96 +1225,128 @@ $L$dec8x_body:
 $L$dec8x_loop_grande:
 
 	xor	edx,edx
+
 	mov	ecx,DWORD[((-144))+rdi]
+
 	mov	r8,QWORD[((-160))+rdi]
 	cmp	ecx,edx
+
 	mov	rbx,QWORD[((-152))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm2,XMMWORD[((-136))+rdi]
 	mov	DWORD[32+rsp],ecx
 	cmovle	r8,rsp
 	sub	rbx,r8
 	mov	QWORD[64+rsp],rbx
 	vmovdqu	XMMWORD[192+rsp],xmm2
+
 	mov	ecx,DWORD[((-104))+rdi]
+
 	mov	r9,QWORD[((-120))+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[((-112))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm3,XMMWORD[((-96))+rdi]
 	mov	DWORD[36+rsp],ecx
 	cmovle	r9,rsp
 	sub	rbp,r9
 	mov	QWORD[72+rsp],rbp
 	vmovdqu	XMMWORD[208+rsp],xmm3
+
 	mov	ecx,DWORD[((-64))+rdi]
+
 	mov	r10,QWORD[((-80))+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[((-72))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm4,XMMWORD[((-56))+rdi]
 	mov	DWORD[40+rsp],ecx
 	cmovle	r10,rsp
 	sub	rbp,r10
 	mov	QWORD[80+rsp],rbp
 	vmovdqu	XMMWORD[224+rsp],xmm4
+
 	mov	ecx,DWORD[((-24))+rdi]
+
 	mov	r11,QWORD[((-40))+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[((-32))+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm5,XMMWORD[((-16))+rdi]
 	mov	DWORD[44+rsp],ecx
 	cmovle	r11,rsp
 	sub	rbp,r11
 	mov	QWORD[88+rsp],rbp
 	vmovdqu	XMMWORD[240+rsp],xmm5
+
 	mov	ecx,DWORD[16+rdi]
+
 	mov	r12,QWORD[rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[8+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm6,XMMWORD[24+rdi]
 	mov	DWORD[48+rsp],ecx
 	cmovle	r12,rsp
 	sub	rbp,r12
 	mov	QWORD[96+rsp],rbp
 	vmovdqu	XMMWORD[256+rsp],xmm6
+
 	mov	ecx,DWORD[56+rdi]
+
 	mov	r13,QWORD[40+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[48+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm7,XMMWORD[64+rdi]
 	mov	DWORD[52+rsp],ecx
 	cmovle	r13,rsp
 	sub	rbp,r13
 	mov	QWORD[104+rsp],rbp
 	vmovdqu	XMMWORD[272+rsp],xmm7
+
 	mov	ecx,DWORD[96+rdi]
+
 	mov	r14,QWORD[80+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[88+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm8,XMMWORD[104+rdi]
 	mov	DWORD[56+rsp],ecx
 	cmovle	r14,rsp
 	sub	rbp,r14
 	mov	QWORD[112+rsp],rbp
 	vmovdqu	XMMWORD[288+rsp],xmm8
+
 	mov	ecx,DWORD[136+rdi]
+
 	mov	r15,QWORD[120+rdi]
 	cmp	ecx,edx
+
 	mov	rbp,QWORD[128+rdi]
 	cmovg	edx,ecx
 	test	ecx,ecx
+
 	vmovdqu	xmm9,XMMWORD[144+rdi]
 	mov	DWORD[60+rsp],ecx
 	cmovle	r15,rsp

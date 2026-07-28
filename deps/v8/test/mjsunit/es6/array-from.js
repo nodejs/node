@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
+
 (function() {
 
 assertEquals(1, Array.from.length);
@@ -183,4 +185,26 @@ assertEquals(true, xlength.writable);
 assertEquals(true, xlength.enumerable);
 assertEquals(true, xlength.configurable);
 
+})();
+
+(function testElementsKind() {
+  // Check that Array.from returns PACKED elements.
+  var arr = Array.from([1,2,3]);
+  assertTrue(%HasFastPackedElements(arr));
+  assertTrue(%HasSmiElements(arr));
+
+  var arr = Array.from({length: 3});
+  if(!%IsUndefinedDoubleEnabled()) {
+    // TODO(385155404): Consider reenabling when we can transition back to packed.
+    assertTrue(%HasPackedElements(arr));
+    assertTrue(%HasObjectElements(arr));
+  }
+
+  var arr = Array.from({length: 3}, (x) => 1);
+  assertTrue(%HasFastPackedElements(arr));
+  assertTrue(%HasSmiElements(arr));
+
+  var arr = Array.from({length: 3}, (x) => 1.5);
+  assertTrue(%HasFastPackedElements(arr));
+  assertTrue(%HasDoubleElements(arr));
 })();

@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   length: [64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024],
   size: [100000],
   benchmarker: ['test-double-http2'],
-  duration: 5
+  duration: 5,
 }, { flags: ['--no-warnings'] });
 
 function main({ streams, length, size, duration }) {
@@ -26,9 +26,10 @@ function main({ streams, length, size, duration }) {
     }
     write();
   });
-  server.listen(common.PORT, () => {
+  server.listen(0, () => {
     bench.http({
       path: '/',
+      port: server.address().port,
       requests: 10000,
       duration,
       maxConcurrentStreams: streams,

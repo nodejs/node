@@ -10,7 +10,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
   res.end('ok');
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const agent = new http.Agent();
   agent.defaultPort = this.address().port;
 
@@ -27,7 +27,7 @@ server.listen(0, function() {
     agent: agent
   };
 
-  http.request(options, function(res) {
+  http.request(options, common.mustCall((res) => {
     res.resume();
     server.close();
     assert.strictEqual(options.host, undefined);
@@ -36,5 +36,5 @@ server.listen(0, function() {
     assert.strictEqual(options.defaultPort, undefined);
     assert.strictEqual(options.path, undefined);
     assert.strictEqual(options.method, undefined);
-  }).end();
-});
+  })).end();
+}));

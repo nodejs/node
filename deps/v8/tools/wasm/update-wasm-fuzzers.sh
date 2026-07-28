@@ -3,40 +3,36 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-set -e
+set -ex
 
-TOOLS_WASM_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+cd ../..
 
-cd ${TOOLS_WASM_DIR}/../..
+BUILD_DIR=out/mk_wasm_fuzzer_corpus
+REPO_DIR=out/wasm_fuzzer_corpus
 
-rm -rf test/fuzzer/wasm_corpus
+rm -rf $BUILD_DIR $REPO_DIR
 
-tools/dev/gm.py x64.release all
+# Clone repo but to a state where all files are not checked in (i.e. deleted)
+git clone --filter="blob:none" --no-checkout https://chromium.googlesource.com/v8/fuzzer_wasm_corpus $REPO_DIR
 
-mkdir -p test/fuzzer/wasm_corpus
+# Build optdebug such that the --dump-wasm-module flag is available.
+gn gen $BUILD_DIR --args='is_debug=true v8_optimized_debug=true target_cpu="x64" use_remoteexec=true'
+autoninja -C $BUILD_DIR
 
-# wasm
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" unittests
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" wasm-spec-tests/*
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" mjsunit/wasm/*
-./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
-  --dump-wasm-module-path=./test/fuzzer/wasm_corpus/" \
-  $(cd test/; ls cctest/wasm/test-*.cc | \
-  sed -es/wasm\\///g | sed -es/[.]cc/\\/\\*/g)
+./tools/run-tests.py --outdir=$BUILD_DIR --extra-flags="--dump-wasm-module \
+  --dump-wasm-module-path=./$REPO_DIR/"
+
+rm -rf $BUILD_DIR
 
 # Delete items over 20k.
-for x in $(find ./test/fuzzer/wasm_corpus/ -type f -size +20k)
-do
-  rm $x
-done
+find $REPO_DIR -type f -size +20k | xargs rm
 
 # Upload changes.
-cd test/fuzzer
-upload_to_google_storage.py -a -b v8-wasm-fuzzer wasm_corpus
+echo "Generation completed."
+
+git -C $REPO_DIR add .
+git -C $REPO_DIR commit -m "Update corpus"
+git -C $REPO_DIR push origin HEAD:refs/for/main
+
+echo "Once the change is submitted, Skia autoroller will update chromium/src."

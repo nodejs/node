@@ -1,7 +1,6 @@
 #include "crypto/crypto_scrypt.h"
-#include "crypto/crypto_util.h"
-#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -12,8 +11,9 @@ namespace node {
 
 using v8::FunctionCallbackInfo;
 using v8::Int32;
-using v8::Just;
+using v8::JustVoid;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Uint32;
 using v8::Value;
@@ -38,22 +38,19 @@ ScryptConfig& ScryptConfig::operator=(ScryptConfig&& other) noexcept {
 }
 
 void ScryptConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     tracker->TrackFieldWithSize("pass", pass.size());
     tracker->TrackFieldWithSize("salt", salt.size());
   }
 }
 
-Maybe<bool> ScryptTraits::EncodeOutput(
-    Environment* env,
-    const ScryptConfig& params,
-    ByteSource* out,
-    v8::Local<v8::Value>* result) {
-  *result = out->ToArrayBuffer(env);
-  return Just(!result->IsEmpty());
+MaybeLocal<Value> ScryptTraits::EncodeOutput(Environment* env,
+                                             const ScryptConfig& params,
+                                             ByteSource* out) {
+  return out->ToArrayBuffer(env);
 }
 
-Maybe<bool> ScryptTraits::AdditionalConfig(
+Maybe<void> ScryptTraits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
@@ -65,23 +62,19 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
   ArrayBufferOrViewContents<char> pass(args[offset]);
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
 
-  if (UNLIKELY(!pass.CheckSizeInt32())) {
+  if (!pass.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  if (UNLIKELY(!salt.CheckSizeInt32())) {
+  if (!salt.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "salt is too large");
-    return Nothing<bool>();
+    return Nothing<void>();
   }
 
-  params->pass = mode == kCryptoJobAsync
-      ? pass.ToCopy()
-      : pass.ToByteSource();
+  params->pass = IsCryptoJobAsync(mode) ? pass.ToCopy() : pass.ToByteSource();
 
-  params->salt = mode == kCryptoJobAsync
-      ? salt.ToCopy()
-      : salt.ToByteSource();
+  params->salt = IsCryptoJobAsync(mode) ? salt.ToCopy() : salt.ToByteSource();
 
   CHECK(args[offset + 2]->IsUint32());  // N
   CHECK(args[offset + 3]->IsUint32());  // r
@@ -94,56 +87,61 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
   params->p = args[offset + 4].As<Uint32>()->Value();
   params->maxmem = args[offset + 5]->IntegerValue(env->context()).ToChecked();
 
-  if (EVP_PBE_scrypt(
-          nullptr,
-          0,
-          nullptr,
-          0,
-          params->N,
-          params->r,
-          params->p,
-          params->maxmem,
-          nullptr,
-          0) != 1) {
-    THROW_ERR_CRYPTO_INVALID_SCRYPT_PARAMS(env);
-    return Nothing<bool>();
-  }
-
   params->length = args[offset + 6].As<Int32>()->Value();
-  if (params->length < 0) {
-    char msg[1024];
-    snprintf(msg, sizeof(msg), "length must be <= %d", INT_MAX);
-    THROW_ERR_OUT_OF_RANGE(env, msg);
-    return Nothing<bool>();
+  CHECK_GE(params->length, 0);
+
+  if (!ncrypto::checkScryptParams(
+          params->N, params->r, params->p, params->maxmem)) {
+    // Do not use CryptoErrorStore or ThrowCryptoError here in order to maintain
+    // backward compatibility with ERR_CRYPTO_INVALID_SCRYPT_PARAMS.
+    uint32_t err = ERR_peek_last_error();
+    if (err != 0) {
+      char buf[256];
+      ERR_error_string_n(err, buf, sizeof(buf));
+      THROW_ERR_CRYPTO_INVALID_SCRYPT_PARAMS(
+          env, "Invalid scrypt params: %s", buf);
+    } else {
+      THROW_ERR_CRYPTO_INVALID_SCRYPT_PARAMS(env);
+    }
+    return Nothing<void>();
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
-bool ScryptTraits::DeriveBits(
-    Environment* env,
-    const ScryptConfig& params,
-    ByteSource* out) {
-  char* data = MallocOpenSSL<char>(params.length);
-  ByteSource buf = ByteSource::Allocated(data, params.length);
-  unsigned char* ptr = reinterpret_cast<unsigned char*>(data);
+bool ScryptTraits::DeriveBits(Environment* env,
+                              const ScryptConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
+  // If the params.length is zero-length, just return an empty buffer.
+  // It's useless, yes, but allowed via the API.
+  if (params.length == 0) {
+    *out = ByteSource();
+    return true;
+  }
 
-  // Both the pass and salt may be zero-length at this point
+  auto dp = ncrypto::scrypt(
+      ncrypto::Buffer<const char>{
+          .data = params.pass.data<char>(),
+          .len = params.pass.size(),
+      },
+      ncrypto::Buffer<const unsigned char>{
+          .data = params.salt.data<unsigned char>(),
+          .len = params.salt.size(),
+      },
+      params.N,
+      params.r,
+      params.p,
+      params.maxmem,
+      params.length);
 
-  if (!EVP_PBE_scrypt(
-          params.pass.get(),
-          params.pass.size(),
-          params.salt.data<unsigned char>(),
-          params.salt.size(),
-          params.N,
-          params.r,
-          params.p,
-          params.maxmem,
-          ptr,
-          params.length)) {
+  if (!dp) {
+    errors->Insert(NodeCryptoError::SCRYPT_FAILED);
     return false;
   }
-  *out = std::move(buf);
+  DCHECK(!dp.isSecure());
+  *out = ByteSource::Allocated(dp.release());
   return true;
 }
 
@@ -151,4 +149,3 @@ bool ScryptTraits::DeriveBits(
 
 }  // namespace crypto
 }  // namespace node
-

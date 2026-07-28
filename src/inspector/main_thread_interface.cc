@@ -1,11 +1,8 @@
 #include "main_thread_interface.h"
 
 #include "env-inl.h"
-#include "node_mutex.h"
+#include "simdutf.h"
 #include "v8-inspector.h"
-#include "util-inl.h"
-
-#include <unicode/unistr.h>
 
 #include <functional>
 #include <memory>
@@ -228,9 +225,18 @@ bool MainThreadInterface::WaitForFrontendEvent() {
   dispatching_messages_ = false;
   if (dispatching_message_queue_.empty()) {
     Mutex::ScopedLock scoped_lock(requests_lock_);
-    while (requests_.empty()) incoming_message_cond_.Wait(scoped_lock);
+    while (!stop_waiting_for_frontend_event_requested_ && requests_.empty()) {
+      incoming_message_cond_.Wait(scoped_lock);
+    }
+    stop_waiting_for_frontend_event_requested_ = false;
   }
   return true;
+}
+
+void MainThreadInterface::StopWaitingForFrontendEvent() {
+  Mutex::ScopedLock scoped_lock(requests_lock_);
+  stop_waiting_for_frontend_event_requested_ = true;
+  incoming_message_cond_.Broadcast(scoped_lock);
 }
 
 void MainThreadInterface::DispatchMessages() {
@@ -288,11 +294,13 @@ Deletable* MainThreadInterface::GetObjectIfExists(int id) {
   return iterator->second.get();
 }
 
-std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
-  icu::UnicodeString utf16 = icu::UnicodeString::fromUTF8(
-      icu::StringPiece(message.data(), message.length()));
-  StringView view(reinterpret_cast<const uint16_t*>(utf16.getBuffer()),
-                  utf16.length());
+std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string_view message) {
+  size_t expected_u16_length =
+      simdutf::utf16_length_from_utf8(message.data(), message.length());
+  MaybeStackBuffer<char16_t> buffer(expected_u16_length);
+  size_t utf16_length = simdutf::convert_utf8_to_utf16(
+      message.data(), message.length(), buffer.out());
+  StringView view(reinterpret_cast<uint16_t*>(buffer.out()), utf16_length);
   return StringBuffer::create(view);
 }
 

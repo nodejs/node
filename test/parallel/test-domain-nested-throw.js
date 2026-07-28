@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const domain = require('domain');
@@ -35,10 +35,9 @@ function parent() {
   const spawn = require('child_process').spawn;
   const opt = { stdio: 'inherit' };
   const child = spawn(node, [__filename, 'child'], opt);
-  child.on('exit', function(c) {
+  child.on('exit', common.mustCall((c) => {
     assert(!c);
-    console.log('ok');
-  });
+  }));
 }
 
 let gotDomain1Error = false;

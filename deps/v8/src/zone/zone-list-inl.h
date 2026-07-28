@@ -5,10 +5,12 @@
 #ifndef V8_ZONE_ZONE_LIST_INL_H_
 #define V8_ZONE_ZONE_LIST_INL_H_
 
+#include "src/zone/zone-list.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/utils/memcopy.h"
-#include "src/zone/zone-list.h"
 
 namespace v8 {
 namespace internal {
@@ -28,13 +30,13 @@ void ZoneList<T>::AddAll(const ZoneList<T>& other, Zone* zone) {
 }
 
 template <typename T>
-void ZoneList<T>::AddAll(const Vector<const T>& other, Zone* zone) {
+void ZoneList<T>::AddAll(base::Vector<const T> other, Zone* zone) {
   int length = other.length();
   if (length == 0) return;
 
   int result_length = length_ + length;
   if (capacity_ < result_length) Resize(result_length, zone);
-  if (std::is_trivially_copyable<T>::value) {
+  if (std::is_trivially_copyable_v<T>) {
     memcpy(&data_[length_], other.begin(), sizeof(T) * length);
   } else {
     std::copy(other.begin(), other.end(), &data_[length_]);
@@ -65,10 +67,10 @@ void ZoneList<T>::ResizeAddInternal(const T& element, Zone* zone) {
 template <typename T>
 void ZoneList<T>::Resize(int new_capacity, Zone* zone) {
   DCHECK_LE(length_, new_capacity);
-  T* new_data = zone->NewArray<T>(new_capacity);
+  T* new_data = zone->AllocateArray<T>(new_capacity);
   if (length_ > 0) {
-    if (std::is_trivially_copyable<T>::value) {
-      MemCopy(new_data, data_, length_ * sizeof(T));
+    if (std::is_trivially_copyable_v<T>) {
+      v8::internal::MemCopy(new_data, data_, length_ * sizeof(T));
     } else {
       std::copy(&data_[0], &data_[length_], &new_data[0]);
     }
@@ -79,10 +81,10 @@ void ZoneList<T>::Resize(int new_capacity, Zone* zone) {
 }
 
 template <typename T>
-Vector<T> ZoneList<T>::AddBlock(T value, int count, Zone* zone) {
+base::Vector<T> ZoneList<T>::AddBlock(T value, int count, Zone* zone) {
   int start = length_;
   for (int i = 0; i < count; i++) Add(value, zone);
-  return Vector<T>(&data_[start], count);
+  return base::Vector<T>(&data_[start], count);
 }
 
 template <typename T>

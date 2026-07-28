@@ -10,7 +10,6 @@
 #define BROTLI_ENC_WRITE_BITS_H_
 
 #include "../common/platform.h"
-#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

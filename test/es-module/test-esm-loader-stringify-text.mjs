@@ -1,50 +1,66 @@
 // Flags: --experimental-loader ./test/fixtures/es-module-loaders/string-sources.mjs
-import { mustCall, mustNotCall } from '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
-import('test:Array').then(
-  mustNotCall('Should not accept Arrays'),
-  mustCall((e) => {
-    assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
-  })
-);
+assert.rejects(
+  import('test:Array'),
+  { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' },
+).then(mustCall());
 import('test:ArrayBuffer').then(
   mustCall(),
-  mustNotCall('Should accept ArrayBuffers'),
 );
-import('test:null').then(
-  mustNotCall('Should not accept null'),
-  mustCall((e) => {
-    assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
-  })
+import('test:BigInt64Array').then(
+  mustCall(),
 );
-import('test:Object').then(
-  mustNotCall('Should not stringify or valueOf Objects'),
-  mustCall((e) => {
-    assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
-  })
+import('test:BigUint64Array').then(
+  mustCall(),
 );
+import('test:Float32Array').then(
+  mustCall(),
+);
+import('test:Float64Array').then(
+  mustCall(),
+);
+import('test:Int8Array').then(
+  mustCall(),
+);
+import('test:Int16Array').then(
+  mustCall(),
+);
+import('test:Int32Array').then(
+  mustCall(),
+);
+assert.rejects(
+  import('test:null'),
+  { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' },
+).then(mustCall());
+assert.rejects(
+  import('test:Object'),
+  { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' },
+).then(mustCall());
 import('test:SharedArrayBuffer').then(
   mustCall(),
-  mustNotCall('Should accept SharedArrayBuffers'),
 );
 import('test:string').then(
   mustCall(),
-  mustNotCall('Should accept strings'),
 );
-import('test:String').then(
-  mustNotCall('Should not accept wrapper Strings'),
-  mustCall((e) => {
-    assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
-  })
+assert.rejects(
+  import('test:String'),
+  { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' },
+).then(mustCall());
+import('test:Uint8ClampedArray').then(
+  mustCall(),
+);
+import('test:Uint16Array').then(
+  mustCall(),
+);
+import('test:Uint32Array').then(
+  mustCall(),
 );
 import('test:Uint8Array').then(
   mustCall(),
-  mustNotCall('Should accept Uint8Arrays'),
 );
-import('test:undefined').then(
-  mustNotCall('Should not accept undefined'),
-  mustCall((e) => {
-    assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
-  })
-);
+assert.rejects(
+  import('test:undefined'),
+  { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' },
+).then(mustCall());

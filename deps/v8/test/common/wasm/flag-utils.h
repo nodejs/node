@@ -2,38 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TEST_COMMON_FLAG_UTILS_H
-#define V8_TEST_COMMON_FLAG_UTILS_H
+#ifndef V8_TEST_COMMON_WASM_FLAG_UTILS_H
+#define V8_TEST_COMMON_WASM_FLAG_UTILS_H
 
 #include "src/wasm/wasm-features.h"
+#include "test/common/flag-utils.h"
 
-namespace v8 {
-namespace internal {
-
-template <typename T>
-class FlagScope {
- public:
-  FlagScope(T* flag, T new_value) : flag_(flag), previous_value_(*flag) {
-    *flag = new_value;
-  }
-  ~FlagScope() { *flag_ = previous_value_; }
-
- private:
-  T* flag_;
-  T previous_value_;
-};
-
-#define FLAG_SCOPE(flag) \
-  FlagScope<bool> __scope_##flag##__LINE__(&FLAG_##flag, true)
+namespace v8::internal::wasm {
 
 #define EXPERIMENTAL_FLAG_SCOPE(flag) FLAG_SCOPE(experimental_wasm_##flag)
 
-namespace wasm {
-
-class WasmFeatureScope {
+class V8_NODISCARD WasmFeatureScope {
  public:
-  explicit WasmFeatureScope(WasmFeatures* features, WasmFeature feature,
-                            bool val = true)
+  explicit WasmFeatureScope(WasmEnabledFeatures* features,
+                            WasmEnabledFeature feature, bool val = true)
       : prev_(features->contains(feature)),
         feature_(feature),
         features_(features) {
@@ -51,18 +33,18 @@ class WasmFeatureScope {
   }
 
   bool const prev_;
-  WasmFeature const feature_;
-  WasmFeatures* const features_;
+  WasmEnabledFeature const feature_;
+  WasmEnabledFeatures* const features_;
 };
 
-#define WASM_FEATURE_SCOPE(feat) \
-  WasmFeatureScope feat##_scope(&this->enabled_features_, kFeature_##feat)
+#define WASM_FEATURE_SCOPE(feat)                          \
+  WasmFeatureScope feat##_scope(&this->enabled_features_, \
+                                WasmEnabledFeature::feat)
 
-#define WASM_FEATURE_SCOPE_VAL(feat, val) \
-  WasmFeatureScope feat##_scope(&this->enabled_features_, kFeature_##feat, val)
+#define WASM_FEATURE_SCOPE_VAL(feat, val)                 \
+  WasmFeatureScope feat##_scope(&this->enabled_features_, \
+                                WasmEnabledFeature::feat, val)
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
-#endif  // V8_TEST_COMMON_FLAG_UTILS_H
+#endif  // V8_TEST_COMMON_WASM_FLAG_UTILS_H

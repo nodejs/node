@@ -150,7 +150,7 @@ U_CAPI uInt  U_EXPORT2 uprv_decContextGetStatus(decContext *context) {
 /*  newstatus is the source for the bits to be restored               */
 /*  mask indicates the bits to be restored (the status bit that       */
 /*    corresponds to each 1 bit in the mask is set to the value of    */
-/*    the correspnding bit in newstatus)                              */
+/*    the corresponding bit in newstatus)                              */
 /*  returns context                                                   */
 /*                                                                    */
 /* No error is possible.                                              */
@@ -219,7 +219,7 @@ U_CAPI decContext *  U_EXPORT2 uprv_decContextSetStatus(decContext *context, uIn
 /*  is raised if appropriate.                                         */
 /*                                                                    */
 /*  returns the context structure, unless the string is equal to      */
-/*    DEC_Condition_MU or is not recognized.  In these cases NULL is  */
+/*    DEC_Condition_MU or is not recognized.  In these cases nullptr is  */
 /*    returned.                                                       */
 /* ------------------------------------------------------------------ */
 U_CAPI decContext *  U_EXPORT2 uprv_decContextSetStatusFromString(decContext *context,
@@ -256,7 +256,7 @@ U_CAPI decContext *  U_EXPORT2 uprv_decContextSetStatusFromString(decContext *co
     return uprv_decContextSetStatus(context, DEC_Underflow);
   if (strcmp(string, DEC_Condition_ZE)==0)
     return context;
-  return NULL;  /* Multiple status, or unknown  */
+  return nullptr;  /* Multiple status, or unknown  */
   } /* decContextSetStatusFromString  */
 
 /* ------------------------------------------------------------------ */
@@ -270,7 +270,7 @@ U_CAPI decContext *  U_EXPORT2 uprv_decContextSetStatusFromString(decContext *co
 /*  raised.                                                           */
 /*                                                                    */
 /*  returns the context structure, unless the string is equal to      */
-/*    DEC_Condition_MU or is not recognized.  In these cases NULL is  */
+/*    DEC_Condition_MU or is not recognized.  In these cases nullptr is  */
 /*    returned.                                                       */
 /* ------------------------------------------------------------------ */
 U_CAPI decContext *  U_EXPORT2 uprv_decContextSetStatusFromStringQuiet(decContext *context,
@@ -307,7 +307,7 @@ U_CAPI decContext *  U_EXPORT2 uprv_decContextSetStatusFromStringQuiet(decContex
     return uprv_decContextSetStatusQuiet(context, DEC_Underflow);
   if (strcmp(string, DEC_Condition_ZE)==0)
     return context;
-  return NULL;  /* Multiple status, or unknown  */
+  return nullptr;  /* Multiple status, or unknown  */
   } /* decContextSetStatusFromStringQuiet  */
 
 /* ------------------------------------------------------------------ */
@@ -429,3 +429,4 @@ U_CAPI decContext * U_EXPORT2 uprv_decContextZeroStatus(decContext *context) {
   context->status=0;
   return context;
   } /* decContextZeroStatus  */
+

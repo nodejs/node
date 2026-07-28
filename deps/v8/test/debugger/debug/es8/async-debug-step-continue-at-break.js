@@ -33,10 +33,10 @@ function g() {
 
 async function f() {
   var a = 1;
-  debugger;          // B0 StepNext
+  debugger;          // B0 StepOver
   a +=
-       await         // B1 StepIn
-             g();    // B2 StepIn
+       await         // B1 StepInto
+             g();    // B2 StepInto
   return a;          // B4 Continue
 }
 

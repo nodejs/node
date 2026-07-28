@@ -38,10 +38,6 @@
 # define SO_UPDATE_CONNECT_CONTEXT 0x7010
 #endif
 
-#ifndef TCP_KEEPALIVE
-# define TCP_KEEPALIVE 3
-#endif
-
 #ifndef IPV6_V6ONLY
 # define IPV6_V6ONLY 27
 #endif
@@ -60,6 +56,30 @@
 
 #ifndef MCAST_LEAVE_SOURCE_GROUP
 # define MCAST_LEAVE_SOURCE_GROUP 46
+#endif
+
+#ifndef SIO_KEEPALIVE_VALS
+#define SIO_KEEPALIVE_VALS    _WSAIOW(IOC_VENDOR,4)
+struct tcp_keepalive {
+  u_long onoff;
+  u_long keepalivetime;
+  u_long keepaliveinterval;
+};
+#endif
+
+/*
+ * TCP keepalive definitions on MinGW are located in <netinet/tcp.h>.
+ */
+#ifndef TCP_KEEPIDLE
+#define TCP_KEEPIDLE 0x03 /* start keepalives after this period */
+#endif
+
+#ifndef TCP_KEEPINTVL
+#define TCP_KEEPINTVL 0x11 /* interval between keepalives */
+#endif
+
+#ifndef TCP_KEEPCNT
+#define TCP_KEEPCNT 0x10 /* number of keepalives before death */
 #endif
 
 /*
@@ -153,47 +173,6 @@ typedef struct _AFD_RECV_INFO {
 
 #define IOCTL_AFD_POLL \
     _AFD_CONTROL_CODE(AFD_POLL, METHOD_BUFFERED)
-
-#if defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
-typedef struct _IP_ADAPTER_UNICAST_ADDRESS_XP {
-  /* FIXME: __C89_NAMELESS was removed */
-  /* __C89_NAMELESS */ union {
-    ULONGLONG Alignment;
-    /* __C89_NAMELESS */ struct {
-      ULONG Length;
-      DWORD Flags;
-    };
-  };
-  struct _IP_ADAPTER_UNICAST_ADDRESS_XP *Next;
-  SOCKET_ADDRESS Address;
-  IP_PREFIX_ORIGIN PrefixOrigin;
-  IP_SUFFIX_ORIGIN SuffixOrigin;
-  IP_DAD_STATE DadState;
-  ULONG ValidLifetime;
-  ULONG PreferredLifetime;
-  ULONG LeaseLifetime;
-} IP_ADAPTER_UNICAST_ADDRESS_XP,*PIP_ADAPTER_UNICAST_ADDRESS_XP;
-
-typedef struct _IP_ADAPTER_UNICAST_ADDRESS_LH {
-  union {
-    ULONGLONG Alignment;
-    struct {
-      ULONG Length;
-      DWORD Flags;
-    };
-  };
-  struct _IP_ADAPTER_UNICAST_ADDRESS_LH *Next;
-  SOCKET_ADDRESS Address;
-  IP_PREFIX_ORIGIN PrefixOrigin;
-  IP_SUFFIX_ORIGIN SuffixOrigin;
-  IP_DAD_STATE DadState;
-  ULONG ValidLifetime;
-  ULONG PreferredLifetime;
-  ULONG LeaseLifetime;
-  UINT8 OnLinkPrefixLength;
-} IP_ADAPTER_UNICAST_ADDRESS_LH,*PIP_ADAPTER_UNICAST_ADDRESS_LH;
-
-#endif
 
 int uv__convert_to_localhost_if_unspecified(const struct sockaddr* addr,
                                             struct sockaddr_storage* storage);

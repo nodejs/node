@@ -7,6 +7,7 @@ section	.text code align=64
 
 EXTERN	OPENSSL_ia32cap_P
 
+section	.rdata rdata align=64
 ALIGN	64
 $L$zero:
 	DD	0,0,0,0
@@ -42,6 +43,7 @@ DB	67,104,97,67,104,97,50,48,32,102,111,114,32,120,56,54
 DB	95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32
 DB	98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115
 DB	108,46,111,114,103,62,0
+section .text
 global	ChaCha20_ctr32
 
 ALIGN	64
@@ -367,7 +369,7 @@ $L$ChaCha20_ssse3:
 	ja	NEAR $L$ChaCha20_4x
 
 $L$do_sse3_after_all:
-	sub	rsp,64+40
+	sub	rsp,64+168
 	movaps	XMMWORD[(-40)+r9],xmm6
 	movaps	XMMWORD[(-24)+r9],xmm7
 $L$ssse3_body:
@@ -2378,9 +2380,17 @@ $L$ChaCha20_avx512:
 	cmp	rdx,512
 	ja	NEAR $L$ChaCha20_16x
 
-	sub	rsp,64+40
-	movaps	XMMWORD[(-40)+r9],xmm6
-	movaps	XMMWORD[(-24)+r9],xmm7
+	sub	rsp,64+168
+	movaps	XMMWORD[(-168)+r9],xmm6
+	movaps	XMMWORD[(-152)+r9],xmm7
+	movaps	XMMWORD[(-136)+r9],xmm8
+	movaps	XMMWORD[(-120)+r9],xmm9
+	movaps	XMMWORD[(-104)+r9],xmm10
+	movaps	XMMWORD[(-88)+r9],xmm11
+	movaps	XMMWORD[(-72)+r9],xmm12
+	movaps	XMMWORD[(-56)+r9],xmm13
+	movaps	XMMWORD[(-40)+r9],xmm14
+	movaps	XMMWORD[(-24)+r9],xmm15
 $L$avx512_body:
 	vbroadcasti32x4	zmm0,ZMMWORD[$L$sigma]
 	vbroadcasti32x4	zmm1,ZMMWORD[rcx]
@@ -2560,8 +2570,16 @@ $L$oop_tail_avx512:
 
 $L$done_avx512:
 	vzeroall
-	movaps	xmm6,XMMWORD[((-40))+r9]
-	movaps	xmm7,XMMWORD[((-24))+r9]
+	movaps	xmm6,XMMWORD[((-168))+r9]
+	movaps	xmm7,XMMWORD[((-152))+r9]
+	movaps	xmm8,XMMWORD[((-136))+r9]
+	movaps	xmm9,XMMWORD[((-120))+r9]
+	movaps	xmm10,XMMWORD[((-104))+r9]
+	movaps	xmm11,XMMWORD[((-88))+r9]
+	movaps	xmm12,XMMWORD[((-72))+r9]
+	movaps	xmm13,XMMWORD[((-56))+r9]
+	movaps	xmm14,XMMWORD[((-40))+r9]
+	movaps	xmm15,XMMWORD[((-24))+r9]
 	lea	rsp,[r9]
 
 $L$avx512_epilogue:
@@ -2591,9 +2609,17 @@ $L$ChaCha20_avx512vl:
 	cmp	rdx,128
 	ja	NEAR $L$ChaCha20_8xvl
 
-	sub	rsp,64+40
-	movaps	XMMWORD[(-40)+r9],xmm6
-	movaps	XMMWORD[(-24)+r9],xmm7
+	sub	rsp,64+168
+	movaps	XMMWORD[(-168)+r9],xmm6
+	movaps	XMMWORD[(-152)+r9],xmm7
+	movaps	XMMWORD[(-136)+r9],xmm8
+	movaps	XMMWORD[(-120)+r9],xmm9
+	movaps	XMMWORD[(-104)+r9],xmm10
+	movaps	XMMWORD[(-88)+r9],xmm11
+	movaps	XMMWORD[(-72)+r9],xmm12
+	movaps	XMMWORD[(-56)+r9],xmm13
+	movaps	XMMWORD[(-40)+r9],xmm14
+	movaps	XMMWORD[(-24)+r9],xmm15
 $L$avx512vl_body:
 	vbroadcasti128	ymm0,XMMWORD[$L$sigma]
 	vbroadcasti128	ymm1,XMMWORD[rcx]
@@ -2730,8 +2756,16 @@ $L$oop_tail_avx512vl:
 
 $L$done_avx512vl:
 	vzeroall
-	movaps	xmm6,XMMWORD[((-40))+r9]
-	movaps	xmm7,XMMWORD[((-24))+r9]
+	movaps	xmm6,XMMWORD[((-168))+r9]
+	movaps	xmm7,XMMWORD[((-152))+r9]
+	movaps	xmm8,XMMWORD[((-136))+r9]
+	movaps	xmm9,XMMWORD[((-120))+r9]
+	movaps	xmm10,XMMWORD[((-104))+r9]
+	movaps	xmm11,XMMWORD[((-88))+r9]
+	movaps	xmm12,XMMWORD[((-72))+r9]
+	movaps	xmm13,XMMWORD[((-56))+r9]
+	movaps	xmm14,XMMWORD[((-40))+r9]
+	movaps	xmm15,XMMWORD[((-24))+r9]
 	lea	rsp,[r9]
 
 $L$avx512vl_epilogue:

@@ -1,0 +1,140 @@
+# This action uses the following secrets:
+#   CACHIX_AUTH_TOKEN: Write access to nodejs.cachix.org – without it, the cache is read-only.
+name: Nix files edited
+
+on:
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths:
+      - '**.nix'
+      - .github/workflows/nix-changes.yml
+  pull_request:
+    paths:
+      - '**.nix'
+      - .github/workflows/nix-changes.yml
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    if: github.event.pull_request.draft == false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            system: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+          - runner: macos-15-intel
+            system: x86_64-darwin
+          - runner: macos-latest
+            system: aarch64-darwin
+    name: '${{ matrix.system }}: dependencies diff'
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+          sparse-checkout: '*.nix'
+          sparse-checkout-cone-mode: false
+
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
+        with:
+          extra_nix_config: sandbox = true
+
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71  # v17
+        with:
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          name: nodejs
+
+      - name: Compute requisites after change
+        shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
+        run: |
+          nix-store --query --references "$(
+            nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
+              --arg devTools "
+                (import ./tools/nix/devTools.nix {})
+                ++ builtins.attrValues (
+                  { inherit (import <nixpkgs> {}) nixfmt-tree sccache; }
+                  // import ./tools/nix/openssl-matrix.nix {}
+                )")" \
+          | xargs nix-store --realise \
+          | xargs nix-store --query --requisites \
+          | sort -k1.45 \
+          > requisites-${{ matrix.system }}-after.list
+
+      - name: Compute requisites before change
+        shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
+        run: |
+          git reset HEAD^ --hard
+          nix-store --query --references "$(
+            nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
+              --arg devTools "
+                (import ./tools/nix/devTools.nix {})
+                ++ builtins.attrValues (
+                  { inherit (import <nixpkgs> {}) nixfmt-tree sccache; }
+                  // import ./tools/nix/openssl-matrix.nix {}
+                )")" \
+          | xargs nix-store --realise \
+          | xargs nix-store --query --requisites \
+          | sort -k1.45 \
+          > requisites-${{ matrix.system }}-before.list
+
+      - name: Output diff
+        run: |
+          {
+            if diff_output="$(git diff -U0 --no-color --no-index requisites-${{ matrix.system }}-before.list requisites-${{ matrix.system }}-after.list)"; then
+              echo 'No changes detected.'
+            else
+              echo '```diff'
+              echo "$diff_output" | tail -n +5
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Store PR number
+        if: ${{ github.event.pull_request && matrix.system == 'x86_64-linux' }}
+        run: echo "${{ github.event.pull_request.number }}" > pr_number.txt
+
+      - name: Upload requisites lists
+        if: ${{ github.event.pull_request }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: requisites-${{ matrix.system }}
+          path: |
+            pr_number.*
+            requisites-${{ matrix.system }}-before.list
+            requisites-${{ matrix.system }}-after.list
+
+  lint-nix:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: '*.nix'
+          sparse-checkout-cone-mode: false
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
+      - name: Lint Nix files
+        run: |
+          nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
+            treefmt --quiet --ci
+          ' && EXIT_CODE="$?" || EXIT_CODE="$?"
+          if [ "$EXIT_CODE" != "0" ]
+          then
+            git --no-pager diff || true
+            exit "$EXIT_CODE"
+          fi

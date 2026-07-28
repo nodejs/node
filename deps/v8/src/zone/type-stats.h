@@ -30,9 +30,9 @@ class TypeStats {
     entry.allocated_bytes += bytes;
     // sizeof(IncompleteType) is not allowed so record size as a sizeof(char).
     constexpr bool kIsIncomplete =
-        std::is_same<TypeTag, void>::value || std::is_array<TypeTag>::value;
+        std::is_same_v<TypeTag, void> || std::is_array_v<TypeTag>;
     using TypeTagForSizeof =
-        typename std::conditional<kIsIncomplete, char, TypeTag>::type;
+        typename std::conditional_t<kIsIncomplete, char, TypeTag>;
     entry.instance_size = sizeof(TypeTagForSizeof);
   }
 

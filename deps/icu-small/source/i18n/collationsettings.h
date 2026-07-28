@@ -106,18 +106,18 @@ struct U_I18N_API CollationSettings : public SharedObject {
             : options((UCOL_DEFAULT_STRENGTH << STRENGTH_SHIFT) |
                       (MAX_VAR_PUNCT << MAX_VARIABLE_SHIFT)),
               variableTop(0),
-              reorderTable(NULL),
+              reorderTable(nullptr),
               minHighNoReorder(0),
-              reorderRanges(NULL), reorderRangesLength(0),
-              reorderCodes(NULL), reorderCodesLength(0), reorderCodesCapacity(0),
+              reorderRanges(nullptr), reorderRangesLength(0),
+              reorderCodes(nullptr), reorderCodesLength(0), reorderCodesCapacity(0),
               fastLatinOptions(-1) {}
 
     CollationSettings(const CollationSettings &other);
     virtual ~CollationSettings();
 
-    UBool operator==(const CollationSettings &other) const;
+    bool operator==(const CollationSettings &other) const;
 
-    inline UBool operator!=(const CollationSettings &other) const {
+    inline bool operator!=(const CollationSettings &other) const {
         return !operator==(other);
     }
 
@@ -131,12 +131,12 @@ struct U_I18N_API CollationSettings : public SharedObject {
                        UErrorCode &errorCode);
     void copyReorderingFrom(const CollationSettings &other, UErrorCode &errorCode);
 
-    inline UBool hasReordering() const { return reorderTable != NULL; }
+    inline UBool hasReordering() const { return reorderTable != nullptr; }
     static UBool reorderTableHasSplitBytes(const uint8_t table[256]);
     inline uint32_t reorder(uint32_t p) const {
         uint8_t b = reorderTable[p >> 24];
         if(b != 0 || p <= Collation::NO_CE_PRIMARY) {
-            return ((uint32_t)b << 24) | (p & 0xffffff);
+            return (static_cast<uint32_t>(b) << 24) | (p & 0xffffff);
         } else {
             return reorderEx(p);
         }
@@ -178,7 +178,7 @@ struct U_I18N_API CollationSettings : public SharedObject {
     void setMaxVariable(int32_t value, int32_t defaultOptions, UErrorCode &errorCode);
 
     MaxVariable getMaxVariable() const {
-        return (MaxVariable)((options & MAX_VARIABLE_MASK) >> MAX_VARIABLE_SHIFT);
+        return static_cast<MaxVariable>((options & MAX_VARIABLE_MASK) >> MAX_VARIABLE_SHIFT);
     }
 
     /**
@@ -216,7 +216,7 @@ struct U_I18N_API CollationSettings : public SharedObject {
     /** Variable-top primary weight. */
     uint32_t variableTop;
     /**
-     * 256-byte table for reordering permutation of primary lead bytes; NULL if no reordering.
+     * 256-byte table for reordering permutation of primary lead bytes; nullptr if no reordering.
      * A 0 entry at a non-zero index means that the primary lead byte is "split"
      * (there are different offsets for primaries that share that lead byte)
      * and the reordering offset must be determined via the reorderRanges.

@@ -4,8 +4,10 @@ const common = require('../common');
 const {
   BroadcastChannel,
   Worker,
+  receiveMessageOnPort
 } = require('worker_threads');
 const assert = require('assert');
+const { inspect } = require('util');
 
 assert.throws(() => new BroadcastChannel(Symbol('test')), {
   message: /Cannot convert a Symbol value to a string/
@@ -139,4 +141,45 @@ assert.throws(() => new BroadcastChannel(), {
   assert.throws(() => bc1.postMessage(Symbol()), {
     message: /BroadcastChannel is closed/
   });
+}
+
+{
+  const bc1 = new BroadcastChannel('channel4');
+  const bc2 = new BroadcastChannel('channel4');
+  bc1.postMessage('some data');
+  assert.strictEqual(receiveMessageOnPort(bc2).message, 'some data');
+  assert.strictEqual(receiveMessageOnPort(bc2), undefined);
+  bc1.close();
+  bc2.close();
+}
+
+{
+  assert.throws(() => Reflect.get(BroadcastChannel.prototype, 'name', {}), {
+    code: 'ERR_INVALID_THIS',
+  });
+
+  [
+    'close',
+    'postMessage',
+    'ref',
+    'unref',
+  ].forEach((i) => {
+    assert.throws(() => Reflect.apply(BroadcastChannel.prototype[i], [], {}), {
+      code: 'ERR_INVALID_THIS',
+    });
+  });
+}
+
+{
+  const bc = new BroadcastChannel('channel5');
+  assert.strictEqual(
+    inspect(bc.ref()),
+    "BroadcastChannel { name: 'channel5', active: true }"
+  );
+
+  bc.close();
+  assert.strictEqual(
+    inspect(bc.ref()),
+    "BroadcastChannel { name: 'channel5', active: false }"
+  );
 }

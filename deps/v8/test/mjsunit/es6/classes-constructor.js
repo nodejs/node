@@ -25,11 +25,12 @@
     throw Error('Should not happen!');
   }
 
-  // ES6 9.2.1[[Call]] throws a TypeError in the caller context/Realm when the
-  // called function is a classConstructor
+  // https://tc39.es/ecma262/#sec-ecmascript-function-objects-call-thisargument-argumentslist
+  // 10.2.1 [[Call]] throws a TypeError created in callee context with F's
+  // associated Realm Record when the called function is a classConstructor
   assertThrows(function() { Realm.eval(realmIndex, "A()") }, otherTypeError);
-  assertThrows(function() { instance.constructor() }, TypeError);
-  assertThrows(function() { A() }, TypeError);
+  assertThrows(function() { instance.constructor() }, otherTypeError);
+  assertThrows(function() { A() }, otherTypeError);
 
   // ES6 9.3.1 call() first activates the callee context before invoking the
   // method. The TypeError from the constructor is thus thrown in the other

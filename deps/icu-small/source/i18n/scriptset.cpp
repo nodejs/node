@@ -40,26 +40,28 @@ ScriptSet::ScriptSet(const ScriptSet &other) {
 }
 
 ScriptSet & ScriptSet::operator =(const ScriptSet &other) {
-    uprv_memcpy(bits, other.bits, sizeof(bits));
+    if (this != &other) {
+        uprv_memcpy(bits, other.bits, sizeof(bits));
+    }
     return *this;
 }
 
-UBool ScriptSet::operator == (const ScriptSet &other) const {
+bool ScriptSet::operator == (const ScriptSet &other) const {
     for (uint32_t i=0; i<UPRV_LENGTHOF(bits); i++) {
         if (bits[i] != other.bits[i]) {
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 UBool ScriptSet::test(UScriptCode script, UErrorCode &status) const {
     if (U_FAILURE(status)) {
-        return FALSE;
+        return false;
     }
-    if (script < 0 || (int32_t)script >= SCRIPT_LIMIT) {
+    if (script < 0 || static_cast<int32_t>(script) >= SCRIPT_LIMIT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return FALSE;
+        return false;
     }
     uint32_t index = script / 32;
     uint32_t bit   = 1 << (script & 31);
@@ -71,7 +73,7 @@ ScriptSet &ScriptSet::set(UScriptCode script, UErrorCode &status) {
     if (U_FAILURE(status)) {
         return *this;
     }
-    if (script < 0 || (int32_t)script >= SCRIPT_LIMIT) {
+    if (script < 0 || static_cast<int32_t>(script) >= SCRIPT_LIMIT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return *this;
     }
@@ -85,7 +87,7 @@ ScriptSet &ScriptSet::reset(UScriptCode script, UErrorCode &status) {
     if (U_FAILURE(status)) {
         return *this;
     }
-    if (script < 0 || (int32_t)script >= SCRIPT_LIMIT) {
+    if (script < 0 || static_cast<int32_t>(script) >= SCRIPT_LIMIT) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return *this;
     }
@@ -178,7 +180,7 @@ int32_t ScriptSet::nextSetBit(int32_t fromIndex) const {
     }
     UErrorCode status = U_ZERO_ERROR;
     for (int32_t scriptIndex = fromIndex; scriptIndex < SCRIPT_LIMIT; scriptIndex++) {
-        if (test((UScriptCode)scriptIndex, status)) {
+        if (test(static_cast<UScriptCode>(scriptIndex), status)) {
             return scriptIndex;
         }
     }
@@ -188,20 +190,20 @@ int32_t ScriptSet::nextSetBit(int32_t fromIndex) const {
 UBool ScriptSet::isEmpty() const {
     for (uint32_t i=0; i<UPRV_LENGTHOF(bits); i++) {
         if (bits[i] != 0) {
-            return FALSE;
+            return false;
         }
     }
-    return TRUE;
+    return true;
 }
 
 UnicodeString &ScriptSet::displayScripts(UnicodeString &dest) const {
-    UBool firstTime = TRUE;
+    UBool firstTime = true;
     for (int32_t i = nextSetBit(0); i >= 0; i = nextSetBit(i + 1)) {
         if (!firstTime) {
-            dest.append((UChar)0x20);
+            dest.append(static_cast<char16_t>(0x20));
         }
-        firstTime = FALSE;
-        const char *scriptName = uscript_getShortName((UScriptCode(i)));
+        firstTime = false;
+        const char* scriptName = uscript_getShortName(static_cast<UScriptCode>(i));
         dest.append(UnicodeString(scriptName, -1, US_INV));
     }
     return dest;
@@ -230,7 +232,7 @@ ScriptSet &ScriptSet::parseScripts(const UnicodeString &scriptString, UErrorCode
             if (sc == UCHAR_INVALID_CODE) {
                 status = U_ILLEGAL_ARGUMENT_ERROR;
             } else {
-                this->set((UScriptCode)sc, status);
+                this->set(static_cast<UScriptCode>(sc), status);
             }
             if (U_FAILURE(status)) {
                 return *this;
@@ -248,12 +250,12 @@ void ScriptSet::setScriptExtensions(UChar32 codePoint, UErrorCode& status) {
     UErrorCode internalStatus = U_ZERO_ERROR;
     int32_t script_count = -1;
 
-    while (TRUE) {
+    while (true) {
         script_count = uscript_getScriptExtensions(
             codePoint, scripts.getAlias(), scripts.getCapacity(), &internalStatus);
         if (internalStatus == U_BUFFER_OVERFLOW_ERROR) {
             // Need to allocate more space
-            if (scripts.resize(script_count) == NULL) {
+            if (scripts.resize(script_count) == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
                 return;
             }
@@ -285,19 +287,19 @@ uhash_equalsScriptSet(const UElement key1, const UElement key2) {
     return (*s1 == *s2);
 }
 
-U_CAPI int8_t U_EXPORT2
+U_CAPI int32_t U_EXPORT2
 uhash_compareScriptSet(UElement key0, UElement key1) {
     icu::ScriptSet *s0 = static_cast<icu::ScriptSet *>(key0.pointer);
     icu::ScriptSet *s1 = static_cast<icu::ScriptSet *>(key1.pointer);
     int32_t diff = s0->countMembers() - s1->countMembers();
-    if (diff != 0) return static_cast<UBool>(diff);
+    if (diff != 0) return diff;
     int32_t i0 = s0->nextSetBit(0);
     int32_t i1 = s1->nextSetBit(0);
     while ((diff = i0-i1) == 0 && i0 > 0) {
         i0 = s0->nextSetBit(i0+1);
         i1 = s1->nextSetBit(i1+1);
     }
-    return (int8_t)diff;
+    return diff;
 }
 
 U_CAPI int32_t U_EXPORT2

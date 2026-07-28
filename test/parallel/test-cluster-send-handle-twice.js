@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Testing to send an handle twice to the parent process.
+// Testing to send an handle twice to the primary process.
 
 const common = require('../common');
 const assert = require('assert');
@@ -31,7 +31,7 @@ const workers = {
   toStart: 1
 };
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   for (let i = 0; i < workers.toStart; ++i) {
     const worker = cluster.fork();
     worker.on('exit', common.mustCall(function(code, signal) {
@@ -45,14 +45,14 @@ if (cluster.isMaster) {
     process.send('send-handle-2', socket);
   }));
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(() => {
     const client = net.connect({
       host: 'localhost',
       port: server.address().port
     });
     client.on('close', common.mustCall(() => { cluster.worker.disconnect(); }));
     client.on('connect', () => { client.end(); });
-  }).on('error', function(e) {
+  })).on('error', function(e) {
     console.error(e);
     assert.fail('server.listen failed');
   });

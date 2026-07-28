@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/asmjs/asm-scanner.h"
-#include "src/objects/objects.h"
+
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 #include "testing/gtest/include/gtest/gtest.h"

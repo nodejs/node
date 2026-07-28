@@ -17,7 +17,7 @@ namespace internal {
 namespace wasm {
 
 static constexpr bool kNeedI64RegPair = kSystemPointerSize == 4;
-static constexpr bool kNeedS128RegPair = !kSimpleFPAliasing;
+static constexpr bool kNeedS128RegPair = kFPAliasing == AliasingKind::kCombine;
 
 enum RegClass : uint8_t {
   kGpReg,
@@ -45,41 +45,50 @@ static_assert(kNeedS128RegPair == (kFpRegPair != kNoReg),
 
 enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
 
-static inline constexpr bool needs_gp_reg_pair(ValueType type) {
-  return kNeedI64RegPair && type == kWasmI64;
+static inline constexpr bool needs_gp_reg_pair(ValueKind kind) {
+  return kNeedI64RegPair && kind == kI64;
 }
 
-static inline constexpr bool needs_fp_reg_pair(ValueType type) {
-  return kNeedS128RegPair && type == kWasmS128;
+static inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
+  return kNeedS128RegPair && kind == kS128;
 }
 
-static inline constexpr RegClass reg_class_for(ValueType::Kind kind) {
-  switch (kind) {
-    case ValueType::kF32:
-    case ValueType::kF64:
-      return kFpReg;
-    case ValueType::kI32:
-      return kGpReg;
-    case ValueType::kI64:
-      return kNeedI64RegPair ? kGpRegPair : kGpReg;
-    case ValueType::kS128:
-      return kNeedS128RegPair ? kFpRegPair : kFpReg;
-    case ValueType::kRef:
-    case ValueType::kOptRef:
-      return kGpReg;
-    default:
-      return kNoReg;  // unsupported type
-  }
-}
-
-static inline constexpr RegClass reg_class_for(ValueType type) {
-  return reg_class_for(type.kind());
+static inline constexpr RegClass reg_class_for(ValueKind kind) {
+  // Statically generate an array that we use for lookup at runtime.
+  constexpr size_t kNumValueKinds = static_cast<size_t>(kTop);
+  constexpr auto kRegClasses =
+      base::make_array<kNumValueKinds>([](std::size_t kind) {
+        switch (kind) {
+          case kF16:
+          case kF32:
+          case kF64:
+            return kFpReg;
+          case kI8:
+          case kI16:
+          case kI32:
+            return kGpReg;
+          case kI64:
+            return kNeedI64RegPair ? kGpRegPair : kGpReg;
+          case kS128:
+            return kNeedS128RegPair ? kFpRegPair : kFpReg;
+          case kRef:
+          case kRefNull:
+            return kGpReg;
+          case kVoid:
+            return kNoReg;  // unsupported kind
+        }
+        CONSTEXPR_UNREACHABLE();
+      });
+  V8_ASSUME(kind < kNumValueKinds);
+  RegClass rc = kRegClasses[kind];
+  V8_ASSUME(rc != kNoReg);
+  return rc;
 }
 
 // Description of LiftoffRegister code encoding.
 // This example uses the ARM architecture, which as of writing has:
 // - 9 GP registers, requiring 4 bits
-// - 13 FP regitsters, requiring 5 bits
+// - 13 FP registers, requiring 5 bits
 // - kNeedI64RegPair is true
 // - kNeedS128RegPair is true
 // - thus, kBitsPerRegPair is 2 + 2 * 4 = 10
@@ -111,13 +120,9 @@ static inline constexpr RegClass reg_class_for(ValueType type) {
 // (not sharing index space with gp), so in this example, it is fp register 2.
 
 // Maximum code of a gp cache register.
-static constexpr int kMaxGpRegCode =
-    8 * sizeof(kLiftoffAssemblerGpCacheRegs) -
-    base::bits::CountLeadingZeros(kLiftoffAssemblerGpCacheRegs) - 1;
+static constexpr int kMaxGpRegCode = kLiftoffAssemblerGpCacheRegs.last().code();
 // Maximum code of an fp cache register.
-static constexpr int kMaxFpRegCode =
-    8 * sizeof(kLiftoffAssemblerFpCacheRegs) -
-    base::bits::CountLeadingZeros(kLiftoffAssemblerFpCacheRegs) - 1;
+static constexpr int kMaxFpRegCode = kLiftoffAssemblerFpCacheRegs.last().code();
 static constexpr int kAfterMaxLiftoffGpRegCode = kMaxGpRegCode + 1;
 static constexpr int kAfterMaxLiftoffFpRegCode =
     kAfterMaxLiftoffGpRegCode + kMaxFpRegCode + 1;
@@ -137,11 +142,11 @@ static_assert(2 * kBitsPerGpRegCode >= kBitsPerFpRegCode,
 
 class LiftoffRegister {
   static constexpr int needed_bits =
-      Max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
-          kBitsPerLiftoffRegCode);
-  using storage_t = std::conditional<
+      std::max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
+               kBitsPerLiftoffRegCode);
+  using storage_t = std::conditional_t<
       needed_bits <= 8, uint8_t,
-      std::conditional<needed_bits <= 16, uint16_t, uint32_t>::type>::type;
+      std::conditional_t<needed_bits <= 16, uint16_t, uint32_t>>;
 
   static_assert(8 * sizeof(storage_t) >= needed_bits,
                 "chosen type is big enough");
@@ -152,15 +157,26 @@ class LiftoffRegister {
                 "chosen type is small enough");
 
  public:
-  explicit LiftoffRegister(Register reg) : LiftoffRegister(reg.code()) {
-    DCHECK_NE(0, kLiftoffAssemblerGpCacheRegs & reg.bit());
+  constexpr explicit LiftoffRegister(Register reg)
+      : LiftoffRegister(reg.code()) {
+    DCHECK(kLiftoffAssemblerGpCacheRegs.has(reg));
     DCHECK_EQ(reg, gp());
   }
-  explicit LiftoffRegister(DoubleRegister reg)
+  constexpr explicit LiftoffRegister(DoubleRegister reg)
       : LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code()) {
-    DCHECK_NE(0, kLiftoffAssemblerFpCacheRegs & reg.bit());
+    DCHECK(kLiftoffAssemblerFpCacheRegs.has(reg));
     DCHECK_EQ(reg, fp());
   }
+
+#if defined(V8_TARGET_ARCH_IA32)
+  // IA32 needs a fixed xmm0 register as a LiftoffRegister, however, xmm0 is not
+  // an allocatable double register (see register-ia32.h). This constructor
+  // allows bypassing the DCHECK that the LiftoffRegister has to be allocatable.
+  static LiftoffRegister from_uncached(DoubleRegister reg) {
+    DCHECK(!kLiftoffAssemblerFpCacheRegs.has(reg));
+    return LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code());
+  }
+#endif
 
   static LiftoffRegister from_liftoff_code(int code) {
     LiftoffRegister reg{static_cast<storage_t>(code)};
@@ -188,9 +204,9 @@ class LiftoffRegister {
 
   // Shifts the register code depending on the type before converting to a
   // LiftoffRegister.
-  static LiftoffRegister from_external_code(RegClass rc, ValueType type,
+  static LiftoffRegister from_external_code(RegClass rc, ValueKind kind,
                                             int code) {
-    if (!kSimpleFPAliasing && type == kWasmF32) {
+    if (kFPAliasing == AliasingKind::kCombine && kind == kF32) {
       // Liftoff assumes a one-to-one mapping between float registers and
       // double registers, and so does not distinguish between f32 and f64
       // registers. The f32 register code must therefore be halved in order
@@ -198,7 +214,7 @@ class LiftoffRegister {
       DCHECK_EQ(0, code % 2);
       return LiftoffRegister::from_code(rc, code >> 1);
     }
-    if (kNeedS128RegPair && type == kWasmS128) {
+    if (kNeedS128RegPair && kind == kS128) {
       // Similarly for double registers and SIMD registers, the SIMD code
       // needs to be doubled to pass the f64 code to Liftoff.
       return LiftoffRegister::ForFpPair(DoubleRegister::from_code(code << 1));
@@ -209,8 +225,8 @@ class LiftoffRegister {
   static LiftoffRegister ForPair(Register low, Register high) {
     DCHECK(kNeedI64RegPair);
     DCHECK_NE(low, high);
-    storage_t combined_code = low.code() | high.code() << kBitsPerGpRegCode |
-                              1 << (2 * kBitsPerGpRegCode);
+    storage_t combined_code = low.code() | (high.code() << kBitsPerGpRegCode) |
+                              (1 << (2 * kBitsPerGpRegCode));
     return LiftoffRegister(combined_code);
   }
 
@@ -275,22 +291,22 @@ class LiftoffRegister {
     return DoubleRegister::from_code((code_ & kCodeMask) + 1);
   }
 
-  Register gp() const {
+  constexpr Register gp() const {
     DCHECK(is_gp());
     return Register::from_code(code_);
   }
 
-  DoubleRegister fp() const {
+  constexpr DoubleRegister fp() const {
     DCHECK(is_fp());
     return DoubleRegister::from_code(code_ - kAfterMaxLiftoffGpRegCode);
   }
 
-  int liftoff_code() const {
-    STATIC_ASSERT(sizeof(int) >= sizeof(storage_t));
+  constexpr int liftoff_code() const {
+    static_assert(sizeof(int) >= sizeof(storage_t));
     return static_cast<int>(code_);
   }
 
-  RegClass reg_class() const {
+  constexpr RegClass reg_class() const {
     return is_fp_pair() ? kFpRegPair
                         : is_gp_pair() ? kGpRegPair : is_gp() ? kGpReg : kFpReg;
   }
@@ -300,11 +316,6 @@ class LiftoffRegister {
     DCHECK_EQ(is_fp_pair(), other.is_fp_pair());
     return code_ == other.code_;
   }
-  bool operator!=(const LiftoffRegister other) const {
-    DCHECK_EQ(is_gp_pair(), other.is_gp_pair());
-    DCHECK_EQ(is_fp_pair(), other.is_fp_pair());
-    return code_ != other.code_;
-  }
   bool overlaps(const LiftoffRegister other) const {
     if (is_pair()) return low().overlaps(other) || high().overlaps(other);
     if (other.is_pair()) return *this == other.low() || *this == other.high();
@@ -312,9 +323,9 @@ class LiftoffRegister {
   }
 
  private:
-  storage_t code_;
-
   explicit constexpr LiftoffRegister(storage_t code) : code_(code) {}
+
+  storage_t code_;
 };
 ASSERT_TRIVIALLY_COPYABLE(LiftoffRegister);
 
@@ -336,25 +347,43 @@ class LiftoffRegList {
 
   static constexpr bool use_u16 = kAfterMaxLiftoffRegCode <= 16;
   static constexpr bool use_u32 = !use_u16 && kAfterMaxLiftoffRegCode <= 32;
-  using storage_t = std::conditional<
-      use_u16, uint16_t,
-      std::conditional<use_u32, uint32_t, uint64_t>::type>::type;
+  using storage_t =
+      std::conditional_t<use_u16, uint16_t,
+                         std::conditional_t<use_u32, uint32_t, uint64_t>>;
 
-  static constexpr storage_t kGpMask = storage_t{kLiftoffAssemblerGpCacheRegs};
-  static constexpr storage_t kFpMask = storage_t{kLiftoffAssemblerFpCacheRegs}
-                                       << kAfterMaxLiftoffGpRegCode;
+  static constexpr storage_t kGpMask =
+      storage_t{kLiftoffAssemblerGpCacheRegs.bits()};
+  static constexpr storage_t kFpMask =
+      storage_t{kLiftoffAssemblerFpCacheRegs.bits()}
+      << kAfterMaxLiftoffGpRegCode;
   // Sets all even numbered fp registers.
   static constexpr uint64_t kEvenFpSetMask = uint64_t{0x5555555555555555}
                                              << kAfterMaxLiftoffGpRegCode;
+  static constexpr uint64_t kOddFpSetMask = uint64_t{0xAAAAAAAAAAAAAAAA}
+                                            << kAfterMaxLiftoffGpRegCode;
 
   constexpr LiftoffRegList() = default;
 
-  Register set(Register reg) { return set(LiftoffRegister(reg)).gp(); }
-  DoubleRegister set(DoubleRegister reg) {
+  // Allow to construct LiftoffRegList from a number of
+  // {Register|DoubleRegister|LiftoffRegister}.
+  template <typename... Regs>
+  constexpr explicit LiftoffRegList(Regs... regs)
+    requires(
+        std::conjunction_v<std::disjunction<
+            std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
+            std::is_same<LiftoffRegister, Regs>>...>)
+  {
+    (..., set(regs));
+  }
+
+  constexpr Register set(Register reg) {
+    return set(LiftoffRegister(reg)).gp();
+  }
+  constexpr DoubleRegister set(DoubleRegister reg) {
     return set(LiftoffRegister(reg)).fp();
   }
 
-  LiftoffRegister set(LiftoffRegister reg) {
+  constexpr LiftoffRegister set(LiftoffRegister reg) {
     if (reg.is_pair()) {
       regs_ |= storage_t{1} << reg.low().liftoff_code();
       regs_ |= storage_t{1} << reg.high().liftoff_code();
@@ -364,7 +393,7 @@ class LiftoffRegList {
     return reg;
   }
 
-  LiftoffRegister clear(LiftoffRegister reg) {
+  constexpr LiftoffRegister clear(LiftoffRegister reg) {
     if (reg.is_pair()) {
       regs_ &= ~(storage_t{1} << reg.low().liftoff_code());
       regs_ &= ~(storage_t{1} << reg.high().liftoff_code());
@@ -372,6 +401,12 @@ class LiftoffRegList {
       regs_ &= ~(storage_t{1} << reg.liftoff_code());
     }
     return reg;
+  }
+  constexpr Register clear(Register reg) {
+    return clear(LiftoffRegister{reg}).gp();
+  }
+  constexpr DoubleRegister clear(DoubleRegister reg) {
+    return clear(LiftoffRegister{reg}).fp();
   }
 
   bool has(LiftoffRegister reg) const {
@@ -381,8 +416,8 @@ class LiftoffRegList {
     }
     return (regs_ & (storage_t{1} << reg.liftoff_code())) != 0;
   }
-  bool has(Register reg) const { return has(LiftoffRegister(reg)); }
-  bool has(DoubleRegister reg) const { return has(LiftoffRegister(reg)); }
+  bool has(Register reg) const { return has(LiftoffRegister{reg}); }
+  bool has(DoubleRegister reg) const { return has(LiftoffRegister{reg}); }
 
   constexpr bool is_empty() const { return regs_ == 0; }
 
@@ -394,8 +429,18 @@ class LiftoffRegList {
     return LiftoffRegList(regs_ & other.regs_);
   }
 
+  constexpr LiftoffRegList& operator&=(const LiftoffRegList other) {
+    regs_ &= other.regs_;
+    return *this;
+  }
+
   constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
     return LiftoffRegList(regs_ | other.regs_);
+  }
+
+  constexpr LiftoffRegList& operator|=(const LiftoffRegList other) {
+    regs_ |= other.regs_;
+    return *this;
   }
 
   constexpr LiftoffRegList GetAdjacentFpRegsSet() const {
@@ -409,21 +454,26 @@ class LiftoffRegList {
     return !GetAdjacentFpRegsSet().is_empty();
   }
 
-  constexpr bool operator==(const LiftoffRegList other) const {
-    return regs_ == other.regs_;
-  }
-  constexpr bool operator!=(const LiftoffRegList other) const {
-    return regs_ != other.regs_;
+  // Returns a list where if any part of an adjacent pair of FP regs was set,
+  // both are set in the result. For example, [1, 4] is turned into [0, 1, 4, 5]
+  // because (0, 1) and (4, 5) are adjacent pairs.
+  constexpr LiftoffRegList SpreadSetBitsToAdjacentFpRegs() const {
+    storage_t odd_regs = regs_ & kOddFpSetMask;
+    storage_t even_regs = regs_ & kEvenFpSetMask;
+    return FromBits(regs_ | ((odd_regs >> 1) & kFpMask) |
+                    ((even_regs << 1) & kFpMask));
   }
 
+  constexpr bool operator==(const LiftoffRegList&) const = default;
+
   LiftoffRegister GetFirstRegSet() const {
-    DCHECK(!is_empty());
+    V8_ASSUME(regs_ != 0);
     int first_code = base::bits::CountTrailingZeros(regs_);
     return LiftoffRegister::from_liftoff_code(first_code);
   }
 
   LiftoffRegister GetLastRegSet() const {
-    DCHECK(!is_empty());
+    V8_ASSUME(regs_ != 0);
     int last_code =
         8 * sizeof(regs_) - 1 - base::bits::CountLeadingZeros(regs_);
     return LiftoffRegister::from_liftoff_code(last_code);
@@ -435,13 +485,16 @@ class LiftoffRegList {
     return FromBits(regs_ & ~mask.regs_);
   }
 
-  RegList GetGpList() { return regs_ & kGpMask; }
-  RegList GetFpList() { return (regs_ & kFpMask) >> kAfterMaxLiftoffGpRegCode; }
+  RegList GetGpList() { return RegList::FromBits(regs_ & kGpMask); }
+  DoubleRegList GetFpList() {
+    return DoubleRegList::FromBits((regs_ & kFpMask) >>
+                                   kAfterMaxLiftoffGpRegCode);
+  }
 
   inline Iterator begin() const;
   inline Iterator end() const;
 
-  static LiftoffRegList FromBits(storage_t bits) {
+  static constexpr LiftoffRegList FromBits(storage_t bits) {
     DCHECK_EQ(bits, bits & (kGpMask | kFpMask));
     return LiftoffRegList(bits);
   }
@@ -449,21 +502,18 @@ class LiftoffRegList {
   template <storage_t bits>
   static constexpr LiftoffRegList FromBits() {
     static_assert(bits == (bits & (kGpMask | kFpMask)), "illegal reg list");
-    return LiftoffRegList(bits);
+    return LiftoffRegList{bits};
   }
 
-  template <typename... Regs>
-  static LiftoffRegList ForRegs(Regs... regs) {
-    LiftoffRegList list;
-    for (LiftoffRegister reg : {LiftoffRegister(regs)...}) list.set(reg);
-    return list;
-  }
+#if DEBUG
+  void Print() const;
+#endif
 
  private:
-  storage_t regs_ = 0;
-
   // Unchecked constructor. Only use for valid bits.
   explicit constexpr LiftoffRegList(storage_t bits) : regs_(bits) {}
+
+  storage_t regs_ = 0;
 };
 ASSERT_TRIVIALLY_COPYABLE(LiftoffRegList);
 
@@ -479,8 +529,7 @@ class LiftoffRegList::Iterator {
     remaining_.clear(remaining_.GetFirstRegSet());
     return *this;
   }
-  bool operator==(Iterator other) { return remaining_ == other.remaining_; }
-  bool operator!=(Iterator other) { return remaining_ != other.remaining_; }
+  bool operator==(const Iterator& other) const = default;
 
  private:
   explicit Iterator(LiftoffRegList remaining) : remaining_(remaining) {}
@@ -497,7 +546,10 @@ LiftoffRegList::Iterator LiftoffRegList::end() const {
 }
 
 static constexpr LiftoffRegList GetCacheRegList(RegClass rc) {
-  return rc == kFpReg ? kFpCacheRegList : kGpCacheRegList;
+  V8_ASSUME(rc == kFpReg || rc == kGpReg);
+  static_assert(kGpReg == 0 && kFpReg == 1);
+  constexpr LiftoffRegList kRegLists[2]{kGpCacheRegList, kFpCacheRegList};
+  return kRegLists[rc];
 }
 
 inline std::ostream& operator<<(std::ostream& os, LiftoffRegList reglist) {

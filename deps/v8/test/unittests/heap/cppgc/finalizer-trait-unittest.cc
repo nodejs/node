@@ -86,13 +86,13 @@ void ExpectFinalizerIsInvoked(Type* object) {
 }  // namespace
 
 TEST(FinalizerTrait, TypeWithoutDestructorHasNoFinalizer) {
-  static_assert(std::is_trivially_destructible<TypeWithoutDestructor>::value,
+  static_assert(std::is_trivially_destructible_v<TypeWithoutDestructor>,
                 "trivially destructible");
   EXPECT_EQ(nullptr, FinalizerTrait<TypeWithoutDestructor>::kCallback);
 }
 
 TEST(FinalizerTrait, TypeWithPrimitiveHasNoFinalizer) {
-  static_assert(std::is_trivially_destructible<TypeWithPrimitive>::value,
+  static_assert(std::is_trivially_destructible_v<TypeWithPrimitive>,
                 "trivially destructible");
   EXPECT_EQ(nullptr, FinalizerTrait<TypeWithPrimitive>::kCallback);
 }

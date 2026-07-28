@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 
 namespace array {
-transitioning javascript builtin
-ArrayFindIndexLoopEagerDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
+transitioning javascript builtin ArrayFindIndexLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, initialK: JSAny, length: JSAny): JSAny {
   // All continuation points in the optimized findIndex implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -23,11 +22,9 @@ ArrayFindIndexLoopEagerDeoptContinuation(
       jsreceiver, callbackfn, thisArg, jsreceiver, numberK, numberLength);
 }
 
-transitioning javascript builtin
-ArrayFindIndexLoopLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    _callback: JSAny, _thisArg: JSAny, _initialK: JSAny, _length: JSAny,
-    _result: JSAny): JSAny {
+transitioning javascript builtin ArrayFindIndexLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(_callback: JSAny,
+    _thisArg: JSAny, _initialK: JSAny, _length: JSAny, _result: JSAny): JSAny {
   // This deopt continuation point is never actually called, it just
   // exists to make stack traces correct from a ThrowTypeError if the
   // callback was found to be non-callable.
@@ -39,9 +36,9 @@ ArrayFindIndexLoopLazyDeoptContinuation(
 // before iteration continues.
 transitioning javascript builtin
 ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, initialK: JSAny, length: JSAny,
-    foundValue: JSAny, isFound: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, initialK: JSAny, length: JSAny, foundValue: JSAny,
+    isFound: JSAny): JSAny {
   // All continuation points in the optimized findIndex implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -63,9 +60,9 @@ ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation(
       jsreceiver, callbackfn, thisArg, jsreceiver, numberK, numberLength);
 }
 
-transitioning builtin ArrayFindIndexLoopContinuation(implicit context: Context)(
-    _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny, o: JSReceiver,
-    initialK: Number, length: Number): Number {
+transitioning builtin ArrayFindIndexLoopContinuation(
+    implicit context: Context)(_receiver: JSReceiver, callbackfn: Callable,
+    thisArg: JSAny, o: JSReceiver, initialK: Number, length: Number): Number {
   // 5. Let k be 0.
   // 6. Repeat, while k < len
   for (let k: Number = initialK; k < length; k++) {
@@ -90,8 +87,9 @@ transitioning builtin ArrayFindIndexLoopContinuation(implicit context: Context)(
   return Convert<Smi>(-1);
 }
 
-transitioning macro FastArrayFindIndex(implicit context: Context)(
-    o: JSReceiver, len: Number, callbackfn: Callable, thisArg: JSAny): Number
+transitioning macro FastArrayFindIndex(
+    implicit context: Context)(o: JSReceiver, len: Number,
+    callbackfn: Callable, thisArg: JSAny): Number
     labels Bailout(Smi) {
   let k: Smi = 0;
   const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
@@ -116,8 +114,7 @@ transitioning macro FastArrayFindIndex(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.findIndex
-transitioning javascript builtin
-ArrayPrototypeFindIndex(
+transitioning javascript builtin ArrayPrototypeFindIndex(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
     RequireObjectCoercible(receiver, 'Array.prototype.findIndex');
@@ -145,7 +142,7 @@ ArrayPrototypeFindIndex(
       return ArrayFindIndexLoopContinuation(o, callbackfn, thisArg, o, k, len);
     }
   } label NotCallableError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

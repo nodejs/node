@@ -12,6 +12,7 @@
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
 #define HEAP_TEST_METHODS(V)                                \
   V(CodeLargeObjectSpace)                                   \
+  V(CodeLargeObjectSpace64k)                                \
   V(CompactionFullAbortedPage)                              \
   V(CompactionPartiallyAbortedPage)                         \
   V(CompactionPartiallyAbortedPageIntraAbortedPointers)     \
@@ -30,7 +31,6 @@
   V(InvalidatedSlotsResetObjectRegression)                  \
   V(InvalidatedSlotsRightTrimFixedArray)                    \
   V(InvalidatedSlotsRightTrimLargeFixedArray)               \
-  V(InvalidatedSlotsLeftTrimFixedArray)                     \
   V(InvalidatedSlotsFastToSlow)                             \
   V(InvalidatedSlotsSomeInvalidatedRanges)                  \
   V(TestNewSpaceRefsInCopiedCode)                           \
@@ -47,7 +47,6 @@
   V(StressHandles)                                          \
   V(TestMemoryReducerSampleJsCalls)                         \
   V(TestSizeOfObjects)                                      \
-  V(Regress5831)                                            \
   V(Regress10560)                                           \
   V(Regress538257)                                          \
   V(Regress587004)                                          \
@@ -82,10 +81,6 @@
 
 namespace v8 {
 namespace internal {
-
-template <typename T>
-class Handle;
-
 namespace heap {
 
 class HeapTester {
@@ -97,11 +92,11 @@ class HeapTester {
 
   // test-alloc.cc
   static AllocationResult AllocateAfterFailures();
-  static Handle<Object> TestAllocateAfterFailures();
+  static DirectHandle<Object> TestAllocateAfterFailures();
 
   // test-invalidated-slots.cc
-  static Page* AllocateByteArraysOnPage(Heap* heap,
-                                        std::vector<ByteArray>* byte_arrays);
+  static NormalPage* AllocateByteArraysOnPage(
+      Heap* heap, std::vector<ByteArray>* byte_arrays);
 
   // test-api.cc
   static void ResetWeakHandle(bool global_gc);
@@ -116,7 +111,7 @@ class HeapTester {
   static AllocationResult AllocateFixedArrayForTest(Heap* heap, int length,
                                                     AllocationType allocation);
 
-  static void UncommitFromSpace(Heap* heap);
+  static void UncommitUnusedMemory(Heap* heap);
 };
 
 }  // namespace heap

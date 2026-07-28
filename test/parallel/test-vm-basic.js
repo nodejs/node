@@ -59,9 +59,9 @@ const vm = require('vm');
   const result = vm.runInThisContext(
     'vmResult = "foo"; Object.prototype.toString.call(process);'
   );
-  assert.strictEqual(global.vmResult, 'foo');
+  assert.strictEqual(globalThis.vmResult, 'foo');
   assert.strictEqual(result, '[object process]');
-  delete global.vmResult;
+  delete globalThis.vmResult;
 }
 
 // vm.runInNewContext
@@ -69,7 +69,7 @@ const vm = require('vm');
   const result = vm.runInNewContext(
     'vmResult = "foo"; typeof process;'
   );
-  assert.strictEqual(global.vmResult, undefined);
+  assert.strictEqual(globalThis.vmResult, undefined);
   assert.strictEqual(result, 'undefined');
 }
 
@@ -172,7 +172,30 @@ const vm = require('vm');
       'Received null'
   });
 
-  // vm.compileFunction('', undefined, null);
+  // Test for invalid options type
+  assert.throws(() => {
+    vm.compileFunction('', [], null);
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type object. Received null'
+  });
+
+  assert.throws(() => {
+    vm.compileFunction('', [], 'string');
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type object. Received type string (\'string\')'
+  });
+
+  assert.throws(() => {
+    vm.compileFunction('', [], 123);
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: 'The "options" argument must be of type object. Received type number (123)'
+  });
 
   const optionTypes = {
     'filename': 'string',
@@ -322,6 +345,28 @@ const vm = require('vm');
     )(),
     global
   );
+
+  {
+    const source = 'console.log("Hello, World!")';
+    // Test compileFunction produceCachedData option
+    const result = vm.compileFunction(source, [], {
+      produceCachedData: true,
+    });
+
+    assert.ok(result.cachedDataProduced);
+    assert.ok(result.cachedData.length > 0);
+
+    // Test compileFunction cachedData consumption
+    const result2 = vm.compileFunction(source, [], {
+      cachedData: result.cachedData
+    });
+    assert.strictEqual(result2.cachedDataRejected, false);
+
+    const result3 = vm.compileFunction('console.log("wrong source")', [], {
+      cachedData: result.cachedData
+    });
+    assert.strictEqual(result3.cachedDataRejected, true);
+  }
 
   // Resetting value
   Error.stackTraceLimit = oldLimit;

@@ -1,19 +1,22 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { MessageChannel, markAsUntransferable } = require('worker_threads');
+const { MessageChannel, markAsUntransferable, isMarkedAsUntransferable } = require('worker_threads');
 
 {
   const ab = new ArrayBuffer(8);
 
   markAsUntransferable(ab);
+  assert.ok(isMarkedAsUntransferable(ab));
   assert.strictEqual(ab.byteLength, 8);
 
-  const { port1, port2 } = new MessageChannel();
-  port1.postMessage(ab, [ ab ]);
+  const { port1 } = new MessageChannel();
+  assert.throws(() => port1.postMessage(ab, [ ab ]), {
+    code: 25,
+    name: 'DataCloneError',
+  });
 
   assert.strictEqual(ab.byteLength, 8);  // The AB is not detached.
-  port2.once('message', common.mustCall());
 }
 
 {
@@ -21,17 +24,36 @@ const { MessageChannel, markAsUntransferable } = require('worker_threads');
   const channel2 = new MessageChannel();
 
   markAsUntransferable(channel2.port1);
+  assert.ok(isMarkedAsUntransferable(channel2.port1));
 
   assert.throws(() => {
     channel1.port1.postMessage(channel2.port1, [ channel2.port1 ]);
-  }, /was found in message but not listed in transferList/);
+  }, {
+    code: 25,
+    name: 'DataCloneError',
+  });
 
   channel2.port1.postMessage('still works, not closed/transferred');
   channel2.port2.once('message', common.mustCall());
 }
 
 {
-  for (const value of [0, null, false, true, undefined, [], {}]) {
+  for (const value of [0, null, false, true, undefined]) {
     markAsUntransferable(value);  // Has no visible effect.
+    assert.ok(!isMarkedAsUntransferable(value));
   }
+  for (const value of [[], {}]) {
+    markAsUntransferable(value);
+    assert.ok(isMarkedAsUntransferable(value));
+  }
+}
+
+{
+  // Verifies that the mark is not inherited.
+  class Foo {}
+  markAsUntransferable(Foo.prototype);
+  assert.ok(isMarkedAsUntransferable(Foo.prototype));
+
+  const foo = new Foo();
+  assert.ok(!isMarkedAsUntransferable(foo));
 }

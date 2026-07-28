@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_STRING_GEN_H_
 
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +34,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   TNode<Int32T> LoadSurrogatePairAt(TNode<String> string, TNode<IntPtrT> length,
                                     TNode<IntPtrT> index,
                                     UnicodeEncoding encoding);
+  TNode<BoolT> HasUnpairedSurrogate(TNode<String> string, Label* if_indirect);
+
+  void ReplaceUnpairedSurrogates(TNode<String> source, TNode<String> dest,
+                                 Label* if_indirect);
 
   TNode<String> StringFromSingleUTF16EncodedCodePoint(TNode<Int32T> codepoint);
 
@@ -61,7 +66,45 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                             String::Encoding from_encoding,
                             String::Encoding to_encoding);
 
+  // Torque wrapper methods for CallSearchStringRaw for each combination of
+  // search and subject character widths (char8/char16). This is a workaround
+  // for Torque's current lack of support for extern macros with generics.
+  TNode<IntPtrT> SearchOneByteStringInTwoByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchOneByteStringInOneByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchTwoByteStringInTwoByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchTwoByteStringInOneByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> search_length,
+      const TNode<IntPtrT> start_position);
+  TNode<IntPtrT> SearchOneByteInOneByteString(
+      const TNode<RawPtrT> subject_ptr, const TNode<IntPtrT> subject_length,
+      const TNode<RawPtrT> search_ptr, const TNode<IntPtrT> start_position);
+
+  TNode<Smi> IndexOfDollarChar(const TNode<Context> context,
+                               const TNode<String> string);
+
  protected:
+  enum class StringComparison {
+    kLessThan,
+    kLessThanOrEqual,
+    kGreaterThan,
+    kGreaterThanOrEqual,
+    kCompare
+  };
+
+  void StringEqual_FastLoop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
+                            TNode<String> rhs, TNode<Word32T> rhs_instance_type,
+                            TNode<IntPtrT> byte_length, Label* if_equal,
+                            Label* if_not_equal);
   void StringEqual_Loop(TNode<String> lhs, TNode<Word32T> lhs_instance_type,
                         MachineType lhs_type, TNode<String> rhs,
                         TNode<Word32T> rhs_instance_type, MachineType rhs_type,
@@ -70,11 +113,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   TNode<RawPtrT> DirectStringData(TNode<String> string,
                                   TNode<Word32T> string_instance_type);
 
-  void DispatchOnStringEncodings(const TNode<Word32T> lhs_instance_type,
-                                 const TNode<Word32T> rhs_instance_type,
-                                 Label* if_one_one, Label* if_one_two,
-                                 Label* if_two_one, Label* if_two_two);
-
   template <typename SubjectChar, typename PatternChar>
   TNode<IntPtrT> CallSearchStringRaw(const TNode<RawPtrT> subject_ptr,
                                      const TNode<IntPtrT> subject_length,
@@ -82,24 +120,16 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                      const TNode<IntPtrT> search_length,
                                      const TNode<IntPtrT> start_position);
 
-  TNode<RawPtrT> PointerToStringDataAtIndex(TNode<RawPtrT> string_data,
-                                            TNode<IntPtrT> index,
-                                            String::Encoding encoding);
-
-  void GenerateStringEqual(TNode<String> left, TNode<String> right);
+  void GenerateStringEqual(TNode<String> left, TNode<String> right,
+                           TNode<IntPtrT> length);
+  template <typename SeqStringT, typename CharT>
+  void GenerateSeqStringRelationalComparison(TNode<String> left,
+                                             TNode<String> right,
+                                             Label* if_less, Label* if_equal,
+                                             Label* if_greater);
   void GenerateStringRelationalComparison(TNode<String> left,
-                                          TNode<String> right, Operation op);
-
-  using StringAtAccessor = std::function<TNode<Object>(
-      TNode<String> receiver, TNode<IntPtrT> length, TNode<IntPtrT> index)>;
-
-  void StringIndexOf(const TNode<String> subject_string,
-                     const TNode<String> search_string,
-                     const TNode<Smi> position,
-                     const std::function<void(TNode<Smi>)>& f_return);
-
-  const TNode<Smi> IndexOfDollarChar(const TNode<Context> context,
-                                     const TNode<String> string);
+                                          TNode<String> right,
+                                          StringComparison op);
 
   TNode<JSArray> StringToArray(TNode<NativeContext> context,
                                TNode<String> subject_string,
@@ -113,8 +143,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   TNode<String> AllocateConsString(TNode<Uint32T> length, TNode<String> left,
                                    TNode<String> right);
 
-  TNode<String> StringAdd(SloppyTNode<Context> context, TNode<String> left,
-                          TNode<String> right);
+  TNode<String> StringAdd(TNode<ContextOrEmptyContext> context,
+                          TNode<String> left, TNode<String> right);
 
   // Check if |string| is an indirect (thin or flat cons) string type that can
   // be dereferenced by DerefIndirectString.
@@ -145,21 +175,21 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   // Implements boilerplate logic for {match, split, replace, search} of the
   // form:
   //
-  //  if (!IS_NULL_OR_UNDEFINED(object)) {
+  //  if (IS_OBJECT(object)) {
   //    var maybe_function = object[symbol];
   //    if (!IS_UNDEFINED(maybe_function)) {
   //      return %_Call(maybe_function, ...);
   //    }
   //  }
   //
-  // Contains fast paths for Smi and RegExp objects.
+  // Contains fast paths for RegExp objects.
   // Important: {regexp_call} may not contain any code that can call into JS.
   using NodeFunction0 = std::function<void()>;
   using NodeFunction1 = std::function<void(TNode<Object> fn)>;
   using DescriptorIndexNameValue =
       PrototypeCheckAssembler::DescriptorIndexNameValue;
   void MaybeCallFunctionAtSymbol(
-      const TNode<Context> context, const TNode<Object> object,
+      const TNode<Context> context, const TNode<JSAny> object,
       const TNode<Object> maybe_string, Handle<Symbol> symbol,
       DescriptorIndexNameValue additional_property_to_check,
       const NodeFunction0& regexp_call, const NodeFunction1& generic_call);
@@ -167,45 +197,9 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
  private:
   template <typename T>
   TNode<String> AllocAndCopyStringCharacters(TNode<T> from,
-                                             TNode<Int32T> from_instance_type,
+                                             TNode<BoolT> from_is_one_byte,
                                              TNode<IntPtrT> from_index,
                                              TNode<IntPtrT> character_count);
-};
-
-class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {
- public:
-  explicit StringIncludesIndexOfAssembler(compiler::CodeAssemblerState* state)
-      : StringBuiltinsAssembler(state) {}
-
- protected:
-  enum SearchVariant { kIncludes, kIndexOf };
-
-  void Generate(SearchVariant variant, TNode<IntPtrT> argc,
-                TNode<Context> context);
-};
-
-class StringTrimAssembler : public StringBuiltinsAssembler {
- public:
-  explicit StringTrimAssembler(compiler::CodeAssemblerState* state)
-      : StringBuiltinsAssembler(state) {}
-
-  V8_EXPORT_PRIVATE void GotoIfNotWhiteSpaceOrLineTerminator(
-      const TNode<Word32T> char_code, Label* const if_not_whitespace);
-
- protected:
-  void Generate(String::TrimMode mode, const char* method, TNode<IntPtrT> argc,
-                TNode<Context> context);
-
-  void ScanForNonWhiteSpaceOrLineTerminator(
-      const TNode<RawPtrT> string_data, const TNode<IntPtrT> string_data_offset,
-      const TNode<BoolT> is_stringonebyte, TVariable<IntPtrT>* const var_index,
-      const TNode<IntPtrT> end, int increment, Label* const if_none_found);
-
-  template <typename T>
-  void BuildLoop(
-      TVariable<IntPtrT>* const var_index, const TNode<IntPtrT> end,
-      int increment, Label* const if_none_found, Label* const out,
-      const std::function<TNode<T>(const TNode<IntPtrT>)>& get_character);
 };
 
 }  // namespace internal

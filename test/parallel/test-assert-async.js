@@ -85,7 +85,7 @@ const invalidThenableFunc = () => {
 }
 
 {
-  const handler = (err) => {
+  const handler = common.mustCallAtLeast((err) => {
     assert(err instanceof assert.AssertionError,
            `${err.name} is not instance of AssertionError`);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
@@ -94,7 +94,7 @@ const invalidThenableFunc = () => {
     assert.strictEqual(err.operator, 'rejects');
     assert.ok(!err.stack.includes('at Function.rejects'));
     return true;
-  };
+  });
 
   let promise = assert.rejects(async () => {}, common.mustNotCall());
   promises.push(assert.rejects(promise, common.mustCall(handler)));
@@ -103,8 +103,9 @@ const invalidThenableFunc = () => {
   promises.push(assert.rejects(promise, {
     name: 'TypeError',
     code: 'ERR_INVALID_RETURN_VALUE',
+    // FIXME(JakobJingleheimer): This should match on key words, like /Promise/ and /undefined/.
     message: 'Expected instance of Promise to be returned ' +
-             'from the "promiseFn" function but got type undefined.'
+             'from the "promiseFn" function but got undefined.'
   }));
 
   promise = assert.rejects(Promise.resolve(), common.mustNotCall());
@@ -131,14 +132,14 @@ promises.push(assert.rejects(
 ));
 
 {
-  const handler = (generated, actual, err) => {
+  const handler = common.mustCallAtLeast((generated, actual, err) => {
     assert.strictEqual(err.generatedMessage, generated);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
     assert.strictEqual(err.actual, actual);
     assert.strictEqual(err.operator, 'rejects');
-    assert(/rejects/.test(err.stack));
+    assert.match(err.stack, /rejects/);
     return true;
-  };
+  });
   const err = new Error();
   promises.push(assert.rejects(
     assert.rejects(Promise.reject(null), { code: 'FOO' }),
@@ -162,7 +163,7 @@ promises.push(assert.rejects(
   let promise = assert.doesNotReject(() => new Map(), common.mustNotCall());
   promises.push(assert.rejects(promise, {
     message: 'Expected instance of Promise to be returned ' +
-             'from the "promiseFn" function but got instance of Map.',
+             'from the "promiseFn" function but got an instance of Map.',
     code: 'ERR_INVALID_RETURN_VALUE',
     name: 'TypeError'
   }));
@@ -191,14 +192,14 @@ promises.push(assert.rejects(
     })
   );
 
-  const handler1 = (err) => {
+  const handler1 = common.mustCallAtLeast((err) => {
     assert(err instanceof assert.AssertionError,
            `${err.name} is not instance of AssertionError`);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
     assert.strictEqual(err.message, 'Failed');
     return true;
-  };
-  const handler2 = (err) => {
+  });
+  const handler2 = common.mustCallAtLeast((err) => {
     assert(err instanceof assert.AssertionError,
            `${err.name} is not instance of AssertionError`);
     assert.strictEqual(err.code, 'ERR_ASSERTION');
@@ -208,7 +209,7 @@ promises.push(assert.rejects(
     assert.ok(err.stack);
     assert.ok(!err.stack.includes('at Function.doesNotReject'));
     return true;
-  };
+  });
 
   const rejectingFn = async () => assert.fail();
 

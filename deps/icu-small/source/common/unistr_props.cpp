@@ -25,14 +25,14 @@
 
 U_NAMESPACE_BEGIN
 
-UnicodeString&
+UnicodeString& 
 UnicodeString::trim()
 {
   if(isBogus()) {
     return *this;
   }
 
-  UChar *array = getArrayStart();
+  char16_t *array = getArrayStart();
   UChar32 c;
   int32_t oldLength = this->length();
   int32_t i = oldLength, length;
@@ -68,7 +68,7 @@ UnicodeString::trim()
 
   // move string forward over leading white space
   if(start > 0) {
-    doReplace(0, start, 0, 0, 0);
+    doReplace(0, start, nullptr, 0, 0);
   }
 
   return *this;

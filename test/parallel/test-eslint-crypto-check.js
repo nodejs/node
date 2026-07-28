@@ -1,12 +1,13 @@
 'use strict';
 
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if ((!common.hasCrypto) || (!common.hasIntl)) {
+  common.skip('ESLint tests require crypto and Intl');
+}
 
 common.skipIfEslintMissing();
 
-const RuleTester = require('../../tools/node_modules/eslint').RuleTester;
+const RuleTester = require('../../tools/eslint/node_modules/eslint').RuleTester;
 const rule = require('../../tools/eslint-rules/crypto-check');
 
 const message = 'Please add a hasCrypto check to allow this test to be ' +
@@ -27,7 +28,7 @@ new RuleTester().run('crypto-check', rule, {
       common.skip("missing crypto");
     }
     internalBinding("crypto");
-    `
+    `,
   ],
   invalid: [
     {
@@ -71,6 +72,6 @@ new RuleTester().run('crypto-check', rule, {
               '}\n' +
               'if (common.foo) {}\n' +
               'internalBinding("crypto")'
-    }
+    },
   ]
 });

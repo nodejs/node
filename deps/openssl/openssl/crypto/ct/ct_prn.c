@@ -1,14 +1,14 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
 
 #ifdef OPENSSL_NO_CT
-# error "CT is disabled"
+#error "CT is disabled"
 #endif
 
 #include <openssl/asn1.h>
@@ -34,14 +34,14 @@ static void timestamp_print(uint64_t timestamp, BIO *out)
     if (gen == NULL)
         return;
     ASN1_GENERALIZEDTIME_adj(gen, (time_t)0,
-                             (int)(timestamp / 86400000),
-                             (timestamp % 86400000) / 1000);
+        (int)(timestamp / 86400000),
+        (timestamp % 86400000) / 1000);
     /*
      * Note GeneralizedTime from ASN1_GENERALIZETIME_adj is always 15
      * characters long with a final Z. Update it with fractional seconds.
      */
     BIO_snprintf(genstr, sizeof(genstr), "%.14s.%03dZ",
-                 ASN1_STRING_get0_data(gen), (unsigned int)(timestamp % 1000));
+        ASN1_STRING_get0_data(gen), (unsigned int)(timestamp % 1000));
     if (ASN1_GENERALIZEDTIME_set_string(gen, genstr))
         ASN1_GENERALIZEDTIME_print(out, gen);
     ASN1_GENERALIZEDTIME_free(gen);
@@ -68,13 +68,13 @@ const char *SCT_validation_status_string(const SCT *sct)
 }
 
 void SCT_print(const SCT *sct, BIO *out, int indent,
-               const CTLOG_STORE *log_store)
+    const CTLOG_STORE *log_store)
 {
     const CTLOG *log = NULL;
 
     if (log_store != NULL) {
         log = CTLOG_STORE_get0_log_by_id(log_store, sct->log_id,
-                                         sct->log_id_len);
+            sct->log_id_len);
     }
 
     BIO_printf(out, "%*sSigned Certificate Timestamp:", indent, "");
@@ -90,7 +90,7 @@ void SCT_print(const SCT *sct, BIO *out, int indent,
 
     if (log != NULL) {
         BIO_printf(out, "\n%*sLog       : %s", indent + 4, "",
-                   CTLOG_get0_name(log));
+            CTLOG_get0_name(log));
     }
 
     BIO_printf(out, "\n%*sLog ID    : ", indent + 4, "");
@@ -112,7 +112,7 @@ void SCT_print(const SCT *sct, BIO *out, int indent,
 }
 
 void SCT_LIST_print(const STACK_OF(SCT) *sct_list, BIO *out, int indent,
-                    const char *separator, const CTLOG_STORE *log_store)
+    const char *separator, const CTLOG_STORE *log_store)
 {
     int sct_count = sk_SCT_num(sct_list);
     int i;

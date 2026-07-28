@@ -10,7 +10,7 @@
 *
 * File uassert.h
 *
-*  Contains the U_ASSERT and UPRV_UNREACHABLE macros
+*  Contains the U_ASSERT and UPRV_UNREACHABLE_* macros
 *
 ******************************************************************************
 */
@@ -38,14 +38,34 @@
 #endif
 
 /**
- * \def UPRV_UNREACHABLE
+ * \def UPRV_UNREACHABLE_ASSERT
+ * This macro is used in places that we had believed were unreachable, but
+ * experience has shown otherwise (possibly due to memory corruption, etc).
+ * In this case we call assert() in debug versions as with U_ASSERT, instead
+ * of unconditionally calling abort(). However we also allow redefinition as
+ * with UPRV_UNREACHABLE_EXIT.
+ * @internal
+*/
+#if defined(UPRV_UNREACHABLE_ASSERT)
+    // Use the predefined value.
+#elif U_DEBUG
+#   include <assert.h>
+#   define UPRV_UNREACHABLE_ASSERT assert(false)
+#elif U_CPLUSPLUS_VERSION
+#   define UPRV_UNREACHABLE_ASSERT (void)0
+#else
+#   define UPRV_UNREACHABLE_ASSERT
+#endif
+
+/**
+ * \def UPRV_UNREACHABLE_EXIT
  * This macro is used to unconditionally abort if unreachable code is ever executed.
  * @internal
 */
-#if defined(UPRV_UNREACHABLE)
+#if defined(UPRV_UNREACHABLE_EXIT)
     // Use the predefined value.
 #else
-#   define UPRV_UNREACHABLE abort()
+#   define UPRV_UNREACHABLE_EXIT abort()
 #endif
 
 #endif

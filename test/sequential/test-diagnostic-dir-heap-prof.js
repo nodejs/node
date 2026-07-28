@@ -44,7 +44,7 @@ function verifyFrames(output, file, func) {
     console.log(output.stderr.toString());
     console.log(roots);
   }
-  assert.notDeepStrictEqual(frame, undefined);
+  assert.notStrictEqual(frame, undefined);
 }
 
 const kHeapProfInterval = 128;
@@ -53,7 +53,7 @@ const TEST_ALLOCATION = kHeapProfInterval * 2;
 const env = {
   ...process.env,
   TEST_ALLOCATION,
-  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER'
+  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
 };
 
 function getHeapProfiles(dir) {
@@ -66,7 +66,7 @@ function getHeapProfiles(dir) {
 // Test --diagnostic-dir changes the default for --cpu-prof
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('prof');
   const output = spawnSync(process.execPath, [
     '--heap-prof',
     '--diagnostic-dir',
@@ -76,7 +76,7 @@ function getHeapProfiles(dir) {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -91,8 +91,8 @@ function getHeapProfiles(dir) {
 // Test --heap-prof-dir overwrites --diagnostic-dir
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'diag');
-  const dir2 = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('diag');
+  const dir2 = tmpdir.resolve('prof');
   const output = spawnSync(process.execPath, [
     '--heap-prof',
     '--heap-prof-interval',
@@ -104,7 +104,7 @@ function getHeapProfiles(dir) {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());

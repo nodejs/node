@@ -5,6 +5,9 @@
 #ifndef V8_HEAP_CPPGC_GC_INVOKER_H_
 #define V8_HEAP_CPPGC_GC_INVOKER_H_
 
+#include <optional>
+
+#include "include/cppgc/common.h"
 #include "include/cppgc/heap.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/garbage-collector.h"
@@ -33,9 +36,16 @@ class V8_EXPORT_PRIVATE GCInvoker final : public GarbageCollector {
   GCInvoker(const GCInvoker&) = delete;
   GCInvoker& operator=(const GCInvoker&) = delete;
 
-  void CollectGarbage(GarbageCollector::Config) final;
-  void StartIncrementalGarbageCollection(GarbageCollector::Config) final;
+  void CollectGarbage(GCConfig) final;
+  void StartIncrementalGarbageCollection(GCConfig) final;
+  bool RetryAllocate(v8::base::FunctionRef<bool()> allocate) final;
   size_t epoch() const final;
+  std::optional<EmbedderStackState> overridden_stack_state() const final;
+  void set_override_stack_state(EmbedderStackState state) final;
+  void clear_overridden_stack_state() final;
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  std::optional<int> UpdateAllocationTimeout() final;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
   class GCInvokerImpl;

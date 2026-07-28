@@ -4,155 +4,497 @@
 
 #include "src/heap/safepoint.h"
 
+#include <atomic>
+#include <optional>
+#include <vector>
+
+#include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
+#include "src/common/assert-scope.h"
+#include "src/common/globals.h"
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
 #include "src/handles/local-handles.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
+#include "src/logging/counters-scopes.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
 
-GlobalSafepoint::GlobalSafepoint(Heap* heap)
-    : heap_(heap), local_heaps_head_(nullptr), active_safepoint_scopes_(0) {}
+IsolateSafepoint::IsolateSafepoint(Heap* heap) : heap_(heap) {}
 
-void GlobalSafepoint::EnterSafepointScope() {
-  if (!FLAG_local_heaps) return;
+void IsolateSafepoint::EnterLocalSafepointScope() {
+  // Safepoints need to be initiated on some main thread.
+  DCHECK(LocalHeap::Current()->is_main_thread());
+  DCHECK(AllowGarbageCollection::IsAllowed());
 
+  LockMutex(isolate()->main_thread_local_heap());
   if (++active_safepoint_scopes_ > 1) return;
 
-  TimedHistogramScope timer(heap_->isolate()->counters()->time_to_safepoint());
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::STOP_THE_WORLD);
+  // Local safepoint can only be initiated on the isolate's main thread.
+  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
 
-  local_heaps_mutex_.Lock();
-  local_heap_of_this_thread_ = LocalHeap::Current();
+  TimedHistogramScope timer(isolate()->counters()->gc_time_to_safepoint());
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::TIME_TO_SAFEPOINT);
 
   barrier_.Arm();
+  RunningLocalHeaps running_local_heaps;
+  SetSafepointRequestedFlags(IncludeMainThread::kNo, running_local_heaps);
+  barrier_.WaitUntilRunningThreadsInSafepoint(running_local_heaps);
+}
 
-  for (LocalHeap* current = local_heaps_head_; current;
-       current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
-      continue;
-    }
-    current->RequestSafepoint();
+class PerClientSafepointData final {
+ public:
+  explicit PerClientSafepointData(Isolate* isolate) : isolate_(isolate) {}
+
+  void set_locked() { locked_ = true; }
+
+  IsolateSafepoint* safepoint() const { return heap()->safepoint(); }
+  Heap* heap() const { return isolate_->heap(); }
+  Isolate* isolate() const { return isolate_; }
+
+  bool is_locked() const { return locked_; }
+
+  IsolateSafepoint::RunningLocalHeaps& running() { return running_; }
+  const IsolateSafepoint::RunningLocalHeaps& running() const {
+    return running_;
   }
 
-  for (LocalHeap* current = local_heaps_head_; current;
-       current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
-      continue;
-    }
-    current->state_mutex_.Lock();
+ private:
+  Isolate* const isolate_;
+  IsolateSafepoint::RunningLocalHeaps running_;
+  bool locked_ = false;
+};
 
-    while (current->state_ == LocalHeap::ThreadState::Running) {
-      current->state_change_.Wait(&current->state_mutex_);
-    }
+void IsolateSafepoint::InitiateGlobalSafepointScope(
+    Isolate* initiator, PerClientSafepointData* client_data) {
+  shared_space_isolate()->global_safepoint()->AssertActive();
+  LockMutex(initiator->main_thread_local_heap());
+  InitiateGlobalSafepointScopeRaw(initiator, client_data);
+}
+
+void IsolateSafepoint::TryInitiateGlobalSafepointScope(
+    Isolate* initiator, PerClientSafepointData* client_data) {
+  shared_space_isolate()->global_safepoint()->AssertActive();
+  if (!local_heaps_mutex_.TryLock()) return;
+  InitiateGlobalSafepointScopeRaw(initiator, client_data);
+}
+
+class GlobalSafepointInterruptTask : public CancelableTask {
+ public:
+  explicit GlobalSafepointInterruptTask(Heap* heap)
+      : CancelableTask(heap->isolate()), heap_(heap) {}
+
+  ~GlobalSafepointInterruptTask() override = default;
+  GlobalSafepointInterruptTask(const GlobalSafepointInterruptTask&) = delete;
+  GlobalSafepointInterruptTask& operator=(const GlobalSafepointInterruptTask&) =
+      delete;
+
+ private:
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override {
+    LocalHeap* local_heap = heap_->main_thread_local_heap();
+    SetCurrentLocalHeapScope local_heap_scope(local_heap);
+    local_heap->Safepoint();
+  }
+
+  Heap* heap_;
+};
+
+void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
+    Isolate* initiator, PerClientSafepointData* client_data) {
+  CHECK_EQ(++active_safepoint_scopes_, 1);
+  barrier_.Arm();
+
+  SetSafepointRequestedFlags(ShouldIncludeMainThread(initiator),
+                             client_data->running());
+  client_data->set_locked();
+
+  if (isolate() != initiator) {
+    // An isolate might be waiting in the event loop. Post a task in order to
+    // wake it up.
+    isolate()->heap()->GetForegroundTaskRunner()->PostTask(
+        std::make_unique<GlobalSafepointInterruptTask>(heap_));
+
+    // Request an interrupt in case of long-running code.
+    isolate()->stack_guard()->RequestGlobalSafepoint();
   }
 }
 
-void GlobalSafepoint::LeaveSafepointScope() {
-  if (!FLAG_local_heaps) return;
+IsolateSafepoint::IncludeMainThread IsolateSafepoint::ShouldIncludeMainThread(
+    Isolate* initiator) {
+  const bool is_initiator = isolate() == initiator;
+  return is_initiator ? IncludeMainThread::kNo : IncludeMainThread::kYes;
+}
 
-  DCHECK_GT(active_safepoint_scopes_, 0);
-  if (--active_safepoint_scopes_ > 0) return;
+void IsolateSafepoint::SetSafepointRequestedFlags(
+    IncludeMainThread include_main_thread,
+    IsolateSafepoint::RunningLocalHeaps& running_local_heaps) {
+  // There needs to be at least one LocalHeap for the main thread.
+  DCHECK_NOT_NULL(local_heaps_head_);
 
-  DCHECK_EQ(local_heap_of_this_thread_, LocalHeap::Current());
+  DCHECK(running_local_heaps.empty());
 
-  for (LocalHeap* current = local_heaps_head_; current;
-       current = current->next_) {
-    if (current == local_heap_of_this_thread_) {
+  for (LocalHeap* local_heap = local_heaps_head_; local_heap;
+       local_heap = local_heap->next_) {
+    if (local_heap->is_main_thread() &&
+        include_main_thread == IncludeMainThread::kNo) {
       continue;
     }
-    current->state_mutex_.Unlock();
+
+    const LocalHeap::ThreadState old_state =
+        local_heap->state_.SetSafepointRequested();
+
+    if (old_state.IsRunning()) {
+      if (v8_flags.safepoint_bump_qos_class) {
+        local_heap->BoostPriority();
+      }
+      running_local_heaps.emplace_back(local_heap);
+    }
+    CHECK_IMPLIES(old_state.IsCollectionRequested(),
+                  local_heap->is_main_thread());
+    CHECK(!old_state.IsSafepointRequested());
   }
+}
 
+void IsolateSafepoint::LockMutex(LocalHeap* local_heap) {
+  if (!local_heaps_mutex_.TryLock()) {
+    // Safepoints are only used for GCs, so GC requests should be ignored by
+    // default when parking for a safepoint.
+    IgnoreLocalGCRequests ignore_gc_requests(local_heap->heap());
+    local_heap->ExecuteWhileParked([this]() { local_heaps_mutex_.Lock(); });
+  }
+}
+
+void IsolateSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
+  local_heaps_mutex_.AssertHeld();
+  CHECK_EQ(--active_safepoint_scopes_, 0);
+  ClearSafepointRequestedFlags(ShouldIncludeMainThread(initiator));
   barrier_.Disarm();
-
-  local_heap_of_this_thread_ = nullptr;
   local_heaps_mutex_.Unlock();
 }
 
-void GlobalSafepoint::EnterFromThread(LocalHeap* local_heap) {
-  {
-    base::MutexGuard guard(&local_heap->state_mutex_);
-    DCHECK_EQ(local_heap->state_, LocalHeap::ThreadState::Running);
-    local_heap->state_ = LocalHeap::ThreadState::Safepoint;
-    local_heap->state_change_.NotifyAll();
+void IsolateSafepoint::LeaveLocalSafepointScope() {
+  local_heaps_mutex_.AssertHeld();
+  DCHECK_GT(active_safepoint_scopes_, 0);
+
+  if (--active_safepoint_scopes_ == 0) {
+    ClearSafepointRequestedFlags(IncludeMainThread::kNo);
+    barrier_.Disarm();
   }
 
-  barrier_.Wait();
+  local_heaps_mutex_.Unlock();
+}
 
-  {
-    base::MutexGuard guard(&local_heap->state_mutex_);
-    local_heap->state_ = LocalHeap::ThreadState::Running;
+void IsolateSafepoint::ClearSafepointRequestedFlags(
+    IncludeMainThread include_main_thread) {
+  for (LocalHeap* local_heap = local_heaps_head_; local_heap;
+       local_heap = local_heap->next_) {
+    if (local_heap->is_main_thread() &&
+        include_main_thread == IncludeMainThread::kNo) {
+      continue;
+    }
+
+    const LocalHeap::ThreadState old_state =
+        local_heap->state_.ClearSafepointRequested();
+
+    CHECK(old_state.IsParked());
+    CHECK(old_state.IsSafepointRequested());
+    CHECK_IMPLIES(old_state.IsCollectionRequested(),
+                  local_heap->is_main_thread());
   }
 }
 
-void GlobalSafepoint::Barrier::Arm() {
+void IsolateSafepoint::WaitInSafepoint() { barrier_.WaitInSafepoint(); }
+
+void IsolateSafepoint::WaitInUnpark() { barrier_.WaitInUnpark(); }
+
+void IsolateSafepoint::NotifyPark() { barrier_.NotifyPark(); }
+
+void IsolateSafepoint::WaitUntilRunningThreadsInSafepoint(
+    const PerClientSafepointData* client_data) {
+  barrier_.WaitUntilRunningThreadsInSafepoint(client_data->running());
+}
+
+void IsolateSafepoint::Barrier::Arm() {
   base::MutexGuard guard(&mutex_);
-  CHECK(!armed_);
+  DCHECK(!IsArmed());
   armed_ = true;
+  stopped_ = 0;
 }
 
-void GlobalSafepoint::Barrier::Disarm() {
+void IsolateSafepoint::Barrier::Disarm() {
   base::MutexGuard guard(&mutex_);
-  CHECK(armed_);
+  DCHECK(IsArmed());
   armed_ = false;
-  cond_.NotifyAll();
+  stopped_ = 0;
+  cv_resume_.NotifyAll();
 }
 
-void GlobalSafepoint::Barrier::Wait() {
+void IsolateSafepoint::Barrier::WaitUntilRunningThreadsInSafepoint(
+    const IsolateSafepoint::RunningLocalHeaps& running_local_heaps) {
   base::MutexGuard guard(&mutex_);
-  while (armed_) {
-    cond_.Wait(&mutex_);
+  DCHECK(IsArmed());
+  size_t running_count = running_local_heaps.size();
+  while (stopped_ < running_count) {
+    cv_stopped_.Wait(&mutex_);
+  }
+  if (v8_flags.safepoint_bump_qos_class) {
+    for (auto* running_local_heap : running_local_heaps) {
+      running_local_heap->ResetPriority();
+    }
+  }
+  DCHECK_EQ(stopped_, running_count);
+}
+
+void IsolateSafepoint::Barrier::NotifyPark() {
+  base::MutexGuard guard(&mutex_);
+  CHECK(IsArmed());
+  stopped_++;
+  cv_stopped_.NotifyOne();
+}
+
+void IsolateSafepoint::Barrier::WaitInSafepoint() {
+  const auto scoped_blocking_call =
+      V8::GetCurrentPlatform()->CreateBlockingScope(BlockingType::kWillBlock);
+  base::MutexGuard guard(&mutex_);
+  CHECK(IsArmed());
+  stopped_++;
+  cv_stopped_.NotifyOne();
+
+  while (IsArmed()) {
+    cv_resume_.Wait(&mutex_);
   }
 }
 
-SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
-  safepoint_->EnterSafepointScope();
+void IsolateSafepoint::Barrier::WaitInUnpark() {
+  const auto scoped_blocking_call =
+      V8::GetCurrentPlatform()->CreateBlockingScope(BlockingType::kWillBlock);
+  base::MutexGuard guard(&mutex_);
+
+  while (IsArmed()) {
+    cv_resume_.Wait(&mutex_);
+  }
 }
 
-SafepointScope::~SafepointScope() { safepoint_->LeaveSafepointScope(); }
-
-void GlobalSafepoint::AddLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
-  local_heap->prev_ = nullptr;
-  local_heap->next_ = local_heaps_head_;
-  local_heaps_head_ = local_heap;
+void IsolateSafepoint::Iterate(RootVisitor* visitor) {
+  AssertActive();
+  for (LocalHeap* current = local_heaps_head_; current;
+       current = current->next_) {
+    current->Iterate(visitor);
+  }
 }
 
-void GlobalSafepoint::RemoveLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
-  if (local_heap->prev_)
-    local_heap->prev_->next_ = local_heap->next_;
-  else
-    local_heaps_head_ = local_heap->next_;
+void IsolateSafepoint::AssertMainThreadIsOnlyThread() {
+  DCHECK_EQ(local_heaps_head_, heap_->main_thread_local_heap());
+  DCHECK_NULL(heap_->main_thread_local_heap()->next_);
 }
 
-bool GlobalSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  LocalHeap* current = local_heaps_head_;
+Isolate* IsolateSafepoint::isolate() const { return heap_->isolate(); }
 
-  while (current) {
-    if (current == local_heap) return true;
-    current = current->next_;
+Isolate* IsolateSafepoint::shared_space_isolate() const {
+  return isolate()->shared_space_isolate();
+}
+
+std::optional<IsolateSafepointScope>
+IsolateSafepoint::ReachSafepointWithoutTriggeringGC() {
+  if (isolate()->has_shared_space()) {
+    if (local_heaps_mutex_.TryLock()) {
+      // We only need this because EnterLocalSafepointScope() requires this. We
+      // already hold the lock so no GC will happen.
+      AllowGarbageCollection allow_gc;
+#if DEBUG
+      const GCEpoch local_gc_count = heap_->gc_count();
+      const GCEpoch shared_gc_count =
+          isolate()->shared_space_isolate()->heap()->gc_count();
+#endif  // DEBUG
+      IsolateSafepointScope safepoint_scope(heap_);
+      DCHECK_EQ(local_gc_count, heap_->gc_count());
+      DCHECK_EQ(shared_gc_count,
+                isolate()->shared_space_isolate()->heap()->gc_count());
+      local_heaps_mutex_.Unlock();
+      local_heaps_mutex_.AssertHeld();
+      return std::move(safepoint_scope);
+    } else {
+      return std::nullopt;
+    }
+  } else {
+    // We only need this because EnterLocalSafepointScope() requires this.
+    // Without a shared heap EnterLocalSafepointScope() will not trigger a GC.
+    AllowGarbageCollection allow_gc;
+#if DEBUG
+    const GCEpoch gc_count = heap_->gc_count();
+#endif  // DEBUG
+    IsolateSafepointScope safepoint_scope(heap_);
+    DCHECK_EQ(gc_count, heap_->gc_count());
+    return std::move(safepoint_scope);
+  }
+}
+
+IsolateSafepointScope::IsolateSafepointScope(Heap* heap)
+    : safepoint_(heap->safepoint()) {
+  safepoint_->EnterLocalSafepointScope();
+}
+
+IsolateSafepointScope::IsolateSafepointScope(IsolateSafepointScope&& other)
+    V8_NOEXCEPT {
+  safepoint_ = other.safepoint_;
+  other.safepoint_ = nullptr;
+}
+
+IsolateSafepointScope::~IsolateSafepointScope() {
+  if (safepoint_) {
+    safepoint_->LeaveLocalSafepointScope();
+  }
+}
+
+GlobalSafepoint::GlobalSafepoint(Isolate* isolate)
+    : shared_space_isolate_(isolate) {}
+
+void GlobalSafepoint::AppendClient(Isolate* client) {
+  clients_mutex_.AssertHeld();
+
+  DCHECK_NULL(client->global_safepoint_prev_client_isolate_);
+  DCHECK_NULL(client->global_safepoint_next_client_isolate_);
+  DCHECK_NE(clients_head_, client);
+
+  if (clients_head_) {
+    clients_head_->global_safepoint_prev_client_isolate_ = client;
   }
 
+  client->global_safepoint_prev_client_isolate_ = nullptr;
+  client->global_safepoint_next_client_isolate_ = clients_head_;
+
+  clients_head_ = client;
+}
+
+void GlobalSafepoint::RemoveClient(Isolate* client) {
+  DCHECK_EQ(client->heap()->gc_state(), Heap::TEAR_DOWN);
+  AssertActive();
+
+  if (client->global_safepoint_next_client_isolate_) {
+    client->global_safepoint_next_client_isolate_
+        ->global_safepoint_prev_client_isolate_ =
+        client->global_safepoint_prev_client_isolate_;
+  }
+
+  if (client->global_safepoint_prev_client_isolate_) {
+    client->global_safepoint_prev_client_isolate_
+        ->global_safepoint_next_client_isolate_ =
+        client->global_safepoint_next_client_isolate_;
+  } else {
+    DCHECK_EQ(clients_head_, client);
+    clients_head_ = client->global_safepoint_next_client_isolate_;
+  }
+}
+
+void GlobalSafepoint::AssertNoClientsOnTearDown() {
+  DCHECK_NULL(clients_head_);
+}
+
+void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
+  // Safepoints need to be initiated on some main thread.
+  DCHECK(LocalHeap::Current()->is_main_thread());
+
+  if (!clients_mutex_.TryLock()) {
+    IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
+    initiator->main_thread_local_heap()->ExecuteWhileParked(
+        [this]() { clients_mutex_.Lock(); });
+  }
+
+  if (++active_safepoint_scopes_ > 1) return;
+
+  TimedHistogramScope timer(
+      initiator->counters()->gc_time_to_global_safepoint());
+  TRACE_GC(initiator->heap()->tracer(),
+           GCTracer::Scope::TIME_TO_GLOBAL_SAFEPOINT);
+
+  std::vector<PerClientSafepointData> clients;
+
+  // Try to initiate safepoint for all clients. Fail immediately when the
+  // local_heaps_mutex_ can't be locked without blocking.
+  IterateSharedSpaceAndClientIsolates([&clients, initiator](Isolate* client) {
+    clients.emplace_back(client);
+    client->heap()->safepoint()->TryInitiateGlobalSafepointScope(
+        initiator, &clients.back());
+  });
+
+  // Iterate all clients again to initiate the safepoint for all of them - even
+  // if that means blocking.
+  for (PerClientSafepointData& client : clients) {
+    if (client.is_locked()) continue;
+    client.safepoint()->InitiateGlobalSafepointScope(initiator, &client);
+  }
+
+#if DEBUG
+  for (const PerClientSafepointData& client : clients) {
+    DCHECK_EQ(client.isolate()->shared_space_isolate(), shared_space_isolate_);
+  }
+#endif  // DEBUG
+
+  // Now that safepoints were initiated for all clients, wait until all threads
+  // of all clients reached a safepoint.
+  for (const PerClientSafepointData& client : clients) {
+    DCHECK(client.is_locked());
+    client.safepoint()->WaitUntilRunningThreadsInSafepoint(&client);
+  }
+}
+
+void GlobalSafepoint::LeaveGlobalSafepointScope(Isolate* initiator) {
+  clients_mutex_.AssertHeld();
+  DCHECK_GT(active_safepoint_scopes_, 0);
+
+  if (--active_safepoint_scopes_ == 0) {
+    IterateSharedSpaceAndClientIsolates([initiator](Isolate* client) {
+      Heap* client_heap = client->heap();
+      client_heap->safepoint()->LeaveGlobalSafepointScope(initiator);
+    });
+  }
+
+  clients_mutex_.Unlock();
+}
+
+bool GlobalSafepoint::IsRequestedForTesting() {
+  if (!clients_mutex_.TryLock()) return true;
+  clients_mutex_.Unlock();
   return false;
 }
 
-bool GlobalSafepoint::ContainsAnyLocalHeap() {
-  base::MutexGuard guard(&local_heaps_mutex_);
-  return local_heaps_head_ != nullptr;
+GlobalSafepointScope::GlobalSafepointScope(Isolate* initiator)
+    : initiator_(initiator),
+      shared_space_isolate_(initiator->shared_space_isolate()) {
+  shared_space_isolate_->global_safepoint()->EnterGlobalSafepointScope(
+      initiator_);
 }
 
-void GlobalSafepoint::Iterate(RootVisitor* visitor) {
-  DCHECK(IsActive());
-  for (LocalHeap* current = local_heaps_head_; current;
-       current = current->next_) {
-    current->handles()->Iterate(visitor);
+GlobalSafepointScope::~GlobalSafepointScope() {
+  shared_space_isolate_->global_safepoint()->LeaveGlobalSafepointScope(
+      initiator_);
+}
+
+SafepointScope::SafepointScope(Isolate* initiator, SafepointKind kind) {
+  if (kind == SafepointKind::kIsolate) {
+    isolate_safepoint_.emplace(initiator->heap());
+  } else {
+    DCHECK_EQ(kind, SafepointKind::kGlobal);
+    global_safepoint_.emplace(initiator);
+  }
+}
+
+SafepointScope::SafepointScope(Isolate* initiator,
+                               GlobalSafepointForSharedSpaceIsolateTag) {
+  if (initiator->is_shared_space_isolate()) {
+    global_safepoint_.emplace(initiator);
+  } else {
+    isolate_safepoint_.emplace(initiator->heap());
   }
 }
 

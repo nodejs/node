@@ -1,41 +1,31 @@
 'use strict';
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
+const { stripVTControlCharacters } = require('util');
+
 const input = ['const foo = {', '};', 'foo'];
 
-function run({ useColors }) {
-  const inputStream = new ArrayStream();
-  const outputStream = new ArrayStream();
-  let output = '';
+async function run({ useColors }) {
+  const { replServer, output, run: write } = startNewREPLServer({ useColors });
 
-  outputStream.write = (data) => { output += data.replace('\r', ''); };
+  await write(input);
 
-  const r = repl.start({
-    prompt: '',
-    input: inputStream,
-    output: outputStream,
-    terminal: true,
-    useColors
-  });
+  // The output contains various escape codes, including
+  // screen clears and others, so we trim them all to
+  // simplify this test.
+  const actual = stripVTControlCharacters(output.accumulator);
 
-  r.on('exit', common.mustCall(() => {
-    const actual = output.split('\n');
+  const firstStatementIdx = actual.indexOf(input.slice(0, 1).join('\n| '));
+  assert(firstStatementIdx > -1);
 
-    // Validate the output, which contains terminal escape codes.
-    assert.strictEqual(actual.length, 6);
-    assert.ok(actual[0].endsWith(input[0]));
-    assert.ok(actual[1].includes('... '));
-    assert.ok(actual[1].endsWith(input[1]));
-    assert.ok(actual[2].includes('undefined'));
-    assert.ok(actual[3].endsWith(input[2]));
-    assert.strictEqual(actual[4], '{}');
-  }));
+  assert(actual.slice(firstStatementIdx).includes('undefined'));
+  assert(actual.slice(firstStatementIdx).includes('foo'));
 
-  inputStream.run(input);
-  r.close();
+  replServer.on('exit', common.mustCall());
+  replServer.close();
 }
 
-run({ useColors: true });
-run({ useColors: false });
+run({ useColors: true })
+  .then(() => run({ useColors: false }))
+  .then(common.mustCall());

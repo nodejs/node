@@ -40,7 +40,7 @@ async function test() {
     });
 
     const result = s.runInThisContext();
-    assert.strictEqual(foo.namespace, await result);
+    assert.strictEqual(await result, foo.namespace);
   }
 
   {
@@ -53,8 +53,23 @@ async function test() {
     });
     await m.link(common.mustNotCall());
     await m.evaluate();
-    assert.strictEqual(foo.namespace, await globalThis.fooResult);
+    assert.strictEqual(await globalThis.fooResult, foo.namespace);
     delete globalThis.fooResult;
+  }
+
+  {
+    const s = new Script('import("foo", { with: { key: "value" } })', {
+      importModuleDynamically: common.mustCall((specifier, wrap, attributes, phase) => {
+        assert.strictEqual(specifier, 'foo');
+        assert.strictEqual(wrap, s);
+        assert.deepStrictEqual(attributes, { __proto__: null, key: 'value' });
+        assert.strictEqual(phase, 'evaluation');
+        return foo;
+      }),
+    });
+
+    const result = s.runInThisContext();
+    assert.strictEqual(await result, foo.namespace);
   }
 }
 

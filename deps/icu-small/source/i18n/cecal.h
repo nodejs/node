@@ -24,6 +24,36 @@ U_NAMESPACE_BEGIN
  */
 class U_I18N_API CECalendar : public Calendar {
 
+public:
+
+   /**
+    * Gets The Temporal monthCode value corresponding to the month for the date.
+    * The value is a string identifier that starts with the literal grapheme
+    * "M" followed by two graphemes representing the zero-padded month number
+    * of the current month in a normal (non-leap) year. For the short thirteen
+    * month in each year in the CECalendar, the value is "M13".
+    *
+    * @param status        ICU Error Code
+    * @return       One of 13 possible strings in {"M01".. "M12", "M13"}.
+    * @draft ICU 73
+    */
+    virtual const char* getTemporalMonthCode(UErrorCode& status) const override;
+
+    /**
+     * Sets The Temporal monthCode which is a string identifier that starts
+     * with the literal grapheme "M" followed by two graphemes representing
+     * the zero-padded month number of the current month in a normal
+     * (non-leap) year. For CECalendar calendar, the values
+     * are "M01" .. "M13" while the "M13" is represent the short thirteen month
+     * in each year.
+     *
+     * @param temporalMonth  The value to be set for temporal monthCode.
+     * @param status        ICU Error Code
+     *
+     * @draft ICU 73
+     */
+    virtual void setTemporalMonthCode(const char* code, UErrorCode& status) override;
+
 protected:
     //-------------------------------------------------------------------------
     // Constructors...
@@ -52,13 +82,6 @@ protected:
      */
     virtual ~CECalendar();
 
-    /**
-     * Default assignment operator
-     * @param right    Calendar object to be copied
-     * @internal
-     */
-    CECalendar& operator=(const CECalendar& right);
-
 protected:
     //-------------------------------------------------------------------------
     // Calendar framework
@@ -68,30 +91,19 @@ protected:
      * Return JD of start of given month/extended year
      * @internal
      */
-    virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month, UBool useMonth) const;
+    virtual int64_t handleComputeMonthStart(int32_t eyear, int32_t month, UBool useMonth, UErrorCode& status) const override;
 
     /**
      * Calculate the limit for a specified type of limit and field
      * @internal
      */
-    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const;
+    virtual int32_t handleGetLimit(UCalendarDateFields field, ELimitType limitType) const override;
 
     /**
-     * (Overrides Calendar) Return true if the current date for this Calendar is in
-     * Daylight Savings Time. Recognizes DST_OFFSET, if it is set.
-     *
-     * @param status Fill-in parameter which receives the status of this operation.
-     * @return   True if the current date for this Calendar is in Daylight Savings Time,
-     *           false, otherwise.
+     * Compute fields from the JD
      * @internal
      */
-    virtual UBool inDaylightTime(UErrorCode&) const;
-
-    /**
-     * Returns true because Coptic/Ethiopic Calendar does have a default century
-     * @internal
-     */
-    virtual UBool haveDefaultCentury() const;
+    virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
 
 protected:
     /**
@@ -103,30 +115,16 @@ protected:
     virtual int32_t getJDEpochOffset() const = 0;
 
     /**
-     * Convert an Coptic/Ethiopic year, month, and day to a Julian day.
-     *
-     * @param year the extended year
-     * @param month the month
-     * @param day the day
-     * @param jdEpochOffset the epoch offset from Julian epoch
-     * @return Julian day
+     * Compute the era from extended year.
      * @internal
      */
-    static int32_t ceToJD(int32_t year, int32_t month, int32_t date,
-        int32_t jdEpochOffset);
+    virtual int32_t extendedYearToEra(int32_t extendedYear) const = 0;
 
     /**
-     * Convert a Julian day to an Coptic/Ethiopic year, month and day
-     *
-     * @param julianDay the Julian day
-     * @param jdEpochOffset the epoch offset from Julian epoch
-     * @param year receives the extended year
-     * @param month receives the month
-     * @param date receives the day
+     * Compute the year from extended year.
      * @internal
      */
-    static void jdToCE(int32_t julianDay, int32_t jdEpochOffset,
-        int32_t& year, int32_t& month, int32_t& day);
+    virtual int32_t extendedYearToYear(int32_t extendedYear) const = 0;
 };
 
 U_NAMESPACE_END

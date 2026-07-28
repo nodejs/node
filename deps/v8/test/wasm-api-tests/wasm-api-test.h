@@ -11,6 +11,8 @@
 #include "src/zone/zone.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#define LIBWASM_STATIC 1
 #include "third_party/wasm-api/wasm.hh"
 
 namespace v8 {
@@ -46,32 +48,47 @@ class WasmCapiTest : public ::testing::Test {
         wire_bytes_(zone_.get()),
         builder_(zone_->New<WasmModuleBuilder>(zone_.get())),
         exports_(ownvec<Extern>::make()),
+        binary_(vec<byte_t>::make()),
         wasm_i_i_sig_(1, 1, wasm_i_i_sig_types_) {
     store_ = Store::make(engine_.get());
-    cpp_i_i_sig_ =
-        FuncType::make(ownvec<ValType>::make(ValType::make(::wasm::I32)),
-                       ownvec<ValType>::make(ValType::make(::wasm::I32)));
+    cpp_i_i_sig_ = FuncType::make(
+        ownvec<ValType>::make(ValType::make(::wasm::ValKind::I32)),
+        ownvec<ValType>::make(ValType::make(::wasm::ValKind::I32)));
+  }
+
+  bool Validate() {
+    if (binary_.size() == 0) {
+      builder_->WriteTo(&wire_bytes_);
+      size_t size = wire_bytes_.end() - wire_bytes_.begin();
+      binary_ = vec<byte_t>::make(
+          size,
+          reinterpret_cast<byte_t*>(const_cast<uint8_t*>(wire_bytes_.begin())));
+    }
+
+    return Module::validate(store_.get(), binary_);
   }
 
   void Compile() {
-    builder_->WriteTo(&wire_bytes_);
-    size_t size = wire_bytes_.end() - wire_bytes_.begin();
-    vec<byte_t> binary = vec<byte_t>::make(
-        size,
-        reinterpret_cast<byte_t*>(const_cast<byte*>(wire_bytes_.begin())));
+    if (binary_.size() == 0) {
+      builder_->WriteTo(&wire_bytes_);
+      size_t size = wire_bytes_.end() - wire_bytes_.begin();
+      binary_ = vec<byte_t>::make(
+          size,
+          reinterpret_cast<byte_t*>(const_cast<uint8_t*>(wire_bytes_.begin())));
+    }
 
-    module_ = Module::make(store_.get(), binary);
+    module_ = Module::make(store_.get(), binary_);
     DCHECK_NE(module_.get(), nullptr);
   }
 
-  void Instantiate(Extern* imports[]) {
+  void Instantiate(vec<Extern*>& imports) {
     Compile();
     instance_ = Instance::make(store_.get(), module_.get(), imports);
     DCHECK_NE(instance_.get(), nullptr);
     exports_ = instance_->exports();
   }
 
-  void AddExportedFunction(Vector<const char> name, byte code[],
+  void AddExportedFunction(base::Vector<const char> name, uint8_t code[],
                            size_t code_size, FunctionSig* sig) {
     WasmFunctionBuilder* fun = builder()->AddFunction(sig);
     fun->EmitCode(code, static_cast<uint32_t>(code_size));
@@ -79,10 +96,16 @@ class WasmCapiTest : public ::testing::Test {
     builder()->AddExport(name, fun);
   }
 
+  void AddFunction(uint8_t code[], size_t code_size, FunctionSig* sig) {
+    WasmFunctionBuilder* fun = builder()->AddFunction(sig);
+    fun->EmitCode(code, static_cast<uint32_t>(code_size));
+    fun->Emit(kExprEnd);
+  }
+
   Func* GetExportedFunction(size_t index) {
     DCHECK_GT(exports_.size(), index);
     Extern* exported = exports_[index].get();
-    DCHECK_EQ(exported->kind(), ::wasm::EXTERN_FUNC);
+    DCHECK_EQ(exported->kind(), ::wasm::ExternKind::FUNC);
     Func* func = exported->func();
     DCHECK_NE(func, nullptr);
     return func;
@@ -91,7 +114,7 @@ class WasmCapiTest : public ::testing::Test {
   Global* GetExportedGlobal(size_t index) {
     DCHECK_GT(exports_.size(), index);
     Extern* exported = exports_[index].get();
-    DCHECK_EQ(exported->kind(), ::wasm::EXTERN_GLOBAL);
+    DCHECK_EQ(exported->kind(), ::wasm::ExternKind::GLOBAL);
     Global* global = exported->global();
     DCHECK_NE(global, nullptr);
     return global;
@@ -100,7 +123,7 @@ class WasmCapiTest : public ::testing::Test {
   Memory* GetExportedMemory(size_t index) {
     DCHECK_GT(exports_.size(), index);
     Extern* exported = exports_[index].get();
-    DCHECK_EQ(exported->kind(), ::wasm::EXTERN_MEMORY);
+    DCHECK_EQ(exported->kind(), ::wasm::ExternKind::MEMORY);
     Memory* memory = exported->memory();
     DCHECK_NE(memory, nullptr);
     return memory;
@@ -109,11 +132,13 @@ class WasmCapiTest : public ::testing::Test {
   Table* GetExportedTable(size_t index) {
     DCHECK_GT(exports_.size(), index);
     Extern* exported = exports_[index].get();
-    DCHECK_EQ(exported->kind(), ::wasm::EXTERN_TABLE);
+    DCHECK_EQ(exported->kind(), ::wasm::ExternKind::TABLE);
     Table* table = exported->table();
     DCHECK_NE(table, nullptr);
     return table;
   }
+
+  void ResetModule() { module_.reset(); }
 
   void Shutdown() {
     exports_.reset();
@@ -132,21 +157,24 @@ class WasmCapiTest : public ::testing::Test {
   Module* module() { return module_.get(); }
   Instance* instance() { return instance_.get(); }
   const ownvec<Extern>& exports() { return exports_; }
-  ZoneBuffer* wire_bytes() { return &wire_bytes_; }
+  base::Vector<const uint8_t> wire_bytes() {
+    return base::VectorOf(wire_bytes_);
+  }
 
   FunctionSig* wasm_i_i_sig() { return &wasm_i_i_sig_; }
   FuncType* cpp_i_i_sig() { return cpp_i_i_sig_.get(); }
 
  private:
   own<Engine> engine_;
-  own<AccountingAllocator> allocator_;
-  own<Zone> zone_;
+  std::unique_ptr<AccountingAllocator> allocator_;
+  std::unique_ptr<Zone> zone_;
   ZoneBuffer wire_bytes_;
   WasmModuleBuilder* builder_;
   own<Store> store_;
   own<Module> module_;
   own<Instance> instance_;
   ownvec<Extern> exports_;
+  vec<byte_t> binary_;
   own<FuncType> cpp_i_i_sig_;
   ValueType wasm_i_i_sig_types_[2] = {kWasmI32, kWasmI32};
   FunctionSig wasm_i_i_sig_;

@@ -2,15 +2,18 @@
 // returns a string for one thing, or an array of descriptions
 const typeDefs = require('./type-defs.js')
 const typeDescription = t => {
-  if (!t || typeof t !== 'function' && typeof t !== 'object')
+  if (!t || typeof t !== 'function' && typeof t !== 'object') {
     return t
+  }
 
-  if (Array.isArray(t))
+  if (Array.isArray(t)) {
     return t.map(t => typeDescription(t))
+  }
 
   for (const { type, description } of Object.values(typeDefs)) {
-    if (type === t)
+    if (type === t) {
       return description || type
+    }
   }
 
   return t

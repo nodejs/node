@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const url = require('url');
@@ -46,7 +46,7 @@ const server = http.createServer(function(request, response) {
   server.close();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   testURL = url.parse(`http://localhost:${this.address().port}`);
 
   // make the request
@@ -55,4 +55,4 @@ server.listen(0, function() {
   // make sure that an http request uses the http.Agent
   assert.ok(clientRequest.agent instanceof http.Agent);
   clientRequest.end();
-});
+}));

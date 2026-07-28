@@ -13,8 +13,8 @@
 #include "number_currencysymbols.h"
 #include "unicode/uniset.h"
 
-U_NAMESPACE_BEGIN namespace numparse {
-namespace impl {
+U_NAMESPACE_BEGIN
+namespace numparse::impl {
 
 using ::icu::number::impl::CurrencySymbols;
 
@@ -29,8 +29,8 @@ using ::icu::number::impl::CurrencySymbols;
  *
  * @author sffc
  */
-// Exported as U_I18N_API for tests
-class U_I18N_API CombinedCurrencyMatcher : public NumberParseMatcher, public UMemory {
+// Exported as U_I18N_API_CLASS for tests
+class U_I18N_API_CLASS CombinedCurrencyMatcher : public NumberParseMatcher, public UMemory {
   public:
     CombinedCurrencyMatcher() = default;  // WARNING: Leaves the object in an unusable state
 
@@ -44,7 +44,7 @@ class U_I18N_API CombinedCurrencyMatcher : public NumberParseMatcher, public UMe
     UnicodeString toString() const override;
 
   private:
-    UChar fCurrencyCode[4];
+    char16_t fCurrencyCode[4];
     UnicodeString fCurrency1;
     UnicodeString fCurrency2;
 
@@ -65,9 +65,7 @@ class U_I18N_API CombinedCurrencyMatcher : public NumberParseMatcher, public UMe
     bool matchCurrency(StringSegment& segment, ParsedNumber& result, UErrorCode& status) const;
 };
 
-
-} // namespace impl
-} // namespace numparse
+} // namespace numparse::impl
 U_NAMESPACE_END
 
 #endif //__NUMPARSE_CURRENCY_H__

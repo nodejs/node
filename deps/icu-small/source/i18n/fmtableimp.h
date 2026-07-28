@@ -16,7 +16,7 @@
 
 U_NAMESPACE_BEGIN
 
-/**
+/** 
  * Maximum int64_t value that can be stored in a double without chancing losing precision.
  *   IEEE doubles have 53 bits of mantissa, 10 bits exponent, 1 bit sign.
  *   IBM Mainframes have 56 bits of mantissa, 7 bits of base 16 exponent, 1 bit sign.

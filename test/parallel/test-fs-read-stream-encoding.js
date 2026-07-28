@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const stream = require('stream');
@@ -8,10 +8,10 @@ const encoding = 'base64';
 
 const example = fixtures.path('x.txt');
 const assertStream = new stream.Writable({
-  write: function(chunk, enc, next) {
+  write: common.mustCall((chunk, enc, next) => {
     const expected = Buffer.from('xyz');
     assert(chunk.equals(expected));
-  }
+  }),
 });
 assertStream.setDefaultEncoding(encoding);
 fs.createReadStream(example, encoding).pipe(assertStream);

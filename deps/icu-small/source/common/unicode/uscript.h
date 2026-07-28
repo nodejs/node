@@ -484,6 +484,51 @@ typedef enum UScriptCode {
       /** @stable ICU 66 */
       USCRIPT_YEZIDI                        = 192,/* Yezi */
 
+      /** @stable ICU 70 */
+      USCRIPT_CYPRO_MINOAN                  = 193,/* Cpmn */
+      /** @stable ICU 70 */
+      USCRIPT_OLD_UYGHUR                    = 194,/* Ougr */
+      /** @stable ICU 70 */
+      USCRIPT_TANGSA                        = 195,/* Tnsa */
+      /** @stable ICU 70 */
+      USCRIPT_TOTO                          = 196,/* Toto */
+      /** @stable ICU 70 */
+      USCRIPT_VITHKUQI                      = 197,/* Vith */
+
+      /** @stable ICU 72 */
+      USCRIPT_KAWI                          = 198,/* Kawi */
+      /** @stable ICU 72 */
+      USCRIPT_NAG_MUNDARI                   = 199,/* Nagm */
+
+      /** @stable ICU 75 */
+      USCRIPT_ARABIC_NASTALIQ               = 200, /* Aran */
+
+      /** @stable ICU 76 */
+      USCRIPT_GARAY                         = 201, /* Gara */
+      /** @stable ICU 76 */
+      USCRIPT_GURUNG_KHEMA                  = 202, /* Gukh */
+      /** @stable ICU 76 */
+      USCRIPT_KIRAT_RAI                     = 203, /* Krai */
+      /** @stable ICU 76 */
+      USCRIPT_OL_ONAL                       = 204, /* Onao */
+      /** @stable ICU 76 */
+      USCRIPT_SUNUWAR                       = 205, /* Sunu */
+      /** @stable ICU 76 */
+      USCRIPT_TODHRI                        = 206, /* Todr */
+      /** @stable ICU 76 */
+      USCRIPT_TULU_TIGALARI                 = 207, /* Tutg */
+
+      /** @stable ICU 78 */
+      USCRIPT_BERIA_ERFE                    = 208, /* Berf */
+      /** @stable ICU 78 */
+      USCRIPT_SIDETIC                       = 209, /* Sidt */
+      /** @stable ICU 78 */
+      USCRIPT_TAI_YO                        = 210, /* Tayo */
+      /** @stable ICU 78 */
+      USCRIPT_TOLONG_SIKI                   = 211, /* Tols */
+      /** @stable ICU 78 */
+      USCRIPT_TRADITIONAL_HAN_WITH_LATIN    = 212, /* Hntl */
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UScriptCode value.
@@ -491,7 +536,7 @@ typedef enum UScriptCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    USCRIPT_CODE_LIMIT    = 193
+    USCRIPT_CODE_LIMIT    = 213
 #endif  // U_HIDE_DEPRECATED_API
 } UScriptCode;
 

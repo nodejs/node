@@ -11,6 +11,7 @@
 */
 
 #include "unicode/utypes.h"
+#include "unicode/rep.h"
 
 #if !UCONFIG_NO_TRANSLITERATION
 
@@ -40,14 +41,14 @@
 #include <stdio.h>
 #endif
 
-// UChar constants
-static const UChar LOCALE_SEP  = 95; // '_'
-//static const UChar ID_SEP      = 0x002D; /*-*/
-//static const UChar VARIANT_SEP = 0x002F; // '/'
+// char16_t constants
+static const char16_t LOCALE_SEP  = 95; // '_'
+//static const char16_t ID_SEP      = 0x002D; /*-*/
+//static const char16_t VARIANT_SEP = 0x002F; // '/'
 
 // String constants
-static const UChar ANY[] = { 0x41, 0x6E, 0x79, 0 }; // Any
-static const UChar LAT[] = { 0x4C, 0x61, 0x74, 0 }; // Lat
+static const char16_t ANY[] = { 0x41, 0x6E, 0x79, 0 }; // Any
+static const char16_t LAT[] = { 0x4C, 0x61, 0x74, 0 }; // Lat
 
 // empty string
 #define NO_VARIANT UnicodeString()
@@ -84,7 +85,7 @@ TransliteratorAlias::TransliteratorAlias(const UnicodeString& theAliasID,
                                          const UnicodeSet* cpdFilter) :
     ID(),
     aliasesOrRules(theAliasID),
-    transes(0),
+    transes(nullptr),
     compoundFilter(cpdFilter),
     direction(UTRANS_FORWARD),
     type(TransliteratorAlias::SIMPLE) {
@@ -107,8 +108,8 @@ TransliteratorAlias::TransliteratorAlias(const UnicodeString& theID,
                                          UTransDirection dir) :
     ID(theID),
     aliasesOrRules(rules),
-    transes(0),
-    compoundFilter(0),
+    transes(nullptr),
+    compoundFilter(nullptr),
     direction(dir),
     type(TransliteratorAlias::RULES) {
 }
@@ -121,16 +122,16 @@ TransliteratorAlias::~TransliteratorAlias() {
 Transliterator* TransliteratorAlias::create(UParseError& pe,
                                             UErrorCode& ec) {
     if (U_FAILURE(ec)) {
-        return 0;
+        return nullptr;
     }
-    Transliterator *t = NULL;
+    Transliterator *t = nullptr;
     switch (type) {
     case SIMPLE:
         t = Transliterator::createInstance(aliasesOrRules, UTRANS_FORWARD, pe, ec);
         if(U_FAILURE(ec)){
-            return 0;
+            return nullptr;
         }
-        if (compoundFilter != 0)
+        if (compoundFilter != nullptr)
             t->adoptFilter(compoundFilter->clone());
         break;
     case COMPOUND:
@@ -141,52 +142,47 @@ Transliterator* TransliteratorAlias::create(UParseError& pe,
             // to see whether there really are ID blocks at the beginning and end (by looking for U+FFFF, which
             // marks the position where an anonymous transliterator goes) and adjust accordingly
             int32_t anonymousRBTs = transes->size();
-            int32_t transCount = anonymousRBTs * 2 + 1;
-            if (!aliasesOrRules.isEmpty() && aliasesOrRules[0] == (UChar)(0xffff))
-                --transCount;
-            if (aliasesOrRules.length() >= 2 && aliasesOrRules[aliasesOrRules.length() - 1] == (UChar)(0xffff))
-                --transCount;
-            UnicodeString noIDBlock((UChar)(0xffff));
-            noIDBlock += ((UChar)(0xffff));
+            UnicodeString noIDBlock(static_cast<char16_t>(0xffff));
+            noIDBlock += static_cast<char16_t>(0xffff);
             int32_t pos = aliasesOrRules.indexOf(noIDBlock);
             while (pos >= 0) {
-                --transCount;
                 pos = aliasesOrRules.indexOf(noIDBlock, pos + 1);
             }
 
-            UVector transliterators(ec);
+            UVector transliterators(uprv_deleteUObject, nullptr, ec);
             UnicodeString idBlock;
-            int32_t blockSeparatorPos = aliasesOrRules.indexOf((UChar)(0xffff));
+            int32_t blockSeparatorPos = aliasesOrRules.indexOf(static_cast<char16_t>(0xffff));
             while (blockSeparatorPos >= 0) {
                 aliasesOrRules.extract(0, blockSeparatorPos, idBlock);
                 aliasesOrRules.remove(0, blockSeparatorPos + 1);
                 if (!idBlock.isEmpty())
-                    transliterators.addElement(Transliterator::createInstance(idBlock, UTRANS_FORWARD, pe, ec), ec);
+                    transliterators.adoptElement(Transliterator::createInstance(idBlock, UTRANS_FORWARD, pe, ec), ec);
                 if (!transes->isEmpty())
-                    transliterators.addElement(transes->orphanElementAt(0), ec);
-                blockSeparatorPos = aliasesOrRules.indexOf((UChar)(0xffff));
+                    transliterators.adoptElement(transes->orphanElementAt(0), ec);
+                blockSeparatorPos = aliasesOrRules.indexOf(static_cast<char16_t>(0xffff));
             }
             if (!aliasesOrRules.isEmpty())
-                transliterators.addElement(Transliterator::createInstance(aliasesOrRules, UTRANS_FORWARD, pe, ec), ec);
+                transliterators.adoptElement(Transliterator::createInstance(aliasesOrRules, UTRANS_FORWARD, pe, ec), ec);
             while (!transes->isEmpty())
-                transliterators.addElement(transes->orphanElementAt(0), ec);
+                transliterators.adoptElement(transes->orphanElementAt(0), ec);
+            transliterators.setDeleter(nullptr);
 
             if (U_SUCCESS(ec)) {
                 t = new CompoundTransliterator(ID, transliterators,
                         (compoundFilter ? compoundFilter->clone() : nullptr),
                         anonymousRBTs, pe, ec);
-                if (t == 0) {
+                if (t == nullptr) {
                     ec = U_MEMORY_ALLOCATION_ERROR;
-                    return 0;
+                    return nullptr;
                 }
             } else {
                 for (int32_t i = 0; i < transliterators.size(); i++)
-                    delete (Transliterator*)(transliterators.elementAt(i));
+                    delete static_cast<Transliterator*>(transliterators.elementAt(i));
             }
         }
         break;
     case RULES:
-        UPRV_UNREACHABLE; // don't call create() if isRuleBased() returns TRUE!
+        UPRV_UNREACHABLE_EXIT; // don't call create() if isRuleBased() returns true!
     }
     return t;
 }
@@ -247,8 +243,8 @@ class TransliteratorSpec : public UMemory {
     UnicodeString spec;
     UnicodeString nextSpec;
     UnicodeString scriptName;
-    UBool isSpecLocale; // TRUE if spec is a locale
-    UBool isNextLocale; // TRUE if nextSpec is a locale
+    UBool isSpecLocale; // true if spec is a locale
+    UBool isNextLocale; // true if nextSpec is a locale
     ResourceBundle* res;
 
     TransliteratorSpec(const TransliteratorSpec &other); // forbid copying of this class
@@ -257,20 +253,20 @@ class TransliteratorSpec : public UMemory {
 
 TransliteratorSpec::TransliteratorSpec(const UnicodeString& theSpec)
 : top(theSpec),
-  res(0)
+  res(nullptr)
 {
     UErrorCode status = U_ZERO_ERROR;
     Locale topLoc("");
     LocaleUtility::initLocaleFromName(theSpec, topLoc);
     if (!topLoc.isBogus()) {
         res = new ResourceBundle(U_ICUDATA_TRANSLIT, topLoc, status);
-        /* test for NULL */
-        if (res == 0) {
+        /* test for nullptr */
+        if (res == nullptr) {
             return;
         }
         if (U_FAILURE(status) || status == U_USING_DEFAULT_WARNING) {
             delete res;
-            res = 0;
+            res = nullptr;
         }
     }
 
@@ -285,7 +281,7 @@ TransliteratorSpec::TransliteratorSpec(const UnicodeString& theSpec)
     }
 
     // Canonicalize top
-    if (res != 0) {
+    if (res != nullptr) {
         // Canonicalize locale name
         UnicodeString locStr;
         LocaleUtility::initNameFromLocale(topLoc, locStr);
@@ -312,13 +308,13 @@ UBool TransliteratorSpec::hasFallback() const {
 void TransliteratorSpec::reset() {
     if (spec != top) {
         spec = top;
-        isSpecLocale = (res != 0);
+        isSpecLocale = (res != nullptr);
         setupNext();
     }
 }
 
 void TransliteratorSpec::setupNext() {
-    isNextLocale = FALSE;
+    isNextLocale = false;
     if (isSpecLocale) {
         nextSpec = spec;
         int32_t i = nextSpec.lastIndexOf(LOCALE_SEP);
@@ -326,7 +322,7 @@ void TransliteratorSpec::setupNext() {
         // to the scriptName.
         if (i > 0) {
             nextSpec.truncate(i);
-            isNextLocale = TRUE;
+            isNextLocale = true;
         } else {
             nextSpec = scriptName; // scriptName may be empty
         }
@@ -364,10 +360,10 @@ ResourceBundle& TransliteratorSpec::getBundle() const {
 #ifdef DEBUG_MEM
 
 // Vector of Entry pointers currently in use
-static UVector* DEBUG_entries = NULL;
+static UVector* DEBUG_entries = nullptr;
 
 static void DEBUG_setup() {
-    if (DEBUG_entries == NULL) {
+    if (DEBUG_entries == nullptr) {
         UErrorCode ec = U_ZERO_ERROR;
         DEBUG_entries = new UVector(ec);
     }
@@ -409,7 +405,7 @@ static void DEBUG_delEntry(TransliteratorEntry* e) {
 
 // Track object usage
 static void DEBUG_useEntry(TransliteratorEntry* e) {
-    if (e == NULL) return;
+    if (e == nullptr) return;
     DEBUG_setup();
     int i = DEBUG_findEntry(e);
     if (i < 0) {
@@ -478,8 +474,8 @@ private:
 };
 
 TransliteratorEntry::TransliteratorEntry() {
-    u.prototype = 0;
-    compoundFilter = NULL;
+    u.prototype = nullptr;
+    compoundFilter = nullptr;
     entryType = NONE;
     DEBUG_newEntry(this);
 }
@@ -495,8 +491,8 @@ TransliteratorEntry::~TransliteratorEntry() {
         // invalidates any RBTs that the user has instantiated.
         delete u.data;
     } else if (entryType == COMPOUND_RBT) {
-        while (u.dataVector != NULL && !u.dataVector->isEmpty())
-            delete (TransliterationRuleData*)u.dataVector->orphanElementAt(0);
+        while (u.dataVector != nullptr && !u.dataVector->isEmpty())
+            delete static_cast<TransliterationRuleData*>(u.dataVector->orphanElementAt(0));
         delete u.dataVector;
     }
     delete compoundFilter;
@@ -533,20 +529,18 @@ U_CDECL_END
 //----------------------------------------------------------------------
 
 TransliteratorRegistry::TransliteratorRegistry(UErrorCode& status) :
-    registry(TRUE, status),
-    specDAG(TRUE, SPECDAG_INIT_SIZE, status),
+    registry(true, status),
+    specDAG(true, SPECDAG_INIT_SIZE, status),
     variantList(VARIANT_LIST_INIT_SIZE, status),
-    availableIDs(AVAILABLE_IDS_INIT_SIZE, status)
+    availableIDs(true, AVAILABLE_IDS_INIT_SIZE, status)
 {
     registry.setValueDeleter(deleteEntry);
     variantList.setDeleter(uprv_deleteUObject);
     variantList.setComparer(uhash_compareCaselessUnicodeString);
     UnicodeString *emptyString = new UnicodeString();
-    if (emptyString != NULL) {
-        variantList.addElement(emptyString, status);
+    if (emptyString != nullptr) {
+        variantList.adoptElement(emptyString, status);
     }
-    availableIDs.setDeleter(uprv_deleteUObject);
-    availableIDs.setComparer(uhash_compareCaselessUnicodeString);
     specDAG.setValueDeleter(uhash_deleteHashtable);
 }
 
@@ -557,9 +551,9 @@ TransliteratorRegistry::~TransliteratorRegistry() {
 Transliterator* TransliteratorRegistry::get(const UnicodeString& ID,
                                             TransliteratorAlias*& aliasReturn,
                                             UErrorCode& status) {
-    U_ASSERT(aliasReturn == NULL);
+    U_ASSERT(aliasReturn == nullptr);
     TransliteratorEntry *entry = find(ID);
-    return (entry == 0) ? 0
+    return entry == nullptr ? nullptr
         : instantiateEntry(ID, entry, aliasReturn, status);
 }
 
@@ -567,19 +561,19 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
                                               TransliteratorParser& parser,
                                               TransliteratorAlias*& aliasReturn,
                                               UErrorCode& status) {
-    U_ASSERT(aliasReturn == NULL);
+    U_ASSERT(aliasReturn == nullptr);
     TransliteratorEntry *entry = find(ID);
 
-    if (entry == 0) {
+    if (entry == nullptr) {
         // We get to this point if there are two threads, one of which
         // is instantiating an ID, and another of which is removing
         // the same ID from the registry, and the timing is just right.
-        return 0;
+        return nullptr;
     }
 
     // The usage model for the caller is that they will first call
     // reg->get() inside the mutex, they'll get back an alias, they call
-    // alias->isRuleBased(), and if they get TRUE, they call alias->parse()
+    // alias->isRuleBased(), and if they get true, they call alias->parse()
     // outside the mutex, then reg->reget() inside the mutex again.  A real
     // mess, but it gets things working for ICU 3.0. [alan].
 
@@ -592,18 +586,18 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
     if (entry->entryType == TransliteratorEntry::RULES_FORWARD ||
         entry->entryType == TransliteratorEntry::RULES_REVERSE ||
         entry->entryType == TransliteratorEntry::LOCALE_RULES) {
-
+        
         if (parser.idBlockVector.isEmpty() && parser.dataVector.isEmpty()) {
-            entry->u.data = 0;
+            entry->u.data = nullptr;
             entry->entryType = TransliteratorEntry::ALIAS;
-            entry->stringArg = UNICODE_STRING_SIMPLE("Any-NULL");
+            entry->stringArg = UNICODE_STRING_SIMPLE("Any-nullptr");
         }
         else if (parser.idBlockVector.isEmpty() && parser.dataVector.size() == 1) {
-            entry->u.data = (TransliterationRuleData*)parser.dataVector.orphanElementAt(0);
+            entry->u.data = static_cast<TransliterationRuleData*>(parser.dataVector.orphanElementAt(0));
             entry->entryType = TransliteratorEntry::RBT_DATA;
         }
         else if (parser.idBlockVector.size() == 1 && parser.dataVector.isEmpty()) {
-            entry->stringArg = *(UnicodeString*)(parser.idBlockVector.elementAt(0));
+            entry->stringArg = *static_cast<UnicodeString*>(parser.idBlockVector.elementAt(0));
             entry->compoundFilter = parser.orphanCompoundFilter();
             entry->entryType = TransliteratorEntry::ALIAS;
         }
@@ -611,6 +605,8 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
             entry->entryType = TransliteratorEntry::COMPOUND_RBT;
             entry->compoundFilter = parser.orphanCompoundFilter();
             entry->u.dataVector = new UVector(status);
+            // TODO ICU-21701: missing check for nullptr and failed status.
+            //       Unclear how best to bail out.
             entry->stringArg.remove();
 
             int32_t limit = parser.idBlockVector.size();
@@ -619,14 +615,17 @@ Transliterator* TransliteratorRegistry::reget(const UnicodeString& ID,
 
             for (int32_t i = 0; i < limit; i++) {
                 if (i < parser.idBlockVector.size()) {
-                    UnicodeString* idBlock = (UnicodeString*)parser.idBlockVector.elementAt(i);
+                    UnicodeString* idBlock = static_cast<UnicodeString*>(parser.idBlockVector.elementAt(i));
                     if (!idBlock->isEmpty())
                         entry->stringArg += *idBlock;
                 }
                 if (!parser.dataVector.isEmpty()) {
-                    TransliterationRuleData* data = (TransliterationRuleData*)parser.dataVector.orphanElementAt(0);
+                    TransliterationRuleData* data = static_cast<TransliterationRuleData*>(parser.dataVector.orphanElementAt(0));
                     entry->u.dataVector->addElement(data, status);
-                    entry->stringArg += (UChar)0xffff;  // use U+FFFF to mark position of RBTs in ID block
+                    if (U_FAILURE(status)) {
+                        delete data;
+                    }
+                    entry->stringArg += static_cast<char16_t>(0xffff); // use U+FFFF to mark position of RBTs in ID block
                 }
             }
         }
@@ -642,7 +641,7 @@ void TransliteratorRegistry::put(Transliterator* adoptedProto,
                                  UErrorCode& ec)
 {
     TransliteratorEntry *entry = new TransliteratorEntry();
-    if (entry == NULL) {
+    if (entry == nullptr) {
         ec = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -656,7 +655,7 @@ void TransliteratorRegistry::put(const UnicodeString& ID,
                                  UBool visible,
                                  UErrorCode& ec) {
     TransliteratorEntry *entry = new TransliteratorEntry();
-    if (entry == NULL) {
+    if (entry == nullptr) {
         ec = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -671,14 +670,14 @@ void TransliteratorRegistry::put(const UnicodeString& ID,
                                  UBool visible,
                                  UErrorCode& ec) {
     TransliteratorEntry *entry = new TransliteratorEntry();
-    if (entry == NULL) {
+    if (entry == nullptr) {
         ec = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
     entry->entryType = (dir == UTRANS_FORWARD) ? TransliteratorEntry::RULES_FORWARD
         : TransliteratorEntry::RULES_REVERSE;
     if (readonlyResourceAlias) {
-        entry->stringArg.setTo(TRUE, resourceName.getBuffer(), -1);
+        entry->stringArg.setTo(true, resourceName.getBuffer(), -1);
     }
     else {
         entry->stringArg = resourceName;
@@ -693,10 +692,10 @@ void TransliteratorRegistry::put(const UnicodeString& ID,
                                  UErrorCode& /*ec*/) {
     TransliteratorEntry *entry = new TransliteratorEntry();
     // Null pointer check
-    if (entry != NULL) {
+    if (entry != nullptr) {
         entry->entryType = TransliteratorEntry::ALIAS;
         if (readonlyAliasAlias) {
-            entry->stringArg.setTo(TRUE, alias.getBuffer(), -1);
+            entry->stringArg.setTo(true, alias.getBuffer(), -1);
         }
         else {
             entry->stringArg = alias;
@@ -714,7 +713,7 @@ void TransliteratorRegistry::remove(const UnicodeString& ID) {
     TransliteratorIDParser::STVtoID(source, target, variant, id);
     registry.remove(id);
     removeSTV(source, target, variant);
-    availableIDs.removeElement((void*) &id);
+    availableIDs.remove(id);
 }
 
 //----------------------------------------------------------------------
@@ -727,8 +726,8 @@ void TransliteratorRegistry::remove(const UnicodeString& ID) {
  * To retrieve the actual IDs, call getAvailableID(i) with
  * i from 0 to countAvailableIDs() - 1.
  */
-int32_t TransliteratorRegistry::countAvailableIDs(void) const {
-    return availableIDs.size();
+int32_t TransliteratorRegistry::countAvailableIDs() const {
+    return availableIDs.count();
 }
 
 /**
@@ -738,71 +737,88 @@ int32_t TransliteratorRegistry::countAvailableIDs(void) const {
  * range, the result of getAvailableID(0) is returned.
  */
 const UnicodeString& TransliteratorRegistry::getAvailableID(int32_t index) const {
-    if (index < 0 || index >= availableIDs.size()) {
+    if (index < 0 || index >= availableIDs.count()) {
         index = 0;
     }
-    return *(const UnicodeString*) availableIDs[index];
+
+    int32_t pos = UHASH_FIRST;
+    const UHashElement *e = nullptr;
+    while (index-- >= 0) {
+        e = availableIDs.nextElement(pos);
+        if (e == nullptr) {
+            break;
+        }
+    }
+
+    if (e != nullptr) {
+        return *static_cast<UnicodeString*>(e->key.pointer);
+    }
+
+    // If the code reaches here, the hash table was likely modified during iteration.
+    // Return an statically initialized empty string due to reference return type.
+    static UnicodeString empty;
+    return empty;
 }
 
 StringEnumeration* TransliteratorRegistry::getAvailableIDs() const {
     return new Enumeration(*this);
 }
 
-int32_t TransliteratorRegistry::countAvailableSources(void) const {
+int32_t TransliteratorRegistry::countAvailableSources() const {
     return specDAG.count();
 }
 
 UnicodeString& TransliteratorRegistry::getAvailableSource(int32_t index,
                                                           UnicodeString& result) const {
     int32_t pos = UHASH_FIRST;
-    const UHashElement *e = 0;
+    const UHashElement* e = nullptr;
     while (index-- >= 0) {
         e = specDAG.nextElement(pos);
-        if (e == 0) {
+        if (e == nullptr) {
             break;
         }
     }
-    if (e == 0) {
+    if (e == nullptr) {
         result.truncate(0);
     } else {
-        result = *(UnicodeString*) e->key.pointer;
+        result = *static_cast<UnicodeString*>(e->key.pointer);
     }
     return result;
 }
 
 int32_t TransliteratorRegistry::countAvailableTargets(const UnicodeString& source) const {
-    Hashtable *targets = (Hashtable*) specDAG.get(source);
-    return (targets == 0) ? 0 : targets->count();
+    Hashtable* targets = static_cast<Hashtable*>(specDAG.get(source));
+    return (targets == nullptr) ? 0 : targets->count();
 }
 
 UnicodeString& TransliteratorRegistry::getAvailableTarget(int32_t index,
                                                           const UnicodeString& source,
                                                           UnicodeString& result) const {
-    Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    Hashtable* targets = static_cast<Hashtable*>(specDAG.get(source));
+    if (targets == nullptr) {
         result.truncate(0); // invalid source
         return result;
     }
     int32_t pos = UHASH_FIRST;
-    const UHashElement *e = 0;
+    const UHashElement* e = nullptr;
     while (index-- >= 0) {
         e = targets->nextElement(pos);
-        if (e == 0) {
+        if (e == nullptr) {
             break;
         }
     }
-    if (e == 0) {
+    if (e == nullptr) {
         result.truncate(0); // invalid index
     } else {
-        result = *(UnicodeString*) e->key.pointer;
+        result = *static_cast<UnicodeString*>(e->key.pointer);
     }
     return result;
 }
 
 int32_t TransliteratorRegistry::countAvailableVariants(const UnicodeString& source,
                                                        const UnicodeString& target) const {
-    Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    Hashtable* targets = static_cast<Hashtable*>(specDAG.get(source));
+    if (targets == nullptr) {
         return 0;
     }
     uint32_t varMask = targets->geti(target);
@@ -820,8 +836,8 @@ UnicodeString& TransliteratorRegistry::getAvailableVariant(int32_t index,
                                                            const UnicodeString& source,
                                                            const UnicodeString& target,
                                                            UnicodeString& result) const {
-    Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    Hashtable* targets = static_cast<Hashtable*>(specDAG.get(source));
+    if (targets == nullptr) {
         result.truncate(0); // invalid source
         return result;
     }
@@ -831,8 +847,8 @@ UnicodeString& TransliteratorRegistry::getAvailableVariant(int32_t index,
     while (varMask > 0) {
         if (varMask & 1) {
             if (varCount == index) {
-                UnicodeString *v = (UnicodeString*) variantList.elementAt(varListIndex);
-                if (v != NULL) {
+                UnicodeString* v = static_cast<UnicodeString*>(variantList.elementAt(varListIndex));
+                if (v != nullptr) {
                     result = *v;
                     return result;
                 }
@@ -852,14 +868,14 @@ UnicodeString& TransliteratorRegistry::getAvailableVariant(int32_t index,
 //----------------------------------------------------------------------
 
 TransliteratorRegistry::Enumeration::Enumeration(const TransliteratorRegistry& _reg) :
-    index(0), reg(_reg) {
+    pos(UHASH_FIRST), size(_reg.availableIDs.count()), reg(_reg) {
 }
 
 TransliteratorRegistry::Enumeration::~Enumeration() {
 }
 
 int32_t TransliteratorRegistry::Enumeration::count(UErrorCode& /*status*/) const {
-    return reg.availableIDs.size();
+    return size;
 }
 
 const UnicodeString* TransliteratorRegistry::Enumeration::snext(UErrorCode& status) {
@@ -873,24 +889,29 @@ const UnicodeString* TransliteratorRegistry::Enumeration::snext(UErrorCode& stat
     // doing as long as there is some possibility of removing this code in favor
     // of some new code based on Doug's service framework.
     if (U_FAILURE(status)) {
-        return NULL;
+        return nullptr;
     }
-    int32_t n = reg.availableIDs.size();
-    if (index > n) {
+    int32_t n = reg.availableIDs.count();
+    if (n != size) {
         status = U_ENUM_OUT_OF_SYNC_ERROR;
+        return nullptr;
     }
-    // index == n is okay -- this means we've reached the end
-    if (index < n) {
-        // Copy the string! This avoids lifetime problems.
-        unistr = *(const UnicodeString*)reg.availableIDs[index++];
-        return &unistr;
-    } else {
-        return NULL;
+
+    const UHashElement* element = reg.availableIDs.nextElement(pos);
+    if (element == nullptr) {
+        // If the code reaches this point, it means that it's out of sync
+        // or the caller keeps asking for snext().
+        return nullptr;
     }
+
+    // Copy the string! This avoids lifetime problems.
+    unistr = *static_cast<const UnicodeString*>(element->key.pointer);
+    return &unistr;
 }
 
 void TransliteratorRegistry::Enumeration::reset(UErrorCode& /*status*/) {
-    index = 0;
+    pos = UHASH_FIRST;
+    size = reg.availableIDs.count();
 }
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(TransliteratorRegistry::Enumeration)
@@ -910,7 +931,7 @@ void TransliteratorRegistry::registerEntry(const UnicodeString& source,
     UnicodeString ID;
     UnicodeString s(source);
     if (s.length() == 0) {
-        s.setTo(TRUE, ANY, 3);
+        s.setTo(true, ANY, 3);
     }
     TransliteratorIDParser::STVtoID(source, target, variant, ID);
     registerEntry(ID, s, target, variant, adopted, visible);
@@ -945,18 +966,12 @@ void TransliteratorRegistry::registerEntry(const UnicodeString& ID,
     registry.put(ID, adopted, status);
     if (visible) {
         registerSTV(source, target, variant);
-        if (!availableIDs.contains((void*) &ID)) {
-            UnicodeString *newID = ID.clone();
-            // Check to make sure newID was created.
-            if (newID != NULL) {
-                // NUL-terminate the ID string
-                newID->getTerminatedBuffer();
-                availableIDs.addElement(newID, status);
-            }
+        if (!availableIDs.containsKey(ID)) {
+            availableIDs.puti(ID, /* unused value */ 1, status);
         }
     } else {
         removeSTV(source, target, variant);
-        availableIDs.removeElement((void*) &ID);
+        availableIDs.remove(ID);
     }
 }
 
@@ -970,16 +985,16 @@ void TransliteratorRegistry::registerSTV(const UnicodeString& source,
     // assert(source.length() > 0);
     // assert(target.length() > 0);
     UErrorCode status = U_ZERO_ERROR;
-    Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == 0) {
+    Hashtable* targets = static_cast<Hashtable*>(specDAG.get(source));
+    if (targets == nullptr) {
         int32_t size = 3;
         if (source.compare(ANY,3) == 0) {
             size = ANY_TARGETS_INIT_SIZE;
         } else if (source.compare(LAT,3) == 0) {
             size = LAT_TARGETS_INIT_SIZE;
         }
-        targets = new Hashtable(TRUE, size, status);
-        if (U_FAILURE(status) || targets == NULL) {
+        targets = new Hashtable(true, size, status);
+        if (U_FAILURE(status) || targets == nullptr) {
             return;
         }
         specDAG.put(source, targets, status);
@@ -991,8 +1006,8 @@ void TransliteratorRegistry::registerSTV(const UnicodeString& source,
             return;
         }
         UnicodeString *variantEntry = new UnicodeString(variant);
-        if (variantEntry != NULL) {
-            variantList.addElement(variantEntry, status);
+        if (variantEntry != nullptr) {
+            variantList.adoptElement(variantEntry, status);
             if (U_SUCCESS(status)) {
                 variantListIndex = variantList.size() - 1;
             }
@@ -1015,8 +1030,8 @@ void TransliteratorRegistry::removeSTV(const UnicodeString& source,
     // assert(source.length() > 0);
     // assert(target.length() > 0);
     UErrorCode status = U_ZERO_ERROR;
-    Hashtable *targets = (Hashtable*) specDAG.get(source);
-    if (targets == NULL) {
+    Hashtable* targets = static_cast<Hashtable*>(specDAG.get(source));
+    if (targets == nullptr) {
         return; // should never happen for valid s-t/v
     }
     uint32_t varMask = targets->geti(target);
@@ -1050,7 +1065,7 @@ TransliteratorEntry* TransliteratorRegistry::findInDynamicStore(const Transliter
                                                   const UnicodeString& variant) const {
     UnicodeString ID;
     TransliteratorIDParser::STVtoID(src, trg, variant, ID);
-    TransliteratorEntry *e = (TransliteratorEntry*) registry.get(ID);
+    TransliteratorEntry* e = static_cast<TransliteratorEntry*>(registry.get(ID));
     DEBUG_useEntry(e);
     return e;
 }
@@ -1069,7 +1084,7 @@ TransliteratorEntry* TransliteratorRegistry::findInDynamicStore(const Transliter
 TransliteratorEntry* TransliteratorRegistry::findInStaticStore(const TransliteratorSpec& src,
                                                  const TransliteratorSpec& trg,
                                                  const UnicodeString& variant) {
-    TransliteratorEntry* entry = 0;
+    TransliteratorEntry* entry = nullptr;
     if (src.isLocale()) {
         entry = findInBundle(src, trg, variant, UTRANS_FORWARD);
     } else if (trg.isLocale()) {
@@ -1078,19 +1093,19 @@ TransliteratorEntry* TransliteratorRegistry::findInStaticStore(const Translitera
 
     // If we found an entry, store it in the Hashtable for next
     // time.
-    if (entry != 0) {
-        registerEntry(src.getTop(), trg.getTop(), variant, entry, FALSE);
+    if (entry != nullptr) {
+        registerEntry(src.getTop(), trg.getTop(), variant, entry, false);
     }
 
     return entry;
 }
 
 // As of 2.0, resource bundle keys cannot contain '_'
-static const UChar TRANSLITERATE_TO[] = {84,114,97,110,115,108,105,116,101,114,97,116,101,84,111,0}; // "TransliterateTo"
+static const char16_t TRANSLITERATE_TO[] = {84,114,97,110,115,108,105,116,101,114,97,116,101,84,111,0}; // "TransliterateTo"
 
-static const UChar TRANSLITERATE_FROM[] = {84,114,97,110,115,108,105,116,101,114,97,116,101,70,114,111,109,0}; // "TransliterateFrom"
+static const char16_t TRANSLITERATE_FROM[] = {84,114,97,110,115,108,105,116,101,114,97,116,101,70,114,111,109,0}; // "TransliterateFrom"
 
-static const UChar TRANSLITERATE[] = {84,114,97,110,115,108,105,116,101,114,97,116,101,0}; // "Transliterate"
+static const char16_t TRANSLITERATE[] = {84,114,97,110,115,108,105,116,101,114,97,116,101,0}; // "Transliterate"
 
 /**
  * Attempt to find an entry in a single resource bundle.  This is
@@ -1158,13 +1173,13 @@ TransliteratorEntry* TransliteratorRegistry::findInBundle(const TransliteratorSp
 
     if (pass==2) {
         // Failed
-        return NULL;
+        return nullptr;
     }
 
     // We have succeeded in loading a string from the locale
     // resources.  Create a new registry entry to hold it and return it.
     TransliteratorEntry *entry = new TransliteratorEntry();
-    if (entry != 0) {
+    if (entry != nullptr) {
         // The direction is always forward for the
         // TransliterateTo_xxx and TransliterateFrom_xxx
         // items; those are unidirectional forward rules.
@@ -1194,12 +1209,12 @@ TransliteratorEntry* TransliteratorRegistry::find(const UnicodeString& ID) {
  * Top-level find method.  Attempt to find a source-target/variant in
  * either the dynamic or the static (locale resource) store.  Perform
  * fallback.
- *
+ * 
  * Lookup sequence for ss_SS_SSS-tt_TT_TTT/v:
  *
  *   ss_SS_SSS-tt_TT_TTT/v -- in hashtable
  *   ss_SS_SSS-tt_TT_TTT/v -- in ss_SS_SSS (no fallback)
- *
+ * 
  *     repeat with t = tt_TT_TTT, tt_TT, tt, and tscript
  *
  *     ss_SS_SSS-t/ *
@@ -1214,7 +1229,7 @@ TransliteratorEntry* TransliteratorRegistry::find(const UnicodeString& ID) {
 TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
                                     UnicodeString& target,
                                     UnicodeString& variant) {
-
+    
     TransliteratorSpec src(source);
     TransliteratorSpec trg(target);
     TransliteratorEntry* entry;
@@ -1224,24 +1239,24 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
     // ICU ticket #8089
     UnicodeString ID;
     TransliteratorIDParser::STVtoID(source, target, variant, ID);
-    entry = (TransliteratorEntry*) registry.get(ID);
-    if (entry != 0) {
+    entry = static_cast<TransliteratorEntry*>(registry.get(ID));
+    if (entry != nullptr) {
         // std::string ss;
         // std::cout << ID.toUTF8String(ss) << std::endl;
         return entry;
     }
 
     if (variant.length() != 0) {
-
+        
         // Seek exact match in hashtable
         entry = findInDynamicStore(src, trg, variant);
-        if (entry != 0) {
+        if (entry != nullptr) {
             return entry;
         }
 
         // Seek exact match in locale resources
         entry = findInStaticStore(src, trg, variant);
-        if (entry != 0) {
+        if (entry != nullptr) {
             return entry;
         }
     }
@@ -1251,13 +1266,13 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
         for (;;) {
             // Seek match in hashtable
             entry = findInDynamicStore(src, trg, NO_VARIANT);
-            if (entry != 0) {
+            if (entry != nullptr) {
                 return entry;
             }
 
             // Seek match in locale resources
             entry = findInStaticStore(src, trg, NO_VARIANT);
-            if (entry != 0) {
+            if (entry != nullptr) {
                 return entry;
             }
             if (!src.hasFallback()) {
@@ -1271,7 +1286,7 @@ TransliteratorEntry* TransliteratorRegistry::find(UnicodeString& source,
         trg.next();
     }
 
-    return 0;
+    return nullptr;
 }
 
 /**
@@ -1290,69 +1305,70 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
                                                          TransliteratorEntry *entry,
                                                          TransliteratorAlias* &aliasReturn,
                                                          UErrorCode& status) {
-    Transliterator *t = 0;
+    Transliterator* t = nullptr;
     U_ASSERT(aliasReturn == 0);
 
     switch (entry->entryType) {
     case TransliteratorEntry::RBT_DATA:
         t = new RuleBasedTransliterator(ID, entry->u.data);
-        if (t == 0) {
+        if (t == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
         return t;
     case TransliteratorEntry::PROTOTYPE:
         t = entry->u.prototype->clone();
-        if (t == 0) {
+        if (t == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
         return t;
     case TransliteratorEntry::ALIAS:
         aliasReturn = new TransliteratorAlias(entry->stringArg, entry->compoundFilter);
-        if (aliasReturn == 0) {
+        if (aliasReturn == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
-        return 0;
+        return nullptr;
     case TransliteratorEntry::FACTORY:
         t = entry->u.factory.function(ID, entry->u.factory.context);
-        if (t == 0) {
+        if (t == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
         return t;
     case TransliteratorEntry::COMPOUND_RBT:
         {
-            UVector* rbts = new UVector(entry->u.dataVector->size(), status);
+            UVector* rbts = new UVector(uprv_deleteUObject, nullptr, entry->u.dataVector->size(), status);
             // Check for null pointer
-            if (rbts == NULL) {
+            if (rbts == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
-                return NULL;
+                return nullptr;
             }
             int32_t passNumber = 1;
             for (int32_t i = 0; U_SUCCESS(status) && i < entry->u.dataVector->size(); i++) {
                 // TODO: Should passNumber be turned into a decimal-string representation (1 -> "1")?
                 Transliterator* tl = new RuleBasedTransliterator(UnicodeString(CompoundTransliterator::PASS_STRING) + UnicodeString(passNumber++),
-                    (TransliterationRuleData*)(entry->u.dataVector->elementAt(i)), FALSE);
-                if (tl == 0)
+                    static_cast<TransliterationRuleData*>(entry->u.dataVector->elementAt(i)), false);
+                if (tl == nullptr)
                     status = U_MEMORY_ALLOCATION_ERROR;
                 else
-                    rbts->addElement(tl, status);
+                    rbts->adoptElement(tl, status);
             }
             if (U_FAILURE(status)) {
                 delete rbts;
-                return 0;
+                return nullptr;
             }
+            rbts->setDeleter(nullptr);
             aliasReturn = new TransliteratorAlias(ID, entry->stringArg, rbts, entry->compoundFilter);
         }
-        if (aliasReturn == 0) {
+        if (aliasReturn == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
-        return 0;
+        return nullptr;
     case TransliteratorEntry::LOCALE_RULES:
         aliasReturn = new TransliteratorAlias(ID, entry->stringArg,
-                                              (UTransDirection) entry->intArg);
-        if (aliasReturn == 0) {
+                                              static_cast<UTransDirection>(entry->intArg));
+        if (aliasReturn == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
         }
-        return 0;
+        return nullptr;
     case TransliteratorEntry::RULES_FORWARD:
     case TransliteratorEntry::RULES_REVERSE:
         // Process the rule data into a TransliteratorRuleData object,
@@ -1360,7 +1376,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
         // we modify the registry with the parsed data and retry.
         {
             TransliteratorParser parser(status);
-
+            
             // We use the file name, taken from another resource bundle
             // 2-d array at static init time, as a locale language.  We're
             // just using the locale mechanism to map through to a file
@@ -1369,7 +1385,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
             //UResourceBundle *bundle = ures_openDirect(0, ch, &status);
             UnicodeString rules = entry->stringArg;
             //ures_close(bundle);
-
+            
             //if (U_FAILURE(status)) {
                 // We have a failure of some kind.  Remove the ID from the
                 // registry so we don't keep trying.  NOTE: This will throw off
@@ -1379,7 +1395,7 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
                 // or unrecoverable run time memory failures.
             //    remove(ID);
             //} else {
-
+                
                 // If the status indicates a failure, then we don't have any
                 // rules -- there is probably an installation error.  The list
                 // in the root locale should correspond to all the installed
@@ -1388,14 +1404,14 @@ Transliterator* TransliteratorRegistry::instantiateEntry(const UnicodeString& ID
                 aliasReturn = new TransliteratorAlias(ID, rules,
                     ((entry->entryType == TransliteratorEntry::RULES_REVERSE) ?
                      UTRANS_REVERSE : UTRANS_FORWARD));
-                if (aliasReturn == 0) {
+                if (aliasReturn == nullptr) {
                     status = U_MEMORY_ALLOCATION_ERROR;
                 }
             //}
         }
-        return 0;
+        return nullptr;
     default:
-        UPRV_UNREACHABLE; // can't get here
+        UPRV_UNREACHABLE_EXIT; // can't get here
     }
 }
 U_NAMESPACE_END

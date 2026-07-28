@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 #include "src/compiler/redundancy-elimination.h"
+
 #include "src/codegen/tick-counter.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/feedback-source.h"
+#include "src/compiler/js-graph.h"
 #include "test/unittests/compiler/graph-reducer-unittest.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
-#include "testing/gmock-support.h"
 
 using testing::_;
 using testing::NiceMock;
@@ -23,8 +23,12 @@ class RedundancyEliminationTest : public GraphTest {
  public:
   explicit RedundancyEliminationTest(int num_parameters = 4)
       : GraphTest(num_parameters),
-        reducer_(&editor_, zone()),
-        simplified_(zone()) {
+        javascript_(zone()),
+        simplified_(zone()),
+        machine_(zone()),
+        jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
+                 &machine_),
+        reducer_(&editor_, &jsgraph_, zone()) {
     // Initialize the {reducer_} state for the Start node.
     reducer_.Reduce(graph()->start());
 
@@ -32,16 +36,8 @@ class RedundancyEliminationTest : public GraphTest {
     FeedbackVectorSpec spec(zone());
     FeedbackSlot slot1 = spec.AddCallICSlot();
     FeedbackSlot slot2 = spec.AddCallICSlot();
-    Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate(), &spec);
-    Handle<SharedFunctionInfo> shared =
-        isolate()->factory()->NewSharedFunctionInfoForBuiltin(
-            isolate()->factory()->empty_string(), Builtins::kIllegal);
-    shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
-        ClosureFeedbackCellArray::New(isolate(), shared);
-    IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate()));
-    Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
-        isolate(), shared, closure_feedback_cell_array, &is_compiled_scope);
+    Handle<FeedbackVector> feedback_vector =
+        FeedbackVector::NewForTesting(isolate(), &spec);
     vector_slot_pairs_.push_back(FeedbackSource());
     vector_slot_pairs_.push_back(FeedbackSource(feedback_vector, slot1));
     vector_slot_pairs_.push_back(FeedbackSource(feedback_vector, slot2));
@@ -60,8 +56,11 @@ class RedundancyEliminationTest : public GraphTest {
   NiceMock<MockAdvancedReducerEditor> editor_;
   std::vector<FeedbackSource> vector_slot_pairs_;
   FeedbackSource feedback2_;
-  RedundancyElimination reducer_;
+  JSOperatorBuilder javascript_;
   SimplifiedOperatorBuilder simplified_;
+  MachineOperatorBuilder machine_;
+  JSGraph jsgraph_;
+  RedundancyElimination reducer_;
 };
 
 namespace {
@@ -77,7 +76,6 @@ const CheckTaggedInputMode kCheckTaggedInputModes[] = {
 const NumberOperationHint kNumberOperationHints[] = {
     NumberOperationHint::kSignedSmall,
     NumberOperationHint::kSignedSmallInputs,
-    NumberOperationHint::kSigned32,
     NumberOperationHint::kNumber,
     NumberOperationHint::kNumberOrOddball,
 };
@@ -1165,10 +1163,10 @@ TEST_F(RedundancyEliminationTest,
 }
 
 // -----------------------------------------------------------------------------
-// SpeculativeSafeIntegerAdd
+// SpeculativeSmallIntegerAdd
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerAddWithCheckBoundsBetterType) {
+       SpeculativeSmallIntegerAddWithCheckBoundsBetterType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1185,18 +1183,18 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* add2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerAdd(hint), lhs,
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerAdd(hint), lhs,
                            rhs, effect, control);
       Reduction r2 = Reduce(add2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerAdd(hint, check1, rhs, _, _));
+                  IsSpeculativeSmallIntegerAdd(hint, check1, rhs, _, _));
     }
   }
 }
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerAddWithCheckBoundsSameType) {
+       SpeculativeSmallIntegerAddWithCheckBoundsSameType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1213,21 +1211,21 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* add2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerAdd(hint), lhs,
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerAdd(hint), lhs,
                            rhs, effect, control);
       Reduction r2 = Reduce(add2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerAdd(hint, lhs, rhs, _, _));
+                  IsSpeculativeSmallIntegerAdd(hint, lhs, rhs, _, _));
     }
   }
 }
 
 // -----------------------------------------------------------------------------
-// SpeculativeSafeIntegerSubtract
+// SpeculativeSmallIntegerSubtract
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerSubtractWithCheckBoundsBetterType) {
+       SpeculativeSmallIntegerSubtractWithCheckBoundsBetterType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1244,18 +1242,18 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* subtract2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerSubtract(hint),
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerSubtract(hint),
                            lhs, rhs, effect, control);
       Reduction r2 = Reduce(subtract2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerSubtract(hint, check1, rhs, _, _));
+                  IsSpeculativeSmallIntegerSubtract(hint, check1, rhs, _, _));
     }
   }
 }
 
 TEST_F(RedundancyEliminationTest,
-       SpeculativeSafeIntegerSubtractWithCheckBoundsSameType) {
+       SpeculativeSmallIntegerSubtractWithCheckBoundsSameType) {
   Typer typer(broker(), Typer::kNoFlags, graph(), tick_counter());
   TRACED_FOREACH(FeedbackSource, feedback, vector_slot_pairs()) {
     TRACED_FOREACH(NumberOperationHint, hint, kNumberOperationHints) {
@@ -1272,12 +1270,12 @@ TEST_F(RedundancyEliminationTest,
       EXPECT_EQ(r1.replacement(), check1);
 
       Node* subtract2 = effect =
-          graph()->NewNode(simplified()->SpeculativeSafeIntegerSubtract(hint),
+          graph()->NewNode(simplified()->SpeculativeSmallIntegerSubtract(hint),
                            lhs, rhs, effect, control);
       Reduction r2 = Reduce(subtract2);
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(r2.replacement(),
-                  IsSpeculativeSafeIntegerSubtract(hint, lhs, rhs, _, _));
+                  IsSpeculativeSmallIntegerSubtract(hint, lhs, rhs, _, _));
     }
   }
 }

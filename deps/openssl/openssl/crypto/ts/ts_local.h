@@ -1,7 +1,7 @@
 /*
- * Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -98,93 +98,34 @@ struct TS_status_info_st {
     ASN1_BIT_STRING *failure_info;
 };
 
-/*-
- * IssuerSerial ::= SEQUENCE {
- *         issuer                   GeneralNames,
- *         serialNumber             CertificateSerialNumber
- *         }
- */
-struct ESS_issuer_serial {
-    STACK_OF(GENERAL_NAME) *issuer;
-    ASN1_INTEGER *serial;
-};
-
-/*-
- * ESSCertID ::=  SEQUENCE {
- *         certHash                 Hash,
- *         issuerSerial             IssuerSerial OPTIONAL
- * }
- */
-struct ESS_cert_id {
-    ASN1_OCTET_STRING *hash;    /* Always SHA-1 digest. */
-    ESS_ISSUER_SERIAL *issuer_serial;
-};
-
-/*-
- * SigningCertificate ::=  SEQUENCE {
- *        certs        SEQUENCE OF ESSCertID,
- *        policies     SEQUENCE OF PolicyInformation OPTIONAL
- * }
- */
-struct ESS_signing_cert {
-    STACK_OF(ESS_CERT_ID) *cert_ids;
-    STACK_OF(POLICYINFO) *policy_info;
-};
-
-/*-
- * ESSCertIDv2 ::=  SEQUENCE {
- *        hashAlgorithm           AlgorithmIdentifier
- *                DEFAULT {algorithm id-sha256},
- *        certHash                Hash,
- *        issuerSerial            IssuerSerial OPTIONAL
- * }
- */
-
-struct ESS_cert_id_v2_st {
-    X509_ALGOR *hash_alg;       /* Default: SHA-256 */
-    ASN1_OCTET_STRING *hash;
-    ESS_ISSUER_SERIAL *issuer_serial;
-};
-
-/*-
- * SigningCertificateV2 ::= SEQUENCE {
- *        certs                   SEQUENCE OF ESSCertIDv2,
- *        policies                SEQUENCE OF PolicyInformation OPTIONAL
- * }
- */
-
-struct ESS_signing_cert_v2_st {
-    STACK_OF(ESS_CERT_ID_V2) *cert_ids;
-    STACK_OF(POLICYINFO) *policy_info;
-};
-
-
 struct TS_resp_ctx {
     X509 *signer_cert;
     EVP_PKEY *signer_key;
     const EVP_MD *signer_md;
     const EVP_MD *ess_cert_id_digest;
-    STACK_OF(X509) *certs;      /* Certs to include in signed data. */
+    STACK_OF(X509) *certs; /* Certs to include in signed data. */
     STACK_OF(ASN1_OBJECT) *policies; /* Acceptable policies. */
     ASN1_OBJECT *default_policy; /* It may appear in policies, too. */
-    STACK_OF(EVP_MD) *mds;      /* Acceptable message digests. */
-    ASN1_INTEGER *seconds;      /* accuracy, 0 means not specified. */
-    ASN1_INTEGER *millis;       /* accuracy, 0 means not specified. */
-    ASN1_INTEGER *micros;       /* accuracy, 0 means not specified. */
-    unsigned clock_precision_digits; /* fraction of seconds in time stamp
+    STACK_OF(EVP_MD) *mds; /* Acceptable message digests. */
+    ASN1_INTEGER *seconds; /* accuracy, 0 means not specified. */
+    ASN1_INTEGER *millis; /* accuracy, 0 means not specified. */
+    ASN1_INTEGER *micros; /* accuracy, 0 means not specified. */
+    unsigned clock_precision_digits; /* fraction of seconds in timestamp
                                       * token. */
-    unsigned flags;             /* Optional info, see values above. */
+    unsigned flags; /* Optional info, see values above. */
     /* Callback functions. */
     TS_serial_cb serial_cb;
-    void *serial_cb_data;       /* User data for serial_cb. */
+    void *serial_cb_data; /* User data for serial_cb. */
     TS_time_cb time_cb;
-    void *time_cb_data;         /* User data for time_cb. */
+    void *time_cb_data; /* User data for time_cb. */
     TS_extension_cb extension_cb;
-    void *extension_cb_data;    /* User data for extension_cb. */
+    void *extension_cb_data; /* User data for extension_cb. */
     /* These members are used only while creating the response. */
     TS_REQ *request;
     TS_RESP *response;
     TS_TST_INFO *tst_info;
+    OSSL_LIB_CTX *libctx;
+    char *propq;
 };
 
 struct TS_verify_ctx {

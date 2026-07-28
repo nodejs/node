@@ -173,7 +173,7 @@ ufmt_getDouble(UFormattable* fmt, UErrorCode *status);
  * as appropriate, is returned and the status is set to
  * U_INVALID_FORMAT_ERROR.  If this object is of type UFMT_INT64 and
  * it fits within a long, then no precision is lost.  If it is of
- * type kDouble or kDecimalNumber, then a conversion is peformed, with
+ * type kDouble or kDecimalNumber, then a conversion is performed, with
  * truncation of any fractional part.  If the type is UFMT_OBJECT and
  * the object is a Measure, then the result of
  * getNumber().getLong(status) is returned.  If this object is
@@ -195,7 +195,7 @@ ufmt_getLong(UFormattable* fmt, UErrorCode *status);
  * the maximum or minimum int64 value, as appropriate, is returned
  * and the status is set to U_INVALID_FORMAT_ERROR.  If the
  * magnitude fits in an int64, then a casting conversion is
- * peformed, with truncation of any fractional part.  If the type
+ * performed, with truncation of any fractional part.  If the type
  * is UFMT_OBJECT and the object is a Measure, then the result of
  * getNumber().getDouble(status) is returned.  If this object is
  * neither a numeric type nor a Measure, then 0 is returned and
@@ -267,7 +267,7 @@ ufmt_getArrayItemByIndex(UFormattable* fmt, int32_t n, UErrorCode *status);
  * the full precision and range of the original input, unconstrained by
  * the limits of a double floating point or a 64 bit int.
  *
- * This function is not thread safe, and therfore is not declared const,
+ * This function is not thread safe, and therefore is not declared const,
  * even though it is logically const.
  * The resulting buffer is owned by the UFormattable and is invalid if any other functions are
  * called on the UFormattable.

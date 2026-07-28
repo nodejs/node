@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
+#define V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
+
+#include "src/common/globals.h"
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
-#define V8_OBJECTS_JS_RELATIVE_TIME_FORMAT_H_
 
 #include <set>
 #include <string>
@@ -29,35 +30,37 @@ class RelativeDateTimeFormatter;
 namespace v8 {
 namespace internal {
 
+#include "torque-generated/src/objects/js-relative-time-format-tq.inc"
+
 class JSRelativeTimeFormat
     : public TorqueGeneratedJSRelativeTimeFormat<JSRelativeTimeFormat,
                                                  JSObject> {
  public:
   // Creates relative time format object with properties derived from input
   // locales and options.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSRelativeTimeFormat> New(
-      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSRelativeTimeFormat> New(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options, const char* method_name);
 
-  V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
-      Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder);
+  V8_WARN_UNUSED_RESULT static DirectHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder);
 
-  Handle<String> NumericAsString() const;
+  Handle<String> NumericAsString(Isolate* isolate) const;
 
   // ecma402/#sec-Intl.RelativeTimeFormat.prototype.format
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> Format(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Format(
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
-      Handle<JSRelativeTimeFormat> format);
+      DirectHandle<JSRelativeTimeFormat> format);
 
   // ecma402/#sec-Intl.RelativeTimeFormat.prototype.formatToParts
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
-      Handle<JSRelativeTimeFormat> format);
+      DirectHandle<JSRelativeTimeFormat> format);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
   // RelativeTimeFormat accessors.
-  DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
+  DECL_ACCESSORS(icu_formatter, Tagged<Managed<icu::RelativeDateTimeFormatter>>)
 
   // Numeric: identifying whether numerical descriptions are always used, or
   // used only when no more specific version is available (e.g., "1 day ago" vs
@@ -75,8 +78,8 @@ class JSRelativeTimeFormat
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_JS_RELATIVE_TIME_FORMAT_FLAGS()
 
-  STATIC_ASSERT(Numeric::AUTO <= NumericBit::kMax);
-  STATIC_ASSERT(Numeric::ALWAYS <= NumericBit::kMax);
+  static_assert(NumericBit::is_valid(Numeric::AUTO));
+  static_assert(NumericBit::is_valid(Numeric::ALWAYS));
 
   DECL_PRINTER(JSRelativeTimeFormat)
 

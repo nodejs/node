@@ -1,0 +1,7 @@
+*%(basename)s:17: ReferenceError: Cannot access 'x' before initialization
+    print(x);   // crash here due to seeing a hole
+          ^
+ReferenceError: Cannot access 'x' before initialization
+    at trigger (*%(basename)s:17:11)
+    at *%(basename)s:21:1
+

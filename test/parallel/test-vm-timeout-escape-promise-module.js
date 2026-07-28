@@ -18,7 +18,7 @@ function loop() {
   while (1) {
     const current = hrtime();
     const span = (current - start) / NS_PER_MS;
-    if (span >= 100n) {
+    if (span >= 2000n) {
       throw new Error(
         `escaped timeout at ${span} milliseconds!`);
     }
@@ -39,4 +39,4 @@ assert.rejects(async () => {
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
   message: 'Script execution timed out after 5ms'
-});
+}).then(common.mustCall());

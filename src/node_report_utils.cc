@@ -3,10 +3,8 @@
 #include "node_report.h"
 #include "util-inl.h"
 
+namespace node {
 namespace report {
-
-using node::JSONWriter;
-using node::MallocedBuffer;
 
 static constexpr auto null = JSONWriter::Null{};
 
@@ -14,7 +12,8 @@ static constexpr auto null = JSONWriter::Null{};
 static void ReportEndpoint(uv_handle_t* h,
                            struct sockaddr* addr,
                            const char* name,
-                           JSONWriter* writer) {
+                           JSONWriter* writer,
+                           bool exclude_network) {
   if (addr == nullptr) {
     writer->json_keyvalue(name, null);
     return;
@@ -22,35 +21,42 @@ static void ReportEndpoint(uv_handle_t* h,
 
   uv_getnameinfo_t endpoint;
   char* host = nullptr;
-  char hostbuf[INET6_ADDRSTRLEN];
   const int family = addr->sa_family;
   const int port = ntohs(family == AF_INET ?
                          reinterpret_cast<sockaddr_in*>(addr)->sin_port :
                          reinterpret_cast<sockaddr_in6*>(addr)->sin6_port);
 
-  if (uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
+  writer->json_objectstart(name);
+  if (!exclude_network &&
+      uv_getnameinfo(h->loop, &endpoint, nullptr, addr, NI_NUMERICSERV) == 0) {
     host = endpoint.host;
     DCHECK_EQ(port, std::stoi(endpoint.service));
-  } else {
-    const void* src = family == AF_INET ?
-                      static_cast<void*>(
-                        &(reinterpret_cast<sockaddr_in*>(addr)->sin_addr)) :
-                      static_cast<void*>(
-                        &(reinterpret_cast<sockaddr_in6*>(addr)->sin6_addr));
-    if (uv_inet_ntop(family, src, hostbuf, sizeof(hostbuf)) == 0) {
-      host = hostbuf;
-    }
-  }
-  writer->json_objectstart(name);
-  if (host != nullptr) {
     writer->json_keyvalue("host", host);
+  }
+
+  if (family == AF_INET) {
+    char ipbuf[INET_ADDRSTRLEN];
+    if (uv_ip4_name(
+            reinterpret_cast<sockaddr_in*>(addr), ipbuf, sizeof(ipbuf)) == 0) {
+      writer->json_keyvalue("ip4", ipbuf);
+      if (host == nullptr) writer->json_keyvalue("host", ipbuf);
+    }
+  } else {
+    char ipbuf[INET6_ADDRSTRLEN];
+    if (uv_ip6_name(
+            reinterpret_cast<sockaddr_in6*>(addr), ipbuf, sizeof(ipbuf)) == 0) {
+      writer->json_keyvalue("ip6", ipbuf);
+      if (host == nullptr) writer->json_keyvalue("host", ipbuf);
+    }
   }
   writer->json_keyvalue("port", port);
   writer->json_objectend();
 }
 
 // Utility function to format libuv socket information.
-static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
+static void ReportEndpoints(uv_handle_t* h,
+                            JSONWriter* writer,
+                            bool exclude_network) {
   struct sockaddr_storage addr_storage;
   struct sockaddr* addr = reinterpret_cast<sockaddr*>(&addr_storage);
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
@@ -67,7 +73,8 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
     default:
       break;
   }
-  ReportEndpoint(h, rc == 0 ? addr : nullptr,  "localEndpoint", writer);
+  ReportEndpoint(
+      h, rc == 0 ? addr : nullptr, "localEndpoint", writer, exclude_network);
 
   switch (h->type) {
     case UV_UDP:
@@ -79,51 +86,86 @@ static void ReportEndpoints(uv_handle_t* h, JSONWriter* writer) {
     default:
       break;
   }
-  ReportEndpoint(h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer);
+  ReportEndpoint(
+      h, rc == 0 ? addr : nullptr, "remoteEndpoint", writer, exclude_network);
+}
+
+// Utility function to format libuv pipe information.
+static void ReportPipeEndpoints(uv_handle_t* h, JSONWriter* writer) {
+  uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
+  MaybeStackBuffer<char> buffer;
+  size_t buffer_size = buffer.capacity();
+  int rc = -1;
+
+  // First call to get required buffer size.
+  rc = uv_pipe_getsockname(&handle->pipe, buffer.out(), &buffer_size);
+  if (rc == UV_ENOBUFS) {
+    buffer.AllocateSufficientStorage(buffer_size);
+    rc = uv_pipe_getsockname(&handle->pipe, buffer.out(), &buffer_size);
+  }
+  if (rc == 0 && buffer_size != 0) {
+    buffer.SetLength(buffer_size);
+    writer->json_keyvalue("localEndpoint", buffer.ToStringView());
+  } else {
+    writer->json_keyvalue("localEndpoint", null);
+  }
+
+  // First call to get required buffer size.
+  buffer_size = buffer.capacity();
+  rc = uv_pipe_getpeername(&handle->pipe, buffer.out(), &buffer_size);
+  if (rc == UV_ENOBUFS) {
+    buffer.AllocateSufficientStorage(buffer_size);
+    rc = uv_pipe_getpeername(&handle->pipe, buffer.out(), &buffer_size);
+  }
+  if (rc == 0 && buffer_size != 0) {
+    buffer.SetLength(buffer_size);
+    writer->json_keyvalue("remoteEndpoint", buffer.ToStringView());
+  } else {
+    writer->json_keyvalue("remoteEndpoint", null);
+  }
 }
 
 // Utility function to format libuv path information.
 static void ReportPath(uv_handle_t* h, JSONWriter* writer) {
-  MallocedBuffer<char> buffer(0);
+  MaybeStackBuffer<char> buffer;
   int rc = -1;
-  size_t size = 0;
+  size_t size = buffer.capacity();
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
-  bool wrote_filename = false;
   // First call to get required buffer size.
   switch (h->type) {
     case UV_FS_EVENT:
-      rc = uv_fs_event_getpath(&(handle->fs_event), buffer.data, &size);
+      rc = uv_fs_event_getpath(&(handle->fs_event), buffer.out(), &size);
       break;
     case UV_FS_POLL:
-      rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.data, &size);
+      rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.out(), &size);
       break;
     default:
       break;
   }
   if (rc == UV_ENOBUFS) {
-    buffer = MallocedBuffer<char>(size + 1);
+    buffer.AllocateSufficientStorage(size);
     switch (h->type) {
       case UV_FS_EVENT:
-        rc = uv_fs_event_getpath(&(handle->fs_event), buffer.data, &size);
+        rc = uv_fs_event_getpath(&(handle->fs_event), buffer.out(), &size);
         break;
       case UV_FS_POLL:
-        rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.data, &size);
+        rc = uv_fs_poll_getpath(&(handle->fs_poll), buffer.out(), &size);
         break;
       default:
         break;
     }
-    if (rc == 0) {
-      // buffer is not null terminated.
-      buffer.data[size] = '\0';
-      writer->json_keyvalue("filename", buffer.data);
-      wrote_filename = true;
-    }
   }
-  if (!wrote_filename) writer->json_keyvalue("filename", null);
+
+  if (rc == 0 && size > 0) {
+    buffer.SetLength(size);
+    writer->json_keyvalue("filename", buffer.ToStringView());
+  } else {
+    writer->json_keyvalue("filename", null);
+  }
 }
 
 // Utility function to walk libuv handles.
-void WalkHandle(uv_handle_t* h, void* arg) {
+void WalkHandle(uv_handle_t* h, void* arg, bool exclude_network = false) {
   const char* type = uv_handle_type_name(h->type);
   JSONWriter* writer = static_cast<JSONWriter*>(arg);
   uv_any_handle* handle = reinterpret_cast<uv_any_handle*>(h);
@@ -145,7 +187,10 @@ void WalkHandle(uv_handle_t* h, void* arg) {
       break;
     case UV_TCP:
     case UV_UDP:
-      ReportEndpoints(h, writer);
+      ReportEndpoints(h, writer, exclude_network);
+      break;
+    case UV_NAMED_PIPE:
+      ReportPipeEndpoints(h, writer);
       break;
     case UV_TIMER: {
       uint64_t due = handle->timer.timeout;
@@ -169,8 +214,7 @@ void WalkHandle(uv_handle_t* h, void* arg) {
       // SIGWINCH is used by libuv so always appears.
       // See http://docs.libuv.org/en/v1.x/signal.html
       writer->json_keyvalue("signum", handle->signal.signum);
-      writer->json_keyvalue("signal",
-                            node::signo_string(handle->signal.signum));
+      writer->json_keyvalue("signal", signo_string(handle->signal.signum));
       break;
     default:
       break;
@@ -223,8 +267,21 @@ void WalkHandle(uv_handle_t* h, void* arg) {
     writer->json_keyvalue("writable",
                           static_cast<bool>(uv_is_writable(&handle->stream)));
   }
-
+  if (h->type == UV_UDP) {
+    writer->json_keyvalue(
+        "writeQueueSize",
+        uv_udp_get_send_queue_size(reinterpret_cast<uv_udp_t*>(h)));
+    writer->json_keyvalue(
+        "writeQueueCount",
+        uv_udp_get_send_queue_count(reinterpret_cast<uv_udp_t*>(h)));
+  }
   writer->json_end();
 }
-
+void WalkHandleNetwork(uv_handle_t* h, void* arg) {
+  WalkHandle(h, arg, false);
+}
+void WalkHandleNoNetwork(uv_handle_t* h, void* arg) {
+  WalkHandle(h, arg, true);
+}
 }  // namespace report
+}  // namespace node

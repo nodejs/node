@@ -5,82 +5,80 @@
 #ifndef V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 #define V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 
-#include "src/base/platform/mutex.h"
-#include "src/compiler/wasm-compiler.h"
+#if !V8_ENABLE_WEBASSEMBLY
+#error This header should only be included if WebAssembly is enabled.
+#endif  // !V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+#include "src/wasm/wasm-wrapper-cache.h"
 
-class Counters;
+namespace v8::internal::wasm {
 
-namespace wasm {
+struct ImportWrapperCacheKey {
+  ImportWrapperCacheKey(ImportCallKind kind, const CanonicalSig* sig,
+                        int expected_arity, Suspend suspend)
+      : kind(kind),
+        sig(sig),
+        expected_arity(expected_arity),
+        suspend(suspend) {}
 
-class WasmCode;
-class WasmEngine;
+  bool operator==(const ImportWrapperCacheKey& rhs) const = default;
 
-using FunctionSig = Signature<ValueType>;
+  ImportCallKind kind;
+  const CanonicalSig* sig;
+  int expected_arity;
+  Suspend suspend;
 
-// Implements a cache for import wrappers.
-class WasmImportWrapperCache {
- public:
-  struct CacheKey {
-    CacheKey(const compiler::WasmImportCallKind& _kind, const FunctionSig* _sig,
-             int _expected_arity)
-        : kind(_kind),
-          signature(_sig),
-          expected_arity(_expected_arity == kDontAdaptArgumentsSentinel
-                             ? 0
-                             : _expected_arity) {}
-
-    bool operator==(const CacheKey& rhs) const {
-      return kind == rhs.kind && signature == rhs.signature &&
-             expected_arity == rhs.expected_arity;
-    }
-
-    compiler::WasmImportCallKind kind;
-    const FunctionSig* signature;
-    int expected_arity;
-  };
-
-  class CacheKeyHash {
+  class Hash {
    public:
-    size_t operator()(const CacheKey& key) const {
-      return base::hash_combine(static_cast<uint8_t>(key.kind), key.signature,
-                                key.expected_arity);
+    size_t operator()(const ImportWrapperCacheKey& key) const {
+#if V8_HASHES_COLLIDE
+      if (v8_flags.hashes_collide) return base::kCollidingHash;
+#endif  // V8_HASHES_COLLIDE
+
+      return base::hash_combine(static_cast<uint8_t>(key.kind),
+                                key.sig->index(), key.expected_arity);
     }
   };
-
-  // Helper class to modify the cache under a lock.
-  class ModificationScope {
-   public:
-    explicit ModificationScope(WasmImportWrapperCache* cache)
-        : cache_(cache), guard_(&cache->mutex_) {}
-
-    V8_EXPORT_PRIVATE WasmCode*& operator[](const CacheKey& key);
-
-   private:
-    WasmImportWrapperCache* const cache_;
-    base::MutexGuard guard_;
-  };
-
-  // Not thread-safe, use ModificationScope to get exclusive write access to the
-  // cache.
-  V8_EXPORT_PRIVATE WasmCode*& operator[](const CacheKey& key);
-
-  // Thread-safe. Assumes the key exists in the map.
-  V8_EXPORT_PRIVATE WasmCode* Get(compiler::WasmImportCallKind kind,
-                                  const FunctionSig* sig,
-                                  int expected_arity) const;
-
-  ~WasmImportWrapperCache();
-
- private:
-  mutable base::Mutex mutex_;
-  std::unordered_map<CacheKey, WasmCode*, CacheKeyHash> entry_map_;
 };
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+class WasmImportWrapperCache : public WasmWrapperCache<ImportWrapperCacheKey> {
+ public:
+  using CacheKey = ImportWrapperCacheKey;
+
+#ifdef V8_ENABLE_TURBOFAN
+  std::shared_ptr<WasmWrapperHandle> CompileWasmJsFastCallWrapper(
+      Isolate* isolate, DirectHandle<JSReceiver> callable,
+      const wasm::CanonicalSig* sig);
+#endif
+
+  V8_EXPORT_PRIVATE
+  std::shared_ptr<WasmWrapperHandle> Get(Isolate* isolate,
+                                         const CacheKey& cache_key);
+
+  V8_EXPORT_PRIVATE
+  bool HasCodeForTesting(ImportCallKind kind, const CanonicalSig* sig,
+                         int expected_arity, Suspend suspend);
+
+#ifdef DEBUG
+  bool IsCompiledWrapper(WasmCodePointer code_pointer);
+#endif
+
+ protected:
+  std::pair<WasmCompilationResult, WasmCode::Kind> CompileWrapper(
+      Isolate* isolate, const CacheKey& cache_key) override;
+
+ private:
+  std::optional<Builtin> BuiltinForWrapper(const CacheKey&);
+};
+
+// Override WasmWrapperCache::EstimateCurrentMemoryConsumption if the derived
+// class size diverges.
+static_assert(sizeof(WasmWrapperCache<ImportWrapperCacheKey>) ==
+              sizeof(WasmImportWrapperCache));
+
+extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    WasmWrapperCache<ImportWrapperCacheKey>;
+
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_

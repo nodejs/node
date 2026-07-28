@@ -25,6 +25,7 @@
 
 #ifdef _WIN32
 # include <io.h>
+# define read _read
 #else
 # include <unistd.h>
 #endif
@@ -36,10 +37,19 @@
 /* Actual tests and helpers are defined in test-list.h */
 #include "test-list.h"
 
+#ifdef __MVS__
+#include "zos-base.h"
+/* Initialize environment and zoslib */
+__attribute__((constructor)) void init(void) {
+  zoslib_config_t config;
+  init_zoslib_config(&config);
+  init_zoslib(config);
+}
+#endif
+
 int ipc_helper(int listen_after_write);
 int ipc_helper_heavy_traffic_deadlock_bug(void);
 int ipc_helper_tcp_connection(void);
-int ipc_helper_closed_handle(void);
 int ipc_send_recv_helper(void);
 int ipc_helper_bind_twice(void);
 int ipc_helper_send_zero(void);
@@ -49,6 +59,10 @@ void process_title_big_argv(void);
 int spawn_tcp_server_helper(void);
 
 static int maybe_run_test(int argc, char **argv);
+
+#ifdef _WIN32
+typedef BOOL (WINAPI *sCompareObjectHandles)(_In_ HANDLE, _In_ HANDLE);
+#endif
 
 
 int main(int argc, char **argv) {
@@ -72,10 +86,6 @@ int main(int argc, char **argv) {
     fflush(stderr);
     return EXIT_FAILURE;
   }
-
-#ifndef __SUNPRO_C
-  return EXIT_SUCCESS;
-#endif
 }
 
 
@@ -103,10 +113,6 @@ static int maybe_run_test(int argc, char **argv) {
 
   if (strcmp(argv[1], "ipc_helper_tcp_connection") == 0) {
     return ipc_helper_tcp_connection();
-  }
-
-  if (strcmp(argv[1], "ipc_helper_closed_handle") == 0) {
-    return ipc_helper_closed_handle();
   }
 
   if (strcmp(argv[1], "ipc_helper_bind_twice") == 0) {
@@ -140,7 +146,7 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper3") == 0) {
     char buffer[256];
     notify_parent_process();
-    ASSERT(buffer == fgets(buffer, sizeof(buffer) - 1, stdin));
+    ASSERT_PTR_EQ(buffer, fgets(buffer, sizeof(buffer) - 1, stdin));
     buffer[sizeof(buffer) - 1] = '\0';
     fputs(buffer, stdout);
     return 1;
@@ -149,7 +155,7 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper4") == 0) {
     notify_parent_process();
     /* Never surrender, never return! */
-    while (1) uv_sleep(10000);
+    for (;;) uv_sleep(10000);
   }
 
   if (strcmp(argv[1], "spawn_helper5") == 0) {
@@ -178,10 +184,10 @@ static int maybe_run_test(int argc, char **argv) {
     notify_parent_process();
 
     r = fprintf(stdout, "hello world\n");
-    ASSERT(r > 0);
+    ASSERT_GT(r, 0);
 
     r = fprintf(stderr, "hello errworld\n");
-    ASSERT(r > 0);
+    ASSERT_GT(r, 0);
 
     return 1;
   }
@@ -194,30 +200,47 @@ static int maybe_run_test(int argc, char **argv) {
 
     /* Test if the test value from the parent is still set */
     test = getenv("ENV_TEST");
-    ASSERT(test != NULL);
+    ASSERT_NOT_NULL(test);
 
     r = fprintf(stdout, "%s", test);
-    ASSERT(r > 0);
+    ASSERT_GT(r, 0);
 
     return 1;
   }
 
-#ifndef _WIN32
   if (strcmp(argv[1], "spawn_helper8") == 0) {
-    int fd;
-
+    uv_os_fd_t closed_fd;
+    uv_os_fd_t open_fd;
+#ifdef _WIN32
+    DWORD flags;
+    HMODULE kernelbase_module;
+    union {
+      FARPROC proc;
+      sCompareObjectHandles pCompareObjectHandles; /* Windows >= 10 */
+    } u;
+#endif
     notify_parent_process();
-    ASSERT(sizeof(fd) == read(0, &fd, sizeof(fd)));
-    ASSERT(fd > 2);
+    ASSERT_EQ(sizeof(closed_fd), read(0, &closed_fd, sizeof(closed_fd)));
+    ASSERT_EQ(sizeof(open_fd), read(0, &open_fd, sizeof(open_fd)));
+#ifdef _WIN32
+    ASSERT_GT((intptr_t) closed_fd, 0);
+    ASSERT_GT((intptr_t) open_fd, 0);
+    ASSERT_NE(0, GetHandleInformation(open_fd, &flags));
+    kernelbase_module = GetModuleHandleW(L"kernelbase.dll");
+    u.proc = GetProcAddress(kernelbase_module, "CompareObjectHandles");
+    if (u.pCompareObjectHandles != NULL)
+      ASSERT_EQ(FALSE, u.pCompareObjectHandles(open_fd, closed_fd));
+#else
+    ASSERT_GT(open_fd, 2);
+    ASSERT_GT(closed_fd, 2);
 # if defined(__PASE__)  /* On IBMi PASE, write() returns 1 */
-    ASSERT(1 == write(fd, "x", 1));
+    ASSERT_EQ(1, write(closed_fd, "x", 1));
 # else
-    ASSERT(-1 == write(fd, "x", 1));
+    ASSERT_EQ(-1, write(closed_fd, "x", 1));
 # endif  /* !__PASE__ */
-
+#endif
     return 1;
   }
-#endif  /* !_WIN32 */
 
   if (strcmp(argv[1], "spawn_helper9") == 0) {
     notify_parent_process();
@@ -230,8 +253,8 @@ static int maybe_run_test(int argc, char **argv) {
     uv_uid_t uid = atoi(argv[2]);
     uv_gid_t gid = atoi(argv[3]);
 
-    ASSERT(uid == getuid());
-    ASSERT(gid == getgid());
+    ASSERT_EQ(uid, getuid());
+    ASSERT_EQ(gid, getgid());
     notify_parent_process();
 
     return 1;

@@ -6,18 +6,18 @@
 #define V8_TORQUE_TYPE_ORACLE_H_
 
 #include <memory>
+#include <optional>
 
-#include "src/torque/contextual.h"
+#include "src/base/contextual.h"
+#include "src/torque/constants.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
-class TypeOracle : public ContextualClass<TypeOracle> {
+class TypeOracle : public base::ContextualClass<TypeOracle> {
  public:
   static const AbstractType* GetAbstractType(
       const Type* parent, std::string name, AbstractTypeFlags flags,
@@ -69,7 +69,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     TypeOracle& self = Get();
     const Type* builtin_type = self.GetBuiltinType(BUILTIN_POINTER_TYPE_STRING);
     const BuiltinPointerType* result = self.function_pointer_types_.Add(
-        BuiltinPointerType(builtin_type, argument_types, return_type,
+        BuiltinPointerType(builtin_type, std::move(argument_types), return_type,
                            self.all_builtin_pointer_types_.size()));
     if (result->function_pointer_type_id() ==
         self.all_builtin_pointer_types_.size()) {
@@ -94,12 +94,16 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return GetReferenceGeneric(false);
   }
 
-  static base::Optional<const Type*> MatchReferenceGeneric(
+  static std::optional<const Type*> MatchReferenceGeneric(
       const Type* reference_type, bool* is_const = nullptr);
 
-  static GenericType* GetSliceGeneric() {
+  static GenericType* GetMutableSliceGeneric() {
     return Declarations::LookupUniqueGenericType(
-        QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING}, SLICE_TYPE_STRING));
+        QualifiedName(MUTABLE_SLICE_TYPE_STRING));
+  }
+  static GenericType* GetConstSliceGeneric() {
+    return Declarations::LookupUniqueGenericType(
+        QualifiedName(CONST_SLICE_TYPE_STRING));
   }
 
   static GenericType* GetWeakGeneric() {
@@ -108,6 +112,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static GenericType* GetSmiTaggedGeneric() {
     return Declarations::LookupGlobalUniqueGenericType(SMI_TAGGED_TYPE_STRING);
+  }
+
+  static GenericType* GetLazyGeneric() {
+    return Declarations::LookupGlobalUniqueGenericType(LAZY_TYPE_STRING);
   }
 
   static const Type* GetReferenceType(const Type* referenced_type,
@@ -122,8 +130,11 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return GetReferenceType(referenced_type, false);
   }
 
-  static const Type* GetSliceType(const Type* referenced_type) {
-    return GetGenericTypeInstance(GetSliceGeneric(), {referenced_type});
+  static const Type* GetMutableSliceType(const Type* referenced_type) {
+    return GetGenericTypeInstance(GetMutableSliceGeneric(), {referenced_type});
+  }
+  static const Type* GetConstSliceType(const Type* referenced_type) {
+    return GetGenericTypeInstance(GetConstSliceGeneric(), {referenced_type});
   }
 
   static const std::vector<const BuiltinPointerType*>&
@@ -132,7 +143,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   static const Type* GetUnionType(UnionType type) {
-    if (base::Optional<const Type*> single = type.GetSingleMember()) {
+    if (std::optional<const Type*> single = type.GetSingleMember()) {
       return *single;
     }
     return Get().union_types_.Add(std::move(type));
@@ -190,6 +201,22 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(EXTERNALPTR_TYPE_STRING);
   }
 
+  static const Type* GetCppHeapPointerType() {
+    return Get().GetBuiltinType(CPPHEAPPTR_TYPE_STRING);
+  }
+
+  static const Type* GetTrustedPointerType() {
+    return Get().GetBuiltinType(TRUSTEDPTR_TYPE_STRING);
+  }
+
+  static const Type* GetProtectedPointerType() {
+    return Get().GetBuiltinType(PROTECTEDPTR_TYPE_STRING);
+  }
+
+  static const Type* GetDispatchHandleType() {
+    return Get().GetBuiltinType(DISPATCH_HANDLE_TYPE_STRING);
+  }
+
   static const Type* GetMapType() {
     return Get().GetBuiltinType(MAP_TYPE_STRING);
   }
@@ -200,6 +227,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetHeapObjectType() {
     return Get().GetBuiltinType(HEAP_OBJECT_TYPE_STRING);
+  }
+
+  static const Type* GetTaggedZeroPatternType() {
+    return Get().GetBuiltinType(TAGGED_ZERO_PATTERN_TYPE_STRING);
   }
 
   static const Type* GetJSAnyType() {
@@ -216,10 +247,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetStrongTaggedType() {
     return Get().GetBuiltinType(STRONG_TAGGED_TYPE_STRING);
-  }
-
-  static const Type* GetUninitializedType() {
-    return Get().GetBuiltinType(UNINITIALIZED_TYPE_STRING);
   }
 
   static const Type* GetUninitializedHeapObjectType() {
@@ -250,6 +277,14 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetUIntPtrType() {
     return Get().GetBuiltinType(UINTPTR_TYPE_STRING);
+  }
+
+  static const Type* GetInt64Type() {
+    return Get().GetBuiltinType(INT64_TYPE_STRING);
+  }
+
+  static const Type* GetUint64Type() {
+    return Get().GetBuiltinType(UINT64_TYPE_STRING);
   }
 
   static const Type* GetInt32Type() {
@@ -284,12 +319,16 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(FLOAT64_TYPE_STRING);
   }
 
-  static const Type* GetFloat64OrHoleType() {
-    return Get().GetBuiltinType(FLOAT64_OR_HOLE_TYPE_STRING);
+  static const Type* GetFloat64OrUndefinedOrHoleType() {
+    return Get().GetBuiltinType(FLOAT64_OR_UNDEFINED_OR_HOLE_TYPE_STRING);
   }
 
   static const Type* GetConstFloat64Type() {
     return Get().GetBuiltinType(CONST_FLOAT64_TYPE_STRING);
+  }
+
+  static const Type* GetIntegerLiteralType() {
+    return Get().GetBuiltinType(INTEGER_LITERAL_TYPE_STRING);
   }
 
   static const Type* GetNeverType() {
@@ -328,12 +367,12 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(FIXED_ARRAY_BASE_TYPE_STRING);
   }
 
-  static base::Optional<const Type*> ImplicitlyConvertableFrom(
+  static std::optional<const Type*> ImplicitlyConvertableFrom(
       const Type* to, const Type* from) {
     while (from != nullptr) {
       for (GenericCallable* from_constexpr :
            Declarations::LookupGeneric(kFromConstexprMacroName)) {
-        if (base::Optional<const Callable*> specialization =
+        if (std::optional<const Callable*> specialization =
                 from_constexpr->GetSpecialization({to, from})) {
           if ((*specialization)->signature().GetExplicitTypes() ==
               TypeVector{from}) {
@@ -343,7 +382,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
       }
       from = from->parent();
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
   static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();
@@ -380,8 +419,6 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   size_t next_type_id_ = 0;
 };
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque
 
 #endif  // V8_TORQUE_TYPE_ORACLE_H_

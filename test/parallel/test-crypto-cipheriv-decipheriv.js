@@ -5,6 +5,8 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasOpenSSL3 } = require('../common/crypto');
+const isFipsEnabled = crypto.getFips();
 
 function testCipher1(key, iv) {
   // Test encryption and decryption with explicit key and iv
@@ -29,11 +31,11 @@ function testCipher1(key, iv) {
   // quite small, so there's no harm.
   const cStream = crypto.createCipheriv('des-ede3-cbc', key, iv);
   cStream.end(plaintext);
-  ciph = cStream.read();
+  ciph = cStream.read(cStream.readableLength);
 
   const dStream = crypto.createDecipheriv('des-ede3-cbc', key, iv);
   dStream.end(ciph);
-  txt = dStream.read().toString('utf8');
+  txt = dStream.read(dStream.readableLength).toString('utf8');
 
   assert.strictEqual(txt, plaintext,
                      `streaming cipher with key ${key} and iv ${iv}`);
@@ -60,6 +62,10 @@ function testCipher2(key, iv) {
 
 
 function testCipher3(key, iv) {
+  if (!crypto.getCiphers().includes('id-aes128-wrap')) {
+    common.printSkipMessage(`unsupported id-aes128-wrap test`);
+    return;
+  }
   // Test encryption and decryption with explicit key and iv.
   // AES Key Wrap test vector comes from RFC3394
   const plaintext = Buffer.from('00112233445566778899AABBCCDDEEFF', 'hex');
@@ -150,7 +156,7 @@ testCipher1(Buffer.from('0123456789abcd0123456789'), '12345678');
 testCipher1(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 testCipher2(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
-if (!common.hasFipsCrypto) {
+if (!isFipsEnabled) {
   testCipher3(Buffer.from('000102030405060708090A0B0C0D0E0F', 'hex'),
               Buffer.from('A6A6A6A6A6A6A6A6', 'hex'));
 }
@@ -168,6 +174,14 @@ for (let n = 1; n < 256; n += 1) {
                                 Buffer.alloc(n)),
     errMessage);
 }
+
+// And so should undefined be (regardless of mode).
+assert.throws(
+  () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16)),
+  { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(
+  () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), undefined),
+  { code: 'ERR_INVALID_ARG_TYPE' });
 
 // Correctly sized IV should be accepted in CBC mode.
 crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16), Buffer.alloc(16));
@@ -193,8 +207,10 @@ assert.throws(
   errMessage);
 
 // But all other IV lengths should be accepted.
-for (let n = 1; n < 256; n += 1) {
-  if (common.hasFipsCrypto && n < 12) continue;
+const minIvLength = hasOpenSSL3 ? 8 : 1;
+const maxIvLength = hasOpenSSL3 ? 64 : 256;
+for (let n = minIvLength; n < maxIvLength; n += 1) {
+  if (isFipsEnabled && n < 12) continue;
   crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(n));
 }
 
@@ -212,4 +228,12 @@ for (let n = 1; n < 256; n += 1) {
   assert.throws(
     () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(17), null),
     /Invalid key length/);
+}
+
+{
+  // https://github.com/nodejs/node/issues/45757
+  // eslint-disable-next-line no-restricted-syntax
+  assert.throws(() =>
+    crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(12))
+    .update(Buffer.allocUnsafeSlow(2 ** 31 - 1)));
 }

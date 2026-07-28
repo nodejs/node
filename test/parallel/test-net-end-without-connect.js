@@ -20,8 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const net = require('net');
+const assert = require('assert');
 
 const sock = new net.Socket();
-sock.end();  // Should not throw.
+sock.end(common.mustCall(() => {
+  assert.strictEqual(sock.writable, false);
+}));

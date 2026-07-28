@@ -2,18 +2,19 @@
 const common = require('../../common');
 const assert = require('assert');
 
-// Test passing NULL to object-related N-APIs.
+// Test passing NULL to object-related Node-APIs.
 const { testNull } = require(`./build/${common.buildType}/test_object`);
 
 const expectedForProperty = {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
   keyIsNull: 'Invalid argument',
-  valueIsNull: 'Invalid argument'
+  valueIsNull: 'Invalid argument',
 };
 assert.deepStrictEqual(testNull.setProperty(), expectedForProperty);
 assert.deepStrictEqual(testNull.getProperty(), expectedForProperty);
 assert.deepStrictEqual(testNull.hasProperty(), expectedForProperty);
+// eslint-disable-next-line no-prototype-builtins
 assert.deepStrictEqual(testNull.hasOwnProperty(), expectedForProperty);
 // It's OK not to want the result of a deletion.
 assert.deepStrictEqual(testNull.deleteProperty(),
@@ -27,7 +28,7 @@ assert.deepStrictEqual(testNull.hasNamedProperty(), expectedForProperty);
 const expectedForElement = {
   envIsNull: 'Invalid argument',
   objectIsNull: 'Invalid argument',
-  valueIsNull: 'Invalid argument'
+  valueIsNull: 'Invalid argument',
 };
 assert.deepStrictEqual(testNull.setElement(), expectedForElement);
 assert.deepStrictEqual(testNull.getElement(), expectedForElement);

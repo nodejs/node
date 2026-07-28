@@ -28,7 +28,7 @@ function run(flags, argv2, signals) {
   child.on('exit', common.mustCall(function(code, sig) {
     if (common.isWindows) {
       if (signals)
-        assert.strictEqual(code, 0xC0000005);
+        assert.strictEqual(code, 0x80000003);
       else
         assert.strictEqual(code, 1);
     } else if (signals) {

@@ -7,14 +7,15 @@
 #include <iostream>
 #include <sstream>
 
+#include "src/base/strings.h"
 #include "src/regexp/special-case.h"
 
 namespace v8 {
 namespace internal {
 
-static const uc32 kSurrogateStart = 0xd800;
-static const uc32 kSurrogateEnd = 0xdfff;
-static const uc32 kNonBmpStart = 0x10000;
+static const base::uc32 kSurrogateStart = 0xd800;
+static const base::uc32 kSurrogateEnd = 0xdfff;
+static const base::uc32 kNonBmpStart = 0x10000;
 
 // The following code generates "src/regexp/special-case.cc".
 void PrintSet(std::ofstream& out, const char* name,

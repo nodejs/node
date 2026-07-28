@@ -1,5 +1,5 @@
 /**
- * Runs tests for <http://heycam.github.io/webidl/#es-stringifier>.
+ * Runs tests for <https://webidl.spec.whatwg.org/#es-stringifier>.
  * @param {Object} aObject - object to test
  * @param {string} aAttribute - IDL attribute name that is annotated with `stringifier`
  * @param {boolean} aIsUnforgeable - whether the IDL attribute is `[LegacyUnforgeable]`

@@ -14,5 +14,5 @@ process.nextTick(() => {
       process.nextTick(common.mustCall());
     const immediate = setImmediate(common.mustNotCall());
     process.nextTick(common.mustCall(() => clearImmediate(immediate)));
-  });
+  }).then(common.mustCall());
 });

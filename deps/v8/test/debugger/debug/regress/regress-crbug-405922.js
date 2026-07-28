@@ -9,7 +9,7 @@ var exception = null;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      exec_state.prepareStep(Debug.StepAction.StepIn);
+      exec_state.prepareStep(Debug.StepAction.StepInto);
     }
   } catch (e) {
     exception = e;
@@ -19,7 +19,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 function f(x) {
-  if (x > 0) %_Call(f, null, x-1);
+  if (x > 0) %Call(f, null, x-1);
 }
 
 debugger;

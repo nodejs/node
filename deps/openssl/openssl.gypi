@@ -1254,9 +1254,6 @@
       # for reducing the overall entropy.
       'PURIFY',
 
-      # Compression is not used and considered insecure (CRIME.)
-      'OPENSSL_NO_COMP',
-
       # SSLv3 is susceptible to downgrade attacks (POODLE.)
       'OPENSSL_NO_SSL3',
 
@@ -1292,13 +1289,11 @@
       # Set to ubuntu default path for convenience. If necessary,
       # override this at runtime with the SSL_CERT_DIR environment
       # variable.
-      'OPENSSLDIR="/System/Library/OpenSSL/"',
     ],
     'openssl_default_defines_linux_others': [
       # Set to ubuntu default path for convenience. If necessary,
       # override this at runtime with the SSL_CERT_DIR environment
       # variable.
-      'OPENSSLDIR="/etc/ssl"',
     ]
   }
 }

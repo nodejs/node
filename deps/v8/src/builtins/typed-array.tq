@@ -14,18 +14,19 @@ type Uint16Elements extends ElementsKind;
 type Int16Elements extends ElementsKind;
 type Uint32Elements extends ElementsKind;
 type Int32Elements extends ElementsKind;
+type Float16Elements extends ElementsKind;
 type Float32Elements extends ElementsKind;
 type Float64Elements extends ElementsKind;
 type Uint8ClampedElements extends ElementsKind;
 type BigUint64Elements extends ElementsKind;
 type BigInt64Elements extends ElementsKind;
+type RabGsabUint8Elements extends ElementsKind;
 
 @export
 struct TypedArrayElementsInfo {
   // Calculates the number of bytes required for specified number of elements.
   macro CalculateByteLength(length: uintptr): uintptr labels IfInvalid {
-    if (length > kTypedArrayMaxLength) goto IfInvalid;
-    const maxArrayLength = kArrayBufferMaxByteLength >>> this.sizeLog2;
+    const maxArrayLength = ArrayBufferMaxByteLength() >>> this.sizeLog2;
     if (length > maxArrayLength) goto IfInvalid;
     const byteLength = length << this.sizeLog2;
     return byteLength;
@@ -33,10 +34,8 @@ struct TypedArrayElementsInfo {
 
   // Calculates the maximum number of elements supported by a specified number
   // of bytes.
-  macro CalculateLength(byteLength: uintptr): uintptr labels IfInvalid {
-    const length = byteLength >>> this.sizeLog2;
-    if (length > kTypedArrayMaxLength) goto IfInvalid;
-    return length;
+  macro CalculateLength(byteLength: uintptr): uintptr {
+    return byteLength >>> this.sizeLog2;
   }
 
   // Determines if `bytes` (byte offset or length) cannot be evenly divided by
@@ -52,19 +51,21 @@ struct TypedArrayElementsInfo {
   sizeLog2: uintptr;
   kind: ElementsKind;
 }
-extern runtime TypedArrayCopyElements(
-    Context, JSTypedArray, Object, Number): void;
-extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
-    Context, JSAny, constexpr string): JSTypedArray;
+extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
+    void;
 
-extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
-    RawPtr, RawPtr, uintptr): void;
+extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(RawPtr, RawPtr, uintptr):
+    void;
 extern macro TypedArrayBuiltinsAssembler::CallCMemmove(
     RawPtr, RawPtr, uintptr): void;
-extern macro TypedArrayBuiltinsAssembler::CallCMemset(
-    RawPtr, intptr, uintptr): void;
-extern macro GetTypedArrayBuffer(implicit context: Context)(JSTypedArray):
-    JSArrayBuffer;
+extern macro TypedArrayBuiltinsAssembler::CallCMemset(RawPtr, intptr, uintptr):
+    void;
+extern macro TypedArrayBuiltinsAssembler::CallCRelaxedMemcpy(
+    RawPtr, RawPtr, uintptr): void;
+extern macro TypedArrayBuiltinsAssembler::CallCRelaxedMemmove(
+    RawPtr, RawPtr, uintptr): void;
+extern macro GetTypedArrayBuffer(implicit context: Context)(
+                                  JSTypedArray): JSArrayBuffer;
 extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
     JSTypedArray): TypedArrayElementsInfo;
 extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(Map):
@@ -76,10 +77,13 @@ extern macro TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(ElementsKind):
 extern macro LoadFixedTypedArrayElementAsTagged(
     RawPtr, uintptr, constexpr ElementsKind): Numeric;
 extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
-    Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind);
+    Context, JSTypedArray, uintptr, Numeric, constexpr ElementsKind): void;
 extern macro TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
-    Context, JSTypedArray, uintptr, JSAny, constexpr ElementsKind)
-    labels IfDetached;
+    Context, JSTypedArray, uintptr, JSAny,
+    constexpr ElementsKind): void labels IfDetached;
+
+extern macro LoadJSTypedArrayLengthAndValidate(
+    JSTypedArray, constexpr TypedArrayAccessMode): uintptr labels Fail;
 
 type LoadNumericFn = builtin(JSTypedArray, uintptr) => Numeric;
 type StoreNumericFn = builtin(Context, JSTypedArray, uintptr, Numeric) => Smi;
@@ -87,7 +91,7 @@ type StoreJSAnyFn = builtin(Context, JSTypedArray, uintptr, JSAny) => Smi;
 
 // The result codes returned by StoreNumericFn and StoreJSAnyFn builtins.
 const kStoreSucceded: Smi = 0;
-const kStoreFailureArrayDetached: Smi = 1;
+const kStoreFailureArrayDetachedOrImmutableOrOutOfBounds: Smi = 1;
 
 struct TypedArrayAccessor {
   macro LoadNumeric(array: JSTypedArray, index: uintptr): Numeric {
@@ -96,21 +100,33 @@ struct TypedArrayAccessor {
   }
 
   macro StoreNumeric(
-      context: Context, array: JSTypedArray, index: uintptr, value: Numeric) {
+      context: Context, array: JSTypedArray, index: uintptr,
+      value: Numeric): void {
     const storefn: StoreNumericFn = this.storeNumericFn;
     const result = storefn(context, array, index, value);
-    assert(result == kStoreSucceded);
+    dcheck(result == kStoreSucceded);
+  }
+
+  macro StoreJSAnyInBounds(
+      context: Context, array: JSTypedArray, index: uintptr,
+      value: JSAny): void {
+    const storefn: StoreJSAnyFn = this.storeJSAnyFn;
+    const result = storefn(context, array, index, value);
+    check(result == kStoreSucceded);
   }
 
   macro StoreJSAny(
-      context: Context, array: JSTypedArray, index: uintptr, value: JSAny)
-      labels IfDetached {
+      context: Context, array: JSTypedArray, index: uintptr,
+      value: JSAny): void {
     const storefn: StoreJSAnyFn = this.storeJSAnyFn;
     const result = storefn(context, array, index, value);
-    if (result == kStoreFailureArrayDetached) {
-      goto IfDetached;
-    }
-    assert(result == kStoreSucceded);
+    // ES#sec-typedarray-set
+    //
+    // A [[Set]] on a TypedArray with a detached or out-of-bounds
+    // underlying ArrayBuffer is a no-op.
+    dcheck(
+        result == kStoreSucceded ||
+        result == kStoreFailureArrayDetachedOrImmutableOrOutOfBounds);
   }
 
   loadNumericFn: LoadNumericFn;
@@ -126,10 +142,20 @@ macro GetTypedArrayAccessor<T : type extends ElementsKind>():
   return TypedArrayAccessor{loadNumericFn, storeNumericFn, storeJSAnyFn};
 }
 
-macro GetTypedArrayAccessor(elementsKind: ElementsKind): TypedArrayAccessor {
+macro GetTypedArrayAccessor(elementsKindParam: ElementsKind):
+    TypedArrayAccessor {
+  let elementsKind = elementsKindParam;
+  if (IsElementsKindGreaterThanOrEqual(
+          elementsKind, kFirstRabGsabFixedTypedArrayElementsKind)) {
+    elementsKind = %RawDownCast<ElementsKind>(
+        elementsKind - kFirstRabGsabFixedTypedArrayElementsKind +
+        kFirstFixedTypedArrayElementsKind);
+  }
   if (IsElementsKindGreaterThan(elementsKind, ElementsKind::UINT32_ELEMENTS)) {
     if (elementsKind == ElementsKind::INT32_ELEMENTS) {
       return GetTypedArrayAccessor<Int32Elements>();
+    } else if (elementsKind == ElementsKind::FLOAT16_ELEMENTS) {
+      return GetTypedArrayAccessor<Float16Elements>();
     } else if (elementsKind == ElementsKind::FLOAT32_ELEMENTS) {
       return GetTypedArrayAccessor<Float32Elements>();
     } else if (elementsKind == ElementsKind::FLOAT64_ELEMENTS) {
@@ -161,27 +187,61 @@ extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     JSTypedArray, ByteArray, uintptr): void;
 extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
     JSTypedArray, RawPtr, uintptr): void;
+extern macro IsJSArrayBufferViewValid(
+    JSArrayBufferView, constexpr TypedArrayAccessMode): never labels Valid,
+    Fail;
+extern macro IsJSArrayBufferViewDetachedOrOutOfBounds(JSArrayBufferView):
+    never labels DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
+extern macro IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
+    JSArrayBufferView): bool;
 
 // AttachedJSTypedArray guards that the array's buffer is not detached.
 transient type AttachedJSTypedArray extends JSTypedArray;
 
-macro EnsureAttached(array: JSTypedArray): AttachedJSTypedArray
-    labels Detached {
-  if (IsDetachedBuffer(array.buffer)) goto Detached;
-  return %RawDownCast<AttachedJSTypedArray>(array);
+macro EnsureValid(array: JSTypedArray, mode: constexpr TypedArrayAccessMode):
+    AttachedJSTypedArray
+    labels Fail {
+  try {
+    IsJSArrayBufferViewValid(array, mode) otherwise Valid, Fail;
+  } label Valid {
+    return %RawDownCast<AttachedJSTypedArray>(array);
+  }
+}
+
+struct ValidJSTypedArrayAndLength {
+  array: AttachedJSTypedArray;
+  length: uintptr;
+}
+
+extern macro TypedArrayBuiltinsAssembler::PartiallyValidateTypedArrayMaybeOOB(
+    Context, JSAny, constexpr string,
+    constexpr TypedArrayAccessMode): JSTypedArray;
+extern macro TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
+    Context, JSAny, constexpr string, constexpr TypedArrayAccessMode): uintptr;
+
+macro EnsureValidAndReadLength(
+    array: JSTypedArray,
+    mode: constexpr TypedArrayAccessMode): ValidJSTypedArrayAndLength
+    labels Fail {
+  const length = LoadJSTypedArrayLengthAndValidate(array, mode) otherwise Fail;
+  return ValidJSTypedArrayAndLength{
+    array: %RawDownCast<AttachedJSTypedArray>(array),
+    length: length
+  };
 }
 
 struct AttachedJSTypedArrayWitness {
-  macro Get(): AttachedJSTypedArray {
-    return this.unstable;
-  }
-
   macro GetStable(): JSTypedArray {
     return this.stable;
   }
 
-  macro Recheck() labels Detached {
-    if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
+  macro RecheckIndex(index: uintptr): void labels DetachedOrOutOfBounds {
+    const length = LoadJSTypedArrayLengthAndValidate(
+        this.stable, TypedArrayAccessMode::kRead)
+        otherwise DetachedOrOutOfBounds;
+    if (index >= length) {
+      goto DetachedOrOutOfBounds;
+    }
     this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
   }
 
@@ -206,7 +266,8 @@ macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
   };
 }
 
-macro KindForArrayType<T : type extends ElementsKind>(): constexpr ElementsKind;
+macro KindForArrayType<T : type extends ElementsKind>():
+    constexpr ElementsKind;
 KindForArrayType<Uint8Elements>(): constexpr ElementsKind {
   return ElementsKind::UINT8_ELEMENTS;
 }
@@ -224,6 +285,9 @@ KindForArrayType<Uint32Elements>(): constexpr ElementsKind {
 }
 KindForArrayType<Int32Elements>(): constexpr ElementsKind {
   return ElementsKind::INT32_ELEMENTS;
+}
+KindForArrayType<Float16Elements>(): constexpr ElementsKind {
+  return ElementsKind::FLOAT16_ELEMENTS;
 }
 KindForArrayType<Float32Elements>(): constexpr ElementsKind {
   return ElementsKind::FLOAT32_ELEMENTS;
@@ -250,21 +314,22 @@ builtin LoadTypedElement<T : type extends ElementsKind>(
 builtin StoreTypedElementNumeric<T : type extends ElementsKind>(
     context: Context, typedArray: JSTypedArray, index: uintptr,
     value: Numeric): Smi {
+  dcheck(
+      !(IsImmutableArrayBuffer(UnsafeCast<JSArrayBuffer>(typedArray.buffer))));
   StoreJSTypedArrayElementFromNumeric(
       context, typedArray, index, value, KindForArrayType<T>());
   return kStoreSucceded;
 }
 
-// Returns True on sucess or False if the typedArrays was detached.
 builtin StoreTypedElementJSAny<T : type extends ElementsKind>(
     context: Context, typedArray: JSTypedArray, index: uintptr,
     value: JSAny): Smi {
   try {
     StoreJSTypedArrayElementFromTagged(
         context, typedArray, index, value, KindForArrayType<T>())
-        otherwise IfDetached;
-  } label IfDetached {
-    return kStoreFailureArrayDetached;
+        otherwise IfDetachedOrImmutableOrOutOfBounds;
+  } label IfDetachedOrImmutableOrOutOfBounds {
+    return kStoreFailureArrayDetachedOrImmutableOrOutOfBounds;
   }
   return kStoreSucceded;
 }

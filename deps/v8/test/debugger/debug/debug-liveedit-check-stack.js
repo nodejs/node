@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --inspector-live-edit
 
 Debug = debug.Debug
 
@@ -135,13 +135,6 @@ assertEquals("Cat", test.ChooseAnimal(Noop));
 test = new TestBase("Test without function on stack");
 test.ScriptChanger();
 assertEquals("Capybara", test.ChooseAnimal(Noop));
-
-test = new TestBase("Test with function on stack");
-assertEquals("Capybara", test.ChooseAnimal(WrapInDebuggerCall(WrapInRestartProof(test.ScriptChanger))));
-
-
-test = new TestBase("Test with function on stack and with constructor frame");
-assertEquals("Capybara", test.ChooseAnimal(WrapInConstructor(WrapInDebuggerCall(WrapInRestartProof(test.ScriptChanger)))));
 
 test = new TestBase("Test with C++ frame above ChooseAnimal frame");
 exception_holder = {};

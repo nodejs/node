@@ -43,12 +43,12 @@ const char *patternStrings[UPC_LIMIT]={
     "^note\\s*(.*)"
 };
 
-U_CFUNC int32_t
-removeText(UChar *source, int32_t srcLen,
-           UnicodeString patString,uint32_t options,
+U_CFUNC int32_t 
+removeText(char16_t *source, int32_t srcLen,
+           UnicodeString patString,uint32_t options,  
            UnicodeString replaceText, UErrorCode *status){
 
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -62,46 +62,46 @@ removeText(UChar *source, int32_t srcLen,
 
 
     dest = myMatcher.replaceAll(replaceText,*status);
-
-
+    
+    
     return dest.extract(source, srcLen, *status);
 
 }
 U_CFUNC int32_t
-trim(UChar *src, int32_t srcLen, UErrorCode *status){
+trim(char16_t *src, int32_t srcLen, UErrorCode *status){
      srcLen = removeText(src, srcLen, UnicodeString("^[ \\r\\n]+ "), 0, UnicodeString(), status); // remove leading new lines
      srcLen = removeText(src, srcLen, UnicodeString("^\\s+"), 0, UnicodeString(), status); // remove leading spaces
-     srcLen = removeText(src, srcLen, UnicodeString("\\s+$"), 0, UnicodeString(), status); // remvoe trailing spcaes
+     srcLen = removeText(src, srcLen, UnicodeString("\\s+$"), 0, UnicodeString(), status); // remove trailing spcaes
      return srcLen;
 }
 
-U_CFUNC int32_t
-removeCmtText(UChar* source, int32_t srcLen, UErrorCode* status){
+U_CFUNC int32_t 
+removeCmtText(char16_t* source, int32_t srcLen, UErrorCode* status){
     srcLen = trim(source, srcLen, status);
-    UnicodeString patString("^\\s*?\\*\\s*?");  // remove pattern like " * " at the begining of the line
+    UnicodeString patString("^\\s*?\\*\\s*?");  // remove pattern like " * " at the beginning of the line
     srcLen = removeText(source, srcLen, patString, UREGEX_MULTILINE, UnicodeString(), status);
     return removeText(source, srcLen, UnicodeString("[ \\r\\n]+"), 0, UnicodeString(" "), status);// remove new lines;
 }
 
-U_CFUNC int32_t
-getText(const UChar* source, int32_t srcLen,
-        UChar** dest, int32_t destCapacity,
-        UnicodeString patternString,
+U_CFUNC int32_t 
+getText(const char16_t* source, int32_t srcLen,
+        char16_t** dest, int32_t destCapacity,
+        UnicodeString patternString, 
         UErrorCode* status){
-
-    if(status == NULL || U_FAILURE(*status)){
+    
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
     UnicodeString     stringArray[MAX_SPLIT_STRINGS];
     RegexPattern      *pattern = RegexPattern::compile(UnicodeString("@"), 0, *status);
     UnicodeString src (source,srcLen);
-
+    
     if (U_FAILURE(*status)) {
         return 0;
     }
     pattern->split(src, stringArray, MAX_SPLIT_STRINGS, *status);
-
+    
     RegexMatcher matcher(patternString, UREGEX_DOTALL, *status);
     if (U_FAILURE(*status)) {
         return 0;
@@ -121,23 +121,23 @@ getText(const UChar* source, int32_t srcLen,
 #define AT_SIGN  0x0040
 
 U_CFUNC int32_t
-getDescription( const UChar* source, int32_t srcLen,
-                UChar** dest, int32_t destCapacity,
+getDescription( const char16_t* source, int32_t srcLen,
+                char16_t** dest, int32_t destCapacity,
                 UErrorCode* status){
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
     UnicodeString     stringArray[MAX_SPLIT_STRINGS];
     RegexPattern      *pattern = RegexPattern::compile(UnicodeString("@"), UREGEX_MULTILINE, *status);
     UnicodeString src(source, srcLen);
-
+    
     if (U_FAILURE(*status)) {
         return 0;
     }
     pattern->split(src, stringArray,MAX_SPLIT_STRINGS , *status);
 
-    if(stringArray[0].indexOf((UChar)AT_SIGN)==-1){
+    if(stringArray[0].indexOf((char16_t)AT_SIGN)==-1){
         int32_t destLen =  stringArray[0].extract(*dest, destCapacity, *status);
         return trim(*dest, destLen, status);
     }
@@ -145,10 +145,10 @@ getDescription( const UChar* source, int32_t srcLen,
 }
 
 U_CFUNC int32_t
-getCount(const UChar* source, int32_t srcLen,
+getCount(const char16_t* source, int32_t srcLen,
          UParseCommentsOption option, UErrorCode *status){
-
-    if(status == NULL || U_FAILURE(*status)){
+    
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -161,12 +161,12 @@ getCount(const UChar* source, int32_t srcLen,
         return 0;
     }
     int32_t retLen = pattern->split(src, stringArray, MAX_SPLIT_STRINGS, *status);
-
+    
     UnicodeString patternString(patternStrings[option]);
     RegexMatcher matcher(patternString, UREGEX_DOTALL, *status);
     if (U_FAILURE(*status)) {
         return 0;
-    }
+    } 
     int32_t count = 0;
     for(int32_t i=0; i<retLen; i++){
         matcher.reset(stringArray[i]);
@@ -181,14 +181,14 @@ getCount(const UChar* source, int32_t srcLen,
     return count;
 }
 
-U_CFUNC int32_t
-getAt(const UChar* source, int32_t srcLen,
-        UChar** dest, int32_t destCapacity,
+U_CFUNC int32_t 
+getAt(const char16_t* source, int32_t srcLen,
+        char16_t** dest, int32_t destCapacity,
         int32_t index,
         UParseCommentsOption option,
         UErrorCode* status){
 
-    if(status == NULL || U_FAILURE(*status)){
+    if(status == nullptr || U_FAILURE(*status)){
         return 0;
     }
 
@@ -201,12 +201,12 @@ getAt(const UChar* source, int32_t srcLen,
         return 0;
     }
     int32_t retLen = pattern->split(src, stringArray, MAX_SPLIT_STRINGS, *status);
-
+    
     UnicodeString patternString(patternStrings[option]);
     RegexMatcher matcher(patternString, UREGEX_DOTALL, *status);
     if (U_FAILURE(*status)) {
         return 0;
-    }
+    } 
     int32_t count = 0;
     for(int32_t i=0; i<retLen; i++){
         matcher.reset(stringArray[i]);
@@ -216,7 +216,7 @@ getAt(const UChar* source, int32_t srcLen,
                 return out.extract(*dest, destCapacity,*status);
             }
             count++;
-
+            
         }
     }
     return 0;
@@ -224,18 +224,18 @@ getAt(const UChar* source, int32_t srcLen,
 }
 
 U_CFUNC int32_t
-getTranslate( const UChar* source, int32_t srcLen,
-              UChar** dest, int32_t destCapacity,
+getTranslate( const char16_t* source, int32_t srcLen,
+              char16_t** dest, int32_t destCapacity,
               UErrorCode* status){
     UnicodeString     notePatternString("^translate\\s*?(.*)");
-
+    
     int32_t destLen = getText(source, srcLen, dest, destCapacity, notePatternString, status);
     return trim(*dest, destLen, status);
 }
 
-U_CFUNC int32_t
-getNote(const UChar* source, int32_t srcLen,
-        UChar** dest, int32_t destCapacity,
+U_CFUNC int32_t 
+getNote(const char16_t* source, int32_t srcLen,
+        char16_t** dest, int32_t destCapacity,
         UErrorCode* status){
 
     UnicodeString     notePatternString("^note\\s*?(.*)");
@@ -245,3 +245,4 @@ getNote(const UChar* source, int32_t srcLen,
 }
 
 #endif /* UCONFIG_NO_REGULAR_EXPRESSIONS */
+

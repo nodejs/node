@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/decompression-optimizer.h"
-
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+// TODO(391750831): This needs to be ported to Turboshaft.
+#if 0
 
 class DecompressionOptimizerTest : public GraphTest {
  public:
@@ -234,8 +235,8 @@ TEST_F(DecompressionOptimizerTest, TypedStateValues) {
   Node* index = Parameter(Type::UnsignedSmall(), 1);
   const int number_of_inputs = 2;
   const ZoneVector<MachineType>* types_for_state_values =
-      graph()->zone()->New<ZoneVector<MachineType>>(number_of_inputs,
-                                                    graph()->zone());
+      graph()->zone()->New<ZoneVector<MachineType>>(
+          number_of_inputs, MachineType::AnyTagged(), graph()->zone());
   SparseInputMask dense = SparseInputMask::Dense();
 
   // Test for both AnyTagged and TaggedPointer.
@@ -252,7 +253,7 @@ TEST_F(DecompressionOptimizerTest, TypedStateValues) {
       Node* constant_2 =
           graph()->NewNode(common()->HeapConstant(heap_constants[j]));
       graph()->SetEnd(graph()->NewNode(
-          common()->FrameState(BailoutId::None(),
+          common()->FrameState(BytecodeOffset::None(),
                                OutputFrameStateCombine::Ignore(), nullptr),
           typed_state_values, typed_state_values, typed_state_values,
           constant_2, UndefinedConstant(), graph()->start()));
@@ -488,6 +489,7 @@ TEST_F(DecompressionOptimizerTest, BitcastTaggedToWordForTagAndSmiBits) {
     }
   }
 }
+#endif
 
 }  // namespace compiler
 }  // namespace internal

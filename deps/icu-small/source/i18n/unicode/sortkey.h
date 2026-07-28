@@ -28,10 +28,10 @@
 #if U_SHOW_CPLUSPLUS_API
 
 /**
- * \file
- * \brief C++ API: Keys for comparing strings multiple times.
+ * \file 
+ * \brief C++ API: Keys for comparing strings multiple times. 
  */
-
+ 
 #if !UCONFIG_NO_COLLATION
 
 #include "unicode/uobject.h"
@@ -145,7 +145,7 @@ public:
     * @return Returns true if two collation keys are equal, false otherwise.
     * @stable ICU 2.0
     */
-    UBool                   operator==(const CollationKey& source) const;
+    bool                    operator==(const CollationKey& source) const;
 
     /**
     * Compare if two collation keys are not the same.
@@ -153,7 +153,7 @@ public:
     * @return Returns true if two collation keys are different, false otherwise.
     * @stable ICU 2.0
     */
-    UBool                   operator!=(const CollationKey& source) const;
+    bool                    operator!=(const CollationKey& source) const;
 
 
     /**
@@ -162,7 +162,7 @@ public:
     * @return Returns true if the key is in an invalid, false otherwise.
     * @stable ICU 2.0
     */
-    UBool                   isBogus(void) const;
+    UBool isBogus() const;
 
     /**
     * Returns a pointer to the collation key values. The storage is owned
@@ -186,7 +186,7 @@ public:
     uint8_t*                toByteArray(int32_t& count) const;
 #endif
 
-#ifndef U_HIDE_DEPRECATED_API
+#ifndef U_HIDE_DEPRECATED_API 
     /**
     * Convenience method which does a string(bit-wise) comparison of the
     * two collation keys.
@@ -231,13 +231,13 @@ public:
     * @see UnicodeString#hashCode
     * @stable ICU 2.0
     */
-    int32_t                 hashCode(void) const;
+    int32_t hashCode() const;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for the actual class.
      * @stable ICU 2.2
      */
-    virtual UClassID getDynamicClassID() const;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
@@ -249,7 +249,7 @@ private:
     /**
      * Replaces the current bytes buffer with a new one of newCapacity
      * and copies length bytes from the old buffer to the new one.
-     * @return the new buffer, or NULL if the allocation failed
+     * @return the new buffer, or nullptr if the allocation failed
      */
     uint8_t *reallocate(int32_t newCapacity, int32_t length);
     /**
@@ -264,7 +264,7 @@ private:
         return (fFlagAndLength >= 0) ? fUnion.fStackBuffer : fUnion.fFields.fBytes;
     }
     int32_t getCapacity() const {
-        return (fFlagAndLength >= 0) ? (int32_t)sizeof(fUnion) : fUnion.fFields.fCapacity;
+        return fFlagAndLength >= 0 ? static_cast<int32_t>(sizeof(fUnion)) : fUnion.fFields.fCapacity;
     }
     int32_t getLength() const { return fFlagAndLength & 0x7fffffff; }
 
@@ -272,12 +272,12 @@ private:
     * Set the CollationKey to a "bogus" or invalid state
     * @return this CollationKey
     */
-    CollationKey&           setToBogus(void);
+    CollationKey& setToBogus();
     /**
     * Resets this CollationKey to an empty state
     * @return this CollationKey
     */
-    CollationKey&           reset(void);
+    CollationKey& reset();
 
     /**
     * Allow private access to RuleBasedCollator
@@ -316,7 +316,7 @@ private:
     } fUnion;
 };
 
-inline UBool
+inline bool
 CollationKey::operator!=(const CollationKey& other) const
 {
     return !(*this == other);

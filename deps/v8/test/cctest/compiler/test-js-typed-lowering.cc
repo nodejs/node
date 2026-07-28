@@ -3,32 +3,32 @@
 // found in the LICENSE file.
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
-#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/objects.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/compiler/js-heap-broker-base.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class JSTypedLoweringTester : public HandleAndZoneScope {
+class JSTypedLoweringTester : public HandleAndZoneScope,
+                              public JSHeapBrokerTestBase {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
-      : HandleAndZoneScope(kCompressGraphZone),
+      : JSHeapBrokerTestBase(main_isolate(), main_zone()),
         isolate(main_isolate()),
-        canonical(isolate),
-        js_heap_broker(isolate, main_zone()),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),
@@ -36,8 +36,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
-        typer(&js_heap_broker, Typer::kNoFlags, &graph, &tick_counter),
-        context_node(nullptr) {
+        typer(broker(), Typer::kNoFlags, &graph, &tick_counter),
+        context_node(nullptr),
+        deps(broker(), main_zone()) {
     graph.SetStart(graph.NewNode(common.Start(num_parameters)));
     graph.SetEnd(graph.NewNode(common.End(1), graph.start()));
     typer.Run();
@@ -45,17 +46,16 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Isolate* isolate;
   TickCounter tick_counter;
-  CanonicalHandleScope canonical;
-  JSHeapBroker js_heap_broker;
   const Operator* binop;
   const Operator* unop;
   JSOperatorBuilder javascript;
   MachineOperatorBuilder machine;
   SimplifiedOperatorBuilder simplified;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   Typer typer;
   Node* context_node;
+  CompilationDependencies deps;
 
   Node* Parameter(Type t, int32_t index = 0) {
     Node* n = graph.NewNode(common.Parameter(index), graph.start());
@@ -68,7 +68,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     return graph.NewNode(common.HeapConstant(value));
   }
 
-  Node* HeapConstant(Handle<HeapObject> constant) {
+  Node* HeapConstantNoHole(Handle<HeapObject> constant) {
     return graph.NewNode(common.HeapConstant(constant));
   }
 
@@ -81,22 +81,18 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         graph.NewNode(common.StateValues(0, SparseInputMask::Dense()));
 
     Node* state_node = graph.NewNode(
-        common.FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                          nullptr),
+        common.FrameState(BytecodeOffset::None(),
+                          OutputFrameStateCombine::Ignore(), nullptr),
         parameters, locals, stack, context, UndefinedConstant(), graph.start());
 
     return state_node;
   }
 
   Node* reduce(Node* node) {
-    JSHeapCopyReducer heap_copy_reducer(&js_heap_broker);
-    CHECK(!heap_copy_reducer.Reduce(node).Changed());
     JSGraph jsgraph(main_isolate(), &graph, &common, &javascript, &simplified,
                     &machine);
-    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter,
-                               &js_heap_broker);
-    JSTypedLowering reducer(&graph_reducer, &jsgraph, &js_heap_broker,
-                            main_zone());
+    GraphReducer graph_reducer(main_zone(), &graph, &tick_counter, broker());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, broker(), main_zone());
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;
@@ -193,9 +189,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     CheckHandle(isolate->factory()->false_value(), result);
   }
 
-  void CheckHandle(Handle<HeapObject> expected, Node* result) {
+  void CheckHandle(DirectHandle<HeapObject> expected, Node* result) {
     CHECK_EQ(IrOpcode::kHeapConstant, result->opcode());
-    Handle<HeapObject> value = HeapConstantOf(result->op());
+    DirectHandle<HeapObject> value = HeapConstantOf(result->op());
     CHECK_EQ(*expected, *value);
   }
 };
@@ -229,13 +225,6 @@ FeedbackSource FeedbackSourceWithOneBinarySlot(JSTypedLoweringTester* R) {
                             R->main_zone(), R->main_isolate()),
                         FeedbackSlot{0}};
 }
-
-FeedbackSource FeedbackSourceWithOneCompareSlot(JSTypedLoweringTester* R) {
-  return FeedbackSource{FeedbackVector::NewWithOneCompareSlotForTesting(
-                            R->main_zone(), R->main_isolate()),
-                        FeedbackSlot{0}};
-}
-
 }  // namespace
 
 TEST(StringBinops) {
@@ -592,16 +581,16 @@ TEST(JSToString_replacement) {
 
 TEST(StringComparison) {
   JSTypedLoweringTester R;
-  FeedbackSource feedback_source = FeedbackSourceWithOneCompareSlot(&R);
 
-  const Operator* ops[] = {R.javascript.LessThan(feedback_source),
-                           R.simplified.StringLessThan(),
-                           R.javascript.LessThanOrEqual(feedback_source),
-                           R.simplified.StringLessThanOrEqual(),
-                           R.javascript.GreaterThan(feedback_source),
-                           R.simplified.StringLessThan(),
-                           R.javascript.GreaterThanOrEqual(feedback_source),
-                           R.simplified.StringLessThanOrEqual()};
+  const Operator* ops[] = {
+      R.javascript.LessThan(CompareOperationHint::kNone),
+      R.simplified.StringLessThan(),
+      R.javascript.LessThanOrEqual(CompareOperationHint::kNone),
+      R.simplified.StringLessThanOrEqual(),
+      R.javascript.GreaterThan(CompareOperationHint::kNone),
+      R.simplified.StringLessThan(),
+      R.javascript.GreaterThanOrEqual(CompareOperationHint::kNone),
+      R.simplified.StringLessThanOrEqual()};
 
   for (size_t i = 0; i < arraysize(kStringTypes); i++) {
     Node* p0 = R.Parameter(kStringTypes[i], 0);
@@ -641,16 +630,16 @@ static void CheckIsConvertedToNumber(Node* val, Node* converted) {
 
 TEST(NumberComparison) {
   JSTypedLoweringTester R;
-  FeedbackSource feedback_source = FeedbackSourceWithOneCompareSlot(&R);
 
-  const Operator* ops[] = {R.javascript.LessThan(feedback_source),
-                           R.simplified.NumberLessThan(),
-                           R.javascript.LessThanOrEqual(feedback_source),
-                           R.simplified.NumberLessThanOrEqual(),
-                           R.javascript.GreaterThan(feedback_source),
-                           R.simplified.NumberLessThan(),
-                           R.javascript.GreaterThanOrEqual(feedback_source),
-                           R.simplified.NumberLessThanOrEqual()};
+  const Operator* ops[] = {
+      R.javascript.LessThan(CompareOperationHint::kNone),
+      R.simplified.NumberLessThan(),
+      R.javascript.LessThanOrEqual(CompareOperationHint::kNone),
+      R.simplified.NumberLessThanOrEqual(),
+      R.javascript.GreaterThan(CompareOperationHint::kNone),
+      R.simplified.NumberLessThan(),
+      R.javascript.GreaterThanOrEqual(CompareOperationHint::kNone),
+      R.simplified.NumberLessThanOrEqual()};
 
   Node* const p0 = R.Parameter(Type::Number(), 0);
   Node* const p1 = R.Parameter(Type::Number(), 1);
@@ -674,7 +663,6 @@ TEST(NumberComparison) {
 
 TEST(MixedComparison1) {
   JSTypedLoweringTester R;
-  FeedbackSource feedback_source = FeedbackSourceWithOneCompareSlot(&R);
 
   Type types[] = {Type::Number(), Type::String(),
                   Type::Union(Type::Number(), Type::String(), R.main_zone())};
@@ -685,7 +673,8 @@ TEST(MixedComparison1) {
     for (size_t j = 0; j < arraysize(types); j++) {
       Node* p1 = R.Parameter(types[j], 1);
       {
-        const Operator* less_than = R.javascript.LessThan(feedback_source);
+        const Operator* less_than =
+            R.javascript.LessThan(CompareOperationHint::kNone);
         Node* cmp = R.Binop(less_than, p0, p1);
         Node* r = R.reduce(cmp);
         if (types[i].Is(Type::String()) && types[j].Is(Type::String())) {
@@ -762,8 +751,8 @@ TEST(RemoveToNumberEffects) {
     if (effect_use != nullptr) {
       R.CheckEffectInput(R.start(), effect_use);
       // Check that value uses of ToNumber() do not go to start().
-      for (int i = 0; i < effect_use->op()->ValueInputCount(); i++) {
-        CHECK_NE(R.start(), effect_use->InputAt(i));
+      for (int j = 0; j < effect_use->op()->ValueInputCount(); j++) {
+        CHECK_NE(R.start(), effect_use->InputAt(j));
       }
     }
   }
@@ -831,17 +820,17 @@ class BinopEffectsTester {
 // Helper function for strict and non-strict equality reductions.
 void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
                             Node* r, IrOpcode::Value expected) {
-  FeedbackSource feedback_source = FeedbackSourceWithOneCompareSlot(R);
   for (int j = 0; j < 2; j++) {
     Node* p0 = j == 0 ? l : r;
     Node* p1 = j == 1 ? l : r;
 
     {
-      const Operator* op = strict ? R->javascript.StrictEqual(feedback_source)
-                                  : R->javascript.Equal(feedback_source);
+      const Operator* op =
+          strict ? R->javascript.StrictEqual(CompareOperationHint::kNone)
+                 : R->javascript.Equal(CompareOperationHint::kNone);
       Node* eq = R->Binop(op, p0, p1);
-      Node* r = R->reduce(eq);
-      R->CheckBinop(expected, r);
+      Node* reduced = R->reduce(eq);
+      R->CheckBinop(expected, reduced);
     }
   }
 }
@@ -901,10 +890,9 @@ TEST(StringEquality) {
 TEST(RemovePureNumberBinopEffects) {
   JSTypedLoweringTester R;
   FeedbackSource binary_source = FeedbackSourceWithOneBinarySlot(&R);
-  FeedbackSource compare_source = FeedbackSourceWithOneCompareSlot(&R);
 
   const Operator* ops[] = {
-      R.javascript.Equal(compare_source),
+      R.javascript.Equal(CompareOperationHint::kNone),
       R.simplified.NumberEqual(),
       R.javascript.Add(binary_source),
       R.simplified.NumberAdd(),
@@ -916,9 +904,9 @@ TEST(RemovePureNumberBinopEffects) {
       R.simplified.NumberDivide(),
       R.javascript.Modulus(binary_source),
       R.simplified.NumberModulus(),
-      R.javascript.LessThan(compare_source),
+      R.javascript.LessThan(CompareOperationHint::kNone),
       R.simplified.NumberLessThan(),
-      R.javascript.LessThanOrEqual(compare_source),
+      R.javascript.LessThanOrEqual(CompareOperationHint::kNone),
       R.simplified.NumberLessThanOrEqual(),
   };
 
@@ -1072,7 +1060,6 @@ TEST(Int32AddNarrowing) {
 
 TEST(Int32Comparisons) {
   JSTypedLoweringTester R;
-  FeedbackSource feedback_source = FeedbackSourceWithOneCompareSlot(&R);
 
   struct Entry {
     const Operator* js_op;
@@ -1080,13 +1067,13 @@ TEST(Int32Comparisons) {
     bool commute;
   };
 
-  Entry ops[] = {{R.javascript.LessThan(feedback_source),
+  Entry ops[] = {{R.javascript.LessThan(CompareOperationHint::kNone),
                   R.simplified.NumberLessThan(), false},
-                 {R.javascript.LessThanOrEqual(feedback_source),
+                 {R.javascript.LessThanOrEqual(CompareOperationHint::kNone),
                   R.simplified.NumberLessThanOrEqual(), false},
-                 {R.javascript.GreaterThan(feedback_source),
+                 {R.javascript.GreaterThan(CompareOperationHint::kNone),
                   R.simplified.NumberLessThan(), true},
-                 {R.javascript.GreaterThanOrEqual(feedback_source),
+                 {R.javascript.GreaterThanOrEqual(CompareOperationHint::kNone),
                   R.simplified.NumberLessThanOrEqual(), true}};
 
   for (size_t o = 0; o < arraysize(ops); o++) {

@@ -8,8 +8,7 @@ namespace proxy {
 
 // ES #sec-proxy-constructor
 // https://tc39.github.io/ecma262/#sec-proxy-constructor
-transitioning javascript builtin
-ProxyConstructor(
+transitioning javascript builtin ProxyConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny)(
     target: JSAny, handler: JSAny): JSProxy {
   try {
@@ -37,7 +36,8 @@ ProxyConstructor(
     // 8. Set P.[[ProxyTarget]] to target.
     // 9. Set P.[[ProxyHandler]] to handler.
     // 10. Return P.
-    return AllocateProxy(targetJSReceiver, handlerJSReceiver);
+    const kNotRevocable = 0;
+    return AllocateProxy(targetJSReceiver, handlerJSReceiver, kNotRevocable);
   } label ThrowProxyNonObject deferred {
     ThrowTypeError(MessageTemplate::kProxyNonObject);
   }

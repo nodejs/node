@@ -7,7 +7,6 @@ if (!common.hasCrypto)
 const async_hooks = require('async_hooks');
 const assert = require('assert');
 const http2 = require('http2');
-const { inspect } = require('util');
 
 const pings = new Set();
 const events = [0, 0, 0, 0];
@@ -65,11 +64,11 @@ server.listen(0, common.mustCall(() => {
       })));
     }
     {
-      const payload = Buffer.from('abcdefgi');
+      const payload = new Uint16Array([1, 2, 3, 4]);
       assert(client.ping(payload, common.mustCall((err, duration, ret) => {
         assert.strictEqual(err, null);
         assert.strictEqual(typeof duration, 'number');
-        assert.deepStrictEqual(payload, ret);
+        assert.deepStrictEqual(payload.buffer, ret.buffer);
       })));
     }
 
@@ -100,7 +99,8 @@ server.listen(0, common.mustCall(() => {
     {
       const shortPayload = Buffer.from('abcdefg');
       const longPayload = Buffer.from('abcdefghi');
-      [shortPayload, longPayload].forEach((payloadWithInvalidLength) =>
+      const mismatchedPayload = new Uint32Array(8);
+      [shortPayload, longPayload, mismatchedPayload].forEach((payloadWithInvalidLength) =>
         assert.throws(
           () => client.ping(payloadWithInvalidLength),
           {
@@ -120,9 +120,7 @@ server.listen(0, common.mustCall(() => {
           () => client.ping(payload, invalidCallback),
           {
             name: 'TypeError',
-            code: 'ERR_INVALID_CALLBACK',
-            message: 'Callback must be a function. ' +
-                     `Received ${inspect(invalidCallback)}`
+            code: 'ERR_INVALID_ARG_TYPE',
           }
         )
       );

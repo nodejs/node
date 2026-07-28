@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_ASYNC_GEN_H_
 
 #include "src/builtins/builtins-promise-gen.h"
+#include "src/objects/js-generator.h"
 
 namespace v8 {
 namespace internal {
@@ -16,52 +17,44 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
       : PromiseBuiltinsAssembler(state) {}
 
  protected:
+  // Allocates an await context that stores the generator as extension.
+  TNode<Context> AllocateAwaitContext(TNode<NativeContext> native_context,
+                                      TNode<JSGeneratorObject> generator);
+
+  // Callback that returns (on_resolve, on_reject) closures.
+  // Responsible for allocating context and closures, or reusing existing ones.
+  using GetClosures =
+      std::function<std::pair<TNode<JSFunction>, TNode<JSFunction>>(
+          TNode<NativeContext>)>;
+
   // Perform steps to resume generator after `value` is resolved.
-  // `on_reject` is the SharedFunctioninfo instance used to create the reject
-  // closure. `on_resolve` is the SharedFunctioninfo instance used to create the
-  // resolve closure. Returns the Promise-wrapped `value`.
+  // Returns the Promise-wrapped `value`.
   TNode<Object> Await(TNode<Context> context,
-                      TNode<JSGeneratorObject> generator, TNode<Object> value,
+                      TNode<JSGeneratorObject> generator, TNode<JSAny> value,
                       TNode<JSPromise> outer_promise,
-                      TNode<SharedFunctionInfo> on_resolve_sfi,
-                      TNode<SharedFunctionInfo> on_reject_sfi,
-                      TNode<Oddball> is_predicted_as_caught);
+                      const GetClosures& get_closures);
   TNode<Object> Await(TNode<Context> context,
-                      TNode<JSGeneratorObject> generator, TNode<Object> value,
-                      TNode<JSPromise> outer_promise,
-                      TNode<SharedFunctionInfo> on_resolve_sfi,
-                      TNode<SharedFunctionInfo> on_reject_sfi,
-                      bool is_predicted_as_caught) {
-    return Await(context, generator, value, outer_promise, on_resolve_sfi,
-                 on_reject_sfi, BooleanConstant(is_predicted_as_caught));
-  }
+                      TNode<JSGeneratorObject> generator, TNode<JSAny> value,
+                      TNode<JSPromise> outer_promise, RootIndex on_resolve_sfi,
+                      RootIndex on_reject_sfi);
+
+  // Optimized Await for async functions that lazily allocates closures on
+  // first await and reuses them for subsequent awaits. This avoids per-await
+  // allocation of the context and closures, and saves memory for async
+  // functions that never suspend.
+  TNode<Object> AwaitWithReusableClosures(
+      TNode<Context> context,
+      TNode<JSAsyncFunctionObject> async_function_object, TNode<JSAny> value,
+      TNode<JSPromise> outer_promise);
 
   // Return a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions
   TNode<JSFunction> CreateUnwrapClosure(TNode<NativeContext> native_context,
-                                        TNode<Oddball> done);
+                                        TNode<Boolean> done);
 
  private:
-  void InitializeNativeClosure(TNode<Context> context,
-                               TNode<NativeContext> native_context,
-                               TNode<HeapObject> function,
-                               TNode<SharedFunctionInfo> shared_info);
   TNode<Context> AllocateAsyncIteratorValueUnwrapContext(
-      TNode<NativeContext> native_context, TNode<Oddball> done);
-
-  TNode<Object> AwaitOld(TNode<Context> context,
-                         TNode<JSGeneratorObject> generator,
-                         TNode<Object> value, TNode<JSPromise> outer_promise,
-                         TNode<SharedFunctionInfo> on_resolve_sfi,
-                         TNode<SharedFunctionInfo> on_reject_sfi,
-                         TNode<Oddball> is_predicted_as_caught);
-  TNode<Object> AwaitOptimized(TNode<Context> context,
-                               TNode<JSGeneratorObject> generator,
-                               TNode<JSPromise> promise,
-                               TNode<JSPromise> outer_promise,
-                               TNode<SharedFunctionInfo> on_resolve_sfi,
-                               TNode<SharedFunctionInfo> on_reject_sfi,
-                               TNode<Oddball> is_predicted_as_caught);
+      TNode<NativeContext> native_context, TNode<Boolean> done);
 };
 
 }  // namespace internal
