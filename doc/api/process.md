@@ -1513,6 +1513,17 @@ emitMyWarning();
 // Emits nothing
 ```
 
+## `process.entrypoint`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {URL | undefined}
+
+The entrypoint that node was instantiated with, or {undefined} if node
+was instantiated without one (e.g., in the REPL).
+
 ## `process.env`
 
 <!-- YAML
