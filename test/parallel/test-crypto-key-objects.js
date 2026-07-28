@@ -1025,7 +1025,8 @@ if (!process.features.openssl_is_boringssl) {
   }, {
     name: 'TypeError',
     code: 'ERR_INVALID_ARG_VALUE',
-    message: "The property 'options.cipher' is invalid. Received undefined"
+    message: "The property 'options.cipher' is required when a " +
+      'passphrase is specified. Received undefined',
   });
 }
 
