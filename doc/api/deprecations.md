@@ -4694,6 +4694,23 @@ underlying stream are emitted from `req`. On the write-side you can use
 `res.writableFinished` to confirm whether the response was written
 successfully before the response closed.
 
+### DEP0208: `Server.prototype._listen2`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64794
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+`net.Server.prototype._listen2` is an undocumented alias for an internal
+function that sets up the listening handle. It is kept only so that code
+replacing it keeps being called by [`server.listen()`][], and it will be
+removed in a future version of Node.js. Use [`server.listen()`][] instead of
+calling or overriding `_listen2`.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4811,6 +4828,7 @@ successfully before the response closed.
 [`response.writableEnded`]: http.md#responsewritableended
 [`response.writableFinished`]: http.md#responsewritablefinished
 [`script.createCachedData()`]: vm.md#scriptcreatecacheddata
+[`server.listen()`]: net.md#serverlisten
 [`setInterval()`]: timers.md#setintervalcallback-delay-args
 [`setTimeout()`]: timers.md#settimeoutcallback-delay-args
 [`socket.bufferSize`]: net.md#socketbuffersize
