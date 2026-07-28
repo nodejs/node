@@ -140,6 +140,18 @@ for (const key of Object.keys(defaults)) {
   assert.throws(() => crypto.argon2Sync('argon2id', parameters), expected);
 }
 
+for (const key of ['secret', 'associatedData']) {
+  const expected = {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: new RegExp(`"parameters\\.${key}"`),
+  };
+  for (const value of [123, null, true, {}, []]) {
+    const parameters = { ...defaults, [key]: value };
+    assert.throws(() => crypto.argon2('argon2id', parameters, () => {}), expected);
+    assert.throws(() => crypto.argon2Sync('argon2id', parameters), expected);
+  }
+}
+
 {
   const expected = { code: 'ERR_INVALID_ARG_TYPE' };
   assert.throws(() => crypto.argon2(), expected);
