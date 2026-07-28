@@ -82,6 +82,23 @@ suite('DatabaseSync.prototype.serialize()', () => {
 });
 
 suite('DatabaseSync.prototype.deserialize()', () => {
+  test('cannot deserialize the database while in a callback', (t) => {
+    const source = new DatabaseSync(':memory:');
+    const serialized = source.serialize();
+    source.close();
+
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.function('deserialize_database', () => db.deserialize(serialized));
+    const stmt = db.prepare('SELECT deserialize_database()');
+
+    t.assert.throws(() => stmt.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: 'database cannot be deserialized while in a callback',
+    });
+    t.assert.strictEqual(db.isOpen, true);
+  });
+
   test('loads a serialized database', (t) => {
     const db1 = new DatabaseSync(':memory:');
     db1.exec('CREATE TABLE t(id INTEGER PRIMARY KEY, name TEXT)');
