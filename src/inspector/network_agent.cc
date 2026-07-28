@@ -6,6 +6,7 @@
 #include "inspector/network_resource_manager.h"
 #include "inspector/protocol_helper.h"
 #include "network_inspector.h"
+#include "node/inspector/protocol/Runtime.h"
 #include "node_metadata.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -27,6 +28,72 @@ constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
 static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
   isolate->ThrowException(v8::Exception::TypeError(
       v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
+}
+
+static std::unique_ptr<protocol::Value> V8ToProtocolValue(
+    Isolate* isolate, v8::Local<v8::Context> context, Local<Value> value) {
+  if (value->IsNullOrUndefined()) {
+    return protocol::Value::null();
+  }
+  if (value->IsBoolean()) {
+    return protocol::FundamentalValue::create(value.As<v8::Boolean>()->Value());
+  }
+  if (value->IsInt32()) {
+    return protocol::FundamentalValue::create(value.As<v8::Int32>()->Value());
+  }
+  if (value->IsNumber()) {
+    return protocol::FundamentalValue::create(value.As<v8::Number>()->Value());
+  }
+  if (value->IsString()) {
+    return protocol::StringValue::create(ToProtocolString(isolate, value));
+  }
+  if (value->IsArray()) {
+    Local<v8::Array> array = value.As<v8::Array>();
+    std::unique_ptr<protocol::ListValue> list = protocol::ListValue::create();
+    list->reserve(array->Length());
+    for (uint32_t i = 0; i < array->Length(); i++) {
+      Local<Value> element;
+      if (!array->Get(context, i).ToLocal(&element)) {
+        return nullptr;
+      }
+      std::unique_ptr<protocol::Value> protocol_value =
+          V8ToProtocolValue(isolate, context, element);
+      if (!protocol_value) {
+        return nullptr;
+      }
+      list->pushValue(std::move(protocol_value));
+    }
+    return list;
+  }
+  if (value->IsObject()) {
+    Local<Object> object = value.As<Object>();
+    Local<v8::Array> property_names;
+    if (!object->GetOwnPropertyNames(context).ToLocal(&property_names)) {
+      return nullptr;
+    }
+    std::unique_ptr<protocol::DictionaryValue> dict =
+        protocol::DictionaryValue::create();
+    for (uint32_t i = 0; i < property_names->Length(); i++) {
+      Local<Value> property_name;
+      if (!property_names->Get(context, i).ToLocal(&property_name) ||
+          !property_name->IsString()) {
+        return nullptr;
+      }
+      Local<Value> property;
+      if (!object->Get(context, property_name).ToLocal(&property)) {
+        return nullptr;
+      }
+      std::unique_ptr<protocol::Value> protocol_value =
+          V8ToProtocolValue(isolate, context, property);
+      if (!protocol_value) {
+        return nullptr;
+      }
+      dict->setValue(ToProtocolString(isolate, property_name),
+                     std::move(protocol_value));
+    }
+    return dict;
+  }
+  return nullptr;
 }
 
 // Create a protocol::Network::Headers from the v8 object.
@@ -63,6 +130,74 @@ NetworkAgent::createHeadersFromObject(v8::Local<v8::Context> context,
   }
 
   return std::make_unique<protocol::Network::Headers>(std::move(dict));
+}
+
+std::unique_ptr<protocol::Network::Initiator>
+NetworkAgent::createInitiatorFromObject(v8::Local<v8::Context> context,
+                                        Local<Object> initiator_obj) {
+  HandleScope handle_scope(Isolate::GetCurrent());
+  Isolate* isolate = env_->isolate();
+
+  protocol::String type;
+  if (!ObjectGetProtocolString(context, initiator_obj, "type").To(&type)) {
+    ThrowEventError(isolate, "Missing initiator.type in event");
+    return {};
+  }
+
+  std::unique_ptr<protocol::Network::Initiator> initiator =
+      protocol::Network::Initiator::create().setType(type).build();
+
+  Local<Object> stack_obj;
+  if (ObjectGetObject(context, initiator_obj, "stack").ToLocal(&stack_obj)) {
+    std::unique_ptr<protocol::Value> stack_value =
+        V8ToProtocolValue(isolate, context, stack_obj);
+    if (!stack_value) {
+      ThrowEventError(isolate, "Invalid initiator.stack in event");
+      return {};
+    }
+
+    protocol::DictionaryValue* stack_dict =
+        protocol::DictionaryValue::cast(stack_value.get());
+    if (!stack_dict || stack_dict->get("callFrames") == nullptr) {
+      ThrowEventError(isolate, "Invalid initiator.stack in event");
+      return {};
+    }
+
+    protocol::ErrorSupport errors;
+    std::unique_ptr<v8_inspector::protocol::Runtime::API::StackTrace> stack =
+        protocol::ValueConversions<v8_inspector::protocol::Runtime::API::
+                                       StackTrace>::fromValue(stack_value.get(),
+                                                              &errors);
+    if (!stack) {
+      ThrowEventError(isolate, "Invalid initiator.stack in event");
+      return {};
+    }
+    initiator->setStack(std::move(stack));
+  }
+
+  protocol::String url;
+  if (ObjectGetProtocolString(context, initiator_obj, "url").To(&url)) {
+    initiator->setUrl(url);
+  }
+
+  double line_number;
+  if (ObjectGetDouble(context, initiator_obj, "lineNumber").To(&line_number)) {
+    initiator->setLineNumber(line_number);
+  }
+
+  double column_number;
+  if (ObjectGetDouble(context, initiator_obj, "columnNumber")
+          .To(&column_number)) {
+    initiator->setColumnNumber(column_number);
+  }
+
+  protocol::String request_id;
+  if (ObjectGetProtocolString(context, initiator_obj, "requestId")
+          .To(&request_id)) {
+    initiator->setRequestId(request_id);
+  }
+
+  return initiator;
 }
 
 // Create a protocol::Network::Request from the v8 object.
@@ -460,12 +595,21 @@ void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
     return;
   }
 
-  std::unique_ptr<protocol::Network::Initiator> initiator =
-      protocol::Network::Initiator::create()
-          .setType(protocol::Network::Initiator::TypeEnum::Script)
-          .setStack(
-              v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
-          .build();
+  std::unique_ptr<protocol::Network::Initiator> initiator;
+  Local<Object> initiator_obj;
+  if (ObjectGetObject(context, params, "initiator").ToLocal(&initiator_obj)) {
+    initiator = createInitiatorFromObject(context, initiator_obj);
+    if (!initiator) {
+      return;
+    }
+  } else {
+    initiator =
+        protocol::Network::Initiator::create()
+            .setType(protocol::Network::Initiator::TypeEnum::Script)
+            .setStack(
+                v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
+            .build();
+  }
 
   if (requests_.contains(request_id)) {
     // Duplicate entry, ignore it.
