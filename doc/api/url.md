@@ -1839,6 +1839,8 @@ changes:
 * `urlString` {string} A string that will be passed to `url.parse()` and then
   formatted.
 
+* Returns: {string}
+
 `url.format(urlString)` is shorthand for `url.format(url.parse(urlString))`.
 
 Because it invokes the deprecated [`url.parse()`][] internally, passing a string argument
