@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "yoke"
-version = "0.8.2"
+version = "0.8.3"
 authors = ["Manish Goregaokar <manishsmail@gmail.com>"]
 build = false
 include = [
@@ -113,6 +113,7 @@ default-features = false
 
 [lints.clippy]
 alloc-instead-of-core = "warn"
+bool-assert-comparison = "allow"
 branches-sharing-code = "warn"
 collection_is_never_read = "warn"
 crosspointer_transmute = "warn"

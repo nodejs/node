@@ -97,6 +97,26 @@ pub fn cmp_utf8(writeable: &impl Writeable, other: &[u8]) -> Ordering {
 /// assert_eq!(Ordering::Less, writeable::cmp_str(&message, "Hello, Bob!"));
 /// assert_eq!(Ordering::Less, (*message_str).cmp("Hello, Bob!"));
 /// ```
+///
+/// This function can be combined with `writeable::concat_writeable!` to make an efficient
+/// comparison between a string and a sequence of substrings:
+///
+/// ```
+/// use core::cmp::Ordering;
+///
+/// assert_eq!(
+///     Ordering::Less,
+///     writeable::cmp_str(&writeable::concat_writeable!("loop", 1), "loop12")
+/// );
+/// assert_eq!(
+///     Ordering::Equal,
+///     writeable::cmp_str(&writeable::concat_writeable!("loop", 12), "loop12")
+/// );
+/// assert_eq!(
+///     Ordering::Greater,
+///     writeable::cmp_str(&writeable::concat_writeable!("loop", 2), "loop12")
+/// );
+/// ```
 #[inline]
 pub fn cmp_str(writeable: &impl Writeable, other: &str) -> Ordering {
     cmp_utf8(writeable, other.as_bytes())

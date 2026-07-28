@@ -294,5 +294,38 @@
       "type": "Locale",
       "identifier": "en-a-bar-u-foo-w-bar-x-u-foo"
     }
+  },
+  {
+    "input": {
+      "type": "Locale",
+      "identifier": "en-1-ext-value"
+    },
+    "output": {
+      "type": "Locale",
+      "language": "en",
+      "extensions": {
+        "other": ["1-ext-value"]
+      }
+    }
+  },
+  {
+    "input": {
+      "type": "Locale",
+      "identifier": "en-w-bar-1-foo"
+    },
+    "output": {
+      "type": "Locale",
+      "identifier": "en-1-foo-w-bar"
+    }
+  },
+  {
+    "input": {
+      "type": "Locale",
+      "identifier": "en-w-bar-1-foo-u-baz"
+    },
+    "output": {
+      "type": "Locale",
+      "identifier": "en-1-foo-u-baz-w-bar"
+    }
   }
 ]

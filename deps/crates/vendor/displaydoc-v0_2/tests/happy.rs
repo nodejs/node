@@ -12,9 +12,51 @@ struct HappyStruct {
 #[derive(Display)]
 #[ignore_extra_doc_attributes]
 /// Just a basic struct {thing}
-/// and this line should get ignored
+/// and this line should not get ignored
 struct HappyStruct2 {
     thing: &'static str,
+}
+
+#[derive(Display)]
+/// Really fancy first line with thing: {thing}
+/// Really cool second line
+struct HappyMultiLine {
+    thing: &'static str,
+}
+
+#[derive(Display)]
+#[ignore_extra_doc_attributes]
+/// multi
+/// line
+///
+/// new paragraph should be ignored
+struct HappyMultilineWithIgnore;
+
+#[derive(Display)]
+enum MixedBlockAndLineComments {
+    /**
+     * hello
+     * block
+     * comment
+     */
+    /// line comment
+    BlockFirst,
+    /// line comment
+    /**
+     * hello
+     * block
+     * comment
+     */
+    LineFirst,
+    /**
+     * block
+     * comment
+     */
+    /**
+     * block
+     * comment2
+     */
+    DoubleBlock,
 }
 
 #[derive(Display)]
@@ -109,7 +151,30 @@ fn does_it_print() {
     );
     assert_display(HappyStruct { thing: "hi" }, "Just a basic struct hi");
 
-    assert_display(HappyStruct2 { thing: "hi2" }, "Just a basic struct hi2");
+    assert_display(
+        HappyStruct2 { thing: "hi2" },
+        "Just a basic struct hi2 and this line should not get ignored",
+    );
+
+    assert_display(
+        HappyMultiLine { thing: "rust" },
+        "Really fancy first line with thing: rust Really cool second line",
+    );
+
+    assert_display(HappyMultilineWithIgnore, "multi line");
+
+    assert_display(
+        MixedBlockAndLineComments::BlockFirst,
+        "hello\nblock\ncomment line comment",
+    );
+    assert_display(
+        MixedBlockAndLineComments::LineFirst,
+        "line comment hello\nblock\ncomment",
+    );
+    assert_display(
+        MixedBlockAndLineComments::DoubleBlock,
+        "block\ncomment block\ncomment2",
+    );
 
     assert_display(inner_mod::InnerHappy::Variant1, "I really like Variant1");
     assert_display(

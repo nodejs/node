@@ -60,7 +60,6 @@ mod librustc_parse {
 
     use crate::repo;
     use rustc_errors::emitter::Emitter;
-    use rustc_errors::translation::Translator;
     use rustc_errors::{DiagCtxt, DiagInner};
     use rustc_parse::lexer::StripTokens;
     use rustc_session::parse::ParseSess;
@@ -76,9 +75,6 @@ mod librustc_parse {
             fn emit_diagnostic(&mut self, _diag: DiagInner) {}
             fn source_map(&self) -> Option<&SourceMap> {
                 None
-            }
-            fn translator(&self) -> &Translator {
-                panic!("silent emitter attempted to translate a diagnostic");
             }
         }
 

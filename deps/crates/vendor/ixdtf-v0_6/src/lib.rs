@@ -2,6 +2,19 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
+// https://github.com/unicode-org/icu4x/blob/main/documents/process/boilerplate.md#library-annotations
+#![cfg_attr(not(any(test, doc)), no_std)]
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::indexing_slicing,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+    )
+)]
+// #![warn(missing_docs)]
+
 //! Parsers for extended date time string and Duration parsing.
 //!
 //! The [Internet Extended Date/Time Fmt (IXDTF)][rfc9557] is laid out by RFC 9557. RFC 9557
@@ -373,32 +386,15 @@
 //! [rfc3339]: https://datatracker.ietf.org/doc/html/rfc3339
 //! [temporal-grammar]: https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar
 
-#![no_std]
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::indexing_slicing,
-        clippy::unwrap_used,
-        clippy::expect_used,
-        clippy::panic,
-        clippy::exhaustive_structs,
-        clippy::exhaustive_enums,
-        clippy::trivially_copy_pass_by_ref,
-        missing_debug_implementations,
-    )
-)]
+mod error;
 
 pub(crate) mod core;
-mod error;
+
+pub mod encoding;
 pub mod parsers;
 pub mod records;
 
 pub use error::ParseError;
-
-/// This module contains the supported encoding for `ixdtf` parsing.
-pub mod encoding {
-    pub use crate::core::{Utf16, Utf8};
-}
 
 /// The `ixdtf` crate's Result type.
 pub type ParserResult<T> = Result<T, ParseError>;

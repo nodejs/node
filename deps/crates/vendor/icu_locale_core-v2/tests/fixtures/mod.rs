@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
+use icu_locale_core::extensions::other;
 use icu_locale_core::extensions::private;
 use icu_locale_core::extensions::transform;
 use icu_locale_core::extensions::unicode;
@@ -40,7 +41,8 @@ pub struct LocaleExtensions {
     transform: Option<LocaleExtensionTransform>,
     #[serde(default)]
     private: Vec<String>,
-    _other: Option<String>,
+    #[serde(default)]
+    other: Vec<String>,
 }
 
 impl TryFrom<LocaleExtensions> for Extensions {
@@ -95,6 +97,13 @@ impl TryFrom<LocaleExtensions> for Extensions {
             .map(|v| private::Subtag::try_from_str(v).expect("Failed to add field."))
             .collect();
         ext.private = private::Private::from_vec_unchecked(v);
+        let mut other: Vec<other::Other> = input
+            .other
+            .iter()
+            .map(|v| other::Other::try_from_str(v).expect("Failed to parse Other extension"))
+            .collect();
+        other.sort();
+        ext.other = other;
         Ok(ext)
     }
 }

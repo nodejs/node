@@ -58,7 +58,12 @@ pub enum Either<L, R> {
 /// This macro is useful in cases where both sides of [`Either`] can be interacted with
 /// in the same way even though the don't share the same type.
 ///
-/// Syntax: `either::for_both!(` *expression* `,` *pattern* `=>` *expression* `)`
+/// Syntax:
+///
+/// - `either::for_both!(` *expression* `,` *pattern* `=>` *expression* `)`
+/// - `either::for_both!(` *ident* `=>` *expression* `)`
+///
+/// Unlike [`map_both!`], this macro converges both variants to the type returned by the expression.
 ///
 /// # Example
 ///
@@ -77,12 +82,81 @@ pub enum Either<L, R> {
 ///     assert_eq!(length(owned), 12);
 /// }
 /// ```
+///
+/// ```
+/// use either::Either;
+///
+/// fn length(s: Either<String, Vec<u8>>) -> usize {
+///     either::for_both!(s => s.len())
+/// }
+///
+/// fn main() {
+///     let string = Either::Left("Hello world!".to_owned());
+///     let bytes = Either::Right(b"Hello world!".to_vec());
+///
+///     assert_eq!(length(string), 12);
+///     assert_eq!(length(bytes), 12);
+/// }
+/// ```
 #[macro_export]
 macro_rules! for_both {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
             $crate::Either::Left($pattern) => $result,
             $crate::Either::Right($pattern) => $result,
+        }
+    };
+    ($name:ident => $result:expr) => {
+        match $name {
+            $crate::Either::Left($name) => $result,
+            $crate::Either::Right($name) => $result,
+        }
+    };
+}
+
+/// Evaluate the provided expression for both [`Either::Left`] and [`Either::Right`],
+/// returning an [`Either`] with the results.
+///
+/// This macro is useful in cases where both sides of [`Either`] can be interacted with
+/// in the same way even though the don't share the same type.
+///
+/// Syntax: `either::map_both!(` *expression* `,` *pattern* `=>` *expression* `)`
+///
+/// Unlike [`for_both!`], this macro returns an [`Either`] with the results of the expressions.
+///
+/// # Example
+///
+/// ```
+/// use either::Either;
+///
+/// struct Wrapper<T>(T);
+///
+/// fn wrap(
+///     owned_or_borrowed: Either<String, &'static str>,
+/// ) -> Either<Wrapper<String>, Wrapper<&'static str>> {
+///     either::map_both!(owned_or_borrowed, s => Wrapper(s))
+/// }
+/// ```
+///
+/// ```
+/// use either::Either;
+///
+/// fn widen(x: Either<i32, u32>) -> Either<i64, u64> {
+///     either::map_both!(x => x.into())
+/// }
+/// ```
+#[macro_export]
+macro_rules! map_both {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            $crate::Either::Left($pattern) => $crate::Either::Left($result),
+            $crate::Either::Right($pattern) => $crate::Either::Right($result),
+        }
+    };
+    ($name:ident => $result:expr) => {
+        match $name {
+            $crate::Either::Left($name) => $crate::Either::Left($result),
+            $crate::Either::Right($name) => $crate::Either::Right($result),
         }
     };
 }
@@ -130,15 +204,6 @@ macro_rules! try_right {
     };
 }
 
-macro_rules! map_either {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            Left($pattern) => Left($result),
-            Right($pattern) => Right($result),
-        }
-    };
-}
-
 mod iterator;
 pub use self::iterator::IterEither;
 
@@ -176,6 +241,56 @@ impl<L, R> Either<L, R> {
         match self {
             Left(_) => true,
             Right(_) => false,
+        }
+    }
+
+    /// Returns `true` if the value is [`Left`] and the value inside of it matches a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let left0: Either<i32, i32> = Left(0);
+    /// let left2: Either<i32, i32> = Left(2);
+    /// let right: Either<i32, i32> = Right(2);
+    ///
+    /// assert_eq!(left2.is_left_and(|n| n > 1), true);
+    /// assert_eq!(left0.is_left_and(|n| n > 1), false);
+    /// assert_eq!(right.is_left_and(|n| n > 1), false);
+    /// ```
+    pub fn is_left_and<F>(self, f: F) -> bool
+    where
+        F: FnOnce(L) -> bool,
+    {
+        match self {
+            Left(left) => f(left),
+            Right(_) => false,
+        }
+    }
+
+    /// Returns `true` if the value is [`Right`] and the value inside of it matches a predicate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let right0: Either<i32, i32> = Right(0);
+    /// let right2: Either<i32, i32> = Right(2);
+    /// let left: Either<i32, i32> = Left(2);
+    ///
+    /// assert_eq!(right2.is_right_and(|n| n > 1), true);
+    /// assert_eq!(right0.is_right_and(|n| n > 1), false);
+    /// assert_eq!(left.is_right_and(|n| n > 1), false);
+    /// ```
+    pub fn is_right_and<F>(self, f: F) -> bool
+    where
+        F: FnOnce(R) -> bool,
+    {
+        match self {
+            Left(_) => false,
+            Right(right) => f(right),
         }
     }
 
@@ -240,7 +355,7 @@ impl<L, R> Either<L, R> {
     /// assert_eq!(right.as_ref(), Right(&"some value"));
     /// ```
     pub fn as_ref(&self) -> Either<&L, &R> {
-        map_either!(self, inner => inner)
+        map_both!(self, inner => inner)
     }
 
     /// Convert `&mut Either<L, R>` to `Either<&mut L, &mut R>`.
@@ -262,7 +377,7 @@ impl<L, R> Either<L, R> {
     /// assert_eq!(right, Right(123));
     /// ```
     pub fn as_mut(&mut self) -> Either<&mut L, &mut R> {
-        map_either!(self, inner => inner)
+        map_both!(self, inner => inner)
     }
 
     /// Convert `Pin<&Either<L, R>>` to `Either<Pin<&L>, Pin<&R>>`,
@@ -270,7 +385,7 @@ impl<L, R> Either<L, R> {
     pub fn as_pin_ref(self: Pin<&Self>) -> Either<Pin<&L>, Pin<&R>> {
         // SAFETY: We can use `new_unchecked` because the `inner` parts are
         // guaranteed to be pinned, as they come from `self` which is pinned.
-        unsafe { map_either!(Pin::get_ref(self), inner => Pin::new_unchecked(inner)) }
+        unsafe { map_both!(Pin::get_ref(self), inner => Pin::new_unchecked(inner)) }
     }
 
     /// Convert `Pin<&mut Either<L, R>>` to `Either<Pin<&mut L>, Pin<&mut R>>`,
@@ -281,7 +396,7 @@ impl<L, R> Either<L, R> {
         // to be pinned, as they come from `self` which is pinned, and we never
         // offer an unpinned `&mut L` or `&mut R` through `Pin<&mut Self>`. We
         // also don't have an implementation of `Drop`, nor manual `Unpin`.
-        unsafe { map_either!(Pin::get_unchecked_mut(self), inner => Pin::new_unchecked(inner)) }
+        unsafe { map_both!(Pin::get_unchecked_mut(self), inner => Pin::new_unchecked(inner)) }
     }
 
     /// Convert `Either<L, R>` to `Either<R, L>`.
@@ -343,6 +458,54 @@ impl<L, R> Either<L, R> {
         match self {
             Left(l) => Left(l),
             Right(r) => Right(f(r)),
+        }
+    }
+
+    /// Returns the provided default (if [`Right`]), or
+    /// applies a function to the contained value (if [`Left`]).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let x: Either<_, i32> = Left(123);
+    /// assert_eq!(x.map_left_or(0, |n| n * 2), 246);
+    ///
+    /// let x: Either<i32, _> = Right(123);
+    /// assert_eq!(x.map_left_or(0, |n| n * 2), 0);
+    /// ```
+    pub fn map_left_or<F, S>(self, default: S, f: F) -> S
+    where
+        F: FnOnce(L) -> S,
+    {
+        match self {
+            Left(left) => f(left),
+            Right(_) => default,
+        }
+    }
+
+    /// Returns the provided default (if [`Left`]), or
+    /// applies a function to the contained value (if [`Right`]).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let x: Either<_, i32> = Left(123);
+    /// assert_eq!(x.map_right_or(0, |n| n * 2), 0);
+    ///
+    /// let x: Either<i32, _> = Right(123);
+    /// assert_eq!(x.map_right_or(0, |n| n * 2), 246);
+    /// ```
+    pub fn map_right_or<F, S>(self, default: S, f: F) -> S
+    where
+        F: FnOnce(R) -> S,
+    {
+        match self {
+            Left(_) => default,
+            Right(right) => f(right),
         }
     }
 
@@ -462,6 +625,62 @@ impl<L, R> Either<L, R> {
         }
     }
 
+    /// Returns `other` if the value is [`Left`], otherwise returns the [`Right`] value of `self`.
+    ///
+    /// Arguments passed to `left_and` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`left_and_then`], which is
+    /// lazily evaluated.
+    ///
+    /// [`left_and_then`]: Either::left_and_then
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let left: Either<_, u32> = Left(123);
+    /// assert_eq!(left.left_and::<()>(Right(246)), Right(246));
+    /// assert_eq!(left.left_and(Left(246)), Left(246));
+    ///
+    /// let right: Either<u32, _> = Right(123);
+    /// assert_eq!(right.left_and::<()>(Right(246)), Right(123));
+    /// assert_eq!(right.left_and(Left(246)), Right(123));
+    /// ```
+    pub fn left_and<S>(self, other: Either<S, R>) -> Either<S, R> {
+        match self {
+            Left(_) => other,
+            Right(r) => Right(r),
+        }
+    }
+
+    /// Returns `other` if the value is [`Right`], otherwise returns the [`Left`] value of `self`.
+    ///
+    /// Arguments passed to `right_and` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`right_and_then`], which is
+    /// lazily evaluated.
+    ///
+    /// [`right_and_then`]: Either::right_and_then
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// let left: Either<_, u32> = Left(123);
+    /// assert_eq!(left.right_and(Right(246)), Left(123));
+    /// assert_eq!(left.right_and::<()>(Left(246)), Left(123));
+    ///
+    /// let right: Either<u32, _> = Right(123);
+    /// assert_eq!(right.right_and(Right(246)), Right(246));
+    /// assert_eq!(right.right_and::<()>(Left(246)), Left(246));
+    /// ```
+    pub fn right_and<S>(self, other: Either<L, S>) -> Either<L, S> {
+        match self {
+            Left(l) => Left(l),
+            Right(_) => other,
+        }
+    }
+
     /// Apply the function `f` on the value in the `Left` variant if it is present.
     ///
     /// ```
@@ -523,7 +742,7 @@ impl<L, R> Either<L, R> {
         L: IntoIterator,
         R: IntoIterator<Item = L::Item>,
     {
-        map_either!(self, inner => inner.into_iter())
+        map_both!(self, inner => inner.into_iter())
     }
 
     /// Borrow the inner value as an iterator.
@@ -546,7 +765,7 @@ impl<L, R> Either<L, R> {
         for<'a> &'a L: IntoIterator,
         for<'a> &'a R: IntoIterator<Item = <&'a L as IntoIterator>::Item>,
     {
-        map_either!(self, inner => inner.into_iter())
+        map_both!(self, inner => inner.into_iter())
     }
 
     /// Mutably borrow the inner value as an iterator.
@@ -577,7 +796,7 @@ impl<L, R> Either<L, R> {
         for<'a> &'a mut L: IntoIterator,
         for<'a> &'a mut R: IntoIterator<Item = <&'a mut L as IntoIterator>::Item>,
     {
-        map_either!(self, inner => inner.into_iter())
+        map_both!(self, inner => inner.into_iter())
     }
 
     /// Converts an `Either` of `Iterator`s to be an `Iterator` of `Either`s
@@ -594,14 +813,12 @@ impl<L, R> Either<L, R> {
     /// assert_eq!(right.factor_into_iter().collect::<Vec<_>>(), vec![Right(0), Right(1)]);
     ///
     /// ```
-    // TODO(MSRV): doc(alias) was stabilized in Rust 1.48
-    // #[doc(alias = "transpose")]
     pub fn factor_into_iter(self) -> IterEither<L::IntoIter, R::IntoIter>
     where
         L: IntoIterator,
         R: IntoIterator,
     {
-        IterEither::new(map_either!(self, inner => inner.into_iter()))
+        IterEither::new(map_both!(self, inner => inner.into_iter()))
     }
 
     /// Borrows an `Either` of `Iterator`s to be an `Iterator` of `Either`s
@@ -625,7 +842,7 @@ impl<L, R> Either<L, R> {
         for<'a> &'a L: IntoIterator,
         for<'a> &'a R: IntoIterator,
     {
-        IterEither::new(map_either!(self, inner => inner.into_iter()))
+        IterEither::new(map_both!(self, inner => inner.into_iter()))
     }
 
     /// Mutably borrows an `Either` of `Iterator`s to be an `Iterator` of `Either`s
@@ -651,7 +868,7 @@ impl<L, R> Either<L, R> {
         for<'a> &'a mut L: IntoIterator,
         for<'a> &'a mut R: IntoIterator,
     {
-        IterEither::new(map_either!(self, inner => inner.into_iter()))
+        IterEither::new(map_both!(self, inner => inner.into_iter()))
     }
 
     /// Return left value or given value
@@ -807,6 +1024,7 @@ impl<L, R> Either<L, R> {
     /// let right: Either<(), _> = Right(3);
     /// right.unwrap_left();
     /// ```
+    #[track_caller]
     pub fn unwrap_left(self) -> L
     where
         R: core::fmt::Debug,
@@ -838,6 +1056,7 @@ impl<L, R> Either<L, R> {
     /// let left: Either<_, ()> = Left(3);
     /// left.unwrap_right();
     /// ```
+    #[track_caller]
     pub fn unwrap_right(self) -> R
     where
         L: core::fmt::Debug,
@@ -867,6 +1086,7 @@ impl<L, R> Either<L, R> {
     /// let right: Either<(), _> = Right(3);
     /// right.expect_left("value was Right");
     /// ```
+    #[track_caller]
     pub fn expect_left(self, msg: &str) -> L
     where
         R: core::fmt::Debug,
@@ -896,6 +1116,7 @@ impl<L, R> Either<L, R> {
     /// let left: Either<_, ()> = Left(3);
     /// left.expect_right("value was Right");
     /// ```
+    #[track_caller]
     pub fn expect_right(self, msg: &str) -> R
     where
         L: core::fmt::Debug,
@@ -904,6 +1125,56 @@ impl<L, R> Either<L, R> {
             Either::Right(r) => r,
             Either::Left(l) => panic!("{}: {:?}", msg, l),
         }
+    }
+
+    /// Calls a function with a reference to the contained value if [`Left`].
+    ///
+    /// Returns the original self.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// # fn foo() -> Either<u32, u32> { Right(2) }
+    /// let x = foo()
+    ///     .inspect_left(|n| println!("left: {n}"))
+    ///     .left_or(0);
+    /// ```
+    pub fn inspect_left<F>(self, f: F) -> Self
+    where
+        F: FnOnce(&L),
+    {
+        if let Left(ref left) = self {
+            f(left);
+        }
+
+        self
+    }
+
+    /// Calls a function with a reference to the contained value if [`Right`].
+    ///
+    /// Returns the original self.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use either::*;
+    ///
+    /// # fn foo() -> Either<u32, u32> { Right(2) }
+    /// let x = foo()
+    ///     .inspect_right(|n| println!("right: {n}"))
+    ///     .left_or(0);
+    /// ```
+    pub fn inspect_right<F>(self, f: F) -> Self
+    where
+        F: FnOnce(&R),
+    {
+        if let Right(ref right) = self {
+            f(right);
+        }
+
+        self
     }
 
     /// Convert the contained value into `T`
@@ -938,8 +1209,7 @@ impl<L, R> Either<Option<L>, Option<R>> {
     /// let right: Either<Option<Vec<u8>>, _> = Right(Some(String::new()));
     /// assert_eq!(right.factor_none(), Some(Right(String::new())));
     /// ```
-    // TODO(MSRV): doc(alias) was stabilized in Rust 1.48
-    // #[doc(alias = "transpose")]
+    #[doc(alias = "transpose")]
     pub fn factor_none(self) -> Option<Either<L, R>> {
         match self {
             Left(l) => l.map(Either::Left),
@@ -949,7 +1219,7 @@ impl<L, R> Either<Option<L>, Option<R>> {
 }
 
 impl<L, R, E> Either<Result<L, E>, Result<R, E>> {
-    /// Factors out a homogenous type from an `Either` of [`Result`].
+    /// Factors out a homogeneous type from an `Either` of [`Result`].
     ///
     /// Here, the homogeneous type is the `Err` type of the [`Result`].
     ///
@@ -961,8 +1231,7 @@ impl<L, R, E> Either<Result<L, E>, Result<R, E>> {
     /// let right: Either<Result<Vec<u8>, u32>, _> = Right(Ok(String::new()));
     /// assert_eq!(right.factor_err(), Ok(Right(String::new())));
     /// ```
-    // TODO(MSRV): doc(alias) was stabilized in Rust 1.48
-    // #[doc(alias = "transpose")]
+    #[doc(alias = "transpose")]
     pub fn factor_err(self) -> Result<Either<L, R>, E> {
         match self {
             Left(l) => l.map(Either::Left),
@@ -972,7 +1241,7 @@ impl<L, R, E> Either<Result<L, E>, Result<R, E>> {
 }
 
 impl<T, L, R> Either<Result<T, L>, Result<T, R>> {
-    /// Factors out a homogenous type from an `Either` of [`Result`].
+    /// Factors out a homogeneous type from an `Either` of [`Result`].
     ///
     /// Here, the homogeneous type is the `Ok` type of the [`Result`].
     ///
@@ -984,8 +1253,7 @@ impl<T, L, R> Either<Result<T, L>, Result<T, R>> {
     /// let right: Either<Result<u32, Vec<u8>>, _> = Right(Err(String::new()));
     /// assert_eq!(right.factor_ok(), Err(Right(String::new())));
     /// ```
-    // TODO(MSRV): doc(alias) was stabilized in Rust 1.48
-    // #[doc(alias = "transpose")]
+    #[doc(alias = "transpose")]
     pub fn factor_ok(self) -> Result<T, Either<L, R>> {
         match self {
             Left(l) => l.map_err(Either::Left),
@@ -1067,10 +1335,7 @@ impl<T> Either<T, T> {
     where
         F: FnOnce(T) -> M,
     {
-        match self {
-            Left(l) => Left(f(l)),
-            Right(r) => Right(f(r)),
-        }
+        map_both!(self, t => f(t))
     }
 }
 
@@ -1082,7 +1347,7 @@ impl<L, R> Either<&L, &R> {
         L: Clone,
         R: Clone,
     {
-        map_either!(self, inner => inner.clone())
+        map_both!(self, inner => inner.clone())
     }
 
     /// Maps an `Either<&L, &R>` to an `Either<L, R>` by copying the contents of
@@ -1092,7 +1357,7 @@ impl<L, R> Either<&L, &R> {
         L: Copy,
         R: Copy,
     {
-        map_either!(self, inner => *inner)
+        map_both!(self, inner => *inner)
     }
 }
 
@@ -1104,7 +1369,7 @@ impl<L, R> Either<&mut L, &mut R> {
         L: Clone,
         R: Clone,
     {
-        map_either!(self, inner => inner.clone())
+        map_both!(self, inner => inner.clone())
     }
 
     /// Maps an `Either<&mut L, &mut R>` to an `Either<L, R>` by copying the contents of
@@ -1114,7 +1379,7 @@ impl<L, R> Either<&mut L, &mut R> {
         L: Copy,
         R: Copy,
     {
-        map_either!(self, inner => *inner)
+        map_both!(self, inner => *inner)
     }
 }
 

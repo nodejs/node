@@ -70,8 +70,8 @@
 //! - Two optional attributes can be added to your types next to the derive:
 //!
 //!     - `#[ignore_extra_doc_attributes]` makes the macro ignore any doc
-//!       comment attributes (or `///` lines) after the first. Multi-line
-//!       comments using `///` are otherwise treated as an error, so use this
+//!       comment attributes (or `///` lines) after the last non-empty line. Multi-line
+//!       comments with line breaks using `///` are otherwise treated as an error, so use this
 //!       attribute or consider switching to block doc comments (`/** */`).
 //!
 //!     - `#[prefix_enum_doc_attributes]` combines the doc comment message on
@@ -80,7 +80,7 @@
 //!       becomes mandatory. When added to any other type, it has no effect.
 //!
 //! - In case you want to have an independent doc comment, the
-//!   `#[displaydoc("...")` atrribute may be used on the variant or struct to
+//!   `#[displaydoc("...")` attribute may be used on the variant or struct to
 //!   override it.
 //!
 //! <br>
@@ -92,7 +92,7 @@
 //!
 //! 2. **Does this crate work with `Path` and `PathBuf` via the `Display` trait?**
 //!     * Yuuup. This crate uses @dtolnay's [autoref specialization technique](https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md) to add a special trait for types to get the display impl. It then specializes for `Path` and `PathBuf`, and when either of these types are found, it calls `self.display()` to get a `std::path::Display<'_>` type which can be used with the `Display` format specifier!
-#![doc(html_root_url = "https://docs.rs/displaydoc/0.2.3")]
+#![doc(html_root_url = "https://docs.rs/displaydoc/0.2.6")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(
     rust_2018_idioms,

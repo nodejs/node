@@ -31,6 +31,22 @@ How to use with cargo::
 Recent Changes
 --------------
 
+- 1.16.0
+
+  - Add many new methods dealing with each side, by @A4-Tacks:
+
+    - ``inspect_left`` and ``inspect_right`` (#124)
+
+    - ``left_and`` and ``right_and`` (#125)
+
+    - ``is_left_and`` and ``is_right_and`` (#126)
+
+    - ``map_left_or`` and ``map_right_or`` (#127)
+
+  - Add a version of ``for_both!`` with a single ``ident``, by @A4-Tacks (#128)
+
+  - Add a ``map_both!`` macro, by @JohnScience (#109) and @ronnodas (#137)
+
 - 1.15.0
 
   - Fix ``serde`` support when building without ``std``, by @klkvr (#119)
