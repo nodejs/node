@@ -13,6 +13,9 @@ const cjsFixtureURL = fixtures.fileURL('entrypoint', 'commonjs.cjs').href;
 const mjsFixture = fixtures.path('entrypoint', 'module.mjs');
 const mjsFixtureURL = fixtures.fileURL('entrypoint', 'module.mjs').href;
 
+const workerFixture = fixtures.path('entrypoint', 'worker.cjs');
+const workerFixtureURL = fixtures.fileURL('entrypoint', 'worker.cjs').href;
+
 const cjsPreload = fixtures.path('entrypoint', 'check-commonjs.cjs');
 const esmPreload = fixtures.fileURL('entrypoint', 'check-module.mjs').href;
 const loader = fixtures.fileURL('entrypoint', 'loader.mjs').href;
@@ -78,6 +81,16 @@ const testCases = [
       mjsFixture,
     ],
     expected: mjsFixtureURL,
+  },
+  {
+    name: 'is inherited by worker threads and their preloads and loaders',
+    args: [
+      '--require', cjsPreload,
+      '--import', esmPreload,
+      '--loader', loader,
+      workerFixture,
+    ],
+    expected: workerFixtureURL,
   },
   {
     name: 'supports non-file --entry-url entry points',

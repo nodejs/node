@@ -1521,8 +1521,9 @@ added: REPLACEME
 
 * Type: {URL | undefined}
 
-The entrypoint that node was instantiated with, or {undefined} if node
-was instantiated without one (e.g., in the REPL).
+The entry point that Node.js was started with. Worker threads inherit this
+value. If Node.js was started without an entry point, such as in the REPL, the
+value is {undefined}.
 
 ## `process.env`
 
