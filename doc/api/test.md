@@ -1780,6 +1780,13 @@ changes:
     If both `coverageExcludeGlobs` and `coverageIncludeGlobs` are provided,
     files must meet **both** criteria to be included in the coverage report.
     **Default:** `undefined`.
+  * `coverageIncludeAll` {boolean} Includes source files that were never loaded by
+    the test run in the coverage report, where they are reported as having zero
+    coverage. Candidate files are searched for in `cwd`, and are subject to the
+    same `coverageIncludeGlobs` and `coverageExcludeGlobs` filtering as the rest
+    of the report. This property is only applicable when `coverage` was set to
+    `true`.
+    **Default:** `false`.
   * `lineCoverage` {number} Require a minimum percent of covered lines. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.

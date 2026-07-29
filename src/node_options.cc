@@ -1025,6 +1025,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::coverage_include_pattern,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-coverage-include-all",
+            "include source files that were never loaded in the coverage "
+            "report",
+            &EnvironmentOptions::coverage_include_all,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-exclude",
             "exclude files from coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_exclude_pattern,

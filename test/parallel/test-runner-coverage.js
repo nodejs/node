@@ -528,6 +528,76 @@ test('coverage with included and excluded files', skipIfNoInspector, () => {
   assert(!findCoverageFileForPid(result.pid));
 });
 
+test('coverage does not include untested files by default', skipIfNoInspector, () => {
+  const fixtureDir = fixtures.path('test-runner', 'coverage-include-all');
+  const fixture = fixtures.path('test-runner', 'coverage-include-all', 'index.test.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-coverage-exclude=**/*.test.js',
+    '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixtureDir });
+  const report = [
+    '# start of coverage report',
+    '# -----------------------------------------------------------',
+    '# file       | line % | branch % | funcs % | uncovered lines',
+    '# -----------------------------------------------------------',
+    '# covered.js | 100.00 |   100.00 |  100.00 | ',
+    '# -----------------------------------------------------------',
+    '# all files  | 100.00 |   100.00 |  100.00 | ',
+    '# -----------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  assertIncludesReport(result, report);
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('coverage includes untested files', skipIfNoInspector, () => {
+  const fixtureDir = fixtures.path('test-runner', 'coverage-include-all');
+  const fixture = fixtures.path('test-runner', 'coverage-include-all', 'index.test.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-coverage-include-all',
+    '--test-coverage-exclude=**/*.test.js', '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixtureDir });
+
+  const report = [
+    '# start of coverage report',
+    '# -------------------------------------------------------------',
+    '# file         | line % | branch % | funcs % | uncovered lines',
+    '# -------------------------------------------------------------',
+    '# covered.js   | 100.00 |   100.00 |  100.00 | ',
+    '# nested       |        |          |         | ',
+    '#  deep.js     |   0.00 |   100.00 |  100.00 | 1-5',
+    '# untested.js  |   0.00 |   100.00 |  100.00 | 1-5',
+    '# -------------------------------------------------------------',
+    '# all files    |  33.33 |   100.00 |  100.00 | ',
+    '# -------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
+
+  assertIncludesReport(result, report);
+  assert.strictEqual(result.status, 0);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
+test('untested files honor coverage include and exclude globs', skipIfNoInspector, () => {
+  const fixtureDir = fixtures.path('test-runner', 'coverage-include-all');
+  const fixture = fixtures.path('test-runner', 'coverage-include-all', 'index.test.js');
+  const args = [
+    '--test', '--experimental-test-coverage', '--test-coverage-include-all',
+    '--test-coverage-exclude=nested/**', '--test-reporter', 'tap', fixture,
+  ];
+  const result = spawnSync(process.execPath, args, { cwd: fixtureDir });
+  const stdout = result.stdout.toString();
+
+  assert.strictEqual(result.status, 0);
+  assert.match(stdout, /^# untested\.js/m);
+  assert.doesNotMatch(stdout, /deep\.js/);
+  assert(!findCoverageFileForPid(result.pid));
+});
+
 test('correctly prints the coverage report of files contained in parent directories', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
