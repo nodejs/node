@@ -25,7 +25,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "crypto/crypto_context.h"
-#include "crypto/crypto_clienthello.h"
 
 #include "async_wrap.h"
 #include "stream_wrap.h"
@@ -66,6 +65,11 @@ class TLSWrap : public AsyncWrap,
   inline bool is_cert_cb_running() const { return cert_cb_running_; }
   inline bool is_waiting_cert_cb() const { return cert_cb_ != nullptr; }
   inline bool has_session_callbacks() const { return session_callbacks_; }
+  // We need to suspend the ClientHello only for server session id
+  // callbacks, and only on the first pass.
+  inline bool should_suspend_for_client_hello() const {
+    return is_server() && session_callbacks_ && !hello_answered_;
+  }
   inline void set_cert_cb_running(bool on = true) { cert_cb_running_ = on; }
   inline void set_awaiting_new_session(bool on = true) {
     awaiting_new_session_ = on;
@@ -105,6 +109,12 @@ class TLSWrap : public AsyncWrap,
   // Called by the done() callback of the 'newSession' event.
   void NewSessionDoneCb();
 
+  // Schedules 'onclienthello'; returns false to suspend the handshake until
+  // clientHelloDone(). The emit itself must not run on the library's stack.
+  bool OnEarlyClientHello(const unsigned char* session_id,
+                          size_t session_id_len,
+                          bool has_ticket);
+
   // Implement MemoryRetainer:
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(TLSWrap)
@@ -122,9 +132,6 @@ class TLSWrap : public AsyncWrap,
 
   static constexpr int kClearOutChunkSize = 16384;
 
-  // Maximum number of bytes for hello parser
-  static constexpr int kMaxHelloLength = 16384;
-
   // Usual ServerHello + Certificate size
   static constexpr int kInitialClientBufferLength = 4096;
 
@@ -140,6 +147,8 @@ class TLSWrap : public AsyncWrap,
   }
 
   void WaitForCertCb(CertCb cb, void* arg);
+  void EmitClientHello(const std::vector<unsigned char>& session_id,
+                       bool has_ticket);
 
   TLSWrap(Environment* env,
           v8::Local<v8::Object> obj,
@@ -180,6 +189,7 @@ class TLSWrap : public AsyncWrap,
   static int SelectSNIContextCallback(SSL* s, int* ad, void* arg);
 
   static void CertCbDone(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClientHelloDone(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableCertCb(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableALPNCb(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -188,7 +198,6 @@ class TLSWrap : public AsyncWrap,
   static void EnableSessionCallbacks(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableTrace(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EndParser(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExportKeyingMaterial(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetALPNNegotiatedProto(
@@ -215,7 +224,7 @@ class TLSWrap : public AsyncWrap,
   static void IsSessionReused(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void NewSessionDone(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void OnClientHelloParseEnd(void* arg);
+  static void ResumeAfterCertCb(void* arg);
   static void Receive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Renegotiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RequestOCSP(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -257,7 +266,6 @@ class TLSWrap : public AsyncWrap,
   Kind kind_;
   ncrypto::SSLSessionPointer next_sess_;
   ncrypto::SSLPointer ssl_;
-  ClientHelloParser hello_parser_;
   v8::Global<v8::ArrayBufferView> ocsp_response_;
   BaseObjectPtr<SecureContext> sni_context_;
   BaseObjectPtr<SecureContext> sc_;
@@ -274,6 +282,10 @@ class TLSWrap : public AsyncWrap,
 
   bool session_callbacks_ = false;
   bool awaiting_new_session_ = false;
+  // 'onclienthello' has been emitted for this connection.
+  bool hello_emitted_ = false;
+  // JS has answered it by calling clientHelloDone().
+  bool hello_answered_ = false;
   bool in_dowrite_ = false;
   bool started_ = false;
   bool shutdown_ = false;

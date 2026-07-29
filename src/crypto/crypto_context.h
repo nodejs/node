@@ -35,6 +35,11 @@ class SecureContext final : public BaseObject {
   using KeylogCb = void (*)(const SSL*, const char*);
   using NewSessionCb = int (*)(SSL*, SSL_SESSION*);
   using SelectSNIContextCb = int (*)(SSL*, int*, void*);
+#ifdef OPENSSL_IS_BORINGSSL
+  using ClientHelloCb = ssl_select_cert_result_t (*)(const SSL_CLIENT_HELLO*);
+#else
+  using ClientHelloCb = int (*)(SSL*, int*, void*);
+#endif
 
   ~SecureContext() override;
 
@@ -74,6 +79,7 @@ class SecureContext final : public BaseObject {
 
   ncrypto::SSLPointer CreateSSL();
 
+  void SetClientHelloCallback(ClientHelloCb cb);
   void SetGetSessionCallback(GetSessionCb cb);
   void SetKeylogCallback(KeylogCb cb);
   void SetNewSessionCallback(NewSessionCb cb);
