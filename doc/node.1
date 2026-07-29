@@ -607,6 +607,13 @@ Require a minimum threshold for function coverage (0 - 100).
 .It Fl -test-coverage-include
 A glob pattern that only includes matching files in the coverage report
 .
+.It Fl -test-coverage-include-all
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+Candidate files are searched for in the current working directory, and are
+subject to the same \fB--test-coverage-include\fR and \fB--test-coverage-exclude\fR
+filtering as the rest of the report.
+.
 .It Fl -test-coverage-lines Ns = Ns Ar threshold
 Require a minimum threshold for line coverage (0 - 100).
 .
@@ -937,6 +944,13 @@ which are interpreted as if they had been specified on the command line before t
 Node.js will exit with an error if an option that is not allowed in the environment is used, such as
 .Fl -print
 or a script file.
+.
+.It Fl -test-coverage-include-all
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+Candidate files are searched for in the current working directory, and are
+subject to the same \fB--test-coverage-include\fR and \fB--test-coverage-exclude\fR
+filtering as the rest of the report.
 .
 .It Ev NODE_PATH Ar directories...
 A colon-separated list of
