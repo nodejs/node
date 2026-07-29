@@ -33,7 +33,8 @@ const serverMayRead = new Promise((resolve) => { letServerRead = resolve; });
 const endpoint = await listen((session) => {
   session.onstream = async (stream) => {
     await serverMayRead;
-    for await (const {} of stream) { _ ;  /* reading extends the window */ }
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream) { /* reading extends the window */ }
   };
 }, {
   sni: { '*': { keys: [key], certs: [cert] } },
