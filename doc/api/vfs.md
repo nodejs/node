@@ -208,11 +208,11 @@ mounted.
 added: REPLACEME
 -->
 
-* {URL | null}
+* {string | null}
 
-The current mount point as a `file:` {URL}, or `null` when the VFS is
-not mounted. A fresh `URL` object is returned on each access, so
-mutating the result does not affect the instance.
+The current mount point as a `file:` URL string (the [`vfs.mountPoint`][]
+path converted with [`url.pathToFileURL()`][]), or `null` when the VFS
+is not mounted.
 
 This is a convenience for addressing mounted files with URL-based
 APIs such as dynamic `import()`:
@@ -545,8 +545,10 @@ fields use synthetic but stable values:
 [`node:fs`]: fs.md
 [`require()`]: modules.md#requireid
 [`require.resolve()`]: modules.md#requireresolverequest-options
+[`url.pathToFileURL()`]: url.md#urlpathtofileurlpath-options
 [`vfs.mount()`]: #vfsmount
 [`vfs.mountPointURL`]: #vfsmountpointurl
+[`vfs.mountPoint`]: #vfsmountpoint
 [`vfs.unmount()`]: #vfsunmount
 [loading from `node_modules` folders]: modules.md#loading-from-node_modules-folders
 [the global folders]: modules.md#loading-from-the-global-folders

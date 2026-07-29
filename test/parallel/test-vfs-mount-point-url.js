@@ -13,34 +13,19 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.mountPointURL, null);
 }
 
-// Test: file: URL of the mount point while mounted, null again after
-// unmounting.
+// Test: file: URL string of the mount point while mounted, null again
+// after unmounting.
 {
   const myVfs = vfs.create();
   const mountPoint = myVfs.mount();
 
   const url = myVfs.mountPointURL;
-  assert.ok(url instanceof URL);
-  assert.strictEqual(url.protocol, 'file:');
-  assert.strictEqual(url.href, pathToFileURL(mountPoint).href);
+  assert.strictEqual(typeof url, 'string');
+  assert.ok(url.startsWith('file:'));
+  assert.strictEqual(url, pathToFileURL(mountPoint).href);
 
   myVfs.unmount();
   assert.strictEqual(myVfs.mountPointURL, null);
-}
-
-// Test: each access returns a fresh URL object, so callers mutating the
-// result cannot corrupt the instance state.
-{
-  const myVfs = vfs.create();
-  myVfs.mount();
-
-  const first = myVfs.mountPointURL;
-  first.pathname += '/tampered';
-  const second = myVfs.mountPointURL;
-  assert.notStrictEqual(first, second);
-  assert.strictEqual(second.href, pathToFileURL(myVfs.mountPoint).href);
-
-  myVfs.unmount();
 }
 
 // Test: the URL is usable to address files in the mounted VFS.
