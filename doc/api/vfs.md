@@ -360,12 +360,16 @@ console.log(value); // 42
 myVfs.unmount();
 ```
 
-Module identity follows the path: `__filename` and `module.filename`
-are the plain absolute path of the module under the mount point, and
-`import.meta.url` is the corresponding `file:` URL, with no synthetic
-decorations. Importing the same virtual path repeatedly, including
-through `import.meta.resolve()`, yields the same module instance,
-exactly as for real files.
+CommonJS modules loaded from a mounted VFS are identified by their VFS paths
+that start with the mount point. This is reflected in, for example, `__filename` and
+`__dirname` in the module, or the errors stack traces involving functions from
+the VFS modules. ES modules in the VFS are similarly identified by the `file:` URL of
+their VFS paths and this is reflected in e.g. `import.meta.url`.
+
+Like modules loaded from the real file system, modules loaded from the VFS are
+cached on the first load. When `require()` or `import()` is used to load an absolute
+path or URL that falls under the mounted VFS multiple times, the module is only loaded
+once and subsequent calls return the same instance.
 
 Calling [`vfs.unmount()`][] invalidates the modules that were loaded
 from the mount point: a subsequent `require()` or `import` of a path
