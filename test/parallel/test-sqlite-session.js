@@ -404,6 +404,13 @@ test('filter handler throws', (t) => {
     name: 'Error',
     message: 'Error filtering table data1'
   });
+
+  t.assert.throws(() => {
+    database2.exec('CREATE TABLEEEE');
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    message: /syntax error/,
+  });
 });
 
 test('database.createSession() - filter changes', (t) => {

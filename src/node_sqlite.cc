@@ -2326,6 +2326,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
   Local<Function> conflictFunc;
   Local<Function> filterFunc;
+  bool filterCallbackFailed = false;
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -2387,25 +2388,25 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
 
       filterFunc = filterValue.As<Function>();
 
-      context.filterCallback =
-          [env, db, &filterFunc](std::string_view item) -> bool {
+      context.filterCallback = [env, &filterFunc, &filterCallbackFailed](
+                                   std::string_view item) -> bool {
         // If there was an error in the previous call to the filter's
         // callback, we skip calling it again.
-        if (db->ignore_next_sqlite_error_) {
+        if (filterCallbackFailed) {
           return false;
         }
 
         Local<Value> argv[1];
         if (!ToV8Value(env->context(), item, env->isolate())
                  .ToLocal(&argv[0])) {
-          db->SetIgnoreNextSQLiteError(true);
+          filterCallbackFailed = true;
           return false;
         }
 
         Local<Value> result;
         if (!filterFunc->Call(env->context(), Null(env->isolate()), 1, argv)
                  .ToLocal(&result)) {
-          db->SetIgnoreNextSQLiteError(true);
+          filterCallbackFailed = true;
           return false;
         }
 
