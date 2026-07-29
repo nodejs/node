@@ -5,7 +5,14 @@
 
 #include "v8-platform.h"
 
+#include <string>
+#include <string_view>
+
 namespace node::tracing {
+
+// Expands a trace log file pattern into a concrete path, substituting ${pid}
+// and ${rotation}.
+std::string GetTraceFilePath(std::string_view log_file_pattern, int file_num);
 
 class TraceEventHelper {
  public:
