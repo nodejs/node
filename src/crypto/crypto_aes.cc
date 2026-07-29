@@ -48,7 +48,9 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   CHECK_EQ(key_data.GetKeyType(), kKeyTypeSecret);
 
   auto ctx = CipherCtxPointer::New();
-  CHECK(ctx);
+  if (!ctx) {
+    return WebCryptoCipherStatus::FAILED;
+  }
 
   if (params.cipher.isWrapMode()) {
     ctx.setAllowWrap();
@@ -382,7 +384,9 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
     return status;
   }
 
-  BN_ULONG input_size_part1 = remaining_until_reset.getWord() * kAesBlockSize;
+  std::optional<BN_ULONG> remaining_blocks = remaining_until_reset.getWord();
+  CHECK(remaining_blocks.has_value());
+  BN_ULONG input_size_part1 = remaining_blocks.value() * kAesBlockSize;
 
   // Encrypt the first part...
   auto status =

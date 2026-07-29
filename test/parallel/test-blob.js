@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Blob } = require('buffer');
+const { Blob, File } = require('buffer');
 const { inspect } = require('util');
 const { EOL } = require('os');
 const { kState } = require('internal/webstreams/util');
@@ -354,8 +354,10 @@ assert.throws(() => new Blob({}), {
   assert(!done);
   setTimeout(common.mustCall(() => {
     // The blob stream is now a byte stream hence after the first read,
-    // it should pull in the next 'hello' which is 5 bytes hence -5.
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    // it may have pulled in the next 'hello' which is 5 bytes hence -5.
+    // The ordering of this timer and the stream's setImmediate() pull
+    // continuation can vary across platforms.
+    assert([0, -5].includes(stream[kState].controller.desiredSize));
   }), 0);
 })().then(common.mustCall());
 
@@ -523,4 +525,23 @@ assert.throws(() => new Blob({}), {
   } finally {
     Blob.prototype.arrayBuffer = arrayBuffer;
   }
+})().then(common.mustCall());
+
+{
+  assert.strictEqual(typeof Blob.prototype.textStream, 'function');
+  assert.strictEqual(typeof File.prototype.textStream, 'function');
+  assert.strictEqual(File.prototype.textStream, Blob.prototype.textStream);
+}
+
+(async () => {
+  const smiley = Buffer.from('😀', 'utf8');
+  const blob = new Blob(['hello ', smiley.subarray(0, 2), smiley.subarray(2)]);
+  const stream = blob.textStream();
+  assert.ok(stream instanceof ReadableStream);
+  let result = '';
+  for await (const chunk of stream) {
+    assert.strictEqual(typeof chunk, 'string');
+    result += chunk;
+  }
+  assert.strictEqual(result, 'hello 😀');
 })().then(common.mustCall());

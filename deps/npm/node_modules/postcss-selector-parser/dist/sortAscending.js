@@ -1,11 +1,7 @@
 "use strict";
-
-exports.__esModule = true;
-exports["default"] = sortAscending;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = sortAscending;
 function sortAscending(list) {
-  return list.sort(function (a, b) {
-    return a - b;
-  });
+    return list.sort(function (a, b) { return a - b; });
 }
-;
-module.exports = exports.default;
+//# sourceMappingURL=sortAscending.js.map

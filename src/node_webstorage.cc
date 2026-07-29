@@ -43,6 +43,7 @@ using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::PropertyDescriptor;
 using v8::PropertyHandlerFlags;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
@@ -737,8 +738,9 @@ static void Initialize(Local<Object> target,
       Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
 
-  Local<FunctionTemplate> length_getter =
-      FunctionTemplate::New(isolate, StorageLengthGetter);
+  Local<Signature> length_signature = Signature::New(isolate, ctor_tmpl);
+  Local<FunctionTemplate> length_getter = FunctionTemplate::New(
+      isolate, StorageLengthGetter, Local<Value>(), length_signature);
   ctor_tmpl->PrototypeTemplate()->SetAccessorProperty(env->length_string(),
                                                       length_getter,
                                                       Local<FunctionTemplate>(),

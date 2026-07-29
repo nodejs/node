@@ -214,7 +214,7 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 * `*` - To allow all `FileSystemRead` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-read` flags.
-  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
+  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder2/`
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -256,7 +256,7 @@ The valid arguments for the `--allow-fs-write` flag are:
 
 * `*` - To allow all `FileSystemWrite` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-write` flags.
-  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder1/`
+  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder2/`
 
 Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
@@ -409,7 +409,7 @@ I am from the snapshot
 
 For more information, check out the [`v8.startupSnapshot` API][] documentation.
 
-The snapshot currently only supports loding a single entrypoint during the
+The snapshot currently only supports loading a single entrypoint during the
 snapshot building process, which can load built-in modules, but not additional user-land modules.
 Users can bundle their applications into a single script with their bundler
 of choice before building a snapshot.
@@ -1078,6 +1078,18 @@ Enable experimental `import.meta.resolve()` parent URL support, which allows
 passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
+
+### `--experimental-import-text`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable experimental support for importing modules with
+`with { type: 'text' }`.
 
 ### `--experimental-inspector-network-resource`
 
@@ -3529,6 +3541,7 @@ one is included in the list below.
 * `--experimental-detect-module`
 * `--experimental-eventsource`
 * `--experimental-import-meta-resolve`
+* `--experimental-import-text`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`

@@ -57,6 +57,20 @@ t.test('returns [] when ignoreScripts is set', async t => {
   t.strictSame(result, [])
 })
 
+t.test('returns unreviewed nodes when ignoreScripts is set but includeWhenIgnored is true', async t => {
+  const checkAllowScripts = mockCheck(t)
+  const result = await checkAllowScripts({
+    arb: arb({
+      nodes: [node({ name: 'a', scripts: { install: 'do-stuff' } })],
+      ignoreScripts: true,
+    }),
+    npm: { flatOptions: {} },
+    includeWhenIgnored: true,
+  })
+  t.equal(result.length, 1)
+  t.strictSame(result[0].scripts, { install: 'do-stuff' })
+})
+
 t.test('returns [] when dangerouslyAllowAllScripts is set', async t => {
   const checkAllowScripts = mockCheck(t)
   const result = await checkAllowScripts({
@@ -135,46 +149,6 @@ t.test('prepare counts for non-registry sources only', async t => {
   t.equal(result[0].node.name, 'git-pkg')
 })
 
-t.test('detects synthetic node-gyp via binding.gyp runtime check', async t => {
-  const checkAllowScripts = mockCheck(t, {
-    '@npmcli/arborist/lib/install-scripts.js': async (n) => {
-      if (n.path === '/has-bindings') {
-        return { install: 'node-gyp rebuild' }
-      }
-      return {}
-    },
-  })
-
-  const result = await checkAllowScripts({
-    arb: arb({
-      nodes: [
-        node({ name: 'native', path: '/has-bindings' }),
-        node({ name: 'pure-js', path: '/no-bindings' }),
-      ],
-    }),
-    npm: { flatOptions: {} },
-  })
-  t.equal(result.length, 1)
-  t.equal(result[0].node.name, 'native')
-  t.strictSame(result[0].scripts, { install: 'node-gyp rebuild' })
-})
-
-t.test('skips node-gyp detection when gypfile is explicitly false', async t => {
-  // Mock returns no scripts to simulate the gypfile:false short-circuit
-  // inside getInstallScripts.
-  const checkAllowScripts = mockCheck(t, {
-    '@npmcli/arborist/lib/install-scripts.js': async () => ({}),
-  })
-
-  const result = await checkAllowScripts({
-    arb: arb({
-      nodes: [node({ name: 'opt-out', gypfile: false })],
-    }),
-    npm: { flatOptions: {} },
-  })
-  t.strictSame(result, [])
-})
-
 t.test('skips approved nodes', async t => {
   const checkAllowScripts = mockCheck(t)
   const result = await checkAllowScripts({
@@ -238,7 +212,7 @@ t.test('survives missing actualTree', async t => {
   t.strictSame(result, [])
 })
 
-t.test('bundled dep with install scripts is reported as unreviewed regardless of policy', async t => {
+t.test('bundled dep with install scripts is never reported (never runs, never pending)', async t => {
   const checkAllowScripts = mockCheck(t)
   const bundled = node({
     name: 'bundled-pkg',
@@ -251,13 +225,12 @@ t.test('bundled dep with install scripts is reported as unreviewed regardless of
   const result = await checkAllowScripts({
     arb: arb({
       nodes: [bundled],
-      // Policy explicitly allows the bundled name — the matcher should
-      // still return null and the walker should still flag the bundled
-      // dep as unreviewed.
+      // Even with an explicit allow entry, a bundled dep never runs its
+      // install scripts and is never counted as pending, so the walker
+      // must not flag it.
       allowScripts: { 'bundled-pkg': true },
     }),
     npm: { flatOptions: {} },
   })
-  t.equal(result.length, 1, 'bundled dep flagged despite explicit allow entry')
-  t.equal(result[0].node, bundled)
+  t.strictSame(result, [], 'bundled dep never flagged')
 })

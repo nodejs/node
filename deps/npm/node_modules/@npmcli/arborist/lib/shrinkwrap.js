@@ -929,8 +929,14 @@ class Shrinkwrap {
           continue
         }
         const loc = relpath(this.path, node.path)
-        // Drop lockfile entries for extraneous nodes outside node_modules. These are stale workspace entries: the workspace was removed from package.json or its directory was deleted, so it should not be tracked in package-lock.json.
-        if (node.extraneous && !/(^|\/)node_modules\//.test(loc) && loc !== 'node_modules') {
+        // Drop lockfile entries for extraneous nodes outside node_modules that
+        // are direct fsChildren of the root (or detached link targets). These
+        // are stale top-level entries: a workspace or file: dep removed from
+        // the root manifest, or whose directory was deleted. Extraneous
+        // fsChildren nested under another package (e.g. a file: dep of another
+        // file: dep) are kept so `npm ci` can resolve the parent's dependency.
+        if (node.extraneous && !/(^|\/)node_modules\//.test(loc) && loc !== 'node_modules' &&
+          (!node.fsParent || node.fsParent.isRoot)) {
           continue
         }
         const meta = Shrinkwrap.metaFromNode(

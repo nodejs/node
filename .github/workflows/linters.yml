@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
       - name: Lint addon docs
         run: NODE=$(command -v node) make lint-addon-docs
   lint-cpp:
@@ -44,11 +44,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
       - name: Lint C/C++ files
         run: make lint-cpp
   format-cpp:
@@ -64,11 +64,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
       - name: Format C/C++ files
         run: |
           make format-cpp-build
@@ -101,7 +101,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
       - name: Lint JavaScript files
         run: |
           set +e
@@ -156,11 +156,11 @@ jobs:
             *.py
           sparse-checkout-cone-mode: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
       - name: Lint Python
         run: |
           make lint-py-build
@@ -179,11 +179,11 @@ jobs:
             *.yaml
           sparse-checkout-cone-mode: false
       - name: Use Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.21.0
       - name: Lint YAML
         run: |
           make lint-yaml-build || true
@@ -227,8 +227,10 @@ jobs:
             /tools/lint-pr-url.mjs
             /doc/api/
           sparse-checkout-cone-mode: false
-      # GH Actions squashes all PR commits, HEAD^ refers to the base branch.
-      - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs ${{ github.event.pull_request.html_url }}
+      # We've checked out a merge commit, HEAD^ refers to the base branch.
+      - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
   lint-readme:
     runs-on: ubuntu-slim
     steps:

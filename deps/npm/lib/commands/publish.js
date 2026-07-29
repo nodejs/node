@@ -83,6 +83,7 @@ class Publish extends BaseCommand {
     const json = this.npm.config.get('json')
     const defaultTag = this.npm.config.get('tag')
     const ignoreScripts = this.npm.config.get('ignore-scripts')
+    const scriptShell = this.npm.config.get('script-shell') || undefined
     const { silent } = this.npm
 
     if (semver.validRange(defaultTag)) {
@@ -102,6 +103,7 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
+        scriptShell,
       })
     }
 
@@ -218,6 +220,7 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
+        scriptShell,
       })
 
       await runScript({
@@ -225,6 +228,7 @@ class Publish extends BaseCommand {
         path: spec.fetchSpec,
         stdio: 'inherit',
         pkg: manifest,
+        scriptShell,
       })
     }
 

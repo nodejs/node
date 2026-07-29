@@ -277,8 +277,8 @@ class [[nodiscard]] MatcherBase : private MatcherDescriberInterface {
     Init(impl);
   }
 
-  template <typename M, typename = typename std::remove_reference<
-                            M>::type::is_gtest_matcher>
+  template <typename M,
+            typename = typename std::remove_reference_t<M>::is_gtest_matcher>
   MatcherBase(M&& m) : vtable_(nullptr), buffer_() {  // NOLINT
     Init(std::forward<M>(m));
   }
@@ -363,11 +363,10 @@ class [[nodiscard]] MatcherBase : private MatcherDescriberInterface {
     // from the impl, but some users really want to get their impl back when
     // they call GetDescriber().
     // We use std::get on a tuple as a workaround of not having `if constexpr`.
-    return std::get<(
-        std::is_convertible<decltype(&P::Get(m)),
-                            const MatcherDescriberInterface*>::value
-            ? 1
-            : 0)>(std::make_tuple(&m, &P::Get(m)));
+    return std::get<(std::is_convertible_v<decltype(&P::Get(m)),
+                                           const MatcherDescriberInterface*>
+                         ? 1
+                         : 0)>(std::make_tuple(&m, &P::Get(m)));
   }
 
   template <typename P>
@@ -396,8 +395,8 @@ class [[nodiscard]] MatcherBase : private MatcherDescriberInterface {
   template <typename M>
   static constexpr bool IsInlined() {
     return sizeof(M) <= sizeof(Buffer) && alignof(M) <= alignof(Buffer) &&
-           std::is_trivially_copy_constructible<M>::value &&
-           std::is_trivially_destructible<M>::value;
+           std::is_trivially_copy_constructible_v<M> &&
+           std::is_trivially_destructible_v<M>;
   }
 
   template <typename M, bool = MatcherBase::IsInlined<M>()>
@@ -444,7 +443,7 @@ class [[nodiscard]] MatcherBase : private MatcherDescriberInterface {
 
   template <typename M>
   void Init(M&& m) {
-    using MM = typename std::decay<M>::type;
+    using MM = std::decay_t<M>;
     using Policy = ValuePolicy<MM>;
     vtable_ = GetVTable<Policy>();
     Policy::Init(*this, std::forward<M>(m));
@@ -473,14 +472,12 @@ class [[nodiscard]] Matcher : public internal::MatcherBase<T> {
       : internal::MatcherBase<T>(impl) {}
 
   template <typename U>
-  explicit Matcher(
-      const MatcherInterface<U>* impl,
-      typename std::enable_if<!std::is_same<U, const U&>::value>::type* =
-          nullptr)
+  explicit Matcher(const MatcherInterface<U>* impl,
+                   std::enable_if_t<!std::is_same_v<U, const U&>>* = nullptr)
       : internal::MatcherBase<T>(impl) {}
 
-  template <typename M, typename = typename std::remove_reference<
-                            M>::type::is_gtest_matcher>
+  template <typename M,
+            typename = typename std::remove_reference_t<M>::is_gtest_matcher>
   Matcher(M&& m) : internal::MatcherBase<T>(std::forward<M>(m)) {}  // NOLINT
 
   // Implicit constructor here allows people to write
@@ -509,8 +506,8 @@ Matcher<const std::string&> : public internal::MatcherBase<const std::string&> {
   explicit Matcher(const MatcherInterface<const std::string&>* impl)
       : internal::MatcherBase<const std::string&>(impl) {}
 
-  template <typename M, typename = typename std::remove_reference<
-                            M>::type::is_gtest_matcher>
+  template <typename M,
+            typename = typename std::remove_reference_t<M>::is_gtest_matcher>
   Matcher(M&& m)  // NOLINT
       : internal::MatcherBase<const std::string&>(std::forward<M>(m)) {}
 
@@ -533,8 +530,8 @@ Matcher<std::string> : public internal::MatcherBase<std::string> {
   explicit Matcher(const MatcherInterface<std::string>* impl)
       : internal::MatcherBase<std::string>(impl) {}
 
-  template <typename M, typename = typename std::remove_reference<
-                            M>::type::is_gtest_matcher>
+  template <typename M,
+            typename = typename std::remove_reference_t<M>::is_gtest_matcher>
   Matcher(M&& m)  // NOLINT
       : internal::MatcherBase<std::string>(std::forward<M>(m)) {}
 
@@ -559,8 +556,8 @@ class GTEST_API_ [[nodiscard]] Matcher<const internal::StringView&>
   explicit Matcher(const MatcherInterface<const internal::StringView&>* impl)
       : internal::MatcherBase<const internal::StringView&>(impl) {}
 
-  template <typename M, typename = typename std::remove_reference<
-                            M>::type::is_gtest_matcher>
+  template <typename M,
+            typename = typename std::remove_reference_t<M>::is_gtest_matcher>
   Matcher(M&& m)  // NOLINT
       : internal::MatcherBase<const internal::StringView&>(std::forward<M>(m)) {
   }
@@ -587,8 +584,8 @@ class GTEST_API_ [[nodiscard]] Matcher<internal::StringView>
   explicit Matcher(const MatcherInterface<internal::StringView>* impl)
       : internal::MatcherBase<internal::StringView>(impl) {}
 
-  template <typename M, typename = typename std::remove_reference<
-                            M>::type::is_gtest_matcher>
+  template <typename M,
+            typename = typename std::remove_reference_t<M>::is_gtest_matcher>
   Matcher(M&& m)  // NOLINT
       : internal::MatcherBase<internal::StringView>(std::forward<M>(m)) {}
 
@@ -815,8 +812,8 @@ class [[nodiscard]] ImplicitCastEqMatcher {
   StoredRhs stored_rhs_;
 };
 
-template <typename T, typename = typename std::enable_if<
-                          std::is_constructible<std::string, T>::value>::type>
+template <typename T,
+          typename = std::enable_if_t<std::is_constructible_v<std::string, T>>>
 using StringLike = T;
 
 // Implements polymorphic matchers MatchesRegex(regex) and

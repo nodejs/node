@@ -906,6 +906,26 @@ t.test('audit signatures', async t => {
     t.matchSnapshot(joinedOutput())
   })
 
+  t.test('with min-release-age set verifies installed versions', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      prefixDir: installWithValidSigs,
+      config: {
+        'min-release-age': 99999,
+      },
+    })
+    const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
+    await manifestWithValidSigs({ registry })
+    mockTUF({ npm, target: TUF_VALID_KEYS_TARGET })
+
+    // min-release-age flattens into a `before` cutoff that previously leaked
+    // into the exact-version manifest lookup, producing a spurious ETARGET on
+    // already-installed versions. See npm/cli#9277.
+    await npm.exec('audit', ['signatures'])
+
+    t.notOk(process.exitCode, 'should exit successfully')
+    t.match(joinedOutput(), /audited 1 package/)
+  })
+
   t.test('with valid signatures using alias', async t => {
     const { npm, joinedOutput } = await loadMockNpm(t, {
       prefixDir: installWithAlias,
@@ -2237,4 +2257,32 @@ t.test('audit signatures', async t => {
       )
     })
   })
+})
+
+t.test('audit fix threads allowScripts policy through to arborist', async t => {
+  let capturedOpts
+  const FakeArborist = function (opts) {
+    capturedOpts = opts
+    this.options = opts
+    this.actualTree = { inventory: new Map() }
+    this.auditReport = {}
+  }
+  FakeArborist.prototype.audit = async () => {}
+
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { canvas: true },
+      }),
+    },
+    mocks: {
+      '@npmcli/arborist': FakeArborist,
+      '{LIB}/utils/reify-finish.js': async () => {},
+    },
+  })
+  await npm.exec('audit', ['fix'])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true },
+    'opts.allowScripts populated from package.json')
 })

@@ -1261,19 +1261,58 @@ void FastSwap64(Local<Value> receiver,
 
 static CFunction fast_swap64(CFunction::Make(FastSwap64));
 
+struct ValidationResult {
+  bool is_valid;
+  bool was_detached;
+};
+
+static ValidationResult ValidateUtf8(Local<Value> value) {
+  ArrayBufferViewContents<char> abv(value);
+  bool was_detached = abv.WasDetached();
+  return {!was_detached && simdutf::validate_utf8(abv.data(), abv.length()),
+          was_detached};
+}
+
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
+  const ValidationResult result = ValidateUtf8(args[0]);
+  if (result.was_detached) {
     return node::THROW_ERR_INVALID_STATE(
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(simdutf::validate_utf8(abv.data(), abv.length()));
+  args.GetReturnValue().Set(result.is_valid);
+}
+
+static bool FastIsUtf8(Local<Value> receiver,
+                       Local<Value> value,
+                       // NOLINTNEXTLINE(runtime/references)
+                       FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isUtf8");
+  HandleScope scope(options.isolate);
+
+  const ValidationResult result = ValidateUtf8(value);
+  if (result.was_detached) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return result.is_valid;
+}
+
+static CFunction fast_is_utf8(CFunction::Make(FastIsUtf8));
+
+static ValidationResult ValidateAscii(Local<Value> value) {
+  ArrayBufferViewContents<char> abv(value);
+  bool was_detached = abv.WasDetached();
+  return {
+      !was_detached &&
+          !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error,
+      was_detached};
 }
 
 static void IsAscii(const FunctionCallbackInfo<Value>& args) {
@@ -1281,16 +1320,33 @@ static void IsAscii(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsTypedArray() || args[0]->IsArrayBuffer() ||
         args[0]->IsSharedArrayBuffer());
-  ArrayBufferViewContents<char> abv(args[0]);
 
-  if (abv.WasDetached()) {
+  const ValidationResult result = ValidateAscii(args[0]);
+  if (result.was_detached) {
     return node::THROW_ERR_INVALID_STATE(
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(
-      !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error);
+  args.GetReturnValue().Set(result.is_valid);
 }
+
+static bool FastIsAscii(Local<Value> receiver,
+                        Local<Value> value,
+                        // NOLINTNEXTLINE(runtime/references)
+                        FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isAscii");
+  HandleScope scope(options.isolate);
+
+  const ValidationResult result = ValidateAscii(value);
+  if (result.was_detached) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return result.is_valid;
+}
+
+static CFunction fast_is_ascii(CFunction::Make(FastIsAscii));
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
@@ -1357,7 +1413,7 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
 // In case of error, a negative value is returned:
 // * -1 indicates a single character remained,
 // * -2 indicates an invalid character,
-// * -3 indicates a possible overflow (i.e., more than 2 GB output).
+// * -3 indicates an unrecognized simdutf error.
 static void Atob(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   Environment* env = Environment::GetCurrent(args);
@@ -1402,7 +1458,7 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(value);
   }
 
-  // Default value is: "possible overflow"
+  // Default value is: "unrecognized simdutf error"
   int32_t error_code = -3;
 
   if (result.error == simdutf::error_code::INVALID_BASE64_CHARACTER) {
@@ -1663,8 +1719,9 @@ void Initialize(Local<Object> target,
   SetFastMethod(context, target, "swap32", Swap32, &fast_swap32);
   SetFastMethod(context, target, "swap64", Swap64, &fast_swap64);
 
-  SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
-  SetMethodNoSideEffect(context, target, "isAscii", IsAscii);
+  SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
+  SetFastMethodNoSideEffect(
+      context, target, "isAscii", IsAscii, &fast_is_ascii);
 
   target
       ->Set(context,
@@ -1737,7 +1794,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_swap64);
 
   registry->Register(IsUtf8);
+  registry->Register(fast_is_utf8);
   registry->Register(IsAscii);
+  registry->Register(fast_is_ascii);
 
   registry->Register(StringSlice<ASCII>);
   registry->Register(StringSlice<BASE64>);

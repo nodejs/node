@@ -22,6 +22,10 @@
 #include <string>
 #include <vector>
 
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L && !defined(OPENSSL_NO_COMP_ALG)
+#define NODE_OPENSSL_HAS_CERT_COMP 1
+#endif
+
 namespace node::crypto {
 // Currently known sizes of commonly used OpenSSL struct sizes.
 // OpenSSL considers it's various structs to be opaque and the

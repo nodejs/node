@@ -70,6 +70,14 @@ over the same connection, in which case the connection will have to be
 remade for every request and cannot be pooled. The `Agent` will still make
 the requests to that server, but each one will occur over a new connection.
 
+### Response ordering with connection reuse
+
+On a reused HTTP/1.1 keep-alive connection, responses are associated with
+requests by their order on that connection. HTTP/1.1 keep-alive does not provide
+per-request response attribution beyond that ordering. Applications that require
+per-request connection isolation can use a separate `Agent`, disable keep-alive,
+or pass `agent: false`.
+
 When a connection is closed by the client or the server, it is removed
 from the pool. Any unused sockets in the pool will be unrefed so as not
 to keep the Node.js process running when there are no outstanding requests.
@@ -108,6 +116,8 @@ http.get({
   // Do stuff with response
 });
 ```
+
+Use `agent: false` to avoid connection reuse for a request.
 
 ### `new Agent([options])`
 
@@ -3707,7 +3717,7 @@ changes:
     **Default:** `false`.
   * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
     on the socket immediately after a new incoming connection is received,
-    similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
+    similarly on what is done in [`socket.setKeepAlive()`][].
     **Default:** `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket.
@@ -3716,7 +3726,7 @@ changes:
     needs to wait for additional incoming data, after it has finished writing
     the last response, before a socket will be destroyed.
     See [`server.keepAliveTimeout`][] for more information.
-    **Default:** `5000`.
+    **Default:** `65000`.
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
@@ -4707,7 +4717,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`server.timeout`]: #servertimeout
 [`setHeader(name, value)`]: #requestsetheadername-value
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
-[`socket.setKeepAlive()`]: net.md#socketsetkeepaliveenable-initialdelay
+[`socket.setKeepAlive()`]: net.md#socketsetkeepalive
 [`socket.setNoDelay()`]: net.md#socketsetnodelaynodelay
 [`socket.setTimeout()`]: net.md#socketsettimeouttimeout-callback
 [`socket.unref()`]: net.md#socketunref
@@ -4719,4 +4729,4 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
 [information event]: #event-information
-[initial delay]: net.md#socketsetkeepaliveenable-initialdelay
+[initial delay]: net.md#socketsetkeepaliveenable-initialdelay-interval-count

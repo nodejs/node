@@ -27,6 +27,7 @@ class Update extends ArboristWorkspaceCmd {
     'audit',
     'before',
     'min-release-age',
+    'min-release-age-exclude',
     'bin-links',
     'fund',
     'dry-run',

@@ -44,6 +44,7 @@ using v8::Local;
 using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -477,81 +478,64 @@ void CheckPublicKey(const FunctionCallbackInfo<Value>& args) {
       cert->view().checkPublicKey(key->Data().GetAsymmetricKey()));
 }
 
-void CheckHost(const FunctionCallbackInfo<Value>& args) {
+template <typename F>
+void CheckX509Subject(const FunctionCallbackInfo<Value>& args, F check) {
   Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
 
-  CHECK(args[0]->IsString());  // name
+  CHECK(args[0]->IsString());  // subject
   CHECK(args[1]->IsUint32());  // flags
 
-  Utf8Value name(env->isolate(), args[0]);
+  Utf8Value subject(env->isolate(), args[0]);
   uint32_t flags = args[1].As<Uint32>()->Value();
-  DataPointer peername;
 
-  switch (cert->view().checkHost(name.ToStringView(), flags, &peername)) {
-    case X509View::CheckMatch::MATCH: {  // Match!
+  DataPointer matched_subject;
+  X509View view = cert->view();
+  auto result = check(view, subject.ToStringView(), flags, &matched_subject);
+  switch (result) {
+    case X509View::CheckMatch::MATCH: {
       Local<Value> ret = args[0];
-      if (peername) {
+      if (matched_subject) {
         ret = OneByteString(env->isolate(),
-                            static_cast<const char*>(peername.get()),
-                            peername.size());
+                            matched_subject.get<const char>(),
+                            matched_subject.size());
       }
       return args.GetReturnValue().Set(ret);
     }
-    case X509View::CheckMatch::NO_MATCH:  // No Match!
-      return;  // No return value is set
-    case X509View::CheckMatch::INVALID_NAME:  // Error!
+    case X509View::CheckMatch::NO_MATCH:
+      break;  // No return value is set.
+    case X509View::CheckMatch::INVALID_NAME:
       return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid name");
-    default:  // Error!
+    default:
       return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
   }
+}
+
+void CheckHost(const FunctionCallbackInfo<Value>& args) {
+  CheckX509Subject(
+      args,
+      [](X509View& cert,
+         std::string_view subject,
+         uint32_t flags,
+         DataPointer* match) { return cert.checkHost(subject, flags, match); });
 }
 
 void CheckEmail(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsString());  // name
-  CHECK(args[1]->IsUint32());  // flags
-
-  Utf8Value name(env->isolate(), args[0]);
-  uint32_t flags = args[1].As<Uint32>()->Value();
-
-  switch (cert->view().checkEmail(name.ToStringView(), flags)) {
-    case X509View::CheckMatch::MATCH:  // Match!
-      return args.GetReturnValue().Set(args[0]);
-    case X509View::CheckMatch::NO_MATCH:  // No Match!
-      return;  // No return value is set
-    case X509View::CheckMatch::INVALID_NAME:  // Error!
-      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid name");
-    default:  // Error!
-      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
-  }
+  CheckX509Subject(
+      args,
+      [](X509View& cert,
+         std::string_view subject,
+         uint32_t flags,
+         DataPointer*) { return cert.checkEmail(subject, flags); });
 }
 
 void CheckIP(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  X509Certificate* cert;
-  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
-
-  CHECK(args[0]->IsString());  // IP
-  CHECK(args[1]->IsUint32());  // flags
-
-  Utf8Value name(env->isolate(), args[0]);
-  uint32_t flags = args[1].As<Uint32>()->Value();
-
-  switch (cert->view().checkIp(name.ToStringView(), flags)) {
-    case X509View::CheckMatch::MATCH:  // Match!
-      return args.GetReturnValue().Set(args[0]);
-    case X509View::CheckMatch::NO_MATCH:  // No Match!
-      return;  // No return value is set
-    case X509View::CheckMatch::INVALID_NAME:  // Error!
-      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP");
-    default:  // Error!
-      return THROW_ERR_CRYPTO_OPERATION_FAILED(env);
-  }
+  CheckX509Subject(args,
+                   [](X509View& cert,
+                      std::string_view subject,
+                      uint32_t flags,
+                      DataPointer*) { return cert.checkIp(subject, flags); });
 }
 
 void GetIssuerCert(const FunctionCallbackInfo<Value>& args) {
@@ -705,11 +689,12 @@ MaybeLocal<Value> GetModulusString(Environment* env, const BIGNUM* n) {
 }
 
 MaybeLocal<Value> GetExponentString(Environment* env, const BIGNUM* e) {
-  uint64_t exponent_word = static_cast<uint64_t>(BignumPointer::GetWord(e));
+  if (e == nullptr) return Null(env->isolate());
   auto bio = BIOPointer::NewMem();
   if (!bio) [[unlikely]]
     return {};
-  BIO_printf(bio.get(), "0x%" PRIx64, exponent_word);
+  BIO_puts(bio.get(), "0x");
+  BN_print(bio.get(), e);
   return ToV8Value(env->context(), bio);
 }
 

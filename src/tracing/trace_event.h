@@ -6,7 +6,7 @@
 #define SRC_TRACING_TRACE_EVENT_H_
 
 #include "v8-platform.h"
-#include "tracing/agent.h"
+#include "tracing/agent_legacy.h"
 #include "trace_event_common.h"
 #include <atomic>
 
@@ -315,9 +315,6 @@ class TraceEventHelper {
   static v8::TracingController* GetTracingController();
   static void SetTracingController(v8::TracingController* controller);
 
-  static Agent* GetAgent();
-  static void SetAgent(Agent* agent);
-
   static inline const uint8_t* GetCategoryGroupEnabled(const char* group) {
     v8::TracingController* controller = GetTracingController();
     static const uint8_t disabled = 0;
@@ -517,11 +514,12 @@ static V8_INLINE void AddMetadataEventImpl(
         static_cast<intptr_t>(arg_values[1])));
   }
   node::tracing::Agent* agent =
-      node::tracing::TraceEventHelper::GetAgent();
+      node::tracing::Agent::GetInstance();
   if (agent == nullptr) return;
-  return agent->GetTracingController()->AddMetadataEvent(
-      category_group_enabled, name, num_args, arg_names, arg_types, arg_values,
-      arg_convertibles, flags);
+  static_cast<node::tracing::TracingController*>(
+      agent->GetTracingController())
+      ->AddMetadataEvent(category_group_enabled, name, num_args, arg_names,
+                         arg_types, arg_values, arg_convertibles, flags);
 }
 
 // Define SetTraceValue for each allowed type. It stores the type and

@@ -502,7 +502,7 @@ corresponding argument. Supported specifiers are:
   `Symbol`.
 * `%i`: `parseInt(value, 10)` is used for all values except `BigInt` and
   `Symbol`.
-* `%f`: `parseFloat(value)` is used for all values expect `Symbol`.
+* `%f`: `parseFloat(value)` is used for all values except `Symbol`.
 * `%j`: JSON. Replaced with the string `'[Circular]'` if the argument contains
   circular references.
 * `%o`: `Object`. A string representation of an object with generic JavaScript
@@ -1554,7 +1554,7 @@ symbol is [registered globally][global symbol registry] and can be
 accessed in any environment as `Symbol.for('nodejs.util.inspect.custom')`.
 
 Using this allows code to be written in a portable fashion, so that the custom
-inspect function is used in an Node.js environment and ignored in the browser.
+inspect function is used in a Node.js environment and ignored in the browser.
 The `util.inspect()` function itself is passed as third argument to the custom
 inspect function to allow further portability.
 
