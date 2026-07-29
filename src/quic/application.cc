@@ -425,7 +425,7 @@ class DefaultApplication final : public Session::Application {
     // The peer granted more flow control for this stream. Re-schedule
     // it so SendPendingData will resume writing.
     DCHECK_NOT_NULL(stream);
-    stream->UpdateWriteDesiredSize(); // the stream might be blocked on js side
+    stream->UpdateWriteDesiredSize();  // the stream might be blocked on js side
     stream->Schedule(&stream_queue_);
   }
 
