@@ -4,8 +4,7 @@
 // Client sends a body that precisely fills the window size,
 // and verifies that it is data transfer is not stalled.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
-import assert from 'node:assert';
+import { hasQuic, skip } from '../common/index.mjs';
 import { readFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -34,7 +33,9 @@ const serverMayRead = new Promise((resolve) => { letServerRead = resolve; });
 const endpoint = await listen((session) => {
   session.onstream = async (stream) => {
     await serverMayRead;
-    for await (const _ of stream) { /* reading extends the window */ }
+    for await (const _ of stream) { 
+      void _;  /* reading extends the window */ 
+    }
   };
 }, {
   sni: { '*': { keys: [key], certs: [cert] } },
@@ -73,7 +74,7 @@ const watchdog = setTimeout(() => {
   process.exit(1);
 }, 5000);
 
-letServerRead();                 // extend the window, with no ack attached
+letServerRead();                 // Extend the window, with no ack attached
 await writer[drainableProtocol]();
 
 clearTimeout(watchdog);
