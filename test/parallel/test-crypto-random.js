@@ -219,6 +219,48 @@ common.expectWarning('DeprecationWarning',
 }
 
 {
+  const buf = new Uint16Array(4);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFillSync(buf, 1, 1);
+  const after = Buffer.from(buf.buffer).toString('hex');
+  assert.notStrictEqual(before, after);
+  assert.deepStrictEqual(before.slice(0, 4), after.slice(0, 4));
+  assert.deepStrictEqual(before.slice(8), after.slice(8));
+}
+
+{
+  const buf = new Uint32Array(4);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFillSync(buf, 1, 1);
+  const after = Buffer.from(buf.buffer).toString('hex');
+  assert.notStrictEqual(before, after);
+  assert.deepStrictEqual(before.slice(0, 8), after.slice(0, 8));
+  assert.deepStrictEqual(before.slice(16), after.slice(16));
+}
+
+{
+  const buf = new Uint16Array(4);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFill(buf, 1, 1, common.mustSucceed((buf) => {
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+    assert.deepStrictEqual(before.slice(0, 4), after.slice(0, 4));
+    assert.deepStrictEqual(before.slice(8), after.slice(8));
+  }));
+}
+
+{
+  const buf = new Uint32Array(4);
+  const before = Buffer.from(buf.buffer).toString('hex');
+  crypto.randomFill(buf, 1, 1, common.mustSucceed((buf) => {
+    const after = Buffer.from(buf.buffer).toString('hex');
+    assert.notStrictEqual(before, after);
+    assert.deepStrictEqual(before.slice(0, 8), after.slice(0, 8));
+    assert.deepStrictEqual(before.slice(16), after.slice(16));
+  }));
+}
+
+{
   [
     Buffer.alloc(10),
     new Uint8Array(new Array(10).fill(0)),
