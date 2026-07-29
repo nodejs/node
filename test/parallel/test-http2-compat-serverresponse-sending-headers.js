@@ -192,7 +192,7 @@ const http2 = require('http2');
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request();
     req.resume();
-    req.on('error', () => {}); // the stream reset from destroy() is expected
+    req.on('error', () => {}); // The stream reset from destroy() is expected
     req.on('close', () => client.close());
     req.end();
   }));
