@@ -1741,7 +1741,6 @@ changes:
 
 * `urlObject` {Object} A URL object (as returned by `url.parse()` or
   constructed otherwise).
-
 * Returns: {string}
 
 The `url.format()` method returns a formatted URL string derived from
@@ -1838,7 +1837,6 @@ changes:
 
 * `urlString` {string} A string that will be passed to `url.parse()` and then
   formatted.
-
 * Returns: {string}
 
 `url.format(urlString)` is shorthand for `url.format(url.parse(urlString))`.
