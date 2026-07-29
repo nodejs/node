@@ -202,6 +202,34 @@ The current mount point as an absolute string (the value returned by
 the last [`vfs.mount()`][] call), or `null` when the VFS is not
 mounted.
 
+### `vfs.mountPointURL`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {URL | null}
+
+The current mount point as a `file:` {URL}, or `null` when the VFS is
+not mounted. A fresh `URL` object is returned on each access, so
+mutating the result does not affect the instance.
+
+This is a convenience for addressing mounted files with URL-based
+APIs such as dynamic `import()`:
+
+```mjs
+import vfs from 'node:vfs';
+
+const myVfs = vfs.create();
+myVfs.writeFileSync('/mod.mjs', 'export const value = 42;');
+myVfs.mount();
+
+const { value } = await import(`${myVfs.mountPointURL}/mod.mjs`);
+console.log(value); // 42
+
+myVfs.unmount();
+```
+
 ### `vfs.provider`
 
 <!-- YAML
@@ -340,21 +368,19 @@ console.log(greet()); // 'hi'
 myVfs.unmount();
 ```
 
-For ECMAScript modules, convert mounted paths to `file:` URLs before
-passing them to dynamic `import()`. This keeps VFS imports portable on
-Windows, where mounted paths use Windows path syntax.
+For ECMAScript modules, use `file:` URLs when passing mounted paths
+to dynamic `import()`. [`vfs.mountPointURL`][] provides the mount
+point in that form; this keeps VFS imports portable on Windows,
+where mounted paths use Windows path syntax.
 
 ```mjs
-import { pathToFileURL } from 'node:url';
 import vfs from 'node:vfs';
 
 const myVfs = vfs.create();
 myVfs.writeFileSync('/mod.mjs', 'export const value = 42;');
-const mountPoint = myVfs.mount();
+myVfs.mount();
 
-const { value } = await import(
-  pathToFileURL(`${mountPoint}/mod.mjs`).href,
-);
+const { value } = await import(`${myVfs.mountPointURL}/mod.mjs`);
 console.log(value); // 42
 
 myVfs.unmount();
@@ -520,6 +546,7 @@ fields use synthetic but stable values:
 [`require()`]: modules.md#requireid
 [`require.resolve()`]: modules.md#requireresolverequest-options
 [`vfs.mount()`]: #vfsmount
+[`vfs.mountPointURL`]: #vfsmountpointurl
 [`vfs.unmount()`]: #vfsunmount
 [loading from `node_modules` folders]: modules.md#loading-from-node_modules-folders
 [the global folders]: modules.md#loading-from-the-global-folders
