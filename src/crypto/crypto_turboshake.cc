@@ -405,8 +405,7 @@ void KT256(const uint8_t* message,
 // ============================================================================
 
 TurboShakeConfig::TurboShakeConfig(TurboShakeConfig&& other) noexcept
-    : job_mode(other.job_mode),
-      variant(other.variant),
+    : variant(other.variant),
       output_length(other.output_length),
       domain_separation(other.domain_separation),
       data(std::move(other.data)) {}
@@ -419,10 +418,7 @@ TurboShakeConfig& TurboShakeConfig::operator=(
 }
 
 void TurboShakeConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (IsCryptoJobAsync(job_mode)) {
-    // TODO(addaleax): Implement MemoryRetainer protocol for ByteSource
-    tracker->TrackFieldWithSize("data", data.size());
-  }
+  tracker->TraitTrackInline(data, "data");
 }
 
 Maybe<void> TurboShakeTraits::AdditionalConfig(
@@ -431,8 +427,6 @@ Maybe<void> TurboShakeTraits::AdditionalConfig(
     unsigned int offset,
     TurboShakeConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
 
   // args[offset + 0] = algorithm name (string)
   CHECK(args[offset]->IsString());
@@ -513,8 +507,7 @@ MaybeLocal<Value> TurboShakeTraits::EncodeOutput(Environment* env,
 
 KangarooTwelveConfig::KangarooTwelveConfig(
     KangarooTwelveConfig&& other) noexcept
-    : job_mode(other.job_mode),
-      variant(other.variant),
+    : variant(other.variant),
       output_length(other.output_length),
       data(std::move(other.data)),
       customization(std::move(other.customization)) {}
@@ -527,11 +520,8 @@ KangarooTwelveConfig& KangarooTwelveConfig::operator=(
 }
 
 void KangarooTwelveConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (IsCryptoJobAsync(job_mode)) {
-    // TODO(addaleax): Implement MemoryRetainer protocol for ByteSource
-    tracker->TrackFieldWithSize("data", data.size());
-    tracker->TrackFieldWithSize("customization", customization.size());
-  }
+  tracker->TraitTrackInline(data, "data");
+  tracker->TraitTrackInline(customization, "customization");
 }
 
 Maybe<void> KangarooTwelveTraits::AdditionalConfig(
@@ -540,8 +530,6 @@ Maybe<void> KangarooTwelveTraits::AdditionalConfig(
     unsigned int offset,
     KangarooTwelveConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
 
   // args[offset + 0] = algorithm name (string)
   CHECK(args[offset]->IsString());

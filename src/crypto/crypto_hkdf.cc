@@ -20,8 +20,7 @@ using v8::Value;
 
 namespace crypto {
 HKDFConfig::HKDFConfig(HKDFConfig&& other) noexcept
-    : mode(other.mode),
-      length(other.length),
+    : length(other.length),
       digest(other.digest),
       key(std::move(other.key)),
       key_data(std::move(other.key_data)),
@@ -46,8 +45,6 @@ Maybe<void> HKDFTraits::AdditionalConfig(
     unsigned int offset,
     HKDFConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->mode = mode;
 
   CHECK(args[offset]->IsString());  // Hash
   CHECK(KeyObjectHandle::HasInstance(env, args[offset + 1]) ||
@@ -140,13 +137,12 @@ bool HKDFTraits::DeriveBits(Environment* env,
 }
 
 void HKDFConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (key) tracker->TrackField("key", key);
-  // If the job is sync, then the HKDFConfig does not own the data
-  if (IsCryptoJobAsync(mode)) {
-    if (!key) tracker->TrackFieldWithSize("key", key_data.size());
-    tracker->TrackFieldWithSize("salt", salt.size());
-    tracker->TrackFieldWithSize("info", info.size());
-  }
+  if (key)
+    tracker->TrackField("key", key);
+  else
+    tracker->TraitTrackInline(key_data, "key");
+  tracker->TraitTrackInline(salt, "salt");
+  tracker->TraitTrackInline(info, "info");
 }
 
 }  // namespace crypto

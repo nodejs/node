@@ -58,7 +58,6 @@ enum class AESKeyVariant {
 };
 
 struct AESCipherConfig final : public MemoryRetainer {
-  CryptoJobMode mode;
   AESKeyVariant variant;
   ncrypto::Cipher cipher;
   size_t length;

@@ -957,30 +957,19 @@ KeyObjectData::KeyObjectData(ByteSource symmetric_key)
 KeyObjectData::KeyObjectData(KeyType type, EVPKeyPointer&& pkey)
     : key_type_(type), data_(std::make_shared<Data>(std::move(pkey))) {}
 
-void KeyObjectData::MemoryInfo(MemoryTracker* tracker) const {
-  if (!*this) return;
-  switch (GetKeyType()) {
-    case kKeyTypeSecret: {
-      if (data_->symmetric_key) {
-        tracker->TrackFieldWithSize("symmetric_key",
-                                    data_->symmetric_key.size());
-      }
-      break;
-    }
-    case kKeyTypePrivate:
-      // Fall through
-    case kKeyTypePublic: {
-      if (data_->asymmetric_key) {
-        tracker->TrackFieldWithSize(
-            "key",
-            kSizeOf_EVP_PKEY + data_->asymmetric_key.rawPublicKeySize() +
-                data_->asymmetric_key.rawPrivateKeySize());
-      }
-      break;
-    }
-    default:
-      UNREACHABLE();
+void KeyObjectData::Data::MemoryInfo(MemoryTracker* tracker) const {
+  if (asymmetric_key) {
+    tracker->TrackFieldWithSize("key",
+                                kSizeOf_EVP_PKEY +
+                                    asymmetric_key.rawPublicKeySize() +
+                                    asymmetric_key.rawPrivateKeySize());
+  } else {
+    tracker->TraitTrackInline(symmetric_key, "symmetric_key");
   }
+}
+
+void KeyObjectData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("data", data_);
 }
 
 Mutex& KeyObjectData::mutex() const {
