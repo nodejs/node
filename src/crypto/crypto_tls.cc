@@ -23,7 +23,6 @@
 #include <cstdio>
 #include "async_wrap-inl.h"
 #include "crypto/crypto_bio.h"
-#include "crypto/crypto_clienthello-inl.h"
 #include "crypto/crypto_common.h"
 #include "crypto/crypto_context.h"
 #include "crypto/crypto_util.h"
@@ -103,42 +102,43 @@ SSL_SESSION* GetSessionCallback(
   return w->ReleaseSession();
 }
 
-void OnClientHello(
-    void* arg,
-    const ClientHelloParser::ClientHello& hello) {
-  TLSWrap* w = static_cast<TLSWrap*>(arg);
-  Environment* env = w->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
+// The TLS library invokes this before version negotiation and before session
+// or ticket resumption, which makes async session lookup possible. If required
+// the handshake is suspended here and resumed once JS has answered.
+#ifdef OPENSSL_IS_BORINGSSL
+ssl_select_cert_result_t EarlyClientHelloCallback(const SSL_CLIENT_HELLO* ch) {
+  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(ch->ssl));
+  if (!w->should_suspend_for_client_hello()) return ssl_select_cert_success;
 
-  Local<Object> hello_obj = Object::New(env->isolate());
-  Local<String> servername = (hello.servername() == nullptr)
-      ? String::Empty(env->isolate())
-      : OneByteString(env->isolate(),
-                      hello.servername(),
-                      hello.servername_size());
-  Local<Object> buf =
-      Buffer::Copy(
-          env,
-          reinterpret_cast<const char*>(hello.session_id()),
-          hello.session_size()).FromMaybe(Local<Object>());
+  const uint8_t* ext;
+  size_t ext_len;
+  bool has_ticket = SSL_early_callback_ctx_extension_get(
+                        ch, TLSEXT_TYPE_session_ticket, &ext, &ext_len) &&
+                    ext_len > 0;
 
-  if ((buf.IsEmpty() ||
-       hello_obj->Set(env->context(), env->session_id_string(), buf)
-           .IsNothing()) ||
-      hello_obj->Set(env->context(), env->servername_string(), servername)
-          .IsNothing() ||
-      hello_obj
-          ->Set(env->context(),
-                env->tls_ticket_string(),
-                Boolean::New(env->isolate(), hello.has_ticket()))
-          .IsNothing()) {
-    return;
-  }
-
-  Local<Value> argv[] = { hello_obj };
-  w->MakeCallback(env->onclienthello_string(), arraysize(argv), argv);
+  return w->OnEarlyClientHello(ch->session_id, ch->session_id_len, has_ticket)
+             ? ssl_select_cert_success
+             : ssl_select_cert_retry;
 }
+#else
+int EarlyClientHelloCallback(SSL* s, int* al, void* arg) {
+  TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
+  if (!w->should_suspend_for_client_hello()) return SSL_CLIENT_HELLO_SUCCESS;
+
+  const unsigned char* session_id;
+  size_t session_id_len = SSL_client_hello_get0_session_id(s, &session_id);
+
+  const unsigned char* ext;
+  size_t ext_len;
+  bool has_ticket = SSL_client_hello_get0_ext(
+                        s, TLSEXT_TYPE_session_ticket, &ext, &ext_len) == 1 &&
+                    ext_len > 0;
+
+  return w->OnEarlyClientHello(session_id, session_id_len, has_ticket)
+             ? SSL_CLIENT_HELLO_SUCCESS
+             : SSL_CLIENT_HELLO_RETRY;
+}
+#endif
 
 void KeylogCallback(const SSL* s, const char* line) {
   TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
@@ -425,6 +425,7 @@ TLSWrap::TLSWrap(Environment* env,
   ssl_ = sc_->CreateSSL();
   CHECK(ssl_);
 
+  sc_->SetClientHelloCallback(EarlyClientHelloCallback);
   sc_->SetGetSessionCallback(GetSessionCallback);
   sc_->SetNewSessionCallback(NewSessionCallback);
 
@@ -471,6 +472,61 @@ void TLSWrap::InvokeQueued(int status, const char* error_str) {
 void TLSWrap::NewSessionDoneCb() {
   Debug(this, "New session callback done");
   Cycle();
+}
+
+// N.b. TLS1.3 ClientHellos carry a fake legacy_session_id (middlebox compat),
+// and so emit spurious 'resumeSession'/'newSession' events here.
+bool TLSWrap::OnEarlyClientHello(const unsigned char* session_id,
+                                 size_t session_id_len,
+                                 bool has_ticket) {
+  if (!hello_emitted_) {
+    hello_emitted_ = true;
+    Debug(this, "Scheduling onclienthello");
+
+    // The hello data is only valid inside the library callback, and JS must
+    // not run while we are on its stack: a handler that synchronously wrote
+    // to the socket would re-enter SSL mid-handshake. Copy what we need and
+    // emit from a fresh stack instead.
+    std::vector<unsigned char> id(session_id, session_id + session_id_len);
+    BaseObjectPtr<TLSWrap> strong_ref{this};
+    env()->SetImmediate(
+        [this, strong_ref, id = std::move(id), has_ticket](Environment* env) {
+          if (ssl_) EmitClientHello(id, has_ticket);
+        });
+  }
+  return hello_answered_;
+}
+
+void TLSWrap::EmitClientHello(const std::vector<unsigned char>& session_id,
+                              bool has_ticket) {
+  Debug(this, "Emitting onclienthello");
+  Environment* env = this->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Object> hello_obj = Object::New(env->isolate());
+  Local<Object> buf =
+      Buffer::Copy(env,
+                   reinterpret_cast<const char*>(session_id.data()),
+                   session_id.size())
+          .FromMaybe(Local<Object>());
+
+  if ((buf.IsEmpty() ||
+       hello_obj->Set(env->context(), env->session_id_string(), buf)
+           .IsNothing()) ||
+      hello_obj
+          ->Set(env->context(),
+                env->tls_ticket_string(),
+                Boolean::New(env->isolate(), has_ticket))
+          .IsNothing()) {
+    // Continue the handshake unresumed rather than leaving it suspended.
+    hello_answered_ = true;
+    Cycle();
+    return;
+  }
+
+  Local<Value> argv[] = {hello_obj};
+  MakeCallback(env->onclienthello_string(), arraysize(argv), argv);
 }
 
 void TLSWrap::InitSSL() {
@@ -641,12 +697,6 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
 void TLSWrap::EncOut() {
   Debug(this, "Trying to write encrypted output");
 
-  // Ignore cycling data if ClientHello wasn't yet parsed
-  if (!hello_parser_.IsEnded()) {
-    Debug(this, "Returning from EncOut(), hello_parser_ active");
-    return;
-  }
-
   // Write in progress
   if (write_size_ != 0) {
     Debug(this, "Returning from EncOut(), write currently in progress");
@@ -785,11 +835,6 @@ void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
 
 void TLSWrap::ClearOut() {
   Debug(this, "Trying to read cleartext output");
-  // Ignore cycling data if ClientHello wasn't yet parsed
-  if (!hello_parser_.IsEnded()) {
-    Debug(this, "Returning from ClearOut(), hello_parser_ active");
-    return;
-  }
 
   // No reads after EOF
   if (eof_) {
@@ -912,11 +957,6 @@ void TLSWrap::ClearOut() {
 
 void TLSWrap::ClearIn() {
   Debug(this, "Trying to write cleartext input");
-  // Ignore cycling data if ClientHello wasn't yet parsed
-  if (!hello_parser_.IsEnded()) {
-    Debug(this, "Returning from ClearIn(), hello_parser_ active");
-    return;
-  }
 
   if (ssl_ == nullptr) {
     Debug(this, "Returning from ClearIn(), ssl_ == nullptr");
@@ -1181,20 +1221,7 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 
   // Commit the amount of data actually read into the peeked/allocated buffer
   // from the underlying stream.
-  NodeBIO* enc_in = NodeBIO::FromBIO(enc_in_);
-  enc_in->Commit(nread);
-
-  // Parse ClientHello first, if we need to. It's only parsed if session event
-  // listeners are used on the server side.  "ended" is the initial state, so
-  // can mean parsing was never started, or that parsing is finished. Either
-  // way, ended means we can give the buffered data to SSL.
-  if (!hello_parser_.IsEnded()) {
-    size_t avail = 0;
-    uint8_t* data = reinterpret_cast<uint8_t*>(enc_in->Peek(&avail));
-    CHECK_IMPLIES(data == nullptr, avail == 0);
-    Debug(this, "Passing %zu bytes to the hello parser", avail);
-    return hello_parser_.Parse(data, avail);
-  }
+  NodeBIO::FromBIO(enc_in_)->Commit(nread);
 
   // Cycle OpenSSL's state
   Cycle();
@@ -1253,15 +1280,6 @@ void TLSWrap::EnableSessionCallbacks(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
   CHECK_NOT_NULL(wrap->ssl_);
   wrap->enable_session_callbacks();
-
-  // Clients don't use the HelloParser.
-  if (wrap->is_client())
-    return;
-
-  NodeBIO::FromBIO(wrap->enc_in_)->set_initial(kMaxHelloLength);
-  wrap->hello_parser_.Start(OnClientHello,
-                            OnClientHelloParseEnd,
-                            wrap);
 }
 
 void TLSWrap::EnableKeylogCallback(const FunctionCallbackInfo<Value>& args) {
@@ -1336,7 +1354,7 @@ void TLSWrap::Destroy() {
 void TLSWrap::EnableCertCb(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
-  wrap->WaitForCertCb(OnClientHelloParseEnd, wrap);
+  wrap->WaitForCertCb(ResumeAfterCertCb, wrap);
 }
 
 void TLSWrap::WaitForCertCb(CertCb cb, void* arg) {
@@ -1344,9 +1362,9 @@ void TLSWrap::WaitForCertCb(CertCb cb, void* arg) {
   cert_cb_arg_ = arg;
 }
 
-void TLSWrap::OnClientHelloParseEnd(void* arg) {
+void TLSWrap::ResumeAfterCertCb(void* arg) {
   TLSWrap* c = static_cast<TLSWrap*>(arg);
-  Debug(c, "OnClientHelloParseEnd()");
+  Debug(c, "ResumeAfterCertCb()");
   c->Cycle();
 }
 
@@ -2033,10 +2051,11 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buffer);
 }
 
-void TLSWrap::EndParser(const FunctionCallbackInfo<Value>& args) {
+void TLSWrap::ClientHelloDone(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  w->hello_parser_.End();
+  w->hello_answered_ = true;
+  w->Cycle();
 }
 
 void TLSWrap::Renegotiate(const FunctionCallbackInfo<Value>& args) {
@@ -2214,10 +2233,10 @@ void TLSWrap::Initialize(
   t->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
   SetProtoMethod(isolate, t, "certCbDone", CertCbDone);
+  SetProtoMethod(isolate, t, "clientHelloDone", ClientHelloDone);
   SetProtoMethod(isolate, t, "destroySSL", DestroySSL);
   SetProtoMethod(isolate, t, "enableCertCb", EnableCertCb);
   SetProtoMethod(isolate, t, "enableALPNCb", EnableALPNCb);
-  SetProtoMethod(isolate, t, "endParser", EndParser);
   SetProtoMethod(isolate, t, "enableKeylogCallback", EnableKeylogCallback);
   SetProtoMethod(isolate, t, "enableSessionCallbacks", EnableSessionCallbacks);
   SetProtoMethod(isolate, t, "enableTrace", EnableTrace);
@@ -2285,10 +2304,10 @@ void TLSWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetWriteQueueSize);
 
   registry->Register(CertCbDone);
+  registry->Register(ClientHelloDone);
   registry->Register(DestroySSL);
   registry->Register(EnableCertCb);
   registry->Register(EnableALPNCb);
-  registry->Register(EndParser);
   registry->Register(EnableKeylogCallback);
   registry->Register(EnableSessionCallbacks);
   registry->Register(EnableTrace);

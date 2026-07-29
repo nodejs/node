@@ -1689,6 +1689,14 @@ void SecureContext::SetNewSessionCallback(NewSessionCb cb) {
   SSL_CTX_sess_set_new_cb(ctx_.get(), cb);
 }
 
+void SecureContext::SetClientHelloCallback(ClientHelloCb cb) {
+#ifdef OPENSSL_IS_BORINGSSL
+  SSL_CTX_set_select_certificate_cb(ctx_.get(), cb);
+#else
+  SSL_CTX_set_client_hello_cb(ctx_.get(), cb, nullptr);
+#endif
+}
+
 void SecureContext::SetGetSessionCallback(GetSessionCb cb) {
   SSL_CTX_sess_set_get_cb(ctx_.get(), cb);
 }
