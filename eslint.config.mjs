@@ -126,7 +126,7 @@ export default [
         CryptoKey: 'readonly',
         DecompressionStream: 'readonly',
         DisposableStack: 'readonly',
-        EventSource: 'readable',
+        EventSource: 'readonly',
         fetch: 'readonly',
         Float16Array: 'readonly',
         FormData: 'readonly',
