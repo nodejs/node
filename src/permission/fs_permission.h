@@ -68,7 +68,15 @@ class FSPermission final : public PermissionBase {
             return split_child->CreateChild(path_prefix.substr(i));
           }
         }
-        child->is_leaf = true;
+        if (i == path_prefix.length()) {
+          // The inserted path terminates exactly at this node, so it is a
+          // valid end node. When path_prefix extends past child->prefix this
+          // is only an intermediate node on the way to a deeper path and must
+          // not be marked as an end node, otherwise the shared prefix would be
+          // treated as granted on its own.
+          child->is_leaf = true;
+          return child;
+        }
         return child->CreateChild(path_prefix.substr(i));
       }
 
