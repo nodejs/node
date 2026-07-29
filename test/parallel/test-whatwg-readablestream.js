@@ -37,7 +37,8 @@ const {
 } = require('internal/webstreams/readablestream');
 
 const {
-  kState
+  kState,
+  Queue,
 } = require('internal/webstreams/util');
 
 const {
@@ -1581,7 +1582,9 @@ class Source {
     start(c) { controller = c; }
   });
 
-  controller[kState].pendingPullIntos = [{}];
+  const pendingPullIntos = new Queue();
+  pendingPullIntos.push({});
+  controller[kState].pendingPullIntos = pendingPullIntos;
   assert.throws(() => readableByteStreamControllerRespond(controller, 0), {
     code: 'ERR_INVALID_ARG_VALUE',
   });
