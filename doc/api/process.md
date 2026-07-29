@@ -3150,7 +3150,8 @@ added: v20.0.0
 
 * Type: {Object}
 
-This API is available through the [`--permission`][] flag.
+This API is available through the [`--permission`][] or
+[`--permission-audit`][] flags.
 
 `process.permission` is an object whose methods are used to manage permissions
 for the current process. Additional documentation is available in the
@@ -3170,6 +3171,9 @@ Verifies that the process is able to access the given scope and reference.
 If no reference is provided, a global scope is assumed, for instance,
 `process.permission.has('fs.read')` will check if the process has ALL
 file system read permissions.
+
+In audit mode ([`--permission-audit`][]), this method still returns the actual
+permission status, but denied operations will not throw `ERR_ACCESS_DENIED`.
 
 The reference has a meaning based on the provided scope. For example,
 the reference when the scope is File System means files and folders.
@@ -3203,6 +3207,10 @@ added: REPLACEME
 Drops the specified permission from the current process. This operation is
 **irreversible** — once a permission is dropped, it cannot be restored through
 any Node.js API.
+
+In audit mode ([`--permission-audit`][]), dropping a permission takes effect,
+but since denied operations do not throw, the impact is limited to changing the
+return value of `permission.has()`.
 
 If no reference is provided, the entire scope is dropped. For example,
 `process.permission.drop('fs.read')` will revoke ALL file system read
@@ -4626,6 +4634,7 @@ cases:
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
 [`--no-deprecation`]: cli.md#--no-deprecation
+[`--permission-audit`]: cli.md#--permission-audit
 [`--permission`]: cli.md#--permission
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Buffer`]: buffer.md
