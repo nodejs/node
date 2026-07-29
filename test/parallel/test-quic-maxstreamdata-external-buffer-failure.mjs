@@ -33,7 +33,7 @@ const serverMayRead = new Promise((resolve) => { letServerRead = resolve; });
 const endpoint = await listen((session) => {
   session.onstream = async (stream) => {
     await serverMayRead;
-    for await (const {} of stream) { /* reading extends the window */ }
+    for await (const {} of stream) { _ ;  /* reading extends the window */ }
   };
 }, {
   alpn: 'foo',
