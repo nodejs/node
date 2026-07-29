@@ -2857,6 +2857,21 @@ This option may be specified multiple times to include multiple glob patterns.
 If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
 files must meet **both** criteria to be included in the coverage report.
 
+### `--test-coverage-include-all`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+
+Candidate files are searched for in the current working directory, and are
+subject to the same `--test-coverage-include` and `--test-coverage-exclude`
+filtering as the rest of the report.
+
 ### `--test-coverage-lines=threshold`
 
 <!-- YAML
@@ -3901,6 +3916,7 @@ one is included in the list below.
 * `--test-coverage-exclude`
 * `--test-coverage-functions`
 * `--test-coverage-include`
+* `--test-coverage-include-all`
 * `--test-coverage-lines`
 * `--test-global-setup`
 * `--test-isolation`
