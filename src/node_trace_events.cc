@@ -7,7 +7,7 @@
 #include "node_v8_platform-inl.h"
 #include "permission/permission.h"
 #include "tracing/agent.h"
-#include "tracing/node_trace_writer.h"
+#include "tracing/trace_event_helper.h"
 #include "util-inl.h"
 
 #include <set>
@@ -90,7 +90,7 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         category_set->env(),
         permission::PermissionScope::kFileSystemWrite,
-        tracing::NodeTraceWriter::GetFilePath(
+        tracing::GetTraceFilePath(
             per_process::cli_options->trace_event_file_pattern, 1));
     auto* agent = tracing::Agent::GetInstance();
     agent->StartTracing(per_process::cli_options->trace_event_categories);
