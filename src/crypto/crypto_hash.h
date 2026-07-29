@@ -42,7 +42,6 @@ class Hash final : public BaseObject {
 };
 
 struct HashConfig final : public MemoryRetainer {
-  CryptoJobMode mode;
   ByteSource in;
   const EVP_MD* digest;
   unsigned int length;
@@ -107,7 +106,6 @@ struct CShakeParams final {
 bool DeriveCShakeBits(const CShakeParams& params, ByteSource* out);
 
 struct CShakeConfig final : public MemoryRetainer {
-  CryptoJobMode mode;
   ByteSource in;
   ByteSource function_name;
   ByteSource customization;

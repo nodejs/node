@@ -77,7 +77,6 @@ struct RSAKeyExportTraits final {
 using RSAKeyExportJob = KeyExportJob<RSAKeyExportTraits>;
 
 struct RSACipherConfig final : public MemoryRetainer {
-  CryptoJobMode mode = kCryptoJobAsync;
   ByteSource label;
   int padding = 0;
   ncrypto::Digest digest;
