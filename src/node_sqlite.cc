@@ -2396,7 +2396,10 @@ void DatabaseSync::EnableLoadExtension(
     const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
-  auto isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  Isolate* isolate = env->isolate();
   if (!args[0]->IsBoolean()) {
     THROW_ERR_INVALID_ARG_TYPE(isolate,
                                "The \"allow\" argument must be a boolean.");
@@ -2424,7 +2427,7 @@ void DatabaseSync::EnableDefensive(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
-  auto isolate = args.GetIsolate();
+  Isolate* isolate = env->isolate();
   if (!args[0]->IsBoolean()) {
     THROW_ERR_INVALID_ARG_TYPE(isolate,
                                "The \"active\" argument must be a boolean.");
@@ -2475,6 +2478,8 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
   Isolate* isolate = env->isolate();
 
   if (args[0]->IsNull()) {
