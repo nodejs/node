@@ -56,6 +56,24 @@ using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
 
+void MemoryRetainerTraits<crypto::ByteSource>::MemoryInfo(
+    MemoryTracker* tracker, const crypto::ByteSource& value) {
+  // Foreign ByteSources do not own the memory that they reference.
+  if (value.allocated_data_ != nullptr) {
+    tracker->TrackFieldWithSize("data", value.size_);
+  }
+}
+
+const char* MemoryRetainerTraits<crypto::ByteSource>::MemoryInfoName(
+    const crypto::ByteSource& value) {
+  return "ByteSource";
+}
+
+size_t MemoryRetainerTraits<crypto::ByteSource>::SelfSize(
+    const crypto::ByteSource& value) {
+  return sizeof(value);
+}
+
 namespace crypto {
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {

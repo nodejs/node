@@ -154,8 +154,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 HmacConfig::HmacConfig(HmacConfig&& other) noexcept
-    : job_mode(other.job_mode),
-      mode(other.mode),
+    : mode(other.mode),
       key(std::move(other.key)),
       data(std::move(other.data)),
       signature(std::move(other.signature)),
@@ -169,11 +168,8 @@ HmacConfig& HmacConfig::operator=(HmacConfig&& other) noexcept {
 
 void HmacConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  // If the job is sync, then the HmacConfig does not own the data
-  if (IsCryptoJobAsync(job_mode)) {
-    tracker->TrackFieldWithSize("data", data.size());
-    tracker->TrackFieldWithSize("signature", signature.size());
-  }
+  tracker->TraitTrackInline(data, "data");
+  tracker->TraitTrackInline(signature, "signature");
 }
 
 Maybe<void> HmacTraits::AdditionalConfig(
@@ -182,8 +178,6 @@ Maybe<void> HmacTraits::AdditionalConfig(
     unsigned int offset,
     HmacConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
 
   CHECK(args[offset]->IsUint32());  // SignConfiguration::Mode
   params->mode =
