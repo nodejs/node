@@ -3915,8 +3915,8 @@ one is included in the list below.
 * `--test-coverage-branches`
 * `--test-coverage-exclude`
 * `--test-coverage-functions`
-* `--test-coverage-include`
 * `--test-coverage-include-all`
+* `--test-coverage-include`
 * `--test-coverage-lines`
 * `--test-global-setup`
 * `--test-isolation`
