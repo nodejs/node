@@ -6,6 +6,7 @@
 #include "env-inl.h"
 #include "node_options.h"
 #include "trace_event.h"
+#include "trace_event_helper.h"
 
 #include "trace_event_perfetto.h"
 
@@ -20,16 +21,6 @@ constexpr uint64_t kReadPeriodMs = 5000;
 // Rotate to a new file once the current one reaches this size, so no single
 // trace file grows without bound.
 constexpr uint64_t kMaxFileSizeBytes = 64 * 1024 * 1024;  // 64 MiB
-
-void replace_substring(std::string* target,
-                       std::string_view search,
-                       std::string_view insert) {
-  size_t pos = target->find(search);
-  for (; pos != std::string::npos; pos = target->find(search, pos)) {
-    target->replace(pos, search.size(), insert);
-    pos += insert.size();
-  }
-}
 
 std::set<std::string> flatten(
     const std::unordered_map<int, std::multiset<std::string>>& map) {
@@ -104,9 +95,7 @@ class SimpleWriter : public TraceWriter {
     ++file_num_;
     uv_fs_t req;
 
-    std::string filepath(log_file_pattern_);
-    replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
-    replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
+    std::string filepath = GetTraceFilePath(log_file_pattern_, file_num_);
 
     if (fd_ >= 0) {
       uv_fs_close(loop_, &req, fd_, nullptr);
