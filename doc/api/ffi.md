@@ -202,10 +202,10 @@ so it can be used with the [`using`][] declaration. Disposing the returned
 object closes the library handle.
 
 ```mjs
-import { dlopen } from 'node:ffi';
+import { dlopen, suffix } from 'node:ffi';
 
 {
-  using handle = dlopen('./mylib.so', {
+  using handle = dlopen(`./mylib.${suffix}`, {
     add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
   });
   console.log(handle.functions.add_i32(20, 22));
@@ -213,9 +213,9 @@ import { dlopen } from 'node:ffi';
 ```
 
 ```mjs
-import { dlopen } from 'node:ffi';
+import { dlopen, suffix } from 'node:ffi';
 
-const { lib, functions } = dlopen('./mylib.so', {
+const { lib, functions } = dlopen(`./mylib.${suffix}`, {
   add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
   string_length: { arguments: ['pointer'], return: 'u64' },
 });
@@ -224,9 +224,9 @@ console.log(functions.add_i32(20, 22));
 ```
 
 ```cjs
-const { dlopen } = require('node:ffi');
+const { dlopen, suffix } = require('node:ffi');
 
-const { lib, functions } = dlopen('./mylib.so', {
+const { lib, functions } = dlopen(`./mylib.${suffix}`, {
   add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
   string_length: { arguments: ['pointer'], return: 'u64' },
 });
@@ -278,9 +278,9 @@ Loads the dynamic library without resolving any functions eagerly.
 On Windows passing `null` is not supported.
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 ```
 
 ### `library.path`
@@ -310,10 +310,10 @@ library instance can be managed with the [`using`][] declaration. Leaving the
 enclosing scope invokes `library.close()` automatically.
 
 ```mjs
-import { DynamicLibrary } from 'node:ffi';
+import { DynamicLibrary, suffix } from 'node:ffi';
 
 {
-  using lib = new DynamicLibrary('./mylib.so');
+  using lib = new DynamicLibrary(`./mylib.${suffix}`);
   // Use `lib` here; `lib.close()` is called when the block exits.
 }
 ```
@@ -365,9 +365,9 @@ If the same symbol has already been resolved, requesting it again with a
 different signature throws.
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 const add = lib.getFunction('add_i32', {
   arguments: ['i32', 'i32'],
   return: 'i32',
@@ -415,9 +415,9 @@ The return value is the callback pointer address as a `bigint`. It can be
 passed to native functions expecting a callback pointer.
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 
 const callback = lib.registerCallback(
   { arguments: ['i32'], return: 'i32' },
