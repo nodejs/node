@@ -358,8 +358,7 @@ void SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (!buf.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "buf is too big");
   BignumPointer num(buf.data(), buf.size());
-  if (!num) return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid public key");
-  if (!dh.setPublicKey(std::move(num)))
+  if (!num || !dh.setPublicKey(std::move(num)))
     return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid public key");
 }
 
@@ -373,8 +372,7 @@ void SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   if (!buf.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "buf is too big");
   BignumPointer num(buf.data(), buf.size());
-  if (!num) return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid private key");
-  if (!dh.setPrivateKey(std::move(num)))
+  if (!num || !dh.setPrivateKey(std::move(num)))
     return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid private key");
 }
 
