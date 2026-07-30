@@ -5,14 +5,18 @@ common.skipIfInspectorDisabled();
 
 const fixtures = require('../common/fixtures');
 const startCLI = require('../common/debugger');
+const tmpdir = require('../common/tmpdir');
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
-const cli = startCLI([fixtures.path('debugger/empty.js')]);
+tmpdir.refresh();
 
-const rootDir = path.resolve(__dirname, '..', '..');
+const cli = startCLI(
+  [fixtures.path('debugger/empty.js')],
+  [],
+  { cwd: tmpdir.path },
+);
 
 (async () => {
   await cli.waitForInitialBreak();
@@ -25,7 +29,7 @@ const rootDir = path.resolve(__dirname, '..', '..');
   await cli.command('profiles[0].save()');
   assert.match(cli.output, /Saved profile to .*node\.cpuprofile/);
 
-  const cpuprofile = path.resolve(rootDir, 'node.cpuprofile');
+  const cpuprofile = tmpdir.resolve('node.cpuprofile');
   const data = JSON.parse(fs.readFileSync(cpuprofile, 'utf8'));
   assert.strictEqual(Array.isArray(data.nodes), true);
 
