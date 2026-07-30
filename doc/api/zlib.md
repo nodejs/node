@@ -802,7 +802,9 @@ These advanced options are available for controlling decompression:
 <!-- YAML
 added: v0.11.1
 changes:
-  - version: v26.5.0
+  - version:
+     - v26.5.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/64023
     description: The `rejectGarbageAfterEnd` option was added.
   - version:
@@ -853,7 +855,9 @@ information.
 <!-- YAML
 added: v11.7.0
 changes:
-  - version: v26.5.0
+  - version:
+     - v26.5.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/64023
     description: The `rejectGarbageAfterEnd` option was added.
   - version:
@@ -2202,7 +2206,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/64599
     description: The `dictionary` option can be a `TypedArray`, `DataView`, or
                  `ArrayBuffer`.
-  - version: v26.5.0
+  - version:
+     - v26.5.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/64023
     description: The `rejectGarbageAfterEnd` option was added.
 -->

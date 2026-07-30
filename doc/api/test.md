@@ -482,7 +482,9 @@ tests must satisfy **both** requirements in order to be executed.
 ## Test tags
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.19.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1651,7 +1653,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: v26.2.0
+  - version:
+     - v26.2.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `testTagFilters` option.
   - version:
@@ -1896,7 +1900,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: v26.2.0
+  - version:
+     - v26.2.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `tags` option.
   - version:
@@ -3450,7 +3456,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/64309
     description: Added `entryFile` to events forwarded from child processes
                  when tests run with process isolation.
-  - version: v26.3.0
+  - version:
+     - v26.3.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63435
     description: Added `parentId` to test events that carry a `testId`.
   - version:
@@ -3944,7 +3952,9 @@ Emitted when one or more tests are restarted due to a file change in watch mode.
 ## `getTestContext()`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.19.0
 -->
 
 * Returns: {TestContext|SuiteContext|undefined}
@@ -4407,7 +4417,9 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.tags`
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.19.0
 -->
 
 > Stability: 1.0 - Early development
@@ -4635,7 +4647,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: v26.2.0
+  - version:
+     - v26.2.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `tags` option.
   - version:

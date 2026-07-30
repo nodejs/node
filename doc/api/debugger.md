@@ -241,15 +241,21 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/64328
     description: Add per-probe `--cond <expr>` option to only record a hit when the
         condition is truthy at the probe location.
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63704
     description: Add per-probe `--max-hit <n>` option to limit evaluated hits and finish
         with a `completed` terminal event as soon as any probe reaches its limit.
-  - version: v26.3.0
+  - version:
+     - v26.3.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63437
     description: Add `probe_failure` terminal `error` event for inspector-side mid-session
         failures, and `error.details` for additional context on per-hit and terminal errors.
-  - version: v26.2.0
+  - version:
+     - v26.2.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63286
     description: JSON report schema bumped to v2. Probe `target` is now
         `{ suffix, line, column? }` instead of an array. Each "hit" event carries a

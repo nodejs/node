@@ -366,7 +366,9 @@ socket.bind({
 ### `socket.bindSync([options])`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.19.0
 -->
 
 * `options` {Object}
@@ -450,7 +452,9 @@ the `callback` is called or, failing this, an `'error'` event is emitted.
 ### `socket.connectSync(port[, address])`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.19.0
 -->
 
 * `port` {integer}

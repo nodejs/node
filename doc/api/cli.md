@@ -809,7 +809,8 @@ added:
 - v20.15.0
 changes:
   - version:
-    - v26.0.0
+     - v26.0.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/62132
     description: Node.js now automatically disables the trap handler when there is not
                  enough virtual memory available at startup to allocate one cage.
@@ -1063,7 +1064,9 @@ added:
   - v23.6.0
   - v22.20.0
 changes:
-  - version: v26.5.0
+  - version:
+     - v26.5.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/64221
     description: This is enabled by default.
 -->
@@ -1302,6 +1305,7 @@ Previously gated the entire `import.meta.resolve` feature.
 <!-- YAML
 added:
   - v26.5.0
+  - v24.19.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1497,7 +1501,9 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 ### `--experimental-test-tag-filter=<tag>`
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.19.0
 -->
 
 > Stability: 1.0 - Early development

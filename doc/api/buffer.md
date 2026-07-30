@@ -596,7 +596,9 @@ UTF-8 string.
 ### `blob.textStream()`
 
 <!-- YAML
-added: v26.5.0
+added:
+ - v26.5.0
+ - v24.19.0
 -->
 
 * Returns: {ReadableStream}
