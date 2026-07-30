@@ -4126,6 +4126,9 @@ and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64849
+    description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55718
     description: Runtime deprecation.
@@ -4136,11 +4139,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Instantiating classes without the `new` qualifier exported by the `node:zlib` module is deprecated.
-It is recommended to use the `new` qualifier instead. This applies to all Zlib classes, such as `Deflate`,
-`DeflateRaw`, `Gunzip`, `Inflate`, `InflateRaw`, `Unzip`, and `Zlib`.
+Instantiating classes without the `new` qualifier exported by the `node:zlib` module is no longer
+supported. The `new` qualifier must be used instead. This applies to all Zlib classes, such as
+`Deflate`, `DeflateRaw`, `Gunzip`, `Inflate`, `InflateRaw`, `Unzip`, `BrotliCompress`,
+`BrotliDecompress`, `ZstdCompress`, and `ZstdDecompress`.
 
 ### DEP0185: Instantiating `node:repl` classes without `new`
 
