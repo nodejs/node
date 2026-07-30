@@ -31,6 +31,9 @@ const globs = {
   ],
 };
 
+// Matchers for the same pattern must not be shared across path platforms.
+assert.strictEqual(path.posix.matchesGlob('platform-cache/file', 'platform-cache/**'), true);
+assert.strictEqual(path.win32.matchesGlob('platform-cache\\file', 'platform-cache/**'), true);
 
 for (const [platform, platformGlobs] of Object.entries(globs)) {
   for (const [pathStr, glob, expected] of platformGlobs) {
