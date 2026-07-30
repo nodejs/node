@@ -1426,7 +1426,7 @@ what this endpoint advertises to the peer as its own maximum.
 ### `session.servername`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * Type: {string|boolean|null}
@@ -1439,7 +1439,7 @@ had no SNI.
 ### `session.alpnProtocol`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * Type: {string|null}
@@ -2946,7 +2946,7 @@ certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 #### `sessionOptions.certificateCompression`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * Type: {string\[]} One or more of `'zlib'`, `'brotli'`, or `'zstd'`, in
