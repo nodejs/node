@@ -2273,7 +2273,7 @@ added:
  - v25.9.0
  - v24.18.0
 changes:
-  - version: REPLACEME
+  - version: v26.6.0
     pr-url: https://github.com/nodejs/node/pull/64557
     description: Limit customization to 512 bytes.
 -->

@@ -3452,7 +3452,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.6.0
     pr-url: https://github.com/nodejs/node/pull/64309
     description: Added `entryFile` to events forwarded from child processes
                  when tests run with process isolation.
@@ -3768,7 +3768,7 @@ since the parent runner only knows about file-level tests. When using
 ### Event: `'test:log'`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * `data` {Object}
@@ -4326,7 +4326,7 @@ test('top level test', (t) => {
 ### `context.log(message[, data])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * `message` {string} Message to be reported.
@@ -4842,7 +4842,7 @@ test.describe('my suite', (suite) => {
 ### `context.log(message[, data])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * `message` {string} Message to be reported.
