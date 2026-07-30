@@ -1502,8 +1502,7 @@ added: REPLACEME
 * `options` {Object}
   * `verify` {boolean} Verify the entry's CRC-32 checksum. **Default:** `true`.
   * `maxSize` {number} Reject content declaring more than this many
-    uncompressed bytes, before decompressing anything. **Default:**
-    [`zlib.getMaxZipContentSize()`][].
+    uncompressed bytes, before decompressing anything. **Default:** no limit.
 * Returns: {AsyncIterator} of {Buffer} chunks of the entry's decompressed
   content.
 
@@ -1511,6 +1510,12 @@ Unlike [`zipEntry.content()`][], this does not buffer the whole member in
 memory. For a file-backed entry (one returned by [`zipFile.get()`][]) the
 compressed bytes are read from disk as the iterator is consumed and nothing is
 retained; the entry is valid only while its `ZipFile` is open.
+
+Because streaming is the bounded-memory path for arbitrarily large members, it
+is **not** capped by [`zlib.getMaxZipContentSize()`][] the way
+[`zipEntry.content()`][] is - that default guards a single large allocation,
+which streaming never makes. Output is still bounded per chunk to the declared
+uncompressed size; pass `maxSize` to impose an explicit ceiling.
 
 For an in-memory entry stored without compression, the yielded chunks are
 zero-copy views of the entry's retained content (see

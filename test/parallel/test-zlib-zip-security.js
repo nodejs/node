@@ -157,12 +157,15 @@ test('zipFiles() rejects a non-regular special file', {
     'archiving a character device should be rejected, not stored as an empty file');
 });
 
-// -- Concern B: streaming (contentIterator / ZipFile.stream) must apply the
-// same default decompression ceiling as content(); otherwise output is bounded
-// only by the attacker-declared uncompressed size - a zip bomb through the
-// streaming API. -----------------------------------------------------------
+// -- Concern B (verdict: by design): the default decompression ceiling guards
+// the buffering path (content()) against a huge allocation; streaming
+// (contentIterator / ZipFile.stream) is deliberately not bound by it, so a
+// legitimately large member can be read chunk by chunk. Output is still capped
+// per chunk at the declared size, and a caller wanting a cap passes maxSize.
+// This locks in that asymmetry (a default ceiling on streaming would break
+// multi-gigabyte reads - see test/pummel/test-zlib-zip-slow.js). -------------
 
-test('streaming enforces the default decompression ceiling', async () => {
+test('the default ceiling bounds content() but not streaming', async () => {
   const chunks = [];
   for await (const c of zlib.createZipArchive(
     [await zlib.ZipEntry.create('big.txt', Buffer.alloc(4096, 1), { method: 'store' })])) {
@@ -174,12 +177,17 @@ test('streaming enforces the default decompression ceiling', async () => {
   const saved = zlib.getMaxZipContentSize();
   zlib.setMaxZipContentSize(1024); // Below the entry's 4096 declared bytes.
   try {
-    // One-shot already enforces the default ceiling.
+    // One-shot buffering enforces the default ceiling...
     await assert.rejects(entry.content(), { code: 'ERR_ZIP_ENTRY_TOO_LARGE' });
-    // Streaming with no explicit maxSize must enforce it too.
+    // ...but streaming (the bounded-memory path) is not capped by it.
+    let total = 0;
+    for await (const chunk of entry.contentIterator()) total += chunk.length;
+    assert.strictEqual(total, 4096);
+    // An explicit maxSize still caps streaming when the caller wants it.
     await assert.rejects((async () => {
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of entry.contentIterator()) { /* drain */ }
+      let n = 0;
+      for await (const chunk of entry.contentIterator({ maxSize: 1024 })) n += chunk.length;
+      return n;
     })(), { code: 'ERR_ZIP_ENTRY_TOO_LARGE' });
   } finally {
     zlib.setMaxZipContentSize(saved);
