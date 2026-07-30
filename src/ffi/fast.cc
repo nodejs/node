@@ -178,12 +178,32 @@ bool IsPointerTypeName(const std::string& name) {
   return name == "pointer" || name == "ptr" || name == "function";
 }
 
+bool IsBufferTypeName(const std::string& name) {
+  return name == "buffer" || name == "arraybuffer";
+}
+
 bool SignatureNeedsFastBufferInvoke(const FFIFunction& fn) {
   // The secondary buffer invoke is only generated for the hot monomorphic case
   // where a single pointer-like argument can be satisfied by a Buffer or
   // ArrayBuffer without allocating or caching a BigInt pointer in JS.
   return fn.arg_type_names.size() == 1 &&
-         IsPointerTypeName(fn.arg_type_names[0]);
+         (IsPointerTypeName(fn.arg_type_names[0]) ||
+          IsBufferTypeName(fn.arg_type_names[0]));
+}
+
+std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
+    const std::shared_ptr<FFIFunction>& fn) {
+  // The primary Fast API entrypoint receives pointer-compatible values as
+  // BigInts after the JS wrapper has converted strings, nullish values, and
+  // memory-backed objects. A secondary entrypoint handles the monomorphic
+  // memory-backed case without extracting the pointer in JS.
+  auto clone = std::make_shared<FFIFunction>(*fn);
+  for (std::string& name : clone->arg_type_names) {
+    if (IsBufferTypeName(name)) {
+      name = "pointer";
+    }
+  }
+  return clone;
 }
 
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
