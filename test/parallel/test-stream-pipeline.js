@@ -578,7 +578,7 @@ tmpdir.refresh();
 }
 
 {
-  const server = http.Server(function(req, res) {
+  const server = new http.Server(function(req, res) {
     res.write('asd');
   });
   server.listen(0, common.mustCall(function() {

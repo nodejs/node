@@ -41,7 +41,7 @@ server.listen(0, function() {
   makeRequest(expectRequests);
 });
 
-const agent = http.Agent({ keepAlive: true });
+const agent = new http.Agent({ keepAlive: true });
 
 
 let clientSocket = null;
