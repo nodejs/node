@@ -445,6 +445,11 @@ added:
 * Returns: {net.SocketAddress} Returns a `SocketAddress` if parsing was successful.
   Otherwise returns `undefined`.
 
+The `input` may contain only hexadecimal digits, `x`, `.`, `:`, `[`, and `]`.
+Anything else returns `undefined`, including other URL components such as
+`user@1.2.3.4` or `1.2.3.4/foo`, whitespace, control characters,
+percent-encoding, and non-ASCII characters.
+
 ## Class: `net.Server`
 
 <!-- YAML
