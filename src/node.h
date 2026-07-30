@@ -492,7 +492,8 @@ class EmbedderSnapshotData {
 
   // Return an EmbedderSnapshotData object that refers to the built-in
   // snapshot of Node.js. This can have been configured through e.g.
-  // --node-snapshot-main=entry.js.
+  // --node-snapshot-main=entry.js. If Node.js was built without a built-in
+  // snapshot, this returns an empty pointer.
   static Pointer BuiltinSnapshotData();
 
   // Return an EmbedderSnapshotData object that is based on an input file.

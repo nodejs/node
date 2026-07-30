@@ -317,8 +317,13 @@ void EmbedderSnapshotData::DeleteSnapshotData::operator()(
 }
 
 EmbedderSnapshotData::Pointer EmbedderSnapshotData::BuiltinSnapshotData() {
-  return EmbedderSnapshotData::Pointer{new EmbedderSnapshotData(
-      SnapshotBuilder::GetEmbeddedSnapshotData(), false)};
+  const SnapshotData* snapshot_data =
+      SnapshotBuilder::GetEmbeddedSnapshotData();
+  if (snapshot_data == nullptr) {
+    return {};
+  }
+  return EmbedderSnapshotData::Pointer{
+      new EmbedderSnapshotData(snapshot_data, false)};
 }
 
 EmbedderSnapshotData::Pointer EmbedderSnapshotData::FromBlob(
