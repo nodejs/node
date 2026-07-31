@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc
+// Flags: --experimental-ffi --expose-gc --allow-natives-syntax
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
@@ -207,6 +207,27 @@ test('closed libraries reject subsequent operations', () => {
   assert.throws(() => functions.add_i32(1, 2), /Library is closed/);
   assert.throws(() => lib.getFunction('add_i32', fixtureSymbols.add_i32), /Library is closed/);
   assert.throws(() => lib.getSymbol('add_i32'), /Library is closed/);
+});
+
+test('optimized fast calls reject calls after the library is closed', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    multiply_f64: fixtureSymbols.multiply_f64,
+  });
+
+  function hot(a, b) {
+    return functions.multiply_f64(a, b);
+  }
+
+  eval('%PrepareFunctionForOptimization(hot)');
+  assert.strictEqual(hot(2, 3), 6);
+  eval('%OptimizeFunctionOnNextCall(hot)');
+  assert.strictEqual(hot(2, 3), 6);
+
+  lib.close();
+  assert.throws(() => hot(2, 3), {
+    code: 'ERR_FFI_LIBRARY_CLOSED',
+    message: 'Library is closed',
+  });
 });
 
 test('DynamicLibrary supports Symbol.dispose', () => {
