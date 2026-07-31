@@ -13,6 +13,7 @@ const tokens = [
   {
     key: 'abcd1234abcd1234',
     token: 'efgh5678efgh5678',
+    name: 'abcd001',
     cidr_whitelist: null,
     readonly: false,
     created: now,
@@ -21,6 +22,7 @@ const tokens = [
   {
     key: 'abcd1256',
     token: 'hgfe8765',
+    name: 'abcd002',
     cidr_whitelist: ['192.168.1.1/32'],
     readonly: true,
     created: now,
@@ -63,9 +65,9 @@ t.test('token list', async t => {
   registry.getTokens(tokens)
   await npm.exec('token', [])
   t.strictSame(outputs, [
-    `Token efgh5678efgh5678… with id abcd123 created ${now.slice(0, 10)}`,
+    `Token efgh5678efgh5678… with id abcd123 name abcd001 created ${now.slice(0, 10)}`,
     '',
-    `Token hgfe8765… with id abcd125 created ${now.slice(0, 10)}`,
+    `Token hgfe8765… with id abcd125 name abcd002 created ${now.slice(0, 10)}`,
     'with IP whitelist: 192.168.1.1/32',
     '',
   ])
@@ -104,9 +106,9 @@ t.test('token list parseable output', async t => {
   registry.getTokens(tokens)
   await npm.exec('token', [])
   t.strictSame(outputs, [
-    'key\ttoken\tcreated\treadonly\tCIDR whitelist',
-    `abcd1234abcd1234\tefgh5678efgh5678\t${now}\tfalse\t`,
-    `abcd1256\thgfe8765\t${now}\ttrue\t192.168.1.1/32`,
+    'key\ttoken\tid\tname\tcreated\treadonly\tCIDR whitelist',
+    `abcd1234abcd1234\tefgh5678efgh5678\tabcd123\tabcd001\t${now}\tfalse\t`,
+    `abcd1256\thgfe8765\tabcd125\tabcd002\t${now}\ttrue\t192.168.1.1/32`,
   ])
 })
 

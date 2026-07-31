@@ -42,7 +42,7 @@ class Exec extends BaseCommand {
     }
   }
 
-  async callExec (args, { name, locationMsg, runPath } = {}) {
+  async callExec (args, { locationMsg, runPath } = {}) {
     let localBin = this.npm.localBin
     let pkgPath = this.npm.localPrefix
 
@@ -50,8 +50,8 @@ class Exec extends BaseCommand {
     if (!runPath) {
       runPath = process.cwd()
     } else {
-      // We have to consider if the workspace has its own separate versions libnpmexec will walk up to localDir after looking here
-      localBin = resolve(this.npm.localDir, name, 'node_modules', '.bin')
+      // Use the workspace's own node_modules/.bin, not localDir/<name>, since the linked strategy does not symlink workspaces into the root node_modules.
+      localBin = resolve(runPath, 'node_modules', '.bin')
       // We also need to look for `bin` entries in the workspace package.json
       // libnpmexec will NOT look in the project root for the bin entry
       pkgPath = runPath

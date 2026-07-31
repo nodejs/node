@@ -194,6 +194,10 @@ silently skipped; this setting only affects unreviewed entries.
 `--ignore-scripts` and `--dangerously-allow-all-scripts` both override this
 setting.
 
+Optional dependencies that cannot be installed on the current platform or
+engine (a non-matching `os`, `cpu`, or `libc`) are not flagged, because
+their install scripts never run.
+
 
 
 #### `dangerously-allow-all-scripts`

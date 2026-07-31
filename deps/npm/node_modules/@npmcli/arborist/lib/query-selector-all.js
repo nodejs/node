@@ -798,7 +798,8 @@ const hasParent = (node, compareNodes) => {
     // Only match if the node has a link whose parent is the compareNode. Without this check, nodes deep in the store (linked strategy) would incorrectly match as children of root via their fsParent chain.
     if (node.isTop && (node.resolveParent === compareNode)) {
       for (const link of node.linksIn) {
-        if (link.parent === compareNode) {
+        // A store-backing node (linked strategy) is reached through its logical Link, which matches via edgesIn below, so the store node itself is never a direct child.
+        if (link.parent === compareNode && !node.isInStore) {
           return true
         }
       }
