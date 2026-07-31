@@ -2599,7 +2599,7 @@ assert.strictEqual(
 // Getter returning a function.
 // https://github.com/nodejs/node/issues/64838
 {
-  const obj = { get foo() { return function bar(){}; } };
+  const obj = { get foo() { return function bar() {}; } };
   assert.strictEqual(
     inspect(obj, { getters: true }),
     '{ foo: [Getter] [Function: bar] }');
