@@ -1,6 +1,7 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 const { cleanZlib } = require('../../fixtures/clean-snapshot')
+const MockRegistry = require('@npmcli/mock-registry')
 const path = require('node:path')
 const fs = require('node:fs')
 
@@ -165,6 +166,61 @@ t.test('foreground-scripts can still be set to false', async t => {
   t.strictSame(outputs, [filename], 'prepack and postpack do not log to stdout')
   t.matchSnapshot(logs.notice, 'logs pack contents')
   t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
+})
+
+t.test('min-release-age-exclude applies to registry packages', async t => {
+  const name = '@myscope/some-package'
+  const version = '1.2.3'
+  const { npm, outputs } = await loadMockNpm(t, {
+    prefixDir: {
+      package: {
+        'package.json': JSON.stringify({ name, version }),
+      },
+    },
+    config: {
+      'min-release-age': 7,
+      'min-release-age-exclude': ['@myscope/*'],
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  const manifest = registry.manifest({ name, versions: [version] })
+  await registry.package({
+    manifest,
+    times: 2,
+    tarballs: { [version]: path.join(npm.prefix, 'package') },
+  })
+
+  await npm.exec('pack', [`${name}@${version}`])
+
+  const filename = 'myscope-some-package-1.2.3.tgz'
+  t.strictSame(outputs, [filename])
+  t.ok(fs.statSync(path.resolve(npm.prefix, filename)))
+})
+
+t.test('excluded alias name does not bypass min-release-age for its target', async t => {
+  const target = 'other-package'
+  const version = '1.2.3'
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      'min-release-age': 7,
+      'min-release-age-exclude': ['@myscope/*'],
+    },
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+  })
+  await registry.package({
+    manifest: registry.manifest({ name: target, versions: [version] }),
+  })
+
+  await t.rejects(
+    npm.exec('pack', [`@myscope/alias@npm:${target}@${version}`]),
+    { code: 'ETARGET' }
+  )
 })
 
 t.test('invalid packument', async t => {
