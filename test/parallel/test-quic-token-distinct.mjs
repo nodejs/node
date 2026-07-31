@@ -5,8 +5,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, notDeepStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -30,7 +28,7 @@ const cs1 = await connect(serverEndpoint.address, {
   }),
 });
 await Promise.all([cs1.opened, gotToken1.promise]);
-ok(token1.length > 0);
+assert.ok(token1.length > 0);
 
 // Client 2.
 const cs2 = await connect(serverEndpoint.address, {
@@ -40,10 +38,10 @@ const cs2 = await connect(serverEndpoint.address, {
   }),
 });
 await Promise.all([cs2.opened, gotToken2.promise]);
-ok(token2.length > 0);
+assert.ok(token2.length > 0);
 
 // Tokens should be distinct.
-notDeepStrictEqual(token1, token2);
+assert.notDeepStrictEqual(token1, token2);
 
 await cs1.close();
 await cs2.close();

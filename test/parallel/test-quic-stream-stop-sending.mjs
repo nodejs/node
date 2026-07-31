@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -29,9 +27,9 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 
     // The server's stream.closed rejects with the stop-sending code
     // because the inbound side was reset by the peer in response.
-    await rejects(stream.closed, (error) => {
-      strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
-      ok(error.message.includes('99'));
+    await assert.rejects(stream.closed, (error) => {
+      assert.strictEqual(error.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.ok(error.message.includes('99'));
       return true;
     });
     serverSession.close();

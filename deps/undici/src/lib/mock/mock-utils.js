@@ -292,25 +292,54 @@ function mockDispatch (opts, handler) {
   // Get mock dispatch from built key
   const key = buildKey(opts)
   const mockDispatch = getMockDispatch(this[kDispatches], key)
+  const mockDispatches = this[kDispatches]
 
   mockDispatch.timesInvoked++
 
-  // Here's where we resolve a callback if a callback is present for the dispatch data.
-  if (mockDispatch.data.callback) {
-    mockDispatch.data = { ...mockDispatch.data, ...mockDispatch.data.callback(opts) }
-  }
-
-  // Parse mockDispatch data
-  const { data: { statusCode, data, headers, trailers, error }, delay, persist } = mockDispatch
   const { timesInvoked, times } = mockDispatch
 
   // If it's used up and not persistent, mark as consumed
-  mockDispatch.consumed = !persist && timesInvoked >= times
+  mockDispatch.consumed = !mockDispatch.persist && timesInvoked >= times
   mockDispatch.pending = timesInvoked < times
+
+  // Here's where we resolve a callback if a callback is present for the dispatch data.
+  if (mockDispatch.data.callback) {
+    const callbackResult = mockDispatch.data.callback(opts)
+
+    // An asynchronous reply options callback resolves to the reply data, so
+    // the dispatch can only continue once the returned promise settles.
+    // A rejection cannot be thrown synchronously from the dispatch at that
+    // point, so it is surfaced as a response error instead.
+    if (isPromise(callbackResult)) {
+      callbackResult.then(
+        (resolvedData) => {
+          mockDispatch.data = { ...mockDispatch.data, ...resolvedData }
+          dispatchMockReply(mockDispatches, mockDispatch, key, opts, handler)
+        },
+        (error) => {
+          deleteMockDispatch(mockDispatches, key)
+          handler.onResponseError(null, error)
+        }
+      )
+      return true
+    }
+
+    mockDispatch.data = { ...mockDispatch.data, ...callbackResult }
+  }
+
+  return dispatchMockReply(mockDispatches, mockDispatch, key, opts, handler)
+}
+
+/**
+ * Replies to a request once the mock dispatch data is fully resolved
+ */
+function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler) {
+  // Parse mockDispatch data
+  const { data: { statusCode, data, headers, trailers, error }, delay } = mockDispatch
 
   // If specified, trigger dispatch error
   if (error !== null) {
-    deleteMockDispatch(this[kDispatches], key)
+    deleteMockDispatch(mockDispatches, key)
     handler.onResponseError(null, error)
     return true
   }
@@ -353,10 +382,10 @@ function mockDispatch (opts, handler) {
   if (typeof delay === 'number' && delay > 0) {
     timer = setTimeout(() => {
       timer = null
-      handleReply(this[kDispatches])
+      handleReply(mockDispatches)
     }, delay)
   } else {
-    handleReply(this[kDispatches])
+    handleReply(mockDispatches)
   }
 
   function handleReply (mockDispatches, _data = data) {

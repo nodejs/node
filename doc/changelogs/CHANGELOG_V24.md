@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#24.18.1">24.18.1</a><br/>
 <a href="#24.18.0">24.18.0</a><br/>
 <a href="#24.17.0">24.17.0</a><br/>
 <a href="#24.16.0">24.16.0</a><br/>
@@ -67,6 +68,44 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="24.18.1"></a>
+
+## 2026-07-29, Version 24.18.1 'Krypton' (LTS), @juanarbol
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-56846) http2: retain header memory in session accounting (Matteo Collina) – High
+* (CVE-2026-56848) http2: defer rst stream while in scope (Matteo Collina) – High
+* (CVE-2026-58043) permission: avoid granting radix split nodes (RafaelGSS) – High
+* (CVE-2026-56850) https: distinguish PFX object-array agent keys (RafaelGSS) – Medium
+* (CVE-2026-58040) https: bind identity checks to session reuse (Matteo Collina) – Medium
+* (CVE-2026-58041) sqlite: invalidate tag store iterators on statement reset (Matteo Collina) – Medium
+* (CVE-2026-58042) dns: handle large resolveAny address replies (RafaelGSS) – Medium
+* (CVE-2026-58045) zlib: throw on out-of-bounds write buffers (RafaelGSS) – Medium
+* (CVE-2026-56847) permission: enforce fs write permission for trace events (RafaelGSS) – Low
+* (CVE-2026-58039) permission: check final report output path (RafaelGSS) – Low
+* (CVE-2026-58044) http: reject requests exceeding max header count (Matteo Collina) – Low
+* deps: update llhttp to 9.4.3 (Paolo Insogna)
+* deps: update undici to 7.29.0 (Node.js GitHub Bot)
+
+### Commits
+
+* \[[`6cb0475751`](https://github.com/nodejs/node/commit/6cb0475751)] - **deps**: update llhttp to 9.4.3 (Paolo Insogna) [nodejs-private/node-private#935](https://github.com/nodejs-private/node-private/pull/935)
+* \[[`bcfe21d3dc`](https://github.com/nodejs/node/commit/bcfe21d3dc)] - **deps**: update undici to 7.29.0 (Node.js GitHub Bot) [#64713](https://github.com/nodejs/node/pull/64713)
+* \[[`9d0d36cffd`](https://github.com/nodejs/node/commit/9d0d36cffd)] - **(CVE-2026-58042)** **dns**: handle large resolveAny address replies (RafaelGSS) [nodejs-private/node-private#929](https://github.com/nodejs-private/node-private/pull/929)
+* \[[`8a008fb523`](https://github.com/nodejs/node/commit/8a008fb523)] - **(CVE-2026-58044)** **http**: reject requests exceeding max header count (Matteo Collina) [nodejs-private/node-private#922](https://github.com/nodejs-private/node-private/pull/922)
+* \[[`a77c7f7354`](https://github.com/nodejs/node/commit/a77c7f7354)] - **(CVE-2026-56848)** **http2**: defer rst stream while in scope (Matteo Collina) [nodejs-private/node-private#921](https://github.com/nodejs-private/node-private/pull/921)
+* \[[`34ed88a069`](https://github.com/nodejs/node/commit/34ed88a069)] - **(CVE-2026-56846)** **http2**: retain header memory in session accounting (Matteo Collina) [#63752](https://github.com/nodejs/node/pull/63752)
+* \[[`95ba2cfde7`](https://github.com/nodejs/node/commit/95ba2cfde7)] - **(CVE-2026-58040)** **https**: bind identity checks to session reuse (Matteo Collina) [nodejs-private/node-private#904](https://github.com/nodejs-private/node-private/pull/904)
+* \[[`fcbdbe47ea`](https://github.com/nodejs/node/commit/fcbdbe47ea)] - **(CVE-2026-56850)** **https**: distinguish PFX object-array agent keys (RafaelGSS) [nodejs-private/node-private#930](https://github.com/nodejs-private/node-private/pull/930)
+* \[[`ea26c12b56`](https://github.com/nodejs/node/commit/ea26c12b56)] - **(CVE-2026-58043)** **permission**: avoid granting radix split nodes (RafaelGSS) [nodejs-private/node-private#911](https://github.com/nodejs-private/node-private/pull/911)
+* \[[`9a6b7e343a`](https://github.com/nodejs/node/commit/9a6b7e343a)] - **(CVE-2026-58039)** **permission**: check final report output path (RafaelGSS) [nodejs-private/node-private#926](https://github.com/nodejs-private/node-private/pull/926)
+* \[[`6c0c990880`](https://github.com/nodejs/node/commit/6c0c990880)] - **(CVE-2026-56847)** **permission**: enforce fs write permission for trace events (RafaelGSS) [nodejs-private/node-private#927](https://github.com/nodejs-private/node-private/pull/927)
+* \[[`af9ff0490c`](https://github.com/nodejs/node/commit/af9ff0490c)] - **(CVE-2026-58041)** **sqlite**: invalidate tag store iterators on statement reset (Matteo Collina) [nodejs-private/node-private#896](https://github.com/nodejs-private/node-private/pull/896)
+* \[[`05f541b5c0`](https://github.com/nodejs/node/commit/05f541b5c0)] - **(CVE-2026-58045)** **zlib**: throw on out-of-bounds write buffers (RafaelGSS) [nodejs-private/node-private#931](https://github.com/nodejs-private/node-private/pull/931)
 
 <a id="24.18.0"></a>
 

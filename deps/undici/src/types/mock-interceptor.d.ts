@@ -75,9 +75,13 @@ declare namespace MockInterceptor {
     opts: MockResponseCallbackOptions
   ) => TData | Buffer | string
 
+  export type MockReplyOptions<TData extends object = object> = {
+    statusCode: number, data?: TData | Buffer | string, responseOptions?: MockResponseOptions
+  }
+
   export type MockReplyOptionsCallback<TData extends object = object> = (
     opts: MockResponseCallbackOptions
-  ) => { statusCode: number, data?: TData | Buffer | string, responseOptions?: MockResponseOptions }
+  ) => MockReplyOptions<TData> | Promise<MockReplyOptions<TData>>
 }
 
 interface Interceptable extends Dispatcher {

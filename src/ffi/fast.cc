@@ -164,7 +164,8 @@ bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn) {
   for (const std::string& name : fn.arg_type_names) {
     if (name == "bool" || name == "char" || name == "i8" || name == "int8" ||
         name == "u8" || name == "uint8" || name == "i16" || name == "int16" ||
-        name == "u16" || name == "uint16" || name == "i64" || name == "int64" ||
+        name == "u16" || name == "uint16" || name == "i32" || name == "int32" ||
+        name == "u32" || name == "uint32" || name == "i64" || name == "int64" ||
         name == "u64" || name == "uint64") {
       return true;
     }
@@ -178,12 +179,32 @@ bool IsPointerTypeName(const std::string& name) {
   return name == "pointer" || name == "ptr" || name == "function";
 }
 
+bool IsBufferTypeName(const std::string& name) {
+  return name == "buffer" || name == "arraybuffer";
+}
+
 bool SignatureNeedsFastBufferInvoke(const FFIFunction& fn) {
   // The secondary buffer invoke is only generated for the hot monomorphic case
   // where a single pointer-like argument can be satisfied by a Buffer or
   // ArrayBuffer without allocating or caching a BigInt pointer in JS.
   return fn.arg_type_names.size() == 1 &&
-         IsPointerTypeName(fn.arg_type_names[0]);
+         (IsPointerTypeName(fn.arg_type_names[0]) ||
+          IsBufferTypeName(fn.arg_type_names[0]));
+}
+
+std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
+    const std::shared_ptr<FFIFunction>& fn) {
+  // The primary Fast API entrypoint receives pointer-compatible values as
+  // BigInts after the JS wrapper has converted strings, nullish values, and
+  // memory-backed objects. A secondary entrypoint handles the monomorphic
+  // memory-backed case without extracting the pointer in JS.
+  auto clone = std::make_shared<FFIFunction>(*fn);
+  for (std::string& name : clone->arg_type_names) {
+    if (IsBufferTypeName(name)) {
+      name = "pointer";
+    }
+  }
+  return clone;
 }
 
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(

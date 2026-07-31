@@ -6,8 +6,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -15,8 +13,8 @@ if (!hasQuic) {
 const { createPrivateKey } = await import('node:crypto');
 const { listen, connect } = await import('../common/quic.mjs');
 
-const serverKey = createPrivateKey(readKey('agent1-key.pem'));
-const serverCert = readKey('agent1-cert.pem');
+const serverKey = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const serverCert = fixtures.readKey('agent1-cert.pem');
 
 const done = Promise.withResolvers();
 

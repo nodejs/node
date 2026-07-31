@@ -32,6 +32,8 @@ let warningEmitted = /** @type {boolean} */ (false)
 class DecompressHandler extends DecoratorHandler {
   /** @type {Transform[]} */
   #decompressors = []
+  /** @type {Record<string, string | string[]> | undefined} */
+  #trailers
   /** @type {Readonly<number[]>} */
   #skipStatusCodes
   /** @type {boolean} */
@@ -123,7 +125,7 @@ class DecompressHandler extends DecoratorHandler {
     this.#setupDecompressorEvents(decompressor, controller)
 
     decompressor.on('end', () => {
-      super.onResponseEnd(controller, {})
+      super.onResponseEnd(controller, this.#trailers)
     })
   }
 
@@ -141,7 +143,7 @@ class DecompressHandler extends DecoratorHandler {
         super.onResponseError(controller, err)
         return
       }
-      super.onResponseEnd(controller, {})
+      super.onResponseEnd(controller, this.#trailers)
     })
   }
 
@@ -236,6 +238,7 @@ class DecompressHandler extends DecoratorHandler {
    */
   onResponseEnd (controller, trailers) {
     if (this.#decompressors.length > 0) {
+      this.#trailers = trailers
       this.#decompressors[0].end()
       this.#cleanupDecompressors()
       return
@@ -276,6 +279,10 @@ function createDecompressInterceptor (options = {}) {
 
   return (dispatch) => {
     return (opts, handler) => {
+      if (opts.method === 'HEAD') {
+        return dispatch(opts, handler)
+      }
+
       const decompressHandler = new DecompressHandler(handler, options)
       return dispatch(opts, decompressHandler)
     }

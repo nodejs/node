@@ -2396,7 +2396,10 @@ void DatabaseSync::EnableLoadExtension(
     const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
-  auto isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  Isolate* isolate = env->isolate();
   if (!args[0]->IsBoolean()) {
     THROW_ERR_INVALID_ARG_TYPE(isolate,
                                "The \"allow\" argument must be a boolean.");
@@ -2424,7 +2427,7 @@ void DatabaseSync::EnableDefensive(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
 
-  auto isolate = args.GetIsolate();
+  Isolate* isolate = env->isolate();
   if (!args[0]->IsBoolean()) {
     THROW_ERR_INVALID_ARG_TYPE(isolate,
                                "The \"active\" argument must be a boolean.");
@@ -2475,6 +2478,8 @@ void DatabaseSync::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
   Isolate* isolate = env->isolate();
 
   if (args[0]->IsNull()) {
@@ -3383,7 +3388,7 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   uint32_t n_params = args.Length() - 1;
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
   int param_count = sqlite3_bind_parameter_count(stmt->statement_);
   for (int i = 0; i < static_cast<int>(n_params) && i < param_count; ++i) {
@@ -3416,7 +3421,7 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
   }
 
   uint32_t n_params = args.Length() - 1;
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
   int param_count = sqlite3_bind_parameter_count(stmt->statement_);
   for (int i = 0; i < static_cast<int>(n_params) && i < param_count; ++i) {
@@ -3453,7 +3458,7 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
   uint32_t n_params = args.Length() - 1;
   Isolate* isolate = env->isolate();
 
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
   int param_count = sqlite3_bind_parameter_count(stmt->statement_);
@@ -3492,7 +3497,7 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
   uint32_t n_params = args.Length() - 1;
   Isolate* isolate = env->isolate();
 
-  int r = sqlite3_reset(stmt->statement_);
+  int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
   int param_count = sqlite3_bind_parameter_count(stmt->statement_);
@@ -3736,6 +3741,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
     CHECK_ERROR_OR_THROW(
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
     sqlite3_reset(iter->stmt_->statement_);
+    iter->done_ = true;
     MaybeLocal<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
     Local<Object> result;
     if (NewDictionaryInstanceNullProto(env->context(), iter_template, values)

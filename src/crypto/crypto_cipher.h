@@ -268,9 +268,8 @@ class CipherJob final : public CryptoJob<CipherTraits> {
 
   SET_SELF_SIZE(CipherJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    if (IsCryptoJobAsync(CryptoJob<CipherTraits>::mode()))
-      tracker->TrackFieldWithSize("in", in_.size());
-    tracker->TrackFieldWithSize("out", out_.size());
+    tracker->TraitTrackInline(in_, "in");
+    tracker->TraitTrackInline(out_, "out");
     CryptoJob<CipherTraits>::MemoryInfo(tracker);
   }
 

@@ -8,8 +8,6 @@ import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert';
 
-const { strictEqual, deepStrictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -50,8 +48,8 @@ while (serverStream.stats.maxOffsetAcknowledged !== serverStream.stats.bytesSent
 
 // Try to read:
 const received = await bytes(stream);
-strictEqual(received.byteLength, expected.byteLength);
-deepStrictEqual(received, expected);
+assert.strictEqual(received.byteLength, expected.byteLength);
+assert.deepStrictEqual(received, expected);
 
 stream.writer.endSync();
 await stream.closed;

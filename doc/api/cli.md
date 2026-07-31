@@ -731,9 +731,13 @@ Disable the ability of starting a debugging session by sending a
 added:
   - v21.3.0
   - v20.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64742
+    description: The `--disable-warning` flag is now stable.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Disable specific process warnings by `code` or `type`.
 
@@ -2322,6 +2326,9 @@ changes:
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
+> See also [`--permission-audit`](#--permission-audit) for an audit-only mode
+> that logs violations without denying access.
+
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Network - manageable through [`--allow-net`][] flag
@@ -2337,9 +2344,22 @@ following permissions are restricted:
 added: v25.8.0
 -->
 
-Enable audit only for the permission model. When enabled, permission checks
-are performed but access is not denied. Instead, a warning is emitted for
-each permission violation via diagnostics channel.
+Enable audit mode for the permission model. When enabled, permission checks
+are performed but access is **not** denied — no `ERR_ACCESS_DENIED` error is
+thrown. Instead, each permission violation is published through the
+`node:diagnostics_channel` module, and execution continues normally.
+
+This flag does not require [`--permission`](#--permission) to be specified. The
+`--allow-*` flags are not needed in audit mode, since no
+access is denied.
+
+Audit mode is useful for discovering what permissions your application
+requires before deploying with [`--permission`](#--permission). See the
+[Permission Model][] documentation for the list of diagnostics channel names
+and the message format.
+
+If both [`--permission`](#--permission) and `--permission-audit` are specified,
+`--permission` takes precedence and the Permission Model runs in enforce mode.
 
 ### `--preserve-symlinks`
 
