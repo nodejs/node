@@ -241,6 +241,9 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
 
   v8::Isolate* isolate = options != nullptr ? options->isolate : nullptr;
   if (isolate != nullptr) {
+    // No HandleScope is active during a Fast API call, so open one before
+    // creating the error object.
+    v8::HandleScope scope(isolate);
     THROW_ERR_INVALID_ARG_VALUE(
         isolate, "Argument %u must be a buffer or an ArrayBuffer", index);
   }
@@ -249,6 +252,11 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
 
 extern "C" void node_ffi_fast_library_closed(v8::Isolate* isolate) {
   if (isolate != nullptr) {
+    // Fast API calls do not enter a HandleScope, and the generated trampolines
+    // call this helper directly. Building the error object allocates handles,
+    // so open a scope here. The scheduled exception lives on the isolate and
+    // outlives the scope.
+    v8::HandleScope scope(isolate);
     THROW_ERR_FFI_LIBRARY_CLOSED(isolate);
   }
 }
