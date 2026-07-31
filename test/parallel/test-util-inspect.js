@@ -2596,6 +2596,26 @@ assert.strictEqual(
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
+// Property getter returning a function.
+{
+  const getterFn = {
+    get getString() { return 'foo'; },
+    string: 'foo',
+    get getObject() { return { nested: true }; },
+    object: { nested: true },
+    get getFunction() { return function fn() {}; },
+    function: function fn() {},
+  };
+  assert.strictEqual(
+    inspect(getterFn, { getters: true }),
+    "{ getString: [Getter: 'foo'],\n" +
+    "  string: 'foo',\n" +
+    '  getObject: [Getter] { nested: true },\n' +
+    "  object: { nested: true },\n" +
+    '  getFunction: [Getter] [Function: fn],\n' +
+    '  function: [Function: fn] }');
+}
+
 // Property getter throwing an error.
 {
   const error = new Error('Oops');
