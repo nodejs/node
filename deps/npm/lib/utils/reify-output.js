@@ -259,7 +259,7 @@ const unreviewedScriptsMessage = (npm, unreviewedScripts) => {
   })
 
   log.warn(
-    'allow-scripts',
+    'install-scripts',
     [
       header,
       ...lines,

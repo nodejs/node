@@ -50,7 +50,7 @@ const versionedKeyFor = (node) => {
     // parse (private-registry mirror, alternate CDN URL shape). Leave a
     // breadcrumb so users notice when policy keys are silently pruned.
     log.silly(
-      'allow-scripts',
+      'install-scripts',
       `unable to derive trusted versioned key for ${node.path || node.name || '<unknown>'} ` +
       `(resolved: ${resolved}); key will be pruned on next save`
     )
