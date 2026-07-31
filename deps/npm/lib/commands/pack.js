@@ -2,6 +2,10 @@ const pacote = require('pacote')
 const libpack = require('libnpmpack')
 const npa = require('npm-package-arg')
 const { log, output } = require('proc-log')
+const {
+  isReleaseAgeExcluded,
+  trustedSpecName,
+} = require('@npmcli/arborist/lib/release-age-exclude.js')
 const { getContents, logTar } = require('../utils/tar.js')
 const BaseCommand = require('../base-cmd.js')
 
@@ -35,8 +39,12 @@ class Pack extends BaseCommand {
     const manifests = []
     for (const arg of args) {
       const spec = npa(arg)
+      const options = isReleaseAgeExcluded(
+        trustedSpecName(spec),
+        this.npm.flatOptions.minReleaseAgeExclude
+      ) ? { ...this.npm.flatOptions, before: null } : this.npm.flatOptions
       const manifest = await pacote.manifest(spec, {
-        ...this.npm.flatOptions,
+        ...options,
         Arborist,
         preferOnline: true,
         _isRoot: true,
@@ -44,14 +52,14 @@ class Pack extends BaseCommand {
       if (!manifest._id) {
         throw new Error('Invalid package, must have name and version')
       }
-      manifests.push({ arg, manifest })
+      manifests.push({ arg, manifest, options })
     }
 
     // Load tarball names up for printing afterward to isolate from the noise generated during packing
     const tarballs = []
-    for (const { arg, manifest } of manifests) {
+    for (const { arg, manifest, options } of manifests) {
       const tarballData = await libpack(arg, {
-        ...this.npm.flatOptions,
+        ...options,
         foregroundScripts: this.npm.config.isDefault('foreground-scripts')
           ? true
           : this.npm.config.get('foreground-scripts'),
