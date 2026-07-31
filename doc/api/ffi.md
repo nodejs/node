@@ -706,7 +706,7 @@ available storage. This function does not allocate memory on its own.
 added: v26.1.0
 -->
 
-* `source` {Buffer|ArrayBuffer|ArrayBufferView}
+* `source` {Buffer|ArrayBuffer|SharedArrayBuffer|ArrayBufferView}
 * Returns: {bigint}
 
 Returns the raw memory address of JavaScript-managed byte storage.

@@ -125,18 +125,25 @@ test('ffi getRawPointer returns raw addresses for byte sources', () => {
   const buffer = Buffer.from([1, 2, 3]);
   const arrayBuffer = new Uint8Array([4, 5, 6, 7]).buffer;
   const view = new Uint8Array(arrayBuffer, 2);
+  const sharedArrayBuffer = new SharedArrayBuffer(4);
+  const sharedView = new Uint8Array(sharedArrayBuffer, 2);
 
   const bufferPointer = ffi.getRawPointer(buffer);
   const arrayBufferPointer = ffi.getRawPointer(arrayBuffer);
   const viewPointer = ffi.getRawPointer(view);
+  const sharedArrayBufferPointer = ffi.getRawPointer(sharedArrayBuffer);
+  const sharedViewPointer = ffi.getRawPointer(sharedView);
 
   assert.strictEqual(typeof bufferPointer, 'bigint');
   assert.strictEqual(typeof arrayBufferPointer, 'bigint');
   assert.strictEqual(typeof viewPointer, 'bigint');
+  assert.strictEqual(typeof sharedArrayBufferPointer, 'bigint');
+  assert.strictEqual(typeof sharedViewPointer, 'bigint');
 
   assert.strictEqual(bufferPointer, symbols.pointer_to_usize(buffer));
   assert.strictEqual(arrayBufferPointer, symbols.pointer_to_usize(arrayBuffer));
   assert.strictEqual(viewPointer, arrayBufferPointer + 2n);
+  assert.strictEqual(sharedViewPointer, sharedArrayBufferPointer + 2n);
 });
 
 test('ffi exportString and exportBuffer copy data into native memory', () => {
