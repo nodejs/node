@@ -6,6 +6,8 @@
 
 #include <string>
 
+using node::CopyOnWrite;
+using node::ThreadsafeCopyOnWrite;
 using node::builtins::BuiltinLoader;
 using node::builtins::BuiltinSourceMap;
 
@@ -17,6 +19,26 @@ class PerProcessTest : public ::testing::Test {
 };
 
 namespace {
+
+TEST(CopyOnWriteTest, CopiesFromNonConstLvalue) {
+  CopyOnWrite<int> original(42);
+  CopyOnWrite<int> copy(original);
+
+  *copy.write() = 43;
+
+  EXPECT_EQ(*original, 42);
+  EXPECT_EQ(*copy, 43);
+}
+
+TEST(ThreadsafeCopyOnWriteTest, CopiesFromNonConstLvalue) {
+  ThreadsafeCopyOnWrite<int> original(42);
+  ThreadsafeCopyOnWrite<int> copy(original);
+
+  *copy.write() = 43;
+
+  EXPECT_EQ(*original.read(), 42);
+  EXPECT_EQ(*copy.read(), 43);
+}
 
 TEST_F(PerProcessTest, EmbeddedSources) {
   const auto& sources = PerProcessTest::get_sources_for_test();

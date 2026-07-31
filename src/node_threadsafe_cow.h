@@ -6,7 +6,9 @@
 #include "util.h"
 #include "uv.h"
 
-#include <memory>   // std::shared_ptr<T>
+#include <concepts>
+#include <memory>  // std::shared_ptr<T>
+#include <type_traits>
 #include <utility>  // std::forward<T>
 
 namespace node {
@@ -17,6 +19,8 @@ template <typename T>
 class CopyOnWrite final {
  public:
   template <typename... Args>
+    requires(!(sizeof...(Args) == 1 &&
+               (std::same_as<CopyOnWrite, std::remove_cvref_t<Args>> || ...)))
   explicit CopyOnWrite(Args&&... args)
       : data_(std::make_shared<T>(std::forward<Args>(args)...)) {}
 
@@ -57,6 +61,10 @@ class ThreadsafeCopyOnWrite final {
 
  public:
   template <typename... Args>
+    requires(
+        !(sizeof...(Args) == 1 &&
+          (std::same_as<ThreadsafeCopyOnWrite, std::remove_cvref_t<Args>> ||
+           ...)))
   ThreadsafeCopyOnWrite(Args&&... args)
       : impl_(T(std::forward<Args>(args)...)) {}
 
