@@ -149,6 +149,10 @@ class ProcessWrap : public HandleWrap {
       if (!stdios->Get(context, i).ToLocal(&val)) {
         return Nothing<void>();
       }
+      if (!val->IsObject()) {
+        env->ThrowTypeError("stdio must be an object");
+        return Nothing<void>();
+      }
       Local<Object> stdio = val.As<Object>();
       Local<Value> type;
       if (!stdio->Get(context, env->type_string()).ToLocal(&type)) {
