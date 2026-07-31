@@ -13,7 +13,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));

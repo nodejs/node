@@ -31,9 +31,9 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   assert.notStrictEqual(params, null);
   assert.ok(params.initialMaxStreamsBidi >= 0n);
 
-  // ALPN negotiation has completed: headers support is resolved (2 =
-  // unsupported, confirming non-h3 test ALPN)
-  assert.strictEqual(getQuicSessionState(serverSession).headersSupported, 2);
+  // ALPN negotiation has completed without installing an application
+  // (none requested, so this is a raw session).
+  assert.strictEqual(getQuicSessionState(serverSession).hasApplication, false);
 
   sessionSeen.resolve();
 }));

@@ -15,7 +15,7 @@ The stack is layered as:
 ├─────────────────────────────────────────────┤
 │  Endpoint      — UDP socket, packet I/O     │
 │  Session       — QUIC connection (ngtcp2)   │
-│  Application   — ALPN protocol logic        │
+│  Application   — protocol logic (optional)  │
 │  Stream        — Bidirectional data flow    │
 ├─────────────────────────────────────────────┤
 │  ngtcp2 / nghttp3 / OpenSSL                 │
@@ -25,10 +25,11 @@ The stack is layered as:
 ```
 
 An **Endpoint** binds a UDP socket and dispatches incoming packets to
-**Sessions**. Each Session wraps an `ngtcp2_conn` and delegates
-protocol-specific behavior to an **Application** (selected by ALPN
-negotiation). Sessions contain **Streams** — bidirectional or unidirectional
-data channels that carry application data.
+**Sessions**. Each Session wraps an `ngtcp2_conn` and may delegate
+protocol-specific behavior to an optional **Application**. With no
+Application, the Session handles raw streams itself. Sessions contain
+**Streams** — bidirectional or unidirectional data channels that
+carry application data.
 
 ## File Map
 
@@ -52,13 +53,13 @@ data channels that carry application data.
 
 ### Core
 
-| File               | Purpose                                                      |
-| ------------------ | ------------------------------------------------------------ |
-| `endpoint.h/cc`    | `Endpoint` — UDP binding, packet dispatch, retry/validation  |
-| `session.h/cc`     | `Session` — QUIC connection state machine (\~3,500 lines)    |
-| `streams.h/cc`     | `Stream`, `Outbound`, `PendingStream` — data flow            |
-| `application.h/cc` | `Session::Application` base + `DefaultApplication`           |
-| `http3.h/cc`       | `Http3ApplicationImpl` — nghttp3 integration (\~1,400 lines) |
+| File               | Purpose                                                     |
+| ------------------ | ----------------------------------------------------------- |
+| `endpoint.h/cc`    | `Endpoint` — UDP binding, packet dispatch, retry/validation |
+| `session.h/cc`     | `Session` — QUIC connection state machine (\~4,700 lines)   |
+| `streams.h/cc`     | `Stream`, `Outbound`, `PendingStream` — data flow           |
+| `application.h/cc` | `Session::Application` base + name-keyed factory registry   |
+| `http3.h/cc`       | `Http3Application` — nghttp3 integration (\~1,950 lines)    |
 
 ### Infrastructure
 
@@ -134,21 +135,35 @@ re-reading from the source.
 
 ### Application Abstraction
 
-`Session::Application` is a virtual interface that the Session delegates
-ALPN-specific behavior to. Two implementations exist:
+`Session::Application` is a protocol-agnostic virtual interface that the
+Session delegates protocol-specific behavior to. Implementations register
+under a name via `RegisterApplicationFactory`; a Session installs one from
+its `options.application` option, if the application is known in advance, or
+a consumer attaches one later to wrap the session (see timing below).
+When no application is requested or attached, the Session runs a native
+raw-stream path itself.
 
-* **`DefaultApplication`** (`application.cc`): Used for non-HTTP/3 ALPN
-  protocols. Maintains its own stream scheduling queue. Streams are scheduled
-  via an intrusive linked list.
+In effect, an Application acts as an optimization layer for built-in protocols
+like HTTP/3: instead of working entirely through the JS interface, it
+integrates at the C++ layer for performance and low-level control.
 
-* **`Http3ApplicationImpl`** (`http3.cc`): Used when ALPN negotiates `h3`.
-  Wraps `nghttp3_conn` for HTTP/3 framing, header compression (QPACK),
-  server push, and stream prioritization. Manages unidirectional control
-  streams internally.
+One implementation currently ships in core:
 
-The Application is selected during ALPN negotiation — immediately for
-clients (ALPN known upfront), during the `OnSelectAlpn` TLS callback for
-servers.
+* **`Http3Application`** (`http3.cc`): Registered under the name `http3`.
+  Wraps `nghttp3_conn` for HTTP/3 framing, header compression (QPACK), and
+  stream prioritization. Manages unidirectional control streams internally.
+
+Install timing has two paths. Using the `options.application` option configured
+up front, the Application is installed early, so it exists before any 0-RTT
+early data: immediately at construction for clients, and during the TLS
+callback for servers. Alternatively, the consumer can install it later to
+wrap an existing session - this must occur either synchronously in the
+server's 'session' emit frame, or for a client before its handshake completes.
+Effectively the application must be attached before any events are emitted.
+
+Late attach only supports 1-RTT data for now, but can be expanded to support
+0-RTT use cases in future. Attaching once the session is active (`is_active()`,
+i.e. delivering events to JS) is rejected.
 
 ### Thread-Local Allocator
 
@@ -179,12 +194,14 @@ succeed but memory tracking is silently skipped.
 
 **Client**: `Endpoint::Connect()` builds a `Session::Config` with
 `Side::CLIENT`, creates a `TLSContext`, and calls `Session::Create()` →
-`ngtcp2_conn_client_new()`. The Application is selected immediately.
+`ngtcp2_conn_client_new()`. An Application configured statically is
+installed immediately, or alternatively consumers can install one later.
 
 **Server**: `Endpoint::Receive()` processes an Initial packet through
 address validation (retry tokens, LRU cache), then calls `Session::Create()`
-→ `ngtcp2_conn_server_new()`. The Application is selected later, during ALPN
-negotiation in the TLS handshake.
+→ `ngtcp2_conn_server_new()`. An Application configured statically is
+installed during the initial handshake; otherwise a consumer may install
+one in the session-delivery tick.
 
 ### The Receive Path
 
@@ -341,7 +358,7 @@ connections from the same address to skip validation entirely.
 
 ## HTTP/3 Application (`http3.cc`)
 
-The `Http3ApplicationImpl` wraps `nghttp3_conn` and handles:
+The `Http3Application` wraps `nghttp3_conn` and handles:
 
 * **Header compression**: QPACK encoding/decoding via nghttp3's internal
   encoder/decoder streams (unidirectional).
@@ -360,13 +377,12 @@ The `Http3ApplicationImpl` wraps `nghttp3_conn` and handles:
   deferred to `PostReceive()` (outside callback scopes) so it can safely
   invoke JavaScript.
 * **Settings**: HTTP/3 SETTINGS (max field section size, QPACK capacities,
-  CONNECT protocol, datagrams) are negotiated and enforced. Datagram
-  support follows RFC 9297 — when the peer's SETTINGS disable datagrams,
-  `sendDatagram()` is blocked.
-* **0-RTT**: Early data settings are validated during ticket extraction
-  (`ValidateTicketData` in `ExtractSessionTicketAppData`). If the server's
-  settings changed incompatibly, the ticket is rejected before TLS accepts
-  it.
+  CONNECT protocol) are negotiated and enforced. `SETTINGS_H3_DATAGRAM`
+  (RFC 9297) is reserved but not advertised (not yet supported).
+* **0-RTT**: Early data settings are validated when the session ticket is
+  parsed (the `parse_ticket` factory hook, `ParseHttp3Ticket`). If the
+  server's settings changed incompatibly, the ticket is rejected before
+  TLS accepts it.
 
 ## Error Handling
 

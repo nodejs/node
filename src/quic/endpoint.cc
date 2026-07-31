@@ -442,8 +442,10 @@ class Endpoint::UDP::Impl final : public HandleWrap {
 
     // UV_UDP_MMSG_FREE signals the end of a recvmmsg batch — the
     // buffer can be reused. Since our buffer is pre-allocated and
-    // persistent, there is nothing to free.
+    // persistent, there is nothing to free. The cached batch timestamp
+    // is reset so the next batch takes a fresh one.
     if (flags & UV_UDP_MMSG_FREE) {
+      impl->recv_batch_ts_ = 0;
       return;
     }
 
@@ -464,13 +466,23 @@ class Endpoint::UDP::Impl final : public HandleWrap {
     // UV_UDP_MMSG_CHUNK is set for each packet in a recvmmsg batch.
     // Processing is the same as for a single-message receive — ngtcp2
     // copies what it needs synchronously from the buf slice.
+    uint64_t now;
+    if (flags & UV_UDP_MMSG_CHUNK) {
+      if (impl->recv_batch_ts_ == 0) impl->recv_batch_ts_ = uv_hrtime();
+      now = impl->recv_batch_ts_;
+    } else {
+      now = uv_hrtime();
+    }
     impl->endpoint_->Receive(reinterpret_cast<const uint8_t*>(buf->base),
                              static_cast<size_t>(nread),
-                             SocketAddress(addr));
+                             SocketAddress(addr),
+                             now);
   }
 
   uv_udp_t handle_;
   Endpoint* endpoint_;
+
+  uint64_t recv_batch_ts_ = 0;
 
   friend class UDP;
 };
@@ -1352,9 +1364,8 @@ void Endpoint::CloseGracefully() {
 
 void Endpoint::Receive(const uint8_t* data,
                        size_t len,
-                       const SocketAddress& remote_address) {
-  const uint64_t now = uv_hrtime();
-
+                       const SocketAddress& remote_address,
+                       uint64_t now) {
   // Block list filtering — applied before any packet processing to
   // minimize resource expenditure on blocked sources.
   if (options_.block_list) {
