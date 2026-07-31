@@ -1393,9 +1393,8 @@ added: REPLACEME
 
 > Stability: 1.0 - Early development
 
-Enable experimental support for TypeScript stripping in the REPL. Input that is
-valid JavaScript is evaluated as JavaScript before falling back to TypeScript
-type stripping.
+Enable experimental support for TypeScript stripping in the REPL. When enabled, REPL
+input must be valid TypeScript to be executed.
 
 ### `--experimental-sea-config`
 
