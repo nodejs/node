@@ -1900,6 +1900,7 @@
             "href": "https://domain.com:443",
             "new_value": "\u00098080",
             "expected": {
+                "href": "https://domain.com:8080/",
                 "port": "8080"
             }
         },
@@ -1908,6 +1909,7 @@
             "href": "wpt++://domain.com:443",
             "new_value": "\u00098080",
             "expected": {
+                "href": "wpt++://domain.com:8080",
                 "port": "8080"
             }
         },
@@ -1916,6 +1918,7 @@
             "href": "https://www.google.com:4343",
             "new_value": "4wpt",
             "expected": {
+                "href": "https://www.google.com:4/",
                 "port": "4"
             }
         },
@@ -1923,6 +1926,7 @@
             "href": "https://domain.com:3000",
             "new_value": "\n\t80\n\t80\n\t",
             "expected": {
+                "href": "https://domain.com:8080/",
                 "port": "8080"
             }
         },
@@ -1930,6 +1934,7 @@
             "href": "https://domain.com:3000",
             "new_value": "\n\n\t\t",
             "expected": {
+                "href": "https://domain.com:3000/",
                 "port": "3000"
             }
         }
