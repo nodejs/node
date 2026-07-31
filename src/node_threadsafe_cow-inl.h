@@ -42,10 +42,11 @@ T* ThreadsafeCopyOnWrite<T>::Write::operator->() {
 }
 
 template <typename T>
-ThreadsafeCopyOnWrite<T>::Impl::Impl(const Impl& other) {
-  RwLock::ScopedReadLock lock(other.mutex);
-  data = other.data;
-}
+ThreadsafeCopyOnWrite<T>::Impl::Impl(const Impl& other)
+    : data([&other]() {
+        RwLock::ScopedReadLock lock(other.mutex);
+        return other.data;
+      }()) {}
 
 }  // namespace node
 
