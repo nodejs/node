@@ -114,12 +114,8 @@ assert.ok(
   const v = vfs.create();
 
   // Build /deep/0/1/2/.../999/leaf.txt
-  let path = '/deep';
-  v.mkdirSync(path);
-  for (let i = 0; i < DEPTH; i++) {
-    path += `/${i}`;
-    v.mkdirSync(path);
-  }
+  const path = `/deep/${Array.from({ length: DEPTH }, (_, i) => i).join('/')}`;
+  v.mkdirSync(path, { recursive: true });
   v.writeFileSync(`${path}/leaf.txt`, 'deep');
 
   const entries = v.readdirSync('/deep', { recursive: true });
