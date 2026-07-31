@@ -1125,6 +1125,15 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // The callback function may already have been collected after a previous
+  // unrefCallback() call. The persistent handle is empty in that case, and
+  // ClearWeak() on an empty handle dereferences a null slot. There is also no
+  // function left to make strong again.
+  if (existing->second->fn.IsEmpty()) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
+    return;
+  }
+
   existing->second->fn.ClearWeak();
 }
 
@@ -1152,6 +1161,14 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
   auto existing = lib->callbacks_.find(ptr);
 
   if (existing == lib->callbacks_.end()) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
+    return;
+  }
+
+  // The callback function may already have been collected by a previous
+  // unrefCallback() call. The persistent handle is empty in that case, and
+  // SetWeak() on an empty handle dereferences a null slot.
+  if (existing->second->fn.IsEmpty()) {
     THROW_ERR_INVALID_ARG_VALUE(env, "Callback not found");
     return;
   }
