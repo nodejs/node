@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_THREADSAFE_COW_INL_H_
 #define SRC_NODE_THREADSAFE_COW_INL_H_
 
+#include "node_threadsafe_cow.h"
+
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 namespace node {
