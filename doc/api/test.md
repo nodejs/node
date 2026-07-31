@@ -4091,13 +4091,12 @@ rather than sharing the parent's context.
 ### Example
 
 ```mjs
+import assert from 'node:assert/strict';
 import test from 'node:test';
 
-test('parent', async (t) => {
-  console.log(`Parent: ${t.name}`);
-
-  await t.test('child', (t) => {
-    console.log(`Child: ${t.name}`);
+test('parent', async (parentContext) => {
+  await parentContext.test('child', (childContext) => {
+    assert.notStrictEqual(parentContext, childContext);
   });
 });
 ```
