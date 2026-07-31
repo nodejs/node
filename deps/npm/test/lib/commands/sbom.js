@@ -473,7 +473,7 @@ t.test('sbom', async t => {
     })
     await t.rejects(sbom.exec([]), {
       code: 'EUSAGE',
-      message: 'A package lock or shrinkwrap file is required in package-lock-only mode',
+      message: 'A package-lock.json file is required in package-lock-only mode',
     },
     'should throw error')
 

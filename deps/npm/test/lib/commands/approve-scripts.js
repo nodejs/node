@@ -60,7 +60,7 @@ t.test('approve-scripts --pending lists unreviewed packages', async t => {
   })
   await npm.exec('approve-scripts', [])
   const out = joinedOutput()
-  t.match(out, /2 packages have install scripts not yet covered/)
+  t.match(out, /2 packages have install scripts blocked because they are not covered by allowScripts/)
   t.match(out, /canvas@1\.0\.0/)
   t.match(out, /sharp@1\.0\.0/)
 })
@@ -72,7 +72,7 @@ t.test('approve-scripts --pending lists unreviewed packages even with ignore-scr
   })
   await npm.exec('approve-scripts', [])
   const out = joinedOutput()
-  t.match(out, /2 packages have install scripts not yet covered/)
+  t.match(out, /2 packages have install scripts blocked because they are not covered by allowScripts/)
   t.match(out, /canvas@1\.0\.0/)
   t.match(out, /sharp@1\.0\.0/)
 })
@@ -627,7 +627,7 @@ t.test('forbidden semver range in package.json#allowScripts is dropped with a wa
   })
   await mock.npm.exec('approve-scripts', [])
 
-  const warnings = mock.logs.warn.byTitle('allow-scripts')
+  const warnings = mock.logs.warn.byTitle('install-scripts')
   t.ok(
     warnings.some(m => /semver ranges/.test(m) && /canvas@\^0\.33\.0/.test(m)),
     'resolver emits warning about forbidden range'

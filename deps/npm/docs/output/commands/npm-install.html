@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-install----11180">
+<h1 id="----npm-install----1202">
     <span>npm-install</span>
-    <span class="version">@11.18.0</span>
+    <span class="version">@12.0.2</span>
 </h1>
 <span class="description">Install a package</span>
 </header>
@@ -205,13 +205,12 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command installs a package and any packages that it depends on.
-If the package has a package-lock, or an npm shrinkwrap file, or a yarn lock file, the installation of dependencies will be driven by that, respecting the following order of precedence:</p>
+If the package has a package-lock or a yarn lock file, the installation of dependencies will be driven by that, respecting the following order of precedence:</p>
 <ul>
-<li><code>npm-shrinkwrap.json</code></li>
 <li><code>package-lock.json</code></li>
 <li><code>yarn.lock</code></li>
 </ul>
-<p>See <a href="../configuring-npm/package-lock-json.html">package-lock.json</a> and <a href="../commands/npm-shrinkwrap.html"><code>npm shrinkwrap</code></a>.</p>
+<p>See <a href="../configuring-npm/package-lock-json.html">package-lock.json</a>.</p>
 <h4 id="how-npm-install-uses-package-lockjson">How <code>npm install</code> uses <code>package-lock.json</code></h4>
 <p>When you run <code>npm install</code> without arguments, npm compares <code>package.json</code> and <code>package-lock.json</code>:</p>
 <ul>
@@ -322,7 +321,7 @@ This is the default unless <code>-D</code> or <code>-O</code> are present.</p>
 <p><code>-B, --save-bundle</code>: Saved dependencies will also be added to your <code>bundleDependencies</code> list.</p>
 </li>
 </ul>
-<p>Further, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code> then it will be updated as well.</p>
+<p>Further, if you have a <code>package-lock.json</code> then it will be updated as well.</p>
 <p><code>&lt;scope&gt;</code> is optional.
 The package will be downloaded from the registry associated with the specified scope.
 If no registry is associated with the given scope the default registry is assumed.
@@ -558,8 +557,7 @@ on deeper dependencies. Sets <code>--install-strategy=shallow</code>.</p>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
 <p>Note that these dependencies <em>are</em> still resolved and added to the
-<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
-physically installed on disk.</p>
+<code>package-lock.json</code> file. They are just not physically installed on disk.</p>
 <p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists, then
 it will be included.</p>
 <p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code> environment
@@ -635,6 +633,8 @@ but can be useful for debugging.</p>
 <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still
 run their intended script if <code>ignore-scripts</code> is set, but they will <em>not</em>
 run any pre- or post-scripts.</p>
+<p>Setting <code>ignore-scripts</code> also disables <code>.npm-extension</code> execution, as if
+<code>ignore-extension</code> were set.</p>
 <h4 id="allow-directory"><code>allow-directory</code></h4>
 <ul>
 <li>Default: "all"</li>
@@ -665,7 +665,7 @@ project's package.json to be installed. Also allows tarball file
 dependencies to be used for other commands like <code>npm view</code></p>
 <h4 id="allow-git"><code>allow-git</code></h4>
 <ul>
-<li>Default: "all"</li>
+<li>Default: "none"</li>
 <li>Type: "all", "none", or "root"</li>
 </ul>
 <p>Limits the ability for npm to fetch dependencies from git references. That
@@ -673,6 +673,10 @@ is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.</p>
+<p>As of npm 12 the default is <code>none</code>. Git dependencies run <code>git</code> against a
+remote repo and may install configuration the project does not control. Opt
+in explicitly per project (in <code>.npmrc</code>) or per command (on the CLI) when you
+need git deps.</p>
 <p><code>all</code> allows any git dependencies to be fetched and installed. <code>none</code>
 prevents any git dependencies from being fetched and installed. <code>root</code> only
 allows git dependencies defined in your project's package.json to be fetched
@@ -680,7 +684,7 @@ and installed. Also allows git dependencies to be fetched for other commands
 like <code>npm view</code></p>
 <h4 id="allow-remote"><code>allow-remote</code></h4>
 <ul>
-<li>Default: "all"</li>
+<li>Default: "none"</li>
 <li>Type: "all", "none", or "root"</li>
 </ul>
 <p>Limits the ability for npm to fetch dependencies from urls. That is,
@@ -688,6 +692,12 @@ dependencies that point to a tarball url instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.</p>
+<p>As of npm 12 the default is <code>none</code>. Tarballs that share a hostname with the
+configured registry (the typical case for the npm registry, GitHub Packages,
+and most private registries) are still installed normally. If your registry
+serves tarballs from a different host, set <code>replace-registry-host</code> or
+override this setting. Opt in explicitly per project (in <code>.npmrc</code>) or per
+command (on the CLI) when you intentionally install from a URL.</p>
 <p><code>all</code> allows any url to be installed. <code>none</code> prevents any url from being
 installed. <code>root</code> only allows urls defined in your project's package.json to
 be installed. Also allows url dependencies to be used for other commands
@@ -715,10 +725,11 @@ the package's self-reported name. <code>--ignore-scripts</code> and
 <li>Type: Boolean</li>
 </ul>
 <p>If <code>true</code>, turn the install-script policy from a warning into a hard error:
-any dependency with install scripts not covered by <code>allowScripts</code> will fail
-the install instead of running with a notice.</p>
+any dependency with install scripts that is not covered by <code>allowScripts</code>
+will fail the install instead of being blocked with a warning.</p>
 <p>Dependencies explicitly denied with <code>false</code> in <code>allowScripts</code> are always
-silently skipped; this setting only affects unreviewed entries.
+silently skipped; this setting only affects unreviewed entries (packages
+with install scripts that are neither approved nor denied).
 <code>--ignore-scripts</code> and <code>--dangerously-allow-all-scripts</code> both override this
 setting.</p>
 <p>Optional dependencies that cannot be installed on the current platform or
@@ -943,7 +954,6 @@ This algorithm is deterministic, but different trees may be produced if two depe
 <li><a href="../using-npm/registry.html">npm registry</a></li>
 <li><a href="../commands/npm-dist-tag.html">npm dist-tag</a></li>
 <li><a href="../commands/npm-uninstall.html">npm uninstall</a></li>
-<li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../using-npm/workspaces.html">workspaces</a></li>
 </ul></div>

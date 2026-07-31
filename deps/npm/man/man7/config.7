@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "June 2026" "NPM@11.18.0" ""
+.TH "CONFIG" "7" "July 2026" "NPM@12.0.2" ""
 .SH "NAME"
 \fBConfig\fR - About npm configuration
 .SS "Description"
@@ -223,7 +223,7 @@ Limits the ability for npm to install dependencies from tarball files. That is, 
 .SS "\fBallow-git\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
@@ -231,17 +231,21 @@ Type: "all", "none", or "root"
 .P
 Limits the ability for npm to fetch dependencies from git references. That is, dependencies that point to a git repo instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
 .P
+As of npm 12 the default is \fBnone\fR. Git dependencies run \fBgit\fR against a remote repo and may install configuration the project does not control. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you need git deps.
+.P
 \fBall\fR allows any git dependencies to be fetched and installed. \fBnone\fR prevents any git dependencies from being fetched and installed. \fBroot\fR only allows git dependencies defined in your project's package.json to be fetched and installed. Also allows git dependencies to be fetched for other commands like \fBnpm view\fR
 .SS "\fBallow-remote\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
 
 .P
 Limits the ability for npm to fetch dependencies from urls. That is, dependencies that point to a tarball url instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
+.P
+As of npm 12 the default is \fBnone\fR. Tarballs that share a hostname with the configured registry (the typical case for the npm registry, GitHub Packages, and most private registries) are still installed normally. If your registry serves tarballs from a different host, set \fBreplace-registry-host\fR or override this setting. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you intentionally install from a URL.
 .P
 \fBall\fR allows any url to be installed. \fBnone\fR prevents any url from being installed. \fBroot\fR only allows urls defined in your project's package.json to be installed. Also allows url dependencies to be used for other commands like \fBnpm view\fR
 .SS "\fBallow-same-version\fR"
@@ -288,6 +292,18 @@ Type: Boolean
 
 .P
 Write pinned (\fBpkg@version\fR) entries when approving install scripts. Set to \fBfalse\fR to write name-only entries that allow any version. Has no effect on \fBnpm deny-scripts\fR, which always writes name-only entries regardless of this setting.
+.SS "\fBallow-unused-patches\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Install even when a registered patch in \fBpatchedDependencies\fR matches no installed package. Does not silence patch apply failures.
+.P
+This flag is only honored when passed on the command line; it is ignored in \fB.npmrc\fR and environment variables, and rejected by \fBnpm ci\fR.
 .SS "\fBaudit\fR"
 .RS 0
 .IP \(bu 4
@@ -604,6 +620,16 @@ Type: Boolean
 Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR.
 .P
 Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc.
+.SS "\fBedit-dir\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Path
+.RE 0
+
+.P
+Override the temporary directory used by \fBnpm patch add\fR to prepare a package for editing.
 .SS "\fBeditor\fR"
 .RS 0
 .IP \(bu 4
@@ -660,6 +686,16 @@ Type: null or Number
 
 .P
 When creating a Granular Access Token with \fBnpm token create\fR, this sets the expiration in days. If not specified, the server will determine the default expiration.
+.SS "\fBextension-file\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Path
+.RE 0
+
+.P
+Path to a project-local npm extension file to load instead of discovering \fB.npm-extension.mjs\fR / \fB.npm-extension.cjs\fR at the project root. Must resolve inside the project root and use a \fB.mjs\fR or \fB.cjs\fR extension. Only honored from project config or the command line, never from user, global, or builtin config.
 .SS "\fBfetch-retries\fR"
 .RS 0
 .IP \(bu 4
@@ -770,7 +806,7 @@ Type: Boolean
 .RE 0
 
 .P
-Format \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR as a human readable file.
+Format \fBpackage-lock.json\fR as a human readable file.
 .SS "\fBfund\fR"
 .RS 0
 .IP \(bu 4
@@ -820,6 +856,18 @@ bin files are linked to \fB{prefix}/bin\fR
 man pages are linked to \fB{prefix}/share/man\fR
 .RE 0
 
+.SS "\fBglobal-ignore-file\fR"
+.RS 0
+.IP \(bu 4
+Default: The global --prefix setting plus 'etc/npmignore'. For example, '/usr/local/etc/npmignore'
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+An additional ignore file applied during \fBnpm pack\fR and \fBnpm publish\fR, owned by the current user rather than the package. Patterns follow the same syntax as a package's local \fB.npmignore\fR file. Useful for keeping editor metadata (such as \fB.idea/\fR or \fB*.iml\fR) and scratch directories out of every package you publish, without adding them to each package's own ignore rules.
+.P
+The global rules apply in addition to a package's local \fB.npmignore\fR. When a package uses a \fBfiles\fR field in its \fBpackage.json\fR, an entry in \fBfiles\fR that contradicts a global rule (i.e., explicitly includes a path the global rule would exclude) still wins.
 .SS "\fBglobalconfig\fR"
 .RS 0
 .IP \(bu 4
@@ -862,6 +910,38 @@ Type: Boolean
 If true, npm will not exit with an error code when \fBrun\fR is invoked for a script that isn't defined in the \fBscripts\fR section of \fBpackage.json\fR. This option can be used when it's desirable to optionally run a script when it's present and fail if the script fails. This is useful, for example, when running scripts that may only apply for some builds in an otherwise generic CI setup.
 .P
 This value is not exported to the environment for child processes.
+.SS "\fBignore-existing\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+With \fBnpm patch add\fR, discard a previous unfinished edit directory and start fresh.
+.SS "\fBignore-extension\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If true, npm does not import or execute a root \fB.npm-extension.mjs\fR / \fB.npm-extension.cjs\fR file (or one selected via \fBextension-file\fR). \fBignore-scripts\fR implies \fBignore-extension\fR, since both disable root-owned install-time code.
+.SS "\fBignore-patch-failures\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Install even when a registered patch fails to apply, with a warning per failure. Intended for incident response only.
+.P
+This flag is only honored when passed on the command line; it is ignored in \fB.npmrc\fR and environment variables, and rejected by \fBnpm ci\fR.
 .SS "\fBignore-scripts\fR"
 .RS 0
 .IP \(bu 4
@@ -874,6 +954,8 @@ Type: Boolean
 If true, npm does not run scripts specified in package.json files.
 .P
 Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.P
+Setting \fBignore-scripts\fR also disables \fB.npm-extension\fR execution, as if \fBignore-extension\fR were set.
 .SS "\fBinclude\fR"
 .RS 0
 .IP \(bu 4
@@ -957,13 +1039,13 @@ The value \fBnpm init\fR should use by default for the package author's homepage
 .SS "\fBinit-license\fR"
 .RS 0
 .IP \(bu 4
-Default: "ISC"
+Default: ""
 .IP \(bu 4
 Type: String
 .RE 0
 
 .P
-The value \fBnpm init\fR should use by default for the package license.
+The value \fBnpm init\fR should use by default for the package license. If not set, the license field will be omitted from new packages.
 .SS "\fBinit-module\fR"
 .RS 0
 .IP \(bu 4
@@ -1043,6 +1125,16 @@ In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before savi
 
 .P
 Not supported by all npm commands.
+.SS "\fBkeep-edit-dir\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+With \fBnpm patch commit\fR, do not remove the edit directory after committing the patch.
 .SS "\fBlegacy-peer-deps\fR"
 .RS 0
 .IP \(bu 4
@@ -1119,7 +1211,7 @@ Type: null, 1, 2, 3, "1", "2", or "3"
 .RE 0
 
 .P
-Set the lockfile format version to be used in package-lock.json and npm-shrinkwrap-json files. Possible options are:
+Set the lockfile format version to be used in package-lock.json files. Possible options are:
 .P
 1: The lockfile version used by npm versions 5 and 6. Lacks some data that is used during the install, resulting in slower and possibly less deterministic installs. Prevents lockfile churn when interoperating with older npm versions.
 .P
@@ -1303,7 +1395,7 @@ Type: "dev", "optional", or "peer" (can be set multiple times)
 .P
 Dependency types to omit from the installation tree on disk.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR file. They are just not physically installed on disk.
 .P
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P
@@ -1454,6 +1546,16 @@ Type: null or String
 
 .P
 Password for authentication. Can be provided via command line when creating tokens, though it's generally safer to be prompted for it.
+.SS "\fBpatches-dir\fR"
+.RS 0
+.IP \(bu 4
+Default: "patches"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The directory, relative to the project root, where \fBnpm patch commit\fR writes patch files for \fBpatchedDependencies\fR.
 .SS "\fBprefer-dedupe\fR"
 .RS 0
 .IP \(bu 4
@@ -1853,11 +1955,23 @@ Type: Boolean
 .RE 0
 
 .P
-If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
+If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts that is not covered by \fBallowScripts\fR will fail the install instead of being blocked with a warning.
 .P
-Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries (packages with install scripts that are neither approved nor denied). \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
 .P
 Optional dependencies that cannot be installed on the current platform or engine (a non-matching \fBos\fR, \fBcpu\fR, or \fBlibc\fR) are not flagged, because their install scripts never run.
+.SS "\fBstrict-npmrc\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to \fBtrue\fR, unknown configuration keys found in \fB.npmrc\fR files are treated as a hard error instead of a warning.
+.P
+Unknown command line flags and abbreviated flags always error regardless of this setting.
 .SS "\fBstrict-peer-deps\fR"
 .RS 0
 .IP \(bu 4
@@ -1927,6 +2041,16 @@ If true, writes timing information to a process specific json file in the cache 
 You can quickly view it with this \fBjson\fR \fI\(lahttps://npm.im/json\(ra\fR command line: \fBcat ~/.npm/_logs/*-timing.json | npm exec -- json -g\fR.
 .P
 Timing information will also be reported in the terminal. To suppress this while still writing the timing file, use \fB--silent\fR.
+.SS "\fBto\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Used by \fBnpm patch update\fR to set the version to rebase a patch onto when it cannot be read from \fBpackage-lock.json\fR \[em] for example an exact-version selector, or a version that has not been installed yet.
 .SS "\fBtoken-description\fR"
 .RS 0
 .IP \(bu 4
@@ -2249,7 +2373,7 @@ Alias for \fB--init-author-url\fR
 .SS "\fBinit.license\fR"
 .RS 0
 .IP \(bu 4
-Default: "ISC"
+Default: ""
 .IP \(bu 4
 Type: String
 .IP \(bu 4
@@ -2352,18 +2476,6 @@ DEPRECATED: Use \fB--omit=dev\fR instead.
 
 .P
 Alias for \fB--omit=dev\fR
-.SS "\fBshrinkwrap\fR"
-.RS 0
-.IP \(bu 4
-Default: true
-.IP \(bu 4
-Type: Boolean
-.IP \(bu 4
-DEPRECATED: Use the --package-lock setting instead.
-.RE 0
-
-.P
-Alias for --package-lock
 .SS "See also"
 .RS 0
 .IP \(bu 4

@@ -35,4 +35,4 @@ The base URL of the npm registry.
 
 * [npm config](/commands/npm-config)
 * [npmrc](/configuring-npm/npmrc)
-* [npm adduser](/commands/npm-adduser)
+* [npm login](/commands/npm-login)

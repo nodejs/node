@@ -1,5 +1,4 @@
 const abbrev = require('abbrev')
-const debug = require('./debug')
 const defaultTypeDefs = require('./type-defs')
 
 const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
@@ -31,8 +30,6 @@ function nopt (args, {
   typeDefault,
   dynamicTypes,
 } = {}) {
-  debug(types, shorthands, args, typeDefs)
-
   const data = {}
   const argv = {
     remain: [],
@@ -89,7 +86,6 @@ function clean (data, {
       return
     }
     let val = data[k]
-    debug('val=%j', val)
     const isArray = Array.isArray(val)
     let [hasType, rawType] = getType(k, { types, dynamicTypes })
     let type = rawType
@@ -106,12 +102,9 @@ function clean (data, {
       type = [type]
     }
 
-    debug('val=%j', val)
-    debug('types=', type)
     val = val.map((v) => {
       // if it's an unknown value, then parse false/true/null/numbers/dates
       if (typeof v === 'string') {
-        debug('string %j', v)
         v = v.trim()
         if ((v === 'null' && ~type.indexOf(null))
             || (v === 'true' &&
@@ -119,12 +112,9 @@ function clean (data, {
             || (v === 'false' &&
                (~type.indexOf(false) || hasTypeDef(type, BooleanType)))) {
           v = JSON.parse(v)
-          debug('jsonable %j', v)
         } else if (hasTypeDef(type, NumberType) && !isNaN(v)) {
-          debug('convert to number', v)
           v = +v
         } else if (hasTypeDef(type, DateType) && !isNaN(Date.parse(v))) {
-          debug('convert to date', v)
           v = new Date(v)
         }
       }
@@ -148,32 +138,24 @@ function clean (data, {
 
       const d = {}
       d[k] = v
-      debug('prevalidated val', d, v, rawType)
       if (!validate(d, k, v, rawType, { typeDefs })) {
         if (invalidHandler) {
           invalidHandler(k, v, rawType, data)
-        } else if (invalidHandler !== false) {
-          debug('invalid: ' + k + '=' + v, rawType)
         }
         return remove
       }
-      debug('validated v', d, v, rawType)
       return d[k]
     }).filter((v) => v !== remove)
 
     // if we allow Array specifically, then an empty array is how we
     // express 'no value here', not null.  Allow it.
     if (!val.length && doesNotHaveTypeDef(type, ArrayType)) {
-      debug('VAL HAS NO LENGTH, DELETE IT', val, k, type.indexOf(ArrayType))
       delete data[k]
     } else if (isArray) {
-      debug(isArray, data[k], val)
       data[k] = val
     } else {
       data[k] = val[0]
     }
-
-    debug('k=%s val=%j', k, val, data[k])
   })
 }
 
@@ -199,21 +181,21 @@ function validate (data, k, val, type, { typeDefs } = {}) {
   }
 
   // Original comment:
-  // NaN is poisonous.  Means that something is not allowed.
-  // New comment: Changing this to an isNaN check breaks a lot of tests.
-  // Something is being assumed here that is not actually what happens in
-  // practice.  Fixing it is outside the scope of getting linting to pass in
-  // this repo. Leaving as-is for now.
+  // NaN is poisonous, it means that something is not allowed.
+
+  // New comment:
+  // Changing this to an isNaN check breaks a lot of tests.
+  // Something is being assumed here that is not actually what happens in practice.
+  // Fixing it is outside the scope of getting linting to pass in this repo.
+  // Leaving as-is for now.
   /* eslint-disable-next-line no-self-compare */
   if (type !== type) {
-    debug('Poison NaN', k, val, type)
     delete data[k]
     return false
   }
 
   // explicit list of values
   if (val === type) {
-    debug('Explicitly allowed %j', val)
     data[k] = val
     return true
   }
@@ -222,7 +204,6 @@ function validate (data, k, val, type, { typeDefs } = {}) {
   let ok = false
   const types = Object.keys(typeDefs)
   for (let i = 0, l = types.length; i < l; i++) {
-    debug('test type %j %j %j', k, val, types[i])
     const t = typeDefs[types[i]]
     if (t && (
       (type && type.name && t.type && t.type.name) ?
@@ -238,7 +219,6 @@ function validate (data, k, val, type, { typeDefs } = {}) {
       }
     }
   }
-  debug('OK? %j (%j %j %j)', ok, k, val, types[types.length - 1])
 
   if (!ok) {
     delete data[k]
@@ -258,16 +238,11 @@ function parse (args, data, remain, {
   const NumberType = typeDefs.Number?.type
   const ArrayType = typeDefs.Array?.type
   const BooleanType = typeDefs.Boolean?.type
-
-  debug('parse', args, data, remain)
-
   const abbrevs = abbrev(Object.keys(types))
-  debug('abbrevs=%j', abbrevs)
   const shortAbbr = abbrev(Object.keys(shorthands))
 
   for (let i = 0; i < args.length; i++) {
     let arg = args[i]
-    debug('arg', arg)
 
     if (arg.match(/^-{2,}$/)) {
       // done with keys.
@@ -289,7 +264,6 @@ function parse (args, data, remain, {
       // see if it's a shorthand
       // if so, splice and back up to re-parse it.
       const shRes = resolveShort(arg, shortAbbr, abbrevs, { shorthands, abbrevHandler })
-      debug('arg=%j shRes=%j', arg, shRes)
       if (shRes) {
         args.splice.apply(args, [i, 1].concat(shRes))
         if (arg !== shRes[0]) {
@@ -308,8 +282,6 @@ function parse (args, data, remain, {
       if (abbrevs[arg] && abbrevs[arg] !== arg) {
         if (abbrevHandler) {
           abbrevHandler(arg, abbrevs[arg])
-        } else if (abbrevHandler !== false) {
-          debug(`abbrev: ${arg} -> ${abbrevs[arg]}`)
         }
         arg = abbrevs[arg]
       }
@@ -351,11 +323,6 @@ function parse (args, data, remain, {
             unknownHandler(arg, la)
           } else {
             unknownHandler(arg)
-          }
-        } else if (unknownHandler !== false) {
-          debug(`unknown: ${arg}`)
-          if (hangingLa) {
-            debug(`unknown: ${la} parsed as normal opt`)
           }
         }
       }
@@ -442,7 +409,6 @@ const singleCharacters = (arg, shorthands) => {
       return l
     }, {})
     shorthands[SINGLES] = singles
-    debug('shorthand singles', singles)
   }
   const chrs = arg.split('').filter((c) => singles[c])
   return chrs.join('') === arg ? chrs : null
@@ -490,8 +456,6 @@ function resolveShort (arg, ...rest) {
   if (shortAbbr[arg]) {
     if (abbrevHandler) {
       abbrevHandler(arg, shortAbbr[arg])
-    } else if (abbrevHandler !== false) {
-      debug(`abbrev: ${arg} -> ${shortAbbr[arg]}`)
     }
     arg = shortAbbr[arg]
   }

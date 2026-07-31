@@ -278,6 +278,21 @@ const augmentItemWithIncludeMetadata = (node, item) => {
   return item
 }
 
+// Render a manifest-extension provenance object as a short "field.name" list, empty when none.
+const formatExtensionApplied = (applied) => {
+  if (!applied) {
+    return ''
+  }
+  const fields = ['dependencies', 'optionalDependencies', 'peerDependencies', 'peerDependenciesMeta']
+  const parts = []
+  for (const field of fields) {
+    for (const name of applied[field] || []) {
+      parts.push(`${field}.${name}`)
+    }
+  }
+  return parts.join(', ')
+}
+
 const getHumanOutputItem = (node, { args, chalk, global, long }) => {
   const { pkgid, path } = node
   const workspacePkgId = chalk.blueBright(pkgid)
@@ -333,6 +348,21 @@ const getHumanOutputItem = (node, { args, chalk, global, long }) => {
         ? ' ' + chalk.dim('overridden')
         : ''
     ) +
+    (
+      node.patched
+        ? ' ' + chalk.cyan(`[patched: ${node.patched.path}]`)
+        : ''
+    ) +
+    (
+      formatExtensionApplied(node.packageExtensionsApplied)
+        ? ' ' + chalk.dim(`packageExtensions: ${formatExtensionApplied(node.packageExtensionsApplied)}`)
+        : ''
+    ) +
+    (
+      formatExtensionApplied(node.npmExtensionApplied)
+        ? ' ' + chalk.dim(`.npm-extension: ${formatExtensionApplied(node.npmExtensionApplied)}`)
+        : ''
+    ) +
     (isGitNode(node) ? ` (${node.resolved})` : '') +
     (node.isLink ? ` -> ${relativePrefix}${targetLocation}` : '') +
     (long ? `\n${node.package.description || ''}` : '')
@@ -355,6 +385,14 @@ const getJsonOutputItem = (node, { global, long }) => {
   // the project root can't be overridden anyway, and if we add the flag it causes undesirable behavior when `npm ls --json` is ran in an empty directory since we end up printing an object with only an overridden prop
   if (!node.isProjectRoot) {
     item.overridden = node.overridden
+  }
+
+  if (node.packageExtensionsApplied) {
+    item.packageExtensionsApplied = node.packageExtensionsApplied
+  }
+
+  if (node.npmExtensionApplied) {
+    item.npmExtensionApplied = node.npmExtensionApplied
   }
 
   item[_name] = node.name
@@ -389,6 +427,10 @@ const getJsonOutputItem = (node, { global, long }) => {
     item.invalid = node[_invalid]
   }
 
+  if (node.patched) {
+    item.patched = node.patched.path
+  }
+
   if (node[_missing] && !isOptional(node)) {
     item.required = node[_required]
     item.missing = true
@@ -404,7 +446,6 @@ const getJsonOutputItem = (node, { global, long }) => {
 // Undeclared workspaces no longer need filtering here: loadActual synthesizes their root links so their edges resolve instead of reporting missing.
 const filterLinkedStrategyEdges = ({ currentDepth }) => (edge) => {
   // Skip dev edges for non-root packages (store packages)
-  /* istanbul ignore next: store packages no longer carry dev edges, so this guard is not exercised by tests */
   if (currentDepth > 0 && edge.dev) {
     return false
   }

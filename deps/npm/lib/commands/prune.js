@@ -1,5 +1,6 @@
 const reifyFinish = require('../utils/reify-finish.js')
 const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
+const { patchRelaxOpts } = require('../utils/cli-only-flag.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Prune extends ArboristWorkspaceCmd {
@@ -26,6 +27,7 @@ class Prune extends ArboristWorkspaceCmd {
       path: where,
       workspaces: this.workspaceNames,
       allowScripts: allowScriptsPolicy,
+      ...patchRelaxOpts(this.npm.config),
     }
     const arb = new Arborist(opts)
     await arb.prune(opts)

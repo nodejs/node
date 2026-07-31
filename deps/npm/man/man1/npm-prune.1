@@ -1,4 +1,4 @@
-.TH "NPM-PRUNE" "1" "June 2026" "NPM@11.18.0" ""
+.TH "NPM-PRUNE" "1" "July 2026" "NPM@12.0.2" ""
 .SH "NAME"
 \fBnpm-prune\fR - Remove extraneous packages
 .SS "Synopsis"
@@ -33,7 +33,7 @@ Type: "dev", "optional", or "peer" (can be set multiple times)
 .P
 Dependency types to omit from the installation tree on disk.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR file. They are just not physically installed on disk.
 .P
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P
@@ -105,6 +105,8 @@ Type: Boolean
 If true, npm does not run scripts specified in package.json files.
 .P
 Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.P
+Setting \fBignore-scripts\fR also disables \fB.npm-extension\fR execution, as if \fBignore-extension\fR were set.
 .SS "\fBworkspace\fR"
 .RS 0
 .IP \(bu 4

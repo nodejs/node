@@ -1,5 +1,36 @@
 # Changelog
 
+## [13.0.0](https://github.com/nodejs/node-gyp/compare/v12.4.0...v13.0.0) (2026-06-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* `node-gyp` now supports node `^22.22.2 || ^24.15.0 || >=26.0.0`
+
+### Features
+
+* bump to new node engine range ([b792b8e](https://github.com/nodejs/node-gyp/commit/b792b8e321e6e56d46c32f4b9adb15e4085c3797))
+
+
+### Bug Fixes
+
+* **ci:** update ruff-action version to v4.0.0 ([#3324](https://github.com/nodejs/node-gyp/issues/3324)) ([f089669](https://github.com/nodejs/node-gyp/commit/f089669a4c95a3c8b7f435556b226fa66dcd94b7))
+* disable LTO for addon builds on Windows ([#3331](https://github.com/nodejs/node-gyp/issues/3331)) ([d30bb6e](https://github.com/nodejs/node-gyp/commit/d30bb6e6fdaf46374de9b9bfe1bf54f49337b052))
+
+
+### Core
+
+* **deps:** bump actions/github-script from 8 to 9 ([#3297](https://github.com/nodejs/node-gyp/issues/3297)) ([f6a5e45](https://github.com/nodejs/node-gyp/commit/f6a5e458e819f05ddfbba5cbd5589a7a1c80128e))
+* **deps:** bump googleapis/release-please-action from 4 to 5 ([#3307](https://github.com/nodejs/node-gyp/issues/3307)) ([b2cde80](https://github.com/nodejs/node-gyp/commit/b2cde802487f3b9efd726a1a1cb43650731f9958))
+* nopt@10.0.0 ([327424a](https://github.com/nodejs/node-gyp/commit/327424ad630dd7007771b19f7b77691b2156a556))
+* proc-log@7.0.0 ([f6c296b](https://github.com/nodejs/node-gyp/commit/f6c296b2952e23b7e690b7148c9dc32b25a26ee2))
+* which@7.0.0 ([11a8b10](https://github.com/nodejs/node-gyp/commit/11a8b109f805f13129302508c219607167a8e9ea))
+
+
+### Miscellaneous
+
+* add commit-lint ([#3325](https://github.com/nodejs/node-gyp/issues/3325)) ([6fb6c11](https://github.com/nodejs/node-gyp/commit/6fb6c11eae1258eddd478956a20f0cb154dd4553))
+
 ## [12.4.0](https://github.com/nodejs/node-gyp/compare/v12.3.0...v12.4.0) (2026-05-15)
 
 

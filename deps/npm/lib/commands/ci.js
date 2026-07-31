@@ -6,6 +6,7 @@ const fs = require('node:fs/promises')
 const path = require('node:path')
 const { log, time } = require('proc-log')
 const validateLockfile = require('../utils/validate-lockfile.js')
+const { validatePackageExtensions, validateNpmExtension } = require('../utils/validate-lockfile.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 const getWorkspaces = require('../utils/get-workspaces.js')
 
@@ -44,6 +45,15 @@ class CI extends ArboristWorkspaceCmd {
       })
     }
 
+    // npm ci is always strict about patches; the relax flags are not accepted
+    for (const flag of ['allow-unused-patches', 'ignore-patch-failures']) {
+      if (this.npm.config.find(flag) === 'cli') {
+        throw Object.assign(new Error(`The --${flag} flag is not allowed with \`npm ci\`.`), {
+          code: 'ECIPATCHFLAG',
+        })
+      }
+    }
+
     const dryRun = this.npm.config.get('dry-run')
     const ignoreScripts = this.npm.config.get('ignore-scripts')
     const where = this.npm.prefix
@@ -56,6 +66,9 @@ class CI extends ArboristWorkspaceCmd {
       save: false, // npm ci should never modify the lockfile or package.json
       workspaces: this.workspaceNames,
       allowScripts: allowScriptsPolicy,
+      // npm ci reifies the locked graph, which already carries extension-influenced edges, so it must never import or execute .npm-extension.
+      // The extension file hash is still validated below, independent of execution.
+      ignoreExtension: true,
     }
 
     // generate an inventory from the virtual tree in the lockfile
@@ -65,24 +78,36 @@ class CI extends ArboristWorkspaceCmd {
     } catch (err) {
       log.verbose('loadVirtual', err.stack)
       const msg =
-        'The `npm ci` command can only install with an existing package-lock.json or\n' +
-        'npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or\n' +
-        'later to generate a package-lock.json file, then try again.'
+        'The `npm ci` command can only install with an existing\n' +
+        'package-lock.json with lockfileVersion >= 1. Run an install with npm@5\n' +
+        'or later to generate a package-lock.json file, then try again.'
       throw this.usageError(msg)
     }
     const virtualInventory = new Map(virtualArb.virtualTree.inventory)
 
     // Now we make our real Arborist.
-    // We need a new one because the virtual tree fromt the lockfile can have extraneous dependencies in it that won't install on this platform
+    // We need a new one because the virtual tree from the lockfile can have extraneous dependencies in it that won't install on this platform
     const arb = new Arborist(opts)
     await arb.buildIdealTree()
     await strictAllowScriptsPreflight({ arb, npm: this.npm, idealTreeOpts: opts })
 
     // Verifies that the packages from the ideal tree will match the same versions that are present in the virtual tree (lock file).
     const errors = validateLockfile(virtualInventory, arb.idealTree.inventory)
+    // Verifies that the root packageExtensions state matches the lockfile and is still consistent with the locked tree.
+    errors.push(...validatePackageExtensions(virtualArb.virtualTree, arb.idealTree))
+    // Verifies that the root .npm-extension file matches the lockfile hash.
+    // The hash comes from discovering the file (no import or execution), so this holds even under ignore-extension/ignore-scripts.
+    const { NpmExtension } = require('@npmcli/arborist')
+    let fileHash = null
+    try {
+      fileHash = new NpmExtension({ root: where, extensionFile: opts.extensionFile }).hash
+    } catch (err) {
+      errors.push(`Invalid: ${err.message}`)
+    }
+    errors.push(...validateNpmExtension(virtualArb.virtualTree, fileHash))
     if (errors.length) {
       throw this.usageError(
-        '`npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. ' +
+        '`npm ci` can only install packages when your package.json and package-lock.json are in sync. ' +
         'Please update your lock file with `npm install` before continuing.\n\n' +
         errors.join('\n')
       )
@@ -107,12 +132,24 @@ class CI extends ArboristWorkspaceCmd {
       })
     }
 
+    // Root lifecycle scripts for `npm ci` mirror those run by `npm install`. `preinstall` runs *before* reify so that scripts can bootstrap the environment (e.g. private-registry auth) before any dependency is fetched or unpacked. The remaining scripts run after reify as they did before.
+    const scriptShell = this.npm.config.get('script-shell') || undefined
+    const runRootScript = (event) => runScript({
+      path: where,
+      args: [],
+      scriptShell,
+      stdio: 'inherit',
+      event,
+    })
+
+    if (!ignoreScripts) {
+      await runRootScript('preinstall')
+    }
+
     await arb.reify(opts)
 
-    // run the same set of scripts that `npm install` runs.
     if (!ignoreScripts) {
-      const scripts = [
-        'preinstall',
+      const postReifyScripts = [
         'install',
         'postinstall',
         'prepublish', // XXX should we remove this finally??
@@ -120,15 +157,8 @@ class CI extends ArboristWorkspaceCmd {
         'prepare',
         'postprepare',
       ]
-      const scriptShell = this.npm.config.get('script-shell') || undefined
-      for (const event of scripts) {
-        await runScript({
-          path: where,
-          args: [],
-          scriptShell,
-          stdio: 'inherit',
-          event,
-        })
+      for (const event of postReifyScripts) {
+        await runRootScript(event)
       }
     }
     await reifyFinish(this.npm, arb)

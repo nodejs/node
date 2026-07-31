@@ -13,6 +13,7 @@ const { Minipass } = require('minipass')
 const path = require('path')
 const ssri = require('ssri')
 const { tmpName } = require('./util/tmp')
+const cacheDir = require('./util/cache-dir')
 
 const contentPath = require('./content/path')
 const hashToSegments = require('./util/hash-to-segments')
@@ -70,6 +71,7 @@ async function compact (cache, key, matchFn, opts = {}) {
 
   const setup = async () => {
     const target = tmpName(cache, opts.tmpPrefix)
+    await cacheDir.mkdir(cache)
     await mkdir(path.dirname(target), { recursive: true })
     return {
       target,
@@ -121,6 +123,7 @@ async function insert (cache, key, integrity, opts = {}) {
     metadata,
   }
   try {
+    await cacheDir.mkdir(cache)
     await mkdir(path.dirname(bucket), { recursive: true })
     const stringified = JSON.stringify(entry)
     // NOTE - Cleverness ahoy!

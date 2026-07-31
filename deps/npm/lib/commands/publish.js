@@ -96,6 +96,9 @@ class Publish extends BaseCommand {
     const spec = npa(args[0])
     let manifest = await this.#getManifest(spec, opts)
 
+    // packageExtensions is root-only project policy and must never be published; fail fast so dry-run reports it too
+    this.#assertNoPackageExtensions(manifest)
+
     // only run scripts for directory type publishes
     if (spec.type === 'directory' && !ignoreScripts) {
       await runScript({
@@ -118,10 +121,12 @@ class Publish extends BaseCommand {
       workspaces: this.workspacePaths,
     })
     const pkgContents = await getContents(manifest, tarballData)
-    const logPkg = () => logTar(pkgContents, { unicode, json, key: workspace })
+    const logPkg = () => logTar(pkgContents, { unicode, json, key: pkgContents.name })
 
     // The purpose of re-reading the manifest is in case it changed, so that we send the latest and greatest thing to the registry note that publishConfig might have changed as well!
     manifest = await this.#getManifest(spec, opts, true)
+    // re-check the authoritative manifest in case a lifecycle script introduced packageExtensions
+    this.#assertNoPackageExtensions(manifest)
     const force = this.npm.config.get('force')
     const isDefaultTag = this.npm.config.isDefault('tag') && !manifest.publishConfig?.tag
 
@@ -270,6 +275,16 @@ class Publish extends BaseCommand {
       return { versions, highestVersion }
     } catch (e) {
       return { versions: [], highestVersion: null }
+    }
+  }
+
+  // packageExtensions is root-only project policy and must never reach the registry; private packages may keep it for local use
+  #assertNoPackageExtensions (manifest) {
+    if (!manifest.private && manifest.packageExtensions !== undefined) {
+      throw Object.assign(
+        new Error('packageExtensions is only honored at the project root and must not be published.'),
+        { code: 'EPACKAGEEXTENSIONS' }
+      )
     }
   }
 
