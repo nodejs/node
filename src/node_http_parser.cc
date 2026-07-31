@@ -323,6 +323,7 @@ class Parser : public AsyncWrap, public StreamListener {
     allocator_.Reset();
     url_.Reset();
     status_message_.Reset();
+    max_header_pairs_cached_ = false;
 
     if (connectionsList_ != nullptr) {
       connectionsList_->Push(this);
@@ -465,6 +466,7 @@ class Parser : public AsyncWrap, public StreamListener {
     num_fields_ = 0;
     num_values_ = 0;
     header_pairs_ = 0;
+    max_header_pairs_cached_ = false;
 
     // METHOD
     if (parser_.type == HTTP_REQUEST) {
@@ -1034,6 +1036,7 @@ class Parser : public AsyncWrap, public StreamListener {
     headers_completed_ = false;
     max_http_header_size_ = max_http_header_size;
     header_pairs_ = 0;
+    max_header_pairs_cached_ = false;
   }
 
 
@@ -1053,21 +1056,23 @@ class Parser : public AsyncWrap, public StreamListener {
 
     header_pairs_ += 2;
 
-    Local<Value> max_header_pairs_v;
-    if (!object()
-             ->Get(env()->context(),
-                   FIXED_ONE_BYTE_STRING(env()->isolate(), "maxHeaderPairs"))
-             .ToLocal(&max_header_pairs_v)) {
-      got_exception_ = true;
-      return -1;
+    if (!max_header_pairs_cached_) {
+      Local<Value> max_header_pairs_v;
+      if (!object()
+               ->Get(env()->context(),
+                     FIXED_ONE_BYTE_STRING(env()->isolate(), "maxHeaderPairs"))
+               .ToLocal(&max_header_pairs_v)) {
+        got_exception_ = true;
+        return -1;
+      }
+
+      max_header_pairs_ = max_header_pairs_v->IsNumber()
+                              ? max_header_pairs_v.As<Number>()->Value()
+                              : 0;
+      max_header_pairs_cached_ = true;
     }
 
-    if (!max_header_pairs_v->IsNumber()) {
-      return 0;
-    }
-
-    const double max_header_pairs = max_header_pairs_v.As<Number>()->Value();
-    if (max_header_pairs > 0 && header_pairs_ > max_header_pairs) {
+    if (max_header_pairs_ > 0 && header_pairs_ > max_header_pairs_) {
       llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
       return HPE_USER;
     }
@@ -1109,6 +1114,8 @@ class Parser : public AsyncWrap, public StreamListener {
   const char* current_buffer_data_;
   bool headers_completed_ = false;
   size_t header_pairs_ = 0;
+  double max_header_pairs_ = 0;
+  bool max_header_pairs_cached_ = false;
   bool pending_pause_ = false;
   bool received_data_ = false;
   uint64_t header_nread_ = 0;
