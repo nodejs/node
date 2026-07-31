@@ -4078,6 +4078,47 @@ An instance of `TestContext` is passed to each test function in order to
 interact with the test runner. However, the `TestContext` constructor is not
 exposed as part of the API.
 
+### TestContext lifecycle
+
+A new `TestContext` instance is created for every test execution.
+
+The context remains available throughout the execution of the test, including
+its associated hooks.
+
+Each subtest receives its own independent `TestContext` instance,
+rather than sharing the parent's context.
+
+### Example
+
+```mjs
+import test from 'node:test';
+
+test('parent', async (t) => {
+  console.log(`Parent: ${t.name}`);
+
+  await t.test('child', (t) => {
+    console.log(`Child: ${t.name}`);
+  });
+});
+```
+
+In this example, the parent test and the subtest each receive their own
+`TestContext` instance.
+
+### Execution order
+
+When hooks are registered on a test that contains subtests, they execute in
+the following order for each subtest:
+
+1. `before`
+2. `beforeEach`
+3. subtest execution
+4. `afterEach`
+5. `after`
+
+When multiple hooks of the same type are registered, they execute in
+registration order.
+
 ### `context.before([fn][, options])`
 
 <!-- YAML
