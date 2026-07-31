@@ -145,6 +145,11 @@ class DynamicLibrary : public BaseObject {
   bool is_closed() const;
 
   uv_lib_t lib_ = {};
+  // Single-byte flag shared with JavaScript, set to 1 by `Close()`. The
+  // `closed` checks in the C++ invokers cannot run once V8 has compiled a
+  // fast-call site, because the trampoline address is embedded in the
+  // optimized code, so the JS wrapper tests this flag before entering it.
+  std::shared_ptr<v8::BackingStore> closed_flag_;
   std::string path_;
   std::unordered_map<std::string, void*> symbols_;
   std::unordered_map<std::string, std::shared_ptr<FFIFunction>> functions_;

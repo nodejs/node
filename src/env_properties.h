@@ -52,6 +52,7 @@
   V(ffi_sb_return_symbol, "ffi_sb_return_symbol")                              \
   V(ffi_fast_arguments_symbol, "ffi_fast_arguments_symbol")                    \
   V(ffi_fast_buffer_invoke_symbol, "ffi_fast_buffer_invoke_symbol")            \
+  V(ffi_closed_flag_symbol, "ffi_closed_flag_symbol")                          \
   V(constructor_key_symbol, "constructor_key_symbol")                          \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \

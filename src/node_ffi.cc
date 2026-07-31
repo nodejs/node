@@ -38,6 +38,7 @@ using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::String;
 using v8::TryCatch;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace ffi {
@@ -72,6 +73,8 @@ void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize(
       "symbols", symbols_size, "std::unordered_map<std::string, void*>");
 
+  tracker->TrackField("closed_flag", closed_flag_);
+
   // FFIFunctionInfo instances and their sb_backing ArrayBuffers are
   // owned by V8 function wrappers and reachable only via weak references,
   // so they are deliberately not counted here.
@@ -81,6 +84,16 @@ void DynamicLibrary::Close() {
   for (auto& [name, fn] : functions_) {
     fn->closed = true;
     fn->ptr = nullptr;
+  }
+
+  // Generated fast-call trampolines are not torn down here. V8 bakes the
+  // trampoline address into optimized code, so releasing it while a compiled
+  // call site still holds it would replace a call into the unloaded library
+  // with a call into unmapped memory. The trampoline stays mapped for the
+  // lifetime of its FFIFunctionInfo and is instead kept unreachable by the
+  // JavaScript-side check on this flag.
+  if (closed_flag_ != nullptr) {
+    *static_cast<uint8_t*>(closed_flag_->Data()) = 1;
   }
 
   // Closing the library invalidates all registered callbacks. Node.js does not
@@ -383,10 +396,16 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     }
   }
 
-  if (needs_fast_argument_wrapper || needs_fast_buffer_invoke) {
+  if (use_fast_api) {
     // Fast API wrappers need only the parameter type names. Result conversion
     // is still handled by V8's CFunction metadata, unlike the SharedBuffer path
     // which must also know how to read slot 0.
+    //
+    // These names are attached to every fast function, not just the ones that
+    // need `needs_fast_argument_wrapper` or `needs_fast_buffer_invoke`
+    // conversions, because their presence is also how the JavaScript side
+    // recognizes a function that can reach a trampoline and therefore needs the
+    // closed-library guard.
     Local<Value> arguments_arr;
     if (!ToV8Value(context, fn->arg_type_names, isolate)
              .ToLocal(&arguments_arr)) {
@@ -478,6 +497,21 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
   if (uv_dlopen(library_path, &lib->lib_) != 0) {
     THROW_ERR_FFI_CALL_FAILED(env, "dlopen failed: %s", uv_dlerror(&lib->lib_));
     return;
+  }
+
+  // Publish the closed flag on the instance for the JS-side fast-call guard.
+  // The backing store is retained so `Close()` can still write the flag after
+  // the view is collected, and so it outlives any wrapper closure reading it.
+  Local<ArrayBuffer> flag = ArrayBuffer::New(env->isolate(), 1);
+  lib->closed_flag_ = flag->GetBackingStore();
+  if (!args.This()
+           ->DefineOwnProperty(
+               env->context(),
+               env->ffi_closed_flag_symbol(),
+               Uint8Array::New(flag, 0, 1),
+               static_cast<PropertyAttribute>(ReadOnly | DontEnum | DontDelete))
+           .FromMaybe(false)) {
+    lib->Close();
   }
 }
 
@@ -1322,6 +1356,13 @@ static void Initialize(Local<Object> target,
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "kFastBufferInvoke"),
             env->ffi_fast_buffer_invoke_symbol())
+      .Check();
+  // Keys the per-library closed flag that fast wrappers test before calling a
+  // generated trampoline.
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kClosedFlag"),
+            env->ffi_closed_flag_symbol())
       .Check();
 }
 

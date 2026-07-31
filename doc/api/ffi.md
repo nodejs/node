@@ -322,7 +322,8 @@ Calling `library.close()` (or disposing the library) more than once is a no-op.
 
 After a library has been closed:
 
-* Resolved function wrappers become invalid.
+* Resolved function wrappers become invalid. Calling one throws
+  [`ERR_FFI_LIBRARY_CLOSED`][], including on optimized call sites.
 * Further symbol and function resolution throws.
 * Registered callbacks are invalidated.
 
@@ -757,6 +758,7 @@ and keep callback and pointer lifetimes explicit on the native side.
 
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
+[`ERR_FFI_LIBRARY_CLOSED`]: errors.md#err_ffi_library_closed
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
 [`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations
 [type names]: #type-names
