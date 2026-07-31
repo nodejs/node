@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_mutex.h"
 #include "util.h"
 #include "uv.h"
 
