@@ -62,16 +62,17 @@ FFI signatures use string type names.
 Supported type names:
 
 * `void`
+* `char`
 * `i8`, `int8`
-* `u8`, `uint8`, `bool`, `char`
+* `u8`, `uint8`, `bool`
 * `i16`, `int16`
 * `u16`, `uint16`
 * `i32`, `int32`
 * `u32`, `uint32`
 * `i64`, `int64`
 * `u64`, `uint64`
-* `f32`, `float`
-* `f64`, `double`
+* `f32`, `float`, `float32`
+* `f64`, `double`, `float64`
 * `pointer`, `ptr`
 * `string`, `str`
 * `buffer`
