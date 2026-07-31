@@ -151,7 +151,7 @@ to review changes that are split across multiple commits.
 
 ```bash
 git add my/changed/files
-git commit
+git commit -s
 ```
 
 Multiple commits often get squashed when they are landed. See the
@@ -205,6 +205,9 @@ A good commit message should describe what changed and why.
    and at least one should match the author information in the commit metadata.
    This rule does not apply to dependency updates (e.g. cherry-picks), release
    commits, or backport commits.
+
+   [`git commit -s`][git commit -s] (with lowercase `s`) adds a
+   `Signed-off-by` trailer at the end of the commit log message.
 
 Sample final commit message after landing:
 
@@ -312,7 +315,7 @@ GitHub will automatically update the pull request.
 
 ```bash
 git add my/changed/files
-git commit
+git commit -s
 git push origin my-branch
 ```
 
@@ -617,6 +620,7 @@ More than one subsystem may be valid for any particular issue or pull request.
 [approved]: #getting-approvals-for-your-pull-request
 [benchmark results]: writing-and-running-benchmarks.md
 [collaborator guide]: collaborator-guide.md
+[git commit -s]: https://git-scm.com/docs/git-commit#Documentation/git-commit.txt--s
 [guide for writing tests in Node.js]: writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
