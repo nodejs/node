@@ -4341,6 +4341,9 @@ npx codemod@latest @nodejs/http2-priority-signaling
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64853
+    description: Runtime deprecation.
   - version:
       - v24.2.0
       - v22.17.0
@@ -4348,11 +4351,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Instantiating classes without the `new` qualifier exported by the `node:http` module is deprecated.
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
-`OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
+`OutgoingMessage`, `IncomingMessage`, `ServerResponse`, `ClientRequest`, `Server`, and `Agent`.
 
 An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-classes-with-new)):
 
