@@ -74,8 +74,8 @@ await endpoint.close();
   const serverSession = await gotServerSession.promise;
   await serverSession.opened;
 
-  strictEqual(client.alpnProtocol, undefined);
-  strictEqual(serverSession.alpnProtocol, undefined);
+  assert.strictEqual(client.alpnProtocol, undefined);
+  assert.strictEqual(serverSession.alpnProtocol, undefined);
 
   await client.close();
   await server.close();
