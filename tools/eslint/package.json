@@ -8,12 +8,12 @@
     "@babel/plugin-syntax-import-defer": "^8.0.1",
     "@babel/plugin-syntax-import-source": "^8.0.1",
     "@eslint/js": "^10.0.1",
-    "@eslint/markdown": "^8.0.2",
+    "@eslint/markdown": "^8.0.3",
     "@stylistic/eslint-plugin": "^5.10.0",
-    "eslint": "^10.5.0",
+    "eslint": "^10.8.0",
     "eslint-formatter-tap": "^9.0.1",
-    "eslint-plugin-jsdoc": "^63.0.9",
+    "eslint-plugin-jsdoc": "^63.3.1",
     "eslint-plugin-regexp": "^3.1.1",
-    "globals": "^17.7.0"
+    "globals": "^17.8.0"
   }
 }
