@@ -6,18 +6,15 @@ const path = require('node:path');
 
 common.skipIfFFIMissing();
 
+const { suffix } = require('node:ffi');
+
 const fixtureBuildDir = path.join(
   __dirname,
   'fixture_library',
   'build',
   common.buildType,
 );
-const libraryPath = path.join(
-  fixtureBuildDir,
-  process.platform === 'win32' ? 'ffi_test_library.dll' :
-    process.platform === 'darwin' ? 'ffi_test_library.dylib' :
-      'ffi_test_library.so',
-);
+const libraryPath = path.join(fixtureBuildDir, `ffi_test_library.${suffix}`);
 
 function ensureFixtureLibrary() {
   if (!fs.existsSync(libraryPath)) {
