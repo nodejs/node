@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<title>Service Worker: Redirected response</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// Tests redirect behavior. It calls fetch_method(url, fetch_option) and tests
+// the resulting response against the expected values. It also adds the
+// response to |cache| and checks the cached response matches the expected
+// values.
+//
+// |options|: a dictionary of parameters for the test
+// |options.url|: the URL to fetch
+// |options.fetch_option|: the options passed to |fetch_method|
+// |options.fetch_method|: the method used to fetch. Useful for testing an
+//                         iframe's fetch() vs. this page's fetch().
+// |options.expected_type|: The value of response.type
+// |options.expected_redirected|: The value of response.redirected
+// |options.expected_intercepted_urls|: The list of intercepted request URLs.
+function redirected_test(options) {
+  return options.fetch_method.call(null, options.url, options.fetch_option).then(response => {
+        let cloned_response = response.clone();
+        assert_equals(
+            response.type, options.expected_type,
+            'The response type of response must match. URL: ' + options.url);
+        assert_equals(
+            cloned_response.type, options.expected_type,
+            'The response type of cloned response must match. URL: ' + options.url);
+        assert_equals(
+            response.redirected, options.expected_redirected,
+            'The redirected flag of response must match. URL: ' + options.url);
+        assert_equals(
+            cloned_response.redirected, options.expected_redirected,
+            'The redirected flag of cloned response must match. URL: ' + options.url);
+        if (options.expected_response_url) {
+            assert_equals(
+                cloned_response.url, options.expected_response_url,
+                'The URL does not meet expectation. URL: ' + options.url);
+        }
+        return cache.put(options.url, response);
+      })
+    .then(_ => cache.match(options.url))
+    .then(response => {
+        assert_equals(
+            response.type, options.expected_type,
+            'The response type of response in CacheStorage must match. ' +
+            'URL: ' + options.url);
+        assert_equals(
+            response.redirected, options.expected_redirected,
+            'The redirected flag of response in CacheStorage must match. ' +
+            'URL: ' + options.url);
+        return check_intercepted_urls(options.expected_intercepted_urls);
+      });
+}
+
+async function take_intercepted_urls() {
+  const message = new Promise((resolve) => {
+    let channel = new MessageChannel();
+    channel.port1.onmessage = msg => { resolve(msg.data.requestInfos); };
+    worker.postMessage({command: 'getRequestInfos', port: channel.port2},
+                       [channel.port2]);
+  });
+  const request_infos = await message;
+  return request_infos.map(info => { return info.url; });
+}
+
+function check_intercepted_urls(expected_urls) {
+  return take_intercepted_urls().then((urls) => {
+      assert_object_equals(urls, expected_urls, 'Intercepted URLs matching.');
+    });
+}
+
+function setup_and_clean() {
+  // To prevent interference from previous tests, take the intercepted URLs from
+  // the service worker.
+  return setup.then(() => take_intercepted_urls());
+}
+
+
+let host_info = get_host_info();
+const REDIRECT_URL = host_info['HTTPS_ORIGIN'] + base_path() +
+                     'resources/redirect.py?Redirect=';
+const TARGET_URL = host_info['HTTPS_ORIGIN'] + base_path() +
+                   'resources/simple.txt?';
+const REDIRECT_TO_TARGET_URL = REDIRECT_URL + encodeURIComponent(TARGET_URL);
+let frame;
+let cache;
+let setup;
+let worker;
+
+promise_test(t => {
+    const SCOPE = 'resources/blank.html?redirected-response';
+    const SCRIPT = 'resources/redirect-worker.js';
+    const CACHE_NAME = 'service-workers/service-worker/redirected-response';
+    setup = service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(registration => {
+          promise_test(
+              () => registration.unregister(),
+              'restore global state (service worker registration)');
+          worker = registration.installing;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(_ => self.caches.open(CACHE_NAME))
+      .then(c => {
+          cache = c;
+          promise_test(
+            () => self.caches.delete(CACHE_NAME),
+            'restore global state (caches)');
+          return with_iframe(SCOPE);
+        })
+      .then(f => {
+          frame = f;
+          add_completion_callback(() => f.remove());
+          return check_intercepted_urls(
+              [host_info['HTTPS_ORIGIN'] + base_path() + SCOPE]);
+        });
+      return setup;
+  }, 'initialize global state (service worker registration and caches)');
+
+// ===============================================================
+// Tests for requests that are out-of-scope of the service worker.
+// ===============================================================
+promise_test(t => setup_and_clean()
+  .then(() => redirected_test({url: TARGET_URL,
+                               fetch_option: {},
+                               fetch_method: self.fetch,
+                               expected_type: 'basic',
+                               expected_redirected: false,
+                               expected_intercepted_urls: []})),
+  'mode: "follow", non-intercepted request, no server redirect');
+
+promise_test(t => setup_and_clean()
+  .then(() => redirected_test({url: REDIRECT_TO_TARGET_URL,
+                               fetch_option: {},
+                               fetch_method: self.fetch,
+                               expected_type: 'basic',
+                               expected_redirected: true,
+                               expected_intercepted_urls: []})),
+  'mode: "follow", non-intercepted request');
+
+promise_test(t => setup_and_clean()
+  .then(() => redirected_test({url: REDIRECT_TO_TARGET_URL + '&manual',
+                               fetch_option: {redirect: 'manual'},
+                               fetch_method: self.fetch,
+                               expected_type: 'opaqueredirect',
+                               expected_redirected: false,
+                               expected_intercepted_urls: []})),
+  'mode: "manual", non-intercepted request');
+
+promise_test(t => setup_and_clean()
+    .then(() => promise_rejects_js(
+                   t, TypeError,
+                   self.fetch(REDIRECT_TO_TARGET_URL + '&error',
+                              {redirect:'error'}),
+                   'The redirect response from the server should be treated as' +
+                   ' an error when the redirect flag of request was \'error\'.'))
+    .then(() => check_intercepted_urls([])),
+  'mode: "error", non-intercepted request');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = TARGET_URL + '&sw=fetch';
+      return redirected_test({url: url,
+                              fetch_option: {},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'basic',
+                              expected_redirected: false,
+                              expected_intercepted_urls: [url]})
+    }),
+  'mode: "follow", no mode change, no server redirect');
+
+// =======================================================
+// Tests for requests that are in-scope of the service worker. The service
+// worker returns a redirected response.
+// =======================================================
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = REDIRECT_TO_TARGET_URL +
+                  '&original-redirect-mode=follow&sw=fetch';
+      return redirected_test({url: url,
+                              fetch_option: {redirect: 'follow'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'basic',
+                              expected_redirected: true,
+                              expected_intercepted_urls: [url]})
+    }),
+  'mode: "follow", no mode change');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = REDIRECT_TO_TARGET_URL +
+                  '&original-redirect-mode=error&sw=follow';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'error'}),
+          'The redirected response from the service worker should be ' +
+          'treated as an error when the redirect flag of request was ' +
+          '\'error\'.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "error", mode change: "follow"');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = REDIRECT_TO_TARGET_URL +
+                  '&original-redirect-mode=manual&sw=follow';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'manual'}),
+          'The redirected response from the service worker should be ' +
+          'treated as an error when the redirect flag of request was ' +
+          '\'manual\'.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "manual", mode change: "follow"');
+
+// =======================================================
+// Tests for requests that are in-scope of the service worker. The service
+// worker returns an opaqueredirect response.
+// =======================================================
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = REDIRECT_TO_TARGET_URL +
+                  '&original-redirect-mode=follow&sw=manual';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'follow'}),
+          'The opaqueredirect response from the service worker should ' +
+          'be treated as an error when the redirect flag of request was' +
+          ' \'follow\'.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "follow", mode change: "manual"');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = REDIRECT_TO_TARGET_URL +
+                  '&original-redirect-mode=error&sw=manual';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'error'}),
+          'The opaqueredirect response from the service worker should ' +
+          'be treated as an error when the redirect flag of request was' +
+          ' \'error\'.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "error", mode change: "manual"');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = REDIRECT_TO_TARGET_URL +
+                  '&original-redirect-mode=manual&sw=manual';
+      return redirected_test({url: url,
+                              fetch_option: {redirect: 'manual'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'opaqueredirect',
+                              expected_redirected: false,
+                              expected_intercepted_urls: [url]});
+    }),
+  'mode: "manual", no mode change');
+
+// =======================================================
+// Tests for requests that are in-scope of the service worker. The service
+// worker returns a generated redirect response.
+// =======================================================
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=' + encodeURIComponent(TARGET_URL) +
+                  '&original-redirect-mode=follow&sw=gen';
+      return redirected_test({url: url,
+                              fetch_option: {redirect: 'follow'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'basic',
+                              expected_redirected: true,
+                              expected_intercepted_urls: [url, TARGET_URL]})
+    }),
+  'mode: "follow", generated redirect response');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=' + encodeURIComponent(TARGET_URL) +
+                  '&original-redirect-mode=error&sw=gen';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'error'}),
+          'The generated redirect response from the service worker should ' +
+          'be treated as an error when the redirect flag of request was' +
+          ' \'error\'.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "error", generated redirect response');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=' + encodeURIComponent(TARGET_URL) +
+                  '&original-redirect-mode=manual&sw=gen';
+      return redirected_test({url: url,
+                              fetch_option: {redirect: 'manual'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'opaqueredirect',
+                              expected_redirected: false,
+                              expected_intercepted_urls: [url]})
+    }),
+  'mode: "manual", generated redirect response');
+
+// =======================================================
+// Tests for requests that are in-scope of the service worker. The service
+// worker returns a generated redirect response manually with the Response
+// constructor.
+// =======================================================
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=' + encodeURIComponent(TARGET_URL) +
+                  '&original-redirect-mode=follow&sw=gen-manual';
+      return redirected_test({url: url,
+                              fetch_option: {redirect: 'follow'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'basic',
+                              expected_redirected: true,
+                              expected_intercepted_urls: [url, TARGET_URL]})
+    }),
+  'mode: "follow", manually-generated redirect response');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=' + encodeURIComponent(TARGET_URL) +
+                  '&original-redirect-mode=error&sw=gen-manual';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'error'}),
+          'The generated redirect response from the service worker should ' +
+          'be treated as an error when the redirect flag of request was' +
+          ' \'error\'.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "error", manually-generated redirect response');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=' + encodeURIComponent(TARGET_URL) +
+                  '&original-redirect-mode=manual&sw=gen-manual';
+      return redirected_test({url: url,
+                              fetch_option: {redirect: 'manual'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'opaqueredirect',
+                              expected_redirected: false,
+                              expected_intercepted_urls: [url]})
+    }),
+  'mode: "manual", manually-generated redirect response');
+
+// =======================================================
+// Tests for requests that are in-scope of the service worker. The service
+// worker returns a generated redirect response with a relative location header.
+// Generated responses do not have URLs, so this should fail to resolve.
+// =======================================================
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=blank.html' +
+                  '&original-redirect-mode=follow&sw=gen-manual';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'follow'}),
+          'Following the generated redirect response from the service worker '+
+          'should result fail.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "follow", generated relative redirect response');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=blank.html' +
+                  '&original-redirect-mode=error&sw=gen-manual';
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(url, {redirect: 'error'}),
+          'The generated redirect response from the service worker should ' +
+          'be treated as an error when the redirect flag of request was' +
+          ' \'error\'.')
+        .then(() => check_intercepted_urls([url]));
+    }),
+  'mode: "error", generated relative redirect response');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() +
+                  'sample?url=blank.html' +
+                  '&original-redirect-mode=manual&sw=gen-manual';
+      return redirected_test({url: url,
+                              fetch_option: {redirect: 'manual'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'opaqueredirect',
+                              expected_redirected: false,
+                              expected_intercepted_urls: [url]})
+    }),
+  'mode: "manual", generated relative redirect response');
+
+// =======================================================
+// Tests for requests that are in-scope of the service worker. The service
+// worker returns a generated redirect response. And the fetch follows the
+// redirection multiple times.
+// =======================================================
+promise_test(t => setup_and_clean()
+    .then(() => {
+      // The Fetch spec says: "If request’s redirect count is twenty, return a
+      // network error." https://fetch.spec.whatwg.org/#http-redirect-fetch
+      // So fetch can follow the redirect response 20 times.
+      let urls = [TARGET_URL];
+      for (let i = 0; i < 20; ++i) {
+        urls.unshift(host_info['HTTPS_ORIGIN'] + '/sample?sw=gen&url=' +
+                    encodeURIComponent(urls[0]));
+
+      }
+      return redirected_test({url: urls[0],
+                              fetch_option: {redirect: 'follow'},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'basic',
+                              expected_redirected: true,
+                              expected_intercepted_urls: urls})
+    }),
+  'Fetch should follow the redirect response 20 times');
+
+promise_test(t => setup_and_clean()
+    .then(() => {
+      let urls = [TARGET_URL];
+      // The Fetch spec says: "If request’s redirect count is twenty, return a
+      // network error." https://fetch.spec.whatwg.org/#http-redirect-fetch
+      // So fetch can't follow the redirect response 21 times.
+      for (let i = 0; i < 21; ++i) {
+        urls.unshift(host_info['HTTPS_ORIGIN'] + '/sample?sw=gen&url=' +
+                    encodeURIComponent(urls[0]));
+
+      }
+      return promise_rejects_js(
+          t, frame.contentWindow.TypeError,
+          frame.contentWindow.fetch(urls[0], {redirect: 'follow'}),
+          'Fetch should not follow the redirect response 21 times.')
+        .then(() => {
+          urls.pop();
+          return check_intercepted_urls(urls)
+        });
+    }),
+  'Fetch should not follow the redirect response 21 times.');
+
+// =======================================================
+// A test for verifying the url of a service-worker-redirected request is
+// propagated to the outer response.
+// =======================================================
+promise_test(t => setup_and_clean()
+    .then(() => {
+      const url = host_info['HTTPS_ORIGIN'] + base_path() + 'sample?url=' +
+                  encodeURIComponent(TARGET_URL) +'&sw=fetch-url';
+      return redirected_test({url: url,
+                              fetch_option: {},
+                              fetch_method: frame.contentWindow.fetch,
+                              expected_type: 'basic',
+                              expected_redirected: false,
+                              expected_intercepted_urls: [url],
+                              expected_response_url: TARGET_URL});
+    }),
+  'The URL for the service worker redirected request should be propagated to ' +
+  'response.');
+</script>

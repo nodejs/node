@@ -1,0 +1,13 @@
+<!doctype html>
+<script>
+var worker = new Worker('./claim-worker-fetch-worker.js');
+
+function fetch_in_worker(url) {
+  return new Promise((resolve) => {
+    worker.onmessage = (event) => {
+      resolve(event.data);
+    };
+    worker.postMessage(url);
+  });
+}
+</script>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: Registration for iframe</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+// Set script url and scope url relative to the iframe's document's url. Assert
+// the implementation parses the urls against the iframe's document's url.
+async_test(function(t) {
+  const url = 'resources/blank.html';
+  const iframe_scope = 'registration-with-valid-scope';
+  const scope = normalizeURL('resources/' + iframe_scope);
+  const iframe_script = 'empty-worker.js';
+  const script = normalizeURL('resources/' + iframe_script);
+  var frame;
+  var registration;
+
+  service_worker_unregister(t, scope)
+    .then(function() { return with_iframe(url); })
+    .then(function(f) {
+        frame = f;
+        return frame.contentWindow.navigator.serviceWorker.register(
+            iframe_script,
+            { scope: iframe_scope });
+      })
+    .then(function(r) {
+        registration = r;
+        return wait_for_state(t, r.installing, 'activated');
+      })
+    .then(function() {
+        assert_equals(registration.scope, scope,
+                      'registration\'s scope must be parsed against the ' +
+                      '"relevant global object"');
+        assert_equals(registration.active.scriptURL, script,
+                      'worker\'s scriptURL must be parsed against the ' +
+                      '"relevant global object"');
+        return registration.unregister();
+      })
+    .then(function() {
+        frame.remove();
+        t.done();
+      })
+    .catch(unreached_rejection(t));
+  }, 'register method should use the "relevant global object" to parse its ' +
+     'scriptURL and scope - normal case');
+
+// Set script url and scope url relative to the parent frame's document's url.
+// Assert the implementation throws a TypeError exception.
+async_test(function(t) {
+  const url = 'resources/blank.html';
+  const iframe_scope = 'resources/registration-with-scope-to-non-existing-url';
+  const scope = normalizeURL('resources/' + iframe_scope);
+  const script = 'resources/empty-worker.js';
+  var frame;
+  var registration;
+
+  service_worker_unregister(t, scope)
+    .then(function() { return with_iframe(url); })
+    .then(function(f) {
+        frame = f;
+        return frame.contentWindow.navigator.serviceWorker.register(
+            script,
+            { scope: iframe_scope });
+      })
+    .then(
+      function() {
+        assert_unreached('register() should reject');
+      },
+      function(e) {
+        assert_equals(e.name, 'TypeError',
+                      'register method with scriptURL and scope parsed to ' +
+                      'nonexistent location should reject with TypeError');
+        frame.remove();
+        t.done();
+      })
+    .catch(unreached_rejection(t));
+  }, 'register method should use the "relevant global object" to parse its ' +
+     'scriptURL and scope - error case');
+
+// Set the scope url to a non-subdirectory of the script url. Assert the
+// implementation throws a SecurityError exception.
+async_test(function(t) {
+  const url = 'resources/blank.html';
+  const scope = 'registration-with-disallowed-scope';
+  const iframe_scope = '../' + scope;
+  const script = 'empty-worker.js';
+  var frame;
+  var registration;
+
+  service_worker_unregister(t, scope)
+    .then(function() { return with_iframe(url); })
+    .then(function(f) {
+        frame = f;
+        return frame.contentWindow.navigator.serviceWorker.register(
+            script,
+            { scope: iframe_scope });
+      })
+    .then(
+      function() {
+        assert_unreached('register() should reject');
+      },
+      function(e) {
+        assert_equals(e.name, 'SecurityError',
+                      'The scope set to a non-subdirectory of the scriptURL ' +
+                      'should reject with SecurityError');
+        frame.remove();
+        t.done();
+      })
+    .catch(unreached_rejection(t));
+  }, 'A scope url should start with the given script url');
+
+</script>
+</body>

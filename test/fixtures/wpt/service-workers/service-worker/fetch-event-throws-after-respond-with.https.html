@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title></title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-event-throws-after-respond-with-iframe.html';
+    var workerscript = 'resources/respond-then-throw-worker.js';
+    var iframe;
+    return service_worker_unregister_and_register(t, workerscript, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated')
+            .then(() => reg.active);
+        })
+      .then(function(worker) {
+          var channel = new MessageChannel();
+          channel.port1.onmessage = function(e) {
+              assert_equals(e.data, 'SYNC', ' Should receive sync message.');
+              channel.port1.postMessage('ACK');
+            }
+          worker.postMessage({port: channel.port2}, [channel.port2]);
+          // The iframe will only be loaded after the sync is completed.
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+        assert_true(frame.contentDocument.body.innerHTML.includes("intercepted"));
+      })
+  }, 'Fetch event handler throws after a successful respondWith()');
+
+</script>

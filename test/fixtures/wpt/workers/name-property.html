@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test the name property of shared and dedicated workers via the name constructor option</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#concept-workerglobalscope-name">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-sharedworkerglobalscope-name">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-dedicatedworkerglobalscope-name">
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<script>
+"use strict";
+setup({explicit_done: true});
+
+(async function() {
+  const worker = new Worker("support/name.js", { name: "my name" });
+  await fetch_tests_from_worker(worker);
+
+  const worker2 = new Worker("support/name-as-accidental-global.js");
+  await fetch_tests_from_worker(worker2);
+
+  const sharedWorker = new SharedWorker("support/name.js", { name: "my name" });
+  await fetch_tests_from_worker(sharedWorker);
+
+  const sharedWorker2 = new SharedWorker("support/name-as-accidental-global.js");
+  await fetch_tests_from_worker(sharedWorker2);
+
+  done();
+})();
+</script>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: routers are evaluated with the request method condition.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+const ROUTER_KEY = 'multiple-conditions-network';
+const ROUTER_KEY_WITH_DESTINATION =
+  'multiple-conditions-with-destination-network';
+const HTML_FILE = 'resources/simple.html';
+const REQUEST_SRC = 'resources/direct.py';
+
+const is_matched = async (worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  return requests.length == 0;
+}
+
+const appendCSS = async (iwin, src) => {
+  const promise = new Promise(resolve => {
+    const link = iwin.document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = src;
+    iwin.document.head.appendChild(link);
+    link.onload = () => {
+      resolve(link);
+    };
+  });
+
+  return promise;
+};
+
+const appendScript = async (iwin, src) => {
+  const promise = new Promise(resolve => {
+    const script = iwin.document.createElement('script');
+    script.src = src;
+    iwin.document.body.appendChild(script);
+    script.onload = () => {
+      resolve(script);
+    };
+  });
+
+  return promise;
+};
+
+iframeTest(HTML_FILE, ROUTER_KEY, async (t, iwin, worker) => {
+  // Reset the fetch count created by the setup process.
+  await reset_info_in_worker(worker);
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+
+  // Expected condtion:
+  //  - urlPattern: { search: 'test' }
+  //  - mode: 'cors'
+  //  - method: POST
+
+  // Expect match.
+  let response = await iwin.fetch(`../${REQUEST_SRC}?test`, {mode: 'cors', method: 'post'});
+  assert_equals(response.status, 200);
+  assert_true(await is_matched(worker));
+  await reset_info_in_worker(worker);
+
+  // mode: 'no-cors' won't match.
+  response = await iwin.fetch(`../${REQUEST_SRC}?test`, {mode: 'no-cors', method: 'post'});
+  assert_false(await is_matched(worker));
+  await reset_info_in_worker(worker);
+
+  // method: GET won't match.
+  response = await iwin.fetch(`../${REQUEST_SRC}?test`, {mode: 'cors', method: 'get'});
+  assert_false(await is_matched(worker));
+  await reset_info_in_worker(worker);
+
+  // No seqarch query won't match.
+  response = await iwin.fetch(`../${REQUEST_SRC}`, {mode: 'cors', method: 'post'});
+  assert_false(await is_matched(worker));
+  await reset_info_in_worker(worker);
+}, 'Multiple conditions work with `and` operation');
+
+iframeTest(HTML_FILE, ROUTER_KEY_WITH_DESTINATION, async (t, iwin, worker) => {
+  // Reset the fetch count created by the setup process.
+  await reset_info_in_worker(worker);
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+
+  // Expected condtion:
+  //  - urlPattern: { search: 'test' }
+  //  - destination: style
+
+  // Expect match.
+  await appendCSS(iwin, `../${REQUEST_SRC}?test`);
+  assert_true(await is_matched(worker));
+  await reset_info_in_worker(worker);
+
+  // Other request destination won't match.
+  await appendScript(iwin, `../${REQUEST_SRC}?test`);
+  assert_false(await is_matched(worker));
+  await reset_info_in_worker(worker);
+
+  // No seqarch query won't match.
+  await appendCSS(iwin, `../${REQUEST_SRC}`);
+  assert_false(await is_matched(worker));
+  await reset_info_in_worker(worker);
+}, 'Multiple conditions including requestDestination work with `and` operation');
+</script>
+</body>

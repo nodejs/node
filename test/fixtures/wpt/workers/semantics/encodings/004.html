@@ -1,0 +1,14 @@
+<!doctype html>
+<title>URL encoding, shared worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function() {
+  var worker = new SharedWorker('004.js');
+  worker.port.onmessage = this.step_func(function(e) {
+    assert_true(e.data);
+    this.done();
+  });
+});
+</script>

@@ -67,6 +67,10 @@
     "commit": "6a2f32237615d7ea9c1eb1e30453066b5555c603",
     "path": "resources"
   },
+  "service-workers": {
+    "commit": "b7ed7c8dcd260f0f80879577752c68f042a7d054",
+    "path": "service-workers"
+  },
   "streams": {
     "commit": "f8f26a372f357370846226ff64db1f9cc98a1edb",
     "path": "streams"
@@ -114,5 +118,9 @@
   "webstorage": {
     "commit": "1d2c5fb36a6e477c8f915bde7eca027be6abe792",
     "path": "webstorage"
+  },
+  "workers": {
+    "commit": "4832db47614f5f48cc57374cbf5c1f70937fad48",
+    "path": "workers"
   }
 }

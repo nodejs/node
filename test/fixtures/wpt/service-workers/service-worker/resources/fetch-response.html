@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<script>
+    const params  =new URLSearchParams(location.search);
+    const mode = params.get("mode") || "cors";
+    const path = params.get('path');
+    const bufferPromise =
+      new Promise(resolve =>
+        fetch(path, {mode})
+          .then(response => resolve(response.arrayBuffer()))
+          .catch(() => resolve(new Uint8Array())));
+
+    const entryPromise = new Promise(resolve => {
+      new PerformanceObserver(entries => {
+        const byName = entries.getEntriesByType("resource").find(e => e.name.includes(path));
+        if (byName)
+          resolve(byName);
+      }).observe({entryTypes: ["resource"]});
+    });
+
+    Promise.all([bufferPromise, entryPromise]).then(([buffer, entry]) => {
+      parent.postMessage({
+        buffer,
+        entry: entry.toJSON(),
+    }, '*');
+    });
+
+</script>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>SharedWorker: parse error failure</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="./support/check-error-arguments.js"></script>
+<script>
+
+promise_test(async () => {
+  const scriptURL = 'modules/resources/syntax-error.js';
+  const worker = new SharedWorker(scriptURL, { type: 'classic' });
+  const args = await new Promise(resolve =>
+      worker.onerror = (...args) => resolve(args));
+  window.checkErrorArguments(args);
+}, 'Classic shared worker construction for script with syntax error should ' +
+   'dispatch an event named error.');
+
+promise_test(async () => {
+  const scriptURL = 'modules/resources/static-import-worker.js';
+  const worker = new SharedWorker(scriptURL, { type: 'classic' });
+  const args = await new Promise(resolve =>
+      worker.onerror = (...args) => resolve(args));
+  window.checkErrorArguments(args);
+}, 'Static import on classic shared worker should dispatch an event named ' +
+   'error.');
+
+</script>

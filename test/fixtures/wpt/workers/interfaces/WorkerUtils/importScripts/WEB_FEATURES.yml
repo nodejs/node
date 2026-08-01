@@ -1,0 +1,3 @@
+rules:
+- "*.any.js": []
+- "*": [dedicated-workers]

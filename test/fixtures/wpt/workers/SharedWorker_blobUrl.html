@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Shared Worker: Blob URL passed over message port</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+</body>
+<script>
+
+promise_test(t => {
+  let worker;
+  let blob;
+  let blobUrl;
+  let blobText = 'Blob URL test';
+
+  return new Promise(function(resolve) {
+      worker = new SharedWorker('support/WorkerFetchURL.js');
+      blob = new Blob([blobText]);
+      blobUrl = URL.createObjectURL(blob);
+      worker.port.postMessage(blobUrl);
+      worker.port.onmessage = resolve;
+    })
+  .then(e => {
+    assert_equals(e.data, 'Worker reply:' + blobText);
+    URL.revokeObjectURL(blobUrl);
+  });
+}, 'Blob URL shared by document on SharedWorker');
+
+</script>
+</html>
+
