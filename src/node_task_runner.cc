@@ -221,10 +221,9 @@ FindPackageJson(const std::filesystem::path& cwd) {
   std::string raw_content;
   std::string path_env_var;
   auto root_path = cwd.root_path();
+  auto directory_path = cwd;
 
-  for (auto directory_path = cwd;
-       !std::filesystem::equivalent(root_path, directory_path);
-       directory_path = directory_path.parent_path()) {
+  while (true) {
     // Append "path/node_modules/.bin" to the env var, if it is a directory.
     auto node_modules_bin = directory_path / "node_modules" / ".bin";
     if (std::filesystem::is_directory(node_modules_bin)) {
@@ -238,10 +237,16 @@ FindPackageJson(const std::filesystem::path& cwd) {
       std::string contents = package_json_path.string();
       USE(ReadFileSync(&raw_content, contents.c_str()) > 0);
     }
+
+    // Include the root directory in the search before stopping traversal.
+    if (std::filesystem::equivalent(root_path, directory_path)) {
+      break;
+    }
+    directory_path = directory_path.parent_path();
   }
 
-  // This means that there is no package.json until the root directory.
-  // In this case, we just return nullopt, which will terminate the process..
+  // This means that there is no package.json in cwd or its parent directories.
+  // In this case, return nullopt, which will terminate the process.
   if (raw_content.empty()) {
     return std::nullopt;
   }
