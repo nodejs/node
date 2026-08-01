@@ -19,6 +19,7 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#include <cstddef>
 #include <cstring>
 
 namespace node {
@@ -44,6 +45,21 @@ struct SendReq {
   std::vector<uint8_t> data;
 };
 }  // namespace
+
+// The endpoint state "indices" are byte offsets into DTLSEndpointStateData,
+// accessed from JS via a DataView. Pin them to the actual struct layout so a
+// mismatch (as once existed for `busy`, which follows a uint32) can't recur.
+static_assert(IDX_ENDPOINT_STATE_BOUND ==
+              offsetof(DTLSEndpointStateData, bound));
+static_assert(IDX_ENDPOINT_STATE_LISTENING ==
+              offsetof(DTLSEndpointStateData, listening));
+static_assert(IDX_ENDPOINT_STATE_CLOSING ==
+              offsetof(DTLSEndpointStateData, closing));
+static_assert(IDX_ENDPOINT_STATE_DESTROYED ==
+              offsetof(DTLSEndpointStateData, destroyed));
+static_assert(IDX_ENDPOINT_STATE_SESSION_COUNT ==
+              offsetof(DTLSEndpointStateData, session_count));
+static_assert(IDX_ENDPOINT_STATE_BUSY == offsetof(DTLSEndpointStateData, busy));
 
 DTLSEndpoint::DTLSEndpoint(Environment* env, Local<Object> wrap)
     : HandleWrap(env,
@@ -155,7 +171,10 @@ int DTLSEndpoint::Listen(DTLSContext* context) {
 }
 
 BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
-                                                 const SocketAddress& remote) {
+                                                 const SocketAddress& remote,
+                                                 const char* servername,
+                                                 const char* verify_host,
+                                                 bool verify_is_ip) {
   if (IsHandleClosing()) {
     THROW_ERR_INVALID_STATE(env(), "Endpoint is closing");
     return {};
@@ -168,8 +187,14 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
     return {};
   }
 
-  auto session = DTLSSession::Create(
-      env(), this, context->ssl_ctx(), remote, false /* is_server */);
+  auto session = DTLSSession::Create(env(),
+                                     this,
+                                     context->ssl_ctx(),
+                                     remote,
+                                     false /* is_server */,
+                                     servername,
+                                     verify_host,
+                                     verify_is_ip);
 
   if (!session) return {};
 
@@ -259,6 +284,11 @@ void DTLSEndpoint::CloseGracefully() {
 
   server_context_.reset();
 
+  // Keep ourselves alive until OnClose() runs, so a garbage collection while
+  // uv_close() is in flight cannot collect the wrapper before the close is
+  // reported. Released in OnClose().
+  self_ref_ = BaseObjectPtr<DTLSEndpoint>(this);
+
   // HandleWrap::Close() calls uv_close and manages the lifecycle.
   HandleWrap::Close();
 }
@@ -283,6 +313,9 @@ void DTLSEndpoint::Destroy() {
     listening_ = false;
     state_->listening = 0;
   }
+
+  // Keep ourselves alive until OnClose() (see CloseGracefully()).
+  self_ref_ = BaseObjectPtr<DTLSEndpoint>(this);
 
   HandleWrap::Close();
 }
@@ -331,8 +364,16 @@ void DTLSEndpoint::SetCallbacks(Local<Object> callbacks) {
 void DTLSEndpoint::OnAlloc(uv_handle_t* handle,
                            size_t suggested_size,
                            uv_buf_t* buf) {
-  buf->base = new char[65536];
-  buf->len = 65536;
+  DTLSEndpoint* endpoint = static_cast<DTLSEndpoint*>(handle->data);
+  // Reuse a single receive buffer. libuv delivers datagrams one at a time on
+  // this thread, and OnRecv fully consumes each datagram (copying it into the
+  // session's BIO) before the next OnAlloc, so a per-endpoint buffer suffices
+  // and avoids a heap allocation on every packet.
+  if (endpoint->recv_buf_.empty()) {
+    endpoint->recv_buf_.resize(65536);
+  }
+  buf->base = endpoint->recv_buf_.data();
+  buf->len = endpoint->recv_buf_.size();
 }
 
 void DTLSEndpoint::OnRecv(uv_udp_t* handle,
@@ -342,13 +383,12 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
                           unsigned int flags) {
   DTLSEndpoint* endpoint = static_cast<DTLSEndpoint*>(handle->data);
 
+  // buf->base is the endpoint's reusable recv_buf_; it is not freed here.
   if (nread == 0 && addr == nullptr) {
-    delete[] buf->base;
     return;
   }
 
   if (nread < 0) {
-    delete[] buf->base;
     HandleScope handle_scope(endpoint->env()->isolate());
     Context::Scope context_scope(endpoint->env()->context());
     Local<Value> argv[] = {
@@ -363,7 +403,6 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   }
 
   if (addr == nullptr) {
-    delete[] buf->base;
     return;
   }
 
@@ -375,8 +414,6 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
   SocketAddress remote(addr);
   endpoint->ProcessDatagram(
       reinterpret_cast<const uint8_t*>(buf->base), nread, remote);
-
-  delete[] buf->base;
 }
 
 void DTLSEndpoint::OnSend(uv_udp_send_t* req, int status) {
@@ -388,6 +425,17 @@ void DTLSEndpoint::OnClose() {
   state_->closing = 0;
   state_->destroyed = 1;
   DTLS_STAT_RECORD_TIMESTAMP(DTLSEndpointStats, destroyed_at);
+
+  // Release the strong self-reference taken when the close was initiated.
+  // HandleWrap::OnClose still holds its own reference for the duration of this
+  // call, so this does not free us here.
+  self_ref_.reset();
+
+  // A close initiated outside CloseGracefully()/Destroy() (e.g. an endpoint
+  // abandoned mid-construction and closed at environment teardown) takes no
+  // self-reference, so its wrapper may already be collected. There is no JS
+  // side to notify in that case; skip it rather than touch a freed wrapper.
+  if (persistent().IsEmpty()) return;
 
   Local<Function> cb = GetCallback(DTLS_CB_ENDPOINT_CLOSE);
   if (!cb.IsEmpty()) {
@@ -532,6 +580,9 @@ void DTLSEndpoint::DoBind(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid address");
   }
 
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, addr.ToString());
+
   int err = endpoint->Bind(addr);
   if (err != 0) {
     return THROW_ERR_INVALID_STATE(env, uv_strerror(err));
@@ -576,7 +627,17 @@ void DTLSEndpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kNet, remote.ToString());
 
-  auto session = endpoint->Connect(context, remote);
+  // Optional: servername (SNI), verifyHost (expected peer identity), and
+  // whether verifyHost is an IP literal. These are resolved in JS and applied
+  // to the client SSL before the handshake starts.
+  Utf8Value servername(env->isolate(), args[3]);
+  Utf8Value verify_host(env->isolate(), args[4]);
+  const char* servername_ptr = args[3]->IsString() ? *servername : nullptr;
+  const char* verify_host_ptr = args[4]->IsString() ? *verify_host : nullptr;
+  bool verify_is_ip = args[5]->IsTrue();
+
+  auto session = endpoint->Connect(
+      context, remote, servername_ptr, verify_host_ptr, verify_is_ip);
   if (session) {
     args.GetReturnValue().Set(session->object());
   }
@@ -641,6 +702,7 @@ void DTLSEndpoint::DoSetCallbacks(const FunctionCallbackInfo<Value>& args) {
 
 void DTLSEndpoint::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("sessions", sessions_.size());
+  tracker->TrackFieldWithSize("recv_buf", recv_buf_.size());
 }
 
 }  // namespace dtls
