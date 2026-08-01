@@ -11,6 +11,8 @@ const { inspect } = require('util');
 const { Worker } = require('worker_threads');
 
 const workerPath = path.join(__dirname, 'wpt/worker.js');
+const kRunWorkerGlobals = false;
+const wptNonTestDirs = new Set(['resources', 'support', 'tools']);
 
 function getBrowserProperties() {
   const { node: version } = process.versions; // e.g. 18.13.0, 20.0.0-nightly202302078e6e215481
@@ -107,7 +109,7 @@ class WPTReport {
    * @returns {ReportResult}
    */
   getResult(spec) {
-    const name = `/${spec.getRelativePath()}${spec.variant}`;
+    const name = `/${spec.getTestPath()}`;
     if (this.results.has(name)) {
       return this.results.get(name);
     }
@@ -121,13 +123,7 @@ class WPTReport {
    */
   write() {
     this.time_end = Date.now();
-    const results = Array.from(this.results.values())
-      .map((result) => {
-        const url = new URL(result.test, 'http://wpt');
-        url.pathname = url.pathname.replace(/\.js$/, '.html');
-        result.test = url.href.slice(url.origin.length);
-        return result;
-      });
+    const results = Array.from(this.results.values());
 
     /**
      * Return required and some optional properties
@@ -304,18 +300,21 @@ class WPTTestSpec {
    *   'test.any.js'
    * @param {StatusRule[]} rules
    * @param {string} variant test file variant
+   * @param {'window'|'dedicatedworker'} [globalScope] generated test global
    */
-  constructor(mod, filename, rules, variant = '') {
+  constructor(mod, filename, rules, variant = '', globalScope) {
     this.module = mod;
     this.filename = filename;
     this.variant = variant;
+    this.globalScope = globalScope;
+    this.rules = [...new Set(rules)];
 
     this.requires = new Set();
     this.failedTests = [];
     this.flakyTests = [];
     this.skipReasons = [];
     this.skippedTests = [];
-    for (const item of rules) {
+    for (const item of this.rules) {
       if (item.requires.length) {
         for (const req of item.requires) {
           this.requires.add(req);
@@ -345,12 +344,63 @@ class WPTTestSpec {
    * @param {string} mod
    * @param {string} filename
    * @param {StatusRule[]} rules
-   * @returns {ReturnType<WPTTestSpec['getMeta']>[]}
+   * @param {(spec: WPTTestSpec) => StatusRule[]} [getAdditionalRules]
+   * @returns {WPTTestSpec[]}
    */
-  static from(mod, filename, rules) {
+  static from(mod, filename, rules, getAdditionalRules) {
     const spec = new WPTTestSpec(mod, filename, rules);
     const meta = spec.getMeta();
-    return meta.variant?.map((variant) => new WPTTestSpec(mod, filename, rules, variant)) || [spec];
+    const variants = meta.variant || [''];
+    const createSpec = (variant, globalScope) => {
+      let result = new WPTTestSpec(mod, filename, rules, variant, globalScope);
+      const additionalRules = getAdditionalRules?.(result) || [];
+      if (additionalRules.length > 0) {
+        result = new WPTTestSpec(
+          mod,
+          filename,
+          [...new Set([...rules, ...additionalRules])],
+          variant,
+          globalScope,
+        );
+      }
+      return result;
+    };
+
+    if (!spec.isAnyTest()) {
+      return variants.map((variant) => createSpec(variant));
+    }
+
+    const requestedGlobals = meta.global ?
+      meta.global.split(',').map((item) => item.trim()) :
+      ['window', 'dedicatedworker'];
+    const supportedGlobals = new Set();
+    for (const globalScope of requestedGlobals) {
+      if (globalScope === 'window' || globalScope === 'dedicatedworker') {
+        supportedGlobals.add(globalScope);
+      } else if (globalScope === 'worker') {
+        supportedGlobals.add('dedicatedworker');
+      }
+    }
+
+    return ['window', 'dedicatedworker']
+      .filter((globalScope) => supportedGlobals.has(globalScope))
+      .flatMap((globalScope) => variants.map(
+        (variant) => createSpec(variant, globalScope)));
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  isAnyTest() {
+    return /\.any\.js$/.test(this.filename);
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  isWebWorkerTest() {
+    return /\.worker\.js$/.test(this.filename) ||
+      this.globalScope === 'dedicatedworker';
   }
 
   /**
@@ -373,6 +423,38 @@ class WPTTestSpec {
     return path.join(this.module, this.filename);
   }
 
+  getStatusKey() {
+    if (this.globalScope === 'dedicatedworker') {
+      return this.filename.replace(/\.any\.js$/, '.any.worker.html');
+    }
+    if (this.globalScope === 'window') {
+      return this.filename.replace(/\.any\.js$/, '.any.html');
+    }
+    return this.filename;
+  }
+
+  getTestPath() {
+    let testPath = path.join(this.module, this.getStatusKey());
+    testPath = testPath.replace(/\.js$/, '.html');
+    return `${testPath.split(path.sep).join('/')}${this.variant}`;
+  }
+
+  /**
+   * Whether a command line argument selects this spec. Accepts the source file
+   * name, which selects every global and variant generated from it, or a test
+   * path as printed alongside the results, which selects only this one.
+   * @param {string} arg
+   * @returns {boolean}
+   */
+  isSelectedBy(arg) {
+    if (arg === this.getTestPath()) {
+      return true;
+    }
+    const [filename, variant = ''] = arg.split('?');
+    return filename === this.filename &&
+      (!variant || this.variant.substring(1) === variant);
+  }
+
   getAbsolutePath() {
     return fixtures.path('wpt', this.getRelativePath());
   }
@@ -389,13 +471,15 @@ class WPTTestSpec {
    * @returns {{ script?: string[]; variant?: string[]; [key: string]: string }} parsed META tags of a spec file
    */
   getMeta() {
-    const matches = this.getContent().match(/\/\/ META: .+/g);
+    // Like upstream, tolerate missing whitespace around "META:".
+    // Refs: https://github.com/web-platform-tests/wpt/blob/master/tools/manifest/sourcefile.py
+    const matches = this.getContent().match(/\/\/\s*META:\s*.+/g);
     if (!matches) {
       return {};
     }
     const result = {};
     for (const match of matches) {
-      const parts = match.match(/\/\/ META: ([^=]+?)=(.+)/);
+      const parts = match.match(/\/\/\s*META:\s*([^=]+?)=(.+)/);
       const key = parts[1];
       const value = parts[2];
       if (key === 'script' || key === 'variant') {
@@ -487,6 +571,9 @@ class StatusLoader {
       const filepath = path.join(dir, file);
       const stat = fs.statSync(filepath);
       if (stat.isDirectory()) {
+        if (wptNonTestDirs.has(file)) {
+          continue;
+        }
         const list = this.grep(filepath);
         result = result.concat(list);
       } else {
@@ -520,7 +607,15 @@ class StatusLoader {
     for (const file of list) {
       const relativePath = path.relative(subDir, file);
       const match = this.rules.match(relativePath);
-      this.specs.push(...WPTTestSpec.from(this.path, relativePath, match));
+      this.specs.push(...WPTTestSpec.from(
+        this.path,
+        relativePath,
+        match,
+        (spec) => [
+          ...this.rules.match(spec.getStatusKey()),
+          ...this.rules.match(`${spec.getStatusKey()}${spec.variant}`),
+        ],
+      ));
     }
   }
 }
@@ -556,6 +651,38 @@ const limit = (concurrency) => {
   return execute;
 };
 
+function isUnexpectedPass(spec, name) {
+  return spec.failedTests.includes(name) && !spec.flakyTests.includes(name);
+}
+
+function getUnexpectedPasses(queue, results) {
+  const unexpectedPasses = [];
+  for (const spec of queue) {
+    const key = spec.getStatusKey();
+    if (results[key]?.skip) {
+      continue;
+    }
+
+    for (const expectedToFail of spec.failedTests) {
+      if (isUnexpectedPass(spec, expectedToFail) &&
+          !results[key]?.fail?.expected?.includes(expectedToFail)) {
+        unexpectedPasses.push(`${key}:${expectedToFail}`);
+      }
+    }
+  }
+  return unexpectedPasses;
+}
+
+function getHarnessErrorName(harnessStatus) {
+  if (typeof harnessStatus.stack === 'string') {
+    const name = harnessStatus.stack.split('\n', 1)[0];
+    if (name) {
+      return name;
+    }
+  }
+  return harnessStatus.message || 'WPT test harness error';
+}
+
 class WPTRunner {
   constructor(path, { concurrency = os.availableParallelism() - 1 || 1 } = {}) {
     // RISC-V has very limited virtual address space in the currently common
@@ -583,6 +710,7 @@ class WPTRunner {
     this.inProgress = new Set();
     this.workers = new Map();
     this.unexpectedFailures = [];
+    this.skippedSpecCount = 0;
 
     this.subtestCounts = { passed: 0, failed: 0, expectedFailures: 0, skipped: 0, unexpectedPasses: 0 };
 
@@ -620,7 +748,7 @@ class WPTRunner {
    * @returns {string}
    */
   fullInitScript(spec) {
-    const url = new URL(`/${spec.getRelativePath().replace(/\.js$/, '.html')}${spec.variant}`, 'http://wpt');
+    const url = new URL(`/${spec.getTestPath()}`, 'http://wpt');
     const title = spec.getMeta().title;
     let { initScript } = this;
 
@@ -631,6 +759,10 @@ class WPTRunner {
     }
 
     if (this.globalThisInitScripts.length === null) {
+      return initScript;
+    }
+
+    if (spec.isWebWorkerTest()) {
       return initScript;
     }
 
@@ -679,7 +811,6 @@ class WPTRunner {
       const absolutePath = spec.getAbsolutePath();
       const relativePath = spec.getRelativePath();
       const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
-
       // Scripts specified with the `// META: script=` header
       const scriptsToRun = meta.script?.map((script) => {
         const obj = {
@@ -780,7 +911,6 @@ class WPTRunner {
 
       const failures = [];
       let expectedFailures = 0;
-      let skipped = 0;
       for (const [key, item] of Object.entries(this.results)) {
         if (item.fail?.unexpected) {
           failures.push(key);
@@ -788,37 +918,9 @@ class WPTRunner {
         if (item.fail?.expected) {
           expectedFailures++;
         }
-        if (item.skip) {
-          skipped++;
-        }
       }
 
-      const unexpectedPasses = [];
-      for (const specs of queue) {
-        const key = specs.filename;
-
-        // File has no expected failures
-        if (!specs.failedTests.length) {
-          continue;
-        }
-
-        // File was (maybe even conditionally) skipped
-        if (this.results[key]?.skip) {
-          continue;
-        }
-
-        // Full check: every expected to fail test is present
-        const _unexpectedPasses = specs.failedTests.filter((expectedToFail) => {
-          if (specs.flakyTests.includes(expectedToFail)) {
-            return false;
-          }
-          return this.results[key]?.fail?.expected?.includes(expectedToFail) !== true;
-        });
-        if (_unexpectedPasses.length) {
-          unexpectedPasses.push(..._unexpectedPasses.map((name) => `${key}:${name}`));
-          continue;
-        }
-      }
+      const unexpectedPasses = getUnexpectedPasses(queue, this.results);
 
       // Write the report on clean exit. The report is also written
       // incrementally after each spec completes (see completionCallback)
@@ -827,6 +929,7 @@ class WPTRunner {
 
       const p = (n, word, suffix = 's') => `${n} ${word}${n === 1 ? '' : suffix}`;
       const ran = queue.length;
+      const skipped = this.skippedSpecCount;
       const total = ran + skipped;
       const passed = ran - expectedFailures - failures.length;
       const { subtestCounts } = this;
@@ -905,7 +1008,7 @@ class WPTRunner {
       // No need to record this synthetic failure with wpt.fyi.
       this.fail(spec, {
         status: status,
-        name: 'WPT test harness error',
+        name: getHarnessErrorName(harnessStatus),
         message: harnessStatus.message,
         stack: harnessStatus.stack,
       }, status);
@@ -924,8 +1027,9 @@ class WPTRunner {
   }
 
   addTestResult(spec, item) {
-    let result = this.results[spec.filename];
-    result ||= this.results[spec.filename] = {};
+    const key = spec.getStatusKey();
+    let result = this.results[key];
+    result ||= this.results[key] = {};
     if (item.status === kSkip) {
       if (item.name) {
         // Subtest-level skip: { filename: { skipTests: [ ... ] } }
@@ -951,19 +1055,19 @@ class WPTRunner {
   }
 
   succeed(spec, test, status, reportResult) {
-    const unexpectedPass = spec.failedTests.includes(test.name);
+    const unexpectedPass = isUnexpectedPass(spec, test.name);
     if (unexpectedPass) {
-      console.log(`[UNEXPECTED_PASS][${status.toUpperCase()}] ${test.name}`);
+      console.log(`[UNEXPECTED_PASS][${status.toUpperCase()}] ${spec.getTestPath()}: ${test.name}`);
       this.subtestCounts.unexpectedPasses++;
     } else {
-      console.log(`[${status.toUpperCase()}] ${test.name}`);
+      console.log(`[${status.toUpperCase()}] ${spec.getTestPath()}: ${test.name}`);
       this.subtestCounts.passed++;
     }
     reportResult?.addSubtest(test.name, 'PASS');
   }
 
   skipTest(spec, test, reportResult) {
-    console.log(`[SKIP] ${test.name}`);
+    console.log(`[SKIP] ${spec.getTestPath()}: ${test.name}`);
     reportResult?.addSubtest(test.name, 'NOTRUN');
     this.subtestCounts.skipped++;
     this.addTestResult(spec, {
@@ -975,16 +1079,20 @@ class WPTRunner {
   fail(spec, test, status, reportResult) {
     const expected = spec.failedTests.includes(test.name);
     if (expected) {
-      console.log(`[EXPECTED_FAILURE][${status.toUpperCase()}] ${test.name}`);
+      console.log(`[EXPECTED_FAILURE][${status.toUpperCase()}] ${spec.getTestPath()}: ${test.name}`);
     } else {
-      console.log(`[UNEXPECTED_FAILURE][${status.toUpperCase()}] ${test.name}`);
+      console.log(`[UNEXPECTED_FAILURE][${status.toUpperCase()}] ${spec.getTestPath()}: ${test.name}`);
     }
     if (status === kFail || status === kUncaught) {
       console.log(test.message);
       console.log(test.stack);
     }
-    const command = `${process.execPath} ${process.execArgv}` +
-                    ` ${require.main?.filename} '${spec.filename}${spec.variant}'`;
+    const command = [
+      process.execPath,
+      ...process.execArgv,
+      require.main?.filename,
+      `'${spec.getTestPath()}'`,
+    ].join(' ');
     console.log(`Command: ${command}\n`);
 
     reportResult?.addSubtest(test.name, 'FAIL', test.message);
@@ -1004,7 +1112,8 @@ class WPTRunner {
 
   skip(spec, reasons) {
     const joinedReasons = reasons.join('; ');
-    console.log(`[SKIPPED] ${spec.filename}${spec.variant}: ${joinedReasons}`);
+    console.log(`[SKIPPED] ${spec.getTestPath()}: ${joinedReasons}`);
+    this.skippedSpecCount++;
     this.addTestResult(spec, {
       status: kSkip,
       reason: joinedReasons,
@@ -1013,14 +1122,15 @@ class WPTRunner {
 
   buildQueue() {
     const queue = [];
-    let argFilename;
-    let argVariant;
-    if (process.argv[2]) {
-      ([argFilename, argVariant = ''] = process.argv[2].split('?'));
-    }
+    this.skippedSpecCount = 0;
+    const arg = process.argv[2];
     for (const spec of this.specs) {
-      if (argFilename) {
-        if (spec.filename === argFilename && (!argVariant || spec.variant.substring(1) === argVariant)) {
+      if (!kRunWorkerGlobals && spec.isWebWorkerTest()) {
+        continue;
+      }
+
+      if (arg) {
+        if (spec.isSelectedBy(arg)) {
           queue.push(spec);
         }
         continue;
@@ -1041,11 +1151,15 @@ class WPTRunner {
     }
 
     // If the tests are run as `node test/wpt/test-something.js subset.any.js`,
-    // only `subset.any.js` (all variants) will be run by the runner.
+    // only `subset.any.js` (all enabled variants and globals) will be run by
+    // the runner.
     // If the tests are run as `node test/wpt/test-something.js 'subset.any.js?1-10'`,
     // only the `?1-10` variant of `subset.any.js` will be run by the runner.
-    if (argFilename && queue.length === 0) {
-      throw new Error(`${process.argv[2]} not found!`);
+    // A test path as printed with the results, e.g.
+    // `'dir/subset.any.worker.html?1-10'`, runs exactly that one when its
+    // global is enabled.
+    if (arg && queue.length === 0) {
+      throw new Error(`${arg} not found!`);
     }
 
     return queue;
@@ -1053,7 +1167,11 @@ class WPTRunner {
 }
 
 module.exports = {
+  getHarnessErrorName,
+  getUnexpectedPasses,
   harness: harnessMock,
+  isUnexpectedPass,
   ResourceLoader,
+  WPTTestSpec,
   WPTRunner,
 };
