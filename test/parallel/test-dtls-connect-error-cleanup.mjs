@@ -8,9 +8,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -21,9 +18,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 // The client rejects the certificate mid-handshake, so this server session
 // never opens; its opened rejection is handled internally by the library.
@@ -37,7 +34,7 @@ const session = connect('127.0.0.1', server.address.port, {
   servername: 'wrong.example.com',
 });
 
-await rejects(session.opened, /certificate verify failed/i);
+await assert.rejects(session.opened, /certificate verify failed/i);
 
 // The failed connect must have closed its internally-owned endpoint. Without
 // that, this await never settles and the test times out.

@@ -8,9 +8,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -21,9 +18,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 // ---------------------------------------------------------------------------
 // Case 1: the server closes its own session -> removed from the table.
@@ -42,9 +39,9 @@ const ca = readKey('ca1-cert.pem').toString();
   await client.opened;
   const session = await gotSession.promise;
 
-  strictEqual(server.state.sessionCount, 1);
+  assert.strictEqual(server.state.sessionCount, 1);
   await session.close();
-  strictEqual(server.state.sessionCount, 0);
+  assert.strictEqual(server.state.sessionCount, 0);
 
   await client.close();
   await server.close();
@@ -68,10 +65,10 @@ const ca = readKey('ca1-cert.pem').toString();
   await client.opened;
   const session = await gotSession.promise;
 
-  strictEqual(server.state.sessionCount, 1);
+  assert.strictEqual(server.state.sessionCount, 1);
   await client.close();   // Sends close_notify to the server
   await session.closed;   // Server processes it, detaches, and emits its close
-  strictEqual(server.state.sessionCount, 0);
+  assert.strictEqual(server.state.sessionCount, 0);
 
   await server.close();
 }
