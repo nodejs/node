@@ -189,6 +189,29 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
+  it('should override inherited special environment variables', async () => {
+    const scriptName = `special-env-variables${envSuffix}`;
+    const packageJsonPath = fixtures.path('run-script/package.json');
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', scriptName],
+      {
+        cwd: fixtures.path('run-script'),
+        env: {
+          ...process.env,
+          NODE_RUN_SCRIPT_NAME: 'inherited-script-name',
+          NODE_RUN_PACKAGE_JSON_PATH: 'inherited-package-json-path',
+        },
+      },
+    );
+    assert.deepStrictEqual(child.stdout.trim().split(/\r?\n/), [
+      scriptName,
+      packageJsonPath,
+    ]);
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
   it('will search parent directories for a package.json file', async () => {
     const packageJsonPath = fixtures.path('run-script/package.json');
     const child = await common.spawnPromisified(
