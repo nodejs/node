@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script>
+const channel = new BroadcastChannel('echochannel');
+channel.onmessage = e => channel.postMessage(e.data);
+</script>
+<div id='workersrc' style='display:none'>
+importScripts("http://{{host}}:{{ports[http][0]}}/resources/testharness.js");
+onmessage = e => {
+  const external_blob = e.data.blob;
+  const external_blob_url = e.data.url;
+
+  test(t => {
+      assert_equals('null', self.location.origin);
+    }, 'Worker has an opaque origin.');
+
+  async_test(t => {
+      const r = new FileReader();
+      r.onloadend = t.step_func_done(e => assert_equals(r.result, 'from worker'));
+      r.readAsText(new Blob(['from worker']));
+    }, 'Worker can read its own blobs.');
+
+  async_test(t => {
+      const r = new FileReader();
+      r.onloadend = t.step_func_done(e => assert_equals(r.result, 'from page'));
+      r.readAsText(external_blob);
+    }, 'Worker can read its owners blobs.');
+
+  async_test(t => {
+      const request = new XMLHttpRequest();
+      request.open('GET', external_blob_url);
+      request.onreadystatechange = t.step_func(() => {
+          if (request.readyState == 4) {
+            assert_equals(request.responseText, 'from page');
+            t.done();
+          }
+        });
+      request.send();
+    }, 'Worker can XHR fetch a blob.');
+
+  promise_test(t =>
+      fetch(external_blob_url).then(r => r.text()).then(text => assert_equals(text, 'from page'))
+    , 'Worker can fetch a blob.');
+
+  async_test(t => {
+      const channel = new BroadcastChannel('echochannel');
+      channel.onmessage = t.step_func_done(e => assert_equals('ping', e.data));
+      channel.postMessage('ping');
+    }, 'Worker can access BroadcastChannel');
+  done();
+};
+</div>
+<script>
+// Create a worker with a blob URL to get a same opaque origin worker.
+const b = new Blob([document.getElementById('workersrc').textContent]);
+const url = URL.createObjectURL(b);
+const worker = new Worker(url);
+// Pass back any messages from the worker to our parent to collect test results.
+worker.onmessage = e => {
+  parent.postMessage(e.data, '*');
+};
+
+// Send test data to the worker.
+const b2 = new Blob(['from page']);
+const url2 = URL.createObjectURL(b2);
+worker.postMessage({url: url2, blob: b2});
+</script>

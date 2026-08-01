@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>Service Worker: Clients.matchAll with exact controller</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+const scope = 'resources/blank.html?clients-matchAll';
+let frames = [];
+
+function checkWorkerClients(worker, expected) {
+  return new Promise((resolve, reject) => {
+    let channel = new MessageChannel();
+    channel.port1.onmessage = evt => {
+      try {
+        assert_equals(evt.data.length, expected.length);
+        for (let i = 0; i < expected.length; ++i) {
+          assert_array_equals(evt.data[i], expected[i]);
+        }
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    };
+
+    worker.postMessage({port:channel.port2}, [channel.port2]);
+  });
+}
+
+let expected = [
+    // visibilityState, focused, url, type, frameType
+    ['visible', true, new URL(scope + '#1', location).toString(), 'window', 'nested'],
+    ['visible', false, new URL(scope + '#2', location).toString(), 'window', 'nested']
+];
+
+promise_test(t => {
+    let script = 'resources/clients-matchall-worker.js';
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(registration => {
+          t.add_cleanup(() => service_worker_unregister(t, scope));
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(_ => with_iframe(scope + '#1') )
+      .then(frame1 => {
+          frames.push(frame1);
+          frame1.focus();
+          return with_iframe(scope + '#2');
+        })
+      .then(frame2 => {
+          frames.push(frame2);
+          return navigator.serviceWorker.register(script + '?updated', { scope: scope });
+        })
+      .then(registration => {
+          return wait_for_state(t, registration.installing, 'installed')
+            .then(_ => registration);
+        })
+      .then(registration => {
+          return Promise.all([
+            checkWorkerClients(registration.waiting, []),
+            checkWorkerClients(registration.active, expected),
+          ]);
+        })
+      .then(_ => {
+          frames.forEach(f => f.remove() );
+        });
+}, 'Test Clients.matchAll() with exact controller');
+</script>

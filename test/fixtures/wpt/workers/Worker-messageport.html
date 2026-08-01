@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<title>Test that pages and workers can send MessagePorts to one another.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(function(t) {
+  var worker = new Worker("support/Worker-messageport.js");
+
+  // Send messages with and without ports to the worker to make sure it gets them.
+  worker.postMessage("noport");
+  worker.onmessage = t.step_func_done(evt => {
+    assert_equals(evt.data, "PASS: evt.ports = [] as expected");
+  });
+}, 'Test sending messages to workers with no port.');
+
+async_test(function(t) {
+  var worker = new Worker("support/Worker-messageport.js");
+  var channel = new MessageChannel();
+
+  worker.postMessage("port", [channel.port1]);
+  worker.onmessage = t.step_func(evt => {
+    assert_equals(evt.data, "PASS: Received message port");
+  });
+
+  // Send a message on the new port to make sure it gets to the worker.
+  channel.port2.postMessage("ping");
+
+  // Wait for the response.
+  channel.port2.onmessage = t.step_func_done(evt => {
+    assert_equals(evt.data, "pong");
+  });
+  channel.port2.start();
+}, 'Test sending message to a worker on a port.');
+
+async_test(function(t) {
+  var worker = new Worker("support/Worker-messageport.js");
+  var channel = new MessageChannel();
+
+  worker.onmessage = t.step_func(evt => {
+    assert_equals(evt.data, "port");
+    assert_equals(String(evt.ports), "[object MessagePort]");
+    assert_equals(evt.ports.length, 1);
+    evt.ports[0].postMessage("ping");
+    evt.ports[0].onmessage = t.step_func_done(evt => {
+      assert_equals(evt.data, "pong");
+    });
+    evt.ports[0].start();
+  });
+  worker.postMessage("getport");
+}, 'Test getting messages from a worker on a port.');
+
+async_test(function(t) {
+  var worker = new Worker("support/Worker-messageport.js");
+  var channel = new MessageChannel();
+  worker.onmessage = t.step_func(evt => { gotSpam(channel.port1); });
+  worker.postMessage("spam", [channel.port2]);
+
+  function gotSpam(port) {
+    var spamCount = 0;
+    port.onmessage = t.step_func(evt => {
+      assert_equals(evt.data, spamCount);
+      spamCount++;
+      if (spamCount == 1000) {
+        t.done();
+      }
+    });
+  }
+}, 'Test sending many messages to workers using ports.');
+</script>

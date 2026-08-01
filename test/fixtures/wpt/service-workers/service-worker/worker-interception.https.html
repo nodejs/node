@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<title>Service Worker: intercepting Worker script loads</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+// ========== Worker main resource interception tests ==========
+
+async function setup_service_worker(t, service_worker_url, scope) {
+  const r = await service_worker_unregister_and_register(
+      t, service_worker_url, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+  await wait_for_state(t, r.installing, 'activated');
+  return r.active;
+}
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-synthesized-worker.js?dedicated';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  const serviceWorker = await setup_service_worker(t, service_worker_url, scope);
+
+  const channels = new MessageChannel();
+  serviceWorker.postMessage({port: channels.port1}, [channels.port1]);
+
+  const clientId = await new Promise(resolve => channels.port2.onmessage = (e) => resolve(e.data.id));
+
+  const resultPromise =  new Promise(resolve => channels.port2.onmessage = (e) => resolve(e.data));
+
+  const w = new Worker(worker_url);
+  const data = await new Promise((resolve, reject) => {
+    w.onmessage = e => resolve(e.data);
+    w.onerror = e => reject(e.message);
+  });
+  assert_equals(data, 'worker loading intercepted by service worker');
+
+  const results = await resultPromise;
+  assert_equals(results.clientId, clientId);
+  assert_true(!!results.resultingClientId.length);
+
+  channels.port2.postMessage("done");
+}, `Verify a dedicated worker script request gets correct client Ids`);
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-synthesized-worker.js?dedicated';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new Worker(worker_url);
+  const data = await new Promise((resolve, reject) => {
+    w.onmessage = e => resolve(e.data);
+    w.onerror = e => reject(e.message);
+  });
+  assert_equals(data, 'worker loading intercepted by service worker');
+}, `Verify a dedicated worker script request issued from a uncontrolled ` +
+   `document is intercepted by worker's own service worker.`);
+
+promise_test(async t => {
+  const frame_url = 'resources/create-out-of-scope-worker.html';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = frame_url;
+
+  const registration = await service_worker_unregister_and_register(
+      t, service_worker_url, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const frame = await with_iframe(frame_url);
+  t.add_cleanup(_ => frame.remove());
+
+  assert_equals(
+    frame.contentWindow.navigator.serviceWorker.controller.scriptURL,
+    get_newest_worker(registration).scriptURL,
+    'the frame should be controlled by a service worker'
+  );
+
+  const result = await frame.contentWindow.getWorkerPromise();
+
+  assert_equals(result,
+                'worker loading was not intercepted by service worker');
+}, `Verify an out-of-scope dedicated worker script request issued from a ` +
+   `controlled document should not be intercepted by document's service ` +
+   `worker.`);
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-synthesized-worker.js?shared';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new SharedWorker(worker_url);
+  const data = await new Promise((resolve, reject) => {
+    w.port.onmessage = e => resolve(e.data);
+    w.onerror = e => reject(e.message);
+  });
+  assert_equals(data, 'worker loading intercepted by service worker');
+}, `Verify a shared worker script request issued from a uncontrolled ` +
+   `document is intercepted by worker's own service worker.`);
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-same-origin-worker.js?dedicated';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new Worker(worker_url);
+  const data = await new Promise((resolve, reject) => {
+    w.onmessage = e => resolve(e.data);
+    w.onerror = e => reject(e.message);
+  });
+  assert_equals(data, 'dedicated worker script loaded');
+}, 'Verify a same-origin worker script served by a service worker succeeds ' +
+   'in starting a dedicated worker.');
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-same-origin-worker.js?shared';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new SharedWorker(worker_url);
+  const data = await new Promise((resolve, reject) => {
+    w.port.onmessage = e => resolve(e.data);
+    w.onerror = e => reject(e.message);
+  });
+  assert_equals(data, 'shared worker script loaded');
+}, 'Verify a same-origin worker script served by a service worker succeeds ' +
+   'in starting a shared worker.');
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-cors-worker.js?dedicated';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new Worker(worker_url);
+  const watcher = new EventWatcher(t, w, ['message', 'error']);
+  await watcher.wait_for('error');
+}, 'Verify a cors worker script served by a service worker fails dedicated ' +
+   'worker start.');
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-cors-worker.js?shared';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new SharedWorker(worker_url);
+  const watcher = new EventWatcher(t, w, ['message', 'error']);
+  await watcher.wait_for('error');
+}, 'Verify a cors worker script served by a service worker fails shared ' +
+   'worker start.');
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-no-cors-worker.js?dedicated';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new Worker(worker_url);
+  const watcher = new EventWatcher(t, w, ['message', 'error']);
+  await watcher.wait_for('error');
+}, 'Verify a no-cors cross-origin worker script served by a service worker ' +
+   'fails dedicated worker start.');
+
+promise_test(async t => {
+  const worker_url = 'resources/sample-no-cors-worker.js?shared';
+  const service_worker_url = 'resources/sample-worker-interceptor.js';
+  const scope = worker_url;
+
+  await setup_service_worker(t, service_worker_url, scope);
+  const w = new SharedWorker(worker_url);
+  const watcher = new EventWatcher(t, w, ['message', 'error']);
+  await watcher.wait_for('error');
+}, 'Verify a no-cors cross-origin worker script served by a service worker ' +
+   'fails shared worker start.');
+
+// ========== Worker subresource interception tests ==========
+
+const scope_for_subresource_interception = 'resources/load_worker.js';
+
+promise_test(async t => {
+  const service_worker_url = 'resources/worker-load-interceptor.js';
+  const r = await service_worker_unregister_and_register(
+      t, service_worker_url, scope_for_subresource_interception);
+  await wait_for_state(t, r.installing, 'activated');
+}, 'Register a service worker for worker subresource interception tests.');
+
+// Do not call this function multiple times without waiting for the promise
+// resolution because this sets new event handlers on |worker|.
+// TODO(nhiroki): To isolate multiple function calls, use MessagePort instead of
+// worker's onmessage event handler.
+async function request_on_worker(worker, resource_type) {
+  const data = await new Promise((resolve, reject) => {
+    if (worker instanceof Worker) {
+      worker.onmessage = e => resolve(e.data);
+      worker.onerror = e => reject(e);
+      worker.postMessage(resource_type);
+    } else if (worker instanceof SharedWorker) {
+      worker.port.onmessage = e => resolve(e.data);
+      worker.onerror = e => reject(e);
+      worker.port.postMessage(resource_type);
+    } else {
+      reject('Unexpected worker type!');
+    }
+  });
+  assert_equals(data, 'This load was successfully intercepted.');
+}
+
+async function subresource_test(worker) {
+  await request_on_worker(worker, 'xhr');
+  await request_on_worker(worker, 'fetch');
+  await request_on_worker(worker, 'importScripts');
+}
+
+promise_test(async t => {
+  await subresource_test(new Worker('resources/load_worker.js'));
+}, 'Requests on a dedicated worker controlled by a service worker.');
+
+promise_test(async t => {
+  await subresource_test(new SharedWorker('resources/load_worker.js'));
+}, 'Requests on a shared worker controlled by a service worker.');
+
+promise_test(async t => {
+  await subresource_test(new Worker('resources/nested_load_worker.js'));
+}, 'Requests on a dedicated worker nested in a dedicated worker and ' +
+       'controlled by a service worker');
+
+promise_test(async t => {
+  await subresource_test(new SharedWorker('resources/nested_load_worker.js'));
+}, 'Requests on a dedicated worker nested in a shared worker and controlled ' +
+       'by a service worker');
+
+promise_test(async t => {
+  await service_worker_unregister(t, scope_for_subresource_interception);
+}, 'Unregister a service worker for subresource interception tests.');
+
+</script>
+</body>

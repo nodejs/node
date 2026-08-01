@@ -1,0 +1,39 @@
+<html>
+<body>
+<script>
+var messageData;
+function registerMessage()
+{
+    navigator.serviceWorker.onmessage = (e) => {
+        if (window.messageData === undefined)
+            window.messageData = e.data;
+    }
+}
+
+function listenToMessages()
+{
+    messageData = [];
+    setTimeout(() => {
+        navigator.serviceWorker.addEventListener("message", (e) => {
+            messageData.push(e.data);
+        }, { once:true });
+    }, 500);
+    setTimeout(() => {
+        navigator.serviceWorker.onmessage = (e) => {
+            messageData.push(e.data);
+        };
+    }, 1000);
+}
+
+if (window.location.search === "?repeatMessages") {
+    setTimeout(() => {
+        registerMessage();
+    }, 500);
+} else if (window.location.search.includes("listener")) {
+    listenToMessages();
+} else {
+    registerMessage();
+}
+</script>
+</body>
+</html>

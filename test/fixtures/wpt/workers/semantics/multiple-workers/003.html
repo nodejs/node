@@ -1,0 +1,16 @@
+<!doctype html>
+<title>creating 3 nested dedicated workers</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function() {
+  var w1 = new Worker('003.js#1');
+  w1.onmessage = this.step_func(function(e) {
+    assert_equals(e.data, '123');
+    this.done();
+  });
+  w1.onerror = this.unreached_func("error");
+});
+</script>

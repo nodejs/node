@@ -1,0 +1,16 @@
+<!doctype html>
+<title>Using dictionary as postMessage's second argument</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+(async_test()).step(function() {
+  var worker = new Worker('second-argument-dictionary.js');
+  var ab = new ArrayBuffer(1);
+  worker.postMessage(ab, {transfer: [ab]});
+  worker.onmessage = this.step_func(function(e) {
+    assert_equals(e.data.byteLength, 1);
+    this.done();
+  });
+});
+</script>

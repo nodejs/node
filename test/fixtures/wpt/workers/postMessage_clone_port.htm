@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title> postMessage(): clone a port </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var channelA = new MessageChannel();
+  var channelB = new MessageChannel();
+  var originalPort = channelB.port2;
+  channelA.port2.onmessage = t.step_func(function(e) {
+    assert_equals(e.data, "ports");
+    var clonedPort = e.ports[0];
+    assert_not_equals(clonedPort, originalPort, "new cloned port object should not equal to the original port!");
+    clonedPort.onmessage = t.step_func_done(function(e) {
+      assert_equals(e.data, "ping", "Data sent through remote port is received by the new cloned port");
+    });
+  });
+  channelA.port1.postMessage("ports", [channelB.port2]);
+  channelB.port1.postMessage("ping");
+});
+</script>
