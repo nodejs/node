@@ -201,6 +201,10 @@ that has not been ported to the Node.js runner. Use `fail` instead when
 the test can run but produces incorrect results due to an implementation
 bug or missing feature.
 
+For a multi-global `.any.js` test, a source file key applies to every generated
+test. Use a generated URL key such as `something.any.worker.html` to apply a
+rule only to the dedicated worker test.
+
 ### Skipping individual subtests
 
 To skip specific subtests within a file (rather than skipping the entire file),
