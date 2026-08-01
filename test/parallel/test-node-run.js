@@ -45,6 +45,21 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
+  it('creates PATH when it is missing from the environment', async () => {
+    const env = Object.fromEntries(
+      Object.entries(process.env)
+        .filter(([key]) => key.toLowerCase() !== 'path'),
+    );
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', `ada${envSuffix}`],
+      { cwd: fixtures.path('run-script'), env },
+    );
+    assert.match(child.stdout, /06062023/);
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
   it('chdirs into package directory', async () => {
     const child = await common.spawnPromisified(
       process.execPath,

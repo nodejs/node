@@ -93,6 +93,8 @@ void ProcessRunner::SetEnvironmentVariables() {
   int env_count;
   CHECK_EQ(0, uv_os_environ(&env_items, &env_count));
 
+  bool has_path_env_var = false;
+
   // Iterate over environment variables once to store them in the current
   // ProcessRunner instance.
   for (int i = 0; i < env_count; i++) {
@@ -110,11 +112,16 @@ void ProcessRunner::SetEnvironmentVariables() {
 
     if (StringEqualNoCase(name.c_str(), "path")) {
       // Add path env variable to the beginning of the PATH
+      has_path_env_var = true;
       value = path_env_var_ + value;
     }
     env_vars_.push_back(name + "=" + value);
   }
   uv_os_free_environ(env_items, env_count);
+
+  if (!has_path_env_var) {
+    env_vars_.push_back("PATH=" + path_env_var_);
+  }
 
   // Add NODE_RUN_SCRIPT_NAME environment variable to the environment
   // to indicate which script is being run.
