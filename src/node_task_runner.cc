@@ -227,7 +227,8 @@ FindPackageJson(const std::filesystem::path& cwd) {
        directory_path = directory_path.parent_path()) {
     // Append "path/node_modules/.bin" to the env var, if it is a directory.
     auto node_modules_bin = directory_path / "node_modules" / ".bin";
-    if (std::filesystem::is_directory(node_modules_bin)) {
+    std::error_code error;
+    if (std::filesystem::is_directory(node_modules_bin, error)) {
       path_env_var += ConvertPathToUTF8(node_modules_bin) + env_var_separator;
     }
 

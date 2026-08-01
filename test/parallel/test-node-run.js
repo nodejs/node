@@ -243,6 +243,33 @@ describe('node --run [command]', () => {
        assert.strictEqual(output.path.split(path.delimiter)[0], nodeModulesBin);
      });
 
+  it('skips inaccessible node_modules directories', {
+    skip: common.isWindows || common.isIBMi || process.getuid?.() === 0,
+  }, async () => {
+    tmpdir.refresh();
+    const nodeModules = tmpdir.resolve('node_modules');
+    fs.mkdirSync(nodeModules);
+    fs.writeFileSync(tmpdir.resolve('package.json'), JSON.stringify({
+      scripts: { test: 'echo ok' },
+    }));
+    fs.chmodSync(nodeModules, 0o000);
+
+    let child;
+    try {
+      child = await common.spawnPromisified(
+        process.execPath,
+        [ '--run', 'test'],
+        { cwd: tmpdir.path },
+      );
+    } finally {
+      fs.chmodSync(nodeModules, 0o700);
+    }
+
+    assert.strictEqual(child.stdout, 'ok\n');
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
   it('returns error on unparsable file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
