@@ -42,6 +42,17 @@ using v8::Value;
 
 namespace ffi {
 
+void FFIFunction::Invoke(void* result, void** values) {
+#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
+  if (call_plan != nullptr) {
+    ffi_call_plan_invoke(call_plan.get(), FFI_FN(ptr), result, values);
+    return;
+  }
+#endif
+
+  ffi_call(&cif, FFI_FN(ptr), result, values);
+}
+
 void FFIFunctionInfo::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("sb_backing", sb_backing);
 }
@@ -146,14 +157,12 @@ Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
 
     should_cache_symbol = symbols_.find(name) == symbols_.end();
 
-    fn = std::make_shared<FFIFunction>(
-        FFIFunction{.closed = false,
-                    .ptr = ptr,
-                    .cif = {},
-                    .args = args,
-                    .return_type = return_type,
-                    .arg_type_names = std::move(arg_type_names),
-                    .return_type_name = std::move(return_type_name)});
+    fn = std::make_shared<FFIFunction>();
+    fn->ptr = ptr;
+    fn->args = std::move(args);
+    fn->return_type = return_type;
+    fn->arg_type_names = std::move(arg_type_names);
+    fn->return_type_name = std::move(return_type_name);
 
     ffi_status status = ffi_prep_cif(&fn->cif,
                                      FFI_DEFAULT_ABI,
@@ -177,6 +186,14 @@ Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
       THROW_ERR_FFI_CALL_FAILED(env, msg);
       return {};
     }
+
+#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
+    // Allocation failure is non-fatal. Invoke() falls back to ffi_call().
+    ffi_call_plan* call_plan = ffi_call_plan_alloc(&fn->cif);
+    if (call_plan != nullptr) {
+      fn->call_plan.reset(call_plan);
+    }
+#endif
 
     should_cache_function = true;
   } else {
@@ -550,7 +567,7 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
     result = Malloc(GetFFIReturnValueStorageSize(fn->return_type));
   }
 
-  ffi_call(&fn->cif, FFI_FN(fn->ptr), result, ffi_args.data());
+  fn->Invoke(result, ffi_args.data());
 
   // Return result back to Javascript
   ToJSReturnValue(env, args, fn->return_type, result);
@@ -609,7 +626,7 @@ void DynamicLibrary::InvokeFunctionSB(const FunctionCallbackInfo<Value>& args) {
   alignas(8) uint8_t result_storage[kSBResultStorageSize] = {0};
   void* result = (fn->return_type != &ffi_type_void) ? result_storage : nullptr;
 
-  ffi_call(&fn->cif, FFI_FN(fn->ptr), result, ffi_args.data());
+  fn->Invoke(result, ffi_args.data());
 
   if (result != nullptr) {
     WriteFFIReturnToBuffer(fn->return_type, result, buffer, 0);
