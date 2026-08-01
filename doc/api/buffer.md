@@ -2092,6 +2092,10 @@ console.log(buf.fill('zz', 'hex'));
 <!-- YAML
 added: v5.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64917
+    description: UTF-16LE and UCS2 searches now inspect every byte offset.
+                 Buffer and Uint8Array values are compared in their entirety.
   - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
@@ -2160,6 +2164,10 @@ console.log(buf.includes('this', 4));
 <!-- YAML
 added: v1.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64917
+    description: UTF-16LE and UCS2 searches now inspect every byte offset.
+                 Buffer and Uint8Array values are compared in their entirety.
   - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
@@ -2343,6 +2351,10 @@ for (const key of buf.keys()) {
 <!-- YAML
 added: v6.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64917
+    description: UTF-16LE and UCS2 searches now inspect every byte offset.
+                 Buffer and Uint8Array values are compared in their entirety.
   - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62390
     description: Added the `end` parameter.
