@@ -1520,6 +1520,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             BOOL_FIELD(trace_sigint),
             kAllowedInEnvvar);
 
+  AddOption("--trace-sigterm",
+            "enable printing JavaScript stacktrace on SIGTERM",
+            BOOL_FIELD(trace_sigterm),
+            kAllowedInEnvvar);
+
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 
   AddOption("--node-memory-debug",
