@@ -218,7 +218,7 @@ void ProcessRunner::Run() {
 std::optional<std::tuple<std::filesystem::path, std::string, std::string>>
 FindPackageJson(const std::filesystem::path& cwd) {
   auto package_json_path = cwd / "package.json";
-  std::string raw_content;
+  std::optional<std::string> raw_content;
   std::string path_env_var;
   auto root_path = cwd.root_path();
 
@@ -231,22 +231,26 @@ FindPackageJson(const std::filesystem::path& cwd) {
       path_env_var += ConvertPathToUTF8(node_modules_bin) + env_var_separator;
     }
 
-    if (raw_content.empty()) {
+    if (!raw_content.has_value()) {
       package_json_path = directory_path / "package.json";
       // This is required for Windows because std::filesystem::path::c_str()
       // returns wchar_t* on Windows, and char* on other platforms.
-      std::string contents = ConvertPathToUTF8(package_json_path);
-      USE(ReadFileSync(&raw_content, contents.c_str()) > 0);
+      std::string package_json_path_string =
+          ConvertPathToUTF8(package_json_path);
+      std::string contents;
+      if (ReadFileSync(&contents, package_json_path_string.c_str()) >= 0) {
+        raw_content.emplace(std::move(contents));
+      }
     }
   }
 
   // This means that there is no package.json until the root directory.
   // In this case, we just return nullopt, which will terminate the process..
-  if (raw_content.empty()) {
+  if (!raw_content.has_value()) {
     return std::nullopt;
   }
 
-  return {{package_json_path, raw_content, path_env_var}};
+  return {{package_json_path, std::move(raw_content.value()), path_env_var}};
 }
 
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
