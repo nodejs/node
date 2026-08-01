@@ -7,9 +7,6 @@ import { hasCrypto, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { throws } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -20,22 +17,22 @@ if (!process.features.dtls) {
 
 const { listen, DTLSEndpoint } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const mismatchedKey = readKey('agent2-key.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const mismatchedKey = fixtures.readKey('agent2-key.pem').toString();
 
 // A malformed certificate PEM is rejected.
-throws(() => listen(mustNotCall(), {
+assert.throws(() => listen(mustNotCall(), {
   cert: 'not a certificate', key, port: 0,
 }), { code: 'ERR_CRYPTO_OPERATION_FAILED' });
 
 // A malformed private key PEM is rejected.
-throws(() => listen(mustNotCall(), {
+assert.throws(() => listen(mustNotCall(), {
   cert, key: 'not a key', port: 0,
 }), { code: 'ERR_CRYPTO_OPERATION_FAILED' });
 
 // A private key that does not match the certificate is rejected.
-throws(() => listen(mustNotCall(), {
+assert.throws(() => listen(mustNotCall(), {
   cert, key: mismatchedKey, port: 0,
 }), { code: 'ERR_CRYPTO_OPERATION_FAILED' });
 
@@ -43,6 +40,6 @@ throws(() => listen(mustNotCall(), {
 {
   const endpoint = new DTLSEndpoint();
   endpoint.bind('127.0.0.1', 0);
-  throws(() => endpoint.bind('127.0.0.1', 0), { code: 'ERR_INVALID_STATE' });
+  assert.throws(() => endpoint.bind('127.0.0.1', 0), { code: 'ERR_INVALID_STATE' });
   await endpoint.close();
 }

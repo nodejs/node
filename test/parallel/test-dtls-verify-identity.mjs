@@ -9,9 +9,6 @@ import { hasCrypto, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { match, rejects, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -24,9 +21,9 @@ const { listen, connect } = await import('node:dtls');
 
 // The agent1 certificate has CN=agent1 and no subjectAltName, so OpenSSL
 // matches the identity "agent1" (via the subject CN) and rejects other names.
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 // ---------------------------------------------------------------------------
 // Case 1: a matching servername with rejectUnauthorized succeeds, and the
@@ -49,9 +46,9 @@ const ca = readKey('ca1-cert.pem').toString();
   });
 
   const { protocol } = await session.opened;
-  match(protocol, /DTLS/i);
+  assert.match(protocol, /DTLS/i);
 
-  strictEqual(await sawServername.promise, 'agent1');
+  assert.strictEqual(await sawServername.promise, 'agent1');
 
   await session.close();
   await server.close();
@@ -75,7 +72,7 @@ const ca = readKey('ca1-cert.pem').toString();
     servername: 'wrong.example.com',
   });
 
-  await rejects(session.opened, /certificate verify failed/i);
+  await assert.rejects(session.opened, /certificate verify failed/i);
 
   // Closing the session tears down the internally-owned client endpoint.
   await session.close();

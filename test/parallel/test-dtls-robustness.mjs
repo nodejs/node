@@ -7,8 +7,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import dgram from 'node:dgram';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -19,9 +17,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 const server = listen(mustCall((session) => {
   session.onhandshake = mustCall();

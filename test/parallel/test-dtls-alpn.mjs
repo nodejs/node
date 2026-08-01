@@ -6,9 +6,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -19,16 +16,16 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const serverCert = readKey('agent1-cert.pem');
-const serverKey = readKey('agent1-key.pem');
-const ca = readKey('ca1-cert.pem');
+const serverCert = fixtures.readKey('agent1-cert.pem');
+const serverKey = fixtures.readKey('agent1-key.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 const serverAlpnChecked = Promise.withResolvers();
 
 const endpoint = listen(mustCall(async (session) => {
   await session.opened;
   // Server should see the negotiated ALPN protocol.
-  strictEqual(session.alpnProtocol, 'coap');
+  assert.strictEqual(session.alpnProtocol, 'coap');
   serverAlpnChecked.resolve();
 }), {
   cert: serverCert.toString(),
@@ -47,7 +44,7 @@ const session = connect('127.0.0.1', endpoint.address.port, {
 await session.opened;
 
 // Client should see the negotiated protocol.
-strictEqual(session.alpnProtocol, 'coap');
+assert.strictEqual(session.alpnProtocol, 'coap');
 
 await serverAlpnChecked.promise;
 
@@ -77,8 +74,8 @@ await endpoint.close();
   const serverSession = await gotServerSession.promise;
   await serverSession.opened;
 
-  strictEqual(client.alpnProtocol, undefined);
-  strictEqual(serverSession.alpnProtocol, undefined);
+  assert.strictEqual(client.alpnProtocol, undefined);
+  assert.strictEqual(serverSession.alpnProtocol, undefined);
 
   await client.close();
   await server.close();

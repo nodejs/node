@@ -8,9 +8,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { match, rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -21,8 +18,8 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
 
 // Case 1: with rejectUnauthorized, a certificate that does not chain to a
 // trusted CA fails verification. The servername matches the certificate, so
@@ -39,7 +36,7 @@ const key = readKey('agent1-key.pem').toString();
     servername: 'agent1',
   });
 
-  await rejects(client.opened, /certificate verify failed/i);
+  await assert.rejects(client.opened, /certificate verify failed/i);
 
   await client.endpoint.closed;
   await server.close();
@@ -56,7 +53,7 @@ const key = readKey('agent1-key.pem').toString();
   });
 
   const { protocol } = await client.opened;
-  match(protocol, /DTLS/i);
+  assert.match(protocol, /DTLS/i);
 
   await client.close();
   await server.close();

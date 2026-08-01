@@ -6,9 +6,6 @@ import { hasCrypto, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, throws } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -19,9 +16,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 const CIPHER = 'ECDHE-RSA-AES128-GCM-SHA256';
 
@@ -43,15 +40,15 @@ const CIPHER = 'ECDHE-RSA-AES128-GCM-SHA256';
   const serverSession = await gotServerSession.promise;
   await serverSession.opened;
 
-  strictEqual(client.cipher.name, CIPHER);
-  strictEqual(serverSession.cipher.name, CIPHER);
+  assert.strictEqual(client.cipher.name, CIPHER);
+  assert.strictEqual(serverSession.cipher.name, CIPHER);
 
   await client.close();
   await server.close();
 }
 
 // Case 2: an invalid cipher list is rejected.
-throws(() => listen(mustNotCall(), {
+assert.throws(() => listen(mustNotCall(), {
   cert, key, port: 0, host: '127.0.0.1', ciphers: 'THIS-IS-NOT-A-CIPHER',
 }), { code: 'ERR_CRYPTO_OPERATION_FAILED' });
 
@@ -74,6 +71,6 @@ throws(() => listen(mustNotCall(), {
 }
 
 // Case 4: an invalid ECDH curve is rejected.
-throws(() => listen(mustNotCall(), {
+assert.throws(() => listen(mustNotCall(), {
   cert, key, port: 0, host: '127.0.0.1', ecdhCurve: 'not-a-curve',
 }), { code: 'ERR_CRYPTO_OPERATION_FAILED' });

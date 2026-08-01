@@ -6,9 +6,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, strictEqual, match } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -19,9 +16,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const serverCert = readKey('agent1-cert.pem');
-const serverKey = readKey('agent1-key.pem');
-const ca = readKey('ca1-cert.pem');
+const serverCert = fixtures.readKey('agent1-cert.pem');
+const serverKey = fixtures.readKey('agent1-key.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 const serverReceivedData = Promise.withResolvers();
 const clientReceivedData = Promise.withResolvers();
@@ -32,7 +29,7 @@ let clientHandshakeDone = false;
 // Start server.
 const endpoint = listen(mustCall((session) => {
   session.onmessage = mustCall((data) => {
-    strictEqual(data.toString(), 'hello from client');
+    assert.strictEqual(data.toString(), 'hello from client');
     serverReceivedData.resolve();
 
     // Send response back to client.
@@ -40,8 +37,8 @@ const endpoint = listen(mustCall((session) => {
   });
 
   session.onhandshake = mustCall((protocol) => {
-    ok(protocol);
-    match(protocol, /DTLS/i);
+    assert.ok(protocol);
+    assert.match(protocol, /DTLS/i);
     serverHandshakeDone = true;
   });
 }), {
@@ -52,8 +49,8 @@ const endpoint = listen(mustCall((session) => {
 });
 
 const serverAddress = endpoint.address;
-ok(serverAddress);
-ok(serverAddress.port > 0);
+assert.ok(serverAddress);
+assert.ok(serverAddress.port > 0);
 
 // Connect client.
 const clientSession = connect('127.0.0.1', serverAddress.port, {
@@ -62,18 +59,18 @@ const clientSession = connect('127.0.0.1', serverAddress.port, {
 });
 
 clientSession.onmessage = mustCall((data) => {
-  strictEqual(data.toString(), 'hello from server');
+  assert.strictEqual(data.toString(), 'hello from server');
   clientReceivedData.resolve();
 });
 
 clientSession.onhandshake = mustCall((protocol) => {
-  ok(protocol);
+  assert.ok(protocol);
   clientHandshakeDone = true;
 });
 
 // Wait for handshake.
 const { protocol } = await clientSession.opened;
-match(protocol, /DTLS/i);
+assert.match(protocol, /DTLS/i);
 
 // Send data.
 clientSession.send('hello from client');
@@ -82,8 +79,8 @@ clientSession.send('hello from client');
 await Promise.all([serverReceivedData.promise, clientReceivedData.promise]);
 
 // Verify handshakes completed.
-ok(clientHandshakeDone);
-ok(serverHandshakeDone);
+assert.ok(clientHandshakeDone);
+assert.ok(serverHandshakeDone);
 
 // Clean up.
 await clientSession.close();

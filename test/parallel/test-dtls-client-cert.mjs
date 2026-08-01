@@ -7,9 +7,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -20,9 +17,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 // Case 1: the client presents a certificate the server can verify.
 {
@@ -44,8 +41,8 @@ const ca = readKey('ca1-cert.pem').toString();
 
   // The server received and verified the client's certificate.
   const clientCert = serverSession.peerCertificate;
-  ok(clientCert);
-  ok(clientCert.includes('BEGIN CERTIFICATE'));
+  assert.ok(clientCert);
+  assert.ok(clientCert.includes('BEGIN CERTIFICATE'));
 
   await client.close();
   await server.close();
@@ -63,7 +60,7 @@ const ca = readKey('ca1-cert.pem').toString();
   });
 
   // The exact alert text varies, so assert only that the handshake is rejected.
-  await rejects(client.opened, {
+  await assert.rejects(client.opened, {
     message: /handshake failure/
   });
 
