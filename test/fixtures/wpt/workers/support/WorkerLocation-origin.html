@@ -1,0 +1,6 @@
+<script>
+const w = new Worker("./WorkerLocation.js");
+w.onmessage = e => {
+  parent.postMessage(e.data, "*");
+}
+</script>

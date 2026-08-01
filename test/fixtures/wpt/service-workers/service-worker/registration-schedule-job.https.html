@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name=timeout content=long>
+<title>Service Worker: Schedule Job algorithm</title>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// Tests for https://w3c.github.io/ServiceWorker/#schedule-job-algorithm
+// Non-equivalent register jobs should not be coalesced.
+const scope = 'resources/';
+const script1 = 'resources/empty.js';
+const script2 = 'resources/empty.js?change';
+
+async function cleanup() {
+  const registration = await navigator.serviceWorker.getRegistration(scope);
+  if (registration)
+    await registration.unregister();
+}
+
+function absolute_url(url) {
+  return new URL(url, self.location).toString();
+}
+
+// Test that a change to `script` starts a new register job.
+promise_test(async t => {
+  await cleanup();
+  t.add_cleanup(cleanup);
+
+  // Make a registration.
+  const registration = await
+      navigator.serviceWorker.register(script1, {scope});
+
+  // Schedule two more register jobs.
+  navigator.serviceWorker.register(script1, {scope});
+  await navigator.serviceWorker.register(script2, {scope});
+
+  // The jobs should not have been coalesced.
+  const worker = get_newest_worker(registration);
+  assert_equals(worker.scriptURL, absolute_url(script2));
+}, 'different scriptURL');
+
+// Test that a change to `updateViaCache` starts a new register job.
+promise_test(async t => {
+  await cleanup();
+  t.add_cleanup(cleanup);
+
+  // Check defaults.
+  const registration = await
+      navigator.serviceWorker.register(script1, {scope});
+  assert_equals(registration.updateViaCache, 'imports');
+
+  // Schedule two more register jobs.
+  navigator.serviceWorker.register(script1, {scope});
+  await navigator.serviceWorker.register(script1, {scope,
+      updateViaCache: 'none'});
+
+  // The jobs should not have been coalesced.
+  assert_equals(registration.updateViaCache, 'none');
+}, 'different updateViaCache');
+
+// Test that a change to `type` starts a new register job.
+promise_test(async t => {
+  await cleanup();
+  t.add_cleanup(cleanup);
+
+  const scriptForTypeCheck = 'resources/type-check-worker.js';
+  // Check defaults.
+  const registration = await
+      navigator.serviceWorker.register(scriptForTypeCheck, {scope});
+
+  let worker_type = await new Promise((resolve) => {
+    navigator.serviceWorker.onmessage = (event) => {
+      resolve(event.data);
+    };
+    // The jobs should not have been coalesced. get_newest_worker() helps the
+    // test fail with stable output on browers that incorrectly coalesce
+    // register jobs, since then sometimes registration is not a new worker as
+    // expected.
+    const worker = get_newest_worker(registration);
+    // The argument of postMessage doesn't matter for this case.
+    worker.postMessage('');
+  });
+
+  assert_equals(worker_type, 'classic');
+
+  // Schedule two more register jobs.
+  navigator.serviceWorker.register(scriptForTypeCheck, {scope});
+  await navigator.serviceWorker.register(scriptForTypeCheck, {scope, type: 'module'});
+
+  worker_type = await new Promise((resolve) => {
+    navigator.serviceWorker.onmessage = (event) => {
+      resolve(event.data);
+    };
+    // The jobs should not have been coalesced. get_newest_worker() helps the
+    // test fail with stable output on browers that incorrectly coalesce
+    // register jobs, since then sometimes registration is not a new worker as
+    // expected.
+    const worker = get_newest_worker(registration);
+    // The argument of postMessage doesn't matter for this case.
+    worker.postMessage('');
+  });
+
+  assert_equals(worker_type, 'module');
+}, 'different type');
+</script>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+// Sandboxed iframe forwards messages from its worker, this translates those
+// messages back to something fetch_tests_from_worker can parse.
+const channel = new MessageChannel();
+onmessage = e => {
+  channel.port2.postMessage(e.data);
+};
+fetch_tests_from_worker(channel.port1);
+channel.port1.start();
+</script>
+<iframe sandbox="allow-scripts" src="support/sandboxed-tests.html?pipe=sub"></iframe>
+</body>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<title>Service Worker: client.url of a worker created from a blob URL</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+const SCRIPT = 'resources/client-url-of-blob-url-worker.js';
+const SCOPE = 'resources/client-url-of-blob-url-worker.html';
+
+promise_test(async (t) => {
+  const reg = await service_worker_unregister_and_register(t, SCRIPT, SCOPE);
+  t.add_cleanup(_ => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  const frame = await with_iframe(SCOPE);
+  t.add_cleanup(_ => frame.remove());
+  assert_not_equals(frame.contentWindow.navigator.serviceWorker.controller,
+                    null, 'frame should be controlled');
+
+  const response = await frame.contentWindow.createAndFetchFromBlobWorker();
+
+  assert_not_equals(response.result, 'one worker client should exist',
+                    'worker client should exist');
+  assert_equals(response.result, response.expected,
+                'client.url and worker location href should be the same');
+
+}, 'Client.url of a blob URL worker should be a blob URL.');
+</script>

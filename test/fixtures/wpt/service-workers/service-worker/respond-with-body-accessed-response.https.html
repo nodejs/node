@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<title>Service Worker responds with .body accessed response.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+let frame;
+
+promise_test(t => {
+    const SCOPE = 'resources/respond-with-body-accessed-response-iframe.html';
+    const SCRIPT = 'resources/respond-with-body-accessed-response-worker.js';
+
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(reg => {
+          promise_test(t => {
+              if (frame)
+                frame.remove();
+              return reg.unregister();
+            }, 'restore global state');
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(() => { return with_iframe(SCOPE); })
+      .then(f => { frame = f; });
+  }, 'initialize global state');
+
+const TEST_CASES = [
+  "type=basic",
+  "type=opaque",
+  "type=default",
+  "type=basic&clone=1",
+  "type=opaque&clone=1",
+  "type=default&clone=1",
+  "type=basic&clone=2",
+  "type=opaque&clone=2",
+  "type=default&clone=2",
+  "type=basic&passThroughCache=true",
+  "type=opaque&passThroughCache=true",
+  "type=default&passThroughCache=true",
+  "type=basic&clone=1&passThroughCache=true",
+  "type=opaque&clone=1&passThroughCache=true",
+  "type=default&clone=1&passThroughCache=true",
+  "type=basic&clone=2&passThroughCache=true",
+  "type=opaque&clone=2&passThroughCache=true",
+  "type=default&clone=2&passThroughCache=true",
+];
+
+TEST_CASES.forEach(param => {
+    promise_test(t => {
+        const url = 'TestRequest?' + param;
+        return frame.contentWindow.getJSONP(url)
+          .then(result => { assert_equals(result, 'OK'); });
+      }, 'test: ' + param);
+  });
+</script>

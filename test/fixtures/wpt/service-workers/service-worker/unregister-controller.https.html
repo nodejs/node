@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var worker_url = 'resources/simple-intercept-worker.js';
+
+async_test(function(t) {
+    var scope =
+        'resources/unregister-controller-page.html?load-before-unregister';
+    var frame_window;
+    var controller;
+    var registration;
+    var frame;
+
+    service_worker_unregister_and_register(t, worker_url, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, r.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          frame_window = frame.contentWindow;
+          controller = frame_window.navigator.serviceWorker.controller;
+          assert_true(controller instanceof frame_window.ServiceWorker,
+                      'document should load with a controller');
+          return registration.unregister();
+        })
+      .then(function() {
+          assert_equals(frame_window.navigator.serviceWorker.controller,
+                        controller,
+                        'unregistration should not modify controller');
+          return frame_window.fetch_url('simple.txt');
+        })
+      .then(function(response) {
+          assert_equals(response, 'intercepted by service worker',
+                        'controller should intercept requests');
+          frame.remove();
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Unregister does not affect existing controller');
+
+async_test(function(t) {
+    var scope =
+        'resources/unregister-controller-page.html?load-after-unregister';
+    var registration;
+    var frame;
+
+    service_worker_unregister_and_register(t, worker_url, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, r.installing, 'activated');
+        })
+      .then(function() {
+          return registration.unregister();
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          var frame_window = frame.contentWindow;
+          assert_equals(frame_window.navigator.serviceWorker.controller, null,
+                        'document should not have a controller');
+          return frame_window.fetch_url('simple.txt');
+        })
+      .then(function(response) {
+          assert_equals(response, 'a simple text file\n',
+                        'requests should not be intercepted');
+          frame.remove();
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Unregister prevents control of subsequent navigations');
+
+async_test(function(t) {
+    var scope =
+        'resources/scope/no-new-controllee-even-if-registration-is-still-used';
+    var registration;
+
+    service_worker_unregister_and_register(t, worker_url, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, r.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+          return registration.unregister();
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+          assert_equals(frame.contentWindow.navigator.serviceWorker.controller,
+                        null,
+                        'document should not have a controller');
+          frame.remove();
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Unregister prevents new controllee even if registration is still in use');
+</script>

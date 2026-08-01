@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title> postMessage(): cloning source port </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var channel = new MessageChannel();
+  channel.port1.start();
+  assert_throws_dom("DataCloneError", function() {
+    channel.port1.postMessage("ports", [channel.port1]);
+  });
+});
+</script>

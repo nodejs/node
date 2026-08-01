@@ -1,0 +1,28 @@
+<!--
+/*
+-->
+<!doctype html>
+<title>location with a worker in separate file</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+async_test(function() {
+  var worker = new Worker('post-location-members.js?a#b?c');
+  worker.onmessage = this.step_func(function(e) {
+    assert_equals(e.data[0], location.href.replace(/\/[^\/]+$/, '/post-location-members.js?a#b?c'));
+    assert_equals(e.data[1], location.protocol);
+    assert_equals(e.data[2], location.host);
+    assert_equals(e.data[3], location.hostname);
+    assert_equals(e.data[4], location.port);
+    assert_equals(e.data[5], location.pathname.replace(/\/[^\/]+$/, '/post-location-members.js'));
+    assert_equals(e.data[6], '?a');
+    assert_equals(e.data[7], '#b?c');
+    this.done();
+  });
+});
+</script>
+<!--
+*/
+//-->
+

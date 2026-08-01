@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>Service Worker: Register() on Closed Window</title>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+var host_info = get_host_info();
+var frameURL = host_info['HTTPS_ORIGIN'] + base_path() +
+               'resources/register-closed-window-iframe.html';
+
+async_test(function(t) {
+  var frame;
+  with_iframe(frameURL).then(function(f) {
+    frame = f;
+    return new Promise(function(resolve) {
+      window.addEventListener('message', function messageHandler(evt) {
+        window.removeEventListener('message', messageHandler);
+        resolve(evt.data);
+      });
+      frame.contentWindow.postMessage('START', '*');
+    });
+  }).then(function(result) {
+    assert_equals(result, 'OK', 'frame should complete without crashing');
+    frame.remove();
+    t.done();
+  }).catch(unreached_rejection(t));
+}, 'Call register() on ServiceWorkerContainer owned by closed window.');
+
+</script>
+</body>

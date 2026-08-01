@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Use Clear-Site-Data to immediately unregister service workers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="resources/unregister-immediately-helpers.js"></script>
+<body>
+<script>
+'use strict';
+
+// These tests use the Clear-Site-Data network response header to immediately
+// unregister a service worker registration with a worker that has pending
+// extendable events.  Clear-Site-Data must delete the registration,
+// abort all pending extendable events and then clear the registration by
+// setting the worker's state to 'redundant'
+
+promise_test(async test => {
+  // Use a service worker script that can produce fetch events with pending
+  // respondWith() promises that never resolve.
+  const script_url = 'resources/onfetch-waituntil-forever.js';
+  const scope_url =
+    'resources/blank.html?unregister-immediately-with-fetch-event';
+
+  const registration = await service_worker_unregister_and_register(
+    test, script_url, scope_url);
+
+  await wait_for_state(test, registration.installing, 'activated');
+
+  const frame = await add_controlled_iframe(test, scope_url);
+
+  // Clear-Site-Data must cause the pending fetch promise to reject.
+  const fetch_promise = promise_rejects_js(
+    test, TypeError, frame.contentWindow.fetch('waituntil-forever'));
+
+  const event_watcher = new EventWatcher(
+    test, frame.contentWindow.navigator.serviceWorker, 'controllerchange');
+
+  await Promise.all([
+    clear_site_data(),
+    fetch_promise,
+    event_watcher.wait_for('controllerchange'),
+    wait_for_state(test, registration.active, 'redundant'),]);
+
+  assert_equals(frame.contentWindow.navigator.serviceWorker.controller, null);
+  await assert_no_registrations_exist();
+}, 'Clear-Site-Data must fail pending subresource fetch events.');
+
+</script>
+</body>

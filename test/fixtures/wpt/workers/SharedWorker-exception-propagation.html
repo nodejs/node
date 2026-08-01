@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<title>Uncaught error in shared worker should not propagate to window</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/workers.html#runtime-script-errors-2">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="support/SharedWorker-create-common.js"></script>
+<script>
+// Suppress the default handling of the error event so that a failure
+// manifests as a failed test and not a harness error.
+setup({ allow_uncaught_exception: true });
+
+async_test(function(t) {
+    addEventListener("error", t.unreached_func("error event fired"));
+    var worker = createWorker();
+    worker.postMessage("throw");
+    worker.postMessage("ping");
+    var pongs = 0;
+    worker.onmessage = function(evt) {
+        // Wait for response from ping - that's how we know we have thrown the exception.
+        if (evt.data == "PASS: Received ping message") {
+            pongs++;
+            if (pongs == 1) {
+                // Send another "ping" message and wait for the response before
+                // ending the test, so that any error propagation that is now
+                // in flight will have finished.
+                worker.postMessage("ping");
+            } else {
+                t.done();
+            }
+        }
+    };
+});
+</script>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Service Worker: Skip waiting without client</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+service_worker_test(
+    'resources/skip-waiting-worker.js',
+    'Test single skipWaiting() when no client attached');
+
+</script>

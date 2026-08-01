@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>iframe: cross-origin CSS via service worker</title>
+
+<!-- Service worker responds with a cross-origin opaque response. -->
+<link href="cross-origin-css.css" rel="stylesheet" type="text/css">
+
+<!-- Service worker responds with a cross-origin CORS approved response. -->
+<link href="cross-origin-css.css?cors" rel="stylesheet" type="text/css">
+
+<!-- Service worker falls back to network. This is a same-origin response. -->
+<link href="fetch-request-css-cross-origin-mime-check-same.css" rel="stylesheet" type="text/css">
+
+<!-- Service worker responds with a new Response() synthetic response. -->
+<link href="synthetic.css" rel="stylesheet" type="text/css">

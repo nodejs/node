@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: simply skip fetch handler for main resource if pattern matches
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script src="resources/static-router-helpers.sub.js"></script>
+<body>
+<script>
+const ROUTER_RULE_KEY = 'condition-urlpattern-constructed-source-network';
+const ROUTER_RULE_NOT_KEY = 'condition-urlpattern-not-source-network';
+const ROUTER_RULE_KEY_IGNORE_CASE =
+  'condition-urlpattern-constructed-ignore-case-source-network';
+const ROUTER_RULE_KEY_RESPECT_CASE =
+  'condition-urlpattern-constructed-respect-case-source-network';
+const ROUTER_RULE_KEY_URLPATTERN_CACHE =
+  'condition-urlpattern-string-source-cache';
+const ROUTER_RULE_KEY_REQUEST_CACHE = 'condition-request-navigate-source-cache';
+const ROUTER_RULE_KEY_URLPATTERN_CACHE_WITH_NAME =
+  'condition-urlpattern-string-source-cache-with-name';
+const REGISTERED_ROUTE = 'resources/direct.txt';
+const CACHED_ROUTE = 'resources/cache.txt';
+const NON_REGISTERED_ROUTE = 'resources/simple.html';
+const NOT_ROUTE = 'resources/not.txt';
+const host_info = get_host_info();
+const path = new URL(".", window.location).pathname;
+
+iframeTest(REGISTERED_ROUTE, ROUTER_RULE_KEY, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "Network\n");
+}, 'Main resource load matched with the condition');
+
+iframeTest(REGISTERED_ROUTE, ROUTER_RULE_KEY_IGNORE_CASE, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "Network\n");
+}, 'Main resource load matched with the ignore case condition');
+
+iframeTest(REGISTERED_ROUTE, ROUTER_RULE_KEY_RESPECT_CASE, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+}, 'Main resource load matched without the ignore case condition');
+
+iframeTest(NON_REGISTERED_ROUTE, ROUTER_RULE_KEY, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(
+    requests[0].url,
+    `${host_info['HTTPS_ORIGIN']}${path}${NON_REGISTERED_ROUTE}`);
+  assert_equals(requests[0].mode, 'navigate');
+}, 'Main resource load not matched with the condition');
+
+iframeTest(CACHED_ROUTE, ROUTER_RULE_KEY_URLPATTERN_CACHE, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "From cache");
+}, 'Main resource load matched with the cache source');
+
+iframeTest(NON_REGISTERED_ROUTE, ROUTER_RULE_KEY_REQUEST_CACHE, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  // When the request matched to the rule with the "cache" source but failed to
+  // get the cache entry, the fetch handler is not involved and the network
+  // fallback is triggered instead.
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "Here's a simple html file.");
+}, 'Main resource fallback to the network when there is no cache entry');
+
+iframeTest(CACHED_ROUTE, ROUTER_RULE_KEY_URLPATTERN_CACHE_WITH_NAME, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "From cache");
+}, 'Main resource load matched with the cache source, with specifying the cache name');
+
+iframeTest(NOT_ROUTE, ROUTER_RULE_NOT_KEY, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 1);
+  assert_equals(
+    requests[0].url,
+    `${host_info['HTTPS_ORIGIN']}${path}${NOT_ROUTE}`);
+  assert_equals(requests[0].mode, 'navigate');
+}, 'Main resource load should not match the condition with not');
+
+iframeTest(REGISTERED_ROUTE, ROUTER_RULE_NOT_KEY, async (t, iwin, worker) => {
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+  assert_equals(iwin.document.body.innerText, "Network\n");
+}, 'Main resource load should match the condition without not');
+</script>
+</body>

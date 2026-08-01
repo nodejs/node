@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<title>Service Worker: check referrer of top-level script fetch</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+
+async function get_toplevel_script_headers(worker) {
+  worker.postMessage("getHeaders");
+  return new Promise((resolve) => {
+    navigator.serviceWorker.onmessage = (event) => {
+      resolve(event.data);
+    };
+  });
+}
+
+promise_test(async (t) => {
+  const script = "resources/test-request-headers-worker.py";
+  const scope = "resources/blank.html";
+  const host_info = get_host_info();
+
+  const registration = await service_worker_unregister_and_register(
+    t, script, scope);
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+  await wait_for_state(t, registration.installing, "activated");
+
+  const expected_referrer = host_info["HTTPS_ORIGIN"] + location.pathname;
+
+  // Check referrer for register().
+  const register_headers = await get_toplevel_script_headers(registration.active);
+  assert_equals(register_headers["referer"], expected_referrer, "referrer of register()");
+
+  // Check referrer for update().
+  await registration.update();
+  await wait_for_state(t, registration.installing, "installed");
+  const update_headers = await get_toplevel_script_headers(registration.waiting);
+  assert_equals(update_headers["referer"], expected_referrer, "referrer of update()");
+}, "Referrer of the top-level script fetch should be the document URL");
+
+promise_test(async (t) => {
+  const script = "resources/test-request-headers-worker.py";
+  const scope = "resources/blank.html";
+  const host_info = get_host_info();
+
+  const registration = await service_worker_unregister_and_register(
+    t, script, scope, {type: 'module'});
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+  await wait_for_state(t, registration.installing, "activated");
+
+  const expected_referrer = host_info["HTTPS_ORIGIN"] + location.pathname;
+
+  // Check referrer for register().
+  const register_headers = await get_toplevel_script_headers(registration.active);
+  assert_equals(register_headers["referer"], expected_referrer, "referrer of register()");
+
+  // Check referrer for update().
+  await registration.update();
+  await wait_for_state(t, registration.installing, "installed");
+  const update_headers = await get_toplevel_script_headers(registration.waiting);
+  assert_equals(update_headers["referer"], expected_referrer, "referrer of update()");
+}, "Referrer of the module script fetch should be the document URL");
+</script>

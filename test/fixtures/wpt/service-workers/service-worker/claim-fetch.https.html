@@ -1,0 +1,90 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+async function tryFetch(fetchFunc, path) {
+  let response;
+  try {
+   response = await fetchFunc(path);
+  } catch (err) {
+    throw (`fetch() threw: ${err}`);
+  }
+
+  let responseText;
+  try {
+   responseText = await response.text();
+  } catch (err) {
+   throw (`text() threw: ${err}`);
+  }
+
+  return responseText;
+}
+
+promise_test(async function(t) {
+  const scope = 'resources/';
+  const script = 'resources/claim-worker.js';
+  const resource = 'simple.txt';
+
+  // Create the test frame.
+  const frame = await with_iframe('resources/blank.html');
+  t.add_cleanup(() => frame.remove());
+
+  // Check the controller and test with fetch.
+  assert_equals(frame.contentWindow.navigator.controller, undefined,
+                'Should have no controller.');
+  let response;
+  try {
+    response = await tryFetch(frame.contentWindow.fetch, resource);
+  } catch (err) {
+    assert_unreached(`uncontrolled fetch failed: ${err}`);
+  }
+  assert_equals(response, 'a simple text file\n',
+                'fetch() should not be intercepted.');
+
+  // Register a service worker.
+  const registration =
+    await service_worker_unregister_and_register(t, script, scope);
+  t.add_cleanup(() => registration.unregister());
+  const worker = registration.installing;
+  await wait_for_state(t, worker, 'activated');
+
+  // Register a controllerchange event to wait until the controller is updated
+  // and check if the frame is controlled by a service worker.
+  const controllerChanged = new Promise((resolve) => {
+    frame.contentWindow.navigator.serviceWorker.oncontrollerchange = () => {
+      resolve(frame.contentWindow.navigator.serviceWorker.controller);
+    };
+  });
+
+  // Tell the service worker to claim the iframe.
+  const sawMessage = new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = t.step_func((event) => {
+      resolve(event.data);
+    });
+    worker.postMessage({port: channel.port2}, [channel.port2]);
+  });
+  const data = await sawMessage;
+  assert_equals(data, 'PASS', 'Worker call to claim() should fulfill.');
+
+  // Check if the controller is updated after claim() and test with fetch.
+  const controller = await controllerChanged;
+  assert_true(controller instanceof frame.contentWindow.ServiceWorker,
+              'iframe should be controlled.');
+  try {
+    response = await tryFetch(frame.contentWindow.fetch, resource);
+  } catch (err) {
+    assert_unreached(`controlled fetch failed: ${err}`);
+  }
+  assert_equals(response, 'Intercepted!',
+                'fetch() should be intercepted.');
+}, 'fetch() should be intercepted after the client is claimed.');
+
+</script>
+</body>

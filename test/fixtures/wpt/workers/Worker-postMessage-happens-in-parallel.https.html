@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Test that calling "worker.postMessage()" will occur truly in parallel to the main JS thread performing other computation.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+promise_test(t => {
+  return new Promise(resolve => {
+    let worker = new Worker("support/Worker-postMessage-happens-in-parallel.js");
+    worker.postMessage('init');
+    worker.onmessage = () => {
+      let sab = new Uint8Array(new SharedArrayBuffer(16));
+      worker.postMessage(sab);
+      let end = performance.now() + 30*1000;
+      while(sab[0] != 1 && performance.now() < end) /*wait to join with the result*/;
+      assert_true(sab[0] == 1);
+      resolve();
+    };
+  });
+}, 'Tests that calling "worker.postMessage()" will occur truly in parallel to the main JS thread');
+</script>

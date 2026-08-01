@@ -1,0 +1,126 @@
+<script src="test-helpers.sub.js?pipe=sub"></script>
+<body>
+<script type="importmap">
+{
+  "integrity": {
+    "./sample?test_module": "sha384-foobar",
+    "./sample?test_modulepreload": "sha384-foobar",
+    "./sample?test_moduleimport": "sha384-foobar",
+    "./sample?test_moduleimportdynamic": "sha384-foobar"
+  }
+}
+</script>
+<script>
+
+function load_image(url, cross_origin) {
+  const img = document.createElement('img');
+  if (cross_origin != '') {
+    img.crossOrigin = cross_origin;
+  }
+  img.src = url;
+}
+
+function load_script(url, cross_origin) {
+  const script = document.createElement('script');
+  script.src = url;
+  if (cross_origin != '') {
+    script.crossOrigin = cross_origin;
+  }
+  document.body.appendChild(script);
+}
+
+function load_css(url, cross_origin) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet'
+  link.href = url;
+  link.type = 'text/css';
+  if (cross_origin != '') {
+    link.crossOrigin = cross_origin;
+  }
+  document.body.appendChild(link);
+}
+
+function load_font(url) {
+  const fontFace = new FontFace('test', 'url(' + url + ')');
+  fontFace.load();
+}
+
+function load_css_image(url, type) {
+  const div = document.createElement('div');
+  document.body.appendChild(div);
+  div.style[type] = 'url(' + url + ')';
+}
+
+function load_css_image_set(url, type) {
+  const div = document.createElement('div');
+  document.body.appendChild(div);
+  div.style[type] = 'image-set(url(' + url + ') 1x)';
+  if (!div.style[type]) {
+    div.style[type] = '-webkit-image-set(url(' + url + ') 1x)';
+  }
+}
+
+function load_script_with_integrity(url, integrity, type) {
+  const script = document.createElement('script');
+  if (type) {
+    script.type = type;
+  }
+  script.src = url;
+  if (integrity) {
+    script.integrity = integrity;
+  }
+  document.body.appendChild(script);
+}
+
+function import_modulescript(url) {
+  const script = document.createElement('script');
+  script.type = "module";
+  script.innerHTML = `import "${url}";`;
+  document.body.appendChild(script);
+}
+
+function import_dynamic_modulescript(url) {
+  const script = document.createElement('script');
+  script.type = "module";
+  script.innerHTML = `import("${url}");`;
+  document.body.appendChild(script);
+}
+
+function load_modulepreload_with_integrity(url, integrity) {
+  const link = document.createElement('link');
+  link.href = url;
+  if (integrity) {
+    link.integrity = integrity;
+  }
+  link.rel = "modulepreload";
+  document.body.appendChild(link);
+}
+
+function load_css_with_integrity(url, integrity) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet'
+  link.href = url;
+  link.type = 'text/css';
+  link.integrity = integrity;
+  document.body.appendChild(link);
+}
+
+function load_audio(url, cross_origin) {
+  const audio = document.createElement('audio');
+  if (cross_origin != '') {
+    audio.crossOrigin = cross_origin;
+  }
+  audio.src = url;
+  document.body.appendChild(audio);
+}
+
+function load_video(url, cross_origin) {
+  const video = document.createElement('video');
+  if (cross_origin != '') {
+    video.crossOrigin = cross_origin;
+  }
+  video.src = url;
+  document.body.appendChild(video);
+}
+</script>
+</body>

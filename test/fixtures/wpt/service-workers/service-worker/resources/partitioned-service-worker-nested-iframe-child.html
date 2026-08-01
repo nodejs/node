@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<title>Service Worker: Innermost nested iframe for partitioned service workers</title>
+<script src="./test-helpers.sub.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="./partitioned-utils.js"></script>
+
+<body>
+Innermost 1p iframe (A2) with 3p ancestor (A1-B-A2-A3): this iframe will
+register a service worker when it loads and then add its own iframe (A3) that
+will attempt to navigate to a url. ServiceWorker will intercept this navigation
+and resolve the ServiceWorker's internal Promise. When
+ThirdPartyStoragePartitioning is enabled, this iframe should be partitioned
+from the main frame and should not share a ServiceWorker.
+<script>
+
+async function onLoad() {
+  // Set-up the ServiceWorker for this iframe, defined in:
+  // service-workers/service-worker/resources/partitioned-utils.js
+  await setupServiceWorker();
+
+  // When the SW's iframe finishes it'll post a message. This forwards
+  // it up to the middle-iframe.
+  self.addEventListener('message', evt => {
+      window.parent.postMessage(evt.data, '*');
+  });
+
+  // Now that we have set up the ServiceWorker, we need it to
+  // intercept a navigation that will resolve its promise.
+  // To do this, we create an additional iframe to send that
+  // navigation request to resolve (`resolve.fakehtml`). If we're
+  // partitioned then there shouldn't be a promise to resolve. Defined
+  // in: service-workers/service-worker/resources/partitioned-storage-sw.js
+  const resolve_frame_url = new URL('./partitioned-resolve.fakehtml?FromNestedFrame', self.location);
+  const frame_resolve = await new Promise(resolve => {
+    var frame = document.createElement('iframe');
+    frame.src = resolve_frame_url;
+    frame.onload = function() { resolve(frame); };
+    document.body.appendChild(frame);
+  });
+}
+
+self.addEventListener('load', onLoad);
+</script>
+</body>

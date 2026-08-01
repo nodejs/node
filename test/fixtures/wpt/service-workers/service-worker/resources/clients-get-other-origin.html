@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js"></script>
+<script>
+var host_info = get_host_info();
+var SCOPE = 'blank.html?clients-get';
+var SCRIPT = 'clients-get-worker.js';
+
+var registration;
+var worker;
+var wait_for_worker_promise = navigator.serviceWorker.getRegistration(SCOPE)
+  .then(function(reg) {
+      if (reg)
+        return reg.unregister();
+    })
+  .then(function() {
+      return navigator.serviceWorker.register(SCRIPT, {scope: SCOPE});
+    })
+  .then(function(reg) {
+      registration = reg;
+      worker = reg.installing;
+      return new Promise(function(resolve) {
+          worker.addEventListener('statechange', function() {
+              if (worker.state == 'activated')
+                resolve();
+            });
+        });
+    });
+
+function send_result(result) {
+  window.parent.postMessage(
+      {result: result},
+      host_info['HTTPS_ORIGIN']);
+}
+
+window.addEventListener("message", on_message, false);
+
+function on_message(e) {
+  if (e.origin != host_info['HTTPS_ORIGIN']) {
+    console.error('invalid origin: ' + e.origin);
+    return;
+  }
+  if (e.data.message == 'get_client_id') {
+    var otherOriginClientId = e.data.clientId;
+    wait_for_worker_promise
+      .then(function() {
+          return with_iframe(SCOPE);
+        })
+      .then(function(iframe) {
+          var channel = new MessageChannel();
+          channel.port1.onmessage = function(e) {
+            navigator.serviceWorker.getRegistration(SCOPE)
+              .then(function(reg) {
+                  reg.unregister();
+                  send_result(e.data);
+                });
+          };
+          iframe.contentWindow.navigator.serviceWorker.controller.postMessage(
+              {port:channel.port2, clientId: otherOriginClientId,
+               message: 'get_other_client_id'}, [channel.port2]);
+        })
+  }
+}
+</script>

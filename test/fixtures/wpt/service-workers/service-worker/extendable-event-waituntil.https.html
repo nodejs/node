@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<title>ExtendableEvent: waitUntil</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function runTest(test, scope, onRegister) {
+  var script = 'resources/extendable-event-waituntil.js?' + scope;
+  return service_worker_unregister_and_register(test, script, scope)
+    .then(function(registration) {
+        test.add_cleanup(function() {
+            return service_worker_unregister(test, scope);
+          });
+
+        return onRegister(registration.installing);
+      });
+}
+
+// Sends a SYN to the worker and asynchronously listens for an ACK; sets
+// |obj.synced| to true once ack'd.
+function syncWorker(worker, obj) {
+  var channel = new MessageChannel();
+  worker.postMessage({port: channel.port2}, [channel.port2]);
+  return new Promise(function(resolve) {
+      channel.port1.onmessage = resolve;
+    }).then(function(e) {
+      var message = e.data;
+      assert_equals(message, 'SYNC',
+                    'Should receive sync message from worker.');
+      obj.synced = true;
+      channel.port1.postMessage('ACK');
+    });
+}
+
+promise_test(function(t) {
+    // Passing scope as the test switch for worker script.
+    var scope = 'resources/install-fulfilled';
+    var onRegister = function(worker) {
+        var obj = {};
+
+        return Promise.all([
+            syncWorker(worker, obj),
+            wait_for_state(t, worker, 'installed')
+          ]).then(function() {
+              assert_true(
+                obj.synced,
+                'state should be "installed" after the waitUntil promise ' +
+                    'for "oninstall" is fulfilled.');
+              service_worker_unregister_and_done(t, scope);
+            });
+      };
+    return runTest(t, scope, onRegister);
+  }, 'Test install event waitUntil fulfilled');
+
+promise_test(function(t) {
+    var scope = 'resources/install-multiple-fulfilled';
+    var onRegister = function(worker) {
+        var obj1 = {};
+        var obj2 = {};
+
+        return Promise.all([
+            syncWorker(worker, obj1),
+            syncWorker(worker, obj2),
+            wait_for_state(t, worker, 'installed')
+          ]).then(function() {
+              assert_true(
+                obj1.synced && obj2.synced,
+                'state should be "installed" after all waitUntil promises ' +
+                    'for "oninstall" are fulfilled.');
+            });
+      };
+    return runTest(t, scope, onRegister);
+  }, 'Test ExtendableEvent multiple waitUntil fulfilled.');
+
+promise_test(function(t) {
+    var scope = 'resources/install-reject-precedence';
+    var onRegister = function(worker) {
+        var obj1 = {};
+        var obj2 = {};
+
+        return Promise.all([
+            syncWorker(worker, obj1)
+              .then(function() {
+                  syncWorker(worker, obj2);
+                }),
+            wait_for_state(t, worker, 'redundant')
+          ]).then(function() {
+              assert_true(
+                obj1.synced,
+                'The "redundant" state was entered after the first "extend ' +
+                  'lifetime promise" resolved.'
+              );
+              assert_true(
+                obj2.synced,
+                'The "redundant" state was entered after the third "extend ' +
+                  'lifetime promise" resolved.'
+              );
+            });
+      };
+    return runTest(t, scope, onRegister);
+  }, 'Test ExtendableEvent waitUntil reject precedence.');
+
+promise_test(function(t) {
+    var scope = 'resources/activate-fulfilled';
+    var onRegister = function(worker) {
+        var obj = {};
+        return wait_for_state(t, worker, 'activating')
+          .then(function() {
+              return Promise.all([
+                syncWorker(worker, obj),
+                wait_for_state(t, worker, 'activated')
+              ]);
+            })
+          .then(function() {
+              assert_true(
+                obj.synced,
+                'state should be "activated" after the waitUntil promise ' +
+                    'for "onactivate" is fulfilled.');
+            });
+      };
+    return runTest(t, scope, onRegister);
+  }, 'Test activate event waitUntil fulfilled');
+
+promise_test(function(t) {
+    var scope = 'resources/install-rejected';
+    var onRegister = function(worker) {
+        return wait_for_state(t, worker, 'redundant');
+      };
+    return runTest(t, scope, onRegister);
+  }, 'Test install event waitUntil rejected');
+
+promise_test(function(t) {
+    var scope = 'resources/activate-rejected';
+    var onRegister = function(worker) {
+        return wait_for_state(t, worker, 'activated');
+      };
+    return runTest(t, scope, onRegister);
+  }, 'Test activate event waitUntil rejected.');
+
+</script>

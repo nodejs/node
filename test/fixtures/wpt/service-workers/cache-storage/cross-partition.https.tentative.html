@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<!-- Pull in executor_path needed by newPopup / newIframe -->
+<script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"></script>
+<!-- Pull in importScript / newPopup / newIframe -->
+<script src="/html/anonymous-iframe/resources/common.js"></script>
+<body>
+<script>
+
+const cache_exists_js = (cache_name, response_queue_name) => `
+  try {
+    const exists = await self.caches.has("${cache_name}");
+    if (exists) {
+      await send("${response_queue_name}", "true");
+    } else {
+      await send("${response_queue_name}", "false");
+    }
+  } catch {
+    await send("${response_queue_name}", "exception");
+  }
+`;
+
+const add_iframe_js = (iframe_origin, response_queue_uuid) => `
+  const importScript = ${importScript};
+  await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                   "/resources/common.js");
+  await importScript("/html/anonymous-iframe/resources/common.js");
+  await importScript("/common/utils.js");
+  await send("${response_queue_uuid}", newIframe("${iframe_origin}"));
+`;
+
+const same_site_origin = get_host_info().HTTPS_ORIGIN;
+const cross_site_origin = get_host_info().HTTPS_NOTSAMESITE_ORIGIN;
+
+async function create_test_iframes(t, response_queue_uuid) {
+
+  // Create a same-origin iframe in a cross-site popup.
+  const not_same_site_popup_uuid = newPopup(t, cross_site_origin);
+  await send(not_same_site_popup_uuid,
+       add_iframe_js(same_site_origin, response_queue_uuid));
+  const iframe_1_uuid = await receive(response_queue_uuid);
+
+  // Create a same-origin iframe in a same-site popup.
+  const same_origin_popup_uuid = newPopup(t, same_site_origin);
+  await send(same_origin_popup_uuid,
+       add_iframe_js(same_site_origin, response_queue_uuid));
+  const iframe_2_uuid = await receive(response_queue_uuid);
+
+  return [iframe_1_uuid, iframe_2_uuid];
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response_queue_uuid = token();
+
+      const [iframe_1_uuid, iframe_2_uuid] =
+        await create_test_iframes(t, response_queue_uuid);
+
+      const cache_name = token();
+      await self.caches.open(cache_name);
+      t.add_cleanup(() => self.caches.delete(cache_name));
+
+      await send(iframe_2_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "true") {
+        reject("Cache not visible in same-top-level-site iframe");
+      }
+
+      await send(iframe_1_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "false") {
+        reject("Cache visible in not-same-top-level-site iframe");
+      }
+
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "CacheStorage caches shouldn't be shared with a cross-partition iframe");
+
+const newWorker = (origin) => {
+  const worker_token = token();
+  const worker_url = origin + executor_worker_path + `&uuid=${worker_token}`;
+  const worker = new Worker(worker_url);
+  return worker_token;
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response_queue_uuid = token();
+
+      const create_worker_js = (origin) => `
+        const importScript = ${importScript};
+        await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                         "/resources/common.js");
+        await importScript("/html/anonymous-iframe/resources/common.js");
+        await importScript("/common/utils.js");
+        const newWorker = ${newWorker};
+        await send("${response_queue_uuid}", newWorker("${origin}"));
+      `;
+
+      const [iframe_1_uuid, iframe_2_uuid] =
+        await create_test_iframes(t, response_queue_uuid);
+
+      // Create a dedicated worker in the cross-top-level-site iframe.
+      await send(iframe_1_uuid, create_worker_js(same_site_origin));
+      const worker_1_uuid = await receive(response_queue_uuid);
+
+      // Create a dedicated worker in the same-top-level-site iframe.
+      await send(iframe_2_uuid, create_worker_js(same_site_origin));
+      const worker_2_uuid = await receive(response_queue_uuid);
+
+      const cache_name = token();
+      await self.caches.open(cache_name);
+      t.add_cleanup(() => self.caches.delete(cache_name));
+
+      await send(worker_2_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "true") {
+        reject("Cache not visible in same-top-level-site worker");
+      }
+
+      await send(worker_1_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "false") {
+        reject("Cache visible in not-same-top-level-site worker");
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "CacheStorage caches shouldn't be shared with a cross-partition dedicated worker");
+
+const newSharedWorker = (origin) => {
+  const worker_token = token();
+  const worker_url = origin + executor_worker_path + `&uuid=${worker_token}`;
+  const worker = new SharedWorker(worker_url, worker_token);
+  return worker_token;
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response_queue_uuid = token();
+
+      const create_worker_js = (origin) => `
+        const importScript = ${importScript};
+        await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                         "/resources/common.js");
+        await importScript("/html/anonymous-iframe/resources/common.js");
+        await importScript("/common/utils.js");
+        const newSharedWorker = ${newSharedWorker};
+        await send("${response_queue_uuid}", newSharedWorker("${origin}"));
+      `;
+
+      const [iframe_1_uuid, iframe_2_uuid] =
+        await create_test_iframes(t, response_queue_uuid);
+
+      // Create a shared worker in the cross-top-level-site iframe.
+      await send(iframe_1_uuid, create_worker_js(same_site_origin));
+      const worker_1_uuid = await receive(response_queue_uuid);
+
+      // Create a shared worker in the same-top-level-site iframe.
+      await send(iframe_2_uuid, create_worker_js(same_site_origin));
+      const worker_2_uuid = await receive(response_queue_uuid);
+
+      const cache_name = token();
+      await self.caches.open(cache_name);
+      t.add_cleanup(() => self.caches.delete(cache_name));
+
+      await send(worker_2_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "true") {
+        reject("Cache not visible in same-top-level-site worker");
+      }
+
+      await send(worker_1_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "false") {
+        reject("Cache visible in not-same-top-level-site worker");
+      }
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "CacheStorage caches shouldn't be shared with a cross-partition shared worker");
+
+const newServiceWorker = async (origin) => {
+  const worker_token = token();
+  const worker_url = origin + executor_service_worker_path +
+                     `&uuid=${worker_token}`;
+  const worker_url_path = executor_service_worker_path.substring(0,
+                              executor_service_worker_path.lastIndexOf('/'));
+  const scope = worker_url_path + "/not-used/";
+  const reg = await navigator.serviceWorker.register(worker_url,
+                                                     {'scope': scope});
+  return worker_token;
+}
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response_queue_uuid = token();
+
+      const create_worker_js = (origin) => `
+        const importScript = ${importScript};
+        await importScript("/html/cross-origin-embedder-policy/credentialless" +
+                         "/resources/common.js");
+        await importScript("/html/anonymous-iframe/resources/common.js");
+        await importScript("/common/utils.js");
+        const newServiceWorker = ${newServiceWorker};
+        await send("${response_queue_uuid}", await newServiceWorker("${origin}"));
+      `;
+
+      const [iframe_1_uuid, iframe_2_uuid] =
+        await create_test_iframes(t, response_queue_uuid);
+
+      // Create a service worker in the same-top-level-site iframe.
+      await send(iframe_2_uuid, create_worker_js(same_site_origin));
+      const worker_2_uuid = await receive(response_queue_uuid);
+
+      t.add_cleanup(() =>
+        send(worker_2_uuid, "self.registration.unregister();"));
+
+      const cache_name = token();
+      await self.caches.open(cache_name);
+      t.add_cleanup(() => self.caches.delete(cache_name));
+
+      await send(worker_2_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "true") {
+        reject("Cache not visible in same-top-level-site worker");
+      }
+
+      // Create a service worker in the cross-top-level-site iframe. Note that
+      // if service workers are unpartitioned then this new service worker would
+      // replace the one created above. This is why we wait to create the second
+      // service worker until after we are done with the first one.
+      await send(iframe_1_uuid, create_worker_js(same_site_origin));
+      const worker_1_uuid = await receive(response_queue_uuid);
+
+      t.add_cleanup(() =>
+        send(worker_1_uuid, "self.registration.unregister();"));
+
+      await send(worker_1_uuid,
+           cache_exists_js(cache_name, response_queue_uuid));
+      if (await receive(response_queue_uuid) !== "false") {
+        reject("Cache visible in not-same-top-level-site worker");
+      }
+
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "CacheStorage caches shouldn't be shared with a cross-partition service worker");
+</script>
+</body>

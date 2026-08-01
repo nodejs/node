@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>data URL shared workers</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+function assert_worker_sends_pass(test_desc, mime_type, worker_code) {
+  async_test(function(t) {
+    var w = new SharedWorker(`data:${mime_type},onconnect = function(e) { port = e.ports[0]; ${worker_code}}`);
+    w.port.onmessage = t.step_func_done(function(e) {
+      assert_equals(e.data, 'PASS');
+    });
+    w.port.postMessage('SEND_PASS');
+  }, test_desc);
+}
+
+function assert_worker_throws(test_desc, worker_code) {
+  assert_worker_sends_pass(test_desc, '', `try { ${worker_code}; port.postMessage("FAIL"); } catch (e) { port.postMessage("PASS"); }`);
+}
+
+// Any MIME type allowed
+assert_worker_sends_pass('application/javascript MIME allowed', 'application/javascript', 'port.postMessage("PASS")');
+assert_worker_sends_pass('text/plain MIME allowed', 'text/plain', 'port.postMessage("PASS")');
+assert_worker_sends_pass('empty MIME allowed', '', 'port.postMessage("PASS")');
+
+// Communications goes both ways
+assert_worker_sends_pass('communication goes both ways', 'application/javascript', 'port.onmessage = function(e) { port.postMessage("PASS"); }');
+
+// test access to storage APIs
+
+// https://w3c.github.io/IndexedDB/#dom-idbfactory-open
+assert_worker_sends_pass('indexedDB is present', '', 'port.postMessage("indexedDB" in self ? "PASS" : "FAIL")');
+assert_worker_throws('indexedDB is inaccessible', 'self.indexedDB.open("someDBName")');
+// Other standardized storage APIs are either not exposed to workers
+// (e.g. window.localStorage, window.sessionStorage), or are [SecureContext]
+// (e.g. self.caches).
+
+// 'data:' workers are cross-origin
+assert_worker_sends_pass('cross-origin worker', '', 'fetch("/").then(() => port.postMessage("FAIL"), () => port.postMessage("PASS"))');
+
+// 'data:' workers have opaque origin
+assert_worker_sends_pass('worker has opaque origin', 'application/javascript', 'port.postMessage(self.location.origin == "null" ?  "PASS" : "FAIL")');
+
+function openWindow(url) {
+  return new Promise(resolve => {
+    const win = window.open(url, '_blank');
+    add_completion_callback(() => win.close());
+    window.onmessage = e => {
+      assert_equals(e.data, 'LOADED');
+      resolve(win);
+    };
+  });
+}
+
+promise_test(() => {
+  const kWindowURL = 'data-url-shared-window.html';
+  const kRemoteWindowURL = get_host_info().HTTP_REMOTE_ORIGIN +
+                           '/workers/data-url-shared-window.html';
+  return openWindow(kWindowURL)
+    .then(win => {
+        const channel = new MessageChannel;
+        win.postMessage(channel.port1, '*', [channel.port1]);
+        return new Promise(resolve => channel.port2.onmessage = resolve);
+      })
+    .then(msg_event => {
+        assert_equals(msg_event.data, 1);
+        return openWindow(kRemoteWindowURL);
+      })
+    .then(win => {
+        const channel = new MessageChannel;
+        win.postMessage(channel.port1, '*', [channel.port1]);
+        return new Promise(resolve => channel.port2.onmessage = resolve);
+      })
+    .then(msg_event => assert_equals(msg_event.data, 1));
+}, 'A data: URL shared worker should not be shared among origins.');
+
+</script>

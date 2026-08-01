@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: parse error failure</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script> setup({allow_uncaught_exception: true}); </script>
+<script src="../support/check-error-arguments.js"></script>
+<script>
+
+// Check if module scripts are supported on dedicated workers. There is no
+// direct way to detect it, so we assume it's supported when static import is
+// available on the workers.
+//
+// This check is necessary to appropriately test parse error handling because
+// we need to distinguish the parse error invoked by unsupported "import" in
+// the top-level script from the parse error invoked by the statically imported
+// script which is the one we want to check in this test.
+promise_setup(async () => {
+  const scriptURL = 'resources/static-import-worker.js';
+  const worker = new Worker(scriptURL, { type: 'module' });
+  worker.postMessage('Send message for tests from main script.');
+  const supportsModuleWorkers = await new Promise((resolve, reject) => {
+    worker.onmessage = e => {
+      resolve(e.data.length == 1 && e.data[0] == 'export-on-load-script.js');
+    };
+    worker.onerror = () => resolve(false);
+  });
+  assert_implements(
+    supportsModuleWorkers,
+    "Static import must be supported on module dedicated worker to run this test."
+  );
+});
+
+promise_test(async () => {
+  const scriptURL = 'resources/syntax-error.js';
+  const worker = new Worker(scriptURL, { type: 'module' });
+  const args = await new Promise(resolve =>
+      worker.onerror = (...args) => resolve(args));
+  window.checkErrorArguments(args);
+}, 'Module worker construction for script with syntax error should dispatch ' +
+   'an event named error.');
+
+promise_test(async () => {
+  const scriptURL = 'resources/static-import-syntax-error.js';
+  const worker = new Worker(scriptURL, { type: 'module' });
+  const args = await new Promise(resolve =>
+      worker.onerror = (...args) => resolve(args));
+  window.checkErrorArguments(args);
+}, 'Static import on module worker for script with syntax error should ' +
+   'dispatch an event named error.');
+
+</script>

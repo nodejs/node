@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: ES modules for data URL workers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+const import_from_data_url_worker_test = (importType, isDataURL, expectation) => {
+  promise_test(async () => {
+    const importURL = new URL(`resources/${importType}-import-` +
+        `${isDataURL ? 'data-url' : 'script'}-block-cross-origin.js`,
+        location.href) + '?pipe=header(Access-Control-Allow-Origin, *)';
+    const dataURL = `data:text/javascript,import "${importURL}";`;
+    const worker = new Worker(dataURL, { type: 'module' });
+    worker.postMessage('Send message for tests from main script.');
+    const msgEvent = await new Promise((resolve, reject) =>{
+        worker.onmessage = resolve;
+        worker.onerror = reject;
+    }).catch(e => assert_true(false));
+    assert_array_equals(msgEvent.data,
+        expectation === 'blocked' ? ['ERROR']
+                                  : ['export-block-cross-origin.js']);
+  }, `${importType} import ${isDataURL ? 'data url' : 'script'} from data: ` +
+     `URL should be ${expectation}.`);
+}
+
+// Static import should obey the outside settings.
+// SecurityOrigin of the outside settings is decided by Window.
+import_from_data_url_worker_test('static', true, 'allowed');
+import_from_data_url_worker_test('static', false, 'allowed');
+
+
+// Dynamic import should obey the inside settings.
+// SecurityOrigin of the inside settings is a unique opaque origin.
+//
+// Data url script is cross-origin to the inside settings' SecurityOrigin, but
+// dynamic importing it is allowed.
+// https://fetch.spec.whatwg.org/#concept-main-fetch
+// Step 5: request’s current URL’s scheme is "data" [spec text]
+import_from_data_url_worker_test('dynamic', true, 'allowed');
+
+// Non-data url script is cross-origin to the inside settings' SecurityOrigin.
+// It should be blocked.
+import_from_data_url_worker_test('dynamic', false, 'blocked');
+
+</script>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<title>Service Worker: Navigate a Window</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+var host_info = get_host_info();
+var BASE_URL = host_info['HTTPS_ORIGIN'] + base_path();
+
+function wait_for_message(msg) {
+  return new Promise(function(resolve, reject) {
+    window.addEventListener('message', function onMsg(evt) {
+      if (evt.data.type === msg) {
+        resolve();
+      }
+    });
+  });
+}
+
+function with_window(url) {
+  var win = window.open(url);
+  return wait_for_message('LOADED').then(_ => win);
+}
+
+function navigate_window(win, url) {
+  win.location = url;
+  return wait_for_message('LOADED').then(_ => win);
+}
+
+function reload_window(win) {
+  win.location.reload();
+  return wait_for_message('LOADED').then(_ => win);
+}
+
+function go_back(win) {
+  win.history.back();
+  return wait_for_message('PAGESHOW').then(_ => win);
+}
+
+function go_forward(win) {
+  win.history.forward();
+  return wait_for_message('PAGESHOW').then(_ => win);
+}
+
+function get_clients(win, sw, opts) {
+  return new Promise((resolve, reject) => {
+    win.navigator.serviceWorker.addEventListener('message', function onMsg(evt) {
+      win.navigator.serviceWorker.removeEventListener('message', onMsg);
+      if (evt.data.type === 'success') {
+        resolve(evt.data.detail);
+      } else {
+        reject(evt.data.detail);
+      }
+    });
+    sw.postMessage({ type: 'GET_CLIENTS', opts: (opts || {}) });
+  });
+}
+
+function compare_urls(a, b) {
+  return a.url < b.url ? -1 : b.url < a.url ? 1 : 0;
+}
+
+function validate_window(win, url, opts) {
+  return win.navigator.serviceWorker.getRegistration(url)
+    .then(reg => {
+        // In order to compare service worker instances we need to
+        // make sure the DOM object is owned by the same global; the
+        // opened window in this case.
+        assert_equals(win.navigator.serviceWorker.controller, reg.active,
+                      'window should be controlled by service worker');
+        return get_clients(win, reg.active, opts);
+      })
+    .then(resultList => {
+        // We should always see our controlled window.
+        var expected = [
+          { url: url, frameType: 'auxiliary' }
+        ];
+        // If we are including uncontrolled windows, then we might see the
+        // test window itself and the test harness.
+        if (opts.includeUncontrolled) {
+          expected.push({ url: BASE_URL + 'navigate-window.https.html',
+                          frameType: 'auxiliary' });
+          expected.push({
+            url: host_info['HTTPS_ORIGIN'] + '/testharness_runner.html',
+            frameType: 'top-level' });
+        }
+
+        assert_equals(resultList.length, expected.length,
+                      'expected number of clients');
+
+        expected.sort(compare_urls);
+        resultList.sort(compare_urls);
+
+        for (var i = 0; i < resultList.length; ++i) {
+          assert_equals(resultList[i].url, expected[i].url,
+                        'client should have expected url');
+          assert_equals(resultList[i].frameType, expected[i].frameType,
+                        'client should have expected frame type');
+        }
+        return win;
+      })
+}
+
+promise_test(function(t) {
+    var worker = BASE_URL + 'resources/navigate-window-worker.js';
+    var scope = BASE_URL + 'resources/loaded.html?navigate-window-controlled';
+    var url1 = scope + '&q=1';
+    var url2 = scope + '&q=2';
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(reg => wait_for_state(t, reg.installing, 'activated') )
+      .then(___ => with_window(url1))
+      .then(win => validate_window(win, url1, { includeUncontrolled: false }))
+      .then(win => navigate_window(win, url2))
+      .then(win => validate_window(win, url2, { includeUncontrolled: false }))
+      .then(win => go_back(win))
+      .then(win => validate_window(win, url1, { includeUncontrolled: false }))
+      .then(win => go_forward(win))
+      .then(win => validate_window(win, url2, { includeUncontrolled: false }))
+      .then(win => reload_window(win))
+      .then(win => validate_window(win, url2, { includeUncontrolled: false }))
+      .then(win => win.close())
+      .catch(unreached_rejection(t))
+      .then(___ => service_worker_unregister(t, scope))
+  }, 'Clients.matchAll() should not show an old window as controlled after ' +
+     'it navigates.');
+
+promise_test(function(t) {
+    var worker = BASE_URL + 'resources/navigate-window-worker.js';
+    var scope = BASE_URL + 'resources/loaded.html?navigate-window-uncontrolled';
+    var url1 = scope + '&q=1';
+    var url2 = scope + '&q=2';
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(reg => wait_for_state(t, reg.installing, 'activated') )
+      .then(___ => with_window(url1))
+      .then(win => validate_window(win, url1, { includeUncontrolled: true }))
+      .then(win => navigate_window(win, url2))
+      .then(win => validate_window(win, url2, { includeUncontrolled: true }))
+      .then(win => go_back(win))
+      .then(win => validate_window(win, url1, { includeUncontrolled: true }))
+      .then(win => go_forward(win))
+      .then(win => validate_window(win, url2, { includeUncontrolled: true }))
+      .then(win => reload_window(win))
+      .then(win => validate_window(win, url2, { includeUncontrolled: true }))
+      .then(win => win.close())
+      .catch(unreached_rejection(t))
+      .then(___ => service_worker_unregister(t, scope))
+  }, 'Clients.matchAll() should not show an old window after it navigates.');
+</script>
+</body>

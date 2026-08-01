@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<title>Service Worker: Registration</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+function fetch_url(url) {
+  return new Promise(function(resolve, reject) {
+      var request = new XMLHttpRequest();
+      request.addEventListener('load', function(event) {
+          if (request.status == 200)
+            resolve(request.response);
+          else
+            reject(Error(request.statusText));
+        });
+      request.open('GET', url);
+      request.send();
+    });
+}
+var worker = 'resources/fail-on-fetch-worker.js';
+
+promise_test(function(t) {
+    var scope = 'resources/scope/uncontrolled-page/';
+    return service_worker_unregister_and_register(t, worker, scope)
+      .then(function(reg) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, reg.installing, 'activated');
+        })
+      .then(function() {
+          return fetch_url('resources/simple.txt');
+        })
+      .then(function(text) {
+          assert_equals(text, 'a simple text file\n');
+        });
+  }, 'Fetch events should not go through uncontrolled page.');
+</script>

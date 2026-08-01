@@ -1,0 +1,62 @@
+<!doctype html>
+<title>same-origin checks</title>
+<meta name="timeout" content="long">
+<link rel=help href="https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+// Needed to prevent a race condition if a worker throws an exception that may or may
+// not propogate to the window before the tests finish
+setup({allow_uncaught_exception: true});
+
+testSharedWorkerHelper = (t, script) => {
+  const worker = new SharedWorker(script, '');
+  worker.onerror = t.step_func_done(e => {
+    assert_true(e instanceof Event);
+  });
+}
+
+test(() => {
+  assert_throws_dom("SyntaxError", () => { new SharedWorker('https://test:test', ''); });
+}, "non-parsable URL");
+
+async_test(t => {
+  // Parses fine as a URL, fails to fetch according to Fetch
+  testSharedWorkerHelper(t, 'unsupported:');
+}, "unsupported_scheme");
+
+async_test(t => {
+  const worker = new SharedWorker('data:,onconnect = e => { e.ports[0].postMessage(1); }', '');
+  worker.port.onmessage = t.step_func_done(e => {
+    assert_equals(e.data, 1);
+  });
+}, "data_url");
+
+async_test(t => {
+  testSharedWorkerHelper(t, 'javascript:""');
+}, "javascript_url");
+
+async_test(t => {
+  testSharedWorkerHelper(t, 'about:blank');
+}, "about_blank");
+
+async_test(t => {
+  testSharedWorkerHelper(t, 'http://www.opera.com/');
+}, "opera_com");
+
+async_test(t => {
+  testSharedWorkerHelper(t, location.protocol+'//'+location.hostname+':81/');
+}, "port_81");
+
+async_test(t => {
+  testSharedWorkerHelper(t, 'https://'+location.hostname+':80/');
+}, "https_port_80");
+
+async_test(t => {
+  testSharedWorkerHelper(t, 'https://'+location.hostname+':8000/');
+}, "https_port_8000");
+
+async_test(t => {
+  testSharedWorkerHelper(t, 'http://'+location.hostname+':8012/');
+}, "http_port_8012");
+</script>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title> AbstractWorker ErrorEvent.type </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+// The worker events races with the window's load event; if the worker events
+// arrive first, the harness will detect the error event and fail the test.
+setup({ allow_uncaught_exception: true });
+
+async_test(function(t) {
+  var worker = new Worker('./support/ErrorEvent.js');
+  worker.onerror = t.step_func_done(function(e) {
+    assert_class_string(e, 'ErrorEvent');
+    assert_equals(e.type, 'error');
+  });
+  worker.postMessage("Error Message");
+});
+</script>

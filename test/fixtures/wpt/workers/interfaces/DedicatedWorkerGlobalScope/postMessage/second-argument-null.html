@@ -1,0 +1,14 @@
+<!doctype html>
+<title>Using null in postMessage's second argument</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+(async_test()).step(function() {
+  var worker = new Worker('second-argument-null.js');
+  worker.onmessage = this.step_func(function(e) {
+    assert_equals(1, e.data);
+    this.done();
+  });
+});
+</script>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>iframe for embed-and-object-are-not-intercepted test</title>
+<body>
+<script>
+// The EMBED element will call this with the result about whether the EMBED
+// request was intercepted by the service worker.
+var report_result;
+
+// Our parent (the root frame of the test) will examine this to get the result.
+var test_promise = new Promise(resolve => {
+    report_result = resolve;
+  });
+
+let el = document.createElement('embed');
+el.src = "/common/blank.html";
+el.addEventListener('load', _ => {
+  window[0].location = "/service-workers/service-worker/resources/embedded-content-from-server.html";
+}, { once: true });
+document.body.appendChild(el);
+</script>
+
+</body>

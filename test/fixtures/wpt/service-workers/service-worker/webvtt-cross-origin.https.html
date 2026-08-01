@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>cross-origin webvtt returned by service worker is detected</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<body>
+<script>
+// This file tests responses for WebVTT text track from a service worker. It
+// creates an iframe with a <track> element, controlled by a service worker.
+// Each test tries to load a text track, the service worker intercepts the
+// requests and responds with opaque or non-opaque responses. As the
+// crossorigin attribute is not set, request's mode is always "same-origin",
+// and as specified in https://fetch.spec.whatwg.org/#http-fetch,
+// a response from a service worker whose type is neither "basic" nor
+// "default" is rejected.
+
+const host_info = get_host_info();
+const kScript = 'resources/fetch-rewrite-worker.js';
+// Add '?ignore' so the service worker falls back for the navigation.
+const kScope = 'resources/vtt-frame.html?ignore';
+let frame;
+
+function load_track(url) {
+  const track = frame.contentDocument.querySelector('track');
+  const result = new Promise((resolve, reject) => {
+      track.onload = (e => {
+          resolve('load event');
+        });
+      track.onerror = (e => {
+          resolve('error event');
+        });
+    });
+
+  track.src = url;
+  // Setting mode to hidden seems needed, or else the text track requests don't
+  // occur.
+  track.track.mode = 'hidden';
+  return result;
+}
+
+promise_test(t => {
+    return service_worker_unregister_and_register(t, kScript, kScope)
+      .then(registration => {
+          promise_test(() => {
+              frame.remove();
+              return registration.unregister();
+            }, 'restore global state');
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => {
+          return with_iframe(kScope);
+        })
+      .then(f => {
+          frame = f;
+        })
+  }, 'initialize global state');
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a same-origin URL.
+    url += '?url=' + host_info.HTTPS_ORIGIN + '/media/foo.vtt';
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'load event');
+        });
+  }, 'same-origin text track should load');
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a cross-origin URL.
+    url += '?url=' + get_host_info().HTTPS_REMOTE_ORIGIN + '/media/foo.vtt';
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'error event');
+        });
+  }, 'cross-origin text track with no-cors request should not load');
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a cross-origin URL that
+    // doesn't support CORS.
+    url += '?url=' + get_host_info().HTTPS_REMOTE_ORIGIN +
+        '/media/foo-no-cors.vtt';
+    // Add '&mode' to tell the service worker to do a CORS request.
+    url += '&mode=cors';
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'error event');
+        });
+  }, 'cross-origin text track with rejected cors request should not load');
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a cross-origin URL.
+    url += '?url=' + get_host_info().HTTPS_REMOTE_ORIGIN + '/media/foo.vtt';
+    // Add '&mode' to tell the service worker to do a CORS request.
+    url += '&mode=cors';
+    // Add '&credentials=same-origin' to allow Access-Control-Allow-Origin=* so
+    // that CORS will succeed if the service approves it.
+    url += '&credentials=same-origin';
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'error event');
+        });
+  }, 'cross-origin text track with approved cors request should not load');
+
+// Redirect tests.
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a same-origin URL that redirects...
+    redirector_url = host_info.HTTPS_ORIGIN + base_path() + 'resources/redirect.py?Redirect=';
+    // ... to a same-origin URL.
+    redirect_target = host_info.HTTPS_ORIGIN + '/media/foo.vtt';
+    url += '?url=' + encodeURIComponent(redirector_url + encodeURIComponent(redirect_target));
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'load event');
+        });
+  }, 'same-origin text track that redirects same-origin should load');
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a same-origin URL that redirects...
+    redirector_url = host_info.HTTPS_ORIGIN + base_path() + 'resources/redirect.py?Redirect=';
+    // ... to a cross-origin URL.
+    redirect_target = host_info.HTTPS_REMOTE_ORIGIN + '/media/foo.vtt';
+    url += '?url=' + encodeURIComponent(redirector_url + encodeURIComponent(redirect_target));
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'error event');
+        });
+  }, 'same-origin text track that redirects cross-origin should not load');
+
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a same-origin URL that redirects...
+    redirector_url = host_info.HTTPS_ORIGIN + base_path() + 'resources/redirect.py?Redirect=';
+    // ... to a cross-origin URL.
+    redirect_target = host_info.HTTPS_REMOTE_ORIGIN + '/media/foo-no-cors.vtt';
+    url += '?url=' + encodeURIComponent(redirector_url + encodeURIComponent(redirect_target));
+    // Add '&mode' to tell the service worker to do a CORS request.
+    url += '&mode=cors';
+    // Add '&credentials=same-origin' to allow Access-Control-Allow-Origin=* so
+    // that CORS will succeed if the server approves it.
+    url += '&credentials=same-origin';
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'error event');
+        });
+  }, 'same-origin text track that redirects to a cross-origin text track with rejected cors should not load');
+
+promise_test(t => {
+    let url = '/media/foo.vtt';
+    // Add '?url' and tell the service worker to fetch a same-origin URL that redirects...
+    redirector_url = host_info.HTTPS_ORIGIN + base_path() + 'resources/redirect.py?Redirect=';
+    // ... to a cross-origin URL.
+    redirect_target = host_info.HTTPS_REMOTE_ORIGIN + '/media/foo.vtt';
+    url += '?url=' + encodeURIComponent(redirector_url + encodeURIComponent(redirect_target));
+    // Add '&mode' to tell the service worker to do a CORS request.
+    url += '&mode=cors';
+    // Add '&credentials=same-origin' to allow Access-Control-Allow-Origin=* so
+    // that CORS will succeed if the server approves it.
+    url += '&credentials=same-origin';
+    return load_track(url)
+      .then(result => {
+          assert_equals(result, 'error event');
+        });
+  }, 'same-origin text track that redirects to a cross-origin text track with approved cors should not load');
+</script>
+</body>

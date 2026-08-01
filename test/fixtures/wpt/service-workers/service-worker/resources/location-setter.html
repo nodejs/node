@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<meta name="referrer" content="origin">
+<script>
+function onLoad() {
+  const params = new URLSearchParams(self.location.search);
+  self.location = params.get('target');
+}
+self.addEventListener('load', onLoad);
+</script>

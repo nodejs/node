@@ -1,0 +1,15 @@
+<!doctype html>
+<title>handling for 404 response</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  const worker = new Worker('404_worker');
+  worker.onerror = e => t.done();
+}, 'worker');
+
+async_test(t => {
+  const shared = new SharedWorker('404_shared');
+  shared.onerror = e => t.done();
+}, 'shared');
+</script>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: routers are evaluated with the request method condition.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+const ROUTER_KEY_MEHOD_GET = 'condition-request-method-get-network';
+const ROUTER_KEY_MEHOD_POST = 'condition-request-method-post-network';
+const ROUTER_KEY_MEHOD_PUT = 'condition-request-method-put-network';
+const ROUTER_KEY_MEHOD_DELETE = 'condition-request-method-delete-network';
+const REQUET_SRC = 'resources/direct.py';
+
+iframeTest(REQUET_SRC, ROUTER_KEY_MEHOD_GET, async (t, iwin, worker) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd);
+  assert_equals(await response.text(), "Network with GET request");
+  const {requests} = await get_info_from_worker(worker);
+  assert_equals(requests.length, 0);
+}, 'Subresource load matched with the requestMethod GET condition');
+
+iframeTest(REQUET_SRC, ROUTER_KEY_MEHOD_POST, async (t, iwin, worker) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd, {method: 'POST'});
+  assert_equals(await response.text(), "Network with POST request");
+  const {requests} = await get_info_from_worker(worker);
+  // The navigation request is the only request handled by fetch handler.
+  assert_equals(requests.length, 1);
+  assert_equals(requests[0].mode, 'navigate');
+}, 'Subresource load matched with the requestMethod POST condition');
+
+iframeTest(REQUET_SRC, ROUTER_KEY_MEHOD_PUT, async (t, iwin, worker) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd, {method: 'PUT'});
+  assert_equals(await response.text(), "Network with PUT request");
+  const {requests} = await get_info_from_worker(worker);
+  // The navigation request is the only request handled by fetch handler.
+  assert_equals(requests.length, 1);
+  assert_equals(requests[0].mode, 'navigate');
+}, 'Subresource load matched with the requestMethod PUT condition');
+
+iframeTest(REQUET_SRC, ROUTER_KEY_MEHOD_DELETE, async (t, iwin, worker) => {
+  const rnd = randomString();
+  const response = await iwin.fetch('?nonce=' + rnd, {method: 'DELETE'});
+  assert_equals(await response.text(), "Network with DELETE request");
+  const {requests} = await get_info_from_worker(worker);
+  // The navigation request is the only request handled by fetch handler.
+  assert_equals(requests.length, 1);
+  assert_equals(requests[0].mode, 'navigate');
+}, 'Subresource load matched with the requestMethod DELETE condition');
+</script>
+</body>

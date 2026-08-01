@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Service Worker: Workers should have their own unique client Id</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+// Get the iframe client ID by calling postMessage() on its controlling
+// worker.  This will cause the service worker to post back the
+// MessageEvent.source.id value.
+function getFrameClientId(frame) {
+  return new Promise(resolve => {
+    let mc = new MessageChannel();
+    frame.contentWindow.navigator.serviceWorker.controller.postMessage(
+      'echo-client-id', [mc.port2]);
+    mc.port1.onmessage = evt => {
+      resolve(evt.data);
+    };
+  });
+}
+
+// Get the worker client ID by creating a worker that performs an intercepted
+// fetch().  The synthetic fetch() response will contain the FetchEvent.clientId
+// value.  This is then posted back to here.
+function getWorkerClientId(frame) {
+  return new Promise(resolve => {
+    let w = new frame.contentWindow.Worker('worker-echo-client-id.js');
+    w.onmessage = evt => {
+      resolve(evt.data);
+    };
+  });
+}
+
+promise_test(async function(t) {
+  const script = './resources/worker-client-id-worker.js';
+  const scope = './resources/worker-client-id';
+  const frame = scope + '/frame.html';
+
+  let reg = await navigator.serviceWorker.register(script, { scope });
+  t.add_cleanup(async _ => await reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  let f = await with_iframe(frame);
+  t.add_cleanup(_ => f.remove());
+
+  let frameClientId = await getFrameClientId(f);
+  assert_not_equals(frameClientId, null, 'frame client id should exist');
+
+  let workerClientId = await getWorkerClientId(f);
+  assert_not_equals(workerClientId, null, 'worker client id should exist');
+
+  assert_not_equals(frameClientId, workerClientId,
+                    'frame and worker client ids should be different');
+}, 'Verify workers have a unique client id separate from their owning documents window');
+
+</script>
+</body>
