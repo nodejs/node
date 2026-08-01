@@ -3290,7 +3290,7 @@ const { platform } = require('node:process');
 console.log(`This platform is ${platform}`);
 ```
 
-The value `'android'` may also be returned if the Node.js is built on the
+The value `'android'` may also be returned if Node.js is built on the
 Android operating system. However, Android support in Node.js
 [is experimental][Android building].
 
