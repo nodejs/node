@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>DedicatedWorker: parse error failure</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script> setup({allow_uncaught_exception: true}); </script>
+<script src="./support/check-error-arguments.js"></script>
+<script>
+
+promise_test(async () => {
+  const scriptURL = 'modules/resources/syntax-error.js';
+  const worker = new Worker(scriptURL, { type: 'classic' });
+  const args = await new Promise(resolve =>
+      worker.onerror = (...args) => resolve(args));
+  window.checkErrorArguments(args);
+}, 'Classic worker construction for script with syntax error should dispatch ' +
+   'an event named error.');
+
+promise_test(async () => {
+  const scriptURL = 'modules/resources/static-import-worker.js';
+  const worker = new Worker(scriptURL, { type: 'classic' });
+  worker.postMessage('Send message for tests from main script.');
+  const args = await new Promise(resolve =>
+      worker.onerror = (...args) => resolve(args));
+  window.checkErrorArguments(args);
+}, 'Static import on classic worker should dispatch an event named error.');
+
+</script>

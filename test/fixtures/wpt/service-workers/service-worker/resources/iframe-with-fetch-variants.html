@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<script>
+    const url = new URL(new URLSearchParams(location.search.substr(1)).get('url'), location.href);
+    const before = performance.now();
+    fetch(url)
+        .then(r => r.text())
+        .then(() =>
+            parent.postMessage({
+                before,
+                after: performance.now(),
+                entry: performance.getEntriesByName(url)[0].toJSON()
+            }));
+</script>

@@ -1,0 +1,9 @@
+<!doctype html>
+<title>WorkerLocation with redirects: classic shared workers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+fetch_tests_from_worker(
+    new SharedWorker('/common/redirect.py?location=/workers/interfaces/WorkerGlobalScope/location/redirect.js?a'));
+</script>

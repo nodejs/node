@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Service Worker: Synchronous XHR is intercepted iframe</title>
+<script>
+'use strict';
+
+function performSyncXHR(url) {
+  var syncXhr = new XMLHttpRequest();
+  syncXhr.open('GET', url, false);
+  syncXhr.send();
+
+  return syncXhr;
+}
+</script>

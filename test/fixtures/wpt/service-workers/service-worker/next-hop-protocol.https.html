@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Service Worker: Verify nextHopProtocol is set correctly</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+async function getNextHopProtocol(frame, url) {
+  let final_url = new URL(url, self.location).href;
+  await frame.contentWindow.fetch(final_url).then(r => r.text());
+  let entryList = frame.contentWindow.performance.getEntriesByName(final_url);
+  let entry = entryList[entryList.length - 1];
+  return entry.nextHopProtocol;
+}
+
+async function runTest(t, base_url, expected_protocol) {
+  const scope = 'resources/empty.html?next-hop-protocol';
+  const script = 'resources/fetch-rewrite-worker.js';
+  let frame;
+
+  const registration =
+      await service_worker_unregister_and_register(t, script, scope);
+  t.add_cleanup(async _ => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  frame = await with_iframe(scope);
+  t.add_cleanup(_ => frame.remove());
+
+  assert_equals(await getNextHopProtocol(frame, `${base_url}?generate-png`),
+                '', 'nextHopProtocol is not set on synthetic response');
+  assert_equals(await getNextHopProtocol(frame, `${base_url}?ignore`),
+                expected_protocol, 'nextHopProtocol is set on fallback');
+  assert_equals(await getNextHopProtocol(frame, `${base_url}`),
+                '', 'nextHopProtocol is not set on pass-through');
+  assert_equals(await getNextHopProtocol(frame, `${base_url}?cache`),
+                '', 'nextHopProtocol is not set on cached response');
+}
+
+promise_test(async (t) => {
+  return runTest(t, 'resources/empty.js', 'http/1.1');
+}, 'nextHopProtocol reports H1 correctly when routed via a service worker.');
+
+// This may be expected to fail if the WPT infrastructure does not fully
+// support H2 protocol testing yet.
+promise_test(async (t) => {
+  return runTest(t, 'resources/empty.h2.js', 'h2');
+}, 'nextHopProtocol reports H2 correctly when routed via a service worker.');
+
+</script>

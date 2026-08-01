@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>
+  Static Router: routers are evaluated with the request desitnation condition.
+</title>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/service-workers/service-worker/resources/test-helpers.sub.js">
+</script>
+<script src="resources/static-router-helpers.sub.js">
+</script>
+<body>
+<script>
+const ROUTER_KEY_DESTINATION_SCRIPT = 'condition-request-destination-script-network';
+const FRAME_SRC = 'resources/direct.html';
+const SCRIPT_SRC = 'direct.js';
+const STYLE_SRC = 'direct.txt';
+
+const appendScript = async (iwin, src) => {
+  const promise = new Promise(resolve => {
+    const script = iwin.document.createElement('script');
+    script.src = src;
+    iwin.document.body.appendChild(script);
+    script.onload = () => {
+      resolve(script);
+    };
+  });
+
+  return promise;
+};
+
+const appendCSS = async (iwin, src) => {
+  const promise = new Promise(resolve => {
+    const link = iwin.document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = src;
+    iwin.document.head.appendChild(link);
+    link.onload = () => {
+      resolve(link);
+    };
+  });
+
+  return promise;
+};
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_KEY_DESTINATION_SCRIPT);
+  const iframe = await createIframe(t, FRAME_SRC);
+
+  let info = await get_info_from_worker(worker);
+  assert_equals(info.requests.length, 1);
+  assert_equals(info.requests[0].destination, 'iframe');
+
+  // JavaScript is not handled by fetch handler.
+  await appendScript(iframe.contentWindow, SCRIPT_SRC);
+  assert_equals(iframe.contentWindow.router_condition_request_destination_script, true);
+  info = await get_info_from_worker(worker);
+  assert_equals(info.requests.length, 1);
+}, 'Subreosurce load matched with the requestMethod script condition');
+
+promise_test(async t => {
+  const worker = await registerAndActivate(t, ROUTER_KEY_DESTINATION_SCRIPT);
+  const iframe = await createIframe(t, FRAME_SRC);
+
+  let info = await get_info_from_worker(worker);
+  assert_equals(info.requests.length, 1);
+  assert_equals(info.requests[0].destination, 'iframe');
+
+  // Stylesheet is not handled by fetch handler.
+  await appendCSS(iframe.contentWindow, STYLE_SRC);
+  info = await get_info_from_worker(worker);
+  assert_equals(info.requests.length, 2);
+  assert_equals(info.requests[1].destination, 'style');
+}, 'Subreosurce load not matched with the requestMethod script condition');
+</script>
+</body>

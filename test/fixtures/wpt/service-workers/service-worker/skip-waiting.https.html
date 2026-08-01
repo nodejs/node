@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>Service Worker: Skip waiting</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+promise_test(function(t) {
+    var scope = 'resources/blank.html?skip-waiting';
+    var url1 = 'resources/empty.js';
+    var url2 = 'resources/empty-worker.js';
+    var url3 = 'resources/skip-waiting-worker.js';
+    var sw_registration, activated_worker, waiting_worker;
+    return service_worker_unregister_and_register(t, url1, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          sw_registration = registration;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          t.add_cleanup(function() {
+              f.remove();
+            });
+          return navigator.serviceWorker.register(url2, {scope: scope});
+        })
+      .then(function(registration) {
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          activated_worker = sw_registration.active;
+          waiting_worker = sw_registration.waiting;
+          assert_equals(activated_worker.scriptURL, normalizeURL(url1),
+                        'Worker with url1 should be activated');
+          assert_equals(waiting_worker.scriptURL, normalizeURL(url2),
+                        'Worker with url2 should be waiting');
+          return navigator.serviceWorker.register(url3, {scope: scope});
+        })
+      .then(function(registration) {
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          assert_equals(activated_worker.state, 'redundant',
+                        'Worker with url1 should be redundant');
+          assert_equals(waiting_worker.state, 'redundant',
+                        'Worker with url2 should be redundant');
+          assert_equals(sw_registration.active.scriptURL, normalizeURL(url3),
+                        'Worker with url3 should be activated');
+        });
+  }, 'Test skipWaiting with both active and waiting workers');
+
+</script>

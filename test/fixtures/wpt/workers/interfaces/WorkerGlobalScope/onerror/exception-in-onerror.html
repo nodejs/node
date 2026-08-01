@@ -1,0 +1,91 @@
+<!doctype html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+// 1. Exception is thrown somewhere in a Worker.
+//    Various contexts are tested: from worker initialization,
+//    from setTimeout, from event handlers, etc.
+// 2. WorkerGlobalScope.onerror event handler is called.
+//    (i.e. `onerror` in the worker script)
+// 3. From the event handler, another exception is thrown.
+// 4. Each of Worker.onerror handler (on the parent Document) and
+//            Worker error event listener should be called twice:
+//    once for each of the exceptions thrown in Step 1 and 2, respectively.
+//    (We don't check the ordering of two Worker.onerror calls, because
+//    browsers fires them in different orders)
+
+function prepareHandler(t, messages) {
+  const fired = {};
+  let fired_count = 0;
+  t.step_timeout(() => {
+    if (fired_count < messages.length) {
+      let error_description = 'Worker.onerror not fired for:';
+      for (const message of messages) {
+        if (!fired[message]) {
+          error_description += ' ';
+          error_description += message;
+        }
+      }
+      assert_unreached(error_description);
+    }
+  }, 2000);
+  return t.step_func(e => {
+      e.preventDefault();
+      for (const message of messages) {
+        if (!fired[message] && e.message.indexOf(message) >= 0) {
+          fired[message] = true;
+          ++fired_count;
+          if (fired_count === messages.length) {
+            // Worker.onerror is fired for all messages.
+            t.done();
+          }
+          return;
+        }
+      }
+      assert_unreached("Unexpected worker.onerror message: " + e.message);
+    });
+}
+
+function expectErrors(worker, title, messages) {
+  async_test(t => {
+      worker.addEventListener('error', prepareHandler(t, messages));
+    }, title+ ': listener');
+  async_test(t => {
+      worker.onerror = prepareHandler(t, messages);
+    }, title + ': handler');
+}
+
+for (const type of ['classic', 'module']) {
+  const workerOptions = type === 'module' ? {type: 'module'}: {};
+
+  const worker1 = new Worker(
+      'throw.js?throw-in-toplevel&throw-in-onerror',
+      workerOptions);
+  expectErrors(
+      worker1,
+      'Throw in worker initialization: ' + type,
+      ['Throw in toplevel', 'Throw in error handler']);
+
+  const worker2 = new Worker(
+      'throw.js?throw-in-setTimeout-function&throw-in-onerror', workerOptions);
+  expectErrors(
+      worker2,
+      'Throw in setTimeout(function): ' + type,
+      ['Throw in setTimeout function', 'Throw in error handler']);
+
+  const worker3 = new Worker(
+      'throw.js?throw-in-setTimeout-string&throw-in-onerror', workerOptions);
+  expectErrors(
+      worker3,
+      'Throw in setTimeout(string): ' + type,
+      ['Throw in setTimeout string', 'Throw in error handler']);
+
+  const worker4 = new Worker('throw.js?throw-in-onerror', workerOptions);
+  worker4.postMessage('foo');
+  expectErrors(
+      worker4,
+      'Throw in message handler: ' + type,
+      ['Throw in message handler', 'Throw in error handler']);
+
+}
+</script>

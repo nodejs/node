@@ -1,0 +1,8 @@
+<!doctype html>
+<title>008-1</title>
+<script>
+var w1 = new SharedWorker('008.js');
+w1.port.onmessage = function(e) {
+  e.ports[0].postMessage(2);
+}
+</script>

@@ -1,0 +1,3 @@
+rules:
+- isSecureContext*: [is-secure-context]
+- "*": [service-workers]

@@ -1,0 +1,93 @@
+<!doctype html>
+<title>ServiceWorker: worker objects have synced state</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+// Tests that ServiceWorker objects representing the same Service Worker
+// entity have the same state. JS-level equality is now required according to
+// the spec.
+'use strict';
+
+function nextChange(worker) {
+  return new Promise(function(resolve, reject) {
+      worker.addEventListener('statechange', function handler(event) {
+          try {
+            worker.removeEventListener('statechange', handler);
+            resolve(event.currentTarget.state);
+          } catch (err) {
+            reject(err);
+          }
+        });
+    });
+}
+
+promise_test(function(t) {
+    var scope = 'resources/synced-state';
+    var script = 'resources/empty-worker.js';
+    var registration, worker;
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(r) {
+          registration = r;
+          worker = registration.installing;
+
+          t.add_cleanup(function() {
+              return r.unregister();
+            });
+
+          return nextChange(worker);
+        })
+      .then(function(state) {
+          assert_equals(state, 'installed',
+                        'original SW should be installed');
+          assert_equals(registration.installing, null,
+                        'in installed, .installing should be null');
+          assert_equals(registration.waiting, worker,
+                        'in installed, .waiting should be equal to the ' +
+                          'original worker');
+          assert_equals(registration.waiting.state, 'installed',
+                        'in installed, .waiting should be installed');
+          assert_equals(registration.active, null,
+                        'in installed, .active should be null');
+
+          return nextChange(worker);
+        })
+      .then(function(state) {
+          assert_equals(state, 'activating',
+                        'original SW should be activating');
+          assert_equals(registration.installing, null,
+                        'in activating, .installing should be null');
+          assert_equals(registration.waiting, null,
+                        'in activating, .waiting should be null');
+          assert_equals(registration.active, worker,
+                        'in activating, .active should be equal to the ' +
+                          'original worker');
+          assert_equals(
+              registration.active.state, 'activating',
+              'in activating, .active should be activating');
+
+          return nextChange(worker);
+        })
+      .then(function(state) {
+          assert_equals(state, 'activated',
+                        'original SW should be activated');
+          assert_equals(registration.installing, null,
+                        'in activated, .installing should be null');
+          assert_equals(registration.waiting, null,
+                        'in activated, .waiting should be null');
+          assert_equals(registration.active, worker,
+                        'in activated, .active should be equal to the ' +
+                          'original worker');
+          assert_equals(registration.active.state, 'activated',
+                        'in activated .active should be activated');
+        })
+      .then(function() {
+          return navigator.serviceWorker.getRegistration(scope);
+        })
+      .then(function(r) {
+          assert_equals(r, registration, 'getRegistration should return the ' +
+                                         'same object');
+        });
+  }, 'worker objects for the same entity have the same state');
+</script>

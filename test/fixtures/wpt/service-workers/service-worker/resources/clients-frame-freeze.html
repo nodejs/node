@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script>
+  document.addEventListener('freeze', () => {
+      opener.postMessage('frozen', "*");
+  });
+
+  window.onmessage = (e) => {
+    if (e.data == 'freeze') {
+      test_driver.freeze();
+    }
+  };
+  opener.postMessage('loaded', '*');
+</script>

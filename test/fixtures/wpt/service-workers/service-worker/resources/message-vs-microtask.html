@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script>
+  let draft = [];
+  var resolve_manual_promise;
+  let manual_promise =
+    new Promise(resolve => resolve_manual_promise = resolve).then(() => draft.push('microtask'));
+
+  let resolve_message_promise;
+  let message_promise = new Promise(resolve => resolve_message_promise = resolve);
+  function handle_message(event) {
+    draft.push('message');
+    resolve_message_promise();
+  }
+
+  var result = Promise.all([manual_promise, message_promise]).then(() => draft);
+</script>
+
+<script src="empty.js?key=start"></script>

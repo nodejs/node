@@ -1,0 +1,13 @@
+<!doctype html>
+<script>
+var worker = new SharedWorker('./claim-shared-worker-fetch-worker.js');
+
+function fetch_in_shared_worker(url) {
+  return new Promise((resolve) => {
+    worker.port.onmessage = (event) => {
+      resolve(event.data);
+    };
+    worker.port.postMessage(url);
+  });
+}
+</script>

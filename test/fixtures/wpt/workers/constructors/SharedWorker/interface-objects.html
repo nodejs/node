@@ -1,0 +1,20 @@
+<!doctype html>
+<title>expected interface objects/constructors</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  const expected = 'XMLHttpRequest WebSocket EventSource MessageChannel Worker'.split(' ');
+  const supported = [];
+  for (let i = 0; i < expected.length; ++i) {
+  if (expected[i] in window)
+     supported.push(expected[i]);
+  }
+  const worker = new SharedWorker('interface-objects.js');
+  worker.port.start();
+  worker.port.postMessage(supported);
+  worker.port.onmessage = t.step_func_done(e => {
+    assert_equals(e.data, 'These were missing: ');
+  });
+}, 'Test if interface objects exist in a shared worker');
+</script>

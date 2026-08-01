@@ -1,0 +1,1 @@
+importScripts('data:text/javascript,');

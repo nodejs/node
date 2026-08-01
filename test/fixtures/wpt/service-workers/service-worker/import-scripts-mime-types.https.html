@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests for importScripts: MIME types</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+/**
+ * Test that a Service Worker's importScript() only accepts valid MIME types.
+ */
+let serviceWorker = null;
+
+promise_test(async t => {
+  const scope = 'resources/import-scripts-mime-types';
+  const registration = await service_worker_unregister_and_register(t,
+    'resources/import-scripts-mime-types-worker.js', scope);
+
+  add_completion_callback(() => { registration.unregister(); });
+
+  await wait_for_state(t, registration.installing, 'activated');
+
+  serviceWorker = registration.active;
+}, 'Global setup');
+
+promise_test(async t => {
+  await fetch_tests_from_worker(serviceWorker);
+}, 'Fetch importScripts tests from service worker')
+</script>
+</body>

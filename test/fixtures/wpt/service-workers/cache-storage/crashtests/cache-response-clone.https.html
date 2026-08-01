@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<meta charset="utf-8">
+<script type="module">
+  const cache = await window.caches.open('cache_name_0')
+  await cache.add("")
+  const resp1 = await cache.match("")
+  const readStream = resp1.body
+  // Cloning will open the stream via NS_AsyncCopy in Gecko
+  resp1.clone()
+  // Give a little bit of time
+  await new Promise(setTimeout)
+  // At this point the previous open operation is about to finish but not yet.
+  // It will finish after the second open operation is made, potentially causing incorrect state.
+  await readStream.getReader().read();
+  document.documentElement.classList.remove('test-wait')
+</script>

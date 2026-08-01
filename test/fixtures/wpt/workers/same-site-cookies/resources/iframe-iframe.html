@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<body>
+<script>
+// Step 4 (workers/same-site-cookies/third-party.{})
+test_driver.set_test_context(window.top);
+const type = (new URLSearchParams(window.location.search)).get("type");
+let options = {};
+switch (type) {
+    case "default":
+        break;
+    case "all":
+        options.sameSiteCookies = "all";
+        break;
+    case "none":
+        options.sameSiteCookies = "none";
+        break;
+}
+// Step 7 (workers/same-site-cookies/third-party.{})
+try {
+    const worker = new SharedWorker("/workers/same-site-cookies/resources/worker_redirect.py", options);
+    worker.port.onmessage = (e) => {
+        window.top.postMessage(e.data, "*");
+    };
+} catch (_) {
+    window.top.postMessage("DidNotStart", "*");
+}
+</script>
+</body>

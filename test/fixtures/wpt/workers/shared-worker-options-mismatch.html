@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<title>SharedWorker: type or credentials mismatch failure</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+const mismatch_test = (testName, firstOptions, secondOptions) => {
+  promise_test(async () => {
+    firstOptions.name = testName;
+    secondOptions.name = testName;
+    const scriptURL = 'support/SharedWorker-common.js';
+    const firstWorker = new SharedWorker(scriptURL, firstOptions);
+    const secondWorker = new SharedWorker(scriptURL, secondOptions);
+    const result = new Promise((resolve, reject) => {
+      secondWorker.onerror = resolve;
+      secondWorker.port.onmessage = () => reject("Worker loaded succesfully");
+    });
+    secondWorker.port.postMessage("ping");
+    await result;
+    firstWorker.port.postMessage("close");
+    secondWorker.port.postMessage("close");
+    return result;
+  }, 'Connecting to shared worker with different options should be blocked: '
+  + testName);
+};
+
+// Tests different type.
+mismatch_test('default to module', {}, { type: 'module' });
+mismatch_test('module to default', { type: 'module' }, {});
+mismatch_test('classic to module', { type: 'classic' }, { type: 'module' });
+mismatch_test('module to classic', { type: 'module' }, { type: 'classic' });
+
+['classic', 'module'].forEach(type => {
+  // Tests different credentials.
+  mismatch_test('default to omit in ' + type,
+                { type },
+                { type, credentials: 'omit' });
+  mismatch_test('default to include in ' + type,
+                { type },
+                { type, credentials: 'include' });
+  mismatch_test('omit to default in ' + type,
+                { type, credentials: 'omit' },
+                { type });
+  mismatch_test('omit to same-origin in ' + type,
+                { type, credentials: 'omit' },
+                { type, credentials: 'same-origin' });
+  mismatch_test('omit to include in ' + type,
+                { type, credentials: 'omit' },
+                { type, credentials: 'include' });
+  mismatch_test('same-origin to omit in ' + type,
+                { type, credentials: 'same-origin'},
+                { type, credentials: 'omit' });
+  mismatch_test('same-origin to include in ' + type,
+                { type, credentials: 'same-origin'},
+                { type, credentials: 'include' });
+  mismatch_test('include to default in ' + type,
+                { type, credentials: 'include' },
+                { type });
+  mismatch_test('include to omit in ' + type,
+                { type, credentials: 'include' },
+                { type, credentials: 'omit' });
+  mismatch_test('include to same-origin in ' + type,
+                { type, credentials: 'include' },
+                { type, credentials: 'same-origin' });
+
+  // Tests different extendedLifetime.
+  mismatch_test('default to extended in ' + type,
+                { type },
+                { type, extendedLifetime: true });
+  mismatch_test('extended to default in ' + type,
+                { type, extendedLifetime: true },
+                { type });
+  mismatch_test('true to false in ' + type,
+                { type, extendedLifetime: true },
+                { type, extendedLifetime: false });
+  mismatch_test('false to true in ' + type,
+                { type, extendedLifetime: false },
+                { type, extendedLifetime: true });
+});
+
+</script>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Web Workers: Worker - Blob url</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+
+  async_test(function(t) {
+    var blob = new Blob(["onmessage = function(event) { postMessage(event.data); }"], {type: "text/plain"});
+    var worker = new Worker(window.URL.createObjectURL(blob));
+    var data = "Blob URL";
+    worker.postMessage(data);
+    worker.onmessage = t.step_func(function(event) {
+      assert_equals(event.data, data, "event.data");
+      t.done();
+    });
+  }, "Worker supports Blob url");
+
+</script>

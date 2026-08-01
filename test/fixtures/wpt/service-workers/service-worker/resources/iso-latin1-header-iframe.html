@@ -1,0 +1,23 @@
+<script>
+function xhr_send(method, data) {
+  return new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.onload = function() {
+        resolve();
+      };
+      xhr.onerror = function() {
+        reject('XHR must succeed.');
+      };
+      xhr.responseType = 'text';
+      xhr.open(method, './sample?test', true);
+      xhr.send(data);
+    });
+}
+
+window.addEventListener('message', function(evt) {
+    var port = evt.ports[0];
+    xhr_send('POST', 'test string')
+      .then(function() { port.postMessage({results: 'finish'}); })
+      .catch(function(e) { port.postMessage({results: 'failure:' + e}); });
+  });
+</script>

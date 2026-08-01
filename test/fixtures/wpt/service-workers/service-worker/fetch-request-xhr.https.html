@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<title>Service Worker: the body of FetchEvent using XMLHttpRequest</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe-sub"></script>
+<script>
+let frame;
+
+// Set up the service worker and the frame.
+promise_test(t => {
+    const kScope = 'resources/fetch-request-xhr-iframe.https.html';
+    const kScript = 'resources/fetch-request-xhr-worker.js';
+    return service_worker_unregister_and_register(t, kScript, kScope)
+      .then(registration => {
+          promise_test(() => {
+              return registration.unregister();
+            }, 'restore global state');
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(() => {
+          return with_iframe(kScope);
+        })
+      .then(f => {
+          frame = f;
+          add_completion_callback(() => { f.remove(); });
+        });
+  }, 'initialize global state');
+
+// Run the tests.
+promise_test(t => {
+    return frame.contentWindow.get_header_test();
+  }, 'event.request has the expected headers for same-origin GET.');
+
+promise_test(t => {
+    return frame.contentWindow.post_header_test();
+  }, 'event.request has the expected headers for same-origin POST.');
+
+promise_test(t => {
+    return frame.contentWindow.cross_origin_get_header_test();
+  }, 'event.request has the expected headers for cross-origin GET.');
+
+promise_test(t => {
+    return frame.contentWindow.cross_origin_post_header_test();
+  }, 'event.request has the expected headers for cross-origin POST.');
+
+promise_test(t => {
+    return frame.contentWindow.string_test();
+  }, 'FetchEvent#request.body contains XHR request data (string)');
+
+promise_test(t => {
+    return frame.contentWindow.blob_test();
+  }, 'FetchEvent#request.body contains XHR request data (blob)');
+
+promise_test(t => {
+    return frame.contentWindow.custom_method_test();
+  }, 'FetchEvent#request.method is set to XHR method');
+
+promise_test(t => {
+    return frame.contentWindow.options_method_test();
+  }, 'XHR using OPTIONS method');
+
+promise_test(t => {
+    return frame.contentWindow.form_data_test();
+  }, 'XHR with form data');
+
+promise_test(t => {
+    return frame.contentWindow.mode_credentials_test();
+  }, 'XHR with mode/credentials set');
+
+promise_test(t => {
+    return frame.contentWindow.data_url_test();
+  }, 'XHR to data URL');
+</script>

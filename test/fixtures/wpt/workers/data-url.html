@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>data URL dedicated workers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+// Helper assert functions -START-
+function assert_worker_sends_pass(test_desc, mime_type, worker_code) {
+  async_test(function(t) {
+    var w = new Worker(`data:${mime_type},${worker_code}`);
+    w.onmessage = t.step_func_done(function(e) {
+      assert_equals(e.data, 'PASS');
+    });
+    w.postMessage('SEND_PASS');
+  }, test_desc);
+}
+
+function assert_worker_throws(test_desc, worker_code) {
+  assert_worker_sends_pass(test_desc, '', `try { ${worker_code}; self.postMessage("FAIL"); } catch (e) { self.postMessage("PASS"); }`);
+}
+
+function assert_worker_construction_fails(test_desc, mime_type, worker_code) {
+  async_test(function(t) {
+    var w = new Worker(`data:${mime_type},${worker_code};postMessage("PASS")`);
+    w.onmessage = t.step_func_done(function(e) {
+      assert_unreached('Should not receive any message back.');
+    });
+    w.onerror = t.step_func_done(function(e) {
+      assert_true(true, 'Should throw ' + e.message);
+      // Stop the error from being propagated to the WPT test harness
+      e.preventDefault();
+    });
+  }, test_desc);
+}
+// Helper assert functions -END-
+
+// Actual tests -START-
+
+// Any MIME type allowed
+assert_worker_sends_pass('application/javascript MIME allowed', 'application/javascript', 'self.postMessage("PASS")');
+assert_worker_sends_pass('text/plain MIME allowed', 'text/plain', 'self.postMessage("PASS")');
+assert_worker_sends_pass('empty MIME allowed', '', 'self.postMessage("PASS")');
+
+// Communications goes both ways
+assert_worker_sends_pass('communication goes both ways', 'application/javascript', 'onmessage = function(e) { self.postMessage("PASS"); }');
+
+// test access to storage APIs
+
+// https://w3c.github.io/IndexedDB/#dom-idbfactory-open
+assert_worker_sends_pass('indexedDB is present', '', 'self.postMessage("indexedDB" in self ? "PASS" : "FAIL")');
+assert_worker_throws('indexedDB is inaccessible', 'self.indexedDB.open("someDBName")');
+
+// Other standardized storage APIs are either not exposed to workers
+// (e.g. window.localStorage, window.sessionStorage), or are [SecureContext]
+// (e.g. self.caches).
+
+// 'data:' workers are cross-origin
+assert_worker_sends_pass('cross-origin worker', '', 'fetch("/").then(() => self.postMessage("FAIL"), () => self.postMessage("PASS"))');
+
+// 'data:' workers have opaque origin
+assert_worker_sends_pass('worker has opaque origin', 'application/javascript', 'if (self.location.origin == "null") {postMessage("PASS");} else {postMessage("FAIL");}');
+
+setup({allow_uncaught_exception:true});
+// invalid javascript will trigger an ErrorEvent
+assert_worker_construction_fails('invalid javascript produces error', 'application/javascript', '}x=3');
+
+// Actual tests -END-
+</script>

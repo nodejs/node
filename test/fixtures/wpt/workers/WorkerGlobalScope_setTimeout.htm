@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title> WorkerGlobalScope API: setTimeout() </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var result = [];
+  var worker = new Worker('./support/Timer.js');
+  worker.onmessage = t.step_func(function(e) {
+    result.push(e.data);
+    if (result.length == 3) {
+      assert_array_equals(result, ["hello", "worker", "worker"]);
+      worker.onmessage = t.unreached_func('Unexpected message event');
+      setTimeout(t.step_func_done(), 100);
+    }
+  });
+  worker.postMessage("TimeoutHandler");
+});
+</script>

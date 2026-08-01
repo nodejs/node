@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+promise_test((t) => {
+  return runTest(t, 'resources/claim-worker-fetch-iframe.html');
+}, 'fetch() in Worker should be intercepted after the client is claimed.');
+
+promise_test((t) => {
+  return runTest(t, 'resources/claim-nested-worker-fetch-iframe.html');
+}, 'fetch() in nested Worker should be intercepted after the client is claimed.');
+
+promise_test((t) => {
+  return runTest(t, 'resources/claim-blob-url-worker-fetch-iframe.html');
+}, 'fetch() in blob URL Worker should be intercepted after the client is claimed.');
+
+promise_test((t) => {
+  return runTest(t, 'resources/nested-blob-url-workers.html');
+}, 'fetch() in nested blob URL Worker created from a blob URL Worker should be intercepted after the client is claimed.');
+
+promise_test((t) => {
+  return runTest(t, 'resources/nested-worker-created-from-blob-url-worker.html');
+}, 'fetch() in nested Worker created from a blob URL Worker should be intercepted after the client is claimed.');
+
+promise_test((t) => {
+  return runTest(t, 'resources/nested-blob-url-worker-created-from-worker.html');
+}, 'fetch() in nested blob URL Worker created from a Worker should be intercepted after the client is claimed.');
+
+async function runTest(t, iframe_url) {
+  const resource = 'simple.txt';
+  const scope = 'resources/';
+  const script = 'resources/claim-worker.js';
+
+  // Create the test iframe with a dedicated worker.
+  const frame = await with_iframe(iframe_url);
+  t.add_cleanup(_ => frame.remove());
+
+  // Check the controller and test with fetch in the worker.
+  assert_equals(frame.contentWindow.navigator.controller,
+                undefined, 'Should have no controller.');
+  {
+    const response_text = await frame.contentWindow.fetch_in_worker(resource);
+    assert_equals(response_text, 'a simple text file\n',
+                  'fetch() should not be intercepted.');
+  }
+
+  // Register a service worker.
+  const reg = await service_worker_unregister_and_register(t, script, scope);
+  t.add_cleanup(_ => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  // Let the service worker claim the iframe and the worker.
+  const channel = new MessageChannel();
+  const saw_message = new Promise(function(resolve) {
+    channel.port1.onmessage = t.step_func(function(e) {
+      assert_equals(e.data, 'PASS', 'Worker call to claim() should fulfill.');
+      resolve();
+    });
+  });
+  reg.active.postMessage({port: channel.port2}, [channel.port2]);
+  await saw_message;
+
+  // Check the controller and test with fetch in the worker.
+  const reg2 =
+    await frame.contentWindow.navigator.serviceWorker.getRegistration(scope);
+  assert_equals(frame.contentWindow.navigator.serviceWorker.controller,
+                reg2.active, 'Test iframe should be claimed.');
+
+  {
+    // TODO(horo): Check the worker's navigator.seviceWorker.controller.
+    const response_text = await frame.contentWindow.fetch_in_worker(resource);
+    assert_equals(response_text, 'Intercepted!',
+                  'fetch() in the worker should be intercepted.');
+  }
+}
+
+</script>
+</body>

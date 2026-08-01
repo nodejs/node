@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<title>Service Worker: Fetch event network error</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var resolve_test_done;
+
+var test_done_promise = new Promise(function(resolve) {
+    resolve_test_done = resolve;
+  });
+
+// Called by the child frame.
+function notify_test_done(result) {
+  resolve_test_done(result);
+}
+
+promise_test(function(t) {
+    var scope = 'resources/fetch-event-network-error-controllee-iframe.html';
+    var script = 'resources/fetch-event-network-error-worker.js';
+    var frame;
+
+    return service_worker_unregister_and_register(t, script, scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(f) {
+          frame = f;
+          return test_done_promise;
+        })
+      .then(function(result) {
+          frame.remove();
+          assert_equals(result, 'PASS');
+        });
+  }, 'Rejecting the fetch event or using preventDefault() causes a network ' +
+     'error');
+</script>
