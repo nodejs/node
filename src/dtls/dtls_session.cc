@@ -18,6 +18,8 @@
 #include <openssl/err.h>
 #include <openssl/srtp.h>
 #include <openssl/ssl.h>
+#include <openssl/x509_vfy.h>
+#include <openssl/x509v3.h>
 
 #include <cstring>
 
@@ -53,6 +55,10 @@ DTLSSession::DTLSSession(Environment* env,
       retransmit_timer_(env,
                         [this] {
                           if (destroyed_) return;
+                          // Keep ourselves alive across the callback: emitting
+                          // an error or running Cycle() below can synchronously
+                          // destroy this session, and this timer lives on it.
+                          BaseObjectPtr<DTLSSession> strong_ref{this};
                           DTLS_STAT_INCREMENT(DTLSSessionStats,
                                               retransmit_count);
                           int ret = DTLSv1_handle_timeout(ssl_.get());
@@ -115,7 +121,6 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "getALPNProtocol", GetALPNProtocol);
     SetProtoMethod(isolate, tmpl, "exportKeyingMaterial", ExportKeyingMaterial);
     SetProtoMethod(isolate, tmpl, "getSRTPProfile", GetSRTPProfile);
-    SetProtoMethod(isolate, tmpl, "setServername", SetServername);
     SetProtoMethod(isolate, tmpl, "getServername", GetServername);
 
     env->set_dtls_session_constructor_template(tmpl);
@@ -145,7 +150,6 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(GetALPNProtocol);
   registry->Register(ExportKeyingMaterial);
   registry->Register(GetSRTPProfile);
-  registry->Register(SetServername);
   registry->Register(GetServername);
 }
 
@@ -153,7 +157,10 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
                                                DTLSEndpoint* endpoint,
                                                SSL_CTX* ssl_ctx,
                                                const SocketAddress& remote,
-                                               bool is_server) {
+                                               bool is_server,
+                                               const char* servername,
+                                               const char* verify_host,
+                                               bool verify_is_ip) {
   // Create the SSL object.
   SSL* ssl_raw = SSL_new(ssl_ctx);
   if (ssl_raw == nullptr) {
@@ -188,6 +195,43 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
     SSL_set_accept_state(ssl.get());
   } else {
     SSL_set_connect_state(ssl.get());
+
+    // Configure SNI and peer identity verification BEFORE the handshake
+    // starts. The caller (DTLSEndpoint::Connect) runs Cycle() immediately
+    // after Create() returns, which emits the ClientHello, so anything that
+    // must appear in that flight (SNI) has to be set here rather than via a
+    // post-construction setter.
+    if (servername != nullptr && servername[0] != '\0') {
+      if (!SSL_set_tlsext_host_name(ssl.get(), servername)) {
+        THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                          "Failed to set servername (SNI)");
+        return {};
+      }
+    }
+
+    // When identity verification is requested, bind the expected peer name
+    // (or IP) into the verification parameters. Combined with the context's
+    // SSL_VERIFY_PEER mode this makes a name mismatch fail the handshake,
+    // rather than accepting any certificate that merely chains to a trusted
+    // CA. A failure to configure it is fatal: proceeding would silently skip
+    // the identity check.
+    if (verify_host != nullptr && verify_host[0] != '\0') {
+      if (verify_is_ip) {
+        if (!X509_VERIFY_PARAM_set1_ip_asc(SSL_get0_param(ssl.get()),
+                                           verify_host)) {
+          THROW_ERR_CRYPTO_OPERATION_FAILED(
+              env, "Failed to set peer IP address for verification");
+          return {};
+        }
+      } else {
+        SSL_set_hostflags(ssl.get(), X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+        if (!SSL_set1_host(ssl.get(), verify_host)) {
+          THROW_ERR_CRYPTO_OPERATION_FAILED(
+              env, "Failed to set peer hostname for verification");
+          return {};
+        }
+      }
+    }
   }
 
   // Create the JS wrapper object.
@@ -246,6 +290,12 @@ void DTLSSession::Receive(const uint8_t* data, size_t len) {
 void DTLSSession::Cycle() {
   if (destroyed_) return;
 
+  // Pin a strong reference to ourselves for the duration of the pump. A JS
+  // callback dispatched below (message/handshake/error) can synchronously
+  // destroy this session, which removes the endpoint's only strong reference
+  // and would otherwise free `this` while we are still using ssl_/state_.
+  BaseObjectPtr<DTLSSession> strong_ref{this};
+
   // Prevent infinite recursion.
   if (++cycle_depth_ > 1) {
     cycle_depth_--;
@@ -264,6 +314,9 @@ void DTLSSession::Cycle() {
         unsigned long ossl_err = ERR_get_error();  // NOLINT(runtime/int)
         char err_buf[256];
         ERR_error_string_n(ossl_err, err_buf, sizeof(err_buf));
+        // Flush any fatal alert OpenSSL queued for the peer before emitting the
+        // error, which tears the session down and detaches the endpoint.
+        EncOut();
         Local<Value> argv[] = {
             String::NewFromUtf8(env()->isolate(), err_buf).ToLocalChecked(),
         };
@@ -303,8 +356,9 @@ void DTLSSession::Cycle() {
 void DTLSSession::ClearOut() {
   if (destroyed_) return;
 
-  // Try to read decrypted application data from OpenSSL.
-  uint8_t buf[65536];
+  // Try to read decrypted application data from OpenSSL. A DTLS record's
+  // plaintext is at most 2^14 bytes, so one SSL_read yields at most that much.
+  uint8_t buf[16384];
   int read;
 
   while ((read = SSL_read(ssl_.get(), buf, sizeof(buf))) > 0) {
@@ -316,6 +370,9 @@ void DTLSSession::ClearOut() {
             .ToLocalChecked(),
     };
     EmitCallback(DTLS_CB_SESSION_MESSAGE, 1, argv);
+    // The message handler may have destroyed the session synchronously; stop
+    // reading if so (Cycle()'s strong reference keeps `this` itself alive).
+    if (destroyed_) return;
   }
 
   int err = SSL_get_error(ssl_.get(), read);
@@ -334,8 +391,13 @@ void DTLSSession::ClearOut() {
         // Send our close_notify back.
         SSL_shutdown(ssl_.get());
         EncOut();
+        // Detach from the endpoint's session table before notifying JS so an
+        // observer of the close sees a consistent session count. Cycle() holds
+        // a strong reference for the duration of the pump.
+        if (auto ep = endpoint_.get()) ep->RemoveSession(remote_address_);
         Local<Value> argv[] = {};
         EmitCallback(DTLS_CB_SESSION_CLOSE, 0, argv);
+        Destroy();
       }
       break;
 
@@ -344,6 +406,9 @@ void DTLSSession::ClearOut() {
       unsigned long ossl_err = ERR_get_error();  // NOLINT(runtime/int)
       char err_buf[256];
       ERR_error_string_n(ossl_err, err_buf, sizeof(err_buf));
+      // Flush any fatal alert OpenSSL queued for the peer before emitting the
+      // error, which tears the session down and detaches the endpoint.
+      EncOut();
       Local<Value> argv[] = {
           String::NewFromUtf8(env()->isolate(), err_buf).ToLocalChecked(),
       };
@@ -404,6 +469,12 @@ int DTLSSession::Send(const uint8_t* data, size_t len) {
 void DTLSSession::Close() {
   if (destroyed_ || closed_) return;
 
+  // Emitting the close below can synchronously free this session (a client
+  // session that owns its endpoint tears the endpoint -- and thus itself --
+  // down from the close callback), and we call Destroy() afterwards. Pin a
+  // strong reference so `this` survives until we return.
+  BaseObjectPtr<DTLSSession> strong_ref{this};
+
   closed_ = true;
   state_->closing = 1;
   DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, closing_at);
@@ -420,11 +491,21 @@ void DTLSSession::Close() {
 
   state_->open = 0;
 
+  // Detach from the endpoint's session table before notifying JS, so an
+  // observer of the close (e.g. one awaiting `closed`) sees a consistent
+  // session count. We stay alive via strong_ref, and endpoint_ remains valid
+  // for the callback below; the Destroy() that follows clears it.
+  if (auto ep = endpoint_.get()) ep->RemoveSession(remote_address_);
+
   // Notify JS.
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
   Local<Value> argv[] = {};
   EmitCallback(DTLS_CB_SESSION_CLOSE, 0, argv);
+
+  // Release the remaining resources. RemoveSession above already detached us,
+  // so the one inside Destroy() is a no-op.
+  Destroy();
 }
 
 void DTLSSession::Destroy() {
@@ -657,15 +738,6 @@ void DTLSSession::GetSRTPProfile(const FunctionCallbackInfo<Value>& args) {
         String::NewFromUtf8(session->env()->isolate(), profile->name)
             .ToLocalChecked());
   }
-}
-
-void DTLSSession::SetServername(const FunctionCallbackInfo<Value>& args) {
-  DTLSSession* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-
-  CHECK(args[0]->IsString());
-  Utf8Value servername(session->env()->isolate(), args[0]);
-  SSL_set_tlsext_host_name(session->ssl_.get(), *servername);
 }
 
 void DTLSSession::GetServername(const FunctionCallbackInfo<Value>& args) {

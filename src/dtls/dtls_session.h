@@ -54,11 +54,19 @@ class DTLSSession final : public AsyncWrap {
   // |ssl_ctx| - the SSL_CTX to create the SSL* from
   // |remote| - the peer address
   // |is_server| - true if this is a server-side session
+  // |servername|   - SNI to advertise (client only); nullptr to omit.
+  // |verify_host|  - expected peer identity to verify (client only);
+  //                  nullptr disables identity checking.
+  // |verify_is_ip| - true if |verify_host| is an IP literal (verified
+  //                  against iPAddress SANs) rather than a DNS name.
   static BaseObjectPtr<DTLSSession> Create(Environment* env,
                                            DTLSEndpoint* endpoint,
                                            SSL_CTX* ssl_ctx,
                                            const SocketAddress& remote,
-                                           bool is_server);
+                                           bool is_server,
+                                           const char* servername = nullptr,
+                                           const char* verify_host = nullptr,
+                                           bool verify_is_ip = false);
 
   // Create a session from an already-initialized SSL object.
   // Used by the server after DTLSv1_listen() returns 1 — the SSL
@@ -119,7 +127,6 @@ class DTLSSession final : public AsyncWrap {
   static void ExportKeyingMaterial(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSRTPProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  public:

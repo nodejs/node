@@ -58,16 +58,18 @@ void RecordTimestampStat(Stats* stats) {
   V(MESSAGES_SENT, messages_sent)                                              \
   V(RETRANSMIT_COUNT, retransmit_count)
 
-// State indices shared between C++ and JS via AliasedStruct/DataView.
+// State "indices" shared between C++ and JS via AliasedStruct/DataView. These
+// are BYTE OFFSETS into the state struct, not sequential indices: session_count
+// is a uint32, so `busy`, which follows it, sits at byte offset 8. The
+// static_asserts in dtls_endpoint.cc pin these to the actual struct layout.
 // Keep in sync with lib/internal/dtls/state.js.
 enum DTLSEndpointStateIndex {
   IDX_ENDPOINT_STATE_BOUND = 0,
-  IDX_ENDPOINT_STATE_LISTENING,
-  IDX_ENDPOINT_STATE_CLOSING,
-  IDX_ENDPOINT_STATE_DESTROYED,
-  IDX_ENDPOINT_STATE_SESSION_COUNT,
-  IDX_ENDPOINT_STATE_BUSY,
-  IDX_ENDPOINT_STATE_COUNT
+  IDX_ENDPOINT_STATE_LISTENING = 1,
+  IDX_ENDPOINT_STATE_CLOSING = 2,
+  IDX_ENDPOINT_STATE_DESTROYED = 3,
+  IDX_ENDPOINT_STATE_SESSION_COUNT = 4,
+  IDX_ENDPOINT_STATE_BUSY = 8,
 };
 
 enum DTLSSessionStateIndex {
