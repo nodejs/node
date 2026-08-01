@@ -70,6 +70,53 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+## `module.entrypoint`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|undefined}
+
+The resolved URL of the entry point of the current thread, or `undefined` when
+Node.js was started without an entry point script (`--eval`, the REPL, or code
+piped via STDIN). It works regardless of whether the entry point is a
+CommonJS or an ECMAScript module.
+
+Inside a [worker thread][], `module.entrypoint` is the URL of the script the
+worker was started with, matching the semantics of `require.main` and
+[`import.meta.main`][], rather than the entry point of the process. Workers
+created with `eval: true` have an `undefined` entrypoint.
+
+Unlike `process.argv[1]`, the value is fully resolved: extension searching is
+applied, and symlinks are followed unless [`--preserve-symlinks-main`][] is
+set. This makes it consistent with the `require.main.filename` of a CommonJS
+entry point and the `import.meta.url` of an ECMAScript module entry point.
+
+The value is `undefined` in code that runs before the entry point has been
+resolved, such as modules preloaded with `--require`.
+
+Unlike [`import.meta.main`][], which only returns a boolean, `module.entrypoint`
+returns the resolved URL string of the entry point. It can be used as a base
+for resolving paths relative to the entry point, regardless of whether the
+entry point is a CommonJS or an ECMAScript module:
+
+```mjs
+import { entrypoint } from 'node:module';
+
+// Use the entry point's URL as a base for resolving sibling modules.
+const base = new URL('./', entrypoint);
+```
+
+In CommonJS, the equivalent is:
+
+```cjs
+const { entrypoint } = require('node:module');
+
+// Use the entry point's URL as a base for resolving sibling modules.
+const base = new URL('./', entrypoint);
+```
+
 ## `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
@@ -2112,6 +2159,7 @@ returned object contains the following keys:
 [`"exports"`]: packages.md#exports
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`--import`]: cli.md#--importmodule
+[`--preserve-symlinks-main`]: cli.md#--preserve-symlinks-main
 [`--require`]: cli.md#-r---require-module
 [`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
@@ -2120,6 +2168,7 @@ returned object contains the following keys:
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
 [`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`SourceMap`]: #class-modulesourcemap
+[`import.meta.main`]: esm.md#importmetamain
 [`initialize`]: #initialize
 [`module.constants.compileCacheStatus`]: #moduleconstantscompilecachestatus
 [`module.enableCompileCache()`]: #moduleenablecompilecacheoptions
@@ -2148,3 +2197,4 @@ returned object contains the following keys:
 [the documentation of `Worker`]: worker_threads.md#new-workerfilename-options
 [transferable objects]: worker_threads.md#portpostmessagevalue-transferlist
 [type-stripping]: typescript.md#type-stripping
+[worker thread]: worker_threads.md
