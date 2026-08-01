@@ -1310,6 +1310,105 @@ changes:
 A browser-compatible implementation of {WebSocket}. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
 
+## Class: `Worker`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental. Enable this API with the
+> [`--experimental-web-worker`][] CLI flag.
+
+A mostly browser-compatible implementation of Web Workers of the [HTML Standard][],
+implemented on top of [`node:worker_threads`][]. Threads created with it
+are given the {DedicatedWorkerGlobalScope} API (`self`,
+`name`, `location`, `navigator`, `postMessage()`, `close()`, and
+`importScripts()`), in addition to the usual Node.js globals, such as `process`.
+
+```js
+// worker.js
+addEventListener('message', (event) => {
+  postMessage(`${event.data} from ${name}!`);
+});
+```
+
+```js
+// main.js
+const worker = new Worker('./worker.js', { name: 'greeter' });
+
+worker.addEventListener('message', (event) => {
+  console.log(event.data); // Prints: Hello from greeter!
+  worker.terminate();
+});
+
+worker.postMessage('Hello');
+```
+
+Because their lifetime and sharing model depend on origins and
+browsing contexts, Node.js does not currently implement `SharedWorker`.
+
+### Loading worker scripts
+
+Worker scripts are read synchronously from the local file system or from
+memory rather than fetched over the network, which changes which URLs are
+accepted and how failures are reported:
+
+* `new Worker()` and `importScripts()` accept only `file:`, `data:`, and
+  `blob:` URLs. Any other scheme makes `new Worker()` throw a
+  `NotSupportedError` and `importScripts()` throw a `NetworkError`.
+* A script that cannot be read makes `importScripts()` throw a `NetworkError`;
+  for `new Worker()` it fires an `error` event at the `Worker` object.
+* Redirects, the `nosniff` check, and HTTP MIME type validation do not apply.
+  MIME types are validated only for `data:` and `blob:` URLs. The
+  `credentials` option is validated for API compatibility but has no effect,
+  since no network request is made.
+* On the main thread, relative script URLs are resolved against the current
+  working directory, because there is no document base URL. Within a worker
+  they are resolved against the worker's own URL (as is done in the spec).
+* For `blob:` URLs, the script must be held in memory, so blobs backed by a file,
+  such as those returned by [`fs.openAsBlob()`][], cannot be used.
+
+### Differences from the HTML Standard
+
+Besides script loading, mentioned above:
+
+* Node.js has no origin model, so same-origin and cross-origin distinctions do
+  not exist and `location.origin` is `'null'` for every supported scheme.
+* `close()` terminates the worker immediately instead of following the
+  specification's "closing flag" algorithm, so code remaining in the current
+  task after `close()` is not executed.
+* The worker global is the normal Node.js global object with
+  `DedicatedWorkerGlobalScope` inserted into its prototype chain, rather than
+  a fresh global created from the interface. Node.js globals such as
+  `process`, `Buffer`, and `require()` remain available to worker scripts.
+* `ErrorEvent`s dispatched at `Worker` instances include `message` and
+  `error`, but `filename`, `lineno`, and `colno` are always `''`, `0`, and
+  `0`. An uncaught exception terminates the worker thread, and an unhandled
+  `error` event is not propagated further: it neither reaches the parent's
+  global scope nor affects the exit code of the process.
+* The following {WorkerGlobalScope} events are never dispatched, although
+  their handler properties exist: `languagechange`, `online`, and `offline`,
+  since these concepts do not exist in Node.js; `rejectionhandled` and
+  `unhandledrejection`, since Node.js exposes the equivalent does not
+  implement the `PromiseRejectionEvent` interface or the per-rejection
+  `preventDefault()` behavior required by the HTML Standard.
+
+### Web Workers and `node:worker_threads`
+
+Every Web Worker is backed by a [`node:worker_threads`][] {Worker}, so the
+two APIs share their threading, structured clone, and transfer semantics.
+Inside a worker, \[`worker_threads.parentPort`]\[] is the port behind
+`self.postMessage()` and the worker's `message` events, `isMainThread` is
+`false`, and `workerData` is `undefined`.
+
+As a rule of thumb, use [`node:worker_threads`][] directly when a program
+needs `workerData`, a custom `env` or `execArgv`, resource limits, stdio
+redirection, the `'online'` and `'exit'` events, or `worker.threadId`;
+`Worker` accepts only the `name`, `type`, and `credentials` options and,
+per the specification, its `terminate()` returns `undefined`, rather than
+a promise. Threads started through [`node:worker_threads`][] are ordinary
+Node.js threads and do not get the worker global scope APIs.
+
 ## Class: `WritableStream`
 
 <!-- YAML
@@ -1355,10 +1454,12 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [CommonJS module]: modules.md
 [CommonJS modules]: modules.md
 [ECMAScript module]: esm.md
+[HTML Standard]: https://html.spec.whatwg.org/multipage/workers.html
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
+[`--experimental-web-worker`]: cli.md#--experimental-web-worker
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
@@ -1410,9 +1511,11 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`console`]: console.md
 [`exports`]: modules.md#exports
 [`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch
+[`fs.openAsBlob()`]: fs.md#fsopenasblobpath-options
 [`globalThis`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [`localStorage`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
 [`module`]: modules.md#module
+[`node:worker_threads`]: worker_threads.md
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
 [`process.nextTick()`]: process.md#processnexttickcallback-args
 [`process` object]: process.md#process

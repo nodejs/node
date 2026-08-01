@@ -595,6 +595,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false);
 #endif  // HAVE_FFI
+  AddOption("--experimental-web-worker",
+            "experimental Web Worker API",
+            BOOL_FIELD(experimental_web_worker),
+            kAllowedInEnvvar,
+            false);
   AddOption("--experimental-websocket",
             "experimental WebSocket API",
             BOOL_FIELD(experimental_websocket),

@@ -151,6 +151,7 @@ export default [
         WritableStreamDefaultWriter: 'readonly',
         WritableStreamDefaultController: 'readonly',
         WebSocket: 'readonly',
+        Worker: 'readonly',
       },
     },
   },
