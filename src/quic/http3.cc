@@ -19,6 +19,8 @@
 #include "session.h"
 #include "sessionticket.h"
 
+#include <string_view>
+
 namespace node {
 
 using v8::Array;
@@ -544,8 +546,26 @@ class Http3ApplicationImpl final : public Session::Application {
                    HeadersKind kind,
                    const Local<Array>& headers,
                    HeadersFlags flags = HeadersFlags::NONE) override {
-    Session::SendPendingDataScope send_scope(&session());
     Http3Headers nva(env(), headers);
+
+    if (kind == HeadersKind::INITIAL) {
+      for (size_t n = 0; n < nva.length(); n++) {
+        const auto& header = nva.data()[n];
+        const std::string_view name(reinterpret_cast<const char*>(header.name),
+                                    header.namelen);
+        if (name != ":path") continue;
+
+        const std::string_view path(reinterpret_cast<const char*>(header.value),
+                                    header.valuelen);
+        if (!path.starts_with('/') && path != "*") {
+          THROW_ERR_INVALID_ARG_VALUE(
+              env(), "The :path header must start with \"/\" or be \"*\"");
+          return false;
+        }
+      }
+    }
+
+    Session::SendPendingDataScope send_scope(&session());
 
     switch (kind) {
       case HeadersKind::HINTS: {

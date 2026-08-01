@@ -34,13 +34,17 @@ const decoder = new TextDecoder();
 // lowercased (buildNgHeaderString lowercases before passing to nghttp3).
 {
   const serverDone = Promise.withResolvers();
+  let closedStreams = 0;
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
       await stream.closed;
-      ss.close();
-      serverDone.resolve();
-    });
+      closedStreams++;
+      if (closedStreams === 2) {
+        ss.close();
+        serverDone.resolve();
+      }
+    }, 2);
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     onheaders: mustCall(function(headers) {
@@ -49,6 +53,12 @@ const decoder = new TextDecoder();
       for (const name of Object.keys(headers)) {
         assert.strictEqual(name, name.toLowerCase(),
                            `Header name "${name}" should be lowercase`);
+      }
+
+      if (headers[':path'] === '*') {
+        assert.strictEqual(headers[':method'], 'OPTIONS');
+        this.sendHeaders({ ':status': '204' }, { terminal: true });
+        return;
       }
 
       // Verify specific headers arrived lowercased.
@@ -69,7 +79,7 @@ const decoder = new TextDecoder();
       });
       this.writer.writeSync('ok');
       this.writer.endSync();
-    }),
+    }, 2),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -78,17 +88,18 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
+  const requestHeaders = {
+    // Mixed-case names — should be lowercased by buildNgHeaderString.
+    ':method': 'GET',
+    ':path': '/test',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    'X-Custom-Header': 'Value1',
+    'Content-Type': 'text/plain',
+    'X-Mixed-Case': 'MixedValue',
+  };
+
   const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      // Mixed-case names — should be lowercased by buildNgHeaderString.
-      ':method': 'GET',
-      ':path': '/test',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      'X-Custom-Header': 'Value1',
-      'Content-Type': 'text/plain',
-      'X-Mixed-Case': 'MixedValue',
-    },
     onheaders: mustCall(function(headers) {
       // Client should also receive lowercased response header names.
       assert.strictEqual(headers[':status'], '200');
@@ -103,9 +114,27 @@ const decoder = new TextDecoder();
     }),
   });
 
+  assert.throws(() => stream.sendHeaders({
+    ...requestHeaders,
+    ':path': 'testwtpath',
+  }), { code: 'ERR_INVALID_ARG_VALUE' });
+  assert.strictEqual(
+    stream.sendHeaders(requestHeaders, { terminal: true }), true);
+
+  const asteriskStream = await clientSession.createBidirectionalStream();
+  assert.strictEqual(asteriskStream.sendHeaders({
+    ...requestHeaders,
+    ':method': 'OPTIONS',
+    ':path': '*',
+  }, { terminal: true }), true);
+
   const body = await bytes(stream);
   assert.strictEqual(decoder.decode(body), 'ok');
-  await Promise.all([stream.closed, serverDone.promise]);
+  await Promise.all([
+    stream.closed,
+    asteriskStream.closed,
+    serverDone.promise,
+  ]);
   await clientSession.close();
   await serverEndpoint.close();
 }
