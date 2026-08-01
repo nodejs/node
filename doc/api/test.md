@@ -2260,8 +2260,7 @@ added: v22.3.0
 * `fn` {Function} A function used to compute the location of the snapshot file.
   The function receives the path of the test file as its only argument. If the
   test is not associated with a file (for example in the REPL), the input is
-  undefined. `fn()` must return a string specifying the location of the snapshot
-  snapshot file.
+  undefined. `fn()` must return a string specifying the location of the snapshot file.
 
 This function is used to customize the location of the snapshot file used for
 snapshot testing. By default, the snapshot filename is the same as the entry
