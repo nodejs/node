@@ -202,6 +202,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(experimental_addon_modules) = true;
   DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_ffi) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_web_worker) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_websocket) = true;
   DEFINE_BOOL_FIELD(experimental_sqlite) = HAVE_SQLITE;
   DEFINE_BOOL_FIELD(experimental_stream_iter) = EXPERIMENTALS_DEFAULT_VALUE;

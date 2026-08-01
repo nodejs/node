@@ -38,7 +38,6 @@ session.connect();
   });
 
   assert.throws(() => {
-    // eslint-disable-next-line no-undef
     new Worker(`
       const child_process = require("node:child_process");
       console.log(child_process.execSync("ls -l").toString());
