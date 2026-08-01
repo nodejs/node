@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<title>Service Worker: Client.id</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var scope = 'resources/blank.html?client-id';
+var frame1, frame2;
+
+promise_test(function(t) {
+    return service_worker_unregister_and_register(
+        t, 'resources/client-id-worker.js', scope)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, scope);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() { return with_iframe(scope + '#1'); })
+      .then(function(f) {
+          frame1 = f;
+          // To be sure Clients.matchAll() iterates in the same order.
+          f.focus();
+          return with_iframe(scope + '#2');
+        })
+      .then(function(f) {
+          frame2 = f;
+          var channel = new MessageChannel();
+
+          return new Promise(function(resolve, reject) {
+              channel.port1.onmessage = resolve;
+              channel.port1.onmessageerror = reject;
+              f.contentWindow.navigator.serviceWorker.controller.postMessage(
+                  {port:channel.port2}, [channel.port2]);
+            });
+        })
+      .then(on_message);
+  }, 'Client.id returns the client\'s ID.');
+
+function on_message(e) {
+  // The result of two sequential clients.matchAll() calls in the SW.
+  // 1st matchAll() results in e.data[0], e.data[1].
+  // 2nd matchAll() results in e.data[2], e.data[3].
+  assert_equals(e.data.length, 4);
+  // All should be string values.
+  assert_equals(typeof e.data[0], 'string');
+  assert_equals(typeof e.data[1], 'string');
+  assert_equals(typeof e.data[2], 'string');
+  assert_equals(typeof e.data[3], 'string');
+  // Different clients should have different ids.
+  assert_not_equals(e.data[0], e.data[1]);
+  assert_not_equals(e.data[2], e.data[3]);
+  // Same clients should have an identical id.
+  assert_equals(e.data[0], e.data[2]);
+  assert_equals(e.data[1], e.data[3]);
+  frame1.remove();
+  frame2.remove();
+}
+</script>

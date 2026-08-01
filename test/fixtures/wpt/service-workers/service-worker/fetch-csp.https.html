@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<title>Service Worker: CSP control of fetch()</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+
+function assert_resolves(promise, description) {
+  return promise.catch(function(reason) {
+      throw new Error(description + ' - ' + reason.message);
+  });
+}
+
+function assert_rejects(promise, description) {
+  return promise.then(
+      function() { throw new Error(description); },
+      function() {});
+}
+
+promise_test(function(t) {
+    var SCOPE = 'resources/fetch-csp-iframe.html';
+    var SCRIPT = 'resources/fetch-rewrite-worker.js';
+    var host_info = get_host_info();
+    var IMAGE_PATH =
+        base_path() + 'resources/fetch-access-control.py?PNGIMAGE';
+    var IMAGE_URL = host_info['HTTPS_ORIGIN'] + IMAGE_PATH;
+    var REMOTE_IMAGE_URL = host_info['HTTPS_REMOTE_ORIGIN'] + IMAGE_PATH;
+    var REDIRECT_URL =
+        host_info['HTTPS_ORIGIN'] + base_path() + 'resources/redirect.py';
+    var frame;
+
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, SCOPE);
+            });
+
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(
+              SCOPE + '?' +
+              encodeURIComponent('img-src ' + host_info['HTTPS_ORIGIN'] +
+                                 '; script-src \'unsafe-inline\''));
+        })
+      .then(function(f) {
+          frame = f;
+          return assert_resolves(
+              frame.contentWindow.load_image(IMAGE_URL),
+              'Allowed scope image resource should be loaded.');
+        })
+      .then(function() {
+          return assert_rejects(
+              frame.contentWindow.load_image(REMOTE_IMAGE_URL),
+              'Disallowed scope image resource should not be loaded.');
+        })
+      .then(function() {
+          return assert_resolves(
+              frame.contentWindow.load_image(
+                  // The request for IMAGE_URL will be fetched in SW.
+                  './sample?url=' + encodeURIComponent(IMAGE_URL)),
+              'Allowed scope image resource which was fetched via SW should ' +
+              'be loaded.');
+        })
+      .then(function() {
+          return assert_rejects(
+              frame.contentWindow.load_image(
+                  // The request for REMOTE_IMAGE_URL will be fetched in SW.
+                  './sample?mode=no-cors&url=' +
+                  encodeURIComponent(REMOTE_IMAGE_URL)),
+              'Disallowed scope image resource which was fetched via SW ' +
+              'should not be loaded.');
+        })
+      .then(function() {
+          frame.remove();
+          return with_iframe(
+              SCOPE + '?' +
+              encodeURIComponent(
+                  'img-src ' + REDIRECT_URL +
+                  '; script-src \'unsafe-inline\''));
+        })
+      .then(function(f) {
+          frame = f;
+          return assert_resolves(
+              frame.contentWindow.load_image(
+                  // Set 'ignore' not to call respondWith() in the SW.
+                  REDIRECT_URL + '?ignore&Redirect=' +
+                  encodeURIComponent(IMAGE_URL)),
+              'When the request was redirected, CSP match algorithm should ' +
+              'ignore the path component of the URL.');
+        })
+      .then(function() {
+          return assert_resolves(
+              frame.contentWindow.load_image(
+                  // This request will be fetched via SW and redirected by
+                  // redirect.php.
+                  REDIRECT_URL + '?Redirect=' + encodeURIComponent(IMAGE_URL)),
+              'When the request was redirected via SW, CSP match algorithm ' +
+              'should ignore the path component of the URL.');
+        })
+      .then(function() {
+          return assert_resolves(
+              frame.contentWindow.load_image(
+                  // The request for IMAGE_URL will be fetched in SW.
+                  REDIRECT_URL + '?url=' + encodeURIComponent(IMAGE_URL)),
+              'When the request was fetched via SW, CSP match algorithm ' +
+              'should ignore the path component of the URL.');
+        })
+      .then(function() {
+          return assert_resolves(
+              frame.contentWindow.fetch(IMAGE_URL + "&fetch1", { mode: 'no-cors'}),
+              'Allowed scope fetch resource should be loaded.');
+        })
+      .then(function() {
+          return assert_resolves(
+              frame.contentWindow.fetch(
+                  // The request for IMAGE_URL will be fetched in SW.
+                  './sample?url=' + encodeURIComponent(IMAGE_URL + '&fetch2'), { mode: 'no-cors'}),
+              'Allowed scope fetch resource which was fetched via SW should be loaded.');
+        })
+      .then(function() {
+          return assert_rejects(
+              frame.contentWindow.fetch(REMOTE_IMAGE_URL + "&fetch3", { mode: 'no-cors'}),
+              'Disallowed scope fetch resource should not be loaded.');
+        })
+      .then(function() {
+          return assert_rejects(
+              frame.contentWindow.fetch(
+                  // The request for REMOTE_IMAGE_URL will be fetched in SW.
+                  './sample?url=' + encodeURIComponent(REMOTE_IMAGE_URL + '&fetch4'), { mode: 'no-cors'}),
+              'Disallowed scope fetch resource which was fetched via SW should not be loaded.');
+        })
+      .then(function() {
+          frame.remove();
+        });
+  }, 'Verify CSP control of fetch() in a Service Worker');
+</script>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<title>Service Worker: FetchEvent.handled</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+let frame = null;
+let worker = null;
+const script = 'resources/fetch-event-handled-worker.js';
+const scope = 'resources/simple.html';
+const channel = new MessageChannel();
+
+// Wait for a message from the service worker and removes the message handler.
+function wait_for_message_from_worker() {
+  return new Promise((resolve) => channel.port2.onmessage = (event) => resolve(event.data));
+}
+
+// Global setup: this must be the first promise_test.
+promise_test(async (t) => {
+  const registration =
+      await service_worker_unregister_and_register(t, script, scope);
+  worker = registration.installing;
+  if (!worker)
+      worker = registration.active;
+  worker.postMessage({port:channel.port1}, [channel.port1]);
+  await wait_for_state(t, worker, 'activated');
+}, 'global setup');
+
+promise_test(async (t) => {
+  const promise = with_iframe(scope);
+  const message = await wait_for_message_from_worker();
+  frame = await promise;
+  assert_equals(message, 'RESOLVED');
+}, 'FetchEvent.handled should resolve when respondWith() is not called for a' +
+    ' navigation request');
+
+promise_test(async (t) => {
+  frame.contentWindow.fetch('sample.txt?respondWith-not-called');
+  const message = await wait_for_message_from_worker();
+  assert_equals(message, 'RESOLVED');
+}, 'FetchEvent.handled should resolve when respondWith() is not called for a' +
+    ' sub-resource request');
+
+promise_test(async (t) => {
+  frame.contentWindow.fetch(
+      'sample.txt?respondWith-not-called-and-event-canceled').catch((e) => {});
+  const message = await wait_for_message_from_worker();
+  assert_equals(message, 'REJECTED');
+}, 'FetchEvent.handled should reject when respondWith() is not called and the' +
+    ' event is canceled');
+
+promise_test(async (t) => {
+  frame.contentWindow.fetch(
+      'sample.txt?respondWith-called-and-promise-resolved');
+  const message = await wait_for_message_from_worker();
+  assert_equals(message, 'RESOLVED');
+}, 'FetchEvent.handled should resolve when the promise provided' +
+    ' to respondWith() is resolved');
+
+promise_test(async (t) => {
+  frame.contentWindow.fetch(
+      'sample.txt?respondWith-called-and-promise-resolved-to-invalid-response')
+      .catch((e) => {});
+  const message = await wait_for_message_from_worker();
+  assert_equals(message, 'REJECTED');
+}, 'FetchEvent.handled should reject when the promise provided' +
+    ' to respondWith() is resolved to an invalid response');
+
+promise_test(async (t) => {
+  frame.contentWindow.fetch(
+      'sample.txt?respondWith-called-and-promise-rejected').catch((e) => {});
+  const message = await wait_for_message_from_worker();
+  assert_equals(message, 'REJECTED');
+}, 'FetchEvent.handled should reject when the promise provided to' +
+    ' respondWith() is rejected');
+
+// Global cleanup: the final promise_test.
+promise_test(async (t) => {
+  if (frame)
+    frame.remove();
+  await service_worker_unregister(t, scope);
+}, 'global cleanup');
+</script>
+</html>

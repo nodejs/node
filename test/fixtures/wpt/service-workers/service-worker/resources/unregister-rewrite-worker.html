@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<script>
+async function onLoad() {
+  const params = new URLSearchParams(self.location.search);
+  const scope = self.origin + params.get('scopepath');
+  const reg = await navigator.serviceWorker.getRegistration(scope);
+  if (reg) {
+    await reg.unregister();
+  }
+  if (window.opener) {
+    window.opener.postMessage({ type: 'SW-UNREGISTERED' }, '*');
+  } else {
+    window.top.postMessage({ type: 'SW-UNREGISTERED' }, '*');
+  }
+}
+self.addEventListener('load', onLoad);
+</script>

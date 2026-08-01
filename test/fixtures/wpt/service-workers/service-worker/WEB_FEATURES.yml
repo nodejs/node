@@ -1,0 +1,4 @@
+rules:
+- registration-script-module.https.html: [js-modules-service-workers]
+- update-registration-with-type.https.html: [js-modules-service-workers]
+- "*": [service-workers]

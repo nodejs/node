@@ -1,0 +1,68 @@
+<html>
+<head>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+</head>
+<body>
+<script>
+promise_test(async (test) => {
+    const registration = await navigator.serviceWorker.register("postMessage-client-worker.js", { scope : 'resources' });
+    activeWorker = registration.active;
+    if (activeWorker)
+        return;
+
+    activeWorker = registration.installing;
+    await new Promise(resolve => {
+        activeWorker.addEventListener('statechange', () => {
+            if (activeWorker.state === "activated")
+                resolve();
+        });
+    });
+}, "Register service worker");
+
+function with_iframe(test, url) {
+    return new Promise(function(resolve, reject) {
+        test.step_timeout(() => reject("with_iframe timed out"), 2000);
+        var frame = document.createElement('iframe');
+        frame.className = 'test-iframe';
+        frame.src = url;
+        frame.onload = function() { resolve(frame); };
+        document.body.appendChild(frame);
+    });
+}
+
+promise_test(async (test) => {
+    const frame = await with_iframe(test, 'resources/controlled-frame-postMessage.html');
+    let counter = 0;
+    while (counter++ < 100 && frame.contentWindow.messageData == undefined)
+       await new Promise(resolve => test.step_timeout(resolve, 50));
+    assert_equals(frame.contentWindow.messageData, 0);
+    frame.remove();
+}, "Verify frame gets early messages if setting synchronously message event listener");
+
+promise_test(async (test) => {
+    const frame = await with_iframe(test, 'resources/controlled-frame-postMessage.html?repeatMessages');
+    let counter = 0;
+    while (counter++ < 100 && frame.contentWindow.messageData == undefined)
+       await new Promise(resolve => test.step_timeout(resolve, 50));
+    assert_not_equals(frame.contentWindow.messageData, 0);
+    frame.remove();
+}, "Verify frame does not get all messages if not setting event listener early");
+
+promise_test(async (test) => {
+    const frame = await with_iframe(test, 'resources/controlled-frame-postMessage.html?repeatMessages&listener');
+    let counter = 0;
+    while (counter++ < 100 && frame.contentWindow.messageData.length < 5)
+       await new Promise(resolve => test.step_timeout(resolve, 50));
+
+    assert_less_than(counter, 100);
+    data = frame.contentWindow.messageData;
+    for (let cptr = 1; cptr < data.length; cptr++)
+        assert_true(data[cptr - 1] < data[cptr]);
+    frame.remove();
+}, "Verify frame does get messages in order");
+</script>
+</body>
+</html>

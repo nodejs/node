@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>Service Worker: event.respondWith() accepted for download FetchEvent (crbug.com/40410035)</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script src="../resources/fetch-event-download-helpers.js"></script>
+<body>
+<script>
+'use strict';
+
+// Verifies that a service worker may call event.respondWith() on a download
+// FetchEvent without raising errors. We can't read the saved file's bytes
+// from script (no filesystem access), so we assert the SW-side observable
+// outcome: the fetch event was dispatched, the SW called respondWith, and
+// no error event fired on the SW.
+
+const WORKER = 'resources/fetch-event-download-worker.js';
+const SCOPE = 'resources/';
+
+promise_test(async (t) => {
+  const reg = await service_worker_unregister_and_register(t, WORKER, SCOPE);
+  t.add_cleanup(() => reg.unregister());
+  await wait_for_state(t, reg.installing, 'activated');
+
+  // Watch for SW errors. Using `error` on the registration's active worker
+  // fires for uncaught exceptions thrown inside the worker, which is what
+  // a misbehaving respondWith() would surface as.
+  let workerError = null;
+  reg.active.addEventListener('error', (e) => { workerError = e; });
+
+  const channelId = uniqueChannelId();
+  // mode=respond is the worker's default; making it explicit for readability.
+  const targetUrl =
+      SCOPE + 'download-target.txt?channel=' + channelId + '&mode=respond';
+  const messagePromise = nextChannelMessage(t, channelId);
+
+  await clickDownloadAnchor(t, targetUrl);
+
+  const data = await messagePromise;
+  assert_equals(data.type, 'fetch',
+      'SW should observe the fetch event before respondWith() resolves.');
+  assert_equals(data.destination, '',
+      'Per HTML "Downloading hyperlinks", the request destination must be "".');
+
+  // Give the microtask that resolves respondWith()'s promise a turn to run,
+  // then ensure no error escaped from the worker.
+  await new Promise((r) => step_timeout(r, 100));
+  assert_equals(workerError, null,
+      'No error event should fire on the worker after respondWith().');
+}, 'event.respondWith() is accepted for a download FetchEvent.');
+</script>
+</body>

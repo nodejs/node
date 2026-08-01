@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Service Worker: frame for getRegistrations()</title>
+<script>
+var scope = 'scope-for-getregistrations';
+var script = 'empty-worker.js';
+var registration;
+
+navigator.serviceWorker.register(script, { scope: scope })
+  .then(function(r) { registration = r; window.parent.postMessage('ready', '*'); })
+
+self.onmessage = function(e) {
+  if (e.data == 'unregister') {
+    registration.unregister()
+      .then(function() {
+          e.ports[0].postMessage('unregistered');
+        });
+  }
+};
+</script>

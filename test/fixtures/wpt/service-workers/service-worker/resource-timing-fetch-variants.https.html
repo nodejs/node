@@ -1,0 +1,121 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<title>Test various interactions between fetch, service-workers and resource timing</title>
+<meta charset="utf-8" />
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<link rel="help" href="https://w3c.github.io/resource-timing/" >
+<!--
+    This test checks that the different properties in a PerformanceResourceTimingEntry
+    measure what they are supposed to measure according to spec.
+
+    It is achieved by generating programmatic delays and redirects inside a service worker,
+    and checking how the different metrics respond to the delays and redirects.
+
+    The deltas are not measured precisely, but rather relatively to the delay.
+    The delay needs to be long enough so that it's clear that what's measured is the test's
+    programmatic delay and not arbitrary system delays.
+-->
+</head>
+
+<body>
+<script>
+
+const delay = 200;
+const absolutePath = `${base_path()}/simple.txt`
+function toSequence({before, after, entry}) {
+    /*
+        The order of keys is the same as in this chart:
+        https://w3c.github.io/resource-timing/#attribute-descriptions
+    */
+    const keys = [
+        'startTime',
+        'redirectStart',
+        'redirectEnd',
+        'workerStart',
+        'fetchStart',
+        'connectStart',
+        'requestStart',
+        'responseStart',
+        'responseEnd'
+    ];
+
+    let cursor = before;
+    const step = value => {
+        // A zero/null value, reflect that in the sequence
+        if (!value)
+            return value;
+
+        // Value is the same as before
+        if (value === cursor)
+            return "same";
+
+        // Oops, value is in the wrong place
+        if (value < cursor)
+            return "back";
+
+        // Delta is greater than programmatic delay, this is where the delay is measured.
+        if ((value - cursor) >= delay)
+            return "delay";
+
+        // Some small delta, probably measuring an actual networking stack delay
+        return "tick";
+    }
+
+    const res = keys.map(key => {
+        const value = step(entry[key]);
+        if (entry[key])
+            cursor = entry[key];
+        return [key, value];
+    });
+
+    return Object.fromEntries([...res, ['after', step(after)]]);
+}
+async function testVariant(t, variant) {
+    const worker_url = 'resources/fetch-variants-worker.js';
+    const url = encodeURIComponent(`simple.txt?delay=${delay}&variant=${variant}`);
+    const scope = `resources/iframe-with-fetch-variants.html?url=${url}`;
+    const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+    t.add_cleanup(() => registration.unregister());
+    await wait_for_state(t, registration.installing, 'activated');
+    const frame = await with_iframe(scope);
+    t.add_cleanup(() => frame.remove());
+    const result = await new Promise(resolve => window.addEventListener('message', message => {
+        resolve(message.data);
+    }))
+
+    return toSequence(result);
+}
+
+promise_test(async t => {
+    const result = await testVariant(t, 'redirect');
+    assert_equals(result.redirectStart, 0);
+}, 'Redirects done from within a service-worker should not be exposed to client ResourceTiming');
+
+promise_test(async t => {
+    const result = await testVariant(t, 'forward');
+    assert_equals(result.connectStart, 'same');
+}, 'Connection info from within a service-worker should not be exposed to client ResourceTiming');
+
+promise_test(async t => {
+    const result = await testVariant(t, 'forward');
+    assert_not_equals(result.requestStart, 'back');
+}, 'requestStart should never be before fetchStart');
+
+promise_test(async t => {
+    const result = await testVariant(t, 'delay-after-fetch');
+    const whereIsDelayMeasured = Object.entries(result).find(r => r[1] === 'delay')[0];
+    assert_equals(whereIsDelayMeasured, 'responseStart');
+}, 'Delay from within service-worker (after internal fetching) should be accessible through `responseStart`');
+
+promise_test(async t => {
+    const result = await testVariant(t, 'delay-before-fetch');
+    const whereIsDelayMeasured = Object.entries(result).find(r => r[1] === 'delay')[0];
+    assert_equals(whereIsDelayMeasured, 'responseStart');
+}, 'Delay from within service-worker (before internal fetching) should be measured before responseStart in the client ResourceTiming entry');
+</script>
+
+</body>
+</html>
