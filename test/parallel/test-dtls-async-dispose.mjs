@@ -6,9 +6,6 @@ import { hasCrypto, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -19,9 +16,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const serverCert = readKey('agent1-cert.pem');
-const serverKey = readKey('agent1-key.pem');
-const ca = readKey('ca1-cert.pem');
+const serverCert = fixtures.readKey('agent1-cert.pem');
+const serverKey = fixtures.readKey('agent1-key.pem');
+const ca = fixtures.readKey('ca1-cert.pem');
 
 const endpoint = listen(mustCall((session) => {
   session.onmessage = mustNotCall();
@@ -40,8 +37,8 @@ const session = connect('127.0.0.1', endpoint.address.port, {
 await session.opened;
 
 // Test that Symbol.asyncDispose exists.
-strictEqual(typeof session[Symbol.asyncDispose], 'function');
-strictEqual(typeof endpoint[Symbol.asyncDispose], 'function');
+assert.strictEqual(typeof session[Symbol.asyncDispose], 'function');
+assert.strictEqual(typeof endpoint[Symbol.asyncDispose], 'function');
 
 // Dispose the session.
 await session[Symbol.asyncDispose]();

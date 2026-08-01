@@ -6,8 +6,6 @@
 import { hasCrypto, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -21,9 +19,9 @@ process.on('unhandledRejection', mustNotCall());
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 const server = listen(mustCall(), {
   cert, key, port: 0, host: '127.0.0.1',

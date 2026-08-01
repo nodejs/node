@@ -7,9 +7,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, throws } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -20,13 +17,13 @@ if (!process.features.dtls) {
 
 const { listen, connect, DTLSEndpoint } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 // MTU must be within [256, 65535].
-throws(() => new DTLSEndpoint({ mtu: 255 }), { code: 'ERR_OUT_OF_RANGE' });
-throws(() => new DTLSEndpoint({ mtu: 65536 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => new DTLSEndpoint({ mtu: 255 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => new DTLSEndpoint({ mtu: 65536 }), { code: 'ERR_OUT_OF_RANGE' });
 
 // A valid boundary MTU is accepted.
 {
@@ -41,7 +38,7 @@ throws(() => new DTLSEndpoint({ mtu: 65536 }), { code: 'ERR_OUT_OF_RANGE' });
 
   const server = listen(mustCall((session) => {
     session.onmessage = mustCall((data) => {
-      strictEqual(data.toString(), 'hello');
+      assert.strictEqual(data.toString(), 'hello');
       session.send('world');
     });
   }), {
@@ -55,7 +52,7 @@ throws(() => new DTLSEndpoint({ mtu: 65536 }), { code: 'ERR_OUT_OF_RANGE' });
   });
 
   client.onmessage = mustCall((data) => {
-    strictEqual(data.toString(), 'world');
+    assert.strictEqual(data.toString(), 'world');
     received.resolve();
   });
 

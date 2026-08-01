@@ -8,9 +8,6 @@ import { hasCrypto, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual, deepStrictEqual, notDeepStrictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasCrypto) {
   skip('missing crypto');
 }
@@ -21,9 +18,9 @@ if (!process.features.dtls) {
 
 const { listen, connect } = await import('node:dtls');
 
-const cert = readKey('agent1-cert.pem').toString();
-const key = readKey('agent1-key.pem').toString();
-const ca = readKey('ca1-cert.pem').toString();
+const cert = fixtures.readKey('agent1-cert.pem').toString();
+const key = fixtures.readKey('agent1-key.pem').toString();
+const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 const SRTP_PROFILE = 'SRTP_AEAD_AES_128_GCM';
 
@@ -50,26 +47,26 @@ const serverSession = await gotServerSession.promise;
 await serverSession.opened;
 
 // Both peers negotiate the same SRTP profile.
-strictEqual(client.srtpProfile, SRTP_PROFILE);
-strictEqual(serverSession.srtpProfile, SRTP_PROFILE);
+assert.strictEqual(client.srtpProfile, SRTP_PROFILE);
+assert.strictEqual(serverSession.srtpProfile, SRTP_PROFILE);
 
 // Both peers derive identical keying material for the same label and length.
 const label = 'EXTRACTOR-dtls_srtp';
 const clientKM = client.exportKeyingMaterial(60, label);
 const serverKM = serverSession.exportKeyingMaterial(60, label);
-strictEqual(clientKM.length, 60);
-deepStrictEqual(clientKM, serverKM);
+assert.strictEqual(clientKM.length, 60);
+assert.deepStrictEqual(clientKM, serverKM);
 
 // The optional context is bound into the derivation: the same context yields
 // the same material on both peers, and a different context yields different
 // material.
 const contextA = Buffer.from('context-a');
 const contextB = Buffer.from('context-b');
-deepStrictEqual(
+assert.deepStrictEqual(
   client.exportKeyingMaterial(32, label, contextA),
   serverSession.exportKeyingMaterial(32, label, contextA),
 );
-notDeepStrictEqual(
+assert.notDeepStrictEqual(
   client.exportKeyingMaterial(32, label, contextA),
   client.exportKeyingMaterial(32, label, contextB),
 );
