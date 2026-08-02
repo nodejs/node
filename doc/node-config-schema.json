@@ -103,6 +103,10 @@
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
             },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
+            },
             "allow-wasi": {
               "type": "boolean",
               "description": "allow wasi when any permissions are set"
@@ -867,6 +871,10 @@
             "allow-net": {
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
+            },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
             },
             "allow-wasi": {
               "type": "boolean",

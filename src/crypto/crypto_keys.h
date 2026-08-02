@@ -77,7 +77,9 @@ class KeyObjectData final : public MemoryRetainer {
       bool allow_key_object);
 
   static KeyObjectData GetPublicOrPrivateKeyFromJs(
-      const v8::FunctionCallbackInfo<v8::Value>& args, unsigned int* offset);
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      unsigned int* offset,
+      bool allow_private_key_store = false);
 
   static v8::Maybe<ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig>
   GetPrivateKeyEncodingFromJs(const v8::FunctionCallbackInfo<v8::Value>& args,

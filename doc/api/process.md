@@ -3161,6 +3161,7 @@ The available scopes are:
 * `fs.read` - File System read operations
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
+* `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
 * `ffi` - Foreign function interface operations
 
@@ -3215,6 +3216,7 @@ The available scopes are the same as [`process.permission.has()`][]:
 * `fs.read` - File System read operations
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
+* `openssl.store` - Loading keys through OpenSSL STORE loaders
 * `worker` - Worker thread spawning operation
 * `net` - Network operations
 * `inspector` - Inspector operations
