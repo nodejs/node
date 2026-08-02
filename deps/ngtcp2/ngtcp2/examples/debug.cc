@@ -80,12 +80,12 @@ void print_crypto_data(ngtcp2_encryption_level encryption_level,
   }
   std::println(outfile, "Ordered CRYPTO data in {} crypto level",
                encryption_level_str);
-  util::hexdump(outfile, data);
+  (void)util::hexdump(outfile, data);
 }
 
 void print_stream_data(int64_t stream_id, std::span<const uint8_t> data) {
   std::println(outfile, "Ordered STREAM data stream_id={:#x}", stream_id);
-  util::hexdump(outfile, data);
+  (void)util::hexdump(outfile, data);
 }
 
 void print_initial_secret(std::span<const uint8_t> data) {
@@ -242,7 +242,7 @@ void print_http_end_headers(int64_t stream_id) {
 void print_http_data(int64_t stream_id, std::span<const uint8_t> data) {
   std::println(outfile, "http: stream {:#x} body {} bytes", stream_id,
                data.size());
-  util::hexdump(outfile, data);
+  (void)util::hexdump(outfile, data);
 }
 
 void print_http_begin_trailers(int64_t stream_id) {
