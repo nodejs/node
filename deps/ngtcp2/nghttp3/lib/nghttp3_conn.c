@@ -3741,7 +3741,10 @@ int nghttp3_conn_close_wt_session(nghttp3_conn *conn, int64_t session_id,
 
   stream->rstate.state = NGHTTP3_REQ_STREAM_STATE_IGN_REST;
 
-  return conn_call_stop_sending(conn, stream, NGHTTP3_WT_SESSION_GONE);
+  
+  return 0;
+   // turn it off for now as it set up firefox and chromium
+  // return conn_call_stop_sending(conn, stream, NGHTTP3_WT_SESSION_GONE);
 }
 
 int nghttp3_conn_on_wt_stream(nghttp3_conn *conn, nghttp3_stream *stream,
