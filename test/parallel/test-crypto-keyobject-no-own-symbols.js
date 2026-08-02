@@ -12,6 +12,7 @@ const {
   createSecretKey,
   generateKeyPairSync,
 } = require('node:crypto');
+const { hasFIPS } = require('../common/crypto');
 
 function assertNoOwnKeys(key) {
   assert.deepStrictEqual(Object.getOwnPropertySymbols(key), []);
@@ -22,7 +23,7 @@ function assertNoOwnKeys(key) {
 {
   const secret = createSecretKey(Buffer.alloc(16));
   const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 1024,
+    modulusLength: hasFIPS(3) ? 2048 : 1024,
   });
 
   for (const key of [secret, publicKey, privateKey]) {

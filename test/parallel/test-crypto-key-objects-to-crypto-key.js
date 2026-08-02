@@ -12,7 +12,9 @@ const {
   randomBytes,
   generateKeyPairSync,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 const { kSupportedAlgorithms } = require('internal/crypto/util');
+const rejectsXCurves = hasFIPS(3, 5);
 
 const hashes = Object.keys(kSupportedAlgorithms.digest).filter((name) => {
   return name.startsWith('SHA-') || name.startsWith('SHA3-');
@@ -232,6 +234,13 @@ function ecVectors(name, usagesByType) {
 }
 
 function cfrgVectors(name, usagesByType) {
+  if (rejectsXCurves && name.startsWith('X')) {
+    assert.throws(() => generateKeyPairSync(name.toLowerCase()), {
+      code: 'ERR_OSSL_EVP_UNSUPPORTED',
+    });
+    return [];
+  }
+
   const keyPair = generateKeyPairSync(name.toLowerCase());
   return asymmetricVectors(keyPair, name, usagesByType);
 }
@@ -317,8 +326,10 @@ const invalid = {
   'HMAC': () => macInvalid(
     { name: 'HMAC', hash: 'SHA-256' },
     'HmacImportParams.length cannot be 0'),
-  'X25519': () => invalidAsymmetricKeyType('X25519', 'Ed25519'),
 };
+
+if (!rejectsXCurves)
+  invalid.X25519 = () => invalidAsymmetricKeyType('X25519', 'Ed25519');
 
 for (const name of ['AES-CBC', 'AES-CTR', 'AES-GCM', 'AES-OCB']) {
   if (name in kSupportedAlgorithms.importKey)
@@ -350,9 +361,11 @@ for (const [name, usages, invalidAlgorithm] of [
 ]) {
   if (name in kSupportedAlgorithms.importKey) {
     tests[name] = cfrgVectors(name, usages);
-    invalid[name] = () => {
-      invalidAsymmetricKeyType(name, invalidAlgorithm);
-    };
+    if (!rejectsXCurves) {
+      invalid[name] = () => {
+        invalidAsymmetricKeyType(name, invalidAlgorithm);
+      };
+    }
   }
 }
 

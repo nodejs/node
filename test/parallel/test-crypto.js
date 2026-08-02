@@ -29,7 +29,8 @@ const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const isFips = hasFIPS(3);
 
 // Test Certificates
 const certPfx = fixtures.readKey('rsa_cert.pfx');
@@ -54,27 +55,35 @@ assert.throws(() => {
 });
 
 // PFX tests
-tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
+if (isFips) {
+  for (const passphrase of ['sample', undefined, 'test']) {
+    assert.throws(
+      () => tls.createSecureContext({ pfx: certPfx, passphrase }),
+      { code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION' });
+  }
+} else {
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 
-assert.throws(() => {
-  tls.createSecureContext({ pfx: certPfx });
-}, (err) => {
-  // Throws general Error, so there is no opensslErrorStack property.
-  return err instanceof Error &&
-         err.name === 'Error' &&
-         /^Error: (mac verify failure|INCORRECT_PASSWORD)$/.test(err) &&
-         !('opensslErrorStack' in err);
-});
+  assert.throws(() => {
+    tls.createSecureContext({ pfx: certPfx });
+  }, (err) => {
+    // Throws general Error, so there is no opensslErrorStack property.
+    return err instanceof Error &&
+           err.name === 'Error' &&
+           /^Error: (mac verify failure|INCORRECT_PASSWORD)$/.test(err) &&
+           !('opensslErrorStack' in err);
+  });
 
-assert.throws(() => {
-  tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
-}, (err) => {
-  // Throws general Error, so there is no opensslErrorStack property.
-  return err instanceof Error &&
-         err.name === 'Error' &&
-         /^Error: (mac verify failure|INCORRECT_PASSWORD)$/.test(err) &&
-         !('opensslErrorStack' in err);
-});
+  assert.throws(() => {
+    tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
+  }, (err) => {
+    // Throws general Error, so there is no opensslErrorStack property.
+    return err instanceof Error &&
+           err.name === 'Error' &&
+           /^Error: (mac verify failure|INCORRECT_PASSWORD)$/.test(err) &&
+           !('opensslErrorStack' in err);
+  });
+}
 
 assert.throws(() => {
   tls.createSecureContext({ pfx: 'sample', passphrase: 'test' });
@@ -191,7 +200,7 @@ assert.throws(
 );
 
 assert.throws(
-  () => crypto.createHmac('sha256', 'a secret').update('0', 'hex'),
+  () => crypto.createHmac('sha256', '0123456789abcdef').update('0', 'hex'),
   (error) => {
     assert.ok(!('opensslErrorStack' in error));
     assert.throws(() => { throw error; }, encodingError);
@@ -211,7 +220,11 @@ assert.throws(() => {
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
-  if (process.features.openssl_is_boringssl) {
+  if (isFips) {
+    assert.throws(() => { throw err; }, {
+      code: 'ERR_OSSL_INVALID_KEY_LENGTH',
+    });
+  } else if (process.features.openssl_is_boringssl) {
     // BoringSSL rejects the tiny RSA key while decoding it, before signing.
     assert.throws(() => { throw err; }, {
       name: 'Error',
@@ -225,9 +238,9 @@ assert.throws(() => {
     assert(Array.isArray(err.opensslErrorStack));
     assert(err.opensslErrorStack.length > 0);
   } else {
-    if (!hasOpenSSL3)
+    if (!hasOpenSSL(3))
       assert.ok(!('opensslErrorStack' in err));
-    assert.throws(() => { throw err; }, hasOpenSSL3 ? {
+    assert.throws(() => { throw err; }, hasOpenSSL(3) ? {
       name: 'Error',
       message: 'error:02000070:rsa routines::digest too big for rsa key',
       library: 'rsa routines',
@@ -243,7 +256,7 @@ assert.throws(() => {
   return true;
 });
 
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
   // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
   // instead of

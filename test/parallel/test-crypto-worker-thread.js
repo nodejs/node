@@ -9,6 +9,7 @@ const {
   generateKeySync,
   generateKeyPairSync,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 const assert = require('assert');
@@ -19,7 +20,7 @@ if (isMainThread) {
   (async () => {
     const secretKey = generateKeySync('aes', { length: 128 });
     const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-      modulusLength: 1024
+      modulusLength: hasFIPS(3) ? 2048 : 1024
     });
     const cryptoKey = await subtle.generateKey(
       { name: 'AES-CBC', length: 128 }, false, ['encrypt']);

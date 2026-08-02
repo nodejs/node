@@ -6,10 +6,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 {
-  const size = crypto.getFips() || hasOpenSSL3 ? 1024 : 256;
+  const size = hasFIPS(3) ?
+    2048 : (crypto.getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
 
   function unlessInvalidState(f) {
     try {

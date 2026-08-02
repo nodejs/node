@@ -6,15 +6,18 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const {
   createSecretKey,
+  getFips,
   KeyObject,
 } = require('crypto');
 const { subtle } = globalThis.crypto;
+const fips3 = hasFIPS(3);
+const fips35 = hasFIPS(3, 5);
 
 const { bigIntArrayToUnsignedBigInt } = require('internal/crypto/util');
 
@@ -69,7 +72,7 @@ const vectors = {
   },
   'RSASSA-PKCS1-v1_5': {
     algorithm: {
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
@@ -81,7 +84,7 @@ const vectors = {
   },
   'RSA-PSS': {
     algorithm: {
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
@@ -93,7 +96,7 @@ const vectors = {
   },
   'RSA-OAEP': {
     algorithm: {
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     },
@@ -247,6 +250,21 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
 // Test bad usages
 {
   async function test(name) {
+    if (fips3 && name === 'ChaCha20-Poly1305') {
+      await assert.rejects(
+        subtle.generateKey({ name }, true, []),
+        { name: 'NotSupportedError' });
+      return;
+    }
+
+    if (fips35 && (name === 'X25519' || name === 'X448')) {
+      await assert.rejects(
+        subtle.generateKey({ name }, true, ['deriveBits']),
+        (err) => err.name === 'OperationError' &&
+                 err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+      return;
+    }
+
     await assert.rejects(
       subtle.generateKey(
         {
@@ -453,7 +471,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   const kTests = [
     [
       'RSASSA-PKCS1-v1_5',
-      1024,
+      getFips() === 1 ? 2048 : 1024,
       Buffer.from([1, 0, 1]),
       'SHA-1',
       ['sign'],
@@ -461,7 +479,7 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     ],
     [
       'RSA-PSS',
-      1024,
+      getFips() === 1 ? 2048 : 1024,
       Buffer.from([1, 0, 1]),
       'SHA-256',
       ['sign'],
@@ -470,22 +488,37 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   ];
 
 
+  let fipsExponentTest;
   if (!process.features.openssl_is_boringssl) {
-    kTests.push(
-      [
-        'RSA-OAEP',
-        1024,
-        Buffer.from([3]),
-        'SHA3-256',
-        ['decrypt', 'unwrapKey'],
-        ['encrypt', 'wrapKey'],
-      ],
-    );
+    if (fips3) {
+      fipsExponentTest = assert.rejects(
+        subtle.generateKey({
+          name: 'RSA-OAEP',
+          modulusLength: 2048,
+          publicExponent: Buffer.from([3]),
+          hash: 'SHA3-256',
+        }, true, ['decrypt', 'unwrapKey', 'encrypt', 'wrapKey']),
+        (err) => err.name === 'OperationError' &&
+                 err.cause?.code === 'ERR_OSSL_RSA_PUB_EXPONENT_OUT_OF_RANGE');
+    } else {
+      kTests.push(
+        [
+          'RSA-OAEP',
+          1024,
+          Buffer.from([3]),
+          'SHA3-256',
+          ['decrypt', 'unwrapKey'],
+          ['encrypt', 'wrapKey'],
+        ],
+      );
+    }
   } else {
     common.printSkipMessage('Skipping unsupported SHA-3 test case');
   }
 
   const tests = kTests.map((args) => test(...args));
+  if (fipsExponentTest !== undefined)
+    tests.push(fipsExponentTest);
 
   Promise.all(tests).then(common.mustCall());
 }
@@ -706,6 +739,13 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
 
 // Test OKP Key Generation
 {
+  async function testFipsUnsupported(name) {
+    await assert.rejects(
+      subtle.generateKey({ name }, true, ['deriveKey', 'deriveBits']),
+      (err) => err.name === 'OperationError' &&
+               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+  }
+
   async function test(
     name,
     privateUsages,
@@ -770,7 +810,12 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
     common.printSkipMessage('Skipping unsupported Curve448 test cases');
   }
 
-  const tests = kTests.map((args) => test(...args));
+  const tests = kTests.map((args) => {
+    const [name] = args;
+    if (fips35 && (name === 'X25519' || name === 'X448'))
+      return testFipsUnsupported(name);
+    return test(...args);
+  });
 
   Promise.all(tests).then(common.mustCall());
 }

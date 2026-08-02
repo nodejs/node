@@ -6,7 +6,9 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+const rejectsXCurves = hasFIPS(3, 5);
 
 function getAlgorithmName(algorithm) {
   return typeof algorithm === 'string' ? algorithm : algorithm.name;
@@ -50,7 +52,7 @@ async function assertPublicKeyDoesNotAcceptRawSecret(
     importUsages);
 }
 
-Promise.all([
+const tests = [
   assertSecretKeyDoesNotAcceptRawPublic('HKDF'),
   assertSecretKeyDoesNotAcceptRawPublic('PBKDF2'),
   assertPublicKeyDoesNotAcceptRawSecret(
@@ -65,8 +67,18 @@ Promise.all([
     'Ed25519',
     ['sign', 'verify'],
     ['verify']),
-  assertPublicKeyDoesNotAcceptRawSecret(
+];
+
+if (rejectsXCurves) {
+  tests.push(assert.rejects(
+    subtle.generateKey('X25519', true, ['deriveBits']),
+    (err) => err.name === 'OperationError' &&
+             err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED'));
+} else {
+  tests.push(assertPublicKeyDoesNotAcceptRawSecret(
     'X25519',
     ['deriveBits'],
-    []),
-]).then(common.mustCall());
+    []));
+}
+
+Promise.all(tests).then(common.mustCall());

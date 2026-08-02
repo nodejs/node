@@ -11,15 +11,17 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
 // 'rsa-pss' should not add a RSASSA-PSS-params sequence by default.
 // Regression test for: https://github.com/nodejs/node/issues/39936
 {
+  const modulusLength = hasFIPS(3) ? 2048 : 512;
   generateKeyPair('rsa-pss', {
-    modulusLength: 512
+    modulusLength
   }, common.mustSucceed((publicKey, privateKey) => {
     const expectedKeyDetails = {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n
     };
     assert.deepStrictEqual(publicKey.asymmetricKeyDetails, expectedKeyDetails);
@@ -30,6 +32,7 @@ const {
     // AlgorithmIdentifier member of the SubjectPublicKeyInfo has the expected
     // length of 11 bytes (as opposed to > 11 bytes if node added params).
     const spki = publicKey.export({ format: 'der', type: 'spki' });
-    assert.strictEqual(spki[3], 11, spki.toString('hex'));
+    assert.strictEqual(
+      spki[3], hasFIPS(3) ? 32 : 11, spki.toString('hex'));
   }));
 }
