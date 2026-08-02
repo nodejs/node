@@ -257,7 +257,7 @@ useful.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In a rare case (e.g.,
+If binding fails, an `'error'` event is generated. In rare cases (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 Example of a UDP server listening on port 41234:
