@@ -36,6 +36,12 @@ struct FastFFITrampoline {
   size_t size = 0;
 };
 
+struct FastFFITrampolineConfig {
+  void* target;
+  const bool* closed;
+  v8::Isolate* isolate;
+};
+
 struct FastFFIMetadata {
   FastFFIMetadata() = default;
   ~FastFFIMetadata();
@@ -47,6 +53,7 @@ struct FastFFIMetadata {
   std::vector<v8::CTypeInfo> arg_info;
   std::unique_ptr<v8::CFunctionInfo> c_function_info;
   v8::CFunction c_function;
+  bool guards_library = false;
 };
 
 // Public detection queries.
@@ -56,6 +63,7 @@ struct FastFFIMetadata {
 // of any particular signature — if this returns false, no signature can
 // use the fast-call path.
 bool IsFastCallSupported();
+bool IsFastLibraryGuardSupported();
 
 bool SignatureNeedsRawPointerConversions(const FFIFunction& fn);
 bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn);
@@ -65,7 +73,9 @@ std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
     const std::shared_ptr<FFIFunction>& fn);
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
     const std::shared_ptr<FFIFunction>& fn);
-std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn);
+std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
+                                                       const bool* closed,
+                                                       v8::Isolate* isolate);
 
 }  // namespace node::ffi
 
@@ -73,11 +83,13 @@ extern "C" {
 uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
                                     v8::FastApiCallbackOptions* options,
                                     uint32_t index);
-bool node_ffi_create_fast_trampoline(void* target,
-                                     const node::ffi::FastFFIType* args,
-                                     size_t argc,
-                                     node::ffi::FastFFIType result,
-                                     node::ffi::FastFFITrampoline* out);
+void node_ffi_fast_library_closed(v8::Isolate* isolate);
+bool node_ffi_create_fast_trampoline(
+    const node::ffi::FastFFITrampolineConfig& config,
+    const node::ffi::FastFFIType* args,
+    size_t argc,
+    node::ffi::FastFFIType result,
+    node::ffi::FastFFITrampoline* out);
 void node_ffi_free_fast_trampoline(node::ffi::FastFFITrampoline* trampoline);
 }
 

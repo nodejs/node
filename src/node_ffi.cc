@@ -250,15 +250,16 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   // signature, fall back to SharedBuffer for supported scalar shapes, then to
   // the generic libffi invoker.
   std::shared_ptr<FFIFunction> fast_fn = CloneWithRawPointerArgNames(fn);
-  info->fast_metadata = CreateFastFFIMetadata(*fast_fn);
+  info->fast_metadata = CreateFastFFIMetadata(*fast_fn, &fn->closed, isolate);
   bool use_fast_api = info->fast_metadata != nullptr;
   bool use_sb = !use_fast_api && IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
-  // Fast API signatures that need JS-side argument conversion or range checks
-  // use a wrapper with the native type names attached as hidden metadata.
+  // Signatures that need JS-side conversion or validation use a wrapper, as
+  // do all fast signatures on platforms without a native library guard.
   bool needs_fast_argument_wrapper =
       use_fast_api && (SignatureNeedsRawPointerConversions(*fn) ||
-                       SignatureNeedsFastIntegerValidation(*fn));
+                       SignatureNeedsFastIntegerValidation(*fn) ||
+                       !info->fast_metadata->guards_library);
   // A single pointer-like parameter can get a separate Buffer-aware Fast API
   // entrypoint so Buffer calls avoid JS pointer extraction.
   bool needs_fast_buffer_invoke =
@@ -407,7 +408,8 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // argument is Buffer/ArrayBuffer-backed memory.
     std::shared_ptr<FFIFunction> fast_buffer_fn =
         CloneWithFastBufferArgNames(fn);
-    info->fast_buffer_metadata = CreateFastFFIMetadata(*fast_buffer_fn);
+    info->fast_buffer_metadata =
+        CreateFastFFIMetadata(*fast_buffer_fn, &fn->closed, isolate);
     if (info->fast_buffer_metadata != nullptr) {
       // Store the secondary invoker on the primary raw function under a hidden
       // Symbol. Keeping it separate avoids overloading SharedBuffer slow-path
