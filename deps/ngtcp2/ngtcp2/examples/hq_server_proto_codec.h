@@ -32,6 +32,7 @@
 #include <vector>
 #include <expected>
 #include <set>
+#include <optional>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -76,16 +77,16 @@ public:
   std::expected<void, Error> recv_stream_data(uint32_t flags, int64_t stream_id,
                                               std::span<const uint8_t> data);
 
-  std::expected<void, Error> on_stream_close(int64_t stream_id,
-                                             uint64_t app_error_code);
+  std::expected<void, Error>
+  on_stream_close(int64_t stream_id, std::optional<uint64_t> rx_app_error_code,
+                  std::optional<uint64_t> tx_app_error_code);
 
   std::expected<void, Error> start_response(Stream *stream);
 
   static constexpr auto protocol = AppProtocol::HQ;
 
 private:
-  std::expected<void, Error> send_status_response(Stream *stream,
-                                                  unsigned int status_code);
+  void send_status_response(Stream *stream, unsigned int status_code);
 
   Handler *handler_;
   ngtcp2_conn *conn_;

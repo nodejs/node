@@ -75,14 +75,18 @@ ProtoCodec::recv_stream_data(uint32_t flags, int64_t stream_id,
 }
 
 std::expected<void, Error>
-ProtoCodec::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
+ProtoCodec::on_stream_close(int64_t stream_id,
+                            std::optional<uint64_t> rx_app_error_code,
+                            std::optional<uint64_t> tx_app_error_code) {
   if (!ngtcp2_is_bidi_stream(stream_id)) {
     return {};
   }
 
   if (!config.quiet) {
-    std::println(stderr, "HTTP stream {:#x} closed with error code {:#x}",
-                 stream_id, app_error_code);
+    std::println(stderr,
+                 "HTTP stream {:#x} closed with error codes (RX:{}, TX:{})",
+                 stream_id, util::format_app_error_code(rx_app_error_code),
+                 util::format_app_error_code(tx_app_error_code));
   }
 
   return {};

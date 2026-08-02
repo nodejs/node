@@ -41,6 +41,7 @@
 #include <expected>
 #include <ranges>
 #include <filesystem>
+#include <optional>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -595,6 +596,9 @@ get_string(std::string_view uri, const urlparse_url &u, urlparse_url_fields f) {
 
 // realpath returns the canonicalized absolute path to |path|.
 std::filesystem::path realpath(const std::filesystem::path &path);
+
+// format_app_error_code formats |app_error_code|.
+std::string format_app_error_code(std::optional<uint64_t> app_error_code);
 
 } // namespace util
 
