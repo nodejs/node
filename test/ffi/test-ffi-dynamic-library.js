@@ -176,6 +176,46 @@ test('getFunction caches signatures consistently', () => {
   }
 });
 
+test('resolving the same symbol reuses one function', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const definitions = { add_i32: fixtureSymbols.add_i32 };
+
+  try {
+    // Every resolution used to build a new callable, allocating another
+    // trampoline and making `lib.functions.add_i32` a different function on
+    // each read.
+    const fn = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+    assert.strictEqual(lib.getFunction('add_i32', fixtureSymbols.add_i32), fn);
+    assert.strictEqual(lib.functions.add_i32, fn);
+    assert.strictEqual(lib.getFunctions().add_i32, fn);
+    assert.strictEqual(lib.getFunctions(definitions).add_i32, fn);
+    assert.strictEqual(fn(20, 22), 42);
+  } finally {
+    lib.close();
+  }
+});
+
+test('a dropped function wrapper is collectable', async () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+
+  try {
+    // Caching the wrapper must not pin it, so that dropping the last user
+    // reference still releases the wrapper and the trampoline it owns.
+    let fn = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+    const ref = new WeakRef(fn);
+    fn = null;
+
+    await gcUntil('a dropped function wrapper is collectable', () => {
+      return ref.deref() === undefined;
+    });
+
+    fn = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+    assert.strictEqual(fn(20, 22), 42);
+  } finally {
+    lib.close();
+  }
+});
+
 test('FFI functions keep their owning library alive', async () => {
   let lib = new ffi.DynamicLibrary(libraryPath);
   const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
