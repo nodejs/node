@@ -13,6 +13,7 @@
 #include "v8.h"
 
 #include <climits>  // INT_MAX
+#include <limits>
 
 namespace node {
 
@@ -40,6 +41,33 @@ using v8::SideEffectType;
 using v8::Signature;
 using v8::String;
 using v8::Value;
+
+struct PreparedWritevChunk {
+  Local<Value> value;
+  enum encoding encoding;
+  bool is_buffer;
+};
+
+static void AppendWriteBuffer(uv_buf_t* bufs,
+                              size_t* count,
+                              char* base,
+                              size_t len,
+                              bool coalesce) {
+  if (coalesce && len > 0 && *count > 0) {
+    uv_buf_t& previous = bufs[*count - 1];
+    const size_t max_len =
+        std::numeric_limits<decltype(previous.len)>::max();
+    if (previous.len > 0 && previous.base + previous.len == base &&
+        len <= max_len && previous.len <= max_len - len) {
+      previous.len += static_cast<decltype(previous.len)>(len);
+      return;
+    }
+  }
+
+  bufs[*count].base = base;
+  bufs[*count].len = len;
+  (*count)++;
+}
 
 int StreamBase::Shutdown(v8::Local<v8::Object> req_wrap_obj) {
   Environment* env = stream_env();
@@ -175,6 +203,18 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
 void StreamBase::SetWriteResult(const StreamWriteResult& res) {
   env_->stream_base_state()[kBytesWritten] = res.bytes;
   env_->stream_base_state()[kLastWriteWasAsync] = res.async;
+  env_->stream_base_state()[kLastWriteErr] = res.err;
+}
+
+int StreamBase::FinishWrite(const FunctionCallbackInfo<Value>& args,
+                            const StreamWriteResult& res,
+                            bool lazy_req) {
+  SetWriteResult(res);
+  if (lazy_req && res.wrap_obj) {
+    args.GetReturnValue().Set(res.wrap_obj->object());
+    return kReturnValueSet;
+  }
+  return res.err;
 }
 
 int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
@@ -182,57 +222,18 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
-  CHECK(args[0]->IsObject());
+  const bool lazy_write_wrap = !args[0]->IsObject();
   CHECK(args[1]->IsArray());
 
-  Local<Object> req_wrap_obj = args[0].As<Object>();
+  Local<Object> req_wrap_obj;
+  if (!lazy_write_wrap)
+    req_wrap_obj = args[0].As<Object>();
   Local<Array> chunks = args[1].As<Array>();
   bool all_buffers = args[2]->IsTrue();
 
-  size_t count;
-  if (all_buffers)
-    count = chunks->Length();
-  else
-    count = chunks->Length() >> 1;
-
-  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
-
-  size_t storage_size = 0;
-  size_t offset;
-
-  if (!all_buffers) {
-    // Determine storage size first
-    for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk;
-      if (!chunks->Get(context, i * 2).ToLocal(&chunk))
-        return -1;
-
-      if (Buffer::HasInstance(chunk))
-        continue;
-        // Buffer chunk, no additional storage required
-
-      // String chunk
-      Local<String> string;
-      if (!chunk->ToString(context).ToLocal(&string))
-        return -1;
-      Local<Value> next_chunk;
-      if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
-        return -1;
-      enum encoding encoding = ParseEncoding(isolate, next_chunk);
-      size_t chunk_size;
-      if ((encoding == UTF8 &&
-             string->Length() > 65535 &&
-             !StringBytes::Size(isolate, string, encoding).To(&chunk_size)) ||
-              !StringBytes::StorageSize(isolate, string, encoding)
-                  .To(&chunk_size)) {
-        return -1;
-      }
-      storage_size += chunk_size;
-    }
-
-    if (storage_size > INT_MAX)
-      return UV_ENOBUFS;
-  } else {
+  if (all_buffers) {
+    const size_t count = chunks->Length();
+    MaybeStackBuffer<uv_buf_t, 16> bufs(count);
     for (size_t i = 0; i < count; i++) {
       Local<Value> chunk;
       if (!chunks->Get(context, i).ToLocal(&chunk))
@@ -240,7 +241,53 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       bufs[i].base = Buffer::Data(chunk);
       bufs[i].len = Buffer::Length(chunk);
     }
+
+    StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
+    return FinishWrite(args, res, lazy_write_wrap);
   }
+
+  const size_t count = chunks->Length() >> 1;
+
+  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
+  MaybeStackBuffer<PreparedWritevChunk, 32> prepared_chunks(count);
+  size_t storage_size = 0;
+
+  // Determine storage size and retain metadata for materialization.
+  for (size_t i = 0; i < count; i++) {
+    Local<Value> chunk;
+    if (!chunks->Get(context, i * 2).ToLocal(&chunk))
+      return -1;
+
+    if (Buffer::HasInstance(chunk)) {
+      prepared_chunks[i].value = chunk;
+      prepared_chunks[i].is_buffer = true;
+      continue;
+    }
+
+    Local<String> string;
+    if (!chunk->ToString(context).ToLocal(&string))
+      return -1;
+    Local<Value> next_chunk;
+    if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
+      return -1;
+    const enum encoding encoding = ParseEncoding(
+        isolate, next_chunk, next_chunk, LATIN1);
+    prepared_chunks[i].value = string;
+    prepared_chunks[i].encoding = encoding;
+    prepared_chunks[i].is_buffer = false;
+    size_t chunk_size;
+    if ((encoding == UTF8 &&
+           string->Length() > 65535 &&
+           !StringBytes::Size(isolate, string, encoding).To(&chunk_size)) ||
+            !StringBytes::StorageSize(isolate, string, encoding)
+                .To(&chunk_size)) {
+      return -1;
+    }
+    storage_size += chunk_size;
+  }
+
+  if (storage_size > INT_MAX)
+    return UV_ENOBUFS;
 
   std::unique_ptr<BackingStore> bs;
   if (storage_size > 0) {
@@ -248,59 +295,58 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
         isolate, storage_size, BackingStoreInitializationMode::kUninitialized);
   }
 
-  offset = 0;
-  if (!all_buffers) {
-    for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk;
-      if (!chunks->Get(context, i * 2).ToLocal(&chunk))
-        return -1;
+  size_t offset = 0;
+  size_t write_count = 0;
+  bool previous_was_string = false;
+  for (size_t i = 0; i < count; i++) {
+    const Local<Value> chunk = prepared_chunks[i].value;
 
-      // Write buffer
-      if (Buffer::HasInstance(chunk)) {
-        bufs[i].base = Buffer::Data(chunk);
-        bufs[i].len = Buffer::Length(chunk);
-        continue;
-      }
-
-      // Write string
-      CHECK_LE(offset, storage_size);
-      char* str_storage =
-          static_cast<char*>(bs ? bs->Data() : nullptr) + offset;
-      size_t str_size = (bs ? bs->ByteLength() : 0) - offset;
-
-      Local<String> string;
-      if (!chunk->ToString(context).ToLocal(&string))
-        return -1;
-      Local<Value> next_chunk;
-      if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
-        return -1;
-      enum encoding encoding = ParseEncoding(isolate, next_chunk);
-      str_size = StringBytes::Write(isolate,
-                                    str_storage,
-                                    str_size,
-                                    string,
-                                    encoding);
-      bufs[i].base = str_storage;
-      bufs[i].len = str_size;
-      offset += str_size;
+    if (prepared_chunks[i].is_buffer) {
+      AppendWriteBuffer(*bufs,
+                        &write_count,
+                        Buffer::Data(chunk),
+                        Buffer::Length(chunk),
+                        false);
+      previous_was_string = false;
+      continue;
     }
+
+    CHECK_LE(offset, storage_size);
+    char* str_storage = bs == nullptr ?
+      nullptr : static_cast<char*>(bs->Data()) + offset;
+    size_t str_size = storage_size - offset;
+    str_size = StringBytes::Write(
+        isolate,
+        str_storage,
+        str_size,
+        chunk.As<String>(),
+        prepared_chunks[i].encoding);
+    AppendWriteBuffer(
+        *bufs, &write_count, str_storage, str_size, previous_was_string);
+    previous_was_string = str_size > 0;
+    offset += str_size;
   }
 
-  StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
-  SetWriteResult(res);
-  if (res.wrap != nullptr && storage_size > 0)
+  StreamWriteResult res = Write(*bufs,
+                                write_count,
+                                nullptr,
+                                req_wrap_obj);
+  if (res.wrap != nullptr && storage_size > 0) {
     res.wrap->SetBackingStore(std::move(bs));
-  return res.err;
+  }
+  return FinishWrite(args, res, lazy_write_wrap);
 }
 
 
 int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsObject());
   CHECK(args[1]->IsUint8Array());
 
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> req_wrap_obj = args[0].As<Object>();
+  const bool lazy_req = !args[0]->IsObject();
+  Local<Object> req_wrap_obj;
+  if (!lazy_req)
+    req_wrap_obj = args[0].As<Object>();
   uv_buf_t buf;
   buf.base = Buffer::Data(args[1]);
   buf.len = Buffer::Length(args[1]);
@@ -309,6 +355,15 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   if (args[2]->IsObject() && IsIPCPipe()) {
     Local<Object> send_handle_obj = args[2].As<Object>();
+
+    if (lazy_req) {
+      if (!env->write_wrap_template()
+               ->NewInstance(env->context())
+               .ToLocal(&req_wrap_obj)) {
+        return UV_EBUSY;
+      }
+      StreamReq::ResetObject(req_wrap_obj);
+    }
 
     HandleWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
@@ -323,9 +378,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj);
-  SetWriteResult(res);
-
-  return res.err;
+  return FinishWrite(args, res, lazy_req);
 }
 
 
@@ -333,10 +386,12 @@ template <enum encoding enc>
 int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
 
-  Local<Object> req_wrap_obj = args[0].As<Object>();
+  const bool lazy_req = !args[0]->IsObject();
+  Local<Object> req_wrap_obj;
+  if (!lazy_req)
+    req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
   Local<Object> send_handle_obj;
   if (args[2]->IsObject())
@@ -383,8 +438,10 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
     // Immediate failure or success
     if (err != 0 || count == 0) {
-      SetWriteResult(StreamWriteResult { false, err, nullptr, data_size, {} });
-      return err;
+      return FinishWrite(
+          args,
+          StreamWriteResult{false, err, nullptr, data_size, {}},
+          lazy_req);
     }
 
     // Partial write
@@ -417,6 +474,15 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   uv_stream_t* send_handle = nullptr;
 
   if (IsIPCPipe() && !send_handle_obj.IsEmpty()) {
+    if (lazy_req && req_wrap_obj.IsEmpty()) {
+      if (!env->write_wrap_template()
+               ->NewInstance(env->context())
+               .ToLocal(&req_wrap_obj)) {
+        return UV_EBUSY;
+      }
+      StreamReq::ResetObject(req_wrap_obj);
+    }
+
     HandleWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
     send_handle = reinterpret_cast<uv_stream_t*>(wrap->GetHandle());
@@ -432,11 +498,10 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   StreamWriteResult res = Write(&buf, 1, send_handle, req_wrap_obj, try_write);
   res.bytes += synchronously_written;
 
-  SetWriteResult(res);
   if (res.wrap != nullptr)
     res.wrap->SetBackingStore(std::move(bs));
 
-  return res.err;
+  return FinishWrite(args, res, lazy_req);
 }
 
 
@@ -662,7 +727,9 @@ void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   if (!wrap->IsAlive()) return args.GetReturnValue().Set(UV_EINVAL);
 
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(wrap->GetAsyncWrap());
-  args.GetReturnValue().Set((wrap->*Method)(args));
+  const int ret = (wrap->*Method)(args);
+  if (ret != kReturnValueSet)
+    args.GetReturnValue().Set(ret);
 }
 
 int StreamResource::DoTryWrite(uv_buf_t** bufs, size_t* count) {
@@ -760,20 +827,47 @@ void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
   CHECK(!async_wrap->persistent().IsEmpty());
   Local<Object> req_wrap_obj = async_wrap->object();
 
+  Local<Value> oncomplete;
+  if (!req_wrap_obj->Get(env->context(), env->oncomplete_string())
+           .ToLocal(&oncomplete)) {
+    return;
+  }
+
+  const char* msg = stream->Error();
+
+  if (!oncomplete->IsFunction()) {
+    if (req_wrap_obj
+            ->Set(env->context(),
+                  env->write_status_string(),
+                  Integer::New(env->isolate(), status))
+            .IsNothing()) {
+      return;
+    }
+    if (msg != nullptr) {
+      if (req_wrap_obj
+              ->Set(env->context(),
+                    env->error_string(),
+                    OneByteString(env->isolate(), msg))
+              .IsNothing()) {
+        return;
+      }
+      stream->ClearError();
+    }
+    return;
+  }
+
   Local<Value> argv[] = {
     Integer::New(env->isolate(), status),
     stream->GetObject(),
     Undefined(env->isolate())
   };
 
-  const char* msg = stream->Error();
   if (msg != nullptr) {
     argv[2] = OneByteString(env->isolate(), msg);
     stream->ClearError();
   }
 
-  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust())
-    async_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
+  async_wrap->MakeCallback(oncomplete.As<Function>(), arraysize(argv), argv);
 }
 
 void ReportWritesToJSStreamListener::OnStreamAfterWrite(

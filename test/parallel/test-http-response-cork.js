@@ -1,15 +1,18 @@
+// Flags: --expose-internals
+
 'use strict';
 const common = require('../common');
 const http = require('http');
 const assert = require('assert');
+const { kInternalWritev } = require('internal/streams/utils');
 
 const server = http.createServer(common.mustCallAtLeast((req, res) => {
   let corked = false;
-  const originalWrite = res.socket.write;
-  res.socket.write = common.mustCall((...args) => {
+  const originalWritev = res.socket[kInternalWritev];
+  res.socket[kInternalWritev] = common.mustCall(function(...args) {
     assert.strictEqual(corked, false);
-    return originalWrite.call(res.socket, ...args);
-  }, 5);
+    return originalWritev.apply(this, args);
+  });
   corked = true;
   res.cork();
   assert.strictEqual(res.writableCorked, res.socket.writableCorked);

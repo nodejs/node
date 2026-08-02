@@ -3,6 +3,34 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
+{
+  const msg = new http.OutgoingMessage();
+  msg.sendDate = true;
+  msg._storeHeader('', [
+    ['cOnNeCtIoN', 'close'],
+    ['cOnTeNt-LeNgTh', '0'],
+    ['dAtE', 'custom'],
+    ['eXpEcT', '100-continue'],
+    ['kEeP-aLiVe', 'timeout=1'],
+  ]);
+
+  assert.strictEqual(msg._last, true);
+  assert.strictEqual(msg._contentLength, 0);
+  assert.strictEqual(msg._defaultKeepAlive, false);
+  assert.strictEqual(msg._header.includes('\r\nDate: '), false);
+  assert.strictEqual(msg.outputData.length, 1);
+}
+
+{
+  const msg = new http.OutgoingMessage();
+  msg._storeHeader('', [
+    ['tRaIlEr', 'x-test'],
+    ['tRaNsFeR-EnCoDiNg', 'chunked'],
+  ]);
+
+  assert.strictEqual(msg.chunkedEncoding, true);
+}
+
 const server = http.createServer(common.mustCall((req, res) => {
   res.setHeader('X-Date', 'foo');
   res.setHeader('X-Connection', 'bar');

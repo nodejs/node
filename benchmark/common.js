@@ -26,7 +26,7 @@ class Benchmark {
 
     // Parse job-specific configuration from the command line arguments
     const argv = process.argv.slice(2);
-    const parsed_args = this._parseArgs(argv, configs, options);
+    const parsed_args = this._parseArgs([...argv], configs, options);
 
     this.originalOptions = options;
     this.options = parsed_args.cli;
@@ -38,8 +38,10 @@ class Benchmark {
       const groupNames = process.env.NODE_RUN_BENCHMARK_GROUPS?.split(',') ?? Object.keys(configs);
 
       for (const groupName of groupNames) {
-        const config = { ...configs[groupName][0], group: groupName };
-        const parsed_args = this._parseArgs(argv, config, options);
+        const groupConfig = Array.isArray(configs[groupName]) ?
+          configs[groupName][0] : configs[groupName];
+        const config = { ...groupConfig, group: groupName };
+        const parsed_args = this._parseArgs([...argv], config, options);
 
         this.options = parsed_args.cli;
         this.extra_options = parsed_args.extra;
@@ -221,6 +223,9 @@ class Benchmark {
       // function.
       const childEnv = { ...process.env };
       childEnv.NODE_RUN_BENCHMARK_FN = '';
+      if (this.originalOptions.byGroups) {
+        childEnv.NODE_RUN_BENCHMARK_GROUPS = config.group;
+      }
 
       // Create configuration arguments
       const childArgs = [];

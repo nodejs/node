@@ -10,6 +10,8 @@
 
 #include "v8.h"
 
+#include <climits>  // INT_MIN
+
 namespace node {
 
 // Forward declarations
@@ -405,14 +407,20 @@ class StreamBase : public StreamResource {
     kArrayBufferOffset,
     kBytesWritten,
     kLastWriteWasAsync,
+    kLastWriteErr,
     kNumStreamBaseStateFields
   };
 
  private:
+  static constexpr int kReturnValueSet = INT_MIN;
+
   Environment* env_;
   EmitToJSStreamListener default_listener_;
 
   void SetWriteResult(const StreamWriteResult& res);
+  int FinishWrite(const v8::FunctionCallbackInfo<v8::Value>& args,
+                  const StreamWriteResult& res,
+                  bool lazy_req);
   static void AddAccessor(v8::Isolate* isolate,
                           v8::Local<v8::Signature> sig,
                           enum v8::PropertyAttribute attributes,
