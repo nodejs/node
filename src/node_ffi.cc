@@ -83,6 +83,12 @@ void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize(
       "symbols", symbols_size, "std::unordered_map<std::string, void*>");
 
+  tracker->TrackFieldWithSize(
+      "function_wrappers",
+      function_wrappers_.size() *
+          sizeof(decltype(function_wrappers_)::value_type),
+      "std::unordered_map<std::string, v8::Global<v8::Function>>");
+
   // FFIFunctionInfo instances and their sb_backing ArrayBuffers are
   // owned by V8 function wrappers and reachable only via weak references,
   // so they are deliberately not counted here.
@@ -108,6 +114,7 @@ void DynamicLibrary::Close() {
 
   symbols_.clear();
   functions_.clear();
+  function_wrappers_.clear();
   callbacks_.clear();
 }
 
@@ -258,6 +265,19 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     const std::shared_ptr<FFIFunction>& fn) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+
+  // Creating a callable emits a trampoline, allocates an FFIFunctionInfo, and
+  // on the SharedBuffer path allocates an ArrayBuffer, so reuse the one already
+  // handed out for this symbol. `PrepareFunction()` rejects a request that uses
+  // a different signature, so a hit always describes the same signature. An
+  // empty handle means the wrapper was collected; fall through and rebuild.
+  auto cached = function_wrappers_.find(name);
+  if (cached != function_wrappers_.end()) {
+    if (!cached->second.IsEmpty()) {
+      return cached->second.Get(isolate);
+    }
+    function_wrappers_.erase(cached);
+  }
 
   auto info = FFIFunctionInfo::Create(env, fn, this);
 
@@ -453,6 +473,14 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
       }
     }
   }
+
+  // A strong handle would root the callable, which holds the library object
+  // through FFIFunctionInfo, so neither could ever be collected. Weaken the
+  // stored handle instead, so the cache lasts exactly as long as user code
+  // keeps a reference. SetWeak() runs after the move into the map because
+  // moving a handle relocates the underlying slot.
+  function_wrappers_.emplace(name, Global<Function>(isolate, ret))
+      .first->second.SetWeak();
 
   return ret;
 }
