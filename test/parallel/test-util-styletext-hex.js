@@ -312,9 +312,10 @@ describe('util.styleText hex color support', () => {
       assert.strictEqual(styled('#ffcc00', '3'), '\u001b[38;2;255;204;0mtest\u001b[39m');
     });
 
-    it('should keep 24-bit colors with FORCE_COLOR=0', () => {
-      // Colors are not disabled when the stream is not validated.
-      assert.strictEqual(styled('#ffcc00', '0'), '\u001b[38;2;255;204;0mtest\u001b[39m');
+    it('should disable colors with FORCE_COLOR=0', () => {
+      assert.strictEqual(styled('#ffcc00', '0'), 'test');
+      // Also via the array path, which goes through the shared loop.
+      assert.strictEqual(styled(['bold', '#ffcc00'], '0'), 'test');
     });
 
     it('should downgrade every color of an array of formats', () => {

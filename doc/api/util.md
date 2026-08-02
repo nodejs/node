@@ -2677,6 +2677,8 @@ the terminal, or the [`FORCE_COLOR`][] environment variable, reports fewer than
 
 When `validateStream` is `false`, hex colors are only downgraded if
 `FORCE_COLOR` is set, since no stream is inspected to determine the color depth.
+A `FORCE_COLOR` value that disables colors (such as `0`) disables colorized
+output even when `validateStream` is `false`.
 
 The full list of formats can be found in [modifiers][].
 
