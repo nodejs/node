@@ -8,6 +8,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { hasFIPS } = require('../common/crypto');
 const mustCall = common.mustCall;
 const tls = require('tls');
 const util = require('util');
@@ -16,7 +17,7 @@ const util = require('util');
 // default method is updated in the future
 const SSL_Method = 'TLSv1_2_method';
 const localhost = '127.0.0.1';
-const config = process.features.openssl_is_boringssl ? {
+const config = process.features.openssl_is_boringssl || hasFIPS(3) ? {
   serverCiphers:
     'ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256',
   clientPreferenceCiphers:

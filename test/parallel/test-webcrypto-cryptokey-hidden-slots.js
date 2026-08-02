@@ -22,6 +22,7 @@ if (!common.hasCrypto)
 const assert = require('node:assert');
 const {
   createHmac,
+  getFips,
   KeyObject,
   sign: cryptoSign,
   verify: cryptoVerify,
@@ -50,7 +51,7 @@ common.expectWarning({
   const { publicKey: rsaPublicKey } = await subtle.generateKey(
     {
       name: 'RSA-PSS',
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256',
     },

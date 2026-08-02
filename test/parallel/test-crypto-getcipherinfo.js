@@ -6,8 +6,9 @@ if (!common.hasCrypto)
 
 const {
   getCiphers,
-  getCipherInfo
+  getCipherInfo,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
 const assert = require('assert');
 
@@ -76,7 +77,10 @@ if (!process.features.openssl_is_boringssl) {
 }
 
 assert(!getCipherInfo('aes-128-ocb', { ivLength: 16 }));
-if (!process.features.openssl_is_boringssl) {
+if (hasFIPS(3)) {
+  assert.strictEqual(
+    getCipherInfo('aes-128-ocb', { ivLength: 12 }), undefined);
+} else if (!process.features.openssl_is_boringssl) {
   for (let n = 1; n < 16; n++)
     assert(getCipherInfo('aes-128-ocb', { ivLength: n }));
 } else {

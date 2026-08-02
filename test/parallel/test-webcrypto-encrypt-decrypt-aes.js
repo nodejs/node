@@ -8,6 +8,7 @@ if (!common.hasCrypto)
 const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
+const { getFips } = require('crypto');
 const { subtle } = globalThis.crypto;
 
 async function testEncrypt({ keyBuffer, algorithm, plaintext, result }) {
@@ -237,6 +238,14 @@ if (hasOpenSSL(3)) {
   } = require('../fixtures/crypto/aes_ocb')();
 
   (async function() {
+    if (getFips() === 1) {
+      await assert.rejects(
+        testEncrypt(passing[0]),
+        (err) => err.name === 'OperationError' &&
+                 err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+      return;
+    }
+
     const variations = [];
 
     passing.forEach((vector) => {

@@ -3,11 +3,13 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 const assert = require('assert');
 const util = require('util');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
+
+const fips3 = hasFIPS(3);
 
 function test(
   publicFixture,
@@ -65,6 +67,15 @@ function test(
   }
 }
 
+function testSignFailure(privateFixture, algorithm, options, code) {
+  const key = { key: fixtures.readKey(privateFixture), ...options };
+  const data = Buffer.from('Hello world');
+  assert.throws(() => crypto.sign(algorithm, data, key), { code });
+  crypto.sign(algorithm, data, key, common.mustCall((err) => {
+    assert.strictEqual(err?.code, code);
+  }));
+}
+
 // RSA w/ default padding
 test('rsa_public.pem', 'rsa_private.pem', 'sha256', true);
 test('rsa_public.pem', 'rsa_private.pem', 'sha256', true,
@@ -94,14 +105,19 @@ if (!process.features.openssl_is_boringssl) {
   test('ed448_public.pem', 'ed448_private.pem', undefined, true);
 
   // ECDSA w/ der signature encoding
-  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
-       false);
-  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
-       false, { dsaEncoding: 'der' });
+  if (fips3) {
+    testSignFailure('ec_secp256k1_private.pem', 'sha384', {},
+                    'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE');
+  } else {
+    test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
+         false);
+    test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384',
+         false, { dsaEncoding: 'der' });
 
-  // ECDSA w/ ieee-p1363 signature encoding
-  test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384', false,
-       { dsaEncoding: 'ieee-p1363' });
+    // ECDSA w/ ieee-p1363 signature encoding
+    test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384', false,
+         { dsaEncoding: 'ieee-p1363' });
+  }
 
   // DSA w/ der signature encoding
   test('dsa_public.pem', 'dsa_private.pem', 'sha256',
@@ -157,7 +173,7 @@ MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
 
   let expected = /no default digest/;
   let expectedCode = 'ERR_OSSL_EVP_NO_DEFAULT_DIGEST';
-  if (hasOpenSSL3 || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3) || process.features.openssl_is_boringssl) {
     expected = /operation[\s_]not[\s_]supported[\s_]for[\s_]this[\s_]keytype/i;
     expectedCode = 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE';
   }
@@ -170,12 +186,21 @@ MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
 }
 
 {
-  const { privateKey } = crypto.generateKeyPairSync('rsa', {
-    modulusLength: 512
-  });
-  crypto.sign('sha512', 'message', privateKey, common.mustCall((err) => {
-    assert.ok(err);
-    assert.match(err.message, /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i);
-    assert.match(err.code, /^ERR_OSSL_.*DIGEST_TOO_BIG_FOR_RSA_KEY$/);
-  }));
+  if (fips3) {
+    crypto.generateKeyPair('rsa', { modulusLength: 512 },
+                           common.mustCall((err) => {
+                             assert.strictEqual(
+                               err?.code, 'ERR_OSSL_RSA_INVALID_MODULUS');
+                           }));
+  } else {
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 512
+    });
+    crypto.sign('sha512', 'message', privateKey, common.mustCall((err) => {
+      assert.ok(err);
+      assert.match(
+        err.message, /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i);
+      assert.match(err.code, /^ERR_OSSL_.*DIGEST_TOO_BIG_FOR_RSA_KEY$/);
+    }));
+  }
 }

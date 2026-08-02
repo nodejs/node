@@ -11,7 +11,9 @@ const {
   createPublicKey,
   createPrivateKey,
 } = require('crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+
+const rejectsXCurves = hasFIPS(3, 5);
 
 // Test generateKeyPairSync with raw encoding for EdDSA/ECDH key types.
 {
@@ -20,10 +22,17 @@ const { hasOpenSSL } = require('../common/crypto');
     types.push('ed448', 'x448');
   }
   for (const type of types) {
-    const { publicKey, privateKey } = generateKeyPairSync(type, {
+    const options = {
       publicKeyEncoding: { format: 'raw-public' },
       privateKeyEncoding: { format: 'raw-private' },
-    });
+    };
+    if (rejectsXCurves && type.startsWith('x')) {
+      assert.throws(() => generateKeyPairSync(type, options), {
+        code: 'ERR_OSSL_EVP_UNSUPPORTED',
+      });
+      continue;
+    }
+    const { publicKey, privateKey } = generateKeyPairSync(type, options);
 
     assert(Buffer.isBuffer(publicKey));
     assert(Buffer.isBuffer(privateKey));
@@ -54,13 +63,20 @@ const { hasOpenSSL } = require('../common/crypto');
     types.push('ed448', 'x448');
   }
   for (const type of types) {
-    generateKeyPair(type, {
+    const options = {
       publicKeyEncoding: { format: 'raw-public' },
       privateKeyEncoding: { format: 'raw-private' },
-    }, common.mustSucceed((publicKey, privateKey) => {
-      assert(Buffer.isBuffer(publicKey));
-      assert(Buffer.isBuffer(privateKey));
-    }));
+    };
+    generateKeyPair(type, options,
+                    common.mustCall((err, publicKey, privateKey) => {
+                      if (rejectsXCurves && type.startsWith('x')) {
+                        assert.strictEqual(err?.code, 'ERR_OSSL_EVP_UNSUPPORTED');
+                        return;
+                      }
+                      assert.ifError(err);
+                      assert(Buffer.isBuffer(publicKey));
+                      assert(Buffer.isBuffer(privateKey));
+                    }));
   }
 }
 
