@@ -1964,8 +1964,12 @@ Tells the peer that this end will not send any more data on this stream,
 sending a `RESET_STREAM` frame carrying `code`. The readable side is left
 open, so data already sent by the peer remains available to read.
 
-No acknowledgement of this action is provided. Has no effect if the stream
-has been destroyed.
+Any data still queued for sending is discarded. A reset stream is never
+acknowledged by the peer, so the outbound queue can no longer drain.
+
+No acknowledgement of this action is provided. The call does nothing if the
+stream has been destroyed, if it has already been reset, or if it is a
+remote-initiated unidirectional stream, which has no writable side to abort.
 
 ### `stream.stopSending([code])`
 
@@ -1980,8 +1984,9 @@ Asks the peer to stop sending data on this stream, sending a `STOP_SENDING`
 frame carrying `code`. The writable side is left open, so this end can
 still send data.
 
-No acknowledgement of this action is provided. Has no effect if the stream
-has been destroyed.
+No acknowledgement of this action is provided. The call does nothing if the
+stream has been destroyed, or if it is a locally-initiated unidirectional
+stream, which has no readable side to abort.
 
 ### `stream.early`
 
