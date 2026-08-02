@@ -920,6 +920,10 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kChildProcess);
     }
+    if (!options_->allow_openssl_store) {
+      permission()->Apply(
+          this, {"*"}, permission::PermissionScope::kOpenSSLStore);
+    }
     if (!options_->allow_worker_threads) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kWorkerThreads);

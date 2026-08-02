@@ -10,6 +10,7 @@ const warnFlags = [
   '--allow-inspector',
   '--allow-wasi',
   '--allow-worker',
+  '--allow-openssl-store',
 ];
 
 for (const flag of warnFlags) {

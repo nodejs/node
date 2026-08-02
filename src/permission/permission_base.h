@@ -33,13 +33,17 @@ namespace permission {
 #define ADDON_PERMISSIONS(V)                                                   \
   V(Addon, "addon", PermissionsRoot, "--allow-addons")
 
+#define OPENSSL_STORE_PERMISSIONS(V)                                           \
+  V(OpenSSLStore, "openssl.store", PermissionsRoot, "--allow-openssl-store")
+
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
   WASI_PERMISSIONS(V)                                                          \
   WORKER_THREADS_PERMISSIONS(V)                                                \
   INSPECTOR_PERMISSIONS(V)                                                     \
-  ADDON_PERMISSIONS(V)
+  ADDON_PERMISSIONS(V)                                                         \
+  OPENSSL_STORE_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {

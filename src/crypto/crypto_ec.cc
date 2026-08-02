@@ -612,13 +612,15 @@ bool ExportJWKEcKey(Environment* env,
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
     return false;
   }
+  // A provider-backed key need not expose its public point.
+  if (ec.getPublicKey() == nullptr) return false;
 
   const auto pub = ec.getPublicKey();
   const auto group = ec.getGroup();
 
   int degree_bits = EC_GROUP_get_degree(group);
   int degree_bytes =
-    (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
+      (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
 
   auto x = BignumPointer::New();
   auto y = BignumPointer::New();
@@ -680,6 +682,7 @@ bool ExportJWKEcKey(Environment* env,
 
   if (key.GetKeyType() == kKeyTypePrivate) {
     auto pvt = ec.getPrivateKey();
+    if (pvt == nullptr) return false;
     return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes)
         .IsJust();
   }

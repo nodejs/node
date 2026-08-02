@@ -81,6 +81,13 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 To allow native addons when using permission model, use the [`--allow-addons`][]
 flag. For WASI, use the [`--allow-wasi`][] flag.
 
+To allow use of OpenSSL STORE loaders, for example to load a private key
+from a {URL} passed to [`crypto.createPrivateKey()`][], use the
+[`--allow-openssl-store`][] flag.
+This flag grants broad authority to configured OpenSSL STORE loaders, which may
+access files, devices, tokens, or the network. Access performed by a loader is
+not constrained by the `fs.read` or `fs.write` permission scopes.
+
 #### Runtime API
 
 When enabling the Permission Model through the [`--permission`][]
@@ -259,7 +266,8 @@ Example `node.config.json`:
     "allow-fs-write": ["./bar"],
     "allow-child-process": true,
     "allow-worker": true,
-    "allow-addons": false
+    "allow-addons": false,
+    "allow-openssl-store": false
   }
 }
 ```
@@ -319,6 +327,7 @@ There are constraints you need to know before using this system:
   * Inspector protocol
   * File system access
   * WASI
+  * OpenSSL STORE loaders
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
@@ -368,9 +377,11 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
+[`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--allow-wasi`]: cli.md#--allow-wasi
 [`--allow-worker`]: cli.md#--allow-worker
 [`--permission-audit`]: cli.md#--permission-audit
 [`--permission`]: cli.md#--permission
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`npx`]: https://docs.npmjs.com/cli/commands/npx
 [`permission.has()`]: process.md#processpermissionhasscope-reference
