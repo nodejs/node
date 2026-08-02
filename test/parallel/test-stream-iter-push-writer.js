@@ -260,6 +260,40 @@ async function testEndAsyncReturnValue() {
   await consume;
 }
 
+async function testEndWithPreAbortedSignal() {
+  const { writer, readable } = push();
+  const reason = new Error('end aborted');
+
+  writer.writeSync('hello');
+  await assert.rejects(
+    writer.end({ signal: AbortSignal.abort(reason) }),
+    (error) => error === reason,
+  );
+
+  // A rejected end must leave the writer open.
+  writer.writeSync(' world');
+  const consume = text(readable);
+  assert.strictEqual(await writer.end(), 11);
+  assert.strictEqual(await consume, 'hello world');
+}
+
+async function testEndSignalAbortWhileDraining() {
+  const { writer, readable } = push();
+  const controller = new AbortController();
+  const reason = new Error('end aborted while draining');
+
+  writer.writeSync('hello');
+  const abortedEnd = writer.end({ signal: controller.signal });
+  controller.abort(reason);
+
+  await assert.rejects(abortedEnd, (error) => error === reason);
+
+  // Aborting the operation does not undo the end-of-stream signal.
+  const completedEnd = writer.end();
+  assert.strictEqual(await text(readable), 'hello');
+  assert.strictEqual(await completedEnd, 5);
+}
+
 async function testEndAfterEndSyncWaitsForDrain() {
   const { writer, readable } = push();
   writer.writeSync('hello');
@@ -553,6 +587,8 @@ Promise.all([
   testOndrainProtocolErrorPropagates(),
   testFail(),
   testEndAsyncReturnValue(),
+  testEndWithPreAbortedSignal(),
+  testEndSignalAbortWhileDraining(),
   testEndAfterEndSyncWaitsForDrain(),
   testWriteUint8Array(),
   testOndrainWaitsForDrain(),
