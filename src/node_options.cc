@@ -730,6 +730,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--allow-openssl-store",
+            "allow use of OpenSSL STORE loaders when any permissions are set",
+            &EnvironmentOptions::allow_openssl_store,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
