@@ -509,10 +509,17 @@ Stream *Handler::find_stream(int64_t stream_id) const {
 
 namespace {
 int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
-                 uint64_t app_error_code, void *user_data,
-                 void *stream_user_data) {
+                 uint64_t rx_app_error_code, uint64_t tx_app_error_code,
+                 void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
-  if (!h->on_stream_close(stream_id, app_error_code)) {
+  if (!h->on_stream_close(
+        stream_id,
+        (flags & NGTCP2_STREAM_CLOSE2_FLAG_RX_APP_ERROR_CODE_SET)
+          ? std::make_optional(rx_app_error_code)
+          : std::nullopt,
+        (flags & NGTCP2_STREAM_CLOSE2_FLAG_TX_APP_ERROR_CODE_SET)
+          ? std::make_optional(tx_app_error_code)
+          : std::nullopt)) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
@@ -728,7 +735,6 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
     .recv_stream_data = ::recv_stream_data,
     .acked_stream_data_offset = ::acked_stream_data_offset,
     .stream_open = stream_open,
-    .stream_close = stream_close,
     .rand = rand,
     .remove_connection_id = remove_connection_id,
     .update_key = ::update_key,
@@ -743,6 +749,7 @@ Handler::init(const Endpoint &ep, const Address &local_addr,
     .recv_tx_key = ::recv_tx_key,
     .get_new_connection_id2 = get_new_connection_id,
     .get_path_challenge_data2 = ngtcp2_crypto_get_path_challenge_data2_cb,
+    .stream_close2 = stream_close,
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;
@@ -1028,8 +1035,8 @@ std::expected<void, Error> Handler::write_streams() {
     return {};
   }
 
-  send_packet(ps.path, pi.ecn, txbuf.first(static_cast<size_t>(nwrite)),
-              gso_size);
+  (void)send_packet(ps.path, pi.ecn, txbuf.first(static_cast<size_t>(nwrite)),
+                    gso_size);
 
   return {};
 }
@@ -1295,13 +1302,17 @@ Handler::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
 
 Server *Handler::server() const { return server_; }
 
-std::expected<void, Error> Handler::on_stream_close(int64_t stream_id,
-                                                    uint64_t app_error_code) {
+std::expected<void, Error>
+Handler::on_stream_close(int64_t stream_id,
+                         std::optional<uint64_t> rx_app_error_code,
+                         std::optional<uint64_t> tx_app_error_code) {
   if (!config.quiet) {
     std::println(stderr, "QUIC stream {:#x} closed", stream_id);
   }
 
-  if (auto rv = proto_codec_->on_stream_close(stream_id, app_error_code); !rv) {
+  if (auto rv = proto_codec_->on_stream_close(stream_id, rx_app_error_code,
+                                              tx_app_error_code);
+      !rv) {
     return rv;
   }
 
@@ -1373,7 +1384,7 @@ void Server::disconnect() {
     auto it = std::ranges::begin(handlers_);
     auto &h = (*it).second;
 
-    h->handle_error();
+    (void)h->handle_error();
 
     remove(h);
   }
@@ -1726,9 +1737,9 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
   case 0:
     break;
   case NGTCP2_ERR_VERSION_NEGOTIATION:
-    send_version_negotiation(vc.version, {vc.scid, vc.scidlen},
-                             {vc.dcid, vc.dcidlen}, ep, local_addr,
-                             remote_addr);
+    (void)send_version_negotiation(vc.version, {vc.scid, vc.scidlen},
+                                   {vc.dcid, vc.dcidlen}, ep, local_addr,
+                                   remote_addr);
     return;
   default:
     std::println(stderr,
@@ -1750,8 +1761,8 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
       }
 
       if (!(data[0] & 0x80) && data.size() >= NGTCP2_SV_SCIDLEN + 21) {
-        send_stateless_reset(data.size(), {vc.dcid, vc.dcidlen}, ep, local_addr,
-                             remote_addr);
+        (void)send_stateless_reset(data.size(), {vc.dcid, vc.dcidlen}, ep,
+                                   local_addr, remote_addr);
       }
 
       return;
@@ -1766,13 +1777,13 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
     if (config.validate_addr || hd.tokenlen) {
       std::println(stderr, "Perform stateless address validation");
       if (hd.tokenlen == 0) {
-        send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
+        (void)send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
         return;
       }
 
       if (hd.token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY2 &&
           hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
-        send_stateless_connection_close(&hd, ep, local_addr, remote_addr);
+        (void)send_stateless_connection_close(&hd, ep, local_addr, remote_addr);
         return;
       }
 
@@ -1780,7 +1791,8 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
       case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY2:
         if (auto rv = verify_retry_token(&ocid, &hd, remote_addr); !rv) {
           if (rv.error() != Error::UNREADABLE_TOKEN || config.validate_addr) {
-            send_stateless_connection_close(&hd, ep, local_addr, remote_addr);
+            (void)send_stateless_connection_close(&hd, ep, local_addr,
+                                                  remote_addr);
 
             return;
           }
@@ -1796,7 +1808,7 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
       case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
         if (!verify_token(&hd, remote_addr)) {
           if (config.validate_addr) {
-            send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
+            (void)send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
             return;
           }
 
@@ -1811,7 +1823,7 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
           std::println(stderr, "Ignore unrecognized token");
         }
         if (config.validate_addr) {
-          send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
+          (void)send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
           return;
         }
 
@@ -1829,7 +1841,7 @@ void Server::read_pkt(const Endpoint &ep, const Address &local_addr,
 
     if (auto rv = h->on_read(ep, local_addr, remote_addr, pi, data); !rv) {
       if (rv.error() == Error::RETRY_CONN) {
-        send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
+        (void)send_retry(&hd, ep, local_addr, remote_addr, data.size() * 3);
       }
 
       return;
@@ -1981,7 +1993,7 @@ std::expected<void, Error> Server::send_retry(const ngtcp2_pkt_hd *chd,
 
   if (!config.quiet) {
     std::println(stderr, "Generated address validation token:");
-    util::hexdump(stderr, token);
+    (void)util::hexdump(stderr, token);
   }
 
   Buffer buf{
@@ -2107,7 +2119,7 @@ Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
 
     std::println(stderr, "Verifying Retry token from [{}]:{}", host.data(),
                  port.data());
-    util::hexdump(stderr, {hd->token, hd->tokenlen});
+    (void)util::hexdump(stderr, {hd->token, hd->tokenlen});
   }
 
   auto t = util::system_clock_now();
@@ -2153,7 +2165,7 @@ std::expected<void, Error> Server::verify_token(const ngtcp2_pkt_hd *hd,
   if (!config.quiet) {
     std::println(stderr, "Verifying token from [{}]:{}", host.data(),
                  port.data());
-    util::hexdump(stderr, {hd->token, hd->tokenlen});
+    (void)util::hexdump(stderr, {hd->token, hd->tokenlen});
   }
 
   auto t = util::system_clock_now();
