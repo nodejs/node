@@ -294,7 +294,16 @@ void* AllocateCodeNear(uintptr_t target_address, size_t code_size) {
     const uintptr_t base = target_address & ~(page_size - 1);
     // Search a small window around the target first. Shared libraries usually
     // leave nearby holes, and keeping the trampoline close enables jmp rel32.
-    constexpr uintptr_t kMaxPages = 1024;
+    //
+    // The window doubles as the capacity of the near-text region: every
+    // trampoline keeps one page in it, so about 2 * kMaxPages trampolines per
+    // library can use jmp rel32 before the window is full and later ones take
+    // the far placement below. Each candidate costs an mmap syscall that is
+    // expected to fail, and a layout with no hole within a few pages of the
+    // text rarely has one further out either, so a wide window mostly buys
+    // failed probes. Keep it small enough that an exhausted window costs a few
+    // microseconds while still covering typical per-library symbol counts.
+    constexpr uintptr_t kMaxPages = 16;
     for (uintptr_t i = 1; i <= kMaxPages; i++) {
       const uintptr_t delta = i * page_size;
       const uintptr_t candidates[] = {
