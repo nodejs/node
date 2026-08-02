@@ -11,7 +11,9 @@ if (common.isPi()) {
 }
 
 const assert = require('assert');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+const fips4 = hasFIPS(4);
 
 function getDeriveKeyInfo(name, length, hash, ...usages) {
   return [{ name, length, hash }, usages];
@@ -632,6 +634,19 @@ async function testWrongKeyType(
         Object.keys(kDerivations[size][saltSize][hash])
           .forEach((iterations) => {
             const args = [baseKeys, size, saltSize, hash, iterations | 0];
+            if (fips4 &&
+                (size === 'empty' || saltSize !== 'long' || iterations < 1000)) {
+              variations.push(assert.rejects(
+                testDeriveBits(...args), { name: 'OperationError' }));
+              kDerivedKeyTypes.forEach((keyType) => {
+                const keyArgs = getDeriveKeyInfo(...keyType);
+                variations.push(assert.rejects(
+                  testDeriveKey(...args, ...keyArgs),
+                  { name: 'OperationError' }));
+              });
+              return;
+            }
+
             variations.push(testDeriveBits(...args));
             variations.push(testDeriveBitsBadLengths(...args));
             variations.push(testDeriveBitsBadHash(...args));
@@ -674,12 +689,17 @@ async function testWrongKeyType(
 
 // https://github.com/w3c/webcrypto/pull/380
 {
-  crypto.subtle.importKey('raw', new Uint8Array(0), 'PBKDF2', false, ['deriveBits']).then((key) => {
+  crypto.subtle.importKey(
+    'raw',
+    new Uint8Array(fips4 ? 8 : 0),
+    'PBKDF2',
+    false,
+    ['deriveBits']).then((key) => {
     return crypto.subtle.deriveBits({
       name: 'PBKDF2',
       hash: { name: 'SHA-256' },
-      iterations: 10,
-      salt: new Uint8Array(0),
+      iterations: fips4 ? 1000 : 10,
+      salt: new Uint8Array(fips4 ? 16 : 0),
     }, key, 0);
   }).then((bits) => {
     assert.deepStrictEqual(bits, new ArrayBuffer(0));

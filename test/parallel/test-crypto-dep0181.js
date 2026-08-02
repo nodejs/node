@@ -14,6 +14,6 @@ common.expectWarning({
 });
 
 const Hmac = crypto.Hmac;
-const instance = crypto.Hmac('sha256', 'Node');
+const instance = crypto.Hmac('sha256', '0123456789abcdef');
 assert(instance instanceof Hmac, 'Hmac is expected to return a new instance' +
                                  ' when called without `new`');

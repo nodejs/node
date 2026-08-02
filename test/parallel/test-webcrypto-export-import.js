@@ -10,7 +10,12 @@ const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
-const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto');
+const {
+  createPrivateKey,
+  createPublicKey,
+  createSecretKey,
+  getFips,
+} = require('crypto');
 
 {
   async function test() {
@@ -397,7 +402,7 @@ if (hasOpenSSL(3)) {
   async function test() {
     const { publicKey, privateKey } = await subtle.generateKey({
       name: 'RSA-PSS',
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-384'
     }, true, ['sign', 'verify']);
