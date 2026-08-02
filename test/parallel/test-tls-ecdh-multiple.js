@@ -8,7 +8,11 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { opensslCli, hasOpenSSL } = require('../common/crypto');
+const {
+  opensslCli,
+  hasOpenSSL,
+  hasFIPS,
+} = require('../common/crypto');
 const crypto = require('crypto');
 
 if (!opensslCli) {
@@ -19,14 +23,16 @@ const assert = require('assert');
 const tls = require('tls');
 const { execFile } = require('child_process');
 const fixtures = require('../common/fixtures');
+const fips3 = hasFIPS(3);
 
 function loadPEM(n) {
   return fixtures.readKey(`${n}.pem`);
 }
 
-// OpenSSL 4.0 disables support for deprecated elliptic curves from RFC 8422
-// (including secp256k1) by default.
-const ecdhCurve = process.features.openssl_is_boringssl || hasOpenSSL(4, 0) ?
+// The FIPS provider and OpenSSL 4.0 disable support for deprecated elliptic
+// curves from RFC 8422 (including secp256k1) by default.
+const ecdhCurve = process.features.openssl_is_boringssl ||
+  hasOpenSSL(4, 0) || hasFIPS(3) ?
   'prime256v1:secp521r1' :
   'secp256k1:prime256v1:secp521r1';
 
@@ -61,8 +67,17 @@ const server = tls.createServer(options, (conn) => {
     'prime192v3',
   ];
 
-  // Brainpool is not supported in FIPS mode.
-  if (crypto.getFips()) {
+  // Setting a Brainpool group on a TLS context is deferred by OpenSSL, so
+  // exercise the prohibited key operation directly under FIPS properties.
+  if (fips3) {
+    if (hasFIPS(3, 5)) {
+      assert.throws(
+        () => crypto.createECDH('brainpoolP256r1').generateKeys(),
+        { code: 'ERR_CRYPTO_OPERATION_FAILED' });
+    } else {
+      unsupportedCurves.push('brainpoolP256r1');
+    }
+  } else if (crypto.getFips() === 1) {
     unsupportedCurves.push('brainpoolP256r1');
   }
 

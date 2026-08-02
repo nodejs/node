@@ -4,6 +4,11 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 import * as assert from 'node:assert';
+import { hasFIPS } from '../common/crypto.js';
+
+if (hasFIPS(3))
+  common.skip('SubtleCrypto.supports() does not reflect FIPS provider availability');
+
 const { SubtleCrypto } = globalThis;
 
 const sources = [

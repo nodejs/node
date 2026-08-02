@@ -4,10 +4,12 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 if (!hasOpenSSL(3, 2))
   common.skip('requires OpenSSL >= 3.2');
+if (hasFIPS(3))
+  common.skip('Argon2 is not available in FIPS mode');
 
 // Exercises the native Argon2 job directly via internalBinding, bypassing
 // the JS validators, to ensure that if invalid parameters ever reach the

@@ -8,6 +8,7 @@ if (!common.hasCrypto)
 const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
+const { getFips } = require('crypto');
 const { subtle } = globalThis.crypto;
 
 // This is only a partial test. The WebCrypto Web Platform Tests
@@ -19,7 +20,7 @@ const { subtle } = globalThis.crypto;
     const ec = new TextEncoder();
     const { publicKey, privateKey } = await subtle.generateKey({
       name: 'RSASSA-PKCS1-v1_5',
-      modulusLength: 1024,
+      modulusLength: getFips() === 1 ? 2048 : 1024,
       publicExponent: new Uint8Array([1, 0, 1]),
       hash: 'SHA-256'
     }, true, ['sign', 'verify']);

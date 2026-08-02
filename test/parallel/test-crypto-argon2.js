@@ -3,7 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 
 if (!hasOpenSSL(3, 2))
   common.skip('requires OpenSSL >= 3.2');
@@ -27,6 +27,19 @@ const nonce = Buffer.alloc(16, 0x02);
 const secret = Buffer.alloc(8, 0x03);
 const associatedData = Buffer.alloc(12, 0x04);
 const defaults = { message, nonce, parallelism: 1, tagLength: 64, memory: 8, passes: 3 };
+
+if (hasFIPS(3)) {
+  assert.throws(() => crypto.argon2Sync('argon2id', defaults), {
+    name: 'Error',
+    message: /:digital envelope routines::unsupported$/,
+  });
+  crypto.argon2('argon2id', defaults, common.mustCall((err, result) => {
+    assert.strictEqual(err?.name, 'Error');
+    assert.match(err.message, /:digital envelope routines::unsupported$/);
+    assert.strictEqual(result, undefined);
+  }));
+  return;
+}
 
 const good = [
   // Test vectors from RFC 9106 https://www.rfc-editor.org/rfc/rfc9106.html#name-test-vectors

@@ -5,6 +5,8 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasFIPS } = require('../common/crypto');
+const isFips = hasFIPS(3);
 
 if (typeof crypto.scrypt !== 'function' || typeof crypto.scryptSync !== 'function')
   common.skip('no scrypt support');
@@ -159,13 +161,20 @@ const badargs = [
   },
 ];
 
-for (const options of good) {
-  const { pass, salt, keylen, expected } = options;
-  const actual = crypto.scryptSync(pass, salt, keylen, options);
-  assert.strictEqual(actual.toString('hex'), expected);
-  crypto.scrypt(pass, salt, keylen, options, common.mustSucceed((actual) => {
+if (isFips) {
+  const expected = { code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS' };
+  assert.throws(() => crypto.scryptSync('pass', 'salt', 1), expected);
+  assert.throws(
+    () => crypto.scrypt('pass', 'salt', 1, () => {}), expected);
+} else {
+  for (const options of good) {
+    const { pass, salt, keylen, expected } = options;
+    const actual = crypto.scryptSync(pass, salt, keylen, options);
     assert.strictEqual(actual.toString('hex'), expected);
-  }));
+    crypto.scrypt(pass, salt, keylen, options, common.mustSucceed((actual) => {
+      assert.strictEqual(actual.toString('hex'), expected);
+    }));
+  }
 }
 
 for (const options of bad) {
@@ -191,7 +200,9 @@ for (const options of incompatibleOptions) {
 }
 
 for (const options of toobig) {
-  const expected = {
+  const expected = isFips ? {
+    code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS',
+  } : {
     message: process.features.openssl_is_boringssl ?
       /Invalid scrypt params:.*(INVALID_PARAMETERS|MEMORY_LIMIT_EXCEEDED)/ :
       /Invalid scrypt params:.*memory limit exceeded/,
@@ -203,7 +214,7 @@ for (const options of toobig) {
                 expected);
 }
 
-{
+if (!isFips) {
   const defaults = { N: 16384, p: 1, r: 8 };
   const expected = crypto.scryptSync('pass', 'salt', 1, defaults);
   const actual = crypto.scryptSync('pass', 'salt', 1);
@@ -229,10 +240,12 @@ for (const { args, expected } of badargs) {
 {
   // Values for maxmem that do not fit in 32 bits but that are still safe
   // integers should be allowed.
-  crypto.scrypt('', '', 4, { maxmem: 2 ** 52 },
-                common.mustSucceed((actual) => {
-                  assert.strictEqual(actual.toString('hex'), 'd72c87d0');
-                }));
+  if (!isFips) {
+    crypto.scrypt('', '', 4, { maxmem: 2 ** 52 },
+                  common.mustSucceed((actual) => {
+                    assert.strictEqual(actual.toString('hex'), 'd72c87d0');
+                  }));
+  }
 
   // Values that exceed Number.isSafeInteger should not be allowed.
   assert.throws(() => crypto.scryptSync('', '', 0, { maxmem: 2 ** 53 }), {
@@ -240,7 +253,7 @@ for (const { args, expected } of badargs) {
   });
 }
 
-{
+if (!isFips) {
   // Regression test for https://github.com/nodejs/node/issues/28836.
 
   function testParameter(name, value) {
@@ -299,5 +312,11 @@ for (const { args, expected } of badargs) {
     assert.deepStrictEqual(negResult, posResult);
   }
 
-  crypto.scrypt('', '', -0, common.mustCall());
+  if (isFips) {
+    assert.throws(
+      () => crypto.scrypt('', '', -0, () => {}),
+      { code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS' });
+  } else {
+    crypto.scrypt('', '', -0, common.mustCall());
+  }
 }

@@ -50,9 +50,14 @@ function assertApproximateSize(key, expectedSize) {
 function testEncryptDecrypt(publicKey, privateKey) {
   const message = 'Hello Node.js world!';
   const plaintext = Buffer.from(message, 'utf8');
+  const withOaepHash = (key) => {
+    if (!hasFIPS(3)) return key;
+    if (key?.key !== undefined) return { ...key, oaepHash: 'sha256' };
+    return { key, oaepHash: 'sha256' };
+  };
   for (const key of [publicKey, privateKey]) {
-    const ciphertext = publicEncrypt(key, plaintext);
-    const received = privateDecrypt(privateKey, ciphertext);
+    const ciphertext = publicEncrypt(withOaepHash(key), plaintext);
+    const received = privateDecrypt(withOaepHash(privateKey), ciphertext);
     assert.strictEqual(received.toString('utf8'), message);
   }
 }

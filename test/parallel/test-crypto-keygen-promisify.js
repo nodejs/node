@@ -10,6 +10,7 @@ const {
 } = require('crypto');
 const {
   assertApproximateSize,
+  hasFIPS,
   testEncryptDecrypt,
   testSignVerify,
   pkcs1PubExp,
@@ -19,9 +20,10 @@ const { promisify } = require('util');
 
 // Test the util.promisified API with async RSA key generation.
 {
+  const isFips = hasFIPS(3);
   promisify(generateKeyPair)('rsa', {
     publicExponent: 0x10001,
-    modulusLength: 512,
+    modulusLength: isFips ? 2048 : 512,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'pem'
@@ -34,11 +36,11 @@ const { promisify } = require('util');
     const { publicKey, privateKey } = keys;
     assert.strictEqual(typeof publicKey, 'string');
     assert.match(publicKey, pkcs1PubExp);
-    assertApproximateSize(publicKey, 180);
+    assertApproximateSize(publicKey, isFips ? 426 : 180);
 
     assert.strictEqual(typeof privateKey, 'string');
     assert.match(privateKey, pkcs1PrivExp);
-    assertApproximateSize(privateKey, 512);
+    assertApproximateSize(privateKey, isFips ? 1675 : 512);
 
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);

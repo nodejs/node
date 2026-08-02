@@ -11,7 +11,7 @@ const {
   getCurves,
 } = require('crypto');
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 // This test creates EC key pairs on curves without associated OIDs.
 // Specifying a key encoding should not crash.
@@ -21,8 +21,12 @@ const { hasOpenSSL3 } = require('../common/crypto');
       if (!getCurves().includes(namedCurve))
         continue;
 
-      const expectedErrorCode =
-        hasOpenSSL3 ? 'ERR_OSSL_MISSING_OID' : 'ERR_OSSL_EC_MISSING_OID';
+      const expectedError = hasFIPS(3) ? {
+        name: 'Error',
+        message: 'error:08000081:elliptic curve routines::unknown group',
+      } : {
+        code: hasOpenSSL(3) ? 'ERR_OSSL_MISSING_OID' : 'ERR_OSSL_EC_MISSING_OID',
+      };
       const params = {
         namedCurve,
         publicKeyEncoding: {
@@ -33,13 +37,9 @@ const { hasOpenSSL3 } = require('../common/crypto');
 
       assert.throws(() => {
         generateKeyPairSync('ec', params);
-      }, {
-        code: expectedErrorCode
-      });
+      }, expectedError);
 
-      generateKeyPair('ec', params, common.mustCall((err) => {
-        assert.strictEqual(err.code, expectedErrorCode);
-      }));
+      generateKeyPair('ec', params, common.expectsError(expectedError));
     }
   }
 }

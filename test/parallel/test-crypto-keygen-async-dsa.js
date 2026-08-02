@@ -17,7 +17,7 @@ const {
   spkiExp,
 } = require('../common/crypto');
 
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 // Test async DSA key generation.
 {
@@ -27,7 +27,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
   };
 
   generateKeyPair('dsa', {
-    modulusLength: hasOpenSSL3 ? 2048 : 512,
+    modulusLength: hasOpenSSL(3) ? 2048 : 512,
     divisorLength: 256,
     publicKeyEncoding: {
       type: 'spki',
@@ -35,7 +35,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
     },
     privateKeyEncoding: {
       cipher: 'aes-128-cbc',
-      passphrase: 'secret',
+      passphrase: 'password',
       ...privateKeyEncoding
     }
   }, common.mustSucceed((publicKey, privateKeyDER) => {
@@ -44,8 +44,8 @@ const { hasOpenSSL3 } = require('../common/crypto');
     // The private key is DER-encoded.
     assert(Buffer.isBuffer(privateKeyDER));
 
-    assertApproximateSize(publicKey, hasOpenSSL3 ? 1194 : 440);
-    assertApproximateSize(privateKeyDER, hasOpenSSL3 ? 721 : 336);
+    assertApproximateSize(publicKey, hasOpenSSL(3) ? 1194 : 440);
+    assertApproximateSize(privateKeyDER, hasOpenSSL(3) ? 721 : 336);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {
@@ -63,7 +63,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
     testSignVerify(publicKey, {
       key: privateKeyDER,
       ...privateKeyEncoding,
-      passphrase: 'secret'
+      passphrase: 'password'
     });
   }));
 }
