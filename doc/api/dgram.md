@@ -257,7 +257,7 @@ useful.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In rare case (e.g.
+If binding fails, an `'error'` event is generated. In a rare case (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 Example of a UDP server listening on port 41234:
@@ -350,7 +350,7 @@ is called.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In rare case (e.g.
+If binding fails, an `'error'` event is generated. In rare case (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 An example socket listening on an exclusive port is shown below.
@@ -741,7 +741,7 @@ client.send([buf1, buf2], 41234, (err) => {
 });
 ```
 
-Sending multiple buffers might be faster or slower depending on the
+Sending multiple buffers might be faster or slower, depending on the
 application and operating system. Run benchmarks to
 determine the optimal strategy on a case-by-case basis. Generally speaking,
 however, sending multiple buffers is faster.
@@ -883,7 +883,7 @@ socket.bind(1234, () => {
 A call on a socket that is not ready to send or no longer open may throw a _Not
 running_ [`Error`][].
 
-If `multicastInterface` can not be parsed into an IP then an _EINVAL_
+If `multicastInterface` cannot be parsed into an IP then an _EINVAL_
 [`System Error`][] is thrown.
 
 On IPv4, if `multicastInterface` is a valid address but does not match any
