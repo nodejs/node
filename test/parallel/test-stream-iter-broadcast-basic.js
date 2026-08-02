@@ -111,6 +111,22 @@ async function testWriterEnd() {
   assert.strictEqual(data, 'data');
 }
 
+async function testWriterEndWithPreAbortedSignal() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer = bc.push();
+  const reason = new Error('end aborted');
+
+  await assert.rejects(
+    writer.end({ signal: AbortSignal.abort(reason) }),
+    (error) => error === reason,
+  );
+
+  // A rejected end must leave the writer open.
+  await writer.write('data');
+  assert.strictEqual(await writer.end(), 4);
+  assert.strictEqual(await text(consumer), 'data');
+}
+
 async function testWriterFail() {
   const { writer, broadcast: bc } = broadcast();
   const consumer = bc.push();
@@ -308,6 +324,7 @@ Promise.all([
   testWriteSync(),
   testWritevSync(),
   testWriterEnd(),
+  testWriterEndWithPreAbortedSignal(),
   testWriterFail(),
   testCancelWithoutReason(),
   testCancelWithReason(),
