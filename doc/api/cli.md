@@ -1000,9 +1000,13 @@ Enable experimental import support for `.node` addons.
 
 <!-- YAML
 added: v23.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64516
+    description: Marked as release candidate.
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.2 - Release candidate
 
 If present, Node.js will look for a configuration file at the specified path.
 If the path is not specified, Node.js will look for a `node.config.json` file
