@@ -2548,6 +2548,10 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64955
+    description: Hexadecimal colors are downgraded to the color depth
+      supported by the terminal.
   - version:
      - v26.1.0
      - v24.16.0
@@ -2659,6 +2663,20 @@ console.log(styleText('#ff5733', 'Orange text'));
 // 3-digit hex color (shorthand)
 console.log(styleText('#f00', 'Red text'));
 ```
+
+Hex colors are emitted with the highest color depth the terminal supports. When
+the terminal, or the [`FORCE_COLOR`][] environment variable, reports fewer than
+16 million colors, the color is downgraded to the closest color available:
+
+* `FORCE_COLOR=3`, or a terminal supporting 16 million colors: TrueColor
+  (24-bit) escape sequences, for example `[38;2;255;87;51m`.
+* `FORCE_COLOR=2`, or a terminal supporting 256 colors: the closest color of the
+  256-color palette, for example `[38;5;209m`.
+* `FORCE_COLOR=1`, or a terminal supporting 16 colors: the closest of the 16
+  basic colors, for example `[91m`.
+
+When `validateStream` is `false`, hex colors are only downgraded if
+`FORCE_COLOR` is set, since no stream is inspected to determine the color depth.
 
 The full list of formats can be found in [modifiers][].
 
@@ -3907,6 +3925,7 @@ npx codemod@latest @nodejs/util-is
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
+[`FORCE_COLOR`]: cli.md#force_color1-2-3
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`MIMEparams`]: #class-utilmimeparams
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
