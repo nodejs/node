@@ -11,6 +11,7 @@
     "path-env-windows": "path-env.bat",
     "special-env-variables": "special-env-variables",
     "special-env-variables-windows": "special-env-variables.bat",
+    "signal-termination": "kill -TERM $$",
     "pwd": "pwd",
     "pwd-windows": "cd"
   }

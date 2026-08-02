@@ -34,6 +34,17 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 1);
   });
 
+  it('reports signal-terminated scripts as failures', {
+    skip: common.isWindows,
+  }, async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'signal-termination'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.strictEqual(child.code, 1);
+  });
+
   it('adds node_modules/.bin to path', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
