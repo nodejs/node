@@ -6,11 +6,13 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 const { getCryptoKeyHandle } = require('internal/crypto/keys');
+const rejectsXCurves = hasFIPS(3, 5);
+const fips4 = hasFIPS(4);
 
 // This is only a partial test. The WebCrypto Web Platform Tests
 // will provide much greater coverage.
@@ -75,24 +77,24 @@ const { getCryptoKeyHandle } = require('internal/crypto/keys');
   }
 
   const kTests = [
-    ['hello', 'there', 'my friend', 'SHA-1',
-     '365ca5d3f42d050c74302e420c83975327950f1913a151eecd00526bf52614a0'],
-    ['hello', 'there', 'my friend', 'SHA-256',
-     '14d93b0ccd99d4f2cbd9fbfe9c830b5b8a43e3e45e32941ef21bdeb0fa87b6b6'],
-    ['hello', 'there', 'my friend', 'SHA-384',
-     'e36cf2cf943d8f3a88adb80f478745c336ac811b1a86d03a7d10eb0b6b52295c'],
-    ['hello', 'there', 'my friend', 'SHA-512',
-     '1e42d43fcacba361716f65853bd5f3c479f679612f0180eab3c51ed6c9d2b47d'],
+    ['hello hello hello', 'there', 'my friend indeed', 'SHA-1',
+     'aac1ecdc73147af6a418393da6875bff5f566c0a473e25d54b4dfc3cb7cb2ace'],
+    ['hello hello hello', 'there', 'my friend indeed', 'SHA-256',
+     'bc2b7841512a6f4563f723c317909ac305ddbfbdec1daf0055d0587b5db8d635'],
+    ['hello hello hello', 'there', 'my friend indeed', 'SHA-384',
+     'ee2d1d7dc759c26f2ab8ee6d7cfa0c2313e82650a4514673c867063dc1849040'],
+    ['hello hello hello', 'there', 'my friend indeed', 'SHA-512',
+     'a7abd704d0be364c6d4a530b6f93fcaff95474a2eee5a127ff86c5d095a2a812'],
   ];
 
   if (!process.features.openssl_is_boringssl) {
     kTests.push(
-      ['hello', 'there', 'my friend', 'SHA3-256',
-       '2a49a3b6fb219117af9e251c6c65f16600cbca13bd0be6e70d96b0b9fa4cf3fd'],
-      ['hello', 'there', 'my friend', 'SHA3-384',
-       '0437bb59b95f2db2c7684c0b439028cb0fdd6f0f5d03b9f489066a87ae147221'],
-      ['hello', 'there', 'my friend', 'SHA3-512',
-       '3bbc469d38214371921e52c6f147e96cb7eb370421a81f53dea8b4851dfb8bce'],
+      ['hello hello hello', 'there', 'my friend indeed', 'SHA3-256',
+       '89b3751df2ada85322a57ec82f7d0a5c233c6def91c92e681bc5118bd5768dca'],
+      ['hello hello hello', 'there', 'my friend indeed', 'SHA3-384',
+       'b4fa7b9929a595bbaa370eb959b194c1232d5a329abd02a5fa166a1424962fcf'],
+      ['hello hello hello', 'there', 'my friend indeed', 'SHA3-512',
+       'ac5d90a6bc848961e78a491887539b29c532a9c0d0b39cec464df071a63e0061'],
     );
   } else {
     common.printSkipMessage('Skipping unsupported SHA-3 test cases');
@@ -128,30 +130,36 @@ const { getCryptoKeyHandle } = require('internal/crypto/keys');
   }
 
   const kTests = [
-    ['hello', 'there', 5, 'SHA-1',
-     'f8f65a5fd92c9b74916083a7e9b0001c46bc89e2a14c48014cf1e0e1dbabf635'],
-    ['hello', 'there', 5, 'SHA-256',
-     '2e575eae24267db32106c7dba01615e5417557e8c5cf33ba15a311cb0c2907ee'],
-    ['hello', 'there', 5, 'SHA-384',
-     '201509b012c9cd2fbe7ea938f0c509b36ecb140f38bf9130e96923f55f46756d'],
-    ['hello', 'there', 5, 'SHA-512',
-     '2e8d981741f98193e0af9c79870af0e985089341221edad9a130d297eae1984b'],
+    ['hello hello hello', 'my friend indeed', 1000, 'SHA-1',
+     'b747604ca226287ccae90d8d8c119645a80d1154625a56b2debb3f9b172eb134'],
+    ['hello hello hello', 'my friend indeed', 1000, 'SHA-256',
+     '3cc64f6cfcbdb9c42b63b471016f17d1966b70934b4719a12ce95382940252f2'],
+    ['hello hello hello', 'my friend indeed', 1000, 'SHA-384',
+     '5ce64241beef3a3931dbfac6eef7303b5bdbea13449d4eeb4f89c3e9f9357c65'],
+    ['hello hello hello', 'my friend indeed', 1000, 'SHA-512',
+     '12790ce09027db067d680670f4dc704715b5120d139e8fde810afc34fb66f9f1'],
   ];
 
   if (!process.features.openssl_is_boringssl) {
     kTests.push(
-      ['hello', 'there', 5, 'SHA3-256',
-       '0aed29b61b3ca3978aea34a9793276574ea997b69e8d03727438199f90571649'],
-      ['hello', 'there', 5, 'SHA3-384',
-       '7aa4a274aa19b4623c5d3091c4b06355de85ff6f25e53a83e3126cbb86ae68df'],
-      ['hello', 'there', 5, 'SHA3-512',
-       '4d909c47a81c625f866d1f9406248e6bc3c7ea89225fbccf1f08820254c9ef56']
+      ['hello hello hello', 'my friend indeed', 1000, 'SHA3-256',
+       '0f69b46660cba27b95215d5676492c64ed6abf6d426669a4a02b0ca3a1c36c11'],
+      ['hello hello hello', 'my friend indeed', 1000, 'SHA3-384',
+       'a2e86a2d4cdf9844d70ae37f71302356ce2b9a899f5d778fc9af64d32e351d70'],
+      ['hello hello hello', 'my friend indeed', 1000, 'SHA3-512',
+       '03431052c37d626ae3fc1df582ff2a4d610642fc27e1b8130ca5980c0b0756ac']
     );
   } else {
     common.printSkipMessage('Skipping unsupported SHA-3 test cases');
   }
 
-  const tests = Promise.all(kTests.map((args) => test(...args)));
+  const promises = kTests.map((args) => test(...args));
+  if (fips4) {
+    promises.push(assert.rejects(
+      test('hello', 'there', 5, 'SHA-256', ''),
+      { name: 'OperationError' }));
+  }
+  const tests = Promise.all(promises);
 
   tests.then(common.mustCall());
 }
@@ -255,8 +263,18 @@ const { getCryptoKeyHandle } = require('internal/crypto/keys');
   (async () => {
     for (const [derivedKeyAlgorithm, usage, expected] of vectors) {
       const derived = await subtle.deriveKey(
-        { name: 'PBKDF2', salt: new Uint8Array([]), hash: 'SHA-256', iterations: 20 },
-        await subtle.importKey('raw', new Uint8Array([]), { name: 'PBKDF2' }, false, ['deriveKey']),
+        {
+          name: 'PBKDF2',
+          salt: new Uint8Array(16),
+          hash: 'SHA-256',
+          iterations: 1000,
+        },
+        await subtle.importKey(
+          'raw',
+          new Uint8Array(8),
+          { name: 'PBKDF2' },
+          false,
+          ['deriveKey']),
         derivedKeyAlgorithm,
         false,
         [usage]);
@@ -272,17 +290,27 @@ if (hasOpenSSL(3)) {
     const usages = ['sign'];
     for (const [algorithm, baseKeyAlgorithm] of [
       [
-        { name: 'HKDF', salt: new Uint8Array(), info: new Uint8Array(), hash: 'SHA-256' },
+        {
+          name: 'HKDF',
+          salt: new Uint8Array(16),
+          info: new Uint8Array(),
+          hash: 'SHA-256',
+        },
         { name: 'HKDF' },
       ],
       [
-        { name: 'PBKDF2', salt: new Uint8Array(), hash: 'SHA-256', iterations: 20 },
+        {
+          name: 'PBKDF2',
+          salt: new Uint8Array(16),
+          hash: 'SHA-256',
+          iterations: 1000,
+        },
         { name: 'PBKDF2' },
       ],
     ]) {
       const baseKey = await subtle.importKey(
         'raw',
-        new Uint8Array(),
+        new Uint8Array(baseKeyAlgorithm.name === 'HKDF' ? 16 : 8),
         baseKeyAlgorithm,
         false,
         ['deriveKey']);
@@ -294,11 +322,15 @@ if (hasOpenSSL(3)) {
         usages);
       assert.strictEqual(derived.algorithm.length, 0);
 
-      const signature = await subtle.sign({
+      const signature = subtle.sign({
         name: 'KMAC128',
         outputLength: 256,
       }, derived, new Uint8Array());
-      assert.strictEqual(signature.byteLength, 32);
+      if (fips4) {
+        await assert.rejects(signature, { name: 'OperationError' });
+      } else {
+        assert.strictEqual((await signature).byteLength, 32);
+      }
     }
   })().then(common.mustCall());
 }
@@ -334,10 +366,20 @@ if (hasOpenSSL(3)) {
     assert.deepStrictEqual(raw1, raw2);
   }
 
-  test('X25519').then(common.mustCall());
-  if (!process.features.openssl_is_boringssl) {
-    test('X448').then(common.mustCall());
+  if (rejectsXCurves) {
+    for (const name of ['X25519', 'X448']) {
+      assert.rejects(
+        test(name),
+        (err) => err.name === 'OperationError' &&
+                 err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED')
+        .then(common.mustCall());
+    }
   } else {
-    common.printSkipMessage('Skipping unsupported X448 test case');
+    test('X25519').then(common.mustCall());
+    if (!process.features.openssl_is_boringssl) {
+      test('X448').then(common.mustCall());
+    } else {
+      common.printSkipMessage('Skipping unsupported X448 test case');
+    }
   }
 }

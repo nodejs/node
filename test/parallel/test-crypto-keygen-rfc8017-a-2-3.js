@@ -11,16 +11,18 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
 // RFC 8017, A.2.3.: "For a given hashAlgorithm, the default value of
 // saltLength is the octet length of the hash value."
 {
+  const modulusLength = hasFIPS(3) ? 2048 : 512;
   generateKeyPair('rsa-pss', {
-    modulusLength: 512,
+    modulusLength,
     hashAlgorithm: 'sha512'
   }, common.mustSucceed((publicKey, privateKey) => {
     const expectedKeyDetails = {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha512',
       mgf1HashAlgorithm: 'sha512',
@@ -32,12 +34,12 @@ const {
 
   // It is still possible to explicitly set saltLength to 0.
   generateKeyPair('rsa-pss', {
-    modulusLength: 512,
+    modulusLength,
     hashAlgorithm: 'sha512',
     saltLength: 0
   }, common.mustSucceed((publicKey, privateKey) => {
     const expectedKeyDetails = {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha512',
       mgf1HashAlgorithm: 'sha512',

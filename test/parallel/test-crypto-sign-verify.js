@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
 const {
   hasOpenSSL,
+  hasFIPS,
   opensslCli,
 } = require('../common/crypto');
 
@@ -17,6 +18,17 @@ const {
 const certPem = fixtures.readKey('rsa_cert.crt');
 const keyPem = fixtures.readKey('rsa_private.pem');
 const keySize = 2048;
+const fips3 = hasFIPS(3);
+const fips35 = hasFIPS(3, 5);
+const fips30 = fips3 && !fips35;
+const fipsDigestErrorCode = 'ERR_OSSL_DIGEST_NOT_ALLOWED';
+const signingHash = fips3 ? 'SHA256' : 'SHA1';
+
+if (fips30) {
+  assert.throws(
+    () => crypto.createSign('SHA1').update('Test123').sign(keyPem),
+    { code: fipsDigestErrorCode });
+}
 
 {
   const Sign = crypto.Sign;
@@ -60,7 +72,7 @@ const keySize = 2048;
   Object.defineProperty(Object.prototype, 'opensslErrorStack', errorStack);
 
   assert.throws(() => {
-    crypto.createSign('SHA1')
+    crypto.createSign('SHA256')
       .update('Test123')
       .sign({
         key: keyPem,
@@ -99,15 +111,15 @@ assert.throws(
 
 // Test signing and verifying
 {
-  const s1 = crypto.createSign('SHA1')
+  const s1 = crypto.createSign(signingHash)
                    .update('Test123')
                    .sign(keyPem, 'base64');
-  let s1stream = crypto.createSign('SHA1');
+  let s1stream = crypto.createSign(signingHash);
   s1stream.end('Test123');
   s1stream = s1stream.sign(keyPem, 'base64');
   assert.strictEqual(s1, s1stream, `${s1} should equal ${s1stream}`);
 
-  const verified = crypto.createVerify('SHA1')
+  const verified = crypto.createVerify(signingHash)
                          .update('Test')
                          .update('123')
                          .verify(certPem, s1, 'base64');
@@ -138,16 +150,16 @@ assert.throws(
 }
 
 {
-  const s3 = crypto.createSign('SHA1')
+  const s3 = crypto.createSign(signingHash)
                    .update('Test123')
                    .sign(keyPem, 'buffer');
-  let verified = crypto.createVerify('SHA1')
+  let verified = crypto.createVerify(signingHash)
                        .update('Test')
                        .update('123')
                        .verify(certPem, s3);
   assert.strictEqual(verified, true);
 
-  const verStream = crypto.createVerify('SHA1');
+  const verStream = crypto.createVerify(signingHash);
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
@@ -190,6 +202,17 @@ assert.throws(
 
     const data = Buffer.from('Test123');
 
+    if (fips30) {
+      const streamOptions = {
+        key: keyPem,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      };
+      assert.throws(
+        () => crypto.createSign(algo).update(data).sign(streamOptions),
+        { code: fipsDigestErrorCode });
+    }
+
     signSaltLengths.forEach((signSaltLength) => {
       if (signSaltLength > max) {
         // If the salt length is too big, an Error should be thrown
@@ -211,20 +234,23 @@ assert.throws(
         }, errMessage);
       } else {
         // Otherwise, a valid signature should be generated
-        const s4 = crypto.createSign(algo)
-                         .update(data)
-                         .sign({
-                           key: keyPem,
-                           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                           saltLength: signSaltLength
-                         });
         const s4_2 = crypto.sign(algo, data, {
           key: keyPem,
           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
           saltLength: signSaltLength
         });
+        const signatures = [s4_2];
+        if (!fips30) {
+          signatures.unshift(crypto.createSign(algo)
+            .update(data)
+            .sign({
+              key: keyPem,
+              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+              saltLength: signSaltLength
+            }));
+        }
 
-        [s4, s4_2].forEach((sig) => {
+        signatures.forEach((sig) => {
           let verified;
           verifySaltLengths.forEach((verifySaltLength) => {
             // Verification should succeed if and only if the salt length is
@@ -281,7 +307,8 @@ assert.throws(
     });
   }
 
-  testPSS('SHA1', 20);
+  if (!fips30)
+    testPSS('SHA1', 20);
   testPSS('SHA256', 32);
 }
 
@@ -340,7 +367,7 @@ assert.throws(
     });
 
   assert.throws(() => {
-    crypto.createSign('SHA1')
+    crypto.createSign('SHA256')
       .update('Test123')
       .sign({
         key: keyPem,
@@ -365,7 +392,7 @@ assert.throws(
 // Test throws exception when key options is null
 {
   assert.throws(() => {
-    crypto.createSign('SHA1').update('Test123').sign(null, 'base64');
+    crypto.createSign('SHA256').update('Test123').sign(null, 'base64');
   }, {
     code: 'ERR_CRYPTO_SIGN_KEY_REQUIRED',
     name: 'Error'
@@ -373,8 +400,8 @@ assert.throws(
 }
 
 {
-  const sign = crypto.createSign('SHA1');
-  const verify = crypto.createVerify('SHA1');
+  const sign = crypto.createSign('SHA256');
+  const verify = crypto.createVerify('SHA256');
 
   [1, [], {}, undefined, null, true, Infinity].forEach((input) => {
     const errObj = {
@@ -441,7 +468,7 @@ for (const pair of [
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
     skip: false,
-    algo: 'sha1',
+    algo: signingHash,
     sigLen: 256,
     raw: false },
 ]) {
@@ -450,6 +477,7 @@ for (const pair of [
     continue;
   }
   const algo = pair.algo;
+  const keyType = crypto.createPrivateKey(pair.private).asymmetricKeyType;
 
   {
     const data = Buffer.from('Hello world');
@@ -521,15 +549,34 @@ for (const pair of [
       const sig = crypto.sign(algo, data, { key: pair.private, context });
       assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), true);
       assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
-      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+      const mismatchedContext = { key: pair.public, context: crypto.randomBytes(30) };
+      if (fips35 && keyType === 'ed25519') {
+        assert.throws(() => crypto.verify(algo, data, mismatchedContext, sig), {
+          code: 'ERR_OSSL_INVALID_EDDSA_INSTANCE_FOR_ATTEMPTED_OPERATION',
+        });
+      } else {
+        assert.strictEqual(
+          crypto.verify(algo, data, mismatchedContext, sig), false);
+      }
     }
 
     {
       const context = new Uint8Array(32);
-      const sig = crypto.sign(algo, data, { key: pair.private, context });
-      assert.strictEqual(crypto.verify(algo, data, { key: pair.public }, sig), false);
-      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context }, sig), true);
-      assert.strictEqual(crypto.verify(algo, data, { key: pair.public, context: crypto.randomBytes(30) }, sig), false);
+      if (fips35 && keyType === 'ed25519') {
+        assert.throws(
+          () => crypto.sign(algo, data, { key: pair.private, context }),
+          { code: 'ERR_OSSL_INVALID_EDDSA_INSTANCE_FOR_ATTEMPTED_OPERATION' });
+      } else {
+        const sig = crypto.sign(algo, data, { key: pair.private, context });
+        assert.strictEqual(
+          crypto.verify(algo, data, { key: pair.public }, sig), false);
+        assert.strictEqual(
+          crypto.verify(algo, data, { key: pair.public, context }, sig), true);
+        assert.strictEqual(crypto.verify(algo, data, {
+          key: pair.public,
+          context: crypto.randomBytes(30),
+        }, sig), false);
+      }
     }
 
     assert.throws(() => crypto.sign(algo, data, { key: pair.private, context: new Uint8Array(256) }), {
@@ -572,20 +619,27 @@ if (hasOpenSSL(3, 2)) {
 
   {
     const context = Buffer.from('my context');
-    const sig = crypto.sign(null, data, { key: privKey, context });
-    assert.strictEqual(sig.length, 64);
+    if (fips35) {
+      assert.throws(() => crypto.sign(null, data, { key: privKey, context }), {
+        code: 'ERR_OSSL_INVALID_EDDSA_INSTANCE_FOR_ATTEMPTED_OPERATION',
+      });
+    } else {
+      const sig = crypto.sign(null, data, { key: privKey, context });
+      assert.strictEqual(sig.length, 64);
 
-    // Verify with matching context succeeds
-    assert.strictEqual(crypto.verify(null, data, { key: pubKey, context }, sig), true);
+      // Verify with matching context succeeds
+      assert.strictEqual(
+        crypto.verify(null, data, { key: pubKey, context }, sig), true);
 
-    // Verify without context fails (Ed25519ctx !== Ed25519 pure)
-    assert.strictEqual(crypto.verify(null, data, { key: pubKey }, sig), false);
+      // Verify without context fails (Ed25519ctx !== Ed25519 pure)
+      assert.strictEqual(crypto.verify(null, data, { key: pubKey }, sig), false);
 
-    // Verify with wrong context fails
-    assert.strictEqual(crypto.verify(null, data, {
-      key: pubKey,
-      context: Buffer.from('wrong'),
-    }, sig), false);
+      // Verify with wrong context fails
+      assert.strictEqual(crypto.verify(null, data, {
+        key: pubKey,
+        context: Buffer.from('wrong'),
+      }, sig), false);
+    }
   }
 
   {
@@ -662,7 +716,9 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
 
 {
   const data = Buffer.from('Hello world');
-  const keys = [['ec-key.pem', 64], ['dsa_private_1025.pem', 40]];
+  const dsaKey = fips3 ?
+    ['dsa_private.pem', 64] : ['dsa_private_1025.pem', 40];
+  const keys = [['ec-key.pem', 64], dsaKey];
 
   for (const [file, length] of keys) {
     if (process.features.openssl_is_boringssl && file.startsWith('dsa_')) {
@@ -670,28 +726,29 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
       continue;
     }
     const privKey = fixtures.readKey(file);
+    const digest = fips3 ? 'sha256' : 'sha1';
     [
-      crypto.createSign('sha1').update(data).sign(privKey),
-      crypto.sign('sha1', data, privKey),
-      crypto.sign('sha1', data, { key: privKey, dsaEncoding: 'der' }),
+      crypto.createSign(digest).update(data).sign(privKey),
+      crypto.sign(digest, data, privKey),
+      crypto.sign(digest, data, { key: privKey, dsaEncoding: 'der' }),
     ].forEach((sig) => {
       // Signature length variability due to DER encoding
       assert(sig.length >= length + 4 && sig.length <= length + 8);
 
       assert.strictEqual(
-        crypto.createVerify('sha1').update(data).verify(privKey, sig),
+        crypto.createVerify(digest).update(data).verify(privKey, sig),
         true
       );
-      assert.strictEqual(crypto.verify('sha1', data, privKey, sig), true);
+      assert.strictEqual(crypto.verify(digest, data, privKey, sig), true);
     });
 
     // Test (EC)DSA signature conversion.
     const opts = { key: privKey, dsaEncoding: 'ieee-p1363' };
-    let sig = crypto.sign('sha1', data, opts);
+    let sig = crypto.sign(digest, data, opts);
     // Unlike DER signatures, IEEE P1363 signatures have a predictable length.
     assert.strictEqual(sig.length, length);
-    assert.strictEqual(crypto.verify('sha1', data, opts, sig), true);
-    assert.strictEqual(crypto.createVerify('sha1')
+    assert.strictEqual(crypto.verify(digest, data, opts, sig), true);
+    assert.strictEqual(crypto.createVerify(digest)
                              .update(data)
                              .verify(opts, sig), true);
 
@@ -700,7 +757,7 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
       sig = crypto.randomBytes(length + i);
       let result;
       try {
-        result = crypto.verify('sha1', data, opts, sig);
+        result = crypto.verify(digest, data, opts, sig);
       } catch (err) {
         assert.match(err.message, /asn1 encoding/);
         assert.strictEqual(err.library, 'asn1 encoding routines');
@@ -735,20 +792,20 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
   }
 
   // Non-(EC)DSA keys should ignore the option.
-  const sig = crypto.sign('sha1', data, {
+  const sig = crypto.sign(signingHash, data, {
     key: keyPem,
     dsaEncoding: 'ieee-p1363'
   });
-  assert.strictEqual(crypto.verify('sha1', data, certPem, sig), true);
+  assert.strictEqual(crypto.verify(signingHash, data, certPem, sig), true);
   assert.strictEqual(
-    crypto.verify('sha1', data, {
+    crypto.verify(signingHash, data, {
       key: certPem,
       dsaEncoding: 'ieee-p1363'
     }, sig),
     true
   );
   assert.strictEqual(
-    crypto.verify('sha1', data, {
+    crypto.verify(signingHash, data, {
       key: certPem,
       dsaEncoding: 'der'
     }, sig),
@@ -757,7 +814,7 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1fiOx1BhdoAvpolZdyX46aGWlNoa
 
   for (const dsaEncoding of ['foo', null, {}, 5, true, NaN]) {
     assert.throws(() => {
-      crypto.sign('sha1', data, {
+      crypto.sign(signingHash, data, {
         key: certPem,
         dsaEncoding
       });
@@ -776,12 +833,13 @@ if (!opensslCli) {
   const privkey = fixtures.readKey('rsa_private_2048.pem');
 
   const msg = 'Test123';
-  const s5 = crypto.createSign('SHA256')
-    .update(msg)
-    .sign({
-      key: privkey,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING
-    });
+  const options = {
+    key: privkey,
+    padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+  };
+  const s5 = fips30 ?
+    crypto.sign('SHA256', Buffer.from(msg), options) :
+    crypto.createSign('SHA256').update(msg).sign(options);
 
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
@@ -811,8 +869,14 @@ if (!process.features.openssl_is_boringssl) {
     const privateKey = crypto.createPrivateKey(privatePem);
 
     for (const key of [privatePem, privateKey]) {
-      // Any algorithm should work.
-      for (const algo of ['sha1', 'sha256']) {
+      if (fips30) {
+        assert.throws(() => crypto.sign('sha1', 'foo', key), {
+          code: fipsDigestErrorCode,
+        });
+      }
+      // Any algorithm should work unless SHA-1 signing is unavailable.
+      const algorithms = fips30 ? ['sha256'] : ['sha1', 'sha256'];
+      for (const algo of algorithms) {
         // Any salt length should work.
         for (const saltLength of [undefined, 8, 10, 12, 16, 18, 20]) {
           const signature = crypto.sign(algo, 'foo', { key, saltLength });
@@ -847,7 +911,9 @@ if (!process.features.openssl_is_boringssl) {
       // Signing with anything other than sha256 should fail.
       assert.throws(() => {
         crypto.sign('sha1', 'foo', key);
-      }, /digest not allowed/);
+      }, fips30 ? {
+        code: fipsDigestErrorCode,
+      } : /digest not allowed/);
 
       // Signing with salt lengths less than 16 bytes should fail.
       for (const saltLength of [8, 10, 12]) {
@@ -895,7 +961,9 @@ if (!process.features.openssl_is_boringssl) {
       for (const algo of ['sha1', 'sha256']) {
         assert.throws(() => {
           crypto.sign(algo, 'foo', key);
-        }, /digest not allowed/);
+        }, fips30 && algo === 'sha1' ? {
+          code: fipsDigestErrorCode,
+        } : /digest not allowed/);
       }
 
       // sha512 should produce a valid signature.
@@ -915,15 +983,21 @@ if (!process.features.openssl_is_boringssl) {
 // The sign function should not swallow OpenSSL errors.
 // Regression test for https://github.com/nodejs/node/issues/40794.
 {
-  assert.throws(() => {
-    const { privateKey } = crypto.generateKeyPairSync('rsa', {
-      modulusLength: 512
+  if (fips3) {
+    assert.throws(() => crypto.generateKeyPairSync('rsa', {
+      modulusLength: 512,
+    }), { code: 'ERR_OSSL_RSA_INVALID_MODULUS' });
+  } else {
+    assert.throws(() => {
+      const { privateKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 512
+      });
+      crypto.sign('sha512', 'message', privateKey);
+    }, {
+      code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
+      message: /digest too big for rsa key|DIGEST_TOO_BIG_FOR_RSA_KEY/
     });
-    crypto.sign('sha512', 'message', privateKey);
-  }, {
-    code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
-    message: /digest too big for rsa key|DIGEST_TOO_BIG_FOR_RSA_KEY/
-  });
+  }
 }
 
 {

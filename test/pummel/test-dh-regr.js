@@ -32,15 +32,30 @@ if (common.isPi()) {
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 
-// FIPS requires length >= 1024 but we use 512/256 in this test to keep it from
-// taking too long and timing out in CI.
-const length = crypto.getFips() ? 1024 : hasOpenSSL3 ? 512 : 256;
+let p;
+let iterations = 2000;
+if (hasFIPS(3)) {
+  assert.throws(() => crypto.createDiffieHellman(1024), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    name: 'TypeError',
+  });
 
-const p = crypto.createDiffieHellman(length).getPrime();
+  // Use a precomputed approved group instead of generating a 2048-bit prime
+  // for every test run. Its larger keys also make each pummel iteration more
+  // expensive, so use enough iterations to exercise the regression without
+  // making the FIPS job excessively slow.
+  p = crypto.getDiffieHellman('modp14').getPrime();
+  iterations = 100;
+} else {
+  // FIPS requires length >= 1024, but small parameters keep this pummel test
+  // from timing out in ordinary CI.
+  const length = crypto.getFips() === 1 ? 1024 : (hasOpenSSL(3) ? 512 : 256);
+  p = crypto.createDiffieHellman(length).getPrime();
+}
 
-for (let i = 0; i < 2000; i++) {
+for (let i = 0; i < iterations; i++) {
   const a = crypto.createDiffieHellman(p);
   const b = crypto.createDiffieHellman(p);
 

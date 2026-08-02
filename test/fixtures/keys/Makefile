@@ -8,6 +8,7 @@ all: \
   ca5-cert.pem \
   ca6-cert.pem \
   agent1-cert.pem \
+  agent1-fips.pfx \
   agent1.pfx \
   agent2-cert.pem \
   agent3-cert.pem \
@@ -39,6 +40,7 @@ all: \
   dsa_private_encrypted_1025.pem \
   dsa_public_1025.pem \
   ec-cert.pem \
+  ec-fips.pfx \
   ec.pfx \
   fake-cnnic-root-cert.pem \
   intermediate-ca-cert.pem \
@@ -444,6 +446,20 @@ agent1.pfx: agent1-cert.pem agent1-key.pem ca1-cert.pem
 		-out agent1.pfx \
 		-password pass:sample
 
+# PKCS12KDF is unavailable under FIPS properties. Use PBMAC1 with PBKDF2
+# instead, alongside AES-256/PBKDF2 key protection.
+agent1-fips.pfx: agent1-cert.pem agent1-key.pem ca1-cert.pem
+	openssl pkcs12 -export \
+		-keypbe AES-256-CBC \
+		-certpbe AES-256-CBC \
+		-iter 2048 \
+		-pbmac1_pbkdf2 \
+		-in agent1-cert.pem \
+		-inkey agent1-key.pem \
+		-certfile ca1-cert.pem \
+		-out agent1-fips.pfx \
+		-password pass:password
+
 agent1-verify: agent1-cert.pem ca1-cert.pem
 	openssl verify -CAfile ca1-cert.pem agent1-cert.pem
 
@@ -786,6 +802,18 @@ ec.pfx: ec-cert.pem ec-key.pem
 		-inkey ec-key.pem \
 		-out ec.pfx \
 		-password pass:
+
+# See agent1-fips.pfx for why the FIPS fixture uses PBMAC1.
+ec-fips.pfx: ec-cert.pem ec-key.pem
+	openssl pkcs12 -export \
+		-keypbe AES-256-CBC \
+		-certpbe AES-256-CBC \
+		-iter 2048 \
+		-pbmac1_pbkdf2 \
+		-in ec-cert.pem \
+		-inkey ec-key.pem \
+		-out ec-fips.pfx \
+		-password pass:password
 
 dh512.pem:
 	openssl dhparam -out dh512.pem 512

@@ -2,7 +2,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasFIPS, hasOpenSSL } = require('../common/crypto');
 if (!hasOpenSSL(3))
   common.skip('requires OpenSSL 3.x');
 
@@ -84,26 +84,32 @@ const data = Buffer.from('hello store');
 }
 
 {
-  const alice = generateKeyPairSync('x25519');
-  const bob = generateKeyPairSync('x25519');
-  const file = path.join(tmpdir.path, 'x25519.pem');
-  fs.writeFileSync(file, alice.privateKey.export({
-    format: 'pem',
-    type: 'pkcs8',
-  }));
-  const url = pathToFileURL(file);
+  if (hasFIPS(3, 5)) {
+    assert.throws(() => generateKeyPairSync('x25519'), {
+      code: 'ERR_OSSL_EVP_UNSUPPORTED',
+    });
+  } else {
+    const alice = generateKeyPairSync('x25519');
+    const bob = generateKeyPairSync('x25519');
+    const file = path.join(tmpdir.path, 'x25519.pem');
+    fs.writeFileSync(file, alice.privateKey.export({
+      format: 'pem',
+      type: 'pkcs8',
+    }));
+    const url = pathToFileURL(file);
 
-  const expected = diffieHellman({
-    privateKey: alice.privateKey,
-    publicKey: bob.publicKey,
-  });
-  assert.deepStrictEqual(
-    diffieHellman({ privateKey: url, publicKey: bob.publicKey }),
-    expected);
+    const expected = diffieHellman({
+      privateKey: alice.privateKey,
+      publicKey: bob.publicKey,
+    });
+    assert.deepStrictEqual(
+      diffieHellman({ privateKey: url, publicKey: bob.publicKey }),
+      expected);
 
-  if (hasOpenSSL(3, 2)) {
-    const { sharedKey, ciphertext } = encapsulate(alice.publicKey);
-    assert.deepStrictEqual(decapsulate(url, ciphertext), sharedKey);
+    if (hasOpenSSL(3, 2)) {
+      const { sharedKey, ciphertext } = encapsulate(alice.publicKey);
+      assert.deepStrictEqual(decapsulate(url, ciphertext), sharedKey);
+    }
   }
 }
 

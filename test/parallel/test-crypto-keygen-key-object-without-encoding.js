@@ -9,6 +9,7 @@ const {
   generateKeyPair,
 } = require('crypto');
 const {
+  hasFIPS,
   testEncryptDecrypt,
   testSignVerify,
 } = require('../common/crypto');
@@ -17,7 +18,7 @@ const {
 {
   // If no publicKeyEncoding is specified, a key object should be returned.
   generateKeyPair('rsa', {
-    modulusLength: 1024,
+    modulusLength: hasFIPS(3) ? 2048 : 1024,
     privateKeyEncoding: {
       type: 'pkcs1',
       format: 'pem'
@@ -36,7 +37,7 @@ const {
 
   // If no privateKeyEncoding is specified, a key object should be returned.
   generateKeyPair('rsa', {
-    modulusLength: 1024,
+    modulusLength: hasFIPS(3) ? 2048 : 1024,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'pem'
