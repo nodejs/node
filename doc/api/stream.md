@@ -3120,6 +3120,19 @@ console.log(res); // prints 'HELLOWORLD'
 For convenience, the [`readable.compose(stream)`][] method is available on
 {Readable} and {Duplex} streams as a wrapper for this function.
 
+### `stream.isDestroyed(stream)`
+
+<!-- YAML
+added:
+  - v19.9.0
+  - v18.17.0
+-->
+
+* `stream` {Readable|Writable|Duplex}
+* Returns: {boolean|null} - Only returns `null` if `stream` is not a valid `Readable`, `Writable` or `Duplex`.
+
+Returns whether the stream has been destroyed.
+
 ### `stream.isErrored(stream)`
 
 <!-- YAML
