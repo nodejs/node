@@ -34,6 +34,26 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 1);
   });
 
+  it('returns an error when spawning the shell fails', {
+    skip: !common.isWindows,
+  }, async () => {
+    const env = { ...process.env };
+    for (const key of Object.keys(env)) {
+      if (key.toLowerCase() === 'comspec') {
+        delete env[key];
+      }
+    }
+    env.ComSpec = fixtures.path('run-script', 'non-existent-cmd.exe');
+
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'test'],
+      { cwd: fixtures.path('run-script'), env },
+    );
+    assert.match(child.stderr, /^Error: /);
+    assert.strictEqual(child.code, 1);
+  });
+
   it('adds node_modules/.bin to path', async () => {
     const child = await common.spawnPromisified(
       process.execPath,

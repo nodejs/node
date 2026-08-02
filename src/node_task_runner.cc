@@ -210,6 +210,8 @@ void ProcessRunner::Run() {
   options_.cwd = cwd_.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
+    init_result_->exit_code_ = ExitCode::kGenericUserError;
+    return;
   }
 
   uv_run(loop_, UV_RUN_DEFAULT);
