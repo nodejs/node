@@ -730,6 +730,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--experimental-repl-typescript",
+            "experimental TypeScript support in the REPL",
+            &EnvironmentOptions::experimental_repl_typescript,
+            kAllowedInEnvvar);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
