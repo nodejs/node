@@ -241,10 +241,24 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
 
   v8::Isolate* isolate = options != nullptr ? options->isolate : nullptr;
   if (isolate != nullptr) {
+    // No HandleScope is active during a Fast API call, so open one before
+    // creating the error object.
+    v8::HandleScope scope(isolate);
     THROW_ERR_INVALID_ARG_VALUE(
         isolate, "Argument %u must be a buffer or an ArrayBuffer", index);
   }
   return kInvalidBuffer;
+}
+
+extern "C" void node_ffi_fast_library_closed(v8::Isolate* isolate) {
+  if (isolate != nullptr) {
+    // Fast API calls do not enter a HandleScope, and the generated trampolines
+    // call this helper directly. Building the error object allocates handles,
+    // so open a scope here. The scheduled exception lives on the isolate and
+    // outlives the scope.
+    v8::HandleScope scope(isolate);
+    THROW_ERR_FFI_LIBRARY_CLOSED(isolate);
+  }
 }
 
 FastFFIMetadata::~FastFFIMetadata() {
@@ -265,7 +279,18 @@ bool IsFastCallSupported() {
 #endif
 }
 
-std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
+bool IsFastLibraryGuardSupported() {
+#if defined(__aarch64__) || defined(_M_ARM64) ||                               \
+    (defined(__x86_64__) && !defined(_WIN32))
+  return true;
+#else
+  return false;
+#endif
+}
+
+std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
+                                                       const bool* closed,
+                                                       v8::Isolate* isolate) {
   // Bail early if executable memory allocation doesn't work on this process
   // (missing MAP_JIT entitlement, hardened runtime, SELinux execmem, etc.).
   // The self-test runs once and caches the result.
@@ -299,6 +324,7 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
   std::vector<FastFFIType> args;
   args.reserve(fn.arg_type_names.size());
   bool needs_bigint = NeedsBigIntRepresentation(result);
+  const bool guards_library = IsFastLibraryGuardSupported();
   bool needs_callback_options = false;
   // Normalize public argument names into FastFFIType values while collecting
   // signature-wide flags required by V8 CFunctionInfo.
@@ -320,8 +346,9 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
   // The platform-specific trampoline is the executable entrypoint V8 calls.
   // If the platform rejects the signature, the whole fast metadata object is
   // discarded and the caller chooses another invocation path.
+  FastFFITrampolineConfig config{fn.ptr, closed, isolate};
   if (!node_ffi_create_fast_trampoline(
-          fn.ptr, args.data(), args.size(), result, &metadata->trampoline)) {
+          config, args.data(), args.size(), result, &metadata->trampoline)) {
     return nullptr;
   }
 
@@ -348,6 +375,7 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
                    : CFunctionInfo::Int64Representation::kNumber);
   metadata->c_function =
       v8::CFunction(metadata->trampoline.code, metadata->c_function_info.get());
+  metadata->guards_library = guards_library;
   return metadata;
 }
 
