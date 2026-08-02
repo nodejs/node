@@ -56,6 +56,10 @@
           "type": "boolean",
           "description": "allow use of inspector when any permissions are set"
         },
+        "allow-openssl-store": {
+          "type": "boolean",
+          "description": "allow use of OpenSSL STORE loaders when any permissions are set"
+        },
         "allow-wasi": {
           "type": "boolean",
           "description": "allow wasi when any permissions are set"
@@ -801,6 +805,10 @@
         "allow-inspector": {
           "type": "boolean",
           "description": "allow use of inspector when any permissions are set"
+        },
+        "allow-openssl-store": {
+          "type": "boolean",
+          "description": "allow use of OpenSSL STORE loaders when any permissions are set"
         },
         "allow-wasi": {
           "type": "boolean",
