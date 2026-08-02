@@ -77,6 +77,8 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
   inherit (pkgs)
     \(.attrs | sort | join("\n    "))
     ;
+
+  openssl_fips = import ./openssl-fips.nix { };
 }"' > "$OPENSSL_MATRIX_FILE"
 
 cat -<<EOF
