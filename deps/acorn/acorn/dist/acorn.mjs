@@ -380,6 +380,11 @@ var defaultOptions = {
   // line being 1-based and column 0-based) will be attached to the
   // nodes.
   locations: false,
+  // Pass an optional `{line, column}` object to use for the start of
+  // the parse. This is mostly useful when using `parseExpressionAt`
+  // with `locations: true`, to prevent the parser from having to
+  // determine the line position at the start position.
+  startLocation: null,
   // A function can be passed as `onToken` option, which will
   // cause Acorn to call that function with object in the same
   // format as tokens returned from `tokenizer().getToken()`. Note
@@ -533,13 +538,17 @@ var Parser = function Parser(options, input, startPos) {
   // Set up token state
 
   // The current position of the tokenizer in the input.
-  if (startPos) {
-    this.pos = startPos;
+  this.pos = startPos || 0;
+  this.curLine = 1;
+  if (options.startLocation) {
+    this.lineStart = this.pos - options.startLocation.column;
+    this.curLine = options.startLocation.line;
+  } else if (startPos) {
     this.lineStart = this.input.lastIndexOf("\n", startPos - 1) + 1;
-    this.curLine = this.input.slice(0, this.lineStart).split(lineBreak).length;
+    if (this.options.locations)
+      { this.curLine = this.input.slice(0, this.lineStart).split(lineBreak).length; }
   } else {
-    this.pos = this.lineStart = 0;
-    this.curLine = 1;
+    this.lineStart = 0;
   }
 
   // Properties of the current token:
@@ -2882,7 +2891,7 @@ pp$5.parseMaybeUnary = function(refDestructuringErrors, sawUnary, incDec, forIni
     }
   }
 
-  if (!incDec && this.eat(types$1.starstar)) {
+  if (!incDec && !(expr.type === "ArrowFunctionExpression" && expr.start === startPos) && this.eat(types$1.starstar)) {
     if (sawUnary)
       { this.unexpected(this.lastTokStart); }
     else
@@ -6252,7 +6261,7 @@ pp.readWord = function() {
 // [ghbt]: https://github.com/acornjs/acorn/issues
 
 
-var version = "8.17.0";
+var version = "8.18.0";
 
 Parser.acorn = {
   Parser: Parser,
