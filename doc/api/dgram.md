@@ -350,7 +350,7 @@ is called.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In rare case (e.g.,
+If binding fails, an `'error'` event is generated. In a rare case (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 An example socket listening on an exclusive port is shown below.
