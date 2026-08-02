@@ -139,6 +139,7 @@ function testInitialized(req, ctor_name) {
 
 if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const crypto = require('crypto');
+  const { hasFIPS } = require('../common/crypto');
 
   // The handle for PBKDF2 and RandomBytes isn't returned by the function call,
   // so need to check it from the callback.
@@ -152,7 +153,8 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
     testInitialized(this, 'RandomBytesJob');
   }));
 
-  if (typeof internalBinding('crypto').ScryptJob === 'function') {
+  if (typeof internalBinding('crypto').ScryptJob === 'function' &&
+      !hasFIPS(3)) {
     crypto.scrypt('password', 'salt', 8, common.mustCall(function() {
       testInitialized(this, 'ScryptJob');
     }));

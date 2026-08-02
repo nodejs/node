@@ -10,6 +10,7 @@ const {
 } = require('crypto');
 const {
   assertApproximateSize,
+  hasFIPS,
   testEncryptDecrypt,
   testSignVerify,
   pkcs1PubExp,
@@ -19,9 +20,10 @@ const {
 // To make the test faster, we will only test sync key generation once and
 // with a relatively small key.
 {
+  const isFips = hasFIPS(3);
   const ret = generateKeyPairSync('rsa', {
-    publicExponent: 3,
-    modulusLength: 512,
+    publicExponent: isFips ? 0x10001 : 3,
+    modulusLength: isFips ? 2048 : 512,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'pem'
@@ -37,10 +39,10 @@ const {
 
   assert.strictEqual(typeof publicKey, 'string');
   assert.match(publicKey, pkcs1PubExp);
-  assertApproximateSize(publicKey, 162);
+  assertApproximateSize(publicKey, isFips ? 426 : 162);
   assert.strictEqual(typeof privateKey, 'string');
   assert.match(privateKey, pkcs8Exp);
-  assertApproximateSize(privateKey, 512);
+  assertApproximateSize(privateKey, isFips ? 1704 : 512);
 
   testEncryptDecrypt(publicKey, privateKey);
   testSignVerify(publicKey, privateKey);

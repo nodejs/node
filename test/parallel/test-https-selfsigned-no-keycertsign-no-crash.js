@@ -13,9 +13,10 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const crypto = require('crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 // See #37990 for details on why this is problematic with FIPS.
-if (process.config.variables.openssl_is_fips)
+if (crypto.getFips() === 1 && !hasOpenSSL(3))
   common.skip('Skipping as test uses non-fips compliant EC curve');
 
 // This test will fail for OpenSSL < 1.1.1h

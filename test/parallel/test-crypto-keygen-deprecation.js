@@ -15,13 +15,15 @@ DeprecationWarning.push([
 common.expectWarning({ DeprecationWarning });
 
 const assert = require('assert');
+const { hasFIPS } = require('../common/crypto');
+const modulusLength = hasFIPS(3) ? 2048 : 512;
 const { generateKeyPair } = require('crypto');
 
 {
   // This test makes sure deprecated options still work as intended
 
   generateKeyPair('rsa-pss', {
-    modulusLength: 512,
+    modulusLength,
     saltLength: 16,
     hash: 'sha256',
     mgf1Hash: 'sha256'
@@ -29,7 +31,7 @@ const { generateKeyPair } = require('crypto');
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
       mgf1HashAlgorithm: 'sha256',
@@ -39,7 +41,7 @@ const { generateKeyPair } = require('crypto');
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
       mgf1HashAlgorithm: 'sha256',

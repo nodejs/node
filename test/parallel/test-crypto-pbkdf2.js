@@ -5,7 +5,16 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
+const {
+  hasOpenSSL,
+  hasFIPS,
+} = require('../common/crypto');
+
+const fips4 = hasFIPS(4);
+const validPassword = fips4 ? 'password' : 'pass';
+const validSalt = fips4 ? '0123456789abcdef' : 'salt';
+const validIterations = fips4 ? 1000 : 8;
+const validKeyLength = fips4 ? 16 : 8;
 
 function runPBKDF2(password, salt, iterations, keylen, hash) {
   const syncResult =
@@ -19,6 +28,25 @@ function runPBKDF2(password, salt, iterations, keylen, hash) {
   return syncResult;
 }
 
+function assertPBKDF2Fails(password, salt, iterations, keylen, hash) {
+  const expected = { message: 'PBKDF2 derivation failed' };
+  assert.throws(
+    () => crypto.pbkdf2Sync(password, salt, iterations, keylen, hash),
+    expected,
+  );
+  crypto.pbkdf2(
+    password,
+    salt,
+    iterations,
+    keylen,
+    hash,
+    common.mustCall((err, result) => {
+      assert.strictEqual(err?.message, expected.message);
+      assert.strictEqual(result, undefined);
+    }),
+  );
+}
+
 function testPBKDF2(password, salt, iterations, keylen, expected, encoding) {
   const actual = runPBKDF2(password, salt, iterations, keylen, 'sha256');
   assert.strictEqual(actual.toString(encoding || 'latin1'), expected);
@@ -28,36 +56,55 @@ function testPBKDF2(password, salt, iterations, keylen, expected, encoding) {
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
 
-testPBKDF2('password', 'salt', 1, 20,
-           '\x12\x0f\xb6\xcf\xfc\xf8\xb3\x2c\x43\xe7\x22\x52' +
-           '\x56\xc4\xf8\x37\xa8\x65\x48\xc9');
+if (fips4) {
+  testPBKDF2(validPassword, validSalt, validIterations, 32,
+             '8514638175a45bc45eb1f22f04ff7d27' +
+             'f4f8be480498c455ff4b494ce8d1e7d2',
+             'hex');
 
-testPBKDF2('password', 'salt', 2, 20,
-           '\xae\x4d\x0c\x95\xaf\x6b\x46\xd3\x2d\x0a\xdf\xf9' +
-           '\x28\xf0\x6d\xd0\x2a\x30\x3f\x8e');
+  for (const args of [
+    ['short', validSalt, validIterations],
+    [validPassword, 'short', validIterations],
+    [validPassword, validSalt, 999],
+  ]) {
+    assertPBKDF2Fails(...args, 32, 'sha256');
+  }
+  assertPBKDF2Fails(
+    validPassword, validSalt, validIterations, 8, 'sha256');
+} else {
+  testPBKDF2('password', 'salt', 1, 20,
+             '\x12\x0f\xb6\xcf\xfc\xf8\xb3\x2c\x43\xe7\x22\x52' +
+             '\x56\xc4\xf8\x37\xa8\x65\x48\xc9');
 
-testPBKDF2('password', 'salt', 4096, 20,
-           '\xc5\xe4\x78\xd5\x92\x88\xc8\x41\xaa\x53\x0d\xb6' +
-           '\x84\x5c\x4c\x8d\x96\x28\x93\xa0');
+  testPBKDF2('password', 'salt', 2, 20,
+             '\xae\x4d\x0c\x95\xaf\x6b\x46\xd3\x2d\x0a\xdf\xf9' +
+             '\x28\xf0\x6d\xd0\x2a\x30\x3f\x8e');
 
-testPBKDF2('passwordPASSWORDpassword',
-           'saltSALTsaltSALTsaltSALTsaltSALTsalt',
-           4096,
-           25,
-           '\x34\x8c\x89\xdb\xcb\xd3\x2b\x2f\x32\xd8\x14\xb8\x11' +
-           '\x6e\x84\xcf\x2b\x17\x34\x7e\xbc\x18\x00\x18\x1c');
+  testPBKDF2('password', 'salt', 4096, 20,
+             '\xc5\xe4\x78\xd5\x92\x88\xc8\x41\xaa\x53\x0d\xb6' +
+             '\x84\x5c\x4c\x8d\x96\x28\x93\xa0');
 
-testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
-           '\x89\xb6\x9d\x05\x16\xf8\x29\x89\x3c\x69\x62\x26\x65' +
-           '\x0a\x86\x87');
+  testPBKDF2('passwordPASSWORDpassword',
+             'saltSALTsaltSALTsaltSALTsaltSALTsalt',
+             4096,
+             25,
+             '\x34\x8c\x89\xdb\xcb\xd3\x2b\x2f\x32\xd8\x14\xb8\x11' +
+             '\x6e\x84\xcf\x2b\x17\x34\x7e\xbc\x18\x00\x18\x1c');
 
-testPBKDF2('password', 'salt', 32, 32,
-           '64c486c55d30d4c5a079b8823b7d7cb37ff0556f537da8410233bcec330ed956',
-           'hex');
+  testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
+             '\x89\xb6\x9d\x05\x16\xf8\x29\x89\x3c\x69\x62\x26\x65' +
+             '\x0a\x86\x87');
+
+  testPBKDF2('password', 'salt', 32, 32,
+             '64c486c55d30d4c5a079b8823b7d7cb3' +
+             '7ff0556f537da8410233bcec330ed956',
+             'hex');
+}
 
 // Error path should not leak memory (check with valgrind).
 assert.throws(
-  () => crypto.pbkdf2('password', 'salt', 1, 20, 'sha1'),
+  () => crypto.pbkdf2(
+    validPassword, validSalt, validIterations, 20, 'sha1'),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
@@ -66,7 +113,8 @@ assert.throws(
 
 for (const iterations of [-1, 0, 2147483648]) {
   assert.throws(
-    () => crypto.pbkdf2Sync('password', 'salt', iterations, 20, 'sha1'),
+    () => crypto.pbkdf2Sync(
+      validPassword, validSalt, iterations, 20, 'sha1'),
     {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
@@ -77,7 +125,8 @@ for (const iterations of [-1, 0, 2147483648]) {
 ['str', null, undefined, [], {}].forEach((notNumber) => {
   assert.throws(
     () => {
-      crypto.pbkdf2Sync('password', 'salt', 1, notNumber, 'sha256');
+      crypto.pbkdf2Sync(
+        validPassword, validSalt, validIterations, notNumber, 'sha256');
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -89,7 +138,7 @@ for (const iterations of [-1, 0, 2147483648]) {
 [Infinity, -Infinity, NaN].forEach((input) => {
   assert.throws(
     () => {
-      crypto.pbkdf2('password', 'salt', 1, input, 'sha256',
+      crypto.pbkdf2(validPassword, validSalt, validIterations, input, 'sha256',
                     common.mustNotCall());
     }, {
       code: 'ERR_OUT_OF_RANGE',
@@ -102,7 +151,7 @@ for (const iterations of [-1, 0, 2147483648]) {
 [-1, 2147483648, 4294967296].forEach((input) => {
   assert.throws(
     () => {
-      crypto.pbkdf2('password', 'salt', 1, input, 'sha256',
+      crypto.pbkdf2(validPassword, validSalt, validIterations, input, 'sha256',
                     common.mustNotCall());
     }, {
       code: 'ERR_OUT_OF_RANGE',
@@ -119,14 +168,16 @@ for (const iterations of [-1, 0, 2147483648]) {
   let posError;
   let posResult;
   try {
-    posResult = crypto.pbkdf2Sync('password', 'salt', 1, 0, 'sha256');
+    posResult = crypto.pbkdf2Sync(
+      validPassword, validSalt, validIterations, 0, 'sha256');
   } catch (err) {
     posError = err;
   }
   let negError;
   let negResult;
   try {
-    negResult = crypto.pbkdf2Sync('password', 'salt', 1, -0, 'sha256');
+    negResult = crypto.pbkdf2Sync(
+      validPassword, validSalt, validIterations, -0, 'sha256');
   } catch (err) {
     negError = err;
   }
@@ -136,15 +187,22 @@ for (const iterations of [-1, 0, 2147483648]) {
     assert.deepStrictEqual(negResult, posResult);
   }
 
-  crypto.pbkdf2('password', 'salt', 1, -0, 'sha256', common.mustCall());
+  crypto.pbkdf2(
+    validPassword, validSalt, validIterations, -0, 'sha256',
+    common.mustCall());
 }
 
 // Should not get FATAL ERROR with empty password and salt
 // https://github.com/nodejs/node/issues/8571
-crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustSucceed());
+if (fips4) {
+  assertPBKDF2Fails('', '', 1, 32, 'sha256');
+} else {
+  crypto.pbkdf2('', '', 1, 32, 'sha256', common.mustSucceed());
+}
 
 assert.throws(
-  () => crypto.pbkdf2('password', 'salt', 8, 8, common.mustNotCall()),
+  () => crypto.pbkdf2(
+    validPassword, validSalt, validIterations, 8, common.mustNotCall()),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
@@ -153,7 +211,7 @@ assert.throws(
   });
 
 assert.throws(
-  () => crypto.pbkdf2Sync('password', 'salt', 8, 8),
+  () => crypto.pbkdf2Sync(validPassword, validSalt, validIterations, 8),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
@@ -162,7 +220,7 @@ assert.throws(
   });
 
 assert.throws(
-  () => crypto.pbkdf2Sync('password', 'salt', 8, 8, null),
+  () => crypto.pbkdf2Sync(validPassword, validSalt, validIterations, 8, null),
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
@@ -171,7 +229,8 @@ assert.throws(
   });
 [1, {}, [], true, undefined, null].forEach((input) => {
   assert.throws(
-    () => crypto.pbkdf2(input, 'salt', 8, 8, 'sha256', common.mustNotCall()),
+    () => crypto.pbkdf2(
+      input, validSalt, validIterations, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -179,7 +238,9 @@ assert.throws(
   );
 
   assert.throws(
-    () => crypto.pbkdf2('pass', input, 8, 8, 'sha256', common.mustNotCall()),
+    () => crypto.pbkdf2(
+      validPassword, input, validIterations, 8, 'sha256',
+      common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -187,7 +248,8 @@ assert.throws(
   );
 
   assert.throws(
-    () => crypto.pbkdf2Sync(input, 'salt', 8, 8, 'sha256'),
+    () => crypto.pbkdf2Sync(
+      input, validSalt, validIterations, 8, 'sha256'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -195,7 +257,8 @@ assert.throws(
   );
 
   assert.throws(
-    () => crypto.pbkdf2Sync('pass', input, 8, 8, 'sha256'),
+    () => crypto.pbkdf2Sync(
+      validPassword, input, validIterations, 8, 'sha256'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -206,7 +269,8 @@ assert.throws(
 ['test', {}, [], true, undefined, null].forEach((i) => {
   const received = common.invalidArgTypeHelper(i);
   assert.throws(
-    () => crypto.pbkdf2('pass', 'salt', i, 8, 'sha256', common.mustNotCall()),
+    () => crypto.pbkdf2(
+      validPassword, validSalt, i, 8, 'sha256', common.mustNotCall()),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -215,7 +279,7 @@ assert.throws(
   );
 
   assert.throws(
-    () => crypto.pbkdf2Sync('pass', 'salt', i, 8, 'sha256'),
+    () => crypto.pbkdf2Sync(validPassword, validSalt, i, 8, 'sha256'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
@@ -224,15 +288,32 @@ assert.throws(
   );
 });
 
+if (fips4) {
+  assertPBKDF2Fails(
+    new Uint8Array(1), validSalt, validIterations, validKeyLength, 'sha256');
+  assertPBKDF2Fails(
+    validPassword, new Uint8Array(1), validIterations, validKeyLength,
+    'sha256');
+}
+
 // Any TypedArray should work for password and salt.
 for (const SomeArray of [Uint8Array, Uint16Array, Uint32Array, Float32Array,
                          Float64Array, ArrayBuffer, SharedArrayBuffer]) {
-  runPBKDF2(new SomeArray(10), 'salt', 8, 8, 'sha256');
-  runPBKDF2('pass', new SomeArray(10), 8, 8, 'sha256');
+  const length = fips4 ? 16 : 10;
+  const input = new SomeArray(length);
+  const bytes = ArrayBuffer.isView(input) ?
+    new Uint8Array(input.buffer, input.byteOffset, input.byteLength) :
+    new Uint8Array(input);
+  for (let index = 0; index < bytes.length; index++)
+    bytes[index] = index + 1;
+  runPBKDF2(input, validSalt, validIterations, validKeyLength, 'sha256');
+  runPBKDF2(validPassword, input, validIterations, validKeyLength, 'sha256');
 }
 
 assert.throws(
-  () => crypto.pbkdf2('pass', 'salt', 8, 8, 'md55', common.mustNotCall()),
+  () => crypto.pbkdf2(
+    validPassword, validSalt, validIterations, 8, 'md55',
+    common.mustNotCall()),
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     name: 'TypeError',
@@ -241,7 +322,8 @@ assert.throws(
 );
 
 assert.throws(
-  () => crypto.pbkdf2Sync('pass', 'salt', 8, 8, 'md55'),
+  () => crypto.pbkdf2Sync(
+    validPassword, validSalt, validIterations, 8, 'md55'),
   {
     code: 'ERR_CRYPTO_INVALID_DIGEST',
     name: 'TypeError',
@@ -249,7 +331,7 @@ assert.throws(
   }
 );
 
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   const kNotPBKDF2Supported = ['shake128', 'shake256'];
   crypto.getHashes()
     .filter((hash) => !kNotPBKDF2Supported.includes(hash))
@@ -261,7 +343,8 @@ if (!hasOpenSSL3) {
 {
   // This should not crash.
   assert.throws(
-    () => crypto.pbkdf2Sync('1', '2', 1, 1, '%'),
+    () => crypto.pbkdf2Sync(
+      validPassword, validSalt, validIterations, 1, '%'),
     {
       code: 'ERR_CRYPTO_INVALID_DIGEST',
       name: 'TypeError',

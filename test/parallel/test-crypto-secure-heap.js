@@ -20,7 +20,7 @@ if (process.features.openssl_is_boringssl) {
 const assert = require('assert');
 const { fork } = require('child_process');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL3 } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 const {
   secureHeapUsed,
   createDiffieHellman,
@@ -38,7 +38,8 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(a.used, 0);
 
   {
-    const size = getFips() || hasOpenSSL3 ? 1024 : 256;
+    const size = hasFIPS(3) ?
+      2048 : (getFips() === 1 || hasOpenSSL(3) ? 1024 : 256);
     const dh1 = createDiffieHellman(size);
     const p1 = dh1.getPrime('buffer');
     const dh2 = createDiffieHellman(p1, 'buffer');

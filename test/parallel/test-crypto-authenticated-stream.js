@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 const fs = require('fs');
 const stream = require('stream');
 const tmpdir = require('../common/tmpdir');
@@ -117,6 +118,16 @@ fstream.count = 0;
 function test(config) {
   if (!crypto.getCiphers().includes(config.cipher)) {
     common.printSkipMessage(`unsupported cipher: ${config.cipher}`);
+    return;
+  }
+
+  if (hasFIPS(3)) {
+    assert.throws(() => crypto.createDecipheriv(
+      config.cipher, config.key, config.iv, {
+        authTagLength: config.authTagLength,
+      }), {
+      code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION',
+    });
     return;
   }
 

@@ -11,11 +11,12 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
 // Test classic Diffie-Hellman key generation.
 {
   generateKeyPair('dh', {
-    primeLength: 512
+    primeLength: hasFIPS(3) ? 2048 : 512
   }, common.mustSucceed((publicKey, privateKey) => {
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'dh');

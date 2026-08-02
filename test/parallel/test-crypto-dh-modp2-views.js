@@ -5,24 +5,30 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { modp2buf } = require('../common/crypto');
+const { hasFIPS, modp2buf } = require('../common/crypto');
 
 if (process.features.openssl_is_boringssl) {
   common.skip('Skipping unsupported Diffie-Hellman tests');
 }
 
-const modp2 = crypto.createDiffieHellmanGroup('modp2');
+if (hasFIPS(3)) {
+  assert.throws(() => crypto.createDiffieHellman(1024), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+} else {
+  const modp2 = crypto.createDiffieHellmanGroup('modp2');
 
-const views = common.getArrayBufferViews(modp2buf);
-for (const buf of [modp2buf, ...views]) {
-  // Ensure specific generator (string with encoding) works as expected with
-  // any ArrayBufferViews as the first argument to createDiffieHellman().
-  const exmodp2 = crypto.createDiffieHellman(buf, '02', 'hex');
-  modp2.generateKeys();
-  exmodp2.generateKeys();
-  const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
-      .toString('hex');
-  const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-      .toString('hex');
-  assert.strictEqual(modp2Secret, exmodp2Secret);
+  const views = common.getArrayBufferViews(modp2buf);
+  for (const buf of [modp2buf, ...views]) {
+    // Ensure specific generator (string with encoding) works as expected with
+    // any ArrayBufferViews as the first argument to createDiffieHellman().
+    const exmodp2 = crypto.createDiffieHellman(buf, '02', 'hex');
+    modp2.generateKeys();
+    exmodp2.generateKeys();
+    const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
+        .toString('hex');
+    const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
+        .toString('hex');
+    assert.strictEqual(modp2Secret, exmodp2Secret);
+  }
 }

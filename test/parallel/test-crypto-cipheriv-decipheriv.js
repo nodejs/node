@@ -5,8 +5,9 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
-const { hasOpenSSL3 } = require('../common/crypto');
-const isFipsEnabled = crypto.getFips();
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const isFipsEnabled = crypto.getFips() === 1;
+const fips3 = hasFIPS(3);
 
 function testCipher1(key, iv) {
   // Test encryption and decryption with explicit key and iv
@@ -164,10 +165,12 @@ function testSm4Xts() {
 
 {
   const Cipheriv = crypto.Cipheriv;
-  const key = '123456789012345678901234';
-  const iv = '12345678';
+  const algorithm = fips3 ? 'aes-128-cbc' : 'des-ede3-cbc';
+  const key = fips3 ?
+    '1234567890123456' : '123456789012345678901234';
+  const iv = fips3 ? '1234567890123456' : '12345678';
 
-  const instance = Cipheriv('des-ede3-cbc', key, iv);
+  const instance = Cipheriv(algorithm, key, iv);
   assert(instance instanceof Cipheriv, 'Cipheriv is expected to return a new ' +
                                        'instance when called without `new`');
 
@@ -197,10 +200,12 @@ function testSm4Xts() {
 
 {
   const Decipheriv = crypto.Decipheriv;
-  const key = '123456789012345678901234';
-  const iv = '12345678';
+  const algorithm = fips3 ? 'aes-128-cbc' : 'des-ede3-cbc';
+  const key = fips3 ?
+    '1234567890123456' : '123456789012345678901234';
+  const iv = fips3 ? '1234567890123456' : '12345678';
 
-  const instance = Decipheriv('des-ede3-cbc', key, iv);
+  const instance = Decipheriv(algorithm, key, iv);
   assert(instance instanceof Decipheriv, 'Decipheriv expected to return a new' +
                                          ' instance when called without `new`');
 
@@ -231,8 +236,10 @@ function testSm4Xts() {
 testCipher1('0123456789abcd0123456789', '12345678');
 testCipher1('0123456789abcd0123456789', Buffer.from('12345678'));
 testCipher1(Buffer.from('0123456789abcd0123456789'), '12345678');
-testCipher1(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
-testCipher2(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
+testCipher1(
+  Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
+testCipher2(
+  Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
 if (!isFipsEnabled) {
   testCipher3(Buffer.from('000102030405060708090A0B0C0D0E0F', 'hex'),
@@ -286,8 +293,8 @@ assert.throws(
   errMessage);
 
 // But all other IV lengths should be accepted.
-const minIvLength = hasOpenSSL3 ? 8 : 1;
-const maxIvLength = hasOpenSSL3 ? 64 : 256;
+const minIvLength = hasOpenSSL(3) ? 8 : 1;
+const maxIvLength = hasOpenSSL(3) ? 64 : 256;
 for (let n = minIvLength; n < maxIvLength; n += 1) {
   if (isFipsEnabled && n < 12) continue;
   crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16), Buffer.alloc(n));

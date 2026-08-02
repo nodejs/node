@@ -11,19 +11,20 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
 // RFC 8017, 9.1.: "Assuming that the mask generation function is based on a
 // hash function, it is RECOMMENDED that the hash function be the same as the
 // one that is applied to the message."
 {
-
+  const modulusLength = hasFIPS(3) ? 2048 : 512;
   generateKeyPair('rsa-pss', {
-    modulusLength: 512,
+    modulusLength,
     hashAlgorithm: 'sha256',
     saltLength: 16
   }, common.mustSucceed((publicKey, privateKey) => {
     const expectedKeyDetails = {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
       mgf1HashAlgorithm: 'sha256',

@@ -12,6 +12,9 @@ const assert = require('assert');
 const {
   generateKeyPairSync,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
+
+const fips3 = hasFIPS(3);
 
 // Test invalid parameter encoding.
 {
@@ -25,7 +28,11 @@ const {
     }
   }), {
     name: 'Error',
-    code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE',
-    message: 'Unsupported JWK Key Type.'
+    ...fips3 ? {
+      message: 'error:05000072:dsa routines::bad ffc parameters',
+    } : {
+      code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE',
+      message: 'Unsupported JWK Key Type.',
+    },
   });
 }

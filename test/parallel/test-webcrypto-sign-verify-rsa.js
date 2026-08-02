@@ -6,7 +6,10 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+const fips3 = hasFIPS(3);
+const rejectsSha1Signing = hasFIPS(3) && !hasFIPS(3, 5);
 
 const rsa_pkcs = require('../fixtures/crypto/rsa_pkcs');
 const rsa_pss = require('../fixtures/crypto/rsa_pss');
@@ -194,6 +197,23 @@ async function testSign({
     });
 }
 
+async function testFipsSignRejected({
+  algorithm,
+  hash,
+  privateKeyBuffer,
+  plaintext,
+}) {
+  const privateKey = await subtle.importKey(
+    'pkcs8',
+    privateKeyBuffer,
+    { name: algorithm.name, hash },
+    false,
+    ['sign']);
+  await assert.rejects(
+    subtle.sign(algorithm, privateKey, plaintext),
+    { name: 'OperationError' });
+}
+
 async function testSaltLength(keyLength, hash, hLen) {
   const { publicKey, privateKey } = await subtle.generateKey({
     name: 'RSA-PSS',
@@ -234,14 +254,30 @@ async function testSaltLength(keyLength, hash, hLen) {
 
   rsa_pkcs().forEach((vector) => {
     variations.push(testVerify(vector));
-    variations.push(testSign(vector));
+    variations.push(rejectsSha1Signing && vector.hash === 'SHA-1' ?
+      testFipsSignRejected(vector) : testSign(vector));
   });
   rsa_pss().forEach((vector) => {
     variations.push(testVerify(vector));
-    variations.push(testSign(vector));
+    variations.push(rejectsSha1Signing && vector.hash === 'SHA-1' ?
+      testFipsSignRejected(vector) : testSign(vector));
   });
 
-  for (const keyLength of [1024, 2048]) {
+  if (fips3) {
+    variations.push(assert.rejects(
+      subtle.generateKey({
+        name: 'RSA-PSS',
+        modulusLength: 1024,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: 'SHA-256',
+      }, false, ['sign', 'verify']),
+      {
+        name: 'OperationError',
+        message: 'algorithm.modulusLength must be at least 2048',
+      }));
+  }
+
+  for (const keyLength of fips3 ? [2048] : [1024, 2048]) {
     for (const [hash, hLen] of [
       ['SHA-1', 20],
       ['SHA-256', 32],
@@ -253,6 +289,8 @@ async function testSaltLength(keyLength, hash, hLen) {
         ['SHA3-512', 64],
       ] : []),
     ]) {
+      if (rejectsSha1Signing && hash === 'SHA-1')
+        continue;
       variations.push(testSaltLength(keyLength, hash, hLen));
     }
   }

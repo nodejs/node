@@ -5,9 +5,11 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
-const alice = crypto.createDiffieHellmanGroup('modp5');
-const bob = crypto.createDiffieHellmanGroup('modp5');
+const group = hasFIPS(3) ? 'modp14' : 'modp5';
+const alice = crypto.createDiffieHellmanGroup(group);
+const bob = crypto.createDiffieHellmanGroup(group);
 alice.generateKeys();
 bob.generateKeys();
 const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');

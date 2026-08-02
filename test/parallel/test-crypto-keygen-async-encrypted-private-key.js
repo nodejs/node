@@ -10,15 +10,18 @@ const {
 } = require('crypto');
 const {
   assertApproximateSize,
+  hasFIPS,
   testEncryptDecrypt,
   testSignVerify,
 } = require('../common/crypto');
 
 // Test async RSA key generation with an encrypted private key, but encoded as DER.
 {
+  const isFips = hasFIPS(3);
+  const passphrase = 'password';
   generateKeyPair('rsa', {
     publicExponent: 0x10001,
-    modulusLength: 512,
+    modulusLength: isFips ? 2048 : 512,
     publicKeyEncoding: {
       type: 'pkcs1',
       format: 'der'
@@ -27,11 +30,11 @@ const {
       type: 'pkcs8',
       format: 'der',
       cipher: 'aes-256-cbc',
-      passphrase: 'secret'
+      passphrase
     }
   }, common.mustSucceed((publicKeyDER, privateKeyDER) => {
     assert(Buffer.isBuffer(publicKeyDER));
-    assertApproximateSize(publicKeyDER, 74);
+    assertApproximateSize(publicKeyDER, isFips ? 270 : 74);
 
     assert(Buffer.isBuffer(privateKeyDER));
 
@@ -59,7 +62,7 @@ const {
       key: privateKeyDER,
       format: 'der',
       type: 'pkcs8',
-      passphrase: 'secret'
+      passphrase
     };
     testEncryptDecrypt(publicKey, privateKey);
     testSignVerify(publicKey, privateKey);

@@ -12,10 +12,11 @@ const {
   generateKeyPair,
 } = require('crypto');
 const {
+  hasFIPS,
   testSignVerify,
   spkiExp,
   sec1EncExp,
-  hasOpenSSL3,
+  hasOpenSSL,
 } = require('../common/crypto');
 
 {
@@ -34,7 +35,12 @@ const {
       cipher: 'aes-128-cbc',
       passphrase: 'secret'
     }
-  }, common.mustSucceed((publicKey, privateKey) => {
+  }, common.mustCall((err, publicKey, privateKey) => {
+    if (hasFIPS(3)) {
+      assert.strictEqual(err?.code, 'ERR_OSSL_EVP_UNSUPPORTED');
+      return;
+    }
+    assert.ifError(err);
     assert.strictEqual(typeof publicKey, 'string');
     assert.match(publicKey, spkiExp);
     assert.strictEqual(typeof privateKey, 'string');
@@ -42,7 +48,7 @@ const {
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => testSignVerify(publicKey, privateKey),
-                  hasOpenSSL3 ? {
+                  hasOpenSSL(3) ? {
                     message: 'error:07880109:common libcrypto ' +
                              'routines::interrupted or cancelled'
                   } : {
