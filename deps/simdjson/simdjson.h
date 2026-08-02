@@ -1,4 +1,4 @@
-/* auto-generated on 2026-05-06 17:28:39 -0400. version 4.6.4 Do not edit! */
+/* auto-generated on 2026-07-30 16:20:13 -0400. version 4.6.6 Do not edit! */
 /* including simdjson.h:  */
 /* begin file simdjson.h */
 #ifndef SIMDJSON_H
@@ -2538,7 +2538,7 @@ namespace std {
 #define SIMDJSON_SIMDJSON_VERSION_H
 
 /** The version of simdjson being used (major.minor.revision) */
-#define SIMDJSON_VERSION "4.6.4"
+#define SIMDJSON_VERSION "4.6.6"
 
 namespace simdjson {
 enum {
@@ -2553,7 +2553,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdjson being used.
    */
-  SIMDJSON_VERSION_REVISION = 4
+  SIMDJSON_VERSION_REVISION = 6
 };
 } // namespace simdjson
 
@@ -8067,16 +8067,28 @@ inline std::pair<std::string_view, std::string_view> get_next_key_and_json_path(
     }
 
     key = json_path.substr(key_start, i - key_start);
-  } else if ((i+1 < json_path.size()) && json_path[i] == '[' && (json_path[i+1] == '\'' || json_path[i+1] == '"')) {
+  } else if ((i + 1 < json_path.size()) && json_path[i] == '[' &&
+             (json_path[i + 1] == '\'' || json_path[i + 1] == '"')) {
+    // Bracket-quoted key: ['key'] or ["key"].
+    // Require a matching closing quote and a following ']'. If either is
+    // missing, return an empty key and the original path so callers can treat
+    // this as a parse failure (e.g. INVALID_JSON_POINTER) without advancing.
+    // Without this check, i += 2 can make i > size() and substr throws
+    // std::out_of_range, which aborts noexcept callers such as
+    // at_path_with_wildcard / for_each_at_path_with_wildcard.
+    const char quote = json_path[i + 1];
     i += 2;
-    size_t key_start = i;
-    while (i < json_path.length() && json_path[i] != '\'' && json_path[i] != '"') {
+    const size_t key_start = i;
+    while (i < json_path.length() && json_path[i] != quote) {
       ++i;
     }
-
+    if (i >= json_path.length() ||               // missing closing quote
+        i + 1 >= json_path.length() ||           // missing ]
+        json_path[i + 1] != ']') {
+      return {key, json_path};
+    }
     key = json_path.substr(key_start, i - key_start);
-
-    i += 2;
+    i += 2; // past quote and ]
   } else if ((i+2 < json_path.size()) && json_path[i] == '[' && json_path[i+1] == '*' && json_path[i+2] == ']') { // i.e [*].additional_keys or [*]["additional_keys"]
     key = "*";
     i += 3;
@@ -68653,6 +68665,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -72182,6 +72200,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -72547,7 +72571,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -82023,6 +82047,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -85552,6 +85582,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -85917,7 +85953,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -95880,6 +95916,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -99409,6 +99451,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -99774,7 +99822,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -109737,6 +109785,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -113266,6 +113320,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -113631,7 +113691,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -123709,6 +123769,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -127238,6 +127304,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -127603,7 +127675,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -137998,6 +138070,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -141527,6 +141605,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -141892,7 +141976,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -151761,6 +151845,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -155290,6 +155380,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -155655,7 +155751,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -165547,6 +165643,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -169076,6 +169178,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -169441,7 +169549,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
@@ -179337,6 +179445,12 @@ inline error_code array::for_each_at_path_with_wildcard(std::string_view json_pa
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Without this check, an empty key is treated as index
+  // 0 and remaining_path may be unchanged, causing infinite recursion.
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Wildcard case
   if (key=="*"){
     for(auto element: *this) {
@@ -182866,6 +182980,12 @@ inline error_code object::for_each_at_path_with_wildcard(std::string_view json_p
   auto result_pair = get_next_key_and_json_path(json_path);
   std::string_view key = result_pair.first;
   std::string_view remaining_path = result_pair.second;
+  // Empty key means the path segment could not be parsed (including malformed
+  // bracket-quoted keys). Match DOM at_path_with_wildcard and avoid treating
+  // "no progress" as a recursive lookup of "".
+  if (key.empty()) {
+    return INVALID_JSON_POINTER;
+  }
   // Handle when its the case for wildcard
   if (key == "*") {
     // Loop through each field in the object
@@ -183231,7 +183351,7 @@ simdjson_inline parser::parser(size_t max_capacity) noexcept
 
 simdjson_warn_unused simdjson_inline error_code parser::allocate(size_t new_capacity, size_t new_max_depth) noexcept {
   if (new_capacity > max_capacity()) { return CAPACITY; }
-  if (string_buf && new_capacity == capacity() && new_max_depth == max_depth()) { return SUCCESS; }
+  if (string_buf && new_capacity <= capacity() && new_max_depth <= max_depth()) { return SUCCESS; }
 
   // string_capacity copied from document::allocate
   _capacity = 0;
