@@ -60,7 +60,7 @@ namespace {
 int on_msg_complete(http_parser *htp) {
   auto s = static_cast<Stream *>(htp->data);
   s->eos = true;
-  s->start_response();
+  (void)s->start_response();
   return 0;
 }
 } // namespace
@@ -184,7 +184,9 @@ ngtcp2_ssize ProtoCodec::write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi,
 }
 
 std::expected<void, Error>
-ProtoCodec::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
+ProtoCodec::on_stream_close(int64_t stream_id,
+                            std::optional<uint64_t> rx_app_error_code,
+                            std::optional<uint64_t> tx_app_error_code) {
   auto stream = handler_->find_stream(stream_id);
   if (!stream) {
     return {};
@@ -193,23 +195,23 @@ ProtoCodec::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   sendq_.erase(stream);
 
   if (!config.quiet) {
-    std::println(stderr, "HTTP stream {:#x} closed with error code {:#x}",
-                 stream_id, app_error_code);
+    std::println(stderr,
+                 "HTTP stream {:#x} closed with error codes (RX:{}, TX:{})",
+                 stream_id, util::format_app_error_code(rx_app_error_code),
+                 util::format_app_error_code(tx_app_error_code));
   }
 
   return {};
 }
 
-std::expected<void, Error>
-ProtoCodec::send_status_response(Stream *stream, unsigned int status_code) {
+void ProtoCodec::send_status_response(Stream *stream,
+                                      unsigned int status_code) {
   stream->status_resp_body = make_status_body(status_code);
   stream->resp_data = as_uint8_span(std::span{stream->status_resp_body});
 
   sendq_.emplace(stream);
 
   handler_->shutdown_read(stream->stream_id, 0);
-
-  return {};
 }
 
 std::expected<void, Error> ProtoCodec::start_response(Stream *stream) {

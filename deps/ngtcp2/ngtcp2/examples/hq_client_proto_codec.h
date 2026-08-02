@@ -32,6 +32,7 @@
 #include <vector>
 #include <expected>
 #include <set>
+#include <optional>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -64,8 +65,9 @@ public:
 
   void early_data_rejected() {}
 
-  std::expected<void, Error> on_stream_close(int64_t stream_id,
-                                             uint64_t app_error_code);
+  std::expected<void, Error>
+  on_stream_close(int64_t stream_id, std::optional<uint64_t> rx_app_error_code,
+                  std::optional<uint64_t> tx_app_error_code);
 
   std::expected<void, Error> on_stream_reset(int64_t stream_id) { return {}; }
 

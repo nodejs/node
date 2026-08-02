@@ -92,31 +92,45 @@ void ProtoCodec::early_data_rejected() {
   httpconn_ = nullptr;
 }
 
-void ProtoCodec::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
+void ProtoCodec::http_stream_close(int64_t stream_id,
+                                   std::optional<uint64_t> rx_app_error_code,
+                                   std::optional<uint64_t> tx_app_error_code) {
   if (!ngtcp2_is_bidi_stream(stream_id)) {
     return;
   }
 
   if (!config.quiet) {
-    std::println(stderr, "HTTP stream {:#x} closed with error code {:#x}",
-                 stream_id, app_error_code);
+    std::println(stderr,
+                 "HTTP stream {:#x} closed with error codes (RX:{}, TX:{})",
+                 stream_id, util::format_app_error_code(rx_app_error_code),
+                 util::format_app_error_code(tx_app_error_code));
   }
 }
 
 std::expected<void, Error>
-ProtoCodec::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
+ProtoCodec::on_stream_close(int64_t stream_id,
+                            std::optional<uint64_t> rx_app_error_code,
+                            std::optional<uint64_t> tx_app_error_code) {
   if (!httpconn_) {
     return {};
   }
 
-  if (app_error_code == 0) {
-    app_error_code = NGHTTP3_H3_NO_ERROR;
+  uint32_t flags = NGHTTP3_STREAM_CLOSE_FLAG_NONE;
+
+  if (rx_app_error_code.has_value()) {
+    flags |= NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET;
   }
 
-  if (auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
+  if (tx_app_error_code.has_value()) {
+    flags |= NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET;
+  }
+
+  if (auto rv = nghttp3_conn_close_stream2(httpconn_, flags, stream_id,
+                                           rx_app_error_code.value_or(0),
+                                           tx_app_error_code.value_or(0));
       rv != 0) {
     if (rv != NGHTTP3_ERR_STREAM_NOT_FOUND) {
-      std::println(stderr, "nghttp3_conn_close_stream: {}",
+      std::println(stderr, "nghttp3_conn_close_stream2: {}",
                    nghttp3_strerror(rv));
       ngtcp2_ccerr_set_application_error(
         &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr, 0);
@@ -126,7 +140,7 @@ ProtoCodec::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     return {};
   }
 
-  http_stream_close(stream_id, app_error_code);
+  http_stream_close(stream_id, rx_app_error_code, tx_app_error_code);
 
   return {};
 }
