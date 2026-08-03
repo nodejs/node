@@ -105,7 +105,7 @@ bool SyntheticModule::FinishInstantiate(Isolate* isolate,
 
 // Implements Synthetic Module Record's Evaluate concrete method:
 // https://heycam.github.io/webidl/#smr-evaluate
-MaybeDirectHandle<Object> SyntheticModule::Evaluate(
+MaybeDirectHandle<JSPromise> SyntheticModule::Evaluate(
     Isolate* isolate, DirectHandle<SyntheticModule> module) {
   module->SetStatus(kEvaluating);
 
@@ -117,29 +117,16 @@ MaybeDirectHandle<Object> SyntheticModule::Evaluate(
                         Utils::ToLocal(Cast<Module>(module)))
            .ToLocal(&result)) {
     module->RecordError(isolate, isolate->exception());
-    return MaybeDirectHandle<Object>();
+    return MaybeDirectHandle<JSPromise>();
   }
 
   module->SetStatus(kEvaluated);
 
   DirectHandle<Object> result_from_callback = Utils::OpenDirectHandle(*result);
-
-  DirectHandle<JSPromise> capability;
-  if (IsJSPromise(*result_from_callback)) {
-    capability = Cast<JSPromise>(result_from_callback);
-  } else {
-    // The host's evaluation steps should have returned a resolved Promise,
-    // but as an allowance to hosts that have not yet finished the migration
-    // to top-level await, create a Promise if the callback result didn't give
-    // us one.
-    capability = isolate->factory()->NewJSPromise();
-    JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-        .ToHandleChecked();
-  }
-
+  CHECK(IsJSPromise(*result_from_callback));
+  DirectHandle<JSPromise> capability = Cast<JSPromise>(result_from_callback);
   module->set_top_level_capability(*capability);
-
-  return result_from_callback;
+  return capability;
 }
 
 }  // namespace internal

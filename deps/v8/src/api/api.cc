@@ -2398,7 +2398,7 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
   return Just(true);
 }
 
-MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
+MaybeLocal<Promise> Module::Evaluate(Local<Context> context) {
   auto i_isolate = i::Isolate::Current();
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
   EnterV8Scope<InternalEscapableScope> api_scope{i_isolate, context,
