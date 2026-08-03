@@ -102,3 +102,11 @@ test(/(?i:\.|\bnuLl)/, ['null', 'NULL']);
 test(/(?i:\.|\bnulL)/, ['null', 'NULL']);
 test(/(?-i:(?i:\.|\bNULL))/, ['null', 'NULL', '.foo'], ['xyz']);
 test(/(?i:(?-i:\.|\bNULL))/, ['NULL', '.foo'], ['null', 'xyz']);
+
+// A modifier group inside a negative lookaround must not leak its flags into
+// the continuation. Analysis visits the two branches of the lookaround choice
+// in sequence, so without a reset the continuation's classes are made case
+// independent under the group's flags rather than the pattern's.
+test(/(?!(?i:x|y))[K]/, ['K'], ['k']);
+test(/(?<!(?i:x|y))[K]/, ['K'], ['k']);
+test(/(?!(?-i:x|y))[K]/i, ['K', 'k']);
