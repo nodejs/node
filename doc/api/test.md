@@ -167,7 +167,7 @@ suite('user features', () => {
 });
 ```
 
-**Suites vs. Subtests**
+### Suites vs. Subtests
 
 Both suites and subtests structure test hierarchies, but they behave
 differently in important ways.
