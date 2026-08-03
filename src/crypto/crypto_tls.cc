@@ -218,32 +218,18 @@ int SSLCertCallback(SSL* s, void* arg) {
     // handshake will continue after certcb is done.
     return -1;
 
-  Environment* env = w->env();
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
   w->set_cert_cb_running();
 
-  Local<Object> info = Object::New(env->isolate());
+  // The view points into SSL-owned memory, so copy it before deferring.
+  std::string servername;
+  if (auto name = SSLPointer::GetServerName(s)) servername = *name;
 
-  auto servername = SSLPointer::GetServerName(s);
-  Local<String> servername_str =
-      !servername.has_value()
-          ? String::Empty(env->isolate())
-          : OneByteString(env->isolate(), servername.value());
+  w->ScheduleCertCb(std::move(servername),
+                    SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
 
-  Local<Value> ocsp = Boolean::New(
-      env->isolate(), SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
-
-  if (info->Set(env->context(), env->servername_string(), servername_str)
-          .IsNothing() ||
-      info->Set(env->context(), env->ocsp_request_string(), ocsp).IsNothing()) {
-    return 1;
-  }
-
-  Local<Value> argv[] = { info };
-  w->MakeCallback(env->oncertcb_string(), arraysize(argv), argv);
-
-  return w->is_cert_cb_running() ? -1 : 1;
+  // Suspend handshake with SSL_ERROR_WANT_X509_LOOKUP, and handshake will
+  // continue after certcb is done.
+  return -1;
 }
 
 int SelectALPNCallback(
@@ -519,14 +505,46 @@ void TLSWrap::EmitClientHello(const std::vector<unsigned char>& session_id,
                 env->tls_ticket_string(),
                 Boolean::New(env->isolate(), has_ticket))
           .IsNothing()) {
-    // Continue the handshake unresumed rather than leaving it suspended.
-    hello_answered_ = true;
-    Cycle();
+    // An exception is pending, so don't re-enter SSL or JS to resume.
     return;
   }
 
   Local<Value> argv[] = {hello_obj};
   MakeCallback(env->onclienthello_string(), arraysize(argv), argv);
+}
+
+// As with the ClientHello, JS must not run on the library's stack: 'oncertcb'
+// handlers synchronously call back into the handle to resume the handshake.
+void TLSWrap::ScheduleCertCb(std::string servername, bool ocsp) {
+  Debug(this, "Scheduling oncertcb");
+  BaseObjectPtr<TLSWrap> strong_ref{this};
+  env()->SetImmediate(
+      [this, strong_ref, servername = std::move(servername), ocsp](
+          Environment* env) {
+        if (ssl_) EmitCertCb(servername, ocsp);
+      });
+}
+
+void TLSWrap::EmitCertCb(const std::string& servername, bool ocsp) {
+  Debug(this, "Emitting oncertcb");
+  Environment* env = this->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Object> info = Object::New(env->isolate());
+  if (info->Set(env->context(),
+                env->servername_string(),
+                OneByteString(env->isolate(), servername))
+          .IsNothing() ||
+      info->Set(env->context(),
+                env->ocsp_request_string(),
+                Boolean::New(env->isolate(), ocsp))
+          .IsNothing()) {
+    return;
+  }
+
+  Local<Value> argv[] = {info};
+  MakeCallback(env->oncertcb_string(), arraysize(argv), argv);
 }
 
 void TLSWrap::InitSSL() {
