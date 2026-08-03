@@ -111,6 +111,20 @@ This is more efficient than calling `blockList.addAddress()` repeatedly
 when adding a large number of individual addresses, as the addresses
 are inserted under a single internal lock acquisition.
 
+### `blockList.addCIDR(cidr)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `cidr` {string} An IPv4 or IPv6 subnet in CIDR notation (e.g.
+  `'10.0.0.0/8'` or `'2001:db8::/32'`).
+
+Adds a subnet rule using CIDR notation. The address family is automatically
+detected from the address (IPv6 if the address contains `':'`, IPv4
+otherwise). This is equivalent to calling `blockList.addSubnet()` with
+the parsed network address, prefix length, and family.
+
 ### `blockList.addRange(start, end[, type])`
 
 <!-- YAML
@@ -215,6 +229,20 @@ added:
 
 * `value` {any} Any JS value
 * Returns `true` if the `value` is a `net.BlockList`.
+
+### `blockList.removeCIDR(cidr)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `cidr` {string} An IPv4 or IPv6 subnet in CIDR notation (e.g.
+  `'10.0.0.0/8'` or `'2001:db8::/32'`).
+
+Removes a subnet rule using CIDR notation. The address family is automatically
+detected from the address. This is equivalent to calling
+`blockList.removeSubnet()` with the parsed network address, prefix length,
+and family. If the specified subnet does not exist, this is a no-op.
 
 ### `blockList.removeRange(start, end[, type])`
 

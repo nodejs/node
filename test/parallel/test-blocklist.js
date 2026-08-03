@@ -549,3 +549,92 @@ const util = require('util');
   assert(!blockList.check('10.0.0.50'));
   assert(!blockList.check('192.168.1.1'));
 }
+
+// addCIDR: IPv4
+{
+  const blockList = new BlockList();
+  blockList.addCIDR('10.0.0.0/8');
+  blockList.addCIDR('192.168.1.0/24');
+  assert(blockList.check('10.1.2.3'));
+  assert(blockList.check('192.168.1.50'));
+  assert(!blockList.check('192.168.2.1'));
+  assert(!blockList.check('11.0.0.1'));
+}
+
+// addCIDR: IPv6 auto-detected
+{
+  const blockList = new BlockList();
+  blockList.addCIDR('2001:db8::/32');
+  assert(blockList.check('2001:db8::1', 'ipv6'));
+  assert(blockList.check('2001:db8:ffff::1', 'ipv6'));
+  assert(!blockList.check('2001:db9::1', 'ipv6'));
+}
+
+// addCIDR: cross-family
+{
+  const blockList = new BlockList();
+  blockList.addCIDR('10.0.0.0/8');
+  assert(blockList.check('::ffff:10.0.0.1', 'ipv6'));
+}
+
+// addCIDR: validation errors
+{
+  const blockList = new BlockList();
+  assert.throws(() => blockList.addCIDR('10.0.0.0'), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  assert.throws(() => blockList.addCIDR('10.0.0.0/abc'), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  assert.throws(() => blockList.addCIDR(123), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => blockList.addCIDR('10.0.0.0/'), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+}
+
+// removeCIDR: basic
+{
+  const blockList = new BlockList();
+  blockList.addCIDR('10.0.0.0/8');
+  blockList.addCIDR('192.168.0.0/16');
+  assert(blockList.check('10.1.2.3'));
+
+  blockList.removeCIDR('10.0.0.0/8');
+  assert(!blockList.check('10.1.2.3'));
+  assert(blockList.check('192.168.1.1'));
+  assert.strictEqual(blockList.rules.length, 1);
+}
+
+// removeCIDR: IPv6
+{
+  const blockList = new BlockList();
+  blockList.addCIDR('2001:db8::/32');
+  assert(blockList.check('2001:db8::1', 'ipv6'));
+
+  blockList.removeCIDR('2001:db8::/32');
+  assert(!blockList.check('2001:db8::1', 'ipv6'));
+  assert.strictEqual(blockList.rules.length, 0);
+}
+
+// removeCIDR: non-existent is a no-op
+{
+  const blockList = new BlockList();
+  blockList.addCIDR('10.0.0.0/8');
+  blockList.removeCIDR('172.16.0.0/12');
+  assert(blockList.check('10.1.2.3'));
+  assert.strictEqual(blockList.rules.length, 1);
+}
+
+// addCIDR interoperates with removeSubnet, and vice versa
+{
+  const blockList = new BlockList();
+  blockList.addCIDR('10.0.0.0/8');
+  blockList.removeSubnet('10.0.0.0', 8);
+  assert(!blockList.check('10.1.2.3'));
+
+  blockList.addSubnet('192.168.0.0', 16);
+  blockList.removeCIDR('192.168.0.0/16');
+  assert(!blockList.check('192.168.1.1'));
+}
