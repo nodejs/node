@@ -514,13 +514,14 @@ MaybeLocal<Array> SocketAddressBlockList::ListRules(Environment* env) {
 
 bool SocketAddressBlockList::ListRules(Environment* env,
                                        LocalVector<Value>* rules) {
-  if (parent_ && !parent_->ListRules(env, rules)) return false;
+  // List local rules first, then parent rules, matching the
+  // evaluation order in Apply().
   for (const auto& rule : rules_) {
     Local<Value> str;
     if (!rule->ToV8String(env).ToLocal(&str)) return false;
     rules->push_back(str);
   }
-  return true;
+  return !parent_ || parent_->ListRules(env, rules);
 }
 
 void SocketAddressBlockList::MemoryInfo(node::MemoryTracker* tracker) const {
