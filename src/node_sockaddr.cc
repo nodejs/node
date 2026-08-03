@@ -421,7 +421,7 @@ inline const uint8_t* GetAddressBytes(const SocketAddress& addr, int* bits) {
 }  // namespace
 
 void SocketAddressBlockList::SubnetTrie::Insert(const uint8_t* address_bytes,
-                                                 int prefix_length) {
+                                                int prefix_length) {
   if (root_ == nullptr) {
     root_ = std::make_unique<Node>();
   }
@@ -449,7 +449,7 @@ void SocketAddressBlockList::SubnetTrie::Insert(const uint8_t* address_bytes,
 }
 
 bool SocketAddressBlockList::SubnetTrie::Lookup(const uint8_t* address_bytes,
-                                                 int address_bits) const {
+                                                int address_bits) const {
   if (root_ == nullptr) return false;
 
   const Node* node = root_.get();
@@ -466,7 +466,7 @@ bool SocketAddressBlockList::SubnetTrie::Lookup(const uint8_t* address_bytes,
 }
 
 bool SocketAddressBlockList::SubnetTrie::Remove(const uint8_t* address_bytes,
-                                                 int prefix_length) {
+                                                int prefix_length) {
   if (root_ == nullptr) return false;
 
   // Walk the trie to find the node at prefix_length depth.
@@ -500,8 +500,7 @@ bool SocketAddressBlockList::SubnetTrie::Remove(const uint8_t* address_bytes,
   // Prune empty leaf nodes up the tree.
   for (int i = depth - 1; i >= 0; i--) {
     Node* child = ancestors[i].parent->children[ancestors[i].bit].get();
-    if (!child->terminal &&
-        child->children[0] == nullptr &&
+    if (!child->terminal && child->children[0] == nullptr &&
         child->children[1] == nullptr) {
       ancestors[i].parent->children[ancestors[i].bit].reset();
     } else {
@@ -510,8 +509,7 @@ bool SocketAddressBlockList::SubnetTrie::Remove(const uint8_t* address_bytes,
   }
 
   // If root is now empty and non-terminal, reset it.
-  if (!root_->terminal &&
-      root_->children[0] == nullptr &&
+  if (!root_->terminal && root_->children[0] == nullptr &&
       root_->children[1] == nullptr) {
     root_.reset();
   }
@@ -522,40 +520,6 @@ bool SocketAddressBlockList::SubnetTrie::Remove(const uint8_t* address_bytes,
 void SocketAddressBlockList::SubnetTrie::Clear() {
   root_.reset();
   count_ = 0;
-}
-
-template <typename Callback>
-void SocketAddressBlockList::SubnetTrie::Walk(Callback cb) const {
-  if (root_ == nullptr) return;
-  // Max 128 bits for IPv6 = 16 bytes prefix buffer.
-  uint8_t prefix_buf[16] = {};
-  WalkImpl(root_.get(), prefix_buf, 0, cb);
-}
-
-template <typename Callback>
-void SocketAddressBlockList::SubnetTrie::WalkImpl(const Node* node,
-                                                   uint8_t* prefix_buf,
-                                                   int depth,
-                                                   Callback& cb) const {
-  if (node->terminal) {
-    cb(prefix_buf, depth);
-    return;  // Children are pruned for terminal nodes.
-  }
-  for (int bit = 0; bit < 2; bit++) {
-    if (node->children[bit] != nullptr) {
-      // Set the bit at position 'depth'.
-      int byte_idx = depth >> 3;
-      int bit_pos = 7 - (depth & 7);
-      if (bit) {
-        prefix_buf[byte_idx] |= (1 << bit_pos);
-      } else {
-        prefix_buf[byte_idx] &= ~(1 << bit_pos);
-      }
-      WalkImpl(node->children[bit].get(), prefix_buf, depth + 1, cb);
-      // Clear the bit after recursion (restore state).
-      prefix_buf[byte_idx] &= ~(1 << bit_pos);
-    }
-  }
 }
 
 void SocketAddressBlockList::AddSocketAddressImpl(
@@ -578,8 +542,7 @@ void SocketAddressBlockList::AddSocketAddressImpl(
     // and insert the IPv4 counterpart if so.
     const sockaddr_in6* in6 =
         reinterpret_cast<const sockaddr_in6*>(address.data());
-    const uint8_t* bytes =
-        reinterpret_cast<const uint8_t*>(&in6->sin6_addr);
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&in6->sin6_addr);
     constexpr uint8_t ipv4_mapped_prefix[] = {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
     if (memcmp(bytes, ipv4_mapped_prefix, sizeof(ipv4_mapped_prefix)) == 0) {
@@ -598,16 +561,15 @@ void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
   AddSocketAddressImpl(address);
 }
 
-void SocketAddressBlockList::AddSocketAddresses(
-    const SocketAddress* addresses, size_t count) {
+void SocketAddressBlockList::AddSocketAddresses(const SocketAddress* addresses,
+                                                size_t count) {
   RwLock::ScopedLock lock(mutex_);
   for (size_t i = 0; i < count; i++) {
     AddSocketAddressImpl(addresses[i]);
   }
 }
 
-void SocketAddressBlockList::RemoveSocketAddress(
-    const SocketAddress& address) {
+void SocketAddressBlockList::RemoveSocketAddress(const SocketAddress& address) {
   RwLock::ScopedLock lock(mutex_);
   if (address_rules_.erase(address)) {
     address_count_--;
@@ -622,8 +584,7 @@ void SocketAddressBlockList::RemoveSocketAddress(
   } else if (address.family() == AF_INET6) {
     const sockaddr_in6* in6 =
         reinterpret_cast<const sockaddr_in6*>(address.data());
-    const uint8_t* bytes =
-        reinterpret_cast<const uint8_t*>(&in6->sin6_addr);
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&in6->sin6_addr);
     constexpr uint8_t ipv4_mapped_prefix[] = {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
     if (memcmp(bytes, ipv4_mapped_prefix, sizeof(ipv4_mapped_prefix)) == 0) {
@@ -637,9 +598,8 @@ void SocketAddressBlockList::RemoveSocketAddress(
   }
 }
 
-void SocketAddressBlockList::AddSocketAddressRange(
-    const SocketAddress& start,
-    const SocketAddress& end) {
+void SocketAddressBlockList::AddSocketAddressRange(const SocketAddress& start,
+                                                   const SocketAddress& end) {
   DCHECK(!(start > end));
   RwLock::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
@@ -647,8 +607,8 @@ void SocketAddressBlockList::AddSocketAddressRange(
   rules_.emplace_front(std::move(rule));
 }
 
-void SocketAddressBlockList::AddSocketAddressMask(
-    const SocketAddress& network, int prefix) {
+void SocketAddressBlockList::AddSocketAddressMask(const SocketAddress& network,
+                                                  int prefix) {
   RwLock::ScopedLock lock(mutex_);
   int bits;
   const uint8_t* bytes = GetAddressBytes(network, &bits);
@@ -663,8 +623,7 @@ void SocketAddressBlockList::AddSocketAddressMask(
     ipv6_subnets_.Insert(bytes, prefix);
     // Check if this is a ::ffff:x.x.x.x/N subnet — if so, also insert
     // the IPv4 portion into the IPv4 trie.
-    constexpr uint8_t v4mapped[] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    constexpr uint8_t v4mapped[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
     if (prefix >= 96 && memcmp(bytes, v4mapped, 12) == 0) {
       ipv4_subnets_.Insert(bytes + 12, prefix - 96);
     }
@@ -676,8 +635,7 @@ void SocketAddressBlockList::AddSocketAddressMask(
 }
 
 void SocketAddressBlockList::RemoveSocketAddressRange(
-    const SocketAddress& start,
-    const SocketAddress& end) {
+    const SocketAddress& start, const SocketAddress& end) {
   RwLock::ScopedLock lock(mutex_);
   // rules_ contains only SocketAddressRangeRule instances (subnet rules
   // are stored separately in subnet_rules_).
@@ -691,31 +649,41 @@ void SocketAddressBlockList::RemoveSocketAddressRange(
 }
 
 void SocketAddressBlockList::RemoveSocketAddressMask(
-    const SocketAddress& network,
-    int prefix) {
+    const SocketAddress& network, int prefix) {
   RwLock::ScopedLock lock(mutex_);
-  int bits;
-  const uint8_t* bytes = GetAddressBytes(network, &bits);
-
-  if (network.family() == AF_INET) {
-    ipv4_subnets_.Remove(bytes, prefix);
-    uint8_t mapped[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
-    memcpy(mapped + 12, bytes, 4);
-    ipv6_subnets_.Remove(mapped, prefix + 96);
-  } else {
-    ipv6_subnets_.Remove(bytes, prefix);
-    constexpr uint8_t v4mapped[] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
-    if (prefix >= 96 && memcmp(bytes, v4mapped, 12) == 0) {
-      ipv4_subnets_.Remove(bytes + 12, prefix - 96);
-    }
-  }
 
   // Remove from subnet_rules_ metadata list.
+  bool found = false;
   for (auto it = subnet_rules_.begin(); it != subnet_rules_.end(); ++it) {
     if ((*it)->network == network && (*it)->prefix == prefix) {
       subnet_rules_.erase(it);
-      return;
+      found = true;
+      break;
+    }
+  }
+  if (!found) return;
+
+  // Rebuild both tries from the remaining subnet_rules_. This handles the
+  // case where a broader prefix had subsumed narrower ones in the trie --
+  // simply removing the broader prefix from the trie would not restore the
+  // narrower entries that were pruned on insert. Rebuilding is O(n) in the
+  // number of subnet rules but removal is not a hot path.
+  ipv4_subnets_.Clear();
+  ipv6_subnets_.Clear();
+  for (const auto& rule : subnet_rules_) {
+    int bits;
+    const uint8_t* b = GetAddressBytes(rule->network, &bits);
+    if (rule->network.family() == AF_INET) {
+      ipv4_subnets_.Insert(b, rule->prefix);
+      uint8_t mapped[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+      memcpy(mapped + 12, b, 4);
+      ipv6_subnets_.Insert(mapped, rule->prefix + 96);
+    } else {
+      ipv6_subnets_.Insert(b, rule->prefix);
+      constexpr uint8_t v4mapped[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+      if (rule->prefix >= 96 && memcmp(b, v4mapped, 12) == 0) {
+        ipv4_subnets_.Insert(b + 12, rule->prefix - 96);
+      }
     }
   }
 }
@@ -738,8 +706,7 @@ bool SocketAddressBlockList::Apply(const SocketAddress& address) {
   } else {
     if (ipv6_subnets_.Lookup(bytes, bits)) return true;
     // Check if this is ::ffff:x.x.x.x — also check IPv4 trie.
-    constexpr uint8_t v4mapped[] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    constexpr uint8_t v4mapped[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
     if (memcmp(bytes, v4mapped, 12) == 0) {
       if (ipv4_subnets_.Lookup(bytes + 12, 32)) return true;
     }
@@ -763,8 +730,7 @@ void SocketAddressBlockList::Clear() {
 }
 
 SocketAddressBlockList::SocketAddressRangeRule::SocketAddressRangeRule(
-    const SocketAddress& start_,
-    const SocketAddress& end_)
+    const SocketAddress& start_, const SocketAddress& end_)
     : start(start_), end(end_) {}
 
 SocketAddressBlockList::SocketAddressMaskRule::SocketAddressMaskRule(
@@ -842,8 +808,8 @@ bool SocketAddressBlockList::ListRules(Environment* env,
 
 void SocketAddressBlockList::MemoryInfo(node::MemoryTracker* tracker) const {
   tracker->TrackField("rules", rules_);
-  tracker->TrackFieldWithSize(
-      "address_rules", address_rules_.size() * sizeof(SocketAddress));
+  tracker->TrackFieldWithSize("address_rules",
+                              address_rules_.size() * sizeof(SocketAddress));
   tracker->TrackField("subnet_rules", subnet_rules_);
 }
 
@@ -1022,7 +988,7 @@ void SocketAddressBlockListWrap::RemoveRange(
   ASSIGN_OR_RETURN_UNWRAP(&end_addr, args[1]);
 
   wrap->blocklist_->RemoveSocketAddressRange(*start_addr->address(),
-                                              *end_addr->address());
+                                             *end_addr->address());
 }
 
 void SocketAddressBlockListWrap::RemoveSubnet(

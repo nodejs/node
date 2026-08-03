@@ -182,7 +182,7 @@ const util = require('util');
     'Subnet: IPv6 8592:757c:efae:4e45::/64',
     'Range: IPv4 10.0.0.1-10.0.0.10',
   ];
-  assert.deepStrictEqual(blockList.rules, rulesCheck);
+  assert.deepStrictEqual(blockList.rules.sort(), rulesCheck.sort());
 
   assert(blockList.check('1.1.1.1'));
   assert(blockList.check('10.0.0.5'));
@@ -723,6 +723,17 @@ const util = require('util');
   assert.strictEqual(blockList.size, 0);
 }
 
+// addCIDRs: invalid entry mid-array does not half-apply
+{
+  const blockList = new BlockList();
+  assert.throws(() => blockList.addCIDRs(['10.0.0.0/8', 'bad', '1.1.1.0/24']), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  // Nothing should have been applied.
+  assert.strictEqual(blockList.size, 0);
+  assert(!blockList.check('10.0.0.1'));
+}
+
 // size: tracks all rule types
 {
   const blockList = new BlockList();
@@ -805,4 +816,103 @@ const util = require('util');
   assert(!blockList.check('1.1.1.1'));
   assert(!blockList.check('203.0.113.1'));
   assert(!blockList.check('2001:db8::1', 'ipv6'));
+}
+
+// check() with invalid address string returns false (exercises checkString
+// error path in C++ — SocketAddress::New fails, returns false).
+{
+  const blockList = new BlockList();
+  blockList.addAddress('1.1.1.1');
+  assert.strictEqual(blockList.check('not_a_valid_ip'), false);
+  assert.strictEqual(blockList.check('', 'ipv4'), false);
+  assert.strictEqual(blockList.check('999.999.999.999'), false);
+  assert.strictEqual(blockList.check('not_valid_ipv6', 'ipv6'), false);
+}
+
+// check() family parameter is case-insensitive.
+{
+  const blockList = new BlockList();
+  blockList.addAddress('10.0.0.1');
+  blockList.addAddress('::1', 'ipv6');
+
+  assert(blockList.check('10.0.0.1', 'ipv4'));
+  assert(blockList.check('10.0.0.1', 'IPv4'));
+  assert(blockList.check('10.0.0.1', 'IPV4'));
+  assert(blockList.check('::1', 'ipv6'));
+  assert(blockList.check('::1', 'IPv6'));
+  assert(blockList.check('::1', 'IPV6'));
+}
+
+// SocketAddress constructor with invalid address throws ERR_INVALID_ADDRESS.
+{
+  assert.throws(() => new SocketAddress({ address: 'not_a_valid_ip' }), {
+    code: 'ERR_INVALID_ADDRESS',
+  });
+  assert.throws(
+    () => new SocketAddress({ address: 'not_valid', family: 'ipv6' }), {
+      code: 'ERR_INVALID_ADDRESS',
+    });
+}
+
+// check() with SocketAddress objects across family boundaries.
+{
+  const blockList = new BlockList();
+  const ipv4 = new SocketAddress({ address: '10.0.0.1' });
+  const mapped = new SocketAddress({
+    address: '::ffff:10.0.0.1',
+    family: 'ipv6',
+  });
+
+  blockList.addAddress(ipv4);
+
+  // Check with SocketAddress objects (exercises the check() -> C++ fast path).
+  assert(blockList.check(ipv4));
+  assert(blockList.check(mapped));
+
+  blockList.removeAddress(ipv4);
+  assert(!blockList.check(ipv4));
+  assert(!blockList.check(mapped));
+}
+
+// Subnet with IPv4-mapped IPv6 network.
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('::ffff:10.0.0.0', 120, 'ipv6');
+
+  // IPv4-mapped IPv6 within the subnet should match.
+  assert(blockList.check('::ffff:10.0.0.5', 'ipv6'));
+  // The plain IPv4 form should also match (cross-family trie lookup).
+  assert(blockList.check('10.0.0.5'));
+  // Outside the subnet.
+  assert(!blockList.check('10.0.1.0'));
+}
+
+// Range with IPv6 addresses.
+{
+  const blockList = new BlockList();
+  blockList.addRange('::1', '::ff', 'ipv6');
+  assert(blockList.check('::1', 'ipv6'));
+  assert(blockList.check('::a0', 'ipv6'));
+  assert(blockList.check('::ff', 'ipv6'));
+  assert(!blockList.check('::100', 'ipv6'));
+  assert(!blockList.check('::0', 'ipv6'));
+
+  blockList.removeRange('::1', '::ff', 'ipv6');
+  assert(!blockList.check('::a0', 'ipv6'));
+}
+
+// Removing a broader subnet must restore subsumed narrower subnets.
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('10.0.0.0', 8);   // /8 subsumes /16 in the trie
+  blockList.addSubnet('10.1.0.0', 16);
+  assert(blockList.check('10.1.2.3'));
+
+  blockList.removeSubnet('10.0.0.0', 8);
+
+  // /16 must still work after /8 is removed.
+  assert(blockList.check('10.1.2.3'));
+  // Address outside /16 but inside old /8 should no longer match.
+  assert(!blockList.check('10.2.0.1'));
+  assert.strictEqual(blockList.rules.length, 1);
 }

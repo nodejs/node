@@ -260,11 +260,9 @@ class SocketAddressBlockList : public MemoryRetainer {
   void RemoveSocketAddressRange(const SocketAddress& start,
                                 const SocketAddress& end);
 
-  void AddSocketAddressMask(const SocketAddress& address,
-                            int prefix);
+  void AddSocketAddressMask(const SocketAddress& address, int prefix);
 
-  void RemoveSocketAddressMask(const SocketAddress& address,
-                               int prefix);
+  void RemoveSocketAddressMask(const SocketAddress& address, int prefix);
 
   bool Apply(const SocketAddress& address);
 
@@ -301,8 +299,7 @@ class SocketAddressBlockList : public MemoryRetainer {
     SocketAddress network;
     int prefix;
 
-    SocketAddressMaskRule(const SocketAddress& address,
-                          int prefix);
+    SocketAddressMaskRule(const SocketAddress& address, int prefix);
 
     bool Apply(const SocketAddress& address) override;
     std::string ToString() override;
@@ -343,11 +340,6 @@ class SocketAddressBlockList : public MemoryRetainer {
     // Remove all entries.
     void Clear();
 
-    // Walk all terminal nodes, calling cb(network_bytes, prefix_length)
-    // for each. Used by ListRules.
-    template <typename Callback>
-    void Walk(Callback cb) const;
-
     bool empty() const { return root_ == nullptr; }
 
     size_t size() const { return count_; }
@@ -357,12 +349,6 @@ class SocketAddressBlockList : public MemoryRetainer {
       std::unique_ptr<Node> children[2];
       bool terminal = false;
     };
-
-    template <typename Callback>
-    void WalkImpl(const Node* node,
-                  uint8_t* prefix_buf,
-                  int depth,
-                  Callback& cb) const;
 
     std::unique_ptr<Node> root_;
     size_t count_ = 0;
