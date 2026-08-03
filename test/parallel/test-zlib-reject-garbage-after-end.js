@@ -78,7 +78,7 @@ const cases = [
     decompress: zlib.zstdDecompress,
     decompressSync: zlib.zstdDecompressSync,
     createDecompress: zlib.createZstdDecompress,
-    defaultOutput: 'a',
+    defaultOutput: 'aa',
   },
 ];
 
