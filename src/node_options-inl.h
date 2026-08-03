@@ -465,14 +465,28 @@ void OptionsParser<Options>::Parse(
           break;
         }
 
-        value = args.pop_first();
-
-        if (!value.empty() && value[0] == '-') {
-          missing_argument();
-          break;
+        // Treat a literal `--` as an end-of-options marker for the value
+        // of an option that takes an argument. This allows passing values
+        // that themselves start with `-`, e.g. `node -e -- -0` or
+        // `node --eval -- -42`, mirroring the convention that arguments
+        // following `--` are positional.
+        if (args.first() == "--") {
+          args.pop_first();
+          if (args.empty()) {
+            missing_argument();
+            break;
+          }
+          value = args.pop_first();
         } else {
-          if (!value.empty() && value[0] == '\\' && value[1] == '-')
-            value = value.substr(1);  // Treat \- as escaping an -.
+          value = args.pop_first();
+
+          if (!value.empty() && value[0] == '-') {
+            missing_argument();
+            break;
+          } else {
+            if (!value.empty() && value[0] == '\\' && value[1] == '-')
+              value = value.substr(1);  // Treat \- as escaping an -.
+          }
         }
       }
     }
