@@ -20,7 +20,7 @@ const cjsPreload = fixtures.path('entrypoint', 'check-commonjs.cjs');
 const esmPreload = fixtures.fileURL('entrypoint', 'check-module.mjs').href;
 const loader = fixtures.fileURL('entrypoint', 'loader.mjs').href;
 
-const printEntrypoint = 'console.log(process.entrypoint?.href)';
+const printEntrypoint = 'console.log(process.entrypoint)';
 
 async function getEntrypoint(args, options, expected) {
   const { code, signal, stderr, stdout } = await spawnPromisified(

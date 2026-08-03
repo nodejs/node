@@ -1,1 +1,1 @@
-console.log(process.entrypoint.href);
+console.log(process.entrypoint);
