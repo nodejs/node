@@ -4337,11 +4337,8 @@ deprecated: v10.0.0
 
 > Stability: 0 - Deprecated
 
-Property for checking and controlling whether a FIPS compliant crypto provider
-is currently in use. Setting to true requires a FIPS build of Node.js.
-
-This property is deprecated. Please use `crypto.setFips()` and
-`crypto.getFips()` instead.
+Deprecated property for checking and controlling [FIPS mode][]. Use
+[`crypto.getFips()`][] and [`crypto.setFips()`][] instead.
 
 ### `crypto.generateKey(type, options, callback)`
 
@@ -4932,9 +4929,14 @@ console.log(aliceSecret === bobSecret);
 added: v10.0.0
 -->
 
-* Returns: {number} `1` if and only if a FIPS compliant crypto provider is
-  currently in use, `0` otherwise. A future semver-major release may change
-  the return type of this API to a {boolean}.
+* Returns: {number} `1` if FIPS mode is enabled, `0` otherwise. A future
+  semver-major release may change the return type of this API to a {boolean}.
+
+With OpenSSL 3, this reports whether the default property query includes
+`fips=yes`. It does not establish that a FIPS provider is loaded or validated.
+It can return `1` even when a requested cryptographic implementation cannot be
+fetched because no loaded provider supplies a match for `fips=yes`. See [FIPS
+mode][].
 
 ### `crypto.getHashes()`
 
@@ -6227,10 +6229,33 @@ is a bit field taking one of or a mix of the following flags (defined in
 added: v10.0.0
 -->
 
-* `bool` {boolean} `true` to enable FIPS mode.
+* `bool` {boolean} `true` to enable FIPS mode, `false` to disable it.
 
-Enables the FIPS compliant crypto provider in a FIPS-enabled Node.js build.
-Throws an error if FIPS mode is not available.
+Changes [FIPS mode][]. With OpenSSL 3, this only adds or removes `fips=yes` in
+the default property query. It does not install, load, initialize, or validate
+a FIPS provider. For a usable FIPS configuration, install the provider and
+configure OpenSSL to load it when Node.js starts, as described in [FIPS
+mode][].
+
+If no loaded provider supplies a requested cryptographic implementation
+matching `fips=yes`, the call can still succeed and `crypto.getFips()` can still
+return `1`, but fetching that implementation fails. Affected `node:crypto`
+operations typically fail with `ERR_OSSL_EVP_UNSUPPORTED`. Operations that do
+not require a new fetch, including those using previously fetched
+implementations or initialized operation contexts, may still succeed. Call this
+method during application initialization, before application code uses other
+OpenSSL-backed APIs.
+
+This method only affects subsequent algorithm fetches. Node.js initializes some
+OpenSSL state before application code runs. When the property query must be
+active from process startup, set `default_properties = fips=yes` in the OpenSSL
+configuration or use [`--enable-fips`][] or [`--force-fips`][]. The command-line
+flags additionally require a configured provider named `fips` to initialize and
+pass its self-test; Node.js fails to start otherwise.
+
+Throws an error if OpenSSL cannot change the state. FIPS mode cannot be
+disabled when Node.js was started with `--force-fips`. With OpenSSL 1.1.1,
+enabling FIPS mode requires a FIPS-capable OpenSSL build.
 
 ### `crypto.sign(algorithm, data, key[, callback])`
 
@@ -6675,64 +6700,32 @@ console.log(receivedPlaintext);
 
 ### FIPS mode
 
-When using OpenSSL 3, Node.js supports FIPS 140-2 when used with an appropriate
-OpenSSL 3 provider, such as the [FIPS provider from OpenSSL 3][] which can be
-installed by following the instructions in [OpenSSL's FIPS README file][].
+Node.js exposes the FIPS support provided by the linked OpenSSL library. Node.js
+is not itself FIPS validated. Validation belongs to a specific OpenSSL module or
+provider and only applies when it is deployed according to its security policy.
+Vendor-provided Node.js or OpenSSL builds can require a different configuration;
+follow the vendor's documentation for those builds.
 
-For FIPS support in Node.js you will need:
+With OpenSSL 1.1.1, Node.js must be built against a FIPS-capable OpenSSL library.
+
+With OpenSSL 3, FIPS support uses the provider model described in the
+[OpenSSL FIPS module guide][]. Using FIPS-approved implementations requires:
 
 * A correctly installed OpenSSL 3 FIPS provider.
 * An OpenSSL 3 [FIPS module configuration file][].
-* An OpenSSL 3 configuration file that references the FIPS module
-  configuration file.
+* The FIPS provider to be loaded into the OpenSSL library context used by
+  Node.js, normally by activating it in an OpenSSL configuration file when
+  Node.js starts.
+* The default property query to include `fips=yes` when cryptographic
+  implementations are fetched. This can be set from process startup by the
+  OpenSSL configuration, [`--enable-fips`][], or [`--force-fips`][], or for
+  subsequent fetches by `crypto.setFips(true)`.
 
-Node.js will need to be configured with an OpenSSL configuration file that
-points to the FIPS provider. An example configuration file looks like this:
-
-```text
-nodejs_conf = nodejs_init
-
-.include /<absolute path>/fipsmodule.cnf
-
-[nodejs_init]
-providers = provider_sect
-
-[provider_sect]
-default = default_sect
-# The fips section name should match the section name inside the
-# included fipsmodule.cnf.
-fips = fips_sect
-
-[default_sect]
-activate = 1
-```
-
-where `fipsmodule.cnf` is the FIPS module configuration file generated from the
-FIPS provider installation step:
-
-```bash
-openssl fipsinstall
-```
-
-Set the `OPENSSL_CONF` environment variable to point to
-your configuration file and `OPENSSL_MODULES` to the location of the FIPS
-provider dynamic library. e.g.
-
-```bash
-export OPENSSL_CONF=/<path to configuration file>/nodejs.cnf
-export OPENSSL_MODULES=/<path to openssl lib>/ossl-modules
-```
-
-FIPS mode can then be enabled in Node.js either by:
-
-* Starting Node.js with `--enable-fips` or `--force-fips` command line flags.
-* Programmatically calling `crypto.setFips(true)`.
-
-Optionally FIPS mode can be enabled in Node.js via the OpenSSL configuration
-file. e.g.
+An example OpenSSL 3 configuration file looks like this:
 
 ```text
 nodejs_conf = nodejs_init
+config_diagnostics = 1
 
 .include /<absolute path>/fipsmodule.cnf
 
@@ -6741,17 +6734,86 @@ providers = provider_sect
 alg_section = algorithm_sect
 
 [provider_sect]
-default = default_sect
 # The fips section name should match the section name inside the
 # included fipsmodule.cnf.
 fips = fips_sect
+base = base_sect
 
-[default_sect]
+[base_sect]
 activate = 1
 
 [algorithm_sect]
 default_properties = fips=yes
 ```
+
+The `fipsmodule.cnf` file is generated as part of the FIPS provider installation
+and contains module integrity and self-test information. The exact command and
+arguments are installation-specific; see [OpenSSL FIPS configuration][] and the
+[OpenSSL FIPS module guide][]. The installation uses `openssl fipsinstall`.
+
+The example activates the provider and enables the `fips=yes` property query
+when Node.js starts. To activate the provider at startup but enable the property
+query later with `crypto.setFips(true)`, omit `alg_section = algorithm_sect` and
+the `[algorithm_sect]` block. The provider must still be loaded; when using this
+startup configuration, keep its activation enabled. `crypto.setFips(true)`
+should be called before application code uses other OpenSSL-backed APIs. It is
+not equivalent to enabling the property query from process startup because
+Node.js initializes some OpenSSL state before application code runs. Use the
+example as written, [`--enable-fips`][], or [`--force-fips`][] when the property
+query must be active from process startup.
+
+`config_diagnostics` causes configuration errors to prevent startup instead of
+being ignored. The `base` provider supplies non-cryptographic supporting
+algorithms, such as encoders and decoders, that are commonly needed alongside
+the FIPS provider. `default_properties = fips=yes` restricts OpenSSL's default
+algorithm selection to implementations that match `fips=yes`.
+
+Set `OPENSSL_CONF` to the OpenSSL configuration file. For a dynamically loaded
+provider, `OPENSSL_MODULES` can set the directory containing the provider module.
+For example:
+
+```bash
+export OPENSSL_CONF=/<path to configuration file>/nodejs.cnf
+export OPENSSL_MODULES=/<path to openssl lib>/ossl-modules
+```
+
+The [`--openssl-config`][] command-line option selects the configuration file and
+takes precedence over `OPENSSL_CONF`. If neither is set, OpenSSL's default
+configuration file is used.
+
+By default, Node.js reads the `nodejs_conf` section instead of OpenSSL's usual
+`openssl_conf` section. Use [`--openssl-shared-config`][] to read `openssl_conf`,
+or build Node.js with `./configure --openssl-conf-name=<name>` to change the
+default section name.
+
+On OpenSSL 3, the configuration above enables the `fips=yes` property query at
+startup. The following controls are also available:
+
+* [`--enable-fips`][] and [`--force-fips`][] enable the property query and
+  additionally require the configured provider named `fips` to initialize and
+  pass its self-test. Node.js exits if that check fails. `--force-fips` also
+  prevents FIPS mode from being disabled from script code.
+* [`crypto.setFips()`][] changes the FIPS/property-query state. On OpenSSL 3, it
+  does not install, load, initialize, or validate a provider. Implementations
+  fetched before the call are not changed.
+* [`crypto.getFips()`][] reports the FIPS/property-query state. On OpenSSL 3, a
+  return value of `1` does not prove that a FIPS provider is loaded or validated.
+
+With OpenSSL 1.1.1, these controls use the library's FIPS mode support and
+require a FIPS-capable OpenSSL build.
+
+Only algorithms available under the active FIPS settings can be used. With
+OpenSSL 3, if no loaded provider supplies a requested cryptographic
+implementation matching `fips=yes`, fetching it fails, typically with
+`ERR_OSSL_EVP_UNSUPPORTED`. The same error can occur for algorithms that
+Node.js supports when FIPS mode is disabled but that are unavailable under the
+active FIPS settings.
+
+OpenSSL documents that the same FIPS provider cannot be used by multiple copies
+of `libcrypto` in one process. This can affect native addons that load another
+copy of `libcrypto`; OpenSSL's documented workaround is to use a separate copy
+of the provider for each `libcrypto` instance. See [OpenSSL FIPS provider
+limitations][].
 
 ## Crypto constants
 
@@ -7034,15 +7096,17 @@ See the [list of SSL OP Flags][] for details.
 [CVE-2021-44532]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532
 [Caveats]: #support-for-weak-or-compromised-algorithms
 [Crypto constants]: #crypto-constants
-[FIPS module configuration file]: https://www.openssl.org/docs/man3.0/man5/fips_config.html
-[FIPS provider from OpenSSL 3]: https://www.openssl.org/docs/man3.0/man7/crypto.html#FIPS-provider
+[FIPS mode]: #fips-mode
+[FIPS module configuration file]: https://docs.openssl.org/3.0/man5/fips_config/
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [JWK]: https://tools.ietf.org/html/rfc7517
 [Key usages]: webcrypto.md#cryptokeyusages
 [NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf
 [NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[OpenSSL's FIPS README file]: https://github.com/openssl/openssl/blob/openssl-3.0/README-FIPS.md
+[OpenSSL FIPS configuration]: https://docs.openssl.org/3.0/man5/fips_config/
+[OpenSSL FIPS module guide]: https://docs.openssl.org/master/man7/fips_module/
+[OpenSSL FIPS provider limitations]: https://docs.openssl.org/3.6/man7/OSSL_PROVIDER-FIPS/
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man3.0/man1/openssl-spkac.html
 [Permission Model]: permissions.md#permission-model
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
@@ -7059,6 +7123,10 @@ See the [list of SSL OP Flags][] for details.
 [RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562.txt
 [Web Crypto API documentation]: webcrypto.md
 [`--allow-openssl-store`]: cli.md#--allow-openssl-store
+[`--enable-fips`]: cli.md#--enable-fips
+[`--force-fips`]: cli.md#--force-fips
+[`--openssl-config`]: cli.md#--openssl-configfile
+[`--openssl-shared-config`]: cli.md#--openssl-shared-config
 [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.1/man3/BN_is_prime_ex.html
 [`Buffer`]: buffer.md
 [`DH_generate_key()`]: https://www.openssl.org/docs/man3.0/man3/DH_generate_key.html
@@ -7085,6 +7153,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.generateKeyPair()`]: #cryptogeneratekeypairtype-options-callback
 [`crypto.getCurves()`]: #cryptogetcurves
 [`crypto.getDiffieHellman()`]: #cryptogetdiffiehellmangroupname
+[`crypto.getFips()`]: #cryptogetfips
 [`crypto.getHashes()`]: #cryptogethashes
 [`crypto.hash()`]: #cryptohashalgorithm-data-options
 [`crypto.privateDecrypt()`]: #cryptoprivatedecryptprivatekey-buffer
@@ -7093,6 +7162,7 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.publicEncrypt()`]: #cryptopublicencryptkey-buffer
 [`crypto.randomBytes()`]: #cryptorandombytessize-callback
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
+[`crypto.setFips()`]: #cryptosetfipsbool
 [`crypto.sign()`]: #cryptosignalgorithm-data-key-callback
 [`crypto.verify()`]: #cryptoverifyalgorithm-data-key-signature-callback
 [`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray

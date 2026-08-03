@@ -513,8 +513,9 @@ The default is \fBverbatim\fR and \fBdns.setDefaultResultOrder()\fR have higher
 priority than \fB--dns-result-order\fR.
 .
 .It Fl -enable-fips
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
-against FIPS-compatible OpenSSL.)
+Enable FIPS mode at startup. With OpenSSL 3, a configured provider named
+\fBfips\fR must be available and initialize successfully. With OpenSSL 1.1.1,
+Node.js must be built against a FIPS-capable OpenSSL.
 .
 .It Fl -enable-source-maps
 Enable Source Map support for stack traces.
@@ -846,8 +847,8 @@ if (globalThis.gc) {
 Disable loading native addons that are not context-aware.
 .
 .It Fl -force-fips
-Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as \fB--enable-fips\fR.)
+Enable FIPS mode at startup and prevent it from being disabled from script
+code. The same OpenSSL requirements as \fB--enable-fips\fR apply.
 .
 .It Fl -force-node-api-uncaught-exceptions-policy
 Enforces \fBuncaughtException\fR event on Node-API asynchronous callbacks.
@@ -1147,9 +1148,10 @@ Enable extra debug checks for memory leaks in Node.js internals. This is
 usually only useful for developers debugging Node.js itself.
 .
 .It Fl -openssl-config Ns = Ns Ar file
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built
-against FIPS-enabled OpenSSL.
+Load an OpenSSL configuration file on startup. The file can activate an
+OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
+FIPS mode.
+This option takes precedence over the \fBOPENSSL_CONF\fR environment variable.
 .
 .It Fl -openssl-legacy-provider
 Enable OpenSSL 3.0 legacy provider. For more information please see
@@ -2379,9 +2381,8 @@ propagation.
 environment variable is arbitrary.
 .
 .It Ev OPENSSL_CONF Ar file
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-\fB./configure --openssl-fips\fR.
+Load an OpenSSL configuration file on startup. The file can be used as part of
+a FIPS mode configuration.
 If the \fB--openssl-config\fR command-line option is used, the environment
 variable is ignored.
 .
