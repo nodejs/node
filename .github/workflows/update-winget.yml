@@ -1,0 +1,72 @@
+name: Update WinGet manifest
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-winget:
+    name: Submit to WinGet repository
+    # wingetcreate is only supported on Windows
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    env:
+      # wingetcreate will read the following environment variable to access the GitHub token needed for submitting a PR
+      # Reference: https://aka.ms/winget-create-token
+      WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+    # Only submit stable releases
+    if: ${{ !github.event.release.prerelease }}
+    steps:
+      - name: Submit new version PR using wingetcreate
+        run: |
+          $wingetPackageID = "OpenJS.NodeJS"
+
+          # Get installer info from release event
+          $packageVersion = (${{ toJSON(github.event.release.tag_name) }}).Trim('v')
+          $releaseDate = (Get-Date ${{ toJSON(github.event.release.published_at) }}).ToString("yyyy-MM-dd")
+          $x64MSIUrl = "https://nodejs.org/dist/v$packageVersion/node-v$packageVersion-x64.msi"
+          $x64PortableUrl = "https://nodejs.org/dist/v$packageVersion/node-v$packageVersion-win-x64.zip"
+          $arm64MSIUrl = "https://nodejs.org/dist/v$packageVersion/node-v$packageVersion-arm64.msi"
+          $arm64PortableUrl = "https://nodejs.org/dist/v$packageVersion/node-v$packageVersion-win-arm64.zip"
+          $releaseNotesUrl = "https://github.com/nodejs/node/releases/tag/v$packageVersion"
+
+          # Download wingetcreate portable executable
+          curl.exe -JLO https://aka.ms/wingetcreate/latest
+
+          # Update manifest with new version & URLs
+          # Not using --submit flag with update as we want to make manual changes to manifests & then submit
+          .\wingetcreate.exe update $wingetPackageID `
+            --version $packageVersion `
+            --urls $x64MSIUrl $x64PortableUrl $arm64MSIUrl $arm64PortableUrl `
+            --release-date $releaseDate `
+            --release-notes-url $releaseNotesUrl
+
+          # The update command will output the manifests in the following path
+          $outputRelativePath = "manifests/o/OpenJS/NodeJS/$packageVersion/"
+
+          # Pattern to value map for updating version specific URLs in locale manifests
+          $patternValueMap = @{
+            # Targets PublisherSupportUrl
+            'v([\d.]+)\/\.github\/SUPPORT\.md' = "v$packageVersion/.github/SUPPORT.md"
+
+            # Targets LicenseUrl
+            'v([\d.]+)\/LICENSE' = "v$packageVersion/LICENSE"
+
+            # Targets DocumentUrl
+            'docs\/v([\d.]+)\/api\/' = "docs/v$packageVersion/api/"
+          }
+
+          # Update patterns if they exist in the locale manifests
+          $localeManifests = Get-ChildItem -Path $outputRelativePath -Recurse -Filter "*locale.*.yaml"
+          $localeManifests | ForEach-Object {
+              $localeManifestContent = Get-Content $_.FullName
+              $patternValueMap.Keys | ForEach-Object {
+                  $localeManifestContent = $localeManifestContent -replace $_, $patternValueMap[$_]
+              }
+              Set-Content -Path $_.FullName -Value $localeManifestContent
+          }
+
+          # Submit the updated manifests to winget-pkgs repository
+          .\wingetcreate.exe submit $outputRelativePath `
+            --prtitle "New version: $wingetPackageID version $packageVersion"
