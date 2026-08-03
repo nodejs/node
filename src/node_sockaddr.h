@@ -260,6 +260,8 @@ class SocketAddressBlockList : public MemoryRetainer {
 
   bool Apply(const SocketAddress& address);
 
+  void Clear();
+
   size_t size() const { return rules_.size(); }
 
   v8::MaybeLocal<v8::Array> ListRules(Environment* env);
@@ -352,6 +354,7 @@ class SocketAddressBlockListWrap : public BaseObject {
   static bool FastCheck(v8::Local<v8::Object> receiver,
                         v8::Local<v8::Object> addr_obj);
   static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SocketAddressBlockListWrap(Environment* env,
                              v8::Local<v8::Object> wrap,

@@ -302,6 +302,32 @@ const util = require('util');
   assert(blockList.check('1.1.1.1'));
 }
 
+{
+  // Test clear() removes all rules.
+  const blockList = new BlockList();
+  blockList.addAddress('1.1.1.1');
+  blockList.addRange('10.0.0.1', '10.0.0.10');
+  blockList.addSubnet('192.168.0.0', 16);
+
+  assert.strictEqual(blockList.rules.length, 3);
+  assert(blockList.check('1.1.1.1'));
+  assert(blockList.check('10.0.0.5'));
+  assert(blockList.check('192.168.1.1'));
+
+  blockList.clear();
+
+  assert.strictEqual(blockList.rules.length, 0);
+  assert(!blockList.check('1.1.1.1'));
+  assert(!blockList.check('10.0.0.5'));
+  assert(!blockList.check('192.168.1.1'));
+
+  // Can add new rules after clearing.
+  blockList.addAddress('2.2.2.2');
+  assert.strictEqual(blockList.rules.length, 1);
+  assert(blockList.check('2.2.2.2'));
+  assert(!blockList.check('1.1.1.1'));
+}
+
 // Test exporting and importing the rule list to/from JSON
 {
   const ruleList = [

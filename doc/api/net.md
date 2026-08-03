@@ -158,6 +158,14 @@ console.log(blockList.check('::ffff:7b7b:7b7b', 'ipv6')); // Prints: true
 console.log(blockList.check('::ffff:123.123.123.123', 'ipv6')); // Prints: true
 ```
 
+### `blockList.clear()`
+
+<!--
+added: REPLACEME
+-->
+
+Clears all rules from the `BlockList`.
+
 ### `blockList.rules`
 
 <!-- YAML

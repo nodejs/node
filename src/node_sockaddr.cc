@@ -457,6 +457,12 @@ bool SocketAddressBlockList::Apply(const SocketAddress& address) {
   return parent_ ? parent_->Apply(address) : false;
 }
 
+void SocketAddressBlockList::Clear() {
+  Mutex::ScopedLock lock(mutex_);
+  rules_.clear();
+  address_rules_.clear();
+}
+
 SocketAddressBlockList::SocketAddressRule::SocketAddressRule(
     const SocketAddress& address_)
     : address(address_) {}
@@ -696,6 +702,13 @@ void SocketAddressBlockListWrap::GetRules(
     args.GetReturnValue().Set(rules);
 }
 
+void SocketAddressBlockListWrap::Clear(
+    const FunctionCallbackInfo<Value>& args) {
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+  wrap->blocklist_->Clear();
+}
+
 void SocketAddressBlockListWrap::MemoryInfo(MemoryTracker* tracker) const {
   blocklist_->MemoryInfo(tracker);
 }
@@ -724,6 +737,7 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     SetFastMethod(
         isolate, tmpl->PrototypeTemplate(), "check", Check, &fast_check_);
     SetProtoMethod(isolate, tmpl, "getRules", GetRules);
+    SetProtoMethod(isolate, tmpl, "clear", Clear);
     env->set_blocklist_constructor_template(tmpl);
   }
   return tmpl;
