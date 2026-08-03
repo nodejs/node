@@ -1186,7 +1186,7 @@ added:
  - v12.16.0
 -->
 
-* Type: {boolean} Whether the request is send through a reused socket.
+* Type: {boolean} Whether the request is sent through a reused socket.
 
 When sending request through a keep-alive enabled agent, the underlying socket
 might be reused. But if server closes connection at unfortunate time, client
