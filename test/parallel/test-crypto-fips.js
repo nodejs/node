@@ -105,6 +105,24 @@ if (!sharedOpenSSL()) {
     FIPS_DISABLED,
     'require("crypto").getFips()',
     { ...process.env, 'OPENSSL_CONF': ' ' });
+
+  if (hasOpenSSL3) {
+    // Disabling FIPS mode should not throw after OpenSSL updates the default
+    // property query.
+    testHelper(
+      'stdout',
+      [],
+      kNoFailure,
+      FIPS_DISABLED,
+      '(() => {' +
+      'const crypto = require("crypto");' +
+      'crypto.setFips(true);' +
+      'require("assert").strictEqual(crypto.getFips(), 1);' +
+      'crypto.setFips(false);' +
+      'return crypto.getFips();' +
+      '})()',
+      { ...process.env, 'OPENSSL_CONF': ' ' });
+  }
 }
 
 // Toggling fips with setFips should not be allowed from a worker thread
