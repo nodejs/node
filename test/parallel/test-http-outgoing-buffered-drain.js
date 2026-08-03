@@ -1,12 +1,9 @@
-// Flags: --expose-internals
-
 'use strict';
 
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
-const { kRawWritev } = require('internal/streams/utils');
 
 function runBackpressure(contentLength = false) {
   return new Promise((resolve, reject) => {
@@ -64,10 +61,10 @@ function runClientBufferedDrain() {
       request.on('error', () => {});
       request.on('socket', common.mustCall((socket) => {
         socket._writableState.highWaterMark = 64;
-        const originalWritev = socket[kRawWritev];
+        const originalWrite = socket._write;
         let completeFirstWrite;
 
-        socket[kRawWritev] = common.mustCall((chunks, callback) => {
+        socket._write = common.mustCall((chunk, encoding, callback) => {
           completeFirstWrite = callback;
         });
         socket.once('connect', common.mustCall(() => {
@@ -90,7 +87,7 @@ function runClientBufferedDrain() {
               assert.strictEqual(drained, false);
               assert.strictEqual(request.writableLength, 100);
 
-              socket[kRawWritev] = originalWritev;
+              socket._write = originalWrite;
               request.uncork();
             }));
           });
@@ -112,9 +109,9 @@ function runAsyncEncodedDrain() {
         length.toString(16).length + 4;
       res.socket._writableState.highWaterMark = pending;
 
-      const originalWritev = res.socket[kRawWritev];
+      const originalWrite = res.socket._write;
       let completeWrite;
-      res.socket[kRawWritev] = common.mustCall((chunks, callback) => {
+      res.socket._write = common.mustCall((chunk, encoding, callback) => {
         completeWrite = callback;
       });
 
@@ -131,7 +128,7 @@ function runAsyncEncodedDrain() {
         completeWrite();
         setImmediate(common.mustCall(() => {
           assert.strictEqual(drained, true);
-          res.socket[kRawWritev] = originalWritev;
+          res.socket._write = originalWrite;
           res.socket.destroy();
           server.close(common.mustCall(resolve));
         }));

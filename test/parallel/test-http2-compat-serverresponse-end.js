@@ -24,6 +24,14 @@ const {
   // It may be invoked repeatedly without throwing errors
   // but callback will only be called once
   const server = createServer(mustCall((request, response) => {
+    const stream = response.stream;
+    const streamEnd = stream.end;
+    stream.write = mustNotCall();
+    stream.end = mustCall(function(chunk, encoding) {
+      assert.strictEqual(chunk, 'end');
+      assert.strictEqual(encoding, 'utf8');
+      return streamEnd.call(this, chunk, encoding);
+    });
     response.end('end', 'utf8', mustCall(() => {
       response.end(mustCall());
       process.nextTick(() => {

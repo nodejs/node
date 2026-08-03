@@ -27,7 +27,7 @@ function runPipelinedOutputVector() {
       socket[kInternalWritev] = common.mustCall(function(vector, callback) {
         vectorLengths.push(vector.length >> 1);
         return originalWritev.call(this, vector, callback);
-      }, 2);
+      });
 
       res.write('A', common.mustCall(() => callbacks.push('A')));
       res.write(Buffer.from('B'), common.mustCall(() => callbacks.push('B')));
@@ -46,8 +46,8 @@ function runPipelinedOutputVector() {
       socket.on('data', () => {});
       socket.on('end', common.mustCall(() => {
         assert.deepStrictEqual(callbacks, ['A', 'B', 'end']);
-        assert.strictEqual(vectorLengths.length, 2);
-        assert(vectorLengths[1] > 1);
+        assert.strictEqual(vectorLengths.length, 1);
+        assert(vectorLengths[0] > 1);
         server.close(common.mustCall(resolve));
       }));
       socket.on('connect', common.mustCall(() => {

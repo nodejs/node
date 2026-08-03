@@ -8,14 +8,28 @@ const http = require('http');
 const net = require('net');
 const { kRawWritev } = require('internal/streams/utils');
 
-function runRawResponse(mode, expectedBody, expectedWritevParts,
+function runRawResponse(mode, expectedBody, expectedWriteParts,
                         contentLength = false, payload = 'ABC') {
   return new Promise((resolve, reject) => {
-    const writevParts = [];
+    const writeParts = [];
     const server = http.createServer(common.mustCall((req, res) => {
+      const originalWrite = res.socket._write;
+      res.socket._write = function(chunk, encoding, callback) {
+        writeParts.push(1);
+        return originalWrite.call(this, chunk, encoding, callback);
+      };
+      if (mode === 'socket' || mode === 'customWritev') {
+        const originalStreamWritev = res.socket._writev;
+        function writev(chunks, callback) {
+          writeParts.push(chunks.length);
+          return originalStreamWritev.call(this, chunks, callback);
+        }
+        res.socket._writev = mode === 'customWritev' ?
+          common.mustCall(writev) : writev;
+      }
       const originalWritev = res.socket[kRawWritev];
       res.socket[kRawWritev] = function(chunks, callback) {
-        writevParts.push(chunks.length >> 1);
+        writeParts.push(chunks.length >> 1);
         return originalWritev.call(this, chunks, callback);
       };
 
@@ -23,7 +37,7 @@ function runRawResponse(mode, expectedBody, expectedWritevParts,
         res.setHeader('Content-Length', 3);
       }
 
-      if (mode === 'auto') {
+      if (mode === 'auto' || mode === 'customWritev') {
         res.write('A');
         res.write('B');
         res.end('C');
@@ -71,7 +85,11 @@ function runRawResponse(mode, expectedBody, expectedWritevParts,
       socket.on('end', common.mustCall(() => {
         const body = response.slice(response.indexOf('\r\n\r\n') + 4);
         assert.strictEqual(body, expectedBody);
-        assert.deepStrictEqual(writevParts, expectedWritevParts);
+        assert.deepStrictEqual(
+          writeParts,
+          expectedWriteParts,
+          `${mode}, contentLength=${contentLength}, payload=${payload.length}`,
+        );
         server.close(common.mustCall(resolve));
       }));
       socket.on('connect', common.mustCall(() => {
@@ -289,6 +307,11 @@ function runInvalidEncoding(explicit, chunk, encoding, prefix = null) {
 
 async function main() {
   await runRawResponse('auto', '3\r\nABC\r\n0\r\n\r\n', [3]);
+  await runRawResponse(
+    'customWritev',
+    '3\r\nABC\r\n0\r\n\r\n',
+    [3],
+  );
   await runRawResponse('explicit', '3\r\nABC\r\n0\r\n\r\n', [3]);
   await runRawResponse(
     'socket',

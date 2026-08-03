@@ -3,117 +3,99 @@
 const common = require('../common.js');
 const protocols = process.versions.openssl ? ['http', 'https'] : ['http'];
 
-const configs = {
-  sameTurn: [{
-    type: ['bytes', 'buffer', 'uint8array'],
-    len: [64, 1024],
-    chunks: [1, 2, 4, 16],
-    mode: ['auto', 'explicit'],
-    transfer: ['chunked', 'length'],
-    protocol: protocols,
-    producer: ['sync'],
-    callback: [0],
-    c: [50],
-    duration: 5,
-  }],
-  streaming: [{
-    type: ['bytes', 'buffer', 'uint8array'],
-    len: [64, 1024],
-    chunks: [4],
-    mode: ['auto'],
-    transfer: ['chunked'],
-    protocol: protocols,
-    producer: ['nextTick', 'microtask', 'immediate'],
-    callback: [0],
-    c: [50],
-    duration: 5,
-  }],
-  callbacks: [{
-    type: ['bytes', 'buffer', 'uint8array'],
-    len: [64],
-    chunks: [4, 16],
-    mode: ['auto', 'explicit'],
-    transfer: ['chunked'],
-    protocol: protocols,
-    producer: ['sync'],
-    callback: [1],
-    c: [50],
-    duration: 5,
-  }],
-  fixedBody: [{
-    type: ['bytes', 'buffer', 'uint8array'],
-    total: [64 * 1024],
-    chunks: [1, 4, 16, 128],
-    mode: ['auto', 'explicit'],
-    transfer: ['chunked'],
-    protocol: protocols,
-    producer: ['sync'],
-    callback: [0],
-    c: [50],
-    duration: 5,
-  }],
-  largeChunks: [{
-    type: ['bytes', 'buffer', 'uint8array'],
-    len: [4 * 1024, 8 * 1024, 16 * 1024, 64 * 1024],
-    chunks: [1, 4],
-    mode: ['auto'],
-    transfer: ['chunked'],
-    protocol: protocols,
-    producer: ['sync'],
-    callback: [0],
-    c: [50],
-    duration: 5,
-  }],
-  concurrency: [{
-    type: ['bytes'],
-    len: [64],
-    chunks: [4],
-    mode: ['auto'],
-    transfer: ['chunked'],
-    protocol: protocols,
-    producer: ['sync'],
-    callback: [0],
-    c: [1, 50, 500],
-    duration: 5,
-  }],
+const scenarios = {
+  'end-64': {
+    len: 64,
+    chunks: 1,
+    endChunk: true,
+  },
+  'end-1024': {
+    len: 1024,
+    chunks: 1,
+    endChunk: true,
+  },
+  'end-1025': {
+    len: 1025,
+    chunks: 1,
+    endChunk: true,
+  },
+  'auto-4': {
+    len: 64,
+    chunks: 4,
+  },
+  'auto-16': {
+    len: 64,
+    chunks: 16,
+  },
+  'explicit-16': {
+    len: 64,
+    chunks: 16,
+    explicit: true,
+  },
+  'content-length-16': {
+    len: 64,
+    chunks: 16,
+    contentLength: true,
+  },
+  'next-tick-4': {
+    len: 64,
+    chunks: 4,
+    schedule: process.nextTick,
+  },
+  'callbacks-16': {
+    len: 64,
+    chunks: 16,
+    callbacks: true,
+  },
+  'fixed-body-128': {
+    len: 512,
+    chunks: 128,
+  },
+  'large-16k': {
+    len: 16 * 1024,
+    chunks: 4,
+  },
 };
 
-const bench = common.createBenchmark(main, configs, { byGroups: true });
+const bench = common.createBenchmark(main, {
+  type: ['string', 'buffer', 'uint8array'],
+  scenario: Object.keys(scenarios),
+  protocol: protocols,
+  c: [50],
+  duration: [5],
+});
 
-function main({
-  type,
-  len,
-  chunks,
-  mode,
-  transfer,
-  protocol,
-  producer,
-  callback,
-  c,
-  duration,
-  total,
-}) {
+function main({ type, scenario, protocol, c, duration }) {
+  const {
+    callbacks,
+    chunks,
+    contentLength,
+    endChunk,
+    explicit,
+    len,
+    schedule,
+  } = scenarios[scenario];
   const transport = require(protocol);
-  len ??= total / chunks;
-  const chunk = type === 'bytes' ? 'a'.repeat(len) :
+  const chunk = type === 'string' ? 'a'.repeat(len) :
     type === 'buffer' ? Buffer.alloc(len, 'a') :
       new Uint8Array(len).fill(0x61);
-  const writeCallback = callback ? (err) => {
+  const writeCallback = callbacks ? (err) => {
     if (err) throw err;
   } : undefined;
 
-  const schedule = producer === 'nextTick' ? process.nextTick :
-    producer === 'microtask' ? queueMicrotask : setImmediate;
-
   const onRequest = (req, res) => {
-    if (transfer === 'length') {
+    if (contentLength) {
       res.setHeader('Content-Length', len * chunks);
     }
-    if (mode === 'explicit') {
+    if (explicit) {
       res.cork();
     }
+    if (endChunk) {
+      res.end(chunk, writeCallback);
+      return;
+    }
 
-    if (producer === 'sync') {
+    if (schedule === undefined) {
       for (let i = 0; i < chunks; i++) {
         res.write(chunk, writeCallback);
       }

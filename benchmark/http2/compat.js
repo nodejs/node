@@ -6,6 +6,8 @@ const fs = require('fs');
 const file = path.join(path.resolve(__dirname, '../fixtures'), 'alice.html');
 
 const bench = common.createBenchmark(main, {
+  response: ['end', 'pipe'],
+  size: [64],
   requests: [100, 1000, 5000],
   streams: [1, 10, 20, 40, 100, 200],
   clients: [2],
@@ -13,10 +15,15 @@ const bench = common.createBenchmark(main, {
   duration: 5,
 }, { flags: ['--no-warnings'] });
 
-function main({ requests, streams, clients, duration }) {
+function main({ response, size, requests, streams, clients, duration }) {
   const http2 = require('http2');
+  const body = 'a'.repeat(size);
   const server = http2.createServer();
   server.on('request', (req, res) => {
+    if (response === 'end') {
+      res.end(body);
+      return;
+    }
     const out = fs.createReadStream(file);
     res.setHeader('content-type', 'text/html');
     out.pipe(res);
