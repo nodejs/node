@@ -133,6 +133,7 @@ class DatabaseSyncLimits;
 class StatementSyncIterator;
 class StatementSync;
 class BackupJob;
+class Session;
 
 class StatementExecutionHelper {
  public:
@@ -243,7 +244,7 @@ class DatabaseSync : public BaseObject {
   bool ignore_next_sqlite_error_;
 
   std::set<BackupJob*> backups_;
-  std::set<sqlite3_session*> sessions_;
+  std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 
   friend class DatabaseSyncLimits;
@@ -360,6 +361,8 @@ class Session : public BaseObject {
   void Delete();
   sqlite3_session* session_;
   BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
+
+  friend class DatabaseSync;
 };
 
 class SQLTagStore : public BaseObject {

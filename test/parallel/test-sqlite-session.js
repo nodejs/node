@@ -81,6 +81,22 @@ test('session.changeset() - closed database results in exception', (t) => {
   });
 });
 
+test('session methods - reopened database results in exception', (t) => {
+  for (const method of ['changeset', 'close']) {
+    const database = new DatabaseSync(':memory:');
+    const session = database.createSession();
+    database.close();
+    database.open();
+
+    t.assert.throws(() => {
+      session[method]();
+    }, {
+      name: 'Error',
+      message: 'session is not open',
+    });
+  }
+});
+
 test('database.applyChangeset() - closed database results in exception', (t) => {
   const database = new DatabaseSync(':memory:');
   const session = database.createSession();
