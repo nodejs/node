@@ -489,7 +489,7 @@ struct Stream::Impl {
   JS_METHOD(MakeWebtransportStream) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    CHECK(args.Length() > 0);
+    CHECK_GT(args.Length(), 0);
     CHECK(args[0]->IsObject());
     Stream* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<v8::Object>());
@@ -497,10 +497,11 @@ struct Stream::Impl {
       stream->EnqueuePendingWebtransportStream(session->id());
       return args.GetReturnValue().Set(true);
     }
-    args.GetReturnValue().Set(stream->session().application().MakeWebtransportStream(
-      *stream,
-      session->id()
-    ));
+    args.GetReturnValue().Set(stream->session()
+                              .application()
+                              .MakeWebtransportStream(
+                                 *stream,
+                                 session->id()));
   }
 
   // Closes a webtransport session stream,
@@ -508,7 +509,7 @@ struct Stream::Impl {
   JS_METHOD(CloseWebtransportSessionStream) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    CHECK(args.Length() > 0);
+    CHECK_GT(args.Length(), 0);
     uint32_t wt_error_code = 0;
     if (args.Length() > 0) {
       CHECK(args[0]->IsUint32());
@@ -522,15 +523,17 @@ struct Stream::Impl {
       const size_t length = msgstr->Utf8LengthV2(args.GetIsolate());
       msg = new  uint8_t[length];
       msgstr->WriteUtf8V2(
-        args.GetIsolate(), reinterpret_cast<char*>(msg), length, String::WriteFlags::kNone);
+        args.GetIsolate(),
+        reinterpret_cast<char*>(msg), length, String::WriteFlags::kNone);
       msglen = std::min<size_t>(length, 1024);
     }
-    args.GetReturnValue().Set(stream->session().application().CloseWebtransportSessionStream(
-      *stream,
-      wt_error_code,
-      msg,
-      msglen
-    ));
+    args.GetReturnValue().Set(stream->session()
+            .application()
+            .CloseWebtransportSessionStream(
+                  *stream,
+                  wt_error_code,
+                  msg,
+                  msglen));
     if (msg) {
       delete[] msg;
     }
@@ -1636,7 +1639,7 @@ void Stream::BeginHeaders(HeadersKind kind) {
   headers_length_ = 0;
   headers_.clear();
   set_headers_kind(kind);
-  state()->session_id = -1; // we know we are not a wt stream
+  state()->session_id = -1;  // we know we are not a wt stream
 }
 
 void Stream::set_headers_kind(HeadersKind kind) {
@@ -1663,7 +1666,7 @@ void Stream::NotifyWTSession(stream_id session_id) {
 }
 
 void Stream::NotifyWTSessionClose(uint32_t wt_error_code,
-                                   const uint8_t *msg,
+                                   const uint8_t* msg,
                                    size_t msglen) {
   EmitWTSessionClose(wt_error_code, msg, msglen);
 }
@@ -2039,19 +2042,20 @@ void Stream::EmitSessionid(stream_id session_id) {
   MakeCallback(BindingData::Get(env()).stream_sessionid_callback(), 1, &sid);
 }
 
-  
+
 void Stream::EmitWTSessionClose(uint32_t wt_error_code,
-                                const uint8_t *msg,
-                                size_t msglen) {       
+                                const uint8_t* msg,
+                                size_t msglen) {
   if (!env()->can_call_into_js()  || !state()->wants_wtsessionclose) return;
   CallbackScope<Stream> cb_scope(this);
   Local<Value> argv[] = {
       Integer::NewFromUnsigned(env()->isolate(),
                                wt_error_code),
-      String::NewFromUtf8(env()->isolate(), reinterpret_cast<const char *>(msg), 
+      String::NewFromUtf8(env()->isolate(),
+          reinterpret_cast<const char *>(msg),
           v8::NewStringType::kNormal, msglen).ToLocalChecked()
   };
-  MakeCallback(BindingData::Get(env()).stream_wtsessionclose_callback(), 
+  MakeCallback(BindingData::Get(env()).stream_wtsessionclose_callback(),
     arraysize(argv), argv);
 }
 

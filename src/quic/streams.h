@@ -373,9 +373,10 @@ class Stream final : public AsyncWrap,
   // Currently only http/3 can have a session stream in WebTransport
   void NotifyWTSession(stream_id session_id);
 
-  // Currently only http/3 can have a session stream that receives a close capsule
+  // Currently only http/3 can have a session stream
+  // that receives a close capsule
   void NotifyWTSessionClose(uint32_t wt_error_code,
-                            const uint8_t *msg,
+                            const uint8_t* msg,
                             size_t msglen);
 
   // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
@@ -458,7 +459,7 @@ class Stream final : public AsyncWrap,
 
   // delivers the content of the close capsule
   void EmitWTSessionClose(uint32_t wt_error_code,
-                          const uint8_t *msg,
+                          const uint8_t* msg,
                           size_t msglen);
 
   void NotifyReadableEnded(error_code code);
