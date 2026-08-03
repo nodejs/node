@@ -139,29 +139,22 @@ A suite always waits for all of its nested tests and nested suites to
 finish before completing. The following example demonstrates a 
 suite with nested tests and other suites.
 
-``` js
+```js
 import { suite, test } from 'node:test';
 import assert from 'node:assert';
+
 suite('math operations', () => {
   test('addition', () => {
     assert.strictEqual(1 + 1, 2);
   });
-  test('multiplication', () => {
-    assert.strictEqual(2 * 2, 4);
-  });
-});
-```
 
-``` js
-suite('user features', () => {
-  suite('profile', () => {
-    test('updates display name', () => {
-      assert.ok(true);
+  suite('multiplication', () => {
+    test('negative one', () => {
+      assert.strictEqual(2 * -1, -2);
     });
-  });
-  suite('settings', () => {
-    test('enables notifications', () => {
-      assert.ok(true);
+
+    test('zero', () => {
+      assert.strictEqual(2 * 0, 0);
     });
   });
 });
