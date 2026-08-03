@@ -201,11 +201,23 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   size_t offset;
 
   if (!all_buffers) {
+    // Cache per-chunk data from the first pass so the second pass avoids
+    // redundant V8 array accesses, ToString conversions, and ParseEncoding
+    // calls. Local<> handles remain valid for the duration of this scope.
+    struct CachedChunk {
+      Local<Value> value;
+      Local<String> string;  // empty for Buffer chunks
+      enum encoding enc;
+    };
+    MaybeStackBuffer<CachedChunk, 16> chunk_cache(count);
+
     // Determine storage size first
     for (size_t i = 0; i < count; i++) {
       Local<Value> chunk;
       if (!chunks->Get(context, i * 2).ToLocal(&chunk))
         return -1;
+
+      chunk_cache[i].value = chunk;
 
       if (Buffer::HasInstance(chunk))
         continue;
@@ -219,6 +231,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
         return -1;
       enum encoding encoding = ParseEncoding(isolate, next_chunk);
+      chunk_cache[i].string = string;
+      chunk_cache[i].enc = encoding;
       size_t chunk_size;
       if ((encoding == UTF8 &&
              string->Length() > 65535 &&
@@ -230,35 +244,23 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
       storage_size += chunk_size;
     }
 
-    if (storage_size > INT_MAX)
-      return UV_ENOBUFS;
-  } else {
-    for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk;
-      if (!chunks->Get(context, i).ToLocal(&chunk))
-        return -1;
-      bufs[i].base = Buffer::Data(chunk);
-      bufs[i].len = Buffer::Length(chunk);
+    if (storage_size > INT_MAX) return UV_ENOBUFS;
+
+    std::unique_ptr<BackingStore> bs;
+    if (storage_size > 0) {
+      bs = ArrayBuffer::NewBackingStore(
+          isolate,
+          storage_size,
+          BackingStoreInitializationMode::kUninitialized);
     }
-  }
 
-  std::unique_ptr<BackingStore> bs;
-  if (storage_size > 0) {
-    bs = ArrayBuffer::NewBackingStore(
-        isolate, storage_size, BackingStoreInitializationMode::kUninitialized);
-  }
-
-  offset = 0;
-  if (!all_buffers) {
+    offset = 0;
     for (size_t i = 0; i < count; i++) {
-      Local<Value> chunk;
-      if (!chunks->Get(context, i * 2).ToLocal(&chunk))
-        return -1;
-
-      // Write buffer
-      if (Buffer::HasInstance(chunk)) {
-        bufs[i].base = Buffer::Data(chunk);
-        bufs[i].len = Buffer::Length(chunk);
+      // string.IsEmpty() signals a Buffer chunk; enc is uninitialised in
+      // that case so we must not read it.
+      if (chunk_cache[i].string.IsEmpty()) {
+        bufs[i].base = Buffer::Data(chunk_cache[i].value);
+        bufs[i].len = Buffer::Length(chunk_cache[i].value);
         continue;
       }
 
@@ -268,28 +270,32 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
           static_cast<char*>(bs ? bs->Data() : nullptr) + offset;
       size_t str_size = (bs ? bs->ByteLength() : 0) - offset;
 
-      Local<String> string;
-      if (!chunk->ToString(context).ToLocal(&string))
-        return -1;
-      Local<Value> next_chunk;
-      if (!chunks->Get(context, i * 2 + 1).ToLocal(&next_chunk))
-        return -1;
-      enum encoding encoding = ParseEncoding(isolate, next_chunk);
       str_size = StringBytes::Write(isolate,
                                     str_storage,
                                     str_size,
-                                    string,
-                                    encoding);
+                                    chunk_cache[i].string,
+                                    chunk_cache[i].enc);
       bufs[i].base = str_storage;
       bufs[i].len = str_size;
       offset += str_size;
+    }
+
+    StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
+    SetWriteResult(res);
+    if (res.wrap != nullptr && storage_size > 0)
+      res.wrap->SetBackingStore(std::move(bs));
+    return res.err;
+  } else {
+    for (size_t i = 0; i < count; i++) {
+      Local<Value> chunk;
+      if (!chunks->Get(context, i).ToLocal(&chunk)) return -1;
+      bufs[i].base = Buffer::Data(chunk);
+      bufs[i].len = Buffer::Length(chunk);
     }
   }
 
   StreamWriteResult res = Write(*bufs, count, nullptr, req_wrap_obj);
   SetWriteResult(res);
-  if (res.wrap != nullptr && storage_size > 0)
-    res.wrap->SetBackingStore(std::move(bs));
   return res.err;
 }
 
