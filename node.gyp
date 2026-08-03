@@ -1051,7 +1051,7 @@
             ],
           },
           'conditions': [
-            ['openssl_is_fips!=""', {
+            ['openssl_is_fips=="true"', {
               'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
             }],
           ],
