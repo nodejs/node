@@ -96,6 +96,21 @@ added:
 
 Adds a rule to block the given IP address.
 
+### `blockList.addAddresses(addresses[, type])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `addresses` {string\[]|net.SocketAddress\[]} An array of IPv4 or IPv6
+  addresses.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
+
+Adds multiple address rules to the block list in a single operation.
+This is more efficient than calling `blockList.addAddress()` repeatedly
+when adding a large number of individual addresses, as the addresses
+are inserted under a single internal lock acquisition.
+
 ### `blockList.addRange(start, end[, type])`
 
 <!-- YAML

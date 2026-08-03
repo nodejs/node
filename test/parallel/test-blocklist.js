@@ -328,6 +328,37 @@ const util = require('util');
   assert(!blockList.check('1.1.1.1'));
 }
 
+{
+  // Test addAddresses() batch insert.
+  const blockList = new BlockList();
+  blockList.addAddresses(['1.1.1.1', '2.2.2.2', '3.3.3.3']);
+
+  assert(blockList.check('1.1.1.1'));
+  assert(blockList.check('2.2.2.2'));
+  assert(blockList.check('3.3.3.3'));
+  assert(!blockList.check('4.4.4.4'));
+  assert.strictEqual(blockList.rules.length, 3);
+
+  // Cross-family works with batch insert.
+  assert(blockList.check('::ffff:1.1.1.1', 'ipv6'));
+
+  // Batch with SocketAddress objects.
+  const blockList2 = new BlockList();
+  const sa1 = new SocketAddress({ address: '10.0.0.1' });
+  const sa2 = new SocketAddress({ address: '10.0.0.2' });
+  blockList2.addAddresses([sa1, sa2]);
+  assert(blockList2.check('10.0.0.1'));
+  assert(blockList2.check('10.0.0.2'));
+  assert(!blockList2.check('10.0.0.3'));
+
+  // IPv6 batch.
+  const blockList3 = new BlockList();
+  blockList3.addAddresses(['::1', '::2'], 'ipv6');
+  assert(blockList3.check('::1', 'ipv6'));
+  assert(blockList3.check('::2', 'ipv6'));
+  assert(!blockList3.check('::3', 'ipv6'));
+}
+
 // Test exporting and importing the rule list to/from JSON
 {
   const ruleList = [

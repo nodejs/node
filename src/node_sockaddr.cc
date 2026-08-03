@@ -401,8 +401,8 @@ SocketAddressBlockList::SocketAddressBlockList(
     std::shared_ptr<SocketAddressBlockList> parent)
     : parent_(parent) {}
 
-void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
-  RwLock::ScopedLock lock(mutex_);
+void SocketAddressBlockList::AddSocketAddressImpl(
+    const SocketAddress& address) {
   address_rules_[address] = address;
   // Insert the cross-family counterpart so that both IPv4 and
   // IPv4-mapped IPv6 lookups resolve in O(1).
@@ -430,6 +430,19 @@ void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
       SocketAddress ipv4(reinterpret_cast<const sockaddr*>(&ipv4_addr));
       address_rules_[ipv4] = address;
     }
+  }
+}
+
+void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
+  RwLock::ScopedLock lock(mutex_);
+  AddSocketAddressImpl(address);
+}
+
+void SocketAddressBlockList::AddSocketAddresses(
+    const SocketAddress* addresses, size_t count) {
+  RwLock::ScopedLock lock(mutex_);
+  for (size_t i = 0; i < count; i++) {
+    AddSocketAddressImpl(addresses[i]);
   }
 }
 
@@ -649,6 +662,32 @@ void SocketAddressBlockListWrap::AddAddress(
   args.GetReturnValue().Set(true);
 }
 
+void SocketAddressBlockListWrap::AddAddresses(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  CHECK(args[0]->IsArray());
+  Local<Array> arr = args[0].As<Array>();
+  uint32_t len = arr->Length();
+
+  std::vector<SocketAddress> addresses;
+  addresses.reserve(len);
+
+  for (uint32_t i = 0; i < len; i++) {
+    Local<Value> item;
+    if (!arr->Get(env->context(), i).ToLocal(&item)) return;
+    CHECK(SocketAddressBase::HasInstance(env, item));
+    SocketAddressBase* addr;
+    ASSIGN_OR_RETURN_UNWRAP(&addr, item.As<Object>());
+    addresses.push_back(*addr->address());
+  }
+
+  wrap->blocklist_->AddSocketAddresses(addresses.data(), addresses.size());
+  args.GetReturnValue().Set(true);
+}
+
 void SocketAddressBlockListWrap::AddRange(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -764,6 +803,7 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BlockList"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
     SetProtoMethod(isolate, tmpl, "addAddress", AddAddress);
+    SetProtoMethod(isolate, tmpl, "addAddresses", AddAddresses);
     SetProtoMethod(isolate, tmpl, "addRange", AddRange);
     SetProtoMethod(isolate, tmpl, "addSubnet", AddSubnet);
     SetFastMethod(

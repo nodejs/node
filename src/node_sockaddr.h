@@ -250,6 +250,8 @@ class SocketAddressBlockList : public MemoryRetainer {
 
   void AddSocketAddress(const SocketAddress& address);
 
+  void AddSocketAddresses(const SocketAddress* addresses, size_t count);
+
   void RemoveSocketAddress(const SocketAddress& address);
 
   void AddSocketAddressRange(const SocketAddress& start,
@@ -307,6 +309,9 @@ class SocketAddressBlockList : public MemoryRetainer {
   SET_SELF_SIZE(SocketAddressBlockList)
 
  private:
+  // Lock-free implementation used by both AddSocketAddress and
+  // AddSocketAddresses. Caller must hold the write lock.
+  void AddSocketAddressImpl(const SocketAddress& address);
   bool ListRules(Environment* env, v8::LocalVector<v8::Value>* vec);
 
   std::shared_ptr<SocketAddressBlockList> parent_;
@@ -338,6 +343,7 @@ class SocketAddressBlockListWrap : public BaseObject {
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddAddresses(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
