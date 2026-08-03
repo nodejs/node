@@ -5269,6 +5269,10 @@ negative performance implications for some applications; see the
 <!-- YAML
 added: v0.9.3
 changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/35093
+    description: The password and salt arguments can also be ArrayBuffer
+                 instances.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30578
     description: The `iterations` parameter is now restricted to positive
@@ -5283,8 +5287,8 @@ changes:
                  from `binary` to `utf8`.
 -->
 
-* `password` {string|Buffer|TypedArray|DataView}
-* `salt` {string|Buffer|TypedArray|DataView}
+* `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
+* `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `iterations` {number}
 * `keylen` {number}
 * `digest` {string}
