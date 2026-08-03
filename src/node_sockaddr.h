@@ -322,7 +322,10 @@ class SocketAddressBlockList : public MemoryRetainer {
 
   std::shared_ptr<SocketAddressBlockList> parent_;
   std::list<std::unique_ptr<Rule>> rules_;
-  SocketAddress::Map<std::list<std::unique_ptr<Rule>>::iterator> address_rules_;
+  // Keyed by IP only (port-insensitive) so that Apply() can perform
+  // O(1) lookups regardless of the port on the checked address.
+  SocketAddress::IpMap<std::list<std::unique_ptr<Rule>>::iterator>
+      address_rules_;
 
   Mutex mutex_;
 };

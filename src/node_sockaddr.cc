@@ -445,6 +445,11 @@ void SocketAddressBlockList::AddSocketAddressMask(
 
 bool SocketAddressBlockList::Apply(const SocketAddress& address) {
   Mutex::ScopedLock lock(mutex_);
+  // Fast-path: O(1) lookup for exact same-family address matches.
+  // The address_rules_ map uses IpHash/IpEqual (port-insensitive,
+  // family-sensitive). Cross-family matches (e.g. ::ffff:1.1.1.1
+  // against a 1.1.1.1 rule) fall through to the linear scan below.
+  if (address_rules_.count(address)) return true;
   for (const auto& rule : rules_) {
     if (rule->Apply(address)) return true;
   }
