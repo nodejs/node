@@ -428,6 +428,7 @@ void SocketAddressBlockList::RemoveSocketAddress(
 void SocketAddressBlockList::AddSocketAddressRange(
     const std::shared_ptr<SocketAddress>& start,
     const std::shared_ptr<SocketAddress>& end) {
+  DCHECK(!(*start > *end));
   Mutex::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressRangeRule>(start, end);
