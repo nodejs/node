@@ -242,6 +242,38 @@ added:
 * `value` {any} Any JS value
 * Returns `true` if the `value` is a `net.BlockList`.
 
+### `BlockList.PRIVATE_RANGES`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string\[]}
+
+A frozen array of CIDR strings representing private, loopback, and link-local
+IP address ranges. This can be passed to `blockList.addCIDRs()` to quickly
+populate a blocklist with all non-routable address ranges.
+
+The included ranges are:
+
+* `10.0.0.0/8` — RFC 1918 private IPv4
+* `172.16.0.0/12` — RFC 1918 private IPv4
+* `192.168.0.0/16` — RFC 1918 private IPv4
+* `127.0.0.0/8` — IPv4 loopback
+* `::1/128` — IPv6 loopback
+* `169.254.0.0/16` — IPv4 link-local
+* `fe80::/10` — IPv6 link-local
+* `fc00::/7` — IPv6 unique local (ULA)
+
+```js
+const blockList = new net.BlockList();
+blockList.addCIDRs(net.BlockList.PRIVATE_RANGES);
+
+console.log(blockList.check('10.0.0.1'));      // Prints: true
+console.log(blockList.check('127.0.0.1'));     // Prints: true
+console.log(blockList.check('8.8.8.8'));       // Prints: false
+```
+
 ### `blockList.removeAddress(address[, type])`
 
 <!-- YAML

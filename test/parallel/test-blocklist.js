@@ -762,3 +762,47 @@ const util = require('util');
   blockList.addAddress('1.1.1.1');
   assert.strictEqual(blockList.size, 1);
 }
+
+// PRIVATE_RANGES: is a frozen array of CIDR strings
+{
+  assert(Array.isArray(BlockList.PRIVATE_RANGES));
+  assert(Object.isFrozen(BlockList.PRIVATE_RANGES));
+  assert(BlockList.PRIVATE_RANGES.length > 0);
+  for (const cidr of BlockList.PRIVATE_RANGES) {
+    assert.strictEqual(typeof cidr, 'string');
+    assert(cidr.includes('/'));
+  }
+}
+
+// PRIVATE_RANGES: covers expected addresses
+{
+  const blockList = new BlockList();
+  blockList.addCIDRs(BlockList.PRIVATE_RANGES);
+
+  // IPv4 private (RFC 1918)
+  assert(blockList.check('10.0.0.1'));
+  assert(blockList.check('10.255.255.255'));
+  assert(blockList.check('172.16.0.1'));
+  assert(blockList.check('172.31.255.255'));
+  assert(blockList.check('192.168.0.1'));
+  assert(blockList.check('192.168.255.255'));
+
+  // Loopback
+  assert(blockList.check('127.0.0.1'));
+  assert(blockList.check('127.255.255.255'));
+  assert(blockList.check('::1', 'ipv6'));
+
+  // Link-local
+  assert(blockList.check('169.254.0.1'));
+  assert(blockList.check('fe80::1', 'ipv6'));
+
+  // ULA
+  assert(blockList.check('fc00::1', 'ipv6'));
+  assert(blockList.check('fd00::1', 'ipv6'));
+
+  // Public addresses should not match
+  assert(!blockList.check('8.8.8.8'));
+  assert(!blockList.check('1.1.1.1'));
+  assert(!blockList.check('203.0.113.1'));
+  assert(!blockList.check('2001:db8::1', 'ipv6'));
+}
