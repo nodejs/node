@@ -7,8 +7,13 @@ const util = require('node:util');
 const { WriteStream } = require('node:tty');
 
 // Hex colors are downgraded to the color depth reported by `FORCE_COLOR`, so
-// make sure the environment running the test does not set it.
-delete process.env.FORCE_COLOR;
+// run with an environment that does not set it. Every helper below builds its
+// environment from this one, which keeps the expectations independent of the
+// environment running the test.
+const { FORCE_COLOR, ...envWithoutForceColor } = process.env;
+if (FORCE_COLOR !== undefined) {
+  process.env = envWithoutForceColor;
+}
 
 describe('util.styleText hex color support', () => {
   describe('valid 6-digit hex colors', () => {
@@ -283,12 +288,11 @@ describe('util.styleText hex color support', () => {
     const originalEnv = { ...process.env };
 
     function styled(format, forceColor) {
-      process.env = { ...originalEnv };
-      if (forceColor === undefined) {
-        delete process.env.FORCE_COLOR;
-      } else {
-        process.env.FORCE_COLOR = forceColor;
-      }
+      // `originalEnv` never has `FORCE_COLOR`, so leaving it out is enough to
+      // test the case where it is unset.
+      process.env = forceColor === undefined ?
+        { ...originalEnv } :
+        { ...originalEnv, FORCE_COLOR: forceColor };
       try {
         return util.styleText(format, 'test', { validateStream: false });
       } finally {
