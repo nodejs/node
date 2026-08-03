@@ -264,7 +264,9 @@ class SocketAddressBlockList : public MemoryRetainer {
 
   void Clear();
 
-  size_t size() const { return address_rules_.size() + rules_.size(); }
+  size_t size() const {
+    return address_rules_.size() + rules_.size() + subnet_rules_.size();
+  }
 
   v8::MaybeLocal<v8::Array> ListRules(Environment* env);
 
@@ -308,6 +310,54 @@ class SocketAddressBlockList : public MemoryRetainer {
   SET_MEMORY_INFO_NAME(SocketAddressBlockList)
   SET_SELF_SIZE(SocketAddressBlockList)
 
+  // A compressed radix trie for O(prefix_length) subnet lookups.
+  // Each node has two children (bit 0, bit 1). A node marked
+  // terminal means all addresses matching the prefix up to that
+  // depth are blocked. On insert, if a new prefix is shorter than
+  // or equal to an existing one, the subtree is pruned (the shorter
+  // prefix subsumes all longer ones). On lookup, we walk the bits
+  // of the address and return true as soon as we hit a terminal node.
+  class SubnetTrie {
+   public:
+    SubnetTrie() = default;
+    ~SubnetTrie() = default;
+
+    // Insert a subnet (network address bytes, prefix length in bits).
+    // If a broader prefix already exists, the insert is a no-op.
+    // If this prefix is broader than existing children, they are pruned.
+    void Insert(const uint8_t* address_bytes, int prefix_length);
+
+    // Returns true if the given address falls within any inserted subnet.
+    bool Lookup(const uint8_t* address_bytes, int address_bits) const;
+
+    // Remove all entries.
+    void Clear();
+
+    // Walk all terminal nodes, calling cb(network_bytes, prefix_length)
+    // for each. Used by ListRules.
+    template <typename Callback>
+    void Walk(Callback cb) const;
+
+    bool empty() const { return root_ == nullptr; }
+
+    size_t size() const { return count_; }
+
+   private:
+    struct Node {
+      std::unique_ptr<Node> children[2];
+      bool terminal = false;
+    };
+
+    template <typename Callback>
+    void WalkImpl(const Node* node,
+                  uint8_t* prefix_buf,
+                  int depth,
+                  Callback& cb) const;
+
+    std::unique_ptr<Node> root_;
+    size_t count_ = 0;
+  };
+
  private:
   // Lock-free implementation used by both AddSocketAddress and
   // AddSocketAddresses. Caller must hold the write lock.
@@ -315,12 +365,18 @@ class SocketAddressBlockList : public MemoryRetainer {
   bool ListRules(Environment* env, v8::LocalVector<v8::Value>* vec);
 
   std::shared_ptr<SocketAddressBlockList> parent_;
-  // Range and subnet rules only. Scanned linearly by Apply().
+  // Range rules only. Scanned linearly by Apply().
   std::list<std::unique_ptr<Rule>> rules_;
   // Exact address rules. Keyed by IP only (port-insensitive) so that
   // Apply() can perform O(1) lookups regardless of the port on the
   // checked address. Not included in rules_ to avoid redundant scanning.
   SocketAddress::IpMap<SocketAddress> address_rules_;
+  // Subnet/mask rules stored in radix tries for O(prefix_length) lookup.
+  // Separate tries for IPv4 (max 32-bit depth) and IPv6 (max 128-bit).
+  SubnetTrie ipv4_subnets_;
+  SubnetTrie ipv6_subnets_;
+  // Subnet metadata kept for ListRules serialization only.
+  std::list<std::unique_ptr<SocketAddressMaskRule>> subnet_rules_;
 
   // RwLock allows concurrent Apply() calls (shared/read lock) while
   // mutations (Add*/Remove*/Clear) take an exclusive/write lock.
@@ -349,6 +405,7 @@ class SocketAddressBlockListWrap : public BaseObject {
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool FastCheck(v8::Local<v8::Object> receiver,
                         v8::Local<v8::Object> addr_obj);
+  static void CheckString(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
 
