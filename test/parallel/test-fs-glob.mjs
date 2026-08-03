@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync } from 'node:fs';
+import { glob, globSync, Dirent, chmodSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -423,6 +423,39 @@ describe('globSync - withFileTypes', function() {
       assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
     });
   }
+
+  test('exclude receives the root dirent from cwd when cwd differs from process.cwd()', () => {
+    const cwdMismatchDir = tmpdir.resolve('cwd-mismatch-root-exclude');
+    const ambientDir = resolve(cwdMismatchDir, 'ambient');
+    const rootDir = resolve(cwdMismatchDir, 'root');
+
+    rmSync(cwdMismatchDir, { recursive: true, force: true });
+    mkdirSync(ambientDir, { recursive: true });
+    mkdirSync(resolve(rootDir, 'a'), { recursive: true });
+    writeFileSync(resolve(ambientDir, 'a'), 'shadow-file');
+    writeFileSync(resolve(rootDir, 'a', 'real.txt'), 'real');
+
+    const originalCwd = process.cwd();
+    process.chdir(ambientDir);
+
+    try {
+      const actual = globSync('a/**', {
+        cwd: rootDir,
+        withFileTypes: true,
+        exclude: common.mustCall((dirent) => {
+          assert.ok(dirent instanceof Dirent);
+          assert.strictEqual(dirent.name, 'a');
+          assert.strictEqual(dirent.parentPath, rootDir);
+          assert.ok(dirent.isDirectory());
+          return true;
+        }),
+      });
+      assert.deepStrictEqual(actual, []);
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(cwdMismatchDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('fsPromises glob - withFileTypes', function() {
