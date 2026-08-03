@@ -77,6 +77,8 @@ using v8::Undefined;
 using v8::Value;
 using worker::Worker;
 
+constexpr size_t kManagedBufferCacheSize = 64 * 1024;
+
 int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
 void* const ContextEmbedderTag::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&ContextEmbedderTag::kNodeContextTag));
@@ -746,10 +748,16 @@ void Environment::add_refs(int64_t diff) {
 }
 
 uv_buf_t Environment::allocate_managed_buffer(const size_t suggested_size) {
-  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-      isolate(),
-      suggested_size,
-      BackingStoreInitializationMode::kUninitialized);
+  std::unique_ptr<BackingStore> bs;
+  if (suggested_size == kManagedBufferCacheSize &&
+      managed_buffer_cache_ != nullptr) {
+    bs = std::move(managed_buffer_cache_);
+  } else {
+    bs = ArrayBuffer::NewBackingStore(
+        isolate(),
+        suggested_size,
+        BackingStoreInitializationMode::kUninitialized);
+  }
   uv_buf_t buf = uv_buf_init(static_cast<char*>(bs->Data()), bs->ByteLength());
   released_allocated_buffers_.emplace(buf.base, std::move(bs));
   return buf;
@@ -765,6 +773,11 @@ std::unique_ptr<BackingStore> Environment::release_managed_buffer(
     released_allocated_buffers_.erase(it);
   }
   return bs;
+}
+
+void Environment::recycle_managed_buffer(std::unique_ptr<BackingStore> bs) {
+  if (bs != nullptr && bs->ByteLength() == kManagedBufferCacheSize)
+    managed_buffer_cache_ = std::move(bs);
 }
 
 std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
