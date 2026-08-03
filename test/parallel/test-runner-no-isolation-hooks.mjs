@@ -12,37 +12,34 @@ const testFiles = [
   fixtures.path('test-runner', 'no-isolation', 'two.test.js'),
 ];
 
+// Each file is wrapped in an implicit suite when using isolation: 'none',
+// so file-level hooks are scoped to their file. Global hooks (registered
+// via --import/--require) still run for all tests.
+const file1 = fixtures.path('test-runner', 'no-isolation', 'one.test.js');
+const file2 = fixtures.path('test-runner', 'no-isolation', 'two.test.js');
 const order = [
   'before(): global',
-
-  'before one: <root>',
   'suite one',
-
-  'before two: <root>',
   'suite two',
 
+  `before one: ${file1}`,
   'beforeEach(): global',
   'beforeEach one: suite one - test',
-  'beforeEach two: suite one - test',
-
   'suite one - test',
-  'afterEach(): global',
   'afterEach one: suite one - test',
-  'afterEach two: suite one - test',
+  'afterEach(): global',
+  `after one: ${file1}`,
 
+  `before two: ${file2}`,
   'before suite two: suite two',
   'beforeEach(): global',
-  'beforeEach one: suite two - test',
   'beforeEach two: suite two - test',
-
   'suite two - test',
-  'afterEach(): global',
-  'afterEach one: suite two - test',
   'afterEach two: suite two - test',
+  'afterEach(): global',
+  `after two: ${file2}`,
 
   'after(): global',
-  'after one: <root>',
-  'after two: <root>',
 ].join('\n');
 
 test('use --import (CJS) to define global hooks', async (t) => {

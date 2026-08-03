@@ -9,26 +9,22 @@ const stream = run({
 });
 
 
-stream.on('test:pass', mustCall(4));
+stream.on('test:pass', mustCall(6));
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream);
 allowGlobals(globalThis.GLOBAL_ORDER);
 assert.deepStrictEqual(globalThis.GLOBAL_ORDER, [
-  'before one: <root>',
   'suite one',
-  'before two: <root>',
   'suite two',
+  'before one: one.test.js',
   'beforeEach one: suite one - test',
-  'beforeEach two: suite one - test',
   'suite one - test',
   'afterEach one: suite one - test',
-  'afterEach two: suite one - test',
+  'after one: one.test.js',
+  'before two: two.test.js',
   'before suite two: suite two',
-  'beforeEach one: suite two - test',
   'beforeEach two: suite two - test',
   'suite two - test',
-  'afterEach one: suite two - test',
   'afterEach two: suite two - test',
-  'after one: <root>',
-  'after two: <root>',
+  'after two: two.test.js',
 ]);
