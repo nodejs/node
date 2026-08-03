@@ -283,13 +283,13 @@ TEST(SocketAddressBlockList, Simple) {
   std::shared_ptr<SocketAddress> addr2 = std::make_shared<SocketAddress>(
       reinterpret_cast<const sockaddr*>(&storage[1]));
 
-  bl.AddSocketAddress(addr1);
-  bl.AddSocketAddress(addr2);
+  bl.AddSocketAddress(*addr1);
+  bl.AddSocketAddress(*addr2);
 
   CHECK(bl.Apply(*addr1));
   CHECK(bl.Apply(*addr2));
 
-  bl.RemoveSocketAddress(addr1);
+  bl.RemoveSocketAddress(*addr1);
 
   CHECK(!bl.Apply(*addr1));
   CHECK(bl.Apply(*addr2));

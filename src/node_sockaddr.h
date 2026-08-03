@@ -248,14 +248,14 @@ class SocketAddressBlockList : public MemoryRetainer {
       std::shared_ptr<SocketAddressBlockList> parent = {});
   ~SocketAddressBlockList() = default;
 
-  void AddSocketAddress(const std::shared_ptr<SocketAddress>& address);
+  void AddSocketAddress(const SocketAddress& address);
 
-  void RemoveSocketAddress(const std::shared_ptr<SocketAddress>& address);
+  void RemoveSocketAddress(const SocketAddress& address);
 
-  void AddSocketAddressRange(const std::shared_ptr<SocketAddress>& start,
-                             const std::shared_ptr<SocketAddress>& end);
+  void AddSocketAddressRange(const SocketAddress& start,
+                             const SocketAddress& end);
 
-  void AddSocketAddressMask(const std::shared_ptr<SocketAddress>& address,
+  void AddSocketAddressMask(const SocketAddress& address,
                             int prefix);
 
   bool Apply(const SocketAddress& address);
@@ -271,9 +271,9 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressRule final : Rule {
-    std::shared_ptr<SocketAddress> address;
+    SocketAddress address;
 
-    explicit SocketAddressRule(const std::shared_ptr<SocketAddress>& address);
+    explicit SocketAddressRule(const SocketAddress& address);
 
     bool Apply(const SocketAddress& address) override;
     std::string ToString() override;
@@ -284,11 +284,11 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressRangeRule final : Rule {
-    std::shared_ptr<SocketAddress> start;
-    std::shared_ptr<SocketAddress> end;
+    SocketAddress start;
+    SocketAddress end;
 
-    SocketAddressRangeRule(const std::shared_ptr<SocketAddress>& start,
-                           const std::shared_ptr<SocketAddress>& end);
+    SocketAddressRangeRule(const SocketAddress& start,
+                           const SocketAddress& end);
 
     bool Apply(const SocketAddress& address) override;
     std::string ToString() override;
@@ -299,10 +299,10 @@ class SocketAddressBlockList : public MemoryRetainer {
   };
 
   struct SocketAddressMaskRule final : Rule {
-    std::shared_ptr<SocketAddress> network;
+    SocketAddress network;
     int prefix;
 
-    SocketAddressMaskRule(const std::shared_ptr<SocketAddress>& address,
+    SocketAddressMaskRule(const SocketAddress& address,
                           int prefix);
 
     bool Apply(const SocketAddress& address) override;

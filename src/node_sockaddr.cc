@@ -399,26 +399,25 @@ SocketAddressBlockList::SocketAddressBlockList(
     std::shared_ptr<SocketAddressBlockList> parent)
     : parent_(parent) {}
 
-void SocketAddressBlockList::AddSocketAddress(
-    const std::shared_ptr<SocketAddress>& address) {
+void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
   Mutex::ScopedLock lock(mutex_);
   // Remove any existing rule for this address to avoid orphaning
   // it in the rules_ list when the address_rules_ iterator is
   // overwritten.
-  auto existing = address_rules_.find(*address.get());
+  auto existing = address_rules_.find(address);
   if (existing != address_rules_.end()) {
     rules_.erase(existing->second);
     address_rules_.erase(existing);
   }
   std::unique_ptr<Rule> rule = std::make_unique<SocketAddressRule>(address);
   rules_.emplace_front(std::move(rule));
-  address_rules_[*address.get()] = rules_.begin();
+  address_rules_[address] = rules_.begin();
 }
 
 void SocketAddressBlockList::RemoveSocketAddress(
-    const std::shared_ptr<SocketAddress>& address) {
+    const SocketAddress& address) {
   Mutex::ScopedLock lock(mutex_);
-  auto it = address_rules_.find(*address.get());
+  auto it = address_rules_.find(address);
   if (it != std::end(address_rules_)) {
     rules_.erase(it->second);
     address_rules_.erase(it);
@@ -426,9 +425,9 @@ void SocketAddressBlockList::RemoveSocketAddress(
 }
 
 void SocketAddressBlockList::AddSocketAddressRange(
-    const std::shared_ptr<SocketAddress>& start,
-    const std::shared_ptr<SocketAddress>& end) {
-  DCHECK(!(*start > *end));
+    const SocketAddress& start,
+    const SocketAddress& end) {
+  DCHECK(!(start > end));
   Mutex::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressRangeRule>(start, end);
@@ -436,7 +435,7 @@ void SocketAddressBlockList::AddSocketAddressRange(
 }
 
 void SocketAddressBlockList::AddSocketAddressMask(
-    const std::shared_ptr<SocketAddress>& network, int prefix) {
+    const SocketAddress& network, int prefix) {
   Mutex::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressMaskRule>(network, prefix);
@@ -457,56 +456,56 @@ bool SocketAddressBlockList::Apply(const SocketAddress& address) {
 }
 
 SocketAddressBlockList::SocketAddressRule::SocketAddressRule(
-    const std::shared_ptr<SocketAddress>& address_)
+    const SocketAddress& address_)
     : address(address_) {}
 
 SocketAddressBlockList::SocketAddressRangeRule::SocketAddressRangeRule(
-    const std::shared_ptr<SocketAddress>& start_,
-    const std::shared_ptr<SocketAddress>& end_)
+    const SocketAddress& start_,
+    const SocketAddress& end_)
     : start(start_), end(end_) {}
 
 SocketAddressBlockList::SocketAddressMaskRule::SocketAddressMaskRule(
-    const std::shared_ptr<SocketAddress>& network_, int prefix_)
+    const SocketAddress& network_, int prefix_)
     : network(network_), prefix(prefix_) {}
 
 bool SocketAddressBlockList::SocketAddressRule::Apply(
     const SocketAddress& address) {
-  return this->address->is_match(address);
+  return this->address.is_match(address);
 }
 
 std::string SocketAddressBlockList::SocketAddressRule::ToString() {
   std::string ret = "Address: ";
-  ret += address->family() == AF_INET ? "IPv4" : "IPv6";
+  ret += address.family() == AF_INET ? "IPv4" : "IPv6";
   ret += " ";
-  ret += address->address();
+  ret += address.address();
   return ret;
 }
 
 bool SocketAddressBlockList::SocketAddressRangeRule::Apply(
     const SocketAddress& address) {
-  return address >= *start.get() && address <= *end.get();
+  return address >= start && address <= end;
 }
 
 std::string SocketAddressBlockList::SocketAddressRangeRule::ToString() {
   std::string ret = "Range: ";
-  ret += start->family() == AF_INET ? "IPv4" : "IPv6";
+  ret += start.family() == AF_INET ? "IPv4" : "IPv6";
   ret += " ";
-  ret += start->address();
+  ret += start.address();
   ret += "-";
-  ret += end->address();
+  ret += end.address();
   return ret;
 }
 
 bool SocketAddressBlockList::SocketAddressMaskRule::Apply(
     const SocketAddress& address) {
-  return address.is_in_network(*network.get(), prefix);
+  return address.is_in_network(network, prefix);
 }
 
 std::string SocketAddressBlockList::SocketAddressMaskRule::ToString() {
   std::string ret = "Subnet: ";
-  ret += network->family() == AF_INET ? "IPv4" : "IPv6";
+  ret += network.family() == AF_INET ? "IPv4" : "IPv6";
   ret += " ";
-  ret += network->address();
+  ret += network.address();
   ret += "/" + std::to_string(prefix);
   return ret;
 }
@@ -605,7 +604,7 @@ void SocketAddressBlockListWrap::AddAddress(
   SocketAddressBase* addr;
   ASSIGN_OR_RETURN_UNWRAP(&addr, args[0]);
 
-  wrap->blocklist_->AddSocketAddress(addr->address());
+  wrap->blocklist_->AddSocketAddress(*addr->address());
 
   args.GetReturnValue().Set(true);
 }
@@ -625,11 +624,11 @@ void SocketAddressBlockListWrap::AddRange(
   ASSIGN_OR_RETURN_UNWRAP(&end_addr, args[1]);
 
   // Starting address must come before the end address
-  if (*start_addr->address().get() > *end_addr->address().get())
+  if (*start_addr->address() > *end_addr->address())
     return args.GetReturnValue().Set(false);
 
-  wrap->blocklist_->AddSocketAddressRange(start_addr->address(),
-                                          end_addr->address());
+  wrap->blocklist_->AddSocketAddressRange(*start_addr->address(),
+                                          *end_addr->address());
 
   args.GetReturnValue().Set(true);
 }
@@ -655,7 +654,7 @@ void SocketAddressBlockListWrap::AddSubnet(
   CHECK_IMPLIES(addr->address()->family() == AF_INET6, prefix <= 128);
   CHECK_GE(prefix, 0);
 
-  wrap->blocklist_->AddSocketAddressMask(addr->address(), prefix);
+  wrap->blocklist_->AddSocketAddressMask(*addr->address(), prefix);
 
   args.GetReturnValue().Set(true);
 }
