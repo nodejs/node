@@ -3889,11 +3889,13 @@ class Analysis : public NodeVisitor {
       NegativeLookaroundChoiceNode* that) override {
     DCHECK_EQ(that->alternatives()->length(), 2);  // Lookaround and continue.
 
+    RegExpFlags header_flags = flags();
     EnsureAnalyzed(that->lookaround_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(
         Propagators::VisitNegativeLookaroundChoiceLookaroundNode(that));
 
+    set_flags(header_flags);
     EnsureAnalyzed(that->continue_node());
     if (has_failed()) return;
     STATIC_FOR_EACH(
