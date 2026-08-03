@@ -115,6 +115,9 @@ class TLSWrap : public AsyncWrap,
                           size_t session_id_len,
                           bool has_ticket);
 
+  // Schedules 'oncertcb'. The handshake stays suspended until certCbDone().
+  void ScheduleCertCb(std::string servername, bool ocsp);
+
   // Implement MemoryRetainer:
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(TLSWrap)
@@ -149,6 +152,7 @@ class TLSWrap : public AsyncWrap,
   void WaitForCertCb(CertCb cb, void* arg);
   void EmitClientHello(const std::vector<unsigned char>& session_id,
                        bool has_ticket);
+  void EmitCertCb(const std::string& servername, bool ocsp);
 
   TLSWrap(Environment* env,
           v8::Local<v8::Object> obj,
