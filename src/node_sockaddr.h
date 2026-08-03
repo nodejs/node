@@ -262,7 +262,7 @@ class SocketAddressBlockList : public MemoryRetainer {
 
   void Clear();
 
-  size_t size() const { return rules_.size(); }
+  size_t size() const { return address_rules_.size() + rules_.size(); }
 
   v8::MaybeLocal<v8::Array> ListRules(Environment* env);
 
@@ -270,19 +270,6 @@ class SocketAddressBlockList : public MemoryRetainer {
     virtual bool Apply(const SocketAddress& address) = 0;
     inline v8::MaybeLocal<v8::Value> ToV8String(Environment* env);
     virtual std::string ToString() = 0;
-  };
-
-  struct SocketAddressRule final : Rule {
-    SocketAddress address;
-
-    explicit SocketAddressRule(const SocketAddress& address);
-
-    bool Apply(const SocketAddress& address) override;
-    std::string ToString() override;
-
-    void MemoryInfo(node::MemoryTracker* tracker) const override;
-    SET_MEMORY_INFO_NAME(SocketAddressRule)
-    SET_SELF_SIZE(SocketAddressRule)
   };
 
   struct SocketAddressRangeRule final : Rule {
@@ -323,11 +310,12 @@ class SocketAddressBlockList : public MemoryRetainer {
   bool ListRules(Environment* env, v8::LocalVector<v8::Value>* vec);
 
   std::shared_ptr<SocketAddressBlockList> parent_;
+  // Range and subnet rules only. Scanned linearly by Apply().
   std::list<std::unique_ptr<Rule>> rules_;
-  // Keyed by IP only (port-insensitive) so that Apply() can perform
-  // O(1) lookups regardless of the port on the checked address.
-  SocketAddress::IpMap<std::list<std::unique_ptr<Rule>>::iterator>
-      address_rules_;
+  // Exact address rules. Keyed by IP only (port-insensitive) so that
+  // Apply() can perform O(1) lookups regardless of the port on the
+  // checked address. Not included in rules_ to avoid redundant scanning.
+  SocketAddress::IpMap<SocketAddress> address_rules_;
 
   Mutex mutex_;
 };

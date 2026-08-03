@@ -403,26 +403,62 @@ SocketAddressBlockList::SocketAddressBlockList(
 
 void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
   Mutex::ScopedLock lock(mutex_);
-  // Remove any existing rule for this address to avoid orphaning
-  // it in the rules_ list when the address_rules_ iterator is
-  // overwritten.
-  auto existing = address_rules_.find(address);
-  if (existing != address_rules_.end()) {
-    rules_.erase(existing->second);
-    address_rules_.erase(existing);
+  address_rules_[address] = address;
+  // Insert the cross-family counterpart so that both IPv4 and
+  // IPv4-mapped IPv6 lookups resolve in O(1).
+  if (address.family() == AF_INET) {
+    // Map 1.2.3.4 -> ::ffff:1.2.3.4
+    std::string mapped = "::ffff:" + address.address();
+    SocketAddress ipv6;
+    if (SocketAddress::New(AF_INET6, mapped.c_str(), address.port(), &ipv6)) {
+      address_rules_[ipv6] = address;
+    }
+  } else if (address.family() == AF_INET6) {
+    // Check if this is an IPv4-mapped IPv6 address (::ffff:x.x.x.x)
+    // and insert the IPv4 counterpart if so.
+    const sockaddr_in6* in6 =
+        reinterpret_cast<const sockaddr_in6*>(address.data());
+    const uint8_t* bytes =
+        reinterpret_cast<const uint8_t*>(&in6->sin6_addr);
+    constexpr uint8_t ipv4_mapped_prefix[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    if (memcmp(bytes, ipv4_mapped_prefix, sizeof(ipv4_mapped_prefix)) == 0) {
+      sockaddr_in ipv4_addr{};
+      ipv4_addr.sin_family = AF_INET;
+      ipv4_addr.sin_port = in6->sin6_port;
+      memcpy(&ipv4_addr.sin_addr, bytes + sizeof(ipv4_mapped_prefix), 4);
+      SocketAddress ipv4(reinterpret_cast<const sockaddr*>(&ipv4_addr));
+      address_rules_[ipv4] = address;
+    }
   }
-  std::unique_ptr<Rule> rule = std::make_unique<SocketAddressRule>(address);
-  rules_.emplace_front(std::move(rule));
-  address_rules_[address] = rules_.begin();
 }
 
 void SocketAddressBlockList::RemoveSocketAddress(
     const SocketAddress& address) {
   Mutex::ScopedLock lock(mutex_);
-  auto it = address_rules_.find(address);
-  if (it != std::end(address_rules_)) {
-    rules_.erase(it->second);
-    address_rules_.erase(it);
+  address_rules_.erase(address);
+  // Also remove the cross-family counterpart.
+  if (address.family() == AF_INET) {
+    std::string mapped = "::ffff:" + address.address();
+    SocketAddress ipv6;
+    if (SocketAddress::New(AF_INET6, mapped.c_str(), address.port(), &ipv6)) {
+      address_rules_.erase(ipv6);
+    }
+  } else if (address.family() == AF_INET6) {
+    const sockaddr_in6* in6 =
+        reinterpret_cast<const sockaddr_in6*>(address.data());
+    const uint8_t* bytes =
+        reinterpret_cast<const uint8_t*>(&in6->sin6_addr);
+    constexpr uint8_t ipv4_mapped_prefix[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    if (memcmp(bytes, ipv4_mapped_prefix, sizeof(ipv4_mapped_prefix)) == 0) {
+      sockaddr_in ipv4_addr{};
+      ipv4_addr.sin_family = AF_INET;
+      ipv4_addr.sin_port = in6->sin6_port;
+      memcpy(&ipv4_addr.sin_addr, bytes + sizeof(ipv4_mapped_prefix), 4);
+      SocketAddress ipv4(reinterpret_cast<const sockaddr*>(&ipv4_addr));
+      address_rules_.erase(ipv4);
+    }
   }
 }
 
@@ -446,11 +482,11 @@ void SocketAddressBlockList::AddSocketAddressMask(
 
 bool SocketAddressBlockList::Apply(const SocketAddress& address) {
   Mutex::ScopedLock lock(mutex_);
-  // Fast-path: O(1) lookup for exact same-family address matches.
-  // The address_rules_ map uses IpHash/IpEqual (port-insensitive,
-  // family-sensitive). Cross-family matches (e.g. ::ffff:1.1.1.1
-  // against a 1.1.1.1 rule) fall through to the linear scan below.
+  // O(1) lookup for exact address matches. The address_rules_ map
+  // uses IpHash/IpEqual (port-insensitive, family-sensitive).
   if (address_rules_.count(address)) return true;
+  // Linear scan for range and subnet rules only. Exact address
+  // rules are not in this list.
   for (const auto& rule : rules_) {
     if (rule->Apply(address)) return true;
   }
@@ -463,10 +499,6 @@ void SocketAddressBlockList::Clear() {
   address_rules_.clear();
 }
 
-SocketAddressBlockList::SocketAddressRule::SocketAddressRule(
-    const SocketAddress& address_)
-    : address(address_) {}
-
 SocketAddressBlockList::SocketAddressRangeRule::SocketAddressRangeRule(
     const SocketAddress& start_,
     const SocketAddress& end_)
@@ -475,19 +507,6 @@ SocketAddressBlockList::SocketAddressRangeRule::SocketAddressRangeRule(
 SocketAddressBlockList::SocketAddressMaskRule::SocketAddressMaskRule(
     const SocketAddress& network_, int prefix_)
     : network(network_), prefix(prefix_) {}
-
-bool SocketAddressBlockList::SocketAddressRule::Apply(
-    const SocketAddress& address) {
-  return this->address.is_match(address);
-}
-
-std::string SocketAddressBlockList::SocketAddressRule::ToString() {
-  std::string ret = "Address: ";
-  ret += address.family() == AF_INET ? "IPv4" : "IPv6";
-  ret += " ";
-  ret += address.address();
-  return ret;
-}
 
 bool SocketAddressBlockList::SocketAddressRangeRule::Apply(
     const SocketAddress& address) {
@@ -529,6 +548,22 @@ bool SocketAddressBlockList::ListRules(Environment* env,
                                        LocalVector<Value>* rules) {
   // List local rules first, then parent rules, matching the
   // evaluation order in Apply().
+  //
+  // address_rules_ may contain cross-family duplicates (e.g. both
+  // 1.1.1.1 and ::ffff:1.1.1.1 map to the same original address).
+  // Track which originals have been listed to avoid duplicates.
+  SocketAddress::Map<bool> seen;
+  for (const auto& [_, address] : address_rules_) {
+    if (seen.count(address)) continue;
+    seen[address] = true;
+    std::string str = "Address: ";
+    str += address.family() == AF_INET ? "IPv4" : "IPv6";
+    str += " ";
+    str += address.address();
+    Local<Value> v;
+    if (!ToV8Value(env->context(), str).ToLocal(&v)) return false;
+    rules->push_back(v);
+  }
   for (const auto& rule : rules_) {
     Local<Value> str;
     if (!rule->ToV8String(env).ToLocal(&str)) return false;
@@ -539,11 +574,8 @@ bool SocketAddressBlockList::ListRules(Environment* env,
 
 void SocketAddressBlockList::MemoryInfo(node::MemoryTracker* tracker) const {
   tracker->TrackField("rules", rules_);
-}
-
-void SocketAddressBlockList::SocketAddressRule::MemoryInfo(
-    node::MemoryTracker* tracker) const {
-  tracker->TrackField("address", address);
+  tracker->TrackFieldWithSize(
+      "address_rules", address_rules_.size() * sizeof(SocketAddress));
 }
 
 void SocketAddressBlockList::SocketAddressRangeRule::MemoryInfo(
