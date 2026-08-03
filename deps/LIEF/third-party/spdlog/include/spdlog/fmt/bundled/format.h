@@ -39,6 +39,8 @@
 #endif
 
 #include "base.h"
+#include <cstdlib>	// Needed for malloc support
+              			// when using clang compiler
 
 #ifndef FMT_MODULE
 #  include <cmath>    // std::signbit
