@@ -32,14 +32,14 @@ const { createConnection, createServer } = require('net');
 
       if (common.hasIPv6) {
         assert.strictEqual(error.code, 'ECONNREFUSED');
-        assert.strictEqual(error.message, `connect ECONNREFUSED ::1:${port}`);
+        assert.strictEqual(error.message, `connect ECONNREFUSED [::1]:${port}`);
       } else if (error.code === 'EAFNOSUPPORT') {
-        assert.strictEqual(error.message, `connect EAFNOSUPPORT ::1:${port} - Local (undefined:undefined)`);
+        assert.strictEqual(error.message, `connect EAFNOSUPPORT [::1]:${port} - Local (undefined:undefined)`);
       } else if (error.code === 'EUNATCH') {
-        assert.strictEqual(error.message, `connect EUNATCH ::1:${port} - Local (:::0)`);
+        assert.strictEqual(error.message, `connect EUNATCH [::1]:${port} - Local ([::]:0)`);
       } else {
         assert.strictEqual(error.code, 'EADDRNOTAVAIL');
-        assert.strictEqual(error.message, `connect EADDRNOTAVAIL ::1:${port} - Local (:::0)`);
+        assert.strictEqual(error.message, `connect EADDRNOTAVAIL [::1]:${port} - Local ([::]:0)`);
       }
 
       ipv4Server.close();
