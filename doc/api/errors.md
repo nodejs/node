@@ -1508,7 +1508,7 @@ New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 
 ### `ERR_HTTP2_HEADERS_AFTER_RESPOND`
 
-An additional headers was specified after an HTTP/2 response was initiated.
+Additional headers were specified after an HTTP/2 response was initiated.
 
 <a id="ERR_HTTP2_HEADERS_SENT"></a>
 
@@ -2817,7 +2817,7 @@ changes:
     description: Added the `requireStack` and `topLevelAwaitLocations` properties.
 -->
 
-When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
+When trying to `require()` an [ES Module][], the module turns out to be asynchronous.
 That is, it contains top-level await.
 
 When uncaught, the flag `--experimental-print-required-tla` prints
@@ -2839,7 +2839,7 @@ This error has the following additional non-enumerable properties:
 
 ### `ERR_REQUIRE_CYCLE_MODULE`
 
-When trying to `require()` a [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
+When trying to `require()` an [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
 participates in an immediate cycle.
 This is not allowed because ES Modules cannot be evaluated while they are
 already being evaluated.
