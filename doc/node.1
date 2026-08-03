@@ -159,9 +159,9 @@ code from strings throw an exception instead. This does not affect the Node.js
 `vm` module.
 .
 .It Fl -enable-fips
-Enable FIPS-compliant crypto at startup.
-Requires Node.js to be built with
-.Sy ./configure --openssl-fips .
+Enable FIPS mode at startup. With OpenSSL 3, a configured provider named
+\fBfips\fR must be available and initialize successfully. With OpenSSL 1.1.1,
+Node.js must be built against a FIPS-capable OpenSSL.
 .
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
@@ -322,10 +322,8 @@ Enable experimental support for storage inspection.
 Disable loading native addons that are not context-aware.
 .
 .It Fl -force-fips
-Force FIPS-compliant crypto on startup
-(Cannot be disabled from script code).
-Same requirements as
-.Fl -enable-fips .
+Enable FIPS mode at startup and prevent it from being disabled from script
+code. The same OpenSSL requirements as \fB--enable-fips\fR apply.
 .
 .It Fl -frozen-intrinsics
 Enable experimental frozen intrinsics support.
@@ -464,9 +462,24 @@ Enable extra debug checks for memory leaks in Node.js internals. This is
 usually only useful for developers debugging Node.js itself.
 .
 .It Fl -openssl-config Ns = Ns Ar file
-Load an OpenSSL configuration file on startup.
-Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is built with
-.Sy ./configure --openssl-fips .
+Load an OpenSSL configuration file on startup. The file can activate an
+OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
+FIPS mode.
+This option takes precedence over the \fBOPENSSL_CONF\fR environment variable.
+.
+.It Fl -openssl-legacy-provider
+Enable OpenSSL 3.0 legacy provider. For more information please see
+OSSL_PROVIDER-legacy.
+.
+.It Fl -openssl-shared-config
+Enable OpenSSL default configuration section, \fBopenssl_conf\fR to be read from
+the OpenSSL configuration file. The default configuration file is named
+\fBopenssl.cnf\fR but this can be changed using the environment variable
+\fBOPENSSL_CONF\fR, or by using the command line option \fB--openssl-config\fR.
+The location of the default OpenSSL configuration file depends on how OpenSSL
+is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
+implications and it is recommended to use a configuration section specific to
+Node.js which is \fBnodejs_conf\fR and is default when this option is not used.
 .
 .It Fl -pending-deprecation
 Emit pending deprecation warnings.
@@ -986,13 +999,10 @@ When set, Node.js writes JavaScript code coverage information to
 .Ar dir .
 .
 .It Ev OPENSSL_CONF Ar file
-Load an OpenSSL configuration file on startup.
-Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is built with
-.Sy ./configure --openssl-fips .
-.Pp
-If the
-.Fl -openssl-config
-command-line option is used, this environment variable is ignored.
+Load an OpenSSL configuration file on startup. The file can be used as part of
+a FIPS mode configuration.
+If the \fB--openssl-config\fR command-line option is used, the environment
+variable is ignored.
 .
 .It Ev SSL_CERT_DIR Ar dir
 If
