@@ -402,6 +402,14 @@ SocketAddressBlockList::SocketAddressBlockList(
 void SocketAddressBlockList::AddSocketAddress(
     const std::shared_ptr<SocketAddress>& address) {
   Mutex::ScopedLock lock(mutex_);
+  // Remove any existing rule for this address to avoid orphaning
+  // it in the rules_ list when the address_rules_ iterator is
+  // overwritten.
+  auto existing = address_rules_.find(*address.get());
+  if (existing != address_rules_.end()) {
+    rules_.erase(existing->second);
+    address_rules_.erase(existing);
+  }
   std::unique_ptr<Rule> rule = std::make_unique<SocketAddressRule>(address);
   rules_.emplace_front(std::move(rule));
   address_rules_[*address.get()] = rules_.begin();

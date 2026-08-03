@@ -288,6 +288,20 @@ const util = require('util');
   assert(!BlockList.isBlockList({}));
 }
 
+{
+  // Test that adding the same address twice does not create duplicate rules.
+  // Previously, the second add would orphan the first rule in the internal
+  // list while overwriting its index entry, making it unreachable for removal
+  // but still evaluated during checks.
+  const blockList = new BlockList();
+  blockList.addAddress('1.1.1.1');
+  blockList.addAddress('1.1.1.1');
+
+  // Should have exactly one rule, not two.
+  assert.strictEqual(blockList.rules.length, 1);
+  assert(blockList.check('1.1.1.1'));
+}
+
 // Test exporting and importing the rule list to/from JSON
 {
   const ruleList = [
