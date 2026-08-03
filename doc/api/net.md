@@ -2135,7 +2135,7 @@ Creates a new TCP or [IPC][] server.
 If `allowHalfOpen` is set to `true`, when the other end of the socket
 signals the end of transmission, the server will only send back the end of
 transmission when [`socket.end()`][] is explicitly called. For example, in the
-context of TCP, when a FIN packed is received, a FIN packed is sent
+context of TCP, when a FIN packet is received, a FIN packet is sent
 back only when [`socket.end()`][] is explicitly called. Until then the
 connection is half-closed (non-readable but still writable). See [`'end'`][]
 event and [RFC 1122][half-closed] (section 4.2.2.13) for more information.
