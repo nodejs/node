@@ -301,8 +301,8 @@ enum class Direction : uint8_t {
 };
 
 enum class StreamType : uint8_t {
-  QUICSTREAM, // standard quic stream
-  WTSTREAM, // quic stream associated with webtransport session
+  QUICSTREAM,  // standard quic stream
+  WTSTREAM,  // quic stream associated with webtransport session
 };
 
 enum class HeadersKind : uint8_t {

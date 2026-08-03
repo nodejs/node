@@ -375,7 +375,7 @@ class Http3ApplicationImpl final : public Session::Application {
     Debug(&session(),
           "HTTP/3 application extending max stream data to %" PRIu64,
           max_data);
-    stream->UpdateWriteDesiredSize(); // the stream might be blocked on js side
+    stream->UpdateWriteDesiredSize();  // the stream might be blocked on js side
     nghttp3_conn_unblock_stream(*this, stream->id());
   }
 
@@ -511,8 +511,9 @@ class Http3ApplicationImpl final : public Session::Application {
       code = error.code();
     }
 
-    int rv = nghttp3_conn_close_stream2(*this, NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET,
-                                        stream->id(), code, 0);
+    int rv = nghttp3_conn_close_stream2(*this,
+                      NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET,
+                      stream->id(), code, 0);
     // If the call is successful, Http3Application::OnStreamClose callback will
     // be invoked when the stream is ready to be closed. We'll handle destroying
     // the actual Stream object there.
@@ -650,18 +651,19 @@ class Http3ApplicationImpl final : public Session::Application {
     return false;
   }
 
-  bool MakeWebtransportStream(const Stream& stream, int64_t sessionid) override {
+  bool MakeWebtransportStream(const Stream& stream,
+                              int64_t sessionid) override {
     Session::SendPendingDataScope send_scope(&session());
     static constexpr nghttp3_data_reader reader = {on_read_data_callback};
-    const nghttp3_data_reader* reader_ptr = &reader; // can use the same reader
+    const nghttp3_data_reader* reader_ptr = &reader;  // can use the same reader
 
     Debug(&session(),
               "Make stream %" PRIu64 " webtransport stream of session %" PRIu64,
               stream.id(),
               sessionid);
-    // we only need to do this, if we can send data
+    //  we only need to do this, if we can send data
     if (stream.is_remote_unidirectional())
-      return true; // so bail out for remote unidirectional streams
+      return true;  // so bail out for remote unidirectional streams
     return nghttp3_conn_open_wt_data_stream(*this,
                                      sessionid,
                                      stream.id(),
@@ -677,9 +679,8 @@ class Http3ApplicationImpl final : public Session::Application {
   bool CloseWebtransportSessionStream(
       const Stream& stream,
       uint32_t wt_error_code,
-      const uint8_t *msg,
-      size_t msglen
-    ) override {
+      const uint8_t* msg,
+      size_t msglen) override {
     Session::SendPendingDataScope send_scope(&session());
     Debug(&session(),
           "Close webtransport session stream %" PRIu64,
@@ -877,7 +878,7 @@ class Http3ApplicationImpl final : public Session::Application {
     return Http3ConnectionPointer(conn);
   }
 
-  void OnStreamClose(Stream* stream, uint32_t flags, 
+  void OnStreamClose(Stream* stream, uint32_t flags,
                      error_code rx_app_error_code,
                      error_code tx_app_error_code) {
     if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
@@ -1299,32 +1300,36 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
-  static int on_receive_wt_data(nghttp3_conn *conn,
+  static int on_receive_wt_data(nghttp3_conn* conn,
                                 int64_t session_id,
                                 int64_t stream_id,
-                                const uint8_t *data,
+                                const uint8_t* data,
                                 size_t datalen,
-                                void *conn_user_data,
-                                void *stream_user_data) {
+                                void* conn_user_data,
+                                void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto& session = app.session();
-    if (auto stream = FindOrCreateStream(conn, &session, stream_id)) [[likely]] {
+    if (auto stream = FindOrCreateStream(conn,
+                            &session,
+                            stream_id)) [[likely]] {
       stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
       return NGTCP2_SUCCESS;
     }
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
-  static int on_wt_data_stream_open(nghttp3_conn *conn,
+  static int on_wt_data_stream_open(nghttp3_conn* conn,
                                      int64_t session_id,
                                      int64_t stream_id,
-                                     void *conn_user_data,
-                                     void *stream_user_data) {
+                                     void* conn_user_data,
+                                     void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto& session = app.session();
-    if (auto stream = FindOrCreateStream(conn, &session, stream_id)) [[likely]] {
+    if (auto stream = FindOrCreateStream(conn,
+                                         &session,
+                                         stream_id)) [[likely]] {
       if (!app.MakeWebtransportStream(*stream.get(), session_id)) {
-        stream->Destroy(); // close stream forcefully, TODO may be use an assert instead?
+        stream->Destroy();  // close stream forcefully
         return NGHTTP3_ERR_CALLBACK_FAILURE;
       }
       stream->NotifyWTSession(session_id);
@@ -1333,16 +1338,18 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
-  static int on_recv_wt_close_session(nghttp3_conn *conn,
+  static int on_recv_wt_close_session(nghttp3_conn* conn,
                                       int64_t session_id,
                                       uint32_t wt_error_code,
-                                      const uint8_t *msg,
+                                      const uint8_t* msg,
                                       size_t msglen,
-                                      void *conn_user_data,
-                                      void *stream_user_data) {
+                                      void* conn_user_data,
+                                      void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto& session = app.session();
-    if (auto stream = FindOrCreateStream(conn, &session, session_id)) [[likely]] {
+    if (auto stream = FindOrCreateStream(conn,
+                                         &session,
+                                         session_id)) [[likely]] {
       stream->NotifyWTSessionClose(wt_error_code, msg, msglen);
       return NGTCP2_SUCCESS;
     }
@@ -1531,7 +1538,7 @@ class Http3ApplicationImpl final : public Session::Application {
 
   static constexpr nghttp3_callbacks kCallbacks = {
       on_acked_stream_data,
-      nullptr, //nghttp3_stream_close (deprecated)
+      nullptr,  // nghttp3_stream_close (deprecated)
       on_receive_data,
       on_deferred_consume,
       on_begin_headers,

@@ -221,7 +221,7 @@ class Session::Application : public MemoryRetainer {
   virtual bool CloseWebtransportSessionStream(
       const Stream& stream,
       uint32_t wt_error_code,
-      const uint8_t *msg,
+      const uint8_t* msg,
       size_t msglen
     ) {
       return false;
