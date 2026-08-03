@@ -882,8 +882,9 @@ priority than `--dns-result-order`.
 added: v6.0.0
 -->
 
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
-against FIPS-compatible OpenSSL.)
+Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
+`fips` must be available and initialize successfully. With OpenSSL 1.1.1,
+Node.js must be built against a FIPS-capable OpenSSL.
 
 ### `--enable-source-maps`
 
@@ -1582,8 +1583,8 @@ Disable loading native addons that are not [context-aware][].
 added: v6.0.0
 -->
 
-Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as `--enable-fips`.)
+Enable [FIPS mode][] at startup and prevent it from being disabled from script
+code. The same OpenSSL requirements as [`--enable-fips`][] apply.
 
 ### `--force-node-api-uncaught-exceptions-policy`
 
@@ -2273,9 +2274,11 @@ usually only useful for developers debugging Node.js itself.
 added: v6.9.0
 -->
 
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built
-against FIPS-enabled OpenSSL.
+Load an OpenSSL configuration file on startup. The file can activate an
+OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
+[FIPS mode][].
+
+This option takes precedence over the `OPENSSL_CONF` environment variable.
 
 ### `--openssl-legacy-provider`
 
@@ -4256,9 +4259,8 @@ environment variable is arbitrary.
 added: v6.11.0
 -->
 
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-`./configure --openssl-fips`.
+Load an OpenSSL configuration file on startup. The file can be used as part of
+a [FIPS mode][] configuration.
 
 If the [`--openssl-config`][] command-line option is used, the environment
 variable is ignored.
@@ -4465,6 +4467,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ECMAScript module]: esm.md#modules-ecmascript-modules
 [EventSource Web API]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
+[FIPS mode]: crypto.md#fips-mode
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module resolution and loading]: packages.md#module-resolution-and-loading
@@ -4494,6 +4497,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--disable-sigusr1`]: #--disable-sigusr1
+[`--enable-fips`]: #--enable-fips
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
