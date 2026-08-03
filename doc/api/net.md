@@ -181,29 +181,6 @@ added: REPLACEME
 
 Clears all rules from the `BlockList`.
 
-### `blockList.rules`
-
-<!-- YAML
-added:
-  - v15.0.0
-  - v14.18.0
--->
-
-* Type: {string\[]}
-
-The list of rules added to the blocklist.
-
-### `BlockList.isBlockList(value)`
-
-<!-- YAML
-added:
-  - v23.4.0
-  - v22.13.0
--->
-
-* `value` {any} Any JS value
-* Returns `true` if the `value` is a `net.BlockList`.
-
 ### `blockList.fromJSON(value)`
 
 > Stability: 1.2 - Release candidate
@@ -227,6 +204,60 @@ blockList.fromJSON(JSON.stringify(data));
 ```
 
 * `value` Blocklist.rules
+
+### `BlockList.isBlockList(value)`
+
+<!-- YAML
+added:
+  - v23.4.0
+  - v22.13.0
+-->
+
+* `value` {any} Any JS value
+* Returns `true` if the `value` is a `net.BlockList`.
+
+### `blockList.removeRange(start, end[, type])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `start` {string|net.SocketAddress} The starting IPv4 or IPv6 address in the
+  range.
+* `end` {string|net.SocketAddress} The ending IPv4 or IPv6 address in the range.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
+
+Removes a rule that was previously added with `blockList.addRange()`. The `start`
+and `end` addresses must match exactly the values used when the rule was added.
+If the specified range does not exist, this is a no-op.
+
+### `blockList.removeSubnet(net, prefix[, type])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `net` {string|net.SocketAddress} The network IPv4 or IPv6 address.
+* `prefix` {number} The number of CIDR prefix bits. For IPv4, this
+  must be a value between `0` and `32`. For IPv6, this must be between
+  `0` and `128`.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
+
+Removes a rule that was previously added with `blockList.addSubnet()`. The
+network address and prefix must match exactly the values used when the rule was
+added. If the specified subnet does not exist, this is a no-op.
+
+### `blockList.rules`
+
+<!-- YAML
+added:
+  - v15.0.0
+  - v14.18.0
+-->
+
+* Type: {string\[]}
+
+The list of rules added to the blocklist.
 
 ### `blockList.toJSON()`
 

@@ -257,8 +257,14 @@ class SocketAddressBlockList : public MemoryRetainer {
   void AddSocketAddressRange(const SocketAddress& start,
                              const SocketAddress& end);
 
+  void RemoveSocketAddressRange(const SocketAddress& start,
+                                const SocketAddress& end);
+
   void AddSocketAddressMask(const SocketAddress& address,
                             int prefix);
+
+  void RemoveSocketAddressMask(const SocketAddress& address,
+                               int prefix);
 
   bool Apply(const SocketAddress& address);
 
@@ -329,6 +335,10 @@ class SocketAddressBlockList : public MemoryRetainer {
 
     // Returns true if the given address falls within any inserted subnet.
     bool Lookup(const uint8_t* address_bytes, int address_bits) const;
+
+    // Remove a previously inserted subnet. Returns true if it was found
+    // and removed.
+    bool Remove(const uint8_t* address_bytes, int prefix_length);
 
     // Remove all entries.
     void Clear();
@@ -402,6 +412,8 @@ class SocketAddressBlockListWrap : public BaseObject {
   static void AddAddresses(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveRange(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool FastCheck(v8::Local<v8::Object> receiver,
                         v8::Local<v8::Object> addr_obj);

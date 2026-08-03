@@ -430,3 +430,122 @@ const util = require('util');
     assert.strictEqual(test5.check(i[0], i[1]), i[2]);
   });
 }
+
+// removeRange: basic removal
+{
+  const blockList = new BlockList();
+  blockList.addRange('10.0.0.1', '10.0.0.100');
+  blockList.addRange('192.168.1.1', '192.168.1.50');
+  assert(blockList.check('10.0.0.50'));
+  assert(blockList.check('192.168.1.25'));
+
+  blockList.removeRange('10.0.0.1', '10.0.0.100');
+  assert(!blockList.check('10.0.0.50'));
+  assert(blockList.check('192.168.1.25'));
+  assert.strictEqual(blockList.rules.length, 1);
+}
+
+// removeRange: non-existent range is a no-op
+{
+  const blockList = new BlockList();
+  blockList.addRange('10.0.0.1', '10.0.0.10');
+  assert.strictEqual(blockList.rules.length, 1);
+  blockList.removeRange('99.99.99.1', '99.99.99.10');
+  assert.strictEqual(blockList.rules.length, 1);
+  assert(blockList.check('10.0.0.5'));
+}
+
+// removeRange: IPv6 range
+{
+  const blockList = new BlockList();
+  blockList.addRange('2001:db8::1', '2001:db8::ff', 'ipv6');
+  assert(blockList.check('2001:db8::50', 'ipv6'));
+
+  blockList.removeRange('2001:db8::1', '2001:db8::ff', 'ipv6');
+  assert(!blockList.check('2001:db8::50', 'ipv6'));
+  assert.strictEqual(blockList.rules.length, 0);
+}
+
+// removeRange: with SocketAddress objects
+{
+  const blockList = new BlockList();
+  const start = new SocketAddress({ address: '10.0.0.1' });
+  const end = new SocketAddress({ address: '10.0.0.10' });
+  blockList.addRange(start, end);
+  assert(blockList.check('10.0.0.5'));
+
+  blockList.removeRange(start, end);
+  assert(!blockList.check('10.0.0.5'));
+}
+
+// removeSubnet: basic IPv4 removal
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('10.0.0.0', 8);
+  blockList.addSubnet('192.168.0.0', 16);
+  assert(blockList.check('10.1.2.3'));
+  assert(blockList.check('192.168.5.5'));
+
+  blockList.removeSubnet('10.0.0.0', 8);
+  assert(!blockList.check('10.1.2.3'));
+  assert(blockList.check('192.168.5.5'));
+  assert.strictEqual(blockList.rules.length, 1);
+}
+
+// removeSubnet: IPv6
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('2001:db8::', 32, 'ipv6');
+  assert(blockList.check('2001:db8::1', 'ipv6'));
+
+  blockList.removeSubnet('2001:db8::', 32, 'ipv6');
+  assert(!blockList.check('2001:db8::1', 'ipv6'));
+  assert.strictEqual(blockList.rules.length, 0);
+}
+
+// removeSubnet: cross-family cleanup
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('10.0.0.0', 8);
+  assert(blockList.check('::ffff:10.0.0.1', 'ipv6'));
+
+  blockList.removeSubnet('10.0.0.0', 8);
+  assert(!blockList.check('10.0.0.1'));
+  assert(!blockList.check('::ffff:10.0.0.1', 'ipv6'));
+}
+
+// removeSubnet: non-existent subnet is a no-op
+{
+  const blockList = new BlockList();
+  blockList.addSubnet('10.0.0.0', 8);
+  blockList.removeSubnet('172.16.0.0', 12);
+  assert(blockList.check('10.1.2.3'));
+  assert.strictEqual(blockList.rules.length, 1);
+}
+
+// removeSubnet: with SocketAddress objects
+{
+  const blockList = new BlockList();
+  const net = new SocketAddress({ address: '10.0.0.0' });
+  blockList.addSubnet(net, 8);
+  assert(blockList.check('10.1.2.3'));
+
+  blockList.removeSubnet(net, 8);
+  assert(!blockList.check('10.1.2.3'));
+}
+
+// removeRange/removeSubnet don't affect other rule types
+{
+  const blockList = new BlockList();
+  blockList.addAddress('1.1.1.1');
+  blockList.addRange('10.0.0.1', '10.0.0.100');
+  blockList.addSubnet('192.168.0.0', 16);
+
+  blockList.removeRange('10.0.0.1', '10.0.0.100');
+  blockList.removeSubnet('192.168.0.0', 16);
+
+  // Address rule should still work
+  assert(blockList.check('1.1.1.1'));
+  assert(!blockList.check('10.0.0.50'));
+  assert(!blockList.check('192.168.1.1'));
+}

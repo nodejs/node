@@ -465,6 +465,60 @@ bool SocketAddressBlockList::SubnetTrie::Lookup(const uint8_t* address_bytes,
   return false;
 }
 
+bool SocketAddressBlockList::SubnetTrie::Remove(const uint8_t* address_bytes,
+                                                 int prefix_length) {
+  if (root_ == nullptr) return false;
+
+  // Walk the trie to find the node at prefix_length depth.
+  // Keep a stack of parent pointers so we can prune empty branches.
+  Node* node = root_.get();
+  struct Ancestor {
+    Node* parent;
+    int bit;
+  };
+  // Max depth is 128 bits for IPv6.
+  Ancestor ancestors[128];
+  int depth = 0;
+
+  for (int i = 0; i < prefix_length; i++) {
+    if (node->terminal) {
+      // A broader prefix exists — the specific prefix we're trying
+      // to remove is subsumed and doesn't exist as a separate entry.
+      return false;
+    }
+    int bit = GetBit(address_bytes, i);
+    if (node->children[bit] == nullptr) return false;
+    ancestors[depth++] = {node, bit};
+    node = node->children[bit].get();
+  }
+
+  if (!node->terminal) return false;
+
+  node->terminal = false;
+  count_--;
+
+  // Prune empty leaf nodes up the tree.
+  for (int i = depth - 1; i >= 0; i--) {
+    Node* child = ancestors[i].parent->children[ancestors[i].bit].get();
+    if (!child->terminal &&
+        child->children[0] == nullptr &&
+        child->children[1] == nullptr) {
+      ancestors[i].parent->children[ancestors[i].bit].reset();
+    } else {
+      break;
+    }
+  }
+
+  // If root is now empty and non-terminal, reset it.
+  if (!root_->terminal &&
+      root_->children[0] == nullptr &&
+      root_->children[1] == nullptr) {
+    root_.reset();
+  }
+
+  return true;
+}
+
 void SocketAddressBlockList::SubnetTrie::Clear() {
   root_.reset();
   count_ = 0;
@@ -614,6 +668,51 @@ void SocketAddressBlockList::AddSocketAddressMask(
   // Keep metadata for ListRules serialization.
   subnet_rules_.emplace_front(
       std::make_unique<SocketAddressMaskRule>(network, prefix));
+}
+
+void SocketAddressBlockList::RemoveSocketAddressRange(
+    const SocketAddress& start,
+    const SocketAddress& end) {
+  RwLock::ScopedLock lock(mutex_);
+  // rules_ contains only SocketAddressRangeRule instances (subnet rules
+  // are stored separately in subnet_rules_).
+  for (auto it = rules_.begin(); it != rules_.end(); ++it) {
+    auto* range = static_cast<SocketAddressRangeRule*>(it->get());
+    if (range->start == start && range->end == end) {
+      rules_.erase(it);
+      return;
+    }
+  }
+}
+
+void SocketAddressBlockList::RemoveSocketAddressMask(
+    const SocketAddress& network,
+    int prefix) {
+  RwLock::ScopedLock lock(mutex_);
+  int bits;
+  const uint8_t* bytes = GetAddressBytes(network, &bits);
+
+  if (network.family() == AF_INET) {
+    ipv4_subnets_.Remove(bytes, prefix);
+    uint8_t mapped[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    memcpy(mapped + 12, bytes, 4);
+    ipv6_subnets_.Remove(mapped, prefix + 96);
+  } else {
+    ipv6_subnets_.Remove(bytes, prefix);
+    constexpr uint8_t v4mapped[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    if (prefix >= 96 && memcmp(bytes, v4mapped, 12) == 0) {
+      ipv4_subnets_.Remove(bytes + 12, prefix - 96);
+    }
+  }
+
+  // Remove from subnet_rules_ metadata list.
+  for (auto it = subnet_rules_.begin(); it != subnet_rules_.end(); ++it) {
+    if ((*it)->network == network && (*it)->prefix == prefix) {
+      subnet_rules_.erase(it);
+      return;
+    }
+  }
 }
 
 bool SocketAddressBlockList::Apply(const SocketAddress& address) {
@@ -889,6 +988,44 @@ void SocketAddressBlockListWrap::AddSubnet(
   args.GetReturnValue().Set(true);
 }
 
+void SocketAddressBlockListWrap::RemoveRange(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  CHECK(SocketAddressBase::HasInstance(env, args[0]));
+  CHECK(SocketAddressBase::HasInstance(env, args[1]));
+
+  SocketAddressBase* start_addr;
+  SocketAddressBase* end_addr;
+  ASSIGN_OR_RETURN_UNWRAP(&start_addr, args[0]);
+  ASSIGN_OR_RETURN_UNWRAP(&end_addr, args[1]);
+
+  wrap->blocklist_->RemoveSocketAddressRange(*start_addr->address(),
+                                              *end_addr->address());
+}
+
+void SocketAddressBlockListWrap::RemoveSubnet(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  CHECK(SocketAddressBase::HasInstance(env, args[0]));
+  CHECK(args[1]->IsInt32());
+
+  SocketAddressBase* addr;
+  ASSIGN_OR_RETURN_UNWRAP(&addr, args[0]);
+
+  int32_t prefix;
+  if (!args[1]->Int32Value(env->context()).To(&prefix)) {
+    return;
+  }
+
+  wrap->blocklist_->RemoveSocketAddressMask(*addr->address(), prefix);
+}
+
 void SocketAddressBlockListWrap::Check(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -978,6 +1115,8 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "addAddresses", AddAddresses);
     SetProtoMethod(isolate, tmpl, "addRange", AddRange);
     SetProtoMethod(isolate, tmpl, "addSubnet", AddSubnet);
+    SetProtoMethod(isolate, tmpl, "removeRange", RemoveRange);
+    SetProtoMethod(isolate, tmpl, "removeSubnet", RemoveSubnet);
     SetFastMethod(
         isolate, tmpl->PrototypeTemplate(), "check", Check, &fast_check_);
     SetProtoMethod(isolate, tmpl, "checkString", CheckString);
