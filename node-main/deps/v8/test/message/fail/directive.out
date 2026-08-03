@@ -1,0 +1,4 @@
+*%(basename)s:6: SyntaxError: Illegal 'use strict' directive in function with non-simple parameter list
+  "use strict";
+  ^^^^^^^^^^^^
+SyntaxError: Illegal 'use strict' directive in function with non-simple parameter list

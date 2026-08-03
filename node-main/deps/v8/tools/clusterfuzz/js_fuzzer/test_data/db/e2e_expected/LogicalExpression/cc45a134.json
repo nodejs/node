@@ -1,0 +1,1 @@
+{"type":"LogicalExpression","source":"VAR_1 && VAR_2()","path":"e2e/input1.js","dependencies":["VAR_1","VAR_2"]}

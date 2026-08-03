@@ -1,0 +1,100 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+macro ConvertAndClampRelativeIndex(index: Number, length: Number): Number {
+  try {
+    return ConvertRelativeIndex(index, length) otherwise OutOfBoundsLow,
+           OutOfBoundsHigh;
+  } label OutOfBoundsLow {
+    return 0;
+  } label OutOfBoundsHigh {
+    return length;
+  }
+}
+
+// https://tc39.github.io/ecma262/#sec-array.prototype.copyWithin
+transitioning javascript builtin ArrayPrototypeCopyWithin(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const object: JSReceiver = ToObject_Inline(context, receiver);
+
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  const length: Number = GetLengthProperty(object);
+
+  // 3. Let relativeTarget be ? ToInteger(target).
+  const relativeTarget: Number = ToInteger_Inline(arguments[0]);
+
+  // 4. If relativeTarget < 0, let to be max((len + relativeTarget), 0);
+  //    else let to be min(relativeTarget, len).
+  let to: Number = ConvertAndClampRelativeIndex(relativeTarget, length);
+
+  // 5. Let relativeStart be ? ToInteger(start).
+  const relativeStart: Number = ToInteger_Inline(arguments[1]);
+
+  // 6. If relativeStart < 0, let from be max((len + relativeStart), 0);
+  //    else let from be min(relativeStart, len).
+  let from: Number = ConvertAndClampRelativeIndex(relativeStart, length);
+
+  // 7. If end is undefined, let relativeEnd be len;
+  //    else let relativeEnd be ? ToInteger(end).
+  let relativeEnd: Number = length;
+  if (arguments[2] != Undefined) {
+    relativeEnd = ToInteger_Inline(arguments[2]);
+  }
+
+  // 8. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
+  //    else let final be min(relativeEnd, len).
+  const final: Number = ConvertAndClampRelativeIndex(relativeEnd, length);
+
+  // 9. Let count be min(final-from, len-to).
+  let count: Number = Min(final - from, length - to);
+
+  // 10. If from<to and to<from+count, then.
+  let direction: Number = 1;
+
+  if (from < to && to < (from + count)) {
+    // a. Let direction be -1.
+    direction = -1;
+
+    // b. Let from be from + count - 1.
+    from = from + count - 1;
+
+    // c. Let to be to + count - 1.
+    to = to + count - 1;
+  }
+
+  // 12. Repeat, while count > 0.
+  while (count > 0) {
+    // a. Let fromKey be ! ToString(from).
+    // b. Let toKey be ! ToString(to).
+    // c. Let fromPresent be ? HasProperty(O, fromKey).
+    const fromPresent: Boolean = HasProperty(object, from);
+
+    // d. If fromPresent is true, then.
+    if (fromPresent == True) {
+      // i. Let fromVal be ? Get(O, fromKey).
+      const fromVal: JSAny = GetProperty(object, from);
+
+      // ii. Perform ? Set(O, toKey, fromVal, true).
+      SetProperty(object, to, fromVal);
+    } else {
+      // i. Perform ? DeletePropertyOrThrow(O, toKey).
+      DeleteProperty(object, to, LanguageMode::kStrict);
+    }
+
+    // f. Let from be from + direction.
+    from = from + direction;
+
+    // g. Let to be to + direction.
+    to = to + direction;
+
+    // h. Let count be count - 1.
+    --count;
+  }
+
+  // 13. Return O.
+  return object;
+}
+}

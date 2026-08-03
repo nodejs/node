@@ -1,0 +1,12 @@
+Tests GC within DebugBreak
+
+Running test: test
+Script wasm://wasm/d14f671e byte offset 51: Wasm opcode 0x20 (kExprLocalGet)
+GC triggered
+Debugger.resume
+log: Hello World (v8://test/instantiate:11:36)
+    at bar (v8://test/instantiate:11:36)
+    at $wasm_A (wasm://wasm/d14f671e:1:54)
+    at test (test.js:4:20)
+    at (anonymous function) (:1:1)
+exports.main returned!

@@ -1,0 +1,13 @@
+before
+evalmachine.<anonymous>:*
+Error.stackTraceLimit = 5; foo.bar = 5;
+                           ^
+
+ReferenceError: foo is not defined
+    at evalmachine.<anonymous>:*:*
+    at Script.runInContext (node:vm:*:*)
+    at Script.runInNewContext (node:vm:*:*)
+    at Object.runInNewContext (node:vm:*:*)
+    at Object.<anonymous> (*undefined_reference_in_new_context.js:*:*)
+
+Node.js *

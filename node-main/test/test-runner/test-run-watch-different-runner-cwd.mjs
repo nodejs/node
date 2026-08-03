@@ -1,0 +1,15 @@
+// Test run({ watch: true, cwd }) executes using a different cwd for the runner than the process cwd
+import '../common/index.mjs';
+import tmpdir from '../common/tmpdir.js';
+import { skipIfNoWatch, refreshForTestRunnerWatch, testRunnerWatch } from '../common/watch.js';
+
+skipIfNoWatch();
+refreshForTestRunnerWatch();
+
+await testRunnerWatch({
+  fileToUpdate: 'test.js',
+  action: 'rename',
+  cwd: import.meta.dirname,
+  runnerCwd: tmpdir.path,
+  useRunApi: true,
+});

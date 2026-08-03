@@ -1,0 +1,91 @@
+Break on exceptions from compiler errors.
+
+Running test: testUnexpectedEndOfInput
+Runs '+++'
+Runtime.evaluate exceptionDetails:
+{
+    columnNumber : 3
+    exception : {
+        className : SyntaxError
+        description : SyntaxError: Unexpected end of input
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+    exceptionId : <exceptionId>
+    lineNumber : 0
+    scriptId : <scriptId>
+    text : Uncaught
+}
+
+Running test: testUnexpectedIdentifier
+Runs 'x x'
+Runtime.evaluate exceptionDetails:
+{
+    columnNumber : 2
+    exception : {
+        className : SyntaxError
+        description : SyntaxError: Unexpected identifier 'x'
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+    exceptionId : <exceptionId>
+    lineNumber : 0
+    scriptId : <scriptId>
+    text : Uncaught
+}
+
+Running test: testEvalUnexpectedEndOfInput
+Runs eval('+++')
+paused on exception:
+{
+    className : SyntaxError
+    description : SyntaxError: Unexpected end of input     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+    uncaught : false
+}
+Runtime.evaluate exceptionDetails:
+{
+    columnNumber : 3
+    exception : {
+        className : SyntaxError
+        description : SyntaxError: Unexpected end of input     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+    exceptionId : <exceptionId>
+    lineNumber : 0
+    scriptId : <scriptId>
+    text : Uncaught
+}
+
+Running test: testEvalUnexpectedIdentifier
+Runs eval('x x')
+paused on exception:
+{
+    className : SyntaxError
+    description : SyntaxError: Unexpected identifier 'x'     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+    uncaught : false
+}
+Runtime.evaluate exceptionDetails:
+{
+    columnNumber : 2
+    exception : {
+        className : SyntaxError
+        description : SyntaxError: Unexpected identifier 'x'     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+    exceptionId : <exceptionId>
+    lineNumber : 0
+    scriptId : <scriptId>
+    text : Uncaught
+}

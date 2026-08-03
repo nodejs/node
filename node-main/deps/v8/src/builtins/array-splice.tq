@@ -1,0 +1,444 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+// Given {source}, we want to create a non-zero length array of type
+// FixedArrayType with the specified {result_capacity}. Starting from
+// {startIndex}, {count} number of elements are copied to the newly
+// created result array. Most of this behavior is outsourced to
+// ExtractFixedArray(). We handle the case where the {source} is
+// EmptyFixedArray but result is expected to be a FixedDoubleArray.
+macro Extract(
+    implicit context: Context)(source: FixedArray, startIndex: Smi, count: Smi,
+    resultCapacity: Smi): FixedArray {
+  return ExtractFixedArray(
+      source, Convert<intptr>(startIndex), Convert<intptr>(count),
+      Convert<intptr>(resultCapacity), TheHole);
+}
+
+macro Extract(
+    implicit context: Context)(source: FixedDoubleArray|EmptyFixedArray,
+    startIndex: Smi, count: Smi, resultCapacity: Smi): FixedDoubleArray
+    |EmptyFixedArray {
+  typeswitch (source) {
+    case (EmptyFixedArray): {
+      // ExtractFixedDoubleArray expects {source} to be a FixedDoubleArray.
+      // Handle the case where {source} is empty here.
+      return AllocateFixedDoubleArrayWithHoles(Convert<intptr>(resultCapacity));
+    }
+    case (source: FixedDoubleArray): {
+      return ExtractFixedDoubleArray(
+          source, Convert<intptr>(startIndex), Convert<intptr>(count),
+          Convert<intptr>(resultCapacity));
+    }
+  }
+}
+
+macro DoMoveElements<FixedArrayType : type extends FixedArrayBase>(
+    elements: FixedArrayType, dstIndex: Smi, srcIndex: Smi, count: Smi): void {
+  TorqueMoveElements(
+      elements, Convert<intptr>(dstIndex), Convert<intptr>(srcIndex),
+      Convert<intptr>(count));
+}
+
+macro StoreHoles<FixedArrayType : type extends FixedArrayBase>(
+    elements: FixedArrayType, holeStartIndex: Smi, holeEndIndex: Smi): void {
+  for (let i: Smi = holeStartIndex; i < holeEndIndex; i++) {
+    array::StoreArrayHole(elements, i);
+  }
+}
+
+macro DoCopyElements<FixedArrayType : type extends FixedArrayBase>(
+    dstElements: FixedArrayType, dstIndex: Smi, srcElements: FixedArrayType,
+    srcIndex: Smi, count: Smi): void {
+  TorqueCopyElements(
+      dstElements, Convert<intptr>(dstIndex), srcElements,
+      Convert<intptr>(srcIndex), Convert<intptr>(count));
+}
+
+macro InsertArgumentsIntoFastPackedArray<
+    FixedArrayType : type extends FixedArrayBase, ElementType: type>(
+    dst: JSArray, dstStart: Smi, args: Arguments,
+    argsStart: constexpr IntegerLiteral, insertCount: Smi): void {
+  // Copy arguments.
+  let k: Smi = dstStart;
+  if (insertCount > 0) {
+    dcheck(Convert<intptr>(insertCount) == args.length - argsStart);
+    const typedNewElements: FixedArrayType =
+        UnsafeCast<FixedArrayType>(dst.elements);
+    for (let i: intptr = ConstexprIntegerLiteralToIntptr(argsStart);
+         i < args.length; ++i) {
+      const e: JSAny = args[i];
+      // The argument elements were already validated to be an appropriate
+      // {ElementType} to store in {FixedArrayType}.
+      typedNewElements[k++] = UnsafeCast<ElementType>(e);
+    }
+  }
+}
+
+macro
+FastSplice<FixedArrayType : type extends FixedArrayBase, ElementType: type>(
+    implicit context: Context)(args: Arguments, a: JSArray, length: Smi,
+    newLength: Smi, actualStart: Smi, insertCount: Smi,
+    actualDeleteCount: Smi): void {
+  // Make sure elements are writable.
+  array::EnsureWriteableFastElements(a);
+
+  if (insertCount != actualDeleteCount) {
+    const elements = UnsafeCast<(FixedArrayType | EmptyFixedArray)>(a.elements);
+    const dstIndex: Smi = actualStart + insertCount;
+    const srcIndex: Smi = actualStart + actualDeleteCount;
+    const count: Smi = length - actualDeleteCount - actualStart;
+    if (insertCount < actualDeleteCount) {
+      // Shrink.
+      DoMoveElements(
+          UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
+      StoreHoles(UnsafeCast<FixedArrayType>(elements), newLength, length);
+    } else if (insertCount > actualDeleteCount) {
+      // If the backing store is big enough, then moving elements is enough.
+      if (newLength <= elements.length) {
+        DoMoveElements(
+            UnsafeCast<FixedArrayType>(elements), dstIndex, srcIndex, count);
+      } else {
+        // Grow.
+        const capacity: Smi = CalculateNewElementsCapacity(newLength);
+        const newElements: FixedArrayType = UnsafeCast<FixedArrayType>(
+            Extract(elements, 0, actualStart, capacity));
+        a.elements = newElements;
+        if (elements.length > 0) {
+          DoCopyElements(
+              newElements, dstIndex, UnsafeCast<FixedArrayType>(elements),
+              srcIndex, count);
+        }
+      }
+    }
+  }
+
+  // Copy arguments.
+  InsertArgumentsIntoFastPackedArray<FixedArrayType, ElementType>(
+      a, actualStart, args, 2, insertCount);
+
+  // Update the array's length after all the FixedArray shuffling is done.
+  a.length = newLength;
+}
+
+transitioning macro TransitionElementsKindForInsertionIfNeeded(
+    context: Context, a: JSArray, originalElementsKind: ElementsKind,
+    args: Arguments, argsStart: constexpr IntegerLiteral): ElementsKind {
+  dcheck(a.map.elements_kind == originalElementsKind);
+
+  let elementsKind = originalElementsKind;
+  for (let k: intptr = ConstexprIntegerLiteralToIntptr(argsStart);
+       k < args.length; ++k) {
+    const e = args[k];
+    if (IsFastSmiElementsKind(elementsKind)) {
+      if (TaggedIsNotSmi(e)) {
+        const heapObject: HeapObject = UnsafeCast<HeapObject>(e);
+        elementsKind = IsHeapNumber(heapObject) ?
+            AllowDoubleElements(elementsKind) :
+            AllowNonNumberElements(elementsKind);
+      }
+    } else if (IsDoubleElementsKind(elementsKind)) {
+      if (!IsNumber(e)) {
+        elementsKind = AllowNonNumberElements(elementsKind);
+      }
+    } else {
+      // Already generic.
+      break;
+    }
+  }
+
+  if (elementsKind != originalElementsKind) {
+    const smiElementsKind: Smi = Convert<Smi>(Convert<int32>(elementsKind));
+    TransitionElementsKindWithKind(context, a, smiElementsKind);
+  }
+
+  return elementsKind;
+}
+
+transitioning macro FastArraySplice(
+    context: Context, args: Arguments, o: JSReceiver,
+    originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
+    actualDeleteCountNumber: Number): JSAny
+    labels Bailout {
+  const originalLength: Smi = Cast<Smi>(originalLengthNumber) otherwise Bailout;
+  const actualStart: Smi = Cast<Smi>(actualStartNumber) otherwise Bailout;
+  const actualDeleteCount: Smi =
+      Cast<Smi>(actualDeleteCountNumber) otherwise Bailout;
+  const lengthDelta: Smi = insertCount - actualDeleteCount;
+  const newLength: Smi = originalLength + lengthDelta;
+
+  const a: JSArray = Cast<JSArray>(o) otherwise Bailout;
+
+  const map: Map = a.map;
+  if (!IsPrototypeInitialArrayPrototype(map)) goto Bailout;
+  if (IsNoElementsProtectorCellInvalid()) goto Bailout;
+  if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
+
+  // Fast path only works on fast elements kind and with writable length.
+  let elementsKind: ElementsKind = EnsureArrayPushable(map) otherwise Bailout;
+  if (!IsFastElementsKind(elementsKind)) goto Bailout;
+
+  elementsKind = TransitionElementsKindForInsertionIfNeeded(
+      context, a, elementsKind, args, 2);
+
+  // Make sure that the length hasn't been changed by side-effect.
+  const length: Smi = Cast<Smi>(a.length) otherwise Bailout;
+  if (originalLength != length) goto Bailout;
+
+  const deletedResult: JSArray =
+      ExtractFastJSArray(context, a, actualStart, actualDeleteCount);
+
+  if (newLength == 0) {
+    a.elements = kEmptyFixedArray;
+    a.length = 0;
+    return deletedResult;
+  }
+
+  if (IsFastSmiOrTaggedElementsKind(elementsKind)) {
+    FastSplice<FixedArray, JSAny>(
+        args, a, length, newLength, actualStart, insertCount,
+        actualDeleteCount);
+  } else {
+    FastSplice<FixedDoubleArray, Number>(
+        args, a, length, newLength, actualStart, insertCount,
+        actualDeleteCount);
+  }
+
+  return deletedResult;
+}
+
+transitioning macro FillDeletedElementsArray(
+    context: Context, o: JSReceiver, actualStart: Number,
+    actualDeleteCount: Number, a: JSReceiver): JSAny {
+  // 10. Let k be 0.
+  let k: Number = 0;
+
+  // 11. Repeat, while k < actualDeleteCount
+  while (k < actualDeleteCount) {
+    // a. Let from be ! ToString(actualStart + k).
+    const from: Number = actualStart + k;
+
+    // b. Let fromPresent be ? HasProperty(O, from).
+    const fromPresent: Boolean = HasProperty(o, from);
+
+    // c. If fromPresent is true, then
+    if (fromPresent == True) {
+      // i. Let fromValue be ? Get(O, from).
+      const fromValue: JSAny = GetProperty(o, from);
+
+      // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
+      FastCreateDataProperty(a, k, fromValue);
+    }
+
+    // d. Increment k by 1.
+    k++;
+  }
+  // 12. Perform ? Set(A, "length", actualDeleteCount, true).
+  SetProperty(a, kLengthString, actualDeleteCount);
+  return a;
+}
+
+// HandleForwardCase implements step 15. "If itemCount < actualDeleteCount,
+// then...""
+transitioning macro HandleForwardCase(
+    context: Context, o: JSReceiver, len: Number, itemCount: Number,
+    actualStart: Number, actualDeleteCount: Number): void {
+  // 15. If itemCount < actualDeleteCount, then
+  // a. Let k be actualStart.
+  let k: Number = actualStart;
+
+  // b. Repeat, while k < (len - actualDeleteCount)
+  while (k < (len - actualDeleteCount)) {
+    // i. Let from be ! ToString(k + actualDeleteCount).
+    const from: Number = k + actualDeleteCount;
+    // ii. Let to be ! ToString(k + itemCount).
+    const to: Number = k + itemCount;
+
+    // iii. Let fromPresent be ? HasProperty(O, from).
+    const fromPresent: Boolean = HasProperty(o, from);
+
+    // iv. If fromPresent is true, then
+    if (fromPresent == True) {
+      // 1. Let fromValue be ? Get(O, from).
+      const fromValue: JSAny = GetProperty(o, from);
+
+      // 2. Perform ? Set(O, to, fromValue, true).
+      SetProperty(o, to, fromValue);
+
+      // v. Else fromPresent is false,
+    } else {
+      // 1. Perform ? DeletePropertyOrThrow(O, to).
+      DeleteProperty(o, to, LanguageMode::kStrict);
+    }
+    // vi. Increase k by 1.
+    k++;
+  }
+
+  // c. Let k be len.
+  k = len;
+
+  // d. Repeat, while k > (len - actualDeleteCount + itemCount)
+  while (k > (len - actualDeleteCount + itemCount)) {
+    // i. Perform ? DeletePropertyOrThrow(O, ! ToString(k - 1)).
+    DeleteProperty(o, k - 1, LanguageMode::kStrict);
+    // ii. Decrease k by 1.
+    k--;
+  }
+}
+
+// HandleBackwardCase implements step 16. "Else if itemCount >
+// actualDeleteCount, then..."
+transitioning macro HandleBackwardCase(
+    context: Context, o: JSReceiver, len: Number, itemCount: Number,
+    actualStart: Number, actualDeleteCount: Number): void {
+  // 16. Else if itemCount > actualDeleteCount, then
+  // a. Let k be (len - actualDeleteCount).
+  let k: Number = len - actualDeleteCount;
+
+  // b. Repeat, while k > actualStart
+  while (k > actualStart) {
+    // i. Let from be ! ToString(k + actualDeleteCount - 1).
+    const from: Number = k + actualDeleteCount - 1;
+
+    // ii. Let to be ! ToString(k + itemCount - 1).
+    const to: Number = k + itemCount - 1;
+
+    // iii. Let fromPresent be ? HasProperty(O, from).
+    const fromPresent: Boolean = HasProperty(o, from);
+
+    // iv. If fromPresent is true, then
+    if (fromPresent == True) {
+      // 1. Let fromValue be ? Get(O, from).
+      const fromValue: JSAny = GetProperty(o, from);
+
+      // 2. Perform ? Set(O, to, fromValue, true).
+      SetProperty(o, to, fromValue);
+
+      // v. Else fromPresent is false,
+    } else {
+      // 1. Perform ? DeletePropertyOrThrow(O, to).
+      DeleteProperty(o, to, LanguageMode::kStrict);
+    }
+
+    // vi. Decrease k by 1.
+    k--;
+  }
+}
+
+transitioning macro SlowSplice(
+    context: Context, arguments: Arguments, o: JSReceiver, len: Number,
+    actualStart: Number, insertCount: Smi, actualDeleteCount: Number): JSAny {
+  // 9. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
+  const a: JSReceiver = ArraySpeciesCreate(context, o, actualDeleteCount);
+  const itemCount: Number = insertCount;
+
+  // Steps 9 through 12: creating the array of deleted elements.
+  FillDeletedElementsArray(context, o, actualStart, actualDeleteCount, a);
+
+  // 13. Let items be a List whose elements are, in left-to-right order,
+  //     the portion of the actual argument list starting with the third
+  //     argument. The list is empty if fewer than three arguments were
+  //     passed.
+  // 14. Let itemCount be the Number of elements in items.
+  // (done above).
+
+  // 15. If itemCount < actualDeleteCount, then
+  if (itemCount < actualDeleteCount) {
+    HandleForwardCase(
+        context, o, len, itemCount, actualStart, actualDeleteCount);
+    // 16. Else if itemCount > actualDeleteCount, then
+  } else if (itemCount > actualDeleteCount) {
+    HandleBackwardCase(
+        context, o, len, itemCount, actualStart, actualDeleteCount);
+  }
+
+  // 17. Let k be actualStart.
+  let k: Number = actualStart;
+
+  // 18. Repeat, while items is not empty
+  //   a. Remove the first element from items and let E be the value of that
+  //   element.
+  if (arguments.length > 2) {
+    for (let i: intptr = 2; i < arguments.length; ++i) {
+      const e: JSAny = arguments[i];
+      // b. Perform ? Set(O, ! ToString(k), E, true).
+      SetProperty(o, k, e);
+
+      // c. Increase k by 1.
+      k = k + 1;
+    }
+  }
+
+  // 19. Perform ? Set(O, "length", len - actualDeleteCount + itemCount,
+  // true).
+  SetProperty(o, kLengthString, len - actualDeleteCount + itemCount);
+
+  return a;
+}
+
+// https://tc39.github.io/ecma262/#sec-array.prototype.splice
+transitioning javascript builtin ArrayPrototypeSplice(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const o: JSReceiver = ToObject(context, receiver);
+
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  const len: Number = GetLengthProperty(o);
+
+  // 3. Let relativeStart be ? ToInteger(start).
+  const start: JSAny = arguments[0];
+  const relativeStart: Number = ToInteger_Inline(start);
+
+  // 4. If relativeStart < 0, let actualStart be max((len + relativeStart),
+  // 0);
+  //    else let actualStart be min(relativeStart, len).
+  const actualStart: Number = relativeStart < 0 ?
+      Max((len + relativeStart), 0) :
+      Min(relativeStart, len);
+
+  let insertCount: Smi;
+  let actualDeleteCount: Number;
+  // 5. If the Number of actual arguments is 0, then
+  if (arguments.length == 0) {
+    // a. Let insertCount be 0.
+    insertCount = 0;
+    // b. Let actualDeleteCount be 0.
+    actualDeleteCount = 0;
+    // 6. Else if the Number of actual arguments is 1, then
+  } else if (arguments.length == 1) {
+    // a. Let insertCount be 0.
+    insertCount = 0;
+    // b. Let actualDeleteCount be len - actualStart.
+    actualDeleteCount = len - actualStart;
+    // 7. Else,
+  } else {
+    // a. Let insertCount be the Number of actual arguments minus 2.
+    insertCount = Convert<Smi>(arguments.length) - 2;
+    // b. Let dc be ? ToInteger(deleteCount).
+    const deleteCount: JSAny = arguments[1];
+    const dc: Number = ToInteger_Inline(deleteCount);
+    // c. Let actualDeleteCount be min(max(dc, 0), len - actualStart).
+    actualDeleteCount = Min(Max(dc, 0), len - actualStart);
+  }
+
+  // 8. If len + insertCount - actualDeleteCount > 2^53-1, throw a
+  //    Bailout exception.
+  const newLength: Number = len + insertCount - actualDeleteCount;
+  if (newLength > kMaxSafeInteger) {
+    ThrowTypeError(MessageTemplate::kInvalidArrayLength, newLength);
+  }
+
+  try {
+    return FastArraySplice(
+        context, arguments, o, len, actualStart, insertCount, actualDeleteCount)
+        otherwise Bailout;
+  } label Bailout {}
+
+  // If the fast case fails, just continue with the slow, correct,
+  // spec-compliant case.
+  return SlowSplice(
+      context, arguments, o, len, actualStart, insertCount, actualDeleteCount);
+}
+}

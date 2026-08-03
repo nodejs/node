@@ -1,0 +1,4 @@
+{
+  "crash_type": "DCHECK failure",
+  "crash_state": "is_main_thread_barrier_ in marking-barrier.cc"
+}

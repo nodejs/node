@@ -1,0 +1,20 @@
+Warning: disabling flag --regexp_tier_up due to conflicting flags
+
+
+#
+# Fatal error in , line 0
+# Check failed: kind() == CodeKind::BASELINE.
+#
+#
+#
+#FailureMessage Object: 0x7fff55c98300
+==== C stack trace ===============================
+
+    /b/s/w/ir/out/build/d8(+0xec56a3) [0x55fbef6236a3]
+    /b/s/w/ir/out/build/d8(+0xec4f4b) [0x55fbef622f4b]
+    /b/s/w/ir/out/build/d8(+0xebb4d5) [0x55fbef6194d5]
+    /b/s/w/ir/out/build/d8(+0x42cd8c) [0x55fbeeb8ad8c]
+    /b/s/w/ir/out/build/d8(+0x42bd45) [0x55fbeeb89d45]
+    [0x2c4d0000c1ca]
+Received signal 6
+Aborted (core dumped)

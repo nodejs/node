@@ -1,0 +1,756 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>npm-install</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+header.title .version {
+    font-size: 0.8em;
+    color: #666666;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="----npm-install----1162">
+    <span>npm-install</span>
+    <span class="version">@11.6.2</span>
+</h1>
+<span class="description">Install a package</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#save-exact"><code>save-exact</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#prefer-dedupe"><code>prefer-dedupe</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#cpu"><code>cpu</code></a></li><li><a href="#os"><code>os</code></a></li><li><a href="#libc"><code>libc</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#algorithm">Algorithm</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<pre><code class="language-bash">npm install [&lt;package-spec&gt; ...]
+
+aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
+</code></pre>
+<h3 id="description">Description</h3>
+<p>This command installs a package and any packages that it depends on.
+If the package has a package-lock, or an npm shrinkwrap file, or a yarn lock file, the installation of dependencies will be driven by that, respecting the following order of precedence:</p>
+<ul>
+<li><code>npm-shrinkwrap.json</code></li>
+<li><code>package-lock.json</code></li>
+<li><code>yarn.lock</code></li>
+</ul>
+<p>See <a href="../configuring-npm/package-lock-json.html">package-lock.json</a> and <a href="../commands/npm-shrinkwrap.html"><code>npm shrinkwrap</code></a>.</p>
+<p>A <code>package</code> is:</p>
+<ul>
+<li>a) a folder containing a program described by a <a href="../configuring-npm/package-json.html"><code>package.json</code></a> file</li>
+<li>b) a gzipped tarball containing (a)</li>
+<li>c) a url that resolves to (b)</li>
+<li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry (see <a href="../using-npm/registry.html"><code>registry</code></a>) with (c)</li>
+<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> (see <a href="../commands/npm-dist-tag.html"><code>npm dist-tag</code></a>) that points to (d)</li>
+<li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li>
+<li>g) a <code>&lt;git remote url&gt;</code> that resolves to (a)</li>
+</ul>
+<p>Even if you never publish your package, you can still get a lot of benefits of using npm if you just want to write a node program (a), and perhaps if you also want to be able to easily install it elsewhere after packing it up into a tarball (b).</p>
+<ul>
+<li>
+<p><code>npm install</code> (in a package directory, no arguments):</p>
+<p>Install the dependencies to the local <code>node_modules</code> folder.</p>
+<p>In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command), it installs the current package context (ie, the current working directory) as a global package.</p>
+<p>By default, <code>npm install</code> will install all modules listed as dependencies in <a href="../configuring-npm/package-json.html"><code>package.json</code></a>.</p>
+<p>With the <code>--production</code> flag (or when the <code>NODE_ENV</code> environment variable is set to <code>production</code>), npm will not install modules listed in <code>devDependencies</code>.
+To install all modules listed in both <code>dependencies</code> and <code>devDependencies</code> when <code>NODE_ENV</code> environment variable is set to <code>production</code>, you can use <code>--production=false</code>.</p>
+<blockquote>
+<p>NOTE: The <code>--production</code> flag has no particular meaning when adding a dependency to a project.</p>
+</blockquote>
+</li>
+<li>
+<p><code>npm install &lt;folder&gt;</code>:</p>
+<p>If <code>&lt;folder&gt;</code> sits inside the root of your project, its dependencies will be installed and may be hoisted to the top-level <code>node_modules</code> as they would for other types of dependencies.
+If <code>&lt;folder&gt;</code> sits outside the root of your project, <em>npm will not install the package dependencies</em> in the directory <code>&lt;folder&gt;</code>, but it will create a symlink to <code>&lt;folder&gt;</code>.</p>
+<blockquote>
+<p>NOTE: If you want to install the content of a directory like a package from the registry instead of creating a link, you would need to use the <code>--install-links</code> option.</p>
+</blockquote>
+<p>Example:</p>
+<pre><code class="language-bash">npm install ../../other-package --install-links
+npm install ./sub-package
+</code></pre>
+</li>
+<li>
+<p><code>npm install &lt;tarball file&gt;</code>:</p>
+<p>Install a package that is sitting on the filesystem.
+Note: if you just want to link a dev directory into your npm root, you can do this more easily by using <a href="../commands/npm-link.html"><code>npm link</code></a>.</p>
+<p>Tarball requirements:</p>
+<ul>
+<li>The filename <em>must</em> use <code>.tar</code>, <code>.tar.gz</code>, or <code>.tgz</code> as the extension.</li>
+<li>The package contents should reside in a subfolder inside the tarball (usually it is called <code>package/</code>).
+npm strips one directory layer when installing the package (an equivalent of <code>tar x --strip-components=1</code> is run).</li>
+<li>The package must contain a <code>package.json</code> file with <code>name</code> and <code>version</code> properties.</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-bash">npm install ./package.tgz
+</code></pre>
+</li>
+<li>
+<p><code>npm install &lt;tarball url&gt;</code>:</p>
+<p>Fetch the tarball url, and then install it.
+In order to distinguish between this and other options, the argument must start with "http://" or "https://"</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install https://github.com/indexzero/forever/tarball/v0.5.6
+</code></pre>
+</li>
+<li>
+<p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;</code>:</p>
+<p>Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the "tag" config.
+(See <a href="../using-npm/config#tag.html"><code>config</code></a>.
+The config's default value is <code>latest</code>.)</p>
+<p>In most cases, this will install the version of the modules tagged as <code>latest</code> on the npm registry.</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install sax
+</code></pre>
+<p><code>npm install</code> saves any specified packages into <code>dependencies</code> by default.
+Additionally, you can control where and how they get saved with some additional flags:</p>
+<ul>
+<li>
+<p><code>-P, --save-prod</code>: Package will appear in your <code>dependencies</code>.
+This is the default unless <code>-D</code> or <code>-O</code> are present.</p>
+</li>
+<li>
+<p><code>-D, --save-dev</code>: Package will appear in your <code>devDependencies</code>.</p>
+</li>
+<li>
+<p><code>--save-peer</code>: Package will appear in your <code>peerDependencies</code>.</p>
+</li>
+<li>
+<p><code>-O, --save-optional</code>: Package will appear in your
+<code>optionalDependencies</code>.</p>
+</li>
+<li>
+<p><code>--no-save</code>: Prevents saving to <code>dependencies</code>.</p>
+</li>
+</ul>
+<p>When using any of the above options to save dependencies to your package.json, there are two additional, optional flags:</p>
+<ul>
+<li>
+<p><code>-E, --save-exact</code>: Saved dependencies will be configured with an exact version rather than using npm's default semver range operator.</p>
+</li>
+<li>
+<p><code>-B, --save-bundle</code>: Saved dependencies will also be added to your <code>bundleDependencies</code> list.</p>
+</li>
+</ul>
+<p>Further, if you have an <code>npm-shrinkwrap.json</code> or <code>package-lock.json</code> then it will be updated as well.</p>
+<p><code>&lt;scope&gt;</code> is optional.
+The package will be downloaded from the registry associated with the specified scope.
+If no registry is associated with the given scope the default registry is assumed.
+See <a href="../using-npm/scope.html"><code>scope</code></a>.</p>
+<p>Note: if you do not include the @-symbol on your scope name, npm will interpret this as a GitHub repository instead, see below.
+Scopes names must also be followed by a slash.</p>
+<p>Examples:</p>
+<pre><code class="language-bash">npm install sax
+npm install githubname/reponame
+npm install @myorg/privatepackage
+npm install node-tap --save-dev
+npm install dtrace-provider --save-optional
+npm install readable-stream --save-exact
+npm install ansi-regex --save-bundle
+</code></pre>
+</li>
+<li>
+<p><code>npm install &lt;alias&gt;@npm:&lt;name&gt;</code>:</p>
+<p>Install a package under a custom alias.
+Allows multiple versions of a same-name package side-by-side, more convenient import names for packages with otherwise long ones, and using git forks replacements or forked npm packages as replacements.
+Aliasing works only on your project and does not rename packages in transitive dependencies.
+Aliases should follow the naming conventions stated in <a href="https://www.npmjs.com/package/validate-npm-package-name#naming-rules"><code>validate-npm-package-name</code></a>.</p>
+<p>Examples:</p>
+<pre><code class="language-bash">npm install my-react@npm:react
+npm install jquery2@npm:jquery@2
+npm install jquery3@npm:jquery@3
+npm install npa@npm:npm-package-arg
+</code></pre>
+</li>
+<li>
+<p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;tag&gt;</code>:</p>
+<p>Install the version of the package that is referenced by the specified tag.
+If the tag does not exist in the registry data for that package, then this will fail.</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install sax@latest
+npm install @myorg/mypackage@latest
+</code></pre>
+</li>
+<li>
+<p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version&gt;</code>:</p>
+<p>Install the specified version of the package.
+This will fail if the version has not been published to the registry.</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install sax@0.1.1
+npm install @myorg/privatepackage@1.5.0
+</code></pre>
+</li>
+<li>
+<p><code>npm install [&lt;@scope&gt;/]&lt;name&gt;@&lt;version range&gt;</code>:</p>
+<p>Install a version of the package matching the specified version range.
+This will follow the same rules for resolving dependencies described in <a href="../configuring-npm/package-json.html"><code>package.json</code></a>.</p>
+<p>Note that most version ranges must be put in quotes so that your shell will treat it as a single argument.</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install sax@"&gt;=0.1.0 &lt;0.2.0"
+npm install @myorg/privatepackage@"16 - 17"
+</code></pre>
+</li>
+<li>
+<p><code>npm install &lt;git remote url&gt;</code>:</p>
+<p>Installs the package from the hosted git provider, cloning it with <code>git</code>.
+For a full git remote url, only that URL will be attempted.</p>
+<pre><code class="language-bash">&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
+</code></pre>
+<p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, <code>git+https</code>, or
+<code>git+file</code>.</p>
+<p>If <code>#&lt;commit-ish&gt;</code> is provided, it will be used to clone exactly that commit.
+If the commit-ish has the format <code>#semver:&lt;semver&gt;</code>, <code>&lt;semver&gt;</code> can be any valid semver range or exact version, and npm will look for any tags or refs matching that range in the remote repository, much as it would for a registry dependency.
+If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is specified, then the default branch of the repository is used.</p>
+<p>If the repository makes use of submodules, those submodules will be cloned as well.</p>
+<p>If the package being installed contains a <code>prepare</code> script, its <code>dependencies</code> and <code>devDependencies</code> will be installed, and the prepare script will be run, before the package is packaged and installed.</p>
+<p>The following git environment variables are recognized by npm and will be added to the environment when running git:</p>
+<ul>
+<li><code>GIT_ASKPASS</code></li>
+<li><code>GIT_EXEC_PATH</code></li>
+<li><code>GIT_PROXY_COMMAND</code></li>
+<li><code>GIT_SSH</code></li>
+<li><code>GIT_SSH_COMMAND</code></li>
+<li><code>GIT_SSL_CAINFO</code></li>
+<li><code>GIT_SSL_NO_VERIFY</code></li>
+</ul>
+<p>See the git man page for details.</p>
+<p>Examples:</p>
+<pre><code class="language-bash">npm install git+ssh://git@github.com:npm/cli.git#v1.0.27
+npm install git+ssh://git@github.com:npm/cli#pull/273
+npm install git+ssh://git@github.com:npm/cli#semver:^5.0
+npm install git+https://isaacs@github.com/npm/cli.git
+npm install git://github.com/npm/cli.git#v1.0.27
+GIT_SSH_COMMAND='ssh -i ~/.ssh/custom_ident' npm install git+ssh://git@github.com:npm/cli.git
+</code></pre>
+</li>
+<li>
+<p><code>npm install &lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+</li>
+<li>
+<p><code>npm install github:&lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>Install the package at <code>https://github.com/githubname/githubrepo</code> by attempting to clone it using <code>git</code>.</p>
+<p>If <code>#&lt;commit-ish&gt;</code> is provided, it will be used to clone exactly that commit.
+If the commit-ish has the format <code>#semver:&lt;semver&gt;</code>, <code>&lt;semver&gt;</code> can be any valid semver range or exact version, and npm will look for any tags or refs matching that range in the remote repository, much as it would for a registry dependency.
+If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is specified, then the default branch is used.</p>
+<p>As with regular git dependencies, <code>dependencies</code> and <code>devDependencies</code> will be installed if the package has a <code>prepare</code> script before the package is done installing.</p>
+<p>Examples:</p>
+<pre><code class="language-bash">npm install mygithubuser/myproject
+npm install github:mygithubuser/myproject
+</code></pre>
+</li>
+<li>
+<p><code>npm install gist:[&lt;githubname&gt;/]&lt;gistID&gt;[#&lt;commit-ish&gt;|#semver:&lt;semver&gt;]</code>:</p>
+<p>Install the package at <code>https://gist.github.com/gistID</code> by attempting to clone it using <code>git</code>.
+The GitHub username associated with the gist is optional and will not be saved in <code>package.json</code>.</p>
+<p>As with regular git dependencies, <code>dependencies</code> and <code>devDependencies</code> will be installed if the package has a <code>prepare</code> script before the package is done installing.</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install gist:101a11beef
+</code></pre>
+</li>
+<li>
+<p><code>npm install bitbucket:&lt;bitbucketname&gt;/&lt;bitbucketrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>Install the package at <code>https://bitbucket.org/bitbucketname/bitbucketrepo</code> by attempting to clone it using <code>git</code>.</p>
+<p>If <code>#&lt;commit-ish&gt;</code> is provided, it will be used to clone exactly that commit.
+If the commit-ish has the format <code>#semver:&lt;semver&gt;</code>, <code>&lt;semver&gt;</code> can be any valid semver range or exact version, and npm will look for any tags or refs matching that range in the remote repository, much as it would for a registry dependency.
+If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is specified, then <code>master</code> is used.</p>
+<p>As with regular git dependencies, <code>dependencies</code> and <code>devDependencies</code> will be installed if the package has a <code>prepare</code> script before the package is done installing.</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install bitbucket:mybitbucketuser/myproject
+</code></pre>
+</li>
+<li>
+<p><code>npm install gitlab:&lt;gitlabname&gt;/&lt;gitlabrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>Install the package at <code>https://gitlab.com/gitlabname/gitlabrepo</code> by attempting to clone it using <code>git</code>.</p>
+<p>If <code>#&lt;commit-ish&gt;</code> is provided, it will be used to clone exactly that commit.
+If the commit-ish has the format <code>#semver:&lt;semver&gt;</code>, <code>&lt;semver&gt;</code> can be any valid semver range or exact version, and npm will look for any tags or refs matching that range in the remote repository, much as it would for a registry dependency.
+If neither <code>#&lt;commit-ish&gt;</code> or <code>#semver:&lt;semver&gt;</code> is specified, then <code>master</code> is used.</p>
+<p>As with regular git dependencies, <code>dependencies</code> and <code>devDependencies</code> will be installed if the package has a <code>prepare</code> script before the package is done installing.</p>
+<p>Example:</p>
+<pre><code class="language-bash">npm install gitlab:mygitlabuser/myproject
+npm install gitlab:myusr/myproj#semver:^5.0
+</code></pre>
+</li>
+</ul>
+<p>You may combine multiple arguments and even multiple types of arguments.
+For example:</p>
+<pre><code class="language-bash">npm install sax@"&gt;=0.1.0 &lt;0.2.0" bench supervisor
+</code></pre>
+<p>The <code>--tag</code> argument will apply to all of the specified install targets.
+If a tag with the given name exists, the tagged version is preferred over newer versions.</p>
+<p>The <code>--dry-run</code> argument will report in the usual way what the install would have done without actually installing anything.</p>
+<p>The <code>--package-lock-only</code> argument will only update the <code>package-lock.json</code>, instead of checking <code>node_modules</code> and downloading dependencies.</p>
+<p>The <code>-f</code> or <code>--force</code> argument will force npm to fetch remote resources even if a local copy exists on disk.</p>
+<pre><code class="language-bash">npm install sax --force
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<p>See the <a href="../using-npm/config.html"><code>config</code></a> help doc.
+Many of the configuration params have some effect on installation, since that's most of what npm does.</p>
+<p>These are some of the most common options related to installation.</p>
+<h4 id="save"><code>save</code></h4>
+<ul>
+<li>Default: <code>true</code> unless when using <code>npm update</code> where it defaults to
+<code>false</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Save installed packages to a <code>package.json</code> file as dependencies.</p>
+<p>When used with the <code>npm rm</code> command, removes the dependency from
+<code>package.json</code>.</p>
+<p>Will also prevent writing to <code>package-lock.json</code> if set to <code>false</code>.</p>
+<h4 id="save-exact"><code>save-exact</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Dependencies saved to package.json will be configured with an exact
+version rather than using npm's default semver range operator.</p>
+<h4 id="global"><code>global</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Operates in "global" mode, so that packages are installed into the
+<code>prefix</code> folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in
+behavior.</p>
+<ul>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder,
+instead of the current working directory.</li>
+<li>bin files are linked to <code>{prefix}/bin</code></li>
+<li>man pages are linked to <code>{prefix}/share/man</code></li>
+</ul>
+<h4 id="install-strategy"><code>install-strategy</code></h4>
+<ul>
+<li>Default: "hoisted"</li>
+<li>Type: "hoisted", "nested", "shallow", or "linked"</li>
+</ul>
+<p>Sets the strategy for installing packages in node_modules. hoisted
+(default): Install non-duplicated in top-level, and duplicated as
+necessary within directory structure. nested: (formerly
+--legacy-bundling) install in place, no hoisting. shallow (formerly
+--global-style) only install direct deps at top-level. linked:
+(experimental) install in node_modules/.store, link in place,
+unhoisted.</p>
+<h4 id="legacy-bundling"><code>legacy-bundling</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=nested</code></li>
+</ul>
+<p>Instead of hoisting package installs in <code>node_modules</code>, install
+packages in the same manner that they are depended on. This may cause
+very deep directory structures and duplicate package installs as
+there is no de-duplicating. Sets <code>--install-strategy=nested</code>.</p>
+<h4 id="global-style"><code>global-style</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+<li>DEPRECATED: This option has been deprecated in favor of
+<code>--install-strategy=shallow</code></li>
+</ul>
+<p>Only install direct dependencies in the top level <code>node_modules</code>, but
+hoist on deeper dependencies. Sets <code>--install-strategy=shallow</code>.</p>
+<h4 id="omit"><code>omit</code></h4>
+<ul>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production'; otherwise, empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
+</ul>
+<p>Dependency types to omit from the installation tree on disk.</p>
+<p>Note that these dependencies <em>are</em> still resolved and added to the
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
+physically installed on disk.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists,
+then it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code>
+environment variable will be set to <code>'production'</code> for all lifecycle
+scripts.</p>
+<h4 id="include"><code>include</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: "prod", "dev", "optional", or "peer" (can be set multiple
+times)</li>
+</ul>
+<p>Option that allows for defining which types of dependencies to
+install.</p>
+<p>This is the inverse of <code>--omit=&lt;type&gt;</code>.</p>
+<p>Dependency types specified in <code>--include</code> will not be omitted,
+regardless of the order in which omit/include are specified on the
+command-line.</p>
+<h4 id="strict-peer-deps"><code>strict-peer-deps</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to <code>true</code>, and <code>--legacy-peer-deps</code> is not set, then <em>any</em>
+conflicting <code>peerDependencies</code> will be treated as an install failure,
+even if npm could reasonably guess the appropriate resolution based
+on non-peer dependency relationships.</p>
+<p>By default, conflicting <code>peerDependencies</code> deep in the dependency
+graph will be resolved using the nearest non-peer dependency
+specification, even if doing so will result in some packages
+receiving a peer dependency outside the range set in their package's
+<code>peerDependencies</code> object.</p>
+<p>When such an override is performed, a warning is printed, explaining
+the conflict and the packages involved. If <code>--strict-peer-deps</code> is
+set, then this warning is treated as a failure.</p>
+<h4 id="prefer-dedupe"><code>prefer-dedupe</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Prefer to deduplicate packages if possible, rather than choosing a
+newer version of a dependency.</p>
+<h4 id="package-lock"><code>package-lock</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>package-lock.json</code> files when
+installing. This will also prevent <em>writing</em> <code>package-lock.json</code> if
+<code>save</code> is true.</p>
+<h4 id="package-lock-only"><code>package-lock-only</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, the current operation will only use the
+<code>package-lock.json</code>, ignoring <code>node_modules</code>.</p>
+<p>For <code>update</code> this means only the <code>package-lock.json</code> will be updated,
+instead of checking <code>node_modules</code> and downloading dependencies.</p>
+<p>For <code>list</code> this means the output will be based on the tree described
+by the <code>package-lock.json</code>, rather than the contents of
+<code>node_modules</code>.</p>
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
+<ul>
+<li>Default: <code>false</code> unless when using <code>npm pack</code> or <code>npm publish</code> where
+it defaults to <code>true</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and
+<code>postinstall</code>) scripts for installed packages in the foreground
+process, sharing standard input, output, and error with the main npm
+process.</p>
+<p>Note that this will generally make installs run slower, and be much
+noisier, but can be useful for debugging.</p>
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script,
+such as <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still run their intended script if <code>ignore-scripts</code> is set,
+but they will <em>not</em> run any pre- or post-scripts.</p>
+<h4 id="audit"><code>audit</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When "true" submit audit reports alongside the current npm command to
+the default registry and all registries configured for scopes. See
+the documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details
+on what is submitted.</p>
+<h4 id="before"><code>before</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Date</li>
+</ul>
+<p>If passed to <code>npm install</code>, will rebuild the npm tree such that only
+versions that were available <strong>on or before</strong> the given date are
+installed. If there are no versions available for the current set of
+dependencies, the command will error.</p>
+<p>If the requested version is a <code>dist-tag</code> and the given tag does not
+pass the <code>--before</code> filter, the most recent version less than or
+equal to that tag will be used. For example, <code>foo@latest</code> might
+install <code>foo@1.2</code> even though <code>latest</code> is <code>2.0</code>.</p>
+<h4 id="bin-links"><code>bin-links</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
+executables.</p>
+<p>Set to false to have it not do this. This can be used to work around
+the fact that some file systems don't support symlinks, even on
+ostensibly Unix systems.</p>
+<h4 id="fund"><code>fund</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When "true" displays the message at the end of each <code>npm install</code>
+acknowledging the number of dependencies looking for funding. See
+<a href="../commands/npm-fund.html"><code>npm fund</code></a> for details.</p>
+<h4 id="dry-run"><code>dry-run</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don't want npm to make any changes and that it
+should only report what it would have done. This can be passed into
+any of the commands that modify your local installation, eg,
+<code>install</code>, <code>update</code>, <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and
+<code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg
+<code>dist-tags</code>, <code>owner</code>, etc.</p>
+<h4 id="cpu"><code>cpu</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>Override CPU architecture of native modules to install. Acceptable
+values are same as <code>cpu</code> field of package.json, which comes from
+<code>process.arch</code>.</p>
+<h4 id="os"><code>os</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>Override OS of native modules to install. Acceptable values are same
+as <code>os</code> field of package.json, which comes from <code>process.platform</code>.</p>
+<h4 id="libc"><code>libc</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or String</li>
+</ul>
+<p>Override libc of native modules to install. Acceptable values are
+same as <code>libc</code> field of package.json</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code>
+config, or all workspaces via the <code>workspaces</code> flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="install-links"><code>install-links</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set file: protocol dependencies will be packed and installed as
+regular dependencies instead of creating a symlink. This option has
+no effect on workspaces.</p>
+<h3 id="algorithm">Algorithm</h3>
+<p>Given a <code>package{dep}</code> structure: <code>A{B,C}, B{C}, C{D}</code>, the npm install algorithm produces:</p>
+<pre><code class="language-bash">A
++-- B
++-- C
++-- D
+</code></pre>
+<p>That is, the dependency from B to C is satisfied by the fact that A already caused C to be installed at a higher level.
+D is still installed at the top level because nothing conflicts with it.</p>
+<p>For <code>A{B,C}, B{C,D@1}, C{D@2}</code>, this algorithm produces:</p>
+<pre><code class="language-bash">A
++-- B
++-- C
+   `-- D@2
++-- D@1
+</code></pre>
+<p>Because B's D@1 will be installed in the top-level, C now has to install D@2 privately for itself.
+This algorithm is deterministic, but different trees may be produced if two dependencies are requested for installation in a different order.</p>
+<p>See <a href="../configuring-npm/folders.html">folders</a> for a more detailed description of the specific folder structures that npm creates.</p>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../configuring-npm/folders.html">npm folders</a></li>
+<li><a href="../commands/npm-update.html">npm update</a></li>
+<li><a href="../commands/npm-audit.html">npm audit</a></li>
+<li><a href="../commands/npm-fund.html">npm fund</a></li>
+<li><a href="../commands/npm-link.html">npm link</a></li>
+<li><a href="../commands/npm-rebuild.html">npm rebuild</a></li>
+<li><a href="../using-npm/scripts.html">npm scripts</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
+<li><a href="../using-npm/registry.html">npm registry</a></li>
+<li><a href="../commands/npm-dist-tag.html">npm dist-tag</a></li>
+<li><a href="../commands/npm-uninstall.html">npm uninstall</a></li>
+<li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../using-npm/workspaces.html">workspaces</a></li>
+</ul></div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/commands/npm-install.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

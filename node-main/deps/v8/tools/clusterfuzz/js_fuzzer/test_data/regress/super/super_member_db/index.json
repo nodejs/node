@@ -1,0 +1,4 @@
+[
+  {"path": "CallExpression/a1.json", "super": true, "tc": true},
+  {"path": "CallExpression/a2.json", "super": false}
+]

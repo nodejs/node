@@ -1,0 +1,42 @@
+// Copyright 2022 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+{
+  include: [
+    "syslog/client.shard.cml",
+  ],
+  program: {
+    binary: "unittests",
+    runner: "elf_test_ambient_exec_runner",
+  },
+  capabilities: [
+    { protocol: "fuchsia.test.Suite", },
+  ],
+  expose: [
+    {
+      protocol: "fuchsia.test.Suite",
+      from: "self",
+    },
+  ],
+  facets: {
+    "fuchsia.test": {
+      type: "chromium",
+    },
+  },
+  use: [
+    {
+      protocol: [
+        "fuchsia.kernel.VmexResource",
+        "fuchsia.process.Launcher",
+      ],
+    },
+    {
+      storage: "data",
+      path: "/data",
+    },
+    {
+      storage: "tmp",
+      path: "/tmp",
+    },
+  ],
+}

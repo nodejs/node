@@ -1,0 +1,11 @@
+{
+  "name": "Node.js Dev Container",
+  "image": "nodejs/devcontainer:nightly",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/developer/nodejs/node,type=bind,consistency=cached",
+  "workspaceFolder": "/home/developer/nodejs/node",
+  "remoteUser": "developer",
+  "mounts": [
+    "source=node-devcontainer-cache,target=/home/developer/nodejs/node/out,type=volume"
+  ],
+  "postCreateCommand": "git restore-mtime"
+}

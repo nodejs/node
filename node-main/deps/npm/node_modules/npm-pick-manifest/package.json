@@ -1,0 +1,58 @@
+{
+  "name": "npm-pick-manifest",
+  "version": "11.0.1",
+  "description": "Resolves a matching manifest from a package metadata document according to standard npm semver resolution rules.",
+  "main": "./lib",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "scripts": {
+    "coverage": "tap",
+    "lint": "npm run eslint",
+    "test": "tap",
+    "posttest": "npm run lint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "tap",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-pick-manifest.git"
+  },
+  "keywords": [
+    "npm",
+    "semver",
+    "package manager"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "dependencies": {
+    "npm-install-checks": "^7.1.0",
+    "npm-normalize-package-bin": "^4.0.0",
+    "npm-package-arg": "^13.0.0",
+    "semver": "^7.3.5"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.0",
+    "@npmcli/template-oss": "4.25.0",
+    "tap": "^16.0.1"
+  },
+  "tap": {
+    "check-coverage": true,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.25.0",
+    "publish": true
+  }
+}

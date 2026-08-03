@@ -1,0 +1,16 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-segments.h'
+
+bitfield struct JSSegmentsFlags extends uint31 {
+  granularity: JSSegmenterGranularity: 2 bit;
+}
+
+extern class JSSegments extends JSObject {
+  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  raw_string: String;
+  unicode_string: Foreign;  // Managed<icu::UnicodeString>
+  flags: SmiTagged<JSSegmentsFlags>;
+}

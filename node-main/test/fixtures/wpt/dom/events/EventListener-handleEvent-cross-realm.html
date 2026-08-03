@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-realm EventListener throws TypeError of its associated Realm</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#ref-for-prepare-to-run-script">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<iframe name="eventListenerGlobalObject" src="resources/empty-document.html"></iframe>
+
+<script>
+setup({ allow_uncaught_exception: true });
+
+test_onload(() => {
+    const eventTarget = new EventTarget;
+    const eventListener = new eventListenerGlobalObject.Object;
+
+    eventTarget.addEventListener("foo", eventListener);
+    assert_reports_exception(eventListenerGlobalObject.TypeError, () => { eventTarget.dispatchEvent(new Event("foo")); });
+}, "EventListener is cross-realm plain object without 'handleEvent' property");
+
+test_onload(() => {
+    const eventTarget = new EventTarget;
+    const eventListener = new eventListenerGlobalObject.Object;
+    eventListener.handleEvent = {};
+
+    eventTarget.addEventListener("foo", eventListener);
+    assert_reports_exception(eventListenerGlobalObject.TypeError, () => { eventTarget.dispatchEvent(new Event("foo")); });
+}, "EventListener is cross-realm plain object with non-callable 'handleEvent' property");
+
+test_onload(() => {
+    const eventTarget = new EventTarget;
+    const { proxy, revoke } = Proxy.revocable(() => {}, {});
+    revoke();
+
+    const eventListener = new eventListenerGlobalObject.Object;
+    eventListener.handleEvent = proxy;
+
+    eventTarget.addEventListener("foo", eventListener);
+    assert_reports_exception(eventListenerGlobalObject.TypeError, () => { eventTarget.dispatchEvent(new Event("foo")); });
+}, "EventListener is cross-realm plain object with revoked Proxy as 'handleEvent' property");
+
+test_onload(() => {
+    const eventTarget = new EventTarget;
+    const { proxy, revoke } = eventListenerGlobalObject.Proxy.revocable({}, {});
+    revoke();
+
+    eventTarget.addEventListener("foo", proxy);
+    assert_reports_exception(eventListenerGlobalObject.TypeError, () => { eventTarget.dispatchEvent(new Event("foo")); });
+}, "EventListener is cross-realm non-callable revoked Proxy");
+
+test_onload(() => {
+    const eventTarget = new EventTarget;
+    const { proxy, revoke } = eventListenerGlobalObject.Proxy.revocable(() => {}, {});
+    revoke();
+
+    eventTarget.addEventListener("foo", proxy);
+    assert_reports_exception(eventListenerGlobalObject.TypeError, () => { eventTarget.dispatchEvent(new Event("foo")); });
+}, "EventListener is cross-realm callable revoked Proxy");
+
+function test_onload(fn, desc) {
+    async_test(t => { window.addEventListener("load", t.step_func_done(fn)); }, desc);
+}
+
+function assert_reports_exception(expectedConstructor, fn) {
+    let error;
+    const onErrorHandler = event => { error = event.error; };
+
+    eventListenerGlobalObject.addEventListener("error", onErrorHandler);
+    fn();
+    eventListenerGlobalObject.removeEventListener("error", onErrorHandler);
+
+    assert_equals(typeof error, "object");
+    assert_equals(error.constructor, expectedConstructor);
+}
+</script>

@@ -1,0 +1,4 @@
+This is a sample text/plain document.
+
+This is not an HTML document.
+

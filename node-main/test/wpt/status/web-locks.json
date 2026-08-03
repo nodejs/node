@@ -1,0 +1,53 @@
+{
+  "held.https.any.js": {
+    "fail": {
+      "note": "Flaky on ppc, linux x64 and s390x #59142",
+      "flaky": [
+        "evaluation in WPTRunner.runJsTests()"
+      ]
+    }
+  },
+  "idlharness.https.any.js": {
+    "fail": {
+      "expected": [
+        "LockManager interface: existence and properties of interface object",
+        "LockManager interface object length",
+        "LockManager interface object name",
+        "LockManager interface: existence and properties of interface prototype object",
+        "LockManager interface: existence and properties of interface prototype object's \"constructor\" property",
+        "LockManager interface: existence and properties of interface prototype object's @@unscopables property",
+        "LockManager interface: operation request(DOMString, LockGrantedCallback)",
+        "LockManager interface: operation request(DOMString, LockOptions, LockGrantedCallback)",
+        "LockManager interface: operation query()",
+        "LockManager must be primary interface of navigator.locks",
+        "Lock interface: existence and properties of interface object",
+        "Lock interface object length",
+        "Lock interface object name",
+        "Lock interface: existence and properties of interface prototype object",
+        "Lock interface: existence and properties of interface prototype object's \"constructor\" property",
+        "Lock interface: existence and properties of interface prototype object's @@unscopables property",
+        "Lock interface: attribute name",
+        "Lock interface: attribute mode",
+        "Lock must be primary interface of lock"
+      ]
+    }
+  },
+  "non-secure-context.any.js": {
+    "skip": "navigator.locks is only present in secure contexts"
+  },
+  "query.https.any.js": {
+    "fail": {
+      "expected": [
+        "query() reports different ids for held locks from different contexts",
+        "query() can observe a deadlock"
+      ],
+      "note": "Browser-specific test"
+    }
+  },
+  "secure-context.https.any.js": {
+    "skip": "Different secure context behavior in Node.js"
+  },
+  "storage-buckets.tentative.https.any.js": {
+    "skip": "Node.js does not implement Storage Buckets API"
+  }
+} 

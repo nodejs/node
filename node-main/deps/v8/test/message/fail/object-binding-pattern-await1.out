@@ -1,0 +1,4 @@
+*%(basename)s:6: SyntaxError: Invalid destructuring assignment target
+  let { a: await b } = { a: 1 };
+           ^^^^^^^
+SyntaxError: Invalid destructuring assignment target

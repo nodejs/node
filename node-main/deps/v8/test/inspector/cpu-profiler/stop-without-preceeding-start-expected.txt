@@ -1,0 +1,2 @@
+Test that profiler doesn't crash when we call stop without preceding start.
+PASS: ProfileAgent.stop

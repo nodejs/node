@@ -1,0 +1,55 @@
+name: Comment on issues and PRs when labeled
+on:
+  issues:
+    types: [labeled]
+  pull_request_target:
+    types: [labeled]
+
+env:
+  STALE_MESSAGE: >
+    This issue/PR was marked as stalled, it will be automatically closed in 30 days.
+    If it should remain open, please leave a comment explaining why it should remain open.
+  FAST_TRACK_MESSAGE: Fast-track has been requested by @${{ github.actor }}. Please 👍 to approve.
+  NOTABLE_CHANGE_MESSAGE: |
+    The https://github.com/nodejs/node/labels/notable-change label has been added by @${{ github.actor }}.
+
+    Please suggest a text for the release notes if you'd like to include a more detailed summary, then proceed to update the PR description with the text or a link to the notable change suggested text comment. Otherwise, the commit will be placed in the _Other Notable Changes_ section.
+
+permissions:
+  contents: read
+
+jobs:
+  stale-comment:
+    permissions:
+      issues: write
+      pull-requests: write
+    if: github.repository == 'nodejs/node' && github.event.label.name == 'stalled'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post stalled comment
+        env:
+          NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue comment "$NUMBER" --repo ${{ github.repository }} --body "$STALE_MESSAGE"
+
+  fast-track:
+    permissions:
+      pull-requests: write
+    if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'fast-track'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Fast-Track
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$FAST_TRACK_MESSAGE"
+
+  notable-change:
+    permissions:
+      pull-requests: write
+    if: github.repository == 'nodejs/node' && github.event_name == 'pull_request_target' && github.event.label.name == 'notable-change'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add notable change description
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$NOTABLE_CHANGE_MESSAGE"

@@ -1,0 +1,11 @@
+<!doctype html>
+<title>Check bindings in JavaScript and WebAssembly cycle (JS higher)</title>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script type=module>
+setup({ single_test: true });
+import { f } from "./resources/js-wasm-cycle.js";
+assert_equals(f(), 24);
+done();
+</script>

@@ -1,0 +1,10 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=@CMAKE_INSTALL_FULL_BINDIR@
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+Name: libllhttp
+Description: Node.js llhttp Library
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -lllhttp
+Cflags: -I${includedir}

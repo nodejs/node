@@ -1,0 +1,52 @@
+name: Label Flaky Test Issues
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    if: github.event.label.name == 'flaky-test'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Extract labels
+        id: extract-labels
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          BODY="${BODY//$'\n'/'\n'}"
+
+          declare -A platform2label
+
+          platform2label["AIX"]="aix";
+          platform2label["FreeBSD"]="freebsd";
+          platform2label["Linux ARM64"]="linux";
+          platform2label["Linux PPC64LE"]="ppc";
+          platform2label["Linux s390x"]="s390";
+          platform2label["Linux x64"]="linux";
+          platform2label["macOS ARM64"]="macos";
+          platform2label["macOS x64"]="macos";
+          platform2label["SmartOS"]="smartos";
+          platform2label["Windows"]="windows";
+
+          # sed is cleaning up the edges
+          PLATFORMS=$(echo $BODY | sed 's/^.*Platform\\n\\n//' | sed 's/\(, Other\)\?\\n\\n.*$//') 2> /dev/null
+          readarray -d , -t list <<< "$PLATFORMS"
+          labels=
+          for row in "${list[@]}"; do \
+            platform=$(echo $row | xargs); \
+            labels="${labels}${platform2label[$platform]},"; \
+          done;
+
+          echo "LABELS=${labels::-1}" >> $GITHUB_OUTPUT
+
+      - name: Add labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: gh issue edit "$NUMBER" --repo ${{ github.repository }} --add-label "${{ steps.extract-labels.outputs.LABELS }}"

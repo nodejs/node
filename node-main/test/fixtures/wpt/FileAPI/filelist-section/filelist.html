@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <title>FileAPI Test: filelist</title>
+    <link rel='author' title='Intel' href='http://www.intel.com'>
+    <link rel='help' href='http://dev.w3.org/2006/webapi/FileAPI/#filelist-section'>
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#dfn-length">
+    <link rel="help" href="http://dev.w3.org/2006/webapi/FileAPI/#dfn-item">
+    <script src='/resources/testharness.js'></script>
+    <script src='/resources/testharnessreport.js'></script>
+  </head>
+
+  <body>
+    <form name='uploadData' style="display:none">
+      <input type='file' id='fileChooser'>
+    </form>
+    <div id='log'></div>
+
+    <script>
+      var fileList;
+
+      setup(function () {
+        fileList = document.querySelector('#fileChooser').files;
+      });
+
+      test(function () {
+        assert_true('FileList' in window, 'window has a FileList property');
+      }, 'Check if window has a FileList property');
+
+      test(function () {
+        assert_equals(FileList.length, 0, 'FileList.length is 0');
+      }, 'Check if FileList.length is 0');
+
+      test(function () {
+        assert_true(fileList.item instanceof Function, 'item is a instanceof Function');
+      }, 'Check if item is a instanceof Function');
+
+      test(function() {
+        assert_inherits(fileList, 'item', 'item is a method of fileList');
+      }, 'Check if item is a method of fileList');
+
+      test(function() {
+        assert_equals(fileList.item(0), null, 'item method returns null');
+      }, 'Check if the item method returns null when no file selected');
+
+      test(function() {
+        assert_inherits(fileList, 'length', 'length is fileList attribute');
+      }, 'Check if length is fileList\'s attribute');
+
+      test(function() {
+        assert_equals(fileList.length, 0, 'fileList length is 0');
+      }, 'Check if the fileList length is 0 when no file selected');
+    </script>
+
+  </body>
+</html>

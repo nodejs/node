@@ -1,0 +1,36 @@
+Check that throwing breakpoint conditions report exceptions via Runtime.exceptionThrown.
+
+Running test: setUp
+
+Running test: testSyntaxError
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:1
+
+Running test: testRepeatedErrorsCauseOneEventEach
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+
+Running test: testSporadicThrowing
+Exception thrown: ReferenceError: y is not defined
+    at eval (eval at smallFnWithLogpoint (test.js:3:17), <anonymous>:1:1)
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:1
+Paused on conditional logpoint
+Exception thrown: ReferenceError: y is not defined
+    at eval (eval at smallFnWithLogpoint (test.js:3:17), <anonymous>:1:1)
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:22

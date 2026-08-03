@@ -1,0 +1,59 @@
+name: Report a flaky test
+description: Report a flaky test in our CI
+labels: [flaky-test]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a flaky test.
+
+        Flaky tests are tests that fail occasionally in the Node.js CI, but not
+        consistently enough to block PRs from landing, or that are failing in CI
+        jobs or test modes that are not run for every PR.
+
+        Please fill in as much of the form below as you're able.
+  - type: input
+    attributes:
+      label: Test
+      description: The test that is flaky.
+      placeholder: e.g. `test-fs-stat-bigint`
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Platform
+      description: The platform the test is flaky on.
+      multiple: true
+      options:
+        - AIX
+        - FreeBSD
+        - Linux ARM64
+        - Linux PPC64LE
+        - Linux s390x
+        - Linux x64
+        - macOS ARM64
+        - macOS x64
+        - SmartOS
+        - Windows ARM64
+        - Windows x64
+        - Other
+  - type: textarea
+    attributes:
+      label: Console output
+      description: >
+        A pasted console output from a failed CI job showing the whole failure
+        of the test.
+      render: console
+  - type: textarea
+    attributes:
+      label: Build links
+      description: Links to builds affected by the flaky test.
+      value: '- '
+  - type: textarea
+    attributes:
+      label: Additional information
+      description: >
+        If any investigation has been done, please include any information
+        found, such as how consistently the test fails, whether the failure
+        could be reproduced locally, when the test started failing, or anything
+        else you think is relevant.

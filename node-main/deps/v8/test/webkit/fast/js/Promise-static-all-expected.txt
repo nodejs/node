@@ -1,0 +1,32 @@
+Test Promise.all
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+PASS result is undefined
+PASS Promise.all() is rejected.
+PASS Promise.all([]) is fulfilled.
+PASS result.length is 0
+PASS Promise.all([p1, p2, p3]) is fulfilled.
+PASS result.length is 3
+PASS result[0] is "p1"
+PASS result[1] is "p2"
+PASS result[2] is "p3"
+PASS Promise.all([p1, p6, p5]) is rejected.
+PASS result is "p6"
+PASS Promise.all([p9]) is fulfilled.
+PASS result.length is 1
+PASS result[0] is "p2"
+PASS Promise.all([p9,,,]) is fulfilled.
+PASS result.length is 3
+PASS result[0] is "p2"
+PASS result[1] is undefined
+PASS result[2] is undefined
+PASS Promise.all([p9,42]) is fulfilled.
+PASS result.length is 2
+PASS result[0] is "p2"
+PASS result[1] is 42
+PASS Promise.all({}) is rejected.
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

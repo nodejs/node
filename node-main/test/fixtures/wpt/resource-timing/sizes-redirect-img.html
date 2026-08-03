@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/sizes-helper.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script>
+// Redirects for fetch() always apply CORS rules, whereas normal resources
+// don't, so this test covers extra code paths beyond those covered by
+// resource-timing-sizes-redirect.html.
+
+const baseUrl = new URL('/resource-timing/resources/TAOResponse.py?tao=wildcard&img=true', location.href).href;
+
+const expectedSize = 1010;
+
+const hostInfo = get_host_info();
+
+const redirectUrl = (redirectSourceOrigin, targetUrl) => {
+  return redirectSourceOrigin +
+    '/resource-timing/resources/redirect-cors.py?timing_allow_origin=*' +
+    '&location=' + encodeURIComponent(targetUrl);
+};
+
+const verify_entry = entry => {
+  checkSizeFields(entry, expectedSize, expectedSize + headerSize);
+};
+
+attribute_test(load.image, baseUrl,
+  verify_entry,
+  "PerformanceResourceTiming sizes redirect image - direct URL");
+
+attribute_test(load.image,
+  redirectUrl(hostInfo.HTTP_ORIGIN, baseUrl),
+  verify_entry,
+  "PerformanceResourceTiming sizes redirect image - same origin redirect");
+
+attribute_test(load.image,
+  redirectUrl(hostInfo.HTTP_REMOTE_ORIGIN, baseUrl),
+  verify_entry,
+  "PerformanceResourceTiming sizes redirect image - cross origin redirect");
+
+attribute_test(load.image,
+  redirectUrl(hostInfo.HTTP_REMOTE_ORIGIN,
+    redirectUrl(hostInfo.HTTP_ORIGIN, baseUrl)),
+  verify_entry,
+  "PerformanceResourceTiming sizes redirect image - cross origin to same origin redirect");
+
+attribute_test(load.image,
+  redirectUrl(hostInfo.HTTP_ORIGIN,
+    redirectUrl(hostInfo.HTTP_REMOTE_ORIGIN,
+      redirectUrl(hostInfo.HTTP_ORIGIN,
+        baseUrl))),
+  verify_entry,
+  "PerformanceResourceTiming sizes redirect image - same origin to remote " +
+  "origin to same origin redirect");
+</script>

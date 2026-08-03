@@ -1,0 +1,7 @@
+*%(basename)s:6: ReferenceError: Cannot access 'y' before initialization
+    for (var i = 0; i < 1; y) {
+                           ^
+ReferenceError: Cannot access 'y' before initialization
+    at test (*%(basename)s:6:28)
+    at *%(basename)s:15:1
+

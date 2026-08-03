@@ -1,0 +1,5 @@
+specific_include_rules = {
+  "frame-translation-builder.cc": [
+    "+third_party/zlib",
+  ],
+}

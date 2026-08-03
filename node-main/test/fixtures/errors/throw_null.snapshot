@@ -1,0 +1,8 @@
+
+*throw_null.js:*
+throw null;
+^
+null
+(Use `* --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *

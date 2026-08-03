@@ -1,0 +1,11 @@
+# Copyright 2022 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+*%(basename)s:10: Error
+  throw new Error;
+  ^
+Error
+    at C.a (*%(basename)s:10:9)
+    at *%(basename)s:12:9
+

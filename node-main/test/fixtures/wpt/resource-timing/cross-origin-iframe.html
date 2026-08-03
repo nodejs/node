@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test ResourceTiming reporting for cross-origin iframe.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/entry-invariants.js"></script>
+<script src="resources/observe-entry.js"></script>
+</head>
+<body>
+<body>
+<script>
+  const {REMOTE_ORIGIN} = get_host_info();
+
+  promise_test(async t => {
+    const iframe = document.createElement('iframe');
+    t.add_cleanup(() => iframe.remove());
+    iframe.src = `${REMOTE_ORIGIN}/resource-timing/resources/green.html`;
+    document.body.appendChild(iframe);
+    const entry = await observe_entry(iframe.src);
+    invariants.assert_tao_failure_resource(entry);
+  }, "A cross-origin iframe should report an opaque RT entry");
+
+  promise_test(async t => {
+    const iframe = document.createElement('iframe');
+    t.add_cleanup(() => iframe.remove());
+    iframe.src = `${REMOTE_ORIGIN}/resource-timing/resources/TAOResponse.py?tao=wildcard`;
+    document.body.appendChild(iframe);
+    const entry = await observe_entry(iframe.src);
+    invariants.assert_tao_pass_no_redirect_http(entry);
+  }, "A cross-origin iframe with TAO enabled should report a full RT entry");
+
+  </script>
