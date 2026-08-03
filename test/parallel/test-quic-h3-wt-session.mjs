@@ -23,7 +23,7 @@ const serverSessionOpened = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall(async (ss) => {
   ss.onstream = mustCall(async (stream) => {
-      console.log('Does nothing but is required')
+    console.log('Does nothing but is required');
   });
   ss.onapplication = mustCall((aopts) => {
     assert.strictEqual(!aopts.enableDatagrams, false);
@@ -41,7 +41,6 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
   transportParams: { maxDatagramFrameSize: 100 },
   onheaders: mustCall(function(headers) {
     try {
-      console.log('onheaders1')
       assert.strictEqual(headers[':scheme'], 'https');
       assert.strictEqual(headers[':method'], 'CONNECT');
       assert.strictEqual(headers[':protocol'], 'webtransport'); // depends on the draft
@@ -57,7 +56,6 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     }
     // Should only be installed on wt streams
     this.onwtsessionclose = mustCall((code, reason) => {
-      console.log('SESSIONCLOSE')
       assert.strictEqual(code, 200);
       assert.strictEqual(reason, 'all perfect');
       this.session.close();
@@ -94,20 +92,17 @@ clientSession.onapplication = mustCall((aopts) => {
 clientSession.onstream = mustNotCall((stream) => {
   stream.onheaders = mustNotCall((stream) => {
     // Well this should not happen on client side
+    console.log('Called forbidden onheaders!');
   });
 });
-console.log('mark 1')
 
 await clientSession.opened;
-console.log('mark 2')
 await webtransportSupport.promise;
-console.log('mark 3')
 // Now we open a webtransport session, which is actually
 // a special bidirectional stream
 const wtSessionStream = await clientSession.createBidirectionalStream({
   body: '',
 });
-console.log('mark 4')
 wtSessionStream.sendHeaders({
   ':method': 'CONNECT',
   ':scheme': 'https',
@@ -118,12 +113,9 @@ wtSessionStream.sendHeaders({
 }, {
   webtransport: true // Tell nghttp3 to treat the stream as a WT session stream
 });
-console.log('mark 5')
 await serverSessionOpened.promise;
-console.log('mark 5a')
 await sleep(500);
 await wtSessionStream.closeWebtransportSessionStream(200, 'all perfect');
-console.log('mark 6')
 try {
   await wtSessionStream.closed;
 } catch (error) {
