@@ -4082,8 +4082,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running before
-subtest of the current test.
+This function registers a hook that runs before any subtests of the current
+test.
 
 ### `context.beforeEach([fn][, options])`
 
@@ -4104,8 +4104,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-before each subtest of the current test.
+This function registers a hook that runs before each subtest of the current
+test.
 
 ```js
 test('top level test', async (t) => {
@@ -4138,8 +4138,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook that runs after the current test
-finishes.
+This function registers a hook that runs after the current test finishes.
 
 ```js
 test('top level test', async (t) => {
@@ -4167,8 +4166,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-after each subtest of the current test.
+This function registers a hook that runs after each subtest of the current
+test.
 
 ```js
 test('top level test', async (t) => {
