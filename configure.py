@@ -1517,7 +1517,7 @@ def get_openssl_version(o):
 
     return version_number
 
-  except (OSError, ValueError, subprocess.SubprocessError) as e:
+  except (OSError, TypeError, ValueError, subprocess.SubprocessError) as e:
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
 
