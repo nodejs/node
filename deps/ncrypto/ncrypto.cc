@@ -539,8 +539,7 @@ bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
   if (isFipsEnabled() == enable) return true;
   ClearErrorOnReturn clearErrorOnReturn(errors);
 #if OPENSSL_VERSION_MAJOR >= 3
-  return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1 &&
-         EVP_default_properties_is_fips_enabled(nullptr);
+  return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1;
 #else
   return FIPS_mode_set(enable ? 1 : 0) == 1;
 #endif
