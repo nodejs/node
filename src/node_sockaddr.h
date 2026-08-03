@@ -317,7 +317,9 @@ class SocketAddressBlockList : public MemoryRetainer {
   // checked address. Not included in rules_ to avoid redundant scanning.
   SocketAddress::IpMap<SocketAddress> address_rules_;
 
-  Mutex mutex_;
+  // RwLock allows concurrent Apply() calls (shared/read lock) while
+  // mutations (Add*/Remove*/Clear) take an exclusive/write lock.
+  mutable RwLock mutex_;
 };
 
 class SocketAddressBlockListWrap : public BaseObject {

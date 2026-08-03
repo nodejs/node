@@ -402,7 +402,7 @@ SocketAddressBlockList::SocketAddressBlockList(
     : parent_(parent) {}
 
 void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
-  Mutex::ScopedLock lock(mutex_);
+  RwLock::ScopedLock lock(mutex_);
   address_rules_[address] = address;
   // Insert the cross-family counterpart so that both IPv4 and
   // IPv4-mapped IPv6 lookups resolve in O(1).
@@ -435,7 +435,7 @@ void SocketAddressBlockList::AddSocketAddress(const SocketAddress& address) {
 
 void SocketAddressBlockList::RemoveSocketAddress(
     const SocketAddress& address) {
-  Mutex::ScopedLock lock(mutex_);
+  RwLock::ScopedLock lock(mutex_);
   address_rules_.erase(address);
   // Also remove the cross-family counterpart.
   if (address.family() == AF_INET) {
@@ -466,7 +466,7 @@ void SocketAddressBlockList::AddSocketAddressRange(
     const SocketAddress& start,
     const SocketAddress& end) {
   DCHECK(!(start > end));
-  Mutex::ScopedLock lock(mutex_);
+  RwLock::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressRangeRule>(start, end);
   rules_.emplace_front(std::move(rule));
@@ -474,14 +474,14 @@ void SocketAddressBlockList::AddSocketAddressRange(
 
 void SocketAddressBlockList::AddSocketAddressMask(
     const SocketAddress& network, int prefix) {
-  Mutex::ScopedLock lock(mutex_);
+  RwLock::ScopedLock lock(mutex_);
   std::unique_ptr<Rule> rule =
       std::make_unique<SocketAddressMaskRule>(network, prefix);
   rules_.emplace_front(std::move(rule));
 }
 
 bool SocketAddressBlockList::Apply(const SocketAddress& address) {
-  Mutex::ScopedLock lock(mutex_);
+  RwLock::ScopedReadLock lock(mutex_);
   // O(1) lookup for exact address matches. The address_rules_ map
   // uses IpHash/IpEqual (port-insensitive, family-sensitive).
   if (address_rules_.count(address)) return true;
@@ -494,7 +494,7 @@ bool SocketAddressBlockList::Apply(const SocketAddress& address) {
 }
 
 void SocketAddressBlockList::Clear() {
-  Mutex::ScopedLock lock(mutex_);
+  RwLock::ScopedLock lock(mutex_);
   rules_.clear();
   address_rules_.clear();
 }
@@ -538,7 +538,7 @@ std::string SocketAddressBlockList::SocketAddressMaskRule::ToString() {
 }
 
 MaybeLocal<Array> SocketAddressBlockList::ListRules(Environment* env) {
-  Mutex::ScopedLock lock(mutex_);
+  RwLock::ScopedReadLock lock(mutex_);
   LocalVector<Value> rules(env->isolate());
   if (!ListRules(env, &rules)) return MaybeLocal<Array>();
   return Array::New(env->isolate(), rules.data(), rules.size());
