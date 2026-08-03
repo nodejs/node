@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,6 +23,8 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { internalBinding } = require('internal/test/binding');
+const child_process = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { isMainThread } = require('worker_threads');
@@ -182,6 +185,63 @@ function nextdir() {
     assert.strictEqual(fs.existsSync(pathname), true);
     assert.strictEqual(fs.statSync(pathname).isDirectory(), true);
   }));
+}
+
+// `mkdirp` when folder was readonly (EROFS) - mocked via internalBinding.
+// Verifies that EROFS is propagated correctly without requiring root/sudo.
+{
+  const fsBinding = internalBinding('fs');
+  const originalMkdir = fsBinding.mkdir;
+  fsBinding.mkdir = function(p) {
+    const err = new Error(`EROFS: read-only file system, mkdir '${p}'`);
+    err.code = 'EROFS';
+    err.syscall = 'mkdir';
+    err.path = p;
+    throw err;
+  };
+  try {
+    const pathname = path.join(tmpdir.path, nextdir(), nextdir());
+    assert.throws(
+      () => { fs.mkdirSync(pathname, { recursive: true }); },
+      { code: 'EROFS', message: /EROFS:.*mkdir/, name: 'Error', syscall: 'mkdir' }
+    );
+  } finally {
+    fsBinding.mkdir = originalMkdir;
+  }
+}
+
+// `mkdirp` when folder was readonly.
+if (common.isLinux) {
+  const roTmpfsPath = path.join(tmpdir.path, 'ro-tmpfs');
+  fs.mkdirSync(roTmpfsPath);
+
+  const { status, stderr } = child_process.spawnSync(
+    'sudo', ['-n', 'mount', '-t', 'tmpfs', '-o', 'ro', 'tmpfs', roTmpfsPath],
+    { stdio: 'pipe', encoding: 'utf8' }
+  );
+
+  if (status !== 0) {
+    console.warn(
+      'Cannot test EROFS: passwordless sudo required to mount read-only tmpfs. ' +
+      `Mount failed with status ${status}: ${stderr}`
+    );
+  } else {
+    try {
+      const pathname = path.join(roTmpfsPath, nextdir());
+      assert.throws(
+        () => { fs.mkdirSync(pathname, { recursive: true }); },
+        {
+          code: 'EROFS',
+          message: /EROFS:.*mkdir/,
+          name: 'Error',
+          syscall: 'mkdir',
+        }
+      );
+    } finally {
+      child_process.spawnSync('sudo', ['-n', 'umount', roTmpfsPath]);
+    }
+  }
+  fs.rmdirSync(roTmpfsPath);
 }
 
 // `mkdirp` when path is a file.
