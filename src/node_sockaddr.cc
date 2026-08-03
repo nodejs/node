@@ -560,6 +560,9 @@ void SocketAddressBlockList::SubnetTrie::WalkImpl(const Node* node,
 
 void SocketAddressBlockList::AddSocketAddressImpl(
     const SocketAddress& address) {
+  if (address_rules_.count(address) == 0) {
+    address_count_++;
+  }
   address_rules_[address] = address;
   // Insert the cross-family counterpart so that both IPv4 and
   // IPv4-mapped IPv6 lookups resolve in O(1).
@@ -606,7 +609,9 @@ void SocketAddressBlockList::AddSocketAddresses(
 void SocketAddressBlockList::RemoveSocketAddress(
     const SocketAddress& address) {
   RwLock::ScopedLock lock(mutex_);
-  address_rules_.erase(address);
+  if (address_rules_.erase(address)) {
+    address_count_--;
+  }
   // Also remove the cross-family counterpart.
   if (address.family() == AF_INET) {
     std::string mapped = "::ffff:" + address.address();
@@ -751,6 +756,7 @@ void SocketAddressBlockList::Clear() {
   RwLock::ScopedLock lock(mutex_);
   rules_.clear();
   address_rules_.clear();
+  address_count_ = 0;
   ipv4_subnets_.Clear();
   ipv6_subnets_.Clear();
   subnet_rules_.clear();
@@ -988,6 +994,19 @@ void SocketAddressBlockListWrap::AddSubnet(
   args.GetReturnValue().Set(true);
 }
 
+void SocketAddressBlockListWrap::RemoveAddress(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  CHECK(SocketAddressBase::HasInstance(env, args[0]));
+  SocketAddressBase* addr;
+  ASSIGN_OR_RETURN_UNWRAP(&addr, args[0]);
+
+  wrap->blocklist_->RemoveSocketAddress(*addr->address());
+}
+
 void SocketAddressBlockListWrap::RemoveRange(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1082,6 +1101,13 @@ void SocketAddressBlockListWrap::GetRules(
     args.GetReturnValue().Set(rules);
 }
 
+void SocketAddressBlockListWrap::GetSize(
+    const FunctionCallbackInfo<Value>& args) {
+  SocketAddressBlockListWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+  args.GetReturnValue().Set(static_cast<double>(wrap->blocklist_->size()));
+}
+
 void SocketAddressBlockListWrap::Clear(
     const FunctionCallbackInfo<Value>& args) {
   SocketAddressBlockListWrap* wrap;
@@ -1115,12 +1141,14 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "addAddresses", AddAddresses);
     SetProtoMethod(isolate, tmpl, "addRange", AddRange);
     SetProtoMethod(isolate, tmpl, "addSubnet", AddSubnet);
+    SetProtoMethod(isolate, tmpl, "removeAddress", RemoveAddress);
     SetProtoMethod(isolate, tmpl, "removeRange", RemoveRange);
     SetProtoMethod(isolate, tmpl, "removeSubnet", RemoveSubnet);
     SetFastMethod(
         isolate, tmpl->PrototypeTemplate(), "check", Check, &fast_check_);
     SetProtoMethod(isolate, tmpl, "checkString", CheckString);
     SetProtoMethod(isolate, tmpl, "getRules", GetRules);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "getSize", GetSize);
     SetProtoMethod(isolate, tmpl, "clear", Clear);
     env->set_blocklist_constructor_template(tmpl);
   }

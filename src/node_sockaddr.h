@@ -271,7 +271,7 @@ class SocketAddressBlockList : public MemoryRetainer {
   void Clear();
 
   size_t size() const {
-    return address_rules_.size() + rules_.size() + subnet_rules_.size();
+    return address_count_ + rules_.size() + subnet_rules_.size();
   }
 
   v8::MaybeLocal<v8::Array> ListRules(Environment* env);
@@ -381,6 +381,8 @@ class SocketAddressBlockList : public MemoryRetainer {
   // Apply() can perform O(1) lookups regardless of the port on the
   // checked address. Not included in rules_ to avoid redundant scanning.
   SocketAddress::IpMap<SocketAddress> address_rules_;
+  // User-visible address count (not inflated by cross-family dual-insert).
+  size_t address_count_ = 0;
   // Subnet/mask rules stored in radix tries for O(prefix_length) lookup.
   // Separate tries for IPv4 (max 32-bit depth) and IPv6 (max 128-bit).
   SubnetTrie ipv4_subnets_;
@@ -412,6 +414,7 @@ class SocketAddressBlockListWrap : public BaseObject {
   static void AddAddresses(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RemoveAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -419,6 +422,7 @@ class SocketAddressBlockListWrap : public BaseObject {
                         v8::Local<v8::Object> addr_obj);
   static void CheckString(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SocketAddressBlockListWrap(Environment* env,

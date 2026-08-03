@@ -125,6 +125,18 @@ detected from the address (IPv6 if the address contains `':'`, IPv4
 otherwise). This is equivalent to calling `blockList.addSubnet()` with
 the parsed network address, prefix length, and family.
 
+### `blockList.addCIDRs(cidrs)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `cidrs` {string\[]} An array of IPv4 or IPv6 subnets in CIDR notation.
+
+Adds multiple subnet rules using CIDR notation in a single call. The address
+family for each entry is automatically detected. This is equivalent to
+calling `blockList.addCIDR()` for each element of the array.
+
 ### `blockList.addRange(start, end[, type])`
 
 <!-- YAML
@@ -230,6 +242,19 @@ added:
 * `value` {any} Any JS value
 * Returns `true` if the `value` is a `net.BlockList`.
 
+### `blockList.removeAddress(address[, type])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `address` {string|net.SocketAddress} An IPv4 or IPv6 address.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default:** `'ipv4'`.
+
+Removes a rule that was previously added with `blockList.addAddress()`. The
+address must match exactly the value used when the rule was added. If the
+specified address does not exist, this is a no-op.
+
 ### `blockList.removeCIDR(cidr)`
 
 <!-- YAML
@@ -286,6 +311,17 @@ added:
 * Type: {string\[]}
 
 The list of rules added to the blocklist.
+
+### `blockList.size`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The number of rules in the blocklist. This is equivalent to
+`blockList.rules.length` but does not allocate the rules array.
 
 ### `blockList.toJSON()`
 

@@ -638,3 +638,127 @@ const util = require('util');
   blockList.removeCIDR('192.168.0.0/16');
   assert(!blockList.check('192.168.1.1'));
 }
+
+// removeAddress: basic
+{
+  const blockList = new BlockList();
+  blockList.addAddress('1.1.1.1');
+  blockList.addAddress('2.2.2.2');
+  assert(blockList.check('1.1.1.1'));
+
+  blockList.removeAddress('1.1.1.1');
+  assert(!blockList.check('1.1.1.1'));
+  assert(blockList.check('2.2.2.2'));
+}
+
+// removeAddress: cross-family cleanup
+{
+  const blockList = new BlockList();
+  blockList.addAddress('3.3.3.3');
+  assert(blockList.check('::ffff:3.3.3.3', 'ipv6'));
+
+  blockList.removeAddress('3.3.3.3');
+  assert(!blockList.check('3.3.3.3'));
+  assert(!blockList.check('::ffff:3.3.3.3', 'ipv6'));
+}
+
+// removeAddress: IPv6
+{
+  const blockList = new BlockList();
+  blockList.addAddress('::1', 'ipv6');
+  assert(blockList.check('::1', 'ipv6'));
+
+  blockList.removeAddress('::1', 'ipv6');
+  assert(!blockList.check('::1', 'ipv6'));
+}
+
+// removeAddress: non-existent is a no-op
+{
+  const blockList = new BlockList();
+  blockList.addAddress('1.1.1.1');
+  blockList.removeAddress('9.9.9.9');
+  assert(blockList.check('1.1.1.1'));
+}
+
+// removeAddress: with SocketAddress object
+{
+  const blockList = new BlockList();
+  const addr = new SocketAddress({ address: '5.5.5.5' });
+  blockList.addAddress(addr);
+  assert(blockList.check('5.5.5.5'));
+
+  blockList.removeAddress(addr);
+  assert(!blockList.check('5.5.5.5'));
+}
+
+// addCIDRs: batch
+{
+  const blockList = new BlockList();
+  blockList.addCIDRs(['10.0.0.0/8', '192.168.0.0/16', '2001:db8::/32']);
+  assert(blockList.check('10.1.2.3'));
+  assert(blockList.check('192.168.1.1'));
+  assert(blockList.check('2001:db8::1', 'ipv6'));
+  assert(!blockList.check('11.0.0.1'));
+  assert.strictEqual(blockList.rules.length, 3);
+}
+
+// addCIDRs: validation
+{
+  const blockList = new BlockList();
+  assert.throws(() => blockList.addCIDRs('not-an-array'), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => blockList.addCIDRs([123]), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => blockList.addCIDRs(['10.0.0.0']), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+}
+
+// addCIDRs: empty array is a no-op
+{
+  const blockList = new BlockList();
+  blockList.addCIDRs([]);
+  assert.strictEqual(blockList.size, 0);
+}
+
+// size: tracks all rule types
+{
+  const blockList = new BlockList();
+  assert.strictEqual(blockList.size, 0);
+
+  blockList.addAddress('1.1.1.1');
+  assert.strictEqual(blockList.size, 1);
+
+  blockList.addRange('10.0.0.1', '10.0.0.10');
+  assert.strictEqual(blockList.size, 2);
+
+  blockList.addSubnet('192.168.0.0', 16);
+  assert.strictEqual(blockList.size, 3);
+
+  // Matches rules.length
+  assert.strictEqual(blockList.size, blockList.rules.length);
+
+  blockList.removeAddress('1.1.1.1');
+  assert.strictEqual(blockList.size, 2);
+
+  blockList.removeRange('10.0.0.1', '10.0.0.10');
+  assert.strictEqual(blockList.size, 1);
+
+  blockList.removeSubnet('192.168.0.0', 16);
+  assert.strictEqual(blockList.size, 0);
+
+  // After clear
+  blockList.addAddress('5.5.5.5');
+  blockList.clear();
+  assert.strictEqual(blockList.size, 0);
+}
+
+// size: duplicate addAddress does not double-count
+{
+  const blockList = new BlockList();
+  blockList.addAddress('1.1.1.1');
+  blockList.addAddress('1.1.1.1');
+  assert.strictEqual(blockList.size, 1);
+}
