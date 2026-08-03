@@ -2,7 +2,7 @@
 // META: timeout=long
 // META: script=../util/helpers.js
 // META: script=ML-KEM_importKey_fixtures.js
-// META: script=ML-KEM_importKey.js
+// META: script=ml_importKey.js
 
 runTests("ML-KEM-512");
 runTests("ML-KEM-768");
