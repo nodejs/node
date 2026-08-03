@@ -349,6 +349,8 @@ class SocketAddressBlockListWrap : public BaseObject {
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool FastCheck(v8::Local<v8::Object> receiver,
+                        v8::Local<v8::Object> addr_obj);
   static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SocketAddressBlockListWrap(Environment* env,
@@ -393,6 +395,7 @@ class SocketAddressBlockListWrap : public BaseObject {
 
  private:
   std::shared_ptr<SocketAddressBlockList> blocklist_;
+  static v8::CFunction fast_check_;
 };
 
 }  // namespace node

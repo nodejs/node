@@ -3,6 +3,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "nbytes.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_hash.h"
 #include "node_sockaddr-inl.h"  // NOLINT(build/include_inline)
@@ -15,6 +16,7 @@
 namespace node {
 
 using v8::Array;
+using v8::CFunction;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -672,6 +674,18 @@ void SocketAddressBlockListWrap::Check(
   args.GetReturnValue().Set(wrap->blocklist_->Apply(*addr->address()));
 }
 
+bool SocketAddressBlockListWrap::FastCheck(Local<Object> receiver,
+                                           Local<Object> addr_obj) {
+  TRACK_V8_FAST_API_CALL("blocklist.check");
+  SocketAddressBlockListWrap* wrap =
+      FromJSObject<SocketAddressBlockListWrap>(receiver);
+  SocketAddressBase* addr = FromJSObject<SocketAddressBase>(addr_obj);
+  return wrap->blocklist_->Apply(*addr->address());
+}
+
+CFunction SocketAddressBlockListWrap::fast_check_(
+    CFunction::Make(&SocketAddressBlockListWrap::FastCheck));
+
 void SocketAddressBlockListWrap::GetRules(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -707,7 +721,8 @@ Local<FunctionTemplate> SocketAddressBlockListWrap::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "addAddress", AddAddress);
     SetProtoMethod(isolate, tmpl, "addRange", AddRange);
     SetProtoMethod(isolate, tmpl, "addSubnet", AddSubnet);
-    SetProtoMethod(isolate, tmpl, "check", Check);
+    SetFastMethod(
+        isolate, tmpl->PrototypeTemplate(), "check", Check, &fast_check_);
     SetProtoMethod(isolate, tmpl, "getRules", GetRules);
     env->set_blocklist_constructor_template(tmpl);
   }
