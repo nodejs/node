@@ -271,6 +271,42 @@ bool FSPermission::is_granted(Environment* env,
   }
 }
 
+bool FSPermission::is_granted_no_side_effects(
+    PermissionScope perm, const std::string_view& param) const {
+  // VFS callbacks can execute on SQLite's worker threads. The path passed by
+  // the VFS has already been made absolute, so do not call PathResolve() or
+  // publish diagnostics here.
+  std::string path(param);
+#ifdef _WIN32
+  if (path.starts_with("\\\\?\\")) {
+    path.erase(0, 4);
+  }
+  if (path.starts_with("UNC\\")) {
+    path.erase(0, 4);
+  }
+  if (path.starts_with("//")) {
+    path.erase(0, 2);
+  }
+#endif
+
+  switch (perm) {
+    case PermissionScope::kFileSystem:
+      return allow_all_in_ && allow_all_out_;
+    case PermissionScope::kFileSystemRead:
+      return path.empty() ? allow_all_in_
+                          : !deny_all_in_ &&
+                                (allow_all_in_ ||
+                                 granted_in_fs_.Lookup(path, true));
+    case PermissionScope::kFileSystemWrite:
+      return path.empty() ? allow_all_out_
+                          : !deny_all_out_ &&
+                                (allow_all_out_ ||
+                                 granted_out_fs_.Lookup(path, true));
+    default:
+      return false;
+  }
+}
+
 FSPermission::RadixTree::RadixTree() : root_node_(new Node("")) {}
 
 FSPermission::RadixTree::~RadixTree() {

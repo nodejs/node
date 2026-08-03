@@ -6,12 +6,14 @@
 #include "base_object.h"
 #include "lru_cache-inl.h"
 #include "node_mem.h"
+#include "node_sqlite_vfs.h"
 #include "sqlite3.h"
 #include "util.h"
 
 #include <array>
 #include <list>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <unordered_set>
@@ -221,6 +223,9 @@ class DatabaseSync : public BaseObject {
     return open_config_.get_allow_unknown_named_params();
   }
   sqlite3* Connection();
+  std::shared_ptr<SQLitePermissionVFS> PermissionVFS() const {
+    return permission_vfs_;
+  }
 
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending
@@ -242,6 +247,7 @@ class DatabaseSync : public BaseObject {
   bool enable_load_extension_;
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
+  std::shared_ptr<SQLitePermissionVFS> permission_vfs_;
 
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;

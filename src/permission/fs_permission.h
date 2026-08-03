@@ -24,6 +24,8 @@ class FSPermission final : public PermissionBase {
   bool is_granted(Environment* env,
                   PermissionScope perm,
                   const std::string_view& param) const override;
+  bool is_granted_no_side_effects(
+      PermissionScope perm, const std::string_view& param) const override;
 
   struct RadixTree {
     struct Node {
