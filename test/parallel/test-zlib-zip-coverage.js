@@ -288,8 +288,9 @@ test('a Zip64 extra field value beyond Number.MAX_SAFE_INTEGER is rejected', asy
     uncompressedSize: 0xffffffffffffffffn,
   });
 
-  const [read] = zlib.ZipEntry.read(patched);
-  assert.throws(() => read.size, {
+  // The header cross-check resolves the sizes as the archive is read, so a
+  // malformed Zip64 value is rejected at read time rather than at .size access.
+  assert.throws(() => [...zlib.ZipEntry.read(patched)], {
     code: 'ERR_ZIP_INVALID_ARCHIVE',
     message: /exceeds the safe integer range/,
   });
@@ -325,8 +326,7 @@ test('a Zip64 extra-field TLV whose declared size overflows the extra field is r
   tlv.writeUInt16LE(100, 2); // claims 100 bytes of data, but none follow
   const patched = injectRawZip64Extra(archive, name, content.length, tlv);
 
-  const [read] = zlib.ZipEntry.read(patched);
-  assert.throws(() => read.size, {
+  assert.throws(() => [...zlib.ZipEntry.read(patched)], {
     code: 'ERR_ZIP_INVALID_ARCHIVE',
     message: /extra field is malformed/,
   });
@@ -345,8 +345,7 @@ test('a Zip64 extra-field TLV too short for the field it claims to carry is reje
   tlv.writeUInt32LE(123, 4);
   const patched = injectRawZip64Extra(archive, name, content.length, tlv);
 
-  const [read] = zlib.ZipEntry.read(patched);
-  assert.throws(() => read.size, {
+  assert.throws(() => [...zlib.ZipEntry.read(patched)], {
     code: 'ERR_ZIP_INVALID_ARCHIVE',
     message: /Zip64 extended information extra field is truncated/,
   });
@@ -500,7 +499,8 @@ test('contentIterator() enforces the same guards as content() and contentSync()'
     const archive = await buildArchive([entry]);
     const tampered = Buffer.from(archive);
     const centralStart = 30 + 'f.txt'.length + 'hello world'.length;
-    tampered.writeUInt32LE(1, centralStart + 24);
+    tampered.writeUInt32LE(1, 22); // Local uncompressed size
+    tampered.writeUInt32LE(1, centralStart + 24); // Central uncompressed size
     const [read] = zlib.ZipEntry.read(tampered);
     await assert.rejects(drain(read.contentIterator()), { code: 'ERR_ZIP_ENTRY_CORRUPT' });
   }
@@ -593,7 +593,8 @@ test('ZipFile getSync().contentSync() enforces the same guards via decodeMemberS
     const archive = await buildArchive([entry]);
     const tampered = Buffer.from(archive);
     const centralStart = 30 + 'f.txt'.length + 'hello world'.length;
-    tampered.writeUInt32LE(1, centralStart + 24);
+    tampered.writeUInt32LE(1, 22); // Local uncompressed size
+    tampered.writeUInt32LE(1, centralStart + 24); // Central uncompressed size
     const filePath = await writeTempArchive(tampered, 'size-mismatch');
     const zf = zlib.ZipFile.openSync(filePath);
     assert.throws(() => zf.getSync('f.txt').contentSync(), { code: 'ERR_ZIP_ENTRY_CORRUPT' });
@@ -607,7 +608,8 @@ test('contentIterator() rejects an entry that inflates to less than its declared
   const archive = await buildArchive([entry]);
   const tampered = Buffer.from(archive);
   const centralStart = 30 + 'f.txt'.length + 'hi'.length;
-  tampered.writeUInt32LE(1000, centralStart + 24); // Declared size grown beyond reality
+  tampered.writeUInt32LE(1000, 22); // Local declared size
+  tampered.writeUInt32LE(1000, centralStart + 24); // Central declared size grown beyond reality
   const [read] = zlib.ZipEntry.read(tampered);
   await assert.rejects(drain(read.contentIterator()), {
     code: 'ERR_ZIP_ENTRY_CORRUPT',
