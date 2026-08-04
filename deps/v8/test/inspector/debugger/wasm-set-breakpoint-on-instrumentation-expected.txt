@@ -1,0 +1,49 @@
+Test if breakpoints are hit that are set on instrumentation pause in wasm.
+
+Running test: testSetBreakpointOnInstrumentationPause
+Setting instrumentation breakpoint
+Compiling wasm module.
+Paused at v8://test/compile_module with reason "instrumentation".
+Hit breakpoints: []
+Instantiating module.
+Paused at v8://test/instantiate with reason "instrumentation".
+Hit breakpoints: []
+Setting breakpoint at instrumentation break location
+Paused at wasm://wasm/341d515e with reason "instrumentation".
+Script wasm://wasm/341d515e byte offset 26: Wasm opcode 0x01 (kExprNop)
+Hit breakpoints: []
+Paused at wasm://wasm/341d515e with reason "other".
+Script wasm://wasm/341d515e byte offset 26: Wasm opcode 0x01 (kExprNop)
+Hit breakpoints: ["4:0:26:4"]
+Done.
+
+Running test: testSetConditionalBreakpointTrueConditionOnInstrumentationPause
+Setting instrumentation breakpoint
+Compiling wasm module.
+Paused at v8://test/compile_module with reason "instrumentation".
+Hit breakpoints: []
+Instantiating module.
+Paused at v8://test/instantiate with reason "instrumentation".
+Hit breakpoints: []
+Setting breakpoint at instrumentation break location
+Paused at wasm://wasm/341d515e with reason "instrumentation".
+Script wasm://wasm/341d515e byte offset 26: Wasm opcode 0x01 (kExprNop)
+Hit breakpoints: []
+Paused at wasm://wasm/341d515e with reason "other".
+Script wasm://wasm/341d515e byte offset 26: Wasm opcode 0x01 (kExprNop)
+Hit breakpoints: ["4:0:26:4"]
+Done.
+
+Running test: testSetConditionalBreakpointFalseConditionOnInstrumentationPause
+Setting instrumentation breakpoint
+Compiling wasm module.
+Paused at v8://test/compile_module with reason "instrumentation".
+Hit breakpoints: []
+Instantiating module.
+Paused at v8://test/instantiate with reason "instrumentation".
+Hit breakpoints: []
+Setting breakpoint at instrumentation break location
+Paused at wasm://wasm/341d515e with reason "instrumentation".
+Script wasm://wasm/341d515e byte offset 26: Wasm opcode 0x01 (kExprNop)
+Hit breakpoints: []
+Done.

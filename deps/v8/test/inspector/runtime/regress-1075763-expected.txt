@@ -1,0 +1,26 @@
+Tests Runtime.evaluate returns object with undefined property.
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : f
+            description : f
+            objectId : <objectId>
+            preview : {
+                description : f
+                overflow : false
+                properties : [
+                    [0] : {
+                        name : [[GeneratorState]]
+                        type : string
+                        value : suspended
+                    }
+                ]
+                subtype : generator
+                type : object
+            }
+            subtype : generator
+            type : object
+        }
+    }
+}

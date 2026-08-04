@@ -1,0 +1,432 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Tests that a GetByVal that accesses a value that was PutByVal'd, but where the PutByVal invoked a setter, works correctly.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS foo(array, -1, i) is 42
+PASS thingy is 0
+PASS foo(array, -1, i) is 42
+PASS thingy is 1
+PASS foo(array, -1, i) is 42
+PASS thingy is 2
+PASS foo(array, -1, i) is 42
+PASS thingy is 3
+PASS foo(array, -1, i) is 42
+PASS thingy is 4
+PASS foo(array, -1, i) is 42
+PASS thingy is 5
+PASS foo(array, -1, i) is 42
+PASS thingy is 6
+PASS foo(array, -1, i) is 42
+PASS thingy is 7
+PASS foo(array, -1, i) is 42
+PASS thingy is 8
+PASS foo(array, -1, i) is 42
+PASS thingy is 9
+PASS foo(array, -1, i) is 42
+PASS thingy is 10
+PASS foo(array, -1, i) is 42
+PASS thingy is 11
+PASS foo(array, -1, i) is 42
+PASS thingy is 12
+PASS foo(array, -1, i) is 42
+PASS thingy is 13
+PASS foo(array, -1, i) is 42
+PASS thingy is 14
+PASS foo(array, -1, i) is 42
+PASS thingy is 15
+PASS foo(array, -1, i) is 42
+PASS thingy is 16
+PASS foo(array, -1, i) is 42
+PASS thingy is 17
+PASS foo(array, -1, i) is 42
+PASS thingy is 18
+PASS foo(array, -1, i) is 42
+PASS thingy is 19
+PASS foo(array, -1, i) is 42
+PASS thingy is 20
+PASS foo(array, -1, i) is 42
+PASS thingy is 21
+PASS foo(array, -1, i) is 42
+PASS thingy is 22
+PASS foo(array, -1, i) is 42
+PASS thingy is 23
+PASS foo(array, -1, i) is 42
+PASS thingy is 24
+PASS foo(array, -1, i) is 42
+PASS thingy is 25
+PASS foo(array, -1, i) is 42
+PASS thingy is 26
+PASS foo(array, -1, i) is 42
+PASS thingy is 27
+PASS foo(array, -1, i) is 42
+PASS thingy is 28
+PASS foo(array, -1, i) is 42
+PASS thingy is 29
+PASS foo(array, -1, i) is 42
+PASS thingy is 30
+PASS foo(array, -1, i) is 42
+PASS thingy is 31
+PASS foo(array, -1, i) is 42
+PASS thingy is 32
+PASS foo(array, -1, i) is 42
+PASS thingy is 33
+PASS foo(array, -1, i) is 42
+PASS thingy is 34
+PASS foo(array, -1, i) is 42
+PASS thingy is 35
+PASS foo(array, -1, i) is 42
+PASS thingy is 36
+PASS foo(array, -1, i) is 42
+PASS thingy is 37
+PASS foo(array, -1, i) is 42
+PASS thingy is 38
+PASS foo(array, -1, i) is 42
+PASS thingy is 39
+PASS foo(array, -1, i) is 42
+PASS thingy is 40
+PASS foo(array, -1, i) is 42
+PASS thingy is 41
+PASS foo(array, -1, i) is 42
+PASS thingy is 42
+PASS foo(array, -1, i) is 42
+PASS thingy is 43
+PASS foo(array, -1, i) is 42
+PASS thingy is 44
+PASS foo(array, -1, i) is 42
+PASS thingy is 45
+PASS foo(array, -1, i) is 42
+PASS thingy is 46
+PASS foo(array, -1, i) is 42
+PASS thingy is 47
+PASS foo(array, -1, i) is 42
+PASS thingy is 48
+PASS foo(array, -1, i) is 42
+PASS thingy is 49
+PASS foo(array, -1, i) is 42
+PASS thingy is 50
+PASS foo(array, -1, i) is 42
+PASS thingy is 51
+PASS foo(array, -1, i) is 42
+PASS thingy is 52
+PASS foo(array, -1, i) is 42
+PASS thingy is 53
+PASS foo(array, -1, i) is 42
+PASS thingy is 54
+PASS foo(array, -1, i) is 42
+PASS thingy is 55
+PASS foo(array, -1, i) is 42
+PASS thingy is 56
+PASS foo(array, -1, i) is 42
+PASS thingy is 57
+PASS foo(array, -1, i) is 42
+PASS thingy is 58
+PASS foo(array, -1, i) is 42
+PASS thingy is 59
+PASS foo(array, -1, i) is 42
+PASS thingy is 60
+PASS foo(array, -1, i) is 42
+PASS thingy is 61
+PASS foo(array, -1, i) is 42
+PASS thingy is 62
+PASS foo(array, -1, i) is 42
+PASS thingy is 63
+PASS foo(array, -1, i) is 42
+PASS thingy is 64
+PASS foo(array, -1, i) is 42
+PASS thingy is 65
+PASS foo(array, -1, i) is 42
+PASS thingy is 66
+PASS foo(array, -1, i) is 42
+PASS thingy is 67
+PASS foo(array, -1, i) is 42
+PASS thingy is 68
+PASS foo(array, -1, i) is 42
+PASS thingy is 69
+PASS foo(array, -1, i) is 42
+PASS thingy is 70
+PASS foo(array, -1, i) is 42
+PASS thingy is 71
+PASS foo(array, -1, i) is 42
+PASS thingy is 72
+PASS foo(array, -1, i) is 42
+PASS thingy is 73
+PASS foo(array, -1, i) is 42
+PASS thingy is 74
+PASS foo(array, -1, i) is 42
+PASS thingy is 75
+PASS foo(array, -1, i) is 42
+PASS thingy is 76
+PASS foo(array, -1, i) is 42
+PASS thingy is 77
+PASS foo(array, -1, i) is 42
+PASS thingy is 78
+PASS foo(array, -1, i) is 42
+PASS thingy is 79
+PASS foo(array, -1, i) is 42
+PASS thingy is 80
+PASS foo(array, -1, i) is 42
+PASS thingy is 81
+PASS foo(array, -1, i) is 42
+PASS thingy is 82
+PASS foo(array, -1, i) is 42
+PASS thingy is 83
+PASS foo(array, -1, i) is 42
+PASS thingy is 84
+PASS foo(array, -1, i) is 42
+PASS thingy is 85
+PASS foo(array, -1, i) is 42
+PASS thingy is 86
+PASS foo(array, -1, i) is 42
+PASS thingy is 87
+PASS foo(array, -1, i) is 42
+PASS thingy is 88
+PASS foo(array, -1, i) is 42
+PASS thingy is 89
+PASS foo(array, -1, i) is 42
+PASS thingy is 90
+PASS foo(array, -1, i) is 42
+PASS thingy is 91
+PASS foo(array, -1, i) is 42
+PASS thingy is 92
+PASS foo(array, -1, i) is 42
+PASS thingy is 93
+PASS foo(array, -1, i) is 42
+PASS thingy is 94
+PASS foo(array, -1, i) is 42
+PASS thingy is 95
+PASS foo(array, -1, i) is 42
+PASS thingy is 96
+PASS foo(array, -1, i) is 42
+PASS thingy is 97
+PASS foo(array, -1, i) is 42
+PASS thingy is 98
+PASS foo(array, -1, i) is 42
+PASS thingy is 99
+PASS foo(array, -1, i) is 42
+PASS thingy is 100
+PASS foo(array, -1, i) is 42
+PASS thingy is 101
+PASS foo(array, -1, i) is 42
+PASS thingy is 102
+PASS foo(array, -1, i) is 42
+PASS thingy is 103
+PASS foo(array, -1, i) is 42
+PASS thingy is 104
+PASS foo(array, -1, i) is 42
+PASS thingy is 105
+PASS foo(array, -1, i) is 42
+PASS thingy is 106
+PASS foo(array, -1, i) is 42
+PASS thingy is 107
+PASS foo(array, -1, i) is 42
+PASS thingy is 108
+PASS foo(array, -1, i) is 42
+PASS thingy is 109
+PASS foo(array, -1, i) is 42
+PASS thingy is 110
+PASS foo(array, -1, i) is 42
+PASS thingy is 111
+PASS foo(array, -1, i) is 42
+PASS thingy is 112
+PASS foo(array, -1, i) is 42
+PASS thingy is 113
+PASS foo(array, -1, i) is 42
+PASS thingy is 114
+PASS foo(array, -1, i) is 42
+PASS thingy is 115
+PASS foo(array, -1, i) is 42
+PASS thingy is 116
+PASS foo(array, -1, i) is 42
+PASS thingy is 117
+PASS foo(array, -1, i) is 42
+PASS thingy is 118
+PASS foo(array, -1, i) is 42
+PASS thingy is 119
+PASS foo(array, -1, i) is 42
+PASS thingy is 120
+PASS foo(array, -1, i) is 42
+PASS thingy is 121
+PASS foo(array, -1, i) is 42
+PASS thingy is 122
+PASS foo(array, -1, i) is 42
+PASS thingy is 123
+PASS foo(array, -1, i) is 42
+PASS thingy is 124
+PASS foo(array, -1, i) is 42
+PASS thingy is 125
+PASS foo(array, -1, i) is 42
+PASS thingy is 126
+PASS foo(array, -1, i) is 42
+PASS thingy is 127
+PASS foo(array, -1, i) is 42
+PASS thingy is 128
+PASS foo(array, -1, i) is 42
+PASS thingy is 129
+PASS foo(array, -1, i) is 42
+PASS thingy is 130
+PASS foo(array, -1, i) is 42
+PASS thingy is 131
+PASS foo(array, -1, i) is 42
+PASS thingy is 132
+PASS foo(array, -1, i) is 42
+PASS thingy is 133
+PASS foo(array, -1, i) is 42
+PASS thingy is 134
+PASS foo(array, -1, i) is 42
+PASS thingy is 135
+PASS foo(array, -1, i) is 42
+PASS thingy is 136
+PASS foo(array, -1, i) is 42
+PASS thingy is 137
+PASS foo(array, -1, i) is 42
+PASS thingy is 138
+PASS foo(array, -1, i) is 42
+PASS thingy is 139
+PASS foo(array, -1, i) is 42
+PASS thingy is 140
+PASS foo(array, -1, i) is 42
+PASS thingy is 141
+PASS foo(array, -1, i) is 42
+PASS thingy is 142
+PASS foo(array, -1, i) is 42
+PASS thingy is 143
+PASS foo(array, -1, i) is 42
+PASS thingy is 144
+PASS foo(array, -1, i) is 42
+PASS thingy is 145
+PASS foo(array, -1, i) is 42
+PASS thingy is 146
+PASS foo(array, -1, i) is 42
+PASS thingy is 147
+PASS foo(array, -1, i) is 42
+PASS thingy is 148
+PASS foo(array, -1, i) is 42
+PASS thingy is 149
+PASS foo(array, -1, i) is 42
+PASS thingy is 150
+PASS foo(array, -1, i) is 42
+PASS thingy is 151
+PASS foo(array, -1, i) is 42
+PASS thingy is 152
+PASS foo(array, -1, i) is 42
+PASS thingy is 153
+PASS foo(array, -1, i) is 42
+PASS thingy is 154
+PASS foo(array, -1, i) is 42
+PASS thingy is 155
+PASS foo(array, -1, i) is 42
+PASS thingy is 156
+PASS foo(array, -1, i) is 42
+PASS thingy is 157
+PASS foo(array, -1, i) is 42
+PASS thingy is 158
+PASS foo(array, -1, i) is 42
+PASS thingy is 159
+PASS foo(array, -1, i) is 42
+PASS thingy is 160
+PASS foo(array, -1, i) is 42
+PASS thingy is 161
+PASS foo(array, -1, i) is 42
+PASS thingy is 162
+PASS foo(array, -1, i) is 42
+PASS thingy is 163
+PASS foo(array, -1, i) is 42
+PASS thingy is 164
+PASS foo(array, -1, i) is 42
+PASS thingy is 165
+PASS foo(array, -1, i) is 42
+PASS thingy is 166
+PASS foo(array, -1, i) is 42
+PASS thingy is 167
+PASS foo(array, -1, i) is 42
+PASS thingy is 168
+PASS foo(array, -1, i) is 42
+PASS thingy is 169
+PASS foo(array, -1, i) is 42
+PASS thingy is 170
+PASS foo(array, -1, i) is 42
+PASS thingy is 171
+PASS foo(array, -1, i) is 42
+PASS thingy is 172
+PASS foo(array, -1, i) is 42
+PASS thingy is 173
+PASS foo(array, -1, i) is 42
+PASS thingy is 174
+PASS foo(array, -1, i) is 42
+PASS thingy is 175
+PASS foo(array, -1, i) is 42
+PASS thingy is 176
+PASS foo(array, -1, i) is 42
+PASS thingy is 177
+PASS foo(array, -1, i) is 42
+PASS thingy is 178
+PASS foo(array, -1, i) is 42
+PASS thingy is 179
+PASS foo(array, -1, i) is 42
+PASS thingy is 180
+PASS foo(array, -1, i) is 42
+PASS thingy is 181
+PASS foo(array, -1, i) is 42
+PASS thingy is 182
+PASS foo(array, -1, i) is 42
+PASS thingy is 183
+PASS foo(array, -1, i) is 42
+PASS thingy is 184
+PASS foo(array, -1, i) is 42
+PASS thingy is 185
+PASS foo(array, -1, i) is 42
+PASS thingy is 186
+PASS foo(array, -1, i) is 42
+PASS thingy is 187
+PASS foo(array, -1, i) is 42
+PASS thingy is 188
+PASS foo(array, -1, i) is 42
+PASS thingy is 189
+PASS foo(array, -1, i) is 42
+PASS thingy is 190
+PASS foo(array, -1, i) is 42
+PASS thingy is 191
+PASS foo(array, -1, i) is 42
+PASS thingy is 192
+PASS foo(array, -1, i) is 42
+PASS thingy is 193
+PASS foo(array, -1, i) is 42
+PASS thingy is 194
+PASS foo(array, -1, i) is 42
+PASS thingy is 195
+PASS foo(array, -1, i) is 42
+PASS thingy is 196
+PASS foo(array, -1, i) is 42
+PASS thingy is 197
+PASS foo(array, -1, i) is 42
+PASS thingy is 198
+PASS foo(array, -1, i) is 42
+PASS thingy is 199
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

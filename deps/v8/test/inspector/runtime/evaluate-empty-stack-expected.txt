@@ -1,0 +1,10 @@
+Tests that Runtime.evaluate works with an empty stack
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : snape kills dumbledore
+        }
+    }
+}

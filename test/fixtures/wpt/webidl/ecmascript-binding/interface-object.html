@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Interface objects</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(function () {
+    assert_equals(typeof window.Blob, "function")
+    delete window.Blob;
+    assert_equals(window.Blob, undefined);
+}, "An interface object deleted after it has been accessed is undefined");
+
+test(function () {
+    delete window.File;
+    assert_equals(window.File, undefined);
+}, "An interface object deleted before it has been defined is undefined");
+
+test(function () {
+    delete window.ImageData;
+    assert_equals(Object.getOwnPropertyDescriptor(window, "ImageData"), undefined);
+    delete window.ImageData;
+    assert_equals(Object.getOwnPropertyDescriptor(window, "ImageData"), undefined);
+}, "Interface objects deleted multiple times stay deleted");
+
+test(function () {
+    assert_equals(window["abc\udc88"], undefined);
+}, "Fancy property names don't break the resolve hook on Window");
+</script>

@@ -1,0 +1,29 @@
+# primary
+furo==2024.8.6
+Sphinx==7.0.1
+
+# dependencies
+alabaster==0.7.16
+babel==2.17.0
+beautifulsoup4==4.13.3
+certifi==2025.1.31
+charset-normalizer==3.4.1
+docutils==0.20.1
+idna==3.10
+imagesize==1.4.1
+Jinja2==3.1.6
+MarkupSafe==3.0.2
+packaging==24.2
+Pygments==2.19.1
+requests==2.32.3
+snowballstemmer==2.2.0
+soupsieve==2.6
+sphinx-basic-ng==1.0.0b2
+sphinxcontrib-applehelp==2.0.0
+sphinxcontrib-devhelp==2.0.0
+sphinxcontrib-htmlhelp==2.1.0
+sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-qthelp==2.0.0
+sphinxcontrib-serializinghtml==2.0.0
+typing_extensions==4.13.0
+urllib3==2.3.0

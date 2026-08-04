@@ -1,0 +1,16 @@
+#   ZSTD - standard compression algorithm
+#   Copyright (c) Meta Platforms, Inc. and affiliates.
+#   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
+
+prefix=@PREFIX@
+exec_prefix=@EXEC_PREFIX@
+includedir=@INCLUDEDIR@
+libdir=@LIBDIR@
+
+Name: zstd
+Description: fast lossless compression algorithm library
+URL: https://facebook.github.io/zstd/
+Version: @VERSION@
+Libs: -L${libdir} -lzstd @LIBS_MT@
+Libs.private: @LIBS_PRIVATE@
+Cflags: -I${includedir} @LIBS_MT@

@@ -1,0 +1,6 @@
+{
+    "permission": {
+        "allow-addons": true,
+        "allow-wasi": true
+    }
+}

@@ -1,0 +1,36 @@
+---
+source: core/src/ast/structs.rs
+expression: "Struct::new(&syn::parse_quote!\n{\n    #[doc = r\" Some docs.\"] #[diplomat::rust_link(foo::Bar, Struct)] struct\n    MyLocalStruct { a: i32, b: Box<MyLocalStruct> }\n}, true, &Default::default())"
+---
+name: MyLocalStruct
+docs:
+  - - cfg: Star
+      lines: Some docs.
+  - - path:
+        elements:
+          - foo
+          - Bar
+      typ: Struct
+      display: Normal
+lifetimes: {}
+fields:
+  - - a
+    - Primitive: i32
+    - - - cfg: Star
+          lines: ""
+      - []
+    - {}
+  - - b
+    - Box:
+        Named:
+          path:
+            elements:
+              - MyLocalStruct
+          lifetimes: []
+    - - - cfg: Star
+          lines: ""
+      - []
+    - {}
+methods: []
+output_only: true
+attrs: {}

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<meta charset="utf-8">
+<script>
+  var c = new Worker("/streams/readable-streams/crashtests/strategy-worker.js");
+  c.onmessage = () => {
+    c.terminate();
+    document.documentElement.classList.remove("test-wait");
+  }
+</script>

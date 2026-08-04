@@ -1,0 +1,40 @@
+Test static private class methods
+
+Running test: testScopesPaused
+private members on class A
+privateProperties from Runtime.getProperties()
+undefined
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+{
+    name : [[PrivateMethods]]
+    value : {
+        className : Array
+        description : PrivateMethods[1]
+        objectId : <objectId>
+        subtype : internal#privateMethodList
+        type : object
+    }
+}
+{
+    result : [
+        [0] : {
+            configurable : true
+            enumerable : true
+            isOwn : true
+            name : 0
+            value : {
+                className : Object
+                description : #method() {       debugger;     }
+                objectId : <objectId>
+                subtype : internal#privateMethod
+                type : object
+            }
+            writable : true
+        }
+    ]
+}
+private members on class B
+privateProperties from Runtime.getProperties()
+undefined
+[[PrivateMethods]] in internalProperties from Runtime.getProperties()
+undefined

@@ -1,0 +1,212 @@
+Change detector for 'functionLocation' for various callables
+---------------------------------------------
+function functionDeclaration() {
+                            ^
+  debugger;
+}
+
+
+---------------------------------------------
+async function asyncFnDeclaration() {
+                                 ^
+  debugger;
+}
+
+
+---------------------------------------------
+function* generator() {
+                   ^
+  debugger;
+  yield;
+
+
+---------------------------------------------
+async function* asyncGenerator() {
+                              ^
+  debugger;
+  yield;
+
+
+---------------------------------------------
+const anonFnExpr = function () {
+                            ^
+  debugger;
+};
+
+
+---------------------------------------------
+const namedFnExpr = function foo() {
+                                ^
+  debugger;
+}
+
+
+---------------------------------------------
+const asyncAnonFnExpr = async function() {
+                                      ^
+  debugger;
+}
+
+
+---------------------------------------------
+const anonGeneratorExpr = function* () {
+                                    ^
+  debugger;
+}
+
+
+---------------------------------------------
+const arrowFn = () => {
+                ^
+  debugger;
+}
+
+
+---------------------------------------------
+const asyncArrowFn = async () => {
+                     ^
+  debugger;
+}
+
+
+---------------------------------------------
+const pause = () => { debugger; }
+              ^
+const implicitReturnArrowFn = x => pause();
+implicitReturnArrowFn(42);
+
+
+const pause = () => { debugger; }
+const implicitReturnArrowFn = x => pause();
+                              ^
+implicitReturnArrowFn(42);
+
+
+---------------------------------------------
+const pause2 = () => { debugger; }
+               ^
+const implicitReturnAsyncArrowFn = async x => await pause2();
+implicitReturnAsyncArrowFn(42);
+
+
+const pause2 = () => { debugger; }
+const implicitReturnAsyncArrowFn = async x => await pause2();
+                                   ^
+implicitReturnAsyncArrowFn(42);
+
+
+---------------------------------------------
+const obj = {
+  method() {
+        ^
+    debugger;
+  }
+
+
+---------------------------------------------
+const obj2 = {
+  async method() {
+              ^
+    debugger;
+  }
+
+
+---------------------------------------------
+const obj3 = {
+  * generator() {
+             ^
+    debugger;
+    yield;
+
+
+---------------------------------------------
+const obj4 = {
+  async * generator() {
+                   ^
+    debugger;
+    yield;
+
+
+---------------------------------------------
+const obj5 = {
+  ['computedProp']() {
+                  ^
+    debugger;
+  }
+
+
+---------------------------------------------
+const obj6 = {
+  get getAccessor() {
+                 ^
+    debugger;
+  }
+
+
+---------------------------------------------
+const obj7 = {
+  set setAccessor(value) {
+                 ^
+    debugger;
+  }
+
+
+---------------------------------------------
+class C1 {
+  constructor() {
+             ^
+    debugger;
+  }
+
+
+---------------------------------------------
+const pause3 = () => { debugger; }
+               ^
+class C2 {
+  #field = pause3();
+
+
+class C2 {
+  #field = pause3();
+  ^
+}
+new C2();
+
+
+const pause3 = () => { debugger; }
+class C2 {
+^
+  #field = pause3();
+}
+
+
+---------------------------------------------
+class C3 {
+  static staticMethod() {
+                     ^
+    debugger;
+  }
+
+
+---------------------------------------------
+class C4 {
+  #privateMethod() {
+                ^
+    debugger;
+  }
+
+
+  invoke() {
+        ^
+    this.#privateMethod();
+  }
+
+
+---------------------------------------------
+class C5 {
+  static {
+  ^
+    debugger;
+  }
+
+

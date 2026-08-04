@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "file": "hidden-ranges.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global",
+    "block"
+  ],
+  "scopes": "BCAAA,BCBAC,CEA,CFA,ECAA,EPBAC,FEA,FFA"
+}

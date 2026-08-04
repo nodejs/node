@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Web Locks API: Non-fully-active documents</title>
+<link rel=help href="https://w3c.github.io/web-locks/">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+
+<div></div>
+
+<script>
+  function createNonFullyActiveIframe(src) {
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+    const { navigator, DOMException, postMessage } = iframe.contentWindow;
+    iframe.remove();
+    return { iframe, navigator, DOMException, postMessage };
+  }
+
+  promise_test(async t => {
+    const { navigator, DOMException } = createNonFullyActiveIframe();
+    const p = navigator.locks.request("foo", t.unreached_func());
+    await promise_rejects_dom(t, "InvalidStateError", DOMException, p, "Request should explicitly fail");
+  }, "request() on non-fully-active document must fail");
+
+  promise_test(async t => {
+    const { navigator, DOMException } = createNonFullyActiveIframe();
+    const p = navigator.locks.query();
+    await promise_rejects_dom(t, "InvalidStateError", DOMException, p, "Query should explicitly fail");
+  }, "query() on a non-fully-active document must fail");
+
+  promise_test(async t => {
+    const { navigator, DOMException, postMessage } = createNonFullyActiveIframe();
+
+    const p = navigator.locks.request("-", t.unreached_func());
+    await promise_rejects_dom(t, "InvalidStateError", DOMException, p, "Request should explicitly fail");
+  }, "request()'s fully-active check happens earlier than name validation");
+
+  promise_test(async t => {
+    const { iframe, navigator, DOMException } = createNonFullyActiveIframe();
+    document.body.append(iframe);
+    t.add_cleanup(() => iframe.remove());
+
+    // Appending should create a new browsing context with a new Navigator object
+    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:insert-an-element-into-a-document
+    // https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object:associated-navigator
+    assert_not_equals(navigator, iframe.contentWindow.navigator, "Navigator object changes");
+    assert_not_equals(navigator.locks, iframe.contentWindow.navigator.locks, "LockManager object changes");
+
+    const p = navigator.locks.request("foo", t.unreached_func());
+    await promise_rejects_dom(t, "InvalidStateError", DOMException, p, "Request on the previous LockManager still must fail");
+  }, "Reactivated iframe must not reuse the previous LockManager");
+
+  promise_test(async t => {
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+    const worker = new iframe.contentWindow.Worker("resources/worker.js");
+
+    const name = uniqueName(t);
+    await postToWorkerAndWait(worker, { op: 'request', name });
+
+    let query = await navigator.locks.query();
+    assert_equals(query.held.length, 1, "One lock is present");
+
+    iframe.remove();
+
+    const lock = await navigator.locks.request(name, lock => lock);
+    assert_equals(lock.name, name, "The following lock should be processed");
+
+    query = await navigator.locks.query();
+    assert_equals(query.held.length, 0, "No lock is present");
+  }, "Workers owned by an unloaded iframe must release their locks");
+</script>

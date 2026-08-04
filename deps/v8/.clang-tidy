@@ -1,0 +1,26 @@
+---
+---
+  Checks:          '-*,
+                    bugprone-unique-ptr-array-mismatch,
+                    # google-build-explicit-make-pair,
+                    google-default-arguments,
+                    google-explicit-constructor,
+                    google-readability-casting,
+                    modernize-redundant-void-arg,
+                    modernize-replace-random-shuffle,
+                    modernize-shrink-to-fit,
+                    modernize-type-traits,
+                    # modernize-use-auto,
+                    modernize-use-constraints,
+                    modernize-use-bool-literals,
+                    modernize-use-equals-default,
+                    # modernize-use-equals-delete,
+                    modernize-use-nullptr,
+                    modernize-use-override,
+                    performance-inefficient-vector-operation,
+                    performance-trivially-destructible,
+                    performance-unnecessary-copy-initialization'
+WarningsAsErrors: ''
+HeaderFilterRegex: ''
+AnalyzeTemporaryDtors: false
+...

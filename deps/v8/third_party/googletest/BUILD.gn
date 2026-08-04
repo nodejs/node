@@ -1,0 +1,171 @@
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+config("gtest_config") {
+  visibility = [ ":*" ]  # gmock also shares this config.
+
+  defines = [
+    # Chromium always links googletest statically, so no API qualifier is
+    # necessary. The definition in gtest-port.h at the time of this writing
+    # causes crashes in content_browsertests.
+    "GTEST_API_=",
+
+    # In order to allow regex matches in gtest to be shared between Windows
+    # and other systems, we tell gtest to always use its internal engine.
+    "GTEST_HAS_POSIX_RE=0",
+
+    # Enables C++11 features.
+    "GTEST_LANG_CXX11=1",
+
+    # Prevents gtest from including both <tr1/tuple> and <tuple>.
+    "GTEST_HAS_TR1_TUPLE=0",
+  ]
+
+  # Gtest headers need to be able to find themselves.
+  include_dirs = [
+    # TODO(crbug.com/829773): Remove this after transitioning off <tr1/tuple>.
+    "custom",
+
+    "src/googletest/include",
+  ]
+
+  if (is_win) {
+    cflags = [ "/wd4800" ]  # Unused variable warning.
+  }
+}
+
+config("gmock_config") {
+  # Gmock headers need to be able to find themselves.
+  include_dirs = [
+    # TODO(crbug.com/829773): Add "custom" here after transitioning off
+    #                         <tr1/tuple>.
+    "src/googlemock/include",
+  ]
+}
+
+# Do NOT depend on this directly. Use //testing/gtest instead.
+# See README.chromium for details.
+source_set("gtest") {
+  testonly = true
+  sources = [
+    "src/googletest/include/gtest/gtest-assertion-result.h",
+    "src/googletest/include/gtest/gtest-death-test.h",
+    "src/googletest/include/gtest/gtest-matchers.h",
+    "src/googletest/include/gtest/gtest-message.h",
+    "src/googletest/include/gtest/gtest-param-test.h",
+    "src/googletest/include/gtest/gtest-printers.h",
+    "src/googletest/include/gtest/gtest-spi.h",
+    "src/googletest/include/gtest/gtest-test-part.h",
+    "src/googletest/include/gtest/gtest-typed-test.h",
+    "src/googletest/include/gtest/gtest.h",
+    "src/googletest/include/gtest/gtest_pred_impl.h",
+    "src/googletest/include/gtest/internal/gtest-death-test-internal.h",
+    "src/googletest/include/gtest/internal/gtest-filepath.h",
+    "src/googletest/include/gtest/internal/gtest-internal.h",
+    "src/googletest/include/gtest/internal/gtest-param-util.h",
+    "src/googletest/include/gtest/internal/gtest-port.h",
+    "src/googletest/include/gtest/internal/gtest-string.h",
+    "src/googletest/include/gtest/internal/gtest-type-util.h",
+
+    #"src/googletest/src/gtest-all.cc",  # Not needed by our build.
+    "src/googletest/src/gtest-assertion-result.cc",
+    "src/googletest/src/gtest-death-test.cc",
+    "src/googletest/src/gtest-filepath.cc",
+    "src/googletest/src/gtest-internal-inl.h",
+    "src/googletest/src/gtest-matchers.cc",
+    "src/googletest/src/gtest-port.cc",
+    "src/googletest/src/gtest-printers.cc",
+    "src/googletest/src/gtest-test-part.cc",
+    "src/googletest/src/gtest-typed-test.cc",
+    "src/googletest/src/gtest.cc",
+  ]
+
+  # Some files include "src/gtest-internal-inl.h".
+  include_dirs = [ "src/googletest" ]
+
+  all_dependent_configs = [ ":gtest_config" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  # V8-only workaround for http://crbug.com/chromium/1191946. Ensures that
+  # googletest is compiled with the same visibility such as the rest of V8, see
+  # https://source.chromium.org/chromium/chromium/src/+/master:v8/gni/v8.gni
+  if ((is_posix || is_fuchsia) && (v8_enable_backtrace || v8_monolithic)) {
+    configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
+    configs += [ "//build/config/gcc:symbol_visibility_default" ]
+  }
+
+  deps = []
+
+  if (is_fuchsia) {
+    deps += [
+      "//third_party/fuchsia-sdk/sdk/pkg/fdio",
+      "//third_party/fuchsia-sdk/sdk/pkg/zx",
+    ]
+  }
+}
+
+# Do NOT depend on this directly. Use //testing/gtest:gtest_main instead.
+# See README.chromium for details.
+source_set("gtest_main") {
+  testonly = true
+  sources = [ "src/googletest/src/gtest_main.cc" ]
+  deps = [ ":gtest" ]
+}
+
+# Do NOT depend on this directly. Use //testing/gmock:gmock_main instead.
+# See README.chromium for details.
+source_set("gmock") {
+  testonly = true
+  sources = [
+    "src/googlemock/include/gmock/gmock-actions.h",
+    "src/googlemock/include/gmock/gmock-cardinalities.h",
+    "src/googlemock/include/gmock/gmock-function-mocker.h",
+    "src/googlemock/include/gmock/gmock-matchers.h",
+    "src/googlemock/include/gmock/gmock-more-actions.h",
+    "src/googlemock/include/gmock/gmock-more-matchers.h",
+    "src/googlemock/include/gmock/gmock-nice-strict.h",
+    "src/googlemock/include/gmock/gmock-spec-builders.h",
+    "src/googlemock/include/gmock/gmock.h",
+    "src/googlemock/include/gmock/internal/gmock-internal-utils.h",
+    "src/googlemock/include/gmock/internal/gmock-port.h",
+    "src/googlemock/include/gmock/internal/gmock-pp.h",
+
+    #"src/googlemock/src/gmock-all.cc",  # Not needed by our build.
+    "src/googlemock/src/gmock-cardinalities.cc",
+    "src/googlemock/src/gmock-internal-utils.cc",
+    "src/googlemock/src/gmock-matchers.cc",
+    "src/googlemock/src/gmock-spec-builders.cc",
+    "src/googlemock/src/gmock.cc",
+  ]
+
+  # V8-only workaround for http://crbug.com/chromium/1191946. Ensures that
+  # googletest is compiled with the same visibility such as the rest of V8, see
+  # https://source.chromium.org/chromium/chromium/src/+/master:v8/gni/v8.gni
+  if ((is_posix || is_fuchsia) && (v8_enable_backtrace || v8_monolithic)) {
+    configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
+    configs += [ "//build/config/gcc:symbol_visibility_default" ]
+  }
+
+  public_configs = [
+    ":gmock_config",
+    ":gtest_config",
+  ]
+
+  deps = [ ":gtest" ]
+}
+
+# Do NOT depend on this directly. Use //testing/gmock:gmock_main instead.
+# See README.chromium for details.
+static_library("gmock_main") {
+  testonly = true
+  sources = [ "src/googlemock/src/gmock_main.cc" ]
+  deps = [
+    ":gmock",
+    ":gtest",
+  ]
+}

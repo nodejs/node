@@ -1,0 +1,70 @@
+{
+  "name": "minipass-fetch",
+  "version": "5.0.2",
+  "description": "An implementation of window.fetch in Node.js using Minipass streams",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "scripts": {
+    "test:tls-fixtures": "./test/fixtures/tls/setup.sh",
+    "test": "tap",
+    "snap": "tap",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run eslint -- --fix",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "tap": {
+    "coverage-map": "map.js",
+    "check-coverage": true,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.0",
+    "@npmcli/template-oss": "4.27.1",
+    "@ungap/url-search-params": "^0.2.2",
+    "abort-controller": "^3.0.0",
+    "abortcontroller-polyfill": "~1.7.3",
+    "form-data": "^4.0.0",
+    "iconv-lite": "^0.7.2",
+    "nock": "^13.2.4",
+    "parted": "^0.1.1",
+    "string-to-arraybuffer": "^1.0.2",
+    "tap": "^16.0.0"
+  },
+  "dependencies": {
+    "minipass": "^7.0.3",
+    "minipass-sized": "^2.0.0",
+    "minizlib": "^3.0.1"
+  },
+  "optionalDependencies": {
+    "iconv-lite": "^0.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/minipass-fetch.git"
+  },
+  "keywords": [
+    "fetch",
+    "minipass",
+    "node-fetch",
+    "window.fetch"
+  ],
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "author": "GitHub Inc.",
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.27.1",
+    "publish": "true"
+  }
+}

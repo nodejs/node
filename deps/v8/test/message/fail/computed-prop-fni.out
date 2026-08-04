@@ -1,0 +1,6 @@
+*%(basename)s:7: Error
+a[foo].c = () => { throw Error(); };
+                   ^
+Error
+    at a.<computed>.c (*%(basename)s:7:26)
+    at *%(basename)s:9:1
