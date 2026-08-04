@@ -92,11 +92,23 @@ void Histogram::Percentiles(Iterator&& fn) const {
   }
 }
 
+int64_t Histogram::CountAt(int64_t value) const {
+  RwLock::ScopedReadLock lock(mutex_);
+  return hdr_count_at_value(histogram_.get(), value);
+}
+
+bool Histogram::RecordCorrected(int64_t value, int64_t expected_interval) {
+  RwLock::ScopedWriteLock lock(mutex_);
+  bool recorded =
+      hdr_record_corrected_value(histogram_.get(), value, expected_interval);
+  if (!recorded) exceeds_++;
+  return recorded;
+}
+
 bool Histogram::Record(int64_t value) {
   RwLock::ScopedWriteLock lock(mutex_);
   bool recorded = hdr_record_value(histogram_.get(), value);
-  if (!recorded)
-    exceeds_++;
+  if (!recorded) exceeds_++;
   return recorded;
 }
 
@@ -107,8 +119,7 @@ uint64_t Histogram::RecordDelta() {
   if (prev_ > 0) {
     CHECK_GE(time, prev_);
     delta = time - prev_;
-    if (!hdr_record_value(histogram_.get(), delta))
-      exceeds_++;
+    if (!hdr_record_value(histogram_.get(), delta)) exceeds_++;
   }
   prev_ = time;
   return delta;
@@ -117,6 +128,28 @@ uint64_t Histogram::RecordDelta() {
 size_t Histogram::GetMemorySize() const {
   RwLock::ScopedReadLock lock(mutex_);
   return hdr_get_memory_size(histogram_.get());
+}
+
+template <typename Iterator>
+void Histogram::LinearBuckets(int64_t step_size, Iterator&& fn) const {
+  RwLock::ScopedReadLock lock(mutex_);
+  hdr_iter iter;
+  hdr_iter_linear_init(&iter, histogram_.get(), step_size);
+  while (hdr_iter_next(&iter)) {
+    fn(iter.value, iter.specifics.linear.count_added_in_this_iteration_step);
+  }
+}
+
+template <typename Iterator>
+void Histogram::LogBuckets(int64_t first_bucket,
+                           double log_base,
+                           Iterator&& fn) const {
+  RwLock::ScopedReadLock lock(mutex_);
+  hdr_iter iter;
+  hdr_iter_log_init(&iter, histogram_.get(), first_bucket, log_base);
+  while (hdr_iter_next(&iter)) {
+    fn(iter.value, iter.specifics.log.count_added_in_this_iteration_step);
+  }
 }
 
 }  // namespace node
