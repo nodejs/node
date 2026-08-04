@@ -73,7 +73,7 @@ suite('StatementSync with ArrayBuffer and SharedArrayBuffer', () => {
 
   for (const [displayName, buffer] of buffers) {
     test(`${displayName} - anonymous binding`, (t) => {
-      const db = new DatabaseSync(nextDb());
+      const db = new DatabaseSync(':memory:');
       t.after(() => { db.close(); });
       db.exec('CREATE TABLE test (data BLOB)');
       // insert
@@ -101,7 +101,7 @@ suite('StatementSync with ArrayBuffer and SharedArrayBuffer', () => {
     });
 
     test(`${displayName} - named binding (object)`, (t) => {
-      const db = new DatabaseSync(nextDb());
+      const db = new DatabaseSync(':memory:');
       t.after(() => { db.close(); });
       db.exec('CREATE TABLE test (data BLOB)');
       // insert
