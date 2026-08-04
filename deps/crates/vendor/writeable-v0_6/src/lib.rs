@@ -11,12 +11,9 @@
         clippy::unwrap_used,
         clippy::expect_used,
         clippy::panic,
-        clippy::exhaustive_structs,
-        clippy::exhaustive_enums,
-        clippy::trivially_copy_pass_by_ref,
-        missing_debug_implementations,
     )
 )]
+#![warn(missing_docs)]
 
 //! This crate defines [`Writeable`], a trait representing an object that can be written to a
 //! sink implementing `std::fmt::Write`. It is an alternative to `std::fmt::Display` with the
@@ -80,6 +77,7 @@
 extern crate alloc;
 
 mod cmp;
+mod concat;
 #[cfg(feature = "either")]
 mod either;
 mod impls;
@@ -99,6 +97,7 @@ use alloc::string::String;
 use core::fmt;
 
 pub use cmp::{cmp_str, cmp_utf8};
+pub use concat::concat_writeable;
 #[cfg(feature = "alloc")]
 pub use to_string_or_borrow::to_string_or_borrow;
 pub use try_writeable::TryWriteable;
@@ -107,11 +106,14 @@ pub use try_writeable::TryWriteable;
 pub mod adapters {
     use super::*;
 
+    pub use concat::Concat;
     pub use parts_write_adapter::CoreWriteAsPartsWrite;
     pub use parts_write_adapter::WithPart;
     pub use try_writeable::TryWriteableInfallibleAsWriteable;
     pub use try_writeable::WriteableAsTryWriteableInfallible;
 
+    /// A lossy wrapper for a [`TryWriteable`] that implements [`Writeable`]
+    /// and ignores any errors.
     #[derive(Debug)]
     #[allow(clippy::exhaustive_structs)] // newtype
     pub struct LossyWrap<T>(pub T);
@@ -160,6 +162,7 @@ pub mod _internal {
 pub struct LengthHint(pub usize, pub Option<usize>);
 
 impl LengthHint {
+    /// Unknown
     pub fn undefined() -> Self {
         Self(0, None)
     }
@@ -233,6 +236,7 @@ impl LengthHint {
 /// formatters should expose the `Part`s they produces as constants.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[allow(clippy::exhaustive_structs)] // stable
+#[allow(missing_docs)] // behavior not defined, explained in type docs
 pub struct Part {
     pub category: &'static str,
     pub value: &'static str,
@@ -250,6 +254,7 @@ impl Part {
 
 /// A sink that supports annotating parts of the string with [`Part`]s.
 pub trait PartsWrite: fmt::Write {
+    /// The recursive sink
     type SubPartsWrite: PartsWrite + ?Sized;
 
     /// Annotates all strings written by the closure with the given [`Part`].
@@ -371,7 +376,7 @@ pub trait Writeable {
 #[macro_export]
 macro_rules! impl_display_with_writeable {
     (@display, $type:ty) => {
-        /// This trait is implemented for compatibility with [`fmt!`](alloc::fmt).
+        /// This trait is implemented for compatibility with [`fmt!`](core::fmt).
         /// To create a string, [`Writeable::write_to_string`] is usually more efficient.
         impl core::fmt::Display for $type {
             #[inline]
