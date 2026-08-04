@@ -741,6 +741,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--experimental-repl-await", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             BOOL_FIELD(experimental_vm_modules),
