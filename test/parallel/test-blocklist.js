@@ -329,6 +329,17 @@ const util = require('util');
 }
 
 {
+  // addAddresses() validation: non-array argument throws.
+  const blockList0 = new BlockList();
+  assert.throws(() => blockList0.addAddresses('not-an-array'), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => blockList0.addAddresses(123), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+}
+
+{
   // Test addAddresses() batch insert.
   const blockList = new BlockList();
   blockList.addAddresses(['1.1.1.1', '2.2.2.2', '3.3.3.3']);

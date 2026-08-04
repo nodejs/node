@@ -465,58 +465,6 @@ bool SocketAddressBlockList::SubnetTrie::Lookup(const uint8_t* address_bytes,
   return false;
 }
 
-bool SocketAddressBlockList::SubnetTrie::Remove(const uint8_t* address_bytes,
-                                                int prefix_length) {
-  if (root_ == nullptr) return false;
-
-  // Walk the trie to find the node at prefix_length depth.
-  // Keep a stack of parent pointers so we can prune empty branches.
-  Node* node = root_.get();
-  struct Ancestor {
-    Node* parent;
-    int bit;
-  };
-  // Max depth is 128 bits for IPv6.
-  Ancestor ancestors[128];
-  int depth = 0;
-
-  for (int i = 0; i < prefix_length; i++) {
-    if (node->terminal) {
-      // A broader prefix exists — the specific prefix we're trying
-      // to remove is subsumed and doesn't exist as a separate entry.
-      return false;
-    }
-    int bit = GetBit(address_bytes, i);
-    if (node->children[bit] == nullptr) return false;
-    ancestors[depth++] = {node, bit};
-    node = node->children[bit].get();
-  }
-
-  if (!node->terminal) return false;
-
-  node->terminal = false;
-  count_--;
-
-  // Prune empty leaf nodes up the tree.
-  for (int i = depth - 1; i >= 0; i--) {
-    Node* child = ancestors[i].parent->children[ancestors[i].bit].get();
-    if (!child->terminal && child->children[0] == nullptr &&
-        child->children[1] == nullptr) {
-      ancestors[i].parent->children[ancestors[i].bit].reset();
-    } else {
-      break;
-    }
-  }
-
-  // If root is now empty and non-terminal, reset it.
-  if (!root_->terminal && root_->children[0] == nullptr &&
-      root_->children[1] == nullptr) {
-    root_.reset();
-  }
-
-  return true;
-}
-
 void SocketAddressBlockList::SubnetTrie::Clear() {
   root_.reset();
   count_ = 0;

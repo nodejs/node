@@ -333,10 +333,6 @@ class SocketAddressBlockList : public MemoryRetainer {
     // Returns true if the given address falls within any inserted subnet.
     bool Lookup(const uint8_t* address_bytes, int address_bits) const;
 
-    // Remove a previously inserted subnet. Returns true if it was found
-    // and removed.
-    bool Remove(const uint8_t* address_bytes, int prefix_length);
-
     // Remove all entries.
     void Clear();
 

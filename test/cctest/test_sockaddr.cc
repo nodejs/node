@@ -666,3 +666,37 @@ TEST(SocketAddressBlockList, SubnetOverlapRemoval) {
   SocketAddress outside(reinterpret_cast<const sockaddr*>(&s4));
   CHECK(!bl.Apply(outside));
 }
+
+TEST(SocketAddressBlockList, SubnetRemoveMixedFamily) {
+  // Removing one family's subnet must correctly rebuild the remaining
+  // rules, including those from the other family.
+  SocketAddressBlockList bl;
+
+  sockaddr_storage s1, s2, s3, s4;
+  SocketAddress::ToSockAddr(AF_INET, "192.168.0.0", 0, &s1);
+  SocketAddress::ToSockAddr(AF_INET6, "2001:db8::", 0, &s2);
+  SocketAddress::ToSockAddr(AF_INET, "192.168.1.1", 0, &s3);
+  SocketAddress::ToSockAddr(AF_INET6, "2001:db8::1", 0, &s4);
+
+  SocketAddress ipv4Net(reinterpret_cast<const sockaddr*>(&s1));
+  SocketAddress ipv6Net(reinterpret_cast<const sockaddr*>(&s2));
+  SocketAddress ipv4Addr(reinterpret_cast<const sockaddr*>(&s3));
+  SocketAddress ipv6Addr(reinterpret_cast<const sockaddr*>(&s4));
+
+  bl.AddSocketAddressMask(ipv4Net, 16);
+  bl.AddSocketAddressMask(ipv6Net, 32);
+
+  CHECK(bl.Apply(ipv4Addr));
+  CHECK(bl.Apply(ipv6Addr));
+
+  // Remove IPv4 subnet — IPv6 subnet must survive the rebuild.
+  bl.RemoveSocketAddressMask(ipv4Net, 16);
+  CHECK(!bl.Apply(ipv4Addr));
+  CHECK(bl.Apply(ipv6Addr));
+
+  // Re-add IPv4, then remove IPv6 — IPv4 must survive.
+  bl.AddSocketAddressMask(ipv4Net, 16);
+  bl.RemoveSocketAddressMask(ipv6Net, 32);
+  CHECK(bl.Apply(ipv4Addr));
+  CHECK(!bl.Apply(ipv6Addr));
+}
