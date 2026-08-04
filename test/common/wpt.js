@@ -9,6 +9,7 @@ const events = require('events');
 const os = require('os');
 const { inspect } = require('util');
 const { Worker } = require('worker_threads');
+const { fork } = require('child_process');
 
 const workerPath = path.join(__dirname, 'wpt/worker.js');
 const kRunWorkerGlobals = false;
@@ -451,7 +452,10 @@ class WPTTestSpec {
       return true;
     }
     const [filename, variant = ''] = arg.split('?');
-    return filename === this.filename &&
+    // Spec filenames are relative paths, so they use the platform separator,
+    // while the argument is written with forward slashes.
+    return filename.split(path.sep).join('/') ===
+      this.filename.split(path.sep).join('/') &&
       (!variant || this.variant.substring(1) === variant);
   }
 
@@ -632,23 +636,28 @@ const limit = (concurrency) => {
   let running = 0;
   const queue = [];
 
-  const execute = async (fn) => {
-    if (running < concurrency) {
-      running++;
-      try {
-        await fn();
-      } finally {
-        running--;
-        if (queue.length > 0) {
-          execute(queue.shift());
-        }
+  const execute = async ({ fn, resolve, reject }) => {
+    running++;
+    try {
+      resolve(await fn());
+    } catch (err) {
+      reject(err);
+    } finally {
+      running--;
+      if (queue.length > 0) {
+        execute(queue.shift());
       }
-    } else {
-      queue.push(fn);
     }
   };
 
-  return execute;
+  return (fn) => new Promise((resolve, reject) => {
+    const task = { fn, resolve, reject };
+    if (running < concurrency) {
+      execute(task);
+    } else {
+      queue.push(task);
+    }
+  });
 };
 
 function isUnexpectedPass(spec, name) {
@@ -683,14 +692,126 @@ function getHarnessErrorName(harnessStatus) {
   return harnessStatus.message || 'WPT test harness error';
 }
 
+/**
+ * @typedef {object} SpecHandlers
+ * @property {(message: object) => void} message Handles a message from the spec.
+ * @property {(failure: { name: string, message: string, stack: string })
+ *   => boolean} failure Reports a spec that died without completing. Returns
+ *   false when the spec had already finished and the failure was ignored.
+ */
+
+/**
+ * @typedef {object} SpecHandle
+ * @property {() => void} kill Forces the spec to stop running.
+ * @property {Promise<unknown>} finished Settles once the spec has stopped.
+ */
+
+/**
+ * Run a spec on a worker thread.
+ * @param {string[]} execArgv
+ * @param {object} workerData
+ * @param {SpecHandlers} handlers
+ * @returns {SpecHandle}
+ */
+function runSpecOnThread(execArgv, workerData, handlers) {
+  const worker = new Worker(workerPath, { execArgv, workerData });
+  worker.on('message', handlers.message);
+  worker.on('error', (err) => handlers.failure({
+    name: `${err}`,
+    message: err.message,
+    stack: inspect(err),
+  }));
+  return {
+    kill: () => worker.terminate(),
+    finished: events.once(worker, 'exit').catch(() => {}),
+  };
+}
+
+/**
+ * Run a spec in a child process, so that a spec crashing the process only
+ * takes down its own run and the runner can attribute the crash to it.
+ * @param {string[]} execArgv
+ * @param {object} workerData
+ * @param {SpecHandlers} handlers
+ * @returns {SpecHandle}
+ */
+function runSpecInProcess(execArgv, workerData, handlers) {
+  const child = fork(workerPath, {
+    execArgv,
+    // Status files may skip subtests by regular expression, which JSON
+    // serialization would not preserve.
+    serialization: 'advanced',
+    stdio: ['ignore', 'inherit', 'pipe', 'ipc'],
+  });
+  child.send(workerData);
+
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk;
+  });
+
+  child.on('message', (message) => {
+    // The spec reports uncaught errors itself so that they are named the same
+    // way as they would be on the worker thread backend.
+    if (message.type === 'uncaught') {
+      handlers.failure(message.error);
+      return;
+    }
+    handlers.message(message);
+  });
+  child.on('error', (err) => handlers.failure({
+    name: `${err}`,
+    message: err.message,
+    stack: inspect(err),
+  }));
+  // `close` rather than `exit` so that everything the process wrote to stderr
+  // on its way out is part of the reported failure.
+  child.on('close', (code, signal) => {
+    const name = signal ?
+      `Test process was killed by signal ${signal}` :
+      `Test process exited with code ${code}`;
+    if (!handlers.failure({ name, message: name, stack: stderr }) && stderr) {
+      process.stderr.write(stderr);
+    }
+  });
+
+  return {
+    kill: () => child.kill('SIGKILL'),
+    finished: events.once(child, 'close').catch(() => {}),
+  };
+}
+
+const backends = {
+  __proto__: null,
+  thread: runSpecOnThread,
+  process: runSpecInProcess,
+};
+
 class WPTRunner {
-  constructor(path, { concurrency = os.availableParallelism() - 1 || 1 } = {}) {
+  constructor(path, {
+    concurrency = os.availableParallelism() - 1 || 1,
+    backend = 'thread',
+  } = {}) {
+    if (!Number.isInteger(concurrency) || concurrency < 1) {
+      throw new TypeError('WPT concurrency must be a positive integer');
+    }
+
     // RISC-V has very limited virtual address space in the currently common
     // sv39 mode, in which we can only create a very limited number of wasm
     // memories(27 from a fresh node repl). Limit the concurrency to avoid
     // creating too many wasm memories that would fail.
     if (process.arch === 'riscv64' || process.arch === 'riscv32') {
       concurrency = Math.min(10, concurrency);
+    }
+
+    // The override exists so that every suite can be run either way without
+    // editing the drivers, which is how the two backends are kept compatible.
+    backend = process.env.WPT_BACKEND || backend;
+    this.runSpec = backends[backend];
+    if (this.runSpec === undefined) {
+      throw new Error(`Invalid WPT backend ${backend}, expected one of ` +
+                      `${Object.keys(backends).join(', ')}`);
     }
 
     this.path = path;
@@ -708,7 +829,7 @@ class WPTRunner {
 
     this.results = {};
     this.inProgress = new Set();
-    this.workers = new Map();
+    this.handles = new Map();
     this.unexpectedFailures = [];
     this.skippedSpecCount = 0;
 
@@ -803,6 +924,7 @@ class WPTRunner {
     const queue = this.buildQueue();
 
     const run = limit(this.concurrency);
+    const jobs = [];
 
     for (const spec of queue) {
       const content = spec.getContent();
@@ -828,66 +950,55 @@ class WPTRunner {
       this.scriptsModifier?.(obj);
       scriptsToRun.push(obj);
 
-      run(async () => {
-        const worker = new Worker(workerPath, {
-          execArgv: this.flags,
-          workerData: {
-            testRelativePath: relativePath,
-            wptRunner: __filename,
-            wptPath: this.path,
-            initScript: this.fullInitScript(spec),
-            harness: {
-              code: fs.readFileSync(harnessPath, 'utf8'),
-              filename: harnessPath,
-            },
-            scriptsToRun,
-            needsGc: !!meta.script?.find((script) => script === '/common/gc.js'),
-            skippedTests: spec.skippedTests,
+      jobs.push(run(async () => {
+        this.inProgress.add(spec);
+        const reportResult = this.report?.getResult(spec);
+
+        const handle = this.runSpec(this.flags, {
+          testRelativePath: relativePath,
+          wptRunner: __filename,
+          wptPath: this.path,
+          initScript: this.fullInitScript(spec),
+          harness: {
+            code: fs.readFileSync(harnessPath, 'utf8'),
+            filename: harnessPath,
+          },
+          scriptsToRun,
+          needsGc: !!meta.script?.find((script) => script === '/common/gc.js'),
+          skippedTests: spec.skippedTests,
+        }, {
+          message: (message) => {
+            switch (message.type) {
+              case 'result':
+                return this.resultCallback(spec, message.result, reportResult);
+              case 'skip':
+                return this.skipTest(spec, { name: message.name }, reportResult);
+              case 'completion':
+                return this.completionCallback(spec, message.status, reportResult);
+              default:
+                throw new Error(`Unexpected message from spec runner: ${message.type}`);
+            }
+          },
+          failure: (failure) => {
+            if (!this.inProgress.has(spec)) {
+              // The test is already finished. Ignore anything that happens
+              // after it, including the runner terminating it itself.
+              return false;
+            }
+            // Generate a subtest failure for visibility.
+            // No need to record this synthetic failure with wpt.fyi.
+            this.fail(spec, { status: NODE_UNCAUGHT, ...failure }, kUncaught);
+            // Mark the whole test as failed in wpt.fyi report.
+            reportResult?.finish('ERROR');
+            this.inProgress.delete(spec);
+            this.report?.write();
+            return true;
           },
         });
-        this.inProgress.add(spec);
-        this.workers.set(spec, worker);
+        this.handles.set(spec, handle);
 
-        const reportResult = this.report?.getResult(spec);
-        worker.on('message', (message) => {
-          switch (message.type) {
-            case 'result':
-              return this.resultCallback(spec, message.result, reportResult);
-            case 'skip':
-              return this.skipTest(spec, { name: message.name }, reportResult);
-            case 'completion':
-              return this.completionCallback(spec, message.status, reportResult);
-            default:
-              throw new Error(`Unexpected message from worker: ${message.type}`);
-          }
-        });
-
-        worker.on('error', (err) => {
-          if (!this.inProgress.has(spec)) {
-            // The test is already finished. Ignore errors that occur after it.
-            // This can happen normally, for example in timers tests.
-            return;
-          }
-          // Generate a subtest failure for visibility.
-          // No need to record this synthetic failure with wpt.fyi.
-          this.fail(
-            spec,
-            {
-              status: NODE_UNCAUGHT,
-              name: `${err}`,
-              message: err.message,
-              stack: inspect(err),
-            },
-            kUncaught,
-          );
-          // Mark the whole test as failed in wpt.fyi report.
-          reportResult?.finish('ERROR');
-          this.inProgress.delete(spec);
-          this.report?.write();
-        });
-
-        await events.once(worker, 'exit').catch(() => {});
-      });
+        await handle.finished;
+      }));
     }
 
     process.on('exit', () => {
@@ -955,6 +1066,25 @@ class WPTRunner {
           `Consider updating ${file} for these files:\n${unexpectedPasses.join('\n')}`);
       }
     });
+
+    // Promises do not keep the event loop alive. Keep a referenced handle
+    // until every queued spec has run, including the gap between terminating
+    // one spec runner and receiving its exit event.
+    const keepAlive = setInterval(() => {}, 2 ** 31 - 1);
+    try {
+      const outcomes = await Promise.allSettled(jobs);
+      const errors = outcomes
+        .filter((outcome) => outcome.status === 'rejected')
+        .map((outcome) => outcome.reason);
+      if (errors.length === 1) {
+        throw errors[0];
+      }
+      if (errors.length > 1) {
+        throw new AggregateError(errors, 'Multiple WPT spec runners failed');
+      }
+    } finally {
+      clearInterval(keepAlive);
+    }
   }
 
   // Map WPT test status to strings
@@ -1021,9 +1151,9 @@ class WPTRunner {
     // Write report incrementally so results survive even if the process
     // is killed before the exit handler runs.
     this.report?.write();
-    // Always force termination of the worker. Some tests allocate resources
-    // that would otherwise keep it alive.
-    this.workers.get(spec).terminate();
+    // Always force termination of the spec runner. Some tests allocate
+    // resources that would otherwise keep it alive.
+    this.handles.get(spec).kill();
   }
 
   addTestResult(spec, item) {
@@ -1167,6 +1297,7 @@ class WPTRunner {
 }
 
 module.exports = {
+  backends,
   getHarnessErrorName,
   getUnexpectedPasses,
   harness: harnessMock,

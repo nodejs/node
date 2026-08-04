@@ -57,6 +57,10 @@ assert.deepStrictEqual(specs.map((spec) => ({
 ]);
 
 const runner = new WPTRunner('WebCryptoAPI');
+assert.throws(
+  () => new WPTRunner('WebCryptoAPI', { concurrency: 0 }),
+  /WPT concurrency must be a positive integer/,
+);
 runner.pretendGlobalThisAs('Window');
 assert.match(runner.fullInitScript(specs[0]), /globalThis\.Window/);
 assert.doesNotMatch(runner.fullInitScript(specs[1]), /globalThis\.Window/);
