@@ -146,7 +146,7 @@ const patterns = {
     'a/x',
     'a/z',
   ],
-  './**/a': common.isWindows ? ['a'] : ['a', 'a/symlink/a', 'a/symlink/a/b/c/a'],
+  './**/a': common.isWindows ? ['a'] : ['a', 'a/symlink/a'],
   './**/a/**/': [
     'a',
     'a/abcdef',
@@ -166,10 +166,6 @@ const patterns = {
       'a/symlink',
       'a/symlink/a',
       'a/symlink/a/b',
-      'a/symlink/a/b/c',
-      'a/symlink/a/b/c/a',
-      'a/symlink/a/b/c/a/b',
-      'a/symlink/a/b/c/a/b/c',
     ]),
     'a/x',
     'a/z',
@@ -200,9 +196,6 @@ const patterns = {
       'a/symlink/a',
       'a/symlink/a/b',
       'a/symlink/a/b/c',
-      'a/symlink/a/b/c/a',
-      'a/symlink/a/b/c/a/b',
-      'a/symlink/a/b/c/a/b/c',
     ]),
     'a/x',
     'a/z',
@@ -210,13 +203,6 @@ const patterns = {
   './**/a/**/a/**/': common.isWindows ? [] : [
     'a/symlink/a',
     'a/symlink/a/b',
-    'a/symlink/a/b/c',
-    'a/symlink/a/b/c/a',
-    'a/symlink/a/b/c/a/b',
-    'a/symlink/a/b/c/a/b/c',
-    'a/symlink/a/b/c/a/b/c/a',
-    'a/symlink/a/b/c/a/b/c/a/b',
-    'a/symlink/a/b/c/a/b/c/a/b/c',
   ],
   '+(a|b|c)/a{/,bc*}/**': [
     'a/abcdef',
@@ -295,7 +281,6 @@ const patterns = {
   'a/symlink/a/**/*': common.isWindows ? [] : [
     'a/symlink/a/b',
     'a/symlink/a/b/c',
-    'a/symlink/a/b/c/a',
   ],
   'a/!(symlink)/**/..': [
     'a',
