@@ -28,7 +28,7 @@ const warnWorkspaceAllowScripts = (tree) => {
   for (const node of findWorkspaceAllowScripts(tree)) {
     const name = node.packageName || node.name
     log.warn(
-      'allow-scripts',
+      'install-scripts',
       `allowScripts in workspace ${name} (${node.path}) is ignored. ` +
       'Move the field to the project root package.json.'
     )

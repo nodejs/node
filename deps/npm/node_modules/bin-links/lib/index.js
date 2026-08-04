@@ -1,30 +1,22 @@
 const linkBins = require('./link-bins.js')
-const linkMans = require('./link-mans.js')
 
 const binLinks = opts => {
   const { path, pkg, force, global, top } = opts
-  // global top pkgs on windows get bins installed in {prefix}, and no mans
+  // global top pkgs on windows get bins installed in {prefix}.
   //
-  // unix global top pkgs get their bins installed in {prefix}/bin,
-  // and mans in {prefix}/share/man
+  // unix global top pkgs get their bins installed in {prefix}/bin.
   //
-  // non-top pkgs get their bins installed in {prefix}/node_modules/.bin,
-  // and do not install mans
+  // non-top pkgs get their bins installed in {prefix}/node_modules/.bin.
   //
-  // non-global top pkgs don't have any bins or mans linked.  From here on
-  // out, if it's top, we know that it's global, so no need to pass that
-  // option further down the stack.
+  // non-global top pkgs don't have any bins linked. From here on out, if it's top, we know that it's global, so no need to pass that option further down the stack.
+  //
+  // As of v7, bin-links no longer installs man pages into the system man path for any package. `getPaths` still returns legacy man paths so pre-existing installs can be cleaned up on uninstall.
   if (top && !global) {
     return Promise.resolve()
   }
 
-  return Promise.all([
-    // allow clobbering within the local node_modules/.bin folder.
-    // only global bins are protected in this way, or else it is
-    // yet another vector for excessive dependency conflicts.
-    linkBins({ path, pkg, top, force: force || !top }),
-    linkMans({ path, pkg, top, force }),
-  ])
+  // allow clobbering within the local node_modules/.bin folder. only global bins are protected in this way, or else it is yet another vector for excessive dependency conflicts.
+  return linkBins({ path, pkg, top, force: force || !top })
 }
 
 const shimBin = require('./shim-bin.js')

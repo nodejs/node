@@ -99,6 +99,7 @@ class Doctor extends BaseCommand {
   static name = 'doctor'
   static params = ['registry']
   static ignoreImplicitWorkspace = false
+  static skipConfigValidation = true
   static usage = [`[${checks.flatMap(s => s.groups)
     .filter((value, index, self) => self.indexOf(value) === index && value !== 'ping')
     .join('] [')}]`]

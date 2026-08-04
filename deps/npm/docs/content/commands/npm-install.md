@@ -15,13 +15,12 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 ### Description
 
 This command installs a package and any packages that it depends on.
-If the package has a package-lock, or an npm shrinkwrap file, or a yarn lock file, the installation of dependencies will be driven by that, respecting the following order of precedence:
+If the package has a package-lock or a yarn lock file, the installation of dependencies will be driven by that, respecting the following order of precedence:
 
-* `npm-shrinkwrap.json`
 * `package-lock.json`
 * `yarn.lock`
 
-See [package-lock.json](/configuring-npm/package-lock-json) and [`npm shrinkwrap`](/commands/npm-shrinkwrap).
+See [package-lock.json](/configuring-npm/package-lock-json).
 
 #### How `npm install` uses `package-lock.json`
 
@@ -140,7 +139,7 @@ Even if you never publish your package, you can still get a lot of benefits of u
 
     * `-B, --save-bundle`: Saved dependencies will also be added to your `bundleDependencies` list.
 
-    Further, if you have an `npm-shrinkwrap.json` or `package-lock.json` then it will be updated as well.
+    Further, if you have a `package-lock.json` then it will be updated as well.
 
     `<scope>` is optional.
     The package will be downloaded from the registry associated with the specified scope.
@@ -458,8 +457,7 @@ on deeper dependencies. Sets `--install-strategy=shallow`.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-`package-lock.json` or `npm-shrinkwrap.json` file. They are just not
-physically installed on disk.
+`package-lock.json` file. They are just not physically installed on disk.
 
 If a package type appears in both the `--include` and `--omit` lists, then
 it will be included.
@@ -567,6 +565,9 @@ Note that commands explicitly intended to run a particular script, such as
 run their intended script if `ignore-scripts` is set, but they will *not*
 run any pre- or post-scripts.
 
+Setting `ignore-scripts` also disables `.npm-extension` execution, as if
+`ignore-extension` were set.
+
 
 
 #### `allow-directory`
@@ -607,7 +608,7 @@ dependencies to be used for other commands like `npm view`
 
 #### `allow-git`
 
-* Default: "all"
+* Default: "none"
 * Type: "all", "none", or "root"
 
 Limits the ability for npm to fetch dependencies from git references. That
@@ -615,6 +616,11 @@ is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.
+
+As of npm 12 the default is `none`. Git dependencies run `git` against a
+remote repo and may install configuration the project does not control. Opt
+in explicitly per project (in `.npmrc`) or per command (on the CLI) when you
+need git deps.
 
 `all` allows any git dependencies to be fetched and installed. `none`
 prevents any git dependencies from being fetched and installed. `root` only
@@ -626,7 +632,7 @@ like `npm view`
 
 #### `allow-remote`
 
-* Default: "all"
+* Default: "none"
 * Type: "all", "none", or "root"
 
 Limits the ability for npm to fetch dependencies from urls. That is,
@@ -634,6 +640,13 @@ dependencies that point to a tarball url instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.
+
+As of npm 12 the default is `none`. Tarballs that share a hostname with the
+configured registry (the typical case for the npm registry, GitHub Packages,
+and most private registries) are still installed normally. If your registry
+serves tarballs from a different host, set `replace-registry-host` or
+override this setting. Opt in explicitly per project (in `.npmrc`) or per
+command (on the CLI) when you intentionally install from a URL.
 
 `all` allows any url to be installed. `none` prevents any url from being
 installed. `root` only allows urls defined in your project's package.json to
@@ -670,11 +683,12 @@ the package's self-reported name. `--ignore-scripts` and
 * Type: Boolean
 
 If `true`, turn the install-script policy from a warning into a hard error:
-any dependency with install scripts not covered by `allowScripts` will fail
-the install instead of running with a notice.
+any dependency with install scripts that is not covered by `allowScripts`
+will fail the install instead of being blocked with a warning.
 
 Dependencies explicitly denied with `false` in `allowScripts` are always
-silently skipped; this setting only affects unreviewed entries.
+silently skipped; this setting only affects unreviewed entries (packages
+with install scripts that are neither approved nor denied).
 `--ignore-scripts` and `--dangerously-allow-all-scripts` both override this
 setting.
 
@@ -971,6 +985,5 @@ See [folders](/configuring-npm/folders) for a more detailed description of the s
 * [npm registry](/using-npm/registry)
 * [npm dist-tag](/commands/npm-dist-tag)
 * [npm uninstall](/commands/npm-uninstall)
-* [npm shrinkwrap](/commands/npm-shrinkwrap)
 * [package.json](/configuring-npm/package-json)
 * [workspaces](/using-npm/workspaces)

@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "June 2026" "NPM@11.18.0" ""
+.TH "NPM-INSTALL" "1" "July 2026" "NPM@12.0.2" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -12,10 +12,8 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 .RE
 .SS "Description"
 .P
-This command installs a package and any packages that it depends on. If the package has a package-lock, or an npm shrinkwrap file, or a yarn lock file, the installation of dependencies will be driven by that, respecting the following order of precedence:
+This command installs a package and any packages that it depends on. If the package has a package-lock or a yarn lock file, the installation of dependencies will be driven by that, respecting the following order of precedence:
 .RS 0
-.IP \(bu 4
-\fBnpm-shrinkwrap.json\fR
 .IP \(bu 4
 \fBpackage-lock.json\fR
 .IP \(bu 4
@@ -23,7 +21,7 @@ This command installs a package and any packages that it depends on. If the pack
 .RE 0
 
 .P
-See \fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR and npm help shrinkwrap.
+See \fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR.
 .SS "How \fBnpm install\fR uses \fBpackage-lock.json\fR"
 .P
 When you run \fBnpm install\fR without arguments, npm compares \fBpackage.json\fR and \fBpackage-lock.json\fR:
@@ -169,7 +167,7 @@ When using any of the above options to save dependencies to your package.json, t
 .RE 0
 
 .P
-Further, if you have an \fBnpm-shrinkwrap.json\fR or \fBpackage-lock.json\fR then it will be updated as well.
+Further, if you have a \fBpackage-lock.json\fR then it will be updated as well.
 .P
 \fB<scope>\fR is optional. The package will be downloaded from the registry associated with the specified scope. If no registry is associated with the given scope the default registry is assumed. See npm help scope.
 .P
@@ -494,7 +492,7 @@ Type: "dev", "optional", or "peer" (can be set multiple times)
 .P
 Dependency types to omit from the installation tree on disk.
 .P
-Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR file. They are just not physically installed on disk.
 .P
 If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
 .P
@@ -585,6 +583,8 @@ Type: Boolean
 If true, npm does not run scripts specified in package.json files.
 .P
 Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+.P
+Setting \fBignore-scripts\fR also disables \fB.npm-extension\fR execution, as if \fBignore-extension\fR were set.
 .SS "\fBallow-directory\fR"
 .RS 0
 .IP \(bu 4
@@ -612,7 +612,7 @@ Limits the ability for npm to install dependencies from tarball files. That is, 
 .SS "\fBallow-git\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
@@ -620,17 +620,21 @@ Type: "all", "none", or "root"
 .P
 Limits the ability for npm to fetch dependencies from git references. That is, dependencies that point to a git repo instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
 .P
+As of npm 12 the default is \fBnone\fR. Git dependencies run \fBgit\fR against a remote repo and may install configuration the project does not control. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you need git deps.
+.P
 \fBall\fR allows any git dependencies to be fetched and installed. \fBnone\fR prevents any git dependencies from being fetched and installed. \fBroot\fR only allows git dependencies defined in your project's package.json to be fetched and installed. Also allows git dependencies to be fetched for other commands like \fBnpm view\fR
 .SS "\fBallow-remote\fR"
 .RS 0
 .IP \(bu 4
-Default: "all"
+Default: "none"
 .IP \(bu 4
 Type: "all", "none", or "root"
 .RE 0
 
 .P
 Limits the ability for npm to fetch dependencies from urls. That is, dependencies that point to a tarball url instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
+.P
+As of npm 12 the default is \fBnone\fR. Tarballs that share a hostname with the configured registry (the typical case for the npm registry, GitHub Packages, and most private registries) are still installed normally. If your registry serves tarballs from a different host, set \fBreplace-registry-host\fR or override this setting. Opt in explicitly per project (in \fB.npmrc\fR) or per command (on the CLI) when you intentionally install from a URL.
 .P
 \fBall\fR allows any url to be installed. \fBnone\fR prevents any url from being installed. \fBroot\fR only allows urls defined in your project's package.json to be installed. Also allows url dependencies to be used for other commands like \fBnpm view\fR
 .SS "\fBallow-scripts\fR"
@@ -656,9 +660,9 @@ Type: Boolean
 .RE 0
 
 .P
-If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
+If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts that is not covered by \fBallowScripts\fR will fail the install instead of being blocked with a warning.
 .P
-Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries (packages with install scripts that are neither approved nor denied). \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
 .P
 Optional dependencies that cannot be installed on the current platform or engine (a non-matching \fBos\fR, \fBcpu\fR, or \fBlibc\fR) are not flagged, because their install scripts never run.
 .SS "\fBdangerously-allow-all-scripts\fR"
@@ -932,8 +936,6 @@ npm help registry
 npm help dist-tag
 .IP \(bu 4
 npm help uninstall
-.IP \(bu 4
-npm help shrinkwrap
 .IP \(bu 4
 \fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
 .IP \(bu 4

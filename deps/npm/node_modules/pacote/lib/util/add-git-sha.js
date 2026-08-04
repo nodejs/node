@@ -3,7 +3,7 @@ const addGitSha = (spec, sha) => {
   if (spec.hosted) {
     const h = spec.hosted
     const opt = { noCommittish: true }
-    const base = h.https && h.auth ? h.https(opt) : h.shortcut(opt)
+    const base = h.https && (h.auth || h.default === 'https') ? h.https(opt) : h.shortcut(opt)
 
     return `${base}#${sha}`
   } else {

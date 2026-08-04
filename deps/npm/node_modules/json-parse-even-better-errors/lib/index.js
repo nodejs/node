@@ -52,11 +52,13 @@ const parseError = (e, txt, context = 20) => {
   let errIdx
   if (badIndexMatch) {
     errIdx = +badIndexMatch[1]
-  } else /* istanbul ignore next - doesnt happen in Node 22 */ if (
+  } else /* node:coverage disable */ if (
+    // doesn't happen in Node 22+
     msg.match(/^Unexpected end of JSON.*/i)
   ) {
     errIdx = txt.length - 1
   }
+  /* node:coverage enable */
 
   if (errIdx == null) {
     return makeParsedError(msg, `'${txt.slice(0, context * 2)}'`)

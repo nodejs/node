@@ -160,7 +160,10 @@ class Owner extends BaseCommand {
     let u
 
     try {
-      u = await npmFetch.json(uri, this.npm.flatOptions)
+      u = await npmFetch.json(uri, {
+        ...this.npm.flatOptions,
+        spec,
+      })
     } catch (err) {
       log.error('owner mutate', `Error getting user data for ${user}`)
       throw err

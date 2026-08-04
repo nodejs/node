@@ -119,7 +119,7 @@ t.test('package.json wins over .npmrc setting (RFC layer 2 > layer 3)', async t 
   t.equal(result.source, 'package.json')
   t.strictSame(result.policy, { sharp: true })
   t.match(
-    mock.logs.warn.byTitle('allow-scripts'),
+    mock.logs.warn.byTitle('install-scripts'),
     [/\.npmrc allow-scripts setting is being ignored because package.json/]
   )
 })
@@ -150,7 +150,7 @@ t.test('--allow-scripts CLI flag is accepted via skipProjectConfig (npm exec)', 
   t.equal(result.source, 'cli')
   t.strictSame(result.policy, { sharp: true })
   t.match(
-    mock.logs.warn.byTitle('allow-scripts'),
+    mock.logs.warn.byTitle('install-scripts'),
     [/\.npmrc allow-scripts setting is being ignored because --allow-scripts/]
   )
 })
@@ -224,7 +224,7 @@ t.test('drops package.json entries with forbidden semver ranges and warns', asyn
     'also-good': true,
     'disjunction@1.0.0 || 2.0.0': true,
   })
-  const warnings = mock.logs.warn.byTitle('allow-scripts')
+  const warnings = mock.logs.warn.byTitle('install-scripts')
   t.equal(warnings.filter(m => /semver ranges/.test(m)).length, 3)
 })
 
@@ -245,7 +245,7 @@ t.test('drops package.json entries with dist-tag specs and warns', async t => {
   const result = await resolveAllowScripts(mock.npm)
   t.equal(result.source, 'package.json')
   t.strictSame(result.policy, { 'good@1.2.3': true })
-  const warnings = mock.logs.warn.byTitle('allow-scripts')
+  const warnings = mock.logs.warn.byTitle('install-scripts')
   t.equal(warnings.filter(m => /dist-tag specs/.test(m)).length, 2)
 })
 
@@ -260,7 +260,7 @@ t.test('drops .npmrc forbidden ranges (and warns) but keeps valid entries', asyn
   const result = await resolveAllowScripts(mock.npm)
   t.equal(result.source, '.npmrc')
   t.strictSame(result.policy, { canvas: true, 'lodash@4.17.21': true })
-  const warnings = mock.logs.warn.byTitle('allow-scripts')
+  const warnings = mock.logs.warn.byTitle('install-scripts')
   t.ok(warnings.some(m => /sharp@\^0\.33\.0/.test(m) && /semver ranges/.test(m)))
 })
 
@@ -280,7 +280,7 @@ t.test('drops package.json entries that fail npa parse', async t => {
   const result = await resolveAllowScripts(mock.npm)
   t.equal(result.source, 'package.json')
   t.strictSame(result.policy, { good: true })
-  t.ok(mock.logs.warn.byTitle('allow-scripts').some(m => /unparseable/.test(m)))
+  t.ok(mock.logs.warn.byTitle('install-scripts').some(m => /unparseable/.test(m)))
 })
 
 t.test('returns null when all package.json entries are dropped as invalid', async t => {

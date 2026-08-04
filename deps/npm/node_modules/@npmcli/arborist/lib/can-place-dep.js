@@ -21,6 +21,8 @@
 //     - if satisfying and preferDedupe? KEEP
 //     - else: REPLACE
 //   - if there is a newer version present, and preferDedupe, REPLACE
+//   - if there is a newer vulnerable version present during an audit fix,
+//     and the candidate is older and not vulnerable, REPLACE
 //   - if the version present satisfies the edge, KEEP
 //   - else: CONFLICT
 // - if the node is not in conflict, check each of its peers:
@@ -62,6 +64,7 @@ class CanPlaceDep {
       parent = null,
       peerPath = [],
       explicitRequest = false,
+      auditReport = null,
     } = options
 
     debug(() => {
@@ -92,6 +95,7 @@ class CanPlaceDep {
     this.target = target
     this.edge = edge
     this.explicitRequest = explicitRequest
+    this.auditReport = auditReport
 
     // preventing cycles when we check peer sets
     this.peerPath = peerPath
@@ -170,7 +174,15 @@ class CanPlaceDep {
 
     const { version: curVer } = current
     const { version: newVer } = dep
-    const tryReplace = curVer && newVer && semver.gte(newVer, curVer)
+    // Audit fix may select an older safe version within the declared range.
+    // This only makes the candidate eligible; canReplace() and peer checks
+    // below still enforce placement compatibility.
+    const auditFixDowngrade = curVer && newVer &&
+      semver.lt(newVer, curVer) &&
+      this.auditReport?.isVulnerable(current) &&
+      !this.auditReport.isVulnerable(dep)
+    const tryReplace = curVer && newVer &&
+      (semver.gte(newVer, curVer) || auditFixDowngrade)
     if (tryReplace && dep.canReplace(current)) {
       // It's extremely rare that a replaceable node would be a conflict, if
       // the current one wasn't a conflict, but it is theoretically possible
@@ -381,6 +393,7 @@ class CanPlaceDep {
         parent: this,
         edge: peerEdge,
         peerPath,
+        auditReport: this.auditReport,
         // always place peers in preferDedupe mode
         preferDedupe: true,
       })

@@ -321,22 +321,24 @@ published {TIME} ago[39m
 `
 
 exports[`test/lib/commands/view.js TAP package with single version full json > must match snapshot 1`] = `
-{
-  "_id": "single-version",
-  "name": "single-version",
-  "dist-tags": {
-    "latest": "1.0.0"
-  },
-  "versions": [
-    "1.0.0"
-  ],
-  "version": "1.0.0",
-  "dist": {
-    "shasum": "123",
-    "tarball": "http://hm.single-version.com/1.0.0.tgz",
-    "fileCount": 1
+[
+  {
+    "_id": "single-version",
+    "name": "single-version",
+    "dist-tags": {
+      "latest": "1.0.0"
+    },
+    "versions": [
+      "1.0.0"
+    ],
+    "version": "1.0.0",
+    "dist": {
+      "shasum": "123",
+      "tarball": "http://hm.single-version.com/1.0.0.tgz",
+      "fileCount": 1
+    }
   }
-}
+]
 `
 
 exports[`test/lib/commands/view.js TAP specific field names array field - 1 element > must match snapshot 1`] = `
@@ -415,60 +417,62 @@ error [94m404[39m 404
 
 exports[`test/lib/commands/view.js TAP workspaces 404 workspaces json > must match snapshot 1`] = `
 {
-  "green": {
-    "_id": "green",
-    "name": "green",
-    "dist-tags": {
-      "latest": "1.0.0"
-    },
-    "maintainers": [
-      {
-        "name": "claudia",
-        "email": "c@yellow.com",
-        "twitter": "cyellow"
+  "green": [
+    {
+      "_id": "green",
+      "name": "green",
+      "dist-tags": {
+        "latest": "1.0.0"
       },
-      {
-        "name": "isaacs",
-        "email": "i@yellow.com",
-        "twitter": "iyellow"
+      "maintainers": [
+        {
+          "name": "claudia",
+          "email": "c@yellow.com",
+          "twitter": "cyellow"
+        },
+        {
+          "name": "isaacs",
+          "email": "i@yellow.com",
+          "twitter": "iyellow"
+        }
+      ],
+      "keywords": [
+        "colors",
+        "green",
+        "crayola"
+      ],
+      "versions": [
+        "1.0.0",
+        "1.0.1"
+      ],
+      "version": "1.0.0",
+      "description": "green is a very important color",
+      "bugs": {
+        "url": "http://bugs.green.com"
+      },
+      "deprecated": true,
+      "repository": {
+        "url": "http://repository.green.com"
+      },
+      "license": {
+        "type": "ACME"
+      },
+      "bin": {
+        "green": "bin/green.js"
+      },
+      "dependencies": {
+        "red": "1.0.0",
+        "yellow": "1.0.0"
+      },
+      "dist": {
+        "shasum": "123",
+        "tarball": "http://hm.green.com/1.0.0.tgz",
+        "integrity": "---",
+        "fileCount": 1,
+        "unpackedSize": 1000000000
       }
-    ],
-    "keywords": [
-      "colors",
-      "green",
-      "crayola"
-    ],
-    "versions": [
-      "1.0.0",
-      "1.0.1"
-    ],
-    "version": "1.0.0",
-    "description": "green is a very important color",
-    "bugs": {
-      "url": "http://bugs.green.com"
-    },
-    "deprecated": true,
-    "repository": {
-      "url": "http://repository.green.com"
-    },
-    "license": {
-      "type": "ACME"
-    },
-    "bin": {
-      "green": "bin/green.js"
-    },
-    "dependencies": {
-      "red": "1.0.0",
-      "yellow": "1.0.0"
-    },
-    "dist": {
-      "shasum": "123",
-      "tarball": "http://hm.green.com/1.0.0.tgz",
-      "integrity": "---",
-      "fileCount": 1,
-      "unpackedSize": 1000000000
     }
-  },
+  ],
   "error": {
     "missing-package": {
       "code": "E404",
@@ -530,80 +534,84 @@ error Unknown error
 
 exports[`test/lib/commands/view.js TAP workspaces all workspaces --json > must match snapshot 1`] = `
 {
-  "green": {
-    "_id": "green",
-    "name": "green",
-    "dist-tags": {
-      "latest": "1.0.0"
-    },
-    "maintainers": [
-      {
-        "name": "claudia",
-        "email": "c@yellow.com",
-        "twitter": "cyellow"
+  "green": [
+    {
+      "_id": "green",
+      "name": "green",
+      "dist-tags": {
+        "latest": "1.0.0"
       },
-      {
-        "name": "isaacs",
-        "email": "i@yellow.com",
-        "twitter": "iyellow"
+      "maintainers": [
+        {
+          "name": "claudia",
+          "email": "c@yellow.com",
+          "twitter": "cyellow"
+        },
+        {
+          "name": "isaacs",
+          "email": "i@yellow.com",
+          "twitter": "iyellow"
+        }
+      ],
+      "keywords": [
+        "colors",
+        "green",
+        "crayola"
+      ],
+      "versions": [
+        "1.0.0",
+        "1.0.1"
+      ],
+      "version": "1.0.0",
+      "description": "green is a very important color",
+      "bugs": {
+        "url": "http://bugs.green.com"
+      },
+      "deprecated": true,
+      "repository": {
+        "url": "http://repository.green.com"
+      },
+      "license": {
+        "type": "ACME"
+      },
+      "bin": {
+        "green": "bin/green.js"
+      },
+      "dependencies": {
+        "red": "1.0.0",
+        "yellow": "1.0.0"
+      },
+      "dist": {
+        "shasum": "123",
+        "tarball": "http://hm.green.com/1.0.0.tgz",
+        "integrity": "---",
+        "fileCount": 1,
+        "unpackedSize": 1000000000
       }
-    ],
-    "keywords": [
-      "colors",
-      "green",
-      "crayola"
-    ],
-    "versions": [
-      "1.0.0",
-      "1.0.1"
-    ],
-    "version": "1.0.0",
-    "description": "green is a very important color",
-    "bugs": {
-      "url": "http://bugs.green.com"
-    },
-    "deprecated": true,
-    "repository": {
-      "url": "http://repository.green.com"
-    },
-    "license": {
-      "type": "ACME"
-    },
-    "bin": {
-      "green": "bin/green.js"
-    },
-    "dependencies": {
-      "red": "1.0.0",
-      "yellow": "1.0.0"
-    },
-    "dist": {
-      "shasum": "123",
-      "tarball": "http://hm.green.com/1.0.0.tgz",
-      "integrity": "---",
-      "fileCount": 1,
-      "unpackedSize": 1000000000
     }
-  },
-  "orange": {
-    "name": "orange",
-    "dist-tags": {
-      "latest": "1.0.0"
-    },
-    "versions": [
-      "1.0.0",
-      "1.0.1"
-    ],
-    "version": "1.0.0",
-    "homepage": "http://hm.orange.com",
-    "license": {},
-    "dist": {
-      "shasum": "123",
-      "tarball": "http://hm.orange.com/1.0.0.tgz",
-      "integrity": "---",
-      "fileCount": 1,
-      "unpackedSize": 1
+  ],
+  "orange": [
+    {
+      "name": "orange",
+      "dist-tags": {
+        "latest": "1.0.0"
+      },
+      "versions": [
+        "1.0.0",
+        "1.0.1"
+      ],
+      "version": "1.0.0",
+      "homepage": "http://hm.orange.com",
+      "license": {},
+      "dist": {
+        "shasum": "123",
+        "tarball": "http://hm.orange.com/1.0.0.tgz",
+        "integrity": "---",
+        "fileCount": 1,
+        "unpackedSize": 1
+      }
     }
-  }
+  ]
 }
 `
 
@@ -658,8 +666,12 @@ orange:
 
 exports[`test/lib/commands/view.js TAP workspaces all workspaces single field --json > must match snapshot 1`] = `
 {
-  "green": "green",
-  "orange": "orange"
+  "green": [
+    "green"
+  ],
+  "orange": [
+    "orange"
+  ]
 }
 `
 
@@ -720,59 +732,61 @@ Array [
 
 exports[`test/lib/commands/view.js TAP workspaces single workspace --json > must match snapshot 1`] = `
 {
-  "green": {
-    "_id": "green",
-    "name": "green",
-    "dist-tags": {
-      "latest": "1.0.0"
-    },
-    "maintainers": [
-      {
-        "name": "claudia",
-        "email": "c@yellow.com",
-        "twitter": "cyellow"
+  "green": [
+    {
+      "_id": "green",
+      "name": "green",
+      "dist-tags": {
+        "latest": "1.0.0"
       },
-      {
-        "name": "isaacs",
-        "email": "i@yellow.com",
-        "twitter": "iyellow"
+      "maintainers": [
+        {
+          "name": "claudia",
+          "email": "c@yellow.com",
+          "twitter": "cyellow"
+        },
+        {
+          "name": "isaacs",
+          "email": "i@yellow.com",
+          "twitter": "iyellow"
+        }
+      ],
+      "keywords": [
+        "colors",
+        "green",
+        "crayola"
+      ],
+      "versions": [
+        "1.0.0",
+        "1.0.1"
+      ],
+      "version": "1.0.0",
+      "description": "green is a very important color",
+      "bugs": {
+        "url": "http://bugs.green.com"
+      },
+      "deprecated": true,
+      "repository": {
+        "url": "http://repository.green.com"
+      },
+      "license": {
+        "type": "ACME"
+      },
+      "bin": {
+        "green": "bin/green.js"
+      },
+      "dependencies": {
+        "red": "1.0.0",
+        "yellow": "1.0.0"
+      },
+      "dist": {
+        "shasum": "123",
+        "tarball": "http://hm.green.com/1.0.0.tgz",
+        "integrity": "---",
+        "fileCount": 1,
+        "unpackedSize": 1000000000
       }
-    ],
-    "keywords": [
-      "colors",
-      "green",
-      "crayola"
-    ],
-    "versions": [
-      "1.0.0",
-      "1.0.1"
-    ],
-    "version": "1.0.0",
-    "description": "green is a very important color",
-    "bugs": {
-      "url": "http://bugs.green.com"
-    },
-    "deprecated": true,
-    "repository": {
-      "url": "http://repository.green.com"
-    },
-    "license": {
-      "type": "ACME"
-    },
-    "bin": {
-      "green": "bin/green.js"
-    },
-    "dependencies": {
-      "red": "1.0.0",
-      "yellow": "1.0.0"
-    },
-    "dist": {
-      "shasum": "123",
-      "tarball": "http://hm.green.com/1.0.0.tgz",
-      "integrity": "---",
-      "fileCount": 1,
-      "unpackedSize": 1000000000
     }
-  }
+  ]
 }
 `

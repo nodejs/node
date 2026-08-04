@@ -36,7 +36,6 @@ npm@{VERSION} {BASEDIR}
 exports[`test/lib/docs.js TAP command list > aliases 1`] = `
 Object {
   "add": "install",
-  "add-user": "adduser",
   "author": "owner",
   "c": "config",
   "cit": "install-ci-test",
@@ -98,7 +97,6 @@ Object {
 exports[`test/lib/docs.js TAP command list > commands 1`] = `
 Array [
   "access",
-  "adduser",
   "approve-scripts",
   "audit",
   "bugs",
@@ -136,6 +134,7 @@ Array [
   "outdated",
   "owner",
   "pack",
+  "patch",
   "ping",
   "pkg",
   "prefix",
@@ -151,10 +150,7 @@ Array [
   "sbom",
   "search",
   "set",
-  "shrinkwrap",
   "stage",
-  "star",
-  "stars",
   "start",
   "stop",
   "team",
@@ -164,7 +160,6 @@ Array [
   "undeprecate",
   "uninstall",
   "unpublish",
-  "unstar",
   "update",
   "version",
   "view",
@@ -262,7 +257,7 @@ dependencies to be used for other commands like \`npm view\`
 
 #### \`allow-git\`
 
-* Default: "all"
+* Default: "none"
 * Type: "all", "none", or "root"
 
 Limits the ability for npm to fetch dependencies from git references. That
@@ -270,6 +265,11 @@ is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.
+
+As of npm 12 the default is \`none\`. Git dependencies run \`git\` against a
+remote repo and may install configuration the project does not control. Opt
+in explicitly per project (in \`.npmrc\`) or per command (on the CLI) when you
+need git deps.
 
 \`all\` allows any git dependencies to be fetched and installed. \`none\`
 prevents any git dependencies from being fetched and installed. \`root\` only
@@ -281,7 +281,7 @@ like \`npm view\`
 
 #### \`allow-remote\`
 
-* Default: "all"
+* Default: "none"
 * Type: "all", "none", or "root"
 
 Limits the ability for npm to fetch dependencies from urls. That is,
@@ -289,6 +289,13 @@ dependencies that point to a tarball url instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
 packages may not function as intended or designed. Changing this setting
 will not remove dependencies that are already installed.
+
+As of npm 12 the default is \`none\`. Tarballs that share a hostname with the
+configured registry (the typical case for the npm registry, GitHub Packages,
+and most private registries) are still installed normally. If your registry
+serves tarballs from a different host, set \`replace-registry-host\` or
+override this setting. Opt in explicitly per project (in \`.npmrc\`) or per
+command (on the CLI) when you intentionally install from a URL.
 
 \`all\` allows any url to be installed. \`none\` prevents any url from being
 installed. \`root\` only allows urls defined in your project's package.json to
@@ -349,6 +356,19 @@ Write pinned (\`pkg@version\`) entries when approving install scripts. Set to
 \`false\` to write name-only entries that allow any version. Has no effect on
 \`npm deny-scripts\`, which always writes name-only entries regardless of this
 setting.
+
+
+
+#### \`allow-unused-patches\`
+
+* Default: false
+* Type: Boolean
+
+Install even when a registered patch in \`patchedDependencies\` matches no
+installed package. Does not silence patch apply failures.
+
+This flag is only honored when passed on the command line; it is ignored in
+\`.npmrc\` and environment variables, and rejected by \`npm ci\`.
 
 
 
@@ -677,6 +697,16 @@ Note: This is NOT honored by other network related commands, eg \`dist-tags\`,
 
 
 
+#### \`edit-dir\`
+
+* Default: null
+* Type: null or Path
+
+Override the temporary directory used by \`npm patch add\` to prepare a
+package for editing.
+
+
+
 #### \`editor\`
 
 * Default: The EDITOR or VISUAL environment variables, or
@@ -727,6 +757,19 @@ This config cannot be used with: \`expect-result-count\`
 When creating a Granular Access Token with \`npm token create\`, this sets the
 expiration in days. If not specified, the server will determine the default
 expiration.
+
+
+
+#### \`extension-file\`
+
+* Default: null
+* Type: null or Path
+
+Path to a project-local npm extension file to load instead of discovering
+\`.npm-extension.mjs\` / \`.npm-extension.cjs\` at the project root. Must
+resolve inside the project root and use a \`.mjs\` or \`.cjs\` extension. Only
+honored from project config or the command line, never from user, global, or
+builtin config.
 
 
 
@@ -829,8 +872,7 @@ but can be useful for debugging.
 * Default: true
 * Type: Boolean
 
-Format \`package-lock.json\` or \`npm-shrinkwrap.json\` as a human readable
-file.
+Format \`package-lock.json\` as a human readable file.
 
 
 
@@ -881,6 +923,25 @@ folder instead of the current working directory. See
 
 
 
+#### \`global-ignore-file\`
+
+* Default: The global --prefix setting plus 'etc/npmignore'. For example,
+  '/usr/local/etc/npmignore'
+* Type: Path
+
+An additional ignore file applied during \`npm pack\` and \`npm publish\`, owned
+by the current user rather than the package. Patterns follow the same syntax
+as a package's local \`.npmignore\` file. Useful for keeping editor metadata
+(such as \`.idea/\` or \`*.iml\`) and scratch directories out of every package
+you publish, without adding them to each package's own ignore rules.
+
+The global rules apply in addition to a package's local \`.npmignore\`. When a
+package uses a \`files\` field in its \`package.json\`, an entry in \`files\` that
+contradicts a global rule (i.e., explicitly includes a path the global rule
+would exclude) still wins.
+
+
+
 #### \`globalconfig\`
 
 * Default: The global --prefix setting plus 'etc/npmrc'. For example,
@@ -926,6 +987,41 @@ CI setup.
 
 This value is not exported to the environment for child processes.
 
+#### \`ignore-existing\`
+
+* Default: false
+* Type: Boolean
+
+With \`npm patch add\`, discard a previous unfinished edit directory and start
+fresh.
+
+
+
+#### \`ignore-extension\`
+
+* Default: false
+* Type: Boolean
+
+If true, npm does not import or execute a root \`.npm-extension.mjs\` /
+\`.npm-extension.cjs\` file (or one selected via \`extension-file\`).
+\`ignore-scripts\` implies \`ignore-extension\`, since both disable root-owned
+install-time code.
+
+
+
+#### \`ignore-patch-failures\`
+
+* Default: false
+* Type: Boolean
+
+Install even when a registered patch fails to apply, with a warning per
+failure. Intended for incident response only.
+
+This flag is only honored when passed on the command line; it is ignored in
+\`.npmrc\` and environment variables, and rejected by \`npm ci\`.
+
+
+
 #### \`ignore-scripts\`
 
 * Default: false
@@ -937,6 +1033,9 @@ Note that commands explicitly intended to run a particular script, such as
 \`npm start\`, \`npm stop\`, \`npm restart\`, \`npm test\`, and \`npm run\` will still
 run their intended script if \`ignore-scripts\` is set, but they will *not*
 run any pre- or post-scripts.
+
+Setting \`ignore-scripts\` also disables \`.npm-extension\` execution, as if
+\`ignore-extension\` were set.
 
 
 
@@ -1021,10 +1120,11 @@ homepage.
 
 #### \`init-license\`
 
-* Default: "ISC"
+* Default: ""
 * Type: String
 
-The value \`npm init\` should use by default for the package license.
+The value \`npm init\` should use by default for the package license. If not
+set, the license field will be omitted from new packages.
 
 
 
@@ -1116,6 +1216,16 @@ Not supported by all npm commands.
 
 
 
+#### \`keep-edit-dir\`
+
+* Default: false
+* Type: Boolean
+
+With \`npm patch commit\`, do not remove the edit directory after committing
+the patch.
+
+
+
 #### \`legacy-peer-deps\`
 
 * Default: false
@@ -1190,8 +1300,8 @@ instead of the current working directory. See
   otherwise, maintain current lockfile version.
 * Type: null, 1, 2, 3, "1", "2", or "3"
 
-Set the lockfile format version to be used in package-lock.json and
-npm-shrinkwrap-json files. Possible options are:
+Set the lockfile format version to be used in package-lock.json files.
+Possible options are:
 
 1: The lockfile version used by npm versions 5 and 6. Lacks some data that
 is used during the install, resulting in slower and possibly less
@@ -1395,8 +1505,7 @@ allow the CLI to fill in missing cache data, see \`--prefer-offline\`.
 Dependency types to omit from the installation tree on disk.
 
 Note that these dependencies _are_ still resolved and added to the
-\`package-lock.json\` or \`npm-shrinkwrap.json\` file. They are just not
-physically installed on disk.
+\`package-lock.json\` file. They are just not physically installed on disk.
 
 If a package type appears in both the \`--include\` and \`--omit\` lists, then
 it will be included.
@@ -1554,6 +1663,16 @@ Output parseable results from commands that write to standard output. For
 
 Password for authentication. Can be provided via command line when creating
 tokens, though it's generally safer to be prompted for it.
+
+
+
+#### \`patches-dir\`
+
+* Default: "patches"
+* Type: String
+
+The directory, relative to the project root, where \`npm patch commit\` writes
+patch files for \`patchedDependencies\`.
 
 
 
@@ -1950,17 +2069,31 @@ this to work properly.
 * Type: Boolean
 
 If \`true\`, turn the install-script policy from a warning into a hard error:
-any dependency with install scripts not covered by \`allowScripts\` will fail
-the install instead of running with a notice.
+any dependency with install scripts that is not covered by \`allowScripts\`
+will fail the install instead of being blocked with a warning.
 
 Dependencies explicitly denied with \`false\` in \`allowScripts\` are always
-silently skipped; this setting only affects unreviewed entries.
+silently skipped; this setting only affects unreviewed entries (packages
+with install scripts that are neither approved nor denied).
 \`--ignore-scripts\` and \`--dangerously-allow-all-scripts\` both override this
 setting.
 
 Optional dependencies that cannot be installed on the current platform or
 engine (a non-matching \`os\`, \`cpu\`, or \`libc\`) are not flagged, because
 their install scripts never run.
+
+
+
+#### \`strict-npmrc\`
+
+* Default: false
+* Type: Boolean
+
+If set to \`true\`, unknown configuration keys found in \`.npmrc\` files are
+treated as a hard error instead of a warning.
+
+Unknown command line flags and abbreviated flags always error regardless of
+this setting.
 
 
 
@@ -2044,6 +2177,17 @@ You can quickly view it with this [json](https://npm.im/json) command line:
 
 Timing information will also be reported in the terminal. To suppress this
 while still writing the timing file, use \`--silent\`.
+
+
+
+#### \`to\`
+
+* Default: null
+* Type: null or String
+
+Used by \`npm patch update\` to set the version to rebase a patch onto when it
+cannot be read from \`package-lock.json\` — for example an exact-version
+selector, or a version that has not been installed yet.
 
 
 
@@ -2352,7 +2496,7 @@ Alias for \`--init-author-url\`
 
 #### \`init.license\`
 
-* Default: "ISC"
+* Default: ""
 * Type: String
 * DEPRECATED: Use \`--init-license\` instead.
 
@@ -2447,16 +2591,6 @@ Alias for --include=optional or --omit=optional
 Alias for \`--omit=dev\`
 
 
-
-#### \`shrinkwrap\`
-
-* Default: true
-* Type: Boolean
-* DEPRECATED: Use the --package-lock setting instead.
-
-Alias for --package-lock
-
-
 `
 
 exports[`test/lib/docs.js TAP config > all keys 1`] = `
@@ -2507,6 +2641,7 @@ Array [
   "expect-result-count",
   "expect-results",
   "expires",
+  "extension-file",
   "fetch-retries",
   "fetch-retry-factor",
   "fetch-retry-maxtimeout",
@@ -2520,10 +2655,12 @@ Array [
   "git-tag-version",
   "global",
   "globalconfig",
+  "global-ignore-file",
   "global-style",
   "heading",
   "https-proxy",
   "if-present",
+  "ignore-extension",
   "ignore-scripts",
   "include",
   "include-staged",
@@ -2579,6 +2716,12 @@ Array [
   "package-lock-only",
   "pack-destination",
   "packages",
+  "patches-dir",
+  "allow-unused-patches",
+  "ignore-patch-failures",
+  "edit-dir",
+  "ignore-existing",
+  "keep-edit-dir",
   "parseable",
   "allow-scripts-pending",
   "allow-scripts-pin",
@@ -2619,15 +2762,16 @@ Array [
   "searchopts",
   "searchstaleness",
   "shell",
-  "shrinkwrap",
   "sign-git-commit",
   "sign-git-tag",
   "strict-peer-deps",
   "strict-allow-scripts",
+  "strict-npmrc",
   "strict-ssl",
   "tag",
   "tag-version-prefix",
   "timing",
+  "to",
   "umask",
   "unicode",
   "update-notifier",
@@ -2691,6 +2835,7 @@ Array [
   "editor",
   "engine-strict",
   "expires",
+  "extension-file",
   "fetch-retries",
   "fetch-retry-factor",
   "fetch-retry-maxtimeout",
@@ -2704,10 +2849,12 @@ Array [
   "git-tag-version",
   "global",
   "globalconfig",
+  "global-ignore-file",
   "global-style",
   "heading",
   "https-proxy",
   "if-present",
+  "ignore-extension",
   "ignore-scripts",
   "include",
   "include-staged",
@@ -2745,6 +2892,7 @@ Array [
   "package-lock-only",
   "pack-destination",
   "packages",
+  "patches-dir",
   "parseable",
   "allow-scripts-pending",
   "allow-scripts-pin",
@@ -2784,11 +2932,11 @@ Array [
   "searchopts",
   "searchstaleness",
   "shell",
-  "shrinkwrap",
   "sign-git-commit",
   "sign-git-tag",
   "strict-peer-deps",
   "strict-allow-scripts",
+  "strict-npmrc",
   "strict-ssl",
   "tag",
   "tag-version-prefix",
@@ -2823,8 +2971,14 @@ Array [
   "logs-max",
   "long",
   "node-options",
+  "allow-unused-patches",
+  "ignore-patch-failures",
+  "edit-dir",
+  "ignore-existing",
+  "keep-edit-dir",
   "prefix",
   "timing",
+  "to",
   "update-notifier",
   "usage",
   "userconfig",
@@ -2843,8 +2997,8 @@ Object {
   "all": false,
   "allowDirectory": "all",
   "allowFile": "all",
-  "allowGit": "all",
-  "allowRemote": "all",
+  "allowGit": "none",
+  "allowRemote": "none",
   "allowSameVersion": false,
   "allowScripts": Array [],
   "allowScriptsPending": false,
@@ -2879,6 +3033,7 @@ Object {
   "editor": "{EDITOR}",
   "engineStrict": false,
   "expires": null,
+  "extensionFile": null,
   "force": false,
   "foregroundScripts": false,
   "formatPackageLock": true,
@@ -2887,9 +3042,11 @@ Object {
   "gitTagVersion": true,
   "global": false,
   "globalconfig": "{CWD}/global/etc/npmrc",
+  "globalIgnoreFile": "{CWD}/global/etc/npmignore",
   "heading": "npm",
   "httpsProxy": null,
   "ifPresent": false,
+  "ignoreExtension": false,
   "ignoreScripts": false,
   "includeAttestations": false,
   "includeStaged": false,
@@ -2933,6 +3090,7 @@ Object {
   "packDestination": ".",
   "parseable": false,
   "password": null,
+  "patchesDir": "patches",
   "preferDedupe": false,
   "preferOffline": false,
   "preferOnline": false,
@@ -2972,6 +3130,7 @@ Object {
   "signGitTag": false,
   "silent": false,
   "strictAllowScripts": false,
+  "strictNpmrc": false,
   "strictPeerDeps": false,
   "strictSSL": true,
   "tagVersionPrefix": "v",
@@ -3071,42 +3230,6 @@ Note: This command is unaware of workspaces.
 #### \`json\`
 #### \`otp\`
 #### \`registry\`
-`
-
-exports[`test/lib/docs.js TAP usage adduser > must match snapshot 1`] = `
-Add a registry user account
-
-Usage:
-npm adduser
-
-Options:
-[--registry <registry>] [--scope <@scope>] [--auth-type <legacy|web>]
-
-  --registry
-    The base URL of the npm registry.
-
-  --scope
-    Associate an operation with a scope for a scoped registry.
-
-  --auth-type
-    What authentication strategy to use with \`login\`.
-
-
-alias: add-user
-
-Run "npm help adduser" for more info
-
-\`\`\`bash
-npm adduser
-
-alias: add-user
-\`\`\`
-
-Note: This command is unaware of workspaces.
-
-#### \`registry\`
-#### \`scope\`
-#### \`auth-type\`
 `
 
 exports[`test/lib/docs.js TAP usage approve-scripts > must match snapshot 1`] = `
@@ -5400,6 +5523,70 @@ npm pack <package-spec>
 #### \`ignore-scripts\`
 `
 
+exports[`test/lib/docs.js TAP usage patch > must match snapshot 1`] = `
+Apply local patches to installed dependencies
+
+Usage:
+npm patch <pkg>[@<version>]
+npm patch add <pkg>[@<version>] [--edit-dir <path>] [--ignore-existing]
+npm patch commit <edit-dir> [--patches-dir <dir>] [--keep-edit-dir]
+npm patch update <pkg>[@<old-version>] [--to <new-version>] [--patches-dir <dir>]
+npm patch ls
+npm patch rm <pkg>[@<version>]
+
+Options:
+[--patches-dir <patches-dir>] [--allow-unused-patches] [--ignore-patch-failures]
+[--edit-dir <edit-dir>] [--ignore-existing] [--keep-edit-dir] [--to <version>]
+[--registry <registry>]
+
+  --patches-dir
+    The directory, relative to the project root, where \`npm patch commit\`
+
+  --allow-unused-patches
+    Install even when a registered patch in \`patchedDependencies\` matches no
+
+  --ignore-patch-failures
+    Install even when a registered patch fails to apply, with a warning per
+
+  --edit-dir
+    Override the temporary directory used by \`npm patch add\` to prepare a
+
+  --ignore-existing
+    With \`npm patch add\`, discard a previous unfinished edit directory and
+
+  --keep-edit-dir
+    With \`npm patch commit\`, do not remove the edit directory after
+
+  --to
+    Used by \`npm patch update\` to set the version to rebase a patch onto
+
+  --registry
+    The base URL of the npm registry.
+
+
+Run "npm help patch" for more info
+
+\`\`\`bash
+npm patch <pkg>[@<version>]
+npm patch add <pkg>[@<version>] [--edit-dir <path>] [--ignore-existing]
+npm patch commit <edit-dir> [--patches-dir <dir>] [--keep-edit-dir]
+npm patch update <pkg>[@<old-version>] [--to <new-version>] [--patches-dir <dir>]
+npm patch ls
+npm patch rm <pkg>[@<version>]
+\`\`\`
+
+Note: This command is unaware of workspaces.
+
+#### \`patches-dir\`
+#### \`allow-unused-patches\`
+#### \`ignore-patch-failures\`
+#### \`edit-dir\`
+#### \`ignore-existing\`
+#### \`keep-edit-dir\`
+#### \`to\`
+#### \`registry\`
+`
+
 exports[`test/lib/docs.js TAP usage ping > must match snapshot 1`] = `
 Ping npm registry
 
@@ -6068,23 +6255,6 @@ Note: This command is unaware of workspaces.
 #### \`location\`
 `
 
-exports[`test/lib/docs.js TAP usage shrinkwrap > must match snapshot 1`] = `
-Lock down dependency versions for publication
-
-Usage:
-npm shrinkwrap
-
-Run "npm help shrinkwrap" for more info
-
-\`\`\`bash
-npm shrinkwrap
-\`\`\`
-
-Note: This command is unaware of workspaces.
-
-NO PARAMS
-`
-
 exports[`test/lib/docs.js TAP usage stage > must match snapshot 1`] = `
 Stage packages for publishing, deferring proof-of-presence (2FA) to a later point in time
 
@@ -6138,62 +6308,6 @@ Note: This command is unaware of workspaces.
 #### Flags
 #### Synopsis
 #### Flags
-`
-
-exports[`test/lib/docs.js TAP usage star > must match snapshot 1`] = `
-Mark your favorite packages
-
-Usage:
-npm star [<package-spec>...]
-
-Options:
-[--registry <registry>] [--unicode] [--otp <otp>]
-
-  --registry
-    The base URL of the npm registry.
-
-  --unicode
-    When set to true, npm uses unicode characters in the tree output.  When
-
-  --otp
-    This is a one-time password from a two-factor authenticator.  It's needed
-
-
-Run "npm help star" for more info
-
-\`\`\`bash
-npm star [<package-spec>...]
-\`\`\`
-
-Note: This command is unaware of workspaces.
-
-#### \`registry\`
-#### \`unicode\`
-#### \`otp\`
-`
-
-exports[`test/lib/docs.js TAP usage stars > must match snapshot 1`] = `
-View packages marked as favorites
-
-Usage:
-npm stars [<user>]
-
-Options:
-[--registry <registry>]
-
-  --registry
-    The base URL of the npm registry.
-
-
-Run "npm help stars" for more info
-
-\`\`\`bash
-npm stars [<user>]
-\`\`\`
-
-Note: This command is unaware of workspaces.
-
-#### \`registry\`
 `
 
 exports[`test/lib/docs.js TAP usage start > must match snapshot 1`] = `
@@ -6571,38 +6685,6 @@ npm unpublish [<package-spec>]
 #### \`force\`
 #### \`workspace\`
 #### \`workspaces\`
-`
-
-exports[`test/lib/docs.js TAP usage unstar > must match snapshot 1`] = `
-Remove an item from your favorite packages
-
-Usage:
-npm unstar [<package-spec>...]
-
-Options:
-[--registry <registry>] [--unicode] [--otp <otp>]
-
-  --registry
-    The base URL of the npm registry.
-
-  --unicode
-    When set to true, npm uses unicode characters in the tree output.  When
-
-  --otp
-    This is a one-time password from a two-factor authenticator.  It's needed
-
-
-Run "npm help unstar" for more info
-
-\`\`\`bash
-npm unstar [<package-spec>...]
-\`\`\`
-
-Note: This command is unaware of workspaces.
-
-#### \`registry\`
-#### \`unicode\`
-#### \`otp\`
 `
 
 exports[`test/lib/docs.js TAP usage update > must match snapshot 1`] = `

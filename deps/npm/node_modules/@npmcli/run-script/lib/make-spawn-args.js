@@ -1,8 +1,7 @@
-/* eslint camelcase: "off" */
 const setPATH = require('./set-path.js')
 const { resolve } = require('path')
 
-let npm_config_node_gyp
+let npmConfigNodeGyp
 
 const makeSpawnArgs = options => {
   const {
@@ -20,13 +19,13 @@ const makeSpawnArgs = options => {
 
   if (nodeGyp) {
     // npm already pulled this from env and passes it in to options
-    npm_config_node_gyp = nodeGyp
+    npmConfigNodeGyp = nodeGyp
   } else if (env.npm_config_node_gyp) {
     // legacy mode for standalone user
-    npm_config_node_gyp = env.npm_config_node_gyp
+    npmConfigNodeGyp = env.npm_config_node_gyp
   } else {
     // default
-    npm_config_node_gyp = require.resolve('node-gyp/bin/node-gyp.js')
+    npmConfigNodeGyp = require.resolve('node-gyp/bin/node-gyp.js')
   }
 
   const spawnEnv = setPATH(path, binPaths, {
@@ -36,7 +35,7 @@ const makeSpawnArgs = options => {
     npm_package_json: resolve(path, 'package.json'),
     npm_lifecycle_event: event,
     npm_lifecycle_script: cmd,
-    npm_config_node_gyp,
+    npm_config_node_gyp: npmConfigNodeGyp,
   })
 
   const spawnOpts = {

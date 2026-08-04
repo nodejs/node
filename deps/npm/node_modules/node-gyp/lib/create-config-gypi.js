@@ -99,6 +99,11 @@ async function getCurrentConfigGypi ({ gyp, nodeDir, vsInfo, python }) {
     if (config.variables.clang === 1) {
       config.variables.clang = 0
     }
+    // disable LTO for addon builds. node release builds may enable (thin) LTO,
+    // which leaks clang/lld-only flags like -flto=thin and /opt:lldltojobs into
+    // addons built with the default MSVC toolchain, which rejects those flags
+    variables.enable_lto = 'false'
+    variables.enable_thin_lto = 'false'
   }
 
   // loop through the rest of the opts and add the unknown ones as variables.

@@ -46,7 +46,7 @@ const validatePolicy = (policy, sourceLabel) => {
     try {
       parsed = npa(key)
     } catch {
-      log.warn('allow-scripts', `${sourceLabel}: ignoring unparseable entry "${key}"`)
+      log.warn('install-scripts', `${sourceLabel}: ignoring unparseable entry "${key}"`)
       continue
     }
     if (parsed.type === 'tag') {
@@ -54,7 +54,7 @@ const validatePolicy = (policy, sourceLabel) => {
       // only — the matcher has no way to verify what the tag points at
       // when scripts run. Reject for the same reason as semver ranges.
       log.warn(
-        'allow-scripts',
+        'install-scripts',
         `${sourceLabel}: ignoring "${key}" — dist-tag specs (@latest, @next, ...) are not allowed; ` +
         'use exact versions joined by "||", or the bare package name, instead'
       )
@@ -66,7 +66,7 @@ const validatePolicy = (policy, sourceLabel) => {
         || parsed.rawSpec === '*'
       if (!isNameOnly && !isExactVersionDisjunction(parsed.fetchSpec)) {
         log.warn(
-          'allow-scripts',
+          'install-scripts',
           `${sourceLabel}: ignoring "${key}" — semver ranges (^, ~, >=, <) are not allowed; ` +
           'use exact versions joined by "||" instead'
         )
@@ -137,7 +137,7 @@ const resolveAllowScripts = async (npm, { skipProjectConfig = false } = {}) => {
         }
       }
     } catch (err) {
-      log.silly('allow-scripts', 'no package.json at prefix', err.message)
+      log.silly('install-scripts', 'no package.json at prefix', err.message)
     }
   }
 
@@ -154,7 +154,7 @@ const resolveAllowScripts = async (npm, { skipProjectConfig = false } = {}) => {
     // set, package.json is never consulted.
     if (rc) {
       log.warn(
-        'allow-scripts',
+        'install-scripts',
         '.npmrc allow-scripts setting is being ignored because --allow-scripts was passed on the command line'
       )
     }
@@ -164,7 +164,7 @@ const resolveAllowScripts = async (npm, { skipProjectConfig = false } = {}) => {
   if (pkg) {
     if (rc) {
       log.warn(
-        'allow-scripts',
+        'install-scripts',
         '.npmrc allow-scripts setting is being ignored because package.json declares its own allowScripts field'
       )
     }
