@@ -388,7 +388,8 @@
   V(wrap_string, "wrap")                                                       \
   V(writable_string, "writable")                                               \
   V(write_host_object_string, "_writeHostObject")                              \
-  V(write_queue_size_string, "writeQueueSize")
+  V(write_queue_size_string, "writeQueueSize")                                 \
+  V(write_status_string, "writeStatus")
 
 #define PER_ISOLATE_TEMPLATE_PROPERTIES(V)                                     \
   V(a_record_template, v8::DictionaryTemplate)                                 \

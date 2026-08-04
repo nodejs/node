@@ -767,6 +767,105 @@ std::unique_ptr<BackingStore> Environment::release_managed_buffer(
   return bs;
 }
 
+uv_buf_t StreamReadSlab::Allocate(Isolate* isolate, size_t suggested) {
+  DCHECK_GT(suggested, 0);
+  // Reads always get the full `suggested` size: handing out a smaller
+  // remainder would shrink the read() buffer and fragment large reads into
+  // more system calls, which costs more than the slab tail it saves.
+  size_t remaining = current_.bs ? current_.size() - current_.offset : 0;
+  if (remaining < suggested) {
+    // Retire the current slab; it stays alive through `retired_` if reads
+    // are still pending on it, or through JS views over it otherwise.
+    if (current_.bs && current_.pending > 0)
+      retired_.push_back(std::move(current_));
+    current_ = Slab();
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate,
+        std::max(kSlabSize, suggested),
+        BackingStoreInitializationMode::kUninitialized);
+    current_.bs = std::move(bs);
+  }
+  char* base = current_.data() + current_.offset;
+  current_.offset += suggested;
+  current_.last_base = base;
+  current_.last_end = current_.offset;
+  current_.pending++;
+  return uv_buf_init(base, suggested);
+}
+
+StreamReadSlab::Slab* StreamReadSlab::FindSlab(const char* base) {
+  if (current_.Contains(base)) return &current_;
+  for (Slab& slab : retired_)
+    if (slab.Contains(base)) return &slab;
+  return nullptr;
+}
+
+void StreamReadSlab::CompleteReservation(Slab* slab,
+                                         const uv_buf_t& buf,
+                                         size_t used) {
+  DCHECK_GT(slab->pending, 0);
+  slab->pending--;
+  if (buf.base == slab->last_base && slab->offset == slab->last_end) {
+    // This was the most recent reservation and nothing was reserved after
+    // it: rewind the unused remainder so it can be reserved again.
+    slab->offset = (buf.base - slab->data()) + used;
+    slab->last_end = slab->offset;
+  }
+  if (slab != &current_ && slab->pending == 0) {
+    for (auto it = retired_.begin(); it != retired_.end(); ++it) {
+      if (&*it == slab) {
+        retired_.erase(it);
+        break;
+      }
+    }
+  }
+}
+
+bool StreamReadSlab::Commit(Isolate* isolate,
+                            const uv_buf_t& buf,
+                            size_t nread,
+                            Local<ArrayBuffer>* ab,
+                            size_t* offset) {
+  Slab* slab = FindSlab(buf.base);
+  if (slab == nullptr) return false;
+  DCHECK_LE(nread, buf.len);
+
+  // A partial read would leave the rest of its reservation as waste once
+  // the slab retires - memory that counts towards V8's external memory and
+  // drives up GC frequency. If most of the reservation would be wasted,
+  // give the read a right-sized copy instead (as if it had never been read
+  // into the slab) and return its reservation in full. Reads that (mostly)
+  // fill their reservation get a zero-copy view into the slab.
+  if (nread < buf.len - buf.len / 4 && buf.base == slab->last_base &&
+      slab->offset == slab->last_end) {
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate, nread, BackingStoreInitializationMode::kUninitialized);
+    memcpy(bs->Data(), buf.base, nread);
+    *ab = ArrayBuffer::New(isolate, std::move(bs));
+    *offset = 0;
+    CompleteReservation(slab, buf, 0);
+    return true;
+  }
+
+  *offset = buf.base - slab->data();
+  if (slab->ab.IsEmpty()) {
+    *ab = ArrayBuffer::New(isolate, slab->bs);
+    slab->ab.Reset(isolate, *ab);
+  } else {
+    *ab = slab->ab.Get(isolate);
+  }
+  CompleteReservation(slab, buf, nread);
+  return true;
+}
+
+bool StreamReadSlab::Release(const uv_buf_t& buf) {
+  if (buf.base == nullptr) return true;
+  Slab* slab = FindSlab(buf.base);
+  if (slab == nullptr) return false;
+  CompleteReservation(slab, buf, 0);
+  return true;
+}
+
 std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
