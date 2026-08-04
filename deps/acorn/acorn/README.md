@@ -137,6 +137,11 @@ required):
   one-based line and zero-based column numbers in `{line, column}`
   form. Default is `false`.
 
+- **startLocation**: An optional `{line, column}` object to use for
+  the start of the parse. This is mostly useful when using
+  `parseExpressionAt` with `locations: true`, to prevent the parser
+  from having to determine the line position at the start position.
+
 - **onToken**: If a function is passed for this option, each found
   token will be passed in same format as tokens returned from
   `tokenizer().getToken()`.
