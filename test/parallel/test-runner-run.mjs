@@ -675,6 +675,14 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }));
     });
 
+    it('should only allow object in options.env', () => {
+      [Symbol(), [], () => {}, 0, 1, 0n, 1n, '', '1', true, false]
+        .forEach((env) => assert.throws(() => run({ files: [], env }), {
+          code: 'ERR_INVALID_ARG_TYPE',
+          message: /The "options\.env" property must be of type object\./
+        }));
+    });
+
     it('should not allow files and globPatterns used together', () => {
       assert.throws(() => run({ files: ['a.js'], globPatterns: ['*.js'] }), {
         code: 'ERR_INVALID_ARG_VALUE'
