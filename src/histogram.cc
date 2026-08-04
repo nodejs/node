@@ -261,18 +261,22 @@ void HistogramBase::New(const FunctionCallbackInfo<Value>& args) {
   int64_t lowest = 1;
   int64_t highest = std::numeric_limits<int64_t>::max();
 
-  bool lossless_ignored;
+  bool lossless = true;
 
   if (args[0]->IsNumber()) {
     lowest = args[0].As<Integer>()->Value();
   } else if (args[0]->IsBigInt()) {
-    lowest = args[0].As<BigInt>()->Int64Value(&lossless_ignored);
+    lowest = args[0].As<BigInt>()->Int64Value(&lossless);
+    if (!lossless)
+      return THROW_ERR_OUT_OF_RANGE(env, "options.lowest is out of range");
   }
 
   if (args[1]->IsNumber()) {
     highest = args[1].As<Integer>()->Value();
   } else if (args[1]->IsBigInt()) {
-    highest = args[1].As<BigInt>()->Int64Value(&lossless_ignored);
+    highest = args[1].As<BigInt>()->Int64Value(&lossless);
+    if (!lossless)
+      return THROW_ERR_OUT_OF_RANGE(env, "options.highest is out of range");
   }
 
   int32_t figures = args[2].As<Uint32>()->Value();
@@ -497,7 +501,6 @@ IterationHistogram::IterationHistogram(Environment* env,
   uv_prepare_init(env->event_loop(), &prepare_handle_);
   uv_unref(reinterpret_cast<uv_handle_t*>(&check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&prepare_handle_));
-  prepare_handle_.data = this;
 }
 
 BaseObjectPtr<IterationHistogram> IterationHistogram::Create(
@@ -515,7 +518,8 @@ BaseObjectPtr<IterationHistogram> IterationHistogram::Create(
 }
 
 void IterationHistogram::PrepareCB(uv_prepare_t* handle) {
-  IterationHistogram* self = static_cast<IterationHistogram*>(handle->data);
+  IterationHistogram* self =
+      ContainerOf(&IterationHistogram::prepare_handle_, handle);
   if (!self->enabled_) return;
   self->prepare_time_ = uv_hrtime();
   self->timeout_ = uv_backend_timeout(handle->loop);

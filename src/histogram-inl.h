@@ -18,12 +18,30 @@ void Histogram::Reset() {
 }
 
 double Histogram::Add(const Histogram& other) {
-  Mutex::ScopedLock lock(mutex_);
-  count_ += other.count_;
-  exceeds_ += other.exceeds_;
-  if (other.prev_ > prev_)
-    prev_ = other.prev_;
-  return static_cast<double>(hdr_add(histogram_.get(), other.histogram_.get()));
+  auto do_add = [&]() {
+    count_ += other.count_;
+    exceeds_ += other.exceeds_;
+    if (other.prev_ > prev_) prev_ = other.prev_;
+    return static_cast<double>(
+        hdr_add(histogram_.get(), other.histogram_.get()));
+  };
+
+  // When adding a histogram to itself, a single lock suffices.
+  if (this == &other) {
+    Mutex::ScopedLock lock(mutex_);
+    return do_add();
+  }
+
+  // Lock both mutexes in pointer order to prevent deadlock.
+  if (this < &other) {
+    Mutex::ScopedLock lock1(mutex_);
+    Mutex::ScopedLock lock2(other.mutex_);
+    return do_add();
+  }
+
+  Mutex::ScopedLock lock1(other.mutex_);
+  Mutex::ScopedLock lock2(mutex_);
+  return do_add();
 }
 
 size_t Histogram::Count() const {
