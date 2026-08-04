@@ -31,6 +31,10 @@
 #include "absl/container/internal/unordered_set_modifiers_test.h"
 #include "absl/memory/memory.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
@@ -181,6 +185,34 @@ TEST(NodeHashSet, CForEach) {
     expected.emplace_back(i, i);
   }
 }
+
+#if defined(__cpp_lib_containers_ranges) && \
+    __cpp_lib_containers_ranges >= 202202L
+TEST(NodeHashSet, FromRange) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  absl::node_hash_set<int> s(std::from_range, v);
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(NodeHashSet, FromRangeWithAllocator) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  absl::node_hash_set<int, absl::container_internal::hash_default_hash<int>,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<int>>
+      s(std::from_range, v, 0, Alloc<int>());
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(NodeHashSet, FromRangeWithHasherAndAllocator) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  using TestingHash = absl::container_internal::StatefulTestingHash;
+  absl::node_hash_set<int, TestingHash,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<int>>
+      s(std::from_range, v, 0, TestingHash{}, Alloc<int>());
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

@@ -118,22 +118,6 @@ class Reader {
     return base::Vector<const T>::cast(bytes);
   }
 
-  base::OwnedVector<WasmCode::EffectHandler> ReadEffectHandlers() {
-    uint32_t count = Read<uint32_t>();
-    if (count == 0) return {};
-    size_t size = count * sizeof(WasmCode::EffectHandler);
-    DCHECK_GE(current_size(), size);
-    auto result = base::OwnedVector<WasmCode::EffectHandler>::New(count);
-    memcpy(result.begin(), current_location(), size);
-    pos_ += size;
-    if (v8_flags.trace_wasm_serialization) {
-      StdoutStream{} << "read vector of " << count
-                     << " effect handlers (total size " << size << ")"
-                     << std::endl;
-    }
-    return result;
-  }
-
   void Skip(size_t size) { pos_ += size; }
 
  private:
@@ -261,7 +245,7 @@ constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +  // source positions size
                                    sizeof(int) +  // inlining positions size
                                    sizeof(int) +  // deopt data size
-                                   sizeof(int) +  // protected instructions size
+                                   sizeof(int) +  // trapping instructions size
                                    sizeof(int) +  // effect handler count
                                    sizeof(WasmCode::Kind) +  // code kind
                                    sizeof(ExecutionTier);    // tier
@@ -381,12 +365,21 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code->tier() != ExecutionTier::kTurbofan) {
     return sizeof(uint8_t);
   }
+
+  // Coverage-instrumented code contains embedded raw pointers to coverage
+  // counter arrays that are not relocatable. Skip serialization so the
+  // function gets recompiled on deserialization with fresh coverage data.
+  // Return sizeof(uint8_t) to match the single-byte marker (kEagerFunction)
+  // written by WriteCode.
+  if (v8_flags.wasm_code_coverage) {
+    return sizeof(uint8_t);
+  }
+
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->inlining_positions().size() +
-         code->protected_instructions_data().size() +
-         code->deopt_data().size() +
-         code->effect_handlers().size() * sizeof(WasmCode::EffectHandler);
+         code->trapping_instructions_data().size() + code->deopt_data().size() +
+         code->effect_handlers().size();
 }
 
 size_t NativeModuleSerializer::Measure() const {
@@ -471,6 +464,14 @@ void NativeModuleSerializer::WriteCode(
     return;
   }
 
+  // Coverage-instrumented code contains embedded raw pointers to coverage
+  // counter arrays that are not relocatable. Treat it as an eager function
+  // so it gets recompiled with fresh coverage data upon deserialization.
+  if (v8_flags.wasm_code_coverage) {
+    writer->Write(kEagerFunction);
+    return;
+  }
+
   ++num_turbofan_functions_;
   writer->Write(kTurboFanFunction);
   // Write the size of the entire code section, followed by the code header.
@@ -489,9 +490,8 @@ void NativeModuleSerializer::WriteCode(
   writer->Write(static_cast<uint32_t>(code->inlining_positions().size()));
   writer->Write(static_cast<uint32_t>(code->deopt_data().size()));
   writer->Write(
-      static_cast<uint32_t>(code->protected_instructions_data().size()));
+      static_cast<uint32_t>(code->trapping_instructions_data().size()));
   writer->Write(static_cast<uint32_t>(code->effect_handlers().size()));
-  writer->WriteVector(code->effect_handlers());
   writer->Write(code->kind());
   writer->Write(code->tier());
 
@@ -506,7 +506,8 @@ void NativeModuleSerializer::WriteCode(
   writer->WriteVector(code->source_positions());
   writer->WriteVector(code->inlining_positions());
   writer->WriteVector(code->deopt_data());
-  writer->WriteVector(code->protected_instructions_data());
+  writer->WriteVector(code->trapping_instructions_data());
+  writer->WriteVector(code->effect_handlers());
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
   // On platforms that don't support misaligned word stores, copy to an aligned
@@ -632,7 +633,8 @@ bool NativeModuleSerializer::Write(Writer* writer) {
 
   size_t total_code_size = 0;
   for (WasmCode* code : code_table_) {
-    if (code && code->tier() == ExecutionTier::kTurbofan) {
+    if (code && code->tier() == ExecutionTier::kTurbofan &&
+        !v8_flags.wasm_code_coverage) {
       DCHECK(IsAligned(code->instructions().size(), kCodeAlignment));
       total_code_size += code->instructions().size();
     }
@@ -645,7 +647,7 @@ bool NativeModuleSerializer::Write(Writer* writer) {
     WriteCode(code, writer, function_index_map);
   }
   // No TurboFan-compiled functions in jitless mode.
-  if (!v8_flags.wasm_jitless) {
+  if (!v8_flags.wasm_jitless && !v8_flags.wasm_code_coverage) {
     // If not a single function was written, serialization was not successful.
     if (num_turbofan_functions_ == 0) return false;
   }
@@ -944,10 +946,10 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   uint32_t source_position_size = reader->Read<uint32_t>();
   uint32_t inlining_position_size = reader->Read<uint32_t>();
   uint32_t deopt_data_size = reader->Read<uint32_t>();
-  // TODO(mliedtke): protected_instructions_data is the first part of the
+  // TODO(mliedtke): trapping_instructions_data is the first part of the
   // meta_data_ array. Ideally the sizes would be in the same order...
-  uint32_t protected_instructions_size = reader->Read<uint32_t>();
-  auto owned_effect_handlers = reader->ReadEffectHandlers();
+  uint32_t trapping_instructions_size = reader->Read<uint32_t>();
+  uint32_t effect_handlers_size = reader->Read<uint32_t>();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();
 
@@ -971,8 +973,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   auto source_pos = reader->ReadVector<uint8_t>(source_position_size);
   auto inlining_pos = reader->ReadVector<uint8_t>(inlining_position_size);
   auto deopt_data = reader->ReadVector<uint8_t>(deopt_data_size);
-  auto protected_instructions =
-      reader->ReadVector<uint8_t>(protected_instructions_size);
+  auto trapping_instructions =
+      reader->ReadVector<uint8_t>(trapping_instructions_size);
+  auto effect_handlers = reader->ReadVector<uint8_t>(effect_handlers_size);
 
   base::Vector<uint8_t> instructions =
       current_code_space_.SubVector(0, code_size);
@@ -983,8 +986,8 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       fn_index, instructions, stack_slot_count, ool_spill_count,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
       constant_pool_offset, code_comment_offset, jump_table_info_offset,
-      unpadded_binary_size, protected_instructions, reloc_info, source_pos,
-      inlining_pos, deopt_data, kind, tier, std::move(owned_effect_handlers));
+      unpadded_binary_size, trapping_instructions, reloc_info, source_pos,
+      inlining_pos, deopt_data, kind, tier, effect_handlers);
   unit.jump_tables = current_jump_tables_;
   if (v8_flags.wasm_lazy_validation) {
     // There can't be code for it if the function wasn't validated.
@@ -1142,8 +1145,10 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
   CHECK_NOT_NULL(module);
 
   WasmEngine* wasm_engine = GetWasmEngine();
-  auto shared_native_module = wasm_engine->MaybeGetNativeModule(
-      module->origin, wire_bytes_vec.as_vector(), compile_imports);
+  std::shared_ptr<NativeModule> shared_native_module =
+      wasm_engine->MaybeGetNativeModule(module->origin,
+                                        wire_bytes_vec.as_vector(),
+                                        enabled_features, compile_imports);
   if (shared_native_module) {
     // For consistency, take ownership of the passed `wire_bytes_vec` also when
     // taking a module from cache.

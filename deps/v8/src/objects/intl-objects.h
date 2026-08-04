@@ -11,10 +11,13 @@
 #include <set>
 #include <string>
 
+#include "include/v8-internal.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/timezone-cache.h"
 #include "src/objects/contexts.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
+#include "unicode/brkiter.h"
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
@@ -25,7 +28,6 @@
 #define V8_MINIMUM_ICU_VERSION 73
 
 namespace U_ICU_NAMESPACE {
-class BreakIterator;
 class Locale;
 class ListFormatter;
 class RelativeDateTimeFormatter;
@@ -46,7 +48,6 @@ class Notation;
 namespace v8::internal {
 
 #define ICU_EXTERNAL_POINTER_TAG_LIST(V)                              \
-  V(icu::UnicodeString, kIcuUnicodeStringTag)                         \
   V(icu::BreakIterator, kIcuBreakIteratorTag)                         \
   V(icu::Locale, kIcuLocaleTag)                                       \
   V(icu::SimpleDateFormat, kIcuSimpleDateFormatTag)                   \
@@ -73,6 +74,37 @@ V8_EXPORT_PRIVATE std::vector<NumberFormatSpan> FlattenRegionsToParts(
     std::vector<NumberFormatSpan>* regions);
 
 class JSCollator;
+
+// Owns the ICU break iterator together with the string buffer it refers to.
+class IcuBreakIteratorWithText final {
+ public:
+  static constexpr ExternalPointerTag kManagedTag =
+      kIcuBreakIteratorWithTextTag;
+
+  // Adopts the given iterator with an empty string.
+  explicit IcuBreakIteratorWithText(
+      std::unique_ptr<icu::BreakIterator> iterator);
+  // Clones the given iterator and the string.
+  IcuBreakIteratorWithText(Isolate* isolate,
+                           std::unique_ptr<icu::BreakIterator> iterator,
+                           DirectHandle<String> string);
+  IcuBreakIteratorWithText(const IcuBreakIteratorWithText&) = delete;
+  IcuBreakIteratorWithText(IcuBreakIteratorWithText&&) V8_NOEXCEPT;
+  IcuBreakIteratorWithText& operator=(const IcuBreakIteratorWithText&) = delete;
+  IcuBreakIteratorWithText& operator=(IcuBreakIteratorWithText&&) V8_NOEXCEPT;
+  ~IcuBreakIteratorWithText();
+
+  const icu::BreakIterator* iterator() const { return iterator_.get(); }
+  icu::BreakIterator* iterator() { return iterator_.get(); }
+  const icu::UnicodeString* text() const { return text_.get(); }
+  icu::UnicodeString* text() { return text_.get(); }
+
+  void SetText(Isolate* isolate, DirectHandle<String> string);
+
+ private:
+  std::unique_ptr<icu::UnicodeString> text_;
+  std::unique_ptr<icu::BreakIterator> iterator_;  // may refer to `text_` buffer
+};
 
 class Intl {
  public:
@@ -150,18 +182,18 @@ class Intl {
       const std::set<std::string>& available_locales,
       DirectHandle<Object> locales_in, DirectHandle<Object> options_in);
 
-  // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
+  // https://tc39.es/ecma402/#sec-canonicalizelocalelist
   // {only_return_one_result} is an optimization for callers that only
   // care about the first result.
   static Maybe<std::vector<std::string>> CanonicalizeLocaleList(
       Isolate* isolate, DirectHandle<Object> locales,
       bool only_return_one_result = false);
 
-  // ecma-402 #sec-intl.getcanonicallocales
+  // ecma-402 https://tc39.es/ecma262/#sec-intl.getcanonicallocales
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> GetCanonicalLocales(
       Isolate* isolate, DirectHandle<Object> locales);
 
-  // ecma-402 #sec-intl.supportedvaluesof
+  // ecma-402 https://tc39.es/ecma262/#sec-intl.supportedvaluesof
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> SupportedValuesOf(
       Isolate* isolate, DirectHandle<Object> key);
 
@@ -195,7 +227,7 @@ class Intl {
       CompareStringsOptions compare_strings_options =
           CompareStringsOptions::kNone);
 
-  // ecma402/#sup-properties-of-the-number-prototype-object
+  // https://tc39.es/ecma402/#sup-properties-of-the-number-prototype-object
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> NumberToLocaleString(
       Isolate* isolate, Handle<Object> num, DirectHandle<Object> locales,
       DirectHandle<Object> options, const char* method_name);
@@ -238,7 +270,7 @@ class Intl {
     kStripIfInteger,
   };
 
-  // ecma402/#sec-setnfdigitoptions
+  // https://tc39.es/ecma402/#sec-setnfdigitoptions
   struct NumberFormatDigitOptions {
     int minimum_integer_digits;
     int minimum_fraction_digits;
@@ -309,7 +341,7 @@ class Intl {
   // which chains the underlying Intl instance on any object, when the
   // constructor is called
   //
-  // See ecma402/#legacy-constructor.
+  // See https://tc39.es/ecma402/#legacy-constructor.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> LegacyUnwrapReceiver(
       Isolate* isolate, DirectHandle<JSReceiver> receiver,
       DirectHandle<JSFunction> constructor, bool has_initialized_slot);
@@ -397,12 +429,7 @@ class Intl {
     std::set<std::string> set_;
   };
 
-  // Utility function to set text to BreakIterator.
-  static DirectHandle<Managed<icu::UnicodeString>> SetTextToBreakIterator(
-      Isolate* isolate, DirectHandle<String> text,
-      icu::BreakIterator* break_iterator);
-
-  // ecma262 #sec-string.prototype.normalize
+  // https://tc39.es/ecma262/#sec-string.prototype.normalize
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Normalize(
       Isolate* isolate, DirectHandle<String> string,
       DirectHandle<Object> form_input);

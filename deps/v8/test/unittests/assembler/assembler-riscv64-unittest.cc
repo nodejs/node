@@ -45,6 +45,7 @@
 
 namespace v8 {
 namespace internal {
+
 using AssemblerRISCV64Test = TestWithIsolate;
 
 // With 512-bit vectors, there are at most 64 elements.
@@ -691,6 +692,918 @@ UTEST_CONV_F_FROM_I(fcvt_d_l, int64_t, double, (-0x1234'5678'0000'0001LL),
 UTEST_CONV_F_FROM_I(fcvt_d_lu, uint64_t, double,
                     std::numeric_limits<uint64_t>::max(),
                     (double)(std::numeric_limits<uint64_t>::max()))
+
+// -- RVZFA Standard Extension --
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fli_s) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  struct FliSTestCase {
+    uint8_t imm5;
+    float expected;
+  };
+  FliSTestCase test_cases[] = {
+      {0, -1.0f},
+      {1, 1.17549435e-38f},
+      {2, 1.52587890625e-5f},
+      {8, 0.25f},
+      {12, 0.5f},
+      {16, 1.0f},
+      {20, 2.0f},
+      {24, 8.0f},
+      {30, std::numeric_limits<float>::infinity()},
+  };
+  for (auto& tc : test_cases) {
+    auto fn = [imm5 = tc.imm5](MacroAssembler& assm) {
+      __ fli_s(fa0, imm5);
+      __ fmv_x_w(a0, fa0);
+    };
+    auto res = GenAndRunTest(fn);
+    float fres = base::bit_cast<float>(static_cast<int32_t>(res));
+    if (tc.imm5 == 30) {
+      CHECK(std::isinf(fres) && fres > 0);
+    } else {
+      CHECK_EQ(tc.expected, fres);
+    }
+  }
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fli_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  struct FliDTestCase {
+    uint8_t imm5;
+    double expected;
+  };
+  FliDTestCase test_cases[] = {
+      {0, -1.0},
+      {1, 2.2250738585072014e-308},
+      {2, 1.52587890625e-5},
+      {8, 0.25},
+      {12, 0.5},
+      {16, 1.0},
+      {20, 2.0},
+      {24, 8.0},
+      {30, std::numeric_limits<double>::infinity()},
+  };
+  for (auto& tc : test_cases) {
+    auto fn = [imm5 = tc.imm5](MacroAssembler& assm) {
+      __ fli_d(fa0, imm5);
+      __ fmv_x_d(a0, fa0);
+    };
+    auto res = GenAndRunTest(fn);
+    double dres = base::bit_cast<double>(res);
+    if (tc.imm5 == 30) {
+      CHECK(std::isinf(dres) && dres > 0);
+    } else {
+      CHECK_EQ(tc.expected, dres);
+    }
+  }
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fround_s) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  struct FroundSTestCase {
+    float input;
+    float expected;
+    FPURoundingMode rm;
+  };
+  FroundSTestCase test_cases[] = {
+      {1.5f, 2.0f, RNE},   {2.5f, 2.0f, RNE},   {-1.5f, -2.0f, RNE},
+      {1.5f, 1.0f, RTZ},   {-1.5f, -1.0f, RTZ}, {1.5f, 1.0f, RDN},
+      {-1.5f, -2.0f, RDN}, {1.5f, 2.0f, RUP},   {-1.5f, -1.0f, RUP},
+      {2.5f, 3.0f, RMM},   {-2.5f, -3.0f, RMM},
+  };
+  for (auto& tc : test_cases) {
+    auto fn = [rm = tc.rm](MacroAssembler& assm) { __ fround_s(fa0, fa0, rm); };
+    auto res = GenAndRunTest<float, float>(tc.input, fn);
+    CHECK_EQ(tc.expected, res);
+  }
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fround_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  struct FroundDTestCase {
+    double input;
+    double expected;
+    FPURoundingMode rm;
+  };
+  FroundDTestCase test_cases[] = {
+      {1.5, 2.0, RNE},   {2.5, 2.0, RNE}, {-1.5, -2.0, RNE}, {1.5, 1.0, RTZ},
+      {-1.5, -1.0, RTZ}, {1.5, 1.0, RDN}, {-1.5, -2.0, RDN}, {1.5, 2.0, RUP},
+      {-1.5, -1.0, RUP}, {2.5, 3.0, RMM}, {-2.5, -3.0, RMM},
+  };
+  for (auto& tc : test_cases) {
+    auto fn = [rm = tc.rm](MacroAssembler& assm) { __ fround_d(fa0, fa0, rm); };
+    auto res = GenAndRunTest<double, double>(tc.input, fn);
+    CHECK_EQ(tc.expected, res);
+  }
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fcvtmod_w_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FcvtmodHelper = [](uint64_t value_bits, int64_t expected) {
+    auto fn = [](MacroAssembler& assm) { __ fcvtmod_w_d(a0, fa0); };
+    auto res =
+        GenAndRunTest<int64_t, double>(base::bit_cast<double>(value_bits), fn);
+    CHECK_EQ(expected, res);
+  };
+
+  // Simple values.
+  FcvtmodHelper(0x0000000000000000ULL, 0);   // 0.0
+  FcvtmodHelper(0x3ff0000000000000ULL, 1);   // 1.0
+  FcvtmodHelper(0x3ff8000000000000ULL, 1);   // 1.5 (rounds towards zero)
+  FcvtmodHelper(0x4000000000000000ULL, 2);   // 2.0
+  FcvtmodHelper(0x4024000000000000ULL, 10);  // 10.0
+
+  // Negative values.
+  FcvtmodHelper(0x8000000000000000ULL, 0);    // -0.0
+  FcvtmodHelper(0xbff0000000000000ULL, -1);   // -1.0
+  FcvtmodHelper(0xbff8000000000000ULL, -1);   // -1.5 (rounds towards zero)
+  FcvtmodHelper(0xc000000000000000ULL, -2);   // -2.0
+  FcvtmodHelper(0xc024000000000000ULL, -10);  // -10.0
+
+  // INT32_MAX and INT32_MIN.
+  FcvtmodHelper(0x41dfffffffc00000ULL, 2147483647);  // 2147483647.0 (INT32_MAX)
+  FcvtmodHelper(0xc1e0000000000000ULL,
+                -2147483648LL);  // -2147483648.0 (INT32_MIN)
+
+  // Values outside 32-bit range (mod 2^32).
+  FcvtmodHelper(0x41e0000000000000ULL,
+                -2147483648LL);              // 2147483648.0 -> 0x80000000
+  FcvtmodHelper(0x41f0000000000000ULL, 0);   // 4294967296.0 (2^32) -> 0
+  FcvtmodHelper(0x41F0000000100000ULL, 1);   // 4294967297.0 -> 1
+  FcvtmodHelper(0xc1f0000000000000ULL, 0);   // -4294967296.0 -> 0
+  FcvtmodHelper(0xC1F0000000100000ULL, -1);  // -4294967297.0 -> -1
+
+  // Largest finite value (overflows to 0 mod 2^32).
+  FcvtmodHelper(0x7fefffffffffffffULL, 0);
+  FcvtmodHelper(0xffefffffffffffffULL, 0);
+
+  // Infinity.
+  FcvtmodHelper(0x7ff0000000000000ULL, 0);  // +Inf
+  FcvtmodHelper(0xfff0000000000000ULL, 0);  // -Inf
+
+  // NaNs.
+  FcvtmodHelper(0x7ff8000000000000ULL, 0);  // Canonical quiet NaN
+  FcvtmodHelper(0x7ff923456789abcdULL, 0);  // Quiet NaN
+  FcvtmodHelper(0x7ff0000000000001ULL, 0);  // Signalling NaN
+  FcvtmodHelper(0x7ff123456789abcdULL, 0);  // Signalling NaN
+  FcvtmodHelper(0xfff8000000000000ULL, 0);  // Negative quiet NaN
+  FcvtmodHelper(0xfff923456789abcdULL, 0);  // Negative quiet NaN
+
+  // Subnormals.
+  FcvtmodHelper(0x0000000000000001ULL, 0);  // Smallest subnormal
+  FcvtmodHelper(0x000fffffffffffffULL, 0);  // Largest subnormal
+  FcvtmodHelper(0x000123456789abcdULL, 0);  // Subnormal
+  FcvtmodHelper(0x8000000000000001ULL, 0);  // Negative smallest subnormal
+  FcvtmodHelper(0x800fffffffffffffULL, 0);  // Negative largest subnormal
+
+  // Small normal values.
+  FcvtmodHelper(0x0010000000000000ULL, 0);  // Smallest positive normal
+  FcvtmodHelper(0x8010000000000000ULL, 0);  // Negative smallest normal
+
+  // Values near 0.5.
+  FcvtmodHelper(0x3fe0000000000000ULL, 0);  // 0.5 -> rounds to 0
+  FcvtmodHelper(0x3fdfffffffffffffULL, 0);  // Just below 0.5
+  FcvtmodHelper(0x3fe0000000000001ULL, 0);  // Just above 0.5
+  FcvtmodHelper(0xbfe0000000000000ULL, 0);  // -0.5 -> rounds to 0
+  FcvtmodHelper(0xbfdfffffffffffffULL, 0);  // Just below -0.5
+  FcvtmodHelper(0xbfe0000000000001ULL, 0);  // Just above -0.5
+
+  // Values near 1.0.
+  FcvtmodHelper(0x3fefffffffffffffULL, 0);   // Just below 1.0
+  FcvtmodHelper(0x3ff0000000000001ULL, 1);   // Just above 1.0
+  FcvtmodHelper(0xbfefffffffffffffULL, 0);   // Just below -1.0
+  FcvtmodHelper(0xbff0000000000001ULL, -1);  // Just above -1.0
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fleq_s) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FleqSHelper = [](float rs1, float rs2, int32_t expected) {
+    auto fn = [](MacroAssembler& assm) { __ fleq_s(a0, fa0, fa1); };
+    auto res = GenAndRunTest<int32_t, float>(rs1, rs2, fn);
+    CHECK_EQ(expected, res);
+  };
+  // Normal comparisons
+  FleqSHelper(1.0f, 2.0f, 1);       // 1.0 <= 2.0 -> true
+  FleqSHelper(2.0f, 1.0f, 0);       // 2.0 <= 1.0 -> false
+  FleqSHelper(1.0f, 1.0f, 1);       // 1.0 <= 1.0 -> true
+  FleqSHelper(-1.0f, 1.0f, 1);      // -1.0 <= 1.0 -> true
+  FleqSHelper(1.0f, -1.0f, 0);      // 1.0 <= -1.0 -> false
+  FleqSHelper(3.14f, 3.15f, 1);     // 3.14 <= 3.15 -> true
+  FleqSHelper(-100.0f, -50.0f, 1);  // -100.0 <= -50.0 -> true
+
+  // Zero comparisons
+  FleqSHelper(0.0f, 0.0f, 1);  // 0.0 <= 0.0 -> true
+  FleqSHelper(base::bit_cast<float>(0x80000000U),
+              base::bit_cast<float>(0x00000000U), 1);  // -0.0 <= +0.0
+  FleqSHelper(base::bit_cast<float>(0x00000000U),
+              base::bit_cast<float>(0x80000000U), 1);  // +0.0 <= -0.0
+  FleqSHelper(base::bit_cast<float>(0x80000000U),
+              base::bit_cast<float>(0x80000000U), 1);  // -0.0 <= -0.0
+  FleqSHelper(0.0f, 1.0f, 1);                          // 0.0 <= 1.0 -> true
+  FleqSHelper(-1.0f, 0.0f, 1);                         // -1.0 <= 0.0 -> true
+
+  // NaN comparisons (should return 0, quiet - no exception)
+  FleqSHelper(base::bit_cast<float>(0x7fc00000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // NaN <= 1.0
+  FleqSHelper(base::bit_cast<float>(0x3f800000U),
+              base::bit_cast<float>(0x7fc00000U), 0);  // 1.0 <= NaN
+  FleqSHelper(base::bit_cast<float>(0x7fc00000U),
+              base::bit_cast<float>(0x7fc00000U), 0);  // NaN <= NaN
+  FleqSHelper(base::bit_cast<float>(0x7ff00000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // Signaling NaN <= 1.0
+  FleqSHelper(base::bit_cast<float>(0xffc00000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // -NaN <= 1.0
+
+  // Infinity comparisons
+  FleqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // +Inf <= 1.0
+  FleqSHelper(base::bit_cast<float>(0x3f800000U),
+              base::bit_cast<float>(0x7f800000U), 1);  // 1.0 <= +Inf
+  FleqSHelper(base::bit_cast<float>(0xff800000U),
+              base::bit_cast<float>(0x3f800000U), 1);  // -Inf <= 1.0
+  FleqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0x7f800000U), 1);  // +Inf <= +Inf
+  FleqSHelper(base::bit_cast<float>(0xff800000U),
+              base::bit_cast<float>(0xff800000U), 1);  // -Inf <= -Inf
+  FleqSHelper(base::bit_cast<float>(0xff800000U),
+              base::bit_cast<float>(0x7f800000U), 1);  // -Inf <= +Inf
+  FleqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0xff800000U), 0);  // +Inf <= -Inf
+
+  // Denormal numbers
+  FleqSHelper(base::bit_cast<float>(0x00000001U),
+              base::bit_cast<float>(0x3f800000U), 1);  // smallest denorm <= 1.0
+  FleqSHelper(base::bit_cast<float>(0x3f800000U),
+              base::bit_cast<float>(0x00000001U), 0);  // 1.0 <= smallest denorm
+  FleqSHelper(base::bit_cast<float>(0x007fffffU),
+              base::bit_cast<float>(0x00800000U),
+              1);  // largest denorm <= smallest normal
+  FleqSHelper(base::bit_cast<float>(0x00000001U),
+              base::bit_cast<float>(0x00000002U), 1);  // denorm 1 <= denorm 2
+
+  // Boundary values
+  FleqSHelper(base::bit_cast<float>(0x7f7fffffU),
+              base::bit_cast<float>(0x7f800000U), 1);  // FLT_MAX <= +Inf
+  FleqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0x7f7fffffU), 0);  // +Inf <= FLT_MAX
+  FleqSHelper(base::bit_cast<float>(0x00800000U),
+              base::bit_cast<float>(0x00800001U), 1);  // FLT_MIN <= FLT_MIN+1
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fltq_s) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FltqSHelper = [](float rs1, float rs2, int32_t expected) {
+    auto fn = [](MacroAssembler& assm) { __ fltq_s(a0, fa0, fa1); };
+    auto res = GenAndRunTest<int32_t, float>(rs1, rs2, fn);
+    CHECK_EQ(expected, res);
+  };
+  // Normal comparisons
+  FltqSHelper(1.0f, 2.0f, 1);       // 1.0 < 2.0 -> true
+  FltqSHelper(2.0f, 1.0f, 0);       // 2.0 < 1.0 -> false
+  FltqSHelper(1.0f, 1.0f, 0);       // 1.0 < 1.0 -> false
+  FltqSHelper(-1.0f, 1.0f, 1);      // -1.0 < 1.0 -> true
+  FltqSHelper(1.0f, -1.0f, 0);      // 1.0 < -1.0 -> false
+  FltqSHelper(3.14f, 3.15f, 1);     // 3.14 < 3.15 -> true
+  FltqSHelper(-100.0f, -50.0f, 1);  // -100.0 < -50.0 -> true
+
+  // Zero comparisons
+  FltqSHelper(0.0f, 0.0f, 0);  // 0.0 < 0.0 -> false
+  FltqSHelper(base::bit_cast<float>(0x80000000U),
+              base::bit_cast<float>(0x00000000U), 0);  // -0.0 < +0.0
+  FltqSHelper(base::bit_cast<float>(0x00000000U),
+              base::bit_cast<float>(0x80000000U), 0);  // +0.0 < -0.0
+  FltqSHelper(base::bit_cast<float>(0x80000000U),
+              base::bit_cast<float>(0x80000000U), 0);  // -0.0 < -0.0
+  FltqSHelper(0.0f, 1.0f, 1);                          // 0.0 < 1.0 -> true
+  FltqSHelper(-1.0f, 0.0f, 1);                         // -1.0 < 0.0 -> true
+
+  // NaN comparisons (should return 0, quiet - no exception)
+  FltqSHelper(base::bit_cast<float>(0x7fc00000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // NaN < 1.0
+  FltqSHelper(base::bit_cast<float>(0x3f800000U),
+              base::bit_cast<float>(0x7fc00000U), 0);  // 1.0 < NaN
+  FltqSHelper(base::bit_cast<float>(0x7fc00000U),
+              base::bit_cast<float>(0x7fc00000U), 0);  // NaN < NaN
+  FltqSHelper(base::bit_cast<float>(0x7ff00000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // Signaling NaN < 1.0
+  FltqSHelper(base::bit_cast<float>(0xffc00000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // -NaN < 1.0
+
+  // Infinity comparisons
+  FltqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0x3f800000U), 0);  // +Inf < 1.0
+  FltqSHelper(base::bit_cast<float>(0x3f800000U),
+              base::bit_cast<float>(0x7f800000U), 1);  // 1.0 < +Inf
+  FltqSHelper(base::bit_cast<float>(0xff800000U),
+              base::bit_cast<float>(0x3f800000U), 1);  // -Inf < 1.0
+  FltqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0x7f800000U), 0);  // +Inf < +Inf
+  FltqSHelper(base::bit_cast<float>(0xff800000U),
+              base::bit_cast<float>(0xff800000U), 0);  // -Inf < -Inf
+  FltqSHelper(base::bit_cast<float>(0xff800000U),
+              base::bit_cast<float>(0x7f800000U), 1);  // -Inf < +Inf
+  FltqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0xff800000U), 0);  // +Inf < -Inf
+
+  // Denormal numbers
+  FltqSHelper(base::bit_cast<float>(0x00000001U),
+              base::bit_cast<float>(0x3f800000U), 1);  // smallest denorm < 1.0
+  FltqSHelper(base::bit_cast<float>(0x3f800000U),
+              base::bit_cast<float>(0x00000001U), 0);  // 1.0 < smallest denorm
+  FltqSHelper(base::bit_cast<float>(0x007fffffU),
+              base::bit_cast<float>(0x00800000U),
+              1);  // largest denorm < smallest normal
+  FltqSHelper(base::bit_cast<float>(0x00000001U),
+              base::bit_cast<float>(0x00000002U), 1);  // denorm 1 < denorm 2
+
+  // Boundary values
+  FltqSHelper(base::bit_cast<float>(0x7f7fffffU),
+              base::bit_cast<float>(0x7f800000U), 1);  // FLT_MAX < +Inf
+  FltqSHelper(base::bit_cast<float>(0x7f800000U),
+              base::bit_cast<float>(0x7f7fffffU), 0);  // +Inf < FLT_MAX
+  FltqSHelper(base::bit_cast<float>(0x00800000U),
+              base::bit_cast<float>(0x00800001U), 1);  // FLT_MIN < FLT_MIN+1
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fleq_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FleqDHelper = [](double rs1, double rs2, int32_t expected) {
+    auto fn = [](MacroAssembler& assm) { __ fleq_d(a0, fa0, fa1); };
+    auto res = GenAndRunTest<int32_t, double>(rs1, rs2, fn);
+    CHECK_EQ(expected, res);
+  };
+  // Normal comparisons
+  FleqDHelper(1.0, 2.0, 1);   // 1.0 <= 2.0 -> true
+  FleqDHelper(2.0, 1.0, 0);   // 2.0 <= 1.0 -> false
+  FleqDHelper(1.0, 1.0, 1);   // 1.0 <= 1.0 -> true
+  FleqDHelper(-1.0, 1.0, 1);  // -1.0 <= 1.0 -> true
+  FleqDHelper(1.0, -1.0, 0);  // 1.0 <= -1.0 -> false
+  FleqDHelper(3.14159265358979, 3.1415926535898002,
+              1);                 // pi_small <= pi_large -> true
+  FleqDHelper(-100.0, -50.0, 1);  // -100.0 <= -50.0 -> true
+
+  // Zero comparisons
+  FleqDHelper(0.0, 0.0, 1);  // 0.0 <= 0.0 -> true
+  FleqDHelper(base::bit_cast<double>(0x8000000000000000ULL),
+              base::bit_cast<double>(0x0000000000000000ULL),
+              1);  // -0.0 <= +0.0
+  FleqDHelper(base::bit_cast<double>(0x0000000000000000ULL),
+              base::bit_cast<double>(0x8000000000000000ULL),
+              1);  // +0.0 <= -0.0
+  FleqDHelper(base::bit_cast<double>(0x8000000000000000ULL),
+              base::bit_cast<double>(0x8000000000000000ULL),
+              1);             // -0.0 <= -0.0
+  FleqDHelper(0.0, 1.0, 1);   // 0.0 <= 1.0 -> true
+  FleqDHelper(-1.0, 0.0, 1);  // -1.0 <= 0.0 -> true
+
+  // NaN comparisons (should return 0, quiet - no exception)
+  FleqDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 0);  // NaN <= 1.0
+  FleqDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+              base::bit_cast<double>(0x7ff8000000000000ULL), 0);  // 1.0 <= NaN
+  FleqDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+              base::bit_cast<double>(0x7ff8000000000000ULL), 0);  // NaN <= NaN
+  FleqDHelper(base::bit_cast<double>(0x7ff0000000000001ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL),
+              0);  // Signaling NaN <= 1.0
+  FleqDHelper(base::bit_cast<double>(0xfff8000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 0);  // -NaN <= 1.0
+
+  // Infinity comparisons
+  FleqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 0);  // +Inf <= 1.0
+  FleqDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL), 1);  // 1.0 <= +Inf
+  FleqDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 1);  // -Inf <= 1.0
+  FleqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL),
+              1);  // +Inf <= +Inf
+  FleqDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+              base::bit_cast<double>(0xfff0000000000000ULL),
+              1);  // -Inf <= -Inf
+  FleqDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL),
+              1);  // -Inf <= +Inf
+  FleqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0xfff0000000000000ULL),
+              0);  // +Inf <= -Inf
+
+  // Denormal numbers
+  FleqDHelper(base::bit_cast<double>(0x0000000000000001ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL),
+              1);  // smallest denorm <= 1.0
+  FleqDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+              base::bit_cast<double>(0x0000000000000001ULL),
+              0);  // 1.0 <= smallest denorm
+  FleqDHelper(base::bit_cast<double>(0x000fffffffffffffULL),
+              base::bit_cast<double>(0x0010000000000000ULL),
+              1);  // largest denorm <= smallest normal
+  FleqDHelper(base::bit_cast<double>(0x0000000000000001ULL),
+              base::bit_cast<double>(0x0000000000000002ULL),
+              1);  // denorm 1 <= denorm 2
+
+  // Boundary values
+  FleqDHelper(base::bit_cast<double>(0x7fefffffffffffffULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL),
+              1);  // DBL_MAX <= +Inf
+  FleqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0x7fefffffffffffffULL),
+              0);  // +Inf <= DBL_MAX
+  FleqDHelper(base::bit_cast<double>(0x0010000000000000ULL),
+              base::bit_cast<double>(0x0010000000000001ULL),
+              1);  // DBL_MIN <= DBL_MIN+1
+
+  // Large integer range values
+  FleqDHelper(2147483647.0, 2147483648.0, 1);  // INT32_MAX <= INT32_MAX+1
+  FleqDHelper(-2147483648.0, 0.0, 1);          // INT32_MIN <= 0.0
+  FleqDHelper(9007199254740992.0, 9007199254740992.0, 1);  // 2^53 <= 2^53
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fltq_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FltqDHelper = [](double rs1, double rs2, int32_t expected) {
+    auto fn = [](MacroAssembler& assm) { __ fltq_d(a0, fa0, fa1); };
+    auto res = GenAndRunTest<int32_t, double>(rs1, rs2, fn);
+    CHECK_EQ(expected, res);
+  };
+  // Normal comparisons
+  FltqDHelper(1.0, 2.0, 1);   // 1.0 < 2.0 -> true
+  FltqDHelper(2.0, 1.0, 0);   // 2.0 < 1.0 -> false
+  FltqDHelper(1.0, 1.0, 0);   // 1.0 < 1.0 -> false
+  FltqDHelper(-1.0, 1.0, 1);  // -1.0 < 1.0 -> true
+  FltqDHelper(1.0, -1.0, 0);  // 1.0 < -1.0 -> false
+  FltqDHelper(3.14159265358979, 3.1415926535898002,
+              1);                 // pi_small < pi_large -> true
+  FltqDHelper(-100.0, -50.0, 1);  // -100.0 < -50.0 -> true
+
+  // Zero comparisons
+  FltqDHelper(0.0, 0.0, 0);  // 0.0 < 0.0 -> false
+  FltqDHelper(base::bit_cast<double>(0x8000000000000000ULL),
+              base::bit_cast<double>(0x0000000000000000ULL), 0);  // -0.0 < +0.0
+  FltqDHelper(base::bit_cast<double>(0x0000000000000000ULL),
+              base::bit_cast<double>(0x8000000000000000ULL), 0);  // +0.0 < -0.0
+  FltqDHelper(base::bit_cast<double>(0x8000000000000000ULL),
+              base::bit_cast<double>(0x8000000000000000ULL), 0);  // -0.0 < -0.0
+  FltqDHelper(0.0, 1.0, 1);   // 0.0 < 1.0 -> true
+  FltqDHelper(-1.0, 0.0, 1);  // -1.0 < 0.0 -> true
+
+  // NaN comparisons (should return 0, quiet - no exception)
+  FltqDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 0);  // NaN < 1.0
+  FltqDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+              base::bit_cast<double>(0x7ff8000000000000ULL), 0);  // 1.0 < NaN
+  FltqDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+              base::bit_cast<double>(0x7ff8000000000000ULL), 0);  // NaN < NaN
+  FltqDHelper(base::bit_cast<double>(0x7ff0000000000001ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL),
+              0);  // Signaling NaN < 1.0
+  FltqDHelper(base::bit_cast<double>(0xfff8000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 0);  // -NaN < 1.0
+
+  // Infinity comparisons
+  FltqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 0);  // +Inf < 1.0
+  FltqDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL), 1);  // 1.0 < +Inf
+  FltqDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL), 1);  // -Inf < 1.0
+  FltqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL), 0);  // +Inf < +Inf
+  FltqDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+              base::bit_cast<double>(0xfff0000000000000ULL), 0);  // -Inf < -Inf
+  FltqDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL), 1);  // -Inf < +Inf
+  FltqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0xfff0000000000000ULL), 0);  // +Inf < -Inf
+
+  // Denormal numbers
+  FltqDHelper(base::bit_cast<double>(0x0000000000000001ULL),
+              base::bit_cast<double>(0x3ff0000000000000ULL),
+              1);  // smallest denorm < 1.0
+  FltqDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+              base::bit_cast<double>(0x0000000000000001ULL),
+              0);  // 1.0 < smallest denorm
+  FltqDHelper(base::bit_cast<double>(0x000fffffffffffffULL),
+              base::bit_cast<double>(0x0010000000000000ULL),
+              1);  // largest denorm < smallest normal
+  FltqDHelper(base::bit_cast<double>(0x0000000000000001ULL),
+              base::bit_cast<double>(0x0000000000000002ULL),
+              1);  // denorm 1 < denorm 2
+
+  // Boundary values
+  FltqDHelper(base::bit_cast<double>(0x7fefffffffffffffULL),
+              base::bit_cast<double>(0x7ff0000000000000ULL),
+              1);  // DBL_MAX < +Inf
+  FltqDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+              base::bit_cast<double>(0x7fefffffffffffffULL),
+              0);  // +Inf < DBL_MAX
+  FltqDHelper(base::bit_cast<double>(0x0010000000000000ULL),
+              base::bit_cast<double>(0x0010000000000001ULL),
+              1);  // DBL_MIN < DBL_MIN+1
+
+  // Large integer range values
+  FltqDHelper(2147483647.0, 2147483648.0, 1);  // INT32_MAX < INT32_MAX+1
+  FltqDHelper(-2147483648.0, 0.0, 1);          // INT32_MIN < 0.0
+  FltqDHelper(9007199254740992.0, 9007199254740992.0, 0);  // 2^53 < 2^53
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fminm_s) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FminmSHelper = [](float rs1, float rs2, uint32_t expected_bits) {
+    auto fn = [](MacroAssembler& assm) { __ fminm_s(fa0, fa0, fa1); };
+    auto res = GenAndRunTest<float, float>(rs1, rs2, fn);
+    CHECK_EQ(expected_bits, base::bit_cast<uint32_t>(res));
+  };
+  // Normal comparisons
+  FminmSHelper(1.0f, 2.0f, 0x3f800000U);
+  FminmSHelper(2.0f, 1.0f, 0x3f800000U);
+  FminmSHelper(-1.0f, 1.0f, 0xbf800000U);
+  FminmSHelper(1.0f, -1.0f, 0xbf800000U);
+  FminmSHelper(3.14f, 3.15f, 0x4048f5c3U);
+  FminmSHelper(-100.0f, -50.0f, 0xc2c80000U);
+
+  // Zero comparisons
+  FminmSHelper(0.0f, 0.0f, 0x00000000U);
+  FminmSHelper(base::bit_cast<float>(0x80000000U),
+               base::bit_cast<float>(0x00000000U),
+               0x80000000U);  // min(-0.0, +0.0) = -0.0
+  FminmSHelper(base::bit_cast<float>(0x00000000U),
+               base::bit_cast<float>(0x80000000U),
+               0x80000000U);  // min(+0.0, -0.0) = -0.0
+  FminmSHelper(0.0f, 1.0f, 0x00000000U);
+  FminmSHelper(-1.0f, 0.0f, 0xbf800000U);
+
+  // NaN handling (IEEE 754-2019: returns canonical qNaN)
+  FminmSHelper(base::bit_cast<float>(0x7fc00000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x7fc00000U);  // min(qNaN, 1.0) = qNaN
+  FminmSHelper(base::bit_cast<float>(0x3f800000U),
+               base::bit_cast<float>(0x7fc00000U),
+               0x7fc00000U);  // min(1.0, qNaN) = qNaN
+  FminmSHelper(base::bit_cast<float>(0x7fc00000U),
+               base::bit_cast<float>(0x7fc00000U),
+               0x7fc00000U);  // min(qNaN, qNaN) = qNaN
+  FminmSHelper(base::bit_cast<float>(0x7ff00000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x7fc00000U);  // min(sNaN, 1.0) = canonical qNaN
+  FminmSHelper(base::bit_cast<float>(0xffc00000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x7fc00000U);  // min(-qNaN, 1.0) = canonical qNaN
+
+  // Infinity comparisons
+  FminmSHelper(base::bit_cast<float>(0x7f800000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x3f800000U);  // min(+Inf, 1.0) = 1.0
+  FminmSHelper(base::bit_cast<float>(0x3f800000U),
+               base::bit_cast<float>(0x7f800000U),
+               0x3f800000U);  // min(1.0, +Inf) = 1.0
+  FminmSHelper(base::bit_cast<float>(0xff800000U),
+               base::bit_cast<float>(0x3f800000U),
+               0xff800000U);  // min(-Inf, 1.0) = -Inf
+  FminmSHelper(base::bit_cast<float>(0x7f800000U),
+               base::bit_cast<float>(0xff800000U),
+               0xff800000U);  // min(+Inf, -Inf) = -Inf
+  FminmSHelper(base::bit_cast<float>(0x7f800000U),
+               base::bit_cast<float>(0x7f800000U),
+               0x7f800000U);  // min(+Inf, +Inf) = +Inf
+  FminmSHelper(base::bit_cast<float>(0xff800000U),
+               base::bit_cast<float>(0xff800000U),
+               0xff800000U);  // min(-Inf, -Inf) = -Inf
+
+  // Denormal numbers
+  FminmSHelper(base::bit_cast<float>(0x00000001U),
+               base::bit_cast<float>(0x3f800000U),
+               0x00000001U);  // min(smallest denorm, 1.0)
+  FminmSHelper(base::bit_cast<float>(0x3f800000U),
+               base::bit_cast<float>(0x00000001U),
+               0x00000001U);  // min(1.0, smallest denorm)
+  FminmSHelper(base::bit_cast<float>(0x007fffffU),
+               base::bit_cast<float>(0x00800000U),
+               0x007fffffU);  // min(largest denorm, smallest normal)
+  FminmSHelper(base::bit_cast<float>(0x00000001U),
+               base::bit_cast<float>(0x00000002U),
+               0x00000001U);  // min(denorm1, denorm2)
+
+  // Boundary values
+  FminmSHelper(base::bit_cast<float>(0x7f7fffffU),
+               base::bit_cast<float>(0x7f800000U),
+               0x7f7fffffU);  // min(FLT_MAX, +Inf)
+  FminmSHelper(base::bit_cast<float>(0x00800000U),
+               base::bit_cast<float>(0x00800001U),
+               0x00800000U);  // min(FLT_MIN, FLT_MIN+1)
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fminm_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FminmDHelper = [](double rs1, double rs2, uint64_t expected_bits) {
+    auto fn = [](MacroAssembler& assm) { __ fminm_d(fa0, fa0, fa1); };
+    auto res = GenAndRunTest<double, double>(rs1, rs2, fn);
+    CHECK_EQ(expected_bits, base::bit_cast<uint64_t>(res));
+  };
+  // Normal comparisons
+  FminmDHelper(1.0, 2.0, 0x3ff0000000000000ULL);
+  FminmDHelper(2.0, 1.0, 0x3ff0000000000000ULL);
+  FminmDHelper(-1.0, 1.0, 0xbff0000000000000ULL);
+  FminmDHelper(1.0, -1.0, 0xbff0000000000000ULL);
+
+  // Zero comparisons
+  FminmDHelper(0.0, 0.0, 0x0000000000000000ULL);
+  FminmDHelper(base::bit_cast<double>(0x8000000000000000ULL),
+               base::bit_cast<double>(0x0000000000000000ULL),
+               0x8000000000000000ULL);  // min(-0.0, +0.0) = -0.0
+  FminmDHelper(base::bit_cast<double>(0x0000000000000000ULL),
+               base::bit_cast<double>(0x8000000000000000ULL),
+               0x8000000000000000ULL);  // min(+0.0, -0.0) = -0.0
+
+  // NaN handling (returns canonical qNaN)
+  FminmDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x7ff8000000000000ULL);  // min(qNaN, 1.0) = qNaN
+  FminmDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+               base::bit_cast<double>(0x7ff8000000000000ULL),
+               0x7ff8000000000000ULL);  // min(1.0, qNaN) = qNaN
+  FminmDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+               base::bit_cast<double>(0x7ff8000000000000ULL),
+               0x7ff8000000000000ULL);  // min(qNaN, qNaN) = qNaN
+  FminmDHelper(base::bit_cast<double>(0x7ff0000000000001ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x7ff8000000000000ULL);  // min(sNaN, 1.0) = canonical qNaN
+  FminmDHelper(base::bit_cast<double>(0xfff8000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x7ff8000000000000ULL);  // min(-qNaN, 1.0) = canonical qNaN
+
+  // Infinity comparisons
+  FminmDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x3ff0000000000000ULL);  // min(+Inf, 1.0) = 1.0
+  FminmDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0xfff0000000000000ULL);  // min(-Inf, 1.0) = -Inf
+  FminmDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+               base::bit_cast<double>(0xfff0000000000000ULL),
+               0xfff0000000000000ULL);  // min(+Inf, -Inf) = -Inf
+
+  // Denormal numbers
+  FminmDHelper(base::bit_cast<double>(0x0000000000000001ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x0000000000000001ULL);  // min(smallest denorm, 1.0)
+  FminmDHelper(base::bit_cast<double>(0x000fffffffffffffULL),
+               base::bit_cast<double>(0x0010000000000000ULL),
+               0x000fffffffffffffULL);  // min(largest denorm, smallest normal)
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fmaxm_s) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FmaxmSHelper = [](float rs1, float rs2, uint32_t expected_bits) {
+    auto fn = [](MacroAssembler& assm) { __ fmaxm_s(fa0, fa0, fa1); };
+    auto res = GenAndRunTest<float, float>(rs1, rs2, fn);
+    CHECK_EQ(expected_bits, base::bit_cast<uint32_t>(res));
+  };
+  // Normal comparisons
+  FmaxmSHelper(1.0f, 2.0f, 0x40000000U);
+  FmaxmSHelper(2.0f, 1.0f, 0x40000000U);
+  FmaxmSHelper(-1.0f, 1.0f, 0x3f800000U);
+  FmaxmSHelper(1.0f, -1.0f, 0x3f800000U);
+
+  // Zero comparisons
+  FmaxmSHelper(0.0f, 0.0f, 0x00000000U);
+  FmaxmSHelper(base::bit_cast<float>(0x80000000U),
+               base::bit_cast<float>(0x00000000U),
+               0x00000000U);  // max(-0.0, +0.0) = +0.0
+  FmaxmSHelper(base::bit_cast<float>(0x00000000U),
+               base::bit_cast<float>(0x80000000U),
+               0x00000000U);  // max(+0.0, -0.0) = +0.0
+
+  // NaN handling (returns canonical qNaN)
+  FmaxmSHelper(base::bit_cast<float>(0x7fc00000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x7fc00000U);  // max(qNaN, 1.0) = qNaN
+  FmaxmSHelper(base::bit_cast<float>(0x3f800000U),
+               base::bit_cast<float>(0x7fc00000U),
+               0x7fc00000U);  // max(1.0, qNaN) = qNaN
+  FmaxmSHelper(base::bit_cast<float>(0x7fc00000U),
+               base::bit_cast<float>(0x7fc00000U),
+               0x7fc00000U);  // max(qNaN, qNaN) = qNaN
+  FmaxmSHelper(base::bit_cast<float>(0x7ff00000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x7fc00000U);  // max(sNaN, 1.0) = canonical qNaN
+  FmaxmSHelper(base::bit_cast<float>(0xffc00000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x7fc00000U);  // max(-qNaN, 1.0) = canonical qNaN
+
+  // Infinity comparisons
+  FmaxmSHelper(base::bit_cast<float>(0x7f800000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x7f800000U);  // max(+Inf, 1.0) = +Inf
+  FmaxmSHelper(base::bit_cast<float>(0xff800000U),
+               base::bit_cast<float>(0x3f800000U),
+               0x3f800000U);  // max(-Inf, 1.0) = 1.0
+  FmaxmSHelper(base::bit_cast<float>(0x7f800000U),
+               base::bit_cast<float>(0xff800000U),
+               0x7f800000U);  // max(+Inf, -Inf) = +Inf
+
+  // Denormal numbers
+  FmaxmSHelper(base::bit_cast<float>(0x00000001U),
+               base::bit_cast<float>(0x3f800000U),
+               0x3f800000U);  // max(smallest denorm, 1.0)
+  FmaxmSHelper(base::bit_cast<float>(0x007fffffU),
+               base::bit_cast<float>(0x00800000U),
+               0x00800000U);  // max(largest denorm, smallest normal)
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_fmaxm_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FmaxmDHelper = [](double rs1, double rs2, uint64_t expected_bits) {
+    auto fn = [](MacroAssembler& assm) { __ fmaxm_d(fa0, fa0, fa1); };
+    auto res = GenAndRunTest<double, double>(rs1, rs2, fn);
+    CHECK_EQ(expected_bits, base::bit_cast<uint64_t>(res));
+  };
+  // Normal comparisons
+  FmaxmDHelper(1.0, 2.0, 0x4000000000000000ULL);
+  FmaxmDHelper(2.0, 1.0, 0x4000000000000000ULL);
+  FmaxmDHelper(-1.0, 1.0, 0x3ff0000000000000ULL);
+  FmaxmDHelper(1.0, -1.0, 0x3ff0000000000000ULL);
+
+  // Zero comparisons
+  FmaxmDHelper(0.0, 0.0, 0x0000000000000000ULL);
+  FmaxmDHelper(base::bit_cast<double>(0x8000000000000000ULL),
+               base::bit_cast<double>(0x0000000000000000ULL),
+               0x0000000000000000ULL);  // max(-0.0, +0.0) = +0.0
+  FmaxmDHelper(base::bit_cast<double>(0x0000000000000000ULL),
+               base::bit_cast<double>(0x8000000000000000ULL),
+               0x0000000000000000ULL);  // max(+0.0, -0.0) = +0.0
+
+  // NaN handling (returns canonical qNaN)
+  FmaxmDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x7ff8000000000000ULL);  // max(qNaN, 1.0) = qNaN
+  FmaxmDHelper(base::bit_cast<double>(0x3ff0000000000000ULL),
+               base::bit_cast<double>(0x7ff8000000000000ULL),
+               0x7ff8000000000000ULL);  // max(1.0, qNaN) = qNaN
+  FmaxmDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+               base::bit_cast<double>(0x7ff8000000000000ULL),
+               0x7ff8000000000000ULL);  // max(qNaN, qNaN) = qNaN
+  FmaxmDHelper(base::bit_cast<double>(0x7ff0000000000001ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x7ff8000000000000ULL);  // max(sNaN, 1.0) = canonical qNaN
+  FmaxmDHelper(base::bit_cast<double>(0xfff8000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x7ff8000000000000ULL);  // max(-qNaN, 1.0) = canonical qNaN
+
+  // Infinity comparisons
+  FmaxmDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x7ff0000000000000ULL);  // max(+Inf, 1.0) = +Inf
+  FmaxmDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x3ff0000000000000ULL);  // max(-Inf, 1.0) = 1.0
+  FmaxmDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+               base::bit_cast<double>(0xfff0000000000000ULL),
+               0x7ff0000000000000ULL);  // max(+Inf, -Inf) = +Inf
+
+  // Denormal numbers
+  FmaxmDHelper(base::bit_cast<double>(0x0000000000000001ULL),
+               base::bit_cast<double>(0x3ff0000000000000ULL),
+               0x3ff0000000000000ULL);  // max(smallest denorm, 1.0)
+  FmaxmDHelper(base::bit_cast<double>(0x000fffffffffffffULL),
+               base::bit_cast<double>(0x0010000000000000ULL),
+               0x0010000000000000ULL);  // max(largest denorm, smallest normal)
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_froundnx_s) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FroundnxSHelper = [](float rs1, uint32_t expected_bits) {
+    auto fn = [](MacroAssembler& assm) { __ froundnx_s(fa0, fa0); };
+    auto res = GenAndRunTest<float, float>(rs1, fn);
+    CHECK_EQ(expected_bits, base::bit_cast<uint32_t>(res));
+  };
+  // Normal values
+  FroundnxSHelper(1.0f, 0x3f800000U);
+  FroundnxSHelper(2.0f, 0x40000000U);
+  FroundnxSHelper(0.5f, 0x00000000U);  // 0.5 rounds to 0 (RNE)
+  FroundnxSHelper(-1.0f, 0xbf800000U);
+
+  // Round to nearest (ties to even)
+  FroundnxSHelper(1.5f, 0x40000000U);  // 1.5 -> 2.0
+  FroundnxSHelper(2.0f, 0x40000000U);  // 2.0 -> 2.0
+  FroundnxSHelper(3.0f, 0x40400000U);  // 3.0 -> 3.0
+  FroundnxSHelper(3.5f, 0x40800000U);  // 3.5 -> 4.0
+  FroundnxSHelper(4.0f, 0x40800000U);  // 4.0 -> 4.0
+  FroundnxSHelper(5.0f, 0x40a00000U);  // 5.0 -> 5.0
+  FroundnxSHelper(6.0f, 0x40c00000U);  // 6.0 -> 6.0
+  FroundnxSHelper(7.0f, 0x40e00000U);  // 7.0 -> 7.0
+  FroundnxSHelper(8.0f, 0x41000000U);  // 8.0 -> 8.0
+
+  // Negative values
+  FroundnxSHelper(-1.5f, 0xc0000000U);  // -1.5 -> -2.0
+  FroundnxSHelper(-3.5f, 0xc0800000U);  // -3.5 -> -4.0
+
+  // Zero
+  FroundnxSHelper(0.0f, 0x00000000U);
+  FroundnxSHelper(base::bit_cast<float>(0x80000000U), 0x80000000U);  // -0.0
+
+  // NaN (returns canonical qNaN)
+  FroundnxSHelper(base::bit_cast<float>(0x7fc00000U), 0x7fc00000U);  // qNaN
+  FroundnxSHelper(base::bit_cast<float>(0x7ff00000U),
+                  0x7fc00000U);  // sNaN -> canonical qNaN
+  FroundnxSHelper(base::bit_cast<float>(0xffc00000U),
+                  0x7fc00000U);  // -qNaN -> canonical qNaN
+
+  // Infinity
+  FroundnxSHelper(base::bit_cast<float>(0x7f800000U), 0x7f800000U);  // +Inf
+  FroundnxSHelper(base::bit_cast<float>(0xff800000U), 0xff800000U);  // -Inf
+
+  // Denormal numbers (round to zero)
+  FroundnxSHelper(base::bit_cast<float>(0x00000001U),
+                  0x00000000U);  // smallest denorm
+  FroundnxSHelper(base::bit_cast<float>(0x007fffffU),
+                  0x00000000U);  // largest denorm
+}
+
+TEST_F(AssemblerRISCV64Test, RISCV_UTEST_froundnx_d) {
+  if (!CpuFeatures::IsSupported(ZFA)) {
+    return;
+  }
+  auto FroundnxDHelper = [](double rs1, uint64_t expected_bits) {
+    auto fn = [](MacroAssembler& assm) { __ froundnx_d(fa0, fa0); };
+    auto res = GenAndRunTest<double, double>(rs1, fn);
+    CHECK_EQ(expected_bits, base::bit_cast<uint64_t>(res));
+  };
+  // Normal values
+  FroundnxDHelper(1.0, 0x3ff0000000000000ULL);
+  FroundnxDHelper(2.0, 0x4000000000000000ULL);
+  FroundnxDHelper(0.5, 0x0000000000000000ULL);  // 0.5 rounds to 0 (RNE)
+  FroundnxDHelper(-1.0, 0xbff0000000000000ULL);
+
+  // Round to nearest (ties to even)
+  FroundnxDHelper(1.5, 0x4000000000000000ULL);  // 1.5 -> 2.0
+  FroundnxDHelper(2.0, 0x4000000000000000ULL);  // 2.0 -> 2.0
+  FroundnxDHelper(3.0, 0x4008000000000000ULL);  // 3.0 -> 3.0
+  FroundnxDHelper(3.5, 0x4010000000000000ULL);  // 3.5 -> 4.0
+  FroundnxDHelper(4.0, 0x4010000000000000ULL);  // 4.0 -> 4.0
+  FroundnxDHelper(5.0, 0x4014000000000000ULL);  // 5.0 -> 5.0
+  FroundnxDHelper(6.0, 0x4018000000000000ULL);  // 6.0 -> 6.0
+  FroundnxDHelper(7.0, 0x401c000000000000ULL);  // 7.0 -> 7.0
+  FroundnxDHelper(8.0, 0x4020000000000000ULL);  // 8.0 -> 8.0
+
+  // Negative values
+  FroundnxDHelper(-1.5, 0xc000000000000000ULL);  // -1.5 -> -2.0
+  FroundnxDHelper(-3.5, 0xc010000000000000ULL);  // -3.5 -> -4.0
+
+  // Zero
+  FroundnxDHelper(0.0, 0x0000000000000000ULL);
+  FroundnxDHelper(base::bit_cast<double>(0x8000000000000000ULL),
+                  0x8000000000000000ULL);  // -0.0
+
+  // NaN (returns canonical qNaN)
+  FroundnxDHelper(base::bit_cast<double>(0x7ff8000000000000ULL),
+                  0x7ff8000000000000ULL);  // qNaN
+  FroundnxDHelper(base::bit_cast<double>(0x7ff0000000000001ULL),
+                  0x7ff8000000000000ULL);  // sNaN -> canonical qNaN
+  FroundnxDHelper(base::bit_cast<double>(0xfff8000000000000ULL),
+                  0x7ff8000000000000ULL);  // -qNaN -> canonical qNaN
+
+  // Infinity
+  FroundnxDHelper(base::bit_cast<double>(0x7ff0000000000000ULL),
+                  0x7ff0000000000000ULL);  // +Inf
+  FroundnxDHelper(base::bit_cast<double>(0xfff0000000000000ULL),
+                  0xfff0000000000000ULL);  // -Inf
+
+  // Denormal numbers (round to zero)
+  FroundnxDHelper(base::bit_cast<double>(0x0000000000000001ULL),
+                  0x0000000000000000ULL);  // smallest denorm
+  FroundnxDHelper(base::bit_cast<double>(0x000fffffffffffffULL),
+                  0x0000000000000000ULL);  // largest denorm
+}
 
 // --RVZFH Standard Extension --
 TEST_F(AssemblerRISCV64Test, RISCV_UTEST_flh_fsh) {

@@ -5,8 +5,8 @@
 #include 'src/wasm/wasm-linkage.h'
 
 namespace runtime {
-extern runtime WasmGenericJSToWasmObject(Context, JSAny, Smi): JSAny;
-extern runtime WasmGenericWasmToJSObject(Context, Object): JSAny;
+extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
+extern runtime WasmWasmToJSObject(Context, Object): JSAny;
 extern runtime TierUpJSToWasmWrapper(NoContext, WasmExportedFunctionData):
     JSAny;
 extern runtime WasmAllocateSuspender(Context): JSAny;
@@ -471,8 +471,7 @@ macro JSToWasmObject(
       ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
     }
   }
-  return runtime::WasmGenericJSToWasmObject(
-      context, value, Convert<Smi>(targetType));
+  return runtime::WasmJSToWasmObject(context, value, Convert<Smi>(targetType));
 }
 
 // macro for handling platform specific f32 params.
@@ -504,7 +503,7 @@ const kCppQuietNaN64: constexpr float64
     generates 'std::numeric_limits<double>::quiet_NaN()';
 
 macro JSToWasmWrapperHelper(
-    context: NativeContext, receiver: JSAny, target: JSFunction,
+    context: NativeContext, _receiver: JSAny, target: JSFunction,
     arguments: Arguments, promise: constexpr Promise): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
@@ -675,15 +674,8 @@ macro JSToWasmWrapperHelper(
   // JavaScript using `Function.prototype.arguments`.
   let convertedTagged: FixedArray|Smi = Convert<Smi>(0);
 
-  const receiverIsFirstParam: bool =
-      functionData.receiver_is_first_param != SmiConstant(0);
-  const zero: intptr = 0;  // Torque insists. Whatever.
-  const argumentsOffset: intptr = receiverIsFirstParam ? -1 : zero;
-
   for (let paramIndex: intptr = 0; paramIndex < paramCount; paramIndex++) {
-    const param = (receiverIsFirstParam && paramIndex == 0) ?
-        receiver :
-        arguments[paramIndex + argumentsOffset];
+    const param = arguments[paramIndex];
     const paramType = *paramTypes.UncheckedAtIndex(paramIndex);
     if (paramType == kWasmI32Type) {
       let toRef = locationAllocator.GetGPSlot();
@@ -865,37 +857,25 @@ transitioning javascript builtin WasmStressSwitch(
 }
 
 // Precondition: {retType.is_ref()}.
-macro WasmToJSObject(context: NativeContext, value: Object, retType: uint32):
-    JSAny {
-  // This is cheaper than checking whether retType is nullable.
+macro WasmToJSObject(context: NativeContext, value: Object): JSAny {
   if (value == kWasmNull) return Null;
-  // All module-defined struct and array types can be passed to JS as-is.
-  const refKind = (retType & kValueTypeRefKindBits) >>> kValueTypeRefKindShift;
-  if (refKind == RefTypeKind::kStruct || refKind == RefTypeKind::kArray) {
-    return UnsafeCast<JSAny>(value);
-  }
   // Functions are mapped to their "external" representation, if it has
   // already been lazily created.
-  if (refKind == RefTypeKind::kFunction) {
-    const wasmFunc = Cast<WasmFuncRef>(value) otherwise unreachable;
+  if (Is<WasmFuncRef>(value)) {
+    const wasmFunc = UnsafeCast<WasmFuncRef>(value);
     const maybeJsFunc = wasmFunc.internal.external;
-    if (Is<JSFunction>(maybeJsFunc)) return UnsafeCast<JSFunction>(maybeJsFunc);
-  }
-  const isGeneric = (retType & kValueTypeHasIndexBit) == 0;
-  if (isGeneric) {
-    // StandardType::kStruct and StandardType::kArray would have taken the
-    // "refKind" path above.
-    // StandardType::kNoFunc would have taken the "kWasmNull" path above.
-    // StandardType::kExn and StandardType::kNoExn are statically disallowed.
-    const kind = (retType & kValueTypeIndexBits) >>> kValueTypeIndexShift;
-    if (kind == StandardType::kAny || kind == StandardType::kEq ||
-        kind == StandardType::kI31 || kind == StandardType::kExtern ||
-        kind == StandardType::kString || kind == StandardType::kNoExtern) {
-      // We don't need to check for WasmNull because we've already done that.
-      return UnsafeCast<JSAny>(value);
+    if (Is<JSFunction>(maybeJsFunc)) {
+      return UnsafeCast<JSFunction>(maybeJsFunc);
+    } else {
+      // Slow path.
+      return runtime::WasmWasmToJSObject(context, value);
     }
   }
-  return runtime::WasmGenericWasmToJSObject(context, value);
+  if (Is<String>(value) && InSharedSpace(UnsafeCast<String>(value))) {
+    // Slow path.
+    return runtime::WasmWasmToJSObject(context, value);
+  }
+  return UnsafeCast<JSAny>(value);
 }
 
 builtin JSToWasmHandleReturns(
@@ -957,7 +937,7 @@ builtin JSToWasmHandleReturns(
           wrapperBuffer + kWrapperBufferGPReturnRegister1);
       const rawRef = *GetRefAt<uintptr>(ptr, 0);
       const value = BitcastWordToTagged(rawRef);
-      return WasmToJSObject(jsContext, value, retType);
+      return WasmToJSObject(jsContext, value);
     }
   }
 
@@ -979,7 +959,7 @@ builtin JSToWasmHandleReturns(
       wrapperBuffer, kWrapperBufferRefReturnCount);
 
   if (hasRefReturns) {
-    // We first process all references and copy them in the the result array to
+    // We first process all references and copy them in the result array to
     // put them into a location that is known to the GC. The processing of
     // references does not trigger a GC, but the allocation of HeapNumbers and
     // BigInts for primitive types may trigger a GC.
@@ -1070,7 +1050,7 @@ builtin JSToWasmHandleReturns(
     } else {
       check((retType & kValueTypeIsRefBit) != 0);
       const value = fixedArray.objects[k];
-      fixedArray.objects[k] = WasmToJSObject(jsContext, value, retType);
+      fixedArray.objects[k] = WasmToJSObject(jsContext, value);
     }
   }
   locationAllocator.CheckBufferOverflow();

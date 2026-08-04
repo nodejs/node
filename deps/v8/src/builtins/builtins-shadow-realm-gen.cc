@@ -325,7 +325,7 @@ TF_BUILTIN(ShadowRealmPrototypeImportValue, ShadowRealmBuiltinsAssembler) {
   // 6. Let evalRealm be O.[[ShadowRealm]].
   // 7. Let evalContext be O.[[ExecutionContext]].
   TNode<NativeContext> eval_context =
-      CAST(LoadObjectField(CAST(O), JSShadowRealm::kNativeContextOffset));
+      CAST(LoadObjectField(CAST(O), offsetof(JSShadowRealm, native_context_)));
   // 8. Return ? ShadowRealmImportValue(specifierString, exportNameString,
   // callerRealm, evalRealm, evalContext).
   TNode<Object> result = ImportValue(caller_context, eval_context,
@@ -388,9 +388,11 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
   TNode<String> export_name_string = CAST(LoadContextElementNoCell(
       context, ImportValueFulfilledFunctionContextSlot::kExportNameSlot));
 
+  TNode<JSAny> exports_arg = Parameter<JSAny>(Descriptor::kExports);
   // 1. Assert: exports is a module namespace exotic object.
-  TNode<JSModuleNamespace> exports =
-      Parameter<JSModuleNamespace>(Descriptor::kExports);
+  // Spec issue: https://github.com/tc39/proposal-shadowrealm/issues/424
+  CSA_CHECK(this, IsJSModuleNamespace(exports_arg));
+  TNode<JSModuleNamespace> exports = CAST(exports_arg);
 
   // 5. Let hasOwn be ? HasOwnProperty(exports, string).
   // 6. If hasOwn is false, throw a TypeError exception.

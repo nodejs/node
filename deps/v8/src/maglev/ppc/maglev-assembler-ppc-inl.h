@@ -564,8 +564,16 @@ inline void MaglevAssembler::AddInt32(Register reg, Register other) {
   AddS32(reg, reg, other);
 }
 
+inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
+  AddS32(dst, src, Operand(amount), r0);
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   AndU32(reg, reg, Operand(mask), r0);
+}
+
+inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
+  AndU32(dst, src, Operand(mask), r0);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
@@ -586,6 +594,37 @@ inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   ShiftLeftU32(reg, reg, Operand(amount));
 }
 
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, int32_t value) {
+  ShiftRightU32(dst, dst, Operand(value));
+}
+
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, Register src,
+                                                 int32_t value) {
+  ShiftRightU32(dst, src, Operand(value));
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src) {
+  SubS32(dst, dst, src);
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src1,
+                                      Register src2) {
+  SubS32(dst, src1, src2);
+}
+
+inline void MaglevAssembler::LoadBitsFromWord32(Register dst, Register src,
+                                                int width, int shift) {
+  if (dst != src) {
+    mr(dst, src);
+  }
+  if (shift != 0) {
+    ShiftRightU32(dst, dst, Operand(shift));
+  }
+  if (shift + width < 32) {
+    AndU32(dst, dst, Operand((1 << width) - 1), r0);
+  }
+}
+
 inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
   CHECK(is_int20(delta));
   AddS64(reg, reg, Operand(delta), r0);
@@ -601,6 +640,10 @@ inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
     AddS64(dst, location.rb(), location.ra());
     AddS64(dst, dst, Operand(location.offset()), r0);
   }
+}
+
+inline void MaglevAssembler::MakeWeak(Register dst, Register src) {
+  OrU64(dst, src, Operand(kWeakHeapObjectTag), r0);
 }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,

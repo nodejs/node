@@ -14,6 +14,25 @@ absl_source_set("any") {
   ]
 }
 
+absl_source_set("source_location") {
+  public = [ "source_location.h" ]
+  sources = [ "source_location.cc" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:nullability",
+  ]
+}
+
+absl_test("source_location_test") {
+  sources = [ "source_location_test.cc" ]
+  deps = [
+    ":source_location",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
 absl_source_set("span") {
   public = [ "span.h" ]
   sources = [ "internal/span.h" ]
@@ -21,6 +40,7 @@ absl_source_set("span") {
     "//third_party/abseil-cpp/absl/algorithm",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:hardening",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/base:throw_delegate",
     "//third_party/abseil-cpp/absl/hash:weakly_mixed_integer",
@@ -43,6 +63,22 @@ absl_test("span_test") {
     "//third_party/abseil-cpp/absl/strings",
   ]
 }
+
+absl_source_set("any_span") {
+  public = [ "any_span.h" ]
+  sources = [ "internal/any_span.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:hardening",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/base:raw_logging_internal",
+    "//third_party/abseil-cpp/absl/base:throw_delegate",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
+# any_span_test is not ported because relies on RTTI
 
 absl_source_set("optional") {
   public = [ "optional.h" ]
@@ -72,4 +108,23 @@ absl_source_set("compare") {
 absl_test("variant_test") {
   sources = [ "variant_test.cc" ]
   deps = [ ":variant" ]
+}
+
+absl_source_set("optional_ref") {
+  public = [ "optional_ref.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:hardening",
+  ]
+}
+
+absl_test("optional_ref_test") {
+  sources = [ "optional_ref_test.cc" ]
+  deps = [
+    ":optional_ref",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/log",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
 }

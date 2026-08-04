@@ -552,9 +552,19 @@ inline void MaglevAssembler::AddInt32(Register reg, Register other) {
   LoadS32(reg, reg);
 }
 
+inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
+  AddS32(dst, src, Operand(amount));
+  LoadS32(dst, dst);
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   And(reg, Operand(mask));
   LoadU32(reg, reg);
+}
+
+inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
+  And(dst, src, Operand(mask));
+  LoadU32(dst, dst);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
@@ -576,6 +586,40 @@ inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   ShiftLeftU32(reg, reg, Operand(amount));
 }
 
+void MaglevAssembler::ShiftRightLogical32(Register dst, int32_t value) {
+  ShiftRightU32(dst, dst, Operand(value));
+}
+
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, Register src,
+                                                 int32_t value) {
+  ShiftRightU32(dst, src, Operand(value));
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src) {
+  SubS32(dst, src);
+  LoadS32(dst, dst);
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src1,
+                                      Register src2) {
+  SubS32(dst, src1, src2);
+  LoadS32(dst, dst);
+}
+
+inline void MaglevAssembler::LoadBitsFromWord32(Register dst, Register src,
+                                                int width, int shift) {
+  if (dst != src) {
+    mov(dst, src);
+  }
+  if (shift != 0) {
+    ShiftRightU32(dst, dst, Operand(shift));
+  }
+  if (shift + width < 32) {
+    And(dst, Operand((1 << width) - 1));
+    LoadU32(dst, dst);
+  }
+}
+
 inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
   CHECK(is_int20(delta));
   lay(reg, MemOperand(reg, delta));
@@ -583,6 +627,10 @@ inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
 
 inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   lay(dst, location);
+}
+
+inline void MaglevAssembler::MakeWeak(Register dst, Register src) {
+  OrP(dst, src, Operand(kWeakHeapObjectTag));
 }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
@@ -1434,8 +1482,7 @@ inline Condition MaglevAssembler::FunctionEntryStackCheck(
   Register stack_cmp_reg = sp;
   if (stack_check_offset >= kStackLimitSlackForDeoptimizationInBytes) {
     stack_cmp_reg = r0;
-    mov(stack_cmp_reg, sp);
-    lay(stack_cmp_reg, MemOperand(stack_cmp_reg, -stack_check_offset));
+    AddS64(stack_cmp_reg, sp, Operand(-stack_check_offset));
   }
   CmpU64(stack_cmp_reg, interrupt_stack_limit);
   return ge;

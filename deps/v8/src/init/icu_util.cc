@@ -78,6 +78,11 @@ bool InitializeICU(const char* icu_data_file) {
   size_t size = ftell(inf);
   rewind(inf);
 
+  if (size == 0) {
+    base::Fclose(inf);
+    return false;
+  }
+
   g_icu_data_ptr = new char[size];
   if (fread(g_icu_data_ptr, 1, size, inf) != size) {
     delete[] g_icu_data_ptr;

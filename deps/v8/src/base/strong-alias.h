@@ -13,6 +13,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "include/v8config.h"
+
 namespace v8::base {
 
 // A type-safe alternative for a typedef or a 'using' directive.
@@ -80,22 +82,36 @@ class StrongAlias {
   constexpr explicit StrongAlias(UnderlyingType&& v) noexcept
       : value_(std::move(v)) {}
 
-  constexpr UnderlyingType* operator->() { return &value_; }
-  constexpr const UnderlyingType* operator->() const { return &value_; }
+  constexpr UnderlyingType* operator->() V8_LIFETIME_BOUND { return &value_; }
+  constexpr const UnderlyingType* operator->() const V8_LIFETIME_BOUND {
+    return &value_;
+  }
 
-  constexpr UnderlyingType& operator*() & { return value_; }
-  constexpr const UnderlyingType& operator*() const& { return value_; }
-  constexpr UnderlyingType&& operator*() && { return std::move(value_); }
-  constexpr const UnderlyingType&& operator*() const&& {
+  constexpr UnderlyingType& operator*() & V8_LIFETIME_BOUND { return value_; }
+  constexpr const UnderlyingType& operator*() const& V8_LIFETIME_BOUND {
+    return value_;
+  }
+  constexpr UnderlyingType&& operator*() && V8_LIFETIME_BOUND {
+    return std::move(value_);
+  }
+  constexpr const UnderlyingType&& operator*() const&& V8_LIFETIME_BOUND {
     return std::move(value_);
   }
 
-  constexpr UnderlyingType& value() & { return value_; }
-  constexpr const UnderlyingType& value() const& { return value_; }
-  constexpr UnderlyingType&& value() && { return std::move(value_); }
-  constexpr const UnderlyingType&& value() const&& { return std::move(value_); }
+  constexpr UnderlyingType& value() & V8_LIFETIME_BOUND { return value_; }
+  constexpr const UnderlyingType& value() const& V8_LIFETIME_BOUND {
+    return value_;
+  }
+  constexpr UnderlyingType&& value() && V8_LIFETIME_BOUND {
+    return std::move(value_);
+  }
+  constexpr const UnderlyingType&& value() const&& V8_LIFETIME_BOUND {
+    return std::move(value_);
+  }
 
-  constexpr explicit operator const UnderlyingType&() const& { return value_; }
+  constexpr explicit operator const UnderlyingType&() const& V8_LIFETIME_BOUND {
+    return value_;
+  }
 
   // Comparison operators that default to the behavior of `UnderlyingType`.
   // Note that if you wish to compare `StrongAlias<UnderlyingType>`, e.g.,

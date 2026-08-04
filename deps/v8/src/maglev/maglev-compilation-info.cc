@@ -19,6 +19,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info.h"
 #include "src/utils/identity-map.h"
 
 namespace v8 {
@@ -75,7 +76,11 @@ MaglevCompilationInfo::MaglevCompilationInfo(
                                                v8_flags.trace_heap_broker,
                                                CodeKind::MAGLEV)),
       toplevel_function_(function),
+      function_name_(function->shared()->DebugNameCStr().get()),
       osr_offset_(osr_offset),
+      trace_id_(static_cast<uint16_t>(
+          reinterpret_cast<uint64_t>(this) ^ function.address() ^
+          function->shared()->function_literal_id(kRelaxedLoad))),
       owns_broker_(!js_broker.has_value()),
       is_turbolev_(is_turbolev),
       flags_(is_turbolev ? CompilationFlags::ForTurbolev()
@@ -112,9 +117,11 @@ MaglevCompilationInfo::MaglevCompilationInfo(
   }
 
   if (FlagsMightEnableMaglevTracing()) {
-    is_tracing_enabled_ = toplevel_compilation_unit_->shared_function_info()
-                              .object()
-                              ->PassesFilter(v8_flags.maglev_print_filter);
+    is_tracing_enabled_ =
+        toplevel_compilation_unit_->shared_function_info()
+            .object()
+            ->PassesFilter(is_turbolev ? v8_flags.trace_turbo_filter
+                                       : v8_flags.maglev_print_filter);
   }
 
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();

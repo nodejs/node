@@ -43,8 +43,8 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/internal/common.h"
 
@@ -248,22 +248,25 @@ class linked_hash_map {
   }
 
   linked_hash_map& operator=(const linked_hash_map& other) {
-    if (this == &other) return *this;
-    // Make a new set, with other's hash/eq/alloc.
-    set_ = SetType(other.bucket_count(), other.set_.hash_function(),
-                   other.set_.key_eq(), other.get_allocator());
-    // Copy the list, with other's allocator.
-    list_ = ListType(other.get_allocator());
-    CopyFrom(other);
+    if (this != &other) {
+      // Make a new set, with other's hash/eq/alloc.
+      set_ = SetType(other.bucket_count(), other.set_.hash_function(),
+                     other.set_.key_eq(), other.get_allocator());
+      // Copy the list, with other's allocator.
+      list_ = ListType(other.get_allocator());
+      CopyFrom(other);
+    }
     return *this;
   }
 
   linked_hash_map& operator=(linked_hash_map&& other) noexcept {
-    // underlying containers will handle progagate_on_container_move details
-    set_ = std::move(other.set_);
-    list_ = std::move(other.list_);
-    other.set_.clear();
-    other.list_.clear();
+    if (this != &other) {
+      // underlying containers will handle progagate_on_container_move details
+      set_ = std::move(other.set_);
+      list_ = std::move(other.list_);
+      other.set_.clear();
+      other.list_.clear();
+    }
     return *this;
   }
 
@@ -374,7 +377,7 @@ class linked_hash_map {
   mapped_type& at(const key_arg<K>& key) {
     auto it = find(key);
     if (ABSL_PREDICT_FALSE(it == end())) {
-      absl::base_internal::ThrowStdOutOfRange("absl::linked_hash_map::at");
+      ThrowStdOutOfRange("absl::linked_hash_map::at");
     }
     return it->second;
   }

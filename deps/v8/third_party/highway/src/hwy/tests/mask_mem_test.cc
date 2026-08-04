@@ -333,7 +333,7 @@ class TestStoreMaskBits {
       const auto mask2 = LoadMaskBits(di, actual.get());
       HWY_ASSERT_MASK_EQ(di, mask, mask2);
 
-      memset(expected.get(), 0, expected_num_bytes);
+      ZeroBytes(expected.get(), expected_num_bytes);
       for (size_t i = 0; i < N; ++i) {
         expected[i / 8] =
             static_cast<uint8_t>(expected[i / 8] | (bool_lanes[i] << (i % 8)));

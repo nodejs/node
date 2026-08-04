@@ -61,6 +61,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -80,6 +81,18 @@ ABSL_NAMESPACE_BEGIN
 
 class Condition;
 struct SynchWaitParams;
+
+namespace synchronization_internal {
+
+template <typename T, typename = void>
+struct HasConstMemberCallOperator : std::false_type {};
+
+template <typename T>
+struct HasConstMemberCallOperator<
+    T, std::void_t<decltype(static_cast<bool (T::*)() const>(&T::operator()))>>
+    : std::true_type {};
+
+}  // namespace synchronization_internal
 
 // -----------------------------------------------------------------------------
 // Mutex
@@ -851,10 +864,22 @@ class Condition {
   // Implementation note: The second template parameter ensures that this
   // constructor doesn't participate in overload resolution if T doesn't have
   // `bool operator() const`.
-  template <typename T, typename E = decltype(static_cast<bool (T::*)() const>(
-                            &T::operator()))>
+  template <typename T,
+            std::enable_if_t<
+                synchronization_internal::HasConstMemberCallOperator<T>::value,
+                int> = 0>
   explicit Condition(const T* absl_nonnull obj)
       : Condition(obj, static_cast<bool (T::*)() const>(&T::operator())) {}
+
+  // Constructor for functors that do not match the `bool operator()() const`
+  // signature, such as those using C++23 "deducing this" or static operator().
+  template <
+      typename T,
+      typename = std::enable_if_t<
+          !synchronization_internal::HasConstMemberCallOperator<T>::value &&
+          sizeof(static_cast<bool (*)(const T&)>(&T::operator())) != 0>>
+  explicit Condition(const T* absl_nonnull obj)
+      : Condition(&CallByRef<T>, obj) {}
 
   // A Condition that always returns `true`.
   // kTrue is only useful in a narrow set of circumstances, mostly when
@@ -916,6 +941,11 @@ class Condition {
   static bool CastAndCallFunction(const Condition* absl_nonnull c);
   template <typename T, typename ConditionMethodPtr>
   static bool CastAndCallMethod(const Condition* absl_nonnull c);
+
+  template <typename T>
+  static bool CallByRef(const T* absl_nonnull self) {
+    return (*self)();
+  }
 
   // Helper methods for storing, validating, and reading callback arguments.
   template <typename T>

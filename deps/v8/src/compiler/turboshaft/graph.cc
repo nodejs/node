@@ -64,6 +64,11 @@ void Block::PrintDominatorTree(std::vector<const char*> tree_symbols,
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
   const Block& block = block_header.block;
   os << block.kind() << " " << block_header.block_id;
+#ifdef BUILTIN_BLOCK_POSITION
+  if (block_header.has_profile) {
+    os << " PGO Execution Count:" << block.pgo_execution_count();
+  }
+#endif
   if (!block.Predecessors().empty()) {
     os << " <- ";
     bool first = true;
@@ -78,7 +83,11 @@ std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
 
 std::ostream& operator<<(std::ostream& os, const Graph& graph) {
   for (const Block& block : graph.blocks()) {
+#ifdef BUILTIN_BLOCK_POSITION
+    os << "\n" << PrintAsBlockHeader{block, graph.has_profile()} << "\n";
+#else
     os << "\n" << PrintAsBlockHeader{block} << "\n";
+#endif
     for (const Operation& op : graph.operations(block)) {
       os << std::setw(5) << graph.Index(op).id() << ": " << op << "\n";
     }

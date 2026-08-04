@@ -49,7 +49,7 @@ class Storage {
   explicit Storage(Callback callback) {
     // Placement-new into a character buffer is used for eager destruction when
     // the cleanup is invoked or cancelled. To ensure this optimizes well, the
-    // behavior is implemented locally instead of using an absl::optional.
+    // behavior is implemented locally instead of using a std::optional.
     ::new (GetCallbackBuffer()) Callback(std::move(callback));
     is_callback_engaged_ = true;
   }

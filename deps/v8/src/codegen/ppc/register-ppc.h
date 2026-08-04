@@ -244,15 +244,6 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
   // 32.
   inline static int SupportedRegisterCount();
 
-  // On PPC Simdi128 registers are separate from Double registers.
-  // More details can be found here: https://crrev.com/c/2718472 . This is a
-  // helper function to cast a Double to a Simdi128 register.
-  Simd128Register toSimd() const {
-    int reg_code = code();
-    V8_ASSUME(reg_code >= 0 && reg_code < kSimd128AfterLast);
-    return Simd128Register(reg_code);
-  }
-
  private:
   friend class RegisterBase;
   explicit constexpr DoubleRegister(int code) : RegisterBase(code) {}

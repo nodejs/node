@@ -36,7 +36,7 @@
 
 #if V8_TARGET_ARCH_MIPS64
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/mips64/assembler-mips64-inl.h"
@@ -3758,13 +3758,7 @@ int Assembler::RelocateInternalReference(
 void Assembler::GrowBuffer() {
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
-  if (new_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
-  }
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
 
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);

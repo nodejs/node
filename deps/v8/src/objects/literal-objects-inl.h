@@ -27,18 +27,10 @@ namespace v8::internal {
 // static
 template <class IsolateT>
 Handle<ObjectBoilerplateDescription> ObjectBoilerplateDescription::New(
-    IsolateT* isolate, int boilerplate, int all_properties, int index_keys,
-    bool has_seen_proto, AllocationType allocation) {
-  DCHECK_GE(boilerplate, 0);
-  DCHECK_GE(all_properties, index_keys);
-  DCHECK_GE(index_keys, 0);
-
-  int capacity = boilerplate * kElementsPerEntry;
-  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
-
-  int backing_store_size =
-      all_properties - index_keys - (has_seen_proto ? 1 : 0);
-  DCHECK_GE(backing_store_size, 0);
+    IsolateT* isolate, uint32_t boilerplate, uint32_t backing_store_size,
+    AllocationType allocation) {
+  const uint32_t capacity = boilerplate * kElementsPerEntry;
+  CHECK_LE(capacity, kMaxCapacity);
 
   // Note we explicitly do NOT canonicalize to the
   // empty_object_boilerplate_description here since `flags` may be modified
@@ -67,16 +59,18 @@ void ObjectBoilerplateDescription::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-Tagged<Object> ObjectBoilerplateDescription::name(int index) const {
-  return get(NameIndex(index));
+Tagged<ObjectBoilerplateDescription::KeyT> ObjectBoilerplateDescription::name(
+    int index) const {
+  return Cast<ObjectBoilerplateDescription::KeyT>(get(NameIndex(index)));
 }
 
 Tagged<Object> ObjectBoilerplateDescription::value(int index) const {
   return get(ValueIndex(index));
 }
 
-void ObjectBoilerplateDescription::set_key_value(int index, Tagged<Object> key,
-                                                 Tagged<Object> value) {
+void ObjectBoilerplateDescription::set_key_value(
+    int index, Tagged<ObjectBoilerplateDescription::KeyT> key,
+    Tagged<Object> value) {
   DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
   set(NameIndex(index), key);
   set(ValueIndex(index), value);
@@ -87,9 +81,11 @@ void ObjectBoilerplateDescription::set_value(int index, Tagged<Object> value) {
   set(ValueIndex(index), value);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int ObjectBoilerplateDescription::boilerplate_properties_count() const {
-  DCHECK_EQ(0, capacity() % kElementsPerEntry);
-  return capacity() / kElementsPerEntry;
+  const uint32_t cap = capacity().value();
+  DCHECK_EQ(0, cap % kElementsPerEntry);
+  return static_cast<int>(cap / kElementsPerEntry);
 }
 
 //
@@ -178,7 +174,7 @@ void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
 }
 
 bool ArrayBoilerplateDescription::is_empty() const {
-  return constant_elements()->length() == 0;
+  return constant_elements()->ulength().value() == 0;
 }
 
 //
@@ -195,14 +191,6 @@ void RegExpBoilerplateDescription::set_data(Tagged<RegExpData> value,
   data_.store(this, value, mode);
 }
 
-Tagged<String> RegExpBoilerplateDescription::source() const {
-  return source_.load();
-}
-void RegExpBoilerplateDescription::set_source(Tagged<String> value,
-                                              WriteBarrierMode mode) {
-  source_.store(this, value, mode);
-}
-
 int RegExpBoilerplateDescription::flags() const {
   return flags_.load().value();
 }
@@ -210,7 +198,31 @@ void RegExpBoilerplateDescription::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));
 }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PrototypeSharedClosureInfo)
+Tagged<ObjectBoilerplateDescription>
+PrototypeSharedClosureInfo::boilerplate_description() const {
+  return boilerplate_description_.load();
+}
+void PrototypeSharedClosureInfo::set_boilerplate_description(
+    Tagged<ObjectBoilerplateDescription> value, WriteBarrierMode mode) {
+  boilerplate_description_.store(this, value, mode);
+}
+
+Tagged<ClosureFeedbackCellArray>
+PrototypeSharedClosureInfo::closure_feedback_cell_array() const {
+  return closure_feedback_cell_array_.load();
+}
+void PrototypeSharedClosureInfo::set_closure_feedback_cell_array(
+    Tagged<ClosureFeedbackCellArray> value, WriteBarrierMode mode) {
+  closure_feedback_cell_array_.store(this, value, mode);
+}
+
+Tagged<Context> PrototypeSharedClosureInfo::context() const {
+  return context_.load();
+}
+void PrototypeSharedClosureInfo::set_context(Tagged<Context> value,
+                                             WriteBarrierMode mode) {
+  context_.store(this, value, mode);
+}
 
 }  // namespace v8::internal
 

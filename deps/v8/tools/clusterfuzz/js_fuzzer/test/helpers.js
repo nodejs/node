@@ -27,7 +27,7 @@ const FUZZILLI_TEST_CORPUS = corpus.create(
 const FUZZILLI_DIFF_FUZZ_TEST_CORPUS = corpus.create(
     BASE_DIR, 'fuzzilli', false, V8_TEST_CORPUS, true);
 
-const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
+const HEADER = `// Copyright 2026 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 

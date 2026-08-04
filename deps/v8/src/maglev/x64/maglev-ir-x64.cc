@@ -862,6 +862,14 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ Abspd(out, out, kScratchRegister);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ cvtsd2ss(result, input);
+  __ cvtss2sd(result, result);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -888,6 +896,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ Roundsd(out, in, kRoundDown);
   } else if (kind_ == Kind::kCeil) {
     __ Roundsd(out, in, kRoundUp);
+  } else if (kind_ == Kind::kTrunc) {
+    __ Roundsd(out, in, kRoundToZero);
   }
 }
 
@@ -949,6 +959,11 @@ void Float64Min::SetValueLocationConstraints() {
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left_and_out = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   Float64MinMaxHelper(
@@ -967,6 +982,11 @@ void Float64Max::SetValueLocationConstraints() {
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left_and_out = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   Float64MinMaxHelper(
@@ -1133,8 +1153,9 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    Register feedback_cell,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  __ subl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(amount));
+  __ subl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      Immediate(amount));
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(less, HandleInterruptsAndTiering, done, node, type);
   __ bind(*done);

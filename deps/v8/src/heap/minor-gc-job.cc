@@ -179,8 +179,8 @@ void MinorGCJob::Task::RunInternal() {
     return;
   }
 
-  heap->CollectGarbageWithRetry(
-      NEW_SPACE, GCFlags(), GarbageCollectionReason::kTask, kNoGCCallbackFlags);
+  heap->CollectGarbageWithRetry(heap->main_thread_local_heap(), NEW_SPACE,
+                                GarbageCollectionReason::kAllocationFailure);
 }
 
 }  // namespace v8::internal

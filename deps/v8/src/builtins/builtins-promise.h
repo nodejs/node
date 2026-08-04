@@ -13,9 +13,11 @@ namespace internal {
 class PromiseBuiltins {
  public:
   enum PromiseResolvingFunctionContextSlot {
-    // The promise which resolve/reject callbacks fulfill, or Undefined
-    // if already resolved.
-    kPromiseIfNotResolvedSlot = Context::MIN_CONTEXT_SLOTS,
+    // The promise which resolve/reject callbacks fulfill.
+    kPromiseSlot = Context::MIN_CONTEXT_SLOTS,
+
+    // Whether the callback was already invoked.
+    kAlreadyResolvedSlot,
 
     // Whether to trigger a debug event or not. Used in catch
     // prediction.

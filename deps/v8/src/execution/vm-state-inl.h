@@ -73,8 +73,8 @@ ExternalCallbackScope::ExternalCallbackScope(
 #endif
   vm_state_.isolate_->set_external_callback_scope(this);
 #ifdef V8_RUNTIME_CALL_STATS
-  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
-                     "V8.ExternalCallback");
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
+                    "V8.ExternalCallback");
 #endif
   // The external callback might be called via different code paths and on some
   // of them it's not guaranteed that the topmost_script_having_context value
@@ -92,8 +92,7 @@ ExternalCallbackScope::~ExternalCallbackScope() {
   // from the callback.
   vm_state_.isolate_->clear_topmost_script_having_context();
 #ifdef V8_RUNTIME_CALL_STATS
-  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
-                   "V8.ExternalCallback");
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.runtime"));
 #endif
 #if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
   i::SimulatorStack::UnregisterJSStackComparableAddress(vm_state_.isolate_);

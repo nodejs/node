@@ -110,7 +110,7 @@ TEST_F(NameTraitTest, NoTypeAvailable) {
 
 TEST_F(NameTraitTest, ParsingPrettyFunction) {
   // Test assumes that __PRETTY_FUNCTION__ and friends return a string
-  // containing the the type as [T = <type>].
+  // containing the type as [T = <type>].
   HeapObjectName name = TraitTester::GetNameFromTypeSignature(
       "Some signature of a method [T = ClassNameInSignature]");
   EXPECT_STREQ("ClassNameInSignature", name.value);

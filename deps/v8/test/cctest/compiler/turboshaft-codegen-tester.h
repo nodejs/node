@@ -5,6 +5,8 @@
 #ifndef V8_CCTEST_COMPILER_TURBOSHAFT_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_TURBOSHAFT_CODEGEN_TESTER_H_
 
+#include <stdint.h>
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"

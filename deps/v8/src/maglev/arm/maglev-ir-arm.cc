@@ -796,6 +796,15 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ vabs(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  UseScratchRegisterScope temps(masm);
+  SwVfpRegister temp_vfps = temps.AcquireS();
+  __ vcvt_f32_f64(temp_vfps, input);
+  __ vcvt_f64_f32(result, temp_vfps);
+}
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -823,6 +832,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ vrintp(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ vrintm(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ vrintz(out, in);
   }
 }
 
@@ -847,11 +858,20 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 void Float64Min::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -868,11 +888,20 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 void Float64Max::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -1109,11 +1138,11 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register budget = temps.Acquire();
-  __ ldr(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ ldr(budget, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
   __ sub(budget, budget, Operand(amount), SetCC);
-  __ str(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+  __ str(budget, FieldMemOperand(feedback_cell,
+                                 offsetof(FeedbackCell, interrupt_budget_)));
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type, budget);
   __ bind(*done);

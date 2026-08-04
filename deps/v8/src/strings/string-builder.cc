@@ -14,10 +14,10 @@ namespace internal {
 template <typename sinkchar>
 void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
                                Tagged<FixedArray> fixed_array,
-                               int array_length) {
+                               uint32_t array_length) {
   DisallowGarbageCollection no_gc;
   int position = 0;
-  for (int i = 0; i < array_length; i++) {
+  for (uint32_t i = 0; i < array_length; i++) {
     Tagged<Object> element = fixed_array->get(i);
     if (IsSmi(element)) {
       // Smi encoding of position and length.
@@ -49,11 +49,11 @@ void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
 template void StringBuilderConcatHelper<uint8_t>(Tagged<String> special,
                                                  uint8_t* sink,
                                                  Tagged<FixedArray> fixed_array,
-                                                 int array_length);
+                                                 uint32_t array_length);
 
 template void StringBuilderConcatHelper<base::uc16>(
     Tagged<String> special, base::uc16* sink, Tagged<FixedArray> fixed_array,
-    int array_length);
+    uint32_t array_length);
 
 int StringBuilderConcatLength(int special_length,
                               Tagged<FixedArray> fixed_array, int array_length,
@@ -105,7 +105,8 @@ int StringBuilderConcatLength(int special_length,
   return position;
 }
 
-FixedArrayBuilder::FixedArrayBuilder(Isolate* isolate, int initial_capacity)
+FixedArrayBuilder::FixedArrayBuilder(Isolate* isolate,
+                                     uint32_t initial_capacity)
     : array_(isolate->factory()->NewFixedArrayWithHoles(initial_capacity)),
       length_(0),
       has_non_smi_elements_(false) {
@@ -118,7 +119,7 @@ FixedArrayBuilder::FixedArrayBuilder(DirectHandle<FixedArray> backing_store)
     : array_(backing_store), length_(0), has_non_smi_elements_(false) {
   // Require a non-zero initial size. Ensures that doubling the size to
   // extend the array will work.
-  DCHECK_GT(backing_store->length(), 0);
+  DCHECK_GT(backing_store->ulength().value(), 0);
 }
 
 FixedArrayBuilder::FixedArrayBuilder(Isolate* isolate)
@@ -131,24 +132,24 @@ FixedArrayBuilder FixedArrayBuilder::Lazy(Isolate* isolate) {
   return FixedArrayBuilder(isolate);
 }
 
-bool FixedArrayBuilder::HasCapacity(int elements) {
-  int length = array_->length();
-  int required_length = length_ + elements;
+bool FixedArrayBuilder::HasCapacity(uint32_t elements) {
+  uint32_t length = array_->ulength().value();
+  uint32_t required_length = length_ + elements;
   return (length >= required_length);
 }
 
-void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
-  int length = array_->length();
-  int required_length = length_ + elements;
+void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, uint32_t elements) {
+  uint32_t length = array_->ulength().value();
+  uint32_t required_length = length_ + elements;
   if (length < required_length) {
     if (length == 0) {
-      constexpr int kInitialCapacityForLazy = 16;
+      constexpr uint32_t kInitialCapacityForLazy = 16;
       array_ = isolate->factory()->NewFixedArrayWithHoles(
           std::max(kInitialCapacityForLazy, elements));
       return;
     }
 
-    int new_length = length;
+    uint32_t new_length = length;
     do {
       new_length *= 2;
     } while (new_length < required_length);
@@ -172,11 +173,10 @@ void FixedArrayBuilder::Add(Tagged<Smi> value) {
   length_++;
 }
 
-int FixedArrayBuilder::capacity() { return array_->length(); }
+SafeHeapObjectSize FixedArrayBuilder::capacity() { return array_->ulength(); }
 
-ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
-                                                   DirectHandle<String> subject,
-                                                   int estimated_part_count)
+ReplacementStringBuilder::ReplacementStringBuilder(
+    Heap* heap, DirectHandle<String> subject, uint32_t estimated_part_count)
     : heap_(heap),
       array_builder_(Isolate::FromHeap(heap), estimated_part_count),
       subject_(subject),
@@ -187,7 +187,7 @@ ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
   DCHECK_GT(estimated_part_count, 0);
 }
 
-void ReplacementStringBuilder::EnsureCapacity(int elements) {
+void ReplacementStringBuilder::EnsureCapacity(uint32_t elements) {
   array_builder_.EnsureCapacity(Isolate::FromHeap(heap_), elements);
 }
 
@@ -202,7 +202,8 @@ void ReplacementStringBuilder::AddString(DirectHandle<String> string) {
 
 MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
   Isolate* isolate = Isolate::FromHeap(heap_);
-  if (array_builder_.length() == 0) {
+  uint32_t array_builder_len = array_builder_.length().value();
+  if (array_builder_len == 0) {
     return isolate->factory()->empty_string();
   }
 
@@ -216,7 +217,7 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
     DisallowGarbageCollection no_gc;
     uint8_t* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
-                              array_builder_.length());
+                              array_builder_len);
     joined_string = Cast<String>(seq);
   } else {
     // Two-byte.
@@ -228,7 +229,7 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
     DisallowGarbageCollection no_gc;
     base::uc16* char_buffer = seq->GetChars(no_gc);
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
-                              array_builder_.length());
+                              array_builder_len);
     joined_string = Cast<String>(seq);
   }
   return joined_string;

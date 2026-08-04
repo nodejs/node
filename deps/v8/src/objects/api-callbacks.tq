@@ -8,14 +8,13 @@ bitfield struct InterceptorInfoFlags extends uint31 {
   named: bool: 1 bit;
   has_no_side_effect: bool: 1 bit;
   has_new_callbacks_signature: bool: 1 bit;
-  has_dont_delete_property: bool: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class InterceptorInfo extends HeapObject {
   data: Object;
   flags: InterceptorInfoFlags;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   getter: ExternalPointer;
   setter: ExternalPointer;
   query: ExternalPointer;
@@ -23,6 +22,8 @@ extern class InterceptorInfo extends HeapObject {
   deleter: ExternalPointer;
   enumerator: ExternalPointer;
   definer: ExternalPointer;
+
+  index_of: ExternalPointer;
 }
 
 @cppObjectLayoutDefinition
@@ -43,6 +44,7 @@ bitfield struct AccessorInfoFlags extends uint32 {
   initial_attributes: PropertyAttributes: 3 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class AccessorInfo extends HeapObject {
   data: Object;
   // This name is used for the two purposes:
@@ -61,5 +63,4 @@ extern class AccessorInfo extends HeapObject {
   setter: ExternalPointer;
   flags: AccessorInfoFlags;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }

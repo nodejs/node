@@ -40,14 +40,33 @@ assertEquals(0, globalThis.eval_list.length);
 assertThrows(() => obj.nonExistent = 41, TypeError);
 assertEquals(0, globalThis.eval_list.length);
 
-class A { constructor() { return ns; } };
-class B extends A {
+// super property set with symbol-like keys should not trigger evaluation.
+class A { constructor() { return ns; } }
+
+class B1 extends A {
   constructor() {
     super();
-    super.x = 14;
+    super[Symbol()] = 14;
   }
-};
+}
+try { new B1(); } catch (_) {}
+assertEquals(0, globalThis.eval_list.length);
 
-assertThrows(() => new B(), TypeError);
+class B2 extends A {
+  constructor() {
+    super();
+    super[Symbol.toStringTag] = 14;
+  }
+}
+try { new B2(); } catch (_) {}
+assertEquals(0, globalThis.eval_list.length);
+
+class B3 extends A {
+  constructor() {
+    super();
+    super.then = 14;
+  }
+}
+try { new B3(); } catch (_) {}
 assertEquals(0, globalThis.eval_list.length);
 

@@ -1573,13 +1573,6 @@ HWY_API Vec128<T, N> Xor(Vec128<T, N> a, Vec128<T, N> b) {
   return Vec128<T, N>{wasm_v128_xor(a.raw, b.raw)};
 }
 
-// ------------------------------ Xor3
-
-template <typename T, size_t N>
-HWY_API Vec128<T, N> Xor3(Vec128<T, N> x1, Vec128<T, N> x2, Vec128<T, N> x3) {
-  return Xor(x1, Xor(x2, x3));
-}
-
 // ------------------------------ Or3
 
 template <typename T, size_t N>
@@ -3943,6 +3936,17 @@ HWY_API V InterleaveOddBlocks(D, V a, V /*b*/) {
   return a;
 }
 
+// ------------------------------ InterleaveLowerBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_LE_D(D, 16)>
+HWY_API V InterleaveLowerBlocks(D, V a, V /*b*/) {
+  return a;
+}
+// ------------------------------ InterleaveUpperBlocks
+template <class D, class V = VFromD<D>, HWY_IF_V_SIZE_LE_D(D, 16)>
+HWY_API V InterleaveUpperBlocks(D, V a, V /*b*/) {
+  return a;
+}
+
 // ------------------------------ ReverseBlocks
 template <class D>
 HWY_API VFromD<D> ReverseBlocks(D /* tag */, VFromD<D> v) {
@@ -5888,22 +5892,9 @@ HWY_API VFromD<D32> ReorderWidenMulAccumulate(D32 d32, V16 a, V16 b,
 }
 
 // ------------------------------ RearrangeToOddPlusEven
-template <size_t N>
-HWY_API Vec128<int32_t, N> RearrangeToOddPlusEven(
-    const Vec128<int32_t, N> sum0, const Vec128<int32_t, N> /*sum1*/) {
+template <class VW, HWY_IF_NOT_FLOAT_V(VW)>
+HWY_API VW RearrangeToOddPlusEven(const VW sum0, const VW) {
   return sum0;  // invariant already holds
-}
-
-template <size_t N>
-HWY_API Vec128<uint32_t, N> RearrangeToOddPlusEven(
-    const Vec128<uint32_t, N> sum0, const Vec128<uint32_t, N> /*sum1*/) {
-  return sum0;  // invariant already holds
-}
-
-template <size_t N>
-HWY_API Vec128<float, N> RearrangeToOddPlusEven(const Vec128<float, N> sum0,
-                                                const Vec128<float, N> sum1) {
-  return Add(sum0, sum1);
 }
 
 // ------------------------------ Reductions

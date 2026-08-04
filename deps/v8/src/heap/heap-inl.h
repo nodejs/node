@@ -35,7 +35,8 @@
 #include "src/heap/spaces-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/cell-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/map-word-inl.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/visitors-inl.h"
 #include "src/roots/static-roots.h"
@@ -144,6 +145,14 @@ void Heap::SetSmiStringCache(Tagged<SmiStringCache> cache) {
 
 void Heap::SetDoubleStringCache(Tagged<DoubleStringCache> cache) {
   set_double_string_cache(cache);
+}
+
+void Heap::SetCachedBigIntDivisor(Tagged<BigInt> divisor) {
+  set_cached_bigint_divisor(divisor);
+}
+
+void Heap::SetNextCachedBigIntDivisor(Tagged<BigInt> divisor) {
+  set_next_cached_bigint_divisor(divisor);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

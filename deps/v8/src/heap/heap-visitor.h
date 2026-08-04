@@ -57,39 +57,47 @@ class MaybeObjectSize final {
   V(Cell)                             \
   V(CodeWrapper)                      \
   V(ConsString)                       \
+  V(Context)                          \
   V(ContextCell)                      \
   V(CoverageInfo)                     \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DescriptorArray)                  \
+  V(StrongDescriptorArray)            \
   V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
   V(FeedbackCell)                     \
   V(FeedbackMetadata)                 \
+  V(FeedbackVector)                   \
   V(Foreign)                          \
   V(FunctionTemplateInfo)             \
   V(HeapNumber)                       \
   V(InterceptorInfo)                  \
   V(Hole)                             \
   V(Map)                              \
+  V(MegaDomHandler)                   \
   V(NativeContext)                    \
   V(Oddball)                          \
+  V(OnHeapBasicBlockProfilerData)     \
   V(PreparseData)                     \
   V(PropertyArray)                    \
   V(PropertyCell)                     \
+  V(JSProxy)                          \
   V(PrototypeInfo)                    \
   V(PrototypeSharedClosureInfo)       \
   V(RegExpBoilerplateDescription)     \
   V(RegExpDataWrapper)                \
+  V(ScopeInfo)                        \
   V(SeqOneByteString)                 \
   V(SeqTwoByteString)                 \
   V(SharedFunctionInfo)               \
   V(SlicedString)                     \
-  V(SloppyArgumentsElements)          \
   V(SmallOrderedHashMap)              \
   V(SmallOrderedHashSet)              \
   V(SmallOrderedNameDictionary)       \
+  V(SortState)                        \
   V(SourceTextModule)                 \
   V(SwissNameDictionary)              \
   V(Symbol)                           \
@@ -98,13 +106,27 @@ class MaybeObjectSize final {
   V(TransitionArray)                  \
   V(WeakCell)                         \
   IF_WASM(V, WasmArray)               \
+  IF_WASM(V, WasmFastApiCallData)     \
   IF_WASM(V, WasmFuncRef)             \
   IF_WASM(V, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmNull)                \
   IF_WASM(V, WasmResumeData)          \
+  IF_WASM(V, WasmStringViewIter)      \
   IF_WASM(V, WasmStruct)              \
   IF_WASM(V, WasmContinuationObject)  \
+  IF_WASM(V, WasmStackObject)         \
   IF_WASM(V, WasmTypeInfo)            \
+  V(TurbofanBitsetType)               \
+  V(TurbofanHeapConstantType)         \
+  V(TurbofanOtherNumberConstantType)  \
+  V(TurbofanRangeType)                \
+  V(TurbofanUnionType)                \
+  V(TurboshaftFloat64RangeType)       \
+  V(TurboshaftFloat64SetType)         \
+  V(TurboshaftWord32RangeType)        \
+  V(TurboshaftWord32SetType)          \
+  V(TurboshaftWord64RangeType)        \
+  V(TurboshaftWord64SetType)          \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
 // Visitation in here will refer to BodyDescriptors with the used size of the
@@ -172,7 +194,6 @@ class MaybeObjectSize final {
   V(SharedFunctionInfo)                                   \
   V(ShortcutCandidate)                                    \
   V(SlicedString)                                         \
-  V(SloppyArgumentsElements)                              \
   V(Symbol)                                               \
   V(ThinString)                                           \
   V(TransitionArray)                                      \
@@ -182,7 +203,6 @@ class MaybeObjectSize final {
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
 TYPED_VISITOR_WITH_SLACK_ID_LIST(FORWARD_DECLARE)
-TORQUE_VISITOR_ID_LIST(FORWARD_DECLARE)
 TRUSTED_VISITOR_ID_LIST(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
@@ -266,7 +286,6 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
                                    MaybeObjectSize maybe_object_size);
   TYPED_VISITOR_ID_LIST(VISIT)
   TYPED_VISITOR_WITH_SLACK_ID_LIST(VISIT)
-  TORQUE_VISITOR_ID_LIST(VISIT)
   TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE size_t VisitShortcutCandidate(Tagged<Map> map,

@@ -14,7 +14,7 @@ let $s1 = builder.addStruct(
 // recgroup: 0~3 dummy, 4 target, 5 ref cidx 4
 builder.startRecGroup();
 for (let i = 0; i < 4; i++) {
-  builder.addArray(kWasmI32, true);  // ridx 0~3
+  builder.addArray(kWasmI32);  // ridx 0~3
 }
 builder.addStruct(
     [makeField(kWasmI32, true), makeField(wasmRefType($s0), true)]);  // ridx 4
@@ -25,7 +25,7 @@ builder.endRecGroup();
 // recgroup: 0~3 dummy, 4 target, 5 relref 4
 builder.startRecGroup();
 for (let i = 0; i < 4; i++) {
-  builder.addArray(kWasmI32, true);  // ridx 0~3
+  builder.addArray(kWasmI32);  // ridx 0~3
 }
 let $s2 = builder.addStruct(
     [makeField(kWasmI32, true), makeField(wasmRefType($s0), true)]);  // ridx 4

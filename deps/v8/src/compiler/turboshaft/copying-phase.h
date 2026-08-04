@@ -33,6 +33,8 @@
 namespace v8::internal::compiler::turboshaft {
 
 using MaybeVariable = std::optional<Variable>;
+enum class CanHavePhis { kNo, kYes };
+enum class ForCloning { kNo, kYes };
 
 V8_EXPORT_PRIVATE int CountDecimalDigits(uint32_t value);
 struct PaddingSpace {
@@ -134,16 +136,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
 
   void Finalize() {
-    // Updating the source_positions.
-    if (!Asm().input_graph().source_positions().empty()) {
-      for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
-        OpIndex origin = Asm().output_graph().operation_origins()[index];
-        Asm().output_graph().source_positions()[index] =
-            origin.valid() ? Asm().input_graph().source_positions()[origin]
-                           : SourcePosition::Unknown();
-      }
-    }
-    // Updating the operation origins.
+    // Updating the operation origins in `PipelineData`'s origin tracking,
+    // which is persistent over multiple phases.
     NodeOriginTable* origins = Asm().data()->node_origins();
     if (origins) {
       for (OpIndex index : Asm().output_graph().AllOperationIndices()) {
@@ -533,9 +527,6 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       }
     }
   }
-
-  enum class CanHavePhis { kNo, kYes };
-  enum class ForCloning { kNo, kYes };
 
   template <CanHavePhis can_have_phis, ForCloning for_cloning,
             bool trace_reduction>
@@ -939,8 +930,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                 ->template AllocateVector<EffectHandler>(
                     op.effect_handlers.size());
         for (int i = 0; i < op.effect_handlers.length(); ++i) {
-          output_handlers[i].tag_index = op.effect_handlers[i].tag_index;
-          output_handlers[i].block = MapToNewGraph(op.effect_handlers[i].block);
+          output_handlers[i].tag_and_kind = op.effect_handlers[i].tag_and_kind;
+          if (!op.effect_handlers[i].is_switch()) {
+            output_handlers[i].block =
+                MapToNewGraph(op.effect_handlers[i].block);
+          } else
+            output_handlers[i].block = nullptr;
         }
         Asm().set_effect_handlers_for_next_call(output_handlers);
       }

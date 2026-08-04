@@ -272,7 +272,8 @@ class V8_EXPORT_PRIVATE StatsCollector final {
   static constexpr size_t kAllocationThresholdBytes = 1024;
 
   static void Note(const char* note) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cppgc"), note);
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("cppgc"),
+                perfetto::DynamicString(note));
   }
 
   explicit StatsCollector(Platform*);
@@ -457,9 +458,10 @@ template <StatsCollector::TraceCategory trace_category,
           StatsCollector::ScopeContext scope_category>
 void StatsCollector::InternalScope<trace_category,
                                    scope_category>::StartTraceImpl() {
-  TRACE_EVENT_BEGIN0(
+  TRACE_EVENT_BEGIN(
       TraceCategory(),
-      GetScopeName(scope_id_, stats_collector_->current_.collection_type));
+      perfetto::StaticString(
+          GetScopeName(scope_id_, stats_collector_->current_.collection_type)));
 }
 
 template <StatsCollector::TraceCategory trace_category,
@@ -467,10 +469,10 @@ template <StatsCollector::TraceCategory trace_category,
 template <typename Value1>
 void StatsCollector::InternalScope<
     trace_category, scope_category>::StartTraceImpl(const char* k1, Value1 v1) {
-  TRACE_EVENT_BEGIN1(
-      TraceCategory(),
-      GetScopeName(scope_id_, stats_collector_->current_.collection_type), k1,
-      v1);
+  TRACE_EVENT_BEGIN(TraceCategory(),
+                    perfetto::StaticString(GetScopeName(
+                        scope_id_, stats_collector_->current_.collection_type)),
+                    k1, v1);
 }
 
 template <StatsCollector::TraceCategory trace_category,
@@ -479,20 +481,18 @@ template <typename Value1, typename Value2>
 void StatsCollector::InternalScope<
     trace_category, scope_category>::StartTraceImpl(const char* k1, Value1 v1,
                                                     const char* k2, Value2 v2) {
-  TRACE_EVENT_BEGIN2(
-      TraceCategory(),
-      GetScopeName(scope_id_, stats_collector_->current_.collection_type), k1,
-      v1, k2, v2);
+  TRACE_EVENT_BEGIN(TraceCategory(),
+                    perfetto::StaticString(GetScopeName(
+                        scope_id_, stats_collector_->current_.collection_type)),
+                    k1, v1, k2, v2);
 }
 
 template <StatsCollector::TraceCategory trace_category,
           StatsCollector::ScopeContext scope_category>
 void StatsCollector::InternalScope<trace_category,
                                    scope_category>::StopTraceImpl() {
-  TRACE_EVENT_END2(
-      TraceCategory(),
-      GetScopeName(scope_id_, stats_collector_->current_.collection_type),
-      "epoch", stats_collector_->current_.epoch, "forced",
+  TRACE_EVENT_END(
+      TraceCategory(), "epoch", stats_collector_->current_.epoch, "forced",
       stats_collector_->current_.is_forced_gc == IsForcedGC::kForced);
 }
 

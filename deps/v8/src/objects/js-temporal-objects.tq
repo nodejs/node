@@ -4,34 +4,42 @@
 
 #include 'src/objects/js-temporal-objects.h'
 
+@cppObjectLayoutDefinition
 extern class JSTemporalDuration extends JSObject {
   duration: Foreign;  // Managed<temporal_rs::Duration>
 }
 
+@cppObjectLayoutDefinition
 extern class JSTemporalInstant extends JSObject {
   instant: Foreign;  // Managed<temporal_rs::Instant>
 }
 
+@cppObjectLayoutDefinition
 extern class JSTemporalPlainDateTime extends JSObject {
   date_time: Foreign;  // Managed<temporal_rs::PlainDateTime>
 }
 
+@cppObjectLayoutDefinition
 extern class JSTemporalPlainDate extends JSObject {
   date: Foreign;  // Managed<temporal_rs::PlainDate>
 }
 
+@cppObjectLayoutDefinition
 extern class JSTemporalPlainMonthDay extends JSObject {
   month_day: Foreign;  // Managed<temporal_rs::PlainMonthDay>
 }
 
+@cppObjectLayoutDefinition
 extern class JSTemporalPlainTime extends JSObject {
   time: Foreign;  // Managed<temporal_rs::PlainTime>
 }
 
+@cppObjectLayoutDefinition
 extern class JSTemporalPlainYearMonth extends JSObject {
   year_month: Foreign;  // Managed<temporal_rs::PlainDate>
 }
 
+@cppObjectLayoutDefinition
 extern class JSTemporalZonedDateTime extends JSObject {
   zoned_date_time: Foreign;  // Managed<temporal_rs::ZonedDateTime>
 }

@@ -19,15 +19,13 @@
 #include "src/objects/trusted-object-inl.h"
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
+#include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
-
-OBJECT_CONSTRUCTORS_IMPL(Code, ExposedTrustedObject)
-OBJECT_CONSTRUCTORS_IMPL(GcSafeCode, HeapObject)
 
 Tagged<Code> GcSafeCode::UnsafeCastToCode() const {
   return UncheckedCast<Code>(*this);
@@ -76,7 +74,7 @@ bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
   Tagged<DeoptimizationData> deopt_data = UncheckedCast<DeoptimizationData>(
       UnsafeCastToCode()->unchecked_deoptimization_data());
   Address code_start_address = instruction_start();
-  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+  for (uint32_t i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i).value() == -1) continue;
     Address address = code_start_address + deopt_data->Pc(i).value();
     if (address == pc && deopt_data->GetBytecodeOffsetOrBuiltinContinuationId(
@@ -684,11 +682,11 @@ void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
   }
 
   auto deopt_data = deoptimization_data();
-  if (deopt_data->length() == 0) return;
+  if (deopt_data->ulength().value() == 0) return;
 
   Tagged<DeoptimizationLiteralArray> literals = deopt_data->LiteralArray();
-  const int literals_length = literals->length();
-  for (int i = 0; i < literals_length; ++i) {
+  const uint32_t literals_length = literals->ulength().value();
+  for (uint32_t i = 0; i < literals_length; ++i) {
     Tagged<MaybeObject> maybe_literal = literals->get_raw(i);
     Tagged<HeapObject> heap_literal;
     if (maybe_literal.GetHeapObject(&heap_literal)) {
@@ -784,8 +782,8 @@ Tagged<Object> Code::raw_instruction_stream(PtrComprCageBase cage_base,
 
 DEF_GETTER(Code, instruction_start, Address) {
 #ifdef V8_ENABLE_SANDBOX
-  return ReadCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset,
-                                               entrypoint_tag());
+  const auto tag = entrypoint_tag();
+  return ReadField<Address>(kInstructionStartOffset) ^ tag;
 #else
   return ReadField<Address>(kInstructionStartOffset);
 #endif
@@ -793,8 +791,9 @@ DEF_GETTER(Code, instruction_start, Address) {
 
 void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
-  WriteCodeEntrypointViaCodePointerField(kSelfIndirectPointerOffset, value,
-                                         entrypoint_tag());
+  DCHECK_EQ(value >> kCodeEntrypointTagShift, 0);
+  const auto tag = entrypoint_tag();
+  WriteField<Address>(kInstructionStartOffset, value ^ tag);
 #else
   WriteField<Address>(kInstructionStartOffset, value);
 #endif
@@ -866,9 +865,8 @@ void Code::ClearInstructionStartForSerialization(IsolateForSandbox isolate) {
   // The instruction start is stored in this object's code pointer table.
   WriteField<CodePointerHandle>(kSelfIndirectPointerOffset,
                                 kNullCodePointerHandle);
-#else
-  set_instruction_start(isolate, kNullAddress);
 #endif  // V8_ENABLE_SANDBOX
+  set_instruction_start(isolate, kNullAddress);
 }
 
 void Code::UpdateInstructionStart(IsolateForSandbox isolate,
@@ -878,7 +876,8 @@ void Code::UpdateInstructionStart(IsolateForSandbox isolate,
 }
 
 void Code::clear_padding() {
-  memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
+  if (kSize - kUnalignedSize == 0) return;
+  Memset(reinterpret_cast<uint8_t*>(address() + kUnalignedSize), 0,
          kSize - kUnalignedSize);
 }
 
@@ -944,8 +943,22 @@ inline void Code::set_js_dispatch_handle(JSDispatchHandle handle) {
                                                         handle.value());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(CodeWrapper, Struct)
-CODE_POINTER_ACCESSORS(CodeWrapper, code, kCodeOffset)
+Tagged<Code> CodeWrapper::code(IsolateForSandbox isolate) const {
+  return code_.load(isolate);
+}
+Tagged<Code> CodeWrapper::code(IsolateForSandbox isolate,
+                               AcquireLoadTag tag) const {
+  return code_.Acquire_Load(isolate);
+}
+void CodeWrapper::set_code(Tagged<Code> value, WriteBarrierMode mode) {
+  code_.store(this, value, mode);
+}
+void CodeWrapper::set_code(Tagged<Code> value, ReleaseStoreTag,
+                           WriteBarrierMode mode) {
+  code_.Release_Store(this, value, mode);
+}
+bool CodeWrapper::has_code() const { return !code_.is_empty(); }
+void CodeWrapper::clear_code() { code_.clear(this); }
 
 }  // namespace internal
 }  // namespace v8

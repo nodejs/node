@@ -18,5 +18,15 @@ extern class CallbackTask extends Microtask {
 @cppObjectLayoutDefinition
 extern class CallableTask extends Microtask {
   callable: JSReceiver;
-  context: Context;
+  context: NativeContext;
+}
+
+// Specialized microtask for resuming async generators/functions when the
+// awaited/yielded value is a non-thenable.  Avoids closure allocation and
+// indirect Call dispatch.  The |kind| field selects the resume behaviour.
+@cppObjectLayoutDefinition
+extern class AsyncResumeTask extends Microtask {
+  generator: JSGeneratorObject;
+  value: Object;
+  kind: Smi;
 }

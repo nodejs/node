@@ -127,10 +127,11 @@ v8::Maybe<v8::PropertyAttribute> DebugPropertyIterator::attributes() {
   // V8 will crash.
 
 #if DEBUG
-  base::ScopedVector<char> property_message(128);
-  base::ScopedVector<char> name_buffer(100);
-  raw_name()->NameShortPrint(name_buffer);
-  v8::base::SNPrintF(property_message, "Invalid result for property \"%s\"\n",
+  auto property_message = base::OwnedVector<char>::NewForOverwrite(128);
+  auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+  raw_name()->NameShortPrint(name_buffer.as_vector());
+  v8::base::SNPrintF(property_message.as_vector(),
+                     "Invalid result for property \"%s\"\n",
                      name_buffer.begin());
   DCHECK_WITH_MSG(result.FromJust() != ABSENT, property_message.begin());
 #endif
@@ -199,7 +200,7 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
                               filter, GetKeysConversion::kConvertToString,
                               false, skip_indices_ || IsJSTypedArray(*receiver))
           .ToHandle(&current_keys_)) {
-    current_keys_length_ = current_keys_->length();
+    current_keys_length_ = current_keys_->ulength().value();
     return true;
   }
   return false;

@@ -15,6 +15,7 @@ bitfield struct JSArrayBufferFlags extends uint32 {
 const kNoView: Smi = 0;
 const kManyViews: Smi = 1;
 
+@cppObjectLayoutDefinition
 extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
   views_or_detach_key: Weak<JSArrayBufferView>|Smi|Cell;
   // A BoundedSize if the sandbox is enabled
@@ -25,9 +26,8 @@ extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
   backing_store: RawPtr;
   extension: ExternalPointer;
   bit_field: JSArrayBufferFlags;
-  // Pads header size to be a multiple of kTaggedSize.
+  // Pads header size to be a multiple of kTaggedSize on 64-bit targets.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 extern operator '.byte_length' macro LoadJSArrayBufferByteLength(JSArrayBuffer):
@@ -70,6 +70,7 @@ bitfield struct JSArrayBufferViewFlags extends uint32 {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSArrayBufferView extends JSAPIObjectWithEmbedderSlots {
   buffer: JSArrayBuffer;
   bit_field: JSArrayBufferViewFlags;  // 32bit
@@ -115,6 +116,7 @@ macro LoadJSArrayBufferViewByteLength(
   return view.byte_length;
 }
 
+@cppObjectLayoutDefinition
 extern class JSTypedArray extends JSArrayBufferView {
   // A BoundedSize if the sandbox is enabled
   raw_length: uintptr;
@@ -126,6 +128,7 @@ extern class JSTypedArray extends JSArrayBufferView {
 // A typed array where the ArrayBuffer is guaranteed to be detached. Note, the
 // inverse does not hold! A normal JSTypedArray can still have a detached
 // buffer.
+@cppObjectLayoutDefinition
 extern class JSDetachedTypedArray extends JSTypedArray {}
 
 extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): uintptr;
@@ -137,18 +140,21 @@ macro IsOnHeapTypedArray(array: JSTypedArray): bool {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSDataViewOrRabGsabDataView extends JSArrayBufferView {
   // A SandboxedPtr if the sandbox is enabled
   data_pointer: RawPtr;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDataView extends JSDataViewOrRabGsabDataView {}
 
+@cppObjectLayoutDefinition
 extern class JSRabGsabDataView extends JSDataViewOrRabGsabDataView {}
 
 @abstract
 @doNotGenerateCast
-extern class TypedArrayConstructor extends JSFunction
+extern class TypedArrayConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';
 @doNotGenerateCast
 extern class Uint8TypedArrayConstructor extends TypedArrayConstructor

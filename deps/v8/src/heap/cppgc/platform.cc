@@ -45,11 +45,7 @@ PageAllocator& CreateAllocatorIfNeeded(PageAllocator* page_allocator) {
 }  // namespace
 
 void Fatal(const std::string& reason, SourceLocation loc) {
-#ifdef DEBUG
-  V8_Fatal(loc.FileName(), static_cast<int>(loc.Line()), "%s", reason.c_str());
-#else   // !DEBUG
-  V8_Fatal("%s", reason.c_str());
-#endif  // !DEBUG
+  FATAL_WITH_LOC(loc, "%s", reason.c_str());
 }
 
 void FatalOutOfMemoryHandler::operator()(const std::string& reason,
@@ -58,12 +54,7 @@ void FatalOutOfMemoryHandler::operator()(const std::string& reason,
     (*custom_handler_)(reason, loc, heap_);
     FATAL("Custom out of memory handler should not have returned");
   }
-#ifdef DEBUG
-  V8_Fatal(loc.FileName(), static_cast<int>(loc.Line()),
-           "Oilpan: Out of memory (%s)", reason.c_str());
-#else   // !DEBUG
-  V8_Fatal("Oilpan: Out of memory");
-#endif  // !DEBUG
+  FATAL_WITH_LOC(loc, "Oilpan: Out of memory (%s)", reason.c_str());
 }
 
 void FatalOutOfMemoryHandler::SetCustomHandler(Callback* callback) {

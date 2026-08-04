@@ -10,7 +10,7 @@ bitfield struct MapBitFields1 extends uint8 {
   is_undetectable: bool: 1 bit;
   is_access_check_needed: bool: 1 bit;
   is_constructor: bool: 1 bit;
-  has_prototype_slot: bool: 1 bit;
+  is_extended_map: bool: 1 bit;
 }
 
 bitfield struct MapBitFields2 extends uint8 {
@@ -34,6 +34,7 @@ bitfield struct MapBitFields3 extends uint32 {
   construction_counter: int32: 3 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class Map extends HeapObject {
   macro PrototypeInfo(): PrototypeInfo labels HasNoPrototypeInfo {
     typeswitch (this.transitions_or_prototype_info) {
@@ -78,7 +79,6 @@ extern class Map extends HeapObject {
   bit_field3: MapBitFields3;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
   prototype: JSReceiver|Null;
   constructor_or_back_pointer_or_native_context: Object;
@@ -95,6 +95,37 @@ extern class Map extends HeapObject {
   prototype_validity_cell: Zero|Cell;
   transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|PrototypeInfo|
       PrototypeSharedClosureInfo|Zero;
+}
+
+extern enum ExtendedMapKind extends uint8 { kJSInterceptorMap, ...}
+
+bitfield struct ExtendedMapBitFields extends uint8 {
+  map_kind: ExtendedMapKind: 3 bit;
+  // The extended map size should be computable via map_kind,
+  // this field just stores the size value for convenience.
+  map_size_in_words: uint8: 5 bit;
+}
+
+// Base class for Maps with extra fields. Subclasses must be defined with
+// @hasSameInstanceTypeAsParent and define padding fields up to kTaggedSize.
+@cppObjectLayoutDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class ExtendedMap extends Map {
+  bit_field_ex: ExtendedMapBitFields;
+  // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
+}
+
+// Extended map for interceptor objects, it caches named and indexed
+// InterceptorInfo objects in the Map for faster access.
+@cppObjectLayoutDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class JSInterceptorMap extends ExtendedMap {
+  @ifnot(TAGGED_SIZE_8_BYTES) extended_padding[3]: uint8;
+  @if(TAGGED_SIZE_8_BYTES) extended_padding[7]: uint8;
+  named_interceptor: InterceptorInfo;
+  indexed_interceptor: InterceptorInfo;
 }
 
 @export

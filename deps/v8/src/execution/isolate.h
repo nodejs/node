@@ -116,6 +116,10 @@ namespace maglev {
 class MaglevConcurrentDispatcher;
 }  // namespace maglev
 
+namespace regexp {
+class Stack;
+}  // namespace regexp
+
 class AddressToIndexHashMap;
 class AstStringConstants;
 class Bootstrapper;
@@ -150,7 +154,6 @@ class OptimizingCompileTaskExecutor;
 class PersistentHandles;
 class PersistentHandlesList;
 class ReadOnlyArtifacts;
-class RegExpStack;
 class RootVisitor;
 class SetupIsolateDelegate;
 class SharedStructTypeRegistry;
@@ -657,7 +660,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   V8_TLS_DECLARE_GETTER(TryGetCurrent, Isolate*, g_current_isolate_)
 
   // Returns the isolate inside which the current thread is running.
-  V8_INLINE static Isolate* Current();
+  V8_INLINE static Isolate* Current() {
+    Isolate* isolate = TryGetCurrent();
+    DCHECK_NOT_NULL(isolate);
+    return isolate;
+  }
   static void SetCurrent(Isolate* isolate);
 
   inline bool IsCurrent() const;
@@ -878,12 +885,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &thread_local_top()->c_function_;
   }
 
-#if defined(DEBUG) || defined(VERIFY_HEAP)
-  // Count the number of active deserializers, so that the heap verifier knows
-  // whether there is currently an active deserialization happening.
-  //
-  // This is needed as the verifier currently doesn't support verifying objects
-  // which are partially deserialized.
+  // Count the number of active deserializers. This is necessary for:
+  // - This is needed as the verifier currently doesn't support verifying
+  //   objects which are partially deserialized.
+  // - The snapshot generator being invoked on GC can trigger DCHECKs where the
+  //   graph is not yet consistent.
   //
   // TODO(leszeks): Make the verifier a bit more deserialization compatible.
   void RegisterDeserializerStarted() { ++num_active_deserializers_; }
@@ -893,11 +899,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool has_active_deserializer() const {
     return num_active_deserializers_.load(std::memory_order_acquire) > 0;
   }
-#else
-  void RegisterDeserializerStarted() {}
-  void RegisterDeserializerFinished() {}
-  bool has_active_deserializer() const { UNREACHABLE(); }
-#endif
 
   // Bottom JS entry.
   Address js_entry_sp() { return thread_local_top()->js_entry_sp_; }
@@ -964,13 +965,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   DirectHandle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
-  V8_NOINLINE void PushStackTraceAndDie(
+  [[noreturn]] V8_NOINLINE void PushStackTraceAndDie(
       void* ptr1 = nullptr, void* ptr2 = nullptr, void* ptr3 = nullptr,
       void* ptr4 = nullptr, void* ptr5 = nullptr, void* ptr6 = nullptr);
   // Similar to the above but without collecting the stack trace.
-  V8_NOINLINE void PushParamsAndDie(void* ptr1 = nullptr, void* ptr2 = nullptr,
-                                    void* ptr3 = nullptr, void* ptr4 = nullptr,
-                                    void* ptr5 = nullptr, void* ptr6 = nullptr);
+  [[noreturn]] V8_NOINLINE void PushParamsAndDie(
+      void* ptr1 = nullptr, void* ptr2 = nullptr, void* ptr3 = nullptr,
+      void* ptr4 = nullptr, void* ptr5 = nullptr, void* ptr6 = nullptr);
   // Like PushStackTraceAndDie but uses DumpWithoutCrashing to continue
   // execution.
   V8_NOINLINE void PushStackTraceAndContinue(
@@ -1000,6 +1001,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // them into `frame_data` and returns the number of frames written.
   size_t CurrentScriptIdsAndContexts(
       v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data);
+  // Walks the JS stack to find the first `frame_data.size()` frames and writes
+  // them into `frame_data` and returns the number of frames written.
+  size_t CurrentScriptData(v8::MemorySpan<StackTrace::ScriptData> frame_data);
 
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
@@ -1019,7 +1023,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Exception throwing support. The caller should use the result of Throw() as
   // its return value. Returns the Exception sentinel.
   Tagged<Object> Throw(Tagged<Object> exception,
-                       MessageLocation* location = nullptr);
+                       MessageLocation* location = nullptr,
+                       bool is_stack_overflow = false);
   Tagged<Object> ThrowAt(DirectHandle<JSObject> exception,
                          MessageLocation* location);
   Tagged<Object> ThrowIllegalOperation();
@@ -1295,6 +1300,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return heap()->js_dispatch_table_space();
   }
 
+  inline JSDispatchTable::Space* GetJSDispatchTableSpaceFor(void* owning_slot) {
+    return GetJSDispatchTableSpaceFor(reinterpret_cast<Address>(owning_slot));
+  }
+
   V8_INLINE Address* builtin_table() { return isolate_data_.builtin_table(); }
   V8_INLINE Address* builtin_tier0_table() {
     return isolate_data_.builtin_tier0_table();
@@ -1431,7 +1440,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     builtins_effects_analyzer_ = builtins_effects_analyzer;
   }
 
-  RegExpStack* regexp_stack() const { return regexp_stack_; }
+  regexp::Stack* regexp_stack() const { return regexp_stack_; }
 
   // Either points to jsregexp_static_offsets_vector, or nullptr if the static
   // vector is in use.
@@ -1455,10 +1464,21 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // TODO(jgruber): Consider removing it.
   std::vector<int>* regexp_indices() { return &regexp_indices_; }
 
-  size_t total_regexp_code_generated() const {
-    return total_regexp_code_generated_;
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  void PrintAndClearRegExpSubjectStrings();
+  int64_t& trace_regexp_exec_start_ticks() {
+    return trace_regexp_exec_start_ticks_;
   }
-  void IncreaseTotalRegexpCodeGenerated(DirectHandle<HeapObject> code);
+  int& trace_regexp_exec_nesting_level() {
+    return trace_regexp_exec_nesting_level_;
+  }
+  std::vector<int>& trace_regexp_exec_subject_indices() {
+    return trace_regexp_exec_subject_indices_;
+  }
+  std::unordered_map<uint32_t, int>& trace_regexp_exec_subject_hash_to_index() {
+    return trace_regexp_exec_subject_hash_to_index_;
+  }
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   Debug* debug() const { return debug_; }
 
@@ -1771,7 +1791,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
-  // ES#sec-async-module-execution-fulfilled step 10
+  // https://tc39.es/ecma262/#sec-async-module-execution-fulfilled step 10
   //
   // According to the spec, modules that depend on async modules (i.e. modules
   // with top-level await) must be evaluated in order in which their
@@ -2266,6 +2286,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return *isolate_data_.shared_trusted_pointer_table_;
   }
 
+  bool has_shared_trusted_pointer_table() const {
+    return isolate_data_.shared_trusted_pointer_table_ != nullptr;
+  }
+
   TrustedPointerTable::Space* shared_trusted_pointer_space() {
     return shared_trusted_pointer_space_;
   }
@@ -2305,6 +2329,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address continuation_preserved_embedder_data_address() {
     return reinterpret_cast<Address>(
         &isolate_data_.continuation_preserved_embedder_data_);
+  }
+
+  Tagged<Object> current_microtask_native_context() const {
+    return isolate_data_.current_microtask_native_context_;
+  }
+  void set_current_microtask_native_context(Tagged<Object> context) {
+    isolate_data_.current_microtask_native_context_ = context;
+  }
+  Address current_microtask_native_context_address() {
+    return reinterpret_cast<Address>(
+        &isolate_data_.current_microtask_native_context_);
   }
 
   struct PromiseHookFields {
@@ -2369,11 +2404,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,
                     Address fp, Address pc);
 
-  // Retires the stack owned by {continuation}, to be called when returning or
-  // throwing from this continuation.
+  // Retires {stack}, to be called when returning or throwing from this
+  // stack.
   // This updates the {StackMemory} state, removes it from the global
-  // {wasm_stacks_} vector and nulls the EPT entry. This does not update the
-  // {ActiveContinuation} root or the stack limit.
+  // {wasm_stacks_} vector and clears the EPT entry of the {WasmStackObject}.
+  // This does not update the {ActiveContinuation} root or the stack limit.
   void RetireWasmStack(wasm::StackMemory* stack);
 #else
   bool IsOnCentralStack() { return true; }
@@ -2615,16 +2650,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Builtins builtins_;
   BuiltinsEffectsAnalyzer* builtins_effects_analyzer_ = nullptr;
   SetupIsolateDelegate* setup_delegate_ = nullptr;
-#if defined(DEBUG) || defined(VERIFY_HEAP)
   std::atomic<int> num_active_deserializers_;
-#endif
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
 #endif  // !V8_INTL_SUPPORT
-  RegExpStack* regexp_stack_ = nullptr;
+  regexp::Stack* regexp_stack_ = nullptr;
   std::vector<int> regexp_indices_;
   // Necessary in order to avoid memory leaks in the presence of
   // TerminateExecution exceptions.
@@ -2853,8 +2886,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
+  // This is only maintained by the shared-space isolate, otherwise it is
+  // always null.
+  ManagedPtrDestructor* shared_managed_ptr_destructors_head_ = nullptr;
 
-  size_t total_regexp_code_generated_ = 0;
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+  int64_t trace_regexp_exec_start_ticks_ = 0;
+  // -1 is used to print the csv header on first use.
+  int trace_regexp_exec_nesting_level_ = -1;
+  // Indices into EternalHandles for OOL subject strings.
+  std::vector<int> trace_regexp_exec_subject_indices_;
+  std::unordered_map<uint32_t, int> trace_regexp_exec_subject_hash_to_index_;
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
   size_t elements_deletion_counter_ = 0;
 
@@ -3006,7 +3049,7 @@ class V8_EXPORT_PRIVATE SaveAndSwitchContext : public SaveContext {
 class V8_NODISCARD NullContextScope : public SaveAndSwitchContext {
  public:
   explicit NullContextScope(Isolate* isolate)
-      : SaveAndSwitchContext(isolate, Context()) {}
+      : SaveAndSwitchContext(isolate, {}) {}
 };
 
 class AssertNoContextChange {

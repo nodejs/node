@@ -85,6 +85,8 @@ V8_EXPORT_PRIVATE uint64_t word64_rol_wrapper(uint64_t input, uint32_t shift);
 
 V8_EXPORT_PRIVATE uint64_t word64_ror_wrapper(uint64_t input, uint32_t shift);
 
+V8_EXPORT_PRIVATE void wasm_int128_add_wrapper(Address data);
+
 V8_EXPORT_PRIVATE void float64_pow_wrapper(Address data);
 
 V8_EXPORT_PRIVATE void f64x2_ceil_wrapper(Address data);
@@ -205,8 +207,12 @@ void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
                          Address fp, Address pc);
 Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
                              Address pc, Address wanted_tag_raw,
-                             Address cont_raw, Address return_buffer,
-                             const CanonicalSig* sig);
+                             Address cont_raw, Address arg_buffer,
+                             const uint32_t sig_index);
+Address switch_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                            Address pc, Address wanted_tag_raw,
+                            Address cont_raw, wasm::StackMemory* target_stack,
+                            Address arg_buffer, const uint32_t sig_index);
 void return_jspi_stack(Isolate* isolate, wasm::StackMemory* to);
 void return_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to);
 void retire_stack(Isolate* isolate, wasm::StackMemory* stack);

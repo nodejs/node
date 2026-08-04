@@ -37,6 +37,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 namespace {
 
@@ -158,8 +159,7 @@ class BacktrackStack {
   using ValueT = int;
   base::SmallVector<ValueT, kStaticCapacity> data_;
 
-  static constexpr int kMaxSize =
-      RegExpStack::kMaximumStackSize / sizeof(ValueT);
+  static constexpr int kMaxSize = Stack::kMaximumStackSize / sizeof(ValueT);
 };
 
 // Registers used during interpreter execution. These consist of output
@@ -174,7 +174,7 @@ class InterpreterRegisters {
 
   InterpreterRegisters(int total_register_count, RegisterT* output_registers,
                        int output_register_count)
-      : registers_(total_register_count),
+      : registers_(total_register_count, kNoMatchValue),
         output_registers_(output_registers),
         total_register_count_(total_register_count),
         output_register_count_(output_register_count) {
@@ -185,10 +185,6 @@ class InterpreterRegisters {
     SBXCHECK_GE(total_register_count, output_register_count);
     SBXCHECK_LE(total_register_count, RegExpMacroAssembler::kMaxRegisterCount);
     DCHECK_NOT_NULL(output_registers);
-
-    // Initialize the output register region to -1 signifying 'no match'.
-    std::memset(registers_.data(), kNoMatchValue,
-                output_register_count * sizeof(RegisterT));
     USE(total_register_count_);
   }
 
@@ -339,11 +335,11 @@ bool IndexIsInBounds(int index, int length) {
 // next handler we simply jump (goto) directly to its address.
 #if V8_USE_COMPUTED_GOTO
 #define BC_LABEL(name) BC_k##name:
-#define DECODE()                                                          \
-  do {                                                                    \
-    RegExpBytecode next_bc = RegExpBytecodes::FromPtr(next_pc);           \
-    next_handler_addr =                                                   \
-        dispatch_table[RegExpBytecodes::ToByte(next_bc) & kBytecodeMask]; \
+#define DECODE()                                                    \
+  do {                                                              \
+    Bytecode next_bc = Bytecodes::FromPtr(next_pc);                 \
+    next_handler_addr =                                             \
+        dispatch_table[Bytecodes::ToByte(next_bc) & kBytecodeMask]; \
   } while (false)
 #define DISPATCH()  \
   pc = next_pc;     \
@@ -352,7 +348,7 @@ bool IndexIsInBounds(int index, int length) {
 // dispatch (A large switch statement inside a loop with a case for every
 // bytecode).
 #else  // V8_USE_COMPUTED_GOTO
-#define BC_LABEL(name) case RegExpBytecode::k##name:
+#define BC_LABEL(name) case Bytecode::k##name:
 #define DECODE() ((void)0)
 #define DISPATCH()  \
   pc = next_pc;     \
@@ -366,8 +362,8 @@ bool IndexIsInBounds(int index, int length) {
 // don't hit the cache and have to fetch the next handler address from physical
 // memory, instructions between ADVANCE/SET_PC_FROM_OFFSET and DISPATCH can
 // potentially be executed unconditionally, reducing memory stall.
-#define ADVANCE()                                   \
-  next_pc = pc + RegExpBytecodes::Size(current_bc); \
+#define ADVANCE()                             \
+  next_pc = pc + Bytecodes::Size(current_bc); \
   DECODE()
 
 #define SET_PC_FROM_OFFSET(offset) \
@@ -390,12 +386,11 @@ bool IndexIsInBounds(int index, int length) {
 #define BYTECODES_END() CLOSE_BLOCK
 
 #ifdef ENABLE_DISASSEMBLER
-#define BYTECODE(Name, ...)                                              \
-  CLOSE_BLOCK                                                            \
-  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);       \
-  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current,    \
-                        current_char, RegExpBytecodes::Size(current_bc), \
-                        #Name);
+#define BYTECODE(Name, ...)                                           \
+  CLOSE_BLOCK                                                         \
+  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);    \
+  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current, \
+                        current_char, Bytecodes::Size(current_bc), #Name);
 #else
 #define BYTECODE(Name, ...) \
   CLOSE_BLOCK               \
@@ -403,8 +398,8 @@ bool IndexIsInBounds(int index, int length) {
 #endif  // ENABLE_DISASSEMBLER
 
 #define INIT(Name, ...)                                                     \
-  constexpr RegExpBytecode current_bc = RegExpBytecode::k##Name;            \
-  using Operands = RegExpBytecodeOperands<current_bc>;                      \
+  constexpr Bytecode current_bc = Bytecode::k##Name;                        \
+  using Operands = BytecodeOperands<current_bc>;                            \
   __VA_OPT__(auto argument_tuple = std::apply(                              \
                  [&](auto... ops) {                                         \
                    return std::make_tuple(                                  \
@@ -517,7 +512,7 @@ IrregexpInterpreter::Result RawMatch(
   // filled with kBreaks, indicating an invalid operation. This way using
   // kBytecodeMask guarantees no OOB access to the dispatch table.
   constexpr int kPaddedBytecodeCount =
-      base::bits::RoundUpToPowerOfTwo32(RegExpBytecodes::kCount);
+      base::bits::RoundUpToPowerOfTwo32(Bytecodes::kCount);
   constexpr int kBytecodeMask = kPaddedBytecodeCount - 1;
   static_assert(std::numeric_limits<uint8_t>::max() >= kBytecodeMask);
 
@@ -527,12 +522,12 @@ IrregexpInterpreter::Result RawMatch(
   // to the dispatch table gets masked using kBytecodeMask in DECODE(). This way
   // we can only get values between 0 (only the least significant byte of an
   // integer is used) and kPaddedBytecodeCount - 1 (kBytecodeMask is defined to
-  // be exactly this value). All entries from RegExpBytecodes::kCount to
+  // be exactly this value). All entries from Bytecodes::kCount to
   // kRegExpPaddedBytecodeCount are automatically filled with kBreak (invalid
   // operation).
 
 #define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_k##name,
-  static const void* const unsafe_dispatch_table[RegExpBytecodes::kCount] = {
+  static const void* const unsafe_dispatch_table[Bytecodes::kCount] = {
       REGEXP_BYTECODE_LIST(DECLARE_DISPATCH_TABLE_ENTRY)};
 #undef DECLARE_DISPATCH_TABLE_ENTRY
 #undef BYTECODE_FILLER_ITERATOR
@@ -544,7 +539,7 @@ IrregexpInterpreter::Result RawMatch(
 
         size_t i = 0;
         // Copy all valid Bytecodes to the dispatch table.
-        for (; i < RegExpBytecodes::kCount; ++i) {
+        for (; i < Bytecodes::kCount; ++i) {
           table[i] = unsafe_dispatch_table[i];
         }
         // Fill dispatch table from last defined bytecode up to the next power
@@ -573,7 +568,7 @@ IrregexpInterpreter::Result RawMatch(
     DECODE();
     DISPATCH();
 #else
-    switch (RegExpBytecodes::FromPtr(pc)) {
+    switch (Bytecodes::FromPtr(pc)) {
 #endif  // V8_USE_COMPUTED_GOTO
     BYTECODES_START()
     BYTECODE(Break) { UNREACHABLE(); }
@@ -1263,7 +1258,7 @@ int IrregexpInterpreter::Match(Isolate* isolate,
       subject_length = kTruncateSubjectAtLength;
       opt_truncated = " (truncated)";
     }
-    Tagged<String> pattern = Cast<String>(regexp_data->source());
+    Tagged<String> pattern = regexp_data->escaped_source();
     PrintF("\n\nStart bytecode interpreter. Pattern /%s/ Subject '%s'%s\n",
            pattern->ToCString().get(),
            subject_string->ToCString(0, subject_length).get(), opt_truncated);
@@ -1297,7 +1292,7 @@ int IrregexpInterpreter::Match(Isolate* isolate,
     if (next_start_position == current_output_registers[0]) {
       // Zero-length matches.
       // TODO(jgruber): Use AdvanceStringIndex based on flat contents instead.
-      next_start_position = static_cast<int>(RegExpUtils::AdvanceStringIndex(
+      next_start_position = static_cast<int>(Utils::AdvanceStringIndex(
           subject_string, next_start_position, is_any_unicode));
       if (next_start_position > static_cast<int>(subject_string->length())) {
         break;
@@ -1378,8 +1373,8 @@ int IrregexpInterpreter::MatchForCallFromJs(
   DisallowHandleDereference no_deref;
 
   Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
-  Tagged<IrRegExpData> regexp_data_obj =
-      SbxCast<IrRegExpData>(Tagged<Object>(regexp_data));
+  Tagged<IrRegExpData> regexp_data_obj = SbxCast<IrRegExpData>(
+      TrustedCast<TrustedObject>(Tagged<Object>(regexp_data)));
 
   if (regexp_data_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation
@@ -1402,5 +1397,6 @@ int IrregexpInterpreter::MatchForCallFromRuntime(
                RegExp::CallOrigin::kFromRuntime);
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

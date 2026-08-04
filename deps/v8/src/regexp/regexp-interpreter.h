@@ -14,6 +14,8 @@ namespace internal {
 
 class TrustedByteArray;
 
+namespace regexp {
+
 class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
  public:
   enum Result {
@@ -68,6 +70,7 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
                    RegExp::CallOrigin call_origin);
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

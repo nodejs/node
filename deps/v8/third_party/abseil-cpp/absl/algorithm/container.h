@@ -197,8 +197,8 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool c_none_of(const C& c, Pred&& pred) {
 // Container-based version of the <algorithm> `std::for_each()` function to
 // apply a function to a container's elements.
 template <typename C, typename Function>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<Function> c_for_each(C&& c,
-                                                                 Function&& f) {
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 std::decay_t<Function> c_for_each(
+    C&& c, Function&& f) {
   return std::for_each(container_algorithm_internal::c_begin(c),
                        container_algorithm_internal::c_end(c),
                        std::forward<Function>(f));
@@ -1758,10 +1758,10 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 void c_iota(Sequence& sequence,
 // accumulation by value.
 //
 // Note: Due to a language technicality this function has return type
-// absl::decay_t<T>. As a user of this function you can casually read
+// std::decay_t<T>. As a user of this function you can casually read
 // this as "returns T by value" and assume it does the right thing.
 template <typename Sequence, typename T>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_accumulate(
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 std::decay_t<T> c_accumulate(
     const Sequence& sequence, T&& init) {
   return std::accumulate(container_algorithm_internal::c_begin(sequence),
                          container_algorithm_internal::c_end(sequence),
@@ -1771,7 +1771,7 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_accumulate(
 // Overload of c_accumulate() for using a binary operations other than
 // addition for computing the accumulation.
 template <typename Sequence, typename T, typename BinaryOp>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_accumulate(
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 std::decay_t<T> c_accumulate(
     const Sequence& sequence, T&& init, BinaryOp&& binary_op) {
   return std::accumulate(container_algorithm_internal::c_begin(sequence),
                          container_algorithm_internal::c_end(sequence),
@@ -1785,10 +1785,10 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_accumulate(
 // to compute the cumulative inner product of container element pairs.
 //
 // Note: Due to a language technicality this function has return type
-// absl::decay_t<T>. As a user of this function you can casually read
+// std::decay_t<T>. As a user of this function you can casually read
 // this as "returns T by value" and assume it does the right thing.
 template <typename Sequence1, typename Sequence2, typename T>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_inner_product(
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 std::decay_t<T> c_inner_product(
     const Sequence1& factors1, const Sequence2& factors2, T&& sum) {
   return std::inner_product(container_algorithm_internal::c_begin(factors1),
                             container_algorithm_internal::c_end(factors1),
@@ -1801,7 +1801,7 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_inner_product(
 // the product between the two container's element pair).
 template <typename Sequence1, typename Sequence2, typename T,
           typename BinaryOp1, typename BinaryOp2>
-ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 decay_t<T> c_inner_product(
+ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 std::decay_t<T> c_inner_product(
     const Sequence1& factors1, const Sequence2& factors2, T&& sum,
     BinaryOp1&& op1, BinaryOp2&& op2) {
   return std::inner_product(container_algorithm_internal::c_begin(factors1),

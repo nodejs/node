@@ -15,13 +15,18 @@
 #include "absl/random/internal/traits.h"
 
 #include <cstdint>
+#include <random>
 #include <type_traits>
 
 #include "gtest/gtest.h"
 
 namespace {
 
+using absl::random_internal::is_urbg;
 using absl::random_internal::is_widening_convertible;
+
+static_assert(is_urbg<std::minstd_rand>::value);
+static_assert(!is_urbg<uint64_t>::value);
 
 // CheckWideningConvertsToSelf<T1, T2, ...>()
 //

@@ -4,6 +4,7 @@
 
 #include "src/snapshot/context-serializer.h"
 
+#include "include/v8config.h"
 #include "src/api/api-inl.h"
 #include "src/execution/microtask-queue.h"
 #include "src/heap/combined-heap.h"
@@ -26,10 +27,10 @@ namespace {
 // serialization, the original state is restored.
 class V8_NODISCARD SanitizeNativeContextScope final {
  public:
-  SanitizeNativeContextScope(Isolate* isolate,
-                             Tagged<NativeContext> native_context,
-                             bool allow_active_isolate_for_testing,
-                             const DisallowGarbageCollection& no_gc)
+  SanitizeNativeContextScope(
+      Isolate* isolate, Tagged<NativeContext> native_context,
+      bool allow_active_isolate_for_testing,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
       : native_context_(native_context), no_gc_(no_gc) {
 #ifdef DEBUG
     if (!allow_active_isolate_for_testing) {

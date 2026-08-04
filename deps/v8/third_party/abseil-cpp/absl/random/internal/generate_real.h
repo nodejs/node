@@ -69,7 +69,7 @@ template <typename RealType,  // Real type, either float or double.
           bool IncludeZero = true>
 inline RealType GenerateRealFromBits(uint64_t bits, int exp_bias = 0) {
   using real_type = RealType;
-  using uint_type = absl::conditional_t<std::is_same<real_type, float>::value,
+  using uint_type = std::conditional_t<std::is_same<real_type, float>::value,
                                         uint32_t, uint64_t>;
 
   static_assert(

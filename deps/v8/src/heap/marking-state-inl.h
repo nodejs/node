@@ -9,7 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/marking-inl.h"
-#include "src/heap/mutable-page.h"
+#include "src/heap/mutable-page-inl.h"
 
 namespace v8 {
 namespace internal {

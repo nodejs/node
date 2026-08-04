@@ -31,14 +31,14 @@ namespace container_internal {
 
 // Defines how slots are initialized/destroyed/moved.
 template <class Policy, class = void>
-struct hash_policy_traits : common_policy_traits<Policy> {
+  struct hash_policy_traits : common_policy_traits<Policy> {
   // The type of the keys stored in the hashtable.
   using key_type = typename Policy::key_type;
 
  private:
   struct ReturnKey {
     template <class Key,
-              absl::enable_if_t<std::is_lvalue_reference<Key>::value, int> = 0>
+              std::enable_if_t<std::is_lvalue_reference<Key>::value, int> = 0>
     static key_type& Impl(Key&& k, int) {
       return *std::launder(
           const_cast<key_type*>(std::addressof(std::forward<Key>(k))));
@@ -63,7 +63,7 @@ struct hash_policy_traits : common_policy_traits<Policy> {
   struct ConstantIteratorsImpl : std::false_type {};
 
   template <class P>
-  struct ConstantIteratorsImpl<P, absl::void_t<typename P::constant_iterators>>
+  struct ConstantIteratorsImpl<P, std::void_t<typename P::constant_iterators>>
       : P::constant_iterators {};
 
  public:

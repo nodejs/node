@@ -253,7 +253,13 @@ struct WordWithBits : public Any {
 
 using Word32 = WordWithBits<32>;
 using Word64 = WordWithBits<64>;
-using WordPtr = std::conditional_t<Is64(), Word64, Word32>;
+#ifdef V8_TARGET_ARCH_64_BIT
+static_assert(Is64());
+using WordPtr = Word64;
+#else
+static_assert(!Is64());
+using WordPtr = Word32;
+#endif
 
 template <size_t Bits>
 struct FloatWithBits : public Any {  // FloatAny {
@@ -483,15 +489,12 @@ struct v_traits<Union<T, Ts...>> {
 
   template <typename U>
   struct implicitly_constructible_from
-      : std::bool_constant<(
-            v_traits<T>::template implicitly_constructible_from<U>::value ||
-            ... ||
-            v_traits<Ts>::template implicitly_constructible_from<U>::value)> {};
-  template <typename... Us>
-  struct implicitly_constructible_from<Union<Us...>>
-      : std::bool_constant<(implicitly_constructible_from<Us>::value && ...)> {
-  };
+      : std::bool_constant<is_subtype<U, Union<T, Ts...>>::value> {};
 };
+
+// Make sure that a simple implicitly_constructible_from works.
+static_assert(
+    v_traits<MaybeObject>::implicitly_constructible_from<Object>::value);
 
 namespace detail {
 template <typename T, bool SameStaticRep>
@@ -594,6 +597,7 @@ using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
 using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32, BuiltinPtr>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 using Word32Pair = Tuple<Word32, Word32>;
+using Word64Pair = Tuple<Word64, Word64>;
 
 template <typename T>
 concept IsUntagged =

@@ -1,0 +1,149 @@
+diff --git a/third_party/abseil-cpp/absl/meta/type_traits.h b/third_party/abseil-cpp/absl/meta/type_traits.h
+index 9013aead88898..66a8be988dd93 100644
+--- a/third_party/abseil-cpp/absl/meta/type_traits.h
++++ b/third_party/abseil-cpp/absl/meta/type_traits.h
+@@ -118,112 +118,112 @@ using void_t = typename type_traits_internal::VoidTImpl<Ts...>::type;
+ // https://en.cppreference.com/w/cpp/header/type_traits
+ 
+ template <class T>
+-using add_const_t ABSL_DEPRECATE_AND_INLINE() = std::add_const_t<T>;
++using add_const_t ABSL_REFACTOR_INLINE = std::add_const_t<T>;
+ 
+ template <class T>
+-using add_cv_t ABSL_DEPRECATE_AND_INLINE() = std::add_cv_t<T>;
++using add_cv_t ABSL_REFACTOR_INLINE = std::add_cv_t<T>;
+ 
+ template <class T>
+-using add_lvalue_reference_t ABSL_DEPRECATE_AND_INLINE() =
++using add_lvalue_reference_t ABSL_REFACTOR_INLINE =
+     std::add_lvalue_reference_t<T>;
+ 
+ template <class T>
+-using add_pointer_t ABSL_DEPRECATE_AND_INLINE() = std::add_pointer_t<T>;
++using add_pointer_t ABSL_REFACTOR_INLINE = std::add_pointer_t<T>;
+ 
+ template <class T>
+-using add_rvalue_reference_t ABSL_DEPRECATE_AND_INLINE() =
++using add_rvalue_reference_t ABSL_REFACTOR_INLINE =
+     std::add_rvalue_reference_t<T>;
+ 
+ template <class T>
+-using add_volatile_t ABSL_DEPRECATE_AND_INLINE() = std::add_volatile_t<T>;
++using add_volatile_t ABSL_REFACTOR_INLINE = std::add_volatile_t<T>;
+ 
+ template <class... T>
+-using common_type_t ABSL_DEPRECATE_AND_INLINE() = std::common_type_t<T...>;
++using common_type_t ABSL_REFACTOR_INLINE = std::common_type_t<T...>;
+ 
+ template <bool C, class T, class F>
+-using conditional_t ABSL_DEPRECATE_AND_INLINE() = std::conditional_t<C, T, F>;
++using conditional_t ABSL_REFACTOR_INLINE = std::conditional_t<C, T, F>;
+ 
+ template <class... T>
+-using conjunction ABSL_DEPRECATE_AND_INLINE() = std::conjunction<T...>;
++using conjunction ABSL_REFACTOR_INLINE = std::conjunction<T...>;
+ 
+ template <class T>
+-using decay_t ABSL_DEPRECATE_AND_INLINE() = std::decay_t<T>;
++using decay_t ABSL_REFACTOR_INLINE = std::decay_t<T>;
+ 
+ template <bool C, class T = void>
+-using enable_if_t ABSL_DEPRECATE_AND_INLINE() = std::enable_if_t<C, T>;
++using enable_if_t ABSL_REFACTOR_INLINE = std::enable_if_t<C, T>;
+ 
+ template <class... T>
+-using disjunction ABSL_DEPRECATE_AND_INLINE() = std::disjunction<T...>;
++using disjunction ABSL_REFACTOR_INLINE = std::disjunction<T...>;
+ 
+ template <class T>
+-using is_copy_assignable ABSL_DEPRECATE_AND_INLINE() =
++using is_copy_assignable ABSL_REFACTOR_INLINE =
+     std::is_copy_assignable<T>;
+ 
+ template <class T>
+-using is_function ABSL_DEPRECATE_AND_INLINE() = std::is_function<T>;
++using is_function ABSL_REFACTOR_INLINE = std::is_function<T>;
+ 
+ template <class T>
+-using is_move_assignable ABSL_DEPRECATE_AND_INLINE() =
++using is_move_assignable ABSL_REFACTOR_INLINE =
+     std::is_move_assignable<T>;
+ 
+ template <class T>
+-using is_trivially_copy_assignable ABSL_DEPRECATE_AND_INLINE() =
++using is_trivially_copy_assignable ABSL_REFACTOR_INLINE =
+     std::is_trivially_copy_assignable<T>;
+ 
+ template <class T>
+-using is_trivially_copy_constructible ABSL_DEPRECATE_AND_INLINE() =
++using is_trivially_copy_constructible ABSL_REFACTOR_INLINE =
+     std::is_trivially_copy_constructible<T>;
+ 
+ template <class T>
+-using is_trivially_default_constructible ABSL_DEPRECATE_AND_INLINE() =
++using is_trivially_default_constructible ABSL_REFACTOR_INLINE =
+     std::is_trivially_default_constructible<T>;
+ 
+ template <class T>
+-using is_trivially_destructible ABSL_DEPRECATE_AND_INLINE() =
++using is_trivially_destructible ABSL_REFACTOR_INLINE =
+     std::is_trivially_destructible<T>;
+ 
+ template <class T>
+-using is_trivially_move_assignable ABSL_DEPRECATE_AND_INLINE() =
++using is_trivially_move_assignable ABSL_REFACTOR_INLINE =
+     std::is_trivially_move_assignable<T>;
+ 
+ template <class T>
+-using is_trivially_move_constructible ABSL_DEPRECATE_AND_INLINE() =
++using is_trivially_move_constructible ABSL_REFACTOR_INLINE =
+     std::is_trivially_move_constructible<T>;
+ 
+ template <class T>
+-using make_signed_t ABSL_DEPRECATE_AND_INLINE() = std::make_signed_t<T>;
++using make_signed_t ABSL_REFACTOR_INLINE = std::make_signed_t<T>;
+ 
+ template <class T>
+-using make_unsigned_t ABSL_DEPRECATE_AND_INLINE() = std::make_unsigned_t<T>;
++using make_unsigned_t ABSL_REFACTOR_INLINE = std::make_unsigned_t<T>;
+ 
+ template <class T>
+-using negation ABSL_DEPRECATE_AND_INLINE() = std::negation<T>;
++using negation ABSL_REFACTOR_INLINE = std::negation<T>;
+ 
+ template <class T>
+-using remove_all_extents_t ABSL_DEPRECATE_AND_INLINE() =
++using remove_all_extents_t ABSL_REFACTOR_INLINE =
+     std::remove_all_extents_t<T>;
+ 
+ template <class T>
+-using remove_const_t ABSL_DEPRECATE_AND_INLINE() = std::remove_const_t<T>;
++using remove_const_t ABSL_REFACTOR_INLINE = std::remove_const_t<T>;
+ 
+ template <class T>
+-using remove_cv_t ABSL_DEPRECATE_AND_INLINE() = std::remove_cv_t<T>;
++using remove_cv_t ABSL_REFACTOR_INLINE = std::remove_cv_t<T>;
+ 
+ template <class T>
+-using remove_extent_t ABSL_DEPRECATE_AND_INLINE() = std::remove_extent_t<T>;
++using remove_extent_t ABSL_REFACTOR_INLINE = std::remove_extent_t<T>;
+ 
+ template <class T>
+-using remove_pointer_t ABSL_DEPRECATE_AND_INLINE() = std::remove_pointer_t<T>;
++using remove_pointer_t ABSL_REFACTOR_INLINE = std::remove_pointer_t<T>;
+ 
+ template <class T>
+-using remove_reference_t ABSL_DEPRECATE_AND_INLINE() =
++using remove_reference_t ABSL_REFACTOR_INLINE =
+     std::remove_reference_t<T>;
+ 
+ template <class T>
+-using remove_volatile_t ABSL_DEPRECATE_AND_INLINE() = std::remove_volatile_t<T>;
++using remove_volatile_t ABSL_REFACTOR_INLINE = std::remove_volatile_t<T>;
+ 
+ template <class T>
+-using underlying_type_t ABSL_DEPRECATE_AND_INLINE() = std::underlying_type_t<T>;
++using underlying_type_t ABSL_REFACTOR_INLINE = std::underlying_type_t<T>;
+ 
+ #if defined(__cpp_lib_remove_cvref) && __cpp_lib_remove_cvref >= 201711L
+ template <typename T>

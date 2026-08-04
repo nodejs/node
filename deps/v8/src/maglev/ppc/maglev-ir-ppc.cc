@@ -762,6 +762,13 @@ void Float64Abs::GenerateCode(MaglevAssembler* masm,
   __ fabs(out, in);
 }
 
+void Float64RoundToFloat32::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister input = ToDoubleRegister(ValueInput());
+  DoubleRegister result = ToDoubleRegister(this->result());
+  __ frsp(result, input);
+}
+
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   DoubleRegister in = ToDoubleRegister(ValueInput());
@@ -780,15 +787,20 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
     __ fcmpu(temp, temp2);
     Label done;
     __ JumpIf(ne, &done, Label::kNear);
+    // Copy the sign bit from `out` which carries the sign bit from the original
+    // input.
+    __ fmr(temp, out);
     __ fadd(out, temp2, out);
     __ fadd(out, temp2, out);
     // Add fcpsgn make sure -0.5 rounds to -0.0 instead of 0.0
-    __ fcpsgn(out, in, out);
+    __ fcpsgn(out, temp, out);
     __ bind(&done);
   } else if (kind_ == Kind::kCeil) {
     __ frip(out, in);
   } else if (kind_ == Kind::kFloor) {
     __ frim(out, in);
+  } else if (kind_ == Kind::kTrunc) {
+    __ friz(out, in);
   }
 }
 
@@ -810,11 +822,20 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 void Float64Min::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -824,11 +845,20 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 void Float64Max::SetValueLocationConstraints() {
   UseRegister(LeftInput());
   UseRegister(RightInput());
-  DefineAsRegister(this);
+  if (LeftInput().node() == RightInput().node()) {
+    DefineSameAsFirst(this);
+  } else {
+    DefineAsRegister(this);
+  }
 }
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   DoubleRegister out = ToDoubleRegister(result());
@@ -922,7 +952,7 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
               SetRC);
     __ EmitEagerDeoptIf(lt, DeoptimizeReason::kOutOfBounds, this);
   }
-  __ CmpS32(index, limit);
+  __ CmpU32(index, limit);
   __ EmitEagerDeoptIf(ge, DeoptimizeReason::kOutOfBounds, this);
 }
 
@@ -1059,11 +1089,13 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
   Register budget = temps.AcquireScratch();
   __ LoadU32(
       budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r0);
   __ SubS32(budget, budget, Operand(amount), r0);
   __ StoreU32(
       budget,
-      FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset), r0);
+      FieldMemOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      r0);
   ZoneLabelRef done(masm);
   __ CmpS32(budget, Operand(0), r0);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type, budget);

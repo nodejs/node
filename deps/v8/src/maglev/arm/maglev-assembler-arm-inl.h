@@ -503,8 +503,16 @@ inline void MaglevAssembler::AddInt32(Register reg, Register other) {
   add(reg, reg, other);
 }
 
+inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
+  add(dst, src, Operand(amount));
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   and_(reg, reg, Operand(mask));
+}
+
+inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
+  and_(dst, src, Operand(mask));
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
@@ -523,6 +531,29 @@ inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   lsl(reg, reg, Operand(amount));
 }
 
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, int32_t value) {
+  lsr(dst, dst, Operand(value));
+}
+
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, Register src,
+                                                 int32_t value) {
+  lsr(dst, src, Operand(value));
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src) {
+  sub(dst, dst, src);
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src1,
+                                      Register src2) {
+  sub(dst, src1, src2);
+}
+
+inline void MaglevAssembler::LoadBitsFromWord32(Register dst, Register src,
+                                                int width, int shift) {
+  ubfx(dst, src, shift, width);
+}
+
 inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
   add(reg, reg, Operand(delta));
 }
@@ -530,6 +561,10 @@ inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
 inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   DCHECK_EQ(location.am(), Offset);
   add(dst, location.rn(), Operand(location.offset()));
+}
+
+inline void MaglevAssembler::MakeWeak(Register dst, Register src) {
+  orr(dst, src, Operand(kWeakHeapObjectTag));
 }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,

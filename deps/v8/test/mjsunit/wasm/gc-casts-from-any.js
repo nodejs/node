@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
+// Flags: --experimental-wasm-stringref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -10,8 +10,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   var builder = new WasmModuleBuilder();
   builder.startRecGroup();
   let structSuper = builder.addStruct([makeField(kWasmI32, true)]);
-  let structSub = builder.addStruct([makeField(kWasmI32, true)], structSuper);
-  let array = builder.addArray(kWasmI32);
+  let structSub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: structSuper});
+  let array = builder.addArray(kWasmI32, {mutable: false});
   builder.endRecGroup();
 
   let fct =

@@ -108,18 +108,15 @@ ABSL_NAMESPACE_END
 #else
 #define ABSL_ASSERT(expr)                           \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { assert(false && #expr); }())  // NOLINT
+                             : assert(false && #expr))  // NOLINT
 #endif
 
 // `ABSL_INTERNAL_HARDENING_ABORT()` controls how `ABSL_HARDENING_ASSERT()`
 // aborts the program in release mode (when NDEBUG is defined). The
 // implementation should abort the program as quickly as possible and ideally it
 // should not be possible to ignore the abort request.
-#define ABSL_INTERNAL_HARDENING_ABORT()   \
-  do {                                    \
-    ABSL_INTERNAL_IMMEDIATE_ABORT_IMPL(); \
-    ABSL_INTERNAL_UNREACHABLE_IMPL();     \
-  } while (false)
+#define ABSL_INTERNAL_HARDENING_ABORT() \
+  ((void)ABSL_INTERNAL_IMMEDIATE_ABORT_IMPL(), ABSL_INTERNAL_UNREACHABLE_IMPL())
 
 // ABSL_HARDENING_ASSERT()
 //
@@ -135,7 +132,7 @@ ABSL_NAMESPACE_END
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
 #define ABSL_HARDENING_ASSERT(expr)                 \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+                             : ABSL_INTERNAL_HARDENING_ABORT())
 #else
 #define ABSL_HARDENING_ASSERT(expr) ABSL_ASSERT(expr)
 #endif
@@ -154,7 +151,7 @@ ABSL_NAMESPACE_END
 #if ABSL_OPTION_HARDENED == 1 && defined(NDEBUG)
 #define ABSL_HARDENING_ASSERT_SLOW(expr)            \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+                             : ABSL_INTERNAL_HARDENING_ABORT())
 #else
 #define ABSL_HARDENING_ASSERT_SLOW(expr) ABSL_ASSERT(expr)
 #endif

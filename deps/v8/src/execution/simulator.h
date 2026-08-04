@@ -181,7 +181,7 @@ class GeneratedCode {
   }
 #else
 
-  DISABLE_CFI_ICALL Return Call(Args... args) {
+  __attribute__((nodebug)) DISABLE_CFI_ICALL Return Call(Args... args) {
     // When running without a simulator we call the entry directly.
 // Starboard is a platform abstraction interface that also include Windows
 // platforms like UWP.
@@ -218,7 +218,8 @@ class GeneratedCode {
   }
 #endif  // USE_SIMULATOR
 
-  DISABLE_CFI_ICALL Return CallSandboxed(Args... args) {
+  __attribute__((nodebug)) DISABLE_CFI_ICALL Return
+  CallSandboxed(Args... args) {
     EnterSandboxScope sandboxed;
     return Call(args...);
   }

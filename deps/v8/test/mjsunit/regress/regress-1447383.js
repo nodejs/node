@@ -5,7 +5,7 @@
 // Correctness issue:
 // When changing the Number prototype and providing a smi as the locale for
 // String.p.toLocaleLowerCase, the prototype would not be considered.
-// See ecma402 #sec-canonicalizelocalelist.
+// See https://tc39.es/ecma402/#sec-canonicalizelocalelist.
 
 let smi = 123;
 let heapNumber = 1.23;

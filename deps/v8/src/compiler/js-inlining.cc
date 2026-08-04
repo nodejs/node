@@ -426,7 +426,7 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
   const JSWasmCallParameters& wasm_call_params = call_node.Parameters();
   wasm::NativeModule* native_module = wasm_call_params.native_module();
   const int fct_index = wasm_call_params.function_index();
-  TRACE("Considering wasm function ["
+  TRACE("Considering Wasm function ["
         << fct_index << "] "
         << WasmFunctionNameForTrace(native_module, fct_index) << " of module "
         << wasm_call_params.native_module() << " for inlining");

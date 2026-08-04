@@ -24,7 +24,9 @@
 #include "src/flags/flags.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-index.h"
+#include "src/objects/map-word.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/object-predicates.h"
 #include "src/objects/objects-definitions.h"
 #include "src/objects/property-details.h"
 #include "src/objects/tagged-impl.h"
@@ -145,7 +147,7 @@ class Object : public AllStatic {
     kToNumeric  // Numeric = Smi or HeapNumber or BigInt
   };
 
-  // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
+  // https://tc39.es/ecma262/#sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(DirectHandle<Object> object);
 
@@ -163,8 +165,13 @@ class Object : public AllStatic {
   V8_WARN_UNUSED_RESULT static inline Maybe<double> IntegerValue(
       Isolate* isolate, HandleType<T> input);
 
-  static inline Representation OptimalRepresentation(
-      Tagged<Object> obj, PtrComprCageBase cage_base);
+  // Selects optimal representation and constness for a given value.
+  // Usually, the constness stays unmodified unless the value is a HeapNumber
+  // with the hole NaN pattern. This is necessary to distinguish between
+  // initialized and non-initialized double fields.
+  static inline std::pair<Representation, PropertyConstness>
+  OptimalRepresentation(Tagged<Object> obj, PropertyConstness constness,
+                        PtrComprCageBase cage_base);
 
   static inline ElementsKind OptimalElementsKind(Tagged<Object> obj,
                                                  PtrComprCageBase cage_base);
@@ -669,108 +676,6 @@ V8_INLINE static bool HasWeakHeapObjectTag(const Tagged<Object> value) {
   return HAS_WEAK_HEAP_OBJECT_TAG(value.ptr());
 }
 
-// For compatibility with TaggedImpl, and users of this header that don't pull
-// in objects-inl.h
-// TODO(leszeks): Remove once no longer needed.
-template <HeapObjectReferenceType kRefType, typename StorageType>
-V8_INLINE constexpr bool IsObject(TaggedImpl<kRefType, StorageType> obj) {
-  return obj.IsObject();
-}
-template <HeapObjectReferenceType kRefType, typename StorageType>
-V8_INLINE constexpr bool IsSmi(TaggedImpl<kRefType, StorageType> obj) {
-  return obj.IsSmi();
-}
-template <HeapObjectReferenceType kRefType, typename StorageType>
-V8_INLINE constexpr bool IsHeapObject(TaggedImpl<kRefType, StorageType> obj) {
-  return obj.IsHeapObject();
-}
-template <typename StorageType>
-V8_INLINE constexpr bool IsWeak(
-    TaggedImpl<HeapObjectReferenceType::WEAK, StorageType> obj) {
-  return obj.IsWeak();
-}
-
-// TODO(leszeks): These exist both as free functions and members of Tagged. They
-// probably want to be cleaned up at some point.
-V8_INLINE bool IsSmi(Tagged<Object> obj) { return obj.IsSmi(); }
-V8_INLINE bool IsSmi(Tagged<HeapObject> obj) { return false; }
-V8_INLINE bool IsSmi(Tagged<Smi> obj) { return true; }
-
-V8_INLINE bool IsHeapObject(Tagged<Object> obj) { return obj.IsHeapObject(); }
-V8_INLINE bool IsHeapObject(Tagged<HeapObject> obj) { return true; }
-V8_INLINE bool IsHeapObject(Tagged<Smi> obj) { return false; }
-
-V8_INLINE bool IsTaggedIndex(Tagged<Object> obj);
-
-#define IS_TYPE_FUNCTION_DECL(Type)            \
-  V8_INLINE bool Is##Type(Tagged<Object> obj); \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, PtrComprCageBase cage_base);
-OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(HashTableBase)
-IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
-IS_TYPE_FUNCTION_DECL(PropertyDictionary)
-// A wrapper around IsHole to make it easier to distinguish from specific hole
-// checks (e.g. IsTheHole).
-IS_TYPE_FUNCTION_DECL(AnyHole)
-#undef IS_TYPE_FUNCTION_DECL
-
-V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
-
-// Oddball checks are faster when they are raw pointer comparisons, so the
-// isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, ...)                                 \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, Isolate* isolate);         \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, LocalIsolate* isolate);    \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots);      \
-  V8_INLINE bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots); \
-  V8_INLINE bool Is##Type(Tagged<Object> obj);
-ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
-IS_TYPE_FUNCTION_DECL(NullOrUndefined)
-#undef IS_TYPE_FUNCTION_DECL
-
-V8_INLINE bool IsZero(Tagged<Object> obj);
-V8_INLINE bool IsNoSharedNameSentinel(Tagged<Object> obj);
-V8_INLINE bool IsPrivateSymbol(Tagged<Object> obj);
-V8_INLINE bool IsPublicSymbol(Tagged<Object> obj);
-#if !V8_ENABLE_WEBASSEMBLY
-// Dummy implementation on builds without WebAssembly.
-template <typename T>
-V8_INLINE bool IsWasmObject(T obj, Isolate* = nullptr) {
-  return false;
-}
-#endif
-
-// Returns true for JS and Wasm objects not on the shared heap.
-V8_INLINE bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
-V8_INLINE bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
-// Same, but only permits JS objects.
-V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
-V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
-
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
-  V8_INLINE bool Is##Name(Tagged<Object> obj);  \
-  V8_INLINE bool Is##Name(Tagged<Object> obj, PtrComprCageBase cage_base);
-STRUCT_LIST(DECL_STRUCT_PREDICATE)
-#undef DECL_STRUCT_PREDICATE
-
-V8_INLINE bool IsNaN(Tagged<Object> obj);
-V8_INLINE bool IsMinusZero(Tagged<Object> obj);
-
-// Returns whether the object is safe to share across Isolates.
-//
-// Currently, the following kinds of values can be safely shared across
-// Isolates:
-// - Smis
-// - Objects in RO space when the RO space is shared
-// - HeapNumbers in the shared old space
-// - Strings for which String::IsShared() is true
-// - JSSharedStructs
-// - JSSharedArrays
-inline bool IsShared(Tagged<Object> obj);
-
 // Prints this object without details.
 V8_EXPORT_PRIVATE void ShortPrint(Tagged<Object> obj, FILE* out = stdout);
 
@@ -791,88 +696,6 @@ V8_EXPORT_PRIVATE void Print(Tagged<Object> obj, std::ostream& os);
 inline void Print(Tagged<Object> obj) { ShortPrint(obj); }
 inline void Print(Tagged<Object> obj, std::ostream& os) { ShortPrint(obj, os); }
 #endif
-
-// Heap objects typically have a map pointer in their first word.  However,
-// during GC other data (e.g. mark bits, forwarding addresses) is sometimes
-// encoded in the first word.  The class MapWord is an abstraction of the
-// value in a heap object's first word.
-//
-// When external code space is enabled forwarding pointers are encoded as
-// Smi values representing a diff from the source or map word host object
-// address in kObjectAlignment chunks. Such a representation has the following
-// properties:
-// a) it can hold both positive an negative diffs for full pointer compression
-//    cage size (HeapObject address has only valuable 30 bits while Smis have
-//    31 bits),
-// b) it's independent of the pointer compression base and pointer compression
-//    scheme.
-class MapWord {
- public:
-  // Normal state: the map word contains a map pointer.
-
-  // Create a map word from a map pointer.
-  static inline MapWord FromMap(const Tagged<Map> map);
-
-  // View this map word as a map pointer.
-  inline Tagged<Map> ToMap() const;
-
-  // Scavenge collection: the map word of live objects in the from space
-  // contains a forwarding address (a heap object pointer in the to space).
-
-  // True if this map word is a forwarding address for a scavenge
-  // collection.  Only valid during a scavenge collection (specifically,
-  // when all map words are heap object pointers, i.e. not during a full GC).
-  inline bool IsForwardingAddress() const;
-
-  V8_EXPORT_PRIVATE static bool IsMapOrForwarded(Tagged<Map> map);
-
-  // Create a map word from a forwarding address.
-  static inline MapWord FromForwardingAddress(Tagged<HeapObject> map_word_host,
-                                              Tagged<HeapObject> object);
-
-  // View this map word as a forwarding address.
-  inline Tagged<HeapObject> ToForwardingAddress(
-      Tagged<HeapObject> map_word_host) const;
-
-  constexpr inline Address ptr() const { return value_; }
-
-  // When pointer compression is enabled, MapWord is uniquely identified by
-  // the lower 32 bits. On the other hand full-value comparison is not correct
-  // because map word in a forwarding state might have corrupted upper part.
-  constexpr bool operator==(MapWord other) const {
-    return static_cast<Tagged_t>(ptr()) == static_cast<Tagged_t>(other.ptr());
-  }
-  constexpr bool operator!=(MapWord other) const {
-    return static_cast<Tagged_t>(ptr()) != static_cast<Tagged_t>(other.ptr());
-  }
-
-#ifdef V8_MAP_PACKING
-  static constexpr Address Pack(Address map) {
-    return map ^ Internals::kMapWordXorMask;
-  }
-  static constexpr Address Unpack(Address mapword) {
-    // TODO(wenyuzhao): Clear header metadata.
-    return mapword ^ Internals::kMapWordXorMask;
-  }
-  static constexpr bool IsPacked(Address mapword) {
-    return (static_cast<intptr_t>(mapword) & Internals::kMapWordXorMask) ==
-               Internals::kMapWordSignature &&
-           (0xffffffff00000000 & static_cast<intptr_t>(mapword)) != 0;
-  }
-#else
-  static constexpr bool IsPacked(Address) { return false; }
-#endif
-
- private:
-  // HeapObject calls the private constructor and directly reads the value.
-  friend class HeapObject;
-  template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
-  friend class TaggedField;
-
-  explicit constexpr MapWord(Address value) : value_(value) {}
-
-  Address value_;
-};
 
 template <int start_offset, int end_offset, int size>
 class FixedBodyDescriptor;

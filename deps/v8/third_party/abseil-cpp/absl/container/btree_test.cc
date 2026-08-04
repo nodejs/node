@@ -24,6 +24,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -47,7 +48,6 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
-#include "absl/types/optional.h"
 
 ABSL_FLAG(int, test_values, 10000, "The number of values to use for tests");
 
@@ -3007,11 +3007,11 @@ TEST(Btree, InvalidComparatorsCaught) {
   // compare differently with each other from how they compare with instances
   // that don't have the optional field.
   struct ClockTime {
-    absl::optional<int> hour;
+    std::optional<int> hour;
     int minute;
   };
   // `comp(a,b) && comp(b,c) && !comp(a,c)` violates transitivity.
-  ClockTime a = {absl::nullopt, 1};
+  ClockTime a = {std::nullopt, 1};
   ClockTime b = {2, 5};
   ClockTime c = {6, 0};
   {

@@ -21,15 +21,18 @@ namespace internal {
 
 void PromiseBuiltinsAssembler::ZeroOutEmbedderOffsets(
     TNode<JSPromise> promise) {
-  for (int offset = JSPromise::kHeaderSize;
-       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
+  for (int offset = static_cast<int>(sizeof(JSPromise));
+       offset < static_cast<int>(sizeof(JSPromise)) +
+                    v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;
+       offset += kTaggedSize) {
     StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::zero()));
   }
 }
 
 TNode<HeapObject> PromiseBuiltinsAssembler::AllocateJSPromise(
     TNode<Context> context) {
-  return Allocate(JSPromise::kSizeWithEmbedderFields);
+  return Allocate(sizeof(JSPromise) +
+                  v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize);
 }
 
 }  // namespace internal

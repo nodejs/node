@@ -41,6 +41,7 @@ absl_cc_library(
     absl::nullability
     absl::optional
     absl::raw_logging_internal
+    absl::source_location
     absl::span
     absl::stacktrace
     absl::str_format
@@ -59,6 +60,7 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::status
+    absl::source_location
     absl::str_format
     absl::strings
     GTest::gmock_main
@@ -82,6 +84,7 @@ absl_cc_library(
     absl::nullability
     absl::raw_logging_internal
     absl::status
+    absl::source_location
     absl::str_format
     absl::strings
     absl::type_traits
@@ -101,6 +104,7 @@ absl_cc_test(
     absl::status
     absl::status_matchers
     absl::statusor
+    absl::source_location
     absl::strings
     GTest::gmock_main
 )
@@ -119,6 +123,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::base
+    absl::core_headers
     absl::status
     absl::statusor
     absl::strings

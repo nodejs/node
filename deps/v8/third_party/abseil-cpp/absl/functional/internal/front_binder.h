@@ -84,7 +84,7 @@ class FrontBinder {
 };
 
 template <class F, class... BoundArgs>
-using bind_front_t = FrontBinder<decay_t<F>, absl::decay_t<BoundArgs>...>;
+using bind_front_t = FrontBinder<std::decay_t<F>, std::decay_t<BoundArgs>...>;
 
 }  // namespace functional_internal
 ABSL_NAMESPACE_END

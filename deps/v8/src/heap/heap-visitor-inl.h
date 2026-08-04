@@ -150,7 +150,6 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
         maybe_object_size);
     TYPED_VISITOR_ID_LIST(CASE)
     TYPED_VISITOR_WITH_SLACK_ID_LIST(CASE)
-    TORQUE_VISITOR_ID_LIST(CASE)
 #undef CASE
 #define CASE(TypeName)                                                     \
   case kVisit##TypeName:                                                   \
@@ -239,7 +238,6 @@ void HeapVisitor<ConcreteVisitor>::VisitMapPointerIfNeeded(
   }
 
 TYPED_VISITOR_ID_LIST(VISIT)
-TORQUE_VISITOR_ID_LIST(VISIT)
 TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
 

@@ -403,9 +403,9 @@ struct Xor {
     }                                                                          \
   } while (false)
 
-// This is https://tc39.github.io/ecma262/#sec-getmodifysetvalueinbuffer
+// This is https://tc39.es/ecma262/#sec-getmodifysetvalueinbuffer
 // but also includes the ToInteger/ToBigInt conversion that's part of
-// https://tc39.github.io/ecma262/#sec-atomicreadmodifywrite
+// https://tc39.es/ecma262/#sec-atomicreadmodifywrite
 template <template <typename> class Op>
 Tagged<Object> GetModifySetValueInBuffer(RuntimeArguments args,
                                          Isolate* isolate,
@@ -574,31 +574,31 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   UNREACHABLE();
 }
 
-// ES #sec-atomics.add
+// https://tc39.es/ecma262/#sec-atomics.add
 // Atomics.add( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
   return GetModifySetValueInBuffer<Add>(args, isolate, "Atomics.add");
 }
 
-// ES #sec-atomics.sub
+// https://tc39.es/ecma262/#sec-atomics.sub
 // Atomics.sub( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsSub) {
   return GetModifySetValueInBuffer<Sub>(args, isolate, "Atomics.sub");
 }
 
-// ES #sec-atomics.and
+// https://tc39.es/ecma262/#sec-atomics.and
 // Atomics.and( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
   return GetModifySetValueInBuffer<And>(args, isolate, "Atomics.and");
 }
 
-// ES #sec-atomics.or
+// https://tc39.es/ecma262/#sec-atomics.or
 // Atomics.or( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsOr) {
   return GetModifySetValueInBuffer<Or>(args, isolate, "Atomics.or");
 }
 
-// ES #sec-atomics.xor
+// https://tc39.es/ecma262/#sec-atomics.xor
 // Atomics.xor( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsXor) {
   return GetModifySetValueInBuffer<Xor>(args, isolate, "Atomics.xor");

@@ -43,6 +43,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/flags:__pkg__",
     ],
     deps = [
@@ -62,6 +63,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/flags:__pkg__",
         "//absl/log:__pkg__",
     ],
@@ -129,7 +131,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//visibility:private",
+        "//absl:friends",
     ],
     deps = [
         "//absl/base:config",
@@ -151,6 +153,7 @@ cc_library(
         ":commandlineflag_internal",
         "//absl/base:config",
         "//absl/base:fast_type_id",
+        "//absl/base:nullability",
         "//absl/strings",
         "//absl/types:optional",
     ],
@@ -167,6 +170,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/flags:__pkg__",
         "//absl/flags/rust:__pkg__",
     ],
@@ -267,6 +271,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/flags:__pkg__",
     ],
     deps = [
@@ -410,7 +415,6 @@ cc_test(
         "//absl/numeric:int128",
         "//absl/strings",
         "//absl/time",
-        "//absl/types:optional",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -436,7 +440,6 @@ cc_binary(
         ":reflection",
         "//absl/strings",
         "//absl/time",
-        "//absl/types:optional",
         "@google_benchmark//:benchmark_main",
     ],
 )

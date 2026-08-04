@@ -165,10 +165,15 @@
   TypeswitchBuilder<decltype(Asm())> typeswitch_xx(Asm(), __ data(), expr); \
     while(typeswitch_xx.NextState())
 
-#define CASE_(type, name)                                                 \
-  for(auto [emit, name] = typeswitch_xx.template BeginCase<type>(__LINE__); emit; \
-      emit = (typeswitch_xx.EndCase(__LINE__), false))                   \
+#define CASE_(type, name)                                                   \
+  for(auto [emit, name] = typeswitch_xx.template BeginCase<type>(__LINE__); \
+      emit; emit = (typeswitch_xx.EndCase(__LINE__), false))                \
     NO_UNUSED CONCAT(case_label_xx_, __LINE__) RE_UNUSED
+
+#define DEFAULT                                             \
+    for(bool emit = typeswitch_xx.BeginDefault(); emit;     \
+      emit = (typeswitch_xx.EndDefault(), false))           \
+    NO_UNUSED CONCAT(default_label_xx_, __LINE__) RE_UNUSED
 
 
 #define Assert(condition) AssertImpl(condition, #condition, __FILE__, __LINE__)

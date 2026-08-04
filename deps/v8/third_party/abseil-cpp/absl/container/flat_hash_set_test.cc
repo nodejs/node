@@ -38,6 +38,10 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#include <ranges>  // NOLINT(build/c++20)
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
@@ -394,6 +398,34 @@ TEST(FlatHashSet, IsDefaultHash) {
   EXPECT_EQ((HashtableDebugAccess<flat_hash_set<size_t, Hash>>::kIsDefaultHash),
             false);
 }
+
+#if defined(__cpp_lib_containers_ranges) && \
+    __cpp_lib_containers_ranges >= 202202L
+TEST(FlatHashSet, FromRange) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  absl::flat_hash_set<int> s(std::from_range, v);
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(FlatHashSet, FromRangeWithAllocator) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  absl::flat_hash_set<int, absl::container_internal::hash_default_hash<int>,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<int>>
+      s(std::from_range, v, 0, Alloc<int>());
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(FlatHashSet, FromRangeWithHasherAndAllocator) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  using TestingHash = absl::container_internal::StatefulTestingHash;
+  absl::flat_hash_set<int, TestingHash,
+                      absl::container_internal::hash_default_eq<int>,
+                      Alloc<int>>
+      s(std::from_range, v, 0, TestingHash{}, Alloc<int>());
+  EXPECT_THAT(s, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+#endif
 
 }  // namespace
 }  // namespace container_internal

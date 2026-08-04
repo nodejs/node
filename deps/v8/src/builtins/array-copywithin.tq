@@ -14,7 +14,7 @@ macro ConvertAndClampRelativeIndex(index: Number, length: Number): Number {
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.copyWithin
+// https://tc39.es/ecma262/#sec-array.prototype.copyWithin
 transitioning javascript builtin ArrayPrototypeCopyWithin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).

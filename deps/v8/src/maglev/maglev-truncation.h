@@ -44,7 +44,12 @@ class PropagateTruncationProcessor {
 
   template <IsValueNodeT NodeT>
   ProcessResult Process(NodeT* node) {
-    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+    if constexpr (NodeT::kProperties.has_eager_deopt_info()) {
+      // Note that we don't know yet if the framestates of CheckpointedJumps
+      // will eventually be used or not. We have to assume that it might
+      // eventually be used, in which case it must prevent truncations of its
+      // inputs (which is why we check `has_eager_deopt_info` rather than
+      // `can_eager_deopt` in the condition above).
       node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {
         UnsetCanTruncateToInt32ForDeoptFrameInput(node);
       });
@@ -90,7 +95,7 @@ class PropagateTruncationProcessor {
   ProcessResult Process(NodeT* node) {
     // Non value nodes does not need to be truncated, but we should
     // propagate that we do not want to truncate its inputs.
-    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+    if constexpr (NodeT::kProperties.has_eager_deopt_info()) {
       node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {
         UnsetCanTruncateToInt32ForDeoptFrameInput(node);
       });
@@ -297,6 +302,12 @@ class TruncationProcessor {
 
   ProcessResult ProcessTruncatedConversion(ValueNode* node);
 
+  bool IsUnsafeIntConstant(ValueNode* node, int index) {
+    ValueNode* input = node->input_node(index);
+    return IsConstantNode(input->opcode()) &&
+           !input->GetStaticRange().IsSafeInt();
+  }
+
   bool IsSafeIntInputOrPhi(ValueNode* node, int index) {
     ValueNode* input = node->input_node(index);
     if (input->Is<Phi>()) return true;
@@ -305,7 +316,8 @@ class TruncationProcessor {
   }
 
   void ProcessFloat64SpeculateSafeAdd(Float64SpeculateSafeAdd* node) {
-    if (!node->can_truncate_to_int32()) {
+    if (!node->can_truncate_to_int32() || IsUnsafeIntConstant(node, 0) ||
+        IsUnsafeIntConstant(node, 1)) {
       // Don't truncate this node.
       node->OverwriteWith<Float64Add>();
       return;

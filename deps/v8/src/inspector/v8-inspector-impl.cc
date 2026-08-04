@@ -237,8 +237,8 @@ void V8InspectorImpl::disconnect(V8InspectorSessionImpl* session) {
   }
 }
 
-InspectedContext* V8InspectorImpl::getContext(int groupId,
-                                              int contextId) const {
+std::shared_ptr<InspectedContext> V8InspectorImpl::getContext(
+    int groupId, int contextId) const {
   if (!groupId || !contextId) return nullptr;
 
   auto contextGroupIt = m_contexts.find(groupId);
@@ -247,20 +247,21 @@ InspectedContext* V8InspectorImpl::getContext(int groupId,
   auto contextIt = contextGroupIt->second->find(contextId);
   if (contextIt == contextGroupIt->second->end()) return nullptr;
 
-  return contextIt->second.get();
+  return contextIt->second;
 }
 
-InspectedContext* V8InspectorImpl::getContext(int contextId) const {
+std::shared_ptr<InspectedContext> V8InspectorImpl::getContext(
+    int contextId) const {
   return getContext(contextGroupId(contextId), contextId);
 }
 
 v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
-  InspectedContext* context = getContext(contextId);
+  std::shared_ptr<InspectedContext> context = getContext(contextId);
   return context ? context->context() : v8::MaybeLocal<v8::Context>();
 }
 
 V8DebuggerId V8InspectorImpl::uniqueDebuggerId(int contextId) {
-  InspectedContext* context = getContext(contextId);
+  std::shared_ptr<InspectedContext> context = getContext(contextId);
   internal::V8DebuggerId unique_id;
   if (context) unique_id = m_debugger->debuggerIdFor(context->contextGroupId());
 
@@ -292,11 +293,15 @@ void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
 
   DCHECK(contextById->find(contextId) == contextById->cend());
   (*contextById)[contextId].reset(context);
-  forEachSession(
-      info.contextGroupId, [&context](V8InspectorSessionImpl* session) {
-        session->runtimeAgent()->addBindings(context);
-        session->runtimeAgent()->reportExecutionContextCreated(context);
-      });
+  int contextGroupId = info.contextGroupId;
+  std::shared_ptr<InspectedContext> contextRef = (*contextById)[contextId];
+  forEachSession(contextGroupId, [this, contextGroupId, contextId,
+                                  contextRef](V8InspectorSessionImpl* session) {
+    if (!getContext(contextGroupId, contextId)) return;
+    session->runtimeAgent()->addBindings(contextRef.get());
+    if (!getContext(contextGroupId, contextId)) return;
+    session->runtimeAgent()->reportExecutionContextCreated(contextRef.get());
+  });
 }
 
 void V8InspectorImpl::contextDestroyed(v8::Local<v8::Context> context) {
@@ -312,14 +317,15 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
   if (storageIt != m_consoleStorageMap.end())
     storageIt->second->contextDestroyed(contextId);
 
-  InspectedContext* inspectedContext = getContext(groupId, contextId);
+  std::shared_ptr<InspectedContext> inspectedContext =
+      getContext(groupId, contextId);
   if (!inspectedContext) return;
 
   forEachSession(groupId, [&inspectedContext](V8InspectorSessionImpl* session) {
-    session->runtimeAgent()->reportExecutionContextDestroyed(inspectedContext);
+    session->runtimeAgent()->reportExecutionContextDestroyed(
+        inspectedContext.get());
   });
   discardInspectedContext(groupId, contextId);
-  m_promiseHandlerTracker.makeWeakForContext(contextId);
 }
 
 void V8InspectorImpl::resetContextGroup(int contextGroupId) {
@@ -438,7 +444,7 @@ v8::MaybeLocal<v8::Context> V8InspectorImpl::exceptionMetaDataContext() {
 
 void V8InspectorImpl::discardInspectedContext(int contextGroupId,
                                               int contextId) {
-  auto* context = getContext(contextGroupId, contextId);
+  auto context = getContext(contextGroupId, contextId);
   if (!context) return;
   m_uniqueIdToContextId.erase(context->uniqueId().pair());
   m_contexts[contextGroupId]->erase(contextId);

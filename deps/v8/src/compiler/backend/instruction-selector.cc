@@ -39,15 +39,6 @@ namespace compiler {
 
 using namespace turboshaft;  // NOLINT(build/namespaces)
 
-namespace {
-// Here we really want the raw Bits of the mask, but the `.bits()` method is
-// not constexpr, and so users of this constant need to call it.
-// TODO(turboshaft): EffectDimensions could probably be defined via
-// base::Flags<> instead, which should solve this.
-constexpr EffectDimensions kTurboshaftEffectLevelMask =
-    OpEffects().CanReadMemory().produces;
-}
-
 InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Graph* schedule,
@@ -101,10 +92,9 @@ InstructionSelector::InstructionSelector(
       phi_states_(zone)
 #endif
 {
-    turboshaft_use_map_.emplace(*schedule_, zone);
-    protected_loads_to_remove_.emplace(static_cast<int>(node_count), zone);
-    additional_protected_instructions_.emplace(static_cast<int>(node_count),
-                                               zone);
+  turboshaft_use_map_.emplace(*schedule_, zone);
+  trapping_loads_to_remove_.emplace(static_cast<int>(node_count), zone);
+  additional_trapping_instructions_.emplace(static_cast<int>(node_count), zone);
 
   DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
 
@@ -333,13 +323,13 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     // inputs of user, which also only has a single use (in user).
     // TODO(nicohartmann@): We might generalize this further if we see use
     // cases.
-    if (!value_op.saturated_use_count.IsOne()) return false;
+    if (!value_op.saturated_use_count.Is(1)) return false;
     for (auto input : user_op.inputs()) {
       const Operation& input_op = graph->Get(input);
       const size_t indirect_use_count = base::count_if(
           input_op.inputs(), [value](OpIndex input) { return input == value; });
       if (indirect_use_count > 0) {
-        return input_op.saturated_use_count.IsOne();
+        return input_op.saturated_use_count.Is(1);
       }
     }
     return false;
@@ -352,15 +342,19 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     // the current operation.
     use_count++;
   }
-  DCHECK_LE(use_count, graph->Get(value).saturated_use_count.Get());
-  return (value_op.saturated_use_count.Get() == use_count) &&
-         !value_op.saturated_use_count.IsSaturated();
+  DCHECK_LE(use_count,
+            graph->Get(value).saturated_use_count.GetMaybeSaturated());
+  return value_op.saturated_use_count.Is(static_cast<int>(use_count));
 }
 }  // namespace
 
+bool InstructionSelector::InCurrentBlock(OpIndex node) const {
+  return block(schedule(), node) == current_block_;
+}
+
 bool InstructionSelector::CanCover(OpIndex user, OpIndex node) const {
   // 1. Both {user} and {node} must be in the same basic block.
-  if (block(schedule(), node) != current_block_) {
+  if (!InCurrentBlock(node)) {
     return false;
   }
 
@@ -379,8 +373,8 @@ bool InstructionSelector::CanCover(OpIndex user, OpIndex node) const {
   return is_exclusive_user_of(schedule(), user, node);
 }
 
-bool InstructionSelector::CanCoverProtectedLoad(OpIndex user,
-                                                OpIndex node) const {
+bool InstructionSelector::CanCoverTrappingLoad(OpIndex user,
+                                               OpIndex node) const {
   DCHECK(CanCover(user, node));
   const Graph* graph = this->turboshaft_graph();
   for (OpIndex next = graph->NextIndex(node); next.valid();
@@ -402,7 +396,7 @@ bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(OpIndex user,
   if (bb_user != bb_node) return false;
 
   const Operation& node_op = this->turboshaft_graph()->Get(node);
-  if (node_op.saturated_use_count.Get() == 1) return true;
+  if (node_op.saturated_use_count.Is(1)) return true;
   for (OpIndex use : turboshaft_uses(node)) {
     if (use == user) continue;
     if (this->block(schedule(), use) == bb_user) return false;
@@ -418,8 +412,8 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
        next = graph->NextIndex(next)) {
     const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
     if (projection == nullptr) break;
-    DCHECK(!projection->saturated_use_count.IsZero());
-    if (projection->saturated_use_count.IsOne()) {
+    DCHECK(!projection->saturated_use_count.Is(0));
+    if (projection->saturated_use_count.Is(1)) {
       // If the projection has a single use, it is the following tuple, so we
       // don't return it, since there is no point in emitting it.
       DCHECK(turboshaft_uses(next).size() == 1 &&
@@ -954,6 +948,11 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 }
 
 Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, FlagsContinuation* cont) {
+  return EmitWithContinuation(opcode, 0, nullptr, 0, nullptr, cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
@@ -1009,6 +1008,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
     continuation_inputs_.push_back(g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
     int immediate_args_count = 0;
+    DCHECK_LE(input_count, DeoptFrameStateOffsetField::kMax);
     opcode |= DeoptImmedArgsCountField::encode(immediate_args_count) |
               DeoptFrameStateOffsetField::encode(static_cast<int>(input_count));
     AppendDeoptimizeArguments(&continuation_inputs_, cont->reason(),
@@ -1043,7 +1043,7 @@ Instruction* InstructionSelector::EmitWithContinuation(
               emit_inputs, emit_temps_size, emit_temps);
 }
 
-bool InstructionSelector::IsProtectedLoad(turboshaft::OpIndex node) const {
+bool InstructionSelector::IsTrappingLoad(turboshaft::OpIndex node) const {
 #if V8_ENABLE_WEBASSEMBLY
   if (Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
     return true;
@@ -1058,7 +1058,7 @@ bool InstructionSelector::IsProtectedLoad(turboshaft::OpIndex node) const {
   if (!IsLoadOrLoadImmutable(node)) return false;
 
   bool traps_on_null;
-  return LoadView(schedule_, node).is_protected(&traps_on_null);
+  return LoadView(schedule_, node).is_trapping(&traps_on_null);
 }
 
 void InstructionSelector::AppendDeoptimizeArguments(
@@ -1245,9 +1245,10 @@ void InstructionSelector::InitializeCallBuffer(
     case CallDescriptor::kCallJSFunction:
       // TODO(olivf): Implement the required kArchCallJSFunction with
       // immediate argument on all architectures.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) ||     \
-    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
-    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_LOONG64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) ||       \
+    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) ||   \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_RISCV64)
       if (this->IsHeapConstant(callee)) {
         buffer->instruction_args.push_back(g.UseImmediate(callee));
         break;
@@ -1374,9 +1375,9 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
     }
 #if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
+    if (operation.Is<WasmTrapOp>()) return true;
     if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
-      return rmw->memory_access_kind ==
-             MemoryAccessKind::kProtectedByTrapHandler;
+      return rmw->memory_access_kind == MemoryAccessKind::kTrapping;
     }
     if (const Simd128LoadTransformOp* lt =
             operation.TryCast<Simd128LoadTransformOp>()) {
@@ -1397,7 +1398,7 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
       return dl->load_kind.with_trap_handler;
     }
 #endif
-    if (additional_protected_instructions_->Contains(node.id())) {
+    if (additional_trapping_instructions_->Contains(node.id())) {
       return true;
     }
     return false;
@@ -1434,8 +1435,7 @@ bool increment_effect_level_for_node(InstructionSelector* selector,
     // would prevent covering in the ISEL.
     return false;
   }
-  return (op.Effects().consumes.bits() & kTurboshaftEffectLevelMask.bits()) !=
-         0;
+  return op.Effects().can_write() || op.Effects().can_allocate;
 }
 }  // namespace
 
@@ -1507,8 +1507,7 @@ void InstructionSelector::VisitBlock(const Block* block) {
   for (OpIndex node : base::Reversed(this->nodes(block))) {
     int current_node_end = current_num_instructions();
 
-    if (protected_loads_to_remove_->Contains(node.id()) &&
-        !IsReallyUsed(node)) {
+    if (trapping_loads_to_remove_->Contains(node.id()) && !IsReallyUsed(node)) {
       MarkAsDefined(node);
     }
 
@@ -1577,6 +1576,17 @@ void InstructionSelector::MarkPairProjectionsAsWord32(OpIndex node) {
   OptionalOpIndex projection1 = FindProjection(node, 1);
   if (projection1.valid()) {
     MarkAsWord32(projection1.value());
+  }
+}
+
+void InstructionSelector::MarkPairProjectionsAsWord64(OpIndex node) {
+  OptionalOpIndex projection0 = FindProjection(node, 0);
+  if (projection0.valid()) {
+    MarkAsWord64(projection0.value());
+  }
+  OptionalOpIndex projection1 = FindProjection(node, 1);
+  if (projection1.valid()) {
+    MarkAsWord64(projection1.value());
   }
 }
 
@@ -2067,6 +2077,8 @@ void InstructionSelector::VisitProjection(OpIndex node) {
       DCHECK_EQ(1u, projection.index);
       MarkAsUsed(projection.input());
     }
+  } else if (value_op.Is<Word64Add128Op>() || value_op.Is<Word64MulWideOp>()) {
+    MarkAsUsed(projection.input());
   } else if (value_op.Is<DidntThrowOp>()) {
     // Nothing to do here?
   } else if (value_op.Is<CallOp>()) {
@@ -2102,7 +2114,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (projection0.saturated_use_count.IsOne()) {
+  if (projection0.saturated_use_count.Is(1)) {
     // If the projection has a single use, it is the following tuple, so we
     // don't care about the value, and can do branch-if-overflow fusion.
     DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
@@ -2110,7 +2122,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (this->block(schedule_, binop) != current_block_) {
+  if (!InCurrentBlock(binop)) {
     // {binop} is not supposed to be defined in the current block, so let's not
     // pull it in this block (the checks would need to be stronger, and it's
     // unlikely that it's doable because of effect levels and all).
@@ -2126,11 +2138,11 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
       // through Projections, and Projections on Tuples return the original
       // Projection instead (see Assembler::ReduceProjection in
       // turboshaft/assembler.h).
-      DCHECK(this->Get(use).saturated_use_count.IsZero());
+      DCHECK(this->Get(use).saturated_use_count.Is(0));
       continue;
     }
     if (IsDefined(use)) continue;
-    if (this->block(schedule_, use) != current_block_) {
+    if (!InCurrentBlock(use)) {
       // {use} is in a later block, so it should already have been visited. Note
       // that operations that don't produce values are not marked as Defined,
       // like Return for instance, so it's possible that {use} has been visited
@@ -2153,7 +2165,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     }
 
     if (this->Get(use).template Is<PhiOp>()) {
-      DCHECK_EQ(this->block(schedule_, use), current_block_);
+      DCHECK(InCurrentBlock(use));
       // If {projection0} is used by a Phi in the current block, then it has to
       // be a loop phi, and {projection0} has to be its backedge value. This
       // doesn't prevent scheduling {projection0} now, since anyways it
@@ -2258,8 +2270,14 @@ void InstructionSelector::VisitCall(
   if (!effect_handlers.empty()) {
     flags |= CallDescriptor::kHasEffectHandler;
     for (auto& handler : effect_handlers) {
-      buffer.instruction_args.push_back(g.Label(handler.block));
-      buffer.instruction_args.push_back(g.UseImmediate(handler.tag_index));
+      if (!handler.is_switch()) {
+        buffer.instruction_args.push_back(g.Label(handler.block));
+      } else {
+        buffer.instruction_args.push_back(g.UseImmediate(0));
+      }
+
+      buffer.instruction_args.push_back(
+          g.UseImmediate(handler.tag_and_kind.raw_value()));
     }
     buffer.instruction_args.push_back(
         g.UseImmediate(static_cast<int>(effect_handlers.size())));
@@ -2510,7 +2528,7 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
 
   DCHECK_EQ(projection->input_count, 1);
   OpIndex node = projection->input();
-  if (block(schedule_, node) != current_block_) {
+  if (!InCurrentBlock(node)) {
     // The projection input is not in the current block, so it shouldn't be
     // emitted now, so we don't need to eagerly schedule its Projection[0].
     return;
@@ -2533,7 +2551,7 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
     return;
   }
 
-  if (block(schedule_, result.value()) != current_block_) {
+  if (!InCurrentBlock(result.value())) {
     // {result} wasn't planned to be scheduled in {current_block_}. To
     // avoid adding checks to see if it can still be scheduled now, we
     // just bail out.
@@ -2549,8 +2567,8 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
   for (OpIndex use : turboshaft_uses(result.value())) {
     // We ignore MakeTupleOp uses, since MakeTupleOp don't lead to emitted
     // machine instructions and are just Turboshaft "meta operations".
-    if (!Is<MakeTupleOp>(use) && !IsDefined(use) &&
-        block(schedule_, use) == current_block_ && !Is<PhiOp>(use)) {
+    if (!Is<MakeTupleOp>(use) && !IsDefined(use) && InCurrentBlock(use) &&
+        !Is<PhiOp>(use)) {
       return;
     }
   }
@@ -2585,8 +2603,16 @@ void InstructionSelector::VisitSelect(OpIndex node) {
   VisitWordCompareZero(node, select.cond(), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitWasmTrap(OpIndex node) {
+  const WasmTrapOp& trap = Cast<WasmTrapOp>(node);
+  OperandGenerator g(this);
+  InstructionOperand input =
+      g.TempImmediate(static_cast<int32_t>(trap.trap_id));
+  Emit(kArchTrap, 0, nullptr, 1, &input);
+}
+
+void InstructionSelector::VisitTrapIf(OpIndex node) {
   const TrapIfOp& trap_if = Cast<TrapIfOp>(node);
   // FrameStates are only used for wasm traps inlined in JS. In that case the
   // trap node will be lowered (replaced) before instruction selection.
@@ -2595,16 +2621,17 @@ void InstructionSelector::VisitTrapIf(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForTrap(
       trap_if.negated ? kEqual : kNotEqual, trap_if.trap_id);
   VisitWordCompareZero(node, trap_if.condition(), &cont);
-#else
-  UNREACHABLE();
-#endif
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::EmitIdentity(OpIndex node) {
-  const Operation& op = Get(node);
-  MarkAsUsed(op.input(0));
+  EmitIdentity(node, Get(node).input(0));
+}
+
+void InstructionSelector::EmitIdentity(OpIndex node, OpIndex input) {
+  MarkAsUsed(input);
   MarkAsDefined(node);
-  SetRename(node, op.input(0));
+  SetRename(node, input);
 }
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeReason reason,
@@ -2737,6 +2764,10 @@ void InstructionSelector::VisitControl(const Block* block) {
       return VisitUnreachable(node);
     case Opcode::kStaticAssert:
       return VisitStaticAssert(node);
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+      return VisitWasmTrap(node);
+#endif
     default: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
@@ -2765,6 +2796,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kDeoptimize:
     case Opcode::kSwitch:
     case Opcode::kCheckException:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       // Those are already handled in VisitControl.
       DCHECK(op.IsBlockTerminator());
       break;
@@ -2817,6 +2851,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
             case multi(Rep::Float64(), Rep::Word64(), true, A::kNoOverflow):
             case multi(Rep::Float64(), Rep::Word64(), true, A::kNoAssumption):
               return VisitTruncateFloat64ToInt64(node);
+            case multi(Rep::Float64(), Rep::Word64(), false, A::kNoOverflow):
+            case multi(Rep::Float64(), Rep::Word64(), false, A::kNoAssumption):
+              return VisitChangeFloat64ToUint64(node);
             default:
               // Invalid combination.
               UNREACHABLE();
@@ -3225,6 +3262,21 @@ void InstructionSelector::VisitNode(OpIndex node) {
       }
       UNREACHABLE();
     }
+    case Opcode::kWord64Add128: {
+      MarkPairProjectionsAsWord64(node);
+      return VisitUint64Add128(node);
+    }
+    case Opcode::kWord64MulWide: {
+      const Word64MulWideOp& wideop = op.Cast<Word64MulWideOp>();
+      MarkPairProjectionsAsWord64(node);
+      switch (wideop.kind) {
+        case Word64MulWideOp::Kind::kSigned:
+          return VisitWord64MulWide(node, true);
+        case Word64MulWideOp::Kind::kUnsigned:
+          return VisitWord64MulWide(node, false);
+      }
+      UNREACHABLE();
+    }
     case Opcode::kOverflowCheckedBinop: {
       const auto& binop = op.Cast<OverflowCheckedBinopOp>();
       if (binop.rep == WordRepresentation::Word32()) {
@@ -3412,7 +3464,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         }
       } else if (load.kind.with_trap_handler) {
         DCHECK(!load.kind.maybe_unaligned);
-        return VisitProtectedLoad(node);
+        return VisitTrappingLoad(node);
       } else {
         return VisitLoad(node);
       }
@@ -3441,7 +3493,7 @@ void InstructionSelector::VisitNode(OpIndex node) {
         }
       } else if (store.kind.with_trap_handler) {
         DCHECK(!store.kind.maybe_unaligned);
-        return VisitProtectedStore(node);
+        return VisitTrappingStore(node);
       } else {
         return VisitStore(node);
       }
@@ -3532,7 +3584,6 @@ void InstructionSelector::VisitNode(OpIndex node) {
     }
     case Opcode::kWord32PairBinop: {
       const Word32PairBinopOp& binop = op.Cast<Word32PairBinopOp>();
-      MarkAsWord32(node);
       MarkPairProjectionsAsWord32(node);
       switch (binop.kind) {
         case Word32PairBinopOp::Kind::kAdd:
@@ -3553,7 +3604,6 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kAtomicWord32Pair: {
       const AtomicWord32PairOp& atomic_op = op.Cast<AtomicWord32PairOp>();
       if (atomic_op.kind != AtomicWord32PairOp::Kind::kStore) {
-        MarkAsWord32(node);
         MarkPairProjectionsAsWord32(node);
       }
       switch (atomic_op.kind) {

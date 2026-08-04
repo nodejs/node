@@ -182,11 +182,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
 
   struct LazyLoadICParameters {
     // Use LazyMakeLoadICParameters() helper to construct this object.
-    LazyLoadICParameters(LazyNode<Context> context, TNode<JSAny> receiver,
-                         LazyNode<Object> name, LazyNode<TaggedIndex> slot,
-                         TNode<HeapObject> vector,
-                         TNode<JSAny> lookup_start_object,
-                         TNode<Map> lookup_start_object_map)
+    LazyLoadICParameters(
+        LazyNode<Context> context, TNode<JSAny> receiver, LazyNode<Object> name,
+        LazyNode<TaggedIndex> slot, TNode<HeapObject> vector,
+        std::optional<TNode<JSAny>> lookup_start_object = std::nullopt,
+        std::optional<TNode<Map>> lookup_start_object_map = std::nullopt)
         : context_(context),
           receiver_(receiver),
           name_(name),
@@ -210,9 +210,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Object> name() const { return name_(); }
     TNode<TaggedIndex> slot() const { return slot_(); }
     TNode<HeapObject> vector() const { return vector_; }
-    TNode<JSAny> lookup_start_object() const { return lookup_start_object_; }
+    TNode<JSAny> lookup_start_object() const {
+      return lookup_start_object_.value();
+    }
     TNode<Map> lookup_start_object_map() const {
-      return lookup_start_object_map_;
+      return lookup_start_object_map_.value();
     }
 
     // Usable in cases where the receiver and the lookup start object are
@@ -224,7 +226,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     }
     TNode<Map> receiver_and_lookup_start_object_map() const {
       DCHECK_EQ(receiver_, lookup_start_object_);
-      return lookup_start_object_map_;
+      return lookup_start_object_map_.value();
     }
 
     // This is useful for figuring out whether we know anything about receiver
@@ -238,8 +240,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     LazyNode<Object> name_;
     LazyNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
-    TNode<JSAny> lookup_start_object_;
-    TNode<Map> lookup_start_object_map_;
+    std::optional<TNode<JSAny>> lookup_start_object_;
+    std::optional<TNode<Map>> lookup_start_object_map_;
   };
 
   // Sanitizes receiver/lookup_start_object and creates the parameters object.
@@ -521,6 +523,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
       TNode<WeakFixedArray> feedback, Label* if_handler,
       TVariable<MaybeObject>* var_handler, Label* if_miss);
 
+  void TryHomomorphicCase(TNode<Object> lookup_start_object,
+                          TNode<Map> lookup_start_object_map, TNode<Name> name,
+                          TNode<Object> vector, TNode<TaggedIndex> slot,
+                          Label* miss, ExitPoint* exit_point);
+
   void TryMegaDOMCase(TNode<Object> lookup_start_object,
                       TNode<Map> lookup_start_object_map,
                       TVariable<MaybeObject>* var_handler, TNode<Object> vector,
@@ -721,6 +728,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void BranchIfPrototypesHaveNoElements(TNode<Map> receiver_map,
                                         Label* definitely_no_elements,
                                         Label* possibly_elements);
+
+  TNode<Code> CastToCode(TNode<MaybeObject> code_candidate);
 };
 
 // Abstraction over direct and indirect exit points. Direct exits correspond to

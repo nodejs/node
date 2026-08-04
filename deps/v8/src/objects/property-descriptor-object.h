@@ -16,7 +16,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/property-descriptor-object-tq.inc"
 
-V8_OBJECT class PropertyDescriptorObject : public StructLayout {
+V8_OBJECT class PropertyDescriptorObject : public Struct {
  public:
   DEFINE_TORQUE_GENERATED_PROPERTY_DESCRIPTOR_OBJECT_FLAGS()
 

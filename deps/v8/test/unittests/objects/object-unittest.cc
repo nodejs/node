@@ -377,11 +377,11 @@ TEST_F(ObjectTest, EnumCache) {
     Tagged<EnumCache> enum_cache =
         cc->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(enum_cache->keys()->length().value(), 3u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 3u);
   }
 
-  // Initializing the EnumCache for the the topmost map {a} will not create the
+  // Initializing the EnumCache for the topmost map {a} will not create the
   // cache for the other maps.
   RunJS("var s = 0; for (let key in a) { s += a[key] };");
   {
@@ -402,8 +402,8 @@ TEST_F(ObjectTest, EnumCache) {
     CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
     CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
 
-    CHECK_EQ(enum_cache->keys()->length(), 1);
-    CHECK_EQ(enum_cache->indices()->length(), 1);
+    CHECK_EQ(enum_cache->keys()->length().value(), 1u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 1u);
   }
 
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
@@ -428,10 +428,10 @@ TEST_F(ObjectTest, EnumCache) {
     CHECK_EQ(enum_cache, *previous_enum_cache);
     CHECK_NE(enum_cache->keys(), *previous_keys);
     CHECK_NE(enum_cache->indices(), *previous_indices);
-    CHECK_EQ(previous_keys->length(), 1);
-    CHECK_EQ(previous_indices->length(), 1);
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(previous_keys->length().value(), 1u);
+    CHECK_EQ(previous_indices->length().value(), 1u);
+    CHECK_EQ(enum_cache->keys()->length().value(), 3u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 3u);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
@@ -465,8 +465,8 @@ TEST_F(ObjectTest, EnumCache) {
     CHECK_EQ(enum_cache, *previous_enum_cache);
     CHECK_EQ(enum_cache->keys(), *previous_keys);
     CHECK_EQ(enum_cache->indices(), *previous_indices);
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(enum_cache->keys()->length().value(), 3u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 3u);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
@@ -716,7 +716,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
 
       default:
         // All the other functions must have the default instance type.
-        CHECK_EQ(instance_type, JS_FUNCTION_TYPE);
+        CHECK(InstanceTypeChecker::IsJSFunction(instance_type));
         break;
     }
   }

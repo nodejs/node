@@ -12,6 +12,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/base/numbers/double.h"
+#include "src/base/vector.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -278,14 +279,12 @@ void FunctionLiteral::set_class_scope_has_private_brand(bool value) {
 
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
                                              Kind kind, bool is_computed_name)
-    : LiteralProperty(key, value, is_computed_name),
-      kind_(kind),
-      emit_store_(true) {}
+    : LiteralProperty(key, value, is_computed_name), kind_(kind) {}
 
 ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
                                              Expression* key, Expression* value,
                                              bool is_computed_name)
-    : LiteralProperty(key, value, is_computed_name), emit_store_(true) {
+    : LiteralProperty(key, value, is_computed_name) {
   if (!is_computed_name && key->AsLiteral()->IsRawString() &&
       key->AsLiteral()->AsRawString() == ast_value_factory->proto_string()) {
     kind_ = PROTOTYPE;
@@ -342,9 +341,14 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   const auto GETTER = ObjectLiteral::Property::GETTER;
   const auto SETTER = ObjectLiteral::Property::SETTER;
 
-  CustomMatcherZoneHashMap table(Literal::Match,
-                                 ZoneHashMap::kDefaultHashMapCapacity,
-                                 ZoneAllocationPolicy(zone));
+  using LiteralMatcher =
+      base::HashEqualityThenKeyMatcher<Literal*, bool (*)(void*, void*)>;
+  base::TemplateHashMapImpl<Literal*, int, LiteralMatcher, ZoneAllocationPolicy>
+      table(ZoneHashMap::kDefaultHashMapCapacity,
+            LiteralMatcher(Literal::Match), ZoneAllocationPolicy(zone));
+
+  // We iterate backwards, so the first property we see is the last one in
+  // source order.
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->is_computed_name()) continue;
@@ -353,35 +357,88 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     DCHECK(!literal->IsNullLiteral());
 
     uint32_t hash = literal->Hash();
-    ZoneHashMap::Entry* entry = table.LookupOrInsert(literal, hash);
-    if (entry->value == nullptr) {
-      entry->value = property;
+    auto* entry = table.LookupOrInsert(literal, hash, []() { return -1; });
+    if (entry->value == -1) {
+      // First time we see this key (it's the last property in the literal).
+      entry->value = i;
+      DCHECK(property->is_first_instance_of_key());
+      property->set_last_instance_index(i);
     } else {
-      // We already have a later definition of this property, so we don't need
-      // to emit a store for the current one.
-      //
-      // There are two subtleties here.
-      //
-      // (1) Emitting a store might actually be incorrect. For example, in {get
-      // foo() {}, foo: 42}, the getter store would override the data property
-      // (which, being a non-computed compile-time valued property, is already
-      // part of the initial literal object.
-      //
-      // (2) If the later definition is an accessor (say, a getter), and the
-      // current definition is a complementary accessor (here, a setter), then
-      // we still must emit a store for the current definition.
+      int previous_index = entry->value;
+      ObjectLiteral::Property* previous_prop = properties()->at(previous_index);
 
-      auto later_kind =
-          static_cast<ObjectLiteral::Property*>(entry->value)->kind();
-      bool complementary_accessors =
-          (property->kind() == GETTER && later_kind == SETTER) ||
-          (property->kind() == SETTER && later_kind == GETTER);
-      if (!complementary_accessors) {
-        property->set_emit_store(false);
-        if (later_kind == GETTER || later_kind == SETTER) {
-          entry->value = property;
-        }
+      // Properties are deduplicated preserving source order. For a given key,
+      // we only keep the last-occurring instance in the boilerplate. Earlier
+      // instances must have their stores eliminated, unless they are a
+      // complementary accessor to the last-occurring instance.
+      //
+      // Examples:
+      // { a: 1, a: 2 }             -> [a: 1] disabled, [a: 2] kept.
+      // { get a(){}, a: 1 }        -> [get a] disabled, [a: 1] kept.
+      // { get a(){}, set a(){} }   -> [get a] kept, [set a] kept.
+      // { get a(){}_1, get a(){}_2, set a(){} }
+      //                            -> [get a]_1 disabled (redundant),
+      //                               [get a]_2 kept, [set a] kept.
+      // { get a(){}, a: 1, set a(){} }
+      //                            -> [get a] disabled (shielded by a: 1),
+      //                               [a: 1] disabled, [set a] kept.
+
+      int last_index = previous_prop->last_instance_index();
+      bool is_candidate;
+      if (last_index == previous_index) {
+        // This is the first duplicate we've found for this key. previous_prop
+        // is the absolute last instance in source order.
+        is_candidate = (previous_prop->kind() == GETTER ||
+                        previous_prop->kind() == SETTER);
+      } else {
+        is_candidate = previous_prop->is_complementary_accessor_candidate();
       }
+
+      if (is_candidate) {
+        ObjectLiteral::Property* last_prop = properties()->at(last_index);
+        auto last_kind = last_prop->kind();
+        bool complementary_accessors =
+            (property->kind() == GETTER && last_kind == SETTER) ||
+            (property->kind() == SETTER && last_kind == GETTER);
+
+        if (complementary_accessors) {
+          // The current property is a complementary accessor to the last one.
+          // It stays emit_store = true. We don't propagate the candidate bit
+          // so that any further accessors of the same kind are disabled.
+        } else {
+          property->set_emit_store(false);
+          // If this duplicate is the same kind of accessor as the last one,
+          // it doesn't shield earlier properties, so we propagate the bit.
+          //
+          // Example: { get x(){}_1, set x(){}, get x(){}_2 }
+          // Here [get x]_2 is the last instance. When we see [set x], we
+          // don't propagate the bit, so that [get x]_1 is later disabled
+          // because it's a redundant getter.
+          //
+          // However, in { get x(){}_1, set x(){}_1, set x(){}_2 }, when we see
+          // [set x]_1, it matches the last instance's kind (SETTER), so we
+          // propagate the bit to [set x]_1 so that it can later pair with
+          // [get x]_1.
+          if (property->kind() == last_kind) {
+            property->set_is_complementary_accessor_candidate(true);
+          }
+        }
+      } else {
+        // No accessor candidate, so this duplicate definitely doesn't need to
+        // emit a store.
+        property->set_emit_store(false);
+      }
+
+      // Transition the previous instance. It's no longer the first instance.
+      previous_prop->set_is_first_instance_of_key(false);
+
+      // The current property (at index i) is now the earliest instance of this
+      // key we've seen so far. We mark it as the "first instance" to preserve
+      // insertion order in the boilerplate, and link it to the absolute last
+      // instance (which provides the final value for this key).
+      DCHECK(property->is_first_instance_of_key());
+      property->set_last_instance_index(last_index);
+      entry->value = i;
     }
   }
 }
@@ -477,39 +534,55 @@ void ObjectLiteralBoilerplateBuilder::InitDepthAndFlags() {
                     ((2 * elements) >= max_element_index));
 }
 
+namespace {}  // namespace
+
 template <typename IsolateT>
 void ObjectLiteralBoilerplateBuilder::BuildBoilerplateDescription(
     IsolateT* isolate) {
   if (!boilerplate_description_.is_null()) return;
 
-  int index_keys = 0;
-  bool has_seen_proto = false;
+  int backing_store_size = 0;
+  bool saw_computed_name = false;
+  int boilerplate_property_count = 0;
+
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (property->IsPrototype()) {
-      has_seen_proto = true;
+    if (property->IsPrototype()) continue;
+
+    if (property->is_computed_name()) {
+      saw_computed_name = true;
+      backing_store_size++;
       continue;
     }
-    if (property->is_computed_name()) continue;
 
     Literal* key = property->key()->AsLiteral();
-    if (!key->IsPropertyName()) index_keys++;
+    if (saw_computed_name) {
+      if (key->IsPropertyName()) backing_store_size++;
+      continue;
+    }
+
+    if (property->is_first_instance_of_key()) {
+      boilerplate_property_count++;
+      if (key->IsPropertyName()) backing_store_size++;
+    }
   }
 
   Handle<ObjectBoilerplateDescription> boilerplate_description =
       isolate->factory()->NewObjectBoilerplateDescription(
-          boilerplate_properties_, properties()->length(), index_keys,
-          has_seen_proto);
+          boilerplate_property_count, backing_store_size);
 
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->IsPrototype()) continue;
-
-    if (static_cast<uint32_t>(position) == boilerplate_properties_) {
-      DCHECK(property->is_computed_name());
-      break;
+    if (property->is_computed_name()) break;
+    if (property->emit_store()) {
+      if (!property->is_first_instance_of_key()) continue;
+    } else {
+      if (!property->is_first_instance_of_key()) continue;
+      property = properties()->at(property->last_instance_index());
     }
+
     DCHECK(!property->is_computed_name());
 
     MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
@@ -522,16 +595,20 @@ void ObjectLiteralBoilerplateBuilder::BuildBoilerplateDescription(
     // in at runtime. The enumeration order is maintained.
     Literal* key_literal = property->key()->AsLiteral();
     uint32_t element_index = 0;
-    DirectHandle<Object> key =
-        key_literal->AsArrayIndex(&element_index)
-            ? isolate->factory()
-                  ->template NewNumberFromUint<AllocationType::kOld>(
-                      element_index)
-            : Cast<Object>(key_literal->AsRawPropertyName()->string());
+    DirectHandle<ObjectBoilerplateDescription::KeyT> key;
+    if (key_literal->AsArrayIndex(&element_index)) {
+      key =
+          isolate->factory()->template NewNumberFromUint<AllocationType::kOld>(
+              element_index);
+    } else {
+      key = key_literal->AsRawPropertyName()->string();
+    }
     DirectHandle<Object> value =
         GetBoilerplateValue(property->value(), isolate);
     boilerplate_description->set_key_value(position++, *key, *value);
   }
+
+  DCHECK_EQ(position, boilerplate_property_count);
 
   boilerplate_description->set_flags(EncodeLiteralType());
 
@@ -818,8 +895,8 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
   {
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> raw_strings = *raw_strings_handle;
-
-    for (int i = 0; i < raw_strings->length(); ++i) {
+    uint32_t raw_strings_len = raw_strings->ulength().value();
+    for (uint32_t i = 0; i < raw_strings_len; ++i) {
       if (this->raw_strings()->at(i) != this->cooked_strings()->at(i)) {
         // If the AstRawStrings don't match, then neither should the allocated
         // Strings, since the AstValueFactory should have deduplicated them
@@ -839,8 +916,9 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
         this->cooked_strings()->length(), AllocationType::kOld);
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> cooked_strings = *cooked_strings_handle;
+    uint32_t cooked_strings_len = cooked_strings->ulength().value();
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < cooked_strings->length(); ++i) {
+    for (uint32_t i = 0; i < cooked_strings_len; ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {

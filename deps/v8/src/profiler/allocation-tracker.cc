@@ -9,7 +9,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -239,14 +239,14 @@ AllocationTracker::ScriptData::ScriptData(Tagged<Script> script,
 
 AllocationTracker::ScriptData::~ScriptData() {
   if (!script_.IsEmpty()) {
-    script_.ClearWeak();
+    script_.ClearWeak<void>();
   }
 }
 
 void AllocationTracker::ScriptData::HandleWeakScript(
     const v8::WeakCallbackInfo<ScriptData>& data) {
   ScriptData* script_data = reinterpret_cast<ScriptData*>(data.GetParameter());
-  script_data->script_.ClearWeak();
+  script_data->script_.ClearWeak<void>();
   script_data->script_.Reset();
   script_data->tracker_->scripts_data_map_.erase(script_data->script_id_);
 }

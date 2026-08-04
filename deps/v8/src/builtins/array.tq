@@ -89,6 +89,21 @@ macro CreateJSArrayWithElements(
   const nativeContext: NativeContext = LoadNativeContext(context);
   const map: Map =
       LoadJSArrayElementsMap(ElementsKind::PACKED_ELEMENTS, nativeContext);
-  return AllocateJSArray(map, array, array.length);
+  return AllocateJSArray(map, array, Convert<Smi>(array.length));
+}
+
+// Deopt continuations for the inlined Array.prototype.sort.  The sort
+// operates on a temp array copy so the receiver is unmodified -- just
+// restart the generic sort.
+transitioning javascript builtin ArraySortNoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    comparefn: JSAny): JSAny {
+  return Call(context, target, receiver, comparefn);
+}
+
+transitioning javascript builtin ArraySortNoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    comparefn: JSAny, _result: JSAny): JSAny {
+  return Call(context, target, receiver, comparefn);
 }
 }

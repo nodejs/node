@@ -55,8 +55,10 @@ void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
   SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 
-int DeoptimizationData::DeoptCount() const {
-  return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
+uint32_t DeoptimizationData::DeoptCount() const {
+  uint32_t len = ulength().value();
+  DCHECK_GE(len, kFirstDeoptEntryIndex);
+  return (len - kFirstDeoptEntryIndex) / kDeoptEntrySize;
 }
 
 inline Tagged<Object> DeoptimizationLiteralArray::get(int index) const {
@@ -88,21 +90,21 @@ inline Tagged<MaybeObject> DeoptimizationLiteralArray::get_raw(
 
 inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
   Tagged<MaybeObject> maybe = value;
-  if (Tagged<BytecodeArray> bytecode; TryCast(value, &bytecode)) {
+  if (Is<BytecodeArray>(value)) {
     // The BytecodeArray lives in trusted space, so we cannot reference it from
     // a fixed array. However, we can use the BytecodeArray's wrapper object,
     // which exists for exactly this purpose.
-    maybe = bytecode->wrapper();
+    maybe = TrustedCast<BytecodeArray>(value)->wrapper();
 #ifdef V8_ENABLE_SANDBOX
-  } else if (Tagged<RegExpData> data; TryCast(value, &data)) {
+  } else if (Is<RegExpData>(value)) {
     // Store the RegExpData wrapper if the sandbox is enabled, as data lives in
     // trusted space. We can't store a tagged value to a trusted space object
     // inside the sandbox, we'd need to go through the trusted pointer table.
     // Otherwise we can store the RegExpData object directly.
-    maybe = data->wrapper();
+    maybe = TrustedCast<RegExpData>(value)->wrapper();
 #endif
   } else if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
-    maybe = MakeWeak(maybe);
+    maybe = MakeWeak(Cast<HeapObject>(maybe));
   }
   TrustedWeakFixedArray::set(index, maybe);
 }

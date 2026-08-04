@@ -127,6 +127,7 @@ absl_source_set("log_message") {
     "//third_party/abseil-cpp/absl/strings:internal",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/time",
+    "//third_party/abseil-cpp/absl/types:source_location",
     "//third_party/abseil-cpp/absl/types:span",
   ]
 }
@@ -321,7 +322,6 @@ absl_source_set("vlog_config") {
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/synchronization",
-    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }
 

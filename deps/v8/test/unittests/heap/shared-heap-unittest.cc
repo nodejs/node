@@ -326,7 +326,7 @@ class TrustedToSharedTrustedPointerOnClient final : public ParkingThread {
 
       Tagged<TrustedByteArray> handler_table = keep_alive_bc->handler_table();
       CHECK(IsTrustedByteArray(handler_table));
-      CHECK_EQ(handler_table->length(), 3);
+      CHECK_EQ(handler_table->length().value(), 3u);
 
       v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                     client_isolate);
@@ -447,12 +447,12 @@ void AllocateInSharedHeap(int iterations = 100) {
     }
 
     for (DirectHandle<FixedArray> array : arrays_in_handles) {
-      CHECK_EQ(array->length(), 100);
+      CHECK_EQ(array->length().value(), 100u);
     }
 
     for (int i = 0; i < kKeptAliveInHeap; i++) {
       Tagged<FixedArray> array = Cast<FixedArray>(arrays_in_heap->get(i));
-      CHECK_EQ(array->length(), 100);
+      CHECK_EQ(array->length().value(), 100u);
     }
   });
 }
@@ -640,6 +640,8 @@ class SharedHeapTestBase : public TestJSSharedMemoryWithNativeContext {
     if (complete_callback_) complete_callback_(this);
     thread()->ParkedJoin(i_isolate()->main_thread_local_isolate());
     if (teardown_callback_) teardown_callback_(this);
+
+    state_ = nullptr;
   }
 
   ConcurrentThread<State>* thread() const {
@@ -898,6 +900,48 @@ TEST_F(SharedHeapTest, SharedUntrustedToSharedTrustedPointer) {
   bytecode_array->set_wrapper(*bytecode_wrapper);
 }
 #endif  // false
+
+namespace {
+class UpdateExternalMemoryWorkerThread : public ParkingThread {
+ public:
+  explicit UpdateExternalMemoryWorkerThread(ParkingSemaphore* sema_done)
+      : ParkingThread(
+            base::Thread::Options("UpdateExternalMemoryWorkerThread")),
+        sema_done_(sema_done) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(kNoCounters);
+    v8::Isolate* client = isolate_wrapper.isolate();
+    Isolate* i_client = reinterpret_cast<Isolate*>(client);
+    {
+      v8::Isolate::Scope isolate_scope(client);
+      HandleScope handle_scope(i_client);
+      Heap* shared_heap = i_client->shared_space_isolate()->heap();
+      static constexpr int64_t kAllocatedSize = GB;
+      shared_heap->UpdateExternalMemory(kAllocatedSize);
+      EXPECT_GE(shared_heap->external_memory(),
+                static_cast<uint64_t>(kAllocatedSize));
+      shared_heap->UpdateExternalMemory(-kAllocatedSize);
+    }
+
+    sema_done_->Signal();
+  }
+
+ private:
+  ParkingSemaphore* sema_done_;
+};
+}  // namespace
+
+TEST_F(SharedHeapTest, UpdateExternalMemoryWorkerIsolate) {
+  ParkingSemaphore sema_done(0);
+  auto thread = std::make_unique<UpdateExternalMemoryWorkerThread>(&sema_done);
+  CHECK(thread->Start());
+
+  LocalIsolate* local_isolate = i_isolate()->main_thread_local_isolate();
+  sema_done.ParkedWait(local_isolate);
+
+  thread->ParkedJoin(local_isolate);
+}
 
 }  // namespace internal
 }  // namespace v8
