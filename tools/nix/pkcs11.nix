@@ -10,7 +10,7 @@
   # pkcs11-provider is dlopen'd into the libcrypto Node.js itself links, so it
   # has to be built against that very OpenSSL. SoftHSM links OpenSSL too;
   # building it against the same one keeps a single libcrypto in the process.
-  openssl ? (import ./sharedLibDeps.nix { inherit pkgs; }).openssl,
+  openssl ? (import ./openssl-matrix.nix { inherit pkgs; }).openssl,
 
   pin ? "1234",
 }:
