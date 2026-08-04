@@ -107,6 +107,16 @@ async function testAbortSignal() {
   );
 }
 
+async function testAbortSignalReason() {
+  const reason = 'test reason';
+  const ac = new AbortController();
+  const { writer } = push({ signal: ac.signal });
+
+  ac.abort(reason);
+
+  await assert.rejects(writer.write('data'), (err) => err === reason);
+}
+
 async function testPreAbortedSignal() {
   const { readable } = push({ signal: AbortSignal.abort() });
   await assert.rejects(async () => {
@@ -172,6 +182,7 @@ Promise.all([
   testWriterFail(),
   testConsumerBreak(),
   testAbortSignal(),
+  testAbortSignalReason(),
   testPreAbortedSignal(),
   testConsumerBreakWriteSyncReturnsFalse(),
   testPushWithTransforms(),
