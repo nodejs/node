@@ -2251,13 +2251,13 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
     if (!elm->Get(env->context(), 1).ToLocal(&ipValue)) return;
     if (!elm->Get(env->context(), 2).ToLocal(&portValue)) return;
 
+    CHECK(familyValue->IsInt32());
     CHECK(ipValue->IsString());
+    CHECK(portValue->IsInt32());
 
-    int32_t fam;
-    if (!familyValue->Int32Value(env->context()).To(&fam)) return;
+    int32_t fam = familyValue.As<Int32>()->Value();
     node::Utf8Value ip(env->isolate(), ipValue);
-    int32_t port;
-    if (!portValue->Int32Value(env->context()).To(&port)) return;
+    int32_t port = portValue.As<Int32>()->Value();
 
     if (!csv.empty()) csv += ',';
 
