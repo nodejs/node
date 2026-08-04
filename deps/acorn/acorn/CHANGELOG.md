@@ -1,3 +1,15 @@
+## 8.18.0 (2026-07-28)
+
+### New features
+
+The new `startLocation` option can now be used to tell the parser the line and column the parse starts at (mostly useful with `parseExpressionAt`).
+
+### Bug fixes
+
+Reject uses of `**` with a non-parenthesized arrow function as left-hand side.
+
+Avoid computing the start line in `parseExpressionAt` when locations aren't used.
+
 ## 8.17.0 (2026-06-11)
 
 ### New features
