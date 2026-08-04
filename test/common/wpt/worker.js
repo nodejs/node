@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('path');
+const { pathToFileURL } = require('url');
 const {
   runInNewContext,
   runInThisContext,
@@ -37,6 +39,15 @@ if (isMainThread) {
 function run(workerData) {
   const { ResourceLoader } = require(workerData.wptRunner);
   const resource = new ResourceLoader(workerData.wptPath);
+
+  // Tests create workers with URLs the WPT server would have served them
+  // from; map them into the fixtures directory.
+  const RealWorker = globalThis.Worker;
+  globalThis.Worker = class Worker extends RealWorker {
+    constructor(url, options) {
+      super(resource.mapServerURL(workerData.testRelativePath, url), options);
+    }
+  };
 
   if (workerData.needsGc) {
     // See https://github.com/nodejs/node/issues/16595#issuecomment-340288680
@@ -130,5 +141,45 @@ function run(workerData) {
       filename: scriptToRun.filename,
       importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     });
+  }
+
+  if (workerData.webWorker) {
+    const worker = new RealWorker(
+      pathToFileURL(path.join(__dirname, 'webworker.js')));
+    worker.postMessage({
+      wptRunner: workerData.wptRunner,
+      wptPath: workerData.wptPath,
+      testRelativePath: workerData.testRelativePath,
+      ...workerData.webWorker,
+    });
+
+    let completed = false;
+    worker.addEventListener('message', (event) => {
+      if (event.data?.type === 'complete') {
+        completed = true;
+      }
+      // Skipped subtests never register with the testharness inside the
+      // worker; the runner is notified about them directly.
+      if (event.data?.type === 'skip') {
+        send({ type: 'skip', name: event.data.name });
+      }
+    });
+    worker.addEventListener('error', (event) => {
+      if (completed) {
+        return;
+      }
+      clearTimeout(timeout);
+      send({
+        type: 'completion',
+        status: {
+          status: 1,
+          message: event.message,
+          stack: event.error?.stack,
+        },
+      });
+    });
+
+    // eslint-disable-next-line no-undef
+    fetch_tests_from_worker(worker);
   }
 }

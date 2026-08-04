@@ -16,7 +16,7 @@ const queueProbe = process.env.NODE_TEST_WPT_QUEUE_PROBE === '1';
 
 const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
 const specPath = fixtures.path('wpt-backends-spec.js');
-const execArgv = [];
+const execArgv = ['--experimental-web-worker'];
 
 function payload(throws) {
   return {
@@ -175,6 +175,18 @@ async function main() {
       runDriver(driver, spec, 'process'),
     );
   }
+
+  const windowResults = runDriver(
+    'test-events.js',
+    'dom/events/Event-constructors.any.html',
+    'thread',
+  );
+  const workerResults = runDriver(
+    'test-events.js',
+    'dom/events/Event-constructors.any.worker.html',
+    'thread',
+  ).map((line) => line.replace('.any.worker.html', '.any.html'));
+  assert.deepStrictEqual(workerResults, windowResults);
 }
 
 if (queueProbe) {

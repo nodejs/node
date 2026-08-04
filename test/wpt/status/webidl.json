@@ -27,8 +27,21 @@
         "Global object's setter throws when called on incompatible object",
         "Global object's operation throws when called on incompatible object",
         "Global object's getter works when called on null / undefined",
-        "Global object's setter works when called on null / undefined",
+        "Global object's setter works when called on null / undefined"
+      ]
+    }
+  },
+  "ecmascript-binding/global-object-implicit-this-value.any.html": {
+    "fail": {
+      "expected": [
         "ReferenceError: addEventListener is not defined"
+      ]
+    }
+  },
+  "ecmascript-binding/global-object-implicit-this-value.any.worker.html": {
+    "fail": {
+      "expected": [
+        "Global object's operation works when called on null / undefined"
       ]
     }
   },
@@ -46,7 +59,7 @@
       ]
     }
   },
-  "ecmascript-binding/no-regexp-special-casing.any.js": {
+  "ecmascript-binding/no-regexp-special-casing.any.html": {
     "fail": {
       "expected": [
         "Can be used as an object implementing a callback interface"
