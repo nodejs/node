@@ -4,11 +4,14 @@
 namespace node {
 
 void CppgcWrapperList::Cleanup() {
-  for (auto node : *this) {
+  for (auto it = begin(); it != end();) {
+    CppgcWrapperListNode* node = *it;
+    ++it;
     CppgcMixin* ptr = node->persistent.Get();
     if (ptr != nullptr) {
       ptr->Finalize();
     }
+    delete node;
   }
 }
 
