@@ -50,24 +50,20 @@ extern nghttp2_stream nghttp2_stream_root;
 /*
  * Option flags.
  */
-typedef enum {
-  NGHTTP2_OPTMASK_NO_AUTO_WINDOW_UPDATE = 1 << 0,
-  NGHTTP2_OPTMASK_NO_RECV_CLIENT_MAGIC = 1 << 1,
-  NGHTTP2_OPTMASK_NO_HTTP_MESSAGING = 1 << 2,
-  NGHTTP2_OPTMASK_NO_AUTO_PING_ACK = 1 << 3,
-  NGHTTP2_OPTMASK_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 1 << 6,
-} nghttp2_optmask;
+#define NGHTTP2_OPTMASK_NO_AUTO_WINDOW_UPDATE 0x01U
+#define NGHTTP2_OPTMASK_NO_RECV_CLIENT_MAGIC 0x02U
+#define NGHTTP2_OPTMASK_NO_HTTP_MESSAGING 0x04U
+#define NGHTTP2_OPTMASK_NO_AUTO_PING_ACK 0x08U
+#define NGHTTP2_OPTMASK_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION 0x40U
 
 /*
  * bitmask for built-in type to enable the default handling for that
  * type of the frame.
  */
-typedef enum {
-  NGHTTP2_TYPEMASK_NONE = 0,
-  NGHTTP2_TYPEMASK_ALTSVC = 1 << 0,
-  NGHTTP2_TYPEMASK_ORIGIN = 1 << 1,
-  NGHTTP2_TYPEMASK_PRIORITY_UPDATE = 1 << 2
-} nghttp2_typemask;
+#define NGHTTP2_TYPEMASK_NONE 0x00U
+#define NGHTTP2_TYPEMASK_ALTSVC 0x01U
+#define NGHTTP2_TYPEMASK_ORIGIN 0x02U
+#define NGHTTP2_TYPEMASK_PRIORITY_UPDATE 0x04U
 
 typedef enum {
   NGHTTP2_OB_POP_ITEM,
@@ -100,7 +96,7 @@ typedef struct {
 #define NGHTTP2_DEFAULT_MAX_OBQ_FLOOD_ITEM 1000
 
 /* The default value of maximum number of concurrent streams. */
-#define NGHTTP2_DEFAULT_MAX_CONCURRENT_STREAMS 0xffffffffu
+#define NGHTTP2_DEFAULT_MAX_CONCURRENT_STREAMS 0xFFFFFFFFU
 
 /* The default values for stream reset rate limiter. */
 #define NGHTTP2_DEFAULT_STREAM_RESET_BURST 1000
@@ -178,19 +174,18 @@ typedef struct {
   uint32_t no_rfc7540_priorities;
 } nghttp2_settings_storage;
 
-typedef enum {
-  NGHTTP2_GOAWAY_NONE = 0,
-  /* Flag means that connection should be terminated after sending GOAWAY. */
-  NGHTTP2_GOAWAY_TERM_ON_SEND = 0x1,
-  /* Flag means GOAWAY to terminate session has been sent */
-  NGHTTP2_GOAWAY_TERM_SENT = 0x2,
-  /* Flag means GOAWAY was sent */
-  NGHTTP2_GOAWAY_SENT = 0x4,
-  /* Flag means GOAWAY was received */
-  NGHTTP2_GOAWAY_RECV = 0x8,
-  /* Flag means GOAWAY has been submitted at least once */
-  NGHTTP2_GOAWAY_SUBMITTED = 0x10
-} nghttp2_goaway_flag;
+#define NGHTTP2_GOAWAY_NONE 0x00U
+/* Flag means that connection should be terminated after sending
+   GOAWAY. */
+#define NGHTTP2_GOAWAY_TERM_ON_SEND 0x01U
+/* Flag means GOAWAY to terminate session has been sent */
+#define NGHTTP2_GOAWAY_TERM_SENT 0x02U
+/* Flag means GOAWAY was sent */
+#define NGHTTP2_GOAWAY_SENT 0x04U
+/* Flag means GOAWAY was received */
+#define NGHTTP2_GOAWAY_RECV 0x08U
+/* Flag means GOAWAY has been submitted at least once */
+#define NGHTTP2_GOAWAY_SUBMITTED 0x10U
 
 /* nghttp2_inflight_settings stores the SETTINGS entries which local
    endpoint has sent to the remote endpoint, and has not received ACK
@@ -330,13 +325,15 @@ struct nghttp2_session {
   nghttp2_settings_storage remote_settings;
   /* Settings value of the local endpoint. */
   nghttp2_settings_storage local_settings;
-  /* Option flags. This is bitwise-OR of 0 or more of nghttp2_optmask. */
+  /* Option flags. This is bitwise-OR of 0 or more of
+     NGHTTP2_OPTMASK_* values. */
   uint32_t opt_flags;
   /* Unacked local SETTINGS_MAX_CONCURRENT_STREAMS value. We use this
      to refuse the incoming stream if it exceeds this value. */
   uint32_t pending_local_max_concurrent_stream;
-  /* The bitwise OR of zero or more of nghttp2_typemask to indicate
-     that the default handling of extension frame is enabled. */
+  /* The bitwise OR of zero or more of NGHTTP2_TYPEMASK_* values to
+     indicate that the default handling of extension frame is
+     enabled. */
   uint32_t builtin_recv_ext_types;
   /* Unacked local ENABLE_PUSH value.  We use this to refuse
      PUSH_PROMISE before SETTINGS ACK is received. */
@@ -350,7 +347,7 @@ struct nghttp2_session {
   /* Nonzero if the session is server side. */
   uint8_t server;
   /* Flags indicating GOAWAY is sent and/or received. The flags are
-     composed by bitwise OR-ing nghttp2_goaway_flag. */
+     composed by bitwise OR-ing NGHTTP2_GOAWAY_* values. */
   uint8_t goaway_flags;
   /* This flag is used to reduce excessive queuing of WINDOW_UPDATE to
      this session.  The nonzero does not necessarily mean
@@ -510,11 +507,11 @@ int nghttp2_session_add_settings(nghttp2_session *session, uint8_t flags,
 /*
  * Creates new stream in |session| with stream ID |stream_id|,
  * priority |pri_spec| and flags |flags|.  The |flags| is bitwise OR
- * of nghttp2_stream_flag.  Since this function is called when initial
- * HEADERS is sent or received, these flags are taken from it.  The
- * state of stream is set to |initial_state|. The |stream_user_data|
- * is a pointer to the arbitrary user supplied data to be associated
- * to this stream.
+ * of NGHTTP2_STREAM_FLAG_* values.  Since this function is called
+ * when initial HEADERS is sent or received, these flags are taken
+ * from it.  The state of stream is set to |initial_state|. The
+ * |stream_user_data| is a pointer to the arbitrary user supplied data
+ * to be associated to this stream.
  *
  * If |initial_state| is NGHTTP2_STREAM_RESERVED, this function sets
  * NGHTTP2_STREAM_FLAG_PUSH flag set.
