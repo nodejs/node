@@ -1818,14 +1818,13 @@ class [[nodiscard]] TestWithParam : public Test,
 #define GTEST_EXPECT_TRUE(condition)                      \
   GTEST_TEST_BOOLEAN_(condition, #condition, false, true, \
                       GTEST_NONFATAL_FAILURE_)
-#define GTEST_EXPECT_FALSE(condition)                        \
-  GTEST_TEST_BOOLEAN_(!(condition), #condition, true, false, \
+#define GTEST_EXPECT_FALSE(condition)                     \
+  GTEST_TEST_BOOLEAN_(condition, #condition, true, false, \
                       GTEST_NONFATAL_FAILURE_)
 #define GTEST_ASSERT_TRUE(condition) \
   GTEST_TEST_BOOLEAN_(condition, #condition, false, true, GTEST_FATAL_FAILURE_)
-#define GTEST_ASSERT_FALSE(condition)                        \
-  GTEST_TEST_BOOLEAN_(!(condition), #condition, true, false, \
-                      GTEST_FATAL_FAILURE_)
+#define GTEST_ASSERT_FALSE(condition) \
+  GTEST_TEST_BOOLEAN_(condition, #condition, true, false, GTEST_FATAL_FAILURE_)
 
 // Define these macros to 1 to omit the definition of the corresponding
 // EXPECT or ASSERT, which clashes with some users' own code.
