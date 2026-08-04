@@ -752,6 +752,8 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 void ReportWritesToJSStreamListener::OnStreamAfterReqFinished(
     StreamReq* req_wrap, int status) {
   StreamBase* stream = static_cast<StreamBase*>(stream_);
+  if (stream == nullptr) return;
+  if (req_wrap == nullptr) return;
   Environment* env = stream->stream_env();
   if (!env->can_call_into_js()) return;
   AsyncWrap* async_wrap = req_wrap->GetAsyncWrap();
