@@ -92,6 +92,8 @@ const timeout = setTimeout(() => {
 // eslint-disable-next-line no-undef
 add_completion_callback((_, status) => {
   clearTimeout(timeout);
+  // Match WPT semantics: exceptions thrown after done() do not fail the test.
+  process.on('uncaughtException', () => {});
   parentPort.postMessage({
     type: 'completion',
     status,
