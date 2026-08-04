@@ -1127,9 +1127,11 @@ const hasContentType = request.hasHeader('content-type');
 
 ### `request.maxHeadersCount`
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
-Limits maximum response headers count. If set to 0, no limit will be applied.
+Limits the maximum response headers count. Responses exceeding this limit are
+rejected with an [`HPE_HEADER_OVERFLOW`][] error. If set to `0`, no limit will
+be applied.
 
 ### `request.path`
 
@@ -1914,7 +1916,7 @@ added: v5.7.0
 added: v0.7.0
 -->
 
-* Type: {number} **Default:** `2000`
+* Type: {number} **Default:** `1000`
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
