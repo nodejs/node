@@ -2601,6 +2601,19 @@ test('mocks a counting function', (t) => {
 });
 ```
 
+The following example creates a mock function that throws an error and uses
+[`assert.throws`][] to verify it.
+
+```js
+test('mocks a function that throws an error', (t) => {
+  const fn = t.mock.fn(() => {
+    throw new Error('mocked error');
+  });
+
+  assert.throws(fn, /mocked error/);
+});
+```
+
 ### `mock.getter(object, methodName[, implementation][, options])`
 
 <!-- YAML
