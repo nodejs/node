@@ -78,7 +78,6 @@ jobs:
 
       - name: Compute requisites before change
         shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
-        # TODO(panva): add `// import ./tools/nix/pkcs11.nix {}` once landed
         run: |
           git reset HEAD^ --hard
           nix-store --query --references "$(
@@ -88,6 +87,7 @@ jobs:
                 ++ builtins.attrValues (
                   { inherit (import <nixpkgs> {}) nixfmt-tree sccache; }
                   // import ./tools/nix/openssl-matrix.nix {}
+                  // import ./tools/nix/pkcs11.nix {}
                 )")" \
           | xargs nix-store --realise \
           | xargs nix-store --query --requisites \
