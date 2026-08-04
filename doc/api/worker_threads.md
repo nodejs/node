@@ -2234,7 +2234,7 @@ thread spawned will spawn another until the application crashes.
 [`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
 [`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`AsyncResource`]: async_hooks.md#class-asyncresource
-[`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
+[`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize-alignment
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#err_missing_message_port_in_transfer_list
 [`ERR_WORKER_MESSAGING_ERRORED`]: errors.md#err_worker_messaging_errored
 [`ERR_WORKER_MESSAGING_FAILED`]: errors.md#err_worker_messaging_failed
