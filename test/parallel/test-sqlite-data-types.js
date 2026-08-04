@@ -1,22 +1,13 @@
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { suite, test } = require('node:test');
-let cnt = 0;
-
-tmpdir.refresh();
-
-function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
-}
 
 suite('data binding and mapping', () => {
   test('supported data types', (t) => {
     const u8a = new TextEncoder().encode('a☃b☃c');
-    const db = new DatabaseSync(nextDb());
+    const db = new DatabaseSync(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(`
       CREATE TABLE types(
@@ -83,7 +74,7 @@ suite('data binding and mapping', () => {
   });
 
   test('large strings are bound correctly', (t) => {
-    const db = new DatabaseSync(nextDb());
+    const db = new DatabaseSync(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, text TEXT) STRICT;'
@@ -118,7 +109,7 @@ suite('data binding and mapping', () => {
   });
 
   test('unsupported data types', (t) => {
-    const db = new DatabaseSync(nextDb());
+    const db = new DatabaseSync(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -153,7 +144,7 @@ suite('data binding and mapping', () => {
 
   test('throws when binding a BigInt that is too large', (t) => {
     const max = 9223372036854775807n; // Largest 64-bit signed integer value.
-    const db = new DatabaseSync(nextDb());
+    const db = new DatabaseSync(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
@@ -173,7 +164,7 @@ suite('data binding and mapping', () => {
   });
 
   test('statements are unbound on each call', (t) => {
-    const db = new DatabaseSync(nextDb());
+    const db = new DatabaseSync(':memory:');
     t.after(() => { db.close(); });
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
