@@ -243,12 +243,12 @@ tmpdir.refresh();
     pipeline(rs, res, () => {});
   }));
 
-  let cnt = 10;
+  let received = 0;
 
   const badSink = new Writable({
     write(data, enc, cb) {
-      cnt--;
-      if (cnt === 0) cb(new Error('kaboom'));
+      received += data.length;
+      if (received >= 50) cb(new Error('kaboom'));
       else cb();
     }
   });
