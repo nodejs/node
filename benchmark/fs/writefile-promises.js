@@ -13,7 +13,7 @@ let filesWritten = 0;
 const bench = common.createBenchmark(main, {
   duration: [5],
   encodingType: ['buf', 'asc', 'utf'],
-  size: [2, 1024, 65535, 1024 * 1024],
+  size: [1024, 65535, 1024 * 1024],
   concurrent: [1, 10],
 });
 
