@@ -14,7 +14,7 @@ const { backends } = require('../common/wpt');
 
 const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
 const specPath = fixtures.path('wpt-backends-spec.js');
-const execArgv = [];
+const execArgv = ['--experimental-web-worker'];
 
 function payload(throws) {
   return {

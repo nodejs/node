@@ -8,11 +8,11 @@ const path = require('path');
 const events = require('events');
 const os = require('os');
 const { inspect } = require('util');
+const { pathToFileURL } = require('url');
 const { Worker } = require('worker_threads');
 const { fork } = require('child_process');
 
 const workerPath = path.join(__dirname, 'wpt/worker.js');
-const kRunWorkerGlobals = false;
 
 function getBrowserProperties() {
   const { node: version } = process.versions; // e.g. 18.13.0, 20.0.0-nightly202302078e6e215481
@@ -188,6 +188,24 @@ class ResourceLoader {
     return url.startsWith('/') ?
       fixtures.path('wpt', url) :
       fixtures.path('wpt', base, url);
+  }
+
+  /**
+   * Map a URL that a test would have fetched from the WPT server (an
+   * absolute path, or a path relative to the test file) to a file: URL
+   * into the fixtures directory. URLs that already have a scheme (data:,
+   * blob:, http:, ...) are returned unchanged.
+   * @param {string} from the path of the file loading this resource,
+   *   relative to the WPT folder.
+   * @param {string|URL} url the url of the resource being loaded.
+   * @returns {string}
+   */
+  mapServerURL(from, url) {
+    url = `${url}`;
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:|^\/\//.test(url)) {
+      return url;
+    }
+    return pathToFileURL(this.toRealFilePath(from, url)).href;
   }
 
   /**
@@ -805,7 +823,11 @@ class WPTRunner {
     this.resource = new ResourceLoader(path);
     this.concurrency = concurrency;
 
-    this.flags = [];
+    // Since we need to prepare the Web Worker APIs
+    // in the harness that runs on all WPT workers,
+    // we enable the API globally. This has no practical
+    // effect on the non-web-worker tests, however.
+    this.flags = ['--experimental-web-worker'];
     this.globalThisInitScripts = [];
     this.initScript = null;
 
@@ -832,7 +854,7 @@ class WPTRunner {
    * @param {string[]} flags
    */
   setFlags(flags) {
-    this.flags = flags;
+    this.flags = this.flags.concat(flags);
   }
 
   /**
@@ -919,8 +941,17 @@ class WPTRunner {
       const absolutePath = spec.getAbsolutePath();
       const relativePath = spec.getRelativePath();
       const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
-      // Scripts specified with the `// META: script=` header
-      const scriptsToRun = meta.script?.map((script) => {
+      // *.worker.js tests are dedicated worker tests by definition. Each
+      // dedicated worker variant generated from a multi-global (*.any.js)
+      // test also runs inside an actual Web Worker. Refs:
+      // https://web-platform-tests.org/writing-tests/testharness.html#multi-global-tests
+      const isAnyTest = spec.isAnyTest();
+      const isWebWorkerTest = spec.isWebWorkerTest();
+
+      // Scripts specified with the `// META: script=` header. For tests
+      // that run inside a Web Worker they are imported by the worker
+      // instead.
+      const scriptsToRun = isWebWorkerTest ? [] : meta.script?.map((script) => {
         const obj = {
           filename: this.resource.toRealFilePath(relativePath, script),
           code: this.resource.read(relativePath, script),
@@ -928,13 +959,15 @@ class WPTRunner {
         this.scriptsModifier?.(obj);
         return obj;
       }) ?? [];
-      // The actual test
-      const obj = {
-        code: content,
-        filename: absolutePath,
-      };
-      this.scriptsModifier?.(obj);
-      scriptsToRun.push(obj);
+      if (!isWebWorkerTest) {
+        // The actual test
+        const obj = {
+          code: content,
+          filename: absolutePath,
+        };
+        this.scriptsModifier?.(obj);
+        scriptsToRun.push(obj);
+      }
 
       run(async () => {
         this.inProgress.add(spec);
@@ -950,6 +983,17 @@ class WPTRunner {
             filename: harnessPath,
           },
           scriptsToRun,
+          // Set when the test runs inside an actual Web Worker.
+          webWorker: isWebWorkerTest ? {
+            path: absolutePath,
+            isAnyTest,
+            initScript: this.initScript,
+            variant: spec.variant,
+            scripts: meta.script?.map(
+              (script) => this.resource.toRealFilePath(relativePath, script),
+            ) ?? [],
+            skippedTests: spec.skippedTests,
+          } : undefined,
           needsGc: !!meta.script?.find((script) => script === '/common/gc.js'),
           skippedTests: spec.skippedTests,
         }, {
@@ -1222,10 +1266,6 @@ class WPTRunner {
     this.skippedSpecCount = 0;
     const arg = process.argv[2];
     for (const spec of this.specs) {
-      if (!kRunWorkerGlobals && spec.isWebWorkerTest()) {
-        continue;
-      }
-
       if (arg) {
         if (spec.isSelectedBy(arg)) {
           queue.push(spec);
@@ -1248,13 +1288,11 @@ class WPTRunner {
     }
 
     // If the tests are run as `node test/wpt/test-something.js subset.any.js`,
-    // only `subset.any.js` (all enabled variants and globals) will be run by
-    // the runner.
+    // only `subset.any.js` (all variants and globals) will be run by the runner.
     // If the tests are run as `node test/wpt/test-something.js 'subset.any.js?1-10'`,
     // only the `?1-10` variant of `subset.any.js` will be run by the runner.
     // A test path as printed with the results, e.g.
-    // `'dir/subset.any.worker.html?1-10'`, runs exactly that one when its
-    // global is enabled.
+    // `'dir/subset.any.worker.html?1-10'`, runs exactly that one.
     if (arg && queue.length === 0) {
       throw new Error(`${arg} not found!`);
     }
