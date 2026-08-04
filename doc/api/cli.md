@@ -208,8 +208,8 @@ starting Node.js. The [`node:ffi`][] module also requires the
 Example:
 
 ```js
-const { DynamicLibrary } = require('node:ffi');
-const lib = new DynamicLibrary('mylib.so');
+const { DynamicLibrary, suffix } = require('node:ffi');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 ```
 
 ```console
