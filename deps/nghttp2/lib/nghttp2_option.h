@@ -34,46 +34,45 @@
 /**
  * Configuration options
  */
-typedef enum {
-  /**
-   * This option prevents the library from sending WINDOW_UPDATE for a
-   * connection automatically.  If this option is set to nonzero, the
-   * library won't send WINDOW_UPDATE for DATA until application calls
-   * nghttp2_session_consume() to indicate the amount of consumed
-   * DATA.  By default, this option is set to zero.
-   */
-  NGHTTP2_OPT_NO_AUTO_WINDOW_UPDATE = 1,
-  /**
-   * This option sets the SETTINGS_MAX_CONCURRENT_STREAMS value of
-   * remote endpoint as if it is received in SETTINGS frame. Without
-   * specifying this option, before the local endpoint receives
-   * SETTINGS_MAX_CONCURRENT_STREAMS in SETTINGS frame from remote
-   * endpoint, SETTINGS_MAX_CONCURRENT_STREAMS is unlimited. This may
-   * cause problem if local endpoint submits lots of requests
-   * initially and sending them at once to the remote peer may lead to
-   * the rejection of some requests. Specifying this option to the
-   * sensible value, say 100, may avoid this kind of issue. This value
-   * will be overwritten if the local endpoint receives
-   * SETTINGS_MAX_CONCURRENT_STREAMS from the remote endpoint.
-   */
-  NGHTTP2_OPT_PEER_MAX_CONCURRENT_STREAMS = 1 << 1,
-  NGHTTP2_OPT_NO_RECV_CLIENT_MAGIC = 1 << 2,
-  NGHTTP2_OPT_NO_HTTP_MESSAGING = 1 << 3,
-  NGHTTP2_OPT_MAX_RESERVED_REMOTE_STREAMS = 1 << 4,
-  NGHTTP2_OPT_USER_RECV_EXT_TYPES = 1 << 5,
-  NGHTTP2_OPT_NO_AUTO_PING_ACK = 1 << 6,
-  NGHTTP2_OPT_BUILTIN_RECV_EXT_TYPES = 1 << 7,
-  NGHTTP2_OPT_MAX_SEND_HEADER_BLOCK_LENGTH = 1 << 8,
-  NGHTTP2_OPT_MAX_DEFLATE_DYNAMIC_TABLE_SIZE = 1 << 9,
-  NGHTTP2_OPT_NO_CLOSED_STREAMS = 1 << 10,
-  NGHTTP2_OPT_MAX_OUTBOUND_ACK = 1 << 11,
-  NGHTTP2_OPT_MAX_SETTINGS = 1 << 12,
-  NGHTTP2_OPT_SERVER_FALLBACK_RFC7540_PRIORITIES = 1 << 13,
-  NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 1 << 14,
-  NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT = 1 << 15,
-  NGHTTP2_OPT_MAX_CONTINUATIONS = 1 << 16,
-  NGHTTP2_OPT_GLITCH_RATE_LIMIT = 1 << 17,
-} nghttp2_option_flag;
+
+/**
+ * This option prevents the library from sending WINDOW_UPDATE for a
+ * connection automatically.  If this option is set to nonzero, the
+ * library won't send WINDOW_UPDATE for DATA until application calls
+ * nghttp2_session_consume() to indicate the amount of consumed DATA.
+ * By default, this option is set to zero.
+ */
+#define NGHTTP2_OPT_NO_AUTO_WINDOW_UPDATE 0x01U
+/**
+ * This option sets the SETTINGS_MAX_CONCURRENT_STREAMS value of
+ * remote endpoint as if it is received in SETTINGS frame. Without
+ * specifying this option, before the local endpoint receives
+ * SETTINGS_MAX_CONCURRENT_STREAMS in SETTINGS frame from remote
+ * endpoint, SETTINGS_MAX_CONCURRENT_STREAMS is unlimited. This may
+ * cause problem if local endpoint submits lots of requests initially
+ * and sending them at once to the remote peer may lead to the
+ * rejection of some requests. Specifying this option to the sensible
+ * value, say 100, may avoid this kind of issue. This value will be
+ * overwritten if the local endpoint receives
+ * SETTINGS_MAX_CONCURRENT_STREAMS from the remote endpoint.
+ */
+#define NGHTTP2_OPT_PEER_MAX_CONCURRENT_STREAMS 0x02U
+#define NGHTTP2_OPT_NO_RECV_CLIENT_MAGIC 0x04U
+#define NGHTTP2_OPT_NO_HTTP_MESSAGING 0x08U
+#define NGHTTP2_OPT_MAX_RESERVED_REMOTE_STREAMS 0x10U
+#define NGHTTP2_OPT_USER_RECV_EXT_TYPES 0x20U
+#define NGHTTP2_OPT_NO_AUTO_PING_ACK 0x40U
+#define NGHTTP2_OPT_BUILTIN_RECV_EXT_TYPES 0x80U
+#define NGHTTP2_OPT_MAX_SEND_HEADER_BLOCK_LENGTH 0x0100U
+#define NGHTTP2_OPT_MAX_DEFLATE_DYNAMIC_TABLE_SIZE 0x0200U
+#define NGHTTP2_OPT_NO_CLOSED_STREAMS 0x0400U
+#define NGHTTP2_OPT_MAX_OUTBOUND_ACK 0x0800U
+#define NGHTTP2_OPT_MAX_SETTINGS 0x1000U
+#define NGHTTP2_OPT_SERVER_FALLBACK_RFC7540_PRIORITIES 0x2000U
+#define NGHTTP2_OPT_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION 0x4000U
+#define NGHTTP2_OPT_STREAM_RESET_RATE_LIMIT 0x8000U
+#define NGHTTP2_OPT_MAX_CONTINUATIONS 0x010000U
+#define NGHTTP2_OPT_GLITCH_RATE_LIMIT 0x020000U
 
 /**
  * Struct to store option values for nghttp2_session.
@@ -110,8 +109,8 @@ struct nghttp2_option {
    */
   size_t max_continuations;
   /**
-   * Bitwise OR of nghttp2_option_flag to determine that which fields
-   * are specified.
+   * Bitwise OR of NGHTTP2_OPT_* values to determine which fields are
+   * specified.
    */
   uint32_t opt_set_mask;
   /**
