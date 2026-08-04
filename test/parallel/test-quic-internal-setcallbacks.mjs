@@ -31,6 +31,7 @@ const callbacks = {
   onStreamClose() {},
   onStreamDrain() {},
   onStreamReset() {},
+  onStreamStopSending() {},
   onStreamHeaders() {},
   onStreamTrailers() {},
 };

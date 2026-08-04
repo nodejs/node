@@ -156,6 +156,7 @@ assert.strictEqual(streamState.reset, false);
 assert.strictEqual(streamState.hasReader, false);
 assert.strictEqual(streamState.wantsBlock, false);
 assert.strictEqual(streamState.wantsReset, false);
+assert.strictEqual(streamState.wantsStopSending, false);
 
 assert.strictEqual(sessionState.hasPathValidationListener, false);
 assert.strictEqual(sessionState.hasDatagramListener, false);
