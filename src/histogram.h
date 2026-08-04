@@ -55,7 +55,7 @@ class Histogram : public MemoryRetainer {
   // Iterator is a function type that takes two doubles as argument, one for
   // percentile and one for the value at that percentile.
   template <typename Iterator>
-  inline void Percentiles(Iterator&& fn);
+  inline void Percentiles(Iterator&& fn) const;
 
   inline size_t GetMemorySize() const;
 
@@ -68,7 +68,6 @@ class Histogram : public MemoryRetainer {
   HistogramPointer histogram_;
   uint64_t prev_ = 0;
   size_t exceeds_ = 0;
-  size_t count_ = 0;
   RwLock mutex_;
 };
 

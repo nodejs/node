@@ -7,6 +7,8 @@
 #include "node_external_reference.h"
 #include "util.h"
 
+#include <vector>
+
 namespace node {
 
 using v8::BigInt;
@@ -674,12 +676,19 @@ void HistogramImpl::GetPercentiles(const FunctionCallbackInfo<Value>& args) {
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
-  (*histogram)->Percentiles([map, env](double key, int64_t value) {
+
+  // Collect percentile data under the histogram lock, then populate the
+  // V8 Map after releasing it to avoid V8 allocations under the lock.
+  std::vector<std::pair<double, int64_t>> entries;
+  (*histogram)->Percentiles([&entries](double key, int64_t value) {
+    entries.emplace_back(key, value);
+  });
+  for (const auto& entry : entries) {
     USE(map->Set(
           env->context(),
-          Number::New(env->isolate(), key),
-          Number::New(env->isolate(), static_cast<double>(value))));
-  });
+          Number::New(env->isolate(), entry.first),
+          Number::New(env->isolate(), static_cast<double>(entry.second))));
+  }
 }
 
 void HistogramImpl::GetPercentilesBigInt(
@@ -688,12 +697,17 @@ void HistogramImpl::GetPercentilesBigInt(
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.This());
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
-  (*histogram)->Percentiles([map, env](double key, int64_t value) {
+
+  std::vector<std::pair<double, int64_t>> entries;
+  (*histogram)->Percentiles([&entries](double key, int64_t value) {
+    entries.emplace_back(key, value);
+  });
+  for (const auto& entry : entries) {
     USE(map->Set(
           env->context(),
-          Number::New(env->isolate(), key),
-          BigInt::New(env->isolate(), value)));
-  });
+          Number::New(env->isolate(), entry.first),
+          BigInt::New(env->isolate(), entry.second)));
+  }
 }
 
 void HistogramImpl::DoReset(const FunctionCallbackInfo<Value>& args) {

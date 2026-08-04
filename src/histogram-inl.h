@@ -13,40 +13,40 @@ void Histogram::Reset() {
   RwLock::ScopedWriteLock lock(mutex_);
   hdr_reset(histogram_.get());
   exceeds_ = 0;
-  count_ = 0;
   prev_ = 0;
 }
 
 double Histogram::Add(const Histogram& other) {
   auto do_add = [&]() {
-    count_ += other.count_;
     exceeds_ += other.exceeds_;
     if (other.prev_ > prev_) prev_ = other.prev_;
+    // hdr_add merges all bucket counts and total_count internally.
     return static_cast<double>(
         hdr_add(histogram_.get(), other.histogram_.get()));
   };
 
-  // When adding a histogram to itself, a single lock suffices.
+  // When adding a histogram to itself, a single write lock suffices.
   if (this == &other) {
     RwLock::ScopedWriteLock lock(mutex_);
     return do_add();
   }
 
-  // Lock both mutexes in pointer order to prevent deadlock.
+  // Write-lock this (modified), read-lock other (only read).
+  // Lock in pointer order to prevent deadlock.
   if (this < &other) {
     RwLock::ScopedWriteLock lock1(mutex_);
-    RwLock::ScopedWriteLock lock2(other.mutex_);
+    RwLock::ScopedReadLock lock2(other.mutex_);
     return do_add();
   }
 
-  RwLock::ScopedWriteLock lock1(other.mutex_);
+  RwLock::ScopedReadLock lock1(other.mutex_);
   RwLock::ScopedWriteLock lock2(mutex_);
   return do_add();
 }
 
 size_t Histogram::Count() const {
   RwLock::ScopedReadLock lock(mutex_);
-  return count_;
+  return static_cast<size_t>(histogram_->total_count);
 }
 
 size_t Histogram::Exceeds() const {
@@ -82,7 +82,7 @@ int64_t Histogram::Percentile(double percentile) const {
 }
 
 template <typename Iterator>
-void Histogram::Percentiles(Iterator&& fn) {
+void Histogram::Percentiles(Iterator&& fn) const {
   RwLock::ScopedReadLock lock(mutex_);
   hdr_iter iter;
   hdr_iter_percentile_init(&iter, histogram_.get(), 1);
@@ -97,8 +97,6 @@ bool Histogram::Record(int64_t value) {
   bool recorded = hdr_record_value(histogram_.get(), value);
   if (!recorded)
     exceeds_++;
-  else
-    count_++;
   return recorded;
 }
 
@@ -109,9 +107,7 @@ uint64_t Histogram::RecordDelta() {
   if (prev_ > 0) {
     CHECK_GE(time, prev_);
     delta = time - prev_;
-    if (hdr_record_value(histogram_.get(), delta))
-      count_++;
-    else
+    if (!hdr_record_value(histogram_.get(), delta))
       exceeds_++;
   }
   prev_ = time;
