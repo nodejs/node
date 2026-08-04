@@ -45,7 +45,7 @@ class Histogram : public MemoryRetainer {
   inline double Mean() const;
   inline double Stddev() const;
   inline int64_t Percentile(double percentile) const;
-  inline size_t Exceeds() const { return exceeds_; }
+  inline size_t Exceeds() const;
   inline size_t Count() const;
 
   inline uint64_t RecordDelta();
@@ -69,7 +69,7 @@ class Histogram : public MemoryRetainer {
   uint64_t prev_ = 0;
   size_t exceeds_ = 0;
   size_t count_ = 0;
-  Mutex mutex_;
+  RwLock mutex_;
 };
 
 class HistogramImpl {
