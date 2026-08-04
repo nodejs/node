@@ -1868,6 +1868,45 @@ added:
 
 The number of samples recorded by the histogram.
 
+### `histogram.ccdf(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {number} The value to query.
+* Returns: {number} A probability between 0.0 and 1.0.
+
+Returns the complementary cumulative distribution function (CCDF) value
+for the given value, representing the probability that a recorded value
+will exceed `value`. Equivalent to `1 - histogram.cdf(value)`.
+
+### `histogram.cdf(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {number} The value to query.
+* Returns: {number} A probability between 0.0 and 1.0.
+
+Returns the cumulative distribution function (CDF) value for the given
+value, representing the probability that a recorded value will be less
+than or equal to `value`. This is the inverse operation of
+`histogram.percentile()`.
+
+### `histogram.countAt(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {number} The value to query.
+* Returns: {number}
+
+Returns the number of recorded values that fall within the equivalent
+value range of the given value.
+
 ### `histogram.exceeds`
 
 <!-- YAML
@@ -1891,6 +1930,59 @@ added:
 
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
+
+### `histogram.ksTest(other)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {Histogram} The histogram to compare against.
+* Returns: {number} The KS D-statistic, between 0.0 and 1.0.
+
+Computes the Kolmogorov-Smirnov test statistic comparing this histogram's
+distribution to `other`. A value of 0 indicates identical distributions;
+values close to 1 indicate completely disjoint distributions. Useful for
+detecting performance regressions by comparing before/after histograms.
+
+### `histogram.kurtosis`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The excess kurtosis of the recorded values. Measures the heaviness of the
+distribution's tails relative to a normal distribution. Positive values
+indicate heavier tails (more extreme outliers); negative values indicate
+lighter tails.
+
+### `histogram.linearBuckets(stepSize)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stepSize` {number} The width of each linear bucket.
+* Returns: {Map} A map of bucket boundary values to counts.
+
+Returns the histogram data rebucketed into linearly-spaced intervals
+of `stepSize`. Useful for visualization and export.
+
+### `histogram.logBuckets(firstBucket, base)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `firstBucket` {number} The value of the first bucket boundary.
+* `base` {number} The logarithmic base for bucket width growth. Must be > 1.
+* Returns: {Map} A map of bucket boundary values to counts.
+
+Returns the histogram data rebucketed into logarithmically-spaced
+intervals, where each bucket's width is multiplied by `base`.
+Useful for visualization and export.
 
 ### `histogram.max`
 
@@ -1992,6 +2084,20 @@ added:
 
 Returns a `Map` object detailing the accumulated percentile distribution.
 
+### `histogram.percentilesAt(percentiles)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `percentiles` {number\[]} An array of percentile values in the range (0, 100].
+* Returns: {Map} A map of percentile values to their corresponding histogram
+  values.
+
+Returns the values at the specified percentiles, computed in a single
+efficient pass over the histogram data. More efficient than calling
+`histogram.percentile()` multiple times.
+
 ### `histogram.reset()`
 
 <!-- YAML
@@ -1999,6 +2105,19 @@ added: v11.10.0
 -->
 
 Resets the collected histogram data.
+
+### `histogram.skewness`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The skewness of the recorded values. Measures the asymmetry of the
+distribution. A positive value indicates a right-skewed distribution
+(longer right tail, common for latency data); a negative value
+indicates a left-skewed distribution.
 
 ### `histogram.stddev`
 
@@ -2100,6 +2219,127 @@ added:
 
 Calculates the amount of time (in nanoseconds) that has passed since the
 previous call to `recordDelta()` and records that amount in the histogram.
+
+### `histogram.recordCorrected(val, expectedInterval)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `val` {number|bigint} The value to record.
+* `expectedInterval` {number|bigint} The expected recording interval.
+
+Records a value with coordinated omission correction. When a system stall
+prevents timely recording, this method backfills intermediate values at
+`expectedInterval` steps between the previously recorded value and `val`.
+This compensates for measurement gaps that would otherwise underrepresent
+latency.
+
+### `histogram.subtract(other)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `other` {RecordableHistogram}
+
+Subtracts the values of `other` from this histogram. Both histograms should
+have compatible configurations. Bucket counts that would become negative
+are clamped to zero.
+
+## Histogram analysis examples
+
+The `Histogram` class provides statistical analysis methods useful for
+performance monitoring, SLO enforcement, and regression detection.
+
+### Distribution shape analysis
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const h = createHistogram();
+
+// Simulate a right-skewed latency distribution
+for (let i = 0; i < 1000; i++) {
+  h.record(Math.ceil(Math.random() * 100));
+}
+// Add some outliers
+for (let i = 0; i < 10; i++) {
+  h.record(500 + Math.ceil(Math.random() * 500));
+}
+
+console.log('Skewness:', h.skewness.toFixed(4));  // Positive = right-skewed
+console.log('Kurtosis:', h.kurtosis.toFixed(4));  // Positive = heavy tails
+```
+
+### SLO monitoring with CDF
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const latency = createHistogram();
+
+// Record request latencies (in nanoseconds)...
+
+// "What fraction of requests complete within 100ms?"
+const withinSLO = latency.cdf(100_000_000);
+console.log(`${(withinSLO * 100).toFixed(1)}% of requests within SLO`);
+
+// "What fraction of requests exceed 500ms?"
+const violating = latency.ccdf(500_000_000);
+console.log(`${(violating * 100).toFixed(1)}% of requests violating SLO`);
+```
+
+### Regression detection with KS test
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const baseline = createHistogram();
+const current = createHistogram();
+
+// Record baseline and current latencies...
+
+// D-statistic: 0 = identical, 1 = completely different
+const d = baseline.ksTest(current);
+if (d > 0.1) {
+  console.log(`Possible regression detected (D=${d.toFixed(4)})`);
+}
+```
+
+### Batch percentile queries
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const h = createHistogram();
+// Record values...
+
+// Efficiently query common monitoring percentiles in one pass
+const p = h.percentilesAt([50, 75, 90, 95, 99, 99.9]);
+console.log('p50:', p.get(50));
+console.log('p99:', p.get(99));
+```
+
+### Snapshot diffing with subtract
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+const total = createHistogram();
+const snapshot = createHistogram();
+
+// Record values into total...
+// Periodically snapshot for "last interval" analysis:
+snapshot.add(total);
+
+// Later, take a new snapshot and diff:
+const newSnapshot = createHistogram();
+newSnapshot.add(total);
+newSnapshot.subtract(snapshot);
+// newSnapshot now contains only the values recorded since the last snapshot
+console.log('Recent p99:', newSnapshot.percentile(99));
+```
 
 ## Examples
 
