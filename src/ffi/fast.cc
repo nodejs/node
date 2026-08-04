@@ -192,13 +192,31 @@ bool SignatureNeedsFastBufferInvoke(const FFIFunction& fn) {
           IsBufferTypeName(fn.arg_type_names[0]));
 }
 
+namespace {
+
+std::shared_ptr<FFIFunction> CloneForFastMetadata(
+    const std::shared_ptr<FFIFunction>& fn) {
+  // Fast metadata only needs the native target and signature. In particular,
+  // its temporary clone must not borrow the original function's cif or plan.
+  auto clone = std::make_shared<FFIFunction>();
+  clone->closed = fn->closed;
+  clone->ptr = fn->ptr;
+  clone->args = fn->args;
+  clone->return_type = fn->return_type;
+  clone->arg_type_names = fn->arg_type_names;
+  clone->return_type_name = fn->return_type_name;
+  return clone;
+}
+
+}  // namespace
+
 std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
     const std::shared_ptr<FFIFunction>& fn) {
   // The primary Fast API entrypoint receives pointer-compatible values as
   // BigInts after the JS wrapper has converted strings, nullish values, and
   // memory-backed objects. A secondary entrypoint handles the monomorphic
   // memory-backed case without extracting the pointer in JS.
-  auto clone = std::make_shared<FFIFunction>(*fn);
+  auto clone = CloneForFastMetadata(fn);
   for (std::string& name : clone->arg_type_names) {
     if (IsBufferTypeName(name)) {
       name = "pointer";
@@ -209,10 +227,10 @@ std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
 
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
     const std::shared_ptr<FFIFunction>& fn) {
-  // Reuse the same native target and libffi metadata, but describe the JS
+  // Reuse the same native target and signature metadata, but describe the JS
   // argument as `buffer` so CreateFastFFIMetadata() emits a trampoline that
   // receives a V8 value and calls node_ffi_fast_buffer_data().
-  auto clone = std::make_shared<FFIFunction>(*fn);
+  auto clone = CloneForFastMetadata(fn);
   for (std::string& name : clone->arg_type_names) {
     if (IsPointerTypeName(name)) {
       name = "buffer";
