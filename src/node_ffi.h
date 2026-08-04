@@ -14,20 +14,41 @@
 #include <unordered_map>
 #include <vector>
 
+// libffi only accelerates reusable call plans on x86-64 System V. Other
+// targets implement the API by calling ffi_call(), which adds no benefit.
+#if defined(FFI_VERSION_NUMBER) && FFI_VERSION_NUMBER >= 30700 &&              \
+    defined(__x86_64__) && !defined(__ILP32__) && !defined(X86_WIN64) &&       \
+    !defined(_WIN32)
+#define NODE_FFI_HAS_FAST_CALL_PLAN 1
+#endif
+
 namespace node::ffi {
 
 class DynamicLibrary;
 struct FFIFunction;
 
 struct FFIFunction {
-  bool closed;
+  FFIFunction() = default;
+  FFIFunction(const FFIFunction&) = delete;
+  FFIFunction& operator=(const FFIFunction&) = delete;
+  FFIFunction(FFIFunction&&) = delete;
+  FFIFunction& operator=(FFIFunction&&) = delete;
 
-  void* ptr;
-  ffi_cif cif;
+  bool closed = false;
+
+  void* ptr = nullptr;
+  ffi_cif cif = {};
   std::vector<ffi_type*> args;
-  ffi_type* return_type;
+  ffi_type* return_type = nullptr;
   std::vector<std::string> arg_type_names;
   std::string return_type_name;
+#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
+  // The plan borrows cif, so it must remain uniquely owned by this instance.
+  std::unique_ptr<ffi_call_plan, decltype(&ffi_call_plan_free)> call_plan{
+      nullptr, ffi_call_plan_free};
+#endif
+
+  void Invoke(void* result, void** values);
 };
 
 class FFIFunctionInfo final : public BaseObject {
