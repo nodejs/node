@@ -945,13 +945,13 @@ template <typename T>
 class [[nodiscard]] UniversalPrinter<std::optional<T>> {
  public:
   static void Print(const std::optional<T>& value, ::std::ostream* os) {
-    *os << '(';
     if (!value) {
-      *os << "nullopt";
+      UniversalPrint(std::nullopt, os);
     } else {
+      *os << '(';
       UniversalPrint(*value, os);
+      *os << ')';
     }
-    *os << ')';
   }
 };
 
@@ -961,27 +961,38 @@ class [[nodiscard]] UniversalPrinter<std::nullopt_t> {
   static void Print(std::nullopt_t, ::std::ostream* os) { *os << "(nullopt)"; }
 };
 
+struct UniversalPrinterVisitor {
+  template <typename T>
+  void operator()(const T& arg) const {
+    *os << "'" << GetTypeName<T>() << "(index = " << index << ")' with value ";
+    UniversalPrint(arg, os);
+  }
+  ::std::ostream* os;
+  std::size_t index;
+};
+
 // Printer for std::variant
 template <typename... T>
 class [[nodiscard]] UniversalPrinter<std::variant<T...>> {
  public:
   static void Print(const std::variant<T...>& value, ::std::ostream* os) {
-    *os << '(';
-    std::visit(Visitor{os, value.index()}, value);
-    *os << ')';
-  }
-
- private:
-  struct Visitor {
-    template <typename U>
-    void operator()(const U& u) const {
-      *os << "'" << GetTypeName<U>() << "(index = " << index
-          << ")' with value ";
-      UniversalPrint(u, os);
+    if (value.valueless_by_exception()) {
+      *os << "(valueless)";
+    } else {
+      *os << '(';
+      std::visit(UniversalPrinterVisitor{os, value.index()}, value);
+      *os << ')';
     }
-    ::std::ostream* os;
-    std::size_t index;
-  };
+  }
+};
+
+// Printer for std::monostate
+template <>
+class [[nodiscard]] UniversalPrinter<std::monostate> {
+ public:
+  static void Print(std::monostate, ::std::ostream* os) {
+    *os << "(monostate)";
+  }
 };
 
 // UniversalPrintArray(begin, len, os) prints an array of 'len'
