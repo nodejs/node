@@ -3,8 +3,10 @@
 require('../common');
 
 const assert = require('node:assert');
+const fs = require('node:fs');
 const zlib = require('node:zlib');
 const { test } = require('node:test');
+const tmpdir = require('../common/tmpdir');
 
 async function buildArchive(entries, comment) {
   const chunks = [];
@@ -47,11 +49,69 @@ test('an EOCD-looking signature inside a trailing comment is not mistaken for th
   // before it reaches the genuine EOCD signature; embedding 4 bytes that
   // look like one partway through must not be mistaken for the real record.
   const fakeSignature = String.fromCharCode(0x50, 0x4b, 0x05, 0x06);
-  const archive = await buildArchive([entry], `before ${fakeSignature} after`);
+  const archive = await buildArchive(
+    [entry], `before ${fakeSignature} this is not a valid EOCD record after`);
 
   const read = [...zlib.ZipEntry.read(archive)];
   assert.strictEqual(read.length, 1);
   assert.strictEqual(read[0].name, 'f.txt');
+});
+
+test('multiple plausible EOCD records describing different archives are rejected', async () => {
+  const first = await buildArchive([
+    await zlib.ZipEntry.create('install.sh', Buffer.from('malicious'), { method: 'store' }),
+  ]);
+  const second = await buildArchive([
+    await zlib.ZipEntry.create('install.sh', Buffer.from('benign'), { method: 'store' }),
+  ]);
+  const archive = Buffer.concat([first, second, Buffer.from([0])]);
+  const firstEocd = first.length - 22;
+
+  // Make the first EOCD exact-to-EOF by treating the second archive and its
+  // padding as a comment. The second EOCD remains a plausible archive end for
+  // readers which tolerate trailing padding and select the rightmost record.
+  archive.writeUInt16LE(archive.length - firstEocd - 22, firstEocd + 20);
+
+  const expected = {
+    code: 'ERR_ZIP_INVALID_ARCHIVE',
+    message: /ambiguous end of central directory/,
+  };
+  assert.throws(() => [...zlib.ZipEntry.read(archive)], expected);
+  assert.throws(() => new zlib.ZipBuffer(archive), expected);
+
+  tmpdir.refresh();
+  const file = tmpdir.resolve('ambiguous.zip');
+  fs.writeFileSync(file, archive);
+  await assert.rejects(zlib.ZipFile.open(file), expected);
+  assert.throws(() => zlib.ZipFile.openSync(file), expected);
+});
+
+test('an exact EOCD embedded in a genuine comment is rejected as ambiguous', async () => {
+  const archive = await buildArchive([
+    await zlib.ZipEntry.create('f.txt', Buffer.from('content'), { method: 'store' }),
+  ]);
+  const nested = Buffer.concat([archive, buildEocd()]);
+  nested.writeUInt16LE(22, archive.length - 2);
+
+  assert.throws(() => [...zlib.ZipEntry.read(nested)], {
+    code: 'ERR_ZIP_INVALID_ARCHIVE',
+    message: /ambiguous end of central directory/,
+  });
+});
+
+test('multiple padded EOCD records are rejected as ambiguous', async () => {
+  const first = await buildArchive([
+    await zlib.ZipEntry.create('a.txt', Buffer.from('first'), { method: 'store' }),
+  ]);
+  const second = await buildArchive([
+    await zlib.ZipEntry.create('b.txt', Buffer.from('second'), { method: 'store' }),
+  ]);
+  const archive = Buffer.concat([first, second, Buffer.from('\0\0')]);
+
+  assert.throws(() => new zlib.ZipBuffer(archive), {
+    code: 'ERR_ZIP_INVALID_ARCHIVE',
+    message: /ambiguous end of central directory/,
+  });
 });
 
 test('a declared-size mismatch is rejected as corrupt', async () => {
@@ -212,13 +272,22 @@ test('every possible truncation of an archive is rejected, deterministically', a
 
 test('trailing padding after the EOCD is tolerated', async () => {
   // Some streaming writers pad their output to a block size; CPython
-  // tolerates trailing newlines/NULs and so does the pass-2 EOCD scan.
+  // tolerates trailing newlines/NULs and so does the EOCD scan.
   const archive = await buildArchive(
     [await zlib.ZipEntry.create('f.txt', Buffer.from('hi'), { method: 'store' })]);
   const padded = Buffer.concat([archive, Buffer.from('\r\n\0\0\0')]);
   const [entry] = zlib.ZipEntry.read(padded);
   assert.strictEqual(entry.name, 'f.txt');
   assert.strictEqual((await entry.content()).toString(), 'hi');
+});
+
+test('a maximum-length comment followed by block padding is tolerated', async () => {
+  const comment = 'x'.repeat(0xffff);
+  const archive = await buildArchive([], comment);
+  const padded = Buffer.concat([archive, Buffer.alloc(4096)]);
+  const zip = new zlib.ZipBuffer(padded);
+
+  assert.strictEqual(zip.comment, comment);
 });
 
 test('junk appended past a declared comment is tolerated and the comment preserved', async () => {
@@ -261,6 +330,10 @@ test('a record count inconsistent with the directory size is rejected', () => {
   const eocd = buildEocd({ cdDiskRecords: 100, totalRecords: 100, cdSize: 46 });
   const archive = Buffer.concat([Buffer.alloc(46), eocd]);
   assert.throws(() => [...zlib.ZipEntry.read(archive)],
+                { code: 'ERR_ZIP_INVALID_ARCHIVE', message: /inconsistent/ });
+
+  const zeroRecords = Buffer.concat([Buffer.alloc(46), buildEocd({ cdSize: 46 })]);
+  assert.throws(() => [...zlib.ZipEntry.read(zeroRecords)],
                 { code: 'ERR_ZIP_INVALID_ARCHIVE', message: /inconsistent/ });
 });
 
