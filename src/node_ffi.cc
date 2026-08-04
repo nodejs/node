@@ -32,7 +32,6 @@ using v8::Local;
 using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::Null;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -715,13 +714,11 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   size_t expected_args = cb->args.size();
   LocalVector<Value> callback_args(isolate, expected_args);
 
+  // libffi always points `args[i]` at its own storage for the value of
+  // argument `i`, so the slot pointers themselves are never null. A NULL
+  // pointer argument surfaces as the BigInt `0n` via ToJSArgument.
   for (size_t i = 0; i < expected_args; i++) {
-    if (args[i] == nullptr) {
-      callback_args[i] = Null(isolate);
-      continue;
-    } else {
-      callback_args[i] = ToJSArgument(isolate, cb->args[i], args[i]);
-    }
+    callback_args[i] = ToJSArgument(isolate, cb->args[i], args[i]);
   }
 
   TryCatch try_catch(isolate);
