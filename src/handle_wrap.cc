@@ -27,6 +27,7 @@
 
 namespace node {
 
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -34,6 +35,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::Uint32;
 using v8::Value;
 
 
@@ -82,6 +84,54 @@ void HandleWrap::Close(Local<Value> close_callback) {
                   env()->handle_onclose_symbol(),
                   close_callback).Check();
   }
+}
+
+
+static const char* BufferSizeFuncName(bool is_recv) {
+  return is_recv ? "uv_recv_buffer_size" : "uv_send_buffer_size";
+}
+
+static void BufferSize(const FunctionCallbackInfo<Value>& args,
+                       bool is_recv,
+                       int size,
+                       Local<Value> ctx) {
+  HandleWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+
+  int err = is_recv ? uv_recv_buffer_size(wrap->GetHandle(), &size)
+                    : uv_send_buffer_size(wrap->GetHandle(), &size);
+
+  if (err != 0) {
+    USE(wrap->env()->CollectUVExceptionInfo(
+        ctx, err, BufferSizeFuncName(is_recv)));
+    return;
+  }
+
+  args.GetReturnValue().Set(size);
+}
+
+void HandleWrap::GetBufferSize(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsBoolean());
+  BufferSize(args, args[0].As<Boolean>()->Value(), 0, args[1]);
+}
+
+
+void HandleWrap::SetBufferSize(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsBoolean());
+  bool is_recv = args[1].As<Boolean>()->Value();
+
+  if (!args[0]->IsInt32()) {
+    USE(Environment::GetCurrent(args)->CollectUVExceptionInfo(
+        args[2], UV_EINVAL, BufferSizeFuncName(is_recv)));
+    return;
+  }
+
+  BufferSize(args,
+             is_recv,
+             static_cast<int>(args[0].As<Uint32>()->Value()),
+             args[2]);
 }
 
 
@@ -180,8 +230,10 @@ Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(
 void HandleWrap::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(HandleWrap::Close);
+  registry->Register(HandleWrap::GetBufferSize);
   registry->Register(HandleWrap::HasRef);
   registry->Register(HandleWrap::Ref);
+  registry->Register(HandleWrap::SetBufferSize);
   registry->Register(HandleWrap::Unref);
 }
 

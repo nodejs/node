@@ -836,6 +836,9 @@ listening socket itself (and its pending accept queue) to the receiving thread.
 <!-- YAML
 added: v0.3.4
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Added `recvBufferSize` and `sendBufferSize` options.
   - version:
      - v25.6.0
      - v24.15.0
@@ -886,6 +889,10 @@ changes:
       global context.
   * `readable` {boolean} Allow reads on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
+  * `recvBufferSize` {integer} Sets the `SO_RCVBUF` socket value. See
+    [`socket.setRecvBufferSize()`][].
+  * `sendBufferSize` {integer} Sets the `SO_SNDBUF` socket value. See
+    [`socket.setSendBufferSize()`][].
   * `signal` {AbortSignal} An Abort signal that may be used to destroy the
     socket.
   * `typeOfService` {number} The initial Type of Service (TOS) value.
@@ -1675,6 +1682,69 @@ On some platforms (e.g., Linux), certain TOS/ECN bits may be masked or ignored,
 and behavior can differ between IPv4 and IPv6 or dual-stack sockets. Callers
 should verify platform-specific semantics.
 
+### `socket.getRecvBufferSize()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer|undefined} the `SO_RCVBUF` socket receive buffer size in
+  bytes.
+
+Before the socket is connected, the size most recently requested through
+[`socket.setRecvBufferSize()`][] or the `recvBufferSize` option is returned, or
+`undefined` if none was requested. Once connected, the size reported by the
+operating system is returned, which may differ from the requested size. Linux,
+for instance, reports twice the requested size.
+
+### `socket.getSendBufferSize()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer|undefined} the `SO_SNDBUF` socket send buffer size in bytes.
+
+Behaves like [`socket.getRecvBufferSize()`][], for the send buffer.
+
+### `socket.setRecvBufferSize(size)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `size` {integer} The receive buffer size in bytes. Must be a positive integer.
+* Returns: {net.Socket} The socket itself.
+
+Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
+in bytes.
+
+`setRecvBufferSize()` may be called before the socket is connected. The
+underlying socket does not exist until the connection is established, so the
+value is cached and applied once the socket connects. A failure to apply a
+cached value is reported as an [`'error'`][] event rather than thrown.
+
+Because the option can only be applied to an already connected socket, it cannot
+influence the TCP receive window scale factor, which is negotiated in the
+initial SYN.
+
+This method throws [`ERR_SOCKET_BAD_BUFFER_SIZE`][] if `size` is not a positive
+integer, and [`ERR_SOCKET_BUFFER_SIZE`][] if the operating system rejects the
+value. On Windows, [IPC][] sockets do not support this option and the call fails
+with `ENOTSUP`.
+
+### `socket.setSendBufferSize(size)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `size` {integer} The send buffer size in bytes. Must be a positive integer.
+* Returns: {net.Socket} The socket itself.
+
+Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
+in bytes. Behaves like [`socket.setRecvBufferSize()`][], for the send buffer.
+
 ### `socket.timeout`
 
 <!-- YAML
@@ -2432,6 +2502,8 @@ console.log('listening on', server.address().port);
 [`'timeout'`]: #event-timeout
 [`BoundSocket`]: #class-netboundsocket
 [`ERR_INVALID_ARG_VALUE`]: errors.md#err_invalid_arg_value
+[`ERR_SOCKET_BAD_BUFFER_SIZE`]: errors.md#err_socket_bad_buffer_size
+[`ERR_SOCKET_BUFFER_SIZE`]: errors.md#err_socket_buffer_size
 [`ERR_SOCKET_HANDLE_ADOPTED`]: errors.md#err_socket_handle_adopted
 [`EventEmitter`]: events.md#class-eventemitter
 [`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
@@ -2470,6 +2542,7 @@ console.log('listening on', server.address().port);
 [`socket.connecting`]: #socketconnecting
 [`socket.destroy()`]: #socketdestroyerror
 [`socket.end()`]: #socketenddata-encoding-callback
+[`socket.getRecvBufferSize()`]: #socketgetrecvbuffersize
 [`socket.localAddress`]: #socketlocaladdress
 [`socket.pause()`]: #socketpause
 [`socket.resume()`]: #socketresume
@@ -2477,6 +2550,8 @@ console.log('listening on', server.address().port);
 [`socket.setKeepAlive()`]: #socketsetkeepalive
 [`socket.setKeepAlive(enable)`]: #socketsetkeepaliveenable-initialdelay-interval-count
 [`socket.setKeepAlive(options)`]: #socketsetkeepaliveoptions
+[`socket.setRecvBufferSize()`]: #socketsetrecvbuffersizesize
+[`socket.setSendBufferSize()`]: #socketsetsendbuffersizesize
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
