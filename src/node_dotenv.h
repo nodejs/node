@@ -36,6 +36,7 @@ class Dotenv {
 
  private:
   std::map<std::string, std::string> store_;
+  std::vector<std::string> keys_order_;
 };
 
 }  // namespace node
