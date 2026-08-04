@@ -14,7 +14,7 @@ There are three options for implementing addons:
 * `nan` ([Native Abstractions for Node.js][])
 * direct use of internal V8, libuv, and Node.js libraries
 
-This rest of this document focuses on the latter, requiring
+The rest of this document focuses on the latter, requiring
 knowledge of multiple components and APIs:
 
 * [V8][]: the C++ library Node.js uses to provide the
@@ -113,7 +113,7 @@ To integrate with the npm ecosystem, see the [Building][] section.
 
 ### Context-aware addons
 
-Addons defined with `NODE_MODULE()` can not be loaded in multiple contexts or
+Addons defined with `NODE_MODULE()` cannot be loaded in multiple contexts or
 multiple threads at the same time.
 
 There are environments in which Node.js addons may need to be loaded multiple
@@ -255,7 +255,7 @@ changes:
 In order to be loaded from multiple Node.js environments,
 such as a main thread and a Worker thread, an add-on needs to either:
 
-* Be an [Node-API][] addon.
+* Be a [Node-API][] addon.
 * Be declared as context-aware using `NODE_MODULE_INIT()` as described above.
 
 In order to support [`Worker`][] threads, addons need to clean up any resources
@@ -487,13 +487,13 @@ See [C/C++ addons with Node-API][Node-API].
 
 ## Addon examples
 
-Following are some example addons intended to help developers get started. The
+The following are some example addons intended to help developers get started. The
 examples use the V8 APIs. Refer to the online [V8 reference][v8-docs]
 for help with the various V8 calls, and V8's [Embedder's Guide][] for an
 explanation of several concepts used such as handles, scopes, function
 templates, etc.
 
-Each of these examples using the following `binding.gyp` file:
+Each of these examples uses the following `binding.gyp` file:
 
 ```json
 {
@@ -979,7 +979,7 @@ provided by the underlying V8 JavaScript engine. They are subject to change
 or removal at any time. They are not documented by Node.js or V8, and they
 should never be used outside of testing.
 
-During shutdown of the process or worker threads destructors are not called
+During shutdown of the process or worker threads, destructors are not called
 by the JS engine. Therefore it's the responsibility of the user to track
 these objects and ensure proper destruction to avoid resource leaks.
 
@@ -1208,7 +1208,7 @@ console.log(obj2.plusOne());
 
 In addition to wrapping and returning C++ objects, it is possible to pass
 wrapped objects around by unwrapping them with the Node.js helper function
-`node::ObjectWrap::Unwrap`. The following examples shows a function `add()`
+`node::ObjectWrap::Unwrap`. The following example shows a function `add()`
 that can take two `MyObject` objects as input arguments:
 
 <!-- addon-verify-file passing_wrapped_objects_around/addon.cc -->
