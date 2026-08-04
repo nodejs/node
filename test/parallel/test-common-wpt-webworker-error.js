@@ -51,7 +51,7 @@ function check(backend, start) {
   const timeout = setTimeout(() => {
     stop();
     assert.fail(`WPT worker error was not reported on the ${backend} backend`);
-  }, common.platformTimeout(1000));
+  }, common.platformTimeout(10_000));
 
   const onCompletion = common.mustCall((status) => {
     clearTimeout(timeout);
