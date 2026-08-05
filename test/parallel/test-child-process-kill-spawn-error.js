@@ -6,7 +6,6 @@ const { spawn } = require('child_process');
 // Killing a child process that never spawned must not signal the process
 // group of the caller. The check runs in a detached child so that a
 // regression cannot take the test runner down with it.
-// Refs: https://github.com/nodejs/node/issues/65052
 const script = `
   const { spawn } = require('child_process');
   const child = spawn('foo123');
