@@ -1313,9 +1313,9 @@ static void Initialize(Local<Object> target,
             Boolean::New(isolate, CHAR_MIN < 0))
       .Check();
 
-  // The shared-buffer fast path uses `uintptrMax` to reject pointer BigInts
-  // that would otherwise be silently truncated by `ReadFFIArgFromBuffer`'s
-  // `memcpy(..., type->size, ...)` on 32-bit platforms. The slow path
+  // The JavaScript fast paths use `uintptrMax` to reject pointer BigInts that
+  // would otherwise be silently truncated by V8 or, on 32-bit platforms, by
+  // `ReadFFIArgFromBuffer`'s `memcpy(..., type->size, ...)`. The slow path
   // rejects the same values through `ToFFIArgument`.
   target
       ->Set(context,
