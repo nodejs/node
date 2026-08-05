@@ -3615,13 +3615,18 @@ reader.read().then(({ value, done }) => {
 added:
   - v19.9.0
   - v18.17.0
+changes:
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52037
+    description: bump default highWaterMark.
 -->
 
 * `objectMode` {boolean}
 * Returns: {integer}
 
-Returns the default highWaterMark used by streams.
-Defaults to `65536` (64 KiB), or `16` for `objectMode`.
+Returns the default highWaterMark used by streams. Defaults to `16` for
+`objectMode`. For byte streams, it defaults to `65536` (64 KiB) on non-Windows
+platforms and `16384` (16 KiB) on Windows.
 
 ### `stream.setDefaultHighWaterMark(objectMode, value)`
 
@@ -3751,7 +3756,7 @@ changes:
 * `options` {Object}
   * `highWaterMark` {number} Buffer level when
     [`stream.write()`][stream-write] starts returning `false`. **Default:**
-    `65536` (64 KiB), or `16` for `objectMode` streams.
+    See [`stream.getDefaultHighWaterMark()`][].
   * `decodeStrings` {boolean} Whether to encode `string`s passed to
     [`stream.write()`][stream-write] to `Buffer`s (with the encoding
     specified in the [`stream.write()`][stream-write] call) before passing
@@ -4125,7 +4130,7 @@ changes:
 * `options` {Object}
   * `highWaterMark` {number} The maximum [number of bytes][hwm-gotcha] to store
     in the internal buffer before ceasing to read from the underlying resource.
-    **Default:** `65536` (64 KiB), or `16` for `objectMode` streams.
+    **Default:** See [`stream.getDefaultHighWaterMark()`][].
   * `encoding` {string} If specified, then buffers will be decoded to
     strings using the specified encoding. **Default:** `null`.
   * `objectMode` {boolean} Whether this stream should behave
@@ -5066,6 +5071,7 @@ contain multi-byte characters.
 [`stream.cork()`]: #writablecork
 [`stream.duplexPair()`]: #streamduplexpairoptions
 [`stream.finished()`]: #streamfinishedstream-options-callback
+[`stream.getDefaultHighWaterMark()`]: #streamgetdefaulthighwatermarkobjectmode
 [`stream.pipe()`]: #readablepipedestination-options
 [`stream.pipeline()`]: #streampipelinesource-transforms-destination-callback
 [`stream.uncork()`]: #writableuncork
