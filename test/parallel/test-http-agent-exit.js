@@ -39,10 +39,10 @@ if (process.argv[2] === 'server') {
     http.get({ method: 'GET', host: common.localhostIPv4, port, agent, path: '/304' }, common.mustCall());
 
     // Ensure handlers are called/not called as expected
-    const cb = (res) => {
+    const cb = common.mustCall((res) => {
       res.on('end', common.mustCall());
       res.on('data', common.mustNotCall());
-    };
+    }, 3);
     http.get({ method: 'HEAD', host: common.localhostIPv4, port, agent }, cb);
     http.get({ method: 'GET', host: common.localhostIPv4, port, agent, path: '/204' }, cb);
     http.get({ method: 'GET', host: common.localhostIPv4, port, agent, path: '/304' }, cb);
