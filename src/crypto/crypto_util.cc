@@ -99,20 +99,36 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
-bool ProcessFipsOptions() {
-  /* Override FIPS settings in configuration file, if needed. */
-  if (per_process::cli_options->enable_fips_crypto ||
-      per_process::cli_options->force_fips_crypto) {
+std::optional<std::string> ProcessFipsOptions() {
+  const bool enable_fips = per_process::cli_options->enable_fips_crypto;
+  const bool force_fips = per_process::cli_options->force_fips_crypto;
+  if (!enable_fips && !force_fips) return std::nullopt;
+
 #if OPENSSL_VERSION_MAJOR >= 3
-    if (!ncrypto::testFipsEnabled()) return false;
-    return ncrypto::setFipsEnabled(true, nullptr);
-#else
-    // TODO(@jasnell): Remove this ifdef branch when openssl 1.1.1 is
-    // no longer supported.
-    if (FIPS_mode() == 0) return FIPS_mode_set(1);
-#endif
+  // Whether FIPS-approved implementations are reachable is decided by the
+  // OpenSSL configuration, not by Node.js. Refuse to start rather than
+  // restrict the default property query to a provider that is not there,
+  // which would leave every operation failing as unsupported.
+  if (!ncrypto::testFipsEnabled()) {
+    const std::string option = force_fips ? "--force-fips" : "--enable-fips";
+    return option + " requires an active OpenSSL provider named \"fips\". "
+                    "FIPS mode is configured through OpenSSL; see "
+                    "https://nodejs.org/api/crypto.html#fips-mode";
   }
-  return true;
+#endif
+
+  CryptoErrorList errors{CryptoErrorList::Option::NONE};
+  if (!ncrypto::setFipsEnabled(true, &errors)) {
+    std::string error = "OpenSSL error when trying to enable FIPS";
+    if (!errors.empty()) error += ':';
+    for (const auto& openssl_error : errors) {
+      error += '\n';
+      error += openssl_error;
+    }
+    return error;
+  }
+
+  return std::nullopt;
 }
 
 bool InitCryptoOnce(Isolate* isolate) {
