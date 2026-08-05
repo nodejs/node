@@ -141,12 +141,12 @@ AbortHandler GetAbortHandler();
 // when generating code for them the compiler can choose not to
 // maintain the frame pointers or link registers that are necessary for
 // correct backtracing.
-// `ABORT` must be a macro and not a [[noreturn]] function to make sure the
-// backtrace is correct.
-#define ABORT() ABORT_WITH_MESSAGE(__FILE__ ":" STRINGIFY(__LINE__))
-#define ABORT_WITH_MESSAGE(message)                                            \
+// `ABORT` and `ABORT_WITH_DETAILS` must be a macro and not a [[noreturn]]
+// function to make sure the backtrace is correct.
+#define ABORT() ABORT_WITH_DETAILS(__FILE__ ":" STRINGIFY(__LINE__), nullptr)
+#define ABORT_WITH_DETAILS(location, message)                                  \
   do {                                                                         \
-    node::GetAbortHandler()(message);                                          \
+    node::GetAbortHandler()(location, message);                                \
     ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 

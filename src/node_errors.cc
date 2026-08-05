@@ -396,10 +396,10 @@ void AppendExceptionLine(Environment* env,
 namespace {
 // Default handler: Dumps native + JS backtraces to stderr and exits. This
 // indirectly calls backtrace so it can not be marked as [[noreturn]] (see the
-// comment on node::Assert() below). `message` is ignored because the
-// assertion/fatal-error message, if any, is already printed to stderr by the
-// caller (Assert()/OnFatalError()) before this handler runs.
-void DefaultAbortHandler(const char* /*message*/) {
+// comment on node::Assert() below). `message` and `location` are ignored
+// because the assertion/fatal-error message, if any, is already printed to
+// stderr by the caller (Assert()/OnFatalError()) before this handler runs.
+void DefaultAbortHandler(const char* /*location*/, const char* /*message*/) {
   DumpNativeBacktrace(stderr);
   DumpJavaScriptBacktrace(stderr);
   fflush(stderr);
@@ -430,7 +430,7 @@ void Assert(const AssertionInfo& info) {
           info.message);
 
   fflush(stderr);
-  ABORT_WITH_MESSAGE(info.message);
+  ABORT_WITH_DETAILS(info.file_line, info.message);
 }
 
 enum class EnhanceFatalException { kEnhance, kDontEnhance };
@@ -608,7 +608,7 @@ static void ReportFatalException(Environment* env,
   }
 
   fflush(stderr);
-  ABORT_WITH_MESSAGE(message);
+  ABORT_WITH_DETAILS(location, message);
 }
 
 void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
@@ -644,7 +644,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
   }
 
   fflush(stderr);
-  ABORT_WITH_MESSAGE(message);
+  ABORT_WITH_DETAILS(location, message);
 }
 
 v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(

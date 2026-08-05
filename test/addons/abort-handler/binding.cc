@@ -3,7 +3,7 @@
 #include <cstdio>
 
 namespace {
-void TestAbortHandler(const char* /*message*/) {
+void TestAbortHandler(const char* /*location*/, const char* /*message*/) {
   fputs("CUSTOM_ABORT_HANDLER_RAN\n", stderr);
   fflush(stderr);
 }
