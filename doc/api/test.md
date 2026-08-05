@@ -1962,6 +1962,10 @@ changes:
     If the number of assertions run in the test does not match the number
     specified in the plan, the test will fail.
     **Default:** `undefined`.
+  * `fn` {Function|AsyncFunction} The function under test. If provided, it will take
+    precedence over the `fn` parameter.
+  * `name` {string} The name of the test. If provided, it will take precedence over the
+    `name` parameter.
 * `fn` {Function|AsyncFunction} The function under test. The first argument
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op

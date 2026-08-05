@@ -35,6 +35,7 @@ on:
           - nghttp2
           - nghttp3
           - ngtcp2
+          - perfetto
           - postject
           - root-certificates
           - simdjson
@@ -237,6 +238,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: perfetto
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-perfetto.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: postject
             subsystem: deps,test
             label: test
@@ -336,7 +345,7 @@ jobs:
         # no-op if the base branch is already up-to-date.
         with:
           token: ${{ secrets.GH_USER_TOKEN }}
-          branch: actions/${{ github.ref_name == 'main' || format('{0}/', github.ref_name) }}tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
+          branch: actions/${{ github.ref_name != 'main' && format('{0}/', github.ref_name) || '' }}tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
           delete-branch: true
           commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}

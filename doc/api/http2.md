@@ -3656,7 +3656,7 @@ properties.
   permitted on the `Http2Session` instances. **Default:** `true`.
 * `initialWindowSize` {number} Specifies the _sender's_ initial window size in
   bytes for stream-level flow control. The minimum allowed value is 0. The
-  maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
+  maximum allowed value is 2<sup>32</sup>-1. **Default:** `4194304`.
 * `maxFrameSize` {number} Specifies the size in bytes of the largest frame
   payload. The minimum allowed value is 16,384. The maximum allowed value is
   2<sup>24</sup>-1. **Default:** `16384`.

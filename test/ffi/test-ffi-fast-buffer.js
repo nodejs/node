@@ -133,3 +133,36 @@ test('optimized buffer signatures preserve pointer-like conversions', () => {
     lib.close();
   }
 });
+
+test('multi-argument buffer signatures accept pointer BigInts', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    sum_buffer: { arguments: ['buffer', 'u64'], return: 'u64' },
+    fill_buffer: { arguments: ['arraybuffer', 'u64', 'u32'], return: 'void' },
+  });
+
+  try {
+    const bytes = Buffer.from([1, 2, 3, 4]);
+    const pointer = ffi.getRawPointer(bytes);
+    const length = BigInt(bytes.length);
+
+    // The two-argument wrapper must treat a raw address like the buffer it
+    // came from, matching both the single-argument fast path and the slow
+    // paths in src/ffi/types.cc.
+    assert.strictEqual(functions.sum_buffer(pointer, length), 10n);
+    assert.strictEqual(functions.sum_buffer(bytes, length), 10n);
+    assert.strictEqual(functions.sum_buffer(0n, length), 0n);
+    assert.strictEqual(functions.sum_buffer(null, length), 0n);
+
+    // The three-argument wrapper must forward the address to real memory
+    // instead of rejecting it.
+    functions.fill_buffer(pointer, length, 7);
+    assert.deepStrictEqual(bytes, Buffer.from([7, 7, 7, 7]));
+
+    // Still accepted once the call has been optimized.
+    for (let i = 0; i < 100_000; i++) {
+      assert.strictEqual(functions.sum_buffer(pointer, length), 28n);
+    }
+  } finally {
+    lib.close();
+  }
+});

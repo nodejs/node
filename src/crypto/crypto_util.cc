@@ -267,7 +267,7 @@ MaybeLocal<Value> cryptoErrorListToException(Environment* env,
   // If there are no errors, it is likely a bug but we will return
   // an error anyway.
   if (errors.empty()) {
-    return Exception::Error(FIXED_ONE_BYTE_STRING(env->isolate(), "Ok"));
+    return Exception::Error(env->ok_string());
   }
 
   // The last error in the list is the one that will be used as the
@@ -778,13 +778,9 @@ MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
   CHECK(domexception_ctor->IsFunction());
 
   Local<Object> options = Object::New(isolate);
-  if (options
-          ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "name"),
-                FIXED_ONE_BYTE_STRING(isolate, "OperationError"))
+  if (options->Set(context, env->name_string(), env->operationerror_string())
           .IsNothing() ||
-      options->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cause"), cause)
-          .IsNothing()) {
+      options->Set(context, env->cause_string(), cause).IsNothing()) {
     return {};
   }
 

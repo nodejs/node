@@ -126,8 +126,8 @@ starting Node.js. The \fBnode:ffi\fR module also requires the
 \fB--experimental-ffi\fR flag and is only available in builds with FFI support.
 Example:
 .Bd -literal
-const { DynamicLibrary } = require('node:ffi');
-const lib = new DynamicLibrary('mylib.so');
+const { DynamicLibrary, suffix } = require('node:ffi');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 .Ed
 .Bd -literal
 $ node --permission --experimental-ffi index.js

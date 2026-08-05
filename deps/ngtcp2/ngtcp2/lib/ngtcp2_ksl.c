@@ -36,8 +36,11 @@ static ngtcp2_ksl_blk null_blk;
 
 ngtcp2_objalloc_def(ksl_blk, ngtcp2_ksl_blk, oplent)
 
+#define NGTCP2_KSL_ALIGNED_BLKLEN                                              \
+  ((sizeof(ngtcp2_ksl_blk) + 0x7U) & ~(size_t)0x7U)
+
 static size_t ksl_blklen(size_t aligned_keylen) {
-  return sizeof(ngtcp2_ksl_blk) + NGTCP2_KSL_MAX_NBLK * aligned_keylen;
+  return NGTCP2_KSL_ALIGNED_BLKLEN + NGTCP2_KSL_MAX_NBLK * aligned_keylen;
 }
 
 /*
@@ -79,7 +82,7 @@ static ngtcp2_ksl_blk *ksl_blk_objalloc_new(ngtcp2_ksl *ksl) {
     return NULL;
   }
 
-  blk->keys = (uint8_t *)blk + sizeof(*blk);
+  blk->keys = (uint8_t *)blk + NGTCP2_KSL_ALIGNED_BLKLEN;
   blk->aligned_keylen = (uint16_t)ksl->aligned_keylen;
 
   return blk;
@@ -222,21 +225,20 @@ static int ksl_split_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
  *     Out of memory.
  */
 static int ksl_split_root(ngtcp2_ksl *ksl) {
-  ngtcp2_ksl_blk *rblk = NULL, *lblk, *nroot = NULL;
+  ngtcp2_ksl_blk *rblk, *lblk, *nroot;
+
+  nroot = ksl_blk_objalloc_new(ksl);
+  if (nroot == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
 
   rblk = ksl_split_blk(ksl, ksl->root);
   if (rblk == NULL) {
+    ksl_blk_objalloc_del(ksl, nroot);
     return NGTCP2_ERR_NOMEM;
   }
 
   lblk = ksl->root;
-
-  nroot = ksl_blk_objalloc_new(ksl);
-
-  if (nroot == NULL) {
-    ksl_blk_objalloc_del(ksl, rblk);
-    return NGTCP2_ERR_NOMEM;
-  }
 
   nroot->next = nroot->prev = NULL;
   nroot->n = 2;
