@@ -320,6 +320,6 @@ fields use synthetic but stable values:
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
-[`fs.BigIntStats`]: fs.md#class-fsbigintstats
+[`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`node:fs`]: fs.md
