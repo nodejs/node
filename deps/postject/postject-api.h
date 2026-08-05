@@ -130,6 +130,8 @@ static const void* postject_find_resource(
   size_t n = main_program_info.dlpi_phnum;
   uintptr_t base_addr = main_program_info.dlpi_addr;
 
+  size_t name_len = strlen(name);
+
   // iterate program header
   for (; n > 0; n--, p += sizeof(ElfW(Phdr))) {
     ElfW(Phdr)* phdr = (ElfW(Phdr)*)p;
@@ -138,6 +140,10 @@ static const void* postject_find_resource(
     if (phdr->p_type != PT_NOTE) {
       continue;
     }
+
+    // Determine alignment for notes in this segment (default to ELF class word size if p_align is 0/1)
+    size_t align = phdr->p_align > 0 ? phdr->p_align : sizeof(ElfW(Addr));
+    if (align < 4) align = 4; // ELF Note standard minimum alignment is usually 4
 
     // note segment starts at base address + segment virtual address
     uintptr_t pos = (base_addr + phdr->p_vaddr);
@@ -150,18 +156,20 @@ static const void* postject_find_resource(
       }
 
       ElfW(Nhdr)* note = (ElfW(Nhdr)*)(uintptr_t)pos;
+
+      // Calculate padded offsets dynamically based on segment alignment
+      size_t namesz_padded = roundup(note->n_namesz, align);
+      size_t descsz_padded = roundup(note->n_descsz, align);
+
       if (note->n_namesz != 0 && note->n_descsz != 0 &&
-          strncmp((char*)(pos + sizeof(ElfW(Nhdr))), (char*)name,
-                  sizeof(name)) == 0) {
+          note->n_namesz >= name_len &&
+          strncmp((char*)(pos + sizeof(ElfW(Nhdr))), (char*)name, name_len) == 0) {
         *size = note->n_descsz;
-        // advance past note header and aligned name
-        // to get to description data
-        return (void*)((uintptr_t)note + sizeof(ElfW(Nhdr)) +
-                       roundup(note->n_namesz, 4));
+        // advance past note header and aligned name to get to description data
+        return (void*)((uintptr_t)note + sizeof(ElfW(Nhdr)) + namesz_padded);
       }
 
-      pos += (sizeof(ElfW(Nhdr)) + roundup(note->n_namesz, 4) +
-              roundup(note->n_descsz, 4));
+      pos += (sizeof(ElfW(Nhdr)) + namesz_padded + descsz_padded);
     }
   }
   return NULL;
