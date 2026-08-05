@@ -6,6 +6,7 @@
 // META: script=../util/helpers.js
 // META: script=/common/subset-tests.js
 // META: script=hkdf_vectors.js
+// META: script=kdf.js
 // META: script=hkdf.js
 
 // Define subtests from a `promise_test` to ensure the harness does not

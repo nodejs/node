@@ -27,11 +27,11 @@ function define_bits_tests() {
         'encapsulateBits should return an object'
       );
       assert_true(
-        encapsulatedBits.hasOwnProperty('sharedKey'),
+        Object.hasOwn(encapsulatedBits, 'sharedKey'),
         'Result should have sharedKey property'
       );
       assert_true(
-        encapsulatedBits.hasOwnProperty('ciphertext'),
+        Object.hasOwn(encapsulatedBits, 'ciphertext'),
         'Result should have ciphertext property'
       );
       assert_true(
