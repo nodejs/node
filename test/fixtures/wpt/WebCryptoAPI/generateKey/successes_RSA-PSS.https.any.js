@@ -6,5 +6,6 @@
 // META: variant=?31-last
 // META: script=../util/helpers.js
 // META: script=/common/subset-tests.js
+// META: script=algorithm_registry.js
 // META: script=successes.js
 run_test(["RSA-PSS"]);

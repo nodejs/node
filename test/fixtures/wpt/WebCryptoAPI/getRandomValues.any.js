@@ -66,7 +66,7 @@ for (const array of arrays) {
     }, "Large length: " + array);
 
     test(function() {
-        assert_true(self.crypto.getRandomValues(new ctor(0)).length == 0)
+        assert_true(self.crypto.getRandomValues(new ctor(0)).length === 0)
     }, "Null arrays: " + array);
 
     test(function() {

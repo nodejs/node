@@ -1,5 +1,6 @@
 // META: title=WebCrypto API: supports method tests for algorithms in https://wicg.github.io/webcrypto-modern-algos/
 // META: script=util/helpers.js
+// META: script=util/supports.js
 
 'use strict';
 
@@ -58,73 +59,11 @@ const operations = [
 ];
 
 // Test that supports method exists and is a static method
-test(() => {
-  assert_true(
-      typeof SubtleCrypto.supports === 'function',
-      'SubtleCrypto.supports should be a function');
-}, 'SubtleCrypto.supports method exists');
+testSupportsMethod();
 
 
 // Test standard WebCrypto algorithms for requested operations
-for (const [algorithmName, algorithmInfo] of Object.entries(modernAlgorithms)) {
-  for (const operation of operations) {
-    promise_test(async (t) => {
-      const isSupported = algorithmInfo.operations.includes(operation);
-
-      // Use appropriate algorithm parameters for each operation
-      let algorithm;
-      let lengthOrAdditionalAlgorithm;
-      switch (operation) {
-        case 'generateKey':
-          algorithm = algorithmInfo.keyGenParams || algorithmName;
-          break;
-        case 'importKey':
-          algorithm = algorithmInfo.importParams || algorithmName;
-          break;
-        case 'sign':
-        case 'verify':
-          algorithm = algorithmInfo.signParams || algorithmName;
-          break;
-        case 'encrypt':
-        case 'decrypt':
-          algorithm = algorithmInfo.encryptParams || algorithmName;
-          break;
-        case 'deriveBits':
-          algorithm = algorithmInfo.deriveBitsParams || algorithmName;
-          if (algorithm?.public instanceof Promise) {
-            algorithm.public = (await algorithm.public).publicKey;
-          }
-          if (algorithmName === 'PBKDF2' || algorithmName === 'HKDF') {
-            lengthOrAdditionalAlgorithm = 256;
-          }
-          break;
-        case 'digest':
-          algorithm = algorithmName;
-          break;
-        case 'encapsulateKey':
-        case 'encapsulateBits':
-        case 'decapsulateKey':
-        case 'decapsulateBits':
-          algorithm = algorithmName;
-          if (operation === 'encapsulateKey' || operation === 'decapsulateKey') {
-            lengthOrAdditionalAlgorithm = { name: 'AES-GCM', length: 256 };
-          }
-          break;
-        default:
-          algorithm = algorithmName;
-      }
-
-      const result = SubtleCrypto.supports(operation, algorithm, lengthOrAdditionalAlgorithm);
-
-      if (isSupported) {
-        assert_true(result, `${algorithmName} should support ${operation}`);
-      } else {
-        assert_false(
-            result, `${algorithmName} should not support ${operation}`);
-      }
-    }, `supports(${operation}, ${algorithmName})`);
-  }
-}
+runSupportsTests(modernAlgorithms, operations);
 
 // Test some algorithm objects with valid parameters
 test(() => {
