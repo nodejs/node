@@ -290,6 +290,7 @@
   V(options_string, "options")                                                 \
   V(original_string, "original")                                               \
   V(output_string, "output")                                                   \
+  V(leased_string, "leased")                                                  \
   V(overlapped_string, "overlapped")                                           \
   V(parse_error_string, "Parse Error")                                         \
   V(password_string, "password")                                               \

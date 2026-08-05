@@ -170,7 +170,8 @@ class ProcessWrap : public HandleWrap {
         if (!StreamForWrap(env, stdio).To(&(*options_stdio)[i].data.stream)) {
           return Nothing<void>();
         }
-      } else if (type->StrictEquals(env->wrap_string())) {
+      } else if (type->StrictEquals(env->wrap_string()) ||
+                 type->StrictEquals(env->leased_string())) {
         (*options_stdio)[i].flags = UV_INHERIT_STREAM;
         if (!StreamForWrap(env, stdio).To(&(*options_stdio)[i].data.stream)) {
           return Nothing<void>();
