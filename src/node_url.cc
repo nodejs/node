@@ -443,8 +443,12 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
   Utf8Value new_value(isolate, args[2].As<String>());
 
   std::string_view new_value_view = new_value.ToStringView();
+  // A serialized URL is not always reparsable: the IDNA encoder can emit a
+  // host label that the decoder rejects. Fail the update instead of crashing.
   auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
-  CHECK(out);
+  if (!out) {
+    return args.GetReturnValue().Set(false);
+  }
 
   bool result{true};
 
