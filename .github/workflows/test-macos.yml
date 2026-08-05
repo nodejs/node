@@ -102,7 +102,7 @@ jobs:
         if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba  # v0.0.11
         with:
-          version: v0.16.0
+          version: v0.17.0
       # The `npm ci` for this step fails a lot as part of the Test step. Run it
       # now so that we don't have to wait 2 hours for the Build step to pass
       # first before that failure happens. (And if there's something about

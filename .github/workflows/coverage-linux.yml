@@ -66,7 +66,7 @@ jobs:
         if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba  # v0.0.11
         with:
-          version: v0.16.0
+          version: v0.17.0
       - name: Install gcovr
         run: pip install gcovr==7.2
       - name: Configure
