@@ -2247,12 +2247,9 @@ void SecureContext::GetCertificateCompressionAlgorithms(
   Environment* env = Environment::GetCurrent(args);
   LocalVector<Value> algs(env->isolate());
 #ifdef NODE_OPENSSL_HAS_CERT_COMP
-  if (BIO_f_zlib() != nullptr)
-    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zlib"));
-  if (BIO_f_brotli() != nullptr)
-    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "brotli"));
-  if (BIO_f_zstd() != nullptr)
-    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zstd"));
+  if (BIO_f_zlib() != nullptr) algs.push_back(env->zlib_string());
+  if (BIO_f_brotli() != nullptr) algs.push_back(env->brotli_string());
+  if (BIO_f_zstd() != nullptr) algs.push_back(env->zstd_string());
 #endif
   args.GetReturnValue().Set(
       Array::New(env->isolate(), algs.data(), algs.size()));

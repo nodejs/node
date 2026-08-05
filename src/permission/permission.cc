@@ -251,11 +251,11 @@ bool Permission::is_scope_granted(Environment* env,
             v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
         const char* perm_str = PermissionToString(permission);
         msg->Set(context,
-                 FIXED_ONE_BYTE_STRING(isolate, "permission"),
+                 env->permission_string(),
                  v8::String::NewFromUtf8(isolate, perm_str).ToLocalChecked())
             .Check();
         msg->Set(context,
-                 FIXED_ONE_BYTE_STRING(isolate, "resource"),
+                 env->resource_string(),
                  v8::String::NewFromUtf8(isolate,
                                          res.data(),
                                          v8::NewStringType::kNormal,
@@ -321,11 +321,11 @@ void Permission::Drop(Environment* env,
           v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
       const char* perm_str = PermissionToString(scope);
       msg->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "permission"),
+               env->permission_string(),
                v8::String::NewFromUtf8(isolate, perm_str).ToLocalChecked())
           .Check();
       msg->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "resource"),
+               env->resource_string(),
                v8::String::NewFromUtf8(isolate,
                                        param.data(),
                                        v8::NewStringType::kNormal,

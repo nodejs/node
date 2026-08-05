@@ -1797,8 +1797,7 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
     return {};
 
   Local<Function> key_ctor;
-  Local<Value> arg = FIXED_ONE_BYTE_STRING(env->isolate(),
-                                           "internal/crypto/keys");
+  Local<Value> arg = env->internal_crypto_keys_string();
   if (env->builtin_module_require()
           ->Call(context, Null(env->isolate()), 1, &arg)
           .IsEmpty()) {
@@ -1902,7 +1901,7 @@ MaybeLocal<Value> NativeCryptoKey::Create(Environment* env,
   if (!KeyObjectHandle::Create(env, data).ToLocal(&handle)) return {};
 
   if (env->crypto_internal_cryptokey_constructor().IsEmpty()) {
-    Local<Value> arg = FIXED_ONE_BYTE_STRING(isolate, "internal/crypto/keys");
+    Local<Value> arg = env->internal_crypto_keys_string();
     if (env->builtin_module_require()
             ->Call(context, Null(isolate), 1, &arg)
             .IsEmpty()) {
@@ -2044,7 +2043,6 @@ Maybe<void> NativeCryptoKey::FinalizeTransferRead(
   }
   CHECK(bundle_v->IsObject());
   Local<Object> bundle = bundle_v.As<Object>();
-  Isolate* isolate = env()->isolate();
   Local<Object> obj = object();
 
   // The partially-initialized object produced by
@@ -2052,23 +2050,21 @@ Maybe<void> NativeCryptoKey::FinalizeTransferRead(
   CHECK(obj->GetInternalField(kAlgorithmField).As<Value>()->IsUndefined());
 
   Local<Value> algorithm_v;
-  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"))
-           .ToLocal(&algorithm_v)) {
+  if (!bundle->Get(context, env()->algorithm_string()).ToLocal(&algorithm_v)) {
     return Nothing<void>();
   }
   CHECK(algorithm_v->IsObject());
   obj->SetInternalField(kAlgorithmField, algorithm_v);
 
   Local<Value> usages_v;
-  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "usages"))
-           .ToLocal(&usages_v)) {
+  if (!bundle->Get(context, env()->usages_string()).ToLocal(&usages_v)) {
     return Nothing<void>();
   }
   CHECK(usages_v->IsUint32());
   usages_mask_ = usages_v.As<Uint32>()->Value();
 
   Local<Value> extractable_v;
-  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "extractable"))
+  if (!bundle->Get(context, env()->extractable_string())
            .ToLocal(&extractable_v)) {
     return Nothing<void>();
   }
@@ -2081,21 +2077,19 @@ Maybe<void> NativeCryptoKey::FinalizeTransferRead(
 Maybe<bool> NativeCryptoKey::CryptoKeyTransferData::FinalizeTransferWrite(
     Local<Context> context, v8::ValueSerializer* serializer) {
   Isolate* isolate = Isolate::GetCurrent();
+  Environment* env = Environment::GetCurrent(isolate);
   CHECK(!algorithm_.IsEmpty());
   Local<Object> bundle = Object::New(isolate);
   Local<Value> algorithm_v = PersistentToLocal::Strong(algorithm_);
-  if (bundle
-          ->Set(
-              context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"), algorithm_v)
-          .IsNothing() ||
+  if (bundle->Set(context, env->algorithm_string(), algorithm_v).IsNothing() ||
       bundle
           ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "usages"),
+                env->usages_string(),
                 Uint32::NewFromUnsigned(isolate, usages_mask_))
           .IsNothing() ||
       bundle
           ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "extractable"),
+                env->extractable_string(),
                 v8::Boolean::New(isolate, extractable_))
           .IsNothing()) {
     return Nothing<bool>();
@@ -2121,7 +2115,7 @@ BaseObjectPtr<BaseObject> NativeCryptoKey::CryptoKeyTransferData::Deserialize(
   // Make sure internal/crypto/keys has been loaded so that the
   // CryptoKey constructor is registered with the Environment.
   Isolate* isolate = env->isolate();
-  Local<Value> arg = FIXED_ONE_BYTE_STRING(isolate, "internal/crypto/keys");
+  Local<Value> arg = env->internal_crypto_keys_string();
   if (env->builtin_module_require()
           ->Call(context, Null(isolate), 1, &arg)
           .IsEmpty()) {
