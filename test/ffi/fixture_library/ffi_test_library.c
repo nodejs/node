@@ -108,6 +108,10 @@ FFI_EXPORT uint8_t string_equals_hello(const char* str) {
   return str && strcmp(str, "hello") == 0;
 }
 
+FFI_EXPORT char* overwrite_string(char* str, int32_t value, uint64_t length) {
+  return memset(str, value, (size_t)length);
+}
+
 FFI_EXPORT char* string_concat(const char* a, const char* b) {
   if (!a || !b) {
     // NOLINTNEXTLINE (readability/null_usage)

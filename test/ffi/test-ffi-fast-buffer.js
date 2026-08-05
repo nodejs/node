@@ -96,6 +96,24 @@ test('fast FFI string buffers survive reentrant callbacks', {
   }
 });
 
+test('fast FFI refreshes cached temporary string buffers', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const overwriteString = lib.getFunction('overwrite_string', {
+    arguments: ['string', 'i32', 'u64'],
+    return: 'pointer',
+  });
+
+  try {
+    const mutated = overwriteString('hello', 0x79, 1n);
+    assert.strictEqual(ffi.toString(mutated), 'yello');
+
+    const refreshed = overwriteString('hello', 0x79, 0n);
+    assert.strictEqual(ffi.toString(refreshed), 'hello');
+  } finally {
+    lib.close();
+  }
+});
+
 test('optimized buffer signatures preserve pointer-like conversions', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   const asBuffer = lib.getFunction('pointer_to_usize', {
