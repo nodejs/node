@@ -9,6 +9,7 @@
 #   * two approvals and 48 hours since it was opened (unless fast-track)
 #   * every GitHub check passing
 #   * a green Jenkins run when the pull request is labelled `needs-ci`
+#   * that CI having run in the last five days, so `main` has not moved on
 
 set -e
 
@@ -66,6 +67,7 @@ READY="${PR_STATE_JQ}"'
       and (unresolved_threads | not)
       and github_checks_passing
       and ((jenkins_required | not) or jenkins_passing($ci_pattern))
+      and ci_recent($ci_pattern; $ci_max_age)
     )
   | .number
 ]'
@@ -76,6 +78,7 @@ numbers="$(
           --argjson tsc "${TSC_MEMBERS:-[]}" \
           --argjson wait_multi "${WAIT_MULTI_APPROVAL}" \
           --argjson wait_single "${WAIT_SINGLE_APPROVAL}" \
+          --argjson ci_max_age "${CI_MAX_AGE}" \
           "${READY} | .[]"
 )"
 

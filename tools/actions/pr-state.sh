@@ -4,6 +4,7 @@
 CI_CONTEXT_PATTERN="${CI_CONTEXT_PATTERN:-node-test-pull-request}"
 WAIT_MULTI_APPROVAL="${WAIT_MULTI_APPROVAL:-172800}"
 WAIT_SINGLE_APPROVAL="${WAIT_SINGLE_APPROVAL:-604800}"
+CI_MAX_AGE="${CI_MAX_AGE:-432000}"
 
 PR_STATE_FRAGMENT='
   number
@@ -26,8 +27,8 @@ PR_STATE_FRAGMENT='
         statusCheckRollup {
           contexts(first: 100) {
             nodes {
-              ... on StatusContext { context state }
-              ... on CheckRun { name conclusion }
+              ... on StatusContext { context state createdAt }
+              ... on CheckRun { name conclusion completedAt }
             }
           }
         }
@@ -66,6 +67,15 @@ def jenkins_ran($pattern): (jenkins_contexts($pattern) | length) > 0;
 def jenkins_passing($pattern):
   jenkins_ran($pattern) and (jenkins_contexts($pattern) | all((.conclusion // .state) == "SUCCESS"));
 def jenkins_required: has_label("needs-ci");
+
+def relevant_check_times($pattern):
+  (if jenkins_required
+   then jenkins_contexts($pattern)
+   else (head_commit.statusCheckRollup.contexts.nodes // []) end)
+  | map(.completedAt // .createdAt)
+  | map(select(. != null) | fromdateiso8601);
+def ci_recent($pattern; $max_age):
+  relevant_check_times($pattern) | (length > 0) and ((now - max) <= $max_age);
 
 def age_seconds: now - (.createdAt | fromdateiso8601);
 def wait_waived: has_label("fast-track");
