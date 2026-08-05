@@ -1,5 +1,8 @@
 // META: title=WebCryptoAPI: deriveBits() Using ECDH
 // META: script=../util/helpers.js
+// META: script=ecdh_fixtures.js
+// META: script=derive.js
+// META: script=ecdh.js
 // META: script=ecdh_bits.js
 
 // Define subtests from a `promise_test` to ensure the harness does not

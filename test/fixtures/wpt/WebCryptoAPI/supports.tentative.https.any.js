@@ -1,5 +1,6 @@
 // META: title=WebCrypto API: supports method tests
 // META: script=util/helpers.js
+// META: script=util/supports.js
 
 'use strict';
 
@@ -156,12 +157,7 @@ const operations = [
 ];
 
 // Test that supports method exists and is a static method
-test(() => {
-  assert_true(
-    typeof SubtleCrypto.supports === 'function',
-    'SubtleCrypto.supports should be a function'
-  );
-}, 'SubtleCrypto.supports method exists');
+testSupportsMethod();
 
 // Test invalid operation names
 test(() => {
@@ -192,57 +188,7 @@ test(() => {
 }, 'supports returns false for invalid algorithms');
 
 // Test standard WebCrypto algorithms for requested operations
-for (const [algorithmName, algorithmInfo] of Object.entries(
-  standardAlgorithms
-)) {
-  for (const operation of operations) {
-    promise_test(async (t) => {
-      const isSupported = algorithmInfo.operations.includes(operation);
-
-      // Use appropriate algorithm parameters for each operation
-      let algorithm;
-      let length;
-      switch (operation) {
-        case 'generateKey':
-          algorithm = algorithmInfo.keyGenParams || algorithmName;
-          break;
-        case 'importKey':
-          algorithm = algorithmInfo.importParams || algorithmName;
-          break;
-        case 'sign':
-        case 'verify':
-          algorithm = algorithmInfo.signParams || algorithmName;
-          break;
-        case 'encrypt':
-        case 'decrypt':
-          algorithm = algorithmInfo.encryptParams || algorithmName;
-          break;
-        case 'deriveBits':
-          algorithm = algorithmInfo.deriveBitsParams || algorithmName;
-          if (algorithm?.public instanceof Promise) {
-            algorithm.public = (await algorithm.public).publicKey;
-          }
-          if (algorithmName === 'PBKDF2' || algorithmName === 'HKDF') {
-            length = 256;
-          }
-          break;
-        case 'digest':
-          algorithm = algorithmName;
-          break;
-        default:
-          algorithm = algorithmName;
-      }
-
-      const result = SubtleCrypto.supports(operation, algorithm, length);
-
-      if (isSupported) {
-        assert_true(result, `${algorithmName} should support ${operation}`);
-      } else {
-        assert_false(result, `${algorithmName} should not support ${operation}`);
-      }
-    }, `supports(${operation}, ${algorithmName})`);
-  }
-}
+runSupportsTests(standardAlgorithms, operations);
 
 // Test algorithm objects (not just strings)
 test(() => {

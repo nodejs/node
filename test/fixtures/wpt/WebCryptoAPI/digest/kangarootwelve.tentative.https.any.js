@@ -1,23 +1,9 @@
 // META: title=WebCryptoAPI: digest() KangarooTwelve algorithms
 // META: script=../util/helpers.js
+// META: script=xof_digest.js
 // META: timeout=long
 
 var subtle = crypto.subtle; // Change to test prefixed implementations
-
-// Generates a Uint8Array of length n by repeating the pattern 00 01 02 .. F9 FA.
-function ptn(n) {
-  var buf = new Uint8Array(n);
-  for (var i = 0; i < n; i++)
-    buf[i] = i % 251;
-  return buf;
-}
-
-function hexToBytes(hex) {
-  var bytes = new Uint8Array(hex.length / 2);
-  for (var i = 0; i < hex.length; i += 2)
-    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
-  return bytes;
-}
 
 // RFC 9861 Section 5 test vectors
 // [input, outputLengthBits, expected hex(, customization)]
@@ -182,143 +168,21 @@ var largeOutputTests = [
    '2752f3ccd855288efee5fcbb8b563069'],
 ];
 
-largeOutputTests.forEach(function (entry) {
-  var alg = entry[0];
-  var outputLength = entry[1];
-  var lastN = entry[2];
-  var expected = entry[3];
-
-  promise_test(function (test) {
-    return subtle
-      .digest({ name: alg, outputLength: outputLength }, new Uint8Array(0))
-      .then(function (result) {
-        var full = new Uint8Array(result);
-        var last = full.slice(full.length - lastN);
-        assert_true(
-          equalBuffers(last.buffer, hexToBytes(expected)),
-          'last ' + lastN + ' bytes of digest match expected'
-        );
-      });
-  }, alg + ' with ' + outputLength + ' bit output, verify last ' + lastN + ' bytes');
-});
-
-function customizationEqual(emptyDataVector, customization) {
-  return equalBuffers(customization ?? new Uint8Array(0), emptyDataVector[3] ?? new Uint8Array(0));
-}
-
-function outputLengthLessOrEqual(emptyDataVector, outputLength) {
-  return outputLength <= emptyDataVector[1];
-}
-
-var allVectors = {
-  KT128: kt128Vectors,
-  KT256: kt256Vectors,
-};
-
-Object.keys(allVectors).forEach(function (alg) {
-  var emptyDataVector = allVectors[alg][0];
-  allVectors[alg].forEach(function (vector, i) {
-    var input = vector[0];
-    var outputLength = vector[1];
-    var expected = vector[2];
-    var customization = vector[3];
-
-    var algorithmParams = { name: alg, outputLength: outputLength };
-    if (customization !== undefined)
-      algorithmParams.customization = customization;
-
-    var label = alg + ' vector #' + (i + 1) +
-      ' (' + outputLength + ' bit output, ' + input.length + ' byte input' +
-      (customization !== undefined ? ', C=' + customization.length + ' bytes' : '') + ')';
-
-    promise_test(function (test) {
-      return subtle
-        .digest(algorithmParams, input)
-        .then(function (result) {
-          assert_true(
-            equalBuffers(result, hexToBytes(expected)),
-            'digest matches expected'
-          );
-        });
-    }, label);
-
-    if (input.length > 0) {
-      promise_test(function (test) {
-        var buffer = new Uint8Array(input);
-        // Alter the buffer before calling digest
-        buffer[0] = ~buffer[0];
-        return subtle
-          .digest({
-            get name() {
-              // Alter the buffer back while calling digest
-              buffer[0] = input[0];
-              return alg;
-            },
-            outputLength: outputLength,
-            customization: customization,
-          }, buffer)
-          .then(function (result) {
-            assert_true(
-              equalBuffers(result, hexToBytes(expected)),
-              'digest matches expected'
-            );
-          });
-      }, label + ' and altered buffer during call');
-
-      promise_test(function (test) {
-        var buffer = new Uint8Array(input);
-        var promise = subtle
-          .digest(algorithmParams, buffer)
-          .then(function (result) {
-            assert_true(
-              equalBuffers(result, hexToBytes(expected)),
-              'digest matches expected'
-            );
-          });
-        // Alter the buffer after calling digest
-        buffer[0] = ~buffer[0];
-        return promise;
-      }, label + ' and altered buffer after call');
-
-      promise_test(function (test) {
-        var buffer = new Uint8Array(input);
-        return subtle
-          .digest({
-            get name() {
-              // Transfer the buffer while calling digest
-              buffer.buffer.transfer();
-              return alg;
-            },
-            outputLength: outputLength,
-            customization: customization,
-          }, buffer)
-          .then(function (result) {
-            if (customizationEqual(emptyDataVector, customization) && outputLengthLessOrEqual(emptyDataVector, outputLength)) {
-              assert_true(
-                equalBuffers(result, Uint8Array.fromHex(emptyDataVector[2]).subarray(0, outputLength / 8)),
-                'digest on transferred buffer should match result for empty buffer'
-              );
-            } else {
-              assert_equals(result.byteLength, outputLength / 8,
-                'digest on transferred buffer should have correct output length');
-            }
-          });
-      }, label + ' and transferred buffer during call');
-
-      promise_test(function (test) {
-        var buffer = new Uint8Array(input);
-        var promise = subtle
-          .digest(algorithmParams, buffer)
-          .then(function (result) {
-            assert_true(
-              equalBuffers(result, hexToBytes(expected)),
-              'digest matches expected'
-            );
-          });
-        // Transfer the buffer after calling digest
-        buffer.buffer.transfer();
-        return promise;
-      }, label + ' and transferred buffer after call');
-    }
-  });
+runXofDigestTests(subtle, {
+  vectors: {
+    KT128: kt128Vectors,
+    KT256: kt256Vectors,
+  },
+  largeOutputTests: largeOutputTests,
+  parameterName: 'customization',
+  formatParameter: function (customization) {
+    return customization !== undefined ?
+      ', C=' + customization.length + ' bytes' : '';
+  },
+  parameterEquals: function (emptyDataVector, customization) {
+    return equalBuffers(
+      customization ?? new Uint8Array(0),
+      emptyDataVector[3] ?? new Uint8Array(0)
+    );
+  },
 });
