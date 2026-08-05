@@ -270,6 +270,7 @@ const customTypesMap = {
   'URLSearchParams': 'url.html#class-urlsearchparams',
 
   'MIMEParams': 'util.html#class-utilmimeparams',
+  'MIMEType': 'util.html#class-utilmimetype',
 
   'vm.Module': 'vm.html#class-vmmodule',
   'vm.Script': 'vm.html#class-vmscript',
