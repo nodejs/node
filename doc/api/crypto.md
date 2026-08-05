@@ -4578,18 +4578,6 @@ passed to [`crypto.createPublicKey()`][].
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
-### `crypto.fips`
-
-<!-- YAML
-added: v6.0.0
-deprecated: v10.0.0
--->
-
-> Stability: 0 - Deprecated
-
-Deprecated property for checking and controlling [FIPS mode][]. Use
-[`crypto.getFips()`][] and [`crypto.setFips()`][] instead.
-
 ### `crypto.generateKey(type, options, callback)`
 
 <!-- YAML
