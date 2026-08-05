@@ -1,0 +1,36 @@
+name: Auto Commit Queue
+
+# `author ready` says a pull request is just about ready to land.
+# This runs a bit more aggressively than adding the label, and if
+# a PR passes, adds it to the queue.
+
+on:
+  schedule:
+    - cron: 10,40 * * * *
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  queue-ready-prs:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /README.md
+            /tools/actions/auto-commit-queue.sh
+            /tools/actions/pr-state.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Queue pull requests that are ready to land
+        run: ./tools/actions/auto-commit-queue.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
