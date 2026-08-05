@@ -39,8 +39,11 @@ const vfs = require('node:vfs');
   await fsp.appendFile(p('src/pw.txt'), ' more');
   assert.strictEqual(fs.readFileSync(p('src/pw.txt'), 'utf8'), 'pdata more');
 
-  await fsp.mkdir(p('src/pd'));
+  assert.strictEqual(await fsp.mkdir(p('src/pd')), undefined);
   await fsp.rmdir(p('src/pd'));
+  // Recursive mkdir reports the first created directory below the mount point.
+  assert.strictEqual(await fsp.mkdir(p('src/pr/sub'), { recursive: true }),
+                     p('src/pr'));
   await fsp.rm(p('src/pw.txt'));
   assert.strictEqual(fs.existsSync(p('src/pw.txt')), false);
 
