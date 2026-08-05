@@ -1,5 +1,6 @@
 var subtle = crypto.subtle;
 
+// Shared ML-DSA and ML-KEM import/export tests.
 function runTests(algorithmName) {
   var algorithm = { name: algorithmName };
   var data = keyData[algorithmName];
