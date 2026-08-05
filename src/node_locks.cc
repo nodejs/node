@@ -817,10 +817,10 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   PropertyAttribute read_only = static_cast<PropertyAttribute>(
       PropertyAttribute::ReadOnly | PropertyAttribute::DontDelete);
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_MODE_SHARED"),
-              FIXED_ONE_BYTE_STRING(isolate, "shared"),
+              isolate_data->shared_string(),
               read_only);
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_MODE_EXCLUSIVE"),
-              FIXED_ONE_BYTE_STRING(isolate, "exclusive"),
+              isolate_data->exclusive_string(),
               read_only);
   target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_STOLEN_ERROR"),
               FIXED_ONE_BYTE_STRING(isolate, "LOCK_STOLEN"),
