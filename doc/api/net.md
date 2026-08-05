@@ -1789,7 +1789,7 @@ added:
  - v26.4.0
  - v24.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.7.0
     pr-url: https://github.com/nodejs/node/pull/64399
     description: The `path` option is supported.
 -->
@@ -1818,7 +1818,7 @@ added:
  - v26.4.0
  - v24.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.7.0
     pr-url: https://github.com/nodejs/node/pull/64399
     description: The bound path is returned for a pipe bind.
 -->
@@ -1833,7 +1833,7 @@ OS-assigned ephemeral port.
 ### `boundSocket.isPipe`
 
 <!-- YAML
-added: REPLACEME
+added: v26.7.0
 -->
 
 * {boolean}

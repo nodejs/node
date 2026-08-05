@@ -3046,7 +3046,7 @@ added:
  - v26.1.0
  - v24.16.0
 changes:
-  - version: REPLACEME
+  - version: v26.7.0
     pr-url: https://github.com/nodejs/node/pull/64392
     description: The signal is no longer aborted after the message
                  completes normally.

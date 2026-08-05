@@ -3978,11 +3978,11 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v26.7.0
     pr-url: https://github.com/nodejs/node/pull/63949
     description: The key can also be a URL referencing an object for an
                  OpenSSL STORE loader. The `properties` option was added.
-  - version: REPLACEME
+  - version: v26.7.0
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version:
