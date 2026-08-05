@@ -102,6 +102,13 @@ string that supports `${rotation}` and `${pid}`:
 node --trace-event-categories v8 --trace-event-file-pattern '${pid}-${rotation}.log' server.js
 ```
 
+Node.js can also be built with the `--with-perfetto` configure flag, described
+in [BUILDING.md][]. Such a build writes [Perfetto](https://perfetto.dev/)
+protobuf traces instead of JSON, so the default file name becomes
+`node_trace.${rotation}.pftrace` and the files are opened at
+[`ui.perfetto.dev`](https://ui.perfetto.dev/). JSON output is unavailable there,
+as is trace collection over the inspector protocol.
+
 To guarantee that the log file is properly generated after signal events like
 `SIGINT`, `SIGTERM`, or `SIGBREAK`, make sure to have the appropriate handlers
 in your code, such as:
@@ -361,6 +368,7 @@ async function collect() {
 collect();
 ```
 
+[BUILDING.md]: https://github.com/nodejs/node/blob/HEAD/BUILDING.md#building-nodejs-with-perfetto-support
 [Performance API]: perf_hooks.md
 [V8]: v8.md
 [`Worker`]: worker_threads.md#class-worker

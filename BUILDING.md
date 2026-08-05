@@ -58,6 +58,7 @@ file a new issue.
 * [Configuring OpenSSL config appname](#configure-openssl-appname)
 * [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
 * [Building Node.js with Temporal support](#building-nodejs-with-temporal-support)
+* [Building Node.js with Perfetto support](#building-nodejs-with-perfetto-support)
 * [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
   * [Unix/macOS](#unixmacos-4)
   * [Windows](#windows-5)
@@ -1082,6 +1083,20 @@ a warning is printed and Temporal support is disabled.
   remove the Rust toolchain requirement.
 
 Passing both options to `configure.py` is an error.
+
+## Building Node.js with Perfetto support
+
+Trace events are recorded in JSON by default. Pass `--with-perfetto` to
+`configure.py` to record them in the [Perfetto](https://perfetto.dev/) protobuf
+format instead:
+
+```bash
+./configure --with-perfetto
+```
+
+The Perfetto SDK ships in `deps/perfetto`, so no additional dependency is
+needed. See [Trace events](doc/api/tracing.md) for how the output of such a
+build differs.
 
 ## Building Node.js with external core modules
 
