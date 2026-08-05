@@ -364,7 +364,7 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
 ### `--allow-openssl-store`
 
 <!-- YAML
-added: REPLACEME
+added: v26.7.0
 -->
 
 > Stability: 1.1 - Active development
@@ -751,7 +751,7 @@ added:
   - v21.3.0
   - v20.11.0
 changes:
-  - version: REPLACEME
+  - version: v26.7.0
     pr-url: https://github.com/nodejs/node/pull/64742
     description: The `--disable-warning` flag is now stable.
 -->
@@ -1079,7 +1079,7 @@ added:
  - v23.10.0
  - v22.16.0
 changes:
-  - version: REPLACEME
+  - version: v26.7.0
     pr-url: https://github.com/nodejs/node/pull/64516
     description: Marked as release candidate.
 -->
@@ -2894,7 +2894,7 @@ files must meet **both** criteria to be included in the coverage report.
 ### `--test-coverage-include-all`
 
 <!-- YAML
-added: REPLACEME
+added: v26.7.0
 -->
 
 > Stability: 1 - Experimental

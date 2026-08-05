@@ -2045,7 +2045,7 @@ whole stream with [`stream.destroy()`][]. Read/write.
 ### `stream.onstopsending`
 
 <!-- YAML
-added: REPLACEME
+added: v26.7.0
 -->
 
 * Type: {quic.OnStreamErrorCallback}
