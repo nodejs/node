@@ -1202,6 +1202,39 @@ added: v22.5.0
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
 
+### `statement.stat(counter)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `counter` {string} The name of the counter to read. One of:
+
+  * `'fullscanStep'` The number of times SQLite has stepped forward in a table
+    as part of a full table scan.
+  * `'sort'` The number of sort operations that have occurred.
+  * `'autoindex'` The number of rows inserted into transient indices that were
+    created automatically to help joins run faster.
+  * `'vmStep'` The number of virtual machine operations executed by the
+    prepared statement.
+  * `'reprepare'` The number of times the statement has been automatically
+    reprepared due to schema changes or changes to bound parameters.
+  * `'run'` The number of times the statement has run to completion.
+  * `'filterMiss'` The number of times the Bloom filter returned a result that
+    required the join step to be processed as normal.
+  * `'filterHit'` The number of times a join step was bypassed because a Bloom
+    filter returned not-found.
+  * `'memused'` The approximate number of bytes of heap memory used to store
+    the prepared statement.
+
+* Returns: {number} The current value of the requested counter.
+
+Returns one of the runtime counters that SQLite tracks for this prepared
+statement. This method is a wrapper around [`sqlite3_stmt_status()`][] and does
+not reset the counter. Asserting that a statement does not perform a full table
+scan (`statement.stat('fullscanStep') === 0`) is a useful check to guard
+against degenerate performance.
+
 ## Class: `SQLTagStore`
 
 <!-- YAML
@@ -1689,6 +1722,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_serialize()`]: https://sqlite.org/c3ref/serialize.html
 [`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_stmt_status()`]: https://www.sqlite.org/c3ref/stmt_status.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
 [`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
