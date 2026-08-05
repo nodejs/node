@@ -102,11 +102,11 @@ string that supports `${rotation}` and `${pid}`:
 node --trace-event-categories v8 --trace-event-file-pattern '${pid}-${rotation}.log' server.js
 ```
 
-Node.js can also be built with the `--with-perfetto` configure flag, described
-in [BUILDING.md][]. Such a build writes [Perfetto][] protobuf traces instead of
-JSON, so the default file name becomes `node_trace.${rotation}.pftrace` and the
-files can be opened in [`ui.perfetto.dev`][]. It cannot write JSON traces, and
-it does not support trace collection over the inspector protocol.
+Node.js can also be built with [Perfetto][] support, as described in
+[BUILDING.md][]. Such a build writes Perfetto protobuf traces instead of JSON,
+so the default file name becomes `node_trace.${rotation}.pftrace` and the files
+can be opened in [`ui.perfetto.dev`][]. It cannot write JSON traces, and it
+does not support trace collection over the inspector protocol.
 
 To guarantee that the log file is properly generated after signal events like
 `SIGINT`, `SIGTERM`, or `SIGBREAK`, make sure to have the appropriate handlers
@@ -295,8 +295,7 @@ console.log(getEnabledCategories());
 
 ### Collect trace events data by inspector
 
-The `NodeTracing` domain is not registered in builds configured with
-`--with-perfetto`.
+The `NodeTracing` domain is not registered in builds with Perfetto support.
 
 ```mjs
 import { Session } from 'node:inspector';

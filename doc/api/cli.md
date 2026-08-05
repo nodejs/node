@@ -3303,8 +3303,8 @@ added: v9.8.0
 
 Template string specifying the filepath for the trace event data, it
 supports `${rotation}` and `${pid}`. It defaults to `node_trace.${rotation}.log`,
-or to `node_trace.${rotation}.pftrace` when Node.js is built with the
-`--with-perfetto` configure flag. See [Trace events][] for details.
+or to `node_trace.${rotation}.pftrace` in builds with Perfetto support. See
+[Trace events][] for details.
 
 ### `--trace-events-enabled`
 
