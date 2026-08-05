@@ -90,6 +90,43 @@ test('queries with no results', () => {
   assert.strictEqual(count, 0);
 });
 
+test('rejects parameters outside of template expressions', () => {
+  const ldb = new DatabaseSync(':memory:');
+  const lsql = ldb.createTagStore();
+  ldb.exec(`
+    CREATE TABLE secrets(owner TEXT, token TEXT);
+    INSERT INTO secrets VALUES ('victim', 'secret');
+    CREATE TABLE transfers(from_user TEXT, amount INTEGER);
+  `);
+
+  const expectedError = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /must be bound using template literal placeholders/,
+  };
+
+  for (const method of ['get', 'all', 'iterate']) {
+    // Prime the cached statement with a bound value before each attempt.
+    // eslint-disable-next-line no-unused-expressions
+    lsql.all`SELECT token FROM secrets WHERE owner = ${'victim'}`;
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      lsql[method]`SELECT token FROM secrets WHERE owner = ?`;
+    }, expectedError);
+  }
+
+  // eslint-disable-next-line no-unused-expressions
+  lsql.run`INSERT INTO transfers VALUES (${'victim'},${100})`;
+  assert.throws(() => {
+    // eslint-disable-next-line no-unused-expressions
+    lsql.run`INSERT INTO transfers VALUES (?,?)`;
+  }, expectedError);
+  assert.strictEqual(
+    ldb.prepare('SELECT COUNT(*) AS count FROM transfers').get().count,
+    1);
+
+  ldb.close();
+});
+
 test('TagStore capacity, size, and clear', () => {
   assert.strictEqual(sql.capacity, 10);
   assert.strictEqual(sql.size, 0);
