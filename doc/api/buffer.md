@@ -5317,6 +5317,11 @@ npx codemod@latest @nodejs/buffer-atob-btoa
 added:
   - v19.6.0
   - v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64504
+    description: Detached `ArrayBuffer`s and views backed by them are treated
+                 as empty.
 -->
 
 * `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
@@ -5325,7 +5330,7 @@ added:
 This function returns `true` if `input` contains only valid ASCII-encoded data,
 including the case in which `input` is empty.
 
-Throws if the `input` is a detached array buffer.
+A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
 
 ### `buffer.isUtf8(input)`
 
@@ -5333,6 +5338,11 @@ Throws if the `input` is a detached array buffer.
 added:
   - v19.4.0
   - v18.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64504
+    description: Detached `ArrayBuffer`s and views backed by them are treated
+                 as empty.
 -->
 
 * `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
@@ -5341,7 +5351,7 @@ added:
 This function returns `true` if `input` contains only valid UTF-8-encoded data,
 including the case in which `input` is empty.
 
-Throws if the `input` is a detached array buffer.
+A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
 
 ### `buffer.INSPECT_MAX_BYTES`
 
