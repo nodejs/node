@@ -831,14 +831,6 @@ Enable experimental WebAssembly System Interface (WASI) support.
 .It Fl -experimental-worker-inspection
 Enable experimental support for the worker inspection with Chrome DevTools.
 .
-.It Fl -expose-gc
-This flag will expose the gc extension from V8.
-.Bd -literal
-if (globalThis.gc) {
-  globalThis.gc();
-}
-.Ed
-.
 .It Fl -force-context-aware
 Disable loading native addons that are not context-aware.
 .
