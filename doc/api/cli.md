@@ -3302,9 +3302,7 @@ added: v9.8.0
 -->
 
 Template string specifying the filepath for the trace event data, it
-supports `${rotation}` and `${pid}`. It defaults to `node_trace.${rotation}.log`,
-or to `node_trace.${rotation}.pftrace` in builds with Perfetto support. See
-[Trace events][] for details.
+supports `${rotation}` and `${pid}`.
 
 ### `--trace-events-enabled`
 
@@ -4483,7 +4481,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://tc39.es/ecma426/
 [Test tags]: test.md#test-tags
-[Trace events]: tracing.md
 [TypeScript type-stripping]: typescript.md#type-stripping
 [V8 Inspector integration for Node.js]: debugger.md#v8-inspector-integration-for-nodejs
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html

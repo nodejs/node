@@ -1095,8 +1095,12 @@ format instead:
 ```
 
 The Perfetto SDK ships in `deps/perfetto`, so no additional dependency is
-needed. See [Trace events](doc/api/tracing.md) for how the output of such a
-build differs.
+needed.
+
+Such a build writes Perfetto protobuf traces instead of JSON, so the default
+trace file name becomes `node_trace.${rotation}.pftrace` and the files can be
+opened in <https://ui.perfetto.dev>. It cannot write JSON traces, and it does
+not support trace collection over the inspector protocol.
 
 ## Building Node.js with external core modules
 
