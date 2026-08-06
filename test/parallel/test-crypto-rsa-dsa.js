@@ -16,9 +16,20 @@ const {
 const fips3 = hasFIPS(3);
 const fips35 = hasFIPS(3, 5);
 const fips30 = fips3 && !fips35;
-const fips4 = hasFIPS(4);
 const fipsDigestErrorCode = 'ERR_OSSL_DIGEST_NOT_ALLOWED';
 const wrongPassphrase = 'wrong-password';
+const wrongPassphraseError =
+  /bad decrypt|DECRYPTION_FAILED|BAD_DECRYPT|bad password|DECODE[ _]ERROR/i;
+
+// A wrong passphrase usually fails during cipher finalization, but CBC output
+// can have valid padding by chance. OpenSSL then parses the bad plaintext and
+// may report ASN.1 or decoder errors from the same failed key import.
+function isWrongPassphraseError(err) {
+  return err.code === 'ERR_OSSL_BAD_DECRYPT' ||
+         wrongPassphraseError.test(err.message) ||
+         err.code?.startsWith('ERR_OSSL_ASN1_') ||
+         err.code === 'ERR_OSSL_UNSUPPORTED';
+}
 
 // Test certificates
 const certPem = fixtures.readKey('rsa_cert.crt');
@@ -71,8 +82,8 @@ const openssl1DecryptError = {
   library: 'digital envelope routines',
 };
 
-const decryptError = fips4 ?
-  { code: 'ERR_OSSL_BAD_DECRYPT' } : hasOpenSSL(3) ?
+const decryptError = fips3 ?
+  isWrongPassphraseError : hasOpenSSL(3) ?
     { message: 'error:1C800064:Provider routines::bad decrypt' } :
     process.features.openssl_is_boringssl ? {
       message: 'error:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT',
@@ -83,13 +94,12 @@ const decryptError = fips4 ?
     } :
       openssl1DecryptError;
 
-const decryptPrivateKeyError = fips4 ? {
-  code: 'ERR_OSSL_BAD_DECRYPT',
-} : hasOpenSSL(3) ? {
-  message: 'error:1C800064:Provider routines::bad decrypt',
-} : process.features.openssl_is_boringssl ? {
-  message: 'error:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT',
-} : openssl1DecryptError;
+const decryptPrivateKeyError = fips3 ?
+  isWrongPassphraseError : hasOpenSSL(3) ? {
+    message: 'error:1C800064:Provider routines::bad decrypt',
+  } : process.features.openssl_is_boringssl ? {
+    message: 'error:1e000065:Cipher functions:OPENSSL_internal:BAD_DECRYPT',
+  } : openssl1DecryptError;
 
 function getBufferCopy(buf) {
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
