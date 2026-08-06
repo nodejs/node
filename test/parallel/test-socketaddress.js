@@ -162,6 +162,10 @@ describe('net.SocketAddress...', () => {
       'abc.123',
       '259.1.1.1',
       '12:12:12',
+      // Host names.
+      'cafe',
+      'bad.cafe',
+      'dead.beef',
       // Arbitrary URL components.
       'user:80@5.6.7.8',
       'user@1.2.3.4',
