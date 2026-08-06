@@ -613,8 +613,10 @@ added:
 Loads a serialized database into this connection, replacing the current
 database. The deserialized database is writable. Existing prepared statements
 are finalized before deserialization is attempted, even if the operation
-subsequently fails. This method is a wrapper around
-[`sqlite3_deserialize()`][].
+subsequently fails. An \[`ERR_INVALID_STATE`]\[] error is thrown if the method is
+called while a statement is executing, for example from a user-defined function,
+an aggregate function, or an authorizer callback. This method is a wrapper
+around [`sqlite3_deserialize()`][].
 
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
