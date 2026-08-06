@@ -251,6 +251,12 @@ test('ffi validates memory access arguments', () => {
     assert.throws(() => ffi.exportArrayBufferView('bad', ptr, 4), { code: 'ERR_INVALID_ARG_TYPE' });
     assert.throws(() => ffi.exportArrayBufferView(new Uint8Array([1]), ptr, -1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.exportArrayBufferView(new Uint8Array([1, 2]), ptr, 1), { code: 'ERR_OUT_OF_RANGE' });
+    const detachedArrayBuffer = new ArrayBuffer(2);
+    structuredClone(detachedArrayBuffer, { transfer: [detachedArrayBuffer] });
+    assert.throws(() => ffi.exportArrayBuffer(detachedArrayBuffer, ptr, 2), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /ArrayBuffer is detached/,
+    });
     assert.throws(() => ffi.toBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
     assert.throws(() => ffi.toArrayBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
     assert.throws(() => ffi.toBuffer(1n, bufferConstants.MAX_LENGTH + 1), { code: 'ERR_BUFFER_TOO_LARGE' });
