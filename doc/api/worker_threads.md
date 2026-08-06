@@ -1829,8 +1829,8 @@ is done within the event loop. So the event loop utilization is
 immediately available once the worker's script begins execution.
 
 An `idle` time that does not increase does not indicate that the worker is
-stuck in bootstrap. The following examples shows how the worker's entire
-lifetime never accumulates any `idle` time, but is still be able to process
+stuck in bootstrap. The following example shows how the worker's entire
+lifetime never accumulates any `idle` time, but is still able to process
 messages.
 
 ```mjs
