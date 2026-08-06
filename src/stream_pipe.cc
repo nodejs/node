@@ -58,7 +58,8 @@ void StreamPipe::Unpipe(bool is_in_deletion) {
 
   is_closed_ = true;
   is_reading_ = false;
-  source()->RemoveStreamListener(&readable_listener_);
+  // Source may already be gone here during destroy
+  if (source() != nullptr) source()->RemoveStreamListener(&readable_listener_);
   if (pending_writes_ == 0 || sink_destroyed_)
     sink()->RemoveStreamListener(&writable_listener_);
 
@@ -209,8 +210,14 @@ void StreamPipe::WritableListener::OnStreamAfterShutdown(ShutdownWrap* w,
 void StreamPipe::ReadableListener::OnStreamDestroy() {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   pipe->source_destroyed_ = true;
-  if (!pipe->is_eof_) {
-    OnStreamRead(UV_EPIPE, uv_buf_init(nullptr, 0));
+  if (pipe->is_eof_) return;
+
+  // Mirror ReadableListener::OnStreamRead() teardown, but without
+  // other stream interactions:
+  pipe->is_eof_ = true;
+  if (pipe->pending_writes_ == 0) {
+    pipe->sink()->Shutdown();
+    pipe->Unpipe();
   }
 }
 
@@ -227,8 +234,7 @@ void StreamPipe::WritableListener::OnStreamDestroy() {
 void StreamPipe::WritableListener::OnStreamWantsWrite(size_t suggested_size) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
   pipe->wanted_data_ = suggested_size;
-  if (pipe->is_reading_ || pipe->is_closed_)
-    return;
+  if (pipe->is_reading_ || pipe->is_closed_ || pipe->source_destroyed_) return;
   HandleScope handle_scope(pipe->env()->isolate());
   InternalCallbackScope callback_scope(pipe,
       InternalCallbackScope::kSkipTaskQueues);
