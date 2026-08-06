@@ -44,3 +44,9 @@ const err = {
 };
 assert.throws(function() { process.chdir({}); }, err);
 assert.throws(function() { process.chdir(); }, err);
+
+assert.throws(() => process.chdir(`${dir}\u0000ignored`), {
+  code: 'ERR_INVALID_ARG_VALUE',
+  name: 'TypeError',
+  message: /The argument 'directory' must be a string without null bytes/,
+});
