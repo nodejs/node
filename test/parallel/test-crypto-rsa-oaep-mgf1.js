@@ -12,6 +12,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
+const { hasFIPS } = require('../common/crypto');
 
 const constants = crypto.constants;
 
@@ -59,7 +60,8 @@ const input = Buffer.from('the quick brown fox jumps over the lazy dog');
       // No mgf1Hash: MGF1 follows oaepHash (sha256) and must fail to unpad.
     }, encrypted);
   }, {
-    code: 'ERR_OSSL_RSA_OAEP_DECODING_ERROR',
+    code: hasFIPS(3, 5) ? 'ERR_OSSL_EVP_PROVIDER_ASYM_CIPHER_FAILURE' :
+      'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
   });
 }
 
