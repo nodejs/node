@@ -163,6 +163,7 @@ describe('net.SocketAddress...', () => {
       '259.1.1.1',
       '12:12:12',
       // Host names.
+      'cabbage.ca',
       'cafe',
       'bad.cafe',
       'dead.beef',
