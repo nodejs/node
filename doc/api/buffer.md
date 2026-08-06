@@ -5638,7 +5638,7 @@ introducing security vulnerabilities into an application.
 [`buf.compare()`]: #bufcomparetarget-targetstart-targetend-sourcestart-sourceend
 [`buf.entries()`]: #bufentries
 [`buf.fill()`]: #buffillvalue-offset-end-encoding
-[`buf.indexOf()`]: #bufindexofvalue-byteoffset-encoding
+[`buf.indexOf()`]: #bufindexofvalue-start-end-encoding
 [`buf.keys()`]: #bufkeys
 [`buf.length`]: #buflength
 [`buf.slice()`]: #bufslicestart-end
