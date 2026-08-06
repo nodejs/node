@@ -340,7 +340,7 @@ class CustomAggregate {
                                Global<Function> CustomAggregate::*mptr) {
     CustomAggregate* self =
         static_cast<CustomAggregate*>(sqlite3_user_data(ctx));
-    CallbackDepthGuard guard(self->db_);
+    CallbackDepthGuard guard(self->db_.get());
     Environment* env = self->env_;
     Isolate* isolate = env->isolate();
     auto agg = self->GetAggregate(ctx);
@@ -398,7 +398,7 @@ class CustomAggregate {
   static inline void xValueBase(sqlite3_context* ctx, bool is_final) {
     CustomAggregate* self =
         static_cast<CustomAggregate*>(sqlite3_user_data(ctx));
-    CallbackDepthGuard guard(self->db_);
+    CallbackDepthGuard guard(self->db_.get());
     Environment* env = self->env_;
     Isolate* isolate = env->isolate();
     auto agg = self->GetAggregate(ctx);
@@ -674,7 +674,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
                                 sqlite3_value** argv) {
   UserDefinedFunction* self =
       static_cast<UserDefinedFunction*>(sqlite3_user_data(ctx));
-  CallbackDepthGuard guard(self->db_);
+  CallbackDepthGuard guard(self->db_.get());
   Environment* env = self->env_;
   Isolate* isolate = env->isolate();
   auto recv = Undefined(isolate);
