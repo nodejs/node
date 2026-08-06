@@ -115,21 +115,22 @@ const data = Buffer.from('hello store');
 
 {
   // Encrypted PKCS#8 with passphrase via { key: url, passphrase }.
+  const passphrase = 'correct-passphrase';
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const file = path.join(tmpdir.path, 'enc.pem');
   fs.writeFileSync(file, privateKey.export({
-    format: 'pem', type: 'pkcs8', cipher: 'aes-256-cbc', passphrase: 'pw',
+    format: 'pem', type: 'pkcs8', cipher: 'aes-256-cbc', passphrase,
   }));
   const url = pathToFileURL(file);
 
-  const sig = sign(null, data, { key: url, passphrase: Buffer.from('pw') });
+  const sig = sign(null, data, { key: url, passphrase: Buffer.from(passphrase) });
   assert.strictEqual(verify(null, data, publicKey, sig), true);
 
   assert.throws(() => createPrivateKey(url), {
     code: 'ERR_MISSING_PASSPHRASE',
   });
 
-  assert.throws(() => createPrivateKey({ key: url, passphrase: 'bad' }),
+  assert.throws(() => createPrivateKey({ key: url, passphrase: 'wrong-passphrase' }),
                 common.expectsError({
                   name: 'Error',
                   code: /^ERR_OSSL_/,
