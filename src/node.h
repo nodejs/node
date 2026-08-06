@@ -851,6 +851,7 @@ NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
 // handler is called regardless of whether or not it returns. Passing nullptr
 // restores the default handler. This is process-global and may be invoked
 // before any Isolate or Environment exists.
+// N.B. location and message can be null
 using AbortHandler = void (*)(const char* location, const char* message);
 NODE_EXTERN void SetAbortHandler(AbortHandler handler);
 
