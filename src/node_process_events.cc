@@ -114,12 +114,15 @@ std::set<std::string> experimental_warnings;
 
 Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
                                            const std::string& warning) {
-  if (experimental_warnings.contains(warning)) return Nothing<bool>();
+  if (experimental_warnings.contains(warning)) return Just(false);
 
-  experimental_warnings.insert(warning);
   std::string message(warning);
   message.append(" is an experimental feature and might change at any time");
-  return ProcessEmitWarningGeneric(env, message.c_str(), "ExperimentalWarning");
+  Maybe<bool> emitted =
+      ProcessEmitWarningGeneric(env, message, "ExperimentalWarning");
+
+  if (emitted.FromMaybe(false)) experimental_warnings.insert(warning);
+  return emitted;
 }
 
 Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,
