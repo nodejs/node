@@ -151,7 +151,7 @@ test('ffi rejects detached array buffers and views as pointers', () => {
   const typedArray = new Uint8Array(arrayBuffer);
   const dataView = new DataView(arrayBuffer);
 
-  structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
+  arrayBuffer.transfer();
 
   assert.throws(() => ffi.exportArrayBuffer(arrayBuffer, 0n, 0), {
     code: 'ERR_INVALID_ARG_VALUE',
