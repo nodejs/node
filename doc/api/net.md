@@ -445,9 +445,11 @@ added:
 * Returns: {net.SocketAddress} Returns a `SocketAddress` if parsing was successful.
   Otherwise returns `undefined`.
 
-The `input` may contain only hexadecimal digits, `x`, `.`, `:`, `[`, and `]`.
-Anything else returns `undefined`, including other URL components such as
-`user@1.2.3.4` or `1.2.3.4/foo`, whitespace, control characters,
+The address portion of `input` must be a valid IPv4 or IPv6 address as
+recognized by the [WHATWG URL host parser][], and `input` may contain only
+hexadecimal digits, `x`, `.`, `:`, `[`, and `]`. Anything else returns
+`undefined`, including host names such as `example.com`, other URL components
+such as `user@1.2.3.4` or `1.2.3.4/foo`, whitespace, control characters,
 percent-encoding, and non-ASCII characters.
 
 ## Class: `net.Server`
@@ -2579,6 +2581,7 @@ console.log('listening on', server.address().port);
 [RFC 8305]: https://www.rfc-editor.org/rfc/rfc8305.txt
 [Readable Stream]: stream.md#class-streamreadable
 [Transferring TCP handles to other threads]: #transferring-tcp-handles-to-other-threads
+[WHATWG URL host parser]: https://url.spec.whatwg.org/#host-parsing
 [`'close'`]: #event-close
 [`'connect'`]: #event-connect
 [`'connection'`]: #event-connection
