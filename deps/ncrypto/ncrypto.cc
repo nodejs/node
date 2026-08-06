@@ -5653,8 +5653,8 @@ DataPointer RSA_Cipher(const EVPKeyPointer& key,
   const Digest& mgf1_digest =
       params.mgf1_digest != nullptr ? params.mgf1_digest : params.digest;
   if (!ctx || init(ctx.get()) <= 0 || !ctx.setRsaPadding(params.padding) ||
-      (params.digest != nullptr && (!ctx.setRsaOaepMd(params.digest) ||
-                                    !ctx.setRsaMgf1Md(mgf1_digest)))) {
+      (params.digest != nullptr &&
+       (!ctx.setRsaOaepMd(params.digest) || !ctx.setRsaMgf1Md(mgf1_digest)))) {
     return {};
   }
 

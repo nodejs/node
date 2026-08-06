@@ -58,6 +58,8 @@ const input = Buffer.from('the quick brown fox jumps over the lazy dog');
       oaepHash: 'sha256',
       // No mgf1Hash: MGF1 follows oaepHash (sha256) and must fail to unpad.
     }, encrypted);
+  }, {
+    code: 'ERR_OSSL_RSA_OAEP_DECODING_ERROR',
   });
 }
 
