@@ -18,6 +18,8 @@
 #include "src/heap/heap.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-collection-inl.h"
+#include "src/objects/ordered-hash-table.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/sampling-heap-profiler.h"
@@ -29,7 +31,13 @@ HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
       names_(new StringsStorage()),
       is_tracking_object_moves_(false),
-      is_taking_snapshot_(false) {}
+      is_taking_snapshot_(false)
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+      ,
+      label_intern_table_(reinterpret_cast<v8::Isolate*>(heap->isolate()))
+#endif
+{
+}
 
 HeapProfiler::~HeapProfiler() = default;
 
@@ -233,12 +241,28 @@ bool HeapProfiler::StartSamplingHeapProfiler(
     v8::HeapProfiler::SamplingFlags flags) {
   if (sampling_heap_profiler_) return false;
   sampling_heap_profiler_.reset(new SamplingHeapProfiler(
-      heap(), names_.get(), sample_interval, stack_depth, flags));
+      heap(), names_.get(), sample_interval, stack_depth, flags
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+      ,
+      label_intern_table_
+#endif
+      ));
   return true;
 }
 
 void HeapProfiler::StopSamplingHeapProfiler() {
   sampling_heap_profiler_.reset();
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  // Stop the finished session from pinning JS values. Ids it minted then
+  // resolve to empty, and releasing them is a no-op.
+  label_intern_table_.Clear();
+  // Clear the ALS key so a later session that never requested labels does
+  // not inherit the previous session's key and emit labelled samples.
+  // Node re-arms the key on every labels:true start, so clearing here is
+  // safe; an out-of-band stop cannot notify Node, so this is the only
+  // place the clear can happen reliably.
+  sample_labels_als_key_.Reset();
+#endif
   MaybeClearStringsStorage();
 }
 
@@ -404,5 +428,51 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
     }
   });
 }
+
+// NODE-LOCAL PATCH: heap profile sample labels feature, do not remove on V8
+// update. See the comment at the top of include/v8-profiler.h.
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+uint32_t HeapProfiler::InternLabelValue(v8::Local<v8::Value> value) {
+  // Interning with no sampler running would accumulate entries that nothing
+  // will release. Main thread only, so reading the pointer is safe.
+  if (!sampling_heap_profiler_) return LabelInternTable::kNoLabelId;
+  if (value.IsEmpty()) return LabelInternTable::kNoLabelId;
+  return label_intern_table_.Intern(value);
+}
+
+void HeapProfiler::ReleaseLabelValue(uint32_t id) {
+  if (id == LabelInternTable::kNoLabelId) return;
+  // Callable from any thread: the table lives as long as the isolate, so a
+  // background sweeper never reaches one that is being destroyed, and no
+  // check of sampling_heap_profiler_ is needed.
+  label_intern_table_.Release(id);
+}
+
+v8::MaybeLocal<v8::Value> HeapProfiler::ResolveLabelValue(uint32_t id) {
+  if (id == LabelInternTable::kNoLabelId) return v8::MaybeLocal<v8::Value>();
+  return label_intern_table_.Lookup(id);
+}
+
+v8::MaybeLocal<v8::Value> HeapProfiler::LookupAlsValue(
+    v8::Local<v8::Value> cped) {
+  if (sample_labels_als_key_.IsEmpty() || cped.IsEmpty()) {
+    return v8::MaybeLocal<v8::Value>();
+  }
+  Tagged<Object> cped_obj = *Utils::OpenDirectHandle(*cped);
+  if (!IsJSMap(cped_obj)) return v8::MaybeLocal<v8::Value>();
+
+  Tagged<JSMap> js_map = Cast<JSMap>(cped_obj);
+  Tagged<OrderedHashMap> table = Cast<OrderedHashMap>(js_map->table());
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
+  v8::Local<v8::Value> als_key_local = sample_labels_als_key_.Get(v8_isolate);
+  Tagged<Object> key_obj = *Utils::OpenDirectHandle(*als_key_local);
+  InternalIndex entry = table->FindEntry(isolate(), key_obj);
+  if (!entry.is_found()) return v8::MaybeLocal<v8::Value>();
+
+  Tagged<Object> value = table->ValueAt(entry);
+  return Utils::ToLocal(direct_handle(value, isolate()));
+}
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
 
 }  // namespace v8::internal

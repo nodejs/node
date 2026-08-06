@@ -33,6 +33,7 @@
 #include <optional>
 #include <vector>
 
+#include "include/v8-container.h"
 #include "include/v8-function.h"
 #include "include/v8-json.h"
 #include "include/v8-profiler.h"
@@ -4920,3 +4921,309 @@ TEST(HeapSnapshotWithWasmInstance) {
 #endif  // V8_ENABLE_SANDBOX
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+
+// --- Tests for Sample::label_id and ResolveLabelValue ---
+
+// Sets up the ALS key on the heap profiler and stores a flat label array
+// [key, val, ...] as the ALS value in a CPED Map.  Both are required for
+// SampleObject to intern the value at allocation time.
+static void SetupAlsContext(v8::Isolate* isolate, v8::Local<v8::Context> ctx,
+                            v8::HeapProfiler* hp,
+                            v8::Local<v8::Value> als_value) {
+  v8::Local<v8::String> als_key =
+      v8::String::NewFromUtf8Literal(isolate, "node-heap-profiler");
+  hp->SetHeapProfileSampleLabelsKey(als_key);
+  v8::Local<v8::Map> cped_map = v8::Map::New(isolate);
+  cped_map->Set(ctx, als_key, als_value).ToLocalChecked();
+  isolate->SetContinuationPreservedEmbedderDataV2(cped_map);
+}
+
+// Returns a flat V8 Array ["route", route_val] as the ALS label value.
+static v8::Local<v8::Array> MakeLabelArray(v8::Isolate* isolate,
+                                           v8::Local<v8::Context> ctx,
+                                           const char* route_val) {
+  v8::Local<v8::Array> arr = v8::Array::New(isolate, 2);
+  arr->Set(ctx, 0, v8::String::NewFromUtf8Literal(isolate, "route")).Check();
+  arr->Set(ctx, 1, v8::String::NewFromUtf8(isolate, route_val).ToLocalChecked())
+      .Check();
+  return arr;
+}
+
+TEST(SamplingHeapProfilerLabelsCallback) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  // Set up ALS key + CPED Map so SampleObject interns the value.
+  v8::Local<v8::Array> label_arr =
+      MakeLabelArray(isolate, env.local(), "/api/test");
+  SetupAlsContext(isolate, env.local(), heap_profiler, label_arr);
+
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Allocate enough objects to get samples.
+  for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // Verify at least one sample has a non-zero label_id that resolves to the
+  // expected flat array.
+  bool found_labeled = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (sample.label_id != 0) {
+      v8::HandleScope hs(isolate);
+      v8::Local<v8::Value> resolved;
+      CHECK(heap_profiler->ResolveLabelValue(sample.label_id)
+                .ToLocal(&resolved));
+      CHECK(resolved->IsArray());
+      v8::Local<v8::Array> arr = resolved.As<v8::Array>();
+      CHECK_GE(arr->Length(), 2u);
+      v8::String::Utf8Value key(
+          isolate, arr->Get(env.local(), 0).ToLocalChecked());
+      v8::String::Utf8Value val(
+          isolate, arr->Get(env.local(), 1).ToLocalChecked());
+      CHECK_EQ(std::string(*key), "route");
+      CHECK_EQ(std::string(*val), "/api/test");
+      found_labeled = true;
+    }
+  }
+  CHECK(found_labeled);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerNoAlsKeySet) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  // No ALS key set — internment gate is closed — label_id must be 0.
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  for (const auto& sample : profile->GetSamples()) {
+    CHECK_EQ(sample.label_id, 0u);
+  }
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerMultipleLabels) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  v8::Local<v8::String> als_key =
+      v8::String::NewFromUtf8Literal(isolate, "node-heap-profiler");
+  heap_profiler->SetHeapProfileSampleLabelsKey(als_key);
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Phase 1: allocate under label "/api/first".
+  v8::Local<v8::Array> arr1 = MakeLabelArray(isolate, env.local(), "/api/first");
+  {
+    v8::Local<v8::Map> cped = v8::Map::New(isolate);
+    cped->Set(env.local(), als_key, arr1).ToLocalChecked();
+    isolate->SetContinuationPreservedEmbedderDataV2(cped);
+  }
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  // Phase 2: allocate under label "/api/second" (different array object).
+  v8::Local<v8::Array> arr2 =
+      MakeLabelArray(isolate, env.local(), "/api/second");
+  {
+    v8::Local<v8::Map> cped = v8::Map::New(isolate);
+    cped->Set(env.local(), als_key, arr2).ToLocalChecked();
+    isolate->SetContinuationPreservedEmbedderDataV2(cped);
+  }
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  bool found_first = false;
+  bool found_second = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (sample.label_id != 0) {
+      v8::HandleScope hs(isolate);
+      v8::Local<v8::Value> resolved;
+      if (!heap_profiler->ResolveLabelValue(sample.label_id)
+               .ToLocal(&resolved))
+        continue;
+      if (!resolved->IsArray()) continue;
+      v8::Local<v8::Array> arr = resolved.As<v8::Array>();
+      if (arr->Length() < 2) continue;
+      v8::String::Utf8Value val(
+          isolate, arr->Get(env.local(), 1).ToLocalChecked());
+      if (std::string(*val) == "/api/first") found_first = true;
+      if (std::string(*val) == "/api/second") found_second = true;
+    }
+  }
+  CHECK(found_first);
+  CHECK(found_second);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerLabelsWithGCRetain) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  v8::Local<v8::Array> label_arr =
+      MakeLabelArray(isolate, env.local(), "/api/gc-test");
+  SetupAlsContext(isolate, env.local(), heap_profiler, label_arr);
+
+  // Start with GC retain flags — GC'd samples should survive.
+  heap_profiler->StartSamplingHeapProfiler(
+      256, 128,
+      v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC |
+          v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC);
+
+  // Allocate short-lived objects (no reference retained).
+  CompileRun(
+      "for (var i = 0; i < 4096; i++) {"
+      "  new Array(64);"
+      "}");
+
+  // Force GC to collect the short-lived objects.
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // Retained samples must still have their label_id resolvable.
+  bool found_labeled = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (sample.label_id != 0) {
+      v8::HandleScope hs(isolate);
+      v8::Local<v8::Value> resolved;
+      CHECK(heap_profiler->ResolveLabelValue(sample.label_id)
+                .ToLocal(&resolved));
+      CHECK(resolved->IsArray());
+      found_labeled = true;
+    }
+  }
+  CHECK(found_labeled);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerLabelsRemovedByGC) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  v8::Local<v8::Array> label_arr =
+      MakeLabelArray(isolate, env.local(), "/api/gc-remove");
+  SetupAlsContext(isolate, env.local(), heap_profiler, label_arr);
+
+  // Start WITHOUT GC retain flags — GC'd samples should be removed.
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Allocate short-lived objects (no reference retained).
+  CompileRun(
+      "for (var i = 0; i < 4096; i++) {"
+      "  new Array(64);"
+      "}");
+
+  // Count labelled samples before GC — with suppress_randomness every
+  // sufficiently-large object is sampled, so there should be many.
+  std::unique_ptr<v8::AllocationProfile> pre_gc(
+      heap_profiler->GetAllocationProfile());
+  CHECK(pre_gc);
+  size_t labeled_before = 0;
+  for (const auto& s : pre_gc->GetSamples()) {
+    if (s.label_id != 0) labeled_before++;
+  }
+  CHECK_GT(labeled_before, 0u);
+
+  // Force GC to collect the short-lived objects.
+  i::heap::InvokeMajorGC(CcTest::heap());
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // Without GC retain flags, samples for collected objects are removed.
+  // The labelled count must be strictly less than before the GC.
+  size_t labeled_count = 0;
+  for (const auto& sample : profile->GetSamples()) {
+    if (sample.label_id != 0) {
+      labeled_count++;
+    }
+  }
+  CHECK_LT(labeled_count, labeled_before);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerClearAlsKeyStopsLabels) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  i::v8_flags.sampling_heap_profiler_suppress_randomness = true;
+
+  v8::Local<v8::Array> label_arr =
+      MakeLabelArray(isolate, env.local(), "/api/before-clear");
+  SetupAlsContext(isolate, env.local(), heap_profiler, label_arr);
+
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  // Allocate with ALS key set — label_id will be non-zero.
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  // Clear ALS key — gate closes, new samples get label_id == 0.
+  heap_profiler->SetHeapProfileSampleLabelsKey(v8::Local<v8::Value>());
+
+  // Allocate more — no internment since gate is closed.
+  for (int i = 0; i < 4 * 1024; ++i) v8::Object::New(isolate);
+
+  std::unique_ptr<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(profile);
+
+  // Must have both labeled and unlabeled samples.
+  bool found_labeled = false;
+  bool found_unlabeled = false;
+  for (const auto& sample : profile->GetSamples()) {
+    if (sample.label_id != 0) {
+      found_labeled = true;
+    } else {
+      found_unlabeled = true;
+    }
+  }
+  CHECK(found_labeled);
+  CHECK(found_unlabeled);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
