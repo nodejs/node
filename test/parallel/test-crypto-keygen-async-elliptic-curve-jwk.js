@@ -8,6 +8,8 @@ const assert = require('assert');
 const {
   generateKeyPair,
 } = require('crypto');
+const { hasFIPS } = require('../common/crypto');
+const rejectsXCurves = hasFIPS(3, 5);
 
 // Test async elliptic curve key generation with 'jwk' encoding.
 {
@@ -23,7 +25,12 @@ const {
       privateKeyEncoding: {
         format: 'jwk'
       }
-    }, common.mustSucceed((publicKey, privateKey) => {
+    }, common.mustCall((err, publicKey, privateKey) => {
+      if (rejectsXCurves && type.startsWith('x')) {
+        assert.strictEqual(err?.code, 'ERR_OSSL_EVP_UNSUPPORTED');
+        return;
+      }
+      assert.ifError(err);
       assert.strictEqual(typeof publicKey, 'object');
       assert.strictEqual(typeof privateKey, 'object');
       assert.strictEqual(publicKey.x, privateKey.x);

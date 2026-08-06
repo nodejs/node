@@ -41,7 +41,7 @@ for (let i = 0; i < buffer.length; i++) {
 }
 
 
-const web = http.Server(common.mustCall((req, res) => {
+const web = new http.Server(common.mustCall((req, res) => {
   web.close();
 
   const socket = net.Stream();

@@ -29,7 +29,7 @@ let name;
 const max = 3;
 const agent = new http.Agent();
 
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   if (req.url === '/0') {
     setTimeout(common.mustCall(() => {
       res.writeHead(200);

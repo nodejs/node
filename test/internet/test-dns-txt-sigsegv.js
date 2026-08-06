@@ -1,15 +1,17 @@
 'use strict';
 const common = require('../common');
+const { addresses } = require('../common/internet');
 const assert = require('assert');
 const dns = require('dns');
 const dnsPromises = dns.promises;
 
-(async function() {
-  const result = await dnsPromises.resolveTxt('www.microsoft.com');
-  assert.strictEqual(result.length, 0);
-})().then(common.mustCall());
+assert.rejects(
+  dnsPromises.resolveTxt(addresses.CNAME_TO_NO_TXT_HOST),
+  { code: 'ENODATA' },
+).then(common.mustCall());
 
-dns.resolveTxt('www.microsoft.com', common.mustCall((err, records) => {
-  assert.strictEqual(err, null);
-  assert.strictEqual(records.length, 0);
+dns.resolveTxt(addresses.CNAME_TO_NO_TXT_HOST, common.mustCall((err, records) => {
+  assert.ok(err instanceof Error);
+  assert.strictEqual(err.code, 'ENODATA');
+  assert.strictEqual(records, undefined);
 }));

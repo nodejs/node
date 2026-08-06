@@ -37,7 +37,7 @@ bool FastScalarTypeFromName(std::string_view type, FastFFIType* out) {
   if (type == "void") {
     *out = FastFFIType::kVoid;
   } else if (type == "bool") {
-    *out = FastFFIType::kBool;
+    *out = FastFFIType::kUint8;
   } else if (IsTypeName(type, {"i8", "int8"})) {
     *out = FastFFIType::kInt8;
   } else if (IsTypeName(type, {"u8", "uint8"})) {
@@ -96,8 +96,6 @@ CTypeInfo::Type ToV8Type(FastFFIType type, bool is_return) {
   switch (type) {
     case FastFFIType::kVoid:
       return CTypeInfo::Type::kVoid;
-    case FastFFIType::kBool:
-      return CTypeInfo::Type::kBool;
     case FastFFIType::kUint8:
       return CTypeInfo::Type::kUint32;
     case FastFFIType::kInt8:
@@ -166,7 +164,8 @@ bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn) {
   for (const std::string& name : fn.arg_type_names) {
     if (name == "bool" || name == "char" || name == "i8" || name == "int8" ||
         name == "u8" || name == "uint8" || name == "i16" || name == "int16" ||
-        name == "u16" || name == "uint16" || name == "i64" || name == "int64" ||
+        name == "u16" || name == "uint16" || name == "i32" || name == "int32" ||
+        name == "u32" || name == "uint32" || name == "i64" || name == "int64" ||
         name == "u64" || name == "uint64") {
       return true;
     }
@@ -180,20 +179,58 @@ bool IsPointerTypeName(const std::string& name) {
   return name == "pointer" || name == "ptr" || name == "function";
 }
 
+bool IsBufferTypeName(const std::string& name) {
+  return name == "buffer" || name == "arraybuffer";
+}
+
 bool SignatureNeedsFastBufferInvoke(const FFIFunction& fn) {
   // The secondary buffer invoke is only generated for the hot monomorphic case
   // where a single pointer-like argument can be satisfied by a Buffer or
   // ArrayBuffer without allocating or caching a BigInt pointer in JS.
   return fn.arg_type_names.size() == 1 &&
-         IsPointerTypeName(fn.arg_type_names[0]);
+         (IsPointerTypeName(fn.arg_type_names[0]) ||
+          IsBufferTypeName(fn.arg_type_names[0]));
+}
+
+namespace {
+
+std::shared_ptr<FFIFunction> CloneForFastMetadata(
+    const std::shared_ptr<FFIFunction>& fn) {
+  // Fast metadata only needs the native target and signature. In particular,
+  // its temporary clone must not borrow the original function's cif or plan.
+  auto clone = std::make_shared<FFIFunction>();
+  clone->closed = fn->closed;
+  clone->ptr = fn->ptr;
+  clone->args = fn->args;
+  clone->return_type = fn->return_type;
+  clone->arg_type_names = fn->arg_type_names;
+  clone->return_type_name = fn->return_type_name;
+  return clone;
+}
+
+}  // namespace
+
+std::shared_ptr<FFIFunction> CloneWithRawPointerArgNames(
+    const std::shared_ptr<FFIFunction>& fn) {
+  // The primary Fast API entrypoint receives pointer-compatible values as
+  // BigInts after the JS wrapper has converted strings, nullish values, and
+  // memory-backed objects. A secondary entrypoint handles the monomorphic
+  // memory-backed case without extracting the pointer in JS.
+  auto clone = CloneForFastMetadata(fn);
+  for (std::string& name : clone->arg_type_names) {
+    if (IsBufferTypeName(name)) {
+      name = "pointer";
+    }
+  }
+  return clone;
 }
 
 std::shared_ptr<FFIFunction> CloneWithFastBufferArgNames(
     const std::shared_ptr<FFIFunction>& fn) {
-  // Reuse the same native target and libffi metadata, but describe the JS
+  // Reuse the same native target and signature metadata, but describe the JS
   // argument as `buffer` so CreateFastFFIMetadata() emits a trampoline that
   // receives a V8 value and calls node_ffi_fast_buffer_data().
-  auto clone = std::make_shared<FFIFunction>(*fn);
+  auto clone = CloneForFastMetadata(fn);
   for (std::string& name : clone->arg_type_names) {
     if (IsPointerTypeName(name)) {
       name = "buffer";
@@ -222,10 +259,24 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
 
   v8::Isolate* isolate = options != nullptr ? options->isolate : nullptr;
   if (isolate != nullptr) {
+    // No HandleScope is active during a Fast API call, so open one before
+    // creating the error object.
+    v8::HandleScope scope(isolate);
     THROW_ERR_INVALID_ARG_VALUE(
         isolate, "Argument %u must be a buffer or an ArrayBuffer", index);
   }
   return kInvalidBuffer;
+}
+
+extern "C" void node_ffi_fast_library_closed(v8::Isolate* isolate) {
+  if (isolate != nullptr) {
+    // Fast API calls do not enter a HandleScope, and the generated trampolines
+    // call this helper directly. Building the error object allocates handles,
+    // so open a scope here. The scheduled exception lives on the isolate and
+    // outlives the scope.
+    v8::HandleScope scope(isolate);
+    THROW_ERR_FFI_LIBRARY_CLOSED(isolate);
+  }
 }
 
 FastFFIMetadata::~FastFFIMetadata() {
@@ -246,7 +297,18 @@ bool IsFastCallSupported() {
 #endif
 }
 
-std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
+bool IsFastLibraryGuardSupported() {
+#if defined(__aarch64__) || defined(_M_ARM64) ||                               \
+    (defined(__x86_64__) && !defined(_WIN32))
+  return true;
+#else
+  return false;
+#endif
+}
+
+std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn,
+                                                       const bool* closed,
+                                                       v8::Isolate* isolate) {
   // Bail early if executable memory allocation doesn't work on this process
   // (missing MAP_JIT entitlement, hardened runtime, SELinux execmem, etc.).
   // The self-test runs once and caches the result.
@@ -280,6 +342,7 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
   std::vector<FastFFIType> args;
   args.reserve(fn.arg_type_names.size());
   bool needs_bigint = NeedsBigIntRepresentation(result);
+  const bool guards_library = IsFastLibraryGuardSupported();
   bool needs_callback_options = false;
   // Normalize public argument names into FastFFIType values while collecting
   // signature-wide flags required by V8 CFunctionInfo.
@@ -301,8 +364,9 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
   // The platform-specific trampoline is the executable entrypoint V8 calls.
   // If the platform rejects the signature, the whole fast metadata object is
   // discarded and the caller chooses another invocation path.
+  FastFFITrampolineConfig config{fn.ptr, closed, isolate};
   if (!node_ffi_create_fast_trampoline(
-          fn.ptr, args.data(), args.size(), result, &metadata->trampoline)) {
+          config, args.data(), args.size(), result, &metadata->trampoline)) {
     return nullptr;
   }
 
@@ -329,6 +393,7 @@ std::unique_ptr<FastFFIMetadata> CreateFastFFIMetadata(const FFIFunction& fn) {
                    : CFunctionInfo::Int64Representation::kNumber);
   metadata->c_function =
       v8::CFunction(metadata->trampoline.code, metadata->c_function_info.get());
+  metadata->guards_library = guards_library;
   return metadata;
 }
 

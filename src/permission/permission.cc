@@ -48,6 +48,8 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
       return "node:permission-model:addon";
     case PermissionScope::kFFI:
       return "node:permission-model:ffi";
+    case PermissionScope::kOpenSSLStore:
+      return "node:permission-model:openssl-store";
     default:
       return {};
   }
@@ -131,6 +133,8 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
   std::shared_ptr<PermissionBase> net = std::make_shared<NetPermission>();
   std::shared_ptr<PermissionBase> addon = std::make_shared<AddonPermission>();
   std::shared_ptr<FFIPermission> ffi = std::make_shared<FFIPermission>();
+  std::shared_ptr<PermissionBase> openssl_store =
+      std::make_shared<OpenSSLStorePermission>();
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, fs));
   FILESYSTEM_PERMISSIONS(V)
@@ -162,6 +166,10 @@ Permission::Permission() : enabled_(false), warning_only_(false) {
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, ffi));
   FFI_PERMISSIONS(V)
+#undef V
+#define V(Name, _, __, ___)                                                    \
+  nodes_.insert(std::make_pair(PermissionScope::k##Name, openssl_store));
+  OPENSSL_STORE_PERMISSIONS(V)
 #undef V
 }
 
@@ -257,11 +265,11 @@ bool Permission::is_scope_granted(Environment* env,
             v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
         const char* perm_str = PermissionToString(permission);
         msg->Set(context,
-                 FIXED_ONE_BYTE_STRING(isolate, "permission"),
+                 env->permission_string(),
                  v8::String::NewFromUtf8(isolate, perm_str).ToLocalChecked())
             .Check();
         msg->Set(context,
-                 FIXED_ONE_BYTE_STRING(isolate, "resource"),
+                 env->resource_string(),
                  v8::String::NewFromUtf8(isolate,
                                          res.data(),
                                          v8::NewStringType::kNormal,
@@ -327,11 +335,11 @@ void Permission::Drop(Environment* env,
           v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
       const char* perm_str = PermissionToString(scope);
       msg->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "permission"),
+               env->permission_string(),
                v8::String::NewFromUtf8(isolate, perm_str).ToLocalChecked())
           .Check();
       msg->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "resource"),
+               env->resource_string(),
                v8::String::NewFromUtf8(isolate,
                                        param.data(),
                                        v8::NewStringType::kNormal,

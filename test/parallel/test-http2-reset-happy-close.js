@@ -43,8 +43,17 @@ function runScenario(rstCode, expectedErrorCode, next) {
       stream.respond({ ':status': 200 });
 
       let writeCbCount = 0;
+      let streamClosed = false;
+      const maybeCloseServer = () => {
+        if (streamClosed && writeCbCount === N_WRITES)
+          server.close(next);
+      };
+      const onWrite = common.mustCall(() => {
+        writeCbCount++;
+        maybeCloseServer();
+      }, N_WRITES);
       for (let i = 0; i < N_WRITES; i++) {
-        stream.write(Buffer.alloc(CHUNK_BYTES), () => { writeCbCount++; });
+        stream.write(Buffer.alloc(CHUNK_BYTES), onWrite);
       }
 
       stream.on('aborted', common.mustCall(() => {
@@ -69,16 +78,11 @@ function runScenario(rstCode, expectedErrorCode, next) {
         // 'finish' must not have been emitted (writes were aborted).
         assert.strictEqual(stream.writableFinished, false);
         assert.strictEqual(stream.destroyed, true);
-        // The C++ Http2Stream::Destroy SetImmediate flushes any
-        // still-queued WriteWraps with UV_ECANCELED, which fires the
-        // remaining `_write` callbacks. Those land *after* 'close';
-        // verify the full set has fired by the next two immediates.
-        setImmediate(common.mustCall(() => setImmediate(common.mustCall(() => {
-          assert.strictEqual(writeCbCount, N_WRITES,
-                             `all ${N_WRITES} write callbacks must fire ` +
-                             `(got ${writeCbCount})`);
-          server.close(next);
-        }))));
+        // Write callbacks for data already handed to the socket can land
+        // after 'close'. Wait for all of them rather than assuming a fixed
+        // number of event loop iterations is sufficient.
+        streamClosed = true;
+        maybeCloseServer();
       }));
     }));
   }));

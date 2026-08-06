@@ -60,7 +60,7 @@ concurrency:
 env:
   PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
-  RUSTC_VERSION: '1.83'
+  RUSTC_VERSION: '1.86'
 
 permissions:
   contents: read
@@ -74,7 +74,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true

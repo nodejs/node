@@ -730,6 +730,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--allow-openssl-store",
+            "allow use of OpenSSL STORE loaders when any permissions are set",
+            &EnvironmentOptions::allow_openssl_store,
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--experimental-vm-modules",
             "experimental ES Module support in vm module",
             &EnvironmentOptions::experimental_vm_modules,
@@ -1028,6 +1034,13 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "include files in coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_include_pattern,
             kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-coverage-include-all",
+            "include source files that were never loaded in the coverage "
+            "report",
+            &EnvironmentOptions::coverage_include_all,
+            kAllowedInEnvvar,
+            false,
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-exclude",
             "exclude files from coverage report that match this glob pattern",

@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import * as assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -70,7 +68,7 @@ await clientSession.opened;
   sabView.set(expectedBytes);
   const stream = await clientSession.createBidirectionalStream({ body: sabView });
   // The SharedArrayBuffer should still be usable (copied, not transferred).
-  strictEqual(sab.byteLength, expectedBytes.byteLength);
+  assert.strictEqual(sab.byteLength, expectedBytes.byteLength);
   for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
   await stream.closed;
 }

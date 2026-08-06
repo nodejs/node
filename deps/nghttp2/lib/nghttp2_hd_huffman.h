@@ -31,23 +31,21 @@
 
 #include <nghttp2/nghttp2.h>
 
-typedef enum {
-  /* FSA accepts this state as the end of huffman encoding
-     sequence. */
-  NGHTTP2_HUFF_ACCEPTED = 1,
-  /* This state emits symbol */
-  NGHTTP2_HUFF_SYM = 1 << 1,
-} nghttp2_huff_decode_flag;
+/* FSA accepts this state as the end of huffman encoding sequence. */
+#define NGHTTP2_HUFF_ACCEPTED 0x01U
+/* This state emits symbol */
+#define NGHTTP2_HUFF_SYM 0x02U
 
 typedef struct {
   /* fstate is the current huffman decoding state, which is actually
-     the node ID of internal huffman tree with
-     nghttp2_huff_decode_flag OR-ed.  We have 257 leaf nodes, but they
-     are identical to root node other than emitting a symbol, so we
-     have 256 internal nodes [1..255], inclusive.  The node ID 256 is
-     a special node and it is a terminal state that means decoding
-     failed. */
+     the node ID of internal huffman tree.  We have 257 leaf nodes,
+     but they are identical to root node other than emitting a symbol,
+     so we have 256 internal nodes [1..255], inclusive.  The node ID
+     256 is a special node and it is a terminal state that means
+     decoding failed. */
   uint16_t fstate;
+  /* flags is the bitwise OR of zero or more of NGHTTP2_HUFF_*
+     values. */
   uint8_t flags;
   /* symbol if NGHTTP2_HUFF_SYM flag set */
   uint8_t sym;

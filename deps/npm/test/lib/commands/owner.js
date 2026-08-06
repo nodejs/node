@@ -189,6 +189,58 @@ t.test('owner add <user> <pkg>', async t => {
   t.equal(joinedOutput(), `+ ${username} (${packageName})`)
 })
 
+t.test('owner add resolves user from package scoped registry', async t => {
+  const scopedRegistryUrl = 'https://scoped.registry.npmjs.org'
+  const scopedAuth = '//scoped.registry.npmjs.org/:_authToken'
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      '@npmcli:registry': scopedRegistryUrl,
+      [scopedAuth]: 'scoped-auth-token',
+    },
+  })
+  const username = 'requested-user'
+  const globalRegistry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const scopedRegistry = new MockRegistry({
+    tap: t,
+    registry: scopedRegistryUrl,
+    authorization: 'scoped-auth-token',
+  })
+
+  // If `owner add` mistakenly asked the global registry for user data
+  // instead of the package's scoped registry, this substituted user would
+  // be added as the owner instead of the one requested.
+  globalRegistry.nock = globalRegistry.nock
+    .get(`/-/user/org.couchdb.user:${encodeURIComponent(username)}`)
+    .optionally()
+    .reply(200, { name: 'substituted-user', email: 'substituted@example.com' })
+  scopedRegistry.couchuser({ username, body: { name: username, email: 'requested@example.com' } })
+
+  const manifest = scopedRegistry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  await scopedRegistry.package({ manifest })
+  scopedRegistry.nock.put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
+    t.match(body, {
+      _id: manifest._id,
+      _rev: manifest._rev,
+      maintainers: [
+        ...manifest.maintainers,
+        { name: username, email: 'requested@example.com' },
+      ],
+    })
+    return true
+  }).reply(200, {})
+
+  await npm.exec('owner', ['add', username, packageName])
+  t.equal(joinedOutput(), `+ ${username} (${packageName})`)
+})
+
 t.test('owner add <user> cwd package', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     prefixDir: {
@@ -362,6 +414,57 @@ t.test('owner rm <user> <pkg>', async t => {
   }).reply(200, {})
   await npm.exec('owner', ['rm', username, packageName])
   t.equal(joinedOutput(), `- ${username} (${packageName})`)
+})
+
+t.test('owner rm resolves user from package scoped registry', async t => {
+  const scopedRegistryUrl = 'https://scoped.registry.npmjs.org'
+  const scopedAuth = '//scoped.registry.npmjs.org/:_authToken'
+  const { npm, joinedOutput, logs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      '@npmcli:registry': scopedRegistryUrl,
+      [scopedAuth]: 'scoped-auth-token',
+    },
+  })
+  const username = 'requested-user'
+  const globalRegistry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: 'test-auth-token',
+  })
+  const scopedRegistry = new MockRegistry({
+    tap: t,
+    registry: scopedRegistryUrl,
+    authorization: 'scoped-auth-token',
+  })
+
+  // If `owner rm` mistakenly asked the global registry for user data instead
+  // of the package's scoped registry, this substituted user would be
+  // resolved and treated as an existing owner rather than the one requested.
+  globalRegistry.nock = globalRegistry.nock
+    .get(`/-/user/org.couchdb.user:${encodeURIComponent(username)}`)
+    .optionally()
+    .reply(200, maintainers[0])
+  scopedRegistry.couchuser({ username, body: { name: username, email: 'requested@example.com' } })
+
+  const manifest = scopedRegistry.manifest({
+    name: packageName,
+    packuments: [{ maintainers, version: '1.0.0' }],
+  })
+  await scopedRegistry.package({ manifest })
+  let update
+  scopedRegistry.nock
+    .put(`/${spec.escapedName}/-rev/${manifest._rev}`, body => {
+      update = body
+      return true
+    })
+    .optionally()
+    .reply(200, {})
+
+  await npm.exec('owner', ['rm', username, packageName])
+  t.equal(update, undefined, 'does not remove the substituted user')
+  t.equal(joinedOutput(), '', 'does not report a removal')
+  t.match(logs.info.byTitle('owner rm'), [`Not a package owner: ${username}`])
 })
 
 t.test('owner rm <user> <pkg> not a current owner', async t => {

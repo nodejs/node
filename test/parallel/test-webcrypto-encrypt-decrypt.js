@@ -7,6 +7,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const { hasOpenSSL } = require('../common/crypto');
+const { getFips } = require('crypto');
 const { subtle } = globalThis.crypto;
 
 // This is only a partial test. The WebCrypto Web Platform Tests
@@ -207,7 +208,15 @@ if (hasOpenSSL(3)) {
       Buffer.from(buf).toString('hex'));
   }
 
-  test().then(common.mustCall());
+  if (getFips() === 1) {
+    assert.rejects(
+      test(),
+      (err) => err.name === 'OperationError' &&
+               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED')
+      .then(common.mustCall());
+  } else {
+    test().then(common.mustCall());
+  }
 } else {
   common.printSkipMessage('Skipping unsupported AES-OCB test cases');
 }

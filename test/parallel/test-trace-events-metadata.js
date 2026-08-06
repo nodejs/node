@@ -4,6 +4,8 @@ const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
 
+common.skipIfPerfettoEnabled();
+
 const CODE =
   'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1);' +
   'process.title = "foo"';

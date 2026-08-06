@@ -7,6 +7,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const {
   hasOpenSSL,
+  hasFIPS,
 } = require('../common/crypto');
 
 // RFC 8032 Section 7 test vectors for Ed25519, Ed25519ctx, and Ed448.
@@ -191,7 +192,18 @@ for (const v of vectors) {
   const signKey = context ? { key: privateKey, context } : privateKey;
   const verifyKey = context ? { key: publicKey, context } : publicKey;
 
-  const sig = crypto.sign(null, message, signKey);
+  let sig;
+  try {
+    sig = crypto.sign(null, message, signKey);
+  } catch (err) {
+    if (!hasFIPS(3) ||
+        (!v.algorithm.endsWith('ctx') && !v.context)) {
+      throw err;
+    }
+    assert.strictEqual(
+      err.code, 'ERR_OSSL_INVALID_EDDSA_INSTANCE_FOR_ATTEMPTED_OPERATION');
+    continue;
+  }
   assert.deepStrictEqual(sig, expectedSig);
   assert.strictEqual(
     crypto.verify(null, message, verifyKey, expectedSig), true);

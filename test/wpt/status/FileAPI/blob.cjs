@@ -36,16 +36,4 @@ module.exports = {
   'Blob-in-worker.worker.js': {
     skip: 'Depends on Web Workers API',
   },
-  'Blob-slice.any.js': {
-    fail: {
-      expected: [
-        'Slicing test: slice (1,1).',
-        'Slicing test: slice (1,3).',
-        'Slicing test: slice (1,5).',
-        'Slicing test: slice (1,7).',
-        'Slicing test: slice (1,8).',
-        'Slicing test: slice (1,9).',
-      ],
-    },
-  },
 };

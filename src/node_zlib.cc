@@ -520,7 +520,9 @@ class CompressionStream : public AsyncWrap,
       if (!args[2]->Uint32Value(context).To(&in_off)) return;
       if (!args[3]->Uint32Value(context).To(&in_len)) return;
 
-      CHECK(Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf)));
+      if (!Buffer::IsWithinBounds(in_off, in_len, Buffer::Length(in_buf))) {
+        return THROW_ERR_OUT_OF_RANGE(env, "input buffer is out of bounds");
+      }
       in = Buffer::Data(in_buf) + in_off;
     }
 
@@ -528,7 +530,9 @@ class CompressionStream : public AsyncWrap,
     Local<Object> out_buf = args[4].As<Object>();
     if (!args[5]->Uint32Value(context).To(&out_off)) return;
     if (!args[6]->Uint32Value(context).To(&out_len)) return;
-    CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
+    if (!Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf))) {
+      return THROW_ERR_OUT_OF_RANGE(env, "output buffer is out of bounds");
+    }
     out = Buffer::Data(out_buf) + out_off;
 
     CompressionStream* ctx;
@@ -941,9 +945,6 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
   }
 
   static void Init(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    Local<Context> context = env->context();
-
     CHECK((args.Length() == 4 || args.Length() == 5) &&
           "init(params, pledgedSrcSize, writeResult, writeCallback[, "
           "dictionary])");
@@ -960,19 +961,24 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
     wrap->InitStream(write_result, write_js_callback);
 
     uint64_t pledged_src_size = ZSTD_CONTENTSIZE_UNKNOWN;
-    if (args[1]->IsNumber()) {
-      int64_t signed_pledged_src_size;
-      if (!args[1]->IntegerValue(context).To(&signed_pledged_src_size)) {
-        THROW_ERR_INVALID_ARG_VALUE(wrap->env(),
-                                    "pledgedSrcSize should be an integer");
+    if (!args[1]->IsUndefined()) {
+      if (!args[1]->IsNumber()) {
+        THROW_ERR_INVALID_ARG_TYPE(wrap->env(),
+                                   "pledgedSrcSize must be a number");
         return;
       }
+      if (!IsSafeJsInt(args[1])) {
+        THROW_ERR_OUT_OF_RANGE(wrap->env(),
+                               "pledgedSrcSize must be a safe integer");
+        return;
+      }
+      const int64_t signed_pledged_src_size = args[1].As<Integer>()->Value();
       if (signed_pledged_src_size < 0) {
-        THROW_ERR_INVALID_ARG_VALUE(wrap->env(),
-                                    "pledgedSrcSize may not be negative");
+        THROW_ERR_OUT_OF_RANGE(wrap->env(),
+                               "pledgedSrcSize must be non-negative");
         return;
       }
-      pledged_src_size = signed_pledged_src_size;
+      pledged_src_size = static_cast<uint64_t>(signed_pledged_src_size);
     }
 
     AllocScope alloc_scope(wrap);

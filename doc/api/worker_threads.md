@@ -1249,8 +1249,7 @@ freshly accepted or created TCP connection that has not yet started reading and
 has no buffered data, otherwise `postMessage()` throws
 `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. This makes it possible to accept
 connections on one thread and distribute them across a pool of worker threads.
-Only TCP handles are supported, and only on Unix-like platforms; on Windows
-`postMessage()` throws `ERR_WORKER_HANDLE_TRANSFER_UNSUPPORTED`.
+Only TCP handles are supported.
 
 If `value` contains {SharedArrayBuffer} instances, those are accessible
 from either thread. They cannot be listed in `transferList`.
@@ -2235,7 +2234,7 @@ thread spawned will spawn another until the application crashes.
 [`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
 [`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`AsyncResource`]: async_hooks.md#class-asyncresource
-[`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
+[`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize-alignment
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#err_missing_message_port_in_transfer_list
 [`ERR_WORKER_MESSAGING_ERRORED`]: errors.md#err_worker_messaging_errored
 [`ERR_WORKER_MESSAGING_FAILED`]: errors.md#err_worker_messaging_failed

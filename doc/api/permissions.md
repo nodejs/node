@@ -48,6 +48,17 @@ will restrict access to all available permissions.
 The available permissions are documented by the [`--permission`][]
 flag.
 
+The Permission Model has two operational modes:
+
+* **Enforce mode** (default when using [`--permission`][]): Access is denied and
+  an `ERR_ACCESS_DENIED` error is thrown for any operation the process has not
+  been granted permission to perform.
+* **Audit mode** (when using [`--permission-audit`][]): Permission checks are
+  performed and violations are published through the diagnostics channel, but
+  access is **not** denied. Execution continues normally. This mode is useful
+  for discovering what permissions your application requires before deploying
+  with enforce mode.
+
 When starting Node.js with `--permission`,
 the ability to access the file system through the `fs` module, access the network,
 spawn processes, use `node:worker_threads`, use native addons, use WASI, use
@@ -74,11 +85,18 @@ flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
 [`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module also requires the
 `--experimental-ffi` flag and is only available in builds with FFI support.
 
+To allow use of OpenSSL STORE loaders, for example to load a private key
+from a {URL} passed to [`crypto.createPrivateKey()`][], use the
+[`--allow-openssl-store`][] flag.
+This flag grants broad authority to configured OpenSSL STORE loaders, which may
+access files, devices, tokens, or the network. Access performed by a loader is
+not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
+
 #### Runtime API
 
 When enabling the Permission Model through the [`--permission`][]
-flag a new property `permission` is added to the `process` object.
-This property contains the following functions:
+or [`--permission-audit`][] flags, a new property `permission` is added to the
+`process` object. This property contains the following functions:
 
 ##### `permission.has(scope[, reference])`
 
@@ -126,6 +144,56 @@ process.permission.has('fs.read', '/etc/myapp/config.json'); // false
 // Drop child process permission entirely
 process.permission.drop('child');
 ```
+
+#### Audit Mode
+
+The [`--permission-audit`][] flag enables audit mode for the Permission Model.
+In audit mode, permission checks are performed but access is **not** denied —
+no `ERR_ACCESS_DENIED` error is thrown. Instead, each permission violation is
+published through the `node:diagnostics_channel` module, allowing the
+application to observe and log which operations would be denied under enforce
+mode. Execution continues normally.
+
+Audit mode is useful for discovering what permissions your application
+requires before deploying with [`--permission`][]. It can also be combined
+with the [`--allow-fs-read`][], [`--allow-fs-write`][], [`--allow-net`][],
+[`--allow-child-process`][], [`--allow-worker`][], [`--allow-addons`][],
+[`--allow-wasi`][], and [`--allow-ffi`][] flags to audit a subset of
+permissions while granting others.
+
+When a permission check fails in audit mode, a message is published to the
+diagnostics channel corresponding to the denied scope. The channel names are:
+
+* `node:permission-model:fs` — File System (read and write)
+* `node:permission-model:net` — Network
+* `node:permission-model:child` — Child Process
+* `node:permission-model:worker` — Worker Threads
+* `node:permission-model:inspector` — Inspector
+* `node:permission-model:wasi` — WASI
+* `node:permission-model:addon` — Native Addons
+* `node:permission-model:ffi` — FFI
+
+Each message is an object with the following properties:
+
+* `permission` {string} The name of the denied permission scope.
+* `resource` {string} The resource that access was denied to (e.g. a file path
+  or host).
+
+```js
+const diagnostics_channel = require('node:diagnostics_channel');
+
+diagnostics_channel.channel('node:permission-model:fs').subscribe((msg) => {
+  console.log(`Permission denied: ${msg.permission} on ${msg.resource}`);
+});
+
+// Running with --permission-audit, this publishes a diagnostics channel
+// message but does not throw
+const fs = require('node:fs');
+fs.readFileSync('/etc/passwd');
+```
+
+If both [`--permission`][] and [`--permission-audit`][] are specified,
+`--permission` takes precedence and the Permission Model runs in enforce mode.
 
 #### File System Permissions
 
@@ -208,7 +276,8 @@ Example `node.config.json`:
     "allow-worker": true,
     "allow-net": true,
     "allow-addons": false,
-    "allow-ffi": false
+    "allow-ffi": false,
+    "allow-openssl-store": false
   }
 }
 ```
@@ -271,6 +340,7 @@ There are constraints you need to know before using this system:
   * File system access
   * WASI
   * FFI
+  * OpenSSL STORE loaders
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
@@ -322,8 +392,11 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-net`]: cli.md#--allow-net
+[`--allow-openssl-store`]: cli.md#--allow-openssl-store
 [`--allow-wasi`]: cli.md#--allow-wasi
 [`--allow-worker`]: cli.md#--allow-worker
+[`--permission-audit`]: cli.md#--permission-audit
 [`--permission`]: cli.md#--permission
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`npx`]: https://docs.npmjs.com/cli/commands/npx
 [`permission.has()`]: process.md#processpermissionhasscope-reference

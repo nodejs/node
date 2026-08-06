@@ -10,8 +10,6 @@
 import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { deepStrictEqual, strictEqual, throws, ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,11 +17,11 @@ if (!hasQuic) {
 const { listEndpoints, QuicEndpoint } = await import('node:quic');
 
 // listEndpoints is exported as a function.
-strictEqual(typeof listEndpoints, 'function');
+assert.strictEqual(typeof listEndpoints, 'function');
 
 // Empty when no endpoints have been created.
-deepStrictEqual(listEndpoints(), []);
-deepStrictEqual(listEndpoints({ active: false }), []);
+assert.deepStrictEqual(listEndpoints(), []);
+assert.deepStrictEqual(listEndpoints({ active: false }), []);
 
 // Created endpoints appear in the list.
 {
@@ -31,19 +29,19 @@ deepStrictEqual(listEndpoints({ active: false }), []);
   const ep2 = new QuicEndpoint();
 
   const list = listEndpoints();
-  strictEqual(list.length, 2);
-  ok(list.includes(ep1));
-  ok(list.includes(ep2));
+  assert.strictEqual(list.length, 2);
+  assert.ok(list.includes(ep1));
+  assert.ok(list.includes(ep2));
 
   // active=false also returns them.
   const all = listEndpoints({ active: false });
-  strictEqual(all.length, 2);
-  ok(all.includes(ep1));
-  ok(all.includes(ep2));
+  assert.strictEqual(all.length, 2);
+  assert.ok(all.includes(ep1));
+  assert.ok(all.includes(ep2));
 
   // Returns plain QuicEndpoint instances, not wrapped in arrays.
-  ok(list[0] instanceof QuicEndpoint);
-  ok(list[1] instanceof QuicEndpoint);
+  assert.ok(list[0] instanceof QuicEndpoint);
+  assert.ok(list[1] instanceof QuicEndpoint);
 
   await ep1.close();
   await ep2.close();
@@ -52,54 +50,54 @@ deepStrictEqual(listEndpoints({ active: false }), []);
 // Destroyed endpoints are excluded by active filter.
 {
   const ep = new QuicEndpoint();
-  strictEqual(listEndpoints().length, 1);
+  assert.strictEqual(listEndpoints().length, 1);
 
   await ep.close();
   await ep.closed;
-  strictEqual(ep.destroyed, true);
+  assert.strictEqual(ep.destroyed, true);
 
   // Default (active=true) excludes destroyed endpoint.
-  strictEqual(listEndpoints().length, 0);
+  assert.strictEqual(listEndpoints().length, 0);
 
   // active=false still includes it... but destroyed endpoints are removed
   // from the registry entirely in kFinishClose, so it won't appear at all.
-  strictEqual(listEndpoints({ active: false }).length, 0);
+  assert.strictEqual(listEndpoints({ active: false }).length, 0);
 }
 
 // Busy endpoints are excluded by the active filter.
 {
   const ep = new QuicEndpoint();
-  strictEqual(listEndpoints().length, 1);
+  assert.strictEqual(listEndpoints().length, 1);
 
   ep.busy = true;
-  strictEqual(ep.busy, true);
+  assert.strictEqual(ep.busy, true);
 
   // active=true excludes busy endpoint.
-  strictEqual(listEndpoints().length, 0);
+  assert.strictEqual(listEndpoints().length, 0);
 
   // active=false includes it.
   const all = listEndpoints({ active: false });
-  strictEqual(all.length, 1);
-  ok(all.includes(ep));
+  assert.strictEqual(all.length, 1);
+  assert.ok(all.includes(ep));
 
   ep.busy = false;
 
   // After un-busying, it reappears in the active list.
-  strictEqual(listEndpoints().length, 1);
+  assert.strictEqual(listEndpoints().length, 1);
 
   await ep.close();
 }
 
 // Options validation.
-throws(() => listEndpoints('bad'), {
+assert.throws(() => listEndpoints('bad'), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-throws(() => listEndpoints(null), {
+assert.throws(() => listEndpoints(null), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-throws(() => listEndpoints({ active: 'yes' }), {
+assert.throws(() => listEndpoints({ active: 'yes' }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-throws(() => listEndpoints({ active: 1 }), {
+assert.throws(() => listEndpoints({ active: 1 }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });

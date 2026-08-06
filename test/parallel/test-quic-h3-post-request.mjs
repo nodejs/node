@@ -13,9 +13,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -24,8 +21,8 @@ const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -38,7 +35,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     // Read the full request body from the client.
     const body = await bytes(stream);
     const text = decoder.decode(body);
-    strictEqual(text, requestBody);
+    assert.strictEqual(text, requestBody);
 
     await stream.closed;
     serverSession.close();
@@ -47,8 +44,8 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':method'], 'POST');
-    strictEqual(headers[':path'], '/submit');
+    assert.strictEqual(headers[':method'], 'POST');
+    assert.strictEqual(headers[':path'], '/submit');
 
     // Echo the request body back in the response.
     // At this point, request body hasn't arrived yet — we use onstream
@@ -72,7 +69,7 @@ const clientSession = await connect(serverEndpoint.address, {
 });
 
 const info = await clientSession.opened;
-strictEqual(info.protocol, 'h3');
+assert.strictEqual(info.protocol, 'h3');
 
 const clientHeadersReceived = Promise.withResolvers();
 
@@ -87,7 +84,7 @@ const stream = await clientSession.createBidirectionalStream({
   },
   body: encoder.encode(requestBody),
   onheaders: mustCall(function(headers) {
-    strictEqual(headers[':status'], '200');
+    assert.strictEqual(headers[':status'], '200');
     clientHeadersReceived.resolve();
   }),
 });
@@ -96,7 +93,7 @@ await clientHeadersReceived.promise;
 
 // Read the response body.
 const responseBody = await bytes(stream);
-strictEqual(decoder.decode(responseBody), 'echo:' + requestBody);
+assert.strictEqual(decoder.decode(responseBody), 'echo:' + requestBody);
 
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();

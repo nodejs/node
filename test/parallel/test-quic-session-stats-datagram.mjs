@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -25,7 +23,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await allStatusDone.promise;
 
   // Server received datagrams.
-  ok(serverSession.stats.datagramsReceived > 0n);
+  assert.ok(serverSession.stats.datagramsReceived > 0n);
 
   serverSession.close();
   await serverSession.closed;
@@ -51,8 +49,8 @@ await clientSession.sendDatagram(new Uint8Array([2]));
 await Promise.all([serverGot.promise, allStatusDone.promise]);
 
 // Client sent datagrams.
-strictEqual(clientSession.stats.datagramsSent, 2n);
-ok(clientSession.stats.datagramsAcknowledged >= 1n);
+assert.strictEqual(clientSession.stats.datagramsSent, 2n);
+assert.ok(clientSession.stats.datagramsAcknowledged >= 1n);
 
 await clientSession.closed;
 await serverEndpoint.close();

@@ -134,6 +134,10 @@ const portsExpected = [
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
 
+// Port 0 means "use the default port" for c-ares.
+dns.setServers(['4.4.4.4:0', '[2001:4860:4860::8888]:0']);
+assert.deepStrictEqual(dns.getServers(), ['4.4.4.4', '2001:4860:4860::8888']);
+
 // Link-local IPv6 addresses require a zone index (scope id) to be usable;
 // c-ares drops link-local servers configured without one.
 dns.setServers(['[fe80::483a:5aff:fee6:1f04]%eth0']);

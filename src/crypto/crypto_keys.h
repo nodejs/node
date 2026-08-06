@@ -77,7 +77,9 @@ class KeyObjectData final : public MemoryRetainer {
       bool allow_key_object);
 
   static KeyObjectData GetPublicOrPrivateKeyFromJs(
-      const v8::FunctionCallbackInfo<v8::Value>& args, unsigned int* offset);
+      const v8::FunctionCallbackInfo<v8::Value>& args,
+      unsigned int* offset,
+      bool allow_private_key_store = false);
 
   static v8::Maybe<ncrypto::EVPKeyPointer::PrivateKeyEncodingConfig>
   GetPrivateKeyEncodingFromJs(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -115,13 +117,17 @@ class KeyObjectData final : public MemoryRetainer {
   KeyType key_type_;
   mutable std::shared_ptr<Mutex> mutex_;
 
-  struct Data {
+  struct Data final : public MemoryRetainer {
     const ByteSource symmetric_key;
     const ncrypto::EVPKeyPointer asymmetric_key;
     explicit Data(ByteSource symmetric_key)
         : symmetric_key(std::move(symmetric_key)) {}
     explicit Data(ncrypto::EVPKeyPointer asymmetric_key)
         : asymmetric_key(std::move(asymmetric_key)) {}
+
+    void MemoryInfo(MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(KeyObjectData::Data)
+    SET_SELF_SIZE(Data)
   };
   std::shared_ptr<Data> data_;
 

@@ -1072,6 +1072,18 @@ added: v0.11.4
 This property is `true` if the peer certificate was signed by one of the CAs
 specified when creating the `tls.TLSSocket` instance, otherwise `false`.
 
+The peer certificate is only verified during a full TLS handshake. When a
+connection is established by resuming a previous session (see
+[Session Resumption][]), verification is not repeated. If the client
+presented a certificate in the original handshake, `authorized` and
+`authorizationError` carry the result stored with the session, including
+any verification error. On TLS 1.3, a client that sent no certificate at
+all can resume a session and report `authorized` as `true`, while
+[`tls.TLSSocket.getPeerCertificate()`][] returns an empty object. Servers
+that authorize clients manually with `rejectUnauthorized: false` should
+therefore also check [`tls.TLSSocket.isSessionReused()`][] and that a peer
+certificate is present.
+
 ### `tlsSocket.disableRenegotiation()`
 
 <!-- YAML
@@ -1928,7 +1940,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/63966
     description: The `clientCertEngine`, `privateKeyEngine` and
                  `privateKeyIdentifier` options are runtime deprecated.
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/62217
     description: The `certificateCompression` option has been added.
   - version:
@@ -2430,7 +2444,9 @@ console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 ## `tls.getCertificateCompressionAlgorithms()`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.19.0
 -->
 
 * Returns: {string\[]}
@@ -2580,6 +2596,7 @@ added: v0.11.3
 [`tls.TLSSocket.getProtocol()`]: #tlssocketgetprotocol
 [`tls.TLSSocket.getSession()`]: #tlssocketgetsession
 [`tls.TLSSocket.getTLSTicket()`]: #tlssocketgettlsticket
+[`tls.TLSSocket.isSessionReused()`]: #tlssocketissessionreused
 [`tls.TLSSocket.servername`]: #tlssocketservername
 [`tls.TLSSocket`]: #class-tlstlssocket
 [`tls.connect()`]: #tlsconnectoptions-callback

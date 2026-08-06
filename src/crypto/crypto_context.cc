@@ -1689,6 +1689,14 @@ void SecureContext::SetNewSessionCallback(NewSessionCb cb) {
   SSL_CTX_sess_set_new_cb(ctx_.get(), cb);
 }
 
+void SecureContext::SetClientHelloCallback(ClientHelloCb cb) {
+#ifdef OPENSSL_IS_BORINGSSL
+  SSL_CTX_set_select_certificate_cb(ctx_.get(), cb);
+#else
+  SSL_CTX_set_client_hello_cb(ctx_.get(), cb, nullptr);
+#endif
+}
+
 void SecureContext::SetGetSessionCallback(GetSessionCb cb) {
   SSL_CTX_sess_set_get_cb(ctx_.get(), cb);
 }
@@ -2247,12 +2255,9 @@ void SecureContext::GetCertificateCompressionAlgorithms(
   Environment* env = Environment::GetCurrent(args);
   LocalVector<Value> algs(env->isolate());
 #ifdef NODE_OPENSSL_HAS_CERT_COMP
-  if (BIO_f_zlib() != nullptr)
-    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zlib"));
-  if (BIO_f_brotli() != nullptr)
-    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "brotli"));
-  if (BIO_f_zstd() != nullptr)
-    algs.push_back(FIXED_ONE_BYTE_STRING(env->isolate(), "zstd"));
+  if (BIO_f_zlib() != nullptr) algs.push_back(env->zlib_string());
+  if (BIO_f_brotli() != nullptr) algs.push_back(env->brotli_string());
+  if (BIO_f_zstd() != nullptr) algs.push_back(env->zstd_string());
 #endif
   args.GetReturnValue().Set(
       Array::New(env->isolate(), algs.data(), algs.size()));

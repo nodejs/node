@@ -23,7 +23,6 @@ bool IsFloatType(FastFFIType type) {
 
 bool IsNarrowType(FastFFIType type) {
   switch (type) {
-    case FastFFIType::kBool:
     case FastFFIType::kInt8:
     case FastFFIType::kUint8:
     case FastFFIType::kInt16:
@@ -87,12 +86,12 @@ void FreeCode(void* code, size_t code_size) {
 }  // namespace
 
 extern "C" bool node_ffi_create_fast_trampoline(
-    void* target,
+    const node::ffi::FastFFITrampolineConfig& config,
     const node::ffi::FastFFIType* args,
     size_t argc,
     node::ffi::FastFFIType result,
     node::ffi::FastFFITrampoline* out) {
-  if (target == nullptr || out == nullptr || IsNarrowType(result)) {
+  if (config.target == nullptr || out == nullptr || IsNarrowType(result)) {
     return false;
   }
 
@@ -135,14 +134,22 @@ extern "C" bool node_ffi_create_fast_trampoline(
   }
 
   // Load the target address from the literal pool into r12, then branch through
-  // CTR. ELFv2 functions can use r12 to establish their TOC on global entry.
-  Emit32(&cursor, Bl(1));              // bl .+4
-  Emit32(&cursor, Mfspr(12, 8));       // mflr r12
-  Emit32(&cursor, Ld(12, 12, 20));     // ld r12, literal-mflr(r12)
-  Emit32(&cursor, Mtspr(9, 12));       // mtctr r12
-  Emit32(&cursor, 0x4e800420);         // bctr
-  Emit32(&cursor, 0x60000000);         // nop; align literal to 8 bytes
-  Emit64(&cursor, reinterpret_cast<uintptr_t>(target));
+  // CTR. Save the caller's link register before using `bl` to obtain the
+  // trampoline's address, and restore it before the tail branch so the native
+  // target returns to V8 rather than back into the trampoline. ELFv2 functions
+  // can use r12 to establish their TOC on global entry.
+  Emit32(&cursor, Mfspr(0, 8));   // mflr r0
+  Emit32(&cursor, Bl(1));         // bl .+4
+  Emit32(&cursor, Mfspr(12, 8));  // mflr r12
+  Emit32(&cursor, Mtspr(8, 0));   // mtlr r0
+  const unsigned literal_offset = gp_count % 2 == 0 ? 24 : 20;
+  Emit32(&cursor, Ld(12, 12, literal_offset));
+  Emit32(&cursor, Mtspr(9, 12));  // mtctr r12
+  Emit32(&cursor, 0x4e800420);    // bctr
+  if (gp_count % 2 == 0) {
+    Emit32(&cursor, 0x60000000);  // nop; align literal to 8 bytes
+  }
+  Emit64(&cursor, reinterpret_cast<uintptr_t>(config.target));
 
   const size_t written = reinterpret_cast<uint8_t*>(cursor) -
                          static_cast<uint8_t*>(code);
@@ -172,7 +179,7 @@ extern "C" void node_ffi_free_fast_trampoline(
 #else
 
 extern "C" bool node_ffi_create_fast_trampoline(
-    void* target,
+    const node::ffi::FastFFITrampolineConfig& config,
     const node::ffi::FastFFIType* args,
     size_t argc,
     node::ffi::FastFFIType result,

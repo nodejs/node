@@ -44,7 +44,6 @@
 #include "shared.h"
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-static int crypto_initialized;
 static EVP_CIPHER *crypto_aes_128_gcm;
 static EVP_CIPHER *crypto_aes_256_gcm;
 static EVP_CIPHER *crypto_chacha20_poly1305;
@@ -57,57 +56,19 @@ static EVP_MD *crypto_sha384;
 static EVP_KDF *crypto_hkdf;
 
 int ngtcp2_crypto_quictls_init(void) {
+  /* We do not care whether the pre-fetch succeeds or not.  If it
+     fails, it returns NULL, which is still the default value, and our
+     code should still work with it. */
   crypto_aes_128_gcm = EVP_CIPHER_fetch(NULL, "AES-128-GCM", NULL);
-  if (crypto_aes_128_gcm == NULL) {
-    return -1;
-  }
-
   crypto_aes_256_gcm = EVP_CIPHER_fetch(NULL, "AES-256-GCM", NULL);
-  if (crypto_aes_256_gcm == NULL) {
-    return -1;
-  }
-
   crypto_chacha20_poly1305 = EVP_CIPHER_fetch(NULL, "ChaCha20-Poly1305", NULL);
-  if (crypto_chacha20_poly1305 == NULL) {
-    return -1;
-  }
-
   crypto_aes_128_ccm = EVP_CIPHER_fetch(NULL, "AES-128-CCM", NULL);
-  if (crypto_aes_128_ccm == NULL) {
-    return -1;
-  }
-
   crypto_aes_128_ecb = EVP_CIPHER_fetch(NULL, "AES-128-ECB", NULL);
-  if (crypto_aes_128_ecb == NULL) {
-    return -1;
-  }
-
   crypto_aes_256_ecb = EVP_CIPHER_fetch(NULL, "AES-256-ECB", NULL);
-  if (crypto_aes_256_ecb == NULL) {
-    return -1;
-  }
-
   crypto_chacha20 = EVP_CIPHER_fetch(NULL, "ChaCha20", NULL);
-  if (crypto_chacha20 == NULL) {
-    return -1;
-  }
-
   crypto_sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
-  if (crypto_sha256 == NULL) {
-    return -1;
-  }
-
   crypto_sha384 = EVP_MD_fetch(NULL, "sha384", NULL);
-  if (crypto_sha384 == NULL) {
-    return -1;
-  }
-
   crypto_hkdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
-  if (crypto_hkdf == NULL) {
-    return -1;
-  }
-
-  crypto_initialized = 1;
 
   return 0;
 }
@@ -190,6 +151,12 @@ static EVP_KDF *crypto_kdf_hkdf(void) {
   }
 
   return EVP_KDF_fetch(NULL, "hkdf", NULL);
+}
+
+static void crypto_kdf_hkdf_free(EVP_KDF *kdf) {
+  if (kdf && crypto_hkdf != kdf) {
+    EVP_KDF_free(kdf);
+  }
 }
 #else /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
 #  define crypto_aead_aes_128_gcm EVP_aes_128_gcm
@@ -524,8 +491,8 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *salt, size_t saltlen) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   const EVP_MD *prf = md->native_handle;
-  EVP_KDF *kdf = crypto_kdf_hkdf();
-  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  EVP_KDF *kdf;
+  EVP_KDF_CTX *kctx;
   int mode = EVP_KDF_HKDF_MODE_EXTRACT_ONLY;
   OSSL_PARAM params[] = {
     OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode),
@@ -539,8 +506,15 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
   };
   int rv = 0;
 
-  if (!crypto_initialized) {
-    EVP_KDF_free(kdf);
+  kdf = crypto_kdf_hkdf();
+  if (!kdf) {
+    return -1;
+  }
+
+  kctx = EVP_KDF_CTX_new(kdf);
+  if (!kctx) {
+    rv = -1;
+    goto fail_kdf_ctx_new;
   }
 
   if (EVP_KDF_derive(kctx, dest, (size_t)EVP_MD_size(prf), params) <= 0) {
@@ -548,6 +522,8 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
   }
 
   EVP_KDF_CTX_free(kctx);
+fail_kdf_ctx_new:
+  crypto_kdf_hkdf_free(kdf);
 
   return rv;
 #else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
@@ -581,8 +557,8 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
                               size_t infolen) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   const EVP_MD *prf = md->native_handle;
-  EVP_KDF *kdf = crypto_kdf_hkdf();
-  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  EVP_KDF *kdf;
+  EVP_KDF_CTX *kctx;
   int mode = EVP_KDF_HKDF_MODE_EXPAND_ONLY;
   OSSL_PARAM params[] = {
     OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode),
@@ -596,8 +572,15 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   };
   int rv = 0;
 
-  if (!crypto_initialized) {
-    EVP_KDF_free(kdf);
+  kdf = crypto_kdf_hkdf();
+  if (!kdf) {
+    return -1;
+  }
+
+  kctx = EVP_KDF_CTX_new(kdf);
+  if (!kctx) {
+    rv = -1;
+    goto fail_kdf_ctx_new;
   }
 
   if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
@@ -605,6 +588,8 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   }
 
   EVP_KDF_CTX_free(kctx);
+fail_kdf_ctx_new:
+  crypto_kdf_hkdf_free(kdf);
 
   return rv;
 #else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
@@ -637,8 +622,8 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
                        const uint8_t *info, size_t infolen) {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   const EVP_MD *prf = md->native_handle;
-  EVP_KDF *kdf = crypto_kdf_hkdf();
-  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  EVP_KDF *kdf;
+  EVP_KDF_CTX *kctx;
   OSSL_PARAM params[] = {
     OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
                                      (char *)EVP_MD_get0_name(prf), 0),
@@ -652,8 +637,15 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
   };
   int rv = 0;
 
-  if (!crypto_initialized) {
-    EVP_KDF_free(kdf);
+  kdf = crypto_kdf_hkdf();
+  if (!kdf) {
+    return -1;
+  }
+
+  kctx = EVP_KDF_CTX_new(kdf);
+  if (!kctx) {
+    rv = -1;
+    goto fail_kdf_ctx_new;
   }
 
   if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
@@ -661,6 +653,8 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
   }
 
   EVP_KDF_CTX_free(kctx);
+fail_kdf_ctx_new:
+  crypto_kdf_hkdf_free(kdf);
 
   return rv;
 #else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */

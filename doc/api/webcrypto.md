@@ -1825,7 +1825,9 @@ added:
 <!-- YAML
 added: v24.7.0
 changes:
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63988
     description: Named cSHAKE variants are now accepted.
 -->
@@ -1845,7 +1847,9 @@ domain-separate functions built on top of cSHAKE. Accepted values are:
 <!-- YAML
 added: v24.7.0
 changes:
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63988
     description: Non-empty customization is now supported.
 -->
@@ -2269,7 +2273,7 @@ added:
  - v25.9.0
  - v24.18.0
 changes:
-  - version: REPLACEME
+  - version: v26.6.0
     pr-url: https://github.com/nodejs/node/pull/64557
     description: Limit customization to 512 bytes.
 -->

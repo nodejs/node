@@ -72,7 +72,7 @@
     "path": "streams"
   },
   "url": {
-    "commit": "d4598eba0959249d8715818a402b432c513f9492",
+    "commit": "4832db47614f5f48cc57374cbf5c1f70937fad48",
     "path": "url"
   },
   "urlpattern": {
@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "ec2fee39a4ca3c13afd55236795547eedd7f165d",
+    "commit": "82c3d9069cf2e93e5528a1f428fa122bd9af651d",
     "path": "WebCryptoAPI"
   },
   "webidl": {

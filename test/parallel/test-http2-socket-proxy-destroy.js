@@ -5,6 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+const Countdown = require('../common/countdown');
 
 // Calling .destroy() on the socket proxy must not throw
 // (previously threw ERR_HTTP2_NO_SOCKET_MANIPULATION) and must
@@ -16,6 +17,8 @@ server.on('stream', common.mustCall(function(stream) {
   stream.respond();
   stream.end('ok');
 }, 2));
+
+const countdown = new Countdown(2, () => server.close());
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
@@ -33,6 +36,7 @@ server.listen(0, common.mustCall(() => {
         assert.strictEqual(client.socket, undefined);
         // Destroying again through a stale proxy reference must not throw.
         socket.destroy();
+        countdown.dec();
       }));
     }));
     client.on('error', common.mustNotCall());
@@ -51,7 +55,7 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(err.message, 'boom');
     }));
     client.on('close', common.mustCall(() => {
-      server.close();
+      countdown.dec();
     }));
   }
 }));

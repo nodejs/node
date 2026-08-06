@@ -27,10 +27,7 @@ using v8::Value;
 namespace crypto {
 
 KEMConfiguration::KEMConfiguration(KEMConfiguration&& other) noexcept
-    : job_mode(other.job_mode),
-      mode(other.mode),
-      key(std::move(other.key)),
-      ciphertext(std::move(other.ciphertext)) {}
+    : key(std::move(other.key)), ciphertext(std::move(other.ciphertext)) {}
 
 KEMConfiguration& KEMConfiguration::operator=(
     KEMConfiguration&& other) noexcept {
@@ -41,9 +38,7 @@ KEMConfiguration& KEMConfiguration::operator=(
 
 void KEMConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  if (IsCryptoJobAsync(job_mode)) {
-    tracker->TrackFieldWithSize("ciphertext", ciphertext.size());
-  }
+  tracker->TraitTrackInline(ciphertext, "ciphertext");
 }
 
 namespace {
@@ -75,9 +70,6 @@ Maybe<void> KEMEncapsulateTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     KEMConfiguration* params) {
-  params->job_mode = mode;
-  params->mode = KEMMode::Encapsulate;
-
   unsigned int key_offset = offset;
   auto public_key_data =
       KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &key_offset);
@@ -126,8 +118,12 @@ void KEMEncapsulateJob::DoThreadPoolWork() {
   ncrypto::ClearErrorOnReturn clear_error_on_return;
   AdditionalParams* params = CryptoJob<KEMEncapsulateTraits>::params();
   Mutex::ScopedLock lock(params->key.mutex());
-  out_ = ncrypto::KEM::Encapsulate(params->key.GetAsymmetricKey());
-  if (!out_) {
+  auto result = ncrypto::KEM::Encapsulate(params->key.GetAsymmetricKey());
+  if (result) {
+    out_.emplace();
+    out_->ciphertext = ByteSource::Allocated(result->ciphertext.release());
+    out_->shared_key = ByteSource::Allocated(result->shared_key.release());
+  } else {
     CryptoErrorStore* errors = CryptoJob<KEMEncapsulateTraits>::errors();
     errors->Insert(NodeCryptoError::ENCAPSULATION_FAILED);
     errors->SetNodeErrorCode("ERR_CRYPTO_OPERATION_FAILED");
@@ -149,8 +145,8 @@ Maybe<void> KEMEncapsulateJob::ToResult(Local<Value>* err,
   CHECK(errors->Empty());
   *err = v8::Undefined(env->isolate());
 
-  ByteSource ciphertext = ByteSource::Allocated(out_->ciphertext.release());
-  ByteSource shared_key = ByteSource::Allocated(out_->shared_key.release());
+  ByteSource ciphertext = std::move(out_->ciphertext);
+  ByteSource shared_key = std::move(out_->shared_key);
 
   if (mode() == kCryptoJobWebCrypto) {
     Local<Object> output = Object::New(env->isolate());
@@ -188,8 +184,8 @@ Maybe<void> KEMEncapsulateJob::ToResult(Local<Value>* err,
 
 void KEMEncapsulateJob::MemoryInfo(MemoryTracker* tracker) const {
   if (out_) {
-    tracker->TrackFieldWithSize("ciphertext", out_->ciphertext.size());
-    tracker->TrackFieldWithSize("shared_key", out_->shared_key.size());
+    tracker->TraitTrackInline(out_->ciphertext, "ciphertext");
+    tracker->TraitTrackInline(out_->shared_key, "shared_key");
   }
   CryptoJob<KEMEncapsulateTraits>::MemoryInfo(tracker);
 }
@@ -201,9 +197,6 @@ Maybe<void> KEMDecapsulateTraits::AdditionalConfig(
     unsigned int offset,
     KEMConfiguration* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->job_mode = mode;
-  params->mode = KEMMode::Decapsulate;
 
   unsigned int key_offset = offset;
   auto private_key_data =

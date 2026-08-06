@@ -42,7 +42,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.26',
+    'v8_embedder_string': '-node.28',
 
     ##### V8 defaults for Node.js #####
 
@@ -87,7 +87,7 @@
     'v8_enable_external_code_space%': 0,
     'v8_enable_sandbox%': 0,
     'v8_enable_v8_checks%': 0,
-    'v8_use_perfetto': 0,
+    'v8_use_perfetto%': 0,
     'tsan%': 0,
 
     ##### end V8 defaults #####

@@ -913,6 +913,12 @@ std::filesystem::path realpath(const std::filesystem::path &path) {
   return abspath;
 }
 
+std::string format_app_error_code(std::optional<uint64_t> app_error_code) {
+  return app_error_code
+    .transform([](auto &&r) { return std::format("{:#x}", r); })
+    .value_or("(no error)");
+}
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {

@@ -69,3 +69,100 @@ test('fast FFI buffer arguments reject invalid values', () => {
     lib.close();
   }
 });
+
+test('fast FFI string buffers survive reentrant callbacks', {
+  // Bundled libffi callbacks crash on SmartOS.
+  skip: common.isSunOS,
+}, () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    safe_strlen: { arguments: ['string'], return: 'i32' },
+    string_survives_callback: {
+      arguments: ['string', 'pointer'],
+      return: 'i32',
+    },
+  });
+  let nestedLength;
+  const callback = lib.registerCallback(() => {
+    nestedLength = functions.safe_strlen('inner string');
+  });
+
+  try {
+    assert.strictEqual(
+      functions.string_survives_callback('outer string', callback), 1);
+    assert.strictEqual(nestedLength, 12);
+  } finally {
+    lib.unregisterCallback(callback);
+    lib.close();
+  }
+});
+
+test('optimized buffer signatures preserve pointer-like conversions', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const asBuffer = lib.getFunction('pointer_to_usize', {
+    arguments: ['buffer'],
+    return: 'u64',
+  });
+  const asArrayBuffer = lib.getFunction('pointer_to_usize', {
+    arguments: ['arraybuffer'],
+    return: 'u64',
+  });
+
+  function callBuffer(value) {
+    return asBuffer(value);
+  }
+
+  function callArrayBuffer(value) {
+    return asArrayBuffer(value);
+  }
+
+  try {
+    for (let i = 0; i < 100_000; i++) {
+      assert.strictEqual(callBuffer(0n), 0n);
+      assert.strictEqual(callArrayBuffer(0n), 0n);
+    }
+
+    for (const call of [callBuffer, callArrayBuffer]) {
+      assert.strictEqual(call(null), 0n);
+      assert.strictEqual(call(undefined), 0n);
+      assert.notStrictEqual(call('ffi'), 0n);
+
+      const bytes = Buffer.alloc(1);
+      assert.strictEqual(call(bytes), ffi.getRawPointer(bytes));
+    }
+  } finally {
+    lib.close();
+  }
+});
+
+test('multi-argument buffer signatures accept pointer BigInts', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    sum_buffer: { arguments: ['buffer', 'u64'], return: 'u64' },
+    fill_buffer: { arguments: ['arraybuffer', 'u64', 'u32'], return: 'void' },
+  });
+
+  try {
+    const bytes = Buffer.from([1, 2, 3, 4]);
+    const pointer = ffi.getRawPointer(bytes);
+    const length = BigInt(bytes.length);
+
+    // The two-argument wrapper must treat a raw address like the buffer it
+    // came from, matching both the single-argument fast path and the slow
+    // paths in src/ffi/types.cc.
+    assert.strictEqual(functions.sum_buffer(pointer, length), 10n);
+    assert.strictEqual(functions.sum_buffer(bytes, length), 10n);
+    assert.strictEqual(functions.sum_buffer(0n, length), 0n);
+    assert.strictEqual(functions.sum_buffer(null, length), 0n);
+
+    // The three-argument wrapper must forward the address to real memory
+    // instead of rejecting it.
+    functions.fill_buffer(pointer, length, 7);
+    assert.deepStrictEqual(bytes, Buffer.from([7, 7, 7, 7]));
+
+    // Still accepted once the call has been optimized.
+    for (let i = 0; i < 100_000; i++) {
+      assert.strictEqual(functions.sum_buffer(pointer, length), 28n);
+    }
+  } finally {
+    lib.close();
+  }
+});

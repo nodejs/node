@@ -153,6 +153,7 @@ class EnvironmentOptions : public Options {
   bool allow_net = false;
   bool allow_wasi = false;
   bool allow_ffi = false;
+  bool allow_openssl_store = false;
   bool allow_worker_threads = false;
   bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
   bool async_context_frame = true;
@@ -221,6 +222,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_skip_pattern;
   std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
+  bool coverage_include_all = false;
   std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
   bool trace_deprecation = false;
@@ -333,7 +335,11 @@ class PerProcessOptions : public Options {
 
   std::string title;
   std::string trace_event_categories;
+#if defined(V8_USE_PERFETTO)
+  std::string trace_event_file_pattern = "node_trace.${rotation}.pftrace";
+#else
   std::string trace_event_file_pattern = "node_trace.${rotation}.log";
+#endif
   int64_t v8_thread_pool_size = 4;
   bool zero_fill_all_buffers = false;
   bool debug_arraybuffer_allocations = false;

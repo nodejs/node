@@ -61,12 +61,14 @@ namespace quic {
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
+  /* Set when the stream has a stop sending event handler */                   \
+  V(WANTS_STOP_SENDING, wants_stop_sending, uint8_t)                           \
   /* Set when the stream has a trailers event handler */                       \
   V(WANTS_TRAILERS, wants_trailers, uint8_t)                                   \
   /* True when 0-RTT early data was received */                                \
   V(RECEIVED_EARLY_DATA, received_early_data, uint8_t)                         \
   V(WRITE_DESIRED_SIZE, write_desired_size, uint32_t)                          \
-  V(HIGH_WATER_MARK, high_water_mark, uint32_t)
+  V(BUDGET, budget, uint32_t)
 
 #define STREAM_STATS(V)                                                        \
   /* Marks the timestamp when the stream object was created. */                \
@@ -1774,19 +1776,11 @@ void Stream::ReceiveData(const uint8_t* data,
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
-  // STOP_SENDING from the peer asks us to stop sending. Per RFC 9000
-  // §3.5 the receiver SHOULD respond with RESET_STREAM, which is what
-  // ngtcp2_conn_shutdown_stream_write below schedules. If our
-  // writable side has already been shut down (e.g. we already sent
-  // RESET_STREAM ourselves or finished sending with FIN) there is
-  // nothing more to do here. The previous guard checked
-  // `state()->read_ended` which is unrelated to the writable side and
-  // suppressed STOP_SENDING handling whenever a sibling RESET_STREAM
-  // frame had been processed first within the same packet.
-  if (state()->write_ended) return;
+  // STOP_SENDING from the peer asks us to stop sending. The required
+  // RESET_STREAM response is scheduled automatically.
   Debug(this, "Received stop sending with error %s", error);
-  ngtcp2_conn_shutdown_stream_write(session(), 0, id(), error.code());
   EndWritable();
+  EmitStopSending(error);
 }
 
 void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
@@ -1857,13 +1851,13 @@ void Stream::UpdateWriteDesiredSize() {
   if (!outbound_ || !outbound_->is_streaming()) return;
 
   uint64_t available;
-  uint64_t hwm = state()->high_water_mark;
+  uint64_t bgt = state()->budget;
 
   if (is_pending()) {
     // Pending streams don't have a stream ID yet, so ngtcp2 can't
-    // report their flow control window. Use the high water mark as
-    // the available capacity so writes can proceed while pending.
-    available = hwm > 0 ? hwm : std::numeric_limits<uint32_t>::max();
+    // report their flow control window. Use the budget as the
+    // available capacity so writes can proceed while pending.
+    available = bgt > 0 ? bgt : std::numeric_limits<uint32_t>::max();
   } else {
     // Calculate available capacity based on QUIC flow control.
     // The effective limit is the minimum of stream-level and
@@ -1873,9 +1867,9 @@ void Stream::UpdateWriteDesiredSize() {
     uint64_t conn_left = ngtcp2_conn_get_max_data_left(conn);
     available = std::min(stream_left, conn_left);
 
-    // Apply the high water mark as an additional ceiling.
-    if (hwm > 0) {
-      available = std::min(available, hwm);
+    // Apply the budget as an additional ceiling.
+    if (bgt > 0) {
+      available = std::min(available, bgt);
     }
   }
 
@@ -1956,6 +1950,17 @@ void Stream::EmitReset(const QuicError& error) {
   if (!error.ToV8Value(env()).ToLocal(&err)) return;
 
   MakeCallback(BindingData::Get(env()).stream_reset_callback(), 1, &err);
+}
+
+void Stream::EmitStopSending(const QuicError& error) {
+  if (!env()->can_call_into_js() || !state()->wants_stop_sending) {
+    return;
+  }
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> err;
+  if (!error.ToV8Value(env()).ToLocal(&err)) return;
+
+  MakeCallback(BindingData::Get(env()).stream_stop_sending_callback(), 1, &err);
 }
 
 void Stream::EmitWantTrailers() {

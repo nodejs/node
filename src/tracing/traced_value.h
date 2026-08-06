@@ -11,13 +11,24 @@
 #include <span>
 #include <string>
 
+#if defined(V8_USE_PERFETTO)
+#include "tracing/trace_event_perfetto.h"
+#endif
+
 namespace node {
 namespace tracing {
 
+#if defined(V8_USE_PERFETTO)
+template <typename T>
+T CastTracedValue(const T& value) {
+  return value;
+}
+#else
 template <typename T>
 std::unique_ptr<v8::ConvertableToTraceFormat> CastTracedValue(const T& value) {
   return value.Cast();
 }
+#endif
 
 class EnvironmentArgs {
  public:
@@ -26,6 +37,20 @@ class EnvironmentArgs {
       : args_(args), exec_args_(exec_args) {}
 
   std::unique_ptr<v8::ConvertableToTraceFormat> Cast() const;
+
+#if defined(V8_USE_PERFETTO)
+  void WriteIntoTrace(perfetto::TracedValue context) const {
+    auto dict = std::move(context).WriteDictionary();
+    auto args_array = dict.AddArray("args");
+    for (const auto& arg : args_) {
+      args_array.Append(arg);
+    }
+    auto exec_args_array = dict.AddArray("exec_args");
+    for (const auto& arg : exec_args_) {
+      exec_args_array.Append(arg);
+    }
+  }
+#endif
 
  private:
   std::span<const std::string> args_;
@@ -40,6 +65,15 @@ class AsyncWrapArgs {
 
   std::unique_ptr<v8::ConvertableToTraceFormat> Cast() const;
 
+#if defined(V8_USE_PERFETTO)
+  void WriteIntoTrace(perfetto::TracedValue context) const {
+    auto dict = std::move(context).WriteDictionary();
+    dict.Add("executionAsyncId", execution_async_id_);
+    dict.Add("triggerAsyncId", trigger_async_id_);
+    dict.Add("foo", "bar");
+  }
+#endif
+
  private:
   int64_t execution_async_id_;
   int64_t trigger_async_id_;
@@ -48,6 +82,10 @@ class AsyncWrapArgs {
 class ProcessMeta {
  public:
   std::unique_ptr<v8::ConvertableToTraceFormat> Cast() const;
+
+#if defined(V8_USE_PERFETTO)
+  void WriteIntoTrace(perfetto::TracedValue context) const;
+#endif
 };
 
 // Do not use this class directly. Define a custom structured class to provide

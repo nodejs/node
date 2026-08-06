@@ -612,6 +612,17 @@ Http2Session::Http2Session(Http2State* http2_state,
       &alloc_info), 0);
   session_.reset(session);
 
+  // Increase the default local connection window to improve throughput
+  // on high-latency connections. The default 64KB window limits throughput
+  // to window_size / RTT. With a 32MB connection window, throughput is
+  // significantly improved. See https://github.com/nodejs/node/issues/38426
+  CHECK_EQ(nghttp2_session_set_local_window_size(
+               session,
+               NGHTTP2_FLAG_NONE,
+               0,
+               DEFAULT_SETTINGS_LOCAL_CONNECTION_WINDOW_SIZE),
+           0);
+
   outgoing_storage_.reserve(1024);
   outgoing_buffers_.reserve(32);
 
@@ -2664,10 +2675,18 @@ void Http2Stream::SubmitRstStream(const uint32_t code) {
   // if RST_STREAM received is not in scope and added to the list
   // causing endpoint to hang.
   if (session_->is_in_scope() && is_stream_cancel(code)) {
-      session_->AddPendingRstStream(id_);
-      return;
+    session_->AddPendingRstStream(id_);
+    return;
   }
 
+  // If RST_STREAM is submitted while nghttp2 is processing callbacks for
+  // a refused stream, don't force purge pending data. Sending pending data
+  // here can re-enter nghttp2 and close streams that are still being used
+  // by the active receive operation.
+  if (session_->is_in_scope() && code == NGHTTP2_REFUSED_STREAM) {
+    FlushRstStream();
+    return;
+  }
 
   // If possible, force a purge of any currently pending data here to make sure
   // it is sent before closing the stream. If it returns non-zero then we need

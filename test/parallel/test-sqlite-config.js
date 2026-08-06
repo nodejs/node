@@ -61,3 +61,15 @@ test('throws if options.defensive is provided but is not a boolean', (t) => {
     message: 'The "options.defensive" argument must be a boolean.',
   });
 });
+
+test('enableLoadExtension() throws if database is not open', (t) => {
+  const db = new DatabaseSync(':memory:', { allowExtension: true });
+  db.close();
+
+  t.assert.throws(() => {
+    db.enableLoadExtension(false);
+  }, {
+    code: 'ERR_INVALID_STATE',
+    message: 'database is not open',
+  });
+});
