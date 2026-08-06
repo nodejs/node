@@ -508,6 +508,7 @@ class Cipher final {
   struct CipherParams {
     int padding;
     Digest digest;
+    Digest mgf1_digest;
     const Buffer<const void> label;
   };
 
