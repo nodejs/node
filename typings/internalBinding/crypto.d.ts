@@ -767,6 +767,7 @@ declare namespace InternalCryptoBinding {
       padding: number,
       oaepHash: string | undefined,
       oaepLabel: OptionalByteSource,
+      mgf1Hash: string | undefined,
     ]
   ) => Buffer;
 }
