@@ -3484,10 +3484,14 @@ are defined, while others are emitted in the order that the tests execute.
 
 The following tables summarize all events by scope.
 
-Test scoped events are emitted once per test or suite. Most of them come in
-pairs: a declaration ordered event, buffered so that events are emitted in the
-same order as the tests are defined, and one or more corresponding execution
-ordered events, emitted immediately as the tests execute.
+Test scoped events are associated with a test or suite. Lifecycle events are
+emitted once per test or suite, while [`'test:diagnostic'`][],
+[`'test:log'`][], and attributed [`'test:stdout'`][] and
+[`'test:stderr'`][] events may be emitted any number of times. Most lifecycle
+events come in pairs: a declaration ordered event, buffered so that events are
+emitted in the same order as the tests are defined,
+and one or more corresponding execution ordered events, emitted immediately as
+the tests execute.
 
 | Declaration ordered (buffered) | Execution ordered (immediate)                         |
 | ------------------------------ | ----------------------------------------------------- |
@@ -3497,19 +3501,33 @@ ordered events, emitted immediately as the tests execute.
 | [`'test:plan'`][]              |                                                       |
 | [`'test:diagnostic'`][]        |                                                       |
 |                                | [`'test:log'`][]                                      |
+|                                | [`'test:stderr'`][] (attributed console output)       |
+|                                | [`'test:stdout'`][] (attributed console output)       |
 
 [`'test:log'`][] is deliberately execution ordered only: it is the live
 counterpart of [`'test:diagnostic'`][]'s buffered reporting.
 
-File scoped and global events are always emitted immediately, in execution
-order.
+With process isolation, output written through the built-in global console
+during an active test or suite is associated with that test or suite and
+emitted in execution order. Other output, such as direct writes to the process
+streams, remains file scoped.
 
-File scoped events are emitted once per test file:
+Output from a hook is associated with the test or suite that owns the hook.
+For example, output from a suite's `beforeEach()` hook is associated with the
+suite rather than with the child test that triggered it. Output from
+root-level hooks remains file scoped.
+
+Global events are always emitted immediately, in execution order.
+
+File scoped events carry information about a test file rather than an
+individual test. [`'test:stdout'`][] and [`'test:stderr'`][] may be emitted
+any number of times for a file, while the remaining events are emitted once
+per test file:
 
 | Event                | Notes                                          |
 | -------------------- | ---------------------------------------------- |
-| [`'test:stderr'`][]  | Only emitted if the `--test` flag is passed.   |
-| [`'test:stdout'`][]  | Only emitted if the `--test` flag is passed.   |
+| [`'test:stderr'`][]  | Only emitted when process isolation is used.   |
+| [`'test:stdout'`][]  | Only emitted when process isolation is used.   |
 | [`'test:summary'`][] | Per file, only when process isolation is used. |
 
 Global events are emitted once per test run:
@@ -3895,30 +3913,78 @@ The corresponding execution ordered event is `'test:dequeue'`.
 ### Event: `'test:stderr'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test or suite is
+    defined. Only present when the output is associated with a test or suite
+    and that test or suite has a known source location.
   * `entryFile` {string|undefined} The path of the test file that was
     executed as the entry point of the child process that emitted this event.
     Only present when tests run with process isolation.
-  * `file` {string} The path of the test file.
+  * `file` {string} The path of the test file. When the output is associated
+    with a test or suite, this is the file where that test or suite is defined,
+    or the entry point of the child process if its source location is not
+    known.
+  * `line` {number|undefined} The line number where the test or suite is
+    defined. Only present when the output is associated with a test or suite
+    and that test or suite has a known source location.
   * `message` {string} The message written to `stderr`.
+  * `name` {string|undefined} The test or suite name. Only present when the
+    output is associated with a test or suite.
+  * `nesting` {number|undefined} The nesting level of the test or suite. Only
+    present when the output is associated with a test or suite.
+  * `parentId` {number|undefined} The `testId` of the enclosing test or suite.
+    Only present when the output is associated with a test or suite.
+  * `testId` {number|undefined} A numeric identifier for the test or suite.
+    Only present when the output is associated with a test or suite.
 
-Emitted when a running test writes to `stderr`.
-This event is only emitted if `--test` flag is passed.
-This event is not guaranteed to be emitted in the same order as the tests are
-defined.
+Emitted when the test runner observes output written to `stderr`. This event is
+only emitted when tests run with process isolation. Output written through the
+built-in global console during an active test or suite is associated with that
+test or suite and is emitted after its [`'test:dequeue'`][] event. Direct
+writes to `process.stderr`, native output, output written through separately
+constructed `Console` instances, top-level output outside an active test or
+suite, root-level hook output, output produced while suites are being defined,
+and asynchronous output after a test finishes are not associated with a test.
+Their ordering relative to test events is not guaranteed. Because associated and
+unassociated output reach the reporter through different paths, their relative
+order is not guaranteed either, even within a single test.
 
 ### Event: `'test:stdout'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test or suite is
+    defined. Only present when the output is associated with a test or suite
+    and that test or suite has a known source location.
   * `entryFile` {string|undefined} The path of the test file that was
     executed as the entry point of the child process that emitted this event.
     Only present when tests run with process isolation.
-  * `file` {string} The path of the test file.
+  * `file` {string} The path of the test file. When the output is associated
+    with a test or suite, this is the file where that test or suite is defined,
+    or the entry point of the child process if its source location is not
+    known.
+  * `line` {number|undefined} The line number where the test or suite is
+    defined. Only present when the output is associated with a test or suite
+    and that test or suite has a known source location.
   * `message` {string} The message written to `stdout`.
+  * `name` {string|undefined} The test or suite name. Only present when the
+    output is associated with a test or suite.
+  * `nesting` {number|undefined} The nesting level of the test or suite. Only
+    present when the output is associated with a test or suite.
+  * `parentId` {number|undefined} The `testId` of the enclosing test or suite.
+    Only present when the output is associated with a test or suite.
+  * `testId` {number|undefined} A numeric identifier for the test or suite.
+    Only present when the output is associated with a test or suite.
 
-Emitted when a running test writes to `stdout`.
-This event is only emitted if `--test` flag is passed.
-This event is not guaranteed to be emitted in the same order as the tests are
-defined.
+Emitted when the test runner observes output written to `stdout`. This event is
+only emitted when tests run with process isolation. Output written through the
+built-in global console during an active test or suite is associated with that
+test or suite and is emitted after its [`'test:dequeue'`][] event. Direct
+writes to `process.stdout`, native output, output written through separately
+constructed `Console` instances, top-level output outside an active test or
+suite, root-level hook output, output produced while suites are being defined,
+and asynchronous output after a test finishes are not associated with a test.
+Their ordering relative to test events is not guaranteed. Because associated and
+unassociated output reach the reporter through different paths, their relative
+order is not guaranteed either, even within a single test.
 
 ### Event: `'test:summary'`
 
