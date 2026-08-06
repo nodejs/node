@@ -2137,13 +2137,13 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
     if (!elm->Get(env->context(), 1).ToLocal(&ipValue)) return;
     if (!elm->Get(env->context(), 2).ToLocal(&portValue)) return;
 
-    CHECK(familyValue->Int32Value(env->context()).FromJust());
+    CHECK(familyValue->IsInt32());
     CHECK(ipValue->IsString());
-    CHECK(portValue->Int32Value(env->context()).FromJust());
+    CHECK(portValue->IsInt32());
 
-    int fam = familyValue->Int32Value(env->context()).FromJust();
+    int32_t fam = familyValue.As<Int32>()->Value();
     node::Utf8Value ip(env->isolate(), ipValue);
-    int port = portValue->Int32Value(env->context()).FromJust();
+    int32_t port = portValue.As<Int32>()->Value();
 
     ares_addr_port_node* cur = &servers[i];
 
