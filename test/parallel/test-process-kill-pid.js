@@ -23,6 +23,14 @@
 const common = require('../common');
 const assert = require('assert');
 
+for (const args of [[], [process.pid]]) {
+  assert.throws(() => process._kill(...args), {
+    code: 'ERR_MISSING_ARGS',
+    name: 'TypeError',
+    message: 'Bad argument.'
+  });
+}
+
 // Test variants of pid
 //
 // null: TypeError

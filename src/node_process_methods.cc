@@ -186,7 +186,7 @@ static void Kill(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
 
   if (args.Length() < 2) {
-    THROW_ERR_MISSING_ARGS(env, "Bad argument.");
+    return THROW_ERR_MISSING_ARGS(env, "Bad argument.");
   }
 
   int pid;
