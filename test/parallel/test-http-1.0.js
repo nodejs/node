@@ -127,9 +127,12 @@ function test(handler, request_generator, response_validator) {
     assert.strictEqual(req.httpVersionMinor, 1);
     res.sendDate = false;
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.write('Hello, '); res._send('');
+    assert.throws(() => res.write('ignored', 'invalid'), {
+      code: 'ERR_UNKNOWN_ENCODING',
+    });
+    res.write('Hello, ', common.mustCall()); res._send('');
     res.write('world!'); res._send('');
-    res.end();
+    process.nextTick(() => res.end('X'));
   }
 
   function request_generator() {
@@ -150,6 +153,8 @@ function test(handler, request_generator, response_validator) {
                               '\r\n' +
                               'd\r\n' +
                               'Hello, world!\r\n' +
+                              '1\r\n' +
+                              'X\r\n' +
                               '0\r\n' +
                               '\r\n';
 
