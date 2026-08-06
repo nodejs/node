@@ -153,6 +153,11 @@ test('ffi rejects detached array buffers and views as pointers', () => {
 
   structuredClone(arrayBuffer, { transfer: [arrayBuffer] });
 
+  assert.throws(() => ffi.exportArrayBuffer(arrayBuffer, 0n, 0), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: 'ArrayBuffer is detached',
+  });
+
   for (const [value, rawPointerMessage, argumentMessage] of [
     [
       arrayBuffer,
