@@ -136,6 +136,10 @@ const portsExpected = [
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
 
+// Port 0 means "use the default port" for c-ares.
+dns.setServers(['4.4.4.4:0', '[2001:4860:4860::8888]:0']);
+assert.deepStrictEqual(dns.getServers(), ['4.4.4.4', '2001:4860:4860::8888']);
+
 dns.setServers([]);
 assert.deepStrictEqual(dns.getServers(), []);
 
