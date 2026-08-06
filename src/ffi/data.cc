@@ -685,7 +685,7 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
       args[0]->IsArrayBufferView()) {
     view.ReadValue(args[0]);
     if (view.WasDetached()) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
+      THROW_ERR_INVALID_ARG_VALUE(env, "ArrayBuffer is detached");
       return;
     }
   } else {
