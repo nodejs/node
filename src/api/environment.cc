@@ -16,7 +16,9 @@
 #include "node_realm-inl.h"
 #include "node_shadow_realm.h"
 #include "node_snapshot_builder.h"
+#include "node_v8.h"
 #include "node_v8_platform-inl.h"
+#include "v8-profiler.h"
 #include "node_wasm_web_api.h"
 #include "uv.h"
 #ifdef NODE_ENABLE_VTUNE_PROFILING
@@ -118,6 +120,10 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
   ret = allocator_->Allocate(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
+    auto* pa = profiling_allocator_.load(std::memory_order_acquire);
+    if (pa != nullptr) [[unlikely]] {
+      pa->TrackAllocate(ret, size);
+    }
   }
   return ret;
 }
@@ -127,13 +133,36 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
   void* ret = allocator_->AllocateUninitialized(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
+    auto* pa = profiling_allocator_.load(std::memory_order_acquire);
+    if (pa != nullptr) [[unlikely]] {
+      pa->TrackAllocate(ret, size);
+    }
   }
   return ret;
 }
 
 void NodeArrayBufferAllocator::Free(void* data, size_t size) {
+  auto* pa = profiling_allocator_.load(std::memory_order_acquire);
+  if (pa != nullptr) [[unlikely]] {
+    pa->TrackFree(data);
+  }
   total_mem_usage_.fetch_sub(size, std::memory_order_relaxed);
   allocator_->Free(data, size);
+}
+
+ProfilingArrayBufferAllocator*
+NodeArrayBufferAllocator::CreateProfilingAllocator() {
+  if (!owned_profiling_allocator_) {
+    owned_profiling_allocator_ =
+        std::make_unique<ProfilingArrayBufferAllocator>();
+  }
+  auto* pa = owned_profiling_allocator_.get();
+  profiling_allocator_.store(pa, std::memory_order_release);
+  return pa;
+}
+
+void NodeArrayBufferAllocator::ClearProfilingAllocator() {
+  profiling_allocator_.store(nullptr, std::memory_order_release);
 }
 
 DebuggingArrayBufferAllocator::~DebuggingArrayBufferAllocator() {
@@ -192,11 +221,166 @@ void DebuggingArrayBufferAllocator::RegisterPointerInternal(void* data,
   allocations_[data] = size;
 }
 
+void ProfilingArrayBufferAllocator::TrackAllocate(void* data, size_t size) {
+  // Runs inside the ArrayBuffer allocator, where V8 may prohibit heap
+  // allocation and JS execution. Everything below stays off the V8 heap: the
+  // CPED lookup and the intern table use the handle-scope stack and malloc,
+  // and what is stored per allocation is a POD id.
+  if (std::this_thread::get_id() !=
+          main_thread_id_.load(std::memory_order_relaxed) ||
+      !enabled_.load(std::memory_order_relaxed)) {
+    return;
+  }
+  v8::Isolate* isolate = isolate_.load(std::memory_order_relaxed);
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Value> cped =
+      isolate->GetContinuationPreservedEmbedderDataV2().As<v8::Value>();
+  if (cped.IsEmpty() || !cped->IsMap()) return;
+  v8::HeapProfiler* profiler = isolate->GetHeapProfiler();
+  v8::Local<v8::Value> als_value;
+  if (!profiler->LookupAlsValue(cped).ToLocal(&als_value)) return;
+  uint32_t label_id = profiler->InternLabelValue(als_value);
+  // With no id there is nothing to attribute the bytes to at serialisation
+  // time, so the entry would be dead weight.
+  if (label_id == 0) return;
+  uint32_t old_label_id = 0;
+  {
+    Mutex::ScopedLock lock(mutex_);
+    auto [it, inserted] = allocations_.try_emplace(data);
+    if (!inserted) old_label_id = it->second.label_id;
+    it->second.label_id = label_id;
+    it->second.size = size;
+  }
+  if (old_label_id != 0) {
+    isolate->GetHeapProfiler()->ReleaseLabelValue(old_label_id);
+  }
+#else
+  (void)isolate;
+  (void)data;
+  (void)size;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+}
+
+void ProfilingArrayBufferAllocator::TrackFree(void* data) {
+  // Called on V8's ArrayBufferSweeper thread as well as the main one. That is
+  // safe because AllocationEntry holds no V8 handles, so the erase below is a
+  // POD operation. ReleaseLabelValue runs after the lock is dropped, to avoid
+  // nesting this mutex inside the intern table's.
+  uint32_t label_id = 0;
+  {
+    Mutex::ScopedLock lock(mutex_);
+    auto it = allocations_.find(data);
+    if (it == allocations_.end()) return;
+    label_id = it->second.label_id;
+    allocations_.erase(it);
+  }
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  if (label_id == 0) return;
+  // This acquire load pairs with the release store in Enable(); see the
+  // argument there for why isolate_ is non-null and valid here.
+  isolate_.load(std::memory_order_acquire)
+      ->GetHeapProfiler()
+      ->ReleaseLabelValue(label_id);
+#else
+  (void)label_id;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+}
+
+bool ProfilingArrayBufferAllocator::Enable(v8::Isolate* isolate) {
+  // TrackFree() reads isolate_ from V8's ArrayBufferSweeper thread, so the
+  // release store below is what makes it visible there: a non-zero label_id
+  // exists only because TrackAllocate inserted the entry after observing
+  // enabled_ on the main thread, which is sequenced after this store, and
+  // TrackFree's acquire load pairs with it. Disable() therefore must not
+  // clear isolate_. enabled_ is main-thread only, so relaxed suffices.
+  //
+  // In-tree the allocator is one-per-isolate (owned by NodeArrayBufferAllocator
+  // in IsolateData), so current is null or already this isolate. An embedder
+  // may however share one allocator across isolates via node::NewIsolate; in
+  // that unsupported case do not rebind (which would hijack the first
+  // isolate's tracking) and report failure so the caller does not record this
+  // allocator for the second isolate. The second isolate's samples still
+  // carry labels; only its per-label externalBytes are unavailable.
+  Mutex::ScopedLock lock(mutex_);
+  v8::Isolate* current = isolate_.load(std::memory_order_relaxed);
+  if (current != nullptr && current != isolate) return false;
+  main_thread_id_.store(std::this_thread::get_id(), std::memory_order_relaxed);
+  isolate_.store(isolate, std::memory_order_release);
+  enabled_.store(true, std::memory_order_relaxed);
+  return true;
+}
+
+void ProfilingArrayBufferAllocator::Disable() {
+  // Clear the sentinel first, so a re-entrant main-thread call exits early.
+  // isolate_ deliberately survives: a background TrackFree() may already have
+  // erased its entry and still be on its way to ReleaseLabelValue(), which
+  // would then either crash or leak the refcount. The isolate outlives every
+  // TrackFree() because V8 drains its ArrayBufferSweeper before the isolate
+  // tears down, so ReleaseLabelValue() always has a valid isolate to call
+  // through.
+  enabled_.store(false, std::memory_order_relaxed);
+  v8::Isolate* isolate = isolate_.load(std::memory_order_relaxed);
+  // Release outside the lock, so the allocator mutex is not nested inside the
+  // intern table's.
+  std::vector<uint32_t> label_ids;
+  {
+    Mutex::ScopedLock lock(mutex_);
+    label_ids.reserve(allocations_.size());
+    for (const auto& [ptr, entry] : allocations_) {
+      if (entry.label_id != 0) {
+        label_ids.push_back(entry.label_id);
+      }
+    }
+    allocations_.clear();
+  }
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  if (isolate != nullptr) {
+    v8::HeapProfiler* profiler = isolate->GetHeapProfiler();
+    for (uint32_t id : label_ids) {
+      profiler->ReleaseLabelValue(id);
+    }
+  }
+#else
+  (void)isolate;
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+}
+
+std::vector<std::pair<uint32_t, int64_t>>
+ProfilingArrayBufferAllocator::GetPerLabelBytes() const {
+  if (!enabled_.load(std::memory_order_relaxed)) return {};
+#ifdef V8_HEAP_PROFILER_SAMPLE_LABELS
+  std::unordered_map<uint32_t, int64_t> bytes_by_id;
+  {
+    Mutex::ScopedLock lock(mutex_);
+    bytes_by_id.reserve(allocations_.size());
+    for (const auto& [ptr, entry] : allocations_) {
+      if (entry.label_id != 0) {
+        bytes_by_id[entry.label_id] += static_cast<int64_t>(entry.size);
+      }
+    }
+  }
+  std::vector<std::pair<uint32_t, int64_t>> result;
+  result.reserve(bytes_by_id.size());
+  for (const auto& [id, bytes] : bytes_by_id) {
+    result.emplace_back(id, bytes);
+  }
+  return result;
+#else
+  return {};
+#endif  // V8_HEAP_PROFILER_SAMPLE_LABELS
+}
+
 std::unique_ptr<ArrayBufferAllocator> ArrayBufferAllocator::Create(bool debug) {
   if (debug || per_process::cli_options->debug_arraybuffer_allocations)
     return std::make_unique<DebuggingArrayBufferAllocator>();
-  else
-    return std::make_unique<NodeArrayBufferAllocator>();
+  // Use the plain NodeArrayBufferAllocator by default.  When heap profiling
+  // with labels is started (v8.startHeapProfile({ labels: true })), a
+  // ProfilingArrayBufferAllocator tracker is created on demand and installed
+  // as a delegate — see NodeArrayBufferAllocator::CreateProfilingAllocator().
+  // When profiling is not active, overhead is one atomic null-check in
+  // NodeArrayBufferAllocator's Allocate/Free (predicted not-taken).
+  return std::make_unique<NodeArrayBufferAllocator>();
 }
 
 ArrayBufferAllocator* CreateArrayBufferAllocator() {

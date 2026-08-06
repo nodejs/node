@@ -89,6 +89,7 @@
     'v8_enable_v8_checks%': 0,
     'v8_use_perfetto%': 0,
     'tsan%': 0,
+    'v8_enable_continuation_preserved_embedder_data%': 1,
 
     ##### end V8 defaults #####
 
@@ -545,6 +546,13 @@
       }],
       ['tsan == 1', {
         'defines': ['V8_IS_TSAN',],
+      }],
+      # Heap profile sample labels ride ContinuationPreservedEmbedderData, so
+      # they are gated on the same feature.  Defined here in target_defaults
+      # so that every Node target and every node-gyp addon sees the same
+      # v8::AllocationProfile::Sample layout as libnode.
+      ['v8_enable_continuation_preserved_embedder_data == 1', {
+        'defines': ['V8_HEAP_PROFILER_SAMPLE_LABELS',],
       }],
       ['OS == "win"', {
         'defines': [

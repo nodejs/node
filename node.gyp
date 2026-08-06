@@ -1386,6 +1386,7 @@
         'src',
         'tools/msvs/genfiles',
         'deps/v8/include',
+        'deps/v8',
         'deps/cares/include',
         'deps/uv/include',
         'test/cctest',
