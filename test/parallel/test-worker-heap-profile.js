@@ -47,6 +47,12 @@ worker.on('online', common.mustCall(async () => {
     () => worker.startHeapProfile({ includeObjectsCollectedByMinorGC: 1 }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
+  assert.throws(() => worker.startHeapProfile({ labels: 1 }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => worker.startHeapProfile({ labels: true }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
 
   {
     const handle = await worker.startHeapProfile({
