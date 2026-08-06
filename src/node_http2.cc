@@ -1074,6 +1074,11 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
   int32_t id = GetFrameID(frame);
   Debug(session, "beginning headers for stream %d", id);
 
+  // Close() can be called by JavaScript from an earlier receive callback.
+  // Do not create streams that can no longer be exposed to JavaScript.
+  if (session->is_close_pending())
+    return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+
   BaseObjectPtr<Http2Stream> stream = session->FindStream(id);
   // The common case is that we're creating a new stream. The less likely
   // case is that we're receiving a set of trailers
@@ -1139,6 +1144,12 @@ int Http2Session::OnFrameReceive(nghttp2_session* handle,
   session->statistics_.frame_count++;
   Debug(session, "complete frame received: type: %d",
         frame->hd.type);
+
+  // JavaScript may have closed the session from an earlier receive callback.
+  // FinishClose() runs after nghttp2_session_mem_recv() returns.
+  if (session->is_close_pending())
+    return 0;
+
   switch (frame->hd.type) {
     case NGHTTP2_DATA:
       return session->HandleDataFrame(frame);
@@ -1403,6 +1414,12 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
   // We should never actually get a 0-length chunk so this check is
   // only a precaution at this point.
   if (len == 0)
+    return 0;
+
+  // Close() can be called by JavaScript from an earlier receive callback.
+  // Ignore the rest of the buffered DATA because its stream may never have
+  // been exposed to JavaScript and therefore has no onread callback.
+  if (session->is_close_pending())
     return 0;
 
   // Notify nghttp2 that we've consumed a chunk of data on the connection
@@ -2608,12 +2625,17 @@ void Http2Stream::SubmitRstStream(const uint32_t code) {
   // Do not call `nghttp2_session_mem_send()` while nghttp2 is processing
   // incoming data. Sending may close the stream and free nghttp2 state
   // that is still in use by `nghttp2_session_mem_recv()`.
-  if (session_->is_receiving() && available_outbound_length_ == 0) {
-    if (is_stream_cancel(code)) {
+  if (session_->is_receiving()) {
+    // These resets must be submitted before the current callback returns.
+    // In particular, nghttp2 otherwise replaces ENHANCE_YOUR_CALM with
+    // INTERNAL_ERROR when OnHeaderCallback returns a temporal failure.
+    if (code == NGHTTP2_ENHANCE_YOUR_CALM ||
+        code == NGHTTP2_REFUSED_STREAM) {
+      FlushRstStream();
+    } else {
+      // Let queued DATA, including END_STREAM, be serialized before the reset.
       session_->AddPendingRstStream(id_);
-      return;
     }
-    FlushRstStream();
     return;
   }
 
@@ -2869,7 +2891,9 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
   if (stream->available_outbound_length_ == 0 && !stream->is_writable()) {
     Debug(session, "no more data for stream %d", id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
-    if (stream->has_trailers()) {
+    // A deferred Destroy() cannot call back into JavaScript for trailers.
+    // Let the DATA frame end the stream instead.
+    if (stream->has_trailers() && !stream->is_destroyed()) {
       *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
       stream->OnTrailers();
     }
