@@ -22306,6 +22306,26 @@ TEST(RequestInterruptSmallScripts) {
   CHECK(interrupt_was_called);
 }
 
+#ifdef V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
+static bool interrupt_check_no_js = false;
+void DisallowJsInterruptCallback(v8::Isolate* isolate, void* data) {
+  CHECK(!i::AllowJavascriptExecution::IsAllowed(
+      reinterpret_cast<i::Isolate*>(isolate)));
+  interrupt_check_no_js = true;
+}
+
+TEST(RequestInterruptDisallowsJavascript) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  interrupt_check_no_js = false;
+  isolate->RequestInterrupt(&DisallowJsInterruptCallback, nullptr);
+  CompileRun("(function(x){return x;})(1);");
+  CHECK(interrupt_check_no_js);
+}
+#endif  // V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
+
 static v8::Global<Value> function_new_expected_env_global;
 static void FunctionNewCallback(const v8::FunctionCallbackInfo<Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();

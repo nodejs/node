@@ -110,7 +110,7 @@ class V8_NODISCARD PerThreadAssertScope
     ScopeType& operator=(const ScopeType&) = delete;                 \
     V8_EXPORT_PRIVATE ~ScopeType();                                  \
                                                                      \
-    static bool IsAllowed(Isolate* isolate);                         \
+    V8_EXPORT_PRIVATE static bool IsAllowed(Isolate* isolate);       \
                                                                      \
     V8_EXPORT_PRIVATE static void Open(Isolate* isolate,             \
                                        bool* was_execution_allowed); \

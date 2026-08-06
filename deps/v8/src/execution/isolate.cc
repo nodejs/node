@@ -2245,6 +2245,13 @@ void Isolate::InvokeApiInterruptCallbacks() {
     }
     VMState<EXTERNAL> state(this);
     HandleScope handle_scope(this);
+    // API interrupt callbacks are forbidden from executing JavaScript on the
+    // interrupted Isolate (see v8::Isolate::RequestInterrupt contract in
+    // v8-isolate.h: "Registered |callback| must not reenter interrupted
+    // Isolate.").
+#ifdef V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
+    DisallowJavascriptExecution no_js(this);
+#endif  // V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED
     entry.first(reinterpret_cast<v8::Isolate*>(this), entry.second);
   }
 }
