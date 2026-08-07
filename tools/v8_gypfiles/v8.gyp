@@ -1243,7 +1243,7 @@
           'conditions': [
             ['v8_enable_webassembly==1', {
               'conditions': [
-                ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS in "linux mac ios openharmony")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac openharmony"))', {
+                ['((_toolset=="host" and host_arch=="arm64" or _toolset=="target" and target_arch=="arm64") and (OS in "linux mac ios openharmony")) or ((_toolset=="host" and host_arch=="x64" or _toolset=="target" and target_arch=="x64") and (OS in "linux mac openharmony")) or (_toolset=="host" and OS=="android" and host_arch=="arm64" and host_os in "linux mac ios openharmony") or (_toolset=="host" and OS=="android" and host_arch=="x64" and host_os in "linux mac openharmony")', {
                   'sources': [
                     '<(V8_ROOT)/src/trap-handler/handler-inside-posix.cc',
                     '<(V8_ROOT)/src/trap-handler/handler-outside-posix.cc',
@@ -1530,35 +1530,26 @@
             }],
           ],
         }],
-        ['is_android', {
+        ['is_android and _toolset=="target"', {
           'sources': [
             '<(V8_ROOT)/src/base/platform/platform-posix.cc',
             '<(V8_ROOT)/src/base/platform/platform-posix.h',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.cc',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.h',
+            '<(V8_ROOT)/src/base/debug/stack_trace_android.cc',
+            '<(V8_ROOT)/src/base/platform/platform-linux.cc',
+          ],
+        }],
+        ['is_android and _toolset=="host" and host_os=="linux"', {
+          'sources': [
+            '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
+            '<(V8_ROOT)/src/base/platform/platform-linux.cc',
           ],
           'link_settings': {
-            'target_conditions': [
-              ['_toolset=="host" and host_os=="linux"', {
-                'libraries': [
-                  '-ldl'
-                ],
-              }],
+            'libraries': [
+              '-ldl'
             ],
           },
-          'target_conditions': [
-            ['_toolset=="host"', {
-              'sources': [
-                '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
-                '<(V8_ROOT)/src/base/platform/platform-linux.cc',
-              ],
-            }, {
-              'sources': [
-                '<(V8_ROOT)/src/base/debug/stack_trace_android.cc',
-                '<(V8_ROOT)/src/base/platform/platform-linux.cc',
-              ],
-            }],
-          ],
         }],
         ['is_fuchsia', {
           'sources': [
