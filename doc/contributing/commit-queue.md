@@ -27,8 +27,8 @@ From a high-level, the Commit Queue works as follows:
    workflow uses a five-minute cron, but GitHub Actions scheduled workflows are
    not guaranteed to run exactly every five minutes. For each candidate, the
    queue will:
-   1. Run a metadata-only readiness check that uses `@node-core/utils` without
-      checking out the repository
+   1. In the landing job, install and configure `@node-core/utils`, then run a
+      metadata-only readiness check without checking out the repository
    2. If the metadata check exits with a deferrable readiness code, meaning
       the PR is only blocked on wait time, keep the `commit-queue` label and
       skip this PR until a later queue run
@@ -93,20 +93,20 @@ reasons:
    commit, meaning we wouldn't be able to use it for already opened PRs
    without rebasing them first.
 
-`@node-core/utils` is configured with a personal token and a Jenkins token from
-[@nodejs-github-bot](https://github.com/nodejs/github-bot). The workflow starts
-with a small selector step that uses GitHub CLI to fetch pull requests with the
-`commit-queue` label. It first fetches the same age-based and fast-track buckets
-the queue used before accepting early queue requests, then fetches the broader
-queue and de-duplicates the result. This keeps not-yet-ready PRs from crowding
-out PRs that the previous query would have selected if GitHub paginates or caps
-a query result.
+The workflow starts with a small candidate job that uses GitHub CLI to fetch
+pull requests with the `commit-queue` label. It first fetches the same
+age-based and fast-track buckets the queue used before accepting early queue
+requests, then fetches the broader queue and de-duplicates the result. This
+keeps not-yet-ready PRs from crowding out PRs that the previous query would
+have selected if GitHub paginates or caps a query result.
 
-If there are candidate PRs, the selector installs `@node-core/utils`, downloads
-the target branch's README without checking out the repository, and runs
+If there are candidate PRs, the landing job installs and configures
+`@node-core/utils` once with a personal token and a Jenkins token from
+[@nodejs-github-bot](https://github.com/nodejs/github-bot). It then downloads
+the target branch's README without checking out the repository and runs
 `git node metadata --readme --json` for each candidate. This uses the same
 `@node-core/utils` PR readiness checks as `git node land`, but does not clone,
-fetch, or merge the PR. The selector consumes the structured metadata result
+fetch, or merge the PR. The filter consumes the structured metadata result
 and its exit code instead of matching human-readable output:
 
 * exit code `0`: the PR is ready and is passed to
@@ -119,12 +119,13 @@ and its exit code instead of matching human-readable output:
 
 The `20`-`29` exit code range is reserved by `@node-core/utils` for deferrable
 metadata readiness states, and `40`-`49` is reserved for hard metadata failure
-states. Unknown selector failures fail the workflow before starting the landing
-job and leave PR labels unchanged so the queue can retry on a later scheduled
-run. PRs passed through with exit code `40`-`49` continue through
-`commit-queue.sh`. The script still applies its existing `request-ci` and
-pending-check deferrals before removing the queue label and reporting a hard
-failure.
+states. Unknown filter failures fail the workflow before starting the landing
+script and leave PR labels unchanged so the queue can retry on a later
+scheduled run. PRs passed through with exit code `40`-`49` continue through
+`commit-queue.sh`. The workflow checks out the repository only when at least
+one PR remains after filtering. The script still applies its existing
+`request-ci` and pending-check deferrals before removing the queue label and
+reporting a hard failure.
 
 > The personal token needs permission for public repositories and to read
 > profiles. It is used by `@node-core/utils` and by the landing job for
@@ -146,18 +147,18 @@ done here since `git node land` will fail if the last CI failed.
 The script removes the `commit-queue` label, then runs `git node land`,
 forwarding stdout and stderr to a file. PRs that are only blocked on wait time
 should have already been filtered by the metadata check. If a hard readiness
-failure appears between the selector job and `git node land`, the landing job
-adds a `commit-queue-failed` label to the PR, leaves a comment with the output
-of `git node land`, and then aborts the landing session. If the abort fails,
-the queue stops instead of continuing in an unknown state.
+failure appears between the metadata filter and `git node land`, the landing
+job adds a `commit-queue-failed` label to the PR, leaves a comment with the
+output of `git node land`, and then aborts the landing session. If the abort
+fails, the queue stops instead of continuing in an unknown state.
 
-Fast-tracked PRs use the metadata check before the landing job. If the
-fast-track request has not yet received enough collaborator thumbs-up, the queue
-keeps the `commit-queue` label and retries until either the fast-track request
-is approved or the PR becomes landable through the regular wait-time rules. The
-commit queue does not create the fast-track request comment; that is handled
-when the `fast-track` label is added. If that comment is missing, the queue
-reports the failure instead of keeping the PR queued.
+Fast-tracked PRs use the metadata check before checkout and the landing script.
+If the fast-track request has not yet received enough collaborator thumbs-up,
+the queue keeps the `commit-queue` label and retries until either the
+fast-track request is approved or the PR becomes landable through the regular
+wait-time rules. The commit queue does not create the fast-track request
+comment; that is handled when the `fast-track` label is added. If that comment
+is missing, the queue reports the failure instead of keeping the PR queued.
 
 If no errors happen during `git node land`, the script either pushes the direct
 rebase landing to `main` or uses GitHub's squash merge API for single-commit and

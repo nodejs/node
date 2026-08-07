@@ -22,13 +22,13 @@ permissions:
   contents: read
 
 jobs:
-  get_mergeable_prs:
+  get_candidate_prs:
     permissions:
       pull-requests: read
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-slim
     outputs:
-      numbers: ${{ steps.get_mergeable_prs.outputs.numbers }}
+      candidates: ${{ steps.get_candidate_prs.outputs.candidates }}
     steps:
       - name: Get Pull Request Candidates
         id: get_candidate_prs
@@ -55,18 +55,38 @@ jobs:
           echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+  commitQueue:
+    needs: get_candidate_prs
+    if: needs.get_candidate_prs.outputs.candidates != ''
+    runs-on: ubuntu-slim
+    steps:
+      # Install dependencies
       - name: Install Node.js
-        if: steps.get_candidate_prs.outputs.candidates != ''
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install @node-core/utils
-        if: steps.get_candidate_prs.outputs.candidates != ''
         run: npm install -g @node-core/utils
 
+      - name: Set variables
+        run: |
+          echo "REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)" >> "$GITHUB_ENV"
+
+      - name: Configure @node-core/utils
+        run: |
+          ncu-config set branch "${GITHUB_REF_NAME}"
+          ncu-config set upstream origin
+          ncu-config set username "$USERNAME"
+          ncu-config set token "$GITHUB_TOKEN"
+          ncu-config set jenkins_token "$JENKINS_TOKEN"
+          ncu-config set repo "${REPOSITORY}"
+          ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
+        env:
+          USERNAME: ${{ secrets.JENKINS_USER }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
+
       - name: Filter Pull Requests
-        if: steps.get_candidate_prs.outputs.candidates != ''
         id: get_mergeable_prs
         run: |
           fail_selector() {
@@ -74,16 +94,8 @@ jobs:
             exit 1
           }
 
-          repository="${GITHUB_REPOSITORY#*/}"
           readme="${RUNNER_TEMP}/README.md"
           readme_base64="${RUNNER_TEMP}/README.md.base64"
-
-          ncu-config set branch "${GITHUB_REF_NAME}"
-          ncu-config set username "$USERNAME"
-          ncu-config set token "$GITHUB_TOKEN"
-          ncu-config set jenkins_token "$JENKINS_TOKEN"
-          ncu-config set repo "$repository"
-          ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
 
           if ! gh api "repos/${GITHUB_REPOSITORY}/contents/README.md?ref=${GITHUB_REF_NAME}" \
                   --jq '.content' > "$readme_base64"; then
@@ -101,7 +113,7 @@ jobs:
             output="${RUNNER_TEMP}/metadata-${pr}.txt"
             if git node metadata "$pr" \
                     --owner "$GITHUB_REPOSITORY_OWNER" \
-                    --repo "$repository" \
+                    --repo "$REPOSITORY" \
                     --readme "$readme" \
                     --json > "$metadata" 2> "$output"; then
               metadata_status=0
@@ -148,16 +160,11 @@ jobs:
           numbers=$(echo "$numbers" | xargs)
           echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
         env:
-          CANDIDATES: ${{ steps.get_candidate_prs.outputs.candidates }}
-          USERNAME: ${{ secrets.JENKINS_USER }}
+          CANDIDATES: ${{ needs.get_candidate_prs.outputs.candidates }}
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
-  commitQueue:
-    needs: get_mergeable_prs
-    if: needs.get_mergeable_prs.outputs.numbers != ''
-    runs-on: ubuntu-slim
-    steps:
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        if: steps.get_mergeable_prs.outputs.numbers != ''
         with:
           # A personal token is required because pushing with GITHUB_TOKEN will
           # prevent commits from running CI after they land. It needs
@@ -165,33 +172,8 @@ jobs:
           # for push as well.
           token: ${{ secrets.GH_USER_TOKEN }}
 
-      # Install dependencies
-      - name: Install Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - name: Install @node-core/utils
-        run: npm install -g @node-core/utils
-
-      - name: Set variables
-        run: |
-          echo "REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)" >> "$GITHUB_ENV"
-
-      - name: Configure @node-core/utils
-        run: |
-          ncu-config set branch "${GITHUB_REF_NAME}"
-          ncu-config set upstream origin
-          ncu-config set username "$USERNAME"
-          ncu-config set token "$GITHUB_TOKEN"
-          ncu-config set jenkins_token "$JENKINS_TOKEN"
-          ncu-config set repo "${REPOSITORY}"
-          ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
-        env:
-          USERNAME: ${{ secrets.JENKINS_USER }}
-          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
-          JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
-
       - name: Start the Commit Queue
-        run: ./tools/actions/commit-queue.sh "${GITHUB_REPOSITORY_OWNER}" "${REPOSITORY}" ${{ needs.get_mergeable_prs.outputs.numbers }}
+        if: steps.get_mergeable_prs.outputs.numbers != ''
+        run: ./tools/actions/commit-queue.sh "${GITHUB_REPOSITORY_OWNER}" "${REPOSITORY}" ${{ steps.get_mergeable_prs.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
