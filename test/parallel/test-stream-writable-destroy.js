@@ -32,6 +32,24 @@ const assert = require('assert');
 
 {
   const write = new Writable({
+    write(chunk, enc, cb) {
+      this.destroy();
+      cb();
+    }
+  });
+
+  write.on('error', common.mustNotCall());
+  write.on('finish', common.mustNotCall());
+  write.write('asd', common.expectsError({
+    code: 'ERR_STREAM_DESTROYED',
+    name: 'Error',
+    message: 'Cannot call write after a stream was destroyed'
+  }));
+  assert.strictEqual(write.destroyed, true);
+}
+
+{
+  const write = new Writable({
     write(chunk, enc, cb) { cb(); }
   });
 
