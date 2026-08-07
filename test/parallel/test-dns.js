@@ -90,6 +90,22 @@ assert(existing.length > 0);
   });
 }
 
+{
+  // Out-of-range ports, which should throw a clean error.
+  const invalidPorts = [2 ** 16, 2 ** 32, 2 ** 64];
+  invalidPorts.forEach((port) => {
+    assert.throws(
+      () => {
+        dns.setServers([`1.2.3.4:${port}`]);
+      },
+      {
+        name: 'RangeError',
+        code: 'ERR_SOCKET_BAD_PORT'
+      }
+    );
+  });
+}
+
 const goog = [
   '8.8.8.8',
   '8.8.4.4',
