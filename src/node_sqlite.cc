@@ -3431,6 +3431,35 @@ void SQLTagStore::SizeGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(static_cast<double>(store->sql_tags_.Size()));
 }
 
+bool SQLTagStore::ResetAndBindStatement(
+    Environment* env,
+    StatementSync* stmt,
+    const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = env->isolate();
+  int r = stmt->ResetStatement();
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
+
+  r = sqlite3_clear_bindings(stmt->statement_);
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
+
+  uint32_t n_params = args.Length() - 1;
+  int param_count = sqlite3_bind_parameter_count(stmt->statement_);
+  if (param_count != static_cast<int>(n_params)) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "SQLite parameters must be bound using template literal placeholders.");
+    return false;
+  }
+
+  for (int i = 0; i < param_count; ++i) {
+    if (!stmt->BindValue(args[i + 1], i + 1)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
   SQLTagStore* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -3445,15 +3474,8 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint32_t n_params = args.Length() - 1;
-  int r = stmt->ResetStatement();
-  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
-  int param_count = sqlite3_bind_parameter_count(stmt->statement_);
-  for (int i = 0; i < static_cast<int>(n_params) && i < param_count; ++i) {
-    Local<Value> value = args[i + 1];
-    if (!stmt->BindValue(value, i + 1)) {
-      return;
-    }
+  if (!ResetAndBindStatement(env, stmt.get(), args)) {
+    return;
   }
 
   Local<Object> result;
@@ -3478,15 +3500,8 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint32_t n_params = args.Length() - 1;
-  int r = stmt->ResetStatement();
-  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
-  int param_count = sqlite3_bind_parameter_count(stmt->statement_);
-  for (int i = 0; i < static_cast<int>(n_params) && i < param_count; ++i) {
-    Local<Value> value = args[i + 1];
-    if (!stmt->BindValue(value, i + 1)) {
-      return;
-    }
+  if (!ResetAndBindStatement(env, stmt.get(), args)) {
+    return;
   }
 
   BaseObjectPtr<StatementSyncIterator> iter = StatementExecutionHelper::Iterate(
@@ -3513,18 +3528,8 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint32_t n_params = args.Length() - 1;
-  Isolate* isolate = env->isolate();
-
-  int r = stmt->ResetStatement();
-  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
-
-  int param_count = sqlite3_bind_parameter_count(stmt->statement_);
-  for (int i = 0; i < static_cast<int>(n_params) && i < param_count; ++i) {
-    Local<Value> value = args[i + 1];
-    if (!stmt->BindValue(value, i + 1)) {
-      return;
-    }
+  if (!ResetAndBindStatement(env, stmt.get(), args)) {
+    return;
   }
 
   Local<Value> result;
@@ -3552,18 +3557,8 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  uint32_t n_params = args.Length() - 1;
-  Isolate* isolate = env->isolate();
-
-  int r = stmt->ResetStatement();
-  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
-
-  int param_count = sqlite3_bind_parameter_count(stmt->statement_);
-  for (int i = 0; i < static_cast<int>(n_params) && i < param_count; ++i) {
-    Local<Value> value = args[i + 1];
-    if (!stmt->BindValue(value, i + 1)) {
-      return;
-    }
+  if (!ResetAndBindStatement(env, stmt.get(), args)) {
+    return;
   }
 
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
