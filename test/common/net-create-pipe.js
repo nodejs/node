@@ -2,7 +2,7 @@
 
 const common = require('./');
 const { once } = require('node:events');
-const { createPipe } = require('node:pipe');
+const { createPipe } = require('node:net');
 const { test } = require('node:test');
 
 const kPipeCloseTimeout = common.platformTimeout(10_000);

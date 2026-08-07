@@ -2,7 +2,7 @@
 const assert = require('node:assert');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
-const { createPipe } = require('node:pipe');
+const { createPipe } = require('node:net');
 const { test } = require('node:test');
 const { text } = require('node:stream/consumers');
 

@@ -5,11 +5,11 @@ const { once } = require('node:events');
 const { test } = require('node:test');
 const { text } = require('node:stream/consumers');
 
-// Keep these examples in sync with the pipe.createPipe() examples in
-// doc/api/pipe.md.
+// Keep these examples in sync with the net.createPipe() examples in
+// doc/api/net.md.
 const createPipeCjsExample = `
   const { spawn } = require('node:child_process');
-  const { createPipe } = require('node:pipe');
+  const { createPipe } = require('node:net');
   const { text } = require('node:stream/consumers');
 
   const { readable, writable } = createPipe();
@@ -33,7 +33,7 @@ const createPipeCjsExample = `
 
 const createPipeMjsExample = `
   import { spawn } from 'node:child_process';
-  import { createPipe } from 'node:pipe';
+  import { createPipe } from 'node:net';
   import { text } from 'node:stream/consumers';
 
   const { readable, writable } = createPipe();
@@ -71,7 +71,7 @@ async function runExample(args, code) {
   assert.strictEqual(await output, 'a\nbc\n');
 }
 
-test('pipe.createPipe documentation examples', async () => {
+test('net.createPipe documentation examples', async () => {
   await runExample(['-e'], createPipeCjsExample);
   await runExample(['--input-type=module', '-e'], createPipeMjsExample);
 });

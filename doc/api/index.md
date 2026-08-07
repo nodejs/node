@@ -44,7 +44,6 @@
 * [Net](net.md)
 * [OS](os.md)
 * [Path](path.md)
-* [Pipe](pipe.md)
 * [Performance hooks](perf_hooks.md)
 * [Permissions](permissions.md)
 * [Process](process.md)

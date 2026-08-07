@@ -2,7 +2,7 @@
 const assert = require('node:assert');
 const { once } = require('node:events');
 const { text } = require('node:stream/consumers');
-const { testCreatePipe } = require('../common/pipe');
+const { testCreatePipe } = require('../common/net-create-pipe');
 
 async function raceFinishBeforeRead(readable, writable) {
   const finish = once(writable, 'finish').then(() => 'finish');
@@ -17,7 +17,7 @@ async function raceFinishBeforeRead(readable, writable) {
 }
 
 if (process.platform !== 'win32') {
-  testCreatePipe('pipe writer can finish before pipe reader consumes',
+  testCreatePipe('net pipe writer can finish before pipe reader consumes',
     async (readable, writable) => {
       assert.strictEqual(
         await raceFinishBeforeRead(readable, writable),
@@ -26,7 +26,7 @@ if (process.platform !== 'win32') {
 }
 
 if (process.platform === 'win32') {
-  testCreatePipe('pipe writer finish waits until pipe reader consumes',
+  testCreatePipe('net pipe writer finish waits until pipe reader consumes',
     async (readable, writable) => {
       assert.strictEqual(
         await raceFinishBeforeRead(readable, writable),
@@ -35,7 +35,7 @@ if (process.platform === 'win32') {
 }
 
 // A possible hack to unify this behavior would be to bypass shutdown for
-// parent-owned pipe writers would be to add the following to
+// parent-owned net pipe writers would be to add the following to
 // Socket.prototype._final:
 //
 // if (this[kWriterOfPair]) {

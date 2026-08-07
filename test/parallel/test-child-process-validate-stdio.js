@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { createPipe } = require('node:pipe');
+const { createPipe } = require('node:net');
 const { PassThrough } = require('stream');
 const getValidStdio = require('internal/child_process').getValidStdio;
 

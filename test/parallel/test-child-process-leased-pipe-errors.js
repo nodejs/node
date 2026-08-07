@@ -7,7 +7,7 @@ const { text } = require('node:stream/consumers');
 const {
   testCreatePipe,
   withCreatePipe,
-} = require('../common/pipe');
+} = require('../common/net-create-pipe');
 
 const holdOpen = `
   process.send('ready');

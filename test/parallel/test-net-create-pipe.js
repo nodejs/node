@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert');
-const { testCreatePipe } = require('../common/pipe');
+const { testCreatePipe } = require('../common/net-create-pipe');
 
 testCreatePipe('createPipe returns directional OS-backed streams',
   (readable, writable) => {
