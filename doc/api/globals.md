@@ -722,7 +722,11 @@ added: v21.0.0
 > Stability: 1.1 - Active development. Disable this API with the
 > [`--no-experimental-global-navigator`][] CLI flag.
 
-A partial implementation of the [Navigator API][].
+A partial implementation of the [Navigator API][]. All properties that the
+HTML specification exposes to non-`Window` environments are implemented;
+properties exposed only on `Window` (such as `navigator.plugins`) and most
+properties defined by other specifications (such as `navigator.clipboard`)
+are not. See below for the full list of supported options.
 
 ## `navigator`
 
@@ -733,7 +737,46 @@ added: v21.0.0
 > Stability: 1.1 - Active development. Disable this API with the
 > [`--no-experimental-global-navigator`][] CLI flag.
 
-A partial implementation of [`window.navigator`][].
+A partial implementation of [`window.navigator`][]. All properties of the
+[Navigator API][] that the HTML specification exposes to non-`Window`
+environments are implemented; properties exposed only on `Window` (such as
+`navigator.plugins`) and most properties defined by other specifications
+(such as `navigator.clipboard`) are not.
+
+### `navigator.appCodeName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The `navigator.appCodeName` read-only property returns `'Mozilla'`,
+the constant value mandated by the [Navigator API][] specification.
+
+### `navigator.appName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The `navigator.appName` read-only property returns `'Netscape'`,
+the constant value mandated by the [Navigator API][] specification.
+
+### `navigator.appVersion`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The `navigator.appVersion` read-only property returns the empty string.
+The [Navigator API][] specification requires this value to be derived from
+the default `User-Agent` value and to be the empty string when that value
+does not start with `Mozilla/5.0 (`.
 
 ### `navigator.hardwareConcurrency`
 
@@ -840,6 +883,18 @@ navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
 
 See [`worker_threads.locks`][] for detailed API documentation.
 
+### `navigator.onLine`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+The `navigator.onLine` read-only property always returns `true`. The
+[Navigator API][] specification only allows returning `false` when the user
+agent is definitely offline, which Node.js cannot determine.
+
 ### `navigator.platform`
 
 <!-- YAML
@@ -854,6 +909,17 @@ platform on which the Node.js instance is running.
 ```js
 console.log(`This process is running on ${navigator.platform}`);
 ```
+
+### `navigator.product`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The `navigator.product` read-only property returns `'Gecko'`,
+the constant value mandated by the [Navigator API][] specification.
 
 ### `navigator.userAgent`
 

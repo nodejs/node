@@ -48,6 +48,14 @@ assert.ok(navigator.hardwareConcurrency > 0);
 assert.strictEqual(typeof navigator.userAgent, 'string');
 assert.match(navigator.userAgent, /^Node\.js\/\d+$/);
 
+// Constant values mandated by
+// https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
+assert.strictEqual(navigator.appCodeName, 'Mozilla');
+assert.strictEqual(navigator.appName, 'Netscape');
+assert.strictEqual(navigator.appVersion, '');
+assert.strictEqual(navigator.product, 'Gecko');
+assert.strictEqual(navigator.onLine, true);
+
 assert.strictEqual(typeof navigator.platform, 'string');
 if (process.platform === 'darwin') {
   assert.strictEqual(navigator.platform, 'MacIntel');

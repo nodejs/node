@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>navigator.cookieEnabled true</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="help" href="https://html.spec.whatwg.org/#dom-navigator-cookieenabled">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<script>
+  test(() => {
+    assert_true(navigator.cookieEnabled);
+  }, "navigator.cookieEnabled is true when cookies are enabled");
+</script>

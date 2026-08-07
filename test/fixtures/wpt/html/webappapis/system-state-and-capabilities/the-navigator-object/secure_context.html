@@ -1,0 +1,18 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script>
+    test(t => {
+      assert_false('registerProtocolHandler' in navigator);
+      assert_equals(navigator.registerProtocolHandler, undefined);
+    }, "navigator.registerProtocolHandler does not exist in non-secure contexts.");
+
+    test(t => {
+      assert_false('unregisterProtocolHandler' in navigator);
+      assert_equals(navigator.unregisterProtocolHandler, undefined);
+    }, "navigator.unregisterProtocolHandler does not exist in non-secure contexts.");
+  </script>
+</head>
+</html>
