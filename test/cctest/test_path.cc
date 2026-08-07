@@ -8,6 +8,7 @@
 #include "v8.h"
 
 using node::BufferValue;
+using node::NormalizeString;
 using node::PathResolve;
 using node::ToNamespacedPath;
 
@@ -43,6 +44,13 @@ TEST_F(PathTest, PathResolve) {
             "\\\\.\\PHYSICALDRIVE0");
   EXPECT_EQ(PathResolve(*env, {"\\\\?\\PHYSICALDRIVE0"}),
             "\\\\?\\PHYSICALDRIVE0");
+  // Backtracking past the drive root stays clamped at the drive root.
+  EXPECT_EQ(PathResolve(*env, {"c:/a/b/c", "..\\..\\..\\.."}), "c:\\");
+  // UNC root is preserved when backtracking past it. The UNC share
+  // \\server\share is the root, so "..","..","x" cannot escape it and the
+  // remaining segment "x" is appended to the share root.
+  EXPECT_EQ(PathResolve(*env, {"//server/share", "..", "..", "x"}),
+            "\\\\server\\share\\x");
 #else
   EXPECT_EQ(PathResolve(*env, {"/var/lib", "../", "file/"}), "/var/file");
   EXPECT_EQ(PathResolve(*env, {"/var/lib", "/../", "file/"}), "/file");
@@ -51,7 +59,40 @@ TEST_F(PathTest, PathResolve) {
   EXPECT_EQ(PathResolve(*env, {"/some/dir", ".", "/absolute/"}), "/absolute");
   EXPECT_EQ(PathResolve(*env, {"/foo/tmp.3/", "../tmp.3/cycles/root.js"}),
             "/foo/tmp.3/cycles/root.js");
+  // Backtracking past the root stays clamped at the root.
+  EXPECT_EQ(PathResolve(*env, {"/a/b/c/d/e", "../../../../.."}), "/");
+  EXPECT_EQ(PathResolve(*env, {"/a/b/c", "../../../../.."}), "/");
+  // Mixed current-dir and parent-dir segments.
+  EXPECT_EQ(PathResolve(*env, {"/a/./b/../c/./d"}), "/a/c/d");
+  // Collapsing of repeated separators.
+  EXPECT_EQ(PathResolve(*env, {"/a//b///c"}), "/a/b/c");
+  // Single parent-dir traversal.
+  EXPECT_EQ(PathResolve(*env, {"/a/../b"}), "/b");
+  EXPECT_EQ(PathResolve(*env, {"/a/b/../../c"}), "/c");
+  // Trailing separator is stripped.
+  EXPECT_EQ(PathResolve(*env, {"/a/b/c/"}), "/a/b/c");
+  // Single absolute segment.
+  EXPECT_EQ(PathResolve(*env, {"/single"}), "/single");
 #endif
+}
+
+TEST_F(PathTest, NormalizeString) {
+  // allowAboveRoot = false (absolute context): ".." that cannot be resolved is
+  // dropped, "." segments and repeated/trailing separators are collapsed.
+  EXPECT_EQ(NormalizeString("a/b/../../../c", false, "/"), "c");
+  EXPECT_EQ(NormalizeString("a/b/c/d/e/../../../../..", false, "/"), "");
+  EXPECT_EQ(NormalizeString("a/./b//c/", false, "/"), "a/b/c");
+  EXPECT_EQ(NormalizeString("./foo/./bar/", false, "/"), "foo/bar");
+  // allowAboveRoot = true (relative context): leading ".." is preserved.
+  EXPECT_EQ(NormalizeString("a/b/../../../c", true, "/"), "../c");
+  EXPECT_EQ(NormalizeString("../../a", true, "/"), "../../a");
+  EXPECT_EQ(NormalizeString("foo/..", true, "/"), "");
+  EXPECT_EQ(NormalizeString("foo/../..", true, "/"), "..");
+#ifdef _WIN32
+  // The Windows separator is handled the same way.
+  EXPECT_EQ(NormalizeString("a\\b\\..\\..\\..\\c", false, "\\"), "c");
+  EXPECT_EQ(NormalizeString("..\\..\\a", true, "\\"), "..\\..\\a");
+#endif  // _WIN32
 }
 
 TEST_F(PathTest, ToNamespacedPath) {
