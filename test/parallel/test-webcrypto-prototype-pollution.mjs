@@ -14,6 +14,7 @@ if (!common.hasCrypto) common.skip('missing crypto');
 const require = createRequire(import.meta.url);
 const { kSupportedAlgorithms } = require('internal/crypto/util');
 const { getFips } = require('node:crypto');
+const { hasOpenSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 const TypedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype);
@@ -135,21 +136,23 @@ if (supports('digest', 'cSHAKE128')) {
 
   // asyncDigest() picks the cSHAKE job over plain SHAKE on a non-empty
   // customization.
-  const algorithm = {
-    name: 'cSHAKE128',
-    outputLength: 256,
-    customization: new Uint8Array([1, 2, 3]),
-  };
-  const expected = new Uint8Array(await subtle.digest(algorithm, data));
-  const plain = new Uint8Array(
-    await subtle.digest({ name: 'cSHAKE128', outputLength: 256 }, data));
-  assert.notDeepStrictEqual(expected, plain);
-  await withPoisoned(poisonTypedArrayByteLength(0),
-                     common.mustCall(async () => {
-                       assert.deepStrictEqual(
-                         new Uint8Array(await subtle.digest(algorithm, data)),
-                         expected);
-                     }));
+  if (hasOpenSSL(3)) {
+    const algorithm = {
+      name: 'cSHAKE128',
+      outputLength: 256,
+      customization: new Uint8Array([1, 2, 3]),
+    };
+    const expected = new Uint8Array(await subtle.digest(algorithm, data));
+    const plain = new Uint8Array(
+      await subtle.digest({ name: 'cSHAKE128', outputLength: 256 }, data));
+    assert.notDeepStrictEqual(expected, plain);
+    await withPoisoned(poisonTypedArrayByteLength(0),
+                       common.mustCall(async () => {
+                         assert.deepStrictEqual(
+                           new Uint8Array(await subtle.digest(algorithm, data)),
+                           expected);
+                       }));
+  }
 }
 
 // AeadParams: AES-OCB caps the iv at 15 bytes.
