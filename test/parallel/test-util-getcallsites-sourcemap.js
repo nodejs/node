@@ -50,3 +50,34 @@ const fixtures = require('../common/fixtures');
     `expected generated file in scriptName, got "${callSite.scriptName}"`,
   );
 }
+
+// reconstructCallSite keeps the generated function name when the source map
+// has no name entry for the call site.
+{
+  const file = fixtures.path('source-map', 'get-call-sites-named-mapped.js');
+  const { status, stderr, stdout } = spawnSync(
+    process.execPath,
+    ['--enable-source-maps', file],
+  );
+  assert.strictEqual(status, 0, stderr.toString());
+  const callSite = JSON.parse(stdout.toString());
+  // scriptName should point to the original (unmapped) source file
+  assert.ok(
+    callSite.scriptName.endsWith('get-call-sites-named-original.js'),
+    `expected original source in scriptName, got "${callSite.scriptName}"`,
+  );
+  // functionName comes from the generated call site, not the source map
+  assert.strictEqual(callSite.functionName, 'foo');
+}
+
+// reconstructCallSite prefers the source map name when the map provides one.
+{
+  const file = fixtures.path('source-map', 'get-call-sites-renamed-mapped.js');
+  const { status, stderr, stdout } = spawnSync(
+    process.execPath,
+    ['--enable-source-maps', file],
+  );
+  assert.strictEqual(status, 0, stderr.toString());
+  const callSite = JSON.parse(stdout.toString());
+  assert.strictEqual(callSite.functionName, 'original');
+}

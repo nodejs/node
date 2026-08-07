@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": ["get-call-sites-renamed-original.js"],
+  "names": ["original"],
+  "mappings": "AAUAA"
+}
