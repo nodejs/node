@@ -31,6 +31,8 @@ commit_queue_failed() {
 git config --local user.email "github-bot@iojs.org"
 git config --local user.name "Node.js GitHub Bot"
 
+SHOULD_ABORT=
+
 for pr in "$@"; do
   gh pr view "$pr" --json labels --jq ".labels" > labels.json
   # Skip PR if CI was requested
@@ -56,6 +58,14 @@ for pr in "$@"; do
     MULTIPLE_COMMIT_POLICY="--oneCommitMax"
   fi
 
+  if [ -n "$SHOULD_ABORT" ]; then
+    # If `git node land --abort` fails, we're in unknown state. Better to stop
+    # the script here, current PR was removed from the queue so it shouldn't
+    # interfere again in the future.
+    git node land --abort --yes
+    SHOULD_ABORT=
+  fi
+
   git node land --autorebase --yes $MULTIPLE_COMMIT_POLICY "$pr" >output 2>&1 || echo "Failed to land #${pr}"
   # cat here otherwise we'll be suppressing the output of git node land
   cat output
@@ -64,10 +74,8 @@ for pr in "$@"; do
   # if the "Landed in..." message was not on the output we assume land failed
   if ! grep -q '. Post "Landed in .*/pull/'"${pr}" output; then
     commit_queue_failed "$pr"
-    # If `git node land --abort` fails, we're in unknown state. Better to stop
-    # the script here, current PR was removed from the queue so it shouldn't
-    # interfere again in the future.
-    git node land --abort --yes
+    # Using a variable as there's no point in aborting if there are no PRs left in the queue.
+    SHOULD_ABORT=1
     continue
   fi
 
