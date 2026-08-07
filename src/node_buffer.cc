@@ -1734,6 +1734,11 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
   size_t max_length = 0;
 
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], 0, &offset));
+  if (offset > ts_obj_length) {
+    return node::THROW_ERR_BUFFER_OUT_OF_BOUNDS(
+        env, "\"offset\" is outside of buffer bounds");
+  }
+
   THROW_AND_RETURN_IF_OOB(
       ParseArrayIndex(env, args[3], ts_obj_length - offset, &max_length));
 
