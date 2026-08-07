@@ -103,7 +103,7 @@ have selected if GitHub paginates or caps a query result.
 If there are candidate PRs, the landing job installs and configures
 `@node-core/utils` once with a personal token and a Jenkins token from
 [@nodejs-github-bot](https://github.com/nodejs/github-bot). It then downloads
-the target branch's README without checking out the repository and runs
+the workflow commit's README without checking out the repository and runs
 `git node metadata --readme --json` for each candidate. This uses the same
 `@node-core/utils` PR readiness checks as `git node land`, but does not clone,
 fetch, or merge the PR. The filter consumes the structured metadata result

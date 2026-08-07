@@ -89,22 +89,8 @@ jobs:
       - name: Filter Pull Requests
         id: get_mergeable_prs
         run: |
-          fail_selector() {
-            echo "$1"
-            exit 1
-          }
-
           readme="${RUNNER_TEMP}/README.md"
-          readme_base64="${RUNNER_TEMP}/README.md.base64"
-
-          if ! gh api "repos/${GITHUB_REPOSITORY}/contents/README.md?ref=${GITHUB_REF_NAME}" \
-                  --jq '.content' > "$readme_base64"; then
-            fail_selector "failed to download README.md"
-          fi
-
-          if ! base64 -d < "$readme_base64" > "$readme"; then
-            fail_selector "failed to decode README.md"
-          fi
+          curl -fsSLo "$readme" "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/README.md"
 
           numbers=
           # shellcheck disable=SC2086
@@ -128,17 +114,23 @@ jobs:
             case "$metadata_status" in
               0|2[0-9]|4[0-9]) ;;
               *)
-                fail_selector "git node metadata failed for pr ${pr} with exit code ${metadata_status}"
+                echo "git node metadata failed for pr ${pr} with exit code ${metadata_status}"
+                exit 1
                 ;;
             esac
 
-            metadata_exit_code=$(jq -r '.exitCode' "$metadata") ||
-              fail_selector "failed to parse metadata JSON for pr ${pr}"
+            metadata_exit_code=$(jq -r '.exitCode' "$metadata") || {
+              echo "failed to parse metadata JSON for pr ${pr}"
+              exit 1
+            }
             if [ "$metadata_exit_code" != "$metadata_status" ]; then
-              fail_selector "metadata JSON exitCode mismatch for pr ${pr}"
+              echo "metadata JSON exitCode mismatch for pr ${pr}"
+              exit 1
             fi
-            metadata_reason_codes=$(jq -r '.reasonCodes | join(", ")' "$metadata") ||
-              fail_selector "failed to parse metadata reason codes for pr ${pr}"
+            metadata_reason_codes=$(jq -r '.reasonCodes | join(", ")' "$metadata") || {
+              echo "failed to parse metadata reason codes for pr ${pr}"
+              exit 1
+            }
 
             if [ "$metadata_status" -eq 0 ]; then
               echo "pr ${pr} is ready for the commit queue"
