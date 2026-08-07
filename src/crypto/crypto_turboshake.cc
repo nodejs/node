@@ -428,6 +428,11 @@ Maybe<void> TurboShakeTraits::AdditionalConfig(
     TurboShakeConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
+  if (IsFipsEnabled()) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return Nothing<void>();
+  }
+
   // args[offset + 0] = algorithm name (string)
   CHECK(args[offset]->IsString());
   Utf8Value algorithm_name(env->isolate(), args[offset]);
@@ -534,6 +539,11 @@ Maybe<void> KangarooTwelveTraits::AdditionalConfig(
     unsigned int offset,
     KangarooTwelveConfig* params) {
   Environment* env = Environment::GetCurrent(args);
+
+  if (IsFipsEnabled()) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return Nothing<void>();
+  }
 
   // args[offset + 0] = algorithm name (string)
   CHECK(args[offset]->IsString());
