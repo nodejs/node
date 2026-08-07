@@ -79,6 +79,28 @@ suite('StatementSync.prototype.get()', () => {
       message: /statement has been finalized/,
     });
   });
+
+  test('surfaces a deferred SQLite error from reset() even though a row was already built', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      PRAGMA foreign_keys = ON;
+      PRAGMA defer_foreign_keys = ON;
+      CREATE TABLE parent(id INTEGER PRIMARY KEY);
+      CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id));
+    `);
+    // The FK check is deferred until the implicit transaction commits, which
+    // happens inside reset() here because RETURNING leaves the statement's
+    // VDBE running after the row is produced.
+    const stmt = db.prepare(
+      'INSERT INTO child (parent_id) VALUES (999) RETURNING id'
+    );
+    t.assert.throws(() => {
+      stmt.get();
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /FOREIGN KEY constraint failed/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.all()', () => {
@@ -142,6 +164,25 @@ suite('StatementSync.prototype.all()', () => {
     }, {
       code: 'ERR_INVALID_STATE',
       message: /statement has been finalized/,
+    });
+  });
+
+  test('surfaces a deferred SQLite error from reset() even though the array was already built', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      PRAGMA foreign_keys = ON;
+      PRAGMA defer_foreign_keys = ON;
+      CREATE TABLE parent(id INTEGER PRIMARY KEY);
+      CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id));
+    `);
+    const stmt = db.prepare(
+      'INSERT INTO child (parent_id) VALUES (999) RETURNING id'
+    );
+    t.assert.throws(() => {
+      stmt.all();
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /FOREIGN KEY constraint failed/,
     });
   });
 });
@@ -321,6 +362,41 @@ suite('StatementSync.prototype.iterate()', () => {
       code: 'ERR_INVALID_STATE',
       message: /statement has been finalized/,
     });
+  });
+
+  test('does not replay results after the iterator is naturally exhausted', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE test(key TEXT);
+      INSERT INTO test (key) VALUES ('key1');
+    `);
+    const it = db.prepare('SELECT * FROM test').iterate();
+    t.assert.deepStrictEqual(it.next(), {
+      __proto__: null, done: false, value: { __proto__: null, key: 'key1' },
+    });
+    t.assert.deepStrictEqual(
+      it.next(), { __proto__: null, done: true, value: null });
+    // Calling next() again on an exhausted iterator must keep reporting
+    // done, not silently reset the statement and replay from row 1.
+    t.assert.deepStrictEqual(
+      it.next(), { __proto__: null, done: true, value: null });
+  });
+
+  test('propagates a pending exception when the loop body throws mid-iteration', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE test(key TEXT);
+      INSERT INTO test (key) VALUES ('key1');
+      INSERT INTO test (key) VALUES ('key2');
+    `);
+    const stmt = db.prepare('SELECT * FROM test');
+    const userError = new Error('boom');
+    t.assert.throws(() => {
+      // eslint-disable-next-line no-unused-vars
+      for (const row of stmt.iterate()) {
+        throw userError;
+      }
+    }, (err) => err === userError);
   });
 });
 

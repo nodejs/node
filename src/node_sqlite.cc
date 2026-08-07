@@ -3022,6 +3022,9 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   });
 
   int step_r = sqlite3_step(stmt);
+  // SQLITE_ROW is accepted here (and discarded) so that run() can still be
+  // used on RETURNING/SELECT statements, matching prior behavior of
+  // ignoring the step result entirely.
   if (step_r != SQLITE_DONE && step_r != SQLITE_ROW) {
     THROW_ERR_SQLITE_ERROR(isolate, db);
     return MaybeLocal<Object>();
@@ -3905,8 +3908,11 @@ void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
       env, iter->stmt_->IsFinalized(), "statement has been finalized");
   Isolate* isolate = env->isolate();
 
-  RESET_OR_THROW(
-      isolate, iter->stmt_->db_.get(), iter->stmt_->statement_, void());
+  // Unlike Next(), the reset result is intentionally ignored here: Return()
+  // is invoked by the language during abrupt completion (e.g. a `throw`
+  // inside a `for...of` body), and throwing on a deferred SQLite error
+  // would discard the caller's already-pending exception.
+  sqlite3_reset(iter->stmt_->statement_);
   iter->done_ = true;
 
   auto iter_template = getLazyIterTemplate(env);
