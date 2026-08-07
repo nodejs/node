@@ -1702,9 +1702,7 @@ void TLSWrap::SetALPNProtocols(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<uint8_t> protos(args[0].As<ArrayBufferView>());
   SSL* ssl = w->ssl_.get();
   if (w->is_client()) {
-    if (SSL_set_alpn_protos(ssl, protos.data(), protos.length()) != 0) {
-      return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ALPNProtocols value");
-    }
+    CHECK_EQ(0, SSL_set_alpn_protos(ssl, protos.data(), protos.length()));
   } else {
     w->alpn_protos_ = std::vector<unsigned char>(
         protos.data(), protos.data() + protos.length());
