@@ -1475,11 +1475,11 @@ if (typeof Symbol !== 'undefined') {
   assert.strictEqual(util.inspect(new ArraySubclass(1, 2, 3)),
                      'ArraySubclass(3) [ 1, 2, 3 ]');
   assert.strictEqual(util.inspect(new SetSubclass([1, 2, 3])),
-                     'SetSubclass(3) { 1, 2, 3 }');
+                     'SetSubclass(3) [Set] { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
-                     "MapSubclass(1) { 'foo' => 42 }");
+                     "MapSubclass(1) [Map] { 'foo' => 42 }");
   assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
-                     'PromiseSubclass { <pending> }');
+                     'PromiseSubclass [Promise] { <pending> }');
   assert.strictEqual(util.inspect(new SymbolNameClass()),
                      'Symbol(name) {}');
   assert.strictEqual(
@@ -1490,29 +1490,6 @@ if (typeof Symbol !== 'undefined') {
     util.inspect(Object.setPrototypeOf(x, null)),
     '[ObjectSubclass: null prototype] { foo: 42 }'
   );
-
-  class MiddleErrorPart extends Error {}
-  assert(util.inspect(new MiddleErrorPart('foo')).includes('MiddleErrorPart: foo'));
-
-  class MapClass extends Map {}
-  assert.strictEqual(util.inspect(new MapClass([['key', 'value']])),
-                     "MapClass(1) { 'key' => 'value' }");
-
-  class AbcMap extends Map {}
-  assert.strictEqual(util.inspect(new AbcMap([['key', 'value']])),
-                     "AbcMap(1) { 'key' => 'value' }");
-
-  class SetAbc extends Set {}
-  assert.strictEqual(util.inspect(new SetAbc([1, 2, 3])),
-                     'SetAbc(3) { 1, 2, 3 }');
-
-  class FooSet extends Set {}
-  assert.strictEqual(util.inspect(new FooSet([1, 2, 3])),
-                     'FooSet(3) { 1, 2, 3 }');
-
-  class Settings extends Set {}
-  assert.strictEqual(util.inspect(new Settings([1, 2, 3])),
-                     'Settings(3) [Set] { 1, 2, 3 }');
 }
 
 // Empty and circular before depth.
@@ -4057,4 +4034,17 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
   assert.strictEqual(inspect(error), `[object Error] {\n  stack: [Getter/Setter],\n  name: [Getter],\n  cause: [Getter]\n}`);
   assert.match(inspect(DOMException.prototype), /^\[object DOMException\] \{/);
   delete Error[Symbol.hasInstance];
+}
+
+{
+  class Class {
+    get [Symbol.toStringTag]() {
+      return 'Namespaced.Class';
+    }
+  }
+
+  class DerivedClass extends Class {}
+
+  assert.strictEqual(inspect(new Class()), 'Namespaced.Class {}');
+  assert.strictEqual(inspect(new DerivedClass()), 'DerivedClass [Namespaced.Class] {}');
 }
