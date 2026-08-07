@@ -291,6 +291,19 @@ class StatementSync : public BaseObject {
   bool GetCachedColumnNames(v8::LocalVector<v8::Name>* keys);
   void Finalize();
   bool IsFinalized();
+  bool IsStepping() const { return stepping_; }
+
+  // SQLite forbids stepping, resetting, or finalizing a statement while that
+  // same statement's user-defined function callback is on the stack. The
+  // callback depth tracked by DatabaseSync is per-database, so it cannot
+  // distinguish reentry into the running statement from the common pattern of
+  // querying a *different* statement from a callback. This flag marks the
+  // statement that is currently being stepped so that only the former is
+  // rejected.
+  inline auto MarkStepping() {
+    stepping_ = true;
+    return OnScopeLeave([this]() { stepping_ = false; });
+  }
 
   SET_MEMORY_INFO_NAME(StatementSync)
   SET_SELF_SIZE(StatementSync)
@@ -304,6 +317,7 @@ class StatementSync : public BaseObject {
   bool use_big_ints_;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
+  bool stepping_ = false;
   uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   inline int ResetStatement();
