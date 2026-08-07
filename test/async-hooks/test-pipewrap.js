@@ -35,6 +35,7 @@ const processwrap = processes[0];
 const pipe1 = pipes[0];
 const pipe2 = pipes[1];
 const pipe3 = pipes[2];
+const pipe1ExpectedInvocations = process.platform === 'win32' ? 1 : 2;
 
 assert.strictEqual(processwrap.type, 'PROCESSWRAP');
 assert.strictEqual(processwrap.triggerAsyncId, 1);
@@ -83,7 +84,11 @@ function onexit() {
   // Usually it is just one event, but it can be more.
   assert.ok(ioEvents >= 3, `at least 3 stdout io events, got ${ioEvents}`);
 
-  checkInvocations(pipe1, { init: 1, before: 1, after: 1 },
+  checkInvocations(pipe1, {
+    init: 1,
+    before: pipe1ExpectedInvocations,
+    after: pipe1ExpectedInvocations,
+  },
                    'pipe wrap when sleep.spawn was called');
   checkInvocations(pipe2, { init: 1, before: ioEvents, after: ioEvents },
                    'pipe wrap when sleep.spawn was called');
