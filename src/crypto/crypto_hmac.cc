@@ -141,6 +141,9 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
       return ThrowCryptoError(env, ERR_get_error(), "Failed to finalize HMAC");
     }
     hmac->ctx_.reset();
+  } else {
+    // The context has already been finalized; never emit unwritten bytes.
+    buf.len = 0;
   }
 
   Local<Value> ret;
