@@ -54,6 +54,23 @@ class TLSWrap : public AsyncWrap,
 
   enum class UnderlyingStreamWriteStatus { kHasActive, kVacancy };
 
+  // The SSL library's state machine is not reentrant. Node holds this scope
+  // across every call into it, so that JS the SSL library invokes on its own
+  // stack is recognised and kept from re-entering.
+  class SSLLibraryCallScope {
+   public:
+    explicit SSLLibraryCallScope(TLSWrap* wrap) : wrap_(wrap) {
+      wrap_->ssl_library_call_depth_++;
+    }
+    ~SSLLibraryCallScope() { wrap_->ssl_library_call_depth_--; }
+
+    SSLLibraryCallScope(const SSLLibraryCallScope&) = delete;
+    SSLLibraryCallScope& operator=(const SSLLibraryCallScope&) = delete;
+
+   private:
+    TLSWrap* wrap_;
+  };
+
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
@@ -194,6 +211,16 @@ class TLSWrap : public AsyncWrap,
   // underlying stream even if there is no clear text to read or write.
   void Cycle();
 
+  inline bool in_ssl_library_call() const {
+    return ssl_library_call_depth_ > 0;
+  }
+
+  // Setup Cycle() after a library call, to flush anything DoWrite() held back
+  void ScheduleDeferredCycle();
+
+  // Flush a shutdown held back by DoShutdown(), if there is one.
+  void FlushPendingShutdown();
+
   // Implement StreamListener:
   // Returns buf that points into enc_in_.
   uv_buf_t OnStreamAlloc(size_t size) override;
@@ -296,6 +323,9 @@ class TLSWrap : public AsyncWrap,
   size_t write_size_ = 0;
   BaseObjectPtr<AsyncWrap> current_write_;
   BaseObjectPtr<AsyncWrap> current_empty_write_;
+  // Set when DoShutdown() was called while the SSL library was on the stack,
+  // and so has yet to send close_notify.
+  BaseObjectPtr<AsyncWrap> pending_shutdown_;
   std::string error_;
 
   // TODO(@jasnell): These state flags should be revisited.
@@ -316,6 +346,7 @@ class TLSWrap : public AsyncWrap,
     bool shutdown : 1;
     bool cert_cb_running : 1;
     bool eof : 1;
+    bool deferred_cycle_scheduled : 1;
     bool established : 1;
     bool write_callback_scheduled : 1;
     bool has_active_write_issued_by_prev_listener : 1;
@@ -324,6 +355,9 @@ class TLSWrap : public AsyncWrap,
   Flags flags_{};
 
   int cycle_depth_ = 0;
+
+  // Nesting depth of calls into the SSL library. See SSLLibraryCallScope.
+  int ssl_library_call_depth_ = 0;
 
   // SSL_set_cert_cb
   CertCb cert_cb_ = nullptr;
