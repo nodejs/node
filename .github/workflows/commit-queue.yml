@@ -42,14 +42,13 @@ jobs:
                   -t '{{ range . }}{{ .number }} {{ end }}' \
                   --limit 100)
           fast_track_prs=$(gh pr list \
-                  --repo "$GITHUB_REPOSITORY" \
-                  --base "$GITHUB_REF_NAME" \
-                  --label 'commit-queue' \
-                  --label 'fast-track' \
-                  --search "-label:blocked" \
-                  --json 'number' \
-                  -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
+            --repo "$GITHUB_REPOSITORY" \
+            --base "$GITHUB_REF_NAME" \
+            --label 'commit-queue' \
+            --search "-label:blocked (label:fast-track OR label:code-and-learn)" \
+            --json 'number' \
+            -t '{{ range . }}{{ .number }} {{ end }}' \
+            --limit 100)
           numbers=$(echo $prs' '$fast_track_prs | jq -r -s 'unique | join(" ")')
           echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
         env:
