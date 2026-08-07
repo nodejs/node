@@ -1,0 +1,7 @@
+{
+  "main": "sea.mjs",
+  "output": "sea",
+  "mainFormat": "module",
+  "allowDynamicImportFromFileSystem": true,
+  "disableExperimentalSEAWarning": true
+}

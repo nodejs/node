@@ -111,6 +111,7 @@ The configuration currently reads the following top-level fields:
 {
   "main": "/path/to/bundled/script.js",
   "mainFormat": "commonjs", // Default: "commonjs", options: "commonjs", "module"
+  "allowDynamicImportFromFileSystem": false, // Default: false
   "executable": "/path/to/node/binary", // Optional, if not specified, uses the current Node.js binary
   "output": "/path/to/write/the/generated/executable",
   "disableExperimentalSEAWarning": true, // Default: false
@@ -451,9 +452,12 @@ injected main script with the following properties:
 
 <!-- TODO(joyeecheung): support and document module.registerHooks -->
 
-When using `"mainFormat": "module"`, `import()` can be used to dynamically
-load built-in modules. Attempting to use `import()` to load modules from
-the file system will throw an error.
+By default, `import()` in the injected main script can only load built-in
+modules. When `allowDynamicImportFromFileSystem` is set to `true` in the SEA
+configuration, `import()` can also load modules from the file system. This
+works for both `"mainFormat": "commonjs"` and `"mainFormat": "module"`
+entry points. Relative specifiers are resolved relative to the directory of the
+executable.
 
 ### Using native addons in the injected main script
 
