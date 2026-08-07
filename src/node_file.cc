@@ -3702,7 +3702,7 @@ bool isInsideDir(const std::filesystem::path& src,
                  const std::filesystem::path& dest) {
   auto srcArr = normalizePathToArray(src);
   auto destArr = normalizePathToArray(dest);
-  if (srcArr.size() > destArr.size()) return false;
+  if (srcArr.size() >= destArr.size()) return false;
   return std::equal(srcArr.begin(), srcArr.end(), destArr.begin());
 }
 
