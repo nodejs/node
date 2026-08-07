@@ -404,6 +404,10 @@ class SQLTagStore : public BaseObject {
  private:
   static BaseObjectPtr<StatementSync> PrepareStatement(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool ResetAndBindStatement(
+      Environment* env,
+      StatementSync* stmt,
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   BaseObjectWeakPtr<DatabaseSync> database_;
   LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
   friend class StatementExecutionHelper;
