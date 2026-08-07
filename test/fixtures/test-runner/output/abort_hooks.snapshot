@@ -35,7 +35,7 @@ not ok 1 - 1 before describe
   type: 'suite'
   location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:4:1'
   failureType: 'hookFailed'
-  error: 'This operation was aborted'
+  error: 'This operation was aborted.'
   code: 20
   name: 'AbortError'
   stack: |-
@@ -63,7 +63,7 @@ not ok 2 - 2 after describe
   type: 'suite'
   location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:19:1'
   failureType: 'hookFailed'
-  error: 'This operation was aborted'
+  error: 'This operation was aborted.'
   code: 20
   name: 'AbortError'
   stack: |-
@@ -79,7 +79,7 @@ not ok 2 - 2 after describe
       type: 'test'
       location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:41:3'
       failureType: 'hookFailed'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -94,7 +94,7 @@ not ok 2 - 2 after describe
       type: 'test'
       location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:44:3'
       failureType: 'hookFailed'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -120,7 +120,7 @@ not ok 3 - 3 beforeEach describe
       type: 'test'
       location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:56:3'
       failureType: 'hookFailed'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -135,7 +135,7 @@ not ok 3 - 3 beforeEach describe
       type: 'test'
       location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:59:3'
       failureType: 'hookFailed'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-

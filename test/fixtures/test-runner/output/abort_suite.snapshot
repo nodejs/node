@@ -51,7 +51,7 @@ TAP version 13
       type: 'test'
       location: '<project-root>/test/fixtures/test-runner/output/abort_suite.js:12:3'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -64,7 +64,7 @@ TAP version 13
       type: 'test'
       location: '<project-root>/test/fixtures/test-runner/output/abort_suite.js:13:3'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -77,7 +77,7 @@ TAP version 13
       type: 'test'
       location: '<project-root>/test/fixtures/test-runner/output/abort_suite.js:14:3'
       failureType: 'testAborted'
-      error: 'This operation was aborted'
+      error: 'This operation was aborted.'
       code: 20
       name: 'AbortError'
       stack: |-
@@ -103,7 +103,7 @@ not ok 2 - describe abort signal
   type: 'suite'
   location: '<project-root>/test/fixtures/test-runner/output/abort_suite.js:19:1'
   failureType: 'testAborted'
-  error: 'This operation was aborted'
+  error: 'This operation was aborted.'
   code: 20
   name: 'AbortError'
   stack: |-
