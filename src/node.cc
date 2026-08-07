@@ -101,6 +101,7 @@
 // ========== global C headers ==========
 
 #include <fcntl.h>  // _O_RDWR
+#include <sys/stat.h>
 #include <sys/types.h>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -1220,6 +1221,28 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       conf_file = per_process::cli_options->openssl_config.c_str();
     }
 
+    // If the configured OpenSSL config file is actually a directory (for
+    // example when an application sets `OPENSSL_CONF` to a directory), OpenSSL
+    // may attempt to fopen() it which yields an error and causes startup to
+    // fail. Detect and ignore directory paths here and emit a warning so the
+    // process can continue using default OpenSSL config instead.
+    if (conf_file != nullptr) {
+      struct stat st;
+      if (stat(conf_file, &st) == 0) {
+#if defined(S_ISDIR)
+        if (S_ISDIR(st.st_mode)) {
+#else
+        if ((st.st_mode & S_IFMT) == S_IFDIR) {
+#endif
+          std::string warning = "Warning: OPENSSL_CONF path is a directory; "
+                                "ignoring: ";
+          warning += conf_file;
+          fprintf(stderr, "%s\n", warning.c_str());
+          conf_file = nullptr;
+        }
+      }
+    }
+
     OPENSSL_INIT_SETTINGS* settings = OPENSSL_INIT_new();
     OPENSSL_INIT_set_config_filename(settings, conf_file);
     OPENSSL_INIT_set_config_appname(settings, conf_section_name);
@@ -1230,14 +1253,11 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     OPENSSL_INIT_free(settings);
 
     if (ERR_peek_error() != 0) {
-      // XXX: ERR_GET_REASON does not return something that is
-      // useful as an exit code at all.
-      result->exit_code_ =
-          static_cast<ExitCode>(ERR_GET_REASON(ERR_peek_error()));
-      result->early_return_ = true;
-      result->errors_.emplace_back("OpenSSL configuration error:\n" +
-                                   GetOpenSSLErrorString());
-      return result;
+      std::string warning =
+          "Warning: OpenSSL configuration error:\n" + GetOpenSSLErrorString();
+      fprintf(stderr, "%s\n", warning.c_str());
+
+      ERR_clear_error();
     }
 #else  // OPENSSL_VERSION_MAJOR < 3
     if (FIPS_mode()) {
