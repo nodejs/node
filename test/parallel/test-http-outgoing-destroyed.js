@@ -66,6 +66,9 @@ const { OutgoingMessage } = require('http');
       });
     }));
     const err = new Error('Destroy test');
+    res.write('x', common.mustCall((writeErr) => {
+      assert.strictEqual(writeErr, err);
+    }));
     res.destroy(err);
     assert.strictEqual(res.errored, err);
   })).listen(0, common.mustCall(() => {
