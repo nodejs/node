@@ -4315,7 +4315,11 @@ argument to the function, to get a diff reading.
 
 <!-- YAML
 added: v0.1.104
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`process.getTitle()`][] to read the title
+> and [`process.setTitle()`][] to change it.
 
 * Type: {string}
 
@@ -4337,6 +4341,17 @@ within process manager applications such as macOS Activity Monitor or Windows
 Services Manager.
 
 As an alternative to direct assignment, use [`process.setTitle()`][].
+
+## `process.getTitle()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string}
+
+Returns the current process title. This is equivalent to reading
+[`process.title`][].
 
 ## `process.setTitle(title)`
 
@@ -4681,6 +4696,7 @@ cases:
 [`process.execPath`]: #processexecpath
 [`process.exit()`]: #processexitcode
 [`process.exitCode`]: #processexitcode_1
+[`process.getTitle()`]: #processgettitle
 [`process.hrtime()`]: #processhrtimetime
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal

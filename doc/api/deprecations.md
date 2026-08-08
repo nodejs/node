@@ -4714,6 +4714,20 @@ replacing it keeps being called by [`server.listen()`][], and it will be
 removed in a future version of Node.js. Use [`server.listen()`][] instead of
 calling or overriding `_listen2`.
 
+### DEP0209: `process.title`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62804
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `process.title` property is deprecated. Use [`process.getTitle()`][] to
+read the current title and [`process.setTitle()`][] to change it.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4815,7 +4829,9 @@ calling or overriding `_listen2`.
 [`process.exit()`]: process.md#processexitcode
 [`process.exitCode`]: process.md#processexitcode_1
 [`process.getActiveResourcesInfo()`]: process.md#processgetactiveresourcesinfo
+[`process.getTitle()`]: process.md#processgettitle
 [`process.mainModule`]: process.md#processmainmodule
+[`process.setTitle()`]: process.md#processsettitletitle
 [`punycode`]: punycode.md
 [`readable.readableEnded`]: stream.md#readablereadableended
 [`request.abort()`]: http.md#requestabort

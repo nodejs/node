@@ -1,6 +1,6 @@
 import { isIBMi, isSunOS, isWindows, skip } from '../common/index.mjs';
 import assert from 'node:assert';
-import process, { setTitle } from 'node:process';
+import process, { getTitle, setTitle } from 'node:process';
 import { isMainThread } from 'node:worker_threads';
 import { describe, it } from 'node:test';
 
@@ -17,7 +17,9 @@ describe('ESM named import setTitle', () => {
   it('sets process title through node:process', () => {
     const title = String(process.pid);
 
+    assert.strictEqual(getTitle(), process.title);
     setTitle(title);
+    assert.strictEqual(getTitle(), title);
     assert.strictEqual(process.title, title);
 
     assert.throws(() => setTitle(1), {
