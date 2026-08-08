@@ -808,7 +808,7 @@ class Http3ApplicationImpl final : public Session::Application {
             stream->id(),
             rx_app_error_code);
     }
-    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
+    if (flags & NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET) {
       Debug(&session(),
             "HTTP/3 application send stream close for stream %" PRIi64
             " with error code %" PRIu64,
