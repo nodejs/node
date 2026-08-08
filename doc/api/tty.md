@@ -212,7 +212,6 @@ changes:
 `writeStream.cursorTo()` moves this `WriteStream`'s cursor to the specified
 position.
 
-
 ### `writeStream.getBackgroundColor()`
 
 <!-- YAML
