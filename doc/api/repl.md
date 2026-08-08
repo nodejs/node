@@ -27,7 +27,8 @@ result. Input and output may be from `stdin` and `stdout`, respectively, or may
 be connected to any Node.js [stream][].
 
 Instances of [`repl.REPLServer`][] support automatic completion of inputs,
-completion preview, simplistic Emacs-style line editing, multi-line inputs,
+completion preview, function signature hints, simplistic Emacs-style line editing,
+multi-line inputs,
 [ZSH][]-like reverse-i-search, [ZSH][]-like substring-based history search,
 ANSI-styled output, saving and restoring current REPL session state, error
 recovery, and customizable evaluation functions. Terminals that do not support
@@ -231,6 +232,19 @@ undefined
 1002
 undefined
 ```
+
+### Function signature hints
+
+The REPL provides a visual hint of a function's parameters when typing its
+name followed by an open parenthesis `(`. This hint is displayed below the
+input line.
+
+```console
+> console.log(
+// console.log(...data)
+```
+
+Requires the `preview` feature to be enabled and the inspector to be available.
 
 ### Reverse-i-search
 
