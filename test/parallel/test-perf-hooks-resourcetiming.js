@@ -174,6 +174,8 @@ function createTimingInfo({
     connectEnd: 0,
     secureConnectionStart: 0,
     requestStart: 0,
+    finalResponseHeadersStart: 0,
+    firstInterimResponseStart: 0,
     responseStart: 0,
     responseEnd: 0,
     transferSize: 0,
@@ -181,6 +183,9 @@ function createTimingInfo({
     decodedBodySize: 0,
     responseStatus: 200,
     deliveryType: '',
+    renderBlockingStatus: 'non-blocking',
+    contentType: '',
+    contentEncoding: '',
   });
   assert.strictEqual(util.inspect(performance.getEntries()), `[
   PerformanceResourceTiming {
@@ -200,13 +205,18 @@ function createTimingInfo({
     connectEnd: 0,
     secureConnectionStart: 0,
     requestStart: 0,
+    finalResponseHeadersStart: 0,
+    firstInterimResponseStart: 0,
     responseStart: 0,
     responseEnd: 0,
     transferSize: 0,
     encodedBodySize: 0,
     decodedBodySize: 0,
     deliveryType: '',
-    responseStatus: 200
+    responseStatus: 200,
+    renderBlockingStatus: 'non-blocking',
+    contentType: '',
+    contentEncoding: ''
   }
 ]`);
   assert.strictEqual(util.inspect(resource), `PerformanceResourceTiming {
@@ -226,13 +236,18 @@ function createTimingInfo({
   connectEnd: 0,
   secureConnectionStart: 0,
   requestStart: 0,
+  finalResponseHeadersStart: 0,
+  firstInterimResponseStart: 0,
   responseStart: 0,
   responseEnd: 0,
   transferSize: 0,
   encodedBodySize: 0,
   decodedBodySize: 0,
   deliveryType: '',
-  responseStatus: 200
+  responseStatus: 200,
+  renderBlockingStatus: 'non-blocking',
+  contentType: '',
+  contentEncoding: ''
 }`);
 
   assert(resource instanceof PerformanceEntry);
