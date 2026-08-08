@@ -231,6 +231,150 @@ diagnostics_channel.subscribe('my-channel', onMessage);
 diagnostics_channel.unsubscribe('my-channel', onMessage);
 ```
 
+#### `diagnostics_channel.bypass(key, fn[, thisArg[, ...args]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `key` {symbol|Object} The bypass identity token. Subscribers and
+  stores registered with the same `bypassId` value will be skipped
+  while this function executes.
+* `fn` {Function} The function to run with bypass active.
+* `thisArg` {any} The receiver to use for the function call.
+* `...args` {any} Optional arguments to pass to the function.
+* Returns: {any} The return value of `fn`.
+
+Calls `fn` and skips any channel subscribers or bound stores that
+were registered with a matching `bypassId` key. The skip behavior
+also applies to any async continuations (Promises, timers,
+microtasks) within `fn`.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+import { request } from 'node:http';
+
+const { channel, bypass } = diagnostics_channel;
+
+// A unique token identifying this APM tool
+const kMyTracer = Symbol('my-tracer');
+
+// Subscribe to HTTP requests, but opt into bypass
+channel('http.client.request.start').subscribe((message) => {
+  console.log('HTTP request:', message.url);
+}, { bypassId: kMyTracer });
+
+// When exporting traces internally, use bypass() so the
+// above subscriber is NOT triggered for this internal request
+function exportTraces(data) {
+  bypass(kMyTracer, () => {
+    // This HTTP request will NOT trigger the subscriber above
+    const req = request('https://my-apm-backend.example.com/traces', {
+      method: 'POST',
+    });
+    req.end();
+  });
+}
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+const { request } = require('node:http');
+
+const { channel, bypass } = diagnostics_channel;
+
+// A unique token identifying this APM tool
+const kMyTracer = Symbol('my-tracer');
+
+// Subscribe to HTTP requests, but opt into bypass
+channel('http.client.request.start').subscribe((message) => {
+  console.log('HTTP request:', message.url);
+}, { bypassId: kMyTracer });
+
+// When exporting traces internally, use bypass() so the
+// above subscriber is NOT triggered for this internal request
+function exportTraces(data) {
+  bypass(kMyTracer, () => {
+    // This HTTP request will NOT trigger the subscriber above
+    const req = request('https://my-apm-backend.example.com/traces', {
+      method: 'POST',
+    });
+    req.end();
+  });
+}
+```
+
+Without `bypass()`, the internal `exportTraces()` HTTP request
+would trigger the subscriber, which would try to export a trace
+of the export, causing infinite recursion.
+
+The bypass context propagates across async boundaries:
+
+```mjs
+// bypass() works across Promise boundaries
+await bypass(kMyTracer, async () => {
+  await someAsyncOperation(); // still bypassed
+  channel('http.client.request.start').publish({}); // subscriber skipped
+});
+
+// And across timers
+bypass(kMyTracer, () => {
+  setImmediate(() => {
+    // Still bypassed here
+    channel('http.client.request.start').publish({});
+  });
+});
+```
+
+```cjs
+(async () => {
+  await bypass(kMyTracer, async () => {
+    await someAsyncOperation();
+    channel('http.client.request.start').publish({});
+  });
+  bypass(kMyTracer, () => {
+    setImmediate(() => {
+      channel('http.client.request.start').publish({});
+    });
+  });
+})();
+```
+
+Multiple tools can each use their own `bypassId` without
+interfering with each other:
+
+```mjs
+const kToolA = Symbol('tool-a');
+const kToolB = Symbol('tool-b');
+
+channel('http.client.request.start').subscribe(handlerA, { bypassId: kToolA });
+channel('http.client.request.start').subscribe(handlerB, { bypassId: kToolB });
+
+// Only handlerA is skipped, handlerB still fires
+bypass(kToolA, () => {
+  channel('http.client.request.start').publish({});
+});
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const { channel, bypass } = diagnostics_channel;
+
+const kToolA = Symbol('tool-a');
+const kToolB = Symbol('tool-b');
+
+channel('http.client.request.start').subscribe(handlerA, { bypassId: kToolA });
+channel('http.client.request.start').subscribe(handlerB, { bypassId: kToolB });
+
+// Only handlerA is skipped, handlerB still fires
+bypass(kToolA, () => {
+  channel('http.client.request.start').publish({});
+});
+```
+
 #### `diagnostics_channel.tracingChannel(nameOrChannels)`
 
 <!-- YAML
@@ -414,13 +558,16 @@ channel.publish({
 });
 ```
 
-#### `channel.subscribe(onMessage)`
+#### `channel.subscribe(onMessage[, options])`
 
 <!-- YAML
 added:
  - v15.1.0
  - v14.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63651
+    description: Added `options.bypassId` parameter.
   - version:
     - v24.8.0
     - v22.20.0
@@ -436,6 +583,10 @@ changes:
 * `onMessage` {Function} The handler to receive channel messages
   * `message` {any} The message data
   * `name` {string|symbol} The name of the channel
+* `options` {Object}
+  * `bypassId` {symbol|Object} An optional identity token. When
+    provided, this subscriber will be skipped while
+    [`diagnostics_channel.bypass()`][] is active with the same key.
 
 Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
@@ -460,6 +611,8 @@ channel.subscribe((message, name) => {
   // Received data
 });
 ```
+
+See [`diagnostics_channel.bypass()`][] for usage with `bypassId`.
 
 #### `channel.unsubscribe(onMessage)`
 
@@ -520,18 +673,26 @@ channel.subscribe(onMessage);
 channel.unsubscribe(onMessage);
 ```
 
-#### `channel.bindStore(store[, transform])`
+#### `channel.bindStore(store[, transform[, options]])`
 
 <!-- YAML
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63651
+    description: Added `options.bypassId` parameter.
 -->
 
 > Stability: 1 - Experimental
 
 * `store` {AsyncLocalStorage} The store to which to bind the context data
 * `transform` {Function} Transform context data before setting the store context
+* `options` {Object}
+  * `bypassId` {symbol|Object} An optional identity token. When
+    provided, this bound store will be skipped while
+    [`diagnostics_channel.bypass()`][] is active with the same key.
 
 When [`channel.runStores(context, ...)`][] is called, the given context data
 will be applied to any store bound to the channel. If the store has already been
@@ -564,6 +725,8 @@ channel.bindStore(store, (data) => {
   return { data };
 });
 ```
+
+See [`diagnostics_channel.bypass()`][] for usage with `bypassId`.
 
 #### `channel.unbindStore(store)`
 
@@ -756,7 +919,7 @@ simplify the process of producing events for tracing application flow.
 single `TracingChannel` at the top-level of the file rather than creating them
 dynamically.
 
-#### `tracingChannel.subscribe(subscribers)`
+#### `tracingChannel.subscribe(subscribers[, options])`
 
 <!-- YAML
 added:
@@ -770,6 +933,11 @@ added:
   * `asyncStart` {Function} The [`asyncStart` event][] subscriber
   * `asyncEnd` {Function} The [`asyncEnd` event][] subscriber
   * `error` {Function} The [`error` event][] subscriber
+* `options` {Object}
+  * `bypassId` {symbol|Object} An optional identity token. When
+    provided, ALL handlers (start, end, asyncStart, asyncEnd, error)
+    will be skipped while [`diagnostics_channel.bypass()`][] is
+    active with the same key.
 
 Helper to subscribe a collection of functions to the corresponding channels.
 This is the same as calling [`channel.subscribe(onMessage)`][] on each channel
@@ -820,6 +988,52 @@ channels.subscribe({
   error(message) {
     // Handle error message
   },
+});
+```
+
+To opt all TracingChannel handlers into bypass behavior:
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+const { tracingChannel, bypass } = diagnostics_channel;
+const kMyTool = Symbol('my-tool');
+const tc = tracingChannel('my-operation');
+
+// All TracingChannel events skipped when bypass(kMyTool) is active
+tc.subscribe({
+  start(message) { /* ... */ },
+  end(message) { /* ... */ },
+  asyncStart(message) { /* ... */ },
+  asyncEnd(message) { /* ... */ },
+}, { bypassId: kMyTool });
+
+bypass(kMyTool, () => {
+  tc.traceSync(() => {
+    // Start and end handlers are NOT called
+  });
+});
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const { tracingChannel, bypass } = diagnostics_channel;
+const kMyTool = Symbol('my-tool');
+const tc = tracingChannel('my-operation');
+
+// All TracingChannel events skipped when bypass(kMyTool) is active
+tc.subscribe({
+  start(message) { /* ... */ },
+  end(message) { /* ... */ },
+  asyncStart(message) { /* ... */ },
+  asyncEnd(message) { /* ... */ },
+}, { bypassId: kMyTool });
+
+bypass(kMyTool, () => {
+  tc.traceSync(() => {
+    // Start and end handlers are NOT called
+  });
 });
 ```
 
@@ -1930,6 +2144,7 @@ Emitted when a new thread is created.
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
 [`channel.withStoreScope(data)`]: #channelwithstorescopedata
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
+[`diagnostics_channel.bypass()`]: #diagnostics_channelbypasskey-fn-thisarg-args
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
