@@ -7,7 +7,10 @@ tmpdir.refresh();
 
 // Some variants are commented out as they do not show a change and just slow
 const bench = common.createBenchmark(main, {
-  encoding: ['utf8'],
+  // Include valid case variants to measure the fast-path trade-off.
+  encoding: [
+    'utf8', 'utf-8', 'UTF8', 'UTF-8', 'Utf8', 'Utf-8',
+  ],
   useFd: ['true', 'false'],
   length: [1024, 102400, 1024 * 1024],
 
