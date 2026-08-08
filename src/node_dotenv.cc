@@ -352,6 +352,10 @@ Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
   return ParseResult::Valid;
 }
 
+bool Dotenv::HasKey(const std::string_view key) const {
+  return store_.contains(std::string(key));
+}
+
 void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) const {
   auto match = store_.find("NODE_OPTIONS");
 
