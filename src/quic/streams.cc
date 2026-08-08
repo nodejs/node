@@ -62,8 +62,6 @@ namespace quic {
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
   /* Set when the stream has a sessionid event handler */                      \
   V(WANTS_SESSIONID, wants_sessionid, uint8_t)                                 \
-  /* Set when the stream has a event handler for closing a WT session */       \
-  V(WANTS_WTSESSIONCLOSE, wants_wtsessionclose, uint8_t)                       \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a stop sending event handler */                   \
