@@ -134,7 +134,8 @@ int EarlyClientHelloCallback(SSL* s, int* al, void* arg) {
                         s, TLSEXT_TYPE_session_ticket, &ext, &ext_len) == 1 &&
                     ext_len > 0;
 
-  return w->OnEarlyClientHello(session_id, session_id_len, has_ticket)
+  return w->OnEarlyClientHello(
+             session_id, session_id_len, HAS_TICKET(has_ticket))
              ? SSL_CLIENT_HELLO_SUCCESS
              : SSL_CLIENT_HELLO_RETRY;
 }
@@ -199,8 +200,7 @@ int NewSessionCallback(SSL* s, SSL_SESSION* sess) {
 
   // On servers, we pause the handshake until callback of 'newSession', which
   // calls NewSessionDoneCb(). On clients, there is no callback to wait for.
-  if (w->is_server())
-    w->set_awaiting_new_session(true);
+  if (w->is_server()) w->set_awaiting_new_session(ON::YES);
 
   w->MakeCallback(env->onnewsession_string(), arraysize(argv), argv);
 
@@ -224,8 +224,9 @@ int SSLCertCallback(SSL* s, void* arg) {
   std::string servername;
   if (auto name = SSLPointer::GetServerName(s)) servername = *name;
 
-  w->ScheduleCertCb(std::move(servername),
-                    SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp);
+  w->ScheduleCertCb(
+      std::move(servername),
+      OCSP(SSL_get_tlsext_status_type(s) == TLSEXT_STATUSTYPE_ocsp));
 
   // Suspend handshake with SSL_ERROR_WANT_X509_LOOKUP, and handshake will
   // continue after certcb is done.
@@ -352,14 +353,14 @@ void ConfigureSecureContext(SecureContext* sc) {
   sc->ctx().setStatusCallback(TLSExtStatusCallback);
 }
 
-inline bool Set(
-    Environment* env,
-    Local<Object> target,
-    Local<String> name,
-    const char* value,
-    bool ignore_null = true) {
-  if (value == nullptr)
-    return ignore_null;
+STRONG_BOOL(IGNORE_NULL);
+
+inline bool Set(Environment* env,
+                Local<Object> target,
+                Local<String> name,
+                const char* value,
+                IGNORE_NULL ignore_null = IGNORE_NULL::YES) {
+  if (value == nullptr) return ignore_null.toBool();
   return !target->Set(
       env->context(),
       name,
@@ -371,8 +372,8 @@ inline bool Set(Environment* env,
                 Local<Object> target,
                 Local<String> name,
                 const std::string_view& value,
-                bool ignore_null = true) {
-  if (value.empty()) return ignore_null;
+                IGNORE_NULL ignore_null = IGNORE_NULL::YES) {
+  if (value.empty()) return ignore_null.toBool();
   return !target
               ->Set(env->context(),
                     name,
@@ -464,7 +465,7 @@ void TLSWrap::NewSessionDoneCb() {
 // and so emit spurious 'resumeSession'/'newSession' events here.
 bool TLSWrap::OnEarlyClientHello(const unsigned char* session_id,
                                  size_t session_id_len,
-                                 bool has_ticket) {
+                                 HAS_TICKET has_ticket) {
   if (!hello_emitted_) {
     hello_emitted_ = true;
     Debug(this, "Scheduling onclienthello");
@@ -484,7 +485,7 @@ bool TLSWrap::OnEarlyClientHello(const unsigned char* session_id,
 }
 
 void TLSWrap::EmitClientHello(const std::vector<unsigned char>& session_id,
-                              bool has_ticket) {
+                              HAS_TICKET has_ticket) {
   Debug(this, "Emitting onclienthello");
   Environment* env = this->env();
   HandleScope handle_scope(env->isolate());
@@ -503,7 +504,7 @@ void TLSWrap::EmitClientHello(const std::vector<unsigned char>& session_id,
       hello_obj
           ->Set(env->context(),
                 env->tls_ticket_string(),
-                Boolean::New(env->isolate(), has_ticket))
+                has_ticket.ToJs(env->isolate()))
           .IsNothing()) {
     // An exception is pending, so don't re-enter SSL or JS to resume.
     return;
@@ -515,7 +516,7 @@ void TLSWrap::EmitClientHello(const std::vector<unsigned char>& session_id,
 
 // As with the ClientHello, JS must not run on the library's stack: 'oncertcb'
 // handlers synchronously call back into the handle to resume the handshake.
-void TLSWrap::ScheduleCertCb(std::string servername, bool ocsp) {
+void TLSWrap::ScheduleCertCb(std::string servername, OCSP ocsp) {
   Debug(this, "Scheduling oncertcb");
   BaseObjectPtr<TLSWrap> strong_ref{this};
   env()->SetImmediate(
@@ -525,7 +526,7 @@ void TLSWrap::ScheduleCertCb(std::string servername, bool ocsp) {
       });
 }
 
-void TLSWrap::EmitCertCb(const std::string& servername, bool ocsp) {
+void TLSWrap::EmitCertCb(const std::string& servername, OCSP ocsp) {
   Debug(this, "Emitting oncertcb");
   Environment* env = this->env();
   HandleScope handle_scope(env->isolate());
@@ -538,7 +539,7 @@ void TLSWrap::EmitCertCb(const std::string& servername, bool ocsp) {
           .IsNothing() ||
       info->Set(env->context(),
                 env->ocsp_request_string(),
-                Boolean::New(env->isolate(), ocsp))
+                ocsp.ToJs(env->isolate()))
           .IsNothing()) {
     return;
   }
@@ -945,7 +946,8 @@ void TLSWrap::ClearOut() {
           const char* rs = ERR_reason_error_string(ssl_err);
           if (!Set(env(), obj, env()->library_string(), ls) ||
               !Set(env(), obj, env()->function_string(), fs) ||
-              !Set(env(), obj, env()->reason_string(), rs, false)) return;
+              !Set(env(), obj, env()->reason_string(), rs, IGNORE_NULL::NO))
+            return;
           // SSL has no API to recover the error name from the number, so we
           // transform reason strings like "this error" to "ERR_SSL_THIS_ERROR",
           // which ends up being close to the original error macro name.
