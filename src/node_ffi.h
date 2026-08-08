@@ -169,6 +169,12 @@ class DynamicLibrary : public BaseObject {
   std::string path_;
   std::unordered_map<std::string, void*> symbols_;
   std::unordered_map<std::string, std::shared_ptr<FFIFunction>> functions_;
+  // Callables created for `functions_`, so repeated resolution of the same
+  // symbol reuses one wrapper instead of emitting another trampoline. The
+  // handles are weak: an entry disappears once user code drops the wrapper,
+  // which keeps the map from rooting the library through the wrapper's
+  // FFIFunctionInfo.
+  std::unordered_map<std::string, v8::Global<v8::Function>> function_wrappers_;
   std::unordered_map<void*, std::unique_ptr<FFICallback>> callbacks_;
 };
 

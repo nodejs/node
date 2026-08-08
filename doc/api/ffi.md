@@ -363,7 +363,8 @@ The returned function has a `.pointer` property containing the native function
 address as a `bigint`.
 
 If the same symbol has already been resolved, requesting it again with a
-different signature throws.
+different signature throws. Requesting it again with the same signature returns
+the same function, as does reading it from [`library.functions`][].
 
 ```cjs
 const { DynamicLibrary, suffix } = require('node:ffi');
@@ -766,5 +767,6 @@ and keep callback and pointer lifetimes explicit on the native side.
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
+[`library.functions`]: #libraryfunctions
 [`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations
 [type names]: #type-names
