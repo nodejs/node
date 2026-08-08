@@ -2,6 +2,8 @@
   "main": "sea.js",
   "output": "sea-prep.blob",
   "assets": {
+    "a": "utf8_test_text.txt",
+    "a\u0000b": "person.jpg",
     "utf8_test_text.txt": "utf8_test_text.txt",
     "person.jpg": "person.jpg"
   }
