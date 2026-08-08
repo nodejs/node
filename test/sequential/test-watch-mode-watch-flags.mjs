@@ -51,6 +51,15 @@ async function runNode({
 tmpdir.refresh();
 
 describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_000 }, () => {
+  it('should require a file to watch', async () => {
+    const { code, signal, stderr, stdout } = await common.spawnPromisified(execPath, ['--watch']);
+
+    assert.strictEqual(code, 9);
+    assert.strictEqual(signal, null);
+    assert.match(stderr, /--watch requires specifying a file/);
+    assert.strictEqual(stdout, '');
+  });
+
   it('when multiple `--watch` flags are provided should run as if only one was', async () => {
     const projectDir = tmpdir.resolve('project-multi-flag');
     mkdirSync(projectDir);
