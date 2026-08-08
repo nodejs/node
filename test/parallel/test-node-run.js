@@ -254,6 +254,19 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 1);
   });
 
+  it('stops searching at an empty package.json', async () => {
+    const packageJsonPath = fixtures.path('run-script/empty-json/package.json');
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'test'],
+      { cwd: fixtures.path('run-script/empty-json') },
+    );
+    assert.strictEqual(child.stdout, '');
+    assert.match(child.stderr, /Can't parse/);
+    assert(child.stderr.includes(packageJsonPath));
+    assert.strictEqual(child.code, 1);
+  });
+
   it('returns error when there is no "scripts" field file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
