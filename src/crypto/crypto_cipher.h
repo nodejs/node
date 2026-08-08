@@ -106,6 +106,7 @@ class PublicKeyCipher {
                      const ncrypto::EVPKeyPointer& pkey,
                      int padding,
                      const ncrypto::Digest& digest,
+                     const ncrypto::Digest& mgf1_digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
                      std::unique_ptr<v8::BackingStore>* out);
