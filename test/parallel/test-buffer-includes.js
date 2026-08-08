@@ -74,7 +74,18 @@ assert(b.includes(Buffer.from('f'), 5));
 assert(b.includes(Buffer.from('f'), -1));
 assert(!b.includes(Buffer.from('f'), 6));
 
-assert(!Buffer.from('ff').includes(Buffer.from('f'), 1, 'ucs2'));
+assert(Buffer.from('ff').includes(Buffer.from('f'), 1, 'ucs2'));
+
+{
+  const oddIndexBuffer = Buffer.from('00aaaa', 'hex');
+  const oddIndexNeedle = Buffer.from('\uaaaa', 'utf16le');
+  assert(oddIndexBuffer.includes('\uaaaa', 0, 'utf16le'));
+  assert(!oddIndexBuffer.includes('\uaaaa', 0, 2, 'utf16le'));
+  assert(oddIndexBuffer.includes('\uaaaa', 0, 3, 'utf16le'));
+  assert(oddIndexBuffer.includes(oddIndexNeedle, 0, 'utf16le'));
+  assert(oddIndexBuffer.includes(
+    new Uint8Array(oddIndexNeedle), 0, 'utf16le'));
+}
 
 // test hex encoding
 assert.strictEqual(

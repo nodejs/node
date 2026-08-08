@@ -1045,9 +1045,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   int64_t end_i64 = args[5].As<Integer>()->Value();
 
   const char* haystack = buffer.data();
-  // Round down to the nearest multiple of 2 in case of UCS2.
-  const size_t haystack_length = (enc == UCS2) ?
-      buffer.length() &~ 1 : buffer.length();  // NOLINT(whitespace/operators)
+  const size_t haystack_length = buffer.length();
 
   size_t needle_length;
   if (!StringBytes::Size(isolate, needle, enc).To(&needle_length)) return;
@@ -1055,7 +1053,6 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   // search_end is the exclusive upper bound of the search range.
   size_t search_end = static_cast<size_t>(std::min(
       std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
-  if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
                                      offset_i64,
@@ -1102,27 +1099,27 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
     if constexpr (IsBigEndian()) {
       StringBytes::InlineDecoder decoder;
       if (decoder.Decode(env, needle, enc).IsNothing()) return;
-      const uint16_t* decoded_string =
-          reinterpret_cast<const uint16_t*>(decoder.out());
+      const uint8_t* decoded_string =
+          reinterpret_cast<const uint8_t*>(decoder.out());
 
       if (decoded_string == nullptr)
         return args.GetReturnValue().Set(-1);
 
-      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                    search_end / 2,
+      result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                                    search_end,
                                     decoded_string,
-                                    decoder.size() / 2,
-                                    offset / 2,
+                                    decoder.size(),
+                                    offset,
                                     is_forward);
     } else {
-      result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                    search_end / 2,
-                                    needle_value.out(),
-                                    needle_value.length(),
-                                    offset / 2,
-                                    is_forward);
+      result = nbytes::SearchString(
+          reinterpret_cast<const uint8_t*>(haystack),
+          search_end,
+          reinterpret_cast<const uint8_t*>(needle_value.out()),
+          needle_length,
+          offset,
+          is_forward);
     }
-    result *= 2;
   } else if (enc == UTF8) {
     Utf8Value needle_value(isolate, needle);
     if (*needle_value == nullptr)
@@ -1163,8 +1160,6 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsBoolean());
   CHECK(args[5]->IsNumber());
 
-  enum encoding enc = static_cast<enum encoding>(args[3].As<Int32>()->Value());
-
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
@@ -1182,7 +1177,6 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   // search_end is the exclusive upper bound of the search range.
   size_t search_end = static_cast<size_t>(std::min(
       std::max(end_i64, int64_t{0}), static_cast<int64_t>(haystack_length)));
-  if (enc == UCS2) search_end &= ~static_cast<size_t>(1);
 
   int64_t opt_offset = IndexOfOffset(haystack_length,
                                      offset_i64,
@@ -1218,27 +1212,13 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(-1);
   }
 
-  size_t result = search_end;
-
-  if (enc == UCS2) {
-    if (search_end < 2 || needle_length < 2) {
-      return args.GetReturnValue().Set(-1);
-    }
-    result = nbytes::SearchString(reinterpret_cast<const uint16_t*>(haystack),
-                                  search_end / 2,
-                                  reinterpret_cast<const uint16_t*>(needle),
-                                  needle_length / 2,
-                                  offset / 2,
-                                  is_forward);
-    result *= 2;
-  } else {
-    result = nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                                  search_end,
-                                  reinterpret_cast<const uint8_t*>(needle),
-                                  needle_length,
-                                  offset,
-                                  is_forward);
-  }
+  size_t result =
+      nbytes::SearchString(reinterpret_cast<const uint8_t*>(haystack),
+                           search_end,
+                           reinterpret_cast<const uint8_t*>(needle),
+                           needle_length,
+                           offset,
+                           is_forward);
 
   args.GetReturnValue().Set(result >= search_end ? -1
                                                  : static_cast<int>(result));
