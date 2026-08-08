@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 #include "node_options-inl.h"
 #include "node_test_fixture.h"
+#include "node_union_bytes.h"
 #include "simdutf.h"
 #include "util-inl.h"
 #include "v8-function-callback.h"
@@ -310,6 +311,19 @@ TEST_F(UtilTest, SPrintF) {
 
 TEST_F(UtilTest, DumpJavaScriptStackWithNoIsolate) {
   node::DumpJavaScriptBacktrace(stderr);
+}
+
+TEST_F(UtilTest, EmptyUnionBytesToString) {
+  const v8::HandleScope handle_scope(isolate_);
+  node::StaticExternalOneByteResource one_byte_resource(nullptr, 0, nullptr);
+  node::StaticExternalTwoByteResource two_byte_resource(nullptr, 0, nullptr);
+
+  EXPECT_EQ(
+      0,
+      node::UnionBytes(&one_byte_resource).ToStringChecked(isolate_)->Length());
+  EXPECT_EQ(
+      0,
+      node::UnionBytes(&two_byte_resource).ToStringChecked(isolate_)->Length());
 }
 
 TEST_F(UtilTest, DetermineSpecificErrorType) {

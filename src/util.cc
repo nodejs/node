@@ -636,6 +636,12 @@ void SetConstructorFunction(Isolate* isolate,
 }
 
 Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
+  if (length() == 0) [[unlikely]] {
+    // V8 requires non-null data pointers for empty external strings,
+    // but we don't guarantee that. Solve this by not creating an
+    // external string at all in that case.
+    return String::Empty(isolate);
+  }
   if (is_one_byte()) {
     return String::NewExternalOneByte(isolate, one_byte_resource_)
         .ToLocalChecked();
