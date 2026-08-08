@@ -1,7 +1,7 @@
 // Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
-// Test: HTTP/3 webtransport session establishment
-// Verifies that a session established and properly closed
+// Test: HTTP/3 webtransport client initiated bidi stream
+// Client creates a bidi stream and send data that is echoed back to the client
 
 import { hasQuic, skip, mustCall, mustNotCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
