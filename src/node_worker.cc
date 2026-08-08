@@ -280,6 +280,7 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
   Environment* env = worker->env();
   if (env != nullptr) {
     DCHECK(!env->is_in_heapsnapshot_heap_limit_callback());
+    DCHECK(!env->is_in_heap_profile_near_heap_limit_callback());
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Throwing ERR_WORKER_OUT_OF_MEMORY, "
@@ -1109,6 +1110,9 @@ void Worker::StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
     std::ostringstream out_stream;
     bool success =
         node::SerializeHeapProfile(worker_env->isolate(), out_stream);
+    if (success) {
+      worker_env->isolate()->GetHeapProfiler()->StopSamplingHeapProfiler();
+    }
     env->SetImmediateThreadsafe(
         [taker = std::move(taker),
          out_stream = std::move(out_stream),

@@ -48,7 +48,6 @@ bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
   if (!profile) {
     return false;
   }
-  profiler->StopSamplingHeapProfiler();
   JSONWriter writer(out_stream, true);
   writer.json_start();
 
