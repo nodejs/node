@@ -27,7 +27,8 @@ result. Input and output may be from `stdin` and `stdout`, respectively, or may
 be connected to any Node.js [stream][].
 
 Instances of [`repl.REPLServer`][] support automatic completion of inputs,
-completion preview, simplistic Emacs-style line editing, multi-line inputs,
+completion preview, automatic indentation, simplistic Emacs-style line editing,
+multi-line inputs,
 [ZSH][]-like reverse-i-search, [ZSH][]-like substring-based history search,
 ANSI-styled output, saving and restoring current REPL session state, error
 recovery, and customizable evaluation functions. Terminals that do not support
@@ -231,6 +232,18 @@ undefined
 1002
 undefined
 ```
+
+### Auto-indentation
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When entering
+multi-line input (e.g., a function body or an object literal), the REPL
+automatically indents continuation lines based on the current nesting
+depth of braces (`{}`), brackets (`[]`), and parentheses (`()`). The REPL
+uses 2-space indentation following the Node.js coding convention.
 
 ### Reverse-i-search
 
