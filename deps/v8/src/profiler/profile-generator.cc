@@ -846,17 +846,18 @@ void CpuProfileJSONSerializer::SerializePositionTicks(
 
 void CpuProfileJSONSerializer::SerializeCallFrame(
     const v8::CpuProfileNode* node) {
-  writer_->AddString("\"functionName\":\"");
-  writer_->AddString(node->GetFunctionNameStr());
-  writer_->AddString("\",\"lineNumber\":");
+  writer_->AddString("\"functionName\":");
+  writer_->AddJsonEscapedString(
+      reinterpret_cast<const unsigned char*>(node->GetFunctionNameStr()));
+  writer_->AddString(",\"lineNumber\":");
   writer_->AddNumber(node->GetLineNumber() - 1);
   writer_->AddString(",\"columnNumber\":");
   writer_->AddNumber(node->GetColumnNumber() - 1);
   writer_->AddString(",\"scriptId\":");
   writer_->AddNumber(node->GetScriptId());
-  writer_->AddString(",\"url\":\"");
-  writer_->AddString(node->GetScriptResourceNameStr());
-  writer_->AddCharacter('"');
+  writer_->AddString(",\"url\":");
+  writer_->AddJsonEscapedString(
+      reinterpret_cast<const unsigned char*>(node->GetScriptResourceNameStr()));
 }
 
 void CpuProfileJSONSerializer::SerializeChildren(const v8::CpuProfileNode* node,
@@ -888,9 +889,9 @@ void CpuProfileJSONSerializer::SerializeNode(const v8::CpuProfileNode* node) {
 
   const char* deoptReason = node->GetBailoutReason();
   if (deoptReason && deoptReason[0] && strcmp(deoptReason, "no reason")) {
-    writer_->AddString(",\"deoptReason\":\"");
-    writer_->AddString(deoptReason);
-    writer_->AddCharacter('"');
+    writer_->AddString(",\"deoptReason\":");
+    writer_->AddJsonEscapedString(
+        reinterpret_cast<const unsigned char*>(deoptReason));
   }
 
   unsigned lineCount = node->GetHitLineCount();

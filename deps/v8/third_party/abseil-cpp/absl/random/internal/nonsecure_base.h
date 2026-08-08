@@ -78,7 +78,7 @@ class RandenPoolSeedSeq {
       // std::contiguous_iterator_tag provides a mechanism for testing this
       // capability, however until Abseil's support requirements allow us to
       // assume C++20, limit checks to a few common cases.
-      using TagType = absl::conditional_t<
+      using TagType = std::conditional_t<
           (std::is_pointer<RandomAccessIterator>::value ||
            std::is_same<RandomAccessIterator,
                         typename std::vector<U>::iterator>::value),
@@ -106,7 +106,7 @@ class NonsecureURBGBase {
   NonsecureURBGBase& operator=(NonsecureURBGBase&&) = default;
 
   // Constructor using a seed
-  template <class SSeq, typename = typename absl::enable_if_t<
+  template <class SSeq, typename = typename std::enable_if_t<
                             !std::is_same<SSeq, NonsecureURBGBase>::value>>
   explicit NonsecureURBGBase(SSeq&& seq)
       : urbg_(ConstructURBG(std::forward<SSeq>(seq))) {}

@@ -42,6 +42,8 @@ namespace v8::internal {
 template <typename To>
 struct CastTraits;
 
+class Oddball;
+
 template <typename T>
 concept NotGCedType = !std::is_base_of_v<HeapObject, T> &&
                       !std::is_base_of_v<HeapObjectLayout, T>;
@@ -124,6 +126,9 @@ concept HasCppPointerTryCastImplementation =
 template <typename To, typename From, template <typename> class Holder>
   requires HasTryCastImplementation<Holder, To, From>
 inline bool TryCast(Holder<From> value, Holder<To>* out) {
+  static_assert(!is_subtype_v<To, TrustedObject> ||
+                    is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
+                "Type of untrusted objects cannot be checked reliably");
   if (!Is<To>(value)) return false;
   *out = UncheckedCast<To>(value);
   return true;
@@ -246,7 +251,8 @@ inline Holder<To> SbxCast(
   // Under the attacker model of the sandbox we cannot trust the type of
   // in-sandbox objects for sandbox checks as these objects can be arbitrarily
   // tampered with.
-  static_assert(is_subtype_v<To, TrustedObject>,
+  static_assert(is_subtype_v<To, TrustedObject>);
+  static_assert(is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
                 "Type of untrusted objects cannot be checked reliably");
   DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
@@ -417,35 +423,43 @@ inline bool Is(Tagged<MaybeWeak<U>> value) {
 template <typename T, typename... U>
 constexpr inline bool Is(Tagged<Union<U...>> value) {
   using UnionU = Union<U...>;
-  if constexpr (is_subtype_v<UnionU, HeapObject>) {
+  if constexpr (is_weak_v<UnionU>) {
+    return Is<T>(Tagged<Weak<HeapObject>>(value));
+  } else if constexpr (is_maybe_weak_v<UnionU>) {
+    // Cleared values are always ok.
+    if (value.IsCleared()) return true;
+    // TODO(leszeks): Skip Smi check for values that are known to not be Smi.
+    if (value.IsSmi()) {
+      return Is<T>(Tagged<Smi>(value.ptr()));
+    }
+    return Is<T>(MakeStrong(value));
+  } else if constexpr (is_subtype_v<UnionU, HeapObject>) {
     return Is<T>(Tagged<HeapObject>(value));
-  } else if constexpr (is_subtype_v<UnionU, MaybeWeak<HeapObject>>) {
-    return Is<T>(Tagged<MaybeWeak<HeapObject>>(value));
-  } else if constexpr (is_subtype_v<UnionU, Object>) {
-    return Is<T>(Tagged<Object>(value));
   } else {
-    static_assert(is_subtype_v<UnionU, MaybeWeak<Object>>);
-    return Is<T>(Tagged<MaybeWeak<Object>>(value));
+    static_assert(is_subtype_v<UnionU, Object>);
+    return Is<T>(Tagged<Object>(value));
   }
 }
 
-// Specialization for maybe weak cast targets, which first converts the incoming
+// Specialization for weak cast targets, which first converts the incoming
 // value to a strong reference and then checks if the cast to the strong T
 // is allowed. Cleared weak references always return true.
 template <typename T>
-struct CastTraits<MaybeWeak<T>> {
+struct CastTraits<Weak<T>> {
   template <typename U>
   static bool AllowFrom(Tagged<U> value) {
+    if constexpr (is_weak_v<U>) {
+      return CastTraits<T>::AllowFrom(MakeStrong(value));
+    }
     if constexpr (is_maybe_weak_v<U>) {
       // Cleared values are always ok.
       if (value.IsCleared()) return true;
       // TODO(leszeks): Skip Smi check for values that are known to not be Smi.
-      if (value.IsSmi()) {
-        return CastTraits<T>::AllowFrom(Tagged<Smi>(value.ptr()));
-      }
+      if (value.IsSmi()) return false;
       return CastTraits<T>::AllowFrom(MakeStrong(value));
     } else {
-      return CastTraits<T>::AllowFrom(value);
+      // Can't cast weak to non-weak.
+      return false;
     }
   }
 };

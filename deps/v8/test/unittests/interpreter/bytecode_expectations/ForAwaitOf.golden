@@ -316,7 +316,7 @@ snippet: "
 "
 frame size: 18
 parameter count: 1
-bytecode array length: 277
+bytecode array length: 275
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0:Smi [87]), U8(2),
                 B(Mov), R(closure), R(4),
@@ -366,7 +366,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(7), RegCount8(1),
                 B(GetNamedProperty), R(7), U8(6:"done"), FBV(13),
-                B(JumpIfToBooleanTrue), U8(39),
+                B(JumpIfToBooleanTrue), U8(37),
                 B(GetNamedProperty), R(7), U8(7:"value"), FBV(15),
                 B(Star7),
                 B(LdaFalse),
@@ -376,12 +376,12 @@ bytecodes: [
   /*   63 S> */ B(LdaSmi), I8(10),
   /*   69 E> */ B(TestEqual), R(3), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   76 S> */ B(Jump), U8(12),
+  /*   76 S> */ B(Jump), U8(11),
   /*   90 S> */ B(LdaSmi), I8(20),
   /*   96 E> */ B(TestEqual), R(3), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
   /*  103 S> */ B(Jump), U8(6),
-  /*   23 E> */ B(JumpLoop), U8(88), I8(0), FBV(17),
+  /*   23 E> */ B(JumpLoop), U8(86), I8(0), FBV(17),
                 B(LdaSmi), I8(-1),
                 B(Star10),
                 B(Star9),
@@ -444,7 +444,7 @@ bytecodes: [
 ]
 constant pool: [
   Smi [87],
-  Smi [204],
+  Smi [202],
   ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   SYMBOL_TYPE,
   SYMBOL_TYPE,
@@ -454,9 +454,9 @@ constant pool: [
   INTERNALIZED_ONE_BYTE_STRING_TYPE ["return"],
 ]
 handlers: [
-  [18, 266, 266],
-  [68, 160, 166],
-  [179, 234, 236],
+  [18, 264, 264],
+  [68, 158, 164],
+  [177, 232, 234],
 ]
 
 ---

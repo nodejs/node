@@ -16,7 +16,7 @@ class BackingStoreTest : public TestWithIsolate {};
 
 TEST_F(BackingStoreTest, GrowWasmMemoryInPlace) {
   auto backing_store = BackingStore::AllocateWasmMemory(
-      isolate(), 1, 2, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNotShared);
+      isolate(), 1, 2, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNo);
   CHECK(backing_store);
   EXPECT_TRUE(backing_store->is_wasm_memory());
   EXPECT_EQ(1 * wasm::kWasmPageSize, backing_store->byte_length());
@@ -31,7 +31,7 @@ TEST_F(BackingStoreTest, GrowWasmMemoryInPlace) {
 
 TEST_F(BackingStoreTest, GrowWasmMemoryInPlace_neg) {
   auto backing_store = BackingStore::AllocateWasmMemory(
-      isolate(), 1, 2, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNotShared);
+      isolate(), 1, 2, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNo);
   CHECK(backing_store);
   EXPECT_TRUE(backing_store->is_wasm_memory());
   EXPECT_EQ(1 * wasm::kWasmPageSize, backing_store->byte_length());
@@ -45,7 +45,7 @@ TEST_F(BackingStoreTest, GrowWasmMemoryInPlace_neg) {
 
 TEST_F(BackingStoreTest, GrowSharedWasmMemoryInPlace) {
   auto backing_store = BackingStore::AllocateWasmMemory(
-      isolate(), 2, 3, WasmMemoryFlag::kWasmMemory32, SharedFlag::kShared);
+      isolate(), 2, 3, WasmMemoryFlag::kWasmMemory32, SharedFlag::kYes);
   CHECK(backing_store);
   EXPECT_TRUE(backing_store->is_wasm_memory());
   EXPECT_EQ(2 * wasm::kWasmPageSize, backing_store->byte_length());
@@ -60,7 +60,7 @@ TEST_F(BackingStoreTest, GrowSharedWasmMemoryInPlace) {
 
 TEST_F(BackingStoreTest, CopyWasmMemory) {
   auto bs1 = BackingStore::AllocateWasmMemory(
-      isolate(), 1, 2, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNotShared);
+      isolate(), 1, 2, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNo);
   CHECK(bs1);
   EXPECT_TRUE(bs1->is_wasm_memory());
   EXPECT_EQ(1 * wasm::kWasmPageSize, bs1->byte_length());
@@ -115,7 +115,7 @@ TEST_F(BackingStoreTest, RacyGrowWasmMemoryInPlace) {
   std::shared_ptr<BackingStore> backing_store =
       BackingStore::AllocateWasmMemory(isolate(), 0, kMaxPages,
                                        WasmMemoryFlag::kWasmMemory32,
-                                       SharedFlag::kShared);
+                                       SharedFlag::kYes);
 
   for (int i = 0; i < kNumThreads; i++) {
     threads[i] = new GrowerThread(isolate(), 1, kMaxPages, backing_store);

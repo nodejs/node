@@ -140,9 +140,11 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   }
 
   bool RetryCustomAllocate(CustomAllocationFunction allocate,
-                           AllocationType allocation);
+                           AllocationType allocation,
+                           GarbageCollectionReason gc_reason);
   void RetryCustomAllocateOrFail(CustomAllocationFunction allocate,
-                                 AllocationType allocation);
+                                 AllocationType allocation,
+                                 GarbageCollectionReason gc_reason);
 
 #if V8_VERIFY_WRITE_BARRIERS
   bool IsMostRecentYoungAllocation(Address object_address);
@@ -173,7 +175,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       AllocationAlignment alignment, AllocationHint hint);
 
   bool RetryCustomAllocateLight(CustomAllocationFunction allocate,
-                                AllocationType allocation);
+                                AllocationType allocation,
+                                GarbageCollectionReason gc_reason);
 
   V8_WARN_UNUSED_RESULT Tagged<HeapObject> AllocateRawSlowPath(
       AllocationRetryMode retry_mode, int size, AllocationType allocation,
@@ -181,13 +184,15 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       AllocationHint hint);
 
   void CollectGarbage(AllocationType allocation,
-                      PerformHeapLimitCheck perform_heap_limit_check);
+                      PerformHeapLimitCheck perform_heap_limit_check,
+                      GarbageCollectionReason gc_reason);
   void CollectAllAvailableGarbage(AllocationType allocation);
 
   // Performs a GC and retries the allocation in a loop. The caller of this
   // method needs to perform the heap limit check.
   bool CollectGarbageAndRetryAllocation(CustomAllocationFunction,
-                                        AllocationType allocation);
+                                        AllocationType allocation,
+                                        GarbageCollectionReason gc_reason);
 
   bool ReachedAllocationTimeout();
 

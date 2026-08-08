@@ -918,7 +918,9 @@ class ReferenceMap final : public ZoneObject {
   int instruction_position() const { return instruction_position_; }
 
   void set_instruction_position(int pos) {
+#ifndef BUILTIN_BLOCK_POSITION
     DCHECK_EQ(-1, instruction_position_);
+#endif
     instruction_position_ = pos;
   }
 
@@ -1074,7 +1076,8 @@ class V8_EXPORT_PRIVATE Instruction final {
   }
   bool HasCallDescriptorFlag(CallDescriptor::Flag flag) const {
     DCHECK(IsCallWithDescriptorFlags());
-    static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode == 10);
+    static_assert(CallDescriptor::kFlagsBitsEncodedInInstructionCode ==
+                  MiscField::kSize);
 #ifdef DEBUG
     static constexpr int kInstructionCodeFlagsMask =
         ((1 << CallDescriptor::kFlagsBitsEncodedInInstructionCode) - 1);
@@ -1799,6 +1802,14 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   void set_table_switch_target(bool val) { table_switch_target_ = val; }
 
+#ifdef BUILTIN_BLOCK_POSITION
+  void set_pgo_execution_count(uint64_t count) { pgo_execution_count_ = count; }
+  uint64_t pgo_execution_count() const { return pgo_execution_count_; }
+  void set_rpo_number(RpoNumber rpo_number) { rpo_number_ = rpo_number; }
+  void set_loop_header(RpoNumber head) { loop_header_ = head; }
+  void set_loop_end(RpoNumber end) { loop_end_ = end; }
+#endif
+
   bool needs_frame() const { return needs_frame_; }
   void mark_needs_frame() { needs_frame_ = true; }
 
@@ -1814,9 +1825,12 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   Predecessors predecessors_;
   PhiInstructions phis_;
   RpoNumber ao_number_;  // Assembly order number.
-  const RpoNumber rpo_number_;
-  const RpoNumber loop_header_;
-  const RpoNumber loop_end_;
+  RpoNumber rpo_number_;
+  RpoNumber loop_header_;
+  RpoNumber loop_end_;
+#ifdef BUILTIN_BLOCK_POSITION
+  uint64_t pgo_execution_count_ = 0;
+#endif
   RpoNumber dominator_;
   int32_t code_start_;       // start index of arch-specific code.
   int32_t code_end_ = -1;    // end index of arch-specific code.
@@ -2061,6 +2075,98 @@ class V8_EXPORT_PRIVATE InstructionSequence final
     rpo_immediates().resize(rpo_count);
   }
 
+#ifdef BUILTIN_BLOCK_POSITION
+  // TODO(yolanda): Some of the CHECKs below may be switched to DCHECK. We will
+  // update it after we get some coverage.
+  void ReorderBlocks(base::Vector<int32_t> permutation) {
+    CHECK_EQ(permutation.size(), instruction_blocks_->size());
+    InstructionBlocks* block_permutation =
+        zone()->New<InstructionBlocks>(permutation.size(), nullptr, zone());
+    std::swap(instruction_blocks_, block_permutation);
+
+    instruction_permutation_.resize(instructions_.size());
+    std::swap(instruction_permutation_, instructions_);
+
+    int cur_start = 0;
+    for (size_t i = 0; i < permutation.size(); i++) {
+      CHECK_GE(permutation[i], 0);
+      CHECK_LT(permutation[i],
+               static_cast<int32_t>(instruction_blocks_->size()));
+      instruction_blocks_->at(i) = block_permutation->at(permutation[i]);
+      InstructionBlock* cur_block = instruction_blocks_->at(i);
+      cur_block->set_rpo_number(RpoNumber::FromInt(static_cast<int>(i)));
+
+      RpoNumber rpo = rpo_immediates().at(permutation[i]);
+      if (rpo.IsValid()) {
+        CHECK(rpo.ToInt() == permutation[i]);
+        RpoNumber fw = cur_block->rpo_number();
+        if (fw != rpo) {
+          rpo_immediates().at(rpo.ToSize()) = fw;
+        }
+      }
+
+      int cur_end = cur_start;
+      for (int j = cur_block->code_start(); j < cur_block->code_end();
+           j++, cur_end++) {
+        CHECK(j < static_cast<int>(instruction_permutation_.size()));
+        Instruction* instr = instruction_permutation_.at(j);
+        CHECK(instr);
+        CHECK(cur_end < static_cast<int>(instructions_.size()));
+        instructions_.at(cur_end) = instr;
+        ReferenceMap* ref_map = instr->reference_map();
+        if (ref_map) {
+          ref_map->set_instruction_position(cur_end);
+        }
+      }
+      cur_block->set_code_start(cur_start);
+      cur_block->set_code_end(cur_end);
+      cur_start = cur_end;
+    }
+
+    for (size_t i = 0; i < permutation.size(); ++i) {
+      // Map loop_head, loop_end, dominator, predecessors, successors.
+      InstructionBlock* cur_block = instruction_blocks_->at(i);
+      if (cur_block->loop_header().IsValid()) {
+        int old_number = cur_block->loop_header().ToInt();
+        cur_block->set_loop_header(
+            block_permutation->at(old_number)->rpo_number());
+      }
+
+      if (cur_block->IsLoopHeader()) {
+        int old_number = cur_block->loop_end().ToInt();
+        // Ensure the backedge block is always behind the LoopHeader and update
+        // the loop end for later Loop Rotation.
+        CHECK_GE(old_number, 1);
+        int backedge_block_new_number =
+            block_permutation->at(old_number - 1)->rpo_number().ToInt();
+        CHECK_LT(i, backedge_block_new_number);
+        cur_block->set_loop_end(
+            RpoNumber::FromInt(backedge_block_new_number + 1));
+      }
+
+      if (cur_block->dominator().IsValid()) {
+        int old_number = cur_block->dominator().ToInt();
+        cur_block->set_dominator(
+            block_permutation->at(old_number)->rpo_number());
+      }
+
+      for (RpoNumber& succ : cur_block->successors()) {
+        int old_number = succ.ToInt();
+        succ = block_permutation->at(old_number)->rpo_number();
+      }
+
+      for (RpoNumber& pred : cur_block->predecessors()) {
+        int old_number = pred.ToInt();
+        pred = block_permutation->at(old_number)->rpo_number();
+      }
+    }
+
+    // jump-threading will update assembly order using ao_blocks. Need to
+    // reorder the ao_blocks too.
+    RecomputeAssemblyOrderForTesting();
+  }
+#endif
+
  private:
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                                     const InstructionSequence&);
@@ -2076,13 +2182,16 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   Isolate* isolate_;
   Zone* const zone_;
-  InstructionBlocks* const instruction_blocks_;
+  InstructionBlocks* instruction_blocks_;
   InstructionBlocks* ao_blocks_;
   SourcePositionMap source_positions_;
   ConstantMap constants_;
   Immediates immediates_;
   RpoImmediates rpo_immediates_;
   Instructions instructions_;
+#ifdef BUILTIN_BLOCK_POSITION
+  Instructions instruction_permutation_;
+#endif
   int next_virtual_register_;
   ReferenceMaps reference_maps_;
   ZoneVector<MachineRepresentation> representations_;

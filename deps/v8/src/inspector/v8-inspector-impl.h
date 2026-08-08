@@ -36,6 +36,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "include/cppgc/macros.h"
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
 #include "src/inspector/injected-script.h"
@@ -136,8 +137,9 @@ class V8InspectorImpl : public V8Inspector {
   void discardInspectedContext(int contextGroupId, int contextId);
   void disconnect(V8InspectorSessionImpl*);
   V8InspectorSessionImpl* sessionById(int contextGroupId, int sessionId);
-  InspectedContext* getContext(int groupId, int contextId) const;
-  InspectedContext* getContext(int contextId) const;
+  std::shared_ptr<InspectedContext> getContext(int groupId,
+                                               int contextId) const;
+  std::shared_ptr<InspectedContext> getContext(int contextId) const;
   V8_EXPORT_PRIVATE V8Console* console();
   void forEachContext(int contextGroupId,
                       const std::function<void(InspectedContext*)>& callback);
@@ -151,6 +153,8 @@ class V8InspectorImpl : public V8Inspector {
   getAssociatedExceptionDataForProtocol(v8::Local<v8::Value> exception);
 
   class EvaluateScope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     explicit EvaluateScope(const InjectedScript::Scope& scope);
     ~EvaluateScope();
@@ -186,7 +190,7 @@ class V8InspectorImpl : public V8Inspector {
   MuteExceptionsMap m_muteExceptionsMap;
 
   using ContextByIdMap =
-      std::unordered_map<int, std::unique_ptr<InspectedContext>>;
+      std::unordered_map<int, std::shared_ptr<InspectedContext>>;
   using ContextsByGroupMap =
       std::unordered_map<int, std::unique_ptr<ContextByIdMap>>;
   ContextsByGroupMap m_contexts;

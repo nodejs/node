@@ -123,7 +123,6 @@ def _default_args():
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
-                "-Wno-unnecessary-virtual-specifier",
                 "-isystem .",
             ],
             "//conditions:default": [],
@@ -467,6 +466,7 @@ def _mksnapshot(ctx):
     ctx.actions.run(
         outputs = outs,
         inputs = [],
+        mnemonic = "V8Mksnapshot",
         arguments = [
             "--embedded_variant=Default",
             "--target_os",
@@ -564,6 +564,7 @@ def build_config_content(cpu, icu):
         ("dict_property_const_tracking", "false"),
         ("direct_handle", "false"),
         ("disassembler", "false"),
+        ("dumpling", "false"),
         ("full_debug", "false"),
         ("gdbjit", "false"),
         ("has_jitless", "false"),

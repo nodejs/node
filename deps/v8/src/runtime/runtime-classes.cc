@@ -288,7 +288,7 @@ bool AddDescriptorsByTemplate(
 
   // Count the number of properties that must be in the instance and
   // create the property array to hold the constants.
-  int count = 0;
+  uint32_t count = 0;
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == PropertyLocation::kDescriptor &&
@@ -302,6 +302,7 @@ bool AddDescriptorsByTemplate(
   // Read values from |descriptors_template| and store possibly post-processed
   // values into "instantiated" |descriptors| array.
   int field_index = 0;
+  int in_object_field_count = map->GetInObjectProperties();
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     Tagged<Object> value = descriptors_template->GetStrongValue(i);
     if (IsAccessorPair(value)) {
@@ -323,8 +324,10 @@ bool AddDescriptorsByTemplate(
         if (IsSmi(value)) {
           value = GetMethodWithSharedName(isolate, args, value);
         }
-        details = details.CopyWithRepresentation(
-            Object::OptimalRepresentation(value, isolate));
+        auto [representation, constness] =
+            Object::OptimalRepresentation(value, details.constness(), isolate);
+        details = details.CopyWithRepresentation(representation)
+                      .CopyWithConstness(constness);
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         if (IsAccessorPair(value)) {
@@ -345,10 +348,15 @@ bool AddDescriptorsByTemplate(
     DCHECK(Object::FitsRepresentation(value, details.representation()));
     if (details.location() == PropertyLocation::kDescriptor &&
         details.kind() == PropertyKind::kData) {
+      bool is_inobject = field_index < in_object_field_count;
+      int field_offset = is_inobject
+                             ? map->GetInObjectPropertyOffset(field_index)
+                             : FixedArray::OffsetOfElementAt(
+                                   field_index - in_object_field_count);
       details =
           PropertyDetails(details.kind(), details.attributes(),
                           PropertyLocation::kField, PropertyConstness::kConst,
-                          details.representation(), field_index)
+                          details.representation(), field_offset, is_inobject)
               .set_pointer(details.pointer());
 
       property_array->set(field_index, value);
@@ -369,13 +377,16 @@ bool AddDescriptorsByTemplate(
     }
     map->set_elements_kind(DICTIONARY_ELEMENTS);
   }
+  if (count > 0) {
+    map->SetOutOfObjectUnusedPropertyFields(0);
+  }
 
   // Atomically commit the changes.
   receiver->set_map(isolate, *map, kReleaseStore);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
   }
-  if (property_array->length() > 0) {
+  if (property_array->length().value() > 0) {
     receiver->SetProperties(*property_array);
   }
   return true;
@@ -401,7 +412,7 @@ bool AddDescriptorsByTemplate(
     DirectHandle<NumberDictionary> elements_dictionary_template,
     DirectHandle<FixedArray> computed_properties,
     DirectHandle<JSObject> receiver, RuntimeArguments& args) {
-  int computed_properties_length = computed_properties->length();
+  uint32_t computed_properties_length = computed_properties->ulength().value();
 
   // Shallow-copy properties template.
   Handle<Dictionary> properties_dictionary =
@@ -414,9 +425,8 @@ bool AddDescriptorsByTemplate(
 
   // Merge computed properties with properties and elements dictionary
   // templates.
-  int i = 0;
-  while (i < computed_properties_length) {
-    int flags = Smi::ToInt(computed_properties->get(i++));
+  for (uint32_t i = 0; i < computed_properties_length; i++) {
+    int flags = Smi::ToInt(computed_properties->get(i));
 
     ValueKind value_kind = ComputedEntryFlags::ValueKindBits::decode(flags);
     int key_index = ComputedEntryFlags::KeyIndexBits::decode(flags);

@@ -348,10 +348,12 @@ class AnyUseMarkingProcessor {
   void PostProcessGraph(Graph* graph) {
     RunEscapeAnalysis(graph);
     DropUseOfValueInStoresToCapturedAllocations();
+    DCHECK(drop_uses_stack_.empty());
   }
 
  private:
   std::vector<Node*> stores_to_allocations_;
+  base::SmallVector<ValueNode*, 8> drop_uses_stack_;
 
   void EscapeAllocation(Graph* graph, InlinedAllocation* alloc,
                         Graph::SmallAllocationVector& deps) {
@@ -382,7 +384,7 @@ class AnyUseMarkingProcessor {
       auto* alloc = it.first;
       if (alloc->HasBeenAnalysed()) continue;
       // Check if all its uses are non escaping.
-      if (alloc->IsEscaping()) {
+      if (alloc->HasEscapingUses()) {
         // Escape this allocation and all its dependencies.
         EscapeAllocation(graph, alloc, it.second);
       } else {
@@ -410,24 +412,42 @@ class AnyUseMarkingProcessor {
     }
   }
 
-  void DropInputUses(Input input) {
+  void RemoveUseAndPushIfUnused(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
         !input_node->Is<ArgumentsElements>())
       return;
     input_node->remove_use();
     if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
-      DropInputUses(input_node);
+      input_node->mark_unused_inputs_visited();
+      drop_uses_stack_.push_back(input_node);
     }
   }
 
-  void DropInputUses(ValueNode* node) {
-    for (Input input : node->inputs()) {
-      DropInputUses(input);
+  void DrainDropUsesStack() {
+    while (!drop_uses_stack_.empty()) {
+      ValueNode* current = drop_uses_stack_.back();
+      drop_uses_stack_.pop_back();
+      DCHECK(!current->properties().can_eager_deopt());
+      DCHECK(!current->properties().can_lazy_deopt());
+      for (Input input : current->inputs()) {
+        RemoveUseAndPushIfUnused(input);
+      }
     }
-    DCHECK(!node->properties().can_eager_deopt());
-    DCHECK(!node->properties().can_lazy_deopt());
+  }
+
+  void DropInputUses(Input input) {
+    DCHECK(drop_uses_stack_.empty());
+    RemoveUseAndPushIfUnused(input);
+    DrainDropUsesStack();
+  }
+
+  void DropInputUses(ValueNode* node) {
+    DCHECK(drop_uses_stack_.empty());
+    DCHECK(!node->unused_inputs_were_visited());
+    drop_uses_stack_.push_back(node);
     node->mark_unused_inputs_visited();
+    DrainDropUsesStack();
   }
 };
 

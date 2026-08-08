@@ -31,6 +31,8 @@ class ProcessingState;
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
+class LineCountingStream;
+
 class MaglevPrintingVisitor {
  public:
   explicit MaglevPrintingVisitor(std::ostream& os,
@@ -50,6 +52,7 @@ class MaglevPrintingVisitor {
 
  private:
   std::ostream& os_;
+  LineCountingStream* counting_stream_;
   std::unique_ptr<std::ostream> os_for_additional_info_;
   std::set<BasicBlock*> loop_headers_;
   std::vector<BasicBlock*> targets_;
@@ -60,6 +63,7 @@ class MaglevPrintingVisitor {
 
 void PrintGraph(std::ostream& os, Graph* const graph,
                 bool has_regalloc_data = false);
+void PrintGraphToFile(Graph* const graph, bool has_regalloc_data = false);
 
 #else
 
@@ -96,6 +100,8 @@ class MaglevPrintingVisitor {
 
 inline void PrintGraph(std::ostream& os, Graph* const graph,
                        bool has_regalloc_data = false) {}
+inline void PrintGraphToFile(Graph* const graph,
+                             bool has_regalloc_data = false) {}
 
 #endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
 

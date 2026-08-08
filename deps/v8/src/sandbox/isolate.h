@@ -42,8 +42,7 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
 
   inline JSDispatchTable& GetJSDispatchTable();
 
-  // Object is needed as a witness that this handle does not come from the
-  // shared space.
+  // Object is needed in case it comes from shared space.
   inline ExternalPointerTag GetExternalPointerTableTagFor(
       Tagged<HeapObject> witness, ExternalPointerHandle handle);
 

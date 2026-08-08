@@ -296,7 +296,7 @@ class V8_NODISCARD ShouldBeZeroOnReturnScope final {
 }  // namespace
 
 Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
-  TRACE_EVENT0("v8.execute", "V8.HandleInterrupts");
+  TRACE_EVENT("v8.execute", "V8.HandleInterrupts");
 
 #if DEBUG
   isolate_->heap()->VerifyNewSpaceTop();
@@ -315,12 +315,12 @@ Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
   ShouldBeZeroOnReturnScope should_be_zero_on_return(&interrupt_flags);
 
   if (TestAndClear(&interrupt_flags, TERMINATE_EXECUTION)) {
-    TRACE_EVENT0("v8.execute", "V8.TerminateExecution");
+    TRACE_EVENT("v8.execute", "V8.TerminateExecution");
     return isolate_->TerminateExecution();
   }
 
   if (TestAndClear(&interrupt_flags, GC_REQUEST)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCHandleGCRequest");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCHandleGCRequest");
     isolate_->heap()->HandleGCRequest();
   }
 
@@ -329,58 +329,58 @@ Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
   }
 
   if (TestAndClear(&interrupt_flags, GLOBAL_SAFEPOINT)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GlobalSafepoint");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GlobalSafepoint");
     isolate_->main_thread_local_heap()->Safepoint();
   }
 
 #if V8_ENABLE_WEBASSEMBLY
   if (TestAndClear(&interrupt_flags, GROW_SHARED_MEMORY)) {
-    TRACE_EVENT0("v8.wasm", "V8.WasmGrowSharedMemory");
+    TRACE_EVENT("v8.wasm", "V8.WasmGrowSharedMemory");
     BackingStore::UpdateSharedWasmMemoryObjects(isolate_);
   }
 
   if (TestAndClear(&interrupt_flags, LOG_WASM_CODE)) {
-    TRACE_EVENT0("v8.wasm", "V8.LogCode");
+    TRACE_EVENT("v8.wasm", "V8.LogCode");
     wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate_);
   }
 
   if (TestAndClear(&interrupt_flags, WASM_CODE_GC)) {
-    TRACE_EVENT0("v8.wasm", "V8.WasmCodeGC");
+    TRACE_EVENT("v8.wasm", "V8.WasmCodeGC");
     wasm::GetWasmEngine()->ReportLiveCodeFromStackForGC(isolate_);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   if (TestAndClear(&interrupt_flags, DEOPT_MARKED_ALLOCATION_SITES)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "V8.GCDeoptMarkedAllocationSites");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                "V8.GCDeoptMarkedAllocationSites");
     isolate_->heap()->DeoptMarkedAllocationSites();
   }
 
   if (TestAndClear(&interrupt_flags, INSTALL_CODE)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 "V8.InstallOptimizedFunctions");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                "V8.InstallOptimizedFunctions");
     DCHECK(isolate_->concurrent_recompilation_enabled());
     isolate_->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
   }
 
 #ifdef V8_ENABLE_SPARKPLUG
   if (TestAndClear(&interrupt_flags, INSTALL_BASELINE_CODE)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 "V8.FinalizeBaselineConcurrentCompilation");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                "V8.FinalizeBaselineConcurrentCompilation");
     isolate_->baseline_batch_compiler()->InstallBatch();
   }
 #endif  // V8_ENABLE_SPARKPLUG
 
 #ifdef V8_ENABLE_MAGLEV
   if (TestAndClear(&interrupt_flags, INSTALL_MAGLEV_CODE)) {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 "V8.FinalizeMaglevConcurrentCompilation");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                "V8.FinalizeMaglevConcurrentCompilation");
     isolate_->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
   }
 #endif  // V8_ENABLE_MAGLEV
 
   if (TestAndClear(&interrupt_flags, API_INTERRUPT)) {
-    TRACE_EVENT0("v8.execute", "V8.InvokeApiInterruptCallbacks");
+    TRACE_EVENT("v8.execute", "V8.InvokeApiInterruptCallbacks");
     // Callbacks must be invoked outside of ExecutionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
   }

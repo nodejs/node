@@ -11,7 +11,7 @@
 #include "src/base/logging.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/map-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/primitive-heap-object-inl.h"
 #include "src/objects/string-forwarding-table.h"
 #include "src/objects/string-inl.h"
@@ -254,7 +254,8 @@ bool Name::IsInteresting(Isolate* isolate) {
   // these strings and interesting symbols.
   return (IsSymbol(this) && Cast<Symbol>(this)->is_interesting_symbol()) ||
          this == *isolate->factory()->toJSON_string() ||
-         this == *isolate->factory()->get_string();
+         this == *isolate->factory()->get_string() ||
+         this == *isolate->factory()->then_string();
 }
 
 bool Name::IsAnyPrivate() {

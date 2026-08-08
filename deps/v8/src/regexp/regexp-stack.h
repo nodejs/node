@@ -11,38 +11,39 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
-class RegExpStack;
+class Stack;
 
 // Maintains a per-v8thread stack area that can be used by irregexp
 // implementation for its backtracking stack.
-class V8_NODISCARD RegExpStackScope final {
+class V8_NODISCARD StackScope final {
  public:
   // Create and delete an instance to control the life-time of a growing stack.
 
   // Initializes the stack memory area if necessary.
-  explicit RegExpStackScope(Isolate* isolate);
-  ~RegExpStackScope();  // Releases the stack if it has grown.
-  RegExpStackScope(const RegExpStackScope&) = delete;
-  RegExpStackScope& operator=(const RegExpStackScope&) = delete;
+  explicit StackScope(Isolate* isolate);
+  ~StackScope();  // Releases the stack if it has grown.
+  StackScope(const StackScope&) = delete;
+  StackScope& operator=(const StackScope&) = delete;
 
-  RegExpStack* stack() const { return regexp_stack_; }
+  Stack* stack() const { return regexp_stack_; }
 
  private:
-  RegExpStack* const regexp_stack_;
+  Stack* const regexp_stack_;
   const ptrdiff_t old_sp_top_delta_;
 };
 
 // TODO(426514762): Currently this entire object is sandbox-accessible as some
 // fields of it are being written to. This is unsafe though and we'll need to
 // fix this. See the addition TODOs related to https://crbug.com/426514762.
-class RegExpStack final {
+class Stack final {
  public:
-  RegExpStack(const RegExpStack&) = delete;
-  RegExpStack& operator=(const RegExpStack&) = delete;
+  Stack(const Stack&) = delete;
+  Stack& operator=(const Stack&) = delete;
 
-  static RegExpStack* New();
-  static void Delete(RegExpStack* instance);
+  static Stack* New();
+  static void Delete(Stack* instance);
 
 #if defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
   static constexpr int kSlotSize = kSystemPointerSize;
@@ -97,8 +98,8 @@ class RegExpStack final {
  private:
   // Currently private as we need to use New/Delete instead.
   // TODO(426514762): revert this change once its no longer needed.
-  RegExpStack();
-  ~RegExpStack();
+  Stack();
+  ~Stack();
 
   // Artificial limit used when the thread-local state has been destroyed.
   static const Address kMemoryTop =
@@ -126,7 +127,7 @@ class RegExpStack final {
   // Structure holding the allocated memory, size and limit. Thread switching
   // archives and restores this struct.
   struct ThreadLocal {
-    explicit ThreadLocal(RegExpStack* regexp_stack) {
+    explicit ThreadLocal(Stack* regexp_stack) {
       ResetToStaticStack(regexp_stack);
     }
 
@@ -144,8 +145,8 @@ class RegExpStack final {
     Address limit_ = kNullAddress;
     bool owns_memory_ = false;  // Whether memory_ is owned and must be freed.
 
-    void ResetToStaticStack(RegExpStack* regexp_stack);
-    void ResetToStaticStackIfEmpty(RegExpStack* regexp_stack) {
+    void ResetToStaticStack(Stack* regexp_stack);
+    void ResetToStaticStackIfEmpty(Stack* regexp_stack) {
       if (stack_pointer_ == memory_top_) ResetToStaticStack(regexp_stack);
     }
     void FreeAndInvalidate();
@@ -183,10 +184,11 @@ class RegExpStack final {
 
   ThreadLocal thread_local_;
 
-  friend class ExternalReference;
-  friend class RegExpStackScope;
+  friend class internal::ExternalReference;
+  friend class StackScope;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

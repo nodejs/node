@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 #include "absl/base/config.h"
 #include "absl/strings/string_view.h"
@@ -35,7 +36,6 @@
 #include <elf.h>
 #include <link.h>  // For ElfW() macro.
 #include <functional>
-#include <string>
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -78,44 +78,54 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
-struct SymbolDecoratorArgs {
-  // The program counter we are getting symbolic name for.
-  const void *pc;
-  // 0 for main executable, load address for shared libraries.
-  ptrdiff_t relocation;
-  // Read-only file descriptor for ELF image covering "pc",
-  // or -1 if no such ELF image exists in /proc/self/maps.
-  int fd;
-  // Output buffer, size.
-  // Note: the buffer may not be empty -- default symbolizer may have already
-  // produced some output, and earlier decorators may have adorned it in
-  // some way. You are free to replace or augment the contents (within the
-  // symbol_buf_size limit).
-  char *const symbol_buf;
-  size_t symbol_buf_size;
-  // Temporary scratch space, size.
-  // Use that space in preference to allocating your own stack buffer to
-  // conserve stack.
-  char *const tmp_buf;
-  size_t tmp_buf_size;
-  // User-provided argument
-  void* arg;
+class SymbolDecorator;
+
+class SymbolDecoratorDeleter {
+ public:
+  void operator()(SymbolDecorator* ptr);
 };
-using SymbolDecorator = void (*)(const SymbolDecoratorArgs *);
 
-// Installs a function-pointer as a decorator. Returns a value less than zero
-// if the system cannot install the decorator. Otherwise, returns a unique
-// identifier corresponding to the decorator. This identifier can be used to
-// uninstall the decorator - See RemoveSymbolDecorator() below.
-int InstallSymbolDecorator(SymbolDecorator decorator, void* arg);
+using SymbolDecoratorPtr =
+    std::unique_ptr<SymbolDecorator, SymbolDecoratorDeleter>;
 
-// Removes a previously installed function-pointer decorator. Parameter "ticket"
-// is the return-value from calling InstallSymbolDecorator().
-bool RemoveSymbolDecorator(int ticket);
+// Represents an object that can add additional information to a symbol
+// name.
+class SymbolDecorator {
+ public:
+  // The signature of a factory function used to register and create a symbol
+  // decorator. This function may be called from a signal handler, so it must
+  // use an async-signal-safe allocation mechanism to allocate the returned
+  // object.
+  using Factory = SymbolDecoratorPtr(int fd);
 
-// Remove all installed decorators.  Returns true if successful, false if
-// symbolization is currently in progress.
-bool RemoveAllSymbolDecorators();
+  virtual ~SymbolDecorator() = default;
+
+  // Decorates symbol name with additional information.
+  //
+  // pc represents the program counter we are getting symbolic name for.
+  // relocation is difference between the link-time and the load-time address.
+  // symbol_buf and symbol_buf_size represent the output buffer and its size.
+  // Note that the buffer may not be empty -- default symbolizer may have
+  // already produced some output. You are free to replace or augment the
+  // contents (within the symbol_buf_size limit). tmp_buf and tmp_buf_size
+  // represent temporary scratch space and its size. Use that space in
+  // preference to allocating your own stack buffer to conserve stack.
+  //
+  // This function will not be called concurrently for the same object, but it
+  // may be called from a signal handler, so it must avoid any operation that is
+  // not async-signal-safe. However, it does not have to be reentrant -- if it
+  // is interrupted by a signal and the handler tries to symbolize, the request
+  // will go to a new SymbolDecorator instance.
+  virtual void Decorate(
+      const void* pc,
+      ptrdiff_t relocation,
+      char* symbol_buf, size_t symbol_buf_size,
+      char* tmp_buf, size_t tmp_buf_size) const = 0;
+};
+
+// Registers a new symbol decorator factory and returns the previous one.
+SymbolDecorator::Factory* SetSymbolDecoratorFactory(
+    SymbolDecorator::Factory* factory);
 
 // Registers an address range to a file mapping.
 //

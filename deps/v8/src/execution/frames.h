@@ -7,6 +7,7 @@
 
 #include "include/v8-initialization.h"
 #include "src/base/bounds.h"
+#include "src/base/small-vector.h"
 #include "src/codegen/handler-table.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/assert-scope.h"
@@ -452,7 +453,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     JavaScriptFrameSummary(Isolate* isolate, Tagged<Object> receiver,
                            Tagged<JSFunction> function,
                            Tagged<AbstractCode> abstract_code, int code_offset,
-                           bool is_constructor, Tagged<FixedArray> parameters);
+                           bool is_constructor);
 
     void EnsureSourcePositionsAvailable();
     bool AreSourcePositionsAvailable() const;
@@ -462,7 +463,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<AbstractCode> abstract_code() const { return abstract_code_; }
     int code_offset() const { return code_offset_; }
     bool is_constructor() const { return is_constructor_; }
-    DirectHandle<FixedArray> parameters() const { return parameters_; }
     bool is_subject_to_debugging() const;
     int SourcePosition() const;
     int SourceStatementPosition() const;
@@ -476,7 +476,6 @@ class V8_EXPORT_PRIVATE FrameSummary {
     Handle<AbstractCode> abstract_code_;
     int code_offset_;
     bool is_constructor_;
-    Handle<FixedArray> parameters_;
   };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -640,7 +639,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
 // The functions are ordered bottom-to-top (i.e. summaries.last() is the
 // top-most activation; caller comes before callee).
 struct FrameSummaries {
-  std::vector<FrameSummary> frames;
+  base::SmallVector<FrameSummary, 3> frames;
   bool top_frame_is_construct_call = false;
 
   FrameSummaries() = default;
@@ -733,9 +732,8 @@ class CommonFrameWithJSLinkage : public CommonFrame {
   // Access the parameters.
   virtual Tagged<Object> receiver() const;
   virtual Tagged<Object> GetParameter(int index) const;
-  virtual int ComputeParametersCount() const;
-  DirectHandle<FixedArray> GetParameters(bool never_allocate) const;
-  virtual int GetActualArgumentCount() const;
+  virtual uint32_t ComputeParametersCount() const;
+  virtual uint32_t GetActualArgumentCount() const;
 
   Tagged<HeapObject> unchecked_code() const override;
 
@@ -778,7 +776,7 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   Tagged<Object> unchecked_function() const;
   Tagged<Script> script() const;
   Tagged<Object> context() const override;
-  int GetActualArgumentCount() const override;
+  uint32_t GetActualArgumentCount() const override;
 
   inline void set_receiver(Tagged<Object> value);
 
@@ -950,7 +948,7 @@ class BuiltinExitFrame : public ExitFrame {
 
   Tagged<Object> receiver() const;
   Tagged<Object> GetParameter(int i) const;
-  int ComputeParametersCount() const;
+  uint32_t ComputeParametersCount() const;
   DirectHandle<FixedArray> GetParameters(bool never_allocate) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
@@ -995,7 +993,7 @@ class ApiCallbackExitFrame : public ExitFrame {
 
   inline Tagged<Object> receiver() const;
   inline Tagged<Object> GetParameter(int i) const;
-  inline int ComputeParametersCount() const;
+  inline uint32_t ComputeParametersCount() const;
   DirectHandle<FixedArray> GetParameters(bool never_allocate) const;
 
   inline Tagged<Object> context() const override;
@@ -1169,6 +1167,11 @@ class OptimizedJSFrame : public JavaScriptFrame {
   Tagged<DeoptimizationData> GetDeoptimizationData(Tagged<Code> code,
                                                    int* deopt_index) const;
 
+  // Like GetDeoptimizationData, but takes an explicit PC instead of reading
+  // it from the frame.  Can be used without a live frame.
+  static Tagged<DeoptimizationData> GetDeoptimizationDataForPC(
+      Isolate* isolate, Tagged<Code> code, Address pc, int* deopt_index);
+
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
@@ -1177,6 +1180,13 @@ class OptimizedJSFrame : public JavaScriptFrame {
 
   virtual int FindReturnPCForTrampoline(Tagged<Code> code,
                                         int trampoline_pc) const = 0;
+
+ private:
+  // Full TranslatedState-based walk, used as fallback when the lightweight
+  // path in Summarize() encounters frames it cannot handle (e.g.
+  // wasm-inlined-into-JS frames).
+  FrameSummaries SummarizeFull(Tagged<DeoptimizationData> data, int deopt_index,
+                               bool never_allocate) const;
 
  protected:
   inline explicit OptimizedJSFrame(StackFrameIteratorBase* iterator);
@@ -1211,6 +1221,10 @@ class UnoptimizedJSFrame : public JavaScriptFrame {
   static UnoptimizedJSFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_unoptimized_js());
     return static_cast<UnoptimizedJSFrame*>(frame);
+  }
+  static const UnoptimizedJSFrame* cast(const StackFrame* frame) {
+    DCHECK(frame->is_unoptimized_js());
+    return static_cast<const UnoptimizedJSFrame*>(frame);
   }
 
  protected:
@@ -1310,7 +1324,7 @@ class TurbofanJSFrame : public OptimizedJSFrame {
  public:
   Type type() const override { return TURBOFAN_JS; }
 
-  int ComputeParametersCount() const override;
+  uint32_t ComputeParametersCount() const override;
 
   void Iterate(RootVisitor* v) const override;
 
@@ -1338,7 +1352,7 @@ class BuiltinFrame final : public TypedFrameWithJSLinkage {
   }
 
   Tagged<JSFunction> function() const override;
-  int ComputeParametersCount() const override;
+  uint32_t ComputeParametersCount() const override;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
@@ -1583,6 +1597,7 @@ class WasmLiftoffSetupFrame : public TypedFrame {
 
   FullObjectSlot wasm_instance_data_slot() const;
 
+  Address CallingPC() const;
   int GetDeclaredFunctionIndex() const;
 
   wasm::NativeModule* GetNativeModule() const;
@@ -1686,7 +1701,7 @@ class JavaScriptBuiltinContinuationFrame : public TypedFrameWithJSLinkage {
   }
 
   Tagged<JSFunction> function() const override;
-  int ComputeParametersCount() const override;
+  uint32_t ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
   Tagged<Object> context() const override;

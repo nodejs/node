@@ -195,7 +195,7 @@ void CompilationCacheEval::Put(DirectHandle<String> source,
 }
 
 MaybeDirectHandle<RegExpData> CompilationCacheRegExp::Lookup(
-    DirectHandle<String> source, JSRegExp::Flags flags) {
+    DirectHandle<String> original_source, JSRegExp::Flags flags) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
@@ -204,14 +204,14 @@ MaybeDirectHandle<RegExpData> CompilationCacheRegExp::Lookup(
   int generation;
   for (generation = 0; generation < kGenerations; generation++) {
     DirectHandle<CompilationCacheTable> table = GetTable(generation);
-    result = table->LookupRegExp(source, flags);
+    result = table->LookupRegExp(original_source, flags);
     if (IsRegExpDataWrapper(*result)) break;
   }
   if (IsRegExpDataWrapper(*result)) {
     Handle<RegExpData> data(Cast<RegExpDataWrapper>(result)->data(isolate()),
                             isolate());
     if (generation != 0) {
-      Put(source, flags, data);
+      Put(original_source, flags, data);
     }
     isolate()->counters()->compilation_cache_hits()->Increment();
     return scope.CloseAndEscape(data);
@@ -221,13 +221,13 @@ MaybeDirectHandle<RegExpData> CompilationCacheRegExp::Lookup(
   }
 }
 
-void CompilationCacheRegExp::Put(DirectHandle<String> source,
+void CompilationCacheRegExp::Put(DirectHandle<String> original_source,
                                  JSRegExp::Flags flags,
                                  DirectHandle<RegExpData> data) {
   HandleScope scope(isolate());
   DirectHandle<CompilationCacheTable> table = GetTable(0);
-  tables_[0] =
-      *CompilationCacheTable::PutRegExp(isolate(), table, source, flags, data);
+  tables_[0] = *CompilationCacheTable::PutRegExp(isolate(), table,
+                                                 original_source, flags, data);
 }
 
 void CompilationCache::Remove(DirectHandle<SharedFunctionInfo> function_info) {
@@ -290,8 +290,8 @@ InfoCellPair CompilationCache::LookupEval(
 }
 
 MaybeDirectHandle<RegExpData> CompilationCache::LookupRegExp(
-    DirectHandle<String> source, JSRegExp::Flags flags) {
-  return reg_exp_.Lookup(source, flags);
+    DirectHandle<String> original_source, JSRegExp::Flags flags) {
+  return reg_exp_.Lookup(original_source, flags);
 }
 
 void CompilationCache::PutScript(
@@ -322,10 +322,10 @@ void CompilationCache::PutEval(DirectHandle<String> source,
       CompilationCacheEvent("put", cache_type, js_function->shared()));
 }
 
-void CompilationCache::PutRegExp(DirectHandle<String> source,
+void CompilationCache::PutRegExp(DirectHandle<String> original_source,
                                  JSRegExp::Flags flags,
                                  DirectHandle<RegExpData> data) {
-  reg_exp_.Put(source, flags, data);
+  reg_exp_.Put(original_source, flags, data);
 }
 
 void CompilationCache::Clear() {

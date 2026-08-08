@@ -207,7 +207,7 @@ class ReadOnlySpace : public BaseSpace {
   // Returns the index within pages_. The chunk must be part of this space.
   size_t IndexOf(const BasePage* chunk) const;
 
-  bool ContainsSlow(Address addr) const;
+  V8_EXPORT_PRIVATE bool ContainsSlow(Address addr) const;
   V8_EXPORT_PRIVATE void ShrinkPages();
 
 #ifdef VERIFY_HEAP

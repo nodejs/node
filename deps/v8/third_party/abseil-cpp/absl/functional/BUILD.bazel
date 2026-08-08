@@ -149,7 +149,6 @@ cc_test(
         "//absl/base:config",
         "//absl/strings",
         "//absl/strings:string_view",
-        "//absl/types:variant",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

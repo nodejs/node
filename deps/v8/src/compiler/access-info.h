@@ -112,7 +112,8 @@ class PropertyAccessInfo final {
       Zone* zone, MapRef receiver_map, OptionalJSObjectRef holder,
       OptionalObjectRef constant, OptionalJSObjectRef api_holder);
   static PropertyAccessInfo ModuleExport(Zone* zone, MapRef receiver_map,
-                                         CellRef cell);
+                                         CellRef cell,
+                                         OptionalJSObjectRef holder);
   static PropertyAccessInfo StringLength(Zone* zone, MapRef receiver_map);
   static PropertyAccessInfo StringWrapperLength(Zone* zone,
                                                 MapRef receiver_map);

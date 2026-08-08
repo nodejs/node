@@ -1251,7 +1251,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);
-  const Operator* ProtectedLoad(LoadRepresentation rep);
+  const Operator* TrappingLoad(LoadRepresentation rep);
   const Operator* LoadTrapOnNull(LoadRepresentation rep);
 
   // store [base + index], value
@@ -1259,7 +1259,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   std::optional<const Operator*> TryStorePair(StoreRepresentation rep1,
                                               StoreRepresentation rep2);
   const Operator* StoreIndirectPointer(WriteBarrierKind write_barrier_kind);
-  const Operator* ProtectedStore(MachineRepresentation rep);
+  const Operator* TrappingStore(MachineRepresentation rep);
   const Operator* StoreTrapOnNull(StoreRepresentation rep);
 
   // unaligned load [base + index]

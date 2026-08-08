@@ -325,6 +325,7 @@
 
 ['tsan and mode == debug', {
   'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
 }],
 
 # With the official_build flag exceptions are disabled. Therefore torque
@@ -407,5 +408,11 @@
   # https://crbug.com/456051623
   'SimdShuffleTest.TryMatch32x4OneLaneSwizzle': [SKIP],
 }],  # 'ubsan'
+
+##############################################################################
+['dumpling', {
+  # Unexpected output.
+  'IsolateTest.DebugTraceMinimal': [FAIL],
+}],
 
 ]

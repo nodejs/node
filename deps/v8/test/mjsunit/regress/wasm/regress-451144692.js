@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-rab-integration
-
 const v5 = d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 const v12 = new WebAssembly.Memory({ initial: 1, maximum: 2, shared: true });

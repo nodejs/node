@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -31,6 +32,7 @@
 #include "absl/debugging/leak_check.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/debugging/symbolize.h"
+#include "absl/hash/hash.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/status_payload_printer.h"
@@ -40,7 +42,8 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
+#include "absl/types/source_location.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -56,24 +59,24 @@ void StatusRep::Unref() const {
   }
 }
 
-static absl::optional<size_t> FindPayloadIndexByUrl(
-    const Payloads* payloads, absl::string_view type_url) {
-  if (payloads == nullptr) return absl::nullopt;
+static std::optional<size_t> FindPayloadIndexByUrl(const Payloads* payloads,
+                                                   absl::string_view type_url) {
+  if (payloads == nullptr) return std::nullopt;
 
   for (size_t i = 0; i < payloads->size(); ++i) {
     if ((*payloads)[i].type_url == type_url) return i;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<absl::Cord> StatusRep::GetPayload(
+std::optional<absl::Cord> StatusRep::GetPayload(
     absl::string_view type_url) const {
-  absl::optional<size_t> index =
+  std::optional<size_t> index =
       status_internal::FindPayloadIndexByUrl(payloads_.get(), type_url);
   if (index.has_value()) return (*payloads_)[index.value()].payload;
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void StatusRep::SetPayload(absl::string_view type_url, absl::Cord payload) {
@@ -81,7 +84,7 @@ void StatusRep::SetPayload(absl::string_view type_url, absl::Cord payload) {
     payloads_ = absl::make_unique<status_internal::Payloads>();
   }
 
-  absl::optional<size_t> index =
+  std::optional<size_t> index =
       status_internal::FindPayloadIndexByUrl(payloads_.get(), type_url);
   if (index.has_value()) {
     (*payloads_)[index.value()].payload = std::move(payload);
@@ -92,7 +95,7 @@ void StatusRep::SetPayload(absl::string_view type_url, absl::Cord payload) {
 }
 
 StatusRep::EraseResult StatusRep::ErasePayload(absl::string_view type_url) {
-  absl::optional<size_t> index =
+  std::optional<size_t> index =
       status_internal::FindPayloadIndexByUrl(payloads_.get(), type_url);
   if (!index.has_value()) return {false, Status::PointerToRep(this)};
   payloads_->erase(payloads_->begin() + index.value());
@@ -130,6 +133,14 @@ void StatusRep::ForEachPayload(
   }
 }
 
+absl::Span<const SourceLocation> StatusRep::GetSourceLocations() const {
+  return absl::MakeSpan(source_locations_);
+}
+
+void StatusRep::AddSourceLocation(absl::SourceLocation loc) {
+  source_locations_.push_back(loc);
+}
+
 std::string StatusRep::ToString(StatusToStringMode mode) const {
   std::string text;
   absl::StrAppend(&text, absl::StatusCodeToString(code()), ": ", message());
@@ -142,13 +153,24 @@ std::string StatusRep::ToString(StatusToStringMode mode) const {
         status_internal::GetStatusPayloadPrinter();
     this->ForEachPayload([&](absl::string_view type_url,
                              const absl::Cord& payload) {
-      absl::optional<std::string> result;
+      std::optional<std::string> result;
       if (printer) result = printer(type_url, payload);
       absl::StrAppend(
           &text, " [", type_url, "='",
           result.has_value() ? *result : absl::CHexEscape(std::string(payload)),
           "']");
     });
+  }
+  const bool with_source_location =
+      (mode & StatusToStringMode::kWithSourceLocation) ==
+      StatusToStringMode::kWithSourceLocation;
+  if (with_source_location && !source_locations_.empty()) {
+    absl::string_view whitespace = (absl::Hash<int>{}(42) % 2 == 0) ? "" : " ";
+    absl::StrAppend(&text, "\n=== Source Location Trace: ===", whitespace,
+                    "\n");
+    for (const absl::SourceLocation loc : GetSourceLocations()) {
+      absl::StrAppend(&text, loc.file_name(), ":", loc.line(), "\n");
+    }
   }
 
   return text;
@@ -204,6 +226,7 @@ StatusRep* absl_nonnull StatusRep::CloneAndUnref() const {
     payloads = absl::make_unique<status_internal::Payloads>(*payloads_);
   }
   auto* new_rep = new StatusRep(code_, message_, std::move(payloads));
+  new_rep->source_locations_ = source_locations_;
   Unref();
   return new_rep;
 }

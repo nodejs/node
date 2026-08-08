@@ -31,11 +31,10 @@ V8_INLINE void InitSelfIndirectPointerField(
   if (tag == kCodeIndirectPointerTag) {
     CodePointerTable::Space* space =
         isolate.GetCodePointerTableSpaceFor(field_address);
-    handle =
-        IsolateGroup::current()
-            ->code_pointer_table()
-            ->AllocateAndInitializeEntry(space, host.address(), kNullAddress,
-                                         kUninitializedEntrypointTag);
+    handle = IsolateGroup::current()
+                 ->code_pointer_table()
+                 ->AllocateAndInitializeEntry(space, host.address(),
+                                              kUninitializedEntrypointTag);
   } else {
     TrustedPointerTable::Space* space =
         isolate.GetTrustedPointerTableSpaceFor(tag);

@@ -19,9 +19,8 @@ class V8_EXPORT_PRIVATE CppGraphBuilder final {
  public:
   // Add the C++ snapshot to the existing |graph|. See CppGraphBuilderImpl for
   // algorithm internals.
-  static void Run(
-      v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data,
-      UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects);
+  static void Run(v8::Isolate* isolate, v8::EmbedderGraph* graph, void* data,
+                  CppHeapWrapperSet&& cpp_heap_wrappers);
 
   CppGraphBuilder() = delete;
 };

@@ -35,9 +35,6 @@ struct WasmCodePointerTableEntry {
   inline void MakeFreelistEntry(uint32_t next_entry_index);
 
   // Load code entrypoint pointer stored in this entry.
-  inline Address GetEntrypoint(uint64_t signature_hash) const;
-
-  // Load code entrypoint pointer stored in this entry.
   inline Address GetEntrypointWithoutSignatureCheck() const;
 
   // Get the index of the next entry on the freelist.
@@ -94,17 +91,11 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   void TearDown();
 
   // Read the entrypoint at a given index.
-  inline Address GetEntrypoint(WasmCodePointer index,
-                               uint64_t signature_hash) const;
-
   inline Address GetEntrypointWithoutSignatureCheck(
       WasmCodePointer index) const;
 
   // Sets the entrypoint of the entry referenced by the given index.
-  // The Unlocked version can be used in loops, but you need to hold a
-  // `WriteScope` while calling it.
-  inline void UpdateEntrypoint(WasmCodePointer index, Address value,
-                               uint64_t signature_hash);
+  // You need to hold a `WriteScope` while calling it.
   inline void UpdateEntrypointUnlocked(WasmCodePointer index, Address value,
                                        uint64_t signature_hash);
   inline void SetEntrypointAndSignature(WasmCodePointer index, Address value,
@@ -145,9 +136,6 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
 
   // Access the Freelist head, retrying if the retry marker is seen.
   V8_INLINE FreelistHead ReadFreelistHead();
-
-  // Allocate an entry either from the freelist or creating a new segment.
-  uint32_t AllocateEntryImpl();
 
   // Atomically link a freelist into the current freelist head.
   V8_INLINE FreelistHead LinkFreelist(FreelistHead new_freelist,

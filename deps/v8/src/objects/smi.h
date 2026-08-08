@@ -47,7 +47,7 @@ class Smi : public AllStatic {
     return Tagged<Smi>(Internals::IntegralToSmi(value));
   }
 
-  // Convert a value from [0, kMaxSmiValue] range to a Smi object.
+  // Convert a value from [0, kSmiMaxValue] range to a Smi object.
   static inline constexpr Tagged<Smi> FromUInt(uint32_t value) {
     DCHECK(Smi::IsValid(value));
     return Tagged<Smi>(Internals::IntegralToSmi(value));

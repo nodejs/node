@@ -120,7 +120,7 @@ MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
   return segmenter;
 }
 
-// ecma402 #sec-Intl.Segmenter.prototype.resolvedOptions
+// https://tc39.es/ecma402/#sec-Intl.Segmenter.prototype.resolvedOptions
 DirectHandle<JSObject> JSSegmenter::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSSegmenter> segmenter) {
   Factory* factory = isolate->factory();

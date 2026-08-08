@@ -219,7 +219,7 @@ class MemoryOptimizationReducer : public Next {
     if (analyzer_->skipped_write_barriers.count(ig_index)) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               skipped_write_barrier_kind_, store.offset,
+               skipped_write_barrier_kind_, store.memory_order(), store.offset,
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.indirect_pointer_tag());
@@ -237,8 +237,8 @@ class MemoryOptimizationReducer : public Next {
             IsSmiDecision::kFalse) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               WriteBarrierKind::kPointerWriteBarrier, store.offset,
-               store.element_size_log2,
+               WriteBarrierKind::kPointerWriteBarrier, store.memory_order(),
+               store.offset, store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.indirect_pointer_tag());
       return V<None>::Invalid();
@@ -361,9 +361,10 @@ class MemoryOptimizationReducer : public Next {
         __ Goto(done);
       }
       if (constant_size || __ Bind(call_runtime)) {
-        __ SetVariable(
-            result, __ template Call<HeapObject>(allocate_builtin, {size},
-                                                 AllocateBuiltinDescriptor()));
+        __ SetVariable(result,
+                       __ template Call<HeapObject>(allocate_builtin, {size},
+                                                    AllocateBuiltinDescriptor(),
+                                                    OpEffects().CanAllocate()));
         __ Goto(done);
       }
 
@@ -395,7 +396,8 @@ class MemoryOptimizationReducer : public Next {
     // Call the runtime if bump pointer area exhausted.
     if (__ Bind(call_runtime)) {
       V<HeapObject> allocated = __ template Call<HeapObject>(
-          allocate_builtin, {reservation_size}, AllocateBuiltinDescriptor());
+          allocate_builtin, {reservation_size}, AllocateBuiltinDescriptor(),
+          OpEffects().CanAllocate());
       __ SetVariable(top(type),
                      __ WordPtrSub(__ BitcastHeapObjectToWordPtr(allocated),
                                    __ IntPtrConstant(kHeapObjectTag)));

@@ -81,6 +81,8 @@ class WasmGCTypeAnalyzer {
   void ProcessAssertNotNull(const AssertNotNullOp& type_cast);
   void ProcessNull(const NullOp& null);
   void ProcessIsNull(const IsNullOp& is_null);
+  void ProcessAnyConvertExtern(const AnyConvertExternOp& any_convert_extern);
+  void ProcessExternConvertAny(const ExternConvertAnyOp& extern_convert_any);
   void ProcessParameter(const ParameterOp& parameter);
   void ProcessStructGet(const StructGetOp& struct_get);
   void ProcessStructSet(const StructSetOp& struct_set);
@@ -178,7 +180,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       return;
     }
 
-    if (type.is_shared()) {
+    if (type.is_shared() == SharedFlag::kYes) {
       // TODO(mliedtke): Extend this for shared types.
       return;
     }
@@ -203,8 +205,9 @@ class WasmGCTypedOptimizationReducer : public Next {
       return;
     }
 
-    if (type.is_string_view()) {
-      // String views aren't castable.
+    if (type.is_string_view() ||
+        (type.is_ref() && type.ref_type_kind() == wasm::RefTypeKind::kCont)) {
+      // String views and continuation types aren't castable.
       return;
     }
 
@@ -263,8 +266,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapIllegalCast);
-      __ Unreachable();
+      __ WasmTrap(TrapId::kTrapIllegalCast);
       return OpIndex::Invalid();
     }
     if (type != wasm::ValueType()) {
@@ -400,8 +402,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, assert_not_null.trap_id);
-      __ Unreachable();
+      __ WasmTrap(assert_not_null.trap_id);
       return OpIndex::Invalid();
     }
     if (type.is_non_nullable()) {
@@ -455,8 +456,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapNullDereference);
-      __ Unreachable();
+      __ WasmTrap(TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -484,8 +484,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // always trap. In either case emitting an unconditional trap to increase
       // the chances of logic errors just leading to wrong behaviors but not
       // resulting in security issues.
-      __ TrapIf(1, TrapId::kTrapNullDereference);
-      __ Unreachable();
+      __ WasmTrap(TrapId::kTrapNullDereference);
       return OpIndex::Invalid();
     }
     // Remove the null check if it is known to be not null.
@@ -493,7 +492,8 @@ class WasmGCTypedOptimizationReducer : public Next {
       __ StructSet(__ MapToNewGraph(struct_set.object()),
                    __ MapToNewGraph(struct_set.value()), struct_set.type,
                    struct_set.type_index, struct_set.field_index,
-                   kWithoutNullCheck, struct_set.memory_order);
+                   kWithoutNullCheck, struct_set.memory_order,
+                   struct_set.write_barrier);
       return OpIndex::Invalid();
     }
     goto no_change;
@@ -511,16 +511,62 @@ class WasmGCTypedOptimizationReducer : public Next {
     // Remove the null check if it is known to be not null.
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
+                            __ MapToNewGraph(array_length.frame_state()),
                             kWithoutNullCheck);
+    }
+    goto no_change;
+  }
+
+  V<Object> REDUCE_INPUT_GRAPH(AnyConvertExtern)(
+      V<Object> op_idx, const AnyConvertExternOp& any_convert_extern) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphAnyConvertExtern(op_idx, any_convert_extern);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(any_convert_extern.object(), type);
+
+    if (type.is_uninhabited()) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+
+    if (any_convert_extern.is_nullable && type.is_non_nullable()) {
+      return __ AnyConvertExtern(__ MapToNewGraph(any_convert_extern.object()),
+                                 any_convert_extern.is_shared, false);
+    }
+    goto no_change;
+  }
+
+  V<Object> REDUCE_INPUT_GRAPH(ExternConvertAny)(
+      V<Object> op_idx, const ExternConvertAnyOp& extern_convert_any) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphExternConvertAny(op_idx, extern_convert_any);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(extern_convert_any.object(), type);
+
+    if (type.is_uninhabited()) {
+      __ Unreachable();
+      return OpIndex::Invalid();
+    }
+
+    if (extern_convert_any.is_nullable && type.is_non_nullable()) {
+      return __ ExternConvertAny(__ MapToNewGraph(extern_convert_any.object()),
+                                 false);
     }
     goto no_change;
   }
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, bool is_shared) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, SharedFlag is_shared,
+                                     bool is_nullable) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceAnyConvertExtern(object, is_shared);
+      return Next::ReduceAnyConvertExtern(object, is_shared, is_nullable);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 

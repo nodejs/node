@@ -149,13 +149,14 @@ class LineEndsWrapper {
       : ends_array_(String::CalculateLineEnds(isolate, string, false)),
         string_len_(string->length()) {}
   int length() {
-    return ends_array_->length() + 1;
+    // TODO(375937549): Consider returning uint32_t.
+    return static_cast<int>(ends_array_->ulength().value() + 1);
   }
   // Returns start for any line including start of the imaginary line after
   // the last line.
   int GetLineStart(int index) { return index == 0 ? 0 : GetLineEnd(index - 1); }
   int GetLineEnd(int index) {
-    if (index == ends_array_->length()) {
+    if (static_cast<uint32_t>(index) == ends_array_->ulength().value()) {
       // End of the last line is always an end of the whole string.
       // If the string ends with a new line character, the last line is an
       // empty string after this character.
@@ -811,7 +812,7 @@ Tagged<ScopeInfo> FindOuterScopeInfoFromScriptSfi(Isolate* isolate,
   // technically the EVAL_SCOPE must have an outer_scope_info. But, the GC can
   // clean up some ScopeInfos it thinks are no longer needed. Abort the check
   // in that case.
-  if (!other_scope_info->HasOuterScopeInfo()) return ScopeInfo();
+  if (!other_scope_info->HasOuterScopeInfo()) return {};
 
   DCHECK_EQ(other_scope_info->scope_type(), EVAL_SCOPE);
   other_scope_info = other_scope_info->OuterScopeInfo();
@@ -830,23 +831,16 @@ MaybeDirectHandle<ScopeInfo> DetermineOuterScopeInfo(
     Isolate* isolate, DirectHandle<Script> script) {
   if (!script->has_eval_from_shared()) return kNullMaybeHandle;
   DCHECK_EQ(script->compilation_type(), Script::CompilationType::kEval);
-  Tagged<ScopeInfo> scope_info = script->eval_from_shared()->scope_info();
-  // Sloppy eval compiles use the ScopeInfo of the context. Let's find it.
-  while (!scope_info->IsEmpty()) {
-    if (scope_info->HasContext()) {
+  if (script->has_eval_from_scope_info()) {
+    Tagged<ScopeInfo> scope_info =
+        Cast<ScopeInfo>(script->eval_from_scope_info());
 #ifdef DEBUG
-      Tagged<ScopeInfo> other_scope_info =
-          FindOuterScopeInfoFromScriptSfi(isolate, script);
-      DCHECK_IMPLIES(!other_scope_info.is_null(),
-                     scope_info == other_scope_info);
+    Tagged<ScopeInfo> other_scope_info =
+        FindOuterScopeInfoFromScriptSfi(isolate, script);
+    DCHECK_IMPLIES(!other_scope_info.is_null(), scope_info == other_scope_info);
 #endif
-      return direct_handle(scope_info, isolate);
-    } else if (!scope_info->HasOuterScopeInfo()) {
-      break;
-    }
-    scope_info = scope_info->OuterScopeInfo();
+    return direct_handle(scope_info, isolate);
   }
-
   return kNullMaybeHandle;
 }
 
@@ -886,6 +880,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   UnoptimizedCompileState new_compile_state;
   UnoptimizedCompileFlags new_flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *new_script);
+  new_flags.set_is_hoisted_in_context(flags.is_hoisted_in_context());
   new_flags.set_is_eager(true);
   ParseInfo new_parse_info(isolate, new_flags, &new_compile_state,
                            &reusable_state);
@@ -988,7 +983,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     if (!sfi->HasBytecodeArray()) continue;
     Tagged<TrustedFixedArray> constants =
         sfi->GetBytecodeArray(isolate)->constant_pool();
-    for (int i = 0; i < constants->length(); ++i) {
+    uint32_t constants_len = constants->ulength().value();
+    for (uint32_t i = 0; i < constants_len; ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
       data = nullptr;
       if (!function_data_map.Lookup(Cast<SharedFunctionInfo>(constants->get(i)),
@@ -1027,7 +1023,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
           *isolate->factory()->many_closures_cell());
       auto code = handle(new_sfi->GetCode(isolate), isolate);
       JSFunction::AllocateDispatchHandle(
-          js_function, isolate,
+          direct_handle(js_function), isolate,
           new_sfi->internal_formal_parameter_count_with_receiver(), code);
       js_function->set_shared(*new_sfi);
 
@@ -1044,7 +1040,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     if (!sfi->HasBytecodeArray()) continue;
     Tagged<TrustedFixedArray> constants =
         sfi->GetBytecodeArray(isolate)->constant_pool();
-    for (int i = 0; i < constants->length(); ++i) {
+    uint32_t constants_len = constants->ulength().value();
+    for (uint32_t i = 0; i < constants_len; ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
       Tagged<SharedFunctionInfo> inner_sfi =
           Cast<SharedFunctionInfo>(constants->get(i));
@@ -1079,7 +1076,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     for (Tagged<SharedFunctionInfo> sfi = script_it.Next(); !sfi.is_null();
          sfi = script_it.Next()) {
       DCHECK_EQ(sfi->script(), *new_script);
-      DCHECK_EQ(sfi->function_literal_id(kRelaxedLoad),
+      DCHECK_EQ(static_cast<uint32_t>(sfi->function_literal_id(kRelaxedLoad)),
                 script_it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.
@@ -1095,7 +1092,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // scripts function list.
       Tagged<TrustedFixedArray> constants =
           sfi->GetBytecodeArray(isolate)->constant_pool();
-      for (int i = 0; i < constants->length(); ++i) {
+      uint32_t constants_len = constants->ulength().value();
+      for (uint32_t i = 0; i < constants_len; ++i) {
         if (!IsSharedFunctionInfo(constants->get(i))) continue;
         Tagged<SharedFunctionInfo> inner_sfi =
             Cast<SharedFunctionInfo>(constants->get(i));

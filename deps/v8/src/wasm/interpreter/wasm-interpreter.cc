@@ -21,7 +21,6 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/interpreter/wasm-interpreter-inl.h"
 #include "src/wasm/interpreter/wasm-interpreter-runtime-inl.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/zone/zone.h"
@@ -94,6 +93,99 @@ using float32x4 = Simd128::float32x4;
     EMIT_INSTR_HANDLER_WITH_PC(mem64_name, pc);                             \
   } else {                                                                  \
     EMIT_INSTR_HANDLER_WITH_PC(name, pc);                                   \
+  }
+
+#define EMIT_MULTI_MEM64_INSTR_HANDLER(name, is_memory64) \
+  if (V8_UNLIKELY(is_multi_memory_)) {                    \
+    if (V8_UNLIKELY(is_memory64)) {                       \
+      EMIT_INSTR_HANDLER(name##_MultiMem64);              \
+    } else {                                              \
+      EMIT_INSTR_HANDLER(name##_MultiMem);                \
+    }                                                     \
+  } else {                                                \
+    if (V8_UNLIKELY(is_memory64)) {                       \
+      EMIT_INSTR_HANDLER(name##_Mem64);                   \
+    } else {                                              \
+      EMIT_INSTR_HANDLER(name);                           \
+    }                                                     \
+  }
+
+#define EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(name, is_memory64, pc) \
+  if (V8_UNLIKELY(is_multi_memory_)) {                                \
+    if (V8_UNLIKELY(is_memory64)) {                                   \
+      EMIT_INSTR_HANDLER_WITH_PC(name##_MultiMem64, pc);              \
+    } else {                                                          \
+      EMIT_INSTR_HANDLER_WITH_PC(name##_MultiMem, pc);                \
+    }                                                                 \
+  } else {                                                            \
+    if (V8_UNLIKELY(is_memory64)) {                                   \
+      EMIT_INSTR_HANDLER_WITH_PC(name##_Mem64, pc);                   \
+    } else {                                                          \
+      EMIT_INSTR_HANDLER_WITH_PC(name, pc);                           \
+    }                                                                 \
+  }
+
+#define EMIT_MEM_MEM_INSTR_HANDLER(name, is_memory64_load, is_memory64_store) \
+  if (V8_UNLIKELY(is_memory64_load)) {                                        \
+    if (V8_UNLIKELY(is_memory64_store)) {                                     \
+      EMIT_INSTR_HANDLER(name##_Idx64);                                       \
+    } else {                                                                  \
+      EMIT_INSTR_HANDLER(name##_Idx64_Idx32);                                 \
+    }                                                                         \
+  } else {                                                                    \
+    if (V8_UNLIKELY(is_memory64_store)) {                                     \
+      EMIT_INSTR_HANDLER(name##_Idx32_Idx64);                                 \
+    } else {                                                                  \
+      EMIT_INSTR_HANDLER(name);                                               \
+    }                                                                         \
+  }
+
+#define EMIT_MEM_MEM_INSTR_HANDLER_WITH_PC(name, is_memory64_load, \
+                                           is_memory64_store, pc)  \
+  if (V8_UNLIKELY(is_memory64_load)) {                             \
+    if (V8_UNLIKELY(is_memory64_store)) {                          \
+      EMIT_INSTR_HANDLER_WITH_PC(name##_Mem64, pc);                \
+    } else {                                                       \
+      EMIT_INSTR_HANDLER_WITH_PC(name##_Idx64_Idx32, pc);          \
+    }                                                              \
+  } else {                                                         \
+    if (V8_UNLIKELY(is_memory64_store)) {                          \
+      EMIT_INSTR_HANDLER_WITH_PC(name##_Idx32_Idx64, pc);          \
+    } else {                                                       \
+      EMIT_INSTR_HANDLER_WITH_PC(name, pc);                        \
+    }                                                              \
+  }
+
+#define DECLARE_MEM_VARIANT_INTERNAL(NAME, TEMPLATE_FUNC, MEMIDX, OFFSETT, \
+                                     MULTI, ...)                           \
+  static auto constexpr NAME =                                             \
+      TEMPLATE_FUNC<__VA_ARGS__ __VA_OPT__(, ) MEMIDX, OFFSETT, MULTI>
+
+#define DECLARE_MEM64_VARIANTS(NAME, TEMPLATE_FUNC, ...)                   \
+  DECLARE_MEM_VARIANT_INTERNAL(NAME##_Mem64, TEMPLATE_FUNC, uint64_t,      \
+                               memory_offset64_t, false, __VA_ARGS__);     \
+  DECLARE_MEM_VARIANT_INTERNAL(NAME##_MultiMem, TEMPLATE_FUNC, uint32_t,   \
+                               memory_offset32_t, true, __VA_ARGS__);      \
+  DECLARE_MEM_VARIANT_INTERNAL(NAME##_MultiMem64, TEMPLATE_FUNC, uint64_t, \
+                               memory_offset64_t, true, __VA_ARGS__)
+
+// Super-instructions only support memory0, so only a _Mem64 variant is needed.
+#define DECLARE_MEM64_ONLY_VARIANT(NAME, TEMPLATE_FUNC, ...)          \
+  DECLARE_MEM_VARIANT_INTERNAL(NAME##_Mem64, TEMPLATE_FUNC, uint64_t, \
+                               memory_offset64_t, false, __VA_ARGS__)
+
+#define DECLARE_ALL_MEM_VARIANTS(NAME, TEMPLATE_FUNC, ...)             \
+  DECLARE_MEM_VARIANT_INTERNAL(NAME, TEMPLATE_FUNC, uint32_t,          \
+                               memory_offset32_t, false, __VA_ARGS__); \
+  DECLARE_MEM64_VARIANTS(NAME, TEMPLATE_FUNC, __VA_ARGS__)
+
+// Like EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC but without MultiMem variants.
+// Used for super-instructions that are disabled for multi-memory.
+#define EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(name, is_memory64, pc) \
+  if (V8_UNLIKELY(is_memory64)) {                                    \
+    EMIT_INSTR_HANDLER_WITH_PC(name##_Mem64, pc);                    \
+  } else {                                                           \
+    EMIT_INSTR_HANDLER_WITH_PC(name, pc);                            \
   }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -655,7 +747,7 @@ WasmInterpreter::WasmInterpreter(
   // need to use explicit bound checks; memory guard pages only work with 32-bit
   // memories. This could be implemented by allocating a different dispatch
   // table for each instance (probably in the WasmInterpreterRuntime object) and
-  // patching the entries of Load/Store instructions with bultin handlers only
+  // patching the entries of Load/Store instructions with builtin handlers only
   // for instances related to modules that have 32-bit memories. 64-bit memories
   // are not supported yet by DrumBrake.
   base::CallOnce(&init_instruction_table_once, &InitInstructionTableOnce,
@@ -750,9 +842,9 @@ static void PrintAndClearProfilingData() {
 
 #endif  // DRUMBRAKE_ENABLE_PROFILING
 
-static int StructFieldOffset(const StructType* struct_type, int field_index) {
-  return wasm::ObjectAccess::ToTagged(WasmStruct::kHeaderSize +
-                                      struct_type->field_offset(field_index));
+int StructFieldOffset(const StructType* struct_type, int field_index) {
+  return WasmStruct::kHeaderSize + struct_type->field_offset(field_index) -
+         kHeapObjectTag;
 }
 
 InstructionHandler s_unwind_code = InstructionHandler::k_s2s_Unwind;
@@ -819,6 +911,35 @@ class Handlers : public HandlersBase {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
     code += sizeof(slot_offset_t);
     return res;
+  }
+
+  template <bool MultiMem>
+  static inline uint32_t ReadMemoryIndex(const uint8_t*& code) {
+    if constexpr (MultiMem) {
+      return Read<uint32_t>(code);
+    } else {
+      return 0;
+    }
+  }
+
+  template <bool MultiMem>
+  static inline uint8_t* GetMemoryStart(
+      const WasmInterpreterRuntime* wasm_runtime, const uint32_t memory_index) {
+    if constexpr (MultiMem) {
+      return wasm_runtime->GetMemoryStart(memory_index);
+    } else {
+      return wasm_runtime->GetMemoryStart();
+    }
+  }
+
+  template <bool MultiMem>
+  static inline size_t GetMemorySize(const WasmInterpreterRuntime* wasm_runtime,
+                                     const uint32_t memory_index) {
+    if constexpr (MultiMem) {
+      return wasm_runtime->GetMemorySize(memory_index);
+    } else {
+      return wasm_runtime->GetMemorySize();
+    }
   }
 
   // Returns the maximum of the two parameters according to JavaScript
@@ -933,8 +1054,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    r0 = base::ReadUnalignedValue<IntT>(reinterpret_cast<Address>(src_addr));
+    Address src_addr = wasm_runtime->GetGlobalAddress(index);
+    r0 = base::ReadUnalignedValue<IntT>(src_addr);
 
     NextOp();
   }
@@ -946,8 +1067,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    fp0 = base::ReadUnalignedValue<FloatT>(reinterpret_cast<Address>(src_addr));
+    Address src_addr = wasm_runtime->GetGlobalAddress(index);
+    fp0 = base::ReadUnalignedValue<FloatT>(src_addr);
 
     NextOp();
   }
@@ -959,9 +1080,8 @@ class Handlers : public HandlersBase {
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* src_addr = wasm_runtime->GetGlobalAddress(index);
-    push<T>(sp, code, wasm_runtime,
-            base::ReadUnalignedValue<T>(reinterpret_cast<Address>(src_addr)));
+    Address src_addr = wasm_runtime->GetGlobalAddress(index);
+    push<T>(sp, code, wasm_runtime, base::ReadUnalignedValue<T>(src_addr));
 
     NextOp();
   }
@@ -988,9 +1108,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
-    base::WriteUnalignedValue<IntT>(reinterpret_cast<Address>(dst_addr),
-                                    static_cast<IntT>(r0));  // r0: value
+    Address dst_addr = wasm_runtime->GetGlobalAddress(index);
+    base::WriteUnalignedValue<IntT>(dst_addr, static_cast<IntT>(r0));
     NextOp();
   }
   static auto constexpr r2s_I32GlobalSet = r2s_GlobalSetI<int32_t>;
@@ -1001,9 +1120,8 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
-    base::WriteUnalignedValue<FloatT>(reinterpret_cast<Address>(dst_addr),
-                                      static_cast<FloatT>(fp0));  // fp0: value
+    Address dst_addr = wasm_runtime->GetGlobalAddress(index);
+    base::WriteUnalignedValue<FloatT>(dst_addr, static_cast<FloatT>(fp0));
     NextOp();
   }
   static auto constexpr r2s_F32GlobalSet = r2s_GlobalSetF<float>;
@@ -1014,9 +1132,8 @@ class Handlers : public HandlersBase {
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     uint32_t index = ReadGlobalIndex(code);
-    uint8_t* dst_addr = wasm_runtime->GetGlobalAddress(index);
-    base::WriteUnalignedValue<T>(reinterpret_cast<Address>(dst_addr),
-                                 pop<T>(sp, code, wasm_runtime));
+    Address dst_addr = wasm_runtime->GetGlobalAddress(index);
+    base::WriteUnalignedValue<T>(dst_addr, pop<T>(sp, code, wasm_runtime));
     NextOp();
   }
   static auto constexpr s2s_I32GlobalSet = s2s_GlobalSet<int32_t>;
@@ -1080,19 +1197,21 @@ class Handlers : public HandlersBase {
   // LoadMem
 
   template <typename IntT, typename IntU = IntT, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC r2r_LoadMemI(const uint8_t* code, uint32_t* sp,
                                         WasmInterpreterRuntime* wasm_runtime,
                                         int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     MemIdx index = static_cast<MemIdx>(r0);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(IntU),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(IntU),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1104,45 +1223,35 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr r2r_I32LoadMem8S_Idx64 =
-      r2r_LoadMemI<int32_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I32LoadMem8U_Idx64 =
-      r2r_LoadMemI<int32_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I32LoadMem16S_Idx64 =
-      r2r_LoadMemI<int32_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I32LoadMem16U_Idx64 =
-      r2r_LoadMemI<int32_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I64LoadMem8S_Idx64 =
-      r2r_LoadMemI<int64_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I64LoadMem8U_Idx64 =
-      r2r_LoadMemI<int64_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I64LoadMem16S_Idx64 =
-      r2r_LoadMemI<int64_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I64LoadMem16U_Idx64 =
-      r2r_LoadMemI<int64_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I64LoadMem32S_Idx64 =
-      r2r_LoadMemI<int64_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I64LoadMem32U_Idx64 =
-      r2r_LoadMemI<int64_t, uint32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I32LoadMem_Idx64 =
-      r2r_LoadMemI<int32_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_I64LoadMem_Idx64 =
-      r2r_LoadMemI<int64_t, int64_t, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(r2r_I32LoadMem8S, r2r_LoadMemI, int32_t, int8_t);
+  DECLARE_MEM64_VARIANTS(r2r_I32LoadMem8U, r2r_LoadMemI, int32_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(r2r_I32LoadMem16S, r2r_LoadMemI, int32_t, int16_t);
+  DECLARE_MEM64_VARIANTS(r2r_I32LoadMem16U, r2r_LoadMemI, int32_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(r2r_I64LoadMem8S, r2r_LoadMemI, int64_t, int8_t);
+  DECLARE_MEM64_VARIANTS(r2r_I64LoadMem8U, r2r_LoadMemI, int64_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(r2r_I64LoadMem16S, r2r_LoadMemI, int64_t, int16_t);
+  DECLARE_MEM64_VARIANTS(r2r_I64LoadMem16U, r2r_LoadMemI, int64_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(r2r_I64LoadMem32S, r2r_LoadMemI, int64_t, int32_t);
+  DECLARE_MEM64_VARIANTS(r2r_I64LoadMem32U, r2r_LoadMemI, int64_t, uint32_t);
+  DECLARE_MEM64_VARIANTS(r2r_I32LoadMem, r2r_LoadMemI, int32_t, int32_t);
+  DECLARE_MEM64_VARIANTS(r2r_I64LoadMem, r2r_LoadMemI, int64_t, int64_t);
 
   template <typename FloatT, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC r2r_LoadMemF(const uint8_t* code, uint32_t* sp,
                                         WasmInterpreterRuntime* wasm_runtime,
                                         int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     MemIdx index = static_cast<MemIdx>(r0);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(FloatT),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(FloatT),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1152,25 +1261,25 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr r2r_F32LoadMem_Idx64 =
-      r2r_LoadMemF<float, uint64_t, memory_offset64_t>;
-  static auto constexpr r2r_F64LoadMem_Idx64 =
-      r2r_LoadMemF<double, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(r2r_F32LoadMem, r2r_LoadMemF, float);
+  DECLARE_MEM64_VARIANTS(r2r_F64LoadMem, r2r_LoadMemF, double);
 
   template <typename T, typename U = T, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC r2s_LoadMem(const uint8_t* code, uint32_t* sp,
                                        WasmInterpreterRuntime* wasm_runtime,
                                        int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     MemIdx index = static_cast<MemIdx>(r0);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(U),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(U),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1182,49 +1291,37 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr r2s_I32LoadMem8S_Idx64 =
-      r2s_LoadMem<int32_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I32LoadMem8U_Idx64 =
-      r2s_LoadMem<int32_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I32LoadMem16S_Idx64 =
-      r2s_LoadMem<int32_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I32LoadMem16U_Idx64 =
-      r2s_LoadMem<int32_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadMem8S_Idx64 =
-      r2s_LoadMem<int64_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadMem8U_Idx64 =
-      r2s_LoadMem<int64_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadMem16S_Idx64 =
-      r2s_LoadMem<int64_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadMem16U_Idx64 =
-      r2s_LoadMem<int64_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadMem32S_Idx64 =
-      r2s_LoadMem<int64_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadMem32U_Idx64 =
-      r2s_LoadMem<int64_t, uint32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I32LoadMem_Idx64 =
-      r2s_LoadMem<int32_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadMem_Idx64 =
-      r2s_LoadMem<int64_t, int64_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_F32LoadMem_Idx64 =
-      r2s_LoadMem<float, float, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_F64LoadMem_Idx64 =
-      r2s_LoadMem<double, double, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(r2s_I32LoadMem8S, r2s_LoadMem, int32_t, int8_t);
+  DECLARE_MEM64_VARIANTS(r2s_I32LoadMem8U, r2s_LoadMem, int32_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(r2s_I32LoadMem16S, r2s_LoadMem, int32_t, int16_t);
+  DECLARE_MEM64_VARIANTS(r2s_I32LoadMem16U, r2s_LoadMem, int32_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64LoadMem8S, r2s_LoadMem, int64_t, int8_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64LoadMem8U, r2s_LoadMem, int64_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64LoadMem16S, r2s_LoadMem, int64_t, int16_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64LoadMem16U, r2s_LoadMem, int64_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64LoadMem32S, r2s_LoadMem, int64_t, int32_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64LoadMem32U, r2s_LoadMem, int64_t, uint32_t);
+  DECLARE_MEM64_VARIANTS(r2s_I32LoadMem, r2s_LoadMem, int32_t, int32_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64LoadMem, r2s_LoadMem, int64_t, int64_t);
+  DECLARE_MEM64_VARIANTS(r2s_F32LoadMem, r2s_LoadMem, float, float);
+  DECLARE_MEM64_VARIANTS(r2s_F64LoadMem, r2s_LoadMem, double, double);
 
   template <typename IntT, typename IntU = IntT, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2r_LoadMemI(const uint8_t* code, uint32_t* sp,
                                         WasmInterpreterRuntime* wasm_runtime,
                                         int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(IntU),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(IntU),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1235,45 +1332,35 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2r_I32LoadMem8S_Idx64 =
-      s2r_LoadMemI<int32_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I32LoadMem8U_Idx64 =
-      s2r_LoadMemI<int32_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I32LoadMem16S_Idx64 =
-      s2r_LoadMemI<int32_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I32LoadMem16U_Idx64 =
-      s2r_LoadMemI<int32_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I64LoadMem8S_Idx64 =
-      s2r_LoadMemI<int64_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I64LoadMem8U_Idx64 =
-      s2r_LoadMemI<int64_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I64LoadMem16S_Idx64 =
-      s2r_LoadMemI<int64_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I64LoadMem16U_Idx64 =
-      s2r_LoadMemI<int64_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I64LoadMem32S_Idx64 =
-      s2r_LoadMemI<int64_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I64LoadMem32U_Idx64 =
-      s2r_LoadMemI<int64_t, uint32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I32LoadMem_Idx64 =
-      s2r_LoadMemI<int32_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_I64LoadMem_Idx64 =
-      s2r_LoadMemI<int64_t, int64_t, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(s2r_I32LoadMem8S, s2r_LoadMemI, int32_t, int8_t);
+  DECLARE_MEM64_VARIANTS(s2r_I32LoadMem8U, s2r_LoadMemI, int32_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(s2r_I32LoadMem16S, s2r_LoadMemI, int32_t, int16_t);
+  DECLARE_MEM64_VARIANTS(s2r_I32LoadMem16U, s2r_LoadMemI, int32_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(s2r_I64LoadMem8S, s2r_LoadMemI, int64_t, int8_t);
+  DECLARE_MEM64_VARIANTS(s2r_I64LoadMem8U, s2r_LoadMemI, int64_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(s2r_I64LoadMem16S, s2r_LoadMemI, int64_t, int16_t);
+  DECLARE_MEM64_VARIANTS(s2r_I64LoadMem16U, s2r_LoadMemI, int64_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(s2r_I64LoadMem32S, s2r_LoadMemI, int64_t, int32_t);
+  DECLARE_MEM64_VARIANTS(s2r_I64LoadMem32U, s2r_LoadMemI, int64_t, uint32_t);
+  DECLARE_MEM64_VARIANTS(s2r_I32LoadMem, s2r_LoadMemI, int32_t, int32_t);
+  DECLARE_MEM64_VARIANTS(s2r_I64LoadMem, s2r_LoadMemI, int64_t, int64_t);
 
   template <typename FloatT, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2r_LoadMemF(const uint8_t* code, uint32_t* sp,
                                         WasmInterpreterRuntime* wasm_runtime,
                                         int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(FloatT),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(FloatT),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1284,25 +1371,25 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2r_F32LoadMem_Idx64 =
-      s2r_LoadMemF<float, uint64_t, memory_offset64_t>;
-  static auto constexpr s2r_F64LoadMem_Idx64 =
-      s2r_LoadMemF<double, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(s2r_F32LoadMem, s2r_LoadMemF, float);
+  DECLARE_MEM64_VARIANTS(s2r_F64LoadMem, s2r_LoadMemF, double);
 
   template <typename T, typename U = T, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_LoadMem(const uint8_t* code, uint32_t* sp,
                                        WasmInterpreterRuntime* wasm_runtime,
                                        int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(U),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(U),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1314,34 +1401,20 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_I32LoadMem8S_Idx64 =
-      s2s_LoadMem<int32_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem8U_Idx64 =
-      s2s_LoadMem<int32_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem16S_Idx64 =
-      s2s_LoadMem<int32_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem16U_Idx64 =
-      s2s_LoadMem<int32_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem8S_Idx64 =
-      s2s_LoadMem<int64_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem8U_Idx64 =
-      s2s_LoadMem<int64_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem16S_Idx64 =
-      s2s_LoadMem<int64_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem16U_Idx64 =
-      s2s_LoadMem<int64_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem32S_Idx64 =
-      s2s_LoadMem<int64_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem32U_Idx64 =
-      s2s_LoadMem<int64_t, uint32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem_Idx64 =
-      s2s_LoadMem<int32_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem_Idx64 =
-      s2s_LoadMem<int64_t, int64_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F32LoadMem_Idx64 =
-      s2s_LoadMem<float, float, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F64LoadMem_Idx64 =
-      s2s_LoadMem<double, double, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(s2s_I32LoadMem8S, s2s_LoadMem, int32_t, int8_t);
+  DECLARE_MEM64_VARIANTS(s2s_I32LoadMem8U, s2s_LoadMem, int32_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(s2s_I32LoadMem16S, s2s_LoadMem, int32_t, int16_t);
+  DECLARE_MEM64_VARIANTS(s2s_I32LoadMem16U, s2s_LoadMem, int32_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64LoadMem8S, s2s_LoadMem, int64_t, int8_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64LoadMem8U, s2s_LoadMem, int64_t, uint8_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64LoadMem16S, s2s_LoadMem, int64_t, int16_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64LoadMem16U, s2s_LoadMem, int64_t, uint16_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64LoadMem32S, s2s_LoadMem, int64_t, int32_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64LoadMem32U, s2s_LoadMem, int64_t, uint32_t);
+  DECLARE_MEM64_VARIANTS(s2s_I32LoadMem, s2s_LoadMem, int32_t, int32_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64LoadMem, s2s_LoadMem, int64_t, int64_t);
+  DECLARE_MEM64_VARIANTS(s2s_F32LoadMem, s2s_LoadMem, float, float);
+  DECLARE_MEM64_VARIANTS(s2s_F64LoadMem, s2s_LoadMem, double, double);
 
   // LoadMem_LocalSet
   template <typename T, typename U = T, typename MemIdx = uint32_t,
@@ -1371,52 +1444,54 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_I32LoadMem8S_LocalSet_Idx64 =
+  static auto constexpr s2s_I32LoadMem8S_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int32_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem8U_LocalSet_Idx64 =
+  static auto constexpr s2s_I32LoadMem8U_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int32_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem16S_LocalSet_Idx64 =
+  static auto constexpr s2s_I32LoadMem16S_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int32_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem16U_LocalSet_Idx64 =
+  static auto constexpr s2s_I32LoadMem16U_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int32_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem8S_LocalSet_Idx64 =
+  static auto constexpr s2s_I64LoadMem8S_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int64_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem8U_LocalSet_Idx64 =
+  static auto constexpr s2s_I64LoadMem8U_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int64_t, uint8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem16S_LocalSet_Idx64 =
+  static auto constexpr s2s_I64LoadMem16S_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int64_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem16U_LocalSet_Idx64 =
+  static auto constexpr s2s_I64LoadMem16U_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int64_t, uint16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem32S_LocalSet_Idx64 =
+  static auto constexpr s2s_I64LoadMem32S_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int64_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem32U_LocalSet_Idx64 =
+  static auto constexpr s2s_I64LoadMem32U_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int64_t, uint32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32LoadMem_LocalSet_Idx64 =
+  static auto constexpr s2s_I32LoadMem_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int32_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadMem_LocalSet_Idx64 =
+  static auto constexpr s2s_I64LoadMem_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<int64_t, int64_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F32LoadMem_LocalSet_Idx64 =
+  static auto constexpr s2s_F32LoadMem_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<float, float, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F64LoadMem_LocalSet_Idx64 =
+  static auto constexpr s2s_F64LoadMem_LocalSet_Mem64 =
       s2s_LoadMem_LocalSet<double, double, uint64_t, memory_offset64_t>;
 
   // StoreMem
   template <typename IntT, typename IntU = IntT, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC r2s_StoreMemI(const uint8_t* code, uint32_t* sp,
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     IntT value = static_cast<IntT>(r0);
 
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(IntU),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(IntU),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1428,37 +1503,32 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr r2s_I32StoreMem8_Idx64 =
-      r2s_StoreMemI<int32_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I32StoreMem16_Idx64 =
-      r2s_StoreMemI<int32_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64StoreMem8_Idx64 =
-      r2s_StoreMemI<int64_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64StoreMem16_Idx64 =
-      r2s_StoreMemI<int64_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64StoreMem32_Idx64 =
-      r2s_StoreMemI<int64_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I32StoreMem_Idx64 =
-      r2s_StoreMemI<int32_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64StoreMem_Idx64 =
-      r2s_StoreMemI<int64_t, int64_t, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(r2s_I32StoreMem8, r2s_StoreMemI, int32_t, int8_t);
+  DECLARE_MEM64_VARIANTS(r2s_I32StoreMem16, r2s_StoreMemI, int32_t, int16_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64StoreMem8, r2s_StoreMemI, int64_t, int8_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64StoreMem16, r2s_StoreMemI, int64_t, int16_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64StoreMem32, r2s_StoreMemI, int64_t, int32_t);
+  DECLARE_MEM64_VARIANTS(r2s_I32StoreMem, r2s_StoreMemI, int32_t, int32_t);
+  DECLARE_MEM64_VARIANTS(r2s_I64StoreMem, r2s_StoreMemI, int64_t, int64_t);
 
   template <typename FloatT, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC r2s_StoreMemF(const uint8_t* code, uint32_t* sp,
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     FloatT value = static_cast<FloatT>(fp0);
 
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(FloatT),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(FloatT),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1470,27 +1540,27 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr r2s_F32StoreMem_Idx64 =
-      r2s_StoreMemF<float, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_F64StoreMem_Idx64 =
-      r2s_StoreMemF<double, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(r2s_F32StoreMem, r2s_StoreMemF, float);
+  DECLARE_MEM64_VARIANTS(r2s_F64StoreMem, r2s_StoreMemF, double);
 
   template <typename T, typename U = T, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_StoreMem(const uint8_t* code, uint32_t* sp,
                                         WasmInterpreterRuntime* wasm_runtime,
                                         int64_t r0, double fp0) {
     T value = pop<T>(sp, code, wasm_runtime);
 
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     MemOffsetT offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(U),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(U),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1502,24 +1572,15 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_I32StoreMem8_Idx64 =
-      s2s_StoreMem<int32_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32StoreMem16_Idx64 =
-      s2s_StoreMem<int32_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64StoreMem8_Idx64 =
-      s2s_StoreMem<int64_t, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64StoreMem16_Idx64 =
-      s2s_StoreMem<int64_t, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64StoreMem32_Idx64 =
-      s2s_StoreMem<int64_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I32StoreMem_Idx64 =
-      s2s_StoreMem<int32_t, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64StoreMem_Idx64 =
-      s2s_StoreMem<int64_t, int64_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F32StoreMem_Idx64 =
-      s2s_StoreMem<float, float, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F64StoreMem_Idx64 =
-      s2s_StoreMem<double, double, uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(s2s_I32StoreMem8, s2s_StoreMem, int32_t, int8_t);
+  DECLARE_MEM64_VARIANTS(s2s_I32StoreMem16, s2s_StoreMem, int32_t, int16_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64StoreMem8, s2s_StoreMem, int64_t, int8_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64StoreMem16, s2s_StoreMem, int64_t, int16_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64StoreMem32, s2s_StoreMem, int64_t, int32_t);
+  DECLARE_MEM64_VARIANTS(s2s_I32StoreMem, s2s_StoreMem, int32_t, int32_t);
+  DECLARE_MEM64_VARIANTS(s2s_I64StoreMem, s2s_StoreMem, int64_t, int64_t);
+  DECLARE_MEM64_VARIANTS(s2s_F32StoreMem, s2s_StoreMem, float, float);
+  DECLARE_MEM64_VARIANTS(s2s_F64StoreMem, s2s_StoreMem, double, double);
 
   // LoadStoreMem
   template <typename T, typename MemIdx = uint32_t,
@@ -1556,13 +1617,13 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr r2s_I32LoadStoreMem_Idx64 =
+  static auto constexpr r2s_I32LoadStoreMem_Mem64 =
       r2s_LoadStoreMem<int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_I64LoadStoreMem_Idx64 =
+  static auto constexpr r2s_I64LoadStoreMem_Mem64 =
       r2s_LoadStoreMem<int64_t, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_F32LoadStoreMem_Idx64 =
+  static auto constexpr r2s_F32LoadStoreMem_Mem64 =
       r2s_LoadStoreMem<float, uint64_t, memory_offset64_t>;
-  static auto constexpr r2s_F64LoadStoreMem_Idx64 =
+  static auto constexpr r2s_F64LoadStoreMem_Mem64 =
       r2s_LoadStoreMem<double, uint64_t, memory_offset64_t>;
 
   template <typename T, typename MemIdx = uint32_t,
@@ -1599,13 +1660,13 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_I32LoadStoreMem_Idx64 =
+  static auto constexpr s2s_I32LoadStoreMem_Mem64 =
       s2s_LoadStoreMem<int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_I64LoadStoreMem_Idx64 =
+  static auto constexpr s2s_I64LoadStoreMem_Mem64 =
       s2s_LoadStoreMem<int64_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F32LoadStoreMem_Idx64 =
+  static auto constexpr s2s_F32LoadStoreMem_Mem64 =
       s2s_LoadStoreMem<float, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_F64LoadStoreMem_Idx64 =
+  static auto constexpr s2s_F64LoadStoreMem_Mem64 =
       s2s_LoadStoreMem<double, uint64_t, memory_offset64_t>;
 
 #if defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
@@ -2824,9 +2885,10 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2s_MemoryGrow(const uint8_t* code, uint32_t* sp,
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
+    uint32_t memory_index = Read<uint32_t>(code);
     uint32_t delta_pages = pop<uint32_t>(sp, code, wasm_runtime);
 
-    int32_t result = wasm_runtime->MemoryGrow(delta_pages);
+    int32_t result = wasm_runtime->MemoryGrow(memory_index, delta_pages);
 
     push<int32_t>(sp, code, wasm_runtime, result);
 
@@ -2838,10 +2900,12 @@ class Handlers : public HandlersBase {
       int64_t r0, double fp0) {
     int64_t result = -1;
 
+    uint32_t memory_index = Read<uint32_t>(code);
     uint64_t delta_pages = pop<uint64_t>(sp, code, wasm_runtime);
 
     if (delta_pages <= std::numeric_limits<uint32_t>::max()) {
-      result = wasm_runtime->MemoryGrow(static_cast<uint32_t>(delta_pages));
+      result = wasm_runtime->MemoryGrow(memory_index,
+                                        static_cast<uint32_t>(delta_pages));
     }
 
     push<int64_t>(sp, code, wasm_runtime, result);
@@ -2852,7 +2916,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2s_MemorySize(const uint8_t* code, uint32_t* sp,
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
-    uint64_t result = wasm_runtime->MemorySize();
+    uint32_t memory_index = Read<uint32_t>(code);
+    uint64_t result = wasm_runtime->MemorySize(memory_index);
     push<uint32_t>(sp, code, wasm_runtime, static_cast<uint32_t>(result));
 
     NextOp();
@@ -2861,7 +2926,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2s_Memory64Size(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    uint64_t result = wasm_runtime->MemorySize();
+    uint32_t memory_index = Read<uint32_t>(code);
+    uint64_t result = wasm_runtime->MemorySize(memory_index);
     push<uint64_t>(sp, code, wasm_runtime, result);
 
     NextOp();
@@ -3908,12 +3974,14 @@ class Handlers : public HandlersBase {
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
     uint32_t data_segment_index = Read<int32_t>(code);
+    uint32_t memory_index = Read<uint32_t>(code);
     uint64_t size = pop<uint32_t>(sp, code, wasm_runtime);
     uint64_t src = pop<uint32_t>(sp, code, wasm_runtime);
     uint64_t dst = pop<uint32_t>(sp, code, wasm_runtime);
 
     // This function can trap.
-    wasm_runtime->MemoryInit(code, data_segment_index, dst, src, size);
+    wasm_runtime->MemoryInit(code, data_segment_index, memory_index, dst, src,
+                             size);
 
     NextOp();
   }
@@ -3922,12 +3990,14 @@ class Handlers : public HandlersBase {
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     uint32_t data_segment_index = Read<int32_t>(code);
+    uint32_t memory_index = Read<uint32_t>(code);
     uint64_t size = pop<uint32_t>(sp, code, wasm_runtime);
     uint64_t src = pop<uint32_t>(sp, code, wasm_runtime);
     uint64_t dst = pop<uint64_t>(sp, code, wasm_runtime);
 
     // This function can trap.
-    wasm_runtime->MemoryInit(code, data_segment_index, dst, src, size);
+    wasm_runtime->MemoryInit(code, data_segment_index, memory_index, dst, src,
+                             size);
 
     NextOp();
   }
@@ -3942,41 +4012,43 @@ class Handlers : public HandlersBase {
     NextOp();
   }
 
-  INSTRUCTION_HANDLER_FUNC s2s_MemoryCopy(const uint8_t* code, uint32_t* sp,
-                                          WasmInterpreterRuntime* wasm_runtime,
-                                          int64_t r0, double fp0) {
-    uint64_t size = pop<uint32_t>(sp, code, wasm_runtime);
-    uint64_t src = pop<uint32_t>(sp, code, wasm_runtime);
-    uint64_t dst = pop<uint32_t>(sp, code, wasm_runtime);
+  template <typename SrcMemType = uint32_t, typename DstMemType = uint32_t,
+            typename SizeType = uint32_t>
+  INSTRUCTION_HANDLER_FUNC s2s_memory_copy(const uint8_t* code, uint32_t* sp,
+                                           WasmInterpreterRuntime* wasm_runtime,
+                                           int64_t r0, double fp0) {
+    uint32_t dst_memory_index = Read<int32_t>(code);
+    uint32_t src_memory_index = Read<int32_t>(code);
+    SizeType size = pop<SizeType>(sp, code, wasm_runtime);
+    SrcMemType src = pop<SrcMemType>(sp, code, wasm_runtime);
+    DstMemType dst = pop<DstMemType>(sp, code, wasm_runtime);
 
     // This function can trap.
-    wasm_runtime->MemoryCopy(code, dst, src, size);
+    wasm_runtime->MemoryCopy(code, dst_memory_index, src_memory_index, dst, src,
+                             size);
 
     NextOp();
   }
 
-  INSTRUCTION_HANDLER_FUNC s2s_Memory64Copy(
-      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
-      int64_t r0, double fp0) {
-    uint64_t size = pop<uint64_t>(sp, code, wasm_runtime);
-    uint64_t value = pop<uint64_t>(sp, code, wasm_runtime);
-    uint64_t dst = pop<uint64_t>(sp, code, wasm_runtime);
-
-    // This function can trap.
-    wasm_runtime->MemoryCopy(code, dst, value, size);
-
-    NextOp();
-  }
+  static auto constexpr s2s_MemoryCopy =
+      s2s_memory_copy<uint32_t, uint32_t, uint32_t>;
+  static auto constexpr s2s_MemoryCopy_Idx32_Idx64 =
+      s2s_memory_copy<uint32_t, uint64_t, uint32_t>;
+  static auto constexpr s2s_MemoryCopy_Idx64_Idx32 =
+      s2s_memory_copy<uint64_t, uint32_t, uint32_t>;
+  static auto constexpr s2s_MemoryCopy_Mem64 =
+      s2s_memory_copy<uint64_t, uint64_t, uint64_t>;
 
   INSTRUCTION_HANDLER_FUNC s2s_MemoryFill(const uint8_t* code, uint32_t* sp,
                                           WasmInterpreterRuntime* wasm_runtime,
                                           int64_t r0, double fp0) {
+    uint32_t memory_index = Read<uint32_t>(code);
     uint64_t size = pop<uint32_t>(sp, code, wasm_runtime);
     uint32_t value = pop<uint32_t>(sp, code, wasm_runtime);
     uint64_t dst = pop<uint32_t>(sp, code, wasm_runtime);
 
     // This function can trap.
-    wasm_runtime->MemoryFill(code, dst, value, size);
+    wasm_runtime->MemoryFill(code, memory_index, dst, value, size);
 
     NextOp();
   }
@@ -3984,12 +4056,13 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC s2s_Memory64Fill(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
+    uint32_t memory_index = Read<uint32_t>(code);
     uint64_t size = pop<uint64_t>(sp, code, wasm_runtime);
     uint32_t value = pop<uint32_t>(sp, code, wasm_runtime);
     uint64_t dst = pop<uint64_t>(sp, code, wasm_runtime);
 
     // This function can trap.
-    wasm_runtime->MemoryFill(code, dst, value, size);
+    wasm_runtime->MemoryFill(code, memory_index, dst, value, size);
 
     NextOp();
   }
@@ -4269,13 +4342,15 @@ class Handlers : public HandlersBase {
   //////////////////////////////////////////////////////////////////////////////
   // Atomics operators
 
-  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t>
+  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t,
+            bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_AtomicNotify(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     int32_t val = pop<int32_t>(sp, code, wasm_runtime);
 
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
     // Check alignment.
@@ -4284,22 +4359,28 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapUnalignedAccess)
     }
     // Check bounds.
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(uint64_t),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(uint64_t),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
-    int32_t result = wasm_runtime->AtomicNotify(effective_index, val);
+    int32_t result =
+        wasm_runtime->AtomicNotify(effective_index, memory_index, val);
     push<int32_t>(sp, code, wasm_runtime, result);
 
     NextOp();
   }
-  static auto constexpr s2s_AtomicNotify_Idx64 =
+  static auto constexpr s2s_AtomicNotify_Mem64 =
       s2s_AtomicNotify<uint64_t, memory_offset64_t>;
+  static auto constexpr s2s_AtomicNotify_MultiMem64 =
+      s2s_AtomicNotify<uint64_t, memory_offset64_t, true>;
+  static auto constexpr s2s_AtomicNotify_MultiMem =
+      s2s_AtomicNotify<uint32_t, memory_offset32_t, true>;
 
-  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t>
+  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t,
+            bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_I32AtomicWait(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
@@ -4307,6 +4388,7 @@ class Handlers : public HandlersBase {
     int32_t val = pop<int32_t>(sp, code, wasm_runtime);
 
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
     // Check alignment.
@@ -4315,10 +4397,10 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapUnalignedAccess)
     }
     // Check bounds.
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(uint64_t),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(uint64_t),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
     // Check atomics wait allowed.
@@ -4326,15 +4408,16 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapUnreachable)
     }
 
-    int32_t result = wasm_runtime->I32AtomicWait(effective_index, val, timeout);
+    int32_t result = wasm_runtime->I32AtomicWait(effective_index, memory_index,
+                                                 val, timeout);
     push<int32_t>(sp, code, wasm_runtime, result);
 
     NextOp();
   }
-  static auto constexpr s2s_I32AtomicWait_Idx64 =
-      s2s_I32AtomicWait<uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(s2s_I32AtomicWait, s2s_I32AtomicWait);
 
-  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t>
+  template <typename MemIdx = uint32_t, typename MemOffsetT = memory_offset32_t,
+            bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_I64AtomicWait(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
@@ -4342,6 +4425,7 @@ class Handlers : public HandlersBase {
     int64_t val = pop<int64_t>(sp, code, wasm_runtime);
 
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
     // Check alignment.
@@ -4350,10 +4434,10 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapUnalignedAccess)
     }
     // Check bounds.
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(uint64_t),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(uint64_t),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
     // Check atomics wait allowed.
@@ -4361,13 +4445,13 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapUnreachable)
     }
 
-    int32_t result = wasm_runtime->I64AtomicWait(effective_index, val, timeout);
+    int32_t result = wasm_runtime->I64AtomicWait(effective_index, memory_index,
+                                                 val, timeout);
     push<int32_t>(sp, code, wasm_runtime, result);
 
     NextOp();
   }
-  static auto constexpr s2s_I64AtomicWait_Idx64 =
-      s2s_I64AtomicWait<uint64_t, memory_offset64_t>;
+  DECLARE_MEM64_VARIANTS(s2s_I64AtomicWait, s2s_I64AtomicWait);
 
   INSTRUCTION_HANDLER_FUNC s2s_AtomicFence(const uint8_t* code, uint32_t* sp,
                                            WasmInterpreterRuntime* wasm_runtime,
@@ -4443,13 +4527,14 @@ class Handlers : public HandlersBase {
     std::atomic_exchange)
 
 #define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation)    \
-  template <typename MemIdx, typename MemOffsetT>                              \
+  template <typename MemIdx, typename MemOffsetT, bool MultiMem = false>       \
   INSTRUCTION_HANDLER_FUNC s2s_##name##I(const uint8_t* code, uint32_t* sp,    \
                                          WasmInterpreterRuntime* wasm_runtime, \
                                          int64_t r0, double fp0) {             \
     ctype val = static_cast<ctype>(pop<op_ctype>(sp, code, wasm_runtime));     \
                                                                                \
     uint64_t offset = Read<MemOffsetT>(code);                                  \
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);                   \
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);                      \
     uint64_t effective_index = offset + index;                                 \
     /* Check alignment. */                                                     \
@@ -4459,25 +4544,24 @@ class Handlers : public HandlersBase {
     /* Check bounds. */                                                        \
     if (V8_UNLIKELY(                                                           \
             effective_index < index ||                                         \
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(ctype),        \
-                                        wasm_runtime->GetMemorySize()))) {     \
+            !base::IsInBounds<uint64_t>(                                       \
+                effective_index, sizeof(ctype),                                \
+                GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {       \
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)                           \
     }                                                                          \
     static_assert(sizeof(std::atomic<ctype>) == sizeof(ctype),                 \
                   "Size mismatch for types std::atomic<" #ctype                \
                   ">, and " #ctype);                                           \
                                                                                \
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();                    \
+    uint8_t* memory_start =                                                    \
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);                  \
     uint8_t* address = memory_start + effective_index;                         \
     op_ctype result = static_cast<op_ctype>(                                   \
         operation(reinterpret_cast<std::atomic<ctype>*>(address), val));       \
     push<op_ctype>(sp, code, wasm_runtime, result);                            \
     NextOp();                                                                  \
   }                                                                            \
-  static auto constexpr s2s_##name =                                           \
-      s2s_##name##I<uint32_t, memory_offset32_t>;                              \
-  static auto constexpr s2s_##name##_Idx64 =                                   \
-      s2s_##name##I<uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_##name, s2s_##name##I);
   FOREACH_ATOMIC_BINOP(ATOMIC_BINOP)
 #undef ATOMIC_BINOP
 
@@ -4491,7 +4575,8 @@ class Handlers : public HandlersBase {
   V(I64AtomicCompareExchange32U, Uint32, uint32_t, I32, uint64_t, I64)
 
 #define ATOMIC_COMPARE_EXCHANGE_OP(name, Type, ctype, type, op_ctype, op_type) \
-  template <typename MemIdx = uint32_t, typename MemOffsetT>                   \
+  template <typename MemIdx = uint32_t, typename MemOffsetT,                   \
+            bool MultiMem = false>                                             \
   INSTRUCTION_HANDLER_FUNC s2s_##name##I(const uint8_t* code, uint32_t* sp,    \
                                          WasmInterpreterRuntime* wasm_runtime, \
                                          int64_t r0, double fp0) {             \
@@ -4499,6 +4584,7 @@ class Handlers : public HandlersBase {
     ctype old_val = static_cast<ctype>(pop<op_ctype>(sp, code, wasm_runtime)); \
                                                                                \
     uint64_t offset = Read<MemOffsetT>(code);                                  \
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);                   \
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);                      \
     uint64_t effective_index = offset + index;                                 \
     /* Check alignment. */                                                     \
@@ -4508,15 +4594,17 @@ class Handlers : public HandlersBase {
     /* Check bounds. */                                                        \
     if (V8_UNLIKELY(                                                           \
             effective_index < index ||                                         \
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(ctype),        \
-                                        wasm_runtime->GetMemorySize()))) {     \
+            !base::IsInBounds<uint64_t>(                                       \
+                effective_index, sizeof(ctype),                                \
+                GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {       \
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)                           \
     }                                                                          \
     static_assert(sizeof(std::atomic<ctype>) == sizeof(ctype),                 \
                   "Size mismatch for types std::atomic<" #ctype                \
                   ">, and " #ctype);                                           \
                                                                                \
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();                    \
+    uint8_t* memory_start =                                                    \
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);                  \
     uint8_t* address = memory_start + effective_index;                         \
                                                                                \
     std::atomic_compare_exchange_strong(                                       \
@@ -4524,10 +4612,7 @@ class Handlers : public HandlersBase {
     push<op_ctype>(sp, code, wasm_runtime, static_cast<op_ctype>(old_val));    \
     NextOp();                                                                  \
   }                                                                            \
-  static auto constexpr s2s_##name =                                           \
-      s2s_##name##I<uint32_t, memory_offset32_t>;                              \
-  static auto constexpr s2s_##name##_Idx64 =                                   \
-      s2s_##name##I<uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_##name, s2s_##name##I);
   FOREACH_ATOMIC_COMPARE_EXCHANGE_OP(ATOMIC_COMPARE_EXCHANGE_OP)
 #undef ATOMIC_COMPARE_EXCHANGE_OP
 
@@ -4541,11 +4626,12 @@ class Handlers : public HandlersBase {
   V(I64AtomicLoad32U, Uint32, uint32_t, I32, uint64_t, I64)
 
 #define ATOMIC_LOAD_OP(name, Type, ctype, type, op_ctype, op_type)             \
-  template <typename MemIdx, typename MemOffsetT>                              \
+  template <typename MemIdx, typename MemOffsetT, bool MultiMem = false>       \
   INSTRUCTION_HANDLER_FUNC s2s_##name##I(const uint8_t* code, uint32_t* sp,    \
                                          WasmInterpreterRuntime* wasm_runtime, \
                                          int64_t r0, double fp0) {             \
     uint64_t offset = Read<MemOffsetT>(code);                                  \
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);                   \
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);                      \
     uint64_t effective_index = offset + index;                                 \
     /* Check alignment. */                                                     \
@@ -4555,15 +4641,17 @@ class Handlers : public HandlersBase {
     /* Check bounds. */                                                        \
     if (V8_UNLIKELY(                                                           \
             effective_index < index ||                                         \
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(ctype),        \
-                                        wasm_runtime->GetMemorySize()))) {     \
+            !base::IsInBounds<uint64_t>(                                       \
+                effective_index, sizeof(ctype),                                \
+                GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {       \
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)                           \
     }                                                                          \
     static_assert(sizeof(std::atomic<ctype>) == sizeof(ctype),                 \
                   "Size mismatch for types std::atomic<" #ctype                \
                   ">, and " #ctype);                                           \
                                                                                \
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();                    \
+    uint8_t* memory_start =                                                    \
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);                  \
     uint8_t* address = memory_start + effective_index;                         \
                                                                                \
     ctype val =                                                                \
@@ -4571,10 +4659,7 @@ class Handlers : public HandlersBase {
     push<op_ctype>(sp, code, wasm_runtime, static_cast<op_ctype>(val));        \
     NextOp();                                                                  \
   }                                                                            \
-  static auto constexpr s2s_##name =                                           \
-      s2s_##name##I<uint32_t, memory_offset32_t>;                              \
-  static auto constexpr s2s_##name##_Idx64 =                                   \
-      s2s_##name##I<uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_##name, s2s_##name##I);
   FOREACH_ATOMIC_LOAD_OP(ATOMIC_LOAD_OP)
 #undef ATOMIC_LOAD_OP
 
@@ -4588,13 +4673,15 @@ class Handlers : public HandlersBase {
   V(I64AtomicStore32U, Uint32, uint32_t, I32, uint64_t, I64)
 
 #define ATOMIC_STORE_OP(name, Type, ctype, type, op_ctype, op_type)            \
-  template <typename MemIdx = uint32_t, typename MemOffsetT>                   \
+  template <typename MemIdx = uint32_t, typename MemOffsetT,                   \
+            bool MultiMem = false>                                             \
   INSTRUCTION_HANDLER_FUNC s2s_##name##I(const uint8_t* code, uint32_t* sp,    \
                                          WasmInterpreterRuntime* wasm_runtime, \
                                          int64_t r0, double fp0) {             \
     ctype val = static_cast<ctype>(pop<op_ctype>(sp, code, wasm_runtime));     \
                                                                                \
     uint64_t offset = Read<MemOffsetT>(code);                                  \
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);                   \
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);                      \
     uint64_t effective_index = offset + index;                                 \
     /* Check alignment. */                                                     \
@@ -4604,24 +4691,23 @@ class Handlers : public HandlersBase {
     /* Check bounds. */                                                        \
     if (V8_UNLIKELY(                                                           \
             effective_index < index ||                                         \
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(ctype),        \
-                                        wasm_runtime->GetMemorySize()))) {     \
+            !base::IsInBounds<uint64_t>(                                       \
+                effective_index, sizeof(ctype),                                \
+                GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {       \
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)                           \
     }                                                                          \
     static_assert(sizeof(std::atomic<ctype>) == sizeof(ctype),                 \
                   "Size mismatch for types std::atomic<" #ctype                \
                   ">, and " #ctype);                                           \
                                                                                \
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();                    \
+    uint8_t* memory_start =                                                    \
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);                  \
     uint8_t* address = memory_start + effective_index;                         \
                                                                                \
     std::atomic_store(reinterpret_cast<std::atomic<ctype>*>(address), val);    \
     NextOp();                                                                  \
   }                                                                            \
-  static auto constexpr s2s_##name =                                           \
-      s2s_##name##I<uint32_t, memory_offset32_t>;                              \
-  static auto constexpr s2s_##name##_Idx64 =                                   \
-      s2s_##name##I<uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_##name, s2s_##name##I);
   FOREACH_ATOMIC_STORE_OP(ATOMIC_STORE_OP)
 #undef ATOMIC_STORE_OP
 
@@ -4945,20 +5031,22 @@ class Handlers : public HandlersBase {
   REPLACE_LANE_CASE(I8x16, i8x16, int8x16, int32_t, I32)
 #undef REPLACE_LANE_CASE
 
-  template <typename MemIdx, typename MemOffsetT>
+  template <typename MemIdx, typename MemOffsetT, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_SimdS128LoadMemI(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
 
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(Simd128),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(Simd128),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -4969,27 +5057,26 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_SimdS128LoadMem =
-      s2s_SimdS128LoadMemI<uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128LoadMem_Idx64 =
-      s2s_SimdS128LoadMemI<uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128LoadMem, s2s_SimdS128LoadMemI);
 
-  template <typename MemIdx, typename MemOffsetT>
+  template <typename MemIdx, typename MemOffsetT, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_SimdS128StoreMemI(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     Simd128 val = pop<Simd128>(sp, code, wasm_runtime);
 
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
 
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(Simd128),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(Simd128),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -4998,10 +5085,7 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_SimdS128StoreMem =
-      s2s_SimdS128StoreMemI<uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128StoreMem_Idx64 =
-      s2s_SimdS128StoreMemI<uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128StoreMem, s2s_SimdS128StoreMemI);
 
 #define SHIFT_CASE(op, name, stype, count, expr)                              \
   INSTRUCTION_HANDLER_FUNC s2s_Simd##op(const uint8_t* code, uint32_t* sp,    \
@@ -5322,20 +5406,22 @@ class Handlers : public HandlersBase {
 #undef QFM_CASE
 
   template <typename s_type, typename load_type, typename MemIdx,
-            typename MemOffsetT>
+            typename MemOffsetT, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdLoadSplat(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
 
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(load_type),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(load_type),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -5350,41 +5436,35 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_SimdS128Load8Splat =
-      s2s_DoSimdLoadSplat<int8x16, int8_t, uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load8Splat_Idx64 =
-      s2s_DoSimdLoadSplat<int8x16, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load16Splat =
-      s2s_DoSimdLoadSplat<int16x8, int16_t, uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load16Splat_Idx64 =
-      s2s_DoSimdLoadSplat<int16x8, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load32Splat =
-      s2s_DoSimdLoadSplat<int32x4, int32_t, uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load32Splat_Idx64 =
-      s2s_DoSimdLoadSplat<int32x4, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load64Splat =
-      s2s_DoSimdLoadSplat<int64x2, int64_t, uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load64Splat_Idx64 =
-      s2s_DoSimdLoadSplat<int64x2, int64_t, uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load8Splat, s2s_DoSimdLoadSplat, int8x16,
+                           int8_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load16Splat, s2s_DoSimdLoadSplat,
+                           int16x8, int16_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load32Splat, s2s_DoSimdLoadSplat,
+                           int32x4, int32_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load64Splat, s2s_DoSimdLoadSplat,
+                           int64x2, int64_t);
 
   template <typename s_type, typename wide_type, typename narrow_type,
-            typename MemIdx, typename MemOffsetT>
+            typename MemIdx, typename MemOffsetT, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdLoadExtend(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     static_assert(sizeof(wide_type) == sizeof(narrow_type) * 2,
                   "size mismatch for wide and narrow types");
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
 
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
     // Load 8 bytes and sign/zero extend to 16 bytes.
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(uint64_t),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(uint64_t),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -5402,60 +5482,38 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_SimdS128Load8x8S =
-      s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t, uint32_t,
-                           memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load8x8S_Idx64 =
-      s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t, uint64_t,
-                           memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load8x8U =
-      s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t, uint32_t,
-                           memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load8x8U_Idx64 =
-      s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t, uint64_t,
-                           memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load16x4S =
-      s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t, uint32_t,
-                           memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load16x4S_Idx64 =
-      s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t, uint64_t,
-                           memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load16x4U =
-      s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t, uint32_t,
-                           memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load16x4U_Idx64 =
-      s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t, uint64_t,
-                           memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load32x2S =
-      s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t, uint32_t,
-                           memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load32x2S_Idx64 =
-      s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t, uint64_t,
-                           memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load32x2U =
-      s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t, uint32_t,
-                           memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load32x2U_Idx64 =
-      s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t, uint64_t,
-                           memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load8x8S, s2s_DoSimdLoadExtend, int16x8,
+                           int16_t, int8_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load8x8U, s2s_DoSimdLoadExtend, int16x8,
+                           uint16_t, uint8_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load16x4S, s2s_DoSimdLoadExtend, int32x4,
+                           int32_t, int16_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load16x4U, s2s_DoSimdLoadExtend, int32x4,
+                           uint32_t, uint16_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load32x2S, s2s_DoSimdLoadExtend, int64x2,
+                           int64_t, int32_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load32x2U, s2s_DoSimdLoadExtend, int64x2,
+                           uint64_t, uint32_t);
 
   template <typename s_type, typename load_type, typename MemIdx,
-            typename MemOffsetT>
+            typename MemOffsetT, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdLoadZeroExtend(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
 
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
     // Load a single 32-bit or 64-bit element into the lowest bits of a v128
     // vector, and initialize all other bits of the v128 vector to zero.
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(load_type),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(load_type),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -5473,32 +5531,30 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_SimdS128Load32Zero =
-      s2s_DoSimdLoadZeroExtend<int32x4, uint32_t, uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load32Zero_Idx64 =
-      s2s_DoSimdLoadZeroExtend<int32x4, uint32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load64Zero =
-      s2s_DoSimdLoadZeroExtend<int64x2, uint64_t, uint32_t, memory_offset32_t>;
-  static auto constexpr s2s_SimdS128Load64Zero_Idx64 =
-      s2s_DoSimdLoadZeroExtend<int64x2, uint64_t, uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load32Zero, s2s_DoSimdLoadZeroExtend,
+                           int32x4, uint32_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load64Zero, s2s_DoSimdLoadZeroExtend,
+                           int64x2, uint64_t);
 
   template <typename s_type, typename memory_type, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdLoadLane(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     s_type value = pop<s_type>(sp, code, wasm_runtime);
 
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
 
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(memory_type),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(memory_type),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -5511,41 +5567,35 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_SimdS128Load8Lane =
-      s2s_DoSimdLoadLane<int8x16, int8_t>;
-  static auto constexpr s2s_SimdS128Load16Lane =
-      s2s_DoSimdLoadLane<int16x8, int16_t>;
-  static auto constexpr s2s_SimdS128Load32Lane =
-      s2s_DoSimdLoadLane<int32x4, int32_t>;
-  static auto constexpr s2s_SimdS128Load64Lane =
-      s2s_DoSimdLoadLane<int64x2, uint64_t>;
-  static auto constexpr s2s_SimdS128Load8Lane_Idx64 =
-      s2s_DoSimdLoadLane<int8x16, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load16Lane_Idx64 =
-      s2s_DoSimdLoadLane<int16x8, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load32Lane_Idx64 =
-      s2s_DoSimdLoadLane<int32x4, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Load64Lane_Idx64 =
-      s2s_DoSimdLoadLane<int64x2, int64_t, uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load8Lane, s2s_DoSimdLoadLane, int8x16,
+                           int8_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load16Lane, s2s_DoSimdLoadLane, int16x8,
+                           int16_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load32Lane, s2s_DoSimdLoadLane, int32x4,
+                           int32_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Load64Lane, s2s_DoSimdLoadLane, int64x2,
+                           uint64_t);
 
   template <typename s_type, typename memory_type, typename MemIdx = uint32_t,
-            typename MemOffsetT = memory_offset32_t>
+            typename MemOffsetT = memory_offset32_t, bool MultiMem = false>
   INSTRUCTION_HANDLER_FUNC s2s_DoSimdStoreLane(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     // Extract a single lane, push it onto the stack, then store the lane.
     s_type value = pop<s_type>(sp, code, wasm_runtime);
 
-    uint8_t* memory_start = wasm_runtime->GetMemoryStart();
     uint64_t offset = Read<MemOffsetT>(code);
+    uint32_t memory_index = ReadMemoryIndex<MultiMem>(code);
+    uint8_t* memory_start =
+        GetMemoryStart<MultiMem>(wasm_runtime, memory_index);
 
     uint64_t index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_index = offset + index;
 
-    if (V8_UNLIKELY(
-            effective_index < index ||
-            !base::IsInBounds<uint64_t>(effective_index, sizeof(memory_type),
-                                        wasm_runtime->GetMemorySize()))) {
+    if (V8_UNLIKELY(effective_index < index ||
+                    !base::IsInBounds<uint64_t>(
+                        effective_index, sizeof(memory_type),
+                        GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
     uint8_t* address = memory_start + effective_index;
@@ -5557,22 +5607,14 @@ class Handlers : public HandlersBase {
 
     NextOp();
   }
-  static auto constexpr s2s_SimdS128Store8Lane =
-      s2s_DoSimdStoreLane<int8x16, int8_t>;
-  static auto constexpr s2s_SimdS128Store16Lane =
-      s2s_DoSimdStoreLane<int16x8, int16_t>;
-  static auto constexpr s2s_SimdS128Store32Lane =
-      s2s_DoSimdStoreLane<int32x4, int32_t>;
-  static auto constexpr s2s_SimdS128Store64Lane =
-      s2s_DoSimdStoreLane<int64x2, uint64_t>;
-  static auto constexpr s2s_SimdS128Store8Lane_Idx64 =
-      s2s_DoSimdStoreLane<int8x16, int8_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Store16Lane_Idx64 =
-      s2s_DoSimdStoreLane<int16x8, int16_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Store32Lane_Idx64 =
-      s2s_DoSimdStoreLane<int32x4, int32_t, uint64_t, memory_offset64_t>;
-  static auto constexpr s2s_SimdS128Store64Lane_Idx64 =
-      s2s_DoSimdStoreLane<int64x2, int64_t, uint64_t, memory_offset64_t>;
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Store8Lane, s2s_DoSimdStoreLane, int8x16,
+                           int8_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Store16Lane, s2s_DoSimdStoreLane,
+                           int16x8, int16_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Store32Lane, s2s_DoSimdStoreLane,
+                           int32x4, int32_t);
+  DECLARE_ALL_MEM_VARIANTS(s2s_SimdS128Store64Lane, s2s_DoSimdStoreLane,
+                           int64x2, uint64_t);
 
   template <typename DstSimdType, typename SrcSimdType, typename Wide,
             typename Narrow>
@@ -5970,10 +6012,12 @@ class Handlers : public HandlersBase {
                                          WasmInterpreterRuntime* wasm_runtime,
                                          int64_t r0, double fp0) {
     uint32_t index = Read<int32_t>(code);
-    std::pair<DirectHandle<WasmStruct>, const StructType*> struct_new_result =
-        wasm_runtime->StructNewUninitialized(index);
-    DirectHandle<HeapObject> struct_obj = struct_new_result.first;
-    const StructType* struct_type = struct_new_result.second;
+    auto struct_new_result = wasm_runtime->StructNewUninitialized(index);
+    DirectHandle<HeapObject> struct_obj = struct_new_result.struct_object;
+    const StructType* struct_type = struct_new_result.type;
+    WriteBarrierMode mode = struct_new_result.needs_write_barrier
+                                ? UPDATE_WRITE_BARRIER
+                                : SKIP_WRITE_BARRIER;
 
     {
       // The new struct is uninitialized, which means GC might fail until
@@ -6022,7 +6066,7 @@ class Handlers : public HandlersBase {
                 *struct_obj, field_addr,
                 field_offset + kHeapObjectTag,  // field_offset is offset into
                                                 // tagged object.
-                *ref, SKIP_WRITE_BARRIER);
+                *ref, mode);
             break;
           }
           default:
@@ -6040,10 +6084,12 @@ class Handlers : public HandlersBase {
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     uint32_t index = Read<int32_t>(code);
-    std::pair<DirectHandle<WasmStruct>, const StructType*> struct_new_result =
-        wasm_runtime->StructNewUninitialized(index);
-    DirectHandle<HeapObject> struct_obj = struct_new_result.first;
-    const StructType* struct_type = struct_new_result.second;
+    auto struct_new_result = wasm_runtime->StructNewUninitialized(index);
+    DirectHandle<HeapObject> struct_obj = struct_new_result.struct_object;
+    const StructType* struct_type = struct_new_result.type;
+    WriteBarrierMode mode = struct_new_result.needs_write_barrier
+                                ? UPDATE_WRITE_BARRIER
+                                : SKIP_WRITE_BARRIER;
 
     {
       // The new struct is uninitialized, which means GC might fail until
@@ -6085,7 +6131,7 @@ class Handlers : public HandlersBase {
                 *struct_obj, field_addr,
                 field_offset + kHeapObjectTag,  // field_offset is offset into
                                                 // tagged object.
-                wasm_runtime->GetNullValue(value_type), SKIP_WRITE_BARRIER);
+                wasm_runtime->GetNullValue(value_type), mode);
             break;
           default:
             UNREACHABLE();
@@ -6193,9 +6239,9 @@ class Handlers : public HandlersBase {
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
     const T value = pop<T>(sp, code, wasm_runtime);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
@@ -6205,7 +6251,7 @@ class Handlers : public HandlersBase {
       // initialization.
       DisallowHeapAllocation no_gc;
 
-      const ArrayType* array_type = array_new_result.second;
+      const ArrayType* array_type = array_new_result.type;
       const ValueKind kind = array_type->element_type().kind();
       const uint32_t element_size = value_kind_size(kind);
       DCHECK_EQ(element_size, sizeof(U));
@@ -6236,18 +6282,22 @@ class Handlers : public HandlersBase {
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
     const WasmRef value = pop<WasmRef>(sp, code, wasm_runtime);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
 
 #if DEBUG
-    const ArrayType* array_type = array_new_result.second;
+    const ArrayType* array_type = array_new_result.type;
     DCHECK_EQ(value_kind_size(array_type->element_type().kind()),
               sizeof(Tagged_t));
 #endif
+
+    WriteBarrierMode mode = array_new_result.needs_write_barrier
+                                ? UPDATE_WRITE_BARRIER
+                                : SKIP_WRITE_BARRIER;
 
     {
       // The new array is uninitialized, which means GC might fail until
@@ -6258,7 +6308,7 @@ class Handlers : public HandlersBase {
       uint32_t element_offset = array->element_offset(0);
       for (uint32_t i = 0; i < elem_count; i++) {
         StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
-                           element_offset, *value, SKIP_WRITE_BARRIER);
+                           element_offset, *value, mode);
         element_addr += sizeof(Tagged_t);
         element_offset += sizeof(Tagged_t);
       }
@@ -6275,9 +6325,9 @@ class Handlers : public HandlersBase {
     const uint32_t array_index = Read<int32_t>(code);
     const uint32_t elem_count = Read<int32_t>(code);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
@@ -6288,7 +6338,7 @@ class Handlers : public HandlersBase {
       DisallowHeapAllocation no_gc;
 
       if (elem_count > 0) {
-        const ArrayType* array_type = array_new_result.second;
+        const ArrayType* array_type = array_new_result.type;
         const ValueKind kind = array_type->element_type().kind();
         const uint32_t element_size = value_kind_size(kind);
 
@@ -6326,9 +6376,12 @@ class Handlers : public HandlersBase {
               break;
             case kRef:
             case kRefNull: {
+              WriteBarrierMode mode = array_new_result.needs_write_barrier
+                                          ? UPDATE_WRITE_BARRIER
+                                          : SKIP_WRITE_BARRIER;
               WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
               StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
-                                 element_offset, *ref, SKIP_WRITE_BARRIER);
+                                 element_offset, *ref, mode);
               break;
             }
             default:
@@ -6352,9 +6405,9 @@ class Handlers : public HandlersBase {
     const uint32_t array_index = Read<int32_t>(code);
     const uint32_t elem_count = pop<int32_t>(sp, code, wasm_runtime);
 
-    std::pair<DirectHandle<WasmArray>, const ArrayType*> array_new_result =
+    WasmInterpreterRuntime::ArrayNewResult array_new_result =
         wasm_runtime->ArrayNewUninitialized(elem_count, array_index);
-    DirectHandle<WasmArray> array = array_new_result.first;
+    DirectHandle<WasmArray> array = array_new_result.array;
     if (V8_UNLIKELY(array.is_null())) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
@@ -6364,7 +6417,7 @@ class Handlers : public HandlersBase {
       // initialization.
       DisallowHeapAllocation no_gc;
 
-      const ArrayType* array_type = array_new_result.second;
+      const ArrayType* array_type = array_new_result.type;
       const ValueType element_type = array_type->element_type();
       const ValueKind kind = element_type.kind();
       const uint32_t element_size = value_kind_size(kind);
@@ -6395,11 +6448,15 @@ class Handlers : public HandlersBase {
             base::WriteUnalignedValue<Simd128>(element_addr, Simd128{});
             break;
           case kRef:
-          case kRefNull:
-            StoreRefIntoMemory(
-                TrustedCast<HeapObject>(*array), element_addr, element_offset,
-                wasm_runtime->GetNullValue(element_type), SKIP_WRITE_BARRIER);
+          case kRefNull: {
+            WriteBarrierMode mode = array_new_result.needs_write_barrier
+                                        ? UPDATE_WRITE_BARRIER
+                                        : SKIP_WRITE_BARRIER;
+            StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+                               element_offset,
+                               wasm_runtime->GetNullValue(element_type), mode);
             break;
+          }
           default:
             UNREACHABLE();
         }
@@ -7426,6 +7483,7 @@ WasmBytecodeGenerator::WasmBytecodeGenerator(uint32_t function_index,
       rets_slots_size_(0),
       locals_count_(0),
       current_block_index_(-1),
+      is_multi_memory_(module->memories.size() > 1),
       is_instruction_reachable_(true),
       unreachable_block_count_(0),
 #ifdef DEBUG
@@ -7442,8 +7500,8 @@ WasmBytecodeGenerator::WasmBytecodeGenerator(uint32_t function_index,
 {
   DCHECK(v8_flags.wasm_jitless);
 
-  // Multiple memories not supported.
-  DCHECK_LE(module->memories.size(), 1);
+  // Limit memories to what the runtime can handle.
+  CHECK_LE(module->memories.size(), kV8MaxWasmMemories);
 
   size_t wasm_code_size = wasm_code_->end - wasm_code_->start;
   code_.reserve(wasm_code_size * 6);
@@ -7457,15 +7515,6 @@ WasmBytecodeGenerator::WasmBytecodeGenerator(uint32_t function_index,
   return_count_ = static_cast<uint32_t>(sig->return_count());
   rets_slots_size_ = WasmBytecode::RetsSizeInSlots(sig);
   locals_count_ = static_cast<uint32_t>(wasm_code->locals.num_locals);
-
-  is_memory64_ = IsMemory64();
-  if (is_memory64_) {
-    int_mem_push_ = &WasmBytecodeGenerator::I64Push;
-    int_mem_pop_ = &WasmBytecodeGenerator::I64Pop;
-  } else {
-    int_mem_push_ = &WasmBytecodeGenerator::I32Push;
-    int_mem_pop_ = &WasmBytecodeGenerator::I32Pop;
-  }
 }
 
 size_t WasmBytecodeGenerator::Simd128Hash::operator()(
@@ -7949,7 +7998,7 @@ uint32_t WasmBytecodeGenerator::ScanConstInstructions() {
   const FunctionSig* sig = wasm_code_->function->sig;
   WasmDecoder<Decoder::NoValidationTag> decoder(
       &zone, module_, WasmEnabledFeatures::All(), &detected, sig,
-      false,  // is_shared
+      SharedFlag::kNo,  // is_shared
       wasm_code_->start, wasm_code_->end);
 
   const uint8_t* pc = wasm_code_->start + wasm_code_->locals.encoded_size;
@@ -8252,59 +8301,65 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
       break;
     }
 
-#define LOAD_CASE(name, ctype, mtype, rep, type)                               \
+#define LOAD_CASE(name, ctype, mtype, rep, type, opcode)                       \
   case kExpr##name: {                                                          \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, Decoder::kNoValidation);                  \
+                              false, is_rmw, Decoder::kNoValidation);          \
     len = 1 + imm.length;                                                      \
-    optional.offset = imm.offset;                                              \
+    optional.memory_access.offset = imm.offset;                                \
+    optional.memory_access.memory_index = imm.mem_index;                       \
     break;                                                                     \
   }
-      LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32);
-      LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32);
-      LOAD_CASE(I32LoadMem16S, int32_t, int16_t, kWord16, I32);
-      LOAD_CASE(I32LoadMem16U, int32_t, uint16_t, kWord16, I32);
-      LOAD_CASE(I64LoadMem8S, int64_t, int8_t, kWord8, I64);
-      LOAD_CASE(I64LoadMem8U, int64_t, uint8_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem16S, int64_t, int16_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem16U, int64_t, uint16_t, kWord16, I64);
-      LOAD_CASE(I64LoadMem32S, int64_t, int32_t, kWord32, I64);
-      LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32, I64);
-      LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32, I32);
-      LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64, I64);
-      LOAD_CASE(F32LoadMem, Float32, uint32_t, kFloat32, F32);
-      LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64);
+      LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32, opcode);
+      LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32, opcode);
+      LOAD_CASE(I32LoadMem16S, int32_t, int16_t, kWord16, I32, opcode);
+      LOAD_CASE(I32LoadMem16U, int32_t, uint16_t, kWord16, I32, opcode);
+      LOAD_CASE(I64LoadMem8S, int64_t, int8_t, kWord8, I64, opcode);
+      LOAD_CASE(I64LoadMem8U, int64_t, uint8_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem16S, int64_t, int16_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem16U, int64_t, uint16_t, kWord16, I64, opcode);
+      LOAD_CASE(I64LoadMem32S, int64_t, int32_t, kWord32, I64, opcode);
+      LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32, I64, opcode);
+      LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32, I32, opcode);
+      LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64, I64, opcode);
+      LOAD_CASE(F32LoadMem, Float32, uint32_t, kFloat32, F32, opcode);
+      LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64, opcode);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype, rep, type)                              \
+#define STORE_CASE(name, ctype, mtype, rep, type, opcode)                      \
   case kExpr##name: {                                                          \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                      \
     MemoryAccessImmediate imm(&decoder, wasm_code_->at(pc + 1), sizeof(ctype), \
-                              false, Decoder::kNoValidation);                  \
+                              false, is_rmw, Decoder::kNoValidation);          \
     len = 1 + imm.length;                                                      \
-    optional.offset = imm.offset;                                              \
+    optional.memory_access.offset = imm.offset;                                \
+    optional.memory_access.memory_index = imm.mem_index;                       \
     break;                                                                     \
   }
-      STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32);
-      STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32);
-      STORE_CASE(I64StoreMem8, int64_t, int8_t, kWord8, I64);
-      STORE_CASE(I64StoreMem16, int64_t, int16_t, kWord16, I64);
-      STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32, I64);
-      STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32, I32);
-      STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64, I64);
-      STORE_CASE(F32StoreMem, Float32, uint32_t, kFloat32, F32);
-      STORE_CASE(F64StoreMem, Float64, uint64_t, kFloat64, F64);
+      STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32, opcode);
+      STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32, opcode);
+      STORE_CASE(I64StoreMem8, int64_t, int8_t, kWord8, I64, opcode);
+      STORE_CASE(I64StoreMem16, int64_t, int16_t, kWord16, I64, opcode);
+      STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32, I64, opcode);
+      STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32, I32, opcode);
+      STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64, I64, opcode);
+      STORE_CASE(F32StoreMem, Float32, uint32_t, kFloat32, F32, opcode);
+      STORE_CASE(F64StoreMem, Float64, uint64_t, kFloat64, F64, opcode);
 #undef STORE_CASE
 
     case kExprMemorySize: {
       MemoryIndexImmediate imm(&decoder, wasm_code_->at(pc + 1),
                                Decoder::kNoValidation);
       len = 1 + imm.length;
+      optional.index = imm.index;
       break;
     }
     case kExprMemoryGrow: {
       MemoryIndexImmediate imm(&decoder, wasm_code_->at(pc + 1),
                                Decoder::kNoValidation);
       len = 1 + imm.length;
+      optional.index = imm.index;
       break;
     }
     case kExprI32Const: {
@@ -8588,7 +8643,8 @@ void WasmBytecodeGenerator::DecodeNumericOp(WasmOpcode opcode,
       MemoryInitImmediate imm(decoder, code->at(pc + *len),
                               Decoder::kNoValidation);
       DCHECK_LT(imm.data_segment.index, module_->num_declared_data_segments);
-      optional->index = imm.data_segment.index;
+      optional->memory_init.data_segment_index = imm.data_segment.index;
+      optional->memory_init.memory_index = imm.memory.index;
       *len += imm.length;
       break;
     }
@@ -8603,12 +8659,15 @@ void WasmBytecodeGenerator::DecodeNumericOp(WasmOpcode opcode,
     case kExprMemoryCopy: {
       MemoryCopyImmediate imm(decoder, code->at(pc + *len),
                               Decoder::kNoValidation);
+      optional->memory_copy.dst_memory_index = imm.memory_dst.index;
+      optional->memory_copy.src_memory_index = imm.memory_src.index;
       *len += imm.length;
       break;
     }
     case kExprMemoryFill: {
       MemoryIndexImmediate imm(decoder, code->at(pc + *len),
                                Decoder::kNoValidation);
+      optional->index = imm.index;
       *len += imm.length;
       break;
     }
@@ -8672,19 +8731,23 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
     case kExprAtomicNotify:
     case kExprI32AtomicWait: {
       MachineType memtype = MachineType::Uint32();
+      bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, Decoder::kNoValidation);
-      optional->offset = imm.offset;
+                                false, is_rmw, Decoder::kNoValidation);
+      optional->memory_access.offset = imm.offset;
+      optional->memory_access.memory_index = imm.mem_index;
       *len += imm.length;
       break;
     }
     case kExprI64AtomicWait: {
       MachineType memtype = MachineType::Uint64();
+      bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);
       MemoryAccessImmediate imm(decoder, code->at(pc + *len),
                                 ElementSizeLog2Of(memtype.representation()),
-                                false, Decoder::kNoValidation);
-      optional->offset = imm.offset;
+                                false, is_rmw, Decoder::kNoValidation);
+      optional->memory_access.offset = imm.offset;
+      optional->memory_access.memory_index = imm.mem_index;
       *len += imm.length;
       break;
     }
@@ -8695,10 +8758,12 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
 #define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation) \
   case kExpr##name: {                                                       \
     MachineType memtype = MachineType::Type();                              \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                   \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                 \
                               ElementSizeLog2Of(memtype.representation()),  \
-                              false, Decoder::kNoValidation);               \
-    optional->offset = imm.offset;                                          \
+                              false, is_rmw, Decoder::kNoValidation);       \
+    optional->memory_access.offset = imm.offset;                            \
+    optional->memory_access.memory_index = imm.mem_index;                   \
     *len += imm.length;                                                     \
     break;                                                                  \
   }
@@ -8708,10 +8773,12 @@ void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
 #define ATOMIC_OP(name, Type, ctype, type, op_ctype, op_type)              \
   case kExpr##name: {                                                      \
     MachineType memtype = MachineType::Type();                             \
+    bool is_rmw = WasmOpcodes::IsAtomicRmwOpcode(opcode);                  \
     MemoryAccessImmediate imm(decoder, code->at(pc + *len),                \
                               ElementSizeLog2Of(memtype.representation()), \
-                              false, Decoder::kNoValidation);              \
-    optional->offset = imm.offset;                                         \
+                              false, is_rmw, Decoder::kNoValidation);      \
+    optional->memory_access.offset = imm.offset;                           \
+    optional->memory_access.memory_index = imm.mem_index;                  \
     *len += imm.length;                                                    \
     break;                                                                 \
   }
@@ -10922,35 +10989,42 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       break;
     }
 
-#define LOAD_CASE(name, ctype, mtype, rep, type)                         \
-  case kExpr##name: {                                                    \
-    switch (mode) {                                                      \
-      case kR2R:                                                         \
-        EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2r_##name, r2r_##name##_Idx64, \
-                                         is_memory64_, instr.pc);        \
-        EmitMemoryOffset(instr.optional.offset);                         \
-        return RegMode::k##type##Reg;                                    \
-      case kR2S:                                                         \
-        EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_##name, r2s_##name##_Idx64, \
-                                         is_memory64_, instr.pc);        \
-        EmitMemoryOffset(instr.optional.offset);                         \
-        type##Push();                                                    \
-        return RegMode::kNoReg;                                          \
-      case kS2R:                                                         \
-        EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2r_##name, s2r_##name##_Idx64, \
-                                         is_memory64_, instr.pc);        \
-        EmitMemoryOffset(instr.optional.offset);                         \
-        MemIndexPop();                                                   \
-        return RegMode::k##type##Reg;                                    \
-      case kS2S:                                                         \
-        EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, s2s_##name##_Idx64, \
-                                         is_memory64_, instr.pc);        \
-        EmitMemoryOffset(instr.optional.offset);                         \
-        MemIndexPop();                                                   \
-        type##Push();                                                    \
-        return RegMode::kNoReg;                                          \
-    }                                                                    \
-    break;                                                               \
+#define LOAD_CASE(name, ctype, mtype, rep, type)                        \
+  case kExpr##name: {                                                   \
+    bool is_memory64 =                                                  \
+        module_->memories[instr.optional.memory_access.memory_index]    \
+            .is_memory64();                                             \
+    switch (mode) {                                                     \
+      case kR2R:                                                        \
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(r2r_##name, is_memory64, \
+                                               instr.pc);               \
+        EmitMemoryOffset(instr.optional.memory_access.offset);          \
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);     \
+        return RegMode::k##type##Reg;                                   \
+      case kR2S:                                                        \
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(r2s_##name, is_memory64, \
+                                               instr.pc);               \
+        EmitMemoryOffset(instr.optional.memory_access.offset);          \
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);     \
+        type##Push();                                                   \
+        return RegMode::kNoReg;                                         \
+      case kS2R:                                                        \
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2r_##name, is_memory64, \
+                                               instr.pc);               \
+        EmitMemoryOffset(instr.optional.memory_access.offset);          \
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);     \
+        MemIndexPop(is_memory64);                                       \
+        return RegMode::k##type##Reg;                                   \
+      case kS2S:                                                        \
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, \
+                                               instr.pc);               \
+        EmitMemoryOffset(instr.optional.memory_access.offset);          \
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);     \
+        MemIndexPop(is_memory64);                                       \
+        type##Push();                                                   \
+        return RegMode::kNoReg;                                         \
+    }                                                                   \
+    break;                                                              \
   }
       LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32);
       LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32);
@@ -10968,28 +11042,33 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64, F64);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype, rep, type)                        \
-  case kExpr##name: {                                                    \
-    switch (mode) {                                                      \
-      case kR2R:                                                         \
-      case kS2R:                                                         \
-        UNREACHABLE();                                                   \
-        break;                                                           \
-      case kR2S:                                                         \
-        EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_##name, r2s_##name##_Idx64, \
-                                         is_memory64_, instr.pc);        \
-        EmitMemoryOffset(instr.optional.offset);                         \
-        MemIndexPop();                                                   \
-        return RegMode::kNoReg;                                          \
-      case kS2S:                                                         \
-        EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, s2s_##name##_Idx64, \
-                                         is_memory64_, instr.pc);        \
-        type##Pop();                                                     \
-        EmitMemoryOffset(instr.optional.offset);                         \
-        MemIndexPop();                                                   \
-        return RegMode::kNoReg;                                          \
-    }                                                                    \
-    break;                                                               \
+#define STORE_CASE(name, ctype, mtype, rep, type)                       \
+  case kExpr##name: {                                                   \
+    bool is_memory64 =                                                  \
+        module_->memories[instr.optional.memory_access.memory_index]    \
+            .is_memory64();                                             \
+    switch (mode) {                                                     \
+      case kR2R:                                                        \
+      case kS2R:                                                        \
+        UNREACHABLE();                                                  \
+        break;                                                          \
+      case kR2S:                                                        \
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(r2s_##name, is_memory64, \
+                                               instr.pc);               \
+        EmitMemoryOffset(instr.optional.memory_access.offset);          \
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);     \
+        MemIndexPop(is_memory64);                                       \
+        return RegMode::kNoReg;                                         \
+      case kS2S:                                                        \
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, \
+                                               instr.pc);               \
+        type##Pop();                                                    \
+        EmitMemoryOffset(instr.optional.memory_access.offset);          \
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);     \
+        MemIndexPop(is_memory64);                                       \
+        return RegMode::kNoReg;                                         \
+    }                                                                   \
+    break;                                                              \
   }
       STORE_CASE(I32StoreMem8, int32_t, int8_t, kWord8, I32);
       STORE_CASE(I32StoreMem16, int32_t, int16_t, kWord16, I32);
@@ -11003,15 +11082,20 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
 #undef STORE_CASE
 
     case kExprMemoryGrow: {
-      EMIT_MEM64_INSTR_HANDLER(s2s_MemoryGrow, s2s_Memory64Grow, is_memory64_);
-      MemIndexPop();
-      MemIndexPush();
+      bool is_memory64 = module_->memories[instr.optional.index].is_memory64();
+      EMIT_MEM64_INSTR_HANDLER(s2s_MemoryGrow, s2s_Memory64Grow, is_memory64);
+      EmitI32Const(instr.optional.index);
+      MemIndexPop(is_memory64);
+      MemIndexPush(is_memory64);
       break;
     }
-    case kExprMemorySize:
-      EMIT_MEM64_INSTR_HANDLER(s2s_MemorySize, s2s_Memory64Size, is_memory64_);
-      MemIndexPush();
+    case kExprMemorySize: {
+      bool is_memory64 = module_->memories[instr.optional.index].is_memory64();
+      EMIT_MEM64_INSTR_HANDLER(s2s_MemorySize, s2s_Memory64Size, is_memory64);
+      EmitI32Const(instr.optional.index);
+      MemIndexPush(is_memory64);
       break;
+    }
 
     case kExprI32Const: {
       switch (mode) {
@@ -12002,35 +12086,52 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       break;
     }
 
-    case kExprMemoryInit:
+    case kExprMemoryInit: {
+      bool is_memory64 =
+          module_->memories[instr.optional.memory_init.memory_index]
+              .is_memory64();
       EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_MemoryInit, s2s_Memory64Init,
-                                       is_memory64_, instr.pc);
-      EmitI32Const(instr.optional.index);
+                                       is_memory64, instr.pc);
+      EmitI32Const(instr.optional.memory_init.data_segment_index);
+      EmitI32Const(instr.optional.memory_init.memory_index);
       I32Pop();
       I32Pop();
-      MemIndexPop();
+      MemIndexPop(is_memory64);
       break;
+    }
 
     case kExprDataDrop:
       EMIT_INSTR_HANDLER(s2s_DataDrop);
       EmitI32Const(instr.optional.index);
       break;
 
-    case kExprMemoryCopy:
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_MemoryCopy, s2s_Memory64Copy,
-                                       is_memory64_, instr.pc);
-      MemIndexPop();
-      MemIndexPop();
-      MemIndexPop();
+    case kExprMemoryCopy: {
+      bool dst_is_memory64 =
+          module_->memories[instr.optional.memory_copy.dst_memory_index]
+              .is_memory64();
+      bool src_is_memory64 =
+          module_->memories[instr.optional.memory_copy.src_memory_index]
+              .is_memory64();
+      EMIT_MEM_MEM_INSTR_HANDLER_WITH_PC(s2s_MemoryCopy, src_is_memory64,
+                                         dst_is_memory64, instr.pc);
+      EmitI32Const(instr.optional.memory_copy.dst_memory_index);
+      EmitI32Const(instr.optional.memory_copy.src_memory_index);
+      MemIndexPop(src_is_memory64 && dst_is_memory64);
+      MemIndexPop(src_is_memory64);
+      MemIndexPop(dst_is_memory64);
       break;
+    }
 
-    case kExprMemoryFill:
+    case kExprMemoryFill: {
+      bool is_memory64 = module_->memories[instr.optional.index].is_memory64();
       EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_MemoryFill, s2s_Memory64Fill,
-                                       is_memory64_, instr.pc);
-      MemIndexPop();
+                                       is_memory64, instr.pc);
+      EmitI32Const(instr.optional.index);
+      MemIndexPop(is_memory64);
       I32Pop();
-      MemIndexPop();
+      MemIndexPop(is_memory64);
       break;
+    }
 
     case kExprTableInit: {
       bool is_table64 = module_->tables[instr.optional.index].is_table64();
@@ -12124,86 +12225,113 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       }
     } break;
 
-    case kExprAtomicNotify:
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_AtomicNotify, s2s_AtomicNotify_Idx64,
-                                       is_memory64_, instr.pc);
+    case kExprAtomicNotify: {
+      bool is_memory64 =
+          module_->memories[instr.optional.memory_access.memory_index]
+              .is_memory64();
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_AtomicNotify, is_memory64,
+                                             instr.pc);
       I32Pop();  // val
-      EmitMemoryOffset(instr.optional.offset);
-      MemIndexPop();  // memory index
+      EmitMemoryOffset(instr.optional.memory_access.offset);
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      MemIndexPop(is_memory64);  // memory index
       I32Push();
       break;
+    }
 
-    case kExprI32AtomicWait:
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(
-          s2s_I32AtomicWait, s2s_I32AtomicWait_Idx64, is_memory64_, instr.pc);
+    case kExprI32AtomicWait: {
+      bool is_memory64 =
+          module_->memories[instr.optional.memory_access.memory_index]
+              .is_memory64();
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_I32AtomicWait, is_memory64,
+                                             instr.pc);
       I64Pop();  // timeout
       I32Pop();  // val
-      EmitMemoryOffset(instr.optional.offset);
-      MemIndexPop();  // memory index
+      EmitMemoryOffset(instr.optional.memory_access.offset);
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      MemIndexPop(is_memory64);  // memory index
       I32Push();
       break;
+    }
 
-    case kExprI64AtomicWait:
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(
-          s2s_I64AtomicWait, s2s_I64AtomicWait_Idx64, is_memory64_, instr.pc);
+    case kExprI64AtomicWait: {
+      bool is_memory64 =
+          module_->memories[instr.optional.memory_access.memory_index]
+              .is_memory64();
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_I64AtomicWait, is_memory64,
+                                             instr.pc);
       I64Pop();  // timeout
       I64Pop();  // val
-      EmitMemoryOffset(instr.optional.offset);
-      MemIndexPop();  // memory index
+      EmitMemoryOffset(instr.optional.memory_access.offset);
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      MemIndexPop(is_memory64);  // memory index
       I32Push();
       break;
+    }
 
     case kExprAtomicFence:
       EMIT_INSTR_HANDLER(s2s_AtomicFence);
       break;
 
-#define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation) \
-  case kExpr##name: {                                                       \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, s2s_##name##_Idx64,        \
-                                     is_memory64_, instr.pc);               \
-    op_type##Pop();                                                         \
-    EmitMemoryOffset(instr.optional.offset);                                \
-    MemIndexPop();                                                          \
-    op_type##Push();                                                        \
-    return RegMode::kNoReg;                                                 \
+#define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation)    \
+  case kExpr##name: {                                                          \
+    bool is_memory64 =                                                         \
+        module_->memories[instr.optional.memory_access.memory_index]           \
+            .is_memory64();                                                    \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
+    op_type##Pop();                                                            \
+    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
+    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
+    MemIndexPop(is_memory64);                                                  \
+    op_type##Push();                                                           \
+    return RegMode::kNoReg;                                                    \
   }
       FOREACH_ATOMIC_BINOP(ATOMIC_BINOP)
 #undef ATOMIC_BINOP
 
 #define ATOMIC_COMPARE_EXCHANGE_OP(name, Type, ctype, type, op_ctype, op_type) \
   case kExpr##name: {                                                          \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, s2s_##name##_Idx64,           \
-                                     is_memory64_, instr.pc);                  \
+    bool is_memory64 =                                                         \
+        module_->memories[instr.optional.memory_access.memory_index]           \
+            .is_memory64();                                                    \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
     op_type##Pop();                                                            \
     op_type##Pop();                                                            \
-    EmitMemoryOffset(instr.optional.offset);                                   \
-    MemIndexPop();                                                             \
+    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
+    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
+    MemIndexPop(is_memory64);                                                  \
     op_type##Push();                                                           \
     return RegMode::kNoReg;                                                    \
   }
       FOREACH_ATOMIC_COMPARE_EXCHANGE_OP(ATOMIC_COMPARE_EXCHANGE_OP)
 #undef ATOMIC_COMPARE_EXCHANGE_OP
 
-#define ATOMIC_LOAD_OP(name, Type, ctype, type, op_ctype, op_type)   \
-  case kExpr##name: {                                                \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, s2s_##name##_Idx64, \
-                                     is_memory64_, instr.pc);        \
-    EmitMemoryOffset(instr.optional.offset);                         \
-    MemIndexPop();                                                   \
-    op_type##Push();                                                 \
-    return RegMode::kNoReg;                                          \
+#define ATOMIC_LOAD_OP(name, Type, ctype, type, op_ctype, op_type)             \
+  case kExpr##name: {                                                          \
+    bool is_memory64 =                                                         \
+        module_->memories[instr.optional.memory_access.memory_index]           \
+            .is_memory64();                                                    \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
+    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
+    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
+    MemIndexPop(is_memory64);                                                  \
+    op_type##Push();                                                           \
+    return RegMode::kNoReg;                                                    \
   }
       FOREACH_ATOMIC_LOAD_OP(ATOMIC_LOAD_OP)
 #undef ATOMIC_LOAD_OP
 
-#define ATOMIC_STORE_OP(name, Type, ctype, type, op_ctype, op_type)  \
-  case kExpr##name: {                                                \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, s2s_##name##_Idx64, \
-                                     is_memory64_, instr.pc);        \
-    op_type##Pop();                                                  \
-    EmitMemoryOffset(instr.optional.offset);                         \
-    MemIndexPop();                                                   \
-    return RegMode::kNoReg;                                          \
+#define ATOMIC_STORE_OP(name, Type, ctype, type, op_ctype, op_type)            \
+  case kExpr##name: {                                                          \
+    bool is_memory64 =                                                         \
+        module_->memories[instr.optional.memory_access.memory_index]           \
+            .is_memory64();                                                    \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
+    op_type##Pop();                                                            \
+    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
+    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
+    MemIndexPop(is_memory64);                                                  \
+    return RegMode::kNoReg;                                                    \
   }
       FOREACH_ATOMIC_STORE_OP(ATOMIC_STORE_OP)
 #undef ATOMIC_STORE_OP
@@ -12477,22 +12605,28 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
 #undef REPLACE_LANE_CASE
 
     case kExprS128LoadMem: {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128LoadMem,
-                                       s2s_SimdS128LoadMem_Idx64, is_memory64_,
-                                       instr.pc);
-      EmitMemoryOffset(instr.optional.offset);
-      MemIndexPop();
+      bool is_memory64 =
+          module_->memories[instr.optional.memory_access.memory_index]
+              .is_memory64();
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128LoadMem, is_memory64,
+                                             instr.pc);
+      EmitMemoryOffset(instr.optional.memory_access.offset);
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      MemIndexPop(is_memory64);
       S128Push();
       return RegMode::kNoReg;
     }
 
     case kExprS128StoreMem: {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128StoreMem,
-                                       s2s_SimdS128StoreMem_Idx64, is_memory64_,
-                                       instr.pc);
+      bool is_memory64 =
+          module_->memories[instr.optional.memory_access.memory_index]
+              .is_memory64();
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128StoreMem, is_memory64,
+                                             instr.pc);
       S128Pop();
-      EmitMemoryOffset(instr.optional.offset);
-      MemIndexPop();
+      EmitMemoryOffset(instr.optional.memory_access.offset);
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      MemIndexPop(is_memory64);
       return RegMode::kNoReg;
     }
 
@@ -12737,14 +12871,18 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       QFM_CASE(F64x2Qfms, f64x2, float64x2, 2, -)
 #undef QFM_CASE
 
-#define LOAD_SPLAT_CASE(op)                                                  \
-  case kExprS128##op: {                                                      \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
-        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
-    EmitMemoryOffset(instr.optional.offset);                                 \
-    MemIndexPop();                                                           \
-    S128Push();                                                              \
-    return RegMode::kNoReg;                                                  \
+#define LOAD_SPLAT_CASE(op)                                               \
+  case kExprS128##op: {                                                   \
+    bool is_memory64 =                                                    \
+        module_->memories[instr.optional.memory_access.memory_index]      \
+            .is_memory64();                                               \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, is_memory64, \
+                                           instr.pc);                     \
+    EmitMemoryOffset(instr.optional.memory_access.offset);                \
+    EmitMemoryIndex(instr.optional.memory_access.memory_index);           \
+    MemIndexPop(is_memory64);                                             \
+    S128Push();                                                           \
+    return RegMode::kNoReg;                                               \
   }
       LOAD_SPLAT_CASE(Load8Splat)
       LOAD_SPLAT_CASE(Load16Splat)
@@ -12752,14 +12890,18 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       LOAD_SPLAT_CASE(Load64Splat)
 #undef LOAD_SPLAT_CASE
 
-#define LOAD_EXTEND_CASE(op)                                                 \
-  case kExprS128##op: {                                                      \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
-        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
-    EmitMemoryOffset(instr.optional.offset);                                 \
-    MemIndexPop();                                                           \
-    S128Push();                                                              \
-    return RegMode::kNoReg;                                                  \
+#define LOAD_EXTEND_CASE(op)                                              \
+  case kExprS128##op: {                                                   \
+    bool is_memory64 =                                                    \
+        module_->memories[instr.optional.memory_access.memory_index]      \
+            .is_memory64();                                               \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, is_memory64, \
+                                           instr.pc);                     \
+    EmitMemoryOffset(instr.optional.memory_access.offset);                \
+    EmitMemoryIndex(instr.optional.memory_access.memory_index);           \
+    MemIndexPop(is_memory64);                                             \
+    S128Push();                                                           \
+    return RegMode::kNoReg;                                               \
   }
       LOAD_EXTEND_CASE(Load8x8S)
       LOAD_EXTEND_CASE(Load8x8U)
@@ -12769,30 +12911,38 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       LOAD_EXTEND_CASE(Load32x2U)
 #undef LOAD_EXTEND_CASE
 
-#define LOAD_ZERO_EXTEND_CASE(op, load_type)                                 \
-  case kExprS128##op: {                                                      \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
-        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
-    EmitMemoryOffset(instr.optional.offset);                                 \
-    MemIndexPop();                                                           \
-    S128Push();                                                              \
-    return RegMode::kNoReg;                                                  \
+#define LOAD_ZERO_EXTEND_CASE(op, load_type)                              \
+  case kExprS128##op: {                                                   \
+    bool is_memory64 =                                                    \
+        module_->memories[instr.optional.memory_access.memory_index]      \
+            .is_memory64();                                               \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, is_memory64, \
+                                           instr.pc);                     \
+    EmitMemoryOffset(instr.optional.memory_access.offset);                \
+    EmitMemoryIndex(instr.optional.memory_access.memory_index);           \
+    MemIndexPop(is_memory64);                                             \
+    S128Push();                                                           \
+    return RegMode::kNoReg;                                               \
   }
       LOAD_ZERO_EXTEND_CASE(Load32Zero, I32)
       LOAD_ZERO_EXTEND_CASE(Load64Zero, I64)
 #undef LOAD_ZERO_EXTEND_CASE
 
-#define LOAD_LANE_CASE(op)                                                   \
-  case kExprS128##op: {                                                      \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
-        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
-    S128Pop();                                                               \
-    EmitMemoryOffset(instr.optional.simd_loadstore_lane.offset);             \
-    MemIndexPop();                                                           \
-    /* emit 8 bits ? */                                                      \
-    EmitI16Const(instr.optional.simd_loadstore_lane.lane);                   \
-    S128Push();                                                              \
-    return RegMode::kNoReg;                                                  \
+#define LOAD_LANE_CASE(op)                                                 \
+  case kExprS128##op: {                                                    \
+    bool is_memory64 =                                                     \
+        module_->memories[instr.optional.simd_loadstore_lane.memory_index] \
+            .is_memory64();                                                \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, is_memory64,  \
+                                           instr.pc);                      \
+    S128Pop();                                                             \
+    EmitMemoryOffset(instr.optional.simd_loadstore_lane.offset);           \
+    EmitMemoryIndex(instr.optional.simd_loadstore_lane.memory_index);      \
+    MemIndexPop(is_memory64);                                              \
+    /* emit 8 bits ? */                                                    \
+    EmitI16Const(instr.optional.simd_loadstore_lane.lane);                 \
+    S128Push();                                                            \
+    return RegMode::kNoReg;                                                \
   }
       LOAD_LANE_CASE(Load8Lane)
       LOAD_LANE_CASE(Load16Lane)
@@ -12800,16 +12950,20 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       LOAD_LANE_CASE(Load64Lane)
 #undef LOAD_LANE_CASE
 
-#define STORE_LANE_CASE(op)                                                  \
-  case kExprS128##op: {                                                      \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(                                        \
-        s2s_SimdS128##op, s2s_SimdS128##op##_Idx64, is_memory64_, instr.pc); \
-    S128Pop();                                                               \
-    EmitMemoryOffset(instr.optional.simd_loadstore_lane.offset);             \
-    MemIndexPop();                                                           \
-    /* emit 8 bits ? */                                                      \
-    EmitI16Const(instr.optional.simd_loadstore_lane.lane);                   \
-    return RegMode::kNoReg;                                                  \
+#define STORE_LANE_CASE(op)                                                \
+  case kExprS128##op: {                                                    \
+    bool is_memory64 =                                                     \
+        module_->memories[instr.optional.simd_loadstore_lane.memory_index] \
+            .is_memory64();                                                \
+    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_SimdS128##op, is_memory64,  \
+                                           instr.pc);                      \
+    S128Pop();                                                             \
+    EmitMemoryOffset(instr.optional.simd_loadstore_lane.offset);           \
+    EmitMemoryIndex(instr.optional.simd_loadstore_lane.memory_index);      \
+    MemIndexPop(is_memory64);                                              \
+    /* emit 8 bits ? */                                                    \
+    EmitI16Const(instr.optional.simd_loadstore_lane.lane);                 \
+    return RegMode::kNoReg;                                                \
   }
       STORE_LANE_CASE(Store8Lane)
       STORE_LANE_CASE(Store16Lane)
@@ -12872,6 +13026,10 @@ bool WasmBytecodeGenerator::EncodeSuperInstruction(
 bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
     RegMode& reg_mode, const WasmInstruction& curr_instr,
     const WasmInstruction& next_instr) {
+  // Super-instructions are not supported for multi-memory modules.
+  // Fall back to encoding the individual instructions separately.
+  if (is_multi_memory_) return false;
+
   if (curr_instr.orig >= kExprI32LoadMem &&
       curr_instr.orig <= kExprI64LoadMem32U &&
       next_instr.orig == kExprLocalSet) {
@@ -12882,24 +13040,26 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
     switch (curr_instr.orig) {
 // The implementation of r2s_LoadMem_LocalSet is identical to the
 // implementation of r2s_LoadMem, so we can reuse the same builtin.
-#define LOAD_CASE(name, ctype, mtype, rep, type)                           \
-  case kExpr##name: {                                                      \
-    if (reg_mode == RegMode::kNoReg) {                                     \
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name##_LocalSet,              \
-                                       s2s_##name##_LocalSet_Idx64,        \
-                                       is_memory64_, curr_instr.pc);       \
-      EmitMemoryOffset(curr_instr.optional.offset);                        \
-      MemIndexPop();                                                       \
-      EmitSlotOffset(slots_[stack_[to_stack_index]].slot_offset);          \
-      reg_mode = RegMode::kNoReg;                                          \
-    } else {                                                               \
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_##name, r2s_##name##_Idx64,     \
-                                       is_memory64_, curr_instr.pc);       \
-      EmitMemoryOffset(static_cast<uint64_t>(curr_instr.optional.offset)); \
-      EmitSlotOffset(slots_[stack_[to_stack_index]].slot_offset);          \
-      reg_mode = RegMode::kNoReg;                                          \
-    }                                                                      \
-    return true;                                                           \
+#define LOAD_CASE(name, ctype, mtype, rep, type)                          \
+  case kExpr##name: {                                                     \
+    bool is_memory64 =                                                    \
+        module_->memories[curr_instr.optional.memory_access.memory_index] \
+            .is_memory64();                                               \
+    if (reg_mode == RegMode::kNoReg) {                                    \
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(s2s_##name##_LocalSet,        \
+                                            is_memory64, curr_instr.pc);  \
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);         \
+      MemIndexPop(is_memory64);                                           \
+      EmitSlotOffset(slots_[stack_[to_stack_index]].slot_offset);         \
+      reg_mode = RegMode::kNoReg;                                         \
+    } else {                                                              \
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(r2s_##name, is_memory64,      \
+                                            curr_instr.pc);               \
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);         \
+      EmitSlotOffset(slots_[stack_[to_stack_index]].slot_offset);         \
+      reg_mode = RegMode::kNoReg;                                         \
+    }                                                                     \
+    return true;                                                          \
   }
       LOAD_CASE(I32LoadMem8S, int32_t, int8_t, kWord8, I32);
       LOAD_CASE(I32LoadMem8U, int32_t, uint8_t, kWord8, I32);
@@ -12922,74 +13082,78 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
     }
   } else if (curr_instr.orig == kExprI32LoadMem &&
              next_instr.orig == kExprI32StoreMem) {
+    bool is_memory64 =
+        module_->memories[curr_instr.optional.memory_access.memory_index]
+            .is_memory64();
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_I32LoadStoreMem,
-                                       s2s_I32LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);  // load_offset
-      MemIndexPop();                                 // load_index
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(s2s_I32LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
+      MemIndexPop(is_memory64);
     } else {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_I32LoadStoreMem,
-                                       r2s_I32LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);  // load_offset
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(r2s_I32LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
-    EmitMemoryOffset(next_instr.optional.offset);  // store_offset
-    MemIndexPop();                                 // store_index
+    EmitMemoryOffset(next_instr.optional.memory_access.offset);
+    MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig == kExprI64LoadMem &&
              next_instr.orig == kExprI64StoreMem) {
+    bool is_memory64 =
+        module_->memories[curr_instr.optional.memory_access.memory_index]
+            .is_memory64();
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_I64LoadStoreMem,
-                                       s2s_I64LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);
-      MemIndexPop();
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(s2s_I64LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
+      MemIndexPop(is_memory64);
     } else {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_I64LoadStoreMem,
-                                       r2s_I64LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(r2s_I64LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
-    EmitMemoryOffset(next_instr.optional.offset);
-    MemIndexPop();
+    EmitMemoryOffset(next_instr.optional.memory_access.offset);
+    MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig == kExprF32LoadMem &&
              next_instr.orig == kExprF32StoreMem) {
+    bool is_memory64 =
+        module_->memories[curr_instr.optional.memory_access.memory_index]
+            .is_memory64();
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_F32LoadStoreMem,
-                                       s2s_F32LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);
-      MemIndexPop();
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(s2s_F32LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
+      MemIndexPop(is_memory64);
     } else {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_F32LoadStoreMem,
-                                       r2s_F32LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(r2s_F32LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
-    EmitMemoryOffset(next_instr.optional.offset);
-    MemIndexPop();
+    EmitMemoryOffset(next_instr.optional.memory_access.offset);
+    MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig == kExprF64LoadMem &&
              next_instr.orig == kExprF64StoreMem) {
+    bool is_memory64 =
+        module_->memories[curr_instr.optional.memory_access.memory_index]
+            .is_memory64();
     if (reg_mode == RegMode::kNoReg) {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_F64LoadStoreMem,
-                                       s2s_F64LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);
-      MemIndexPop();
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(s2s_F64LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
+      MemIndexPop(is_memory64);
     } else {
-      EMIT_MEM64_INSTR_HANDLER_WITH_PC(r2s_F64LoadStoreMem,
-                                       r2s_F64LoadStoreMem_Idx64, is_memory64_,
-                                       curr_instr.pc);
-      EmitMemoryOffset(curr_instr.optional.offset);
+      EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(r2s_F64LoadStoreMem, is_memory64,
+                                            curr_instr.pc);
+      EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
-    EmitMemoryOffset(next_instr.optional.offset);
-    MemIndexPop();
+    EmitMemoryOffset(next_instr.optional.memory_access.offset);
+    MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig >= kExprI32Const &&
@@ -13036,11 +13200,14 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
 // implementation of r2s_StoreMem, so we can reuse the same builtin.
 #define STORE_CASE(name, ctype, mtype, rep, type)                          \
   case kExpr##name: {                                                      \
-    EMIT_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, s2s_##name##_Idx64,       \
-                                     is_memory64_, curr_instr.pc);         \
+    bool is_memory64 =                                                     \
+        module_->memories[next_instr.optional.memory_access.memory_index]  \
+            .is_memory64();                                                \
+    EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64,         \
+                                          curr_instr.pc);                  \
     EmitSlotOffset(slots_[stack_[curr_instr.optional.index]].slot_offset); \
-    EmitMemoryOffset(next_instr.optional.offset);                          \
-    MemIndexPop();                                                         \
+    EmitMemoryOffset(next_instr.optional.memory_access.offset);            \
+    MemIndexPop(is_memory64);                                              \
     reg_mode = RegMode::kNoReg;                                            \
     return true;                                                           \
   }
@@ -13283,7 +13450,6 @@ bool WasmBytecodeGenerator::TryCompactInstructionHandler(
   }
   return false;
 }
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

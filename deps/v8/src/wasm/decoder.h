@@ -134,13 +134,6 @@ class Decoder {
     return read_little_endian<uint8_t, ValidationTag>(pc, msg);
   }
 
-  // Reads a 16-bit unsigned integer (little endian).
-  template <typename ValidationTag>
-  uint16_t read_u16(const uint8_t* pc,
-                    Name<ValidationTag> msg = "expected 2 bytes") {
-    return read_little_endian<uint16_t, ValidationTag>(pc, msg);
-  }
-
   // Reads a 32-bit unsigned integer (little endian).
   template <typename ValidationTag>
   uint32_t read_u32(const uint8_t* pc,
@@ -233,11 +226,6 @@ class Decoder {
     return consume_little_endian<uint8_t, kNoTrace>(name);
   }
 
-  // Reads a 16-bit unsigned integer (little endian) and advances {pc_}.
-  uint16_t consume_u16(const char* name = "uint16_t") {
-    return consume_little_endian<uint16_t, kTrace>(name);
-  }
-
   // Reads a single 32-bit unsigned integer (little endian) and advances {pc_}.
   uint32_t consume_u32(const char* name, ITracer* tracer) {
     if (tracer) {
@@ -281,14 +269,6 @@ class Decoder {
       tracer->Bytes(pc_, length);
       tracer->Description(name);
     }
-    pc_ += length;
-    return result;
-  }
-
-  // Reads a LEB128 variable-length signed 64-bit integer and advances {pc_}.
-  int64_t consume_i64v(const char* name = "var_int64") {
-    auto [result, length] =
-        read_leb<int64_t, FullValidationTag, kTrace>(pc_, name);
     pc_ += length;
     return result;
   }
@@ -400,7 +380,7 @@ class Decoder {
   }
 
   bool ok() const { return !failed(); }
-  bool failed() const { return error_.has_error(); }
+  bool failed() const { return V8_UNLIKELY(error_.has_error()); }
   bool more() const { return pc_ < end_; }
   const WasmError& error() const { return error_; }
 

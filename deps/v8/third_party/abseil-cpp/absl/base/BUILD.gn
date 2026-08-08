@@ -19,6 +19,16 @@ absl_source_set("errno_saver") {
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
+absl_source_set("hardening") {
+  sources = [ "internal/hardening.cc" ]
+  public = [ "internal/hardening.h" ]
+  deps = [
+    ":config",
+    ":core_headers",
+  ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+}
+
 absl_source_set("log_severity") {
   sources = [ "log_severity.cc" ]
   public = [ "log_severity.h" ]
@@ -216,13 +226,12 @@ if (absl_build_tests) {
 }
 
 absl_source_set("throw_delegate") {
-  sources = [ "internal/throw_delegate.cc" ]
-  public = [ "internal/throw_delegate.h" ]
+  sources = [ "throw_delegate.cc" ]
+  public = [ "throw_delegate.h" ]
   deps = [
     ":config",
     ":raw_logging_internal",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_source_set("exception_testing") {
@@ -384,6 +393,15 @@ absl_test("casts_test") {
   ]
 }
 
+absl_test("hardening_test") {
+  sources = [ "internal/hardening_test.cc" ]
+  deps = [
+    ":config",
+    ":core_headers",
+    ":hardening",
+  ]
+}
+
 absl_test("no_destructor_test") {
   sources = [ "no_destructor_test.cc" ]
   deps = [
@@ -438,4 +456,9 @@ absl_test("thread_identity_test") {
     ":core_headers",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
+}
+
+absl_test("optimization_test") {
+  sources = [ "optimization_test.cc" ]
+  deps = [ ":core_headers" ]
 }

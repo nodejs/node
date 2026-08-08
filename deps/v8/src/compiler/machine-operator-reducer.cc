@@ -696,9 +696,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         // All reciprocals of non-denormal powers of two can be represented
         // exactly, so division by power of two can be reduced to
         // multiplication by reciprocal, with the same result.
-        node->ReplaceInput(1, Float64Constant(1.0 / m.right().ScalarValue()));
-        NodeProperties::ChangeOp(node, machine()->Float64Mul());
-        return Changed(node);
+        const double recip = 1.0 / m.right().ScalarValue();
+        if (std::isnormal(recip)) {
+          node->ReplaceInput(1, Float64Constant(recip));
+          NodeProperties::ChangeOp(node, machine()->Float64Mul());
+          return Changed(node);
+        }
       }
       break;
     }
@@ -1034,7 +1037,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kLoad:
-    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kTrappingLoad:
     case IrOpcode::kLoadTrapOnNull: {
       Node* input0 = node->InputAt(0);
       Node* input1 = node->InputAt(1);
@@ -1079,7 +1082,7 @@ Reduction MachineOperatorReducer::ReduceTruncateInt64ToInt32(Node* node) {
         }
         if (value_edges == 1) {
           // Removing the input is required as node is replaced by the Load, but
-          // is still used by the the BitcastTaggedToWordForTagAndSmiBits, so
+          // is still used by the BitcastTaggedToWordForTagAndSmiBits, so
           // will prevent future CanCover calls being true.
           m.node()->RemoveInput(0);
           NodeProperties::ChangeOp(

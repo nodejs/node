@@ -31,13 +31,6 @@ Isolate::CurrentPerIsolateThreadData() {
   return g_current_per_isolate_thread_data_;
 }
 
-// static
-V8_INLINE Isolate* Isolate::Current() {
-  Isolate* isolate = TryGetCurrent();
-  DCHECK_NOT_NULL(isolate);
-  return isolate;
-}
-
 bool Isolate::IsCurrent() const { return this == TryGetCurrent(); }
 
 void Isolate::set_context(Tagged<Context> context) {
@@ -62,7 +55,7 @@ void Isolate::set_topmost_script_having_context(Tagged<Context> context) {
 
 void Isolate::clear_topmost_script_having_context() {
   static_assert(Context::kNoContext == 0);
-  thread_local_top()->topmost_script_having_context_ = Context();
+  thread_local_top()->topmost_script_having_context_ = {};
 }
 
 DirectHandle<NativeContext> Isolate::GetIncumbentContext() {

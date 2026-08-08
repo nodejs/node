@@ -15,31 +15,32 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
-class RegExpCodeGenerator final {
+class CodeGenerator final {
  public:
-  RegExpCodeGenerator(Isolate* isolate, RegExpMacroAssembler* masm,
-                      DirectHandle<TrustedByteArray> bytecode);
+  CodeGenerator(Isolate* isolate, RegExpMacroAssembler* masm,
+                DirectHandle<TrustedByteArray> bytecode);
 
   struct Result final {
     explicit Result(DirectHandle<Code> code) : code_(code) {}
 
     static Result UnsupportedBytecode() {
-      return Result(RegExpError::kUnsupportedBytecode);
+      return Result(Error::kUnsupportedBytecode);
     }
 
-    bool Succeeded() const { return error_ == RegExpError::kNone; }
-    RegExpError error() const { return error_; }
+    bool Succeeded() const { return error_ == Error::kNone; }
+    Error error() const { return error_; }
     DirectHandle<Code> code() const { return code_; }
 
    private:
-    explicit Result(RegExpError err) : error_(err) {}
+    explicit Result(Error err) : error_(err) {}
 
-    RegExpError error_ = RegExpError::kNone;
+    Error error_ = Error::kNone;
     DirectHandle<Code> code_;
   };
 
-  V8_NODISCARD Result Assemble(DirectHandle<String> source, RegExpFlags flags);
+  V8_NODISCARD Result Assemble(DirectHandle<RegExpData> re_data, Flags flags);
 
  private:
   // Returns the value for |operand_id| of the current bytecode in the format
@@ -56,7 +57,7 @@ class RegExpCodeGenerator final {
   // Allocates labels for all jump targets to support forward jumps.
   void PreVisitBytecodes();
   void VisitBytecodes();
-  template <RegExpBytecode bc>
+  template <Bytecode bc>
   void Visit();
   Label* GetLabel(uint32_t offset) const;
   MacroAssembler* NativeMasm();
@@ -65,7 +66,7 @@ class RegExpCodeGenerator final {
   Zone zone_;
   RegExpMacroAssembler* masm_;
   DirectHandle<TrustedByteArray> bytecode_;
-  RegExpBytecodeIterator iter_;
+  BytecodeIterator iter_;
   // Zone allocated Array of Labels for each offset. Access is only valid for
   // offsets that are jump targets (indicated by jump_targets_).
   Label* labels_;
@@ -79,6 +80,7 @@ class RegExpCodeGenerator final {
   bool has_unsupported_bytecode_;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

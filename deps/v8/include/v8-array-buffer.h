@@ -341,8 +341,8 @@ class V8_EXPORT ArrayBuffer : public Object {
   /**
    * Copy up to |bytes_to_copy| bytes from this ArrayBuffer starting at
    * position |source_start| to the target ArrayBuffer starting at position
-   * |target_start|. Nothing is copied if the source ArrayBuffer is detached,
-   * or if the target ArrayBuffer is detached or immutable.
+   * |target_start|. Nothing is copied if the source or target ArrayBuffer is
+   * detached.
    * Returns the number of bytes actually copied.
    */
   size_t CopyArrayBufferBytes(size_t source_start, size_t bytes_to_copy,

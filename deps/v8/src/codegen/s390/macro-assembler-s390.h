@@ -139,6 +139,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef);
+
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
   void LoadInterpreterDataInterpreterTrampoline(Register destination,
@@ -350,36 +354,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MulS64(Register dst, Register src);
   void MulS64(Register dst, const MemOperand& opnd);
   void MulS64(Register dst, Register src1, Register src2) {
-    if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
       msgrkc(dst, src1, src2);
-    } else {
-      if (dst == src2) {
-        MulS64(dst, src1);
-      } else if (dst == src1) {
-        MulS64(dst, src2);
-      } else {
-        mov(dst, src1);
-        MulS64(dst, src2);
-      }
-    }
   }
 
   void MulS32(Register dst, const MemOperand& src1);
   void MulS32(Register dst, Register src1);
   void MulS32(Register dst, const Operand& src1);
   void MulS32(Register dst, Register src1, Register src2) {
-    if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
       msrkc(dst, src1, src2);
-    } else {
-      if (dst == src2) {
-        MulS32(dst, src1);
-      } else if (dst == src1) {
-        MulS32(dst, src2);
-      } else {
-        mov(dst, src1);
-        MulS32(dst, src2);
-      }
-    }
   }
   void MulHighS64(Register dst, Register src1, Register src2);
   void MulHighS64(Register dst, Register src1, const MemOperand& src2);
@@ -1028,24 +1010,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                               int rangeEnd) {
     DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerSystemPointer);
 
-    // Try to use RISBG if possible.
-    if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
       int shiftAmount = (64 - rangeEnd) % 64;  // Convert to shift left.
       int endBit = 63;  // End is always LSB after shifting.
       int startBit = 63 - rangeStart + rangeEnd;
       RotateInsertSelectBits(dst, src, Operand(startBit), Operand(endBit),
                              Operand(shiftAmount), true);
-    } else {
-      if (rangeEnd > 0)  // Don't need to shift if rangeEnd is zero.
-        ShiftRightU64(dst, src, Operand(rangeEnd));
-      else if (dst != src)  // If we didn't shift, we might need to copy
-        mov(dst, src);
-      int width = rangeStart - rangeEnd + 1;
-      uint64_t mask = (static_cast<uint64_t>(1) << width) - 1;
-      nihf(dst, Operand(mask >> 32));
-      nilf(dst, Operand(mask & 0xFFFFFFFF));
-      ltgr(dst, dst);
-    }
   }
 
   inline void ExtractBit(Register dst, Register src, uint32_t bitNumber) {

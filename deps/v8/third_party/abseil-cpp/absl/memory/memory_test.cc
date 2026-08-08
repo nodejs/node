@@ -64,6 +64,11 @@ TEST(WrapUniqueTest, WrapUnique) {
   EXPECT_EQ(0, DestructorVerifier::instance_count());
 }
 
+TEST(MakeUniqueForOverwriteTest, Basic) {
+  std::unique_ptr<int> p = absl::make_unique_for_overwrite<int>();
+  p = absl::make_unique_for_overwrite<int>();
+}
+
 // InitializationVerifier fills in a pattern when allocated so we can
 // distinguish between its default and value initialized states (without
 // accessing truly uninitialized memory).
@@ -87,6 +92,28 @@ struct InitializationVerifier {
   int b;
 };
 
+TEST(Initialization, MakeUniqueForOverwrite) {
+  auto p = absl::make_unique_for_overwrite<InitializationVerifier>();
+
+  int pattern;
+  memset(&pattern, InitializationVerifier::kDefaultScalar, sizeof(pattern));
+
+  EXPECT_EQ(pattern, p->a);
+  EXPECT_EQ(pattern, p->b);
+}
+
+TEST(Initialization, MakeUniqueForOverwriteArray) {
+  auto p = absl::make_unique_for_overwrite<InitializationVerifier[]>(2);
+
+  int pattern;
+  memset(&pattern, InitializationVerifier::kDefaultArray, sizeof(pattern));
+
+  EXPECT_EQ(pattern, p[0].a);
+  EXPECT_EQ(pattern, p[0].b);
+  EXPECT_EQ(pattern, p[1].a);
+  EXPECT_EQ(pattern, p[1].b);
+}
+
 struct ArrayWatch {
   void* operator new[](size_t n) {
     allocs().push_back(n);
@@ -98,6 +125,17 @@ struct ArrayWatch {
     return v;
   }
 };
+
+TEST(MakeUniqueForOverwriteTest, Array) {
+  // Ensure state is clean before we start so that these tests
+  // are order-agnostic.
+  ArrayWatch::allocs().clear();
+
+  auto p = absl::make_unique_for_overwrite<ArrayWatch[]>(5);
+  static_assert(std::is_same<decltype(p), std::unique_ptr<ArrayWatch[]>>::value,
+                "unexpected return type");
+  EXPECT_THAT(ArrayWatch::allocs(), ElementsAre(5 * sizeof(ArrayWatch)));
+}
 
 TEST(RawPtrTest, RawPointer) {
   int i = 5;

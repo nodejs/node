@@ -31,18 +31,20 @@ TEST(S128Local) {
 TEST(S128Global) {
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
 
-  int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* g1 = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(1, WASM_GLOBAL_GET(0)), WASM_ONE});
 
   int32_t expected = 0x1234;
+  std::array<int32_t, 4> g0_val;
   for (int i = 0; i < 4; i++) {
-    LANE(g0, i) = expected;
+    LANE(g0_val, i) = expected;
   }
+  r.builder().WriteGlobal(*g0, WasmValue(Simd128(g0_val)));
   r.Call();
+  Simd128 actual = r.builder().ReadGlobal(*g1).to_s128();
   for (int i = 0; i < 4; i++) {
-    int32_t actual = LANE(g1, i);
-    CHECK_EQ(actual, expected);
+    CHECK_EQ(LANE(actual.to_i32x4(), i), expected);
   }
 }
 
@@ -109,15 +111,18 @@ TEST(I8x16Shuffle) {
   //  g0 and g1 are globals that hold input values for the shuffle,
   //  g0 contains byte array [0, 1, ... 15], g1 contains byte array [16, 17,
   //  ... 31]. They should never be overwritten - write only to output.
-  uint8_t* g0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* g1 = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* g1 = r.builder().AddGlobal(kWasmS128);
+  std::array<int8_t, 16> g0_val, g1_val;
   for (int i = 0; i < 16; i++) {
-    LANE(g0, i) = i;
-    LANE(g1, i) = i + 16;
+    LANE(g0_val, i) = i;
+    LANE(g1_val, i) = i + 16;
   }
+  r.builder().WriteGlobal(*g0, WasmValue(Simd128(g0_val)));
+  r.builder().WriteGlobal(*g1, WasmValue(Simd128(g1_val)));
 
   // Output global holding a kWasmS128.
-  uint8_t* output = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  const WasmGlobal* output = r.builder().AddGlobal(kWasmS128);
 
   // i8x16_shuffle(lhs, rhs, pattern) will take the last element of rhs and
   // place it into the last lane of lhs.
@@ -137,11 +142,11 @@ TEST(I8x16Shuffle) {
   r.Call();
 
   // The shuffle pattern only changes the last element.
+  Simd128 actual = r.builder().ReadGlobal(*output).to_s128();
   for (int i = 0; i < 15; i++) {
-    uint8_t actual = LANE(output, i);
-    CHECK_EQ(i, actual);
+    CHECK_EQ(i, LANE(actual.to_i8x16(), i));
   }
-  CHECK_EQ(31, LANE(output, 15));
+  CHECK_EQ(31, LANE(actual.to_i8x16(), 15));
 }
 
 // Exercise logic in Liftoff's implementation of shuffle when inputs to the
@@ -150,12 +155,14 @@ TEST(I8x16Shuffle_SingleOperand) {
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
   uint8_t local0 = r.AllocateLocal(kWasmS128);
 
-  uint8_t* g0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
+  std::array<int8_t, 16> g0_val;
   for (int i = 0; i < 16; i++) {
-    LANE(g0, i) = i;
+    LANE(g0_val, i) = i;
   }
+  r.builder().WriteGlobal(*g0, WasmValue(Simd128(g0_val)));
 
-  uint8_t* output = r.builder().AddGlobal<uint8_t>(kWasmS128);
+  const WasmGlobal* output = r.builder().AddGlobal(kWasmS128);
 
   // This pattern reverses first operand. 31 should select the last lane of
   // the second operand, but since the operands are the same, the effect is that
@@ -173,10 +180,10 @@ TEST(I8x16Shuffle_SingleOperand) {
 
   r.Call();
 
+  Simd128 actual = r.builder().ReadGlobal(*output).to_s128();
   for (int i = 0; i < 16; i++) {
     // Check that the output is the reverse of input.
-    uint8_t actual = LANE(output, i);
-    CHECK_EQ(15 - i, actual);
+    CHECK_EQ(15 - i, LANE(actual.to_i8x16(), i));
   }
 }
 

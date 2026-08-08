@@ -261,7 +261,7 @@ struct AlignOf<Aligned<T, N>> {
 
 // Does `Ts...` contain `T`?
 template <class T, class... Ts>
-using Contains = absl::disjunction<std::is_same<T, Ts>...>;
+using Contains = std::disjunction<std::is_same<T, Ts>...>;
 
 template <class From, class To>
 using CopyConst =
@@ -352,7 +352,7 @@ class LayoutImpl<
     absl::index_sequence<OffsetSeq...>> {
  private:
   static_assert(sizeof...(Elements) > 0, "At least one field is required");
-  static_assert(absl::conjunction<IsLegalElementType<Elements>...>::value,
+  static_assert(std::conjunction<IsLegalElementType<Elements>...>::value,
                 "Invalid element type (see IsLegalElementType)");
   static_assert(sizeof...(StaticSizeSeq) <= sizeof...(Elements),
                 "Too many static sizes specified");

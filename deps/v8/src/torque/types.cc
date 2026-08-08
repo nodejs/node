@@ -659,7 +659,7 @@ std::vector<Field> ClassType::ComputeAllFields() const {
 std::vector<Field> ClassType::ComputeHeaderFields() const {
   std::vector<Field> result;
   for (Field& field : ComputeAllFields()) {
-    if (field.index) break;
+    if (field.index && !field.index_is_constant) break;
     // The header is allowed to end with an optional padding field of size 0.
     DCHECK(std::get<0>(field.GetFieldSizeInformation()) == 0 ||
            *field.offset < header_size());
@@ -671,7 +671,7 @@ std::vector<Field> ClassType::ComputeHeaderFields() const {
 std::vector<Field> ClassType::ComputeArrayFields() const {
   std::vector<Field> result;
   for (Field& field : ComputeAllFields()) {
-    if (!field.index) {
+    if (!field.index || field.index_is_constant) {
       // The header is allowed to end with an optional padding field of size 0.
       DCHECK(std::get<0>(field.GetFieldSizeInformation()) == 0 ||
              *field.offset < header_size());
@@ -782,12 +782,12 @@ bool ClassType::HasNoPointerSlotsExceptMap() const {
   return true;
 }
 
-bool ClassType::HasIndexedFieldsIncludingInParents() const {
+bool ClassType::HasDynamicIndexedFieldsIncludingInParents() const {
   for (const auto& field : fields_) {
-    if (field.index.has_value()) return true;
+    if (field.index.has_value() && !field.index_is_constant) return true;
   }
   if (const ClassType* parent = GetSuperClass()) {
-    return parent->HasIndexedFieldsIncludingInParents();
+    return parent->HasDynamicIndexedFieldsIncludingInParents();
   }
   return false;
 }
@@ -816,9 +816,10 @@ std::string ClassType::GetSliceMacroName(const Field& field) const {
 }
 
 void ClassType::GenerateAccessors() {
-  bool at_or_after_indexed_field = false;
+  bool at_or_after_dynamic_indexed_field = false;
   if (const ClassType* parent = GetSuperClass()) {
-    at_or_after_indexed_field = parent->HasIndexedFieldsIncludingInParents();
+    at_or_after_dynamic_indexed_field =
+        parent->HasDynamicIndexedFieldsIncludingInParents();
   }
   // For each field, construct AST snippets that implement a CSA accessor
   // function. The implementation iterator will turn the snippets into code.
@@ -827,8 +828,9 @@ void ClassType::GenerateAccessors() {
     if (field.name_and_type.type == TypeOracle::GetVoidType()) {
       continue;
     }
-    at_or_after_indexed_field =
-        at_or_after_indexed_field || field.index.has_value();
+    at_or_after_dynamic_indexed_field =
+        at_or_after_dynamic_indexed_field ||
+        (field.index.has_value() && !field.index_is_constant);
     CurrentSourcePosition::Scope position_activator(field.pos);
 
     IdentifierExpression* parameter = MakeIdentifierExpression("o");
@@ -836,7 +838,7 @@ void ClassType::GenerateAccessors() {
 
     std::string camel_field_name = CamelifyString(field.name_and_type.name);
 
-    if (at_or_after_indexed_field) {
+    if (at_or_after_dynamic_indexed_field || field.index.has_value()) {
       if (!field.index.has_value()) {
         // There's no fundamental reason we couldn't generate functions to get
         // references instead of slices, but it's not yet implemented.

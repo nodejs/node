@@ -20,6 +20,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
+#include "src/codegen/source-position.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
@@ -904,12 +905,14 @@ class CodeDescription {
 
   CodeDescription(const char* name, base::AddressRegion region,
                   Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
-                  bool is_function)
+                  bool is_function, CodeKind kind, int opt_id = -1)
       : name_(name),
         shared_info_(shared),
         lineinfo_(lineinfo),
         is_function_(is_function),
-        code_region_(region) {}
+        code_region_(region),
+        kind_(kind),
+        opt_id_(opt_id) {}
 
   const char* name() const { return name_; }
 
@@ -917,7 +920,11 @@ class CodeDescription {
 
   bool is_function() const { return is_function_; }
 
-  bool has_scope_info() const { return !shared_info_.is_null(); }
+  bool has_scope_info() const {
+    return (kind_ == CodeKind::INTERPRETED_FUNCTION ||
+            kind_ == CodeKind::BASELINE) &&
+           !shared_info_.is_null();
+  }
 
   Tagged<ScopeInfo> scope_info() const {
     DCHECK(has_scope_info());
@@ -927,6 +934,10 @@ class CodeDescription {
   uintptr_t CodeStart() const { return code_region_.begin(); }
 
   uintptr_t CodeEnd() const { return code_region_.end(); }
+
+  CodeKind kind() const { return kind_; }
+
+  Tagged<SharedFunctionInfo> shared_info() const { return shared_info_; }
 
   uintptr_t CodeSize() const { return code_region_.size(); }
 
@@ -953,6 +964,14 @@ class CodeDescription {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
+    if (kind_ == CodeKind::MAGLEV && v8_flags.maglev_gdbjit &&
+        v8_flags.gdbjit_full) {
+      std::string func_name = shared_info_->DebugNameCStr().get();
+      std::string filename = GetMaglevGraphFilename(func_name, opt_id_);
+      std::unique_ptr<char[]> result(new char[filename.length() + 1]);
+      snprintf(result.get(), filename.length() + 1, "%s", filename.c_str());
+      return result;
+    }
     if (!shared_info_.is_null() && IsString(script()->name())) {
       return Cast<String>(script()->name())->ToCString();
     } else {
@@ -976,6 +995,8 @@ class CodeDescription {
   LineInfo* lineinfo_;
   bool is_function_;
   base::AddressRegion code_region_;
+  CodeKind kind_;
+  int opt_id_;
 #if V8_TARGET_ARCH_X64
   uintptr_t stack_state_start_addresses_[STACK_STATE_MAX];
 #endif
@@ -994,9 +1015,13 @@ static void CreateSymbolsTable(CodeDescription* desc, Zone* zone, ELF* elf,
   symtab->Add(ELFSymbol("V8 Code", 0, 0, ELFSymbol::BIND_LOCAL,
                         ELFSymbol::TYPE_FILE, ELFSection::INDEX_ABSOLUTE));
 
-  symtab->Add(ELFSymbol(desc->name(), 0, desc->CodeSize(),
-                        ELFSymbol::BIND_GLOBAL, ELFSymbol::TYPE_FUNC,
-                        text_section_index));
+  std::string name = desc->name();
+
+  char* zone_name = zone->AllocateArray<char>(name.length() + 1);
+  snprintf(zone_name, name.length() + 1, "%s", name.c_str());
+
+  symtab->Add(ELFSymbol(zone_name, 0, desc->CodeSize(), ELFSymbol::BIND_LOCAL,
+                        ELFSymbol::TYPE_FUNC, text_section_index));
 }
 #endif  // defined(__ELF)
 
@@ -1400,7 +1425,11 @@ class DebugLineSection : public DebugSection {
 
       // Reduce bloating in the debug line table by removing duplicate line
       // entries (per DWARF2 standard).
-      intptr_t new_line = desc_->GetScriptLineNumber(info->pos_);
+      DCHECK_NE(info->pos_, kNoSourcePosition);
+      intptr_t new_line = (desc_->kind() == CodeKind::MAGLEV &&
+                           v8_flags.maglev_gdbjit && v8_flags.gdbjit_full)
+                              ? info->pos_
+                              : desc_->GetScriptLineNumber(info->pos_);
       if (new_line == line) {
         continue;
       }
@@ -1610,7 +1639,7 @@ void UnwindInfoSection::WriteFDE(Writer* w, int cie_position) {
 }
 
 void UnwindInfoSection::WriteFDEStateOnEntry(Writer* w) {
-  // The first state, just after the control has been transferred to the the
+  // The first state, just after the control has been transferred to the
   // function.
 
   // RBP for this function will be the value of RSP after pushing the RBP
@@ -1999,9 +2028,11 @@ static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
 
 static void AddCode(const char* name, base::AddressRegion region,
                     Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
-                    Isolate* isolate, bool is_function) {
+                    Isolate* isolate, bool is_function, CodeKind kind,
+                    int opt_id) {
   DisallowGarbageCollection no_gc;
-  CodeDescription code_desc(name, region, shared, lineinfo, is_function);
+  CodeDescription code_desc(name, region, shared, lineinfo, is_function, kind,
+                            opt_id);
 
   CodeMap* code_map = GetCodeMap();
   RemoveJITCodeEntries(code_map, region);
@@ -2055,13 +2086,26 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // prologue that SP generates probably matches that of TP/TF, so we can
       // use event->code_type here instead of finding the Code.
       // TODO(zhin): Rename is_function to be more accurate.
+      CodeKind kind = CodeKind::INTERPRETED_FUNCTION;
+      int opt_id = -1;
       if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
         Tagged<Code> lookup_result =
             isolate->heap()->FindCodeForInnerPointer(addr);
         is_function = CodeKindIsOptimizedJSFunction(lookup_result->kind());
+        kind = lookup_result->kind();
+        // Skip GDB JIT registration for builtins because it is very slow. Also,
+        // we already emit debug information in the embedded blob.
+        if (kind == CodeKind::BUILTIN || kind == CodeKind::BYTECODE_HANDLER) {
+          delete lineinfo;
+          return;
+        }
+        if (kind == CodeKind::MAGLEV) {
+          opt_id =
+              lookup_result->deoptimization_data()->OptimizationId().value();
+        }
       }
       AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,
-              isolate, is_function);
+              isolate, is_function, kind, opt_id);
       break;
     }
     case v8::JitCodeEvent::CODE_MOVED:

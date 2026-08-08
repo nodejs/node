@@ -81,15 +81,25 @@ std::string PrintTrapHandlerTestParam(
   UNREACHABLE();
 }
 
-class TrapHandlerTest : public TestWithIsolate,
+class TrapHandlerTest : public TestWithPlatform,
                         public ::testing::WithParamInterface<TrapHandlerStyle> {
  protected:
   void SetUp() override {
     InstallFallbackHandler();
+    // Set up the trap handler before allocating an isolate. Isolate allocation
+    // registers the `WasmNull` unaccessible range with the trap handler *only*
+    // if the trap handler is enabled at this point.
     SetupTrapHandler(GetParam());
+
+    array_buffer_allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = array_buffer_allocator_;
+
+    isolate_ = v8::Isolate::New(create_params);
+    CHECK_NOT_NULL(isolate_);
+
     backing_store_ = BackingStore::AllocateWasmMemory(
-        i_isolate(), 1, 1, WasmMemoryFlag::kWasmMemory32,
-        SharedFlag::kNotShared);
+        i_isolate(), 1, 1, WasmMemoryFlag::kWasmMemory32, SharedFlag::kNo);
     CHECK(backing_store_);
     EXPECT_TRUE(backing_store_->has_guard_regions());
     // The allocated backing store ends with a guard page.
@@ -136,6 +146,8 @@ class TrapHandlerTest : public TestWithIsolate,
     buffer_.reset();
     recovery_buffer_.reset();
     backing_store_.reset();
+    isolate_->Dispose();
+    delete array_buffer_allocator_;
 
     // Clean up the trap handler
     trap_handler::RemoveTrapHandler();
@@ -242,6 +254,8 @@ class TrapHandlerTest : public TestWithIsolate,
   }
 
  public:
+  Isolate* i_isolate() const { return reinterpret_cast<Isolate*>(isolate_); }
+
   // Execute the code in buffer.
   void ExecuteBuffer() {
     buffer_->MakeExecutable();
@@ -265,6 +279,10 @@ class TrapHandlerTest : public TestWithIsolate,
   }
 
   bool test_handler_executed() { return g_test_handler_executed; }
+
+  // The array buffer allocator and the isolate used in the tests.
+  v8::ArrayBuffer::Allocator* array_buffer_allocator_;
+  v8::Isolate* isolate_;
 
   // The backing store used for testing the trap handler.
   std::unique_ptr<BackingStore> backing_store_;
@@ -329,7 +347,7 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
@@ -379,7 +397,7 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{crash_offset};
   int handler_id = trap_handler::RegisterHandlerData(
       reinterpret_cast<Address>(desc.buffer), desc.instr_size, 1,
       &protected_instruction);
@@ -431,7 +449,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{no_crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{no_crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
@@ -466,7 +484,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   CodeDesc desc;
   masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
-  trap_handler::ProtectedInstructionData protected_instruction{crash_offset};
+  trap_handler::TrappingInstructionData protected_instruction{crash_offset};
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 

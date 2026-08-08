@@ -59,7 +59,7 @@ InjectedScript* getInjectedScript(v8::Local<v8::Context> context,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
-  InspectedContext* inspectedContext =
+  std::shared_ptr<InspectedContext> inspectedContext =
       inspector->getContext(InspectedContext::contextId(context));
   if (!inspectedContext) return nullptr;
   return inspectedContext->getInjectedScript(sessionId);

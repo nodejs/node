@@ -25,6 +25,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class MicrotaskQueue;
 class TrustedPointerPublishingScope;
 
 namespace wasm {
@@ -189,6 +190,12 @@ class IsolateData final {
   }
   void set_continuation_preserved_embedder_data(Tagged<Object> data) {
     continuation_preserved_embedder_data_ = data;
+  }
+  MicrotaskQueue* current_microtask_queue() const {
+    return current_microtask_queue_;
+  }
+  void set_current_microtask_queue(MicrotaskQueue* queue) {
+    current_microtask_queue_ = queue;
   }
   const RootsTable& roots() const { return roots_table_; }
   ExternalReferenceTable* external_reference_table() {
@@ -412,6 +419,12 @@ class IsolateData final {
 
   // This is data that should be preserved on newly created continuations.
   Tagged<Object> continuation_preserved_embedder_data_ = Smi::zero();
+
+  // Cache for EnqueueMicrotask: avoids the NativeContext → EPT →
+  // MicrotaskQueue chain when the same NativeContext is seen repeatedly.
+  // Set lazily by EnqueueMicrotask, cleared at the end of RunMicrotasks.
+  MicrotaskQueue* current_microtask_queue_ = nullptr;
+  Tagged<Object> current_microtask_native_context_ = Smi::zero();
 
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;

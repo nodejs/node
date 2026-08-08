@@ -105,8 +105,10 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
     const void* address) const {
   if (is_large()) {
     if (!LargePage::From(this)->PayloadContains(
-            static_cast<ConstAddress>(address)))
+            static_cast<ConstAddress>(address))) {
       return nullptr;
+    }
+    return LargePage::From(this)->ObjectHeader();
   } else {
     const NormalPage* normal_page = NormalPage::From(this);
     if (!normal_page->PayloadContains(static_cast<ConstAddress>(address)))
@@ -115,14 +117,20 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
     DCHECK(!NormalPageSpace::From(normal_page->space())
                 .linear_allocation_buffer()
                 .size());
-  }
 
-  // |address| is on the heap, so we FromInnerAddress can get the header.
-  const HeapObjectHeader* header =
-      ObjectHeaderFromInnerAddressImpl(this, address);
-  if (header->IsFree()) return nullptr;
-  DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
-  return header;
+    const PlatformAwareObjectStartBitmap& bitmap =
+        NormalPage::From(this)->object_start_bitmap();
+    const HeapObjectHeader* header = bitmap.FindHeader<AccessMode::kNonAtomic>(
+        static_cast<ConstAddress>(address));
+    if (address >= reinterpret_cast<ConstAddress>(header) +
+                       header->AllocatedSize<AccessMode::kAtomic>()) {
+      // Found an object below the current address.
+      return nullptr;
+    }
+    if (header->IsFree()) return nullptr;
+    DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex());
+    return header;
+  }
 }
 
 #if defined(CPPGC_YOUNG_GENERATION)

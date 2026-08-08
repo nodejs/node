@@ -122,7 +122,7 @@ DirectHandle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
-  Handle<JSFunction> result_function(JSFunction{}, isolate);
+  Handle<JSFunction> result_function(Tagged<JSFunction>{}, isolate);
 
   const int kNumParams = 2;
 
@@ -167,7 +167,7 @@ DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
-  Handle<JSFunction> result_function(JSFunction{}, isolate);
+  Handle<JSFunction> result_function(Tagged<JSFunction>{}, isolate);
 
   const int kNumParams = 2;
   compiler::CodeAssemblerTester asm_tester(isolate,

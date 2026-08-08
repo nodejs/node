@@ -17,6 +17,7 @@ assertEquals(NaN, f({a:NaN}));
 assertEquals(Infinity, f({a:Infinity}));
 assertEquals(-Infinity, f({a:-Infinity}));
 assertEquals(-Infinity, 1/f({a:-0.5}));
+assertEquals(4503599627370497, f({a:4503599627370497})); // 2^52 + 1;
 assertEquals(1, 1/f({a:0.5}));
 assertEquals(8, f({a: {valueOf(){
   %DeoptimizeFunction(f);

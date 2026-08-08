@@ -20,7 +20,7 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(Tagged<HeapObject> object,
   if (IsScript(object, cage_base)) {
     Tagged<Script> script = Cast<Script>(object);
     // Log the size of external source code.
-    Tagged<Object> source = script->source(cage_base);
+    Tagged<Object> source = script->source();
     if (IsExternalString(source, cage_base)) {
       Tagged<ExternalString> external_source_string =
           Cast<ExternalString>(source);

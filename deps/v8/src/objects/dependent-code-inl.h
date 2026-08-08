@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakArrayList)
-
 // static
 template <typename ObjectT>
 void DependentCode::DeoptimizeDependencyGroups(Isolate* isolate, ObjectT object,

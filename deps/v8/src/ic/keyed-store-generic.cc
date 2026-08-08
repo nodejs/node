@@ -326,7 +326,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   BIND(&perform_transition);
   {
     if (IsDoubleElementsKind(from_kind) != IsDoubleElementsKind(to_kind)) {
-      TNode<IntPtrT> capacity = LoadAndUntagFixedArrayBaseLength(elements);
+      TNode<IntPtrT> capacity = LoadFixedArrayBaseLength(elements);
       GrowElementsCapacity(receiver, elements, from_kind, to_kind, capacity,
                            capacity, bailout);
     }
@@ -674,7 +674,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   Label if_array(this);
   GotoIf(IsJSArrayInstanceType(instance_type), &if_array);
   {
-    TNode<IntPtrT> capacity = LoadAndUntagFixedArrayBaseLength(elements);
+    TNode<IntPtrT> capacity = LoadFixedArrayBaseLength(elements);
     Branch(UintPtrLessThan(index, capacity), &if_in_bounds, &if_grow);
   }
   BIND(&if_array);
@@ -682,7 +682,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     TNode<IntPtrT> length =
         PositiveSmiUntag(LoadFastJSArrayLength(CAST(receiver)));
     GotoIf(UintPtrLessThan(index, length), &if_in_bounds);
-    TNode<IntPtrT> capacity = LoadAndUntagFixedArrayBaseLength(elements);
+    TNode<IntPtrT> capacity = LoadFixedArrayBaseLength(elements);
     GotoIf(UintPtrGreaterThanOrEqual(index, capacity), &if_grow);
     Branch(WordEqual(index, length), &if_increment_length_by_one,
            &if_bump_length_with_gap);
@@ -752,7 +752,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
 
   BIND(&if_shared_array);
   {
-    TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(elements);
+    TNode<IntPtrT> length = LoadFixedArrayBaseLength(elements);
     GotoIf(UintPtrGreaterThanOrEqual(index, length), slow);
     StoreSharedArrayElement(context, elements, index, value);
   }
@@ -825,10 +825,10 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
         TNode<PropertyCell> property_cell =
             CAST(LoadValueByKeyIndex(dictionary, entry));
         TNode<Object> value =
-            LoadObjectField(property_cell, PropertyCell::kValueOffset);
+            LoadObjectField(property_cell, offsetof(PropertyCell, value_));
         GotoIf(TaggedEqual(value, TheHoleConstant()), &next_proto);
         TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
-            property_cell, PropertyCell::kPropertyDetailsRawOffset));
+            property_cell, offsetof(PropertyCell, property_details_raw_)));
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         if (accessor != nullptr) {

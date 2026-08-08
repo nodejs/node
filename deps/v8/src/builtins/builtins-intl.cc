@@ -39,6 +39,7 @@
 namespace v8 {
 namespace internal {
 
+// https://tc39.es/ecma262/#sec-string.prototype.touppercase
 BUILTIN(StringPrototypeToUpperCaseIntl) {
   HandleScope scope(isolate);
   TO_THIS_STRING(string, "String.prototype.toUpperCase");
@@ -46,6 +47,7 @@ BUILTIN(StringPrototypeToUpperCaseIntl) {
   RETURN_RESULT_OR_FAILURE(isolate, Intl::ConvertToUpper(isolate, string));
 }
 
+// https://tc39.es/ecma262/#sec-string.prototype.normalize
 BUILTIN(StringPrototypeNormalizeIntl) {
   HandleScope handle_scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringNormalize);
@@ -57,8 +59,8 @@ BUILTIN(StringPrototypeNormalizeIntl) {
                            Intl::Normalize(isolate, string, form_input));
 }
 
-// ecma402 #sup-properties-of-the-string-prototype-object
-// ecma402 section 19.1.1.
+// https://tc39.es/ecma402/#sup-properties-of-the-string-prototype-object
+// https://tc39.es/ecma402/section 19.1.1.
 //   String.prototype.localeCompare ( that [ , locales [ , options ] ] )
 // This implementation supersedes the definition provided in ES6.
 BUILTIN(StringPrototypeLocaleCompareIntl) {
@@ -92,6 +94,7 @@ BUILTIN(V8BreakIteratorSupportedLocalesOf) {
                    JSV8BreakIterator::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-intl.numberformat.supportedlocalesof
 BUILTIN(NumberFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -103,6 +106,7 @@ BUILTIN(NumberFormatSupportedLocalesOf) {
                    JSNumberFormat::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formattoparts
 BUILTIN(NumberFormatPrototypeFormatToParts) {
   const char* const method_name = "Intl.NumberFormat.prototype.formatToParts";
   HandleScope handle_scope(isolate);
@@ -119,6 +123,7 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
       isolate, JSNumberFormat::FormatToParts(isolate, number_format, x));
 }
 
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
 BUILTIN(DateTimeFormatPrototypeResolvedOptions) {
   const char* const method_name =
       "Intl.DateTimeFormat.prototype.resolvedOptions";
@@ -135,6 +140,7 @@ BUILTIN(DateTimeFormatPrototypeResolvedOptions) {
       isolate, JSDateTimeFormat::ResolvedOptions(isolate, date_time_format));
 }
 
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.supportedlocalesof
 BUILTIN(DateTimeFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -146,6 +152,7 @@ BUILTIN(DateTimeFormatSupportedLocalesOf) {
                    JSDateTimeFormat::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.formattoparts
 BUILTIN(DateTimeFormatPrototypeFormatToParts) {
   const char* const method_name = "Intl.DateTimeFormat.prototype.formatToParts";
   HandleScope handle_scope(isolate);
@@ -192,6 +199,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> DateTimeFormatRange(
                            F(isolate, dtf, start_date, end_date, method_name));
 }
 
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.formatrange
 BUILTIN(DateTimeFormatPrototypeFormatRange) {
   const char* const method_name = "Intl.DateTimeFormat.prototype.formatRange";
   HandleScope handle_scope(isolate);
@@ -199,6 +207,7 @@ BUILTIN(DateTimeFormatPrototypeFormatRange) {
       args, isolate, method_name);
 }
 
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.formatrangetoparts
 BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
   const char* const method_name =
       "Intl.DateTimeFormat.prototype.formatRangeToParts";
@@ -373,6 +382,7 @@ Tagged<Object> CallOrConstructConstructor(BuiltinArguments args,
 
 // Intl.DisplayNames
 
+// https://tc39.es/ecma402/#sec-Intl.DisplayNames
 BUILTIN(DisplayNamesConstructor) {
   HandleScope scope(isolate);
 
@@ -381,6 +391,7 @@ BUILTIN(DisplayNamesConstructor) {
       "Intl.DisplayNames");
 }
 
+// https://tc39.es/ecma402/#sec-Intl.DisplayNames.prototype.resolvedOptions
 BUILTIN(DisplayNamesPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDisplayNames, holder,
@@ -388,6 +399,7 @@ BUILTIN(DisplayNamesPrototypeResolvedOptions) {
   return *JSDisplayNames::ResolvedOptions(isolate, holder);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.DisplayNames.supportedLocalesOf
 BUILTIN(DisplayNamesSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -399,6 +411,7 @@ BUILTIN(DisplayNamesSupportedLocalesOf) {
                    JSDisplayNames::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.DisplayNames.prototype.of
 BUILTIN(DisplayNamesPrototypeOf) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDisplayNames, holder, "Intl.DisplayNames.prototype.of");
@@ -408,7 +421,11 @@ BUILTIN(DisplayNamesPrototypeOf) {
                            JSDisplayNames::Of(isolate, holder, code_obj));
 }
 
+//
 // Intl.DurationFormat
+//
+
+// https://tc39.es/ecma402/#sec-intl-durationformat-constructor
 BUILTIN(DurationFormatConstructor) {
   HandleScope scope(isolate);
 
@@ -417,6 +434,7 @@ BUILTIN(DurationFormatConstructor) {
       "Intl.DurationFormat");
 }
 
+// https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.resolvedOptions
 BUILTIN(DurationFormatPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDurationFormat, holder,
@@ -424,6 +442,7 @@ BUILTIN(DurationFormatPrototypeResolvedOptions) {
   return *JSDurationFormat::ResolvedOptions(isolate, holder);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.DurationFormat.supportedLocalesOf
 BUILTIN(DurationFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -435,6 +454,7 @@ BUILTIN(DurationFormatSupportedLocalesOf) {
                    JSDurationFormat::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.format
 BUILTIN(DurationFormatPrototypeFormat) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDurationFormat, holder,
@@ -444,6 +464,7 @@ BUILTIN(DurationFormatPrototypeFormat) {
                            JSDurationFormat::Format(isolate, holder, value));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.DurationFormat.prototype.formatToParts
 BUILTIN(DurationFormatPrototypeFormatToParts) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDurationFormat, holder,
@@ -453,8 +474,11 @@ BUILTIN(DurationFormatPrototypeFormatToParts) {
       isolate, JSDurationFormat::FormatToParts(isolate, holder, value));
 }
 
+//
 // Intl.NumberFormat
+//
 
+// https://tc39.es/ecma402/#sec-intl.numberformat
 BUILTIN(NumberFormatConstructor) {
   HandleScope scope(isolate);
 
@@ -463,6 +487,7 @@ BUILTIN(NumberFormatConstructor) {
       isolate->intl_number_format_function(), "Intl.NumberFormat");
 }
 
+// https://tc39.es/ecma402/#sec-intl.numberformat.prototype.resolvedoptions
 BUILTIN(NumberFormatPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   const char* const method_name = "Intl.NumberFormat.prototype.resolvedOptions";
@@ -480,6 +505,7 @@ BUILTIN(NumberFormatPrototypeResolvedOptions) {
   return *JSNumberFormat::ResolvedOptions(isolate, number_format);
 }
 
+// https://tc39.es/ecma402/#sec-intl.numberformat.prototype.format
 BUILTIN(NumberFormatPrototypeFormatNumber) {
   const char* const method_name = "get Intl.NumberFormat.prototype.format";
   HandleScope scope(isolate);
@@ -513,6 +539,7 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
   return *new_bound_format_function;
 }
 
+// https://tc39.es/ecma402/#sec-number-format-functions
 BUILTIN(NumberFormatInternalFormatNumber) {
   HandleScope scope(isolate);
 
@@ -563,6 +590,7 @@ V8_WARN_UNUSED_RESULT Tagged<Object> NumberFormatRange(
   RETURN_RESULT_OR_FAILURE(isolate, F(isolate, nf, start, end));
 }
 
+// https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formatrange
 BUILTIN(NumberFormatPrototypeFormatRange) {
   const char* const method_name = "Intl.NumberFormat.prototype.formatRange";
   HandleScope handle_scope(isolate);
@@ -570,6 +598,7 @@ BUILTIN(NumberFormatPrototypeFormatRange) {
       args, isolate, method_name);
 }
 
+// https://tc39.es/ecma402/#sec-intl.numberformat.prototype.formatrangetoparts
 BUILTIN(NumberFormatPrototypeFormatRangeToParts) {
   const char* const method_name =
       "Intl.NumberFormat.prototype.formatRangeToParts";
@@ -578,6 +607,7 @@ BUILTIN(NumberFormatPrototypeFormatRangeToParts) {
       args, isolate, method_name);
 }
 
+// https://tc39.es/ecma402/#sec-intl.datetimeformat
 BUILTIN(DateTimeFormatConstructor) {
   HandleScope scope(isolate);
 
@@ -586,6 +616,7 @@ BUILTIN(DateTimeFormatConstructor) {
       isolate->intl_date_time_format_function(), "Intl.DateTimeFormat");
 }
 
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.format
 BUILTIN(DateTimeFormatPrototypeFormat) {
   const char* const method_name = "get Intl.DateTimeFormat.prototype.format";
   HandleScope scope(isolate);
@@ -620,6 +651,7 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
   return *new_bound_format_function;
 }
 
+// https://tc39.es/ecma402/#sec-datetime-format-functions
 BUILTIN(DateTimeFormatInternalFormat) {
   HandleScope scope(isolate);
   DirectHandle<Context> context(isolate->context(), isolate);
@@ -639,6 +671,7 @@ BUILTIN(DateTimeFormatInternalFormat) {
                                         "DateTime Format Functions"));
 }
 
+// https://tc39.es/ecma402/#sec-intl.getcanonicallocales
 BUILTIN(IntlGetCanonicalLocales) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -647,6 +680,7 @@ BUILTIN(IntlGetCanonicalLocales) {
                            Intl::GetCanonicalLocales(isolate, locales));
 }
 
+// https://tc39.es/ecma402/#sec-intl.supportedvaluesof
 BUILTIN(IntlSupportedValuesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -654,6 +688,7 @@ BUILTIN(IntlSupportedValuesOf) {
   RETURN_RESULT_OR_FAILURE(isolate, Intl::SupportedValuesOf(isolate, locales));
 }
 
+// https://tc39.es/ecma402/#sec-intl-listformat-constructor
 BUILTIN(ListFormatConstructor) {
   HandleScope scope(isolate);
 
@@ -662,6 +697,7 @@ BUILTIN(ListFormatConstructor) {
       "Intl.ListFormat");
 }
 
+// https://tc39.es/ecma402/#sec-intl.listformat.prototype.resolvedoptions
 BUILTIN(ListFormatPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSListFormat, format_holder,
@@ -669,6 +705,7 @@ BUILTIN(ListFormatPrototypeResolvedOptions) {
   return *JSListFormat::ResolvedOptions(isolate, format_holder);
 }
 
+// https://tc39.es/ecma402/#sec-intl.ListFormat.supportedlocalesof
 BUILTIN(ListFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -680,7 +717,11 @@ BUILTIN(ListFormatSupportedLocalesOf) {
                    JSListFormat::GetAvailableLocales(), locales, options));
 }
 
+//
 // Intl.Locale implementation
+//
+
+// https://tc39.es/ecma402/#sec-intl-locale-constructor
 BUILTIN(LocaleConstructor) {
   HandleScope scope(isolate);
 
@@ -734,18 +775,21 @@ BUILTIN(LocaleConstructor) {
       isolate, JSLocale::New(isolate, map, locale_string, options_object));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.maximize
 BUILTIN(LocalePrototypeMaximize) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.maximize");
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Maximize(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.minimize
 BUILTIN(LocalePrototypeMinimize) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.minimize");
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::Minimize(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getCalendars
 BUILTIN(LocalePrototypeGetCalendars) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocaleInfoFunctions);
@@ -753,6 +797,7 @@ BUILTIN(LocalePrototypeGetCalendars) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetCalendars(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getCollations
 BUILTIN(LocalePrototypeGetCollations) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocaleInfoFunctions);
@@ -760,6 +805,7 @@ BUILTIN(LocalePrototypeGetCollations) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetCollations(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getHourCycles
 BUILTIN(LocalePrototypeGetHourCycles) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocaleInfoFunctions);
@@ -767,6 +813,7 @@ BUILTIN(LocalePrototypeGetHourCycles) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetHourCycles(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getNumberingSystems
 BUILTIN(LocalePrototypeGetNumberingSystems) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocaleInfoFunctions);
@@ -775,6 +822,7 @@ BUILTIN(LocalePrototypeGetNumberingSystems) {
                            JSLocale::GetNumberingSystems(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getTextInfo
 BUILTIN(LocalePrototypeGetTextInfo) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocaleInfoFunctions);
@@ -782,6 +830,7 @@ BUILTIN(LocalePrototypeGetTextInfo) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetTextInfo(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getTimeZones
 BUILTIN(LocalePrototypeGetTimeZones) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocaleInfoFunctions);
@@ -789,6 +838,7 @@ BUILTIN(LocalePrototypeGetTimeZones) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetTimeZones(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getWeekInfo
 BUILTIN(LocalePrototypeGetWeekInfo) {
   HandleScope scope(isolate);
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocaleInfoFunctions);
@@ -796,6 +846,7 @@ BUILTIN(LocalePrototypeGetWeekInfo) {
   RETURN_RESULT_OR_FAILURE(isolate, JSLocale::GetWeekInfo(isolate, locale));
 }
 
+// https://tc39.es/ecma402/#sec-intl.RelativeTimeFormat.supportedlocalesof
 BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -808,6 +859,7 @@ BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
           JSRelativeTimeFormat::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-intl.RelativeTimeFormat.prototype.format
 BUILTIN(RelativeTimeFormatPrototypeFormat) {
   HandleScope scope(isolate);
   // 1. Let relativeTimeFormat be the this value.
@@ -824,6 +876,7 @@ BUILTIN(RelativeTimeFormatPrototypeFormat) {
                                             format_holder));
 }
 
+// https://tc39.es/ecma402/#sec-intl.RelativeTimeFormat.prototype.formatToParts
 BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
   HandleScope scope(isolate);
   // 1. Let relativeTimeFormat be the this value.
@@ -839,7 +892,7 @@ BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
                                                    format_holder));
 }
 
-// Locale getters.
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.language
 BUILTIN(LocalePrototypeLanguage) {
   HandleScope scope(isolate);
   // CHECK_RECEIVER will case locale_holder to JSLocale.
@@ -848,6 +901,7 @@ BUILTIN(LocalePrototypeLanguage) {
   return *JSLocale::Language(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.script
 BUILTIN(LocalePrototypeScript) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.script");
@@ -855,6 +909,7 @@ BUILTIN(LocalePrototypeScript) {
   return *JSLocale::Script(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.region
 BUILTIN(LocalePrototypeRegion) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.region");
@@ -862,6 +917,7 @@ BUILTIN(LocalePrototypeRegion) {
   return *JSLocale::Region(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.variants
 BUILTIN(LocalePrototypeVariants) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.variants");
@@ -869,6 +925,7 @@ BUILTIN(LocalePrototypeVariants) {
   return *JSLocale::Variants(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.baseName
 BUILTIN(LocalePrototypeBaseName) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.baseName");
@@ -876,6 +933,7 @@ BUILTIN(LocalePrototypeBaseName) {
   return *JSLocale::BaseName(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.calendar
 BUILTIN(LocalePrototypeCalendar) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.calendar");
@@ -883,6 +941,7 @@ BUILTIN(LocalePrototypeCalendar) {
   return *JSLocale::Calendar(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.caseFirst
 BUILTIN(LocalePrototypeCaseFirst) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.caseFirst");
@@ -890,6 +949,7 @@ BUILTIN(LocalePrototypeCaseFirst) {
   return *JSLocale::CaseFirst(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.collation
 BUILTIN(LocalePrototypeCollation) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.collation");
@@ -897,6 +957,7 @@ BUILTIN(LocalePrototypeCollation) {
   return *JSLocale::Collation(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.firstDayOfWeek
 BUILTIN(LocalePrototypeFirstDayOfWeek) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.firstDayOfWeek");
@@ -904,6 +965,7 @@ BUILTIN(LocalePrototypeFirstDayOfWeek) {
   return *JSLocale::FirstDayOfWeek(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.hourCycle
 BUILTIN(LocalePrototypeHourCycle) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.hourCycle");
@@ -911,6 +973,7 @@ BUILTIN(LocalePrototypeHourCycle) {
   return *JSLocale::HourCycle(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numeric
 BUILTIN(LocalePrototypeNumeric) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.numeric");
@@ -918,6 +981,7 @@ BUILTIN(LocalePrototypeNumeric) {
   return *JSLocale::Numeric(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numberingSystem
 BUILTIN(LocalePrototypeNumberingSystem) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.numberingSystem");
@@ -925,6 +989,7 @@ BUILTIN(LocalePrototypeNumberingSystem) {
   return *JSLocale::NumberingSystem(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-Intl.Locale.prototype.toString
 BUILTIN(LocalePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSLocale, locale, "Intl.Locale.prototype.toString");
@@ -932,6 +997,7 @@ BUILTIN(LocalePrototypeToString) {
   return *JSLocale::ToString(isolate, locale);
 }
 
+// https://tc39.es/ecma402/#sec-intl.RelativeTimeFormat.constructor
 BUILTIN(RelativeTimeFormatConstructor) {
   HandleScope scope(isolate);
 
@@ -940,6 +1006,7 @@ BUILTIN(RelativeTimeFormatConstructor) {
       "Intl.RelativeTimeFormat");
 }
 
+// https://tc39.es/ecma402/#sec-intl.RelativeTimeFormat.prototype.resolvedOptions
 BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
@@ -969,6 +1036,7 @@ bool IsFastLocale(Tagged<Object> maybe_locale) {
          (first != 'l' || second != 't') && (first != 't' || second != 'r');
 }
 
+// https://tc39.es/ecma402/#sup-string.prototype.tolocaleuppercase
 BUILTIN(StringPrototypeToLocaleUpperCase) {
   HandleScope scope(isolate);
   DirectHandle<Object> maybe_locale = args.atOrUndefined(isolate, 1);
@@ -982,6 +1050,7 @@ BUILTIN(StringPrototypeToLocaleUpperCase) {
   }
 }
 
+// https://tc39.es/ecma402/#sec-intl.pluralrules
 BUILTIN(PluralRulesConstructor) {
   HandleScope scope(isolate);
 
@@ -990,6 +1059,7 @@ BUILTIN(PluralRulesConstructor) {
       "Intl.PluralRules");
 }
 
+// https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.resolvedoptions
 BUILTIN(PluralRulesPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSPluralRules, plural_rules_holder,
@@ -997,6 +1067,7 @@ BUILTIN(PluralRulesPrototypeResolvedOptions) {
   return *JSPluralRules::ResolvedOptions(isolate, plural_rules_holder);
 }
 
+// https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.select
 BUILTIN(PluralRulesPrototypeSelect) {
   HandleScope scope(isolate);
 
@@ -1016,6 +1087,7 @@ BUILTIN(PluralRulesPrototypeSelect) {
                                         isolate, plural_rules, number_double));
 }
 
+// https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.selectrange
 BUILTIN(PluralRulesPrototypeSelectRange) {
   HandleScope scope(isolate);
 
@@ -1066,6 +1138,7 @@ BUILTIN(PluralRulesPrototypeSelectRange) {
                                                  Object::NumberValue(*y)));
 }
 
+// https://tc39.es/ecma402/#sec-intl.pluralrules.supportedlocalesof
 BUILTIN(PluralRulesSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -1077,6 +1150,7 @@ BUILTIN(PluralRulesSupportedLocalesOf) {
                    JSPluralRules::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-intl.collator
 BUILTIN(CollatorConstructor) {
   HandleScope scope(isolate);
 
@@ -1085,6 +1159,7 @@ BUILTIN(CollatorConstructor) {
   return CallOrConstructConstructor<JSCollator>(args, isolate, "Intl.Collator");
 }
 
+// https://tc39.es/ecma402/#sec-intl.collator.prototype.resolvedoptions
 BUILTIN(CollatorPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSCollator, collator_holder,
@@ -1092,6 +1167,7 @@ BUILTIN(CollatorPrototypeResolvedOptions) {
   return *JSCollator::ResolvedOptions(isolate, collator_holder);
 }
 
+// https://tc39.es/ecma402/#sec-intl.collator.supportedlocalesof
 BUILTIN(CollatorSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -1103,6 +1179,7 @@ BUILTIN(CollatorSupportedLocalesOf) {
                    JSCollator::GetAvailableLocales(), locales, options));
 }
 
+// https://tc39.es/ecma402/#sec-intl.collator.prototype.compare
 BUILTIN(CollatorPrototypeCompare) {
   const char* const method_name = "get Intl.Collator.prototype.compare";
   HandleScope scope(isolate);
@@ -1131,6 +1208,7 @@ BUILTIN(CollatorPrototypeCompare) {
   return *new_bound_compare_function;
 }
 
+// https://tc39.es/ecma402/#sec-collator-compare-functions
 BUILTIN(CollatorInternalCompare) {
   HandleScope scope(isolate);
   DirectHandle<Context> context(isolate->context(), isolate);
@@ -1158,13 +1236,13 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  Managed<icu::Collator>::Ptr icu_collator = collator->icu_collator()->ptr();
   CHECK_NOT_NULL(icu_collator);
   return Smi::FromInt(
       Intl::CompareStrings(isolate, *icu_collator, string_x, string_y));
 }
 
-// ecma402 #sec-%segmentiteratorprototype%.next
+// https://tc39.es/ecma402/#sec-%segmentiteratorprototype%.next
 BUILTIN(SegmentIteratorPrototypeNext) {
   const char* const method_name = "%SegmentIterator.prototype%.next";
   HandleScope scope(isolate);
@@ -1174,7 +1252,7 @@ BUILTIN(SegmentIteratorPrototypeNext) {
                            JSSegmentIterator::Next(isolate, segment_iterator));
 }
 
-// ecma402 #sec-intl.segmenter
+// https://tc39.es/ecma402/#sec-intl.segmenter
 BUILTIN(SegmenterConstructor) {
   HandleScope scope(isolate);
 
@@ -1183,7 +1261,7 @@ BUILTIN(SegmenterConstructor) {
       "Intl.Segmenter");
 }
 
-// ecma402 #sec-intl.segmenter.supportedlocalesof
+// https://tc39.es/ecma402/#sec-intl.segmenter.supportedlocalesof
 BUILTIN(SegmenterSupportedLocalesOf) {
   HandleScope scope(isolate);
   DirectHandle<Object> locales = args.atOrUndefined(isolate, 1);
@@ -1195,7 +1273,7 @@ BUILTIN(SegmenterSupportedLocalesOf) {
                    JSSegmenter::GetAvailableLocales(), locales, options));
 }
 
-// ecma402 #sec-intl.segmenter.prototype.resolvedoptions
+// https://tc39.es/ecma402/#sec-intl.segmenter.prototype.resolvedoptions
 BUILTIN(SegmenterPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegmenter, segmenter,
@@ -1203,7 +1281,7 @@ BUILTIN(SegmenterPrototypeResolvedOptions) {
   return *JSSegmenter::ResolvedOptions(isolate, segmenter);
 }
 
-// ecma402 #sec-intl.segmenter.prototype.segment
+// https://tc39.es/ecma402/#sec-intl.segmenter.prototype.segment
 BUILTIN(SegmenterPrototypeSegment) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegmenter, segmenter, "Intl.Segmenter.prototype.segment");
@@ -1218,7 +1296,7 @@ BUILTIN(SegmenterPrototypeSegment) {
                            JSSegments::Create(isolate, segmenter, string));
 }
 
-// ecma402 #sec-%segmentsprototype%.containing
+// https://tc39.es/ecma402/#sec-%segmentsprototype%.containing
 BUILTIN(SegmentsPrototypeContaining) {
   const char* const method_name = "%Segments.prototype%.containing";
   HandleScope scope(isolate);
@@ -1234,18 +1312,19 @@ BUILTIN(SegmentsPrototypeContaining) {
                            JSSegments::Containing(isolate, segments, n));
 }
 
-// ecma402 #sec-%segmentsprototype%-@@iterator
+// https://tc39.es/ecma402/#sec-%segmentsprototype%-@@iterator
 BUILTIN(SegmentsPrototypeIterator) {
   const char* const method_name = "%SegmentIsPrototype%[@@iterator]";
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSSegments, segments, method_name);
-  DirectHandle<Managed<icu::BreakIterator>> managed_break_iterator(
-      segments->icu_break_iterator(), isolate);
+
+  Managed<IcuBreakIteratorWithText>::Ptr iterator_with_text =
+      segments->icu_iterator_with_text()->ptr();
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSSegmentIterator::Create(
                    isolate, direct_handle(segments->raw_string(), isolate),
-                   managed_break_iterator, segments->granularity()));
+                   *iterator_with_text->iterator(), segments->granularity()));
 }
 
 BUILTIN(V8BreakIteratorConstructor) {

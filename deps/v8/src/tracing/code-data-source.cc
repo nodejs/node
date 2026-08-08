@@ -141,8 +141,9 @@ void CodeDataSourceIncrementalState::FlushInternedData(
   serialized_interned_data_.Reset();
 }
 
-uint64_t CodeDataSourceIncrementalState::InternIsolate(Isolate& isolate) {
-  auto [it, was_inserted] = isolates_.emplace(isolate.id(), next_isolate_iid());
+uint64_t CodeDataSourceIncrementalState::InternIsolate(Isolate* isolate) {
+  auto [it, was_inserted] =
+      isolates_.emplace(isolate->id(), next_isolate_iid());
   uint64_t iid = it->second;
   if (!was_inserted) {
     return iid;
@@ -150,12 +151,13 @@ uint64_t CodeDataSourceIncrementalState::InternIsolate(Isolate& isolate) {
 
   auto* isolate_proto = serialized_interned_data_->add_v8_isolate();
   isolate_proto->set_iid(iid);
-  isolate_proto->set_isolate_id(isolate.id());
+  isolate_proto->set_isolate_id(isolate->id());
   isolate_proto->set_pid(base::OS::GetCurrentProcessId());
   isolate_proto->set_embedded_blob_code_start_address(
-      reinterpret_cast<uint64_t>(isolate.embedded_blob_code()));
-  isolate_proto->set_embedded_blob_code_size(isolate.embedded_blob_code_size());
-  if (auto* code_range = isolate.heap()->code_range(); code_range != nullptr) {
+      reinterpret_cast<uint64_t>(isolate->embedded_blob_code()));
+  isolate_proto->set_embedded_blob_code_size(
+      isolate->embedded_blob_code_size());
+  if (auto* code_range = isolate->heap()->code_range(); code_range != nullptr) {
     auto* v8_code_range = isolate_proto->set_code_range();
     v8_code_range->set_base_address(code_range->base());
     v8_code_range->set_size(code_range->size());
@@ -173,10 +175,10 @@ uint64_t CodeDataSourceIncrementalState::InternIsolate(Isolate& isolate) {
   return iid;
 }
 
-uint64_t CodeDataSourceIncrementalState::InternJsScript(Isolate& isolate,
+uint64_t CodeDataSourceIncrementalState::InternJsScript(Isolate* isolate,
                                                         Tagged<Script> script) {
   auto [it, was_inserted] = scripts_.emplace(
-      CodeDataSourceIncrementalState::ScriptUniqueId{isolate.id(),
+      CodeDataSourceIncrementalState::ScriptUniqueId{isolate->id(),
                                                      script->id()},
       next_script_iid());
   uint64_t iid = it->second;
@@ -201,10 +203,10 @@ uint64_t CodeDataSourceIncrementalState::InternJsScript(Isolate& isolate,
 }
 
 uint64_t CodeDataSourceIncrementalState::InternJsFunction(
-    Isolate& isolate, DirectHandle<SharedFunctionInfo> info,
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> info,
     uint64_t v8_js_script_iid, int line_num, int column_num) {
   DirectHandle<String> function_name =
-      SharedFunctionInfo::DebugName(&isolate, info);
+      SharedFunctionInfo::DebugName(isolate, info);
   uint64_t v8_js_function_name_iid = InternJsFunctionName(*function_name);
 
   auto [it, was_inserted] = functions_.emplace(
@@ -235,10 +237,10 @@ uint64_t CodeDataSourceIncrementalState::InternJsFunction(
 
 #if V8_ENABLE_WEBASSEMBLY
 uint64_t CodeDataSourceIncrementalState::InternWasmScript(
-    Isolate& isolate, int script_id, std::string_view url,
+    Isolate* isolate, int script_id, std::string_view url,
     wasm::NativeModule* native_module) {
   auto [it, was_inserted] = scripts_.emplace(
-      CodeDataSourceIncrementalState::ScriptUniqueId{isolate.id(), script_id},
+      CodeDataSourceIncrementalState::ScriptUniqueId{isolate->id(), script_id},
       next_script_iid());
   uint64_t iid = it->second;
   if (!was_inserted) {

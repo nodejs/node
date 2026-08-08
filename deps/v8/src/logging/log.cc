@@ -4,6 +4,8 @@
 
 #include "src/logging/log.h"
 
+#include <stdint.h>
+
 #include <atomic>
 #include <cstdarg>
 #include <memory>
@@ -331,8 +333,8 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeEventLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                                            DirectHandle<String> source,
-                                            RegExpFlags flags) {
+                                            DirectHandle<String> escaped_source,
+                                            regexp::Flags flags) {
   DCHECK(is_listening_to_code_events());
   // Note we don't call Init due to the required pprof demangling hack for
   // regexp patterns.
@@ -340,7 +342,7 @@ void CodeEventLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
   // https://github.com/google/pprof/blob/4cf4322d492d108a9d6526d10844e04792982cbb/internal/symbolizer/symbolizer.go#L312.
   name_buffer_->AppendBytes("RegExp.<");
   name_buffer_->AppendBytes(" src: '");
-  name_buffer_->AppendString(*source);
+  name_buffer_->AppendString(*escaped_source);
   name_buffer_->AppendBytes("' flags: '");
   DirectHandle<String> flags_str =
       JSRegExp::StringFromFlags(isolate_, JSRegExp::AsJSRegExpFlags(flags));
@@ -412,14 +414,14 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate) : CodeEventLogger(isolate) {
     CHECK_NOT_NULL(v8_flags.perf_basic_prof_path);
     const char* base_dir = v8_flags.perf_basic_prof_path;
     // Open the perf JIT dump file.
-    base::ScopedVector<char> perf_dump_name(strlen(base_dir) +
-                                            kFilenameBufferPadding);
-    int size =
-        SNPrintF(perf_dump_name, "%s/perf-%d.map", base_dir, process_id_);
+    auto perf_dump_name = base::OwnedVector<char>::NewForOverwrite(
+        strlen(base_dir) + kFilenameBufferPadding);
+    int size = SNPrintF(perf_dump_name.as_vector(), "%s/perf-%d.map", base_dir,
+                        process_id_);
     CHECK_NE(size, -1);
     perf_output_handle_ =
         base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
-    CHECK_NOT_NULL(perf_output_handle_);
+    CHECK_NO_SECURITY_IMPACT(perf_output_handle_ != nullptr);
     setvbuf(perf_output_handle_, nullptr, _IOLBF, 0);
   }
 }
@@ -615,14 +617,14 @@ void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void ExternalLogEventListener::RegExpCodeCreateEvent(
-    DirectHandle<AbstractCode> code, DirectHandle<String> source,
-    RegExpFlags flags) {
+    DirectHandle<AbstractCode> code, DirectHandle<String> escaped_source,
+    regexp::Flags flags) {
   PtrComprCageBase cage_base(isolate_);
   CodeEvent code_event;
   code_event.code_start_address =
       static_cast<uintptr_t>(code->InstructionStart(cage_base));
   code_event.code_size = static_cast<size_t>(code->InstructionSize(cage_base));
-  code_event.function_name = source;
+  code_event.function_name = escaped_source;
   code_event.script_name = isolate_->factory()->empty_string();
   code_event.script_line = 0;
   code_event.script_column = 0;
@@ -733,7 +735,8 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
     : CodeEventLogger(isolate), ll_output_handle_(nullptr) {
   // Open the low-level log file.
   size_t len = strlen(name);
-  base::ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
+  auto ll_name =
+      base::OwnedVector<char>::NewForOverwrite(len + sizeof(kLogExt));
   MemCopy(ll_name.begin(), name, len);
   MemCopy(ll_name.begin() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =
@@ -1467,7 +1470,9 @@ void V8FileLogger::LogSourceCodeInformation(
   if (hasInlined) {
     Tagged<TrustedPodArray<InliningPosition>> inlining_positions =
         CheckedCast<Code>(*code)->deoptimization_data()->InliningPositions();
-    for (int i = 0; i < inlining_positions->length(); i++) {
+    const uint32_t inlining_positions_len =
+        inlining_positions->length().value();
+    for (uint32_t i = 0; i < inlining_positions_len; i++) {
       InliningPosition inlining_pos = inlining_positions->get(i);
       msg << "F";
       if (inlining_pos.inlined_function_id != -1) {
@@ -1509,12 +1514,12 @@ void V8FileLogger::LogCodeDisassemble(DirectHandle<AbstractCode> code) {
       << V8FileLogger::kNext;
   {
     std::ostringstream stream;
-    if (Tagged<Code> code_as_code; TryCast(*code, &code_as_code)) {
+    if (IsCode(*code)) {
 #ifdef ENABLE_DISASSEMBLER
-      code_as_code->Disassemble(nullptr, stream, isolate_);
+      code->GetCode()->Disassemble(nullptr, stream, isolate_);
 #endif
     } else {
-      CheckedCast<BytecodeArray>(*code)->Disassemble(stream);
+      code->GetBytecodeArray()->Disassemble(stream);
     }
     std::string string = stream.str();
     msg.AppendString(string.c_str(), string.length());
@@ -1679,15 +1684,15 @@ void V8FileLogger::SetterCallbackEvent(DirectHandle<Name> name,
 }
 
 void V8FileLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                                         DirectHandle<String> source,
-                                         RegExpFlags flags) {
+                                         DirectHandle<String> escaped_source,
+                                         regexp::Flags flags) {
   if (!is_listening_to_code_events()) return;
   if (!v8_flags.log_code) return;
   VMStateIfMainThread<LOGGING> state(isolate_);
   MSG_BUILDER();
   AppendCodeCreateHeader(isolate_, msg, LogEventListener::CodeTag::kRegExp,
                          *code, Time());
-  msg << *source;
+  msg << *escaped_source;
   msg.WriteToLogFile();
 }
 
@@ -1777,17 +1782,45 @@ void CodeLinePosEvent(JitLogger& jit_logger, Address code_start,
                       JitCodeEvent::CodeType code_type) {
   void* jit_handler_data = jit_logger.StartCodePosInfoEvent(code_type);
   for (; !iter.done(); iter.Advance()) {
+    int position = iter.source_position().IsExternal()
+                       ? iter.source_position().ExternalLine()
+                       : iter.source_position().ScriptOffset();
     if (iter.is_statement()) {
-      jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                         iter.source_position().ScriptOffset(),
-                                         JitCodeEvent::STATEMENT_POSITION,
-                                         code_type);
+      jit_logger.AddCodeLinePosInfoEvent(
+          jit_handler_data, iter.code_offset(), position,
+          JitCodeEvent::STATEMENT_POSITION, code_type);
     }
     jit_logger.AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                       iter.source_position().ScriptOffset(),
-                                       JitCodeEvent::POSITION, code_type);
+                                       position, JitCodeEvent::POSITION,
+                                       code_type);
   }
   jit_logger.EndCodePosInfoEvent(code_start, jit_handler_data, code_type);
+}
+
+template <typename T>
+void CodeLinePosInfoRecordEventHelper(
+    Isolate* isolate, JitLogger* jit_logger, JitLogger* gdb_jit_logger,
+    Address code_start, T source_position_table,
+    JitCodeEvent::CodeType code_type,
+    SourcePositionTableIterator::IterationFilter filter) {
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (!jit_logger && !gdb_jit_logger) return;
+#else
+  if (!jit_logger) return;
+#endif
+
+  VMStateIfMainThread<LOGGING> state(isolate);
+
+  if (jit_logger) {
+    SourcePositionTableIterator iter(source_position_table, filter);
+    CodeLinePosEvent(*jit_logger, code_start, iter, code_type);
+  }
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (gdb_jit_logger) {
+    SourcePositionTableIterator iter(source_position_table, filter);
+    CodeLinePosEvent(*gdb_jit_logger, code_start, iter, code_type);
+  }
+#endif
 }
 
 }  // namespace
@@ -1795,19 +1828,26 @@ void CodeLinePosEvent(JitLogger& jit_logger, Address code_start,
 void V8FileLogger::CodeLinePosInfoRecordEvent(
     Address code_start, Tagged<TrustedByteArray> source_position_table,
     JitCodeEvent::CodeType code_type) {
-  if (!jit_logger_) return;
-  VMStateIfMainThread<LOGGING> state(isolate_);
-  SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(*jit_logger_, code_start, iter, code_type);
+  JitLogger* gdb_jit_logger = nullptr;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  gdb_jit_logger = gdb_jit_logger_.get();
+#endif
+  CodeLinePosInfoRecordEventHelper(isolate_, jit_logger_.get(), gdb_jit_logger,
+                                   code_start, source_position_table, code_type,
+                                   SourcePositionTableIterator::kAll);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 void V8FileLogger::WasmCodeLinePosInfoRecordEvent(
     Address code_start, base::Vector<const uint8_t> source_position_table) {
-  if (!jit_logger_) return;
-  VMStateIfMainThread<LOGGING> state(isolate_);
-  SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(*jit_logger_, code_start, iter, JitCodeEvent::WASM_CODE);
+  JitLogger* gdb_jit_logger = nullptr;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  gdb_jit_logger = gdb_jit_logger_.get();
+#endif
+  CodeLinePosInfoRecordEventHelper(
+      isolate_, jit_logger_.get(), gdb_jit_logger, code_start,
+      source_position_table, JitCodeEvent::WASM_CODE,
+      SourcePositionTableIterator::kJavaScriptOnly);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2721,17 +2761,12 @@ void ExistingCodeLogger::LogExistingFunction(
       CALL_CODE_EVENT_HANDLER(CallbackEvent(fun_name, entry_point))
 
       // Fast API function.
-      int c_functions_count = fun_data->GetCFunctionsCount();
-      for (int i = 0; i < c_functions_count; i++) {
+      uint32_t c_functions_count = fun_data->GetCFunctionsCount();
+      for (uint32_t i = 0; i < c_functions_count; i++) {
         CALL_CODE_EVENT_HANDLER(
-            CallbackEvent(fun_name, fun_data->GetCFunction(isolate_, i)))
+            CallbackEvent(fun_name, fun_data->GetCFunction(i).address))
       }
     }
-#if V8_ENABLE_WEBASSEMBLY
-  } else if (shared->HasWasmJSFunctionData(isolate_)) {
-    CALL_CODE_EVENT_HANDLER(
-        CodeCreateEvent(CodeTag::kFunction, code, "wasm-to-js"));
-#endif  // V8_ENABLE_WEBASSEMBLY
   }
 }
 

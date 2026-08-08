@@ -146,6 +146,54 @@ struct ThreadIdentity {
   // ThreadIdentity itself.
   PerThreadSynch per_thread_synch;
 
+  struct SchedulerState {
+    std::atomic<void*> bound_schedulable{nullptr};
+    // Storage space for a SpinLock, which is created through a placement new to
+    // break a dependency cycle.
+    uint32_t association_lock_word;
+    std::atomic<int> scheduling_disabled_depth;
+    int potentially_blocking_depth;
+    uint32_t schedule_next_state;
+
+    // When true, current thread is unlocking a mutex and actively waking a
+    // thread that was previously waiting, but that lock has yet more waiters.
+    // Used to signal to schedulers that work being woken should get an
+    // elevated priority.
+    bool waking_designated_waker;
+
+    inline SpinLock* association_lock() {
+      return reinterpret_cast<SpinLock*>(&association_lock_word);
+    }
+  } scheduler_state;  // Private: Reserved for use in Gloop
+
+  // For worker threads that may not be doing any interesting user work, this
+  // tracks the current state of the worker. This is used to handle those
+  // threads differently e.g. when printing stacktraces.
+  //
+  // It should only be written to by the thread itself.
+  //
+  // Note that this is different from the mutex idle bit - threads running user
+  // work can be waiting but still be active.
+  //
+  // Note: not all parts of the code-base may maintain this field correctly and
+  // therefore this field should only be used to improve debugging/monitoring.
+  //
+  // Put it here to reuse some of the padding space.
+  enum class WaitState : uint8_t {
+    kActive = 0,
+    kWaitingForWork = 1,
+  };
+  std::atomic<WaitState> wait_state;
+  static_assert(std::atomic<WaitState>::is_always_lock_free);
+
+  // Add a padding such that scheduler_state is on a different cache line than
+  // waiter state.  We use padding here, so that the size of the structure does
+  // not substantially grow due to the added padding.
+  static constexpr size_t kToBePaddedSize =
+      sizeof(SchedulerState) + sizeof(std::atomic<WaitState>);
+  static_assert(ABSL_CACHELINE_SIZE >= kToBePaddedSize);
+  char padding[ABSL_CACHELINE_SIZE - kToBePaddedSize];
+
   // Private: Reserved for absl::synchronization_internal::Waiter.
   struct WaiterState {
     alignas(void*) char data[256];
@@ -160,6 +208,10 @@ struct ThreadIdentity {
   std::atomic<int> ticker;      // Tick counter, incremented once per second.
   std::atomic<int> wait_start;  // Ticker value when thread started waiting.
   std::atomic<bool> is_idle;    // Has thread become idle yet?
+
+  // For tracking depth of __cxa_guard_acquire.  This used to recognize heap
+  // allocations for function static objects.
+  int static_initialization_depth;
 
   ThreadIdentity* next;
 };

@@ -42,6 +42,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void SlowStoreLastIndex(TNode<Context> context, TNode<JSAny> regexp,
                           TNode<Object> value);
 
+  TNode<RegExpData> LoadRegExpDataFromObject(TNode<HeapObject> object,
+                                             int offset);
+
   TNode<Smi> LoadCaptureCount(TNode<RegExpData> data);
   TNode<Smi> RegistersForCaptureCount(TNode<Smi> capture_count);
 

@@ -185,16 +185,30 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator,
       api_constants::kCagedHeapDefaultReservationSize,
       api_constants::kCagedHeapMaxReservationSize);
 
-  const size_t local_data_size =
-      CagedHeapLocalData::CalculateLocalDataSizeForHeapSize(total_heap_size);
-  const CagedAddress caged_heap_start = RoundUp(
-      reinterpret_cast<CagedAddress>(cage_start) + local_data_size, kPageSize);
-  const size_t local_data_size_with_padding =
-      caged_heap_start - reinterpret_cast<CagedAddress>(cage_start);
+  const size_t commit_page_size = platform_allocator.CommitPageSize();
 
+  // A redzone that prevents stack slots containing small integers to produce
+  // false positives when being decompressed to heap pointers. This helps
+  // conservative stack scanning to avoid false positives when retaining
+  // objects.
+  static constexpr size_t kMinRedZoneSize = 32 * kMB;
+  CHECK_EQ(kMinRedZoneSize % commit_page_size, 0);
+
+  const size_t local_data_size = RoundUp(
+      CagedHeapLocalData::CalculateLocalDataSizeForHeapSize(total_heap_size),
+      commit_page_size);
+  // CagedHeapLocalData is already a red zone for stack scanning.
+  const size_t offset_to_allocatable_start =
+      std::max(local_data_size, kMinRedZoneSize);
+  const CagedAddress caged_heap_start = RoundUp(
+      reinterpret_cast<CagedAddress>(cage_start) + offset_to_allocatable_start,
+      kPageSize);
+
+  const size_t unusable_red_zone_size =
+      caged_heap_start - reinterpret_cast<CagedAddress>(cage_start);
   page_bounded_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
       &platform_allocator, caged_heap_start,
-      total_heap_size - local_data_size_with_padding, kPageSize,
+      total_heap_size - unusable_red_zone_size, kPageSize,
       v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
       v8::base::PageFreeingMode::kMakeInaccessible);
 

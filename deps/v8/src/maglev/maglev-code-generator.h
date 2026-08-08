@@ -12,9 +12,12 @@
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/utils/identity-map.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+class TrustedObject;
+
 namespace maglev {
 
 class Graph;
@@ -62,6 +65,8 @@ class MaglevCodeGenerator final {
 
   IdentityMap<int, base::DefaultAllocationPolicy> protected_deopt_literals_;
   IdentityMap<int, base::DefaultAllocationPolicy> deopt_literals_;
+  ZoneVector<IndirectHandle<TrustedObject>> protected_deopt_literals_vector_;
+  ZoneVector<IndirectHandle<Object>> deopt_literals_vector_;
   int deopt_exit_start_offset_ = -1;
   int handler_table_offset_ = 0;
   int inlined_function_count_ = 0;

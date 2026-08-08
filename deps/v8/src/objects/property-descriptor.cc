@@ -7,7 +7,6 @@
 #include "src/common/assert-scope.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/init/bootstrapper.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
@@ -138,30 +137,33 @@ DirectHandle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
     // Fast case for regular accessor properties.
     DirectHandle<JSObject> result = factory->NewJSObjectFromMap(
         isolate->accessor_property_descriptor_map());
-    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kGetIndex,
-                                  *get());
-    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kSetIndex,
-                                  *set());
-    result->InObjectPropertyAtPut(
-        JSAccessorPropertyDescriptor::kEnumerableIndex,
-        isolate->heap()->ToBoolean(enumerable()));
-    result->InObjectPropertyAtPut(
-        JSAccessorPropertyDescriptor::kConfigurableIndex,
-        isolate->heap()->ToBoolean(configurable()));
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kGetOffset, *get());
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kSetOffset, *set());
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kEnumerableOffset,
+        ReadOnlyRoots(isolate).boolean_value(enumerable()));
+    result->InObjectPropertyPutAtOffset(
+        JSAccessorPropertyDescriptor::kConfigurableOffset,
+        ReadOnlyRoots(isolate).boolean_value(configurable()));
     return result;
   }
   if (IsRegularDataProperty()) {
     // Fast case for regular data properties.
     DirectHandle<JSObject> result =
         factory->NewJSObjectFromMap(isolate->data_property_descriptor_map());
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kValueIndex,
-                                  *value());
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kWritableIndex,
-                                  isolate->heap()->ToBoolean(writable()));
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kEnumerableIndex,
-                                  isolate->heap()->ToBoolean(enumerable()));
-    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kConfigurableIndex,
-                                  isolate->heap()->ToBoolean(configurable()));
+    result->InObjectPropertyPutAtOffset(JSDataPropertyDescriptor::kValueOffset,
+                                        *value());
+    result->InObjectPropertyPutAtOffset(
+        JSDataPropertyDescriptor::kWritableOffset,
+        ReadOnlyRoots(isolate).boolean_value(writable()));
+    result->InObjectPropertyPutAtOffset(
+        JSDataPropertyDescriptor::kEnumerableOffset,
+        ReadOnlyRoots(isolate).boolean_value(enumerable()));
+    result->InObjectPropertyPutAtOffset(
+        JSDataPropertyDescriptor::kConfigurableOffset,
+        ReadOnlyRoots(isolate).boolean_value(configurable()));
     return result;
   }
   DirectHandle<JSObject> result =

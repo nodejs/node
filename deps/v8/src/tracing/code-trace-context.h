@@ -42,15 +42,15 @@ class CodeTraceContext {
     }
   }
 
-  uint64_t InternIsolate(Isolate& isolate) {
+  uint64_t InternIsolate(Isolate* isolate) {
     return incremental_state_.InternIsolate(isolate);
   }
 
-  uint64_t InternJsScript(Isolate& isolate, Tagged<Script> script) {
+  uint64_t InternJsScript(Isolate* isolate, Tagged<Script> script) {
     return incremental_state_.InternJsScript(isolate, script);
   }
 
-  uint64_t InternJsFunction(Isolate& isolate,
+  uint64_t InternJsFunction(Isolate* isolate,
                             DirectHandle<SharedFunctionInfo> info,
                             uint64_t v8_js_script_iid, int line_num,
                             int column_num) {
@@ -59,7 +59,7 @@ class CodeTraceContext {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  uint64_t InternWasmScript(Isolate& isolate, int script_id,
+  uint64_t InternWasmScript(Isolate* isolate, int script_id,
                             std::string_view url,
                             wasm::NativeModule* native_module) {
     return incremental_state_.InternWasmScript(isolate, script_id, url,

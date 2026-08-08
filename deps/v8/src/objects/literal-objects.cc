@@ -607,7 +607,8 @@ class ObjectDescriptor {
 
   void Finalize(IsolateT* isolate) {
     if (HasDictionaryProperties()) {
-      DCHECK_EQ(current_computed_index_, computed_properties_->length());
+      DCHECK_EQ(current_computed_index_,
+                computed_properties_->ulength().value());
       if (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
         properties_dictionary_template()->set_next_enumeration_index(
             next_enumeration_index_);
@@ -631,7 +632,7 @@ class ObjectDescriptor {
   int next_enumeration_index_ = PropertyDetails::kInitialIndex;
   int element_count_ = 0;
   int computed_count_ = 0;
-  int current_computed_index_ = 0;
+  uint32_t current_computed_index_ = 0;
 
   Handle<DescriptorArray> descriptor_array_template_;
 
@@ -837,13 +838,10 @@ void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
 void RegExpBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   // Note: keep boilerplate layout synced with JSRegExp layout.
   static_assert(JSRegExp::kDataOffset == JSObject::kHeaderSize);
-  static_assert(JSRegExp::kSourceOffset == JSRegExp::kDataOffset + kTaggedSize);
-  static_assert(JSRegExp::kFlagsOffset ==
-                JSRegExp::kSourceOffset + kTaggedSize);
+  static_assert(JSRegExp::kFlagsOffset == JSRegExp::kDataOffset + kTaggedSize);
   static_assert(JSRegExp::kHeaderSize == JSRegExp::kFlagsOffset + kTaggedSize);
   IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
-  os << " " << Brief(data(isolate)) << ", " << Brief(source()) << ", "
-     << flags();
+  os << " " << Brief(data(isolate)) << ", " << flags();
 }
 
 }  // namespace internal

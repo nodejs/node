@@ -26,6 +26,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -36,8 +37,8 @@
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
-#include "absl/base/optimization.h"
 #include "absl/base/nullability.h"
+#include "absl/base/optimization.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/crc/crc32c.h"
 #include "absl/crc/internal/crc_cord_state.h"
@@ -56,7 +57,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 
 namespace absl {
@@ -886,9 +886,9 @@ const crc_internal::CrcCordState* absl_nullable Cord::MaybeGetCrcCordState()
   return &contents_.tree()->crc()->crc_cord_state;
 }
 
-absl::optional<uint32_t> Cord::ExpectedChecksum() const {
+std::optional<uint32_t> Cord::ExpectedChecksum() const {
   if (!contents_.is_tree() || !contents_.tree()->IsCrc()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return static_cast<uint32_t>(
       contents_.tree()->crc()->crc_cord_state.Checksum());

@@ -169,6 +169,10 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
            code_kind() == CodeKind::WASM_STACK_ENTRY ||
            (code_kind() == CodeKind::BUILTIN &&
             (builtin() == Builtin::kJSToWasmWrapper ||
+#if V8_ENABLE_DRUMBRAKE
+             builtin() == Builtin::kJSToWasmInterpreterWrapper ||
+             builtin() == Builtin::kJSToWasmInterpreterHandleReturns ||
+#endif
              builtin() == Builtin::kJSToWasmHandleReturns ||
              builtin() == Builtin::kWasmToJsWrapperCSA ||
              wasm::BuiltinLookup::IsWasmBuiltinId(builtin())));

@@ -102,3 +102,32 @@ const copied = new Float32Array(source)
 for (let i = 0; i < source.length; i++) {
   assertAlmostEquals(source[i], copied[i])
 }
+
+let f16 = new Float16Array([-1, -2, -100, -65504, -0.5, 1, 2]);
+
+// includes
+assertTrue(f16.includes(-1));
+assertTrue(f16.includes(-2));
+assertTrue(f16.includes(-100));
+assertTrue(f16.includes(-65504));
+assertTrue(f16.includes(-0.5));
+assertTrue(f16.includes(1));
+assertTrue(f16.includes(2));
+
+// indexOf
+assertEquals(0, f16.indexOf(-1));
+assertEquals(1, f16.indexOf(-2));
+assertEquals(2, f16.indexOf(-100));
+assertEquals(3, f16.indexOf(-65504));
+assertEquals(4, f16.indexOf(-0.5));
+assertEquals(5, f16.indexOf(1));
+assertEquals(6, f16.indexOf(2));
+
+// lastIndexOf
+assertEquals(0, f16.lastIndexOf(-1));
+assertEquals(1, f16.lastIndexOf(-2));
+assertEquals(2, f16.lastIndexOf(-100));
+assertEquals(3, f16.lastIndexOf(-65504));
+assertEquals(4, f16.lastIndexOf(-0.5));
+assertEquals(5, f16.lastIndexOf(1));
+assertEquals(6, f16.lastIndexOf(2));

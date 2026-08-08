@@ -16066,9 +16066,11 @@ TEST_F(AssemblerArm64Test, neon_sha3) {
 
   __ Movi(v10.V16B(), 0);
   __ Movi(v11.V16B(), 0);
+  __ Movi(v12.V16B(), 0);
 
   __ Bcax(v10.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
   __ Eor3(v11.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
+  __ Xar(v12.V2D(), v2.V2D(), v0.V2D(), 16);
 
   END();
 
@@ -16077,6 +16079,7 @@ TEST_F(AssemblerArm64Test, neon_sha3) {
 
     CHECK_EQUAL_128(0xaacc998822440000, 0xaacc998822440000, v10);
     CHECK_EQUAL_128(0xaacc9988aacc9988, 0xaacc9988aacc9988, v11);
+    CHECK_EQUAL_128(0xffeeccaaffeeccaa, 0xffeeccaaffeeccaa, v12);
   }
 }
 
@@ -16579,6 +16582,37 @@ TEST_F(AssemblerArm64Test, cssc_smax) {
   MinMaxHelper(op, true, s32min, s32max, s32max, s32min);
   MinMaxHelper(op, true, s64max, s32min, 0xffff'ffff, s64max);
   MinMaxHelper(op, true, s64min, s64max, 0, s64max);
+}
+
+TEST_F(AssemblerArm64Test, sve_bit_permute) {
+  SETUP();
+  SETUP_FEATURE(SVEBITPERM);
+  START();
+
+  __ Movi(v0.V2D(), 0xd7'7b'28'84'd7'7b'28'84, 0xd7'7b'28'84'd7'7b'28'84);
+  __ Movi(v8.V2D(), 0x6a'95'6a'95'6a'95'6a'95, 0x6a'95'6a'95'6a'95'6a'95);
+  __ Movi(v12.V2D(), 0x4249'8442'4249'8442, 0x4249'8442'4249'8442);
+  __ Movi(v15.V2D(), 0xafee'7dbe'5011'8241, 0xafee'7dbe'5011'8241);
+  __ Movi(v16.V2D(), 0x48028205'85082141, 0xb7fd7dfa'7af7debe);
+  __ Movi(v22.V2D(), 0x40834281'21822481, 0xbf7cbd7e'de7ddb7e);
+  __ Movi(v29.V2D(), 0x8421481221841248, 0x8421481221841248);
+  __ Movi(v31.V2D(), 0xa13c36c9c8596aa6, 0x5ec3c93637a69559);
+
+  __ Bext(z0.VnB(), z0.VnB(), z8.VnB());
+  __ Bext(z12.VnH(), z12.VnH(), z15.VnH());
+  __ Bext(z16.VnS(), z16.VnS(), z22.VnS());
+  __ Bext(z29.VnD(), z29.VnD(), z31.VnD());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x09'05'06'0a'09'05'06'0a, 0x09'05'06'0a'09'05'06'0a, q0);
+    CHECK_EQUAL_128(0x0094'0081'0009'000a, 0x0094'0081'0009'000a, q12);
+    CHECK_EQUAL_128(0x000000a5'00000049, 0x00eff7fd'0077bf9f, q16);
+    CHECK_EQUAL_128(0x0000000024000010, 0x0000000042cb1a4a, q29);
+  }
 }
 
 }  // namespace internal

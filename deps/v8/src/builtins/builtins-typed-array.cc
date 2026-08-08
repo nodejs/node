@@ -41,6 +41,7 @@ int64_t CapRelativeIndex(double relative, int64_t minimum, int64_t maximum) {
 
 }  // namespace
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.copywithin
 BUILTIN(TypedArrayPrototypeCopyWithin) {
   HandleScope scope(isolate);
 
@@ -142,7 +143,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   return *array;
 }
 
-// ES#sec-%typedarray%.prototype.fill
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.fill
 BUILTIN(TypedArrayPrototypeFill) {
   HandleScope scope(isolate);
 
@@ -242,6 +243,7 @@ BUILTIN(TypedArrayPrototypeFill) {
                                         isolate, array, obj_value, start, end));
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.includes
 BUILTIN(TypedArrayPrototypeIncludes) {
   HandleScope scope(isolate);
 
@@ -273,6 +275,7 @@ BUILTIN(TypedArrayPrototypeIncludes) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.indexof
 BUILTIN(TypedArrayPrototypeIndexOf) {
   HandleScope scope(isolate);
 
@@ -308,6 +311,7 @@ BUILTIN(TypedArrayPrototypeIndexOf) {
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.lastindexof
 BUILTIN(TypedArrayPrototypeLastIndexOf) {
   HandleScope scope(isolate);
 
@@ -346,6 +350,7 @@ BUILTIN(TypedArrayPrototypeLastIndexOf) {
   return *isolate->factory()->NewNumberFromInt64(result.FromJust());
 }
 
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.reverse
 BUILTIN(TypedArrayPrototypeReverse) {
   HandleScope scope(isolate);
 

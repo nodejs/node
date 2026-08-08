@@ -281,6 +281,26 @@ class RangeProcessor {
         node, Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(Float64Add* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64SpeculateSafeAdd* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Add(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64Subtract* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Sub(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Float64Multiply* node, const ProcessingState&) {
+    UnionUpdate(node,
+                Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));
+    return ProcessResult::kContinue;
+  }
   ProcessResult Process(Int32Multiply* node, const ProcessingState&) {
     UnionUpdateTruncatingInt32(
         node, Range::Mul(Get(node->input_node(0)), Get(node->input_node(1))));

@@ -50,7 +50,7 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate,
   Print(*exc);
   // Extract stack frame from the exception.
   auto stack = isolate->GetSimpleStackTrace(Cast<JSObject>(exc));
-  CHECK_EQ(N, stack->length());
+  CHECK_EQ(N, stack->length().value());
 
   for (int i = 0; i < N; ++i) {
     DirectHandle<CallSiteInfo> info(Cast<CallSiteInfo>(stack->get(i)), isolate);

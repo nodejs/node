@@ -370,6 +370,14 @@ inline void WasmBytecodeGenerator::I64Push(bool emit) {
   if (emit) EmitSlotOffset(slot_offset);
 }
 
+inline void WasmBytecodeGenerator::MemIndexPush(bool is_memory64, bool emit) {
+  if (V8_UNLIKELY(is_memory64)) {
+    I64Push(emit);
+  } else {
+    I32Push(emit);
+  }
+}
+
 inline void WasmBytecodeGenerator::F32Push(bool emit) {
   uint32_t slot_index = _PushSlot(kWasmF32);
   uint32_t slot_offset = slots_[slot_index].slot_offset;

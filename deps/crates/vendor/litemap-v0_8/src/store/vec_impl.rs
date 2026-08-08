@@ -163,7 +163,7 @@ impl<K: Ord, V> StoreBulkMut<K, V> for Vec<(K, V)> {
 /// Returns two slices. The first contains no consecutive repeated elements.
 /// The second contains all the duplicates in no specified order.
 ///
-/// This is based on std::slice::partition_dedup_by (currently unstable) but retains the
+/// This is based on `std::slice::partition_dedup_by` (currently unstable) but retains the
 /// _last_ element of the duplicate run in the first slice (instead of first).
 #[inline]
 #[expect(clippy::type_complexity)]

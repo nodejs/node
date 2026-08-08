@@ -1,5 +1,5 @@
 /* inftrees.h -- header to use inftrees.c
- * Copyright (C) 1995-2005, 2010 Mark Adler
+ * Copyright (C) 1995-2026 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -60,3 +60,5 @@ typedef enum {
 int ZLIB_INTERNAL inflate_table(codetype type, unsigned short FAR *lens,
                                 unsigned codes, code FAR * FAR *table,
                                 unsigned FAR *bits, unsigned short FAR *work);
+struct inflate_state;
+void ZLIB_INTERNAL inflate_fixed(struct inflate_state FAR *state);

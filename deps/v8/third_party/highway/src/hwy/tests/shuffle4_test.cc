@@ -61,9 +61,8 @@ class TestPer4LaneBlockShuffle {
     return FirstN(d, N);
   }
 
-  // TODO(b/287462770): inline to work around incorrect SVE codegen
   template <class D>
-  static HWY_INLINE void DoCheckPer4LaneBlkShufResult(
+  static HWY_NOINLINE void DoCheckPer4LaneBlkShufResult(
       D d, const size_t N, VFromD<D> actual,
       const TFromD<D>* HWY_RESTRICT src_lanes, TFromD<D>* HWY_RESTRICT expected,
       size_t idx3, size_t idx2, size_t idx1, size_t idx0) {

@@ -5,7 +5,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-let array = builder.addArray(kWasmI32, true);
+let array = builder.addArray(kWasmI32);
 builder.addFunction('main', makeSig([kWasmI32, kWasmI32], [kWasmI32]))
   .addBody([
     kExprLoop, 0x7f,

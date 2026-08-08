@@ -758,6 +758,9 @@ static InstructionBlock* InstructionBlockFor(
   }
   std::reverse(instr_block->predecessors().begin(),
                instr_block->predecessors().end());
+#ifdef BUILTIN_BLOCK_POSITION
+  instr_block->set_pgo_execution_count(block->pgo_execution_count());
+#endif
   return instr_block;
 }
 
@@ -992,6 +995,9 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       immediates_(zone()),
       rpo_immediates_(instruction_blocks->size(), zone()),
       instructions_(zone()),
+#ifdef BUILTIN_BLOCK_POSITION
+      instruction_permutation_(zone()),
+#endif
       next_virtual_register_(0),
       reference_maps_(zone()),
       representations_(zone()),

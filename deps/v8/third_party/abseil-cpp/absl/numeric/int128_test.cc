@@ -93,11 +93,11 @@ TEST(Uint128, IntrinsicTypeTraitsTest) {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 TEST(Uint128, TrivialTraitsTest) {
-  static_assert(absl::is_trivially_default_constructible<absl::uint128>::value,
+  static_assert(std::is_trivially_default_constructible<absl::uint128>::value,
                 "");
-  static_assert(absl::is_trivially_copy_constructible<absl::uint128>::value,
+  static_assert(std::is_trivially_copy_constructible<absl::uint128>::value,
                 "");
-  static_assert(absl::is_trivially_copy_assignable<absl::uint128>::value, "");
+  static_assert(std::is_trivially_copy_assignable<absl::uint128>::value, "");
   static_assert(std::is_trivially_destructible<absl::uint128>::value, "");
 }
 
@@ -619,10 +619,10 @@ TEST(Int128, IntrinsicTypeTraitsTest) {
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 TEST(Int128, TrivialTraitsTest) {
-  static_assert(absl::is_trivially_default_constructible<absl::int128>::value,
+  static_assert(std::is_trivially_default_constructible<absl::int128>::value,
                 "");
-  static_assert(absl::is_trivially_copy_constructible<absl::int128>::value, "");
-  static_assert(absl::is_trivially_copy_assignable<absl::int128>::value, "");
+  static_assert(std::is_trivially_copy_constructible<absl::int128>::value, "");
+  static_assert(std::is_trivially_copy_assignable<absl::int128>::value, "");
   static_assert(std::is_trivially_destructible<absl::int128>::value, "");
 }
 

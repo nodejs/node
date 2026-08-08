@@ -155,6 +155,7 @@ enum class TypeCheckKind : uint8_t {
   kSignedSmall,
   kSigned32,
   kSigned64,
+  kUnsigned64,
   kAdditiveSafeInteger,
   kNumber,
   kNumberOrBoolean,
@@ -175,6 +176,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "Signed32";
     case TypeCheckKind::kSigned64:
       return os << "Signed64";
+    case TypeCheckKind::kUnsigned64:
+      return os << "Unsigned64";
     case TypeCheckKind::kAdditiveSafeInteger:
       return os << "AdditiveSafeInteger";
     case TypeCheckKind::kNumber:
@@ -337,6 +340,12 @@ class UseInfo {
                                          const FeedbackSource& feedback) {
     return UseInfo(MachineRepresentation::kWord64,
                    Truncation::Any(identify_zeros), TypeCheckKind::kSigned64,
+                   feedback);
+  }
+  static UseInfo CheckedUnsigned64AsWord64(IdentifyZeros identify_zeros,
+                                           const FeedbackSource& feedback) {
+    return UseInfo(MachineRepresentation::kWord64,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kUnsigned64,
                    feedback);
   }
   static UseInfo CheckedNumberAsFloat64(IdentifyZeros identify_zeros,

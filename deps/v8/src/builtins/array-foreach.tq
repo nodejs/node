@@ -87,7 +87,7 @@ transitioning macro FastArrayForEach(
   return Undefined;
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.foreach
+// https://tc39.es/ecma262/#sec-array.prototype.foreach
 transitioning javascript builtin ArrayForEach(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {

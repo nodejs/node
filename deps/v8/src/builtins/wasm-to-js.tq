@@ -19,6 +19,14 @@ struct WasmToJSResult {
 
 extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 
+extern builtin CallVarargs(
+    Context,
+    JSAny,      // target
+    int32,      // number of arguments already on the stack
+    int32,      // number of arguments in the FixedArray
+    FixedArray  // arguments list
+    ): JSAny;
+
 extern macro StackAlignmentInBytes(): intptr;
 
 const kSignatureOffset: constexpr intptr
@@ -173,7 +181,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
         const rawRef = *slot;
         const value = BitcastWordToTagged(rawRef);
         outParams.objects[nextIndex] =
-            WasmToJSObject(data.native_context, value, paramType);
+            WasmToJSObject(data.native_context, value);
       }
       nextIndex++;
     }

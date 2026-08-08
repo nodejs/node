@@ -67,7 +67,7 @@ class pcg_engine {
   explicit pcg_engine(uint64_t seed_value = 0) { seed(seed_value); }
 
   template <class SeedSequence,
-            typename = typename absl::enable_if_t<
+            typename = typename std::enable_if_t<
                 !std::is_same<SeedSequence, pcg_engine>::value>>
   explicit pcg_engine(SeedSequence&& seq) {
     seed(seq);
@@ -90,7 +90,7 @@ class pcg_engine {
   }
 
   template <class SeedSequence>
-  typename absl::enable_if_t<
+  typename std::enable_if_t<
       !std::is_convertible<SeedSequence, uint64_t>::value, void>
   seed(SeedSequence&& seq) {
     reseed(seq);
@@ -105,7 +105,7 @@ class pcg_engine {
   bool operator!=(const pcg_engine& other) const { return !(*this == other); }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) == 16),
+  friend typename std::enable_if_t<(sizeof(state_type) == 16),
                                     std::basic_ostream<CharT, Traits>&>
   operator<<(
       std::basic_ostream<CharT, Traits>& os,  // NOLINT(runtime/references)
@@ -121,7 +121,7 @@ class pcg_engine {
   }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) <= 8),
+  friend typename std::enable_if_t<(sizeof(state_type) <= 8),
                                     std::basic_ostream<CharT, Traits>&>
   operator<<(
       std::basic_ostream<CharT, Traits>& os,  // NOLINT(runtime/references)
@@ -134,7 +134,7 @@ class pcg_engine {
   }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) == 16),
+  friend typename std::enable_if_t<(sizeof(state_type) == 16),
                                     std::basic_istream<CharT, Traits>&>
   operator>>(
       std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)
@@ -155,7 +155,7 @@ class pcg_engine {
   }
 
   template <class CharT, class Traits>
-  friend typename absl::enable_if_t<(sizeof(state_type) <= 8),
+  friend typename std::enable_if_t<(sizeof(state_type) <= 8),
                                     std::basic_istream<CharT, Traits>&>
   operator>>(
       std::basic_istream<CharT, Traits>& is,  // NOLINT(runtime/references)

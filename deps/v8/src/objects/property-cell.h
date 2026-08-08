@@ -19,25 +19,38 @@ class WeakFixedArray;
 
 #include "torque-generated/src/objects/property-cell-tq.inc"
 
-class PropertyCell
-    : public TorqueGeneratedPropertyCell<PropertyCell, HeapObject> {
+V8_OBJECT class PropertyCell : public HeapObjectLayout {
  public:
   // [name]: the name of the global property.
-  DECL_GETTER(name, Tagged<Name>)
+  inline Tagged<Name> name() const;
+  inline void set_name(Tagged<Name> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [property_details]: details of the global property.
-  DECL_GETTER(property_details_raw, Tagged<Smi>)
-  DECL_ACQUIRE_GETTER(property_details_raw, Tagged<Smi>)
+  inline Tagged<Smi> property_details_raw() const;
+  inline Tagged<Smi> property_details_raw(AcquireLoadTag tag) const;
+  inline void set_property_details_raw(
+      Tagged<Smi> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_property_details_raw(
+      Tagged<Smi> value, ReleaseStoreTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   inline PropertyDetails property_details() const;
   inline PropertyDetails property_details(AcquireLoadTag tag) const;
   inline void UpdatePropertyDetailsExceptCellType(PropertyDetails details);
 
   // [value]: value of the global property.
-  DECL_GETTER(value, Tagged<Object>)
-  DECL_ACQUIRE_GETTER(value, Tagged<Object>)
+  inline Tagged<Object> value() const;
+  inline Tagged<Object> value(AcquireLoadTag) const;
+  inline void set_value(Tagged<Object> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_value(Tagged<Object> value, ReleaseStoreTag,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [dependent_code]: code that depends on the type of the global property.
-  DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
+  inline Tagged<DependentCode> dependent_code() const;
+  inline void set_dependent_code(Tagged<DependentCode> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Changes the value and/or property details.
   // For global properties:
@@ -76,18 +89,8 @@ class PropertyCell
   DECL_PRINTER(PropertyCell)
   DECL_VERIFIER(PropertyCell)
 
-  using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
-
-  TQ_OBJECT_CONSTRUCTORS(PropertyCell)
-
  private:
   friend class Factory;
-
-  DECL_SETTER(name, Tagged<Name>)
-  DECL_SETTER(value, Tagged<Object>)
-  DECL_RELEASE_SETTER(value, Tagged<Object>)
-  DECL_SETTER(property_details_raw, Tagged<Smi>)
-  DECL_RELEASE_SETTER(property_details_raw, Tagged<Smi>)
 
 #ifdef DEBUG
   // Whether the property cell can transition to the given state. This is an
@@ -95,6 +98,19 @@ class PropertyCell
   bool CanTransitionTo(PropertyDetails new_details,
                        Tagged<Object> new_value) const;
 #endif  // DEBUG
+
+ public:
+  TaggedMember<Name> name_;
+  TaggedMember<Smi> property_details_raw_;
+  TaggedMember<Object> value_;
+  TaggedMember<DependentCode> dependent_code_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<PropertyCell> {
+  using BodyDescriptor =
+      FixedBodyDescriptor<offsetof(PropertyCell, name_), sizeof(PropertyCell),
+                          sizeof(PropertyCell)>;
 };
 
 }  // namespace internal

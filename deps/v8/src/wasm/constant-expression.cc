@@ -13,7 +13,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8 {
@@ -43,13 +43,14 @@ ValueOrError EvaluateConstantExpression(
                        module->canonical_type(ValueType::RefNull(expr.type())));
     case ConstantExpression::Kind::kRefFunc: {
       uint32_t index = expr.index();
-      bool function_is_shared =
+      SharedFlag function_is_shared =
           module->type(module->functions[index].sig_index).is_shared;
       DirectHandle<WasmFuncRef> value =
           WasmTrustedInstanceData::GetOrCreateFuncRef(
               isolate,
-              function_is_shared ? shared_trusted_instance_data
-                                 : trusted_instance_data,
+              function_is_shared == SharedFlag::kYes
+                  ? shared_trusted_instance_data
+                  : trusted_instance_data,
               index);
       return WasmValue(value, module->canonical_type(expected));
     }
@@ -66,8 +67,7 @@ ValueOrError EvaluateConstantExpression(
       // We have already validated the expression, so we might as well
       // revalidate it as non-shared, which is strictly more permissive.
       // TODO(14616): Rethink this.
-      constexpr bool kIsShared = false;
-      FunctionBody body(&sig, ref.offset(), start, end, kIsShared);
+      FunctionBody body(&sig, ref.offset(), start, end, SharedFlag::kNo);
       WasmDetectedFeatures detected;
       ValueOrError result;
       {

@@ -39,24 +39,23 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-number-format-tq.inc"
 
-class JSNumberFormat
-    : public TorqueGeneratedJSNumberFormat<JSNumberFormat, JSObject> {
+V8_OBJECT class JSNumberFormat : public JSObject {
  public:
-  // ecma402/#sec-initializenumberformat
+  // https://tc39.es/ecma402/#sec-initializenumberformat
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
       DirectHandle<Object> options, const char* service);
 
-  // ecma402/#sec-unwrapnumberformat
+  // https://tc39.es/ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat>
   UnwrapNumberFormat(Isolate* isolate, DirectHandle<JSReceiver> format_holder);
 
-  // #sec-number-format-functions
+  // https://tc39.es/ecma262/#sec-number-format-functions
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> NumberFormatFunction(
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
-  // ecma402/#sec-intl.numberformat.prototype.resolvedoptions
+  // https://tc39.es/ecma402/#sec-intl.numberformat.prototype.resolvedoptions
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format);
 
@@ -64,20 +63,19 @@ class JSNumberFormat
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
-  // ecma402/#sec-formatnumericrange
+  // https://tc39.es/ecma402/#sec-formatnumericrange
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumericRange(
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> x, Handle<Object> y);
 
-  // ecma402/#sec-formatnumericrangetoparts
+  // https://tc39.es/ecma402/#sec-formatnumericrangetoparts
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray>
   FormatNumericRangeToParts(Isolate* isolate,
                             DirectHandle<JSNumberFormat> number_format,
                             Handle<Object> x, Handle<Object> y);
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumeric(
-      Isolate* isolate,
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
+      Isolate* isolate, const icu::number::LocalizedNumberFormatter* lfmt,
       Handle<Object> numeric_obj);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
@@ -114,12 +112,41 @@ class JSNumberFormat
       const icu::number::LocalizedNumberFormatter& number_formatter);
 
   DECL_PRINTER(JSNumberFormat)
+  DECL_VERIFIER(JSNumberFormat)
 
-  DECL_ACCESSORS(icu_number_formatter,
-                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
+  inline Tagged<String> locale() const;
+  inline void set_locale(Tagged<String> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  TQ_OBJECT_CONSTRUCTORS(JSNumberFormat)
-};
+  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+  icu_number_formatter() const;
+  inline void set_icu_number_formatter(
+      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<JSFunction, Undefined>> bound_format() const;
+  inline void set_bound_format(Tagged<UnionOf<JSFunction, Undefined>> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  // Back-compat offset/size constants.
+  static const int kLocaleOffset;
+  static const int kIcuNumberFormatterOffset;
+  static const int kBoundFormatOffset;
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<String> locale_;
+  TaggedMember<Foreign> icu_number_formatter_;
+  TaggedMember<UnionOf<JSFunction, Undefined>> bound_format_;
+} V8_OBJECT_END;
+
+inline constexpr int JSNumberFormat::kLocaleOffset =
+    offsetof(JSNumberFormat, locale_);
+inline constexpr int JSNumberFormat::kIcuNumberFormatterOffset =
+    offsetof(JSNumberFormat, icu_number_formatter_);
+inline constexpr int JSNumberFormat::kBoundFormatOffset =
+    offsetof(JSNumberFormat, bound_format_);
+inline constexpr int JSNumberFormat::kHeaderSize = sizeof(JSNumberFormat);
 
 // IntlMathematicalValue is designed only to be used as part of
 // JSNumberFormat and can only be allocate on the stack. We place this class in
@@ -134,8 +161,7 @@ class V8_NODISCARD IntlMathematicalValue {
       Isolate* isolate, Handle<Object> value);
 
   static Maybe<icu::number::FormattedNumber> FormatNumeric(
-      Isolate* isolate,
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
+      Isolate* isolate, const icu::number::LocalizedNumberFormatter* lfmt,
       const IntlMathematicalValue& x);
 
   static Maybe<icu::number::FormattedNumberRange> FormatRange(

@@ -112,7 +112,8 @@ int FrameTranslationBuilder::BeginTranslation(int frame_count,
                                               int jsframe_count,
                                               bool update_feedback) {
   FinishPendingInstructionIfNeeded();
-  int start_index = Size();
+  // TODO(375937549): Convert to uint32_t.
+  int start_index = static_cast<int>(Size());
   int distance_from_last_start = 0;
 
   // We should reuse an existing basis translation if:
@@ -209,7 +210,7 @@ DirectHandle<DeoptimizationFrameTranslation>
 FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
 #ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    const int input_size = SizeInBytes();
+    const uint32_t input_size = SizeInBytes();
     uLongf compressed_data_size = compressBound(input_size);
 
     ZoneVector<uint8_t> compressed_data(compressed_data_size, zone());
@@ -221,8 +222,8 @@ FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
             input_size, Z_DEFAULT_COMPRESSION, nullptr, nullptr),
         Z_OK);
 
-    const int translation_array_size =
-        static_cast<int>(compressed_data_size) +
+    const uint32_t translation_array_size =
+        static_cast<uint32_t>(compressed_data_size) +
         DeoptimizationFrameTranslation::kUncompressedSizeSize;
     DirectHandle<DeoptimizationFrameTranslation> result =
         factory->NewDeoptimizationFrameTranslation(translation_array_size);
@@ -232,15 +233,15 @@ FrameTranslationBuilder::ToFrameTranslation(LocalFactory* factory) {
     std::memcpy(
         result->begin() + DeoptimizationFrameTranslation::kCompressedDataOffset,
         compressed_data.data(), compressed_data_size);
-
     return result;
   }
 #endif
   DCHECK(!v8_flags.turbo_compress_frame_translations);
   FinishPendingInstructionIfNeeded();
+  const uint32_t input_size = SizeInBytes();
   DirectHandle<DeoptimizationFrameTranslation> result =
-      factory->NewDeoptimizationFrameTranslation(SizeInBytes());
-  if (SizeInBytes() == 0) return result;
+      factory->NewDeoptimizationFrameTranslation(input_size);
+  if (input_size == 0) return result;
   memcpy(result->begin(), contents_.data(), contents_.size() * sizeof(uint8_t));
 #ifdef ENABLE_SLOW_DCHECKS
   DeoptimizationFrameTranslation::Iterator iter(*result, 0);

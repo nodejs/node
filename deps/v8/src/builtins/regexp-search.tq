@@ -84,7 +84,7 @@ transitioning builtin RegExpSearchFast(
   return RegExpPrototypeSearchBodyFast(receiver, string);
 }
 
-// ES#sec-regexp.prototype-@@search
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
 transitioning javascript builtin RegExpPrototypeSearch(
     js-implicit context: NativeContext, receiver: JSAny)(

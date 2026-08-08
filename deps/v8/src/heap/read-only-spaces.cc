@@ -225,7 +225,7 @@ void ReadOnlySpace::Seal(SealMode ro_mode) {
 bool ReadOnlySpace::ContainsSlow(Address addr) const {
   MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (BasePage* metadata : pages_) {
-    if (metadata->Chunk() == chunk) return true;
+    if (metadata->Chunk() == chunk) return metadata->Contains(addr);
   }
   return false;
 }

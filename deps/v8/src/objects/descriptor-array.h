@@ -5,10 +5,11 @@
 #ifndef V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_H_
 
+#include <atomic>
+
+#include "src/base/bit-field.h"
 #include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
-// TODO(jkummerow): Consider forward-declaring instead.
-#include "src/base/bit-field.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -38,7 +39,7 @@ class StructBodyDescriptor;
 #include "torque-generated/src/objects/descriptor-array-tq.inc"
 
 // An EnumCache is a pair used to hold keys and indices caches.
-V8_OBJECT class EnumCache : public StructLayout {
+V8_OBJECT class EnumCache : public Struct {
  public:
   inline Tagged<FixedArray> keys() const;
   inline void set_keys(Tagged<FixedArray> value,
@@ -85,16 +86,18 @@ V8_OBJECT class EnumCache : public StructLayout {
 // The "value" fields store either values or field types. A field type is either
 // FieldType::None(), FieldType::Any() or a weak reference to a Map. All other
 // references are strong.
-class DescriptorArray
-    : public TorqueGeneratedDescriptorArray<DescriptorArray, HeapObject> {
+V8_OBJECT class DescriptorArray : public HeapObjectLayout {
  public:
   // Do linear search for small arrays, and for searches in the background
   // thread.
   static constexpr int kMaxElementsForLinearSearch = 32;
 
-  DECL_INT16_ACCESSORS(number_of_all_descriptors)
-  DECL_INT16_ACCESSORS(number_of_descriptors)
-  DECL_RELAXED_PRIMITIVE_ACCESSORS(flags, uint32_t)
+  inline int16_t number_of_all_descriptors() const;
+  inline void set_number_of_all_descriptors(int16_t value, ReleaseStoreTag);
+  inline int16_t number_of_descriptors() const;
+  inline void set_number_of_descriptors(int16_t value);
+  inline uint32_t flags(RelaxedLoadTag) const;
+  inline void set_flags(uint32_t value, RelaxedStoreTag);
   inline int16_t number_of_slack_descriptors() const;
   inline int number_of_entries() const;
 
@@ -125,29 +128,23 @@ class DescriptorArray
       DirectHandle<FixedArray> keys, DirectHandle<FixedArray> indices,
       AllocationType allocation_if_initialize);
 
+  inline Tagged<EnumCache> enum_cache() const;
+  inline void set_enum_cache(Tagged<EnumCache> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Accessors for fetching instance descriptor at descriptor number.
   inline Tagged<Name> GetKey(InternalIndex descriptor_number) const;
-  inline Tagged<Name> GetKey(PtrComprCageBase cage_base,
-                             InternalIndex descriptor_number) const;
   inline Tagged<Object> GetStrongValue(InternalIndex descriptor_number);
-  inline Tagged<Object> GetStrongValue(PtrComprCageBase cage_base,
-                                       InternalIndex descriptor_number);
   inline Tagged<MaybeObject> GetValue(InternalIndex descriptor_number);
-  inline Tagged<MaybeObject> GetValue(PtrComprCageBase cage_base,
-                                      InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
-  inline int GetFieldIndex(InternalIndex descriptor_number);
+  inline int GetOffsetInWords(InternalIndex descriptor_number);
   inline Tagged<FieldType> GetFieldType(InternalIndex descriptor_number);
-  inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
-                                        InternalIndex descriptor_number);
 
   // Returns true if given entry is already initialized. Useful in cases
   // when a heap stats collector might see a half-initialized descriptor.
   inline bool IsInitializedDescriptor(InternalIndex descriptor_number) const;
 
   inline Tagged<Name> GetSortedKey(int descriptor_number);
-  inline Tagged<Name> GetSortedKey(PtrComprCageBase cage_base,
-                                   int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
 
   // Accessor for complete descriptor.
@@ -193,11 +190,6 @@ class DescriptorArray
   V8_INLINE InternalIndex Search(Tagged<Name> name, Tagged<Map> map,
                                  bool concurrent_search = false);
 
-  // Search the instance descriptors for given field offset.
-  V8_INLINE InternalIndex Search(int field_offset,
-                                 int number_of_own_descriptors);
-  V8_INLINE InternalIndex Search(int field_offset, Tagged<Map> map);
-
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
   V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Tagged<Name> name,
@@ -219,29 +211,16 @@ class DescriptorArray
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static_assert(IsAligned(kStartOfWeakFieldsOffset, kTaggedSize));
-  static_assert(IsAligned(kHeaderSize, kTaggedSize));
-
   // Garbage collection support.
-  DECL_RELAXED_UINT32_ACCESSORS(raw_gc_state)
-  static constexpr size_t kSizeOfRawGcState =
-      kRawGcStateOffsetEnd - kRawGcStateOffset + 1;
+  inline uint32_t raw_gc_state(RelaxedLoadTag) const;
+  inline void set_raw_gc_state(uint32_t value, RelaxedStoreTag);
+  static constexpr size_t kSizeOfRawGcState = sizeof(uint32_t);
 
-  static constexpr int SizeFor(int number_of_all_descriptors) {
-    return OffsetOfDescriptorAt(number_of_all_descriptors);
-  }
-  static constexpr int OffsetOfDescriptorAt(int descriptor) {
-    return kDescriptorsOffset + descriptor * kEntrySize * kTaggedSize;
-  }
+  static constexpr int SizeFor(int number_of_all_descriptors);
+  static constexpr int OffsetOfDescriptorAt(int descriptor);
   inline ObjectSlot GetFirstPointerSlot();
   inline ObjectSlot GetDescriptorSlot(int descriptor);
 
-  static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
-                "Weak fields follow strong fields.");
-  static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
-                "Weak fields extend up to the end of the header.");
-  static_assert(kDescriptorsOffset == kHeaderSize,
-                "Variable-size array follows header.");
   class BodyDescriptor;
 
   // Layout of descriptor.
@@ -255,6 +234,16 @@ class DescriptorArray
   static const int kEntryDetailsOffset = kEntryDetailsIndex * kTaggedSize;
   static const int kEntryValueOffset = kEntryValueIndex * kTaggedSize;
 
+  // Back-compat offset constants. Defined out-of-line because `offsetof` /
+  // `sizeof` on DescriptorArray cannot appear inside its own class body.
+  static const int kNumberOfAllDescriptorsOffset;
+  static const int kNumberOfDescriptorsOffset;
+  static const int kRawGcStateOffset;
+  static const int kFlagsOffset;
+  static const int kEnumCacheOffset;
+  static const int kHeaderSize;
+  static const int kDescriptorsOffset;
+
   // Print all the descriptors.
   void PrintDescriptors(std::ostream& os);
   void PrintDescriptorDetails(std::ostream& os, InternalIndex descriptor,
@@ -262,6 +251,17 @@ class DescriptorArray
 
   DECL_PRINTER(DescriptorArray)
   DECL_VERIFIER(DescriptorArray)
+
+#ifdef VERIFY_HEAP
+  // Per-entry type check only (key is Name|Undefined, details is Smi|Undefined,
+  // value is JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions|
+  // NumberDictionary). This is the hand-rolled equivalent of the old Torque-
+  // generated DescriptorArrayVerify and is what test/cctest/test-verifiers.cc
+  // exercises; the full DescriptorArrayVerify additionally enforces semantic
+  // invariants (field values are FieldType-shaped, private keys are
+  // non-enumerable, etc.) that assume a well-formed descriptor array.
+  V8_EXPORT_PRIVATE void DescriptorArrayEntryTypesVerify(Isolate* isolate);
+#endif
 
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
@@ -283,10 +283,6 @@ class DescriptorArray
   static constexpr int ToValueIndex(int descriptor_number) {
     return (descriptor_number * kEntrySize) + kEntryValueIndex;
   }
-
-  using EntryKeyField = TaggedField<HeapObject, kEntryKeyOffset>;
-  using EntryDetailsField = TaggedField<Smi, kEntryDetailsOffset>;
-  using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
   V8_EXPORT_PRIVATE void SortImpl(const int len);
@@ -311,7 +307,100 @@ class DescriptorArray
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
 
-  TQ_OBJECT_CONSTRUCTORS(DescriptorArray)
+ public:
+  // A single descriptor tuple (key, details, value). The three fields occupy
+  // three adjacent tagged slots, matching the kEntry{Key,Details,Value}Offset
+  // constants above. `key` and `details` are always strong after
+  // initialization but may be `Undefined` in unused / slack entries;
+  // `value` may hold a weak reference to a Map. See the custom
+  // BodyDescriptor for GC iteration.
+  struct Entry {
+    TaggedMember<UnionOf<Name, Undefined>> key;
+    TaggedMember<UnionOf<Smi, Undefined>> details;
+    TaggedMember<UnionOf<JSAny, Weak<Map>, AccessorInfo, AccessorPair,
+                         ClassPositions, NumberDictionary>>
+        value;
+  };
+
+  // Declared atomic so that concurrent readers (e.g. from the marker) see a
+  // consistent value during trimming in mark-compact.
+  std::atomic<uint16_t> number_of_all_descriptors_;
+  std::atomic<uint16_t> number_of_descriptors_;
+  std::atomic<uint32_t> raw_gc_state_;
+  std::atomic<uint32_t> flags_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  TaggedMember<EnumCache> enum_cache_;
+  FLEXIBLE_ARRAY_MEMBER(Entry, entries);
+} V8_OBJECT_END;
+
+static_assert(sizeof(DescriptorArray::Entry) ==
+              DescriptorArray::kEntrySize * kTaggedSize);
+static_assert(offsetof(DescriptorArray::Entry, key) ==
+              DescriptorArray::kEntryKeyOffset);
+static_assert(offsetof(DescriptorArray::Entry, details) ==
+              DescriptorArray::kEntryDetailsOffset);
+static_assert(offsetof(DescriptorArray::Entry, value) ==
+              DescriptorArray::kEntryValueOffset);
+
+// Back-compat offset constants. Defined here because `offsetof` / `sizeof`
+// on a not-yet-complete class cannot appear inside the class body.
+inline constexpr int DescriptorArray::kNumberOfAllDescriptorsOffset =
+    offsetof(DescriptorArray, number_of_all_descriptors_);
+inline constexpr int DescriptorArray::kNumberOfDescriptorsOffset =
+    offsetof(DescriptorArray, number_of_descriptors_);
+inline constexpr int DescriptorArray::kRawGcStateOffset =
+    offsetof(DescriptorArray, raw_gc_state_);
+inline constexpr int DescriptorArray::kFlagsOffset =
+    offsetof(DescriptorArray, flags_);
+inline constexpr int DescriptorArray::kEnumCacheOffset =
+    offsetof(DescriptorArray, enum_cache_);
+inline constexpr int DescriptorArray::kHeaderSize =
+    OFFSET_OF_DATA_START(DescriptorArray);
+inline constexpr int DescriptorArray::kDescriptorsOffset =
+    OFFSET_OF_DATA_START(DescriptorArray);
+
+constexpr int DescriptorArray::SizeFor(int number_of_all_descriptors) {
+  return OFFSET_OF_DATA_START(DescriptorArray) +
+         number_of_all_descriptors * kEntrySize * kTaggedSize;
+}
+
+constexpr int DescriptorArray::OffsetOfDescriptorAt(int descriptor) {
+  return OFFSET_OF_DATA_START(DescriptorArray) +
+         descriptor * kEntrySize * kTaggedSize;
+}
+
+static_assert(IsAligned(DescriptorArray::kHeaderSize, kTaggedSize));
+static_assert(sizeof(std::atomic<uint16_t>) == 2);
+static_assert(alignof(std::atomic<uint16_t>) == 2);
+static_assert(sizeof(std::atomic<uint32_t>) == 4);
+static_assert(alignof(std::atomic<uint32_t>) == 4);
+static_assert(offsetof(DescriptorArray, number_of_all_descriptors_) ==
+              HeapObject::kHeaderSize);
+static_assert(offsetof(DescriptorArray, number_of_descriptors_) ==
+              HeapObject::kHeaderSize + sizeof(uint16_t));
+static_assert(offsetof(DescriptorArray, raw_gc_state_) ==
+              HeapObject::kHeaderSize + 2 * sizeof(uint16_t));
+static_assert(offsetof(DescriptorArray, flags_) == HeapObject::kHeaderSize +
+                                                       2 * sizeof(uint16_t) +
+                                                       sizeof(uint32_t));
+
+// A DescriptorArray where all values are held strongly. Bodyless subclass with
+// identical layout and BodyDescriptor. The distinct instance type routes to
+// the default VisitWithBodyDescriptor path, bypassing the specialized
+// MarkingVisitorBase::VisitDescriptorArray override (which runs the
+// DescriptorArrayMarkingState epoch/delta protocol for incremental weak-Map
+// trimming).
+V8_OBJECT class StrongDescriptorArray : public DescriptorArray {
+ public:
+  DECL_PRINTER(StrongDescriptorArray)
+  DECL_VERIFIER(StrongDescriptorArray)
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<StrongDescriptorArray> {
+  using BodyDescriptor = DescriptorArray::BodyDescriptor;
 };
 
 // Custom DescriptorArray marking state for visitors that are allowed to write
@@ -376,10 +465,9 @@ class DescriptorArrayMarkingState final {
 
   static bool SwapState(Tagged<DescriptorArray> array, RawGCStateType old_state,
                         RawGCStateType new_state) {
-    return static_cast<RawGCStateType>(base::AcquireRelease_CompareAndSwap(
-               reinterpret_cast<base::Atomic32*>(
-                   FIELD_ADDR(array, DescriptorArray::kRawGcStateOffset)),
-               old_state, new_state)) == old_state;
+    return array->raw_gc_state_.compare_exchange_strong(
+        old_state, new_state, std::memory_order_acq_rel,
+        std::memory_order_acquire);
   }
 };
 

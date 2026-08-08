@@ -137,8 +137,6 @@ class DependentCode : public WeakArrayList {
   static constexpr int LengthFor(int number_of_entries) {
     return number_of_entries * kSlotsPerEntry;
   }
-
-  OBJECT_CONSTRUCTORS(DependentCode, WeakArrayList);
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(DependentCode::DependencyGroups)

@@ -182,7 +182,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
                 v8::debug::ExceptionType exceptionType, bool isUncaught,
                 v8::debug::BreakReasons breakReasons);
   void didContinue();
-  void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
+  void didParseSource(std::unique_ptr<V8DebuggerScript>);
 
   bool isFunctionBlackboxed(const String16& scriptId,
                             const v8::debug::Location& start,
@@ -213,8 +213,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void setBreakpointImpl(const String16& breakpointId,
                          v8::Local<v8::Function> function,
                          v8::Local<v8::String> condition);
-  void removeBreakpointImpl(const String16& breakpointId,
-                            const std::vector<V8DebuggerScript*>& scripts);
+  void removeBreakpointImpl(
+      const String16& breakpointId,
+      const std::vector<std::shared_ptr<V8DebuggerScript>>& scripts);
 
   void internalSetAsyncCallStackDepth(int);
   void increaseCachedSkipStackGeneration();
@@ -229,8 +230,12 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response processSkipList(
       protocol::Array<protocol::Debugger::LocationRange>& skipList);
 
+  V8DebuggerScript* getScriptById(
+      const String16& scriptId,
+      const v8::debug::DisallowGarbageCollectionScope&);
+
   using ScriptsMap =
-      std::unordered_map<String16, std::unique_ptr<V8DebuggerScript>>;
+      std::unordered_map<String16, std::shared_ptr<V8DebuggerScript>>;
   using BreakpointIdToDebuggerBreakpointIdsMap =
       std::unordered_map<String16, std::vector<v8::debug::BreakpointId>>;
   using DebuggerBreakpointIdToBreakpointIdMap =

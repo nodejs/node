@@ -14,7 +14,9 @@
 
 #include "absl/container/internal/compressed_tuple.h"
 
+#include <any>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <type_traits>
@@ -25,8 +27,6 @@
 #include "gtest/gtest.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/memory/memory.h"
-#include "absl/types/any.h"
-#include "absl/types/optional.h"
 #include "absl/utility/utility.h"
 
 // These are declared at global scope purely so that error messages
@@ -363,13 +363,13 @@ TEST(CompressedTupleTest, MoveConstructionMoveOnlyElements) {
 }
 
 TEST(CompressedTupleTest, AnyElements) {
-  any a(std::string("str"));
-  CompressedTuple<any, any&> x(any(5), a);
-  EXPECT_EQ(absl::any_cast<int>(x.get<0>()), 5);
-  EXPECT_EQ(absl::any_cast<std::string>(x.get<1>()), "str");
+  std::any a(std::string("str"));
+  CompressedTuple<std::any, std::any&> x(std::any(5), a);
+  EXPECT_EQ(std::any_cast<int>(x.get<0>()), 5);
+  EXPECT_EQ(std::any_cast<std::string>(x.get<1>()), "str");
 
   a = 0.5f;
-  EXPECT_EQ(absl::any_cast<float>(x.get<1>()), 0.5);
+  EXPECT_EQ(std::any_cast<float>(x.get<1>()), 0.5);
 }
 
 TEST(CompressedTupleTest, Constexpr) {
@@ -418,15 +418,15 @@ TEST(CompressedTupleTest, Constexpr) {
   EXPECT_EQ(trivial1, 0);
   EXPECT_EQ(trivial2, 0);
 
-  constexpr CompressedTuple<Empty<0>, NonTrivialStruct, absl::optional<int>>
+  constexpr CompressedTuple<Empty<0>, NonTrivialStruct, std::optional<int>>
       non_trivial = {};
   constexpr CallType non_trivial0 = non_trivial.get<0>().value();
   constexpr int non_trivial1 = non_trivial.get<1>().value();
-  constexpr absl::optional<int> non_trivial2 = non_trivial.get<2>();
+  constexpr std::optional<int> non_trivial2 = non_trivial.get<2>();
 
   EXPECT_EQ(non_trivial0, CallType::kConstRef);
   EXPECT_EQ(non_trivial1, 5);
-  EXPECT_EQ(non_trivial2, absl::nullopt);
+  EXPECT_EQ(non_trivial2, std::nullopt);
 
   static constexpr char data[] = "DEF";
   constexpr CompressedTuple<const char*> z(data);

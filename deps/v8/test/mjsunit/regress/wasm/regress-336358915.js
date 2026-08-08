@@ -1,12 +1,7 @@
 // Copyright 2024 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// Flags: --wasm-staging
 
-// Should execute without doing anything (i.e., no crashes)
-
-assertEquals = () => {};
-assertTrue  = () => {};
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let v0 = new WasmModuleBuilder();

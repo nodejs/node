@@ -145,8 +145,7 @@ std::unique_ptr<protocol::Profiler::Profile> createCPUProfile(
 std::unique_ptr<protocol::Debugger::Location> currentDebugLocation(
     V8InspectorImpl* inspector) {
   auto stackTrace = V8StackTraceImpl::capture(inspector->debugger(), 1);
-  CHECK(stackTrace);
-  CHECK(!stackTrace->isEmpty());
+  if (!stackTrace || stackTrace->isEmpty()) return nullptr;
   return protocol::Debugger::Location::create()
       .setScriptId(String16::fromInteger(stackTrace->topScriptId()))
       .setLineNumber(stackTrace->topLineNumber())
@@ -180,6 +179,8 @@ V8ProfilerAgentImpl::~V8ProfilerAgentImpl() {
 
 void V8ProfilerAgentImpl::consoleProfile(const String16& title) {
   if (!m_enabled) return;
+  auto location = currentDebugLocation(m_session->inspector());
+  if (!location) return;
   String16 id = nextProfileId();
   m_startedProfiles.push_back(ProfileDescriptor(id, title));
   startProfiling(id);
@@ -211,9 +212,10 @@ void V8ProfilerAgentImpl::consoleProfileEnd(const String16& title) {
   std::unique_ptr<protocol::Profiler::Profile> profile =
       stopProfiling(id, true);
   if (!profile) return;
-  m_frontend.consoleProfileFinished(
-      id, currentDebugLocation(m_session->inspector()), std::move(profile),
-      resolvedTitle);
+  auto location = currentDebugLocation(m_session->inspector());
+  if (!location) return;
+  m_frontend.consoleProfileFinished(id, std::move(location), std::move(profile),
+                                    resolvedTitle);
 }
 
 Response V8ProfilerAgentImpl::enable() {

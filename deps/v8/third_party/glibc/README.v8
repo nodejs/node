@@ -1,6 +1,6 @@
 Name: glibc
 URL: https://www.gnu.org/software/libc/
-License: LGPL 2.1
+License: LGPL-2.1
 License File: LICENSE
 Security Critical: yes
 Shipped: yes

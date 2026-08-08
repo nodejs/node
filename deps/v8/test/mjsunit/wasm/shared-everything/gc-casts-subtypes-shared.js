@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection --experimental-wasm-shared
-// Flags: --harmony-struct
+// Flags: --experimental-wasm-shared --harmony-struct
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -12,13 +11,16 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  let structSuper = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType, false, true);
+  let structSuper = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], shared: true});
   builder.endRecGroup();
   builder.startRecGroup();
-  let structSub = builder.addStruct([makeField(kWasmI32, true)], structSuper, false, true);
+  let structSub = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: structSuper,
+       shared: true});
   builder.endRecGroup();
   builder.startRecGroup();
-  let array = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+  let array = builder.addArray(kWasmI32, {shared: true});
   builder.endRecGroup();
 
   // Note: Casting between unrelated types is allowed as long as the types
@@ -148,7 +150,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 //   let instance = builder.instantiate();
 //   let wasm = instance.exports;
-//   let jsFct = new WebAssembly.Function(
+//   let jsFct = new WebAssemblyFunction(
 //       {parameters:['i32', 'i32'], results: ['i32']},
 //       function mul(a, b) { return a * b; });
 //   assertEquals([0, 0, 0, 0], wasm.testFromFuncRef(null));
@@ -202,7 +204,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 //   let instance = builder.instantiate();
 //   let wasm = instance.exports;
-//   let jsFct = new WebAssembly.Function(
+//   let jsFct = new WebAssemblyFunction(
 //       {parameters:['i32', 'i32'], results: ['i32']},
 //       function mul(a, b) { return a * b; });
 
@@ -321,7 +323,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 //   let instance = builder.instantiate();
 //   let wasm = instance.exports;
-//   let jsFct = new WebAssembly.Function(
+//   let jsFct = new WebAssemblyFunction(
 //       {parameters:['i32', 'i32'], results: ['i32']},
 //       function mul(a, b) { return a * b; });
 //   assertEquals(0, wasm.brOnCast_funcref(null));
@@ -695,10 +697,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let structSuper = builder.addStruct(
-    [makeField(kWasmI32, true)], kNoSuperType, false, true);
+      {fields: [makeField(kWasmI32, true)], shared: true});
   let structSub = builder.addStruct(
-    [makeField(kWasmI32, true)], structSuper, false, true);
-  let array = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+      {fields: [makeField(kWasmI32, true)], supertype: structSuper,
+       shared: true});
+  let array = builder.addArray(kWasmI32, {shared: true});
 
   // Helpers to be able to instantiate a true externref value from wasm.
   let createExternSig = builder.addType(

@@ -35,6 +35,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "include/cppgc/macros.h"
 #include "include/v8-exception.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-persistent-handle.h"
@@ -151,6 +152,8 @@ class InjectedScript final {
   void setLastEvaluationResult(v8::Local<v8::Value> result);
 
   class Scope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     Response initialize();
     void installCommandLineAPI();
@@ -170,6 +173,7 @@ class InjectedScript final {
 
     V8InspectorImpl* m_inspector;
     InjectedScript* m_injectedScript;
+    std::shared_ptr<InspectedContext> m_inspectedContext;
 
    private:
     void cleanup();
@@ -189,6 +193,8 @@ class InjectedScript final {
   };
 
   class ContextScope : public Scope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     ContextScope(V8InspectorSessionImpl*, int executionContextId);
     ~ContextScope() override;
@@ -201,6 +207,8 @@ class InjectedScript final {
   };
 
   class ObjectScope : public Scope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     ObjectScope(V8InspectorSessionImpl*, const String16& remoteObjectId);
     ~ObjectScope() override;
@@ -217,6 +225,8 @@ class InjectedScript final {
   };
 
   class CallFrameScope : public Scope {
+    CPPGC_STACK_ALLOCATED();
+
    public:
     CallFrameScope(V8InspectorSessionImpl*, const String16& remoteCallFrameId);
     ~CallFrameScope() override;

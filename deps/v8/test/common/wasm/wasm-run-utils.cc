@@ -52,6 +52,60 @@ bool IsSameNan(double expected, double actual) {
          ((expected_bits | 0x0008000000000000) == actual_bits);
 }
 
+Tagged<WasmDispatchTable> GetDispatchTable(
+    DirectHandle<WasmTrustedInstanceData> instance, uint32_t table_index) {
+  Tagged<Object> table = instance->dispatch_tables()->get(table_index);
+  return TrustedCast<WasmDispatchTable>(table);
+}
+
+class FunctionTargetAndImplicitArg {
+ public:
+  FunctionTargetAndImplicitArg(
+      Isolate* isolate,
+      DirectHandle<WasmTrustedInstanceData> target_instance_data,
+      int target_func_index) {
+    implicit_arg_ = target_instance_data;
+    if (target_func_index <
+        static_cast<int>(
+            target_instance_data->module()->num_imported_functions)) {
+      // The function in the target instance was imported. Load the ref from the
+      // dispatch table for imports.
+      implicit_arg_ = direct_handle(
+          TrustedCast<TrustedObject>(
+              target_instance_data->dispatch_table_for_imports()->implicit_arg(
+                  target_func_index)),
+          isolate);
+#if V8_ENABLE_DRUMBRAKE
+      target_func_index_ =
+          target_instance_data->imported_function_indices()->get(
+              target_func_index);
+#endif  // V8_ENABLE_DRUMBRAKE
+    } else {
+      // The function in the target instance was not imported.
+#if V8_ENABLE_DRUMBRAKE
+      target_func_index_ = target_func_index;
+#endif  // V8_ENABLE_DRUMBRAKE
+    }
+    call_target_ = target_instance_data->GetCallTarget(target_func_index);
+  }
+
+  // The "implicit_arg" will be a WasmTrustedInstanceData or a WasmImportData.
+  DirectHandle<TrustedObject> implicit_arg() { return implicit_arg_; }
+  WasmCodePointer call_target() { return call_target_; }
+
+#if V8_ENABLE_DRUMBRAKE
+  int target_func_index() { return target_func_index_; }
+#endif  // V8_ENABLE_DRUMBRAKE
+
+ private:
+  DirectHandle<TrustedObject> implicit_arg_;
+  WasmCodePointer call_target_;
+
+#if V8_ENABLE_DRUMBRAKE
+  int target_func_index_;
+#endif  // V8_ENABLE_DRUMBRAKE
+};
+
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ModuleOrigin origin, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, Isolate* isolate)
@@ -68,10 +122,6 @@ TestingModuleBuilder::TestingModuleBuilder(
 
   WasmJs::Install(isolate_);
   module_->untagged_globals_buffer_size = kMaxGlobalsSize;
-  // The GlobalsData must be located inside the sandbox, so allocate it from the
-  // ArrayBuffer allocator.
-  globals_data_ = reinterpret_cast<uint8_t*>(
-      isolate->array_buffer_allocator()->Allocate(kMaxGlobalsSize));
 
   uint32_t maybe_import_index = 0;
   if (maybe_import) {
@@ -96,7 +146,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     const wasm::CanonicalSig* sig =
         GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
     const wasm::CanonicalValueType type = wasm::CanonicalValueType::Ref(
-        sig_index, wasm::kNotShared, wasm::RefTypeKind::kFunction);
+        sig_index, SharedFlag::kNo, wasm::RefTypeKind::kFunction);
     ResolvedWasmImport resolved({}, -1, maybe_import->js_function, type, sig,
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
@@ -116,7 +166,6 @@ TestingModuleBuilder::~TestingModuleBuilder() {
   // When the native module dies and is erased from the cache, it is expected to
   // have either valid bytes or no bytes at all.
   native_module_->SetWireBytes({});
-  isolate_->array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
 }
 
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
@@ -126,7 +175,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   CHECK_EQ(0, module_->memories.size());
   CHECK_NULL(mem0_start_);
   CHECK_EQ(0, mem0_size_);
-  CHECK_EQ(0, trusted_instance_data_->memory_objects()->length());
+  CHECK_EQ(0u, trusted_instance_data_->memory_objects()->length().value());
 
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
   uint32_t maximum_pages =
@@ -161,8 +210,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
       TrustedFixedAddressArray::New(isolate_, 2);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->backing_store()->buffer_start());
-  memory_bases_and_sizes->set_sandboxed_pointer(
-      0, reinterpret_cast<Address>(mem_start));
+  memory_bases_and_sizes->set(0, reinterpret_cast<Address>(mem_start));
   memory_bases_and_sizes->set(1, size);
   trusted_instance_data_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
@@ -282,10 +330,12 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     // Store the shortcut to the dispatch table.
     DirectHandle<ProtectedFixedArray> old_dispatch_tables{
         trusted_instance_data_->dispatch_tables(), isolate_};
-    DCHECK_EQ(table_index, old_dispatch_tables->length());
+    const uint32_t old_dispatch_tables_len =
+        old_dispatch_tables->length().value();
+    DCHECK_EQ(table_index, old_dispatch_tables_len);
     DirectHandle<ProtectedFixedArray> new_dispatch_tables =
         isolate_->factory()->NewProtectedFixedArray(table_index + 1);
-    for (int i = 0; i < old_dispatch_tables->length(); ++i) {
+    for (uint32_t i = 0; i < old_dispatch_tables_len; ++i) {
       new_dispatch_tables->set(i, old_dispatch_tables->get(i));
     }
     new_dispatch_tables->set(table_index, *dispatch_table);
@@ -310,7 +360,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
               : std::nullopt;
 
       if (maybe_wrapper) {
-        trusted_instance_data_->dispatch_table(table_index)
+        GetDispatchTable(trusted_instance_data_, table_index)
             ->SetForWrapper(i,
                             TrustedCast<WasmImportData>(*entry.implicit_arg()),
                             std::move(*maybe_wrapper), sig_id,
@@ -319,7 +369,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
 #endif  // !V8_ENABLE_DRUMBRAKE
                             WasmDispatchTable::kNewEntry);
       } else {
-        trusted_instance_data_->dispatch_table(table_index)
+        GetDispatchTable(trusted_instance_data_, table_index)
             ->SetForNonWrapper(
                 i, TrustedCast<WasmTrustedInstanceData>(*entry.implicit_arg()),
                 entry.call_target(), sig_id,
@@ -338,7 +388,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
                                       isolate_);
   DirectHandle<FixedArray> new_tables =
       isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
-  new_tables->set(old_tables->length(), *table_obj);
+  new_tables->set(old_tables->length().value(), *table_obj);
   trusted_instance_data_->set_tables(*new_tables);
 }
 
@@ -378,9 +428,9 @@ uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
 
 uint32_t TestingModuleBuilder::AddPassiveDataSegment(
     base::Vector<const uint8_t> bytes) {
-  int index = static_cast<int>(module_->data_segments.size());
+  uint32_t index = static_cast<uint32_t>(module_->data_segments.size());
   DCHECK_EQ(index, module_->data_segments.size());
-  DCHECK_EQ(index, trusted_instance_data_->data_segments()->length());
+  DCHECK_EQ(index, trusted_instance_data_->data_segments()->length().value());
 
   // Add a passive data segment. This isn't used by function compilation, but
   // but it keeps the index in sync. The data segment's source will not be
@@ -393,7 +443,7 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
 
   DirectHandle<TrustedPodArray<WireBytesRef>> new_data_segments =
       TrustedPodArray<WireBytesRef>::New(isolate_, index + 1);
-  for (int i = 0; i < index; ++i) {
+  for (uint32_t i = 0; i < index; ++i) {
     new_data_segments->set(i, trusted_instance_data_->data_segments()->get(i));
   }
 
@@ -410,8 +460,11 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   uint8_t size = type.value_kind_size();
   global_offset_ = RoundUp(global_offset_, size);  // align
+  // Make sure that the returned pointer stays valid by pre-reserving enough
+  // space.
+  module_->globals.reserve(kMaxGlobalsSize);
   module_->globals.push_back(
-      {type, true, {}, {global_offset_}, false, false, false});
+      {type, true, {}, {global_offset_}, SharedFlag::kNo, false, false});
   global_offset_ += size;
   // limit number of globals.
   CHECK_LT(global_offset_, kMaxGlobalsSize);
@@ -444,19 +497,22 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
     script->set_infos(ReadOnlyRoots{isolate_}.empty_weak_fixed_array());
   }
 
+  DirectHandle<ByteArray> globals_buffer =
+      isolate_->factory()->NewByteArray(kMaxGlobalsSize);
+  std::fill(globals_buffer->begin(), globals_buffer->end(), 0);
   DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, native_module, script);
   native_module_ = native_module.get();
 
   DirectHandle<WasmTrustedInstanceData> trusted_data =
       WasmTrustedInstanceData::New(isolate_, module_object,
-                                   std::move(native_module), false);
+                                   std::move(native_module), SharedFlag::kNo);
   // TODO(42204563): Avoid crashing if the instance object is not available.
   CHECK(trusted_data->has_instance_object());
   DirectHandle<WasmInstanceObject> instance_object(
       trusted_data->instance_object(), isolate_);
   trusted_data->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());
-  trusted_data->set_globals_start(globals_data_);
+  trusted_data->set_untagged_globals_buffer(*globals_buffer);
   DirectHandle<FixedArray> feedback_vector =
       isolate_->factory()->NewFixedArrayWithZeroes(kMaxFunctions);
   trusted_data->set_feedback_vectors(*feedback_vector);
@@ -488,14 +544,15 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
   CompilationEnv env = CompilationEnv::ForModule(native_module);
-  base::ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
+  auto func_wire_bytes =
+      base::OwnedVector<uint8_t>::NewForOverwrite(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.size());
-  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
 
+  // TODO(14616): Extend this to shared functions.
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.begin(), func_wire_bytes.end(),
-                         kIsShared};
+                         SharedFlag::kNo};
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 

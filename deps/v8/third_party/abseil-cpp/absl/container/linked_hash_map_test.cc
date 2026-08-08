@@ -98,6 +98,14 @@ TEST(LinkedHashMapTest, Assign) {
   FAIL() << "Assigned map's find method returned an invalid iterator.";
 }
 
+// Tests that self-assignment works.
+TEST(LinkedHashMapTest, SelfAssign) {
+  linked_hash_map<int, int> a{{1, 1}, {2, 2}, {3, 3}};
+  auto& a_ref = a;
+  a = a_ref;
+  EXPECT_THAT(a, ElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3)));
+}
+
 // Tests that move constructor works.
 TEST(LinkedHashMapTest, Move) {
   // Use unique_ptr as an example of a non-copyable type.
@@ -106,6 +114,14 @@ TEST(LinkedHashMapTest, Move) {
   m[3] = std::make_unique<int>(13);
   linked_hash_map<int, std::unique_ptr<int>> n = std::move(m);
   EXPECT_THAT(n, ElementsAre(Pair(2, Pointee(12)), Pair(3, Pointee(13))));
+}
+
+// Tests that self-moving works.
+TEST(LinkedHashMapTest, SelfMove) {
+  linked_hash_map<int, int> a{{1, 1}, {2, 2}, {3, 3}};
+  auto& a_ref = a;
+  a = std::move(a_ref);
+  EXPECT_THAT(a, ElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3)));
 }
 
 TEST(LinkedHashMapTest, CanInsertMoveOnly) {
@@ -510,6 +526,13 @@ TEST(LinkedHashMapTest, Swap) {
   m1.swap(m2);
   ASSERT_EQ(1, m1.size());
   ASSERT_EQ(2, m2.size());
+}
+
+TEST(LinkedHashMapTest, SelfSwap) {
+  linked_hash_map<int, int> a{{1, 1}, {2, 2}, {3, 3}};
+  using std::swap;
+  swap(a, a);
+  EXPECT_THAT(a, ElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3)));
 }
 
 TEST(LinkedHashMapTest, InitializerList) {

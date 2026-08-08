@@ -28,8 +28,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-break-iterator-tq.inc"
 
-class JSV8BreakIterator
-    : public TorqueGeneratedJSV8BreakIterator<JSV8BreakIterator, JSObject> {
+V8_OBJECT class JSV8BreakIterator : public JSObject {
  public:
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSV8BreakIterator> New(
       Isolate* isolate, DirectHandle<Map> map,
@@ -54,13 +53,76 @@ class JSV8BreakIterator
   static Tagged<String> BreakType(
       Isolate* isolate, DirectHandle<JSV8BreakIterator> break_iterator);
 
+  inline Tagged<String> locale() const;
+  inline void set_locale(Tagged<String> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Managed<IcuBreakIteratorWithText>> icu_iterator_with_text()
+      const;
+  inline void set_icu_iterator_with_text(
+      Tagged<Managed<IcuBreakIteratorWithText>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Undefined, JSFunction>> bound_adopt_text() const;
+  inline void set_bound_adopt_text(
+      Tagged<UnionOf<Undefined, JSFunction>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Undefined, JSFunction>> bound_first() const;
+  inline void set_bound_first(Tagged<UnionOf<Undefined, JSFunction>> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Undefined, JSFunction>> bound_next() const;
+  inline void set_bound_next(Tagged<UnionOf<Undefined, JSFunction>> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Undefined, JSFunction>> bound_current() const;
+  inline void set_bound_current(Tagged<UnionOf<Undefined, JSFunction>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Undefined, JSFunction>> bound_break_type() const;
+  inline void set_bound_break_type(
+      Tagged<UnionOf<Undefined, JSFunction>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSV8BreakIterator)
+  DECL_VERIFIER(JSV8BreakIterator)
 
-  DECL_ACCESSORS(break_iterator, Tagged<Managed<icu::BreakIterator>>)
-  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
+  // Back-compat offset/size constants.
+  static const int kLocaleOffset;
+  static const int kIcuIteratorWithTextOffset;
+  static const int kBoundAdoptTextOffset;
+  static const int kBoundFirstOffset;
+  static const int kBoundNextOffset;
+  static const int kBoundCurrentOffset;
+  static const int kBoundBreakTypeOffset;
+  static const int kHeaderSize;
 
-  TQ_OBJECT_CONSTRUCTORS(JSV8BreakIterator)
-};
+ public:
+  TaggedMember<String> locale_;
+  TaggedMember<Foreign> icu_iterator_with_text_;
+  TaggedMember<UnionOf<Undefined, JSFunction>> bound_adopt_text_;
+  TaggedMember<UnionOf<Undefined, JSFunction>> bound_first_;
+  TaggedMember<UnionOf<Undefined, JSFunction>> bound_next_;
+  TaggedMember<UnionOf<Undefined, JSFunction>> bound_current_;
+  TaggedMember<UnionOf<Undefined, JSFunction>> bound_break_type_;
+} V8_OBJECT_END;
+
+inline constexpr int JSV8BreakIterator::kLocaleOffset =
+    offsetof(JSV8BreakIterator, locale_);
+inline constexpr int JSV8BreakIterator::kIcuIteratorWithTextOffset =
+    offsetof(JSV8BreakIterator, icu_iterator_with_text_);
+inline constexpr int JSV8BreakIterator::kBoundAdoptTextOffset =
+    offsetof(JSV8BreakIterator, bound_adopt_text_);
+inline constexpr int JSV8BreakIterator::kBoundFirstOffset =
+    offsetof(JSV8BreakIterator, bound_first_);
+inline constexpr int JSV8BreakIterator::kBoundNextOffset =
+    offsetof(JSV8BreakIterator, bound_next_);
+inline constexpr int JSV8BreakIterator::kBoundCurrentOffset =
+    offsetof(JSV8BreakIterator, bound_current_);
+inline constexpr int JSV8BreakIterator::kBoundBreakTypeOffset =
+    offsetof(JSV8BreakIterator, bound_break_type_);
+inline constexpr int JSV8BreakIterator::kHeaderSize = sizeof(JSV8BreakIterator);
 
 }  // namespace internal
 }  // namespace v8

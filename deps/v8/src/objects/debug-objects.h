@@ -11,6 +11,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
+#include "src/objects/trusted-pointer.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -19,7 +20,11 @@
 namespace v8 {
 namespace internal {
 
+class DebugInfo;
 class BreakPoint;
+class BreakPointInfo;
+class StackFrameInfo;
+class StackTraceInfo;
 class BytecodeArray;
 class StructBodyDescriptor;
 
@@ -27,7 +32,7 @@ class StructBodyDescriptor;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
+V8_OBJECT class DebugInfo : public Struct {
  public:
   DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
 
@@ -91,7 +96,7 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
       Isolate* isolate, DirectHandle<DebugInfo> debug_info,
       DirectHandle<BreakPoint> break_point);
   // Get the number of break points for this function.
-  int GetBreakPointCount(Isolate* isolate);
+  uint32_t GetBreakPointCount(Isolate* isolate);
 
   // Returns whether we should be able to break before entering the function.
   // This is true for functions with no source, e.g. builtins.
@@ -101,13 +106,16 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // ---------------------------
 
   // Indicates that the function should be skipped during stepping.
-  DECL_BOOLEAN_ACCESSORS(debug_is_blackboxed)
+  inline bool debug_is_blackboxed() const;
+  inline void set_debug_is_blackboxed(bool value);
 
   // Indicates that |debug_is_blackboxed| has been computed and set.
-  DECL_BOOLEAN_ACCESSORS(computed_debug_is_blackboxed)
+  inline bool computed_debug_is_blackboxed() const;
+  inline void set_computed_debug_is_blackboxed(bool value);
 
   // Indicates the side effect state.
-  DECL_INT_ACCESSORS(side_effect_state)
+  inline int side_effect_state() const;
+  inline void set_side_effect_state(int value);
 
   enum SideEffectState {
     kNotComputed = 0,
@@ -120,7 +128,8 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
   // Id assigned to the function for debugging.
   // This could also be implemented as a weak hash table.
-  DECL_INT_ACCESSORS(debugging_id)
+  inline int debugging_id() const;
+  inline void set_debugging_id(int value);
 
   // Bit positions in |debugger_hints|.
   DEFINE_TORQUE_GENERATED_DEBUGGER_HINTS()
@@ -137,21 +146,60 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
+  DECL_PRINTER(DebugInfo)
+  DECL_VERIFIER(DebugInfo)
+
   class BodyDescriptor;
+
+  inline Tagged<SharedFunctionInfo> shared() const;
+  inline void set_shared(Tagged<SharedFunctionInfo> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int debugger_hints() const;
+  inline void set_debugger_hints(int value);
+
+  inline Tagged<FixedArray> break_points() const;
+  inline void set_break_points(Tagged<FixedArray> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Flags flags(RelaxedLoadTag) const;
+  inline void set_flags(Flags value, RelaxedStoreTag);
+
+  inline Tagged<UnionOf<CoverageInfo, Undefined>> coverage_info() const;
+  inline void set_coverage_info(Tagged<UnionOf<CoverageInfo, Undefined>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
  private:
   // Get the break point info object for a source position.
   Tagged<Object> GetBreakPointInfo(Isolate* isolate, int source_position);
 
-  TQ_OBJECT_CONSTRUCTORS(DebugInfo)
-};
+ public:
+  TaggedMember<SharedFunctionInfo> shared_;
+  TaggedMember<Smi> debugger_hints_;
+  TaggedMember<FixedArray> break_points_;
+  TaggedMember<Smi> flags_;
+  TaggedMember<UnionOf<CoverageInfo, Undefined>> coverage_info_;
+  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
+      original_bytecode_array_;
+  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
+      debug_bytecode_array_;
+} V8_OBJECT_END;
 
 // The BreakPointInfo class holds information for break points set in a
 // function. The DebugInfo object holds a BreakPointInfo object for each code
 // position with one or more break points.
-class BreakPointInfo
-    : public TorqueGeneratedBreakPointInfo<BreakPointInfo, Struct> {
+V8_OBJECT class BreakPointInfo : public Struct {
  public:
+  // Accessors
+  inline int source_position() const;
+  inline void set_source_position(int value);
+
+  inline Tagged<UnionOf<FixedArray, BreakPoint, Undefined>> break_points()
+      const;
+  inline void set_break_points(
+      Tagged<UnionOf<FixedArray, BreakPoint, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Removes a break point.
   static void ClearBreakPoint(Isolate* isolate,
                               DirectHandle<BreakPointInfo> info,
@@ -166,49 +214,113 @@ class BreakPointInfo
   static MaybeDirectHandle<BreakPoint> GetBreakPointById(
       Isolate* isolate, DirectHandle<BreakPointInfo> info, int breakpoint_id);
   // Get the number of break points for this code offset.
-  int GetBreakPointCount(Isolate* isolate);
+  uint32_t GetBreakPointCount(Isolate* isolate);
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(BreakPointInfo)
+  DECL_PRINTER(BreakPointInfo)
+  DECL_VERIFIER(BreakPointInfo)
+
+  TaggedMember<Smi> source_position_;
+  TaggedMember<UnionOf<FixedArray, BreakPoint, Undefined>> break_points_;
+} V8_OBJECT_END;
+
+// Layout of a single slot within CoverageInfo.
+struct CoverageInfoSlot {
+  int32_t start_source_position;
+  int32_t end_source_position;
+  int32_t block_count;
+  int32_t padding;
+
+  static const int kSize;
+  static const int kStartSourcePositionOffset;
+  static const int kEndSourcePositionOffset;
+  static const int kBlockCountOffset;
+  static const int kPaddingOffset;
 };
+static_assert(sizeof(CoverageInfoSlot) == 16);
+
+inline constexpr int CoverageInfoSlot::kSize = sizeof(CoverageInfoSlot);
+inline constexpr int CoverageInfoSlot::kStartSourcePositionOffset =
+    offsetof(CoverageInfoSlot, start_source_position);
+inline constexpr int CoverageInfoSlot::kEndSourcePositionOffset =
+    offsetof(CoverageInfoSlot, end_source_position);
+inline constexpr int CoverageInfoSlot::kBlockCountOffset =
+    offsetof(CoverageInfoSlot, block_count);
+inline constexpr int CoverageInfoSlot::kPaddingOffset =
+    offsetof(CoverageInfoSlot, padding);
 
 // Holds information related to block code coverage.
-class CoverageInfo
-    : public TorqueGeneratedCoverageInfo<CoverageInfo, HeapObject> {
+V8_OBJECT class CoverageInfo : public HeapObjectLayout {
  public:
+  inline int32_t slot_count() const;
+  inline void set_slot_count(int32_t value);
+
+  inline int32_t slots_start_source_position(int i) const;
+  inline void set_slots_start_source_position(int i, int32_t value);
+  inline int32_t slots_end_source_position(int i) const;
+  inline void set_slots_end_source_position(int i, int32_t value);
+  inline int32_t slots_block_count(int i) const;
+  inline void set_slots_block_count(int i, int32_t value);
+  inline int32_t slots_padding(int i) const;
+  inline void set_slots_padding(int i, int32_t value);
+
   void InitializeSlot(int slot_index, int start_pos, int end_pos);
   void ResetBlockCount(int slot_index);
 
   // Computes the size for a CoverageInfo instance of a given length.
-  static int SizeFor(int slot_count) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + slot_count * Slot::kSize);
-  }
+  static constexpr int SizeFor(int slot_count);
+  inline int AllocatedSize() const;
 
   // Print debug info.
   void CoverageInfoPrint(std::ostream& os,
                          std::unique_ptr<char[]> function_name = nullptr);
 
+  DECL_VERIFIER(CoverageInfo)
+
   class BodyDescriptor;  // GC visitor.
 
   // Description of layout within each slot.
-  using Slot = TorqueGeneratedCoverageInfoSlotOffsets;
+  using Slot = CoverageInfoSlot;
 
-  TQ_OBJECT_CONSTRUCTORS(CoverageInfo)
-};
+  // Back-compat offset/size constants.
+  static const int kSlotCountOffset;
+
+  int32_t slot_count_;
+  FLEXIBLE_ARRAY_MEMBER(CoverageInfoSlot, slots);
+} V8_OBJECT_END;
+
+inline constexpr int CoverageInfo::kSlotCountOffset =
+    offsetof(CoverageInfo, slot_count_);
+
+constexpr int CoverageInfo::SizeFor(int slot_count) {
+  return OBJECT_POINTER_ALIGN(OFFSET_OF_DATA_START(CoverageInfo) +
+                              slot_count * sizeof(CoverageInfoSlot));
+}
 
 // Holds breakpoint related information. This object is used by inspector.
-class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
+V8_OBJECT class BreakPoint : public Struct {
  public:
+  // Accessors
+  inline int id() const;
+  inline void set_id(int value);
+
+  inline Tagged<String> condition() const;
+  inline void set_condition(Tagged<String> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(BreakPoint)
-};
+  DECL_PRINTER(BreakPoint)
+  DECL_VERIFIER(BreakPoint)
 
-class StackFrameInfo
-    : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
+  TaggedMember<Smi> id_;
+  TaggedMember<String> condition_;
+} V8_OBJECT_END;
+
+V8_OBJECT class StackFrameInfo : public Struct {
  public:
   static int GetSourcePosition(DirectHandle<StackFrameInfo> info);
 
@@ -216,53 +328,93 @@ class StackFrameInfo
   inline Tagged<Script> script() const;
 
   // The bytecode offset or source position for the stack frame.
-  DECL_INT_ACCESSORS(bytecode_offset_or_source_position)
+  inline int bytecode_offset_or_source_position() const;
+  inline void set_bytecode_offset_or_source_position(int value);
 
   // Indicates that the frame corresponds to a 'new' invocation.
-  DECL_BOOLEAN_ACCESSORS(is_constructor)
+  inline bool is_constructor() const;
+  inline void set_is_constructor(bool value);
 
-  // Dispatched behavior.
-  DECL_VERIFIER(StackFrameInfo)
+  inline Tagged<UnionOf<SharedFunctionInfo, Script>> shared_or_script() const;
+  inline void set_shared_or_script(
+      Tagged<UnionOf<SharedFunctionInfo, Script>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> function_name() const;
+  inline void set_function_name(Tagged<String> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_STACK_FRAME_INFO_FLAGS()
 
   using BodyDescriptor = StructBodyDescriptor;
 
- private:
-  TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
-};
+  DECL_VERIFIER(StackFrameInfo)
+  DECL_PRINTER(StackFrameInfo)
 
-class StackTraceInfo
-    : public TorqueGeneratedStackTraceInfo<StackTraceInfo, Struct> {
+  TaggedMember<UnionOf<SharedFunctionInfo, Script>> shared_or_script_;
+  TaggedMember<String> function_name_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+V8_OBJECT class StackTraceInfo : public Struct {
  public:
+  // Accessors
+  inline int id() const;
+  inline void set_id(int value);
+
+  inline Tagged<FixedArray> frames() const;
+  inline void set_frames(Tagged<FixedArray> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Access to the stack frames.
   int length() const;
   Tagged<StackFrameInfo> get(int index) const;
 
   // Dispatched behavior.
   DECL_VERIFIER(StackTraceInfo)
+  DECL_PRINTER(StackTraceInfo)
 
   using BodyDescriptor = StructBodyDescriptor;
 
- private:
-  TQ_OBJECT_CONSTRUCTORS(StackTraceInfo)
-};
+  TaggedMember<Smi> id_;
+  TaggedMember<FixedArray> frames_;
+} V8_OBJECT_END;
 
-class ErrorStackData
-    : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
+V8_OBJECT class ErrorStackData : public Struct {
  public:
   inline bool HasFormattedStack() const;
-  DECL_ACCESSORS(formatted_stack, Tagged<Object>)
-  inline bool HasCallSiteInfos() const;
-  DECL_GETTER(call_site_infos, Tagged<FixedArray>)
+  inline Tagged<JSAny> formatted_stack() const;
+  inline void set_formatted_stack(Tagged<JSAny> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline bool HasRawDataForCallSiteInfos() const;
+  inline Tagged<FixedArray> raw_data_for_call_site_infos() const;
+  inline void set_raw_data_for_call_site_infos(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<FixedArray, JSAny>>
+  raw_data_for_call_site_infos_or_formatted_stack() const;
+  inline void set_raw_data_for_call_site_infos_or_formatted_stack(
+      Tagged<UnionOf<FixedArray, JSAny>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<StackTraceInfo> stack_trace() const;
+  inline void set_stack_trace(Tagged<StackTraceInfo> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(ErrorStackData)
+  DECL_PRINTER(ErrorStackData)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(ErrorStackData)
-};
+  TaggedMember<UnionOf<FixedArray, JSAny>>
+      raw_data_for_call_site_infos_or_formatted_stack_;
+  TaggedMember<StackTraceInfo> stack_trace_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

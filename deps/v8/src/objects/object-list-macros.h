@@ -43,7 +43,10 @@ namespace internal {
   APPLY(V, ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION) \
   APPLY(V, RegExpMatchInfo, REG_EXP_MATCH_INFO)                          \
   APPLY(V, ScriptContextTable, SCRIPT_CONTEXT_TABLE)                     \
-  APPLY(V, WeakFixedArray, WEAK_FIXED_ARRAY)
+  APPLY(V, SloppyArgumentsElements, SLOPPY_ARGUMENTS_ELEMENTS)           \
+  APPLY(V, WeakArrayList, WEAK_ARRAY_LIST)                               \
+  APPLY(V, WeakFixedArray, WEAK_FIXED_ARRAY)                             \
+  APPLY(V, WeakHomomorphicFixedArray, WEAK_HOMOMORPHIC_FIXED_ARRAY)
 
 // The SIMPLE_HEAP_OBJECT_LIST1 format is:
 //   V(TypeCamelCase)
@@ -94,6 +97,7 @@ namespace internal {
   V(UncompiledDataWithoutPreparseData)        \
   V(WeakArrayList)                            \
   V(WeakFixedArray)                           \
+  V(WeakHomomorphicFixedArray)                \
   IF_WASM(V, WasmArray)                       \
   IF_WASM(V, WasmDispatchTable)               \
   IF_WASM(V, WasmDispatchTableForImports)     \
@@ -162,6 +166,8 @@ namespace internal {
   V(JSExternalObject)                           \
   V(JSFinalizationRegistry)                     \
   V(JSFunction)                                 \
+  V(JSFunctionWithoutPrototype)                 \
+  V(JSFunctionWithPrototype)                    \
   V(JSFunctionOrBoundFunctionOrWrappedFunction) \
   V(JSGeneratorObject)                          \
   V(JSGlobalObject)                             \
@@ -174,6 +180,8 @@ namespace internal {
   V(JSIteratorDropHelper)                       \
   V(JSIteratorFlatMapHelper)                    \
   V(JSIteratorConcatHelper)                     \
+  V(JSIteratorZipHelper)                        \
+  V(JSIteratorZipKeyedHelper)                   \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \
@@ -222,6 +230,7 @@ namespace internal {
   V(ObjectTemplateInfo)                         \
   V(ObjectTwoHashTable)                         \
   V(Oddball)                                    \
+  V(OnHeapBasicBlockProfilerData)               \
   V(Hole)                                       \
   V(OrderedHashMap)                             \
   V(OrderedHashSet)                             \
@@ -242,10 +251,12 @@ namespace internal {
   V(SmallOrderedHashMap)                        \
   V(SmallOrderedHashSet)                        \
   V(SmallOrderedNameDictionary)                 \
+  V(SortState)                                  \
   V(SourceTextModule)                           \
   V(SourceTextModuleInfo)                       \
   V(StoreHandler)                               \
   V(String)                                     \
+  V(StrongDescriptorArray)                      \
   V(StringSet)                                  \
   V(RegisteredSymbolTable)                      \
   V(Struct)                                     \
@@ -257,6 +268,12 @@ namespace internal {
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \
+  V(TurbofanBitsetType)                         \
+  V(TurbofanHeapConstantType)                   \
+  V(TurbofanOtherNumberConstantType)            \
+  V(TurbofanRangeType)                          \
+  V(TurbofanType)                               \
+  V(TurbofanUnionType)                          \
   V(TurboshaftFloat64RangeType)                 \
   V(TurboshaftFloat64SetType)                   \
   V(TurboshaftFloat64Type)                      \
@@ -269,6 +286,7 @@ namespace internal {
   V(TurboshaftWord64Type)                       \
   IF_WASM(V, WasmArray)                         \
   IF_WASM(V, WasmExceptionPackage)              \
+  IF_WASM(V, WasmFastApiCallData)               \
   IF_WASM(V, WasmFuncRef)                       \
   IF_WASM(V, WasmGlobalObject)                  \
   IF_WASM(V, WasmInstanceObject)                \
@@ -278,16 +296,16 @@ namespace internal {
   IF_WASM(V, WasmNull)                          \
   IF_WASM(V, WasmObject)                        \
   IF_WASM(V, WasmResumeData)                    \
+  IF_WASM(V, WasmStringViewIter)                \
   IF_WASM(V, WasmStruct)                        \
   IF_WASM(V, WasmSuspendingObject)              \
   IF_WASM(V, WasmContinuationObject)            \
+  IF_WASM(V, WasmStackObject)                   \
   IF_WASM(V, WasmTableObject)                   \
   IF_WASM(V, WasmTagObject)                     \
   IF_WASM(V, WasmTypeInfo)                      \
   IF_WASM(V, WasmValueObject)                   \
-  V(WeakArrayList)                              \
   V(WeakCell)                                   \
-  TORQUE_DEFINED_CLASS_LIST(V)                  \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 // clang-format off
 // LINT.ThenChange(/src/objects/map.cc:get_visitor_id, /src/objects/js-objects.cc:get_header_size, /src/compiler/turbofan-types.cc:bitset_type_lub)
@@ -306,7 +324,10 @@ namespace internal {
   V(HandlerTable)                   \
   V(JSContextExtensionObject)       \
   V(JSError)                        \
+  V(JSInterceptorMap)               \
   V(MapCache)                       \
+  V(ExtendedMap)                    \
+  V(MetaMap)                        \
   V(NumberWrapper)                  \
   V(OSROptimizedCodeCache)          \
   V(ScriptWrapper)                  \
@@ -400,7 +421,6 @@ namespace internal {
   IF_WASM(APPLY, V, WasmDispatchTableForImports,                               \
           WASM_DISPATCH_TABLE_FOR_IMPORTS)                                     \
   IF_WASM(APPLY, V, WasmExportedFunctionData, WASM_EXPORTED_FUNCTION_DATA)     \
-  IF_WASM(APPLY, V, WasmJSFunctionData, WASM_JS_FUNCTION_DATA)                 \
   IF_WASM(APPLY, V, WasmInternalFunction, WASM_INTERNAL_FUNCTION)              \
   IF_WASM(APPLY, V, WasmTrustedInstanceData, WASM_TRUSTED_INSTANCE_DATA)       \
   IF_WASM(APPLY, V, WasmSuspenderObject, WASM_SUSPENDER_OBJECT)

@@ -10,12 +10,14 @@ extern enum ScopeType extends uint32 {
   // in a way that it gets the first scope type in line, see
   // Heap::CreateInitialMaps(). It's always guarded with the IsEmpty
   // bit, so it doesn't matter what scope type it gets.
+  // Start of top-level scopes.
   SCRIPT_SCOPE,
   REPL_MODE_SCOPE,
-  CLASS_SCOPE,
   EVAL_SCOPE,
-  FUNCTION_SCOPE,
   MODULE_SCOPE,
+  // End of top-level scopes.
+  CLASS_SCOPE,
+  FUNCTION_SCOPE,
   CATCH_SCOPE,
   BLOCK_SCOPE,
   WITH_SCOPE,
@@ -84,9 +86,9 @@ bitfield struct ScopeFlags extends uint32 {
   // only for contexts with "sloppy_eval_can_extend_vars" flag set).
   some_context_has_extension: bool: 1 bit;
   is_hidden: bool: 1 bit;
-  is_empty: bool: 1 bit;
   is_wrapped_function: bool: 1 bit;
   has_context_cells: bool: 1 bit;
+  is_hoisted_in_context: bool: 1 bit;
 }
 
 struct PositionInfo {
@@ -103,7 +105,8 @@ bitfield struct VariableProperties extends uint31 {
   variable_mode: VariableMode: 4 bit;
   init_flag: InitializationFlag: 1 bit;
   maybe_assigned_flag: MaybeAssignedFlag: 1 bit;
-  parameter_number: uint32: 16 bit;
+  is_parameter: bool: 1 bit;
+  parameter_number_or_position: uint32: 16 bit;
   is_static_flag: IsStaticFlag: 1 bit;
 }
 
@@ -116,12 +119,11 @@ struct ModuleVariable {
 const kMaxInlinedLocalNamesSize:
     constexpr int32 generates 'kScopeInfoMaxInlinedLocalNamesSize';
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 extern class ScopeInfo extends HeapObject {
   @cppRelaxedLoad @cppRelaxedStore const flags: ScopeFlags;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
   // The number of parameters. For non-function scopes this is 0.
   parameter_count: Smi;

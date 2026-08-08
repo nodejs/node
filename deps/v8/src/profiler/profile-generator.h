@@ -230,15 +230,13 @@ class CodeEntry {
   size_t AddRef() {
     DCHECK(is_ref_counted());
     DCHECK_LT(ref_count_, std::numeric_limits<size_t>::max());
-    ref_count_++;
-    return ref_count_;
+    return ++ref_count_;
   }
 
   size_t DecRef() {
     DCHECK(is_ref_counted());
     DCHECK_GT(ref_count_, 0UL);
-    ref_count_--;
-    return ref_count_;
+    return --ref_count_;
   }
 
   using EventField = base::BitField<LogEventListener::Event, 0, 4>;

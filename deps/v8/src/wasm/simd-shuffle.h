@@ -320,13 +320,16 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   };
 
   template <size_t N = kSimd128Size>
-    requires(N == kSimd128HalfSize || N == kSimd128Size || N == kSimd256Size)
+    requires(N == kSimd128QuarterSize || N == kSimd128HalfSize ||
+             N == kSimd128Size || N == kSimd256Size)
   using ShuffleArray = std::array<uint8_t, N>;
 
   static CanonicalShuffle TryMatchCanonical(
       const ShuffleArray<kSimd128Size>& shuffle);
   static CanonicalShuffle TryMatchCanonical(
       const ShuffleArray<kSimd128HalfSize>& shuffle);
+  static CanonicalShuffle TryMatchCanonical(
+      const ShuffleArray<kSimd128QuarterSize>& shuffle);
 
 #ifdef V8_TARGET_ARCH_X64
   // If matching success, the corresponding instrution should be:

@@ -8,14 +8,12 @@
 #include "src/heap/main-allocator.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/flags/flags.h"
-#include "src/heap/heap-inl.h"
 #include "src/heap/marking-state-inl.h"
 
 namespace v8 {
 namespace internal {
 
-AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
+AllocationResult MainAllocator::AllocateRaw(SafeHeapObjectSize size_in_bytes,
                                             AllocationAlignment alignment,
                                             AllocationOrigin origin,
                                             AllocationHint hint) {
@@ -36,16 +34,16 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
                             : result;
 }
 
-AllocationResult MainAllocator::AllocateFastUnaligned(int size_in_bytes,
-                                                      AllocationOrigin origin) {
+AllocationResult MainAllocator::AllocateFastUnaligned(
+    SafeHeapObjectSize size_in_bytes, AllocationOrigin origin) {
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
-  if (!allocation_info().CanIncrementTop(size_in_bytes)) {
+  if (!allocation_info().CanIncrementTop(size_in_bytes.value())) {
     return AllocationResult::Failure();
   }
-  Tagged<HeapObject> obj =
-      HeapObject::FromAddress(allocation_info().IncrementTop(size_in_bytes));
+  Tagged<HeapObject> obj = HeapObject::FromAddress(
+      allocation_info().IncrementTop(size_in_bytes.value()));
 
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes.value());
 
   DCHECK_IMPLIES(black_allocation_ == BlackAllocation::kAlwaysEnabled,
                  space_heap()->marking_state()->IsMarked(obj));
@@ -54,17 +52,19 @@ AllocationResult MainAllocator::AllocateFastUnaligned(int size_in_bytes,
 }
 
 AllocationResult MainAllocator::AllocateFastAligned(
-    int size_in_bytes, int* result_aligned_size_in_bytes,
+    SafeHeapObjectSize size_in_bytes,
+    SafeHeapObjectSize* result_aligned_size_in_bytes,
     AllocationAlignment alignment, AllocationOrigin origin) {
   Address top = allocation_info().top();
   int filler_size = Heap::GetFillToAlign(top, alignment);
-  int aligned_size_in_bytes = size_in_bytes + filler_size;
+  SafeHeapObjectSize aligned_size_in_bytes = SafeHeapObjectSize(
+      size_in_bytes.value() + static_cast<uint32_t>(filler_size));
 
-  if (!allocation_info().CanIncrementTop(aligned_size_in_bytes)) {
+  if (!allocation_info().CanIncrementTop(aligned_size_in_bytes.value())) {
     return AllocationResult::Failure();
   }
   Tagged<HeapObject> obj = HeapObject::FromAddress(
-      allocation_info().IncrementTop(aligned_size_in_bytes));
+      allocation_info().IncrementTop(aligned_size_in_bytes.value()));
   if (result_aligned_size_in_bytes)
     *result_aligned_size_in_bytes = aligned_size_in_bytes;
 
@@ -72,7 +72,7 @@ AllocationResult MainAllocator::AllocateFastAligned(
     obj = space_heap()->PrecedeWithFiller(obj, filler_size);
   }
 
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes.value());
 
   DCHECK_IMPLIES(black_allocation_ == BlackAllocation::kAlwaysEnabled,
                  space_heap()->marking_state()->IsMarked(obj));

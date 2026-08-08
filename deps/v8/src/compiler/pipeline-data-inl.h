@@ -47,7 +47,7 @@ namespace v8::internal::compiler {
 inline Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
   Tagged<Context> current = info->closure()->context();
   size_t distance = 0;
-  while (!IsNativeContext(*current)) {
+  while (!IsNativeContext(current)) {
     if (current->IsModuleContext()) {
       return Just(OuterContext(
           info->CanonicalHandle(current, Isolate::Current()), distance));

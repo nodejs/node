@@ -142,7 +142,7 @@ TEST_F(EphemeronPairTest, EmptyKey) {
 
 using EphemeronPairGCTest = testing::TestWithHeap;
 
-TEST_F(EphemeronPairGCTest, EphemeronPairValueIsCleared) {
+TEST_F(EphemeronPairGCTest, EphemeronPairKeyAndValueAreCleared) {
   GCed* key = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCed* value = MakeGarbageCollected<GCed>(GetAllocationHandle());
   Persistent<EphemeronHolder> holder =
@@ -151,6 +151,7 @@ TEST_F(EphemeronPairGCTest, EphemeronPairValueIsCleared) {
   // ephemeron.
   PreciseGC();
   EXPECT_EQ(nullptr, holder->ephemeron_pair().value.Get());
+  EXPECT_EQ(nullptr, holder->ephemeron_pair().key.Get());
 }
 
 namespace {

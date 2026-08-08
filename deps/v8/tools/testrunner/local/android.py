@@ -167,8 +167,14 @@ class Driver(object):
         return False
     return True
 
-  def run(self, target_dir, binary, args, rel_path, timeout, env=None,
-          logcat_file=False):
+  def run(self,
+          target_dir,
+          binary,
+          args,
+          rel_path,
+          timeout,
+          env=None,
+          logcat_file=None):
     """Execute a command on the device's shell.
 
     Args:

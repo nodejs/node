@@ -12,6 +12,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/intl-objects.h"
 #include "src/objects/js-segmenter.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -22,7 +23,6 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
-class UnicodeString;
 }  // namespace U_ICU_NAMESPACE
 
 namespace v8 {
@@ -30,18 +30,18 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-segments-tq.inc"
 
-class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
+V8_OBJECT class JSSegments : public JSObject {
  public:
-  // ecma402 #sec-createsegmentsobject
+  // https://tc39.es/ecma402/#sec-createsegmentsobject
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegments> Create(
       Isolate* isolate, DirectHandle<JSSegmenter> segmenter,
       DirectHandle<String> string);
 
-  // ecma402 #sec-%segmentsprototype%.containing
+  // https://tc39.es/ecma402/#sec-%segmentsprototype%.containing
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> Containing(
       Isolate* isolate, DirectHandle<JSSegments> segments_holder, double n);
 
-  // ecma402 #sec-createsegmentdataobject
+  // https://tc39.es/ecma402/#sec-createsegmentdataobject
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentDataObject>
   CreateSegmentDataObject(Isolate* isolate,
                           JSSegmenter::Granularity granularity,
@@ -53,11 +53,21 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // SegmentIterator accessors.
-  DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
-  DECL_ACCESSORS(raw_string, Tagged<String>)
-  DECL_ACCESSORS(unicode_string, Tagged<Managed<icu::UnicodeString>>)
+  inline Tagged<Managed<IcuBreakIteratorWithText>> icu_iterator_with_text()
+      const;
+  inline void set_icu_iterator_with_text(
+      Tagged<Managed<IcuBreakIteratorWithText>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> raw_string() const;
+  inline void set_raw_string(Tagged<String> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   DECL_PRINTER(JSSegments)
+  DECL_VERIFIER(JSSegments)
 
   inline void set_granularity(JSSegmenter::Granularity granularity);
   inline JSSegmenter::Granularity granularity() const;
@@ -69,8 +79,24 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::WORD));
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::SENTENCE));
 
-  TQ_OBJECT_CONSTRUCTORS(JSSegments)
-};
+  // Back-compat offset/size constants.
+  static const int kIcuIteratorWithTextOffset;
+  static const int kRawStringOffset;
+  static const int kFlagsOffset;
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<Foreign> icu_iterator_with_text_;
+  TaggedMember<String> raw_string_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+inline constexpr int JSSegments::kIcuIteratorWithTextOffset =
+    offsetof(JSSegments, icu_iterator_with_text_);
+inline constexpr int JSSegments::kRawStringOffset =
+    offsetof(JSSegments, raw_string_);
+inline constexpr int JSSegments::kFlagsOffset = offsetof(JSSegments, flags_);
+inline constexpr int JSSegments::kHeaderSize = sizeof(JSSegments);
 
 }  // namespace internal
 }  // namespace v8

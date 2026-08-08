@@ -243,7 +243,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   Branch(IsJSArrayMap(arguments_list_map), &if_array, &if_runtime);
 
   TVARIABLE(FixedArrayBase, var_elements);
-  TVARIABLE(Int32T, var_length);
+  TVARIABLE(Uint32T, var_length);
   BIND(&if_array);
   {
     TNode<Int32T> kind = LoadMapElementsKind(arguments_list_map);
@@ -254,8 +254,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<JSObject> js_object = CAST(arguments_list);
     // Try to extract the elements from a JSArray object.
     var_elements = LoadElements(js_object);
-    var_length =
-        LoadAndUntagToWord32ObjectField(js_object, JSArray::kLengthOffset);
+    var_length = Unsigned(
+        LoadAndUntagToWord32ObjectField(js_object, JSArray::kLengthOffset));
 
     // Holey arrays and double backing stores need special treatment.
     static_assert(PACKED_SMI_ELEMENTS == 0);
@@ -284,10 +284,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // Try to extract the elements from a JSArgumentsObject with standard map.
     TNode<Object> length = LoadJSArgumentsObjectLength(context, js_arguments);
     TNode<FixedArrayBase> elements = LoadElements(js_arguments);
-    TNode<Smi> elements_length = LoadFixedArrayBaseLength(elements);
-    GotoIfNot(TaggedEqual(length, elements_length), &if_runtime);
+    TNode<IntPtrT> elements_length = LoadFixedArrayBaseLength(elements);
+    GotoIfNot(TaggedEqual(length, SmiTag(elements_length)), &if_runtime);
     var_elements = elements;
-    var_length = SmiToInt32(CAST(length));
+    var_length = Unsigned(SmiToInt32(CAST(length)));
     Goto(&if_done);
   }
 
@@ -296,8 +296,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // Ask the runtime to create the list (actually a FixedArray).
     var_elements = CAST(CallRuntime(Runtime::kCreateListFromArrayLike, context,
                                     arguments_list));
-    var_length = LoadAndUntagToWord32ObjectField(var_elements.value(),
-                                                 offsetof(FixedArray, length_));
+    var_length = LoadFixedArrayBaseLengthAsUint32(var_elements.value());
     Goto(&if_done);
   }
 
@@ -309,11 +308,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     TNode<Int32T> args_count =
         Int32Constant(i::JSParameterCount(0));  // args already on the stack
 
-    TNode<Int32T> length = var_length.value();
+    TNode<Uint32T> length = var_length.value();
     {
       Label normalize_done(this);
-      CSA_DCHECK(this, Int32LessThanOrEqual(
-                           length, Int32Constant(FixedArray::kMaxLength)));
+      CSA_DCHECK(this, Uint32LessThanOrEqual(
+                           length, Uint32Constant(FixedArray::kMaxLength)));
       GotoIfNot(Word32Equal(length, Int32Constant(0)), &normalize_done);
       // Make sure we don't accidentally pass along the
       // empty_fixed_double_array since the tailed-called stubs cannot handle
@@ -354,12 +353,12 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 // on whether {new_target} was passed.
 void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<JSAny> target, std::optional<TNode<Object>> new_target,
-    TNode<FixedDoubleArray> elements, TNode<Int32T> length,
+    TNode<FixedDoubleArray> elements, TNode<Uint32T> length,
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
   const ElementsKind new_kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  CSA_DCHECK(this, Int32LessThanOrEqual(length,
-                                        Int32Constant(FixedArray::kMaxLength)));
+  CSA_DCHECK(this, Uint32LessThanOrEqual(
+                       length, Uint32Constant(FixedArray::kMaxLength)));
   TNode<IntPtrT> intptr_length = ChangeInt32ToIntPtr(length);
   CSA_DCHECK(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
@@ -404,10 +403,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
   TNode<PropertyCell> protector_cell = ArrayIteratorProtectorConstant();
-  GotoIf(
-      TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                  SmiConstant(Protectors::kProtectorInvalid)),
-      &if_generic);
+  GotoIf(TaggedEqual(
+             LoadObjectField(protector_cell, offsetof(PropertyCell, value_)),
+             SmiConstant(Protectors::kProtectorInvalid)),
+         &if_generic);
   {
     // The fast-path accesses the {spread} elements directly.
     TNode<Int32T> spread_kind = LoadMapElementsKind(spread_map);
@@ -469,8 +468,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
         var_js_array.value(), JSArray::kLengthOffset);
     TNode<FixedArrayBase> elements = var_elements.value();
-    CSA_DCHECK(this, Int32LessThanOrEqual(
-                         length, Int32Constant(FixedArray::kMaxLength)));
+    CSA_DCHECK(this, Uint32LessThanOrEqual(
+                         length, Uint32Constant(FixedArray::kMaxLength)));
 
     if (!new_target) {
       TailCallBuiltin(Builtin::kCallVarargs, context, target, args_count,
@@ -483,8 +482,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_double);
   {
-    TNode<Int32T> length = LoadAndUntagToWord32ObjectField(
-        var_js_array.value(), JSArray::kLengthOffset);
+    TNode<Uint32T> length = Unsigned(LoadAndUntagToWord32ObjectField(
+        var_js_array.value(), JSArray::kLengthOffset));
     GotoIf(Word32Equal(length, Int32Constant(0)), &if_smiorobject);
     CallOrConstructDoubleVarargs(target, new_target, CAST(var_elements.value()),
                                  length, args_count, context,
@@ -642,7 +641,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       var_template = CAST(constructor);
       TNode<Uint16T> template_type = LoadInstanceType(var_template.value());
       GotoIf(IsJSFunctionInstanceType(template_type), &template_from_closure);
-      Branch(InstanceTypeEqual(template_type, MAP_TYPE), &template_map_loop,
+      Branch(IsMapInstanceType(template_type), &template_map_loop,
              &template_loop);
     }
 
@@ -675,10 +674,10 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
       GotoIfNot(IsFunctionTemplateInfoMap(LoadMap(current)), &holder_next);
 
       TNode<HeapObject> current_rare = LoadObjectField<HeapObject>(
-          current, FunctionTemplateInfo::kRareDataOffset);
+          current, offsetof(FunctionTemplateInfo, rare_data_));
       GotoIf(IsUndefined(current_rare), &holder_next);
       var_template = LoadObjectField<HeapObject>(
-          current_rare, FunctionTemplateRareData::kParentTemplateOffset);
+          current_rare, offsetof(FunctionTemplateRareData, parent_template_));
       Goto(&template_loop);
     }
 
@@ -737,7 +736,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
                   LoadMapBitField(receiver_map)),
               &receiver_done);
     TNode<Uint32T> function_template_info_flags = LoadObjectField<Uint32T>(
-        function_template_info, FunctionTemplateInfo::kFlagOffset);
+        function_template_info, offsetof(FunctionTemplateInfo, flag_));
     Branch(IsSetWord32<FunctionTemplateInfo::AcceptAnyReceiverBit>(
                function_template_info_flags),
            &receiver_done, &receiver_needs_access_check);
@@ -768,7 +767,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       // The {function_template_info} has a signature, so look for a compatible
       // holder in the receiver's hidden prototype chain.
       TNode<HeapObject> signature = LoadObjectField<HeapObject>(
-          function_template_info, FunctionTemplateInfo::kSignatureOffset);
+          function_template_info, offsetof(FunctionTemplateInfo, signature_));
       CSA_DCHECK(this, Word32BinaryNot(IsUndefined(signature)));
       // TODO(ishell, http://crbug.com/326505377): rename to
       // CheckCompatibleReceiverOrThrow().
@@ -781,7 +780,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
       // we need to look for a compatible holder in the receiver's hidden
       // prototype chain.
       TNode<HeapObject> signature = LoadObjectField<HeapObject>(
-          function_template_info, FunctionTemplateInfo::kSignatureOffset);
+          function_template_info, offsetof(FunctionTemplateInfo, signature_));
       holder = Select<JSReceiver>(
           IsUndefined(signature),  // --
           [&]() { return receiver; },
@@ -793,7 +792,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   }
 
   TNode<Object> callback_data = LoadObjectField(
-      function_template_info, FunctionTemplateInfo::kCallbackDataOffset);
+      function_template_info, offsetof(FunctionTemplateInfo, callback_data_));
   // If the function doesn't have an associated C++ code to execute, just
   // return the receiver as would an empty function do (see
   // HandleApiCallHelper).

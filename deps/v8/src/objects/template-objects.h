@@ -24,7 +24,7 @@ class StructBodyDescriptor;
 // TemplateObjectDescription is a tuple of raw strings and cooked strings for
 // tagged template literals. Used to communicate with the runtime for template
 // object creation within the {Runtime_GetTemplateObject} method.
-V8_OBJECT class TemplateObjectDescription final : public StructLayout {
+V8_OBJECT class TemplateObjectDescription final : public Struct {
  public:
   static DirectHandle<JSArray> GetTemplateObject(
       Isolate* isolate, DirectHandle<NativeContext> native_context,

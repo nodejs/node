@@ -59,7 +59,8 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   RootIndex empty_dict = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
                              ? RootIndex::kEmptySwissPropertyDictionary
                              : RootIndex::kEmptyPropertyDictionary;
-  StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset, empty_dict);
+  StoreObjectFieldRoot(proxy, offsetof(JSProxy, properties_or_hash_),
+                       empty_dict);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kFlagsOffset, flags);

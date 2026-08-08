@@ -136,12 +136,13 @@ void SourceTextModule::CreateExport(Isolate* isolate,
                                     DirectHandle<SourceTextModule> module,
                                     int cell_index,
                                     DirectHandle<FixedArray> names) {
-  DCHECK_LT(0, names->length());
+  const uint32_t names_len = names->ulength().value();
+  DCHECK_LT(0, names_len);
   DirectHandle<Cell> cell = isolate->factory()->NewCell();
   module->regular_exports()->set(ExportIndex(cell_index), *cell);
 
   Handle<ObjectHashTable> exports(module->exports(), isolate);
-  for (int i = 0, n = names->length(); i < n; ++i) {
+  for (uint32_t i = 0; i < names_len; ++i) {
     DirectHandle<String> name(Cast<String>(names->get(i)), isolate);
     DCHECK(IsTheHole(exports->Lookup(name), isolate));
     exports = ObjectHashTable::Put(isolate, exports, name, cell);
@@ -233,9 +234,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
 
   Handle<Cell> cell;
   if (!ResolveImport(isolate, module, import_name, entry->module_request(),
-                     new_loc, true, resolve_set)
+                     new_loc, must_resolve, resolve_set)
            .ToHandle(&cell)) {
-    DCHECK(isolate->has_exception());
     return MaybeHandle<Cell>();
   }
 
@@ -310,7 +310,8 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
     Handle<Cell> unique_cell;
     DirectHandle<FixedArray> special_exports(module->info()->special_exports(),
                                              isolate);
-    for (int i = 0, n = special_exports->length(); i < n; ++i) {
+    const uint32_t special_exports_len = special_exports->ulength().value();
+    for (uint32_t i = 0; i < special_exports_len; ++i) {
       i::DirectHandle<i::SourceTextModuleInfoEntry> entry(
           i::Cast<i::SourceTextModuleInfoEntry>(special_exports->get(i)),
           isolate);
@@ -373,7 +374,8 @@ bool SourceTextModule::PrepareInstantiate(
                                            isolate);
   DirectHandle<FixedArray> requested_modules(module->requested_modules(),
                                              isolate);
-  for (int i = 0, length = module_requests->length(); i < length; ++i) {
+  const uint32_t module_requests_len = module_requests->ulength().value();
+  for (uint32_t i = 0; i < module_requests_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     DirectHandle<String> specifier(module_request->specifier(), isolate);
@@ -438,7 +440,8 @@ bool SourceTextModule::PrepareInstantiate(
   }
 
   // Recurse.
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     if (module_request->phase() == ModuleImportPhase::kSource) {
@@ -454,7 +457,7 @@ bool SourceTextModule::PrepareInstantiate(
 
   // Set up local exports.
   // TODO(neis): Create regular_exports array here instead of in factory method?
-  for (int i = 0, n = module_info->RegularExportCount(); i < n; ++i) {
+  for (uint32_t i = 0, n = module_info->RegularExportCount(); i < n; ++i) {
     int cell_index = module_info->RegularExportCellIndex(i);
     DirectHandle<FixedArray> export_names(
         module_info->RegularExportExportNames(i), isolate);
@@ -468,7 +471,8 @@ bool SourceTextModule::PrepareInstantiate(
   // the SourceTextModuleInfoEntry by that Cell (see ResolveExport).
   DirectHandle<FixedArray> special_exports(module_info->special_exports(),
                                            isolate);
-  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+  const uint32_t special_exports_len = special_exports->ulength().value();
+  for (uint32_t i = 0; i < special_exports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     DirectHandle<Object> export_name(entry->export_name(), isolate);
@@ -504,7 +508,8 @@ bool SourceTextModule::RunInitializationCode(
   return true;
 }
 
-// ES#sec-innermoduleevaluation and ES#sec-innermodulelinking
+// https://tc39.es/ecma262/#sec-innermoduleevaluation and
+// https://tc39.es/ecma262/#sec-innermodulelinking
 bool SourceTextModule::MaybeTransitionComponent(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status) {
@@ -614,7 +619,8 @@ bool SourceTextModule::FinishInstantiate(
                                            isolate);
   DirectHandle<FixedArray> requested_modules(module->requested_modules(),
                                              isolate);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     if (module_request->phase() == ModuleImportPhase::kSource) {
@@ -651,7 +657,8 @@ bool SourceTextModule::FinishInstantiate(
   // Resolve imports.
   DirectHandle<FixedArray> regular_imports(module_info->regular_imports(),
                                            isolate);
-  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
+  const uint32_t regular_imports_len = regular_imports->ulength().value();
+  for (uint32_t i = 0; i < regular_imports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(regular_imports->get(i)), isolate);
     Handle<String> name(Cast<String>(entry->import_name()), isolate);
@@ -669,7 +676,8 @@ bool SourceTextModule::FinishInstantiate(
   // Resolve indirect exports.
   DirectHandle<FixedArray> special_exports(module_info->special_exports(),
                                            isolate);
-  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+  const uint32_t special_exports_len = special_exports->ulength().value();
+  for (uint32_t i = 0; i < special_exports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     Handle<Object> name(entry->export_name(), isolate);
@@ -709,7 +717,8 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
   ReadOnlyRoots roots(isolate);
   DirectHandle<FixedArray> special_exports(module->info()->special_exports(),
                                            isolate);
-  for (int i = 0, n = special_exports->length(); i < n; ++i) {
+  const uint32_t special_exports_len = special_exports->ulength().value();
+  for (uint32_t i = 0; i < special_exports_len; ++i) {
     DirectHandle<SourceTextModuleInfoEntry> entry(
         Cast<SourceTextModuleInfoEntry>(special_exports->get(i)), isolate);
     if (!IsUndefined(entry->export_name(), roots)) {
@@ -783,7 +792,9 @@ void SourceTextModule::GatherAvailableAncestors(
     worklist.pop();
 
     // 1. For each Module m of module.[[AsyncParentModules]], do
-    for (int i = module->AsyncParentModuleCount(); i-- > 0;) {
+    const uint32_t module_count = module->AsyncParentModuleCount();
+    DCHECK_LE(module_count, kMaxInt);
+    for (int i = static_cast<int>(module_count); i-- > 0;) {
       Handle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
 
       // a. If execList does not contain m and
@@ -856,7 +867,7 @@ MaybeHandle<JSObject> SourceTextModule::GetImportMeta(
   return Cast<JSObject>(import_meta);
 }
 
-// ES#sec-moduleevaluation
+// https://tc39.es/ecma262/#sec-moduleevaluation
 bool SourceTextModule::MaybeHandleEvaluationException(
     Isolate* isolate, ZoneForwardList<Handle<SourceTextModule>>* stack) {
   DisallowGarbageCollection no_gc;
@@ -886,7 +897,7 @@ bool SourceTextModule::MaybeHandleEvaluationException(
   return false;
 }
 
-// ES#sec-moduleevaluation
+// https://tc39.es/ecma262/#sec-moduleevaluation
 MaybeDirectHandle<Object> SourceTextModule::Evaluate(
     Isolate* isolate, Handle<SourceTextModule> module) {
   CHECK(module->status() == kLinked || module->status() == kEvaluatingAsync ||
@@ -939,7 +950,7 @@ MaybeDirectHandle<Object> SourceTextModule::Evaluate(
   return capability;
 }
 
-// ES#sec-async-module-execution-fulfilled
+// https://tc39.es/ecma262/#sec-async-module-execution-fulfilled
 Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
     Isolate* isolate, Handle<SourceTextModule> module) {
   // 1. If module.[[Status]] is EVALUATED, then
@@ -1021,6 +1032,9 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
       MaybeDirectHandle<Object> exception;
       // ii. If result is an abrupt completion, then
       if (!ExecuteModule(isolate, m, &exception).ToHandle(&unused_result)) {
+        DCHECK_IMPLIES(exception.IsEmpty(),
+                       isolate->is_execution_terminating());
+        if (isolate->is_execution_terminating()) return {};
         // 1. Perform AsyncModuleExecutionRejected(m, result.[[Value]]).
         AsyncModuleExecutionRejected(isolate, m, exception.ToHandleChecked());
       } else {  // iii. Else,
@@ -1050,7 +1064,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
   return Just(true);
 }
 
-// ES#sec-async-module-execution-rejected
+// https://tc39.es/ecma262/#sec-async-module-execution-rejected
 void SourceTextModule::AsyncModuleExecutionRejected(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     DirectHandle<Object> exception) {
@@ -1090,7 +1104,8 @@ void SourceTextModule::AsyncModuleExecutionRejected(
   }
 
   // 8. For each Cyclic Module Record m of module.[[AsyncParentModules]], do
-  for (int i = 0; i < module->AsyncParentModuleCount(); i++) {
+  const uint32_t module_count = module->AsyncParentModuleCount();
+  for (uint32_t i = 0; i < module_count; i++) {
     // a. Perform AsyncModuleExecutionRejected(m, error).
     DirectHandle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
     AsyncModuleExecutionRejected(isolate, m, exception);
@@ -1272,9 +1287,10 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
   // in eveluation_list. It's encessary to keep evaluation order as it's seen to
   // be spec compliant.
   UnorderedModuleSet evaluation_set(&zone);
-  ZoneVector<Handle<Module>> eveluation_list(&zone);
+  ZoneVector<Handle<Module>> evaluation_list(&zone);
   UnorderedModuleSet seen_modules(&zone);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
 
@@ -1285,18 +1301,22 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
     Handle<Module> requested_module(Cast<Module>(requested_modules->get(i)),
                                     isolate);
     if (module_request->phase() == ModuleImportPhase::kDefer) {
-      GatherAsynchronousTransitiveDependencies(isolate, requested_module,
-                                               &evaluation_set,
-                                               &eveluation_list, &seen_modules);
+      ZoneVector<Handle<SourceTextModule>> async_evaluation_list(&zone);
+      GatherAsynchronousTransitiveDependencies(
+          isolate, requested_module, &evaluation_set, &async_evaluation_list,
+          &seen_modules);
+      for (auto async_module : async_evaluation_list) {
+        evaluation_list.push_back(async_module);
+      }
     } else if (evaluation_set.insert(requested_module).second) {
-      eveluation_list.push_back(requested_module);
+      evaluation_list.push_back(requested_module);
     }
   }
 
   // 11. For each ModuleRequest Record required of module.[[RequestedModules]],
-  for (size_t i = 0, length = eveluation_list.size(); i < length; ++i) {
+  for (size_t i = 0, length = evaluation_list.size(); i < length; ++i) {
     // b. If requiredModule.[[Phase]] is evaluation, then
-    Handle<Module> requested_module = eveluation_list[i];
+    Handle<Module> requested_module = evaluation_list[i];
     // c. If requiredModule is a Cyclic Module Record, then
     if (IsSourceTextModule(*requested_module)) {
       // b. Set index to ? InnerModuleEvaluation(requiredModule, stack, index).
@@ -1416,7 +1436,8 @@ MaybeDirectHandle<Object> SourceTextModule::InnerModuleEvaluation(
 // https://tc39.es/proposal-defer-import-eval/#sec-GatherAsynchronousTransitiveDependencies
 void SourceTextModule::GatherAsynchronousTransitiveDependencies(
     Isolate* isolate, Handle<Module> module, UnorderedModuleSet* evaluation_set,
-    ZoneVector<Handle<Module>>* evaluation_list, UnorderedModuleSet* seen_set) {
+    ZoneVector<Handle<SourceTextModule>>* evaluation_list,
+    UnorderedModuleSet* seen_set) {
   if (!seen_set->insert(module).second) {
     return;
   }
@@ -1442,7 +1463,8 @@ void SourceTextModule::GatherAsynchronousTransitiveDependencies(
       source_text_module->info()->module_requests(), isolate);
   DirectHandle<FixedArray> requested_modules(
       source_text_module->requested_modules(), isolate);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
 
@@ -1489,7 +1511,8 @@ bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
       source_text_module->info()->module_requests(), isolate);
   DirectHandle<FixedArray> requested_modules(
       source_text_module->requested_modules(), isolate);
-  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+  const uint32_t requested_modules_len = requested_modules->ulength().value();
+  for (uint32_t i = 0; i < requested_modules_len; ++i) {
     DirectHandle<ModuleRequest> module_request(
         Cast<ModuleRequest>(module_requests->get(i)), isolate);
     if (module_request->phase() == ModuleImportPhase::kSource) {
@@ -1511,11 +1534,11 @@ void SourceTextModule::Reset(Isolate* isolate,
   DCHECK(IsTheHole(module->import_meta(kAcquireLoad), isolate));
 
   DirectHandle<FixedArray> regular_exports =
-      factory->NewFixedArray(module->regular_exports()->length());
+      factory->NewFixedArray(module->regular_exports()->length().value());
   DirectHandle<FixedArray> regular_imports =
-      factory->NewFixedArray(module->regular_imports()->length());
+      factory->NewFixedArray(module->regular_imports()->length().value());
   DirectHandle<FixedArray> requested_modules =
-      factory->NewFixedArray(module->requested_modules()->length());
+      factory->NewFixedArray(module->requested_modules()->length().value());
 
   DisallowGarbageCollection no_gc;
   Tagged<SourceTextModule> raw_module = *module;
@@ -1565,14 +1588,14 @@ void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
   // it's what we are looking for. Add it to the results.
   if (!HasPendingAsyncDependencies() && HasAsyncEvaluationOrdinal()) {
     DCHECK(HasAsyncEvaluationOrdinal());
-    result->push_back(direct_handle(*this, isolate));
+    result->push_back(direct_handle(Tagged<SourceTextModule>(this), isolate));
     return;
   }
   // The module isn't what we are looking for, continue looking in the graph.
   Tagged<FixedArray> requests = info()->module_requests();
   Tagged<FixedArray> requested = requested_modules();
-  int length = requested->length();
-  for (int i = 0; i < length; ++i) {
+  const uint32_t length = requested->ulength().value();
+  for (uint32_t i = 0; i < length; ++i) {
     Tagged<ModuleRequest> request = Cast<ModuleRequest>(requests->get(i));
     if (request->phase() != ModuleImportPhase::kEvaluation) {
       continue;

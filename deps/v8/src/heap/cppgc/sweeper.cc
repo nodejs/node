@@ -1313,7 +1313,7 @@ class Sweeper::SweeperImpl final {
 
     // There's nothing left to sweep here for the main thread. The concurrent
     // sweeper may still sweep pages and create pages to be finalized after
-    // joining the the job.
+    // joining the job.
     FinalizeSweep();
   }
 

@@ -330,16 +330,14 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
                 << ") /* " << root->type->GetPosition() << " */\\\n";
     values << "  V(" << type_name << ") /* " << root->type->GetPosition()
            << " */\\\n";
-    if (!root->type->DoNotGenerateInstanceTypeCheck()) {
-      std::ostream& type_checker_list =
-          root->type->HasUndefinedLayout()
-              ? (root->num_values == 1 ? only_declared_single_instance_types
-                                       : only_declared_multiple_instance_types)
-              : (root->num_values == 1 ? fully_defined_single_instance_types
-                                       : fully_defined_multiple_instance_types);
-      type_checker_list << "  V(" << root->type->name() << ", " << type_name
-                        << ") /* " << root->type->GetPosition() << " */ \\\n";
-    }
+    std::ostream& type_checker_list =
+        root->type->HasUndefinedLayout()
+            ? (root->num_values == 1 ? only_declared_single_instance_types
+                                     : only_declared_multiple_instance_types)
+            : (root->num_values == 1 ? fully_defined_single_instance_types
+                                     : fully_defined_multiple_instance_types);
+    type_checker_list << "  V(" << root->type->name() << ", " << type_name
+                      << ") /* " << root->type->GetPosition() << " */ \\\n";
   }
   for (auto& child : root->children) {
     PrintInstanceTypes(child.get(), definitions, values,
@@ -362,14 +360,11 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
 
     // Only output the instance type range for things other than the root type.
     if (root->type->GetSuperClass() != nullptr) {
-      if (!root->type->DoNotGenerateInstanceTypeCheck()) {
-        std::ostream& range_instance_types =
-            root->type->HasUndefinedLayout()
-                ? only_declared_range_instance_types
-                : fully_defined_range_instance_types;
-        range_instance_types << "  V(" << root->type->name() << ", FIRST_"
-                             << type_name << ", LAST_" << type_name << ") \\\n";
-      }
+      std::ostream& range_instance_types =
+          root->type->HasUndefinedLayout() ? only_declared_range_instance_types
+                                           : fully_defined_range_instance_types;
+      range_instance_types << "  V(" << root->type->name() << ", FIRST_"
+                           << type_name << ", LAST_" << type_name << ") \\\n";
     }
   }
 }
@@ -453,57 +448,6 @@ void ImplementationVisitor::GenerateInstanceTypes(
     header << only_declared_range_instance_types.str();
     header << "\n";
 
-    std::stringstream torque_defined_class_list;
-    std::stringstream torque_defined_varsize_instance_type_list;
-    std::stringstream torque_defined_fixed_instance_type_list;
-    std::stringstream torque_defined_map_csa_list;
-    std::stringstream torque_defined_map_root_list;
-
-    for (const ClassType* type : TypeOracle::GetClasses()) {
-      std::string upper_case_name = type->name();
-      std::string lower_case_name = SnakeifyString(type->name());
-      std::string instance_type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-
-      if (!type->IsExtern()) {
-        torque_defined_class_list << "  V(" << upper_case_name << ") \\\n";
-      }
-
-      if (type->ShouldGenerateUniqueMap()) {
-        torque_defined_map_csa_list << "  V(_, " << upper_case_name << "Map, "
-                                    << lower_case_name << "_map, "
-                                    << upper_case_name << ") \\\n";
-        torque_defined_map_root_list << "  V(Map, " << lower_case_name
-                                     << "_map, " << upper_case_name
-                                     << "Map) \\\n";
-        std::stringstream& list =
-            type->HasStaticSize() ? torque_defined_fixed_instance_type_list
-                                  : torque_defined_varsize_instance_type_list;
-        list << "  V(" << instance_type_name << ", " << upper_case_name << ", "
-             << lower_case_name << ") \\\n";
-      }
-    }
-
-    header << "// Fully Torque-defined classes (both internal and exported).\n";
-    header << "#define TORQUE_DEFINED_CLASS_LIST(V) \\\n";
-    header << torque_defined_class_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
-    header << torque_defined_varsize_instance_type_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
-    header << torque_defined_fixed_instance_type_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "  TORQUE_DEFINED_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "  TORQUE_DEFINED_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
-    header << "\n";
-    header << "#define TORQUE_DEFINED_MAP_CSA_LIST_GENERATOR(V, _) \\\n";
-    header << torque_defined_map_csa_list.str();
-    header << "\n";
-    header << "#define TORQUE_DEFINED_MAP_ROOT_LIST(V) \\\n";
-    header << torque_defined_map_root_list.str();
-    header << "\n";
   }
   std::string output_header_path = output_directory + "/" + file_name;
   WriteFile(output_header_path, header.str());

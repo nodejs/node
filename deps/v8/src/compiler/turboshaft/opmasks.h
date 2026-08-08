@@ -291,6 +291,11 @@ using kTruncateFloat64ToInt64OverflowToMin =
                       ChangeOp::Assumption::kNoAssumption,
                       RegisterRepresentation::Float64(),
                       RegisterRepresentation::Word64()>;
+using kTruncateFloat64ToUint64OverflowToMin =
+    ChangeOpMask::For<ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin,
+                      ChangeOp::Assumption::kNoAssumption,
+                      RegisterRepresentation::Float64(),
+                      RegisterRepresentation::Word64()>;
 using kTruncateFloat32ToInt32OverflowToMin =
     ChangeOpMask::For<ChangeOp::Kind::kSignedFloatTruncateOverflowToMin,
                       ChangeOp::Assumption::kNoAssumption,

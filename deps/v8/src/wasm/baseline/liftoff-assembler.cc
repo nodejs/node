@@ -16,7 +16,6 @@
 #include "src/wasm/baseline/liftoff-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -150,7 +149,8 @@ void InitMergeRegion(LiftoffAssembler::CacheState* target_state,
 }  // namespace
 
 LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
-    uint32_t num_locals, uint32_t arity, uint32_t stack_depth) {
+    uint32_t num_locals, uint32_t arity, uint32_t stack_depth,
+    IgnoreLocals ignore_locals) {
   CacheState target{zone()};
 
   // The source state looks like this:
@@ -179,7 +179,12 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
                                     cache_state_.cached_mem_index);
   }
 
-  uint32_t target_height = num_locals + stack_depth + arity;
+  uint32_t effective_num_locals =
+      ignore_locals == kIgnoreLocals ? 0 : num_locals;
+  uint32_t target_height = effective_num_locals + stack_depth + arity;
+  // Can't copy more values than we have. If this fails, you may have passed
+  // a {stack_depth} that includes locals.
+  DCHECK_LE(target_height, cache_state_.stack_height());
 
   target.stack_state.resize_no_init(target_height);
 
@@ -193,14 +198,14 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
   const VarState* discarded_source = stack_prefix_source + stack_depth;
   const VarState* merge_source = cache_state_.stack_state.end() - arity;
   VarState* locals_target = target_begin;
-  VarState* stack_prefix_target = target_begin + num_locals;
-  VarState* merge_target = target_begin + num_locals + stack_depth;
+  VarState* stack_prefix_target = target_begin + effective_num_locals;
+  VarState* merge_target = target_begin + effective_num_locals + stack_depth;
 
   // Try to keep locals and the merge region in their registers. Registers used
   // multiple times need to be copied to another free register. Compute the list
   // of used registers.
   LiftoffRegList used_regs;
-  for (auto& src : base::VectorOf(locals_source, num_locals)) {
+  for (auto& src : base::VectorOf(locals_source, effective_num_locals)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
   // If there is more than one operand in the merge region, a stack-to-stack
@@ -239,8 +244,8 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
 
   // Initialize the locals region. Here, stack slots stay stack slots (because
   // they do not move). Try to keep register in registers, but avoid duplicates.
-  if (num_locals) {
-    InitMergeRegion(&target, locals_source, locals_target, num_locals,
+  if (effective_num_locals) {
+    InitMergeRegion(&target, locals_source, locals_target, effective_num_locals,
                     kKeepStackSlots, kConstantsNotAllowed, kRegistersAllowed,
                     kNoReuseRegisters, used_regs, 0, parallel_move);
   }
@@ -431,42 +436,49 @@ void LiftoffAssembler::SpillLoopArgs(int num) {
   }
 }
 
-void LiftoffAssembler::PrepareForBranch(uint32_t arity, LiftoffRegList pinned) {
+void LiftoffAssembler::PrepareForBranch(uint32_t arity, LiftoffRegList pinned,
+                                        IgnoreLocals ignore_locals) {
   VarState* stack_base = cache_state_.stack_state.data();
-  for (auto slots :
-       {base::VectorOf(stack_base + cache_state_.stack_state.size() - arity,
-                       arity),
-        base::VectorOf(stack_base, num_locals())}) {
-    for (VarState& slot : slots) {
+  LiftoffRegList seen_regs;
+
+  base::Vector<VarState> vectors[2] = {
+      base::VectorOf(stack_base + cache_state_.stack_state.size() - arity,
+                     arity),
+      base::VectorOf(stack_base, num_locals())};
+  size_t num_vectors = ignore_locals ? 1 : 2;
+
+  for (size_t i = 0; i < num_vectors; ++i) {
+    for (VarState& slot : vectors[i]) {
       if (slot.is_reg()) {
         // Registers used more than once can't be used for merges.
-        if (cache_state_.get_use_count(slot.reg()) > 1) {
-          RegClass rc = reg_class_for(slot.kind());
-          if (cache_state_.has_unused_register(rc, pinned)) {
-            LiftoffRegister dst_reg = cache_state_.unused_register(rc, pinned);
-            Move(dst_reg, slot.reg(), slot.kind());
-            cache_state_.inc_used(dst_reg);
-            cache_state_.dec_used(slot.reg());
-            slot.MakeRegister(dst_reg);
-          } else {
-            Spill(slot.offset(), slot.reg(), slot.kind());
-            cache_state_.dec_used(slot.reg());
-            slot.MakeStack();
-          }
+        if (!seen_regs.has(slot.reg())) {
+          seen_regs.set(slot.reg());
+          continue;
         }
-        continue;
-      }
-      // Materialize constants.
-      if (!slot.is_const()) continue;
-      RegClass rc = reg_class_for(slot.kind());
-      if (cache_state_.has_unused_register(rc, pinned)) {
-        LiftoffRegister reg = cache_state_.unused_register(rc, pinned);
-        LoadConstant(reg, slot.constant());
-        cache_state_.inc_used(reg);
-        slot.MakeRegister(reg);
-      } else {
-        Spill(slot.offset(), slot.constant());
-        slot.MakeStack();
+        RegClass rc = reg_class_for(slot.kind());
+        if (cache_state_.has_unused_register(rc, pinned)) {
+          LiftoffRegister dst_reg = cache_state_.unused_register(rc, pinned);
+          Move(dst_reg, slot.reg(), slot.kind());
+          cache_state_.inc_used(dst_reg);
+          cache_state_.dec_used(slot.reg());
+          slot.MakeRegister(dst_reg);
+        } else {
+          Spill(slot.offset(), slot.reg(), slot.kind());
+          cache_state_.dec_used(slot.reg());
+          slot.MakeStack();
+        }
+      } else if (slot.is_const()) {
+        // Materialize constants.
+        RegClass rc = reg_class_for(slot.kind());
+        if (cache_state_.has_unused_register(rc, pinned)) {
+          LiftoffRegister reg = cache_state_.unused_register(rc, pinned);
+          LoadConstant(reg, slot.constant());
+          cache_state_.inc_used(reg);
+          slot.MakeRegister(reg);
+        } else {
+          Spill(slot.offset(), slot.constant());
+          slot.MakeStack();
+        }
       }
     }
   }
@@ -612,18 +624,15 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity,
       LoadInstanceDataFromFrame(instance_data);
     }
     if (target.cached_mem_index == 0) {
-      LoadFromInstance(
-          target.cached_mem_start, instance_data,
-          ObjectAccess::ToTagged(WasmTrustedInstanceData::kMemory0StartOffset),
-          sizeof(size_t));
+      LoadFromInstance(target.cached_mem_start, instance_data,
+                       WasmTrustedInstanceData::kMemory0StartOffset,
+                       sizeof(size_t));
     } else {
       LoadProtectedPointer(
           target.cached_mem_start, instance_data,
-          ObjectAccess::ToTagged(
-              WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset));
-      int buffer_offset =
-          wasm::ObjectAccess::ToTagged(OFFSET_OF_DATA_START(ByteArray)) +
-          kSystemPointerSize * target.cached_mem_index * 2;
+          WasmTrustedInstanceData::kProtectedMemoryBasesAndSizesOffset);
+      int buffer_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag +
+                          kSystemPointerSize * target.cached_mem_index * 2;
       LoadFullPointer(target.cached_mem_start, target.cached_mem_start,
                       buffer_offset);
     }
@@ -858,6 +867,7 @@ constexpr LiftoffRegList AllReturnRegs() {
   LiftoffRegList result;
   for (Register r : kGpReturnRegisters) result.set(r);
   for (DoubleRegister r : kFpReturnRegisters) result.set(r);
+  for (Simd128Register r : kSimd128ReturnRegisters) result.set(r);
   return result;
 }
 }  // namespace
@@ -929,7 +939,10 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
     Move(dst.low_fp(), src.low_fp(), kind);
   } else if (dst.is_gp()) {
     Move(dst.gp(), src.gp(), kind);
+  } else if (kHasIndependentSimd128Regs && dst.is_simd128()) {
+    Move(dst.simd128(), src.simd128(), kind);
   } else {
+    DCHECK(dst.is_fp());
     Move(dst.fp(), src.fp(), kind);
   }
 }
@@ -962,6 +975,8 @@ void LiftoffAssembler::MoveToReturnLocations(
     return_reg = LiftoffRegister::ForFpPair(kFpReturnRegisters[0]);
   } else if (reg_class_for(return_kind) == kFpReg) {
     return_reg = LiftoffRegister(kFpReturnRegisters[0]);
+  } else if (reg_class_for(return_kind) == kSimd128Reg) {
+    return_reg = LiftoffRegister(kSimd128ReturnRegisters[0]);
   } else {
     DCHECK_EQ(kGpReg, reg_class_for(return_kind));
   }
@@ -984,12 +999,7 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
   // cause a spill in the cache state. Conservatively save and restore the
   // original state in case it is needed after the current instruction
   // (conditional branch).
-  CacheState saved_state{zone()};
-#if DEBUG
-  uint32_t saved_state_frozenness = cache_state_.frozen;
-  cache_state_.frozen = 0;
-#endif
-  saved_state.Split(*cache_state());
+  SaveAndUnfreezeCacheState saved_state(&cache_state_, zone());
   int call_desc_return_idx = 0;
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
   VarState* slots = cache_state_.stack_state.end() - sig->return_count();
@@ -1045,10 +1055,6 @@ void LiftoffAssembler::MoveToReturnLocationsMultiReturn(
       }
     }
   }
-  cache_state()->Steal(saved_state);
-#if DEBUG
-  cache_state_.frozen = saved_state_frozenness;
-#endif
 }
 
 #if DEBUG

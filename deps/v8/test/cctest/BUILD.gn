@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("../../gni/cluster_build.gni")
 import("../../gni/v8.gni")
 
 v8_executable("cctest") {
@@ -73,8 +74,20 @@ config("cctest_sources_config") {
   }
 }
 
-v8_source_set("cctest_sources") {
+v8_cluster_source_set("cctest_sources") {
   testonly = true
+
+  exclude_from_cluster = [
+    "compiler/test-code-generator.cc",
+    "compiler/test-run-load-store.cc",
+    "test-accessors.cc",
+    "test-api.cc",
+    "test-debug.cc",
+    "test-descriptor-array.cc",
+    "wasm/test-run-wasm.cc",
+    "wasm/test-streaming-compilation.cc",
+    "wasm/wasm-simd-utils.cc",
+  ]
 
   sources = [
     ### gcmole(all) ###
@@ -132,7 +145,6 @@ v8_source_set("cctest_sources") {
     "test-func-name-inference.cc",
     "test-heap-profiler.cc",
     "test-icache.cc",
-    "test-ignition-statistics-extension.cc",
     "test-inobject-slack-tracking.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",

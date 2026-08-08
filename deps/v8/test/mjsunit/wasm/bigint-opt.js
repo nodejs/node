@@ -19,7 +19,7 @@ function TestBigIntTruncatedToWord64(x) {
   return module.exports.f(x + x);
 }
 
-let bi = (2n ** (2n ** 29n + 2n ** 29n - 1n));
+let bi = (2n ** (2n ** 30n - 65n));
 
 // Expect BigIntTooBig for adding bi to itself
 assertThrows(() => TestBigIntTruncatedToWord64(bi), RangeError);

@@ -289,16 +289,17 @@ void ProfilerListener::SetterCallbackEvent(DirectHandle<Name> name,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
-                                             DirectHandle<String> source,
-                                             RegExpFlags flags) {
+void ProfilerListener::RegExpCodeCreateEvent(
+    DirectHandle<AbstractCode> code, DirectHandle<String> escaped_source,
+    regexp::Flags flags) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   PtrComprCageBase cage_base(isolate_);
   rec->instruction_start = code->InstructionStart(cage_base);
-  rec->entry = code_entries_.Create(
-      LogEventListener::CodeTag::kRegExp, GetConsName("RegExp: ", *source),
-      CodeEntry::kEmptyResourceName, LineAndColumn{}, nullptr);
+  rec->entry = code_entries_.Create(LogEventListener::CodeTag::kRegExp,
+                                    GetConsName("RegExp: ", *escaped_source),
+                                    CodeEntry::kEmptyResourceName,
+                                    LineAndColumn{}, nullptr);
   rec->instruction_size = code->InstructionSize(cage_base);
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);

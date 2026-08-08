@@ -158,7 +158,8 @@ base::AbortMode ChooseAbortMode() {
     // controlled fashion (e.g. in a SBXCHECK).
     return base::AbortMode::kExitWithSuccessAndIgnoreDcheckFailures;
   }
-  if (v8_flags.fuzzing || v8_flags.allow_natives_for_differential_fuzzing) {
+  if (v8_flags.fuzzing || v8_flags.allow_natives_for_differential_fuzzing ||
+      v8_flags.run_as_security_poc || v8_flags.run_as_sandbox_security_poc) {
     // For fuzzing, we want to ignore certain types of crashes that are known
     // to be safe (no security impact), such as OOMs and similar issues.
     return base::AbortMode::kExitIfNoSecurityImpact;

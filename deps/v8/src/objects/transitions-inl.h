@@ -90,8 +90,7 @@ void TransitionsAccessor::SetSideStepTransition(SideStepTransition::Kind kind,
   DCHECK_LT(SideStepTransition::index_of(kind), SideStepTransition::kSize);
   DCHECK_GE(SideStepTransition::index_of(kind), 0);
   transitions()->GetSideStepTransitions()->set(
-      SideStepTransition::index_of(kind),
-      object.IsSmi() ? object : MakeWeak(object));
+      SideStepTransition::index_of(kind), MakeWeakOrSmi(object));
 }
 
 Tagged<WeakFixedArray> TransitionArray::GetSideStepTransitions() {
@@ -118,12 +117,14 @@ void TransitionArray::SetPrototypeTransitions(
   WeakFixedArray::set(kPrototypeTransitionsIndex, transitions, kReleaseStore);
 }
 
-int TransitionArray::NumberOfPrototypeTransitions(
+uint32_t TransitionArray::NumberOfPrototypeTransitions(
     Tagged<WeakFixedArray> proto_transitions) {
-  if (proto_transitions->length() == 0) return 0;
+  if (proto_transitions->ulength().value() == 0) return 0;
   Tagged<MaybeObject> raw =
       proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
-  return raw.ToSmi().value();
+  int32_t transitions = raw.ToSmi().value();
+  DCHECK_GE(transitions, 0);
+  return transitions;
 }
 
 Tagged<Name> TransitionArray::GetKey(int transition_number) {
@@ -206,7 +207,6 @@ Tagged<Map> TransitionsAccessor::GetTarget(int transition_number) {
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
-      return Map();
     case kWeakRef:
       return Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
     case kFullTransitionArray:
@@ -412,9 +412,12 @@ MaybeHandle<Map> TransitionsAccessor::SearchSpecial(Isolate* isolate,
   return MaybeHandle<Map>(result, isolate);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int TransitionArray::number_of_transitions() const {
-  if (length() < kFirstIndex) return 0;
-  return get(kTransitionLengthIndex).ToSmi().value();
+  if (ulength().value() < kFirstIndex) return 0;
+  int transitions = get(kTransitionLengthIndex).ToSmi().value();
+  DCHECK_GE(transitions, 0);
+  return transitions;
 }
 
 int TransitionArray::CompareKeys(Tagged<Name> key1, uint32_t hash1,
@@ -461,9 +464,11 @@ void TransitionArray::Set(int transition_number, Tagged<Name> key,
   WeakFixedArray::set(ToTargetIndex(transition_number), target);
 }
 
+// TODO(375937549): Convert to uint32_t.
 int TransitionArray::Capacity() {
-  if (length() <= kFirstIndex) return 0;
-  return (length() - kFirstIndex) / kEntrySize;
+  uint32_t len = ulength().value();
+  if (len <= kFirstIndex) return 0;
+  return (len - kFirstIndex) / kEntrySize;
 }
 
 void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
@@ -567,8 +572,9 @@ void TransitionsAccessor::ForEachTransitionWithKey(
         if (transitions()->HasPrototypeTransitions()) {
           Tagged<WeakFixedArray> cache =
               transitions()->GetPrototypeTransitions();
-          int length = TransitionArray::NumberOfPrototypeTransitions(cache);
-          for (int i = 0; i < length; i++) {
+          const uint32_t length =
+              TransitionArray::NumberOfPrototypeTransitions(cache);
+          for (uint32_t i = 0; i < length; i++) {
             Tagged<MaybeObject> target =
                 cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
             Tagged<HeapObject> heap_object;

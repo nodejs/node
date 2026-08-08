@@ -65,7 +65,7 @@ constexpr uint32_t kFP32MinFP16ZeroRepresentable = 0x33000000;
 constexpr uint32_t kFP32MaxFP16Representable = 0x47800000;
 constexpr uint32_t kFP32SubnormalThresholdOfFP16 = 0x38800000;
 
-// The limit for the the fractionDigits/precision for toFixed, toPrecision
+// The limit for the fractionDigits/precision for toFixed, toPrecision
 // and toExponential.
 constexpr int kMaxFractionDigits = 100;
 constexpr int kDoubleToFixedMaxDigitsBeforePoint = 21;
@@ -180,7 +180,7 @@ ImplicitOctalStringToDouble(base::Vector<const uint8_t> str);
 
 double StringToInt(Isolate* isolate, DirectHandle<String> string, int radix);
 
-// This follows https://tc39.github.io/proposal-bigint/#sec-string-to-bigint
+// This follows https://tc39.es/proposal-bigint/#sec-string-to-bigint
 // semantics: "" => 0n.
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
                                    DirectHandle<String> string);

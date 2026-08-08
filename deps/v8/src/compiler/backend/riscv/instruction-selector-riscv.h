@@ -35,22 +35,26 @@ static int EncodeElementWidth(VSew sew) {
   // The lane size field has 8 free bits, so there is plenty of room.
   static_assert((0 <= static_cast<int>(VSew::E8)) &&
                 (static_cast<int>(VSew::E64) <= 3));
-#ifdef DEBUG
-  // In debug mode, we mark one bit to indicate that the lane size is
-  // populated.
-  return LaneSizeField::encode(0x4 | sew);
-#else
-  return LaneSizeField::encode(sew);
-#endif
+  switch (sew) {
+    case VSew::E8:
+      return LaneSizeField::encode(LaneSize::kL8);
+    case VSew::E16:
+      return LaneSizeField::encode(LaneSize::kL16);
+    case VSew::E32:
+      return LaneSizeField::encode(LaneSize::kL32);
+    case VSew::E64:
+      return LaneSizeField::encode(LaneSize::kL64);
+    default:
+      UNREACHABLE();
+  }
 }
 
 static int EncodeRegisterConstraint(RiscvRegisterConstraint constraint) {
   // The element width is encoded in 3 bits, which leaves us some bits
   // for asserting that the register constraints are correct.
 #ifdef DEBUG
-  static_assert(static_cast<int>(VSew::E64) <= 3);
-  DCHECK(static_cast<int>(constraint) <= 0xF);
-  return LaneSizeField::encode(static_cast<int>(constraint) << 3);
+  DCHECK(static_cast<int>(constraint) <= 0x7);
+  return RiscvRegisterConstraintField::encode(constraint);
 #else
   return 0;
 #endif
@@ -335,90 +339,90 @@ void EmitS128Load(InstructionSelector* selector, OpIndex node,
 void InstructionSelector::VisitLoadTransform(OpIndex node) {
   const Simd128LoadTransformOp& op =
       this->Get(node).Cast<Simd128LoadTransformOp>();
-  bool is_protected = (op.load_kind.with_trap_handler);
+  bool is_trapping = (op.load_kind.with_trap_handler);
   InstructionCode opcode = kArchNop;
   switch (op.transform_kind) {
     case Simd128LoadTransformOp::TransformKind::k8Splat:
       opcode = kRiscvS128LoadSplat | EncodeElementWidth(E8);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k16Splat:
       opcode = kRiscvS128LoadSplat | EncodeElementWidth(E16);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k32Splat:
       opcode = kRiscvS128LoadSplat | EncodeElementWidth(E32);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k64Splat:
       opcode = kRiscvS128LoadSplat | EncodeElementWidth(E64);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8S:
       opcode = kRiscvS128Load64ExtendS | EncodeElementWidth(E16);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k8x8U:
       opcode = kRiscvS128Load64ExtendU | EncodeElementWidth(E16);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k16x4S:
       opcode = kRiscvS128Load64ExtendS | EncodeElementWidth(E32);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k16x4U:
       opcode = kRiscvS128Load64ExtendU | EncodeElementWidth(E32);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k32x2S:
       opcode = kRiscvS128Load64ExtendS | EncodeElementWidth(E64);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k32x2U:
       opcode = kRiscvS128Load64ExtendU | EncodeElementWidth(E64);
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k32Zero:
       opcode = kRiscvS128Load32Zero;
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
     case Simd128LoadTransformOp::TransformKind::k64Zero:
       opcode = kRiscvS128Load64Zero;
-      if (is_protected) {
-        opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      if (is_trapping) {
+        opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
       }
       EmitS128Load(this, node, opcode);
       break;
@@ -1737,15 +1741,17 @@ void InstructionSelector::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
 }
 
 // static
+/*
+Only support FullUnalignedAccessSupport in V8.
+
+Mainstream high-performance RISC-V cores (U74, U54, XuanTie C9xx)
+now support misaligned access in hardware.If hardware lacking support, the SBI
+specification requires firmware to handle these cases via trap handlers.
+*/
 MachineOperatorBuilder::AlignmentRequirements
 InstructionSelector::AlignmentRequirements() {
-#ifdef RISCV_HAS_NO_UNALIGNED
-  return MachineOperatorBuilder::AlignmentRequirements::
-      NoUnalignedAccessSupport();
-#else
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
-#endif
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

@@ -63,7 +63,7 @@ class V8_EXPORT_PRIVATE DateCache {
   // Performs the success path of the ECMA 262 TimeClip operation (when the
   // value is within the range, truncates it to an integer). Returns false if
   // the value is outside the range, and should be clipped to NaN.
-  // ECMA 262 - ES#sec-timeclip TimeClip (time)
+  // ECMA 262 - https://tc39.es/ecma262/#sec-timeclip TimeClip (time)
   static bool TryTimeClip(double* time) {
     if (-kMaxTimeInMs <= *time && *time <= kMaxTimeInMs) {
       // Inline the finite part of DoubleToInteger here, since the range check
@@ -85,7 +85,7 @@ class V8_EXPORT_PRIVATE DateCache {
     return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
   }
 
-  // ECMA 262 - ES#sec-local-time-zone-adjustment
+  // ECMA 262 - https://tc39.es/ecma262/#sec-local-time-zone-adjustment
   int LocalOffsetInMs(int64_t time, bool is_utc);
 
   const char* LocalTimezone(int64_t time_ms) {
@@ -106,13 +106,13 @@ class V8_EXPORT_PRIVATE DateCache {
     return static_cast<int>((time_ms - local_ms) / kMsPerMin);
   }
 
-  // ECMA 262 - ES#sec-localtime-t
+  // ECMA 262 - https://tc39.es/ecma262/#sec-localtime-t
   // LocalTime(t) = t + LocalTZA(t, true)
   int64_t ToLocal(int64_t time_ms) {
     return time_ms + LocalOffsetInMs(time_ms, true);
   }
 
-  // ECMA 262 - ES#sec-utc-t
+  // ECMA 262 - https://tc39.es/ecma262/#sec-utc-t
   // UTC(t) = t - LocalTZA(t, false)
   int64_t ToUTC(int64_t time_ms) {
     return time_ms - LocalOffsetInMs(time_ms, false);

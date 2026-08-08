@@ -3,18 +3,23 @@ Short Name: wasm-c-api
 URL: https://github.com/WebAssembly/wasm-c-api/
 Version: N/A
 Revision: debd0908627e3028b1aa460a4934732c2c3b00a6
-Update Mechanism: Manual
+Update Mechanism: Static (https://crbug.com/503537591)
 Date: 2025-01-17
 License: Apache-2.0
 License File: LICENSE
-Security Critical: yes
-Shipped: yes
-Shipped in Chromium: no
+Security Critical: Yes
+Shipped: Yes
+Shipped in Chromium: No
+Local modifications: None
 
 Description:
 Provides a "black box" API for embedding a Wasm engine in C/C++ applications.
 
-Local modifications:
-None.
 The contents of the upstream "include/" directory are directly in here.
 The upstream "example/" directory is copied as-is.
+
+The header files defines the interface (calling contract) between v8 embedders
+and v8 implementation, the function declarations are implemented by v8.
+
+This dependency is only used when producing wee8 library build, and isn't used
+by Chromium.

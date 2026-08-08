@@ -129,7 +129,7 @@ inline float DoubleToFloat32(double x) {
   return static_cast<float>(x);
 }
 
-// #sec-tointegerorinfinity
+// https://tc39.es/ecma262/#sec-tointegerorinfinity
 inline double DoubleToInteger(double x) {
   // ToIntegerOrInfinity normalizes -0 to +0. Special case 0 for performance.
   if (std::isnan(x) || x == 0.0) return 0;
@@ -138,7 +138,7 @@ inline double DoubleToInteger(double x) {
   return ((x > 0) ? std::floor(x) : std::ceil(x)) + 0.0;
 }
 
-// Implements most of https://tc39.github.io/ecma262/#sec-toint32.
+// Implements most of https://tc39.es/ecma262/#sec-toint32.
 int32_t DoubleToInt32(double x) {
   if ((std::isfinite(x)) && (x <= INT_MAX) && (x >= INT_MIN)) {
     // All doubles within these limits are trivially convertable to an int.

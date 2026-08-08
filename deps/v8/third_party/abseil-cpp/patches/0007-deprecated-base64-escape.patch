@@ -1,0 +1,26 @@
+diff --git a/third_party/abseil-cpp/absl/strings/escaping.h b/third_party/abseil-cpp/absl/strings/escaping.h
+index aaacc2899a28a..9b2701406e1ca 100644
+--- a/third_party/abseil-cpp/absl/strings/escaping.h
++++ b/third_party/abseil-cpp/absl/strings/escaping.h
+@@ -127,9 +127,7 @@ std::string Utf8SafeCHexEscape(absl::string_view src);
+ // characters. This function conforms with RFC 4648 section 4 (base64) and RFC
+ // 2045.
+ std::string Base64Escape(absl::string_view src);
+-[[deprecated(
+-    "Use the string-returning version of "
+-    "Base64Escape()")]] ABSL_REFACTOR_INLINE inline void
++ABSL_REFACTOR_INLINE inline void
+ Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+   *dest = Base64Escape(src);
+ }
+@@ -140,9 +138,7 @@ Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+ // outputs '-' instead of '+' and '_' instead of '/', and does not pad 'dest'.
+ // This function conforms with RFC 4648 section 5 (base64url).
+ std::string WebSafeBase64Escape(absl::string_view src);
+-[[deprecated(
+-    "Use the string-returning version of "
+-    "WebSafeBase64Escape()")]] ABSL_REFACTOR_INLINE inline void
++ABSL_REFACTOR_INLINE inline void
+ WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+   *dest = WebSafeBase64Escape(src);
+ }

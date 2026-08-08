@@ -86,22 +86,28 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kSafeInteger = CreateRange(-kMaxSafeInteger, kMaxSafeInteger);
   Type const kAdditiveSafeInteger =
       CreateRange(kMinAdditiveSafeInteger, kMaxAdditiveSafeInteger);
+  Type const kAdditiveSafeIntegerFeedback = CreateRange(
+      kMinAdditiveSafeIntegerFeedback, kMaxAdditiveSafeIntegerFeedback);
   Type const kAdditiveSafeIntegerOrMinusZero =
       Type::Union(kAdditiveSafeInteger, Type::MinusZero(), zone());
   Type const kSafeIntegerOrMinusZero =
       Type::Union(kSafeInteger, Type::MinusZero(), zone());
   Type const kPositiveSafeInteger = CreateRange(0.0, kMaxSafeInteger);
 
-  // The FixedArray::length property always containts a smi in the range
+  // The FixedArray::length property always contains a uint32 in the range
   // [0, FixedArray::kMaxLength].
   Type const kFixedArrayLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
-  // The WeakFixedArray::length property always containts a smi in the range:
-  Type const kWeakFixedArrayLengthType =
-      CreateRange(0.0, WeakFixedArray::kMaxCapacity);
+  // The Context::length property always contains a smi in the range
+  // [0, FixedArray::kMaxLength].
+  Type const kContextLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
-  // The FixedDoubleArray::length property always containts a smi in the range
-  // [0, FixedDoubleArray::kMaxLength].
+  // The WeakFixedArray::length property always contains a uint32
+  Type const kWeakFixedArrayLengthType =
+      CreateRange(0.0, FixedArray::kMaxLength);
+
+  // The FixedDoubleArray::length property always contains a uint32 in the
+  // range [0, FixedDoubleArray::kMaxLength].
   Type const kFixedDoubleArrayLengthType =
       CreateRange(0.0, FixedDoubleArray::kMaxLength);
 

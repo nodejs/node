@@ -88,14 +88,14 @@ class AccessBuilderTS : public AllStatic {
   }
   static FieldAccessTS<PropertyCell, Object> ForPropertyCellValue() {
     return FieldAccessTS<PropertyCell, Object>(compiler::FieldAccess{
-        BaseTaggedness::kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(),
-        OptionalMapRef(), compiler::Type::Any(), MachineType::AnyTagged(),
-        WriteBarrierKind::kFullWriteBarrier});
+        BaseTaggedness::kTaggedBase, offsetof(PropertyCell, value_),
+        Handle<Name>(), OptionalMapRef(), compiler::Type::Any(),
+        MachineType::AnyTagged(), WriteBarrierKind::kFullWriteBarrier});
   }
   static FieldAccessTS<JSPrimitiveWrapper, Object>
   ForJSPrimitiveWrapperValue() {
     return FieldAccessTS<JSPrimitiveWrapper, Object>(compiler::FieldAccess{
-        BaseTaggedness::kTaggedBase, JSPrimitiveWrapper::kValueOffset,
+        BaseTaggedness::kTaggedBase, offsetof(JSPrimitiveWrapper, value_),
         Handle<Name>(), OptionalMapRef(), compiler::Type::Any(),
         MachineType::AnyTagged(), WriteBarrierKind::kFullWriteBarrier});
   }

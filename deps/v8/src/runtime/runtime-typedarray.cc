@@ -138,10 +138,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   std::vector<uint8_t> offheap_copy;
   void* data_copy_ptr = nullptr;
   if (copy_data) {
-    if (byte_length <= static_cast<unsigned>(
-                           ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
+    if (byte_length <= ByteArray::LengthFor(kMaxRegularHeapObjectSize)) {
       array_copy =
-          isolate->factory()->NewByteArray(static_cast<int>(byte_length));
+          isolate->factory()->NewByteArray(static_cast<uint32_t>(byte_length));
       data_copy_ptr = array_copy->begin();
     } else {
       // Allocate copy in C++ heap.

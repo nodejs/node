@@ -39,18 +39,21 @@ Tagged<TrustedTypeFor<tag_range>> TrustedPointerField::ReadTrustedPointerField(
 }
 
 template <IndirectPointerTagRange tag_range>
-Tagged<Object> TrustedPointerField::ReadMaybeEmptyTrustedPointerField(
+Tagged<Union<Smi, TrustedTypeFor<tag_range>>>
+TrustedPointerField::ReadMaybeEmptyTrustedPointerField(
     Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag) {
 #ifdef V8_ENABLE_SANDBOX
   // Reading a TrustedPointer field is just a ReadIndirectPointerField with the
   // proper tag.
   Address field_address = host->ptr() + offset - kHeapObjectTag;
-  return ReadIndirectPointerField<tag_range>(field_address, isolate,
-                                             kAcquireLoad);
+  Tagged<Object> object =
+      ReadIndirectPointerField<tag_range>(field_address, isolate, kAcquireLoad);
 #else
-  return TaggedField<Object>::Acquire_Load(host, static_cast<int>(offset));
+  Tagged<Object> object =
+      TaggedField<Object>::Acquire_Load(host, static_cast<int>(offset));
 #endif
+  return TrustedCast<Union<Smi, TrustedTypeFor<tag_range>>>(object);
 }
 
 template <IndirectPointerTagRange tag_range>
@@ -115,50 +118,99 @@ void TrustedPointerField::ClearTrustedPointerField(Tagged<HeapObject> host,
 #endif
 }
 
+// Currently, trusted pointer loads/stores always use acquire/release
+// semantics as the under-the-hood indirect pointer loads/stores use
+// acquire/release loads/stores anyway.
 template <typename T, IndirectPointerTagRange kTagRange>
 Tagged<T> TrustedPointerMember<T, kTagRange>::load(
+    IsolateForSandbox isolate) const {
+  return Acquire_Load(isolate);
+}
+template <typename T, IndirectPointerTagRange kTagRange>
+Tagged<Object> TrustedPointerMember<T, kTagRange>::load_maybe_empty(
+    IsolateForSandbox isolate) const {
+  return Acquire_Load_maybe_empty(isolate);
+}
+template <typename T, IndirectPointerTagRange kTagRange>
+void TrustedPointerMember<T, kTagRange>::store(HeapObjectLayout* host,
+                                               Tagged<T> value,
+                                               WriteBarrierMode mode) {
+  Release_Store(host, value, mode);
+}
+template <typename T, IndirectPointerTagRange kTagRange>
+void TrustedPointerMember<T, kTagRange>::store_no_write_barrier(
+    HeapObjectLayout* host, Tagged<T> value) {
+  Release_Store_no_write_barrier(host, value);
+}
+
+template <typename T, IndirectPointerTagRange kTagRange>
+Tagged<T> TrustedPointerMember<T, kTagRange>::Acquire_Load(
     IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   return TrustedCast<T>(ReadIndirectPointerHandle<kTagRange>(
       handle_.load(std::memory_order::acquire), isolate));
 #else
-  return member_.load();
+  return Base::Acquire_Load();
 #endif
 }
 
 template <typename T, IndirectPointerTagRange kTagRange>
-Tagged<Object> TrustedPointerMember<T, kTagRange>::load_maybe_empty(
-    IsolateForSandbox isolate, AcquireLoadTag) const {
+Tagged<Object> TrustedPointerMember<T, kTagRange>::Acquire_Load_maybe_empty(
+    IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = handle_.load(std::memory_order::acquire);
   if (handle == kNullIndirectPointerHandle) return Smi::zero();
   return ReadIndirectPointerHandle<kTagRange>(handle, isolate);
 #else
-  return member_.Acquire_Load();
+  return Base::Acquire_Load();
 #endif
 }
 
 template <typename T, IndirectPointerTagRange kTagRange>
-void TrustedPointerMember<T, kTagRange>::store(HeapObjectLayout* host,
-                                               Tagged<T> value,
-                                               WriteBarrierMode mode) {
+void TrustedPointerMember<T, kTagRange>::Release_Store(HeapObjectLayout* host,
+                                                       Tagged<T> value,
+                                                       WriteBarrierMode mode) {
 #ifdef V8_ENABLE_SANDBOX
   handle_.store(
       Cast<ExposedTrustedObject>(value)->self_indirect_pointer_handle(),
       std::memory_order_release);
   WriteBarrier::ForIndirectPointer(host, this, value, mode);
 #else
-  member_.store(host, value, mode);
+  Base::Release_Store(host, value, mode);
 #endif
 }
 
 template <typename T, IndirectPointerTagRange kTagRange>
-void TrustedPointerMember<T, kTagRange>::store_no_write_barrier(
+void TrustedPointerMember<T, kTagRange>::Release_Store_no_write_barrier(
     HeapObjectLayout* host, Tagged<T> value) {
 #ifdef V8_ENABLE_SANDBOX
   store(host, value, SKIP_WRITE_BARRIER);
 #else
-  member_.store_no_write_barrier(value);
+  Base::Release_Store_no_write_barrier(value);
+#endif
+}
+
+template <typename T, IndirectPointerTagRange kTagRange>
+bool TrustedPointerMember<T, kTagRange>::is_empty() const {
+#ifdef V8_ENABLE_SANDBOX
+  return handle_.load(std::memory_order_acquire) == kNullIndirectPointerHandle;
+#else
+  return Base::Acquire_Load().is_null();
+#endif
+}
+
+template <typename T, IndirectPointerTagRange kTagRange>
+bool TrustedPointerMember<T, kTagRange>::is_unpublished(
+    IsolateForSandbox isolate) const {
+#ifdef V8_ENABLE_SANDBOX
+  IndirectPointerHandle handle = handle_.load(std::memory_order_acquire);
+  if (handle == kNullIndirectPointerHandle) return false;
+  if (handle & kCodePointerHandleMarker) return false;
+  const TrustedPointerTable& table =
+      isolate.GetTrustedPointerTableFor(kTagRange);
+  return table.IsUnpublished(handle);
+#else
+  return false;
 #endif
 }
 
@@ -167,9 +219,16 @@ void TrustedPointerMember<T, kTagRange>::clear(HeapObjectLayout* host) {
 #ifdef V8_ENABLE_SANDBOX
   handle_.store(kNullIndirectPointerHandle, std::memory_order_release);
 #else
-  member_.store_no_write_barrier(Tagged<T>());
+  Base::Release_Store_no_write_barrier(Tagged<T>());
 #endif
 }
+
+#ifdef V8_ENABLE_SANDBOX
+template <typename T, IndirectPointerTagRange kTagRange>
+Address TrustedPointerMember<T, kTagRange>::storage_address() const {
+  return reinterpret_cast<Address>(&handle_);
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8

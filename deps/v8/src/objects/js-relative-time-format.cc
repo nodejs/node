@@ -31,7 +31,7 @@ namespace internal {
 namespace {
 // Style: identifying the relative time format style used.
 //
-// ecma402/#sec-properties-of-intl-relativetimeformat-instances
+// https://tc39.es/ecma402/#sec-properties-of-intl-relativetimeformat-instances
 
 enum class Style {
   LONG,   // Everything spelled out.
@@ -250,8 +250,8 @@ DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
 DirectHandle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder) {
   Factory* factory = isolate->factory();
-  icu::RelativeDateTimeFormatter* formatter =
-      format_holder->icu_formatter()->raw();
+  Managed<icu::RelativeDateTimeFormatter>::Ptr formatter =
+      format_holder->icu_formatter()->ptr();
   DCHECK_NOT_NULL(formatter);
   DirectHandle<JSObject> result =
       factory->NewJSObject(isolate->object_function());
@@ -355,7 +355,8 @@ MaybeDirectHandle<T> FormatCommon(
                      MessageTemplate::kNotFiniteNumber,
                      isolate->factory()->NewStringFromAsciiChecked(func_name)));
   }
-  icu::RelativeDateTimeFormatter* formatter = format->icu_formatter()->raw();
+  Managed<icu::RelativeDateTimeFormatter>::Ptr formatter =
+      format->icu_formatter()->ptr();
   DCHECK_NOT_NULL(formatter);
   URelativeDateTimeUnit unit_enum;
   if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {

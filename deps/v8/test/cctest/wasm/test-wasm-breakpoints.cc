@@ -32,8 +32,8 @@ debug::Location TranslateLocation(WasmRunnerBase* runner,
 }
 
 void CheckLocations(
-    WasmRunnerBase* runner, NativeModule* native_module, debug::Location start,
-    debug::Location end,
+    WasmRunnerBase* runner, const NativeModule* native_module,
+    debug::Location start, debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
   std::vector<debug::BreakLocation> locations;
   std::vector<debug::Location> expected_locations;
@@ -62,7 +62,8 @@ void CheckLocations(
   }
 }
 
-void CheckLocationsFail(WasmRunnerBase* runner, NativeModule* native_module,
+void CheckLocationsFail(WasmRunnerBase* runner,
+                        const NativeModule* native_module,
                         debug::Location start, debug::Location end) {
   std::vector<debug::BreakLocation> locations;
   bool success = WasmScript::GetPossibleBreakpoints(
@@ -288,25 +289,27 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   runner.Build({WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE)});
 
   Tagged<WasmInstanceObject> instance = *runner.builder().instance_object();
-  NativeModule* native_module = instance->module_object()->native_module();
+  Managed<NativeModule>::Ptr native_module =
+      instance->module_object()->native_module();
 
   std::vector<debug::Location> locations;
   // Check all locations for function 0.
-  CheckLocations(&runner, native_module, {0, 0}, {0, 10},
+  CheckLocations(&runner, native_module.raw(), {0, 0}, {0, 10},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});
   // Check a range ending at an instruction.
-  CheckLocations(&runner, native_module, {0, 2}, {0, 4}, {{0, 2}});
+  CheckLocations(&runner, native_module.raw(), {0, 2}, {0, 4}, {{0, 2}});
   // Check a range ending one behind an instruction.
-  CheckLocations(&runner, native_module, {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
+  CheckLocations(&runner, native_module.raw(), {0, 2}, {0, 5},
+                 {{0, 2}, {0, 4}});
   // Check a range starting at an instruction.
-  CheckLocations(&runner, native_module, {0, 7}, {0, 8}, {{0, 7}});
+  CheckLocations(&runner, native_module.raw(), {0, 7}, {0, 8}, {{0, 7}});
   // Check from an instruction to beginning of next function.
-  CheckLocations(&runner, native_module, {0, 7}, {0, 10}, {{0, 7}});
+  CheckLocations(&runner, native_module.raw(), {0, 7}, {0, 10}, {{0, 7}});
   // Check from end of one function (no valid instruction position) to beginning
   // of next function. Must be empty, but not fail.
-  CheckLocations(&runner, native_module, {0, 8}, {0, 10}, {});
+  CheckLocations(&runner, native_module.raw(), {0, 8}, {0, 10}, {});
   // Check from one after the end of the function. Must fail.
-  CheckLocationsFail(&runner, native_module, {0, 9}, {0, 10});
+  CheckLocationsFail(&runner, native_module.raw(), {0, 9}, {0, 10});
 }
 
 WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {

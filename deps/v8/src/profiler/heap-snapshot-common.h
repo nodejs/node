@@ -5,16 +5,16 @@
 #ifndef V8_PROFILER_HEAP_SNAPSHOT_COMMON_H_
 #define V8_PROFILER_HEAP_SNAPSHOT_COMMON_H_
 
-#include <unordered_set>
-
+#include "absl/container/flat_hash_set.h"
+#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged.h"
 
 namespace v8::internal {
 
-using UnorderedCppHeapExternalObjectSet =
-    std::unordered_set<Tagged<CppHeapExternalObject>, Object::Hasher,
-                       Object::KeyEqualSafe>;
+using CppHeapWrapperSet =
+    absl::flat_hash_set<Tagged<CppHeapPointerWrapperObjectT>, Object::Hasher,
+                        Object::KeyEqualSafe>;
 
 }  // namespace v8::internal
 

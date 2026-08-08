@@ -41,7 +41,7 @@ class LiteralBuffer final {
   bool is_one_byte() const { return is_one_byte_; }
 
   bool Equals(base::Vector<const char> keyword) const {
-    return is_one_byte() && keyword.length() == position_ &&
+    return is_one_byte() && keyword.size() == position_ &&
            (memcmp(keyword.begin(), backing_store_.begin(), position_) == 0);
   }
 
@@ -62,7 +62,9 @@ class LiteralBuffer final {
         position_ >> (sizeof(Char) - 1));
   }
 
-  int length() const { return is_one_byte() ? position_ : (position_ >> 1); }
+  int length() const {
+    return static_cast<int>(is_one_byte() ? position_ : (position_ >> 1));
+  }
 
   void Start() {
     position_ = 0;
@@ -73,9 +75,9 @@ class LiteralBuffer final {
   DirectHandle<String> Internalize(IsolateT* isolate) const;
 
  private:
-  static constexpr int kInitialCapacity = 256;
-  static constexpr int kGrowthFactor = 4;
-  static constexpr int kMaxGrowth = 1 * MB;
+  static constexpr size_t kInitialCapacity = 256;
+  static constexpr size_t kGrowthFactor = 4;
+  static constexpr size_t kMaxGrowth = 1 * MB;
 
   inline bool IsValidAscii(char code_unit) {
     // Control characters and printable characters span the range of
@@ -87,18 +89,18 @@ class LiteralBuffer final {
 
   V8_INLINE void AddOneByteChar(uint8_t one_byte_char) {
     DCHECK(is_one_byte());
-    if (position_ >= backing_store_.length()) ExpandBuffer();
+    if (position_ >= backing_store_.size()) ExpandBuffer();
     backing_store_[position_] = one_byte_char;
     position_ += kOneByteSize;
   }
 
   void AddTwoByteChar(base::uc32 code_unit);
-  int NewCapacity(int min_capacity);
+  size_t NewCapacity(size_t min_capacity);
   V8_NOINLINE V8_PRESERVE_MOST void ExpandBuffer();
   void ConvertToTwoByte();
 
   base::Vector<uint8_t> backing_store_;
-  int position_ = 0;
+  size_t position_ = 0;
   bool is_one_byte_ = true;
 };
 

@@ -129,8 +129,6 @@ struct WrapperCompilationInfo {
   wasm::ImportCallKind import_kind = kDefaultImportCallKind;
   int expected_arity = 0;
   wasm::Suspend suspend = kNoSuspend;
-  // For js-wasm wrappers:
-  bool receiver_is_first_param = false;
 };
 
 }  // namespace wasm

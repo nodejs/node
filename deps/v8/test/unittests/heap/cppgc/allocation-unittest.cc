@@ -6,6 +6,7 @@
 
 #include "include/cppgc/visitor.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -57,8 +58,13 @@ TEST_F(CppgcAllocationTest, ReuseMemoryFromFreelist) {
   MakeGarbageCollected<GCed>(GetAllocationHandle());
   MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCed* p1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  // GC reclaims all objects. LABs are reset during the GC.
-  PreciseGC();
+  // GC reclaims all objects. LABs are reset during the GC. Use a GC that does
+  // not release memory back to the OS to ensure that memory is reused.
+  internal::Heap::From(GetHeap())->CollectGarbage(
+      {CollectionType::kMajor, StackState::kNoHeapPointers,
+       GCConfig::MarkingType::kAtomic, GCConfig::SweepingType::kAtomic,
+       GCConfig::FreeMemoryHandling::kRetainMemory,
+       GCConfig::IsForcedGC::kForced});
   // Now the freed memory in the first GC should be reused. Allocating 3
   // objects again should suffice but allocating 5 to give the test some slack.
   bool reused_memory_found = false;

@@ -8,8 +8,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
 builder.startRecGroup();
-let $top = builder.addStruct([]);
-let $mid = builder.addStruct([], $top);
+let $top = builder.addStruct({fields: []});
+let $mid = builder.addStruct({fields: [], supertype: $top});
 let $bot_desc = builder.nextTypeIndex() + 1;
 let $bot = builder.addStruct({fields: [], supertype: $mid, descriptor: $bot_desc});
 let verify = builder.addStruct({fields: [], describes: $bot});

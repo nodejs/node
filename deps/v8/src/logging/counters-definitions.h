@@ -14,7 +14,6 @@ namespace internal {
 // HR(name, caption, min, max, num_buckets)
 #define HISTOGRAM_RANGE_LIST(HR)                                               \
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 9, 9)              \
-  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
   HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0,             \
      kGarbageCollectionReasonMaxValue, kGarbageCollectionReasonMaxValue + 1)   \
   HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
@@ -38,7 +37,6 @@ namespace internal {
      13)                                                                       \
   HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
      13)                                                                       \
-  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)     \
   HR(wasm_asm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.asm,      \
      100 * KB, GB, 51)                                                         \
   HR(wasm_wasm_huge_function_size_bytes, V8.WasmHugeFunctionSizeBytes.wasm,    \
@@ -48,8 +46,8 @@ namespace internal {
   HR(wasm_compile_huge_function_peak_memory_bytes,                             \
      V8.WasmCompileHugeFunctionPeakMemoryBytes, 1, GB, 51)                     \
   HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
-  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 21,   \
-     22)                                                                       \
+  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 22,   \
+     23)                                                                       \
   HR(wasm_memory_allocation_result, V8.WasmMemoryAllocationResult, 0, 3, 4)    \
   /* Committed code size per module, collected on GC. */                       \
   /* Older histogram, in MiB (0..1024MB). */                                   \
@@ -317,22 +315,14 @@ namespace internal {
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
 
-#define HISTOGRAM_PERCENTAGE_LIST(HP)                                          \
-  /* Heap fragmentation. */                                                    \
-  HP(external_fragmentation_total, V8.MemoryExternalFragmentationTotal)        \
-  HP(external_fragmentation_old_space, V8.MemoryExternalFragmentationOldSpace) \
-  HP(external_fragmentation_code_space,                                        \
-     V8.MemoryExternalFragmentationCodeSpace)                                  \
-  HP(external_fragmentation_map_space, V8.MemoryExternalFragmentationMapSpace) \
-  HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)
+#define HISTOGRAM_PERCENTAGE_LIST(HP) \
+  /* Heap fragmentation. */           \
+  HP(external_fragmentation_total, V8.MemoryExternalFragmentationTotal)
 
 // Note: These use Histogram with options (min=1000, max=500000, buckets=50).
 #define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
   HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)          \
-  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)                    \
-  HM(heap_sample_map_space_committed, V8.MemoryHeapSampleMapSpaceCommitted)   \
-  HM(heap_sample_code_space_committed, V8.MemoryHeapSampleCodeSpaceCommitted) \
-  HM(heap_sample_maximum_committed, V8.MemoryHeapSampleMaximumCommitted)
+  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)
 
 #define STATS_COUNTER_LIST(SC)                                                 \
   /* Global handle count. */                                                   \
@@ -344,6 +334,8 @@ namespace internal {
   /* the root SharedFunctionInfo. */                                           \
   SC(compilation_cache_partial_hits, V8.CompilationCachePartialHits)           \
   SC(deopts, V8.Deopts)                                                        \
+  /* Deopts without code invalidation (e.g., for OSR) */                       \
+  SC(utility_deopts, V8.UtilityDeopts)                                         \
   SC(objs_since_last_young, V8.ObjsSinceLastYoung)                             \
   SC(objs_since_last_full, V8.ObjsSinceLastFull)                               \
   SC(gc_compactor_caused_by_request, V8.GCCompactorCausedByRequest)            \

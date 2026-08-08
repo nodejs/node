@@ -37,11 +37,12 @@ std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
 bool operator==(FrameStateFunctionInfo const& lhs,
                 FrameStateFunctionInfo const& rhs) {
 #if V8_HOST_ARCH_X64
-// If this static_assert fails, then you've probably added a new field to
-// FrameStateFunctionInfo. Make sure to take it into account in this equality
-// function, and update the static_assert.
+// If these static_asserts fail, then you've probably added a new field to
+// FrameStateFunctionInfo or JSToWasmFrameStateFunctionInfo. Make sure to
+// take it into account in this function, and update the static_assert.
 #if V8_ENABLE_WEBASSEMBLY
   static_assert(sizeof(FrameStateFunctionInfo) == 40);
+  static_assert(sizeof(JSToWasmFrameStateFunctionInfo) == 48);
 #else
   static_assert(sizeof(FrameStateFunctionInfo) == 32);
 #endif
@@ -51,6 +52,18 @@ bool operator==(FrameStateFunctionInfo const& lhs,
   if (lhs.wasm_liftoff_frame_size() != rhs.wasm_liftoff_frame_size() ||
       lhs.wasm_function_index() != rhs.wasm_function_index()) {
     return false;
+  }
+
+  // JSToWasmFrameStateFunctionInfo has an additional signature_ field.
+  // Two frame states with different wasm signatures must not compare equal,
+  // otherwise CSE/GVN can merge them and the deoptimizer will use the wrong
+  // signature to materialize the continuation frame.
+  if (lhs.type() == FrameStateType::kJSToWasmBuiltinContinuation &&
+      rhs.type() == FrameStateType::kJSToWasmBuiltinContinuation) {
+    if (static_cast<const JSToWasmFrameStateFunctionInfo&>(lhs).signature() !=
+        static_cast<const JSToWasmFrameStateFunctionInfo&>(rhs).signature()) {
+      return false;
+    }
   }
 #endif
 

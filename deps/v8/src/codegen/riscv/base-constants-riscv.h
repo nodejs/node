@@ -1299,21 +1299,6 @@ class Instruction : public InstructionGetters<InstructionBase> {
 };
 
 // -----------------------------------------------------------------------------
-// RISC-V assembly various constants.
-
-// C/C++ argument slots size.
-const int kCArgSlotCount = 0;
-
-// TODO(plind): below should be based on kSystemPointerSize
-// TODO(plind): find all usages and remove the needless instructions for n64.
-const int kCArgsSlotsSize = kCArgSlotCount * kInstrSize * 2;
-
-const int kInvalidStackOffset = -1;
-const int kBranchReturnOffset = 2 * kInstrSize;
-
-static const int kNegOffset = 0x00008000;
-
-// -----------------------------------------------------------------------------
 // Instructions.
 
 template <class P>

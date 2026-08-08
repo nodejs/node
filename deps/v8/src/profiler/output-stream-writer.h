@@ -24,7 +24,7 @@ class OutputStreamWriter {
   explicit OutputStreamWriter(v8::OutputStream* stream)
       : stream_(stream),
         chunk_size_(stream->GetChunkSize()),
-        chunk_(chunk_size_),
+        chunk_(base::OwnedVector<char>::NewForOverwrite(chunk_size_)),
         chunk_pos_(0),
         aborted_(false) {
     DCHECK_GT(chunk_size_, 0);
@@ -67,6 +67,7 @@ class OutputStreamWriter {
       AddNumber(n);
     }
   }
+  void AddJsonEscapedString(const unsigned char* s);
   void Finalize() {
     if (aborted_) return;
     DCHECK(chunk_pos_ < chunk_size_);
@@ -93,7 +94,7 @@ class OutputStreamWriter {
 
   v8::OutputStream* stream_;
   int chunk_size_;
-  base::ScopedVector<char> chunk_;
+  base::OwnedVector<char> chunk_;
   int chunk_pos_;
   bool aborted_;
 };

@@ -986,3 +986,34 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
     TestCloneCharacterStream("12345678", two_byte_streaming_stream.get(), 8);
   }
 }
+
+class OverlongMockSource : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  OverlongMockSource() : returned_(false) {}
+  size_t GetMoreData(const uint8_t** src) override {
+    if (returned_) return 0;
+    size_t size = static_cast<size_t>(v8::String::kMaxLength) + 100;
+    uint8_t* buffer = new uint8_t[size];
+    memset(buffer, 'a', size);
+    buffer[size - 2] = 0xC4;
+    buffer[size - 1] = 0x80;
+    *src = buffer;
+    returned_ = true;
+    return size;
+  }
+
+ private:
+  bool returned_;
+};
+
+TEST_F(ScannerStreamsTest, StreamSizeExceedsMaxBounds) {
+  OverlongMockSource source;
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+            v8::internal::ScannerStream::For(
+                &source, v8::ScriptCompiler::StreamedSource::UTF8));
+        stream->Advance();
+      },
+      "");
+}

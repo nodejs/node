@@ -48,10 +48,10 @@
 #include "absl/algorithm/algorithm.h"
 #include "absl/base/attributes.h"
 #include "absl/base/internal/iterator_traits.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/inlined_vector.h"
 #include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/memory/memory.h"
@@ -192,7 +192,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
     // allocator doesn't do anything fancy, and there is nothing on the heap
     // then we know it is legal for us to simply memcpy the other vector's
     // inlined bytes to form our copy of its elements.
-    if (absl::is_trivially_copy_constructible<value_type>::value &&
+    if (std::is_trivially_copy_constructible<value_type>::value &&
         std::is_same<A, std::allocator<value_type>>::value &&
         !other.storage_.GetIsAllocated()) {
       storage_.MemcpyFrom(other.storage_);
@@ -382,8 +382,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
   // in both debug and non-debug builds, `std::out_of_range` will be thrown.
   reference at(size_type i) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange(
-          "`InlinedVector::at(size_type)` failed bounds check");
+      ThrowStdOutOfRange("`InlinedVector::at(size_type)` failed bounds check");
     }
     return data()[i];
   }
@@ -395,7 +394,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
   // in both debug and non-debug builds, `std::out_of_range` will be thrown.
   const_reference at(size_type i) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      base_internal::ThrowStdOutOfRange(
+      ThrowStdOutOfRange(
           "`InlinedVector::at(size_type) const` failed bounds check");
     }
     return data()[i];
@@ -858,7 +857,7 @@ class ABSL_ATTRIBUTE_WARN_UNUSED InlinedVector {
     // Assumption check: we shouldn't be told to use memcpy to implement move
     // assignment unless we have trivially destructible elements and an
     // allocator that does nothing fancy.
-    static_assert(absl::is_trivially_destructible<value_type>::value, "");
+    static_assert(std::is_trivially_destructible<value_type>::value, "");
     static_assert(std::is_same<A, std::allocator<value_type>>::value, "");
 
     // Throw away our existing heap allocation, if any. There is no need to

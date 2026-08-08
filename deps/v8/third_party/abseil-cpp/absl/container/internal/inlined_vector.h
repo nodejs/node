@@ -79,7 +79,7 @@ using IsSwapOk = absl::type_traits_internal::IsSwappable<ValueType<A>>;
 
 template <typename A,
           bool IsTriviallyDestructible =
-              absl::is_trivially_destructible<ValueType<A>>::value &&
+              std::is_trivially_destructible<ValueType<A>>::value &&
               std::is_same<A, std::allocator<ValueType<A>>>::value>
 struct DestroyAdapter;
 
@@ -288,14 +288,14 @@ class Storage {
   struct ElementwiseSwapPolicy {};
   struct ElementwiseConstructPolicy {};
 
-  using MoveAssignmentPolicy = absl::conditional_t<
+  using MoveAssignmentPolicy = std::conditional_t<
       // Fast path: if the value type can be trivially move assigned and
       // destroyed, and we know the allocator doesn't do anything fancy, then
       // it's safe for us to simply adopt the contents of the storage for
       // `other` and remove its own reference to them. It's as if we had
       // individually move-assigned each value and then destroyed the original.
-      absl::conjunction<absl::is_trivially_move_assignable<ValueType<A>>,
-                        absl::is_trivially_destructible<ValueType<A>>,
+      std::conjunction<std::is_trivially_move_assignable<ValueType<A>>,
+                        std::is_trivially_destructible<ValueType<A>>,
                         std::is_same<A, std::allocator<ValueType<A>>>>::value,
       MemcpyPolicy,
       // Otherwise we use move assignment if possible. If not, we simulate
@@ -304,21 +304,21 @@ class Storage {
       // Note that this is in contrast to e.g. std::vector and std::optional,
       // which are themselves not move-assignable when their contained type is
       // not.
-      absl::conditional_t<IsMoveAssignOk<A>::value, ElementwiseAssignPolicy,
+      std::conditional_t<IsMoveAssignOk<A>::value, ElementwiseAssignPolicy,
                           ElementwiseConstructPolicy>>;
 
   // The policy to be used specifically when swapping inlined elements.
-  using SwapInlinedElementsPolicy = absl::conditional_t<
+  using SwapInlinedElementsPolicy = std::conditional_t<
       // Fast path: if the value type can be trivially relocated, and we
       // know the allocator doesn't do anything fancy, then it's safe for us
       // to simply swap the bytes in the inline storage. It's as if we had
       // relocated the first vector's elements into temporary storage,
       // relocated the second's elements into the (now-empty) first's,
       // and then relocated from temporary storage into the second.
-      absl::conjunction<absl::is_trivially_relocatable<ValueType<A>>,
+      std::conjunction<absl::is_trivially_relocatable<ValueType<A>>,
                         std::is_same<A, std::allocator<ValueType<A>>>>::value,
       MemcpyPolicy,
-      absl::conditional_t<IsSwapOk<A>::value, ElementwiseSwapPolicy,
+      std::conditional_t<IsSwapOk<A>::value, ElementwiseSwapPolicy,
                           ElementwiseConstructPolicy>>;
 
   static SizeType<A> NextCapacity(SizeType<A> current_capacity) {
@@ -348,7 +348,7 @@ class Storage {
     // Fast path: if no destructors need to be run and we know the allocator
     // doesn't do anything fancy, then all we need to do is deallocate (and
     // maybe not even that).
-    if (absl::is_trivially_destructible<ValueType<A>>::value &&
+    if (std::is_trivially_destructible<ValueType<A>>::value &&
         std::is_same<A, std::allocator<ValueType<A>>>::value) {
       DeallocateIfAllocated();
       return;
@@ -507,11 +507,11 @@ class Storage {
                // First case above
                absl::is_trivially_relocatable<V>::value ||
                // Second case above
-               (absl::is_trivially_move_assignable<V>::value &&
-                absl::is_trivially_destructible<V>::value) ||
+               (std::is_trivially_move_assignable<V>::value &&
+                std::is_trivially_destructible<V>::value) ||
                // Third case above
-               (absl::is_trivially_copy_constructible<V>::value ||
-                absl::is_trivially_copy_assignable<V>::value))));
+               (std::is_trivially_copy_constructible<V>::value ||
+                std::is_trivially_copy_assignable<V>::value))));
     }
 
     GetSizeAndIsAllocated() = other_storage.GetSizeAndIsAllocated();
@@ -596,7 +596,7 @@ void Storage<T, N, A>::InitFrom(const Storage& other) {
   // Fast path: if the value type is trivially copy constructible and we know
   // the allocator doesn't do anything fancy, then we know it is legal for us to
   // simply memcpy the other vector's elements.
-  if (absl::is_trivially_copy_constructible<ValueType<A>>::value &&
+  if (std::is_trivially_copy_constructible<ValueType<A>>::value &&
       std::is_same<A, std::allocator<ValueType<A>>>::value) {
     std::memcpy(reinterpret_cast<char*>(dst),
                 reinterpret_cast<const char*>(src), n * sizeof(ValueType<A>));

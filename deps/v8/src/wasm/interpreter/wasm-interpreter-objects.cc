@@ -43,12 +43,12 @@ bool WasmInterpreterObject::RunInterpreter(
   // Assume an instance can run in only one thread.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
-  wasm::InterpreterHandle* handle =
+  DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
-  return handle->Execute(thread, frame_pointer,
-                         static_cast<uint32_t>(func_index), argument_values,
-                         return_values);
+  return handle->ptr()->Execute(thread, frame_pointer,
+                                static_cast<uint32_t>(func_index),
+                                argument_values, return_values);
 }
 
 // static
@@ -65,11 +65,11 @@ bool WasmInterpreterObject::RunInterpreter(
   // Assume an instance can run in only one thread.
   DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
-  wasm::InterpreterHandle* handle =
+  DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetInterpreterHandle(isolate, interpreter_object);
 
-  return handle->Execute(thread, frame_pointer,
-                         static_cast<uint32_t>(func_index), interpreter_sp);
+  return handle->ptr()->Execute(
+      thread, frame_pointer, static_cast<uint32_t>(func_index), interpreter_sp);
 }
 
 // static
@@ -79,7 +79,7 @@ WasmInterpreterObject::GetInterpretedStack(Tagged<Tuple2> interpreter_object,
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
   return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
-      ->raw()
+      ->ptr()
       ->GetInterpretedStack(frame_pointer);
 }
 
@@ -89,7 +89,7 @@ int WasmInterpreterObject::GetFunctionIndex(Tagged<Tuple2> interpreter_object,
   Tagged<Object> handle_obj = get_interpreter_handle(interpreter_object);
   DCHECK(!IsUndefined(handle_obj));
   return TrustedCast<Managed<wasm::InterpreterHandle>>(handle_obj)
-      ->raw()
+      ->ptr()
       ->GetFunctionIndex(frame_pointer, index);
 }
 

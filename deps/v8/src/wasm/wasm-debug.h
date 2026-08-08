@@ -118,7 +118,7 @@ class DebugSideTable {
   // reason to do so, hence mark it move only.
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(DebugSideTable);
 
-  explicit DebugSideTable(int num_locals, std::vector<Entry> entries)
+  DebugSideTable(int num_locals, std::vector<Entry> entries)
       : num_locals_(num_locals), entries_(std::move(entries)) {
     DCHECK(
         std::is_sorted(entries_.begin(), entries_.end(), EntryPositionLess{}));

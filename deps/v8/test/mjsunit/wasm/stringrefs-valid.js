@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
+// Flags: --experimental-wasm-stringref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -30,7 +30,7 @@ for (let [name, code] of [['string', kStringRefCode],
 
   assertValid(b => b.addType(makeSig([code], [])));
   assertValid(b => b.addStruct([makeField(code, true)]));
-  assertValid(b => b.addArray(code, true));
+  assertValid(b => b.addArray(code));
   assertValid(b => b.addType(makeSig([], [code])));
   assertValid(b => b.addTag(makeSig([code], [])));
   assertValid(
@@ -280,8 +280,8 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       ...GCInstr(kExprStringHash)
     ]);
 
-  let i8_array = builder.addArray(kWasmI8, true);
-  let i16_array = builder.addArray(kWasmI16, true);
+  let i8_array = builder.addArray(kWasmI8);
+  let i16_array = builder.addArray(kWasmI16);
 
   builder.addFunction("string.new_utf8_array", kSig_w_v)
     .addBody([
@@ -406,7 +406,7 @@ assertInvalid(
 
 assertInvalid(
   builder => {
-    let i16_array = builder.addArray(kWasmI16, true);
+    let i16_array = builder.addArray(kWasmI16);
     builder.addFunction("string.new_wtf8_array/bad-type", kSig_w_v)
       .addBody([
         kExprRefNull, i16_array,
@@ -419,7 +419,7 @@ assertInvalid(
 
 assertInvalid(
   builder => {
-    let i8_array = builder.addArray(kWasmI8, true);
+    let i8_array = builder.addArray(kWasmI8);
     builder.addFunction("string.new_wtf16_array/bad-type", kSig_w_v)
       .addBody([
         kExprRefNull, i8_array,
@@ -432,7 +432,7 @@ assertInvalid(
 
 assertInvalid(
   builder => {
-    let immutable_i8_array = builder.addArray(kWasmI8, false);
+    let immutable_i8_array = builder.addArray(kWasmI8, {mutable: false});
     let sig = makeSig([kWasmStringRef,
                        wasmRefType(immutable_i8_array),
                        kWasmI32],
@@ -449,7 +449,7 @@ assertInvalid(
 
 assertInvalid(
   builder => {
-    let immutable_i16_array = builder.addArray(kWasmI16, false);
+    let immutable_i16_array = builder.addArray(kWasmI16, {mutable: false});
     let sig = makeSig([kWasmStringRef,
                        wasmRefType(immutable_i16_array),
                        kWasmI32],

@@ -34,9 +34,9 @@ using StackVisitorCallback = void (*)(StackVisitor*);
 // of relevant GC stack regions where interesting pointers can be found.
 class V8_EXPORT_PRIVATE Stack final {
  public:
-  // Sets the start of the stack to the current stack start.
-  void SetStackStart() {
-    current_segment_.start = v8::base::Stack::GetStackStart();
+  // Sets the start of the stack to the provided stack start.
+  void SetStackStart(const void* stack_start) {
+    current_segment_.start = stack_start;
 #ifdef V8_USE_ADDRESS_SANITIZER
     current_segment_.asan_fake_stack = __asan_get_current_fake_stack();
 #endif  // V8_USE_ADDRESS_SANITIZER
@@ -44,6 +44,8 @@ class V8_EXPORT_PRIVATE Stack final {
     current_segment_.unsafe_stack_start = __builtin___get_unsafe_stack_top();
 #endif  // V8_USE_SAFE_STACK
   }
+
+  const void* stack_start() const { return current_segment_.start; }
 
   // Returns true if |slot| is part of the stack and false otherwise.
   // It is a static method, ignoring the set stack start and marker, but it

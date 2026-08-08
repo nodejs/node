@@ -21,8 +21,6 @@
 
 namespace v8::internal {
 
-OBJECT_CONSTRUCTORS_IMPL(InstructionStream, TrustedObject)
-
 uint32_t InstructionStream::body_size() const {
   return ReadField<uint32_t>(kBodySizeOffset);
 }
@@ -48,7 +46,8 @@ Tagged<InstructionStream> InstructionStream::Initialize(
             self.address(), InstructionStream::SizeFor(body_size));
     CHECK_EQ(InstructionStream::SizeFor(body_size), writable_allocation.size());
 
-    writable_allocation.WriteHeaderSlot<Map, kMapOffset>(map, kRelaxedStore);
+    writable_allocation.WriteHeaderSlot<Map, HeapObject::kMapOffset>(
+        map, kRelaxedStore);
 
     writable_allocation.WriteHeaderSlot<uint32_t, kBodySizeOffset>(body_size);
 
@@ -130,7 +129,8 @@ void InstructionStream::Finalize(Tagged<Code> code,
 
   // Copy the relocation info first before we unlock the Jit allocation.
   // TODO(sroettger): reloc info should live in protected memory.
-  DCHECK_EQ(reloc_info->length(), desc.reloc_size);
+  DCHECK_EQ(reloc_info->ulength().value(),
+            static_cast<uint32_t>(desc.reloc_size));
   CopyBytes(reloc_info->begin(), desc.buffer + desc.reloc_offset,
             static_cast<size_t>(desc.reloc_size));
 
@@ -179,12 +179,12 @@ Address InstructionStream::body_end() const {
   return instruction_start() + body_size();
 }
 
-Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
+Tagged<Union<Smi, Code>> InstructionStream::raw_code(AcquireLoadTag tag) const {
   Tagged<Object> value = RawProtectedPointerField(kCodeOffset).Acquire_Load();
   DCHECK(!HeapLayout::InYoungGeneration(value));
   DCHECK(IsSmi(value) ||
          TrustedHeapLayout::InTrustedSpace(Cast<HeapObject>(value)));
-  return value;
+  return UncheckedCast<Union<Smi, Code>>(value);
 }
 
 Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
@@ -193,7 +193,7 @@ Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
 
 bool InstructionStream::TryGetCode(Tagged<Code>* code_out,
                                    AcquireLoadTag tag) const {
-  Tagged<Object> maybe_code = raw_code(tag);
+  auto maybe_code = raw_code(tag);
   if (maybe_code == Smi::zero()) return false;
   return TryCast(maybe_code, code_out);
 }
@@ -229,7 +229,8 @@ uint8_t* InstructionStream::relocation_end() const {
 }
 
 int InstructionStream::relocation_size() const {
-  return relocation_info()->length();
+  // TODO(375937549): Covert to uint32_t.
+  return static_cast<int>(relocation_info()->ulength().value());
 }
 
 int InstructionStream::Size() const { return SizeFor(body_size()); }

@@ -31,10 +31,7 @@ class Vector;
 
 namespace internal {
 
-class JSArrayBuffer;
-class JSPromise;
 class WasmModuleObject;
-class WasmInstanceObject;
 class WasmTrustedInstanceData;
 
 namespace wasm {
@@ -47,6 +44,7 @@ class NativeModule;
 class ProfileInformation;
 class StreamingDecoder;
 class WasmCode;
+class WasmError;
 struct WasmModule;
 
 V8_EXPORT_PRIVATE
@@ -194,8 +192,6 @@ class AsyncCompileJob {
                      bool cache_hit) &&;
   void Failed() &&;
 
-  void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
-
   void StartForegroundTask();
   void StartBackgroundTask();
 
@@ -246,7 +242,7 @@ class AsyncCompileJob {
   const char* const api_method_name_;
   const WasmEnabledFeatures enabled_features_;
   WasmDetectedFeatures detected_features_;
-  CompileTimeImports compile_imports_;
+  const CompileTimeImports compile_imports_;
   base::TimeTicks start_time_;
   base::TimeTicks compilation_finished_time_;
   // Copy of the module wire bytes, moved into the {new_native_module_} on its

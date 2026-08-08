@@ -48,7 +48,8 @@ function main() {
     .version('0.0.1')
     .option('-i, --input_dir <path>', 'Input directory.')
     .option('-o, --output_dir <path>', 'Output directory.')
-    .option('-n, --no_of_files <n>', 'Output directory.', parseInt)
+    .option('-n, --no_of_files <n>', 'Number of testcases to generate.',
+      parseInt)
     .option('-c, --mutate_corpus <name>', 'Mutate single files in a corpus.')
     .option('-e, --extra_strict', 'Additionally parse files in strict mode.')
     .option('-m, --mutate <path>', 'Mutate a file and output results.')
@@ -82,6 +83,11 @@ function main() {
     // V8 supports running the raw d8 executable, the inspector fuzzer or
     // the differential fuzzing harness 'foozzie'.
     settings.engine = 'v8';
+
+    // Infer settings from V8's GN config.
+    const buildConfig = scriptMutator.loadJSONFromBuild(
+        'v8_build_config.json');
+    settings.is_sandbox_fuzzing = buildConfig.memory_corruption_api;
   } else if (app_name === 'ch') {
     settings.engine = 'chakra';
   } else if (app_name === 'js') {

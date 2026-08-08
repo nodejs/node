@@ -2,12 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// The assertions add a non-insignificant overhead per struct.set and a
+// struct.new_default internally adds a struct.set per field. This causes
+// timeouts on fuzzers trying to combine this test case with this flag.
+// Flags: --no-wasm-assert-types
+
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-// Keep in sync with wasm-limits.h.
+// LINT.IfChange(WasmMaxStructFields)
 let kWasmMaxStructFields = 10000;
-// Keep in sync with wasm-constants.h.
+// LINT.ThenChange(/src/wasm/wasm-limits.h:WasmMaxStructFields)
+// LINT.IfChange(WasmMaxFieldIndexImplicitNullCheck)
 let kMaxStructFieldIndexForImplicitNullCheck = 4000;
+// LINT.ThenChange(/src/wasm/wasm-constants.h:WasmMaxFieldIndexImplicitNullCheck)
+
 
 (function TestLargeStruct() {
   print(arguments.callee.name);

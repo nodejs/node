@@ -12,7 +12,6 @@
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/wasm-engine.h"
@@ -20,6 +19,16 @@
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
+
+constexpr MachineRepresentation kCWasmEntrySigReps[] = {
+    kCWasmEntrySigTypes[0].representation(),
+    kCWasmEntrySigTypes[1].representation(),
+    kCWasmEntrySigTypes[2].representation(),
+    kCWasmEntrySigTypes[3].representation(),
+    kCWasmEntrySigTypes[4].representation()};
+
+constexpr Signature<MachineRepresentation> kCWasmEntryRepSig(
+    1, 4, kCWasmEntrySigReps);
 
 // This reducer is run on 32 bit platforms to lower unsupported 64 bit integer
 // operations to supported 32 bit operations.
@@ -34,13 +43,20 @@ class Int64LoweringReducer : public Next {
   using Word32OrWord32Pair = OpIndex;
 
   Int64LoweringReducer() {
+    // Int64 lowering is currently only supported and used in Wasm pipelines.
+    CHECK_NE(__ data()->pipeline_kind(), TurboshaftPipelineKind::kJS);
+
     wasm::CallOrigin origin = __ data() -> is_js_to_wasm()
                                   ? wasm::kCalledFromJS
                                   : wasm::kCalledFromWasm;
     // To compute the machine signature, it doesn't matter whether types
     // are canonicalized, just use whichever signature is present (functions
-    // will have one and wrappers the other).
-    if (__ data()->wasm_module_sig()) {
+    // will have one and wrappers the other). For CWasmEntry jobs, the
+    // stored signature describes the Wasm function called by the wrapper, so we
+    // materialize the wrapper's signature here.
+    if (__ data()->info()->code_kind() == CodeKind::C_WASM_ENTRY) {
+      sig_ = &kCWasmEntryRepSig;
+    } else if (__ data()->wasm_module_sig()) {
       sig_ =
           CreateMachineSignature(zone_, __ data()->wasm_module_sig(), origin);
     } else {
@@ -104,6 +120,80 @@ class Int64LoweringReducer : public Next {
       }
     }
     return Next::ReduceShift(left, right, kind, rep);
+  }
+
+  OpIndex REDUCE(Word64MulWide)(V<Word32Pair> left, V<Word32Pair> right,
+                                Word64MulWideOp::Kind kind) {
+    auto [al, ah] = Unpack(left);
+    auto [bl, bh] = Unpack(right);
+    // We split the 64-bit multiplicands into 32-bit halves:
+    // a = ah:al
+    // b = bh:bl
+    //
+    // The product is:
+    // ab = (ah:al) * (bh:bl)
+    //    = ah*bh*2^64 + (ah*bl + al*bh)*2^32 + al*bl
+    //
+    // We compute the result in four 32-bit parts: r0, r1, r2, r3.
+    // r0 = low(al*bl)
+    // r1 = high(al*bl) + low(al*bh) + low(ah*bl) + carries
+    // r2 = high(al*bh) + high(ah*bl) + low(ah*bh) + carries
+    // r3 = high(ah*bh) + carries
+    //
+    // For signed multiplication, we compute the unsigned product and correct it
+    // if operands are negative.
+
+    V<Word32> r0 = __ Word32Mul(al, bl);
+    V<Word32> r1_a = __ Uint32MulOverflownBits(al, bl);
+
+    V<Word32> al_bh_l = __ Word32Mul(al, bh);
+    V<Word32> al_bh_h = __ Uint32MulOverflownBits(al, bh);
+
+    V<Word32> ah_bl_l = __ Word32Mul(ah, bl);
+    V<Word32> ah_bl_h = __ Uint32MulOverflownBits(ah, bl);
+
+    V<Word32> ah_bh_l = __ Word32Mul(ah, bh);
+    V<Word32> ah_bh_h = __ Uint32MulOverflownBits(ah, bh);
+
+    auto AddWithCarry = [this](V<Word32> a, V<Word32> b) {
+      V<Word32> res = __ Word32Add(a, b);
+      V<Word32> carry = __ Uint32LessThan(res, a);
+      return std::make_pair(res, carry);
+    };
+
+    auto [r1_0, c1] = AddWithCarry(r1_a, al_bh_l);
+    auto [r1, c2] = AddWithCarry(r1_0, ah_bl_l);
+
+    auto [r2_0, c3] = AddWithCarry(al_bh_h, ah_bl_h);
+    auto [r2_1, c4] = AddWithCarry(r2_0, ah_bh_l);
+
+    V<Word32> carry_r1 = __ Word32Add(c1, c2);
+    auto [r2, c5] = AddWithCarry(r2_1, carry_r1);
+
+    V<Word32> r3 =
+        __ Word32Add(ah_bh_h, __ Word32Add(c3, __ Word32Add(c4, c5)));
+
+    V<Word32Pair> res_low = __ MakeTuple(r0, r1);
+    V<Word32Pair> res_high = __ MakeTuple(r2, r3);
+
+    if (kind == Word64MulWideOp::Kind::kSigned) {
+      // Correction for signed multiplication:
+      // If a < 0, we subtract b from the high 64 bits of the result (res_high).
+      // If b < 0, we subtract a from the high 64 bits of the result (res_high).
+      // We use arithmetic shift right to create a mask of all 1s or all 0s
+      // based on the sign bit of the high word.
+      V<Word32> a_mask = __ Word32ShiftRightArithmetic(ah, 31);
+      V<Word32Pair> sub_a = __ MakeTuple(__ Word32BitwiseAnd(a_mask, bl),
+                                         __ Word32BitwiseAnd(a_mask, bh));
+      res_high = LowerPairBinOp(res_high, sub_a, Word32PairBinopOp::Kind::kSub);
+
+      V<Word32> b_mask = __ Word32ShiftRightArithmetic(bh, 31);
+      V<Word32Pair> sub_b = __ MakeTuple(__ Word32BitwiseAnd(b_mask, al),
+                                         __ Word32BitwiseAnd(b_mask, ah));
+      res_high = LowerPairBinOp(res_high, sub_b, Word32PairBinopOp::Kind::kSub);
+    }
+
+    return __ MakeTuple(res_low, res_high);
   }
 
   V<Word32> REDUCE(Comparison)(V<Any> left, V<Any> right,
@@ -295,10 +385,10 @@ class Int64LoweringReducer : public Next {
     FATAL("%s", str.str().c_str());
   }
 
-  std::pair<OptionalV<Word32>, int32_t> IncreaseOffset(OptionalV<Word32> index,
-                                                       int32_t offset,
-                                                       int32_t add_offset,
-                                                       bool tagged_base) {
+  std::pair<OptionalV<Word32>, int32_t> IncreaseOffset(
+      OptionalV<Word32> index, int32_t offset, int32_t add_offset,
+      uint8_t element_size_log2, bool tagged_base) {
+    uint32_t element_size = 1 << element_size_log2;
     // Note that the offset will just wrap around. Still, we need to always
     // use an offset that is not std::numeric_limits<int32_t>::min() on tagged
     // loads.
@@ -308,13 +398,17 @@ class Int64LoweringReducer : public Next {
         static_cast<uint32_t>(offset) + static_cast<uint32_t>(add_offset);
     OptionalV<Word32> new_index = index;
     if (!LoadOp::OffsetIsValid(new_offset, tagged_base)) {
-      // We cannot encode the new offset so we use the old offset
-      // instead and use the Index to represent the extra offset.
-      new_offset = offset;
+      // We cannot encode the new offset because it has the one invalid value.
+      // We can choose any other value and the only requirement is that we end
+      // up at the same final location after calculating
+      // |  index * element_size + offset
+      // So we'll just subtract "one element" and increase the index by one.
+      // We could do this for almost any arbitrary value larger than 0.
+      new_offset -= element_size;
       if (index.has_value()) {
-        new_index = __ Word32Add(new_index.value(), add_offset);
+        new_index = __ Word32Add(new_index.value(), 1);
       } else {
-        new_index = __ Word32Constant(sizeof(int32_t));
+        new_index = __ Word32Constant(1);
       }
     }
     return {new_index, new_offset};
@@ -347,8 +441,8 @@ class Int64LoweringReducer : public Next {
     }
     if (loaded_rep == MemoryRepresentation::Int64() ||
         loaded_rep == MemoryRepresentation::Uint64()) {
-      auto [high_index, high_offset] =
-          IncreaseOffset(index, offset, sizeof(int32_t), kind.tagged_base);
+      auto [high_index, high_offset] = IncreaseOffset(
+          index, offset, sizeof(int32_t), element_scale, kind.tagged_base);
       return __ MakeTuple(
           Next::ReduceLoad(base, index, kind, MemoryRepresentation::Int32(),
                            RegisterRepresentation::Word32(), offset,
@@ -363,8 +457,9 @@ class Int64LoweringReducer : public Next {
 
   V<None> REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier,
+                        std::optional<AtomicMemoryOrder> memory_order,
+                        int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     if (stored_rep == MemoryRepresentation::Int64() ||
@@ -380,26 +475,29 @@ class Int64LoweringReducer : public Next {
         }
         // Manually subtract the pointer tag if present.
         offset -= kind.tagged_base;
+        // For now, we keep seqcst semantics for 8-byte stores on ia32.
+        // In future, if we want to improve performance on ia32, we will
+        // consider updating this part.
         return __ AtomicWord32PairStore(base, index, low, high, offset);
       }
       // low store
       Next::ReduceStore(base, index, low, kind, MemoryRepresentation::Int32(),
-                        write_barrier, offset, element_size_log2,
+                        write_barrier, memory_order, offset, element_size_log2,
                         maybe_initializing_or_transitioning,
                         maybe_indirect_pointer_tag);
       // high store
-      auto [high_index, high_offset] =
-          IncreaseOffset(index, offset, sizeof(int32_t), kind.tagged_base);
+      auto [high_index, high_offset] = IncreaseOffset(
+          index, offset, sizeof(int32_t), element_size_log2, kind.tagged_base);
       Next::ReduceStore(
           base, high_index, high, kind, MemoryRepresentation::Int32(),
-          write_barrier, high_offset, element_size_log2,
+          write_barrier, memory_order, high_offset, element_size_log2,
           maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
       return V<None>::Invalid();
     }
-    return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+    return Next::ReduceStore(
+        base, index, value, kind, stored_rep, write_barrier, memory_order,
+        offset, element_size_log2, maybe_initializing_or_transitioning,
+        maybe_indirect_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,

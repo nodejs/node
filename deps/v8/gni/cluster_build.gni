@@ -1,0 +1,221 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("v8.gni")
+
+declare_args() {
+  # Number of source files per cluster.
+  # Increasing this to 50 can improve build speed by 3-5%, but
+  # increases the minimum build time for a single .cc change
+  # by about 10%.
+  # On a machine with very few cores, eg. 8, it might even be
+  # worth setting to 100.
+  # You can override this in a args.gn file.
+  cluster_size = 25
+}
+
+# Smaller cluster size for heavy directories (turboshaft, maglev).
+small_cluster_size = 5
+
+# Directories that should use the smaller cluster size.
+small_cluster_dirs = [
+  "src/compiler/turboshaft",
+  "src/maglev",
+]
+
+# A v8_source_set that clusters .cc files in cluster mode.
+#
+# In cluster mode: generates cluster files for .cc sources and compiles those
+# In non-cluster mode: compiles sources directly (like v8_source_set)
+#
+# Arguments: Same as v8_source_set, plus:
+#   cluster_output_dir: Optional output directory for cluster files.
+#                       Defaults to $target_gen_dir/clustered.
+#   cluster_prefix: Optional prefix for cluster file names.
+#                   Defaults to target_name.
+#   exclude_from_cluster: Optional list of .cc files to compile individually.
+#   generated_sources: Set to true if sources are generated files located in
+#                      cluster_output_dir. This affects how include paths are
+#                      computed. Default: false.
+template("v8_cluster_source_set") {
+  _target_name = target_name
+
+  if (v8_enable_cluster_build) {
+    # Extract .cc files from sources for clustering
+    _excluded_files = []
+    if (defined(invoker.exclude_from_cluster)) {
+      _excluded_files = invoker.exclude_from_cluster
+    }
+
+    _cluster_sources = []
+    _excluded_cc_sources = []
+    _other_sources = []
+    if (defined(invoker.sources)) {
+      foreach(s, invoker.sources) {
+        _ext = get_path_info(s, "extension")
+        if (_ext == "cc") {
+          # Check if this file is excluded
+          _is_excluded = false
+          foreach(_excl, _excluded_files) {
+            if (s == _excl) {
+              _is_excluded = true
+            }
+          }
+          if (_is_excluded) {
+            _excluded_cc_sources += [ s ]
+          } else {
+            _cluster_sources += [ s ]
+          }
+        } else {
+          _other_sources += [ s ]
+        }
+      }
+    }
+
+    # Count cluster sources
+    _num_cluster_sources = 0
+    foreach(s, _cluster_sources) {
+      _num_cluster_sources += 1
+    }
+
+    if (_num_cluster_sources > 0) {
+      _cluster_prefix = _target_name
+      if (defined(invoker.cluster_prefix)) {
+        _cluster_prefix = invoker.cluster_prefix
+      }
+
+      _output_dir = "$target_gen_dir/clustered"
+      if (defined(invoker.cluster_output_dir)) {
+        _output_dir = invoker.cluster_output_dir
+      }
+
+      _generated_sources = false
+      if (defined(invoker.generated_sources)) {
+        _generated_sources = invoker.generated_sources
+      }
+
+      # Build args for small cluster directories
+      _small_cluster_args = [
+        "--small-cluster-size",
+        "$small_cluster_size",
+      ]
+      foreach(_dir, small_cluster_dirs) {
+        _small_cluster_args += [
+          "--small-cluster-dirs",
+          _dir,
+        ]
+      }
+
+      # Build args for computing filenames
+      _compute_args = [
+        "--compute-filenames",
+        "--cluster-size",
+        "$cluster_size",
+        "--prefix",
+        _cluster_prefix,
+      ]
+      _compute_args += _small_cluster_args
+
+      # Compute cluster file names using exec_script
+      _cluster_filenames = exec_script(
+              v8_path_prefix + "/tools/cluster_files.py",
+              _compute_args + rebase_path(_cluster_sources, root_build_dir),
+              "list lines")
+
+      _cluster_files = []
+      foreach(f, _cluster_filenames) {
+        _cluster_files += [ "$_output_dir/$f" ]
+      }
+
+      # Action to generate cluster files
+      action("${_target_name}_generate_clusters") {
+        visibility = [ ":*" ]
+        script = v8_path_prefix + "/tools/cluster_files.py"
+
+        outputs = _cluster_files
+
+        args = [
+          "--generate",
+          "--output-dir",
+          rebase_path(_output_dir, root_build_dir),
+          "--prefix",
+          _cluster_prefix,
+          "--cluster-size",
+          "$cluster_size",
+        ]
+        args += _small_cluster_args
+
+        # Include path computation depends on whether sources are generated
+        if (_generated_sources) {
+          # Generated sources: strip the output directory prefix
+          _strip_prefix = rebase_path(_output_dir, root_build_dir) + "/"
+          args += [
+            "--strip-prefix",
+            _strip_prefix,
+          ]
+        } else {
+          # Source tree files: prepend path from output dir back to build dir
+          _include_prefix = rebase_path(root_build_dir, _output_dir) + "/"
+          args += [
+            "--include-prefix",
+            _include_prefix,
+          ]
+        }
+
+        args += rebase_path(_cluster_sources, root_build_dir)
+
+        # Only forward testonly, not deps. The generate_clusters action just
+        # creates #include files from the source list - it doesn't need any
+        # dependencies. The deps are forwarded to the v8_source_set below
+        # where they're needed for actually compiling the cluster files.
+        forward_variables_from(invoker, [ "testonly" ])
+      }
+
+      # The actual source set with cluster files
+      v8_source_set(_target_name) {
+        forward_variables_from(invoker,
+                               "*",
+                               [
+                                 "sources",
+                                 "cluster_prefix",
+                                 "cluster_output_dir",
+                                 "exclude_from_cluster",
+                                 "generated_sources",
+                               ])
+
+        # Combine non-.cc files, cluster files, and excluded files
+        sources = _other_sources + _cluster_files + _excluded_cc_sources
+
+        if (!defined(deps)) {
+          deps = []
+        }
+        deps += [ ":${_target_name}_generate_clusters" ]
+      }
+    } else {
+      # No .cc files to cluster, just pass through
+      v8_source_set(_target_name) {
+        forward_variables_from(invoker,
+                               "*",
+                               [
+                                 "cluster_prefix",
+                                 "cluster_output_dir",
+                                 "exclude_from_cluster",
+                                 "generated_sources",
+                               ])
+      }
+    }
+  } else {
+    # Non-cluster mode: just use v8_source_set directly
+    v8_source_set(_target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "cluster_prefix",
+                               "cluster_output_dir",
+                               "exclude_from_cluster",
+                               "generated_sources",
+                             ])
+    }
+  }
+}

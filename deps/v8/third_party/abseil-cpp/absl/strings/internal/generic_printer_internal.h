@@ -112,6 +112,23 @@ inline constexpr bool is_supported_ptr<
     // would be a fork.
     decltype(T().~ArenaSafeUniquePtr())> = true;
 
+// `proto2::Arena::UniquePtr` is at least as safe as `std::unique_ptr`.
+template <class T>
+inline constexpr bool is_supported_ptr<
+    T,
+    // Check for `proto2::Arena::UniquePtr` without having to include its
+    // header here. This does match any type named `UniquePtr`, regardless
+    // of the scope it is defined in, but we try to restrict by probing some
+    // methods.
+    std::void_t<decltype(
+        // Check the class name using the destructor.
+        T().~UniquePtr(),
+        // Check some other members, to try to duck type into the right class.
+        T().get(), T().reset(), T().try_heap_release(),
+        T().GetOwningArena()
+            ->template MakeUnique<int>(nullptr)
+            .~UniquePtr())>> = true;
+
 // Specialization for floats: print floating point types using their
 // max_digits10 precision. This ensures each distinct underlying values
 // can be represented uniquely, even though it's not (strictly speaking)
@@ -220,6 +237,8 @@ std::ostream& GenericPrintImpl(std::ostream& os, const T& v) {
   if constexpr (is_any_string<T> || std::is_same_v<T, absl::string_view>) {
     // Specialization for strings: prints with plausible quoting and escaping.
     return PrintEscapedString(os, v);
+  } else if constexpr (is_supported_ptr<T>) {
+    return (PrintSmartPointerContents)(os, v);
   } else if constexpr (absl::HasAbslStringify<T>::value) {
     // If someone has specified `AbslStringify`, we should prefer that.
     return os << absl::StrCat(v);
@@ -246,8 +265,6 @@ std::ostream& GenericPrintImpl(std::ostream& os, const T& v) {
                                                  w)) {})) {
     // For std::variant, use `std::visit(v)`
     return (PrintVariant)(os, v);
-  } else if constexpr (is_supported_ptr<T>) {
-    return (PrintSmartPointerContents)(os, v);
   } else if constexpr (meta_internal::Requires<const T>(
                            [&](auto&& w) -> decltype(w.ok(), w.status(), *w) {
                            })) {

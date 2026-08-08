@@ -2373,7 +2373,6 @@ void Simulator::CallAnyCTypeFunction(Address target_address,
   static_assert(20 == kMaxCParameters,
                 "If you've changed kMaxCParameters, please change the "
                 "GEN_MAX_PARAM_COUNT macro.");
-  printf("CallAnyCTypeFunction end result \n");
 
 #undef CALL_TARGET_VARARG
 #undef CALL_ARGS

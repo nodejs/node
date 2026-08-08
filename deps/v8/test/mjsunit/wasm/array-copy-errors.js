@@ -7,7 +7,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestArrayCopyErrorReasons() {
   var builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   // The array.copy has two different reasons to trap. (null dereference, oob)
   // All compilers should emit the same reason in all cases. Which one doesn't

@@ -29,6 +29,113 @@ class TurbofanTypeHighBits {
   DEFINE_TORQUE_GENERATED_TURBOFAN_TYPE_HIGH_BITS()
 };
 
+V8_OBJECT class TurbofanType : public HeapObjectLayout {
+} V8_OBJECT_END;
+
+V8_OBJECT class TurbofanBitsetType : public TurbofanType {
+ public:
+  inline uint32_t bitset_low() const;
+  inline void set_bitset_low(uint32_t value);
+  inline uint32_t bitset_high() const;
+  inline void set_bitset_high(uint32_t value);
+
+  static constexpr int SizeFor() { return sizeof(TurbofanBitsetType); }
+
+  class BodyDescriptor;
+
+  DECL_PRINTER(TurbofanBitsetType)
+  DECL_VERIFIER(TurbofanBitsetType)
+
+ private:
+  friend class TorqueGeneratedTurbofanBitsetTypeAsserts;
+
+  uint32_t bitset_low_;
+  uint32_t bitset_high_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurbofanUnionType : public TurbofanType {
+ public:
+  inline Tagged<TurbofanType> type1() const;
+  inline void set_type1(Tagged<TurbofanType> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<TurbofanType> type2() const;
+  inline void set_type2(Tagged<TurbofanType> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  static constexpr int SizeFor() { return sizeof(TurbofanUnionType); }
+
+  class BodyDescriptor;
+
+  DECL_PRINTER(TurbofanUnionType)
+  DECL_VERIFIER(TurbofanUnionType)
+
+ private:
+  friend class TorqueGeneratedTurbofanUnionTypeAsserts;
+
+  TaggedMember<TurbofanType> type1_;
+  TaggedMember<TurbofanType> type2_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurbofanRangeType : public TurbofanType {
+ public:
+  inline double min() const;
+  inline void set_min(double value);
+  inline double max() const;
+  inline void set_max(double value);
+
+  static constexpr int SizeFor() { return sizeof(TurbofanRangeType); }
+
+  class BodyDescriptor;
+
+  DECL_PRINTER(TurbofanRangeType)
+  DECL_VERIFIER(TurbofanRangeType)
+
+ private:
+  friend class TorqueGeneratedTurbofanRangeTypeAsserts;
+
+  UnalignedDoubleMember min_;
+  UnalignedDoubleMember max_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurbofanHeapConstantType : public TurbofanType {
+ public:
+  inline Tagged<HeapObject> constant() const;
+  inline void set_constant(Tagged<HeapObject> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  static constexpr int SizeFor() { return sizeof(TurbofanHeapConstantType); }
+
+  class BodyDescriptor;
+
+  DECL_PRINTER(TurbofanHeapConstantType)
+  DECL_VERIFIER(TurbofanHeapConstantType)
+
+ private:
+  friend class TorqueGeneratedTurbofanHeapConstantTypeAsserts;
+
+  TaggedMember<Object> constant_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurbofanOtherNumberConstantType : public TurbofanType {
+ public:
+  inline double constant() const;
+  inline void set_constant(double value);
+
+  static constexpr int SizeFor() {
+    return sizeof(TurbofanOtherNumberConstantType);
+  }
+
+  class BodyDescriptor;
+
+  DECL_PRINTER(TurbofanOtherNumberConstantType)
+  DECL_VERIFIER(TurbofanOtherNumberConstantType)
+
+ private:
+  friend class TorqueGeneratedTurbofanOtherNumberConstantTypeAsserts;
+
+  UnalignedDoubleMember constant_;
+} V8_OBJECT_END;
+
 }  // namespace internal
 }  // namespace v8
 

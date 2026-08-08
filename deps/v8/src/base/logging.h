@@ -20,46 +20,38 @@
 #include "src/base/immediate-crash.h"
 #include "src/base/template-utils.h"
 
+#if V8_LOGGING_LEVEL == 2
+// Include file, line, and full error message for all FATAL() calls and DCHECK
+// failures.
 V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
                                           const char* message);
-
-#ifdef DEBUG
-// In debug, include file, line, and full error message for all
-// FATAL() calls.
 [[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* file, int line, const char* format, ...);
-#define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
-#define FATAL_WITH_LOC(loc, ...) \
-  V8_Fatal((loc).FileName(), static_cast<int>((loc).Line()), __VA_ARGS__)
-
-// The following can be used instead of FATAL() to prevent calling
-// IMMEDIATE_CRASH in official mode. Please only use if needed for testing.
-// See v8:13945
-#define GRACEFUL_FATAL(...) FATAL(__VA_ARGS__)
-
-#else
+#define V8_LOG_ARGS(...) __FILE__, __LINE__, __VA_ARGS__
+#define V8_LOG_ARGS_LOC(loc, ...) \
+  (loc).FileName(), static_cast<int>((loc).Line()), __VA_ARGS__
+#else  // V8_LOGGING_LEVEL != 2
+V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* message);
 [[noreturn]] PRINTF_FORMAT(1, 2) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* format, ...);
-#define GRACEFUL_FATAL(...) V8_Fatal(__VA_ARGS__)
+#define V8_LOG_ARGS(...) __VA_ARGS__
+#define V8_LOG_ARGS_LOC(loc, ...) __VA_ARGS__
+#endif  // V8_LOGGING_LEVEL != 2
 
-#if !defined(OFFICIAL_BUILD)
-// In non-official release, include full error message, but drop file & line
-// numbers. It saves binary size to drop the |file| & |line| as opposed to just
-// passing in "", 0 for them.
-#define FATAL(...) V8_Fatal(__VA_ARGS__)
-#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
-#else
-// FATAL(msg) -> IMMEDIATE_CRASH()
-// FATAL(msg, ...) -> V8_Fatal(msg, ...)
+#if V8_LOGGING_LEVEL == 0
 #define FATAL_HELPER(_7, _6, _5, _4, _3, _2, _1, _0, ...) _0
 #define FATAL_DISCARD_ARG(arg) IMMEDIATE_CRASH()
 #define FATAL(...)                                                            \
   FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
                V8_Fatal, FATAL_DISCARD_ARG)                                   \
-  (__VA_ARGS__)
+  (V8_LOG_ARGS(__VA_ARGS__))
 #define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
-#endif  // !defined(OFFICIAL_BUILD)
-#endif  // DEBUG
+#else  // V8_LOGGING_LEVEL != 0
+#define FATAL(...) V8_Fatal(V8_LOG_ARGS(__VA_ARGS__))
+#define FATAL_WITH_LOC(loc, ...) V8_Fatal(V8_LOG_ARGS_LOC(loc, __VA_ARGS__))
+#endif  // V8_LOGGING_LEVEL != 0
+
+#define GRACEFUL_FATAL(...) V8_Fatal(V8_LOG_ARGS(__VA_ARGS__))
 
 namespace v8::base {
 // These string constants are pattern-matched by fuzzers.
@@ -67,7 +59,8 @@ constexpr const char* kUnimplementedCodeMessage = "unimplemented code";
 constexpr const char* kUnreachableCodeMessage = "unreachable code";
 }  // namespace v8::base
 
-#define UNIMPLEMENTED() FATAL(::v8::base::kUnimplementedCodeMessage)
+#define UNIMPLEMENTED() \
+  ::v8::base::FatalNoSecurityImpact(::v8::base::kUnimplementedCodeMessage)
 // UNREACHABLE is used both to mark areas of the code that should never be
 // reached, and to guard against UB issues with the sandbox given an in-sandbox
 // corruption.
@@ -87,6 +80,7 @@ class CheckMessageStream : public std::ostringstream {};
 
 // Overwrite the default function that prints a stack trace.
 V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
+V8_BASE_EXPORT void PrintStackTraceIfAvailable();
 
 // Override the default function that handles DCHECKs.
 V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
@@ -120,7 +114,7 @@ enum class OOMType {
 
 // In official builds, assume all check failures can be debugged given just the
 // stack trace.
-#if !defined(DEBUG) && defined(OFFICIAL_BUILD)
+#if V8_LOGGING_LEVEL == 0
 #define CHECK_FAILED_HANDLER(message) FATAL("ignored")
 #else
 #define CHECK_FAILED_HANDLER(message) FATAL("Check failed: %s.", message)
@@ -152,18 +146,19 @@ enum class OOMType {
 
 #ifdef DEBUG
 
-#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                    \
-  do {                                                                      \
-    if (V8_UNLIKELY(!(condition))) {                                        \
-      V8_Dcheck((loc).FileName(), static_cast<int>((loc).Line()), message); \
-    }                                                                       \
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc) \
+  do {                                                   \
+    if (V8_UNLIKELY(!(condition))) {                     \
+      V8_Dcheck(V8_LOG_ARGS_LOC(loc, message));          \
+    }                                                    \
   } while (false)
-#define DCHECK_WITH_MSG(condition, message)   \
-  do {                                        \
-    if (V8_UNLIKELY(!(condition))) {          \
-      V8_Dcheck(__FILE__, __LINE__, message); \
-    }                                         \
+#define DCHECK_WITH_MSG(condition, message) \
+  do {                                      \
+    if (V8_UNLIKELY(!(condition))) {        \
+      V8_Dcheck(V8_LOG_ARGS(message));      \
+    }                                       \
   } while (false)
+
 #define DCHECK_WITH_LOC(condition, loc) \
   DCHECK_WITH_MSG_AND_LOC(condition, #condition, loc)
 #define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
@@ -187,7 +182,7 @@ enum class OOMType {
             typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,  \
             typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>( \
             (lhs), (rhs), #lhs " " #op " " #rhs)) {                       \
-      V8_Dcheck(__FILE__, __LINE__, _msg->c_str());                       \
+      V8_Dcheck(V8_LOG_ARGS(_msg->c_str()));                              \
       delete _msg;                                                        \
     }                                                                     \
   } while (false)

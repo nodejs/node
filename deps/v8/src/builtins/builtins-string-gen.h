@@ -16,7 +16,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   explicit StringBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  // ES#sec-getsubstitution
+  // https://tc39.es/ecma262/#sec-getsubstitution
   TNode<String> GetSubstitution(TNode<Context> context,
                                 TNode<String> subject_string,
                                 TNode<Smi> match_start_index,

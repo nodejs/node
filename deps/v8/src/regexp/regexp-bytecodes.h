@@ -12,6 +12,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
@@ -23,14 +24,14 @@ namespace internal {
   V(Char, base::uc16)                       \
   V(JumpTarget, uint32_t)
 
-#define BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V)                           \
-  V(Offset, int16_t, RegExpMacroAssembler::kMinCPOffset,                     \
-    RegExpMacroAssembler::kMaxCPOffset)                                      \
-  V(Register, uint16_t, 0, RegExpMacroAssembler::kMaxRegister)               \
-  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag,                    \
-    RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck,                \
-    RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit)                  \
-  V(StandardCharacterSet, StandardCharacterSet,                              \
+#define BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V)             \
+  V(Offset, int16_t, RegExpMacroAssembler::kMinCPOffset,       \
+    RegExpMacroAssembler::kMaxCPOffset)                        \
+  V(Register, uint16_t, 0, RegExpMacroAssembler::kMaxRegister) \
+  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag,      \
+    RegExpMacroAssembler::StackCheckFlag::kNoStackLimitCheck,  \
+    RegExpMacroAssembler::StackCheckFlag::kCheckStackLimit)    \
+  V(StandardCharacterSet, StandardCharacterSet,                \
     StandardCharacterSet::kEverything, StandardCharacterSet::kWord)
 
 // Special operand types that don't have a direct mapping to a C-type.
@@ -43,16 +44,16 @@ namespace internal {
   BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(V) \
   SPECIAL_BYTECODE_OPERAND_TYPE_LIST(V)
 
-enum class RegExpBytecodeOperandType : uint8_t {
+enum class BytecodeOperandType : uint8_t {
 #define DECLARE_OPERAND(Name, ...) k##Name,
   BYTECODE_OPERAND_TYPE_LIST(DECLARE_OPERAND)
 #undef DECLARE_OPERAND
 };
 
-using ReBcOpType = RegExpBytecodeOperandType;
+using ReBcOpType = BytecodeOperandType;
 
 // Bytecode properties, used for analysis.
-enum class RegExpBytecodeFlag : uint32_t {
+enum class BytecodeFlag : uint32_t {
   // Control flow.
   //
   // This bytecode doesn't fall through, i.e. it either terminates or jumps
@@ -73,10 +74,10 @@ enum class RegExpBytecodeFlag : uint32_t {
   // This bytecode uses the current_character register's value.
   kUsesCC = 1 << 3,
 };
-using RegExpBytecodeFlags = base::Flags<RegExpBytecodeFlag>;
-DEFINE_OPERATORS_FOR_FLAGS(RegExpBytecodeFlags)
+using BytecodeFlags = base::Flags<BytecodeFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(BytecodeFlags)
 
-using ReBcFlag = RegExpBytecodeFlag;
+using ReBcFlag = BytecodeFlag;
 
 // Bytecodes that indicate something is invalid. These don't have a direct
 // equivalent in RegExpMacroAssembler.
@@ -175,10 +176,10 @@ using ReBcFlag = RegExpBytecodeFlag;
 // Bytecodes dealing with multiple characters, introduced due to special logic
 // in the bytecode-generator or requiring additional logic when assembling;
 // e.g. they have arguments only used in the interpreter, different
-// MacroAssembler names, non-default MacroAssembler arguments that need to be
-// provided, etc.
-// These share a method with Basic Bytecodes in RegExpMacroAssembler.
-// Format: V(CamelName, (OperandNames...), (OperandTypes...), (Flags...))
+// RegExpMacroAssembler names, non-default RegExpMacroAssembler arguments that
+// need to be provided, etc. These share a method with Basic Bytecodes in
+// RegExpMacroAssembler. Format: V(CamelName, (OperandNames...),
+// (OperandTypes...), (Flags...))
 #define SPECIAL_BYTECODE_LIST(V)                                               \
   V(Backtrack, (return_code), (ReBcOpType::kInt16),                            \
     (ReBcFlag::kNoFallthrough))                                                \
@@ -324,7 +325,7 @@ using ReBcFlag = RegExpBytecodeFlag;
   SPECIAL_BYTECODE_LIST(V)      \
   PEEPHOLE_BYTECODE_LIST(V)
 
-enum class RegExpBytecode : uint8_t {
+enum class Bytecode : uint8_t {
 #define DECLARE_BYTECODE(CamelName, ...) k##CamelName,
   REGEXP_BYTECODE_LIST(DECLARE_BYTECODE)
 #undef DECLARE_BYTECODE
@@ -338,22 +339,22 @@ enum class RegExpBytecode : uint8_t {
 // We can pack operands if multiple operands fit into 4 bytes.
 static constexpr int kBytecodeAlignment = 4;
 
-template <RegExpBytecode bc>
-class RegExpBytecodeOperands;
+template <Bytecode bc>
+class BytecodeOperands;
 
-class RegExpBytecodes final : public AllStatic {
+class Bytecodes final : public AllStatic {
  public:
-  static constexpr int kCount = static_cast<uint8_t>(RegExpBytecode::kLast) + 1;
-  static constexpr uint8_t ToByte(RegExpBytecode bc) {
+  static constexpr int kCount = static_cast<uint8_t>(Bytecode::kLast) + 1;
+  static constexpr uint8_t ToByte(Bytecode bc) {
     return static_cast<uint8_t>(bc);
   }
-  static constexpr RegExpBytecode FromByte(uint8_t byte) {
+  static constexpr Bytecode FromByte(uint8_t byte) {
     DCHECK(IsValid(byte));
-    return static_cast<RegExpBytecode>(byte);
+    return static_cast<Bytecode>(byte);
   }
   // Extract the bytecode from the given `ptr`, which must point at the
   // word32-aligned region containing the bytecode. Endian-ness independent.
-  static constexpr RegExpBytecode FromPtr(const void* ptr) {
+  static constexpr Bytecode FromPtr(const void* ptr) {
     if (!std::is_constant_evaluated()) {
       DCHECK(IsAligned(reinterpret_cast<Address>(ptr), kBytecodeAlignment));
     }
@@ -361,38 +362,38 @@ class RegExpBytecodes final : public AllStatic {
   }
   static constexpr bool IsValid(uint8_t byte) { return byte < kCount; }
   static constexpr bool IsValidJumpTarget(uint8_t byte) {
-    return IsValid(byte) && FromByte(byte) != RegExpBytecode::kBreak;
+    return IsValid(byte) && FromByte(byte) != Bytecode::kBreak;
   }
 
-  // Calls |f| templatized by RegExpBytecode. This allows the usage of the
+  // Calls |f| templatized by Bytecode. This allows the usage of the
   // functions template argument in other templates.
   // Example:
-  // RegExpBytecode bc = <runtime value>;
-  // DispatchOnBytecode(bc, []<RegExpBytecode bc>() { DoFancyStuff<bc>(); });
+  // Bytecode bc = <runtime value>;
+  // DispatchOnBytecode(bc, []<Bytecode bc>() { DoFancyStuff<bc>(); });
   template <typename Func>
-  static decltype(auto) DispatchOnBytecode(RegExpBytecode bytecode, Func&& f);
+  static decltype(auto) DispatchOnBytecode(Bytecode bytecode, Func&& f);
 
-  static constexpr const char* Name(RegExpBytecode bytecode);
+  static constexpr const char* Name(Bytecode bytecode);
   static constexpr const char* Name(uint8_t bytecode);
 
-  static constexpr uint8_t Size(RegExpBytecode bytecode);
+  static constexpr uint8_t Size(Bytecode bytecode);
   static constexpr uint8_t Size(uint8_t bytecode);
-  static constexpr uint8_t Size(RegExpBytecodeOperandType type);
+  static constexpr uint8_t Size(BytecodeOperandType type);
 
-  static constexpr RegExpBytecodeFlags Flags(RegExpBytecode bytecode);
-  static constexpr RegExpBytecodeFlags Flags(uint8_t bytecode);
+  static constexpr BytecodeFlags Flags(Bytecode bytecode);
+  static constexpr BytecodeFlags Flags(uint8_t bytecode);
 };
 
-class RegExpBytecodeAnalysis;
+class BytecodeAnalysis;
 
 void RegExpBytecodeDisassembleSingle(const uint8_t* code_base,
                                      const uint8_t* pc);
-void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
+void RegExpBytecodeDisassemble(const uint8_t* code_base, uint32_t length,
                                const char* pattern);
-void RegExpBytecodeDisassemble(const uint8_t* code_base, int length,
-                               const char* pattern,
-                               RegExpBytecodeAnalysis* analysis);
+void RegExpBytecodeDisassemble(const uint8_t* code_base, uint32_t length,
+                               const char* pattern, BytecodeAnalysis* analysis);
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

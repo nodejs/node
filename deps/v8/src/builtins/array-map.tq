@@ -100,8 +100,8 @@ struct Vector {
 
   macro CreateJSArray(implicit context: Context)(
                          validLength: Smi): JSArray {
-    const length: Smi = this.fixedArray.length;
-    dcheck(validLength <= length);
+    const length: intptr = this.fixedArray.length_intptr;
+    dcheck(Convert<intptr>(validLength) <= length);
     let kind: ElementsKind = ElementsKind::PACKED_SMI_ELEMENTS;
     if (!this.onlySmis) {
       if (this.onlyNumbers) {
@@ -114,7 +114,7 @@ struct Vector {
       }
     }
 
-    if (this.skippedElements || validLength < length) {
+    if (this.skippedElements || Convert<intptr>(validLength) < length) {
       // We also need to create a holey output array if we are
       // bailing out of the fast path partway through the array.
       // This is indicated by {validLength} < {length}.
@@ -131,7 +131,7 @@ struct Vector {
       // First, initialize the elements field before allocation to prevent
       // heap corruption.
       const elements: FixedDoubleArray =
-          AllocateFixedDoubleArrayWithHoles(SmiUntag(length));
+          AllocateFixedDoubleArrayWithHoles(length);
       a = NewJSArray(map, this.fixedArray);
       for (let i: Smi = 0; i < validLength; i++) {
         @if(V8_ENABLE_UNDEFINED_DOUBLE) {
@@ -255,7 +255,7 @@ transitioning macro FastArrayMap(
   return vector.CreateJSArray(len);
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.map
+// https://tc39.es/ecma262/#sec-array.prototype.map
 transitioning javascript builtin ArrayMap(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {

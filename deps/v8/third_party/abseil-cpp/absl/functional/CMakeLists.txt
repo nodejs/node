@@ -135,6 +135,5 @@ absl_cc_test(
     absl::overload
     absl::string_view
     absl::strings
-    absl::variant
     GTest::gmock_main
 )

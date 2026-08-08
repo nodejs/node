@@ -31,6 +31,7 @@
 #endif
 #include "src/base/bit-field.h"
 #include "src/codegen/atomic-memory-order.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/write-barrier-kind.h"
 
@@ -155,6 +156,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   IF_HARDWARE_SANDBOX(V, ArchSwitchSandboxMode)                            \
   V(ArchComment)                                                           \
   V(ArchDeoptimize)                                                        \
+  IF_WASM(V, ArchTrap)                                                     \
   V(ArchRet)                                                               \
   V(ArchFramePointer)                                                      \
   V(ArchRootPointer)                                                       \
@@ -283,8 +285,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 enum MemoryAccessMode {
   kMemoryAccessDirect = 0,
-  kMemoryAccessProtectedMemOutOfBounds = 1,
-  kMemoryAccessProtectedNullDereference = 2,
+  kMemoryAccessTrappingMemOutOfBounds = 1,
+  kMemoryAccessTrappingNullDereference = 2,
 };
 
 enum class AtomicWidth { kWord32, kWord64 };
@@ -297,6 +299,35 @@ inline size_t AtomicWidthSize(AtomicWidth width) {
       return 8;
   }
   UNREACHABLE();
+}
+
+enum class LaneSize : uint8_t { kL8 = 0, kL16 = 1, kL32 = 2, kL64 = 3 };
+inline int32_t LaneSizeBits(LaneSize size) {
+  switch (size) {
+    case LaneSize::kL8:
+      return 8;
+    case LaneSize::kL16:
+      return 16;
+    case LaneSize::kL32:
+      return 32;
+    case LaneSize::kL64:
+      return 64;
+  }
+}
+
+inline LaneSize LaneSizeFromBits(uint8_t width) {
+  switch (width) {
+    default:
+      UNREACHABLE();
+    case 8:
+      return LaneSize::kL8;
+    case 16:
+      return LaneSize::kL16;
+    case 32:
+      return LaneSize::kL32;
+    case 64:
+      return LaneSize::kL64;
+  }
 }
 
 static constexpr int kLazyDeoptOnThrowSentinel = -1;
@@ -312,57 +343,52 @@ using InstructionCode = uint32_t;
 // other information into a single InstructionCode which is stored as part of
 // the instruction.
 //
-// All instructions have the first five fields, using up the lower 22 bits.
-// The remaining 10 bits are accessible in the MiscField, which the other
+// All instructions have the first five fields, using up the lower 23 bits.
+// The remaining 9 bits are accessible in the MiscField, which the other
 // instructions types can overlay specific data:
 // -- Generic
 // Field                        | Bits
-// ArchOpcode                   | 9
+// ArchOpcode                   | 10
 // AddressingMode               | 5
 // FlagsMode                    | 3
 // FlagsCondition               | 5
-// Misc                         | 10
+// Misc                         | 9
 //
 // So, the following instruction types use the MiscField in the following ways:
 // -- Atomics
 // Field                        | Bits
 // AtomicWidth                  | 2
 // AtomicMemoryOrder            | 2
-// AtomicStoreRecordWriteMode   | 4
+// AtomicStoreRecordWriteMode   | 3
 // AccessMode                   | 2
 //
 // -- Write barriers
 // Field                        | Bits
-// RecordWriteMode              | 4
+// RecordWriteMode              | 3
 // Undefined                    | 4
 // AccessMode                   | 2
 //
-// -- X64 vectors
+// -- Vectors
 // Field                        | Bits
 // LaneSize                     | 2
 // VectorLength                 | 2
-// Undefined                    | 4
-// AccessMode                   | 2
-//
-// -- Everyone else vectors
-// Field                        | Bits
-// LaneSize                     | 8
+// Undefined                    | 3
 // AccessMode                   | 2
 //
 // -- Deopts
 // Field                        | Bits
 // DeoptImmedArgsCount          | 2
-// DeoptFrameStateOffset        | 8
+// DeoptFrameStateOffset        | 7
 //
 // -- Non-deopt branches
 // Field                        | Bits
 // StackCheck                   | 2
 // BranchHint                   | 1
-// Undefined                    | 7
+// Undefined                    | 6
 //
-using ArchOpcodeField = base::BitField<ArchOpcode, 0, 9>;
+using ArchOpcodeField = base::BitField<ArchOpcode, 0, 10>;
 static_assert(ArchOpcodeField::is_valid(kLastArchOpcode),
-              "All opcodes must fit in the 9-bit ArchOpcodeField.");
+              "All opcodes must fit in the 10-bit ArchOpcodeField.");
 using AddressingModeField = ArchOpcodeField::Next<AddressingMode, 5>;
 static_assert(
     AddressingModeField::is_valid(kLastAddressingMode),
@@ -379,21 +405,16 @@ using AtomicWidthField = FlagsConditionField::Next<AtomicWidth, 2>;
 // for kSeqCst and kAcqRel differ only by emitting fences.
 using AtomicMemoryOrderField = AtomicWidthField::Next<AtomicMemoryOrder, 2>;
 using AtomicStoreRecordWriteModeField =
-    AtomicMemoryOrderField::Next<RecordWriteMode, 4>;
+    AtomicMemoryOrderField::Next<RecordWriteMode, 3>;
 
 // Write modes for writes with barrier.
 using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.
-#ifdef V8_TARGET_ARCH_X64
-enum LaneSize { kL8 = 0, kL16 = 1, kL32 = 2, kL64 = 3 };
 enum VectorLength { kV128 = 0, kV256 = 1, kV512 = 3 };
 using LaneSizeField = FlagsConditionField::Next<LaneSize, 2>;
 using VectorLengthField = LaneSizeField::Next<VectorLength, 2>;
-#else
-using LaneSizeField = FlagsConditionField::Next<int, 8>;
-#endif  // V8_TARGET_ARCH_X64
 
 // Denotes whether the instruction needs to emit an accompanying landing pad for
 // the trap handler.
@@ -437,23 +458,29 @@ inline bool HasMemoryAccessMode(ArchOpcode opcode) {
 }
 
 using DeoptImmedArgsCountField = FlagsConditionField::Next<int, 2>;
-using DeoptFrameStateOffsetField = DeoptImmedArgsCountField::Next<int, 8>;
-
-// ParamField and FPParamField represent the general purpose and floating point
-// parameter counts of a direct call into C and are given 5 bits each, which
-// allow storing a number up to the current maximum parameter count, which is 20
-// (see kMaxCParameters defined in macro-assembler.h).
-using ParamField = FlagsConditionField::Next<int, 5>;
-using FPParamField = ParamField::Next<int, 5>;
+using DeoptFrameStateOffsetField = DeoptImmedArgsCountField::Next<int, 7>;
 
 // {MiscField} is used for a variety of things, depending on the opcode.
 // TODO(turbofan): There should be an abstraction that ensures safe encoding and
 // decoding. {HasMemoryAccessMode} and its uses are a small step in that
 // direction.
-using MiscField = FlagsConditionField::Next<int, 10>;
+using MiscField = FlagsConditionField::Next<int, 9>;
 
 using StackCheckField = FlagsConditionField::Next<StackCheckKind, 2>;
 using BranchHintField = StackCheckField::Next<bool, 1>;
+
+// ParamField and FPParamField represent the general purpose and floating point
+// parameter counts of a direct call into C and are given 5 bits each, which
+// allow storing a number up to the current maximum parameter count, which is 20
+// (see kMaxCParameters defined in macro-assembler.h).
+// Not that these aren't encoded in the InstructionCode, they are encoded as an
+// operand.
+using ParamField = base::BitField<int, 0, 5>;
+using FPParamField = ParamField::Next<int, 5>;
+#ifdef USE_SIMULATOR
+static_assert(kMaxCParameters <= ParamField::kMax);
+static_assert(kMaxCParameters <= FPParamField::kMax);
+#endif
 
 // This static assertion serves as an early warning if we are about to exhaust
 // the available opcode space. If we are about to exhaust it, we should start
@@ -463,7 +490,7 @@ using BranchHintField = StackCheckField::Next<bool, 1>;
 // back fixes that add new opcodes.
 // It is OK to temporarily reduce the required slack if we have a tracking bug
 // to reduce the number of used opcodes again.
-static_assert(ArchOpcodeField::kMax - kLastArchOpcode >= 15,
+static_assert(ArchOpcodeField::kMax - kLastArchOpcode >= 13,
               "We are running close to the number of available opcodes.");
 
 }  // namespace compiler

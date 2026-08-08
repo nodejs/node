@@ -6,7 +6,7 @@
 
 use crate::{
     assert_syntax,
-    core::EncodingType,
+    encoding::EncodingType,
     parsers::{
         grammar::{
             is_a_key_char, is_a_key_leading_char, is_annotation_close,

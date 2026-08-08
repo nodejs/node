@@ -27,8 +27,7 @@ class DisplayNamesInternal;
 
 #include "torque-generated/src/objects/js-display-names-tq.inc"
 
-class JSDisplayNames
-    : public TorqueGeneratedJSDisplayNames<JSDisplayNames, JSObject> {
+V8_OBJECT class JSDisplayNames : public JSObject {
  public:
   // Creates display names object with properties derived from input
   // locales and options.
@@ -53,7 +52,7 @@ class JSDisplayNames
 
   // Style: identifying the display names style used.
   //
-  // ecma402/#sec-properties-of-intl-displaynames-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-displaynames-instances
   enum class Style {
     kLong,   // Everything spelled out.
     kShort,  // Abbreviations used when possible.
@@ -64,7 +63,7 @@ class JSDisplayNames
 
   // Type: identifying the fallback of the display names.
   //
-  // ecma402/#sec-properties-of-intl-displaynames-instances
+  // https://tc39.es/ecma402/#sec-properties-of-intl-displaynames-instances
   enum class Fallback {
     kCode,
     kNone,
@@ -90,12 +89,31 @@ class JSDisplayNames
   static_assert(LanguageDisplayBit::is_valid(LanguageDisplay::kDialect));
   static_assert(LanguageDisplayBit::is_valid(LanguageDisplay::kStandard));
 
-  DECL_ACCESSORS(internal, Tagged<Managed<DisplayNamesInternal>>)
+  inline Tagged<Managed<DisplayNamesInternal>> internal() const;
+  inline void set_internal(Tagged<Managed<DisplayNamesInternal>> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
 
   DECL_PRINTER(JSDisplayNames)
+  DECL_VERIFIER(JSDisplayNames)
 
-  TQ_OBJECT_CONSTRUCTORS(JSDisplayNames)
-};
+  // Back-compat offset/size constants.
+  static const int kInternalOffset;
+  static const int kFlagsOffset;
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<Foreign> internal_;
+  TaggedMember<Smi> flags_;
+} V8_OBJECT_END;
+
+inline constexpr int JSDisplayNames::kInternalOffset =
+    offsetof(JSDisplayNames, internal_);
+inline constexpr int JSDisplayNames::kFlagsOffset =
+    offsetof(JSDisplayNames, flags_);
+inline constexpr int JSDisplayNames::kHeaderSize = sizeof(JSDisplayNames);
 
 }  // namespace internal
 }  // namespace v8

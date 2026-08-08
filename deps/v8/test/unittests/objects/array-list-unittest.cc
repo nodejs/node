@@ -17,15 +17,15 @@ using ArrayListTest = TestWithContext;
 TEST_F(ArrayListTest, ArrayList) {
   HandleScope scope(i_isolate());
   DirectHandle<ArrayList> array = i_isolate()->factory()->empty_array_list();
-  EXPECT_EQ(0, array->length());
+  EXPECT_EQ(0u, array->ulength().value());
   array = ArrayList::Add(i_isolate(), array,
                          direct_handle(Smi::FromInt(100), i_isolate()));
-  EXPECT_EQ(1, array->length());
+  EXPECT_EQ(1u, array->ulength().value());
   EXPECT_EQ(100, Smi::ToInt(array->get(0)));
   array = ArrayList::Add(i_isolate(), array,
                          direct_handle(Smi::FromInt(200), i_isolate()),
                          direct_handle(Smi::FromInt(300), i_isolate()));
-  EXPECT_EQ(3, array->length());
+  EXPECT_EQ(3u, array->ulength().value());
   EXPECT_EQ(100, Smi::ToInt(array->get(0)));
   EXPECT_EQ(200, Smi::ToInt(array->get(1)));
   EXPECT_EQ(300, Smi::ToInt(array->get(2)));
@@ -33,7 +33,7 @@ TEST_F(ArrayListTest, ArrayList) {
   EXPECT_EQ(400, Smi::ToInt(array->get(2)));
   array->set(2, ReadOnlyRoots(i_isolate()).undefined_value());
   array->set_length(2);
-  EXPECT_EQ(2, array->length());
+  EXPECT_EQ(2u, array->ulength().value());
   EXPECT_EQ(100, Smi::ToInt(array->get(0)));
   EXPECT_EQ(200, Smi::ToInt(array->get(1)));
 }

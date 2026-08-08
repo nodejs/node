@@ -166,9 +166,6 @@ XX	+3003+03115	Africa/Cairo	Egypt
 # +02/+03 - EET/EEST (Lebanon DST)
 XX	+3353+03530	Asia/Beirut	Lebanon
 #
-# +02/+03 - EET/EEST (Moldova DST)
-XX	+4700+02850	Europe/Chisinau	Moldova
-#
 # +02/+03 - EET/EEST (Palestine DST)
 XX	+3130+03428	Asia/Gaza	Palestine
 #

@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <compare>
 #include <iosfwd>
 #include <string>
 
@@ -36,7 +37,9 @@
   V(mutable_globals)                     \
   V(non_trapping_float_to_int)           \
   V(sign_extension_ops)                  \
-  V(jspi)
+  V(jspi)                                \
+  V(exnref)                              \
+  V(branch_hinting)
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \
@@ -169,6 +172,10 @@ class CompileTimeImports {
   CompileTimeImports& operator=(CompileTimeImports&& other) V8_NOEXCEPT {
     bits_ = other.bits_;
     constants_module_ = std::move(other.constants_module_);
+#if DEBUG
+    // Leaving {other} noticeably unusable can flush out bugs.
+    other.bits_.RemoveAll();
+#endif  // DEBUG
     return *this;
   }
 
@@ -180,13 +187,10 @@ class CompileTimeImports {
   }
   bool contains(CompileTimeImport imp) const { return bits_.contains(imp); }
 
-  int compare(const CompileTimeImports& other) const {
-    if (bits_.ToIntegral() < other.bits_.ToIntegral()) return -1;
-    if (bits_.ToIntegral() > other.bits_.ToIntegral()) return 1;
-    return constants_module_.compare(other.constants_module_);
-  }
+  auto operator<=>(const CompileTimeImports& other) const = default;
 
   void Add(CompileTimeImport imp) { bits_.Add(imp); }
+  void Remove(CompileTimeImport imp) { bits_.Remove(imp); }
 
   std::string& constants_module() { return constants_module_; }
   const std::string& constants_module() const { return constants_module_; }
@@ -197,6 +201,11 @@ class CompileTimeImports {
   CompileTimeImportFlags bits_;
   std::string constants_module_;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const CompileTimeImports& imports) {
+  return os << imports.flags() << " ['" << imports.constants_module() << "']";
+}
 
 }  // namespace v8::internal::wasm
 

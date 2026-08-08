@@ -276,6 +276,9 @@ class HeapVerification final : public SpaceVerificationVisitor {
 
  private:
   void VerifySpace(BaseSpace* space);
+#ifdef V8_ENABLE_SANDBOX
+  void VerifyPointerTables();
+#endif
 
   void VerifyPage(const BasePage* chunk) final;
   void VerifyPageDone(const BasePage* chunk) final;
@@ -355,7 +358,8 @@ void HeapVerification::Verify() {
 #if V8_ENABLE_WEBASSEMBLY
   // wasm_canonical_rtts holds weak references to maps or (strong) undefined.
   Tagged<WeakFixedArray> canonical_rtts = heap()->wasm_canonical_rtts();
-  for (int i = 0, e = canonical_rtts->length(); i < e; ++i) {
+  const uint32_t canonical_rtts_len = canonical_rtts->ulength().value();
+  for (uint32_t i = 0, e = canonical_rtts_len; i < e; ++i) {
     Tagged<MaybeObject> maybe_rtt = canonical_rtts->get(i);
     if (maybe_rtt.IsCleared()) continue;
     CHECK(maybe_rtt.IsWeak());
@@ -391,10 +395,37 @@ void HeapVerification::Verify() {
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
+#ifdef V8_ENABLE_SANDBOX
+  VerifyPointerTables();
+#endif
+
 #if DEBUG
   heap()->VerifyCommittedPhysicalMemory();
 #endif  // DEBUG
 }
+
+#ifdef V8_ENABLE_SANDBOX
+void HeapVerification::VerifyPointerTables() {
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->young_external_pointer_space());
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->old_external_pointer_space());
+  isolate()->external_pointer_table().Verify(
+      isolate(), heap()->read_only_external_pointer_space());
+  isolate()->cpp_heap_pointer_table().Verify(isolate(),
+                                             heap()->cpp_heap_pointer_space());
+  isolate()->trusted_pointer_table().Verify(isolate(),
+                                            heap()->trusted_pointer_space());
+  if (isolate()->has_shared_trusted_pointer_table()) {
+    isolate()->shared_trusted_pointer_table().Verify(
+        isolate(), isolate()->shared_trusted_pointer_space());
+  }
+  IsolateGroup::current()->code_pointer_table()->Verify(
+      isolate(), heap()->code_pointer_space());
+  isolate()->js_dispatch_table().Verify(isolate(),
+                                        heap()->js_dispatch_table_space());
+}
+#endif
 
 void HeapVerification::VerifySpace(BaseSpace* space) {
   if (!space) return;
@@ -817,7 +848,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
 
 // static
 void HeapVerifier::VerifyHeap(Heap* heap) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.HeapVerification");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.HeapVerification");
   HeapVerification verifier(heap);
   verifier.Verify();
 }

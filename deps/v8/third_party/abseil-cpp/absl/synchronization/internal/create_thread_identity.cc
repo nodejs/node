@@ -77,6 +77,16 @@ void OneTimeInitThreadIdentity(base_internal::ThreadIdentity* identity) {
   identity->ticker.store(0, std::memory_order_relaxed);
   identity->wait_start.store(0, std::memory_order_relaxed);
   identity->is_idle.store(false, std::memory_order_relaxed);
+  // To avoid a circular dependency we declare only the storage in the header
+  // and use placement new to construct the SpinLock.
+  static_assert(
+      sizeof(base_internal::ThreadIdentity::SchedulerState::
+                 association_lock_word) == sizeof(base_internal::SpinLock),
+      "Wrong size for SpinLock");
+  // Protects the association between this identity and its schedulable.  Should
+  // never be cooperative.
+  new (&identity->scheduler_state.association_lock_word)
+      base_internal::SpinLock(base_internal::SCHEDULE_KERNEL_ONLY);
 }
 
 static void ResetThreadIdentityBetweenReuse(
@@ -96,6 +106,17 @@ static void ResetThreadIdentityBetweenReuse(
   pts->wake = false;
   pts->cond_waiter = false;
   pts->all_locks = nullptr;
+  base_internal::ThreadIdentity::SchedulerState* ss =
+      &identity->scheduler_state;
+  ss->bound_schedulable.store(nullptr, std::memory_order_relaxed);
+  ss->association_lock_word = 0;
+  ss->scheduling_disabled_depth.store(0, std::memory_order_relaxed);
+  ss->potentially_blocking_depth = 0;
+  ss->schedule_next_state = 0;
+  ss->waking_designated_waker = false;
+  identity->static_initialization_depth = 0;
+  identity->wait_state.store(base_internal::ThreadIdentity::WaitState::kActive,
+                             std::memory_order_relaxed);
   identity->blocked_count_ptr = nullptr;
   identity->ticker.store(0, std::memory_order_relaxed);
   identity->wait_start.store(0, std::memory_order_relaxed);

@@ -9,7 +9,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 let $struct0 = builder.nextTypeIndex();
 /* $struct0 */ builder.addStruct({fields: [makeField(wasmRefNullType($struct0), false)], final: true, shared: true});
-let $array1 = builder.addArray(wasmRefNullType($struct0), false, kNoSuperType, true);
+let $array1 = builder.addArray(wasmRefNullType($struct0), {mutable: false, final: true});
 let $sig2 = builder.addType(makeSig([kWasmI32, kWasmI32], [wasmRefType($array1)]));
 let create_shared_array = builder.addFunction(undefined, $sig2).exportAs('create_shared_array');
 let $segment0 = builder.addPassiveElementSegment([[kGCPrefix, kExprStructNewDefault, $struct0]], wasmRefNullType($struct0));

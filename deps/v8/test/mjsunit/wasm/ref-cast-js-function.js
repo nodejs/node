@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function RefCastWasmJSFunction() {
@@ -24,7 +22,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       kExprRefCast, sigId, kExprCallRef, sigId
     ])
     .exportFunc();
-  const jsFunc = new WebAssembly.Function(
+  const jsFunc = new WebAssemblyFunction(
     { parameters: ['i32'], results: [] },
     () => 12 );
   const instance = builder.instantiate({ 'm': { 'foo': jsFunc } });

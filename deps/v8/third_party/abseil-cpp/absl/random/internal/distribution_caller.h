@@ -24,6 +24,7 @@
 #include "absl/base/config.h"
 #include "absl/base/fast_type_id.h"
 #include "absl/meta/type_traits.h"
+#include "absl/random/mocking_access.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
@@ -37,23 +38,8 @@ template <typename URBG>
 struct DistributionCaller {
   static_assert(!std::is_pointer<URBG>::value,
                 "You must pass a reference, not a pointer.");
-  // SFINAE to detect whether the URBG type includes a member matching
-  // bool InvokeMock(key_id, args_tuple*, result*).
-  //
-  // These live inside BitGenRef so that they have friend access
-  // to MockingBitGen. (see similar methods in DistributionCaller).
-  template <template <class...> class Trait, class AlwaysVoid, class... Args>
-  struct detector : std::false_type {};
-  template <template <class...> class Trait, class... Args>
-  struct detector<Trait, absl::void_t<Trait<Args...>>, Args...>
-      : std::true_type {};
 
-  template <class T>
-  using invoke_mock_t = decltype(std::declval<T*>()->InvokeMock(
-      std::declval<FastTypeIdType>(), std::declval<void*>(),
-      std::declval<void*>()));
-
-  using HasInvokeMock = typename detector<invoke_mock_t, void, URBG>::type;
+  using RandomMockingAccess = ::absl::RandomMockingAccess;
 
   // Default implementation of distribution caller.
   template <typename DistrT, typename... Args>
@@ -69,12 +55,13 @@ struct DistributionCaller {
   static typename DistrT::result_type Impl(std::true_type, URBG* urbg,
                                            Args&&... args) {
     using ResultT = typename DistrT::result_type;
-    using ArgTupleT = std::tuple<absl::decay_t<Args>...>;
+    using ArgTupleT = std::tuple<std::decay_t<Args>...>;
     using KeyT = ResultT(DistrT, ArgTupleT);
 
     ArgTupleT arg_tuple(std::forward<Args>(args)...);
     ResultT result;
-    if (!urbg->InvokeMock(FastTypeId<KeyT>(), &arg_tuple, &result)) {
+    if (!RandomMockingAccess::InvokeMock<URBG>(urbg, FastTypeId<KeyT>(),
+                                               &arg_tuple, &result)) {
       auto dist = absl::make_from_tuple<DistrT>(arg_tuple);
       result = dist(*urbg);
     }
@@ -84,8 +71,8 @@ struct DistributionCaller {
   // Default implementation of distribution caller.
   template <typename DistrT, typename... Args>
   static typename DistrT::result_type Call(URBG* urbg, Args&&... args) {
-    return Impl<DistrT, Args...>(HasInvokeMock{}, urbg,
-                                 std::forward<Args>(args)...);
+    return Impl<DistrT, Args...>(RandomMockingAccess::HasInvokeMock<URBG>{},
+                                 urbg, std::forward<Args>(args)...);
   }
 };
 

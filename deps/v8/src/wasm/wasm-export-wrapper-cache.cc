@@ -11,7 +11,7 @@ namespace v8::internal::wasm {
 
 // static
 DirectHandle<WeakFixedArray> WasmExportWrapperCache::New(Isolate* isolate,
-                                                         int capacity) {
+                                                         uint32_t capacity) {
   // Probing depends on bit-masking the hashes, so the capacity needs to be
   // a power of two.
   DCHECK(base::bits::IsPowerOfTwo(capacity));
@@ -25,19 +25,17 @@ DirectHandle<WeakFixedArray> WasmExportWrapperCache::New(Isolate* isolate,
 
 // static
 void WasmExportWrapperCache::Put(Isolate* isolate, CanonicalTypeIndex sig_index,
-                                 bool receiver_is_first_param,
                                  DirectHandle<Code> code) {
-  uint32_t hash = Hash(sig_index, receiver_is_first_param);
+  uint32_t hash = Hash(sig_index);
   Tagged<WeakFixedArray> cache = EnsureCapacity(isolate);
   PutInternal<true>(cache, hash, code->wrapper());
 }
 
 // static
 Tagged<CodeWrapper> WasmExportWrapperCache::Get(Isolate* isolate,
-                                                CanonicalTypeIndex sig_index,
-                                                bool receiver_is_first_param) {
+                                                CanonicalTypeIndex sig_index) {
   Tagged<WeakFixedArray> cache = isolate->heap()->js_to_wasm_wrappers();
-  uint32_t hash = Hash(sig_index, receiver_is_first_param);
+  uint32_t hash = Hash(sig_index);
   uint32_t capacity = Capacity(cache);
   if (capacity == 0) return {};  // Not found (cache is uninitialized).
   uint32_t count = 1;
@@ -45,13 +43,13 @@ Tagged<CodeWrapper> WasmExportWrapperCache::Get(Isolate* isolate,
        entry = NextProbe(entry, count++, capacity)) {
     DCHECK(count < capacity);
     int index = ToArraySlot(entry);
-    Tagged<MaybeWeak<Object>> raw_key = cache->get(index);
+    Tagged<MaybeObject> raw_key = cache->get(index);
     DCHECK(raw_key.IsSmi());
     int key = raw_key.ToSmi().value();
     if (key == kUnused) return {};  // Not found.
     DCHECK_GE(key, 0);
     if (static_cast<uint32_t>(key) != hash) continue;
-    Tagged<MaybeWeak<Object>> value = cache->get(index + 1);
+    Tagged<MaybeObject> value = cache->get(index + 1);
     if (value.IsCleared()) return {};  // Not found.
     return Cast<CodeWrapper>(value.GetHeapObjectAssumeWeak());
   }
@@ -62,16 +60,17 @@ uint32_t WasmExportWrapperCache::Capacity(Tagged<WeakFixedArray> cache) {
   // If we ever add more reserved slots, we'll have to subtract them properly
   // rather than just shifting them out implicitly.
   static_assert((kReservedSlots >> 1) == 0);
-  return cache->length() >> 1;
+  return cache->ulength().value() >> 1;
 }
 
 // static
 Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
     Isolate* isolate) {
   Tagged<WeakFixedArray> cache = isolate->heap()->js_to_wasm_wrappers();
-  if (cache->length() == 0) {
+  uint32_t cache_len = cache->ulength().value();
+  if (cache_len == 0) {
     // Lazy initialization.
-    static constexpr int kInitialCapacity = 16;
+    static constexpr uint32_t kInitialCapacity = 16;
     DirectHandle<WeakFixedArray> new_cache = New(isolate, kInitialCapacity);
     isolate->heap()->SetJSToWasmWrappers(*new_cache);
     return *new_cache;
@@ -87,18 +86,18 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
   Tagged<WeakFixedArray> grown = *New(isolate, capacity * 2);
   DisallowGarbageCollection no_gc;
   cache = *old_cache;
-  int num_used_entries = 0;
-  for (int i = kReservedSlots; i < cache->length(); i += kSlotsPerEntry) {
-    Tagged<MaybeWeak<Object>> raw_key = cache->get(i);
+  uint32_t num_used_entries = 0;
+  for (uint32_t i = kReservedSlots; i < cache_len; i += kSlotsPerEntry) {
+    Tagged<MaybeObject> raw_key = cache->get(i);
     DCHECK(raw_key.IsSmi());
     int key = raw_key.ToSmi().value();
     if (key == kUnused) continue;
-    Tagged<MaybeWeak<Object>> value = cache->get(i + 1);
+    Tagged<MaybeObject> value = cache->get(i + 1);
     if (value.IsCleared()) continue;
     num_used_entries++;
     PutInternal<false>(grown, key, value);
   }
-  grown->set(kNumUsedElementsIndex, Smi::FromInt(num_used_entries));
+  grown->set(kNumUsedElementsIndex, Smi::FromUInt(num_used_entries));
   isolate->heap()->SetJSToWasmWrappers(grown);
   return grown;
 }
@@ -107,14 +106,14 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
 template <bool entry_may_exist>
 void WasmExportWrapperCache::PutInternal(Tagged<WeakFixedArray> cache,
                                          uint32_t hash,
-                                         Tagged<MaybeWeak<Object>> value) {
+                                         Tagged<MaybeObject> value) {
   uint32_t capacity = Capacity(cache);
   uint32_t count = 1;
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
     DCHECK(count < capacity);
     int index = ToArraySlot(entry);
-    Tagged<MaybeWeak<Object>> raw_key = cache->get(index);
+    Tagged<MaybeObject> raw_key = cache->get(index);
     DCHECK(raw_key.IsSmi());
     int current_key = raw_key.ToSmi().value();
     if (current_key == kUnused) {
@@ -132,7 +131,7 @@ void WasmExportWrapperCache::PutInternal(Tagged<WeakFixedArray> cache,
     }
 
     // We get here when we've found the right entry (unused or cleared).
-    cache->set(index + 1, MakeWeak(value));
+    cache->set(index + 1, MakeWeak(Cast<MaybeWeak<HeapObject>>(value)));
     return;
   }
 }
@@ -142,9 +141,10 @@ void WasmExportWrapperCache::PutInternal(Tagged<WeakFixedArray> cache,
 // static
 void WasmExportWrapperCache::Verify(Heap* heap) {
   Tagged<WeakFixedArray> cache = heap->js_to_wasm_wrappers();
-  if (cache->length() == 0) return;
+  uint32_t cache_len = cache->ulength().value();
+  if (cache_len == 0) return;
   CHECK(cache->get(kNumUsedElementsIndex).IsSmi());
-  for (int i = kReservedSlots; i < cache->length(); i += kSlotsPerEntry) {
+  for (uint32_t i = kReservedSlots; i < cache_len; i += kSlotsPerEntry) {
     Tagged<MaybeObject> key = cache->get(i);
     Tagged<MaybeObject> value = cache->get(i + 1);
     CHECK(key.IsSmi());

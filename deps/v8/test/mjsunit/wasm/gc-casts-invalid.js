@@ -43,10 +43,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     for (let cast of casts) {
       let builder = new WasmModuleBuilder();
       assertEquals(struct, builder.addStruct([makeField(kWasmI32, true)]));
-      assertEquals(array, builder.addArray(kWasmI32));
+      assertEquals(array, builder.addArray(kWasmI32, {mutable: false}));
       assertEquals(sig, builder.addType(makeSig([kWasmI32], [])));
-      assertEquals(sharedArray,
-        builder.addArray(kWasmI32, true, kNoSuperType, false, true));
+      assertEquals(sharedArray, builder.addArray(kWasmI32, {shared: true}));
       builder.addFunction('refTest', makeSig([source_type], []))
       .addBody([
         kExprLocalGet, 0,
@@ -117,11 +116,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     kExprDrop,
     kExprReturn,
   ]);
-  // Even though the source is non-nullable, if the br_on_cast is set to produce
-  // a nullable value on cast, the label target must be nullable as well.
-  assertThrows(() => builder.instantiate(),
-    WebAssembly.CompileError,
-    /invalid types for br_on_cast: \(ref null 0\) is not a subtype of \(ref 0\)/);
+  // Relaxed rules in the Custom Descriptors proposal: source and target type
+  // now only need to be in the same type hierarchy.
+  // If we ever un-stage Custom Descriptors, this test will throw a
+  // WebAssembly.CompileError: "(ref null 0) is not a subtype of (ref 0)".
+  builder.instantiate();
 })();
 
 (function TestBrOnCastInvalidFlags() {

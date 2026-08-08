@@ -109,13 +109,11 @@ class RecomputeKnownNodeAspectsProcessor {
   void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
 
-  template <typename NodeT>
-  void ProcessThrowingNode(NodeT* node) {
-    static_assert(NodeT::kProperties.can_throw());
+  void ProcessThrowingNode(NodeBase* node) {
+    DCHECK(node->properties().can_throw());
     ExceptionHandlerInfo* info = node->exception_handler_info();
     if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
-      BasicBlock* exception_handler =
-          node->exception_handler_info()->catch_block();
+      BasicBlock* exception_handler = info->catch_block();
       reachable_exception_handlers_.insert(exception_handler);
       Merge(exception_handler);
     }
@@ -333,11 +331,10 @@ class RecomputeKnownNodeAspectsProcessor {
     return ProcessResult::kContinue;
   }
 
-  void ProcessStoreContextSlot(ValueNode* context, ValueNode* value,
-                               int offset) {
-    known_node_aspects().ClearAliasedContextSlotsFor(graph_, context, offset,
-                                                     value);
-    known_node_aspects().SetContextCachedValue(context, offset, value);
+  void ProcessStoreContextSlot(ValueNode* context, ValueNode* value, int offset,
+                               MaybeAssignedFlag maybe_assigned) {
+    known_node_aspects().RecordContextSlotStore(graph_, context, offset, value,
+                                                maybe_assigned);
   }
 
   template <typename NodeT>
@@ -345,7 +342,8 @@ class RecomputeKnownNodeAspectsProcessor {
     // If a store to a context, we use the specialized context slot cache.
     if (node->is_store_to_context()) {
       return ProcessStoreContextSlot(node->ObjectInput().node(),
-                                     node->ValueInput().node(), node->offset());
+                                     node->ValueInput().node(), node->offset(),
+                                     node->maybe_assigned());
     }
     // ... otherwise we try the properties cache.
     if (node->property_key().is_none()) return;
@@ -374,12 +372,11 @@ class RecomputeKnownNodeAspectsProcessor {
   template <typename NodeT>
   void ProcessLoadContextSlot(NodeT* node) {
     ValueNode* context = node->input_node(0);
+    MaybeAssignedFlag assigned = node->maybe_assigned();
     ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
-        context, node->offset(),
-        node->is_const() ? ContextSlotMutability::kImmutable
-                         : ContextSlotMutability::kMutable);
+        context, node->offset(), assigned);
     if (!cached_value) cached_value = node;
-    if (!node->is_const()) {
+    if (assigned == kMaybeAssigned) {
       known_node_aspects().UpdateMayHaveAliasingContexts(
           broker(), broker()->local_isolate(), context);
     }
@@ -397,25 +394,29 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(StoreContextSlotWithWriteBarrier* node) {
     ProcessStoreContextSlot(node->ContextInput().node(),
-                            node->NewValueInput().node(), node->offset());
+                            node->NewValueInput().node(), node->offset(),
+                            kMaybeAssigned);
     return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(StoreSmiContextCell* node) {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
-                            node->ValueInput().node(), node->slot_offset());
+                            node->ValueInput().node(), node->slot_offset(),
+                            kMaybeAssigned);
     return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(StoreInt32ContextCell* node) {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
-                            node->ValueInput().node(), node->slot_offset());
+                            node->ValueInput().node(), node->slot_offset(),
+                            kMaybeAssigned);
     return ProcessResult::kContinue;
   }
 
   ProcessResult ProcessNode(StoreFloat64ContextCell* node) {
     ProcessStoreContextSlot(graph_->GetConstant(node->context()),
-                            node->ValueInput().node(), node->slot_offset());
+                            node->ValueInput().node(), node->slot_offset(),
+                            kMaybeAssigned);
     return ProcessResult::kContinue;
   }
 

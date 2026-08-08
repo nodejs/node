@@ -65,6 +65,14 @@ class MaglevSafepointTableBuilder;
 
 // Utility functions
 
+#ifdef V8_ENABLE_APX_F
+V8_EXPORT_PRIVATE bool UseApxSetzucc();
+V8_EXPORT_PRIVATE bool UseApxCmovcc();
+#else
+V8_EXPORT_PRIVATE inline bool UseApxSetzucc() { return false; }
+V8_EXPORT_PRIVATE inline bool UseApxCmovcc() { return false; }
+#endif
+
 enum Condition : int {
   overflow = 0,
   no_overflow = 1,
@@ -322,6 +330,11 @@ class V8_EXPORT_PRIVATE Operand {
     V8_ASSUME(!memory_.is_label_operand || memory_.rex == 0);
     return memory_.rex >> 4;
   }
+#else
+  V8_INLINE uint8_t rex2() const {
+    UNREACHABLE();
+    return 0;
+  }
 #endif  // V8_ENABLE_APX_F
 
   V8_INLINE const MemoryOperand& memory() const {
@@ -416,6 +429,7 @@ inline bool operator!=(Operand op, XMMRegister r) { return true; }
 
 #define ASSEMBLER_INSTRUCTION_LIST(V) \
   V(add)                              \
+  V(adc)                              \
   V(and)                              \
   V(cmp)                              \
   V(cmpxchg)                          \
@@ -428,7 +442,7 @@ inline bool operator!=(Operand op, XMMRegister r) { return true; }
   V(mov)                              \
   V(movzxb)                           \
   V(movzxw)                           \
-  V(not )                             \
+  V(not)                              \
   V(or)                               \
   V(repmovs)                          \
   V(sbb)                              \
@@ -454,6 +468,14 @@ inline bool operator!=(Operand op, XMMRegister r) { return true; }
 #define ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(V) \
   V(ccmp)                                         \
   V(ctest)
+
+// CMOV instructions on operands/registers/ndd in APX
+// with kInt16Size, kInt32Size and kInt64Size.
+#define ASSEMBLER_CMOV_NDD_INSTRUCTION_LIST(V) \
+  V(cfcmov)                                    \
+  V(cmov)
+
+#define ASSEMBLER_CMOV_INSTRUCTION_LIST(V) V(cfcmov)
 
 // Partial Constant Pool
 // Different from complete constant pool (like arm does), partial constant pool
@@ -514,6 +536,10 @@ class ConstPool {
   // The bits for a rip-relative move instruction after mask.
   static constexpr uint32_t kMoveRipRelativeInstr = 0x00058B48;
 };
+
+namespace regexp {
+class RegExpMacroAssemblerX64;
+}
 
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
@@ -634,13 +660,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   enum VexW { kW0 = 0x0, kW1 = 0x80, kWIG = kW0 };
   enum LeadingOpcode { k0F = 0x1, k0F38 = 0x2, k0F3A = 0x3 };
 
-#ifdef V8_ENABLE_APX_F
+  // REX2 prefix encodings.
   enum Rex2MapID { kRex2Map0 = 0x0, kRex2Map1 = 0x80 };
   enum Rex2W { kRex2W0 = 0x0, kRex2W1 = 0x8 };
 
+  // EVEX prefix encodings.
   enum EvexStatusFlagUpdate { kFlagUpdate = 0x0, kNoFlagUpdate = 0x4 };
   enum EvexNewDataDestination { kOldDataDest = 0x0, kNewDataDest = 0x10 };
-#endif  // V8_ENABLE_APX_F
 
   // ---------------------------------------------------------------------------
   // InstructionStream generation
@@ -699,6 +725,79 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   ASSEMBLER_CONDITIONAL_INSTRUCTION_LIST(DECLARE_CONDITIONAL_INSTRUCTION)
 #undef DECLARE_CONDITIONAL_INSTRUCTION
+
+#define DECLARE_CMOV_NDD_INSTRUCTION(instruction)                 \
+  /* 3-operand APX version (ndd) */                               \
+  template <class P1, class P2>                                   \
+  void instruction##w(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt16Size);              \
+  }                                                               \
+                                                                  \
+  template <class P1, class P2>                                   \
+  void instruction##l(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt32Size);              \
+  }                                                               \
+                                                                  \
+  template <class P1, class P2>                                   \
+  void instruction##q(Condition cc, Register ndd, P1 p1, P2 p2) { \
+    emit_##instruction(cc, ndd, p1, p2, kInt64Size);              \
+  }
+  ASSEMBLER_CMOV_NDD_INSTRUCTION_LIST(DECLARE_CMOV_NDD_INSTRUCTION)
+#undef DECLARE_CMOV_NDD_INSTRUCTION
+
+#define DECLARE_CMOV_INSTRUCTION(instruction)       \
+  /* 2-operand Legacy/APX version */                \
+  template <class P1, class P2>                     \
+  void instruction##w(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt16Size);     \
+  }                                                 \
+                                                    \
+  template <class P1, class P2>                     \
+  void instruction##l(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt32Size);     \
+  }                                                 \
+                                                    \
+  template <class P1, class P2>                     \
+  void instruction##q(Condition cc, P1 p1, P2 p2) { \
+    emit_##instruction(cc, p1, p2, kInt64Size);     \
+  }
+  ASSEMBLER_CMOV_INSTRUCTION_LIST(DECLARE_CMOV_INSTRUCTION)
+#undef DECLARE_CMOV_INSTRUCTION
+
+#define DECLARE_SHIFT_NDD_INSTRUCTION(instruction, subcode)         \
+  void instruction##l(Register dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt32Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##q(Register dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt64Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##l(Register dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt32Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##q(Register dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt64Size);                     \
+  }                                                                 \
+                                                                    \
+  void instruction##l_cl(Register dst, Register src) {              \
+    shift(dst, src, subcode, kInt32Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##q_cl(Register dst, Register src) {              \
+    shift(dst, src, subcode, kInt64Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##l_cl(Register dst, Operand src) {               \
+    shift(dst, src, subcode, kInt32Size);                           \
+  }                                                                 \
+                                                                    \
+  void instruction##q_cl(Register dst, Operand src) {               \
+    shift(dst, src, subcode, kInt64Size);                           \
+  }
+  SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_NDD_INSTRUCTION)
+#undef DECLARE_SHIFT_NDD_INSTRUCTION
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -2533,14 +2632,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rdpkru();
   void wrpkru();
 
-#ifdef V8_ENABLE_APX_F
+  // APX instructions
   void pushpq(Register src);
   void poppq(Register dst);
   void push2q(Register src1, Register src2);
   void push2pq(Register src1, Register src2);
   void pop2q(Register dst1, Register dst2);
   void pop2pq(Register dst1, Register dst2);
-#endif  // V8_ENABLE_APX_F
+  void setzucc(Condition cc, Register reg);
+  void jmpabs(Immediate64 target);
+
+  // APX NDD neg
+  void negl(Register dst, Register src);
+  void negl(Register dst, Operand src);
+  void negq(Register dst, Register src);
+  void negq(Register dst, Operand src);
 
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
@@ -2582,9 +2688,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static bool IsNop(Address addr);
   static bool IsJmpRel(Address addr);
-
-  // Avoid overflows for displacements etc.
-  static constexpr int kMaximalBufferSize = 512 * MB;
 
   uint8_t byte_at(int pos) { return buffer_start_[pos]; }
   void set_byte_at(int pos, uint8_t value) { buffer_start_[pos] = value; }
@@ -2726,23 +2829,44 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // emit_optional_rex_32(Register, Operand) for byte registers.
   inline void emit_optional_rex_8(Register reg, Operand op);
 
-#ifdef V8_ENABLE_APX_F
+  // Emits a REX2 prefix (opcode 0xD5) encoding the map ID m, the W bit,
+  // and the extension bits for both register codes.
+  // High bit of reg goes to REX2.R3, bit4() of reg goes to REX2.R4.
+  // High bit of rm_reg goes to REX2.B3, bit4() of rm_reg goes to REX2.B4.
   inline void emit_rex2_prefix(Register reg, Register rm_reg, Rex2MapID m,
                                Rex2W w);
+  // As emit_rex2_prefix(Register, Register, Rex2MapID, Rex2W), but encodes
+  // the REX2.X3/B3/X4/B4 extension bits from an Operand.
   inline void emit_rex2_prefix(Register reg, Operand op, Rex2MapID m, Rex2W w);
 
+  // Emits a REX2 prefix with W=1 (64-bit operand size).
+  // High bit of reg goes to REX2.R3/R4, high bit of rm_reg goes to REX2.B3/B4.
   inline void emit_rex2_64(Register reg, Register rm_reg, Rex2MapID m);
   inline void emit_rex2_64(Register reg, Operand op, Rex2MapID m);
+  // As emit_rex2_64(Register, Register, Rex2MapID), but encodes a single
+  // register in the rm field (reg field uses rax as an unused placeholder).
   inline void emit_rex2_64(Register reg, Rex2MapID m);
   inline void emit_rex2_64(Operand op, Rex2MapID m);
 
+  // Emits a REX2 prefix with W=0 (32-bit operand size).
+  // High bit of reg goes to REX2.R3/R4, high bit of rm_reg goes to REX2.B3/B4.
   inline void emit_rex2_32(Register reg, Register rm_reg, Rex2MapID m);
   inline void emit_rex2_32(Register reg, Operand op, Rex2MapID m);
+  // As emit_rex2_32(Register, Register, Rex2MapID), but encodes a single
+  // register in the rm field (reg field uses rax as an unused placeholder).
   inline void emit_rex2_32(Register reg, Rex2MapID m);
   inline void emit_rex2_32(Operand op, Rex2MapID m);
 
-  // Legacy extended evex
+  // Legacy extended EVEX prefix (APX): the 4-byte EVEX encoding (starting with
+  // 0x62) repurposed for scalar integer instructions to support new data
+  // destination (NDD) and no-flags-update (NF) semantics.
+
+  // Emits the EVEX escape byte 0x62.
   inline void emit_evex_byte0() { emit(0x62); }
+  // Emits all 4 bytes of the legacy extended EVEX prefix.
+  // dst is the new data destination (NDD) register; src1 and src2 are sources.
+  // pp selects the operand-size override, w sets REX.W, nf suppresses flag
+  // updates when set, and nd enables new-data-destination mode.
   inline void emit_legacy_extended_evex_prefix(Register dst, Register src1,
                                                Register src2, SIMDPrefix pp,
                                                VexW w, EvexStatusFlagUpdate nf,
@@ -2751,32 +2875,45 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                                                Operand src2, SIMDPrefix pp,
                                                VexW w, EvexStatusFlagUpdate nf,
                                                EvexNewDataDestination nd);
+  // Emits payload byte 1 of the legacy extended EVEX prefix.
+  // Encodes the R3/X3/B3 and R4/B4 extension bits from src1 and src2.
   inline void emit_legacy_extended_evex_byte1(Register src1, Register src2);
   inline void emit_legacy_extended_evex_byte1(Register src1, Operand src2);
+  // Emits payload byte 2 of the legacy extended EVEX prefix.
+  // Encodes w, the inverted dst register code (V3:V0), X4, and SIMDPrefix pp.
   inline void emit_legacy_extended_evex_byte2(Register dst, VexW w,
                                               SIMDPrefix pp);
   inline void emit_legacy_extended_evex_byte2(Register dst, Operand src2,
                                               VexW w, SIMDPrefix pp);
+  // Emits payload byte 3 of the legacy extended EVEX prefix.
+  // Encodes nd (new data destination), V4 from dst, and nf (no flags update).
   inline void emit_legacy_extended_evex_byte3(Register dst,
                                               EvexNewDataDestination nd,
                                               EvexStatusFlagUpdate nf);
-  void emit_legacy_extended_evex_prefix_ccmp_ctest(Register src1, Register src2,
-                                                   SIMDPrefix pp, VexW w,
-                                                   OszcFlags dcc,
-                                                   Condition scc);
-
-  void emit_legacy_extended_evex_prefix_ccmp_ctest(Register src1, Operand src2,
-                                                   SIMDPrefix pp, VexW w,
-                                                   OszcFlags dcc,
-                                                   Condition scc);
-  void emit_legacy_extended_evex_byte2_ccmp_ctest(VexW w, SIMDPrefix pp,
-                                                  OszcFlags dcc);
-
-  void emit_legacy_extended_evex_byte2_ccmp_ctest(Operand src2, VexW w,
-                                                  SIMDPrefix pp, OszcFlags dcc);
-
-  void emit_legacy_extended_evex_byte3_ccmp_ctest(Condition scc);
-#endif  // V8_ENABLE_APX_F
+  // Emits all 4 bytes of the legacy extended EVEX prefix for CCMP/CTEST.
+  // src1 and src2 are the compare/test operands.
+  // dcc (default OSZC flags) is encoded in the V' field of payload byte 2;
+  // scc (source condition code) is encoded in the low nibble of payload byte 3.
+  inline void emit_legacy_extended_evex_prefix_ccmp_ctest(Register src1,
+                                                          Register src2,
+                                                          SIMDPrefix pp, VexW w,
+                                                          OszcFlags dcc,
+                                                          Condition scc);
+  inline void emit_legacy_extended_evex_prefix_ccmp_ctest(Register src1,
+                                                          Operand src2,
+                                                          SIMDPrefix pp, VexW w,
+                                                          OszcFlags dcc,
+                                                          Condition scc);
+  // Emits payload byte 2 of the legacy extended EVEX prefix for CCMP/CTEST.
+  // dcc (default OF/SF/ZF/CF flags) replaces the destination register V' field.
+  inline void emit_legacy_extended_evex_byte2_ccmp_ctest(VexW w, SIMDPrefix pp,
+                                                         OszcFlags dcc);
+  inline void emit_legacy_extended_evex_byte2_ccmp_ctest(Operand src2, VexW w,
+                                                         SIMDPrefix pp,
+                                                         OszcFlags dcc);
+  // Emits payload byte 3 of the legacy extended EVEX prefix for CCMP/CTEST.
+  // scc (source condition code) is encoded in the low 4 bits; EVEX.ND is 0.
+  inline void emit_legacy_extended_evex_byte3_ccmp_ctest(Condition scc);
 
   void emit_rex(int size) {
     if (size == kInt64Size) {
@@ -2891,7 +3028,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void immediate_arithmetic_op(uint8_t subcode, Operand dst, Immediate src,
                                int size);
 
-#ifdef V8_ENABLE_APX_F
   // Emit machine code for conditional instructions in APX
   void ccmp_ctest_op(uint8_t opcode, Register dst, Register rm, OszcFlags dcc,
                      Condition scc, int size);
@@ -2905,7 +3041,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                           OszcFlags dcc, Condition scc, int size);
   void immediate_ctest_op(uint8_t subcode, Operand dst, Immediate src,
                           OszcFlags dcc, Condition scc, int size);
-#endif  // V8_ENABLE_APX_F
 
   // Emit machine code for a shift operation.
   void shift(Operand dst, Immediate shift_amount, int subcode, int size);
@@ -2942,6 +3077,26 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void emit_add(Operand dst, Immediate src, int size) {
     immediate_arithmetic_op(0x0, dst, src, size);
+  }
+
+  void emit_adc(Register dst, Register src, int size) {
+    arithmetic_op(0x13, dst, src, size);
+  }
+
+  void emit_adc(Register dst, Immediate src, int size) {
+    immediate_arithmetic_op(0x2, dst, src, size);
+  }
+
+  void emit_adc(Register dst, Operand src, int size) {
+    arithmetic_op(0x13, dst, src, size);
+  }
+
+  void emit_adc(Operand dst, Register src, int size) {
+    arithmetic_op(0x11, src, dst, size);
+  }
+
+  void emit_adc(Operand dst, Immediate src, int size) {
+    immediate_arithmetic_op(0x2, dst, src, size);
   }
 
   void emit_and(Register dst, Register src, int size) {
@@ -3034,7 +3189,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // operation is only atomic if prefixed by the lock instruction.
   void emit_cmpxchg(Operand dst, Register src, int size);
 
-#ifdef V8_ENABLE_APX_F
   // Conditional compare
   void emit_ccmp(Register dst, Register rm, OszcFlags dcc, Condition scc,
                  int size) {
@@ -3101,7 +3255,153 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                   int size) {
     immediate_ctest_op(0x0, dst, src, dcc, scc, size);
   }
-#endif  // V8_ENABLE_APX_F
+
+  // CMOVcc
+  void emit_cmov(Condition cc, Register ndd, Register reg, Register rm,
+                 int size);
+  void emit_cmov(Condition cc, Register ndd, Register reg, Operand rm,
+                 int size);
+  // CFCMOVcc
+  void emit_cfcmov(Condition cc, Register reg, Register rm, int size);
+  void emit_cfcmov(Condition cc, Register reg, Operand rm, int size);
+  void emit_cfcmov(Condition cc, Operand rm, Register reg, int size);
+  void emit_cfcmov(Condition cc, Register ndd, Register reg, Register rm,
+                   int size);
+  void emit_cfcmov(Condition cc, Register ndd, Register reg, Operand rm,
+                   int size);
+
+  // Emit NDD version machine code for one of the operations ADD, SUB, AND, OR
+  // XOR and IMUL. The encodings of these operations are all similar, differing
+  // just in the opcode or in the reg field of the ModR/M byte.
+  // Operate on operands/registers with pointer size, 32-bit or 64-bit size.
+  void ndd_arithmetic_op(uint8_t opcode, Register dst, Register src1,
+                         Register src2, int size);
+  void ndd_arithmetic_op(uint8_t opcode, Register dst, Register src1,
+                         Operand src2, int size);
+  // Operate on operands/registers with pointer size, 32-bit or 64-bit size.
+  void ndd_immediate_arithmetic_op(uint8_t subcode, Register dst, Register src1,
+                                   Immediate src2, int size);
+  void ndd_immediate_arithmetic_op(uint8_t subcode, Register dst, Operand src1,
+                                   Immediate src2, int size);
+
+  void emit_add(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x03, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x03, dst, src1, src2, size);
+  }
+
+  void emit_add(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x1, dst, src2, src1, size);
+  }
+
+  void emit_add(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x23, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x23, dst, src1, src2, size);
+  }
+
+  void emit_and(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x21, dst, src2, src1, size);
+  }
+
+  void emit_and(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x2B, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x2B, dst, src1, src2, size);
+  }
+
+  void emit_sub(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x29, dst, src2, src1, size);
+  }
+
+  void emit_sub(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x0B, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x0B, dst, src1, src2, size);
+  }
+
+  void emit_or(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x09, dst, src2, src1, size);
+  }
+
+  void emit_or(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0x33, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0x33, dst, src1, src2, size);
+  }
+
+  void emit_xor(Register dst, Operand src1, Register src2, int size) {
+    ndd_arithmetic_op(0x31, dst, src2, src1, size);
+  }
+
+  void emit_xor(Register dst, Operand src1, Immediate src2, int size) {
+    ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
+  }
+
+  void emit_imul(Register dst, Register src1, Register src2, int size) {
+    ndd_arithmetic_op(0xAF, dst, src1, src2, size);
+  }
+
+  void emit_imul(Register dst, Register src1, Operand src2, int size) {
+    ndd_arithmetic_op(0xAF, dst, src1, src2, size);
+  }
+
+  void emit_not(Register dst, Register src, int size);
+  void emit_not(Register dst, Operand src, int size);
+
+  // Emit NDD version machine code for a shift operation.
+  void shift(Register dst, Register src, Immediate shift_amount, int subcode,
+             int size);
+  void shift(Register dst, Operand src, Immediate shift_amount, int subcode,
+             int size);
+  void shift(Register dst, Register src, int subcode, int size);
+  void shift(Register dst, Operand src, int subcode, int size);
 
   void emit_dec(Register dst, int size);
   void emit_dec(Operand dst, int size);
@@ -3296,7 +3596,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                int safepoint_table_offset, int handler_table_offset);
 
   friend class EnsureSpace;
-  friend class RegExpMacroAssemblerX64;
+  friend class regexp::RegExpMacroAssemblerX64;
 
   // code generation
   RelocInfoWriter reloc_info_writer;

@@ -112,6 +112,8 @@ class IC {
                            DirectHandle<Name> name);
   bool UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
                        DirectHandle<Name> name);
+  bool UpdateHomomorphicIC(const MaybeObjectDirectHandle& handler,
+                           DirectHandle<Name> name);
   bool UpdateOneMapManyNamesIC(DirectHandle<Name> new_name);
   bool UpdatePolymorphicIC(DirectHandle<Name> name,
                            const MaybeObjectDirectHandle& handler);
@@ -159,7 +161,7 @@ class IC {
 
   Tagged<Map> FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : Tagged<Map>();
+    return !target_maps_.empty() ? *target_maps_[0] : Tagged<Map>{};
   }
 
   const FeedbackNexus* nexus() const { return &nexus_; }

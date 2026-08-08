@@ -11,7 +11,6 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
-#include "src/common/globals.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -34,10 +33,10 @@ struct FunctionBody {
   uint32_t offset;         // offset in the module bytes, for error reporting
   const uint8_t* start;    // start of the function body
   const uint8_t* end;      // end of the function body
-  bool is_shared;          // whether this is a shared function
+  SharedFlag is_shared;    // whether this is a shared function
 
   FunctionBody(const FunctionSig* sig, uint32_t offset, const uint8_t* start,
-               const uint8_t* end, bool is_shared)
+               const uint8_t* end, SharedFlag is_shared)
       : sig(sig),
         offset(offset),
         start(start),
@@ -68,7 +67,7 @@ V8_EXPORT_PRIVATE void DecodeLocalDecls(WasmEnabledFeatures enabled,
 // Decode locals, including validation.
 V8_EXPORT_PRIVATE bool ValidateAndDecodeLocalDeclsForTesting(
     WasmEnabledFeatures enabled, BodyLocalDecls* decls,
-    const WasmModule* module, bool is_shared, const uint8_t* start,
+    const WasmModule* module, SharedFlag is_shared, const uint8_t* start,
     const uint8_t* end, Zone* zone);
 
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
@@ -168,11 +167,6 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 
   bool has_next() const { return pc_ < end_; }
-
-  WasmOpcode prefixed_opcode() {
-    auto [opcode, length] = read_prefixed_opcode<Decoder::NoValidationTag>(pc_);
-    return opcode;
-  }
 
   const uint8_t* pc() const { return pc_; }
 };

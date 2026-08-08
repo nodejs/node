@@ -546,6 +546,35 @@ void* SandboxedArrayBufferAllocator::AllocateUninitialized(size_t length) {
   return Allocate(length);
 }
 
+void* SandboxedArrayBufferAllocator::AllocateUninitializedOrCrash(
+    size_t length) {
+  base::MutexGuard guard(&mutex_);
+
+  length = RoundUp(length, kAllocationGranularity);
+  Address region = region_alloc_->AllocateRegion(length);
+  if (region == base::RegionAllocator::kAllocationFailure) {
+    V8::FatalProcessOutOfMemory(
+        nullptr,
+        "SandboxedArrayBufferAllocator::AllocateUninitializedOrCrash()");
+  }
+
+  // Check if the memory is inside the accessible region. If not, grow it.
+  Address end = region + length;
+  if (end > end_of_accessible_region_) {
+    Address new_end_of_accessible_region = RoundUp(end, kChunkSize);
+    size_t size = new_end_of_accessible_region - end_of_accessible_region_;
+    if (!sandbox_->address_space()->SetPagePermissions(
+            end_of_accessible_region_, size, PagePermissions::kReadWrite)) {
+      V8::FatalProcessOutOfMemory(
+          nullptr,
+          "SandboxedArrayBufferAllocator::AllocateUninitializedOrCrash()");
+    }
+    end_of_accessible_region_ = new_end_of_accessible_region;
+  }
+
+  return reinterpret_cast<void*>(region);
+}
+
 void SandboxedArrayBufferAllocator::Free(void* data) {
   base::MutexGuard guard(&mutex_);
   region_alloc_->FreeRegion(reinterpret_cast<Address>(data));
@@ -595,6 +624,13 @@ class PABackedSandboxedArrayBufferAllocator::Impl final {
     opts.backup_ref_ptr = partition_alloc::PartitionOptions::kDisabled;
     opts.use_configurable_pool = partition_alloc::PartitionOptions::kAllowed;
     partition_.init(std::move(opts));
+
+    // Also adjust the limits for dirty bytes and slot span ring size in the
+    // ArrayBuffer partition root assuming we are running foregrounded.
+    constexpr int kForegroundMaxEmptySlotSpansDirtyBytesShift = 2;
+    partition_.root()->AdjustSlotSpanRing(
+        partition_alloc::internal::kMaxEmptySlotSpanRingSize,
+        kForegroundMaxEmptySlotSpansDirtyBytesShift);
   }
 
   Impl(const Impl&) = delete;
@@ -611,6 +647,10 @@ class PABackedSandboxedArrayBufferAllocator::Impl final {
     constexpr partition_alloc::AllocFlags flags =
         partition_alloc::AllocFlags::kReturnNull;
     return AllocateInternal<flags>(length);
+  }
+
+  void* AllocateUninitializedOrCrash(size_t length) {
+    return AllocateInternal<partition_alloc::AllocFlags::kNone>(length);
   }
 
   void Free(void* data) {
@@ -657,6 +697,12 @@ void* PABackedSandboxedArrayBufferAllocator::AllocateUninitialized(
     size_t length) {
   DCHECK(impl_);
   return impl_->AllocateUninitialized(length);
+}
+
+void* PABackedSandboxedArrayBufferAllocator::AllocateUninitializedOrCrash(
+    size_t length) {
+  DCHECK(impl_);
+  return impl_->AllocateUninitializedOrCrash(length);
 }
 
 void PABackedSandboxedArrayBufferAllocator::Free(void* data) {

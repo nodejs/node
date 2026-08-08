@@ -2623,7 +2623,7 @@ struct BitPackUnroller {
                           T* HWY_RESTRICT packed_out, const V& mask,
                           const V& frame_of_reference, V& in, V& out) {
     // Avoid compilation errors and unnecessary template instantiation if
-    // compiling in C++11 or C++14 mode
+    // compiling in C++14 mode
     using NextUnroller = BitPackUnroller<
         T, kBits, ((S <= B) ? (S + ((S < B) ? kBits : 0)) : (S % B)),
         kLoadPos + static_cast<size_t>(S < B),
@@ -2669,7 +2669,7 @@ struct BitPackUnroller {
                             T* HWY_RESTRICT raw, const V& mask,
                             const V& frame_of_reference, V& in, V& out) {
     // Avoid compilation errors and unnecessary template instantiation if
-    // compiling in C++11 or C++14 mode
+    // compiling in C++14 mode
     using NextUnroller = BitPackUnroller<
         T, kBits, ((S <= B) ? (S + ((S < B) ? kBits : 0)) : (S % B)),
         kLoadPos + static_cast<size_t>(S > B),

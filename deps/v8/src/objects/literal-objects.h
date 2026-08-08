@@ -24,17 +24,32 @@ class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/literal-objects-tq.inc"
 
-class PrototypeSharedClosureInfo
-    : public TorqueGeneratedPrototypeSharedClosureInfo<
-          PrototypeSharedClosureInfo, Struct> {
+V8_OBJECT class PrototypeSharedClosureInfo : public Struct {
  public:
+  inline Tagged<ObjectBoilerplateDescription> boilerplate_description() const;
+  inline void set_boilerplate_description(
+      Tagged<ObjectBoilerplateDescription> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
+  inline void set_closure_feedback_cell_array(
+      Tagged<ClosureFeedbackCellArray> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Context> context() const;
+  inline void set_context(Tagged<Context> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(PrototypeSharedClosureInfo)
   DECL_VERIFIER(PrototypeSharedClosureInfo)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(PrototypeSharedClosureInfo)
-};
+ public:
+  TaggedMember<ObjectBoilerplateDescription> boilerplate_description_;
+  TaggedMember<ClosureFeedbackCellArray> closure_feedback_cell_array_;
+  TaggedMember<Context> context_;
+} V8_OBJECT_END;
 
 class ObjectBoilerplateDescriptionShape final : public AllStatic {
  public:
@@ -61,11 +76,12 @@ class ObjectBoilerplateDescription
                                 ObjectBoilerplateDescriptionShape>;
  public:
   using Shape = ObjectBoilerplateDescriptionShape;
+  using KeyT = UnionOf<InternalizedString, Number>;
 
   template <class IsolateT>
   static inline Handle<ObjectBoilerplateDescription> New(
-      IsolateT* isolate, int boilerplate, int all_properties, int index_keys,
-      bool has_seen_proto, AllocationType allocation = AllocationType::kYoung);
+      IsolateT* isolate, uint32_t boilerplate, uint32_t backing_store_size,
+      AllocationType allocation = AllocationType::kYoung);
 
   // ObjectLiteral::Flags for nested object literals.
   inline int flags() const;
@@ -77,17 +93,20 @@ class ObjectBoilerplateDescription
 
   inline int boilerplate_properties_count() const;
 
-  inline Tagged<Object> name(int index) const;
+  inline Tagged<KeyT> name(int index) const;
   inline Tagged<Object> value(int index) const;
 
-  inline void set_key_value(int index, Tagged<Object> key,
-                            Tagged<Object> value);
+  inline void set_key_value(int index, Tagged<KeyT> key, Tagged<Object> value);
   inline void set_value(int index, Tagged<Object> value);
 
   DECL_VERIFIER(ObjectBoilerplateDescription)
   DECL_PRINTER(ObjectBoilerplateDescription)
 
   class BodyDescriptor;
+
+  static constexpr uint32_t kLengthOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kHeaderSize =
+      kLengthOffset + (TAGGED_SIZE_8_BYTES ? kTaggedSize : kApiInt32Size);
 
  private:
   using TaggedArrayBase::get;
@@ -98,7 +117,7 @@ class ObjectBoilerplateDescription
   static constexpr int ValueIndex(int i) { return i * kElementsPerEntry + 1; }
 };
 
-V8_OBJECT class ArrayBoilerplateDescription : public StructLayout {
+V8_OBJECT class ArrayBoilerplateDescription : public Struct {
  public:
   inline ElementsKind elements_kind() const;
   inline void set_elements_kind(ElementsKind kind);
@@ -130,7 +149,7 @@ V8_OBJECT class ArrayBoilerplateDescription : public StructLayout {
   TaggedMember<FixedArrayBase> constant_elements_;
 } V8_OBJECT_END;
 
-V8_OBJECT class RegExpBoilerplateDescription : public StructLayout {
+V8_OBJECT class RegExpBoilerplateDescription : public Struct {
  public:
   // Dispatched behavior.
   void BriefPrintDetails(std::ostream& os);
@@ -138,10 +157,6 @@ V8_OBJECT class RegExpBoilerplateDescription : public StructLayout {
   inline Tagged<RegExpData> data(IsolateForSandbox isolate) const;
   inline void set_data(Tagged<RegExpData> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  inline Tagged<String> source() const;
-  inline void set_source(Tagged<String> value,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline int flags() const;
   inline void set_flags(int value);
@@ -157,21 +172,20 @@ V8_OBJECT class RegExpBoilerplateDescription : public StructLayout {
   friend struct ObjectTraits<RegExpBoilerplateDescription>;
 
   TrustedPointerMember<RegExpData, kRegExpDataIndirectPointerTag> data_;
-  TaggedMember<String> source_;
   TaggedMember<Smi> flags_;
 } V8_OBJECT_END;
 
 template <>
 struct ObjectTraits<RegExpBoilerplateDescription> {
   using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptor<offsetof(RegExpBoilerplateDescription, source_),
+      FixedBodyDescriptor<offsetof(RegExpBoilerplateDescription, flags_),
                           sizeof(RegExpBoilerplateDescription),
                           sizeof(RegExpBoilerplateDescription)>,
       WithStrongTrustedPointer<offsetof(RegExpBoilerplateDescription, data_),
                                kRegExpDataIndirectPointerTag>>;
 };
 
-V8_OBJECT class ClassBoilerplate : public StructLayout {
+V8_OBJECT class ClassBoilerplate : public Struct {
  public:
   enum ValueKind { kData, kGetter, kSetter, kAutoAccessor };
 

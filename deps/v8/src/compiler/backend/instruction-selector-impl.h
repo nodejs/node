@@ -254,6 +254,10 @@ class OperandGenerator : public turboshaft::OperationMatcher {
     return UnallocatedOperand(UnallocatedOperand::SAME_AS_INPUT, vreg);
   }
 
+  InstructionOperand DefineSameAsInputForVreg(int vreg, int input_index) {
+    return UnallocatedOperand(vreg, input_index);
+  }
+
   InstructionOperand DefineAsRegistertForVreg(int vreg) {
     return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg);
   }

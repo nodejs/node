@@ -486,7 +486,7 @@ ContextifyContext* ContextifyContext::Get(const PropertyCallbackInfo<T>& args) {
   // args.GetIsolate()->GetCurrentContext() and take the pointer at
   // ContextEmbedderIndex::kContextifyContext, as V8 is supposed to
   // push the creation context before invoking these callbacks.
-  return Get(args.HolderV2());
+  return Get(args.Holder());
 }
 
 ContextifyContext* ContextifyContext::Get(Local<Object> object) {
@@ -598,7 +598,7 @@ Intercepted ContextifyContext::PropertyGetterCallback(
 Intercepted ContextifyContext::PropertySetterCallback(
     Local<Name> property,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -691,7 +691,7 @@ Intercepted ContextifyContext::PropertyDescriptorCallback(
 Intercepted ContextifyContext::PropertyDefinerCallback(
     Local<Name> property,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -871,7 +871,7 @@ Intercepted ContextifyContext::IndexedPropertyGetterCallback(
 Intercepted ContextifyContext::IndexedPropertySetterCallback(
     uint32_t index,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -900,7 +900,7 @@ Intercepted ContextifyContext::IndexedPropertyDescriptorCallback(
 Intercepted ContextifyContext::IndexedPropertyDefinerCallback(
     uint32_t index,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing

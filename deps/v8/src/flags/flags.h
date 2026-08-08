@@ -73,9 +73,27 @@ struct alignas(kMinimumOSPageSize) FlagValues {
 
 V8_EXPORT_PRIVATE extern FlagValues v8_flags;
 
+// Controls the behavior of the flag processing logic, such as how
+// contradictory flags or implication cycles are handled.
+enum class FlagProcessingMode {
+  // Flag errors lead to abnormal termination (via Abort). This is typically
+  // the default behavior as it clearly indicates flag misconfigurations.
+  kAbortOnError,
+  // Flag errors lead to termination via Exit(-1). This is useful for automated
+  // bug detection systems that may set custom flags. This way, flag
+  // misconfigurations are not treated as crashes but only as failed executions.
+  kExitOnError,
+  // Flag contradictions are explicitly ignored. This can be useful when
+  // fuzzing with random flags that are likely to contradict each other. In
+  // these cases, the testcase will still be executed and the last
+  // specification of each flag will be used.
+  kIgnoreContradictions
+};
+
 // The global list of all flags.
 class V8_EXPORT_PRIVATE FlagList {
  public:
+  static FlagProcessingMode GetFlagProcessingMode();
   class HelpOptions {
    public:
     enum ExitBehavior : bool { kExit = true, kDontExit = false };

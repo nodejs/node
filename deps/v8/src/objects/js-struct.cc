@@ -74,7 +74,8 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
   PropertyKey lookup_key(isolate, key);
   LookupIterator it(isolate, shared_obj, lookup_key, LookupIterator::OWN);
   PropertyDescriptor current;
-  MAYBE_RETURN(GetOwnPropertyDescriptor(&it, &current), Nothing<bool>());
+  MAYBE_RETURN(JSReceiver::GetOwnPropertyDescriptor(&it, &current),
+               Nothing<bool>());
 
   // The only redefinition allowed is to set the value if all attributes match.
   if (!it.IsFound() ||
@@ -88,6 +89,18 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
   }
   DCHECK(it.property_attributes() == desc->ToAttributes());
   if (desc->has_value()) {
+    if (Object::SameValue(*desc->value(), *current.value())) {
+      return Just(true);
+    }
+
+    // If the property is read-only, we cannot overwrite it with a different
+    // value (which we know it is because of the SameValue check above).
+    if (it.property_details().IsReadOnly()) {
+      RETURN_FAILURE(
+          isolate, GetShouldThrow(isolate, should_throw),
+          NewTypeError(MessageTemplate::kRedefineDisallowed, it.GetName()));
+    }
+
     return Object::SetDataProperty(&it, desc->value());
   }
   return Just(true);
@@ -151,10 +164,9 @@ MaybeHandle<T> GetSpecialSlotValue(Isolate* isolate, Tagged<Map> instance_map,
         special_slot_name ==
             ReadOnlyRoots(isolate).shared_struct_map_registry_key_symbol(),
         entry.as_int() == 0);
-    result =
-        handle(Cast<T>(instance_map->instance_descriptors()->GetStrongValue(
-                   isolate, entry)),
-               isolate);
+    result = handle(
+        Cast<T>(instance_map->instance_descriptors()->GetStrongValue(entry)),
+        isolate);
   }
   return result;
 }
@@ -165,13 +177,13 @@ MaybeHandle<T> GetSpecialSlotValue(Isolate* isolate, Tagged<Map> instance_map,
 DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
     Isolate* isolate, const base::Vector<const DirectHandle<Name>> field_names,
     const std::set<uint32_t>& element_names,
-    MaybeDirectHandle<String> maybe_registry_key) {
+    MaybeDirectHandle<String> maybe_registry_key,
+    bool has_interesting_properties) {
   auto* factory = isolate->factory();
 
-  int num_fields = 0;
-  int num_elements = 0;
+  int num_fields = static_cast<int>(field_names.size());
 
-  int num_descriptors = static_cast<int>(field_names.size());
+  int num_descriptors = num_fields;
   // If there are elements, an template NumberDictionary is created and stored
   // as a data constant on a descriptor.
   if (!element_names.empty()) num_descriptors++;
@@ -180,13 +192,20 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
   // the map simplifies the weakness handling in the GC.
   if (!maybe_registry_key.is_null()) num_descriptors++;
 
+  // Calculate the size for instances.
+  int instance_size;
+  int in_object_properties;
+  JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, 0, num_fields,
+                                          &instance_size,
+                                          &in_object_properties);
+
   // Create the DescriptorArray if there are fields or elements.
   DirectHandle<DescriptorArray> descriptors;
   if (num_descriptors != 0) {
     descriptors = factory->NewDescriptorArray(num_descriptors, 0,
                                               AllocationType::kSharedOld);
 
-    int special_slots = 0;
+    InternalIndex descriptor_index(0);
 
     // Store the registry key if the map is registered. This must be the first
     // slot if present. The registry depends on this for rehashing.
@@ -195,15 +214,15 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_registry_key_symbol(), registry_key,
           ALL_ATTRIBUTES_MASK);
-      DCHECK_EQ(0, special_slots);
-      descriptors->Set(InternalIndex(special_slots++), &d);
+      DCHECK_EQ(InternalIndex(0), descriptor_index);
+      descriptors->Set(descriptor_index++, &d);
     }
 
     // Elements in shared structs are only supported as a dictionary. Create the
     // template NumberDictionary if needed.
     if (!element_names.empty()) {
       DirectHandle<NumberDictionary> elements_template;
-      num_elements = static_cast<int>(element_names.size());
+      int num_elements = static_cast<int>(element_names.size());
       elements_template = NumberDictionary::New(isolate, num_elements,
                                                 AllocationType::kSharedOld);
       for (uint32_t index : element_names) {
@@ -220,33 +239,40 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
       Descriptor d = Descriptor::DataConstant(
           factory->shared_struct_map_elements_template_symbol(),
           elements_template, ALL_ATTRIBUTES_MASK);
-      descriptors->Set(InternalIndex(special_slots++), &d);
+      descriptors->Set(descriptor_index++, &d);
     }
 
-    DCHECK_LE(special_slots, kSpecialSlots);
+    DCHECK_LE(descriptor_index.as_uint32(), kSpecialSlots);
 
+    int field_index = 0;
     for (DirectHandle<Name> field_name : field_names) {
+      bool is_inobject = field_index < in_object_properties;
+      int field_offset =
+          is_inobject ? JSSharedStruct::kHeaderSize + field_index * kTaggedSize
+                      : FixedArray::OffsetOfElementAt(field_index -
+                                                      in_object_properties);
       // Shared structs' fields need to be aligned, so make it all tagged.
       PropertyDetails details(
           PropertyKind::kData, SEALED, PropertyLocation::kField,
-          PropertyConstness::kMutable, Representation::Tagged(), num_fields);
-      descriptors->Set(InternalIndex(special_slots + num_fields), *field_name,
-                       FieldType::Any(), details);
-      num_fields++;
+          PropertyConstness::kMutable, Representation::Tagged(), field_offset,
+          is_inobject);
+      descriptors->Set(descriptor_index++, *field_name, FieldType::Any(),
+                       details);
+      field_index++;
     }
+    DCHECK_EQ(field_index, num_fields);
 
     descriptors->Sort();
   }
 
-  // Calculate the size for instances and create the map.
-  int instance_size;
-  int in_object_properties;
-  JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, false, 0,
-                                          num_fields, &instance_size,
-                                          &in_object_properties);
+  // Create the map.
   DirectHandle<Map> instance_map = factory->NewContextlessMap(
       JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
       in_object_properties, AllocationType::kSharedMap);
+
+  if (has_interesting_properties) {
+    instance_map->set_may_have_interesting_properties(true);
+  }
 
   // Prepare the enum cache if necessary.
   if (num_descriptors == 0) {
@@ -276,7 +302,7 @@ DirectHandle<Map> JSSharedStruct::CreateInstanceMap(
 MaybeHandle<String> JSSharedStruct::GetRegistryKey(Isolate* isolate,
                                                    Tagged<Map> instance_map) {
   return GetSpecialSlotValue<String>(
-      isolate, *instance_map,
+      isolate, instance_map,
       ReadOnlyRoots(isolate).shared_struct_map_registry_key_symbol());
 }
 
@@ -409,7 +435,7 @@ MaybeDirectHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
                                                      i)) {
       DirectHandle<NumberDictionary> elements_template(
           Cast<NumberDictionary>(
-              existing_map->instance_descriptors()->GetStrongValue(isolate, i)),
+              existing_map->instance_descriptors()->GetStrongValue(i)),
           isolate);
       if (element_names.size() != elements_template->NumberOfElements()) {
         return MaybeDirectHandle<Map>();
@@ -441,7 +467,7 @@ MaybeDirectHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
 MaybeDirectHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
     Isolate* isolate, Handle<String> key,
     const base::Vector<const DirectHandle<Name>> field_names,
-    const std::set<uint32_t>& element_names) {
+    const std::set<uint32_t>& element_names, bool has_interesting_properties) {
   key = isolate->factory()->InternalizeString(key);
 
   // To avoid deadlock with iteration during GC and modifying the table, no GC
@@ -458,7 +484,7 @@ MaybeDirectHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
 
   // We have a likely miss. Create a new instance map outside of the lock.
   DirectHandle<Map> map = JSSharedStruct::CreateInstanceMap(
-      isolate, field_names, element_names, key);
+      isolate, field_names, element_names, key, has_interesting_properties);
 
   // Relookup to see if it's in fact a miss.
   NoGarbageCollectionMutexGuard data_guard(&data_mutex_);
@@ -482,9 +508,9 @@ MaybeDirectHandle<Map> SharedStructTypeRegistry::RegisterNoThrow(
 MaybeDirectHandle<Map> SharedStructTypeRegistry::Register(
     Isolate* isolate, Handle<String> key,
     const base::Vector<const DirectHandle<Name>> field_names,
-    const std::set<uint32_t>& element_names) {
-  MaybeDirectHandle<Map> canonical_map =
-      RegisterNoThrow(isolate, key, field_names, element_names);
+    const std::set<uint32_t>& element_names, bool has_interesting_properties) {
+  MaybeDirectHandle<Map> canonical_map = RegisterNoThrow(
+      isolate, key, field_names, element_names, has_interesting_properties);
   if (canonical_map.is_null()) {
     THROW_NEW_ERROR(
         isolate,

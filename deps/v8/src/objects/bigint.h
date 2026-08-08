@@ -26,18 +26,20 @@ namespace internal {
 
 void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr);
-int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr);
 void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr);
 int32_t MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
                                                  Address x_addr,
-                                                 Address y_addr);
+                                                 Address y_addr,
+                                                 Address isolate_addr);
 int32_t MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
                                                  Address x_addr,
-                                                 Address y_addr);
+                                                 Address y_addr,
+                                                 Address isolate_addr);
 int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
                                                  Address x_addr,
-                                                 Address y_addr);
+                                                 Address y_addr,
+                                                 Address isolate_addr);
 void MutableBigInt_BitwiseAndPosPosAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr);
@@ -98,21 +100,32 @@ V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
 
   bigint::Digits digits() const;
 
-  // The maximum kMaxLengthBits that the current implementation supports
-  // would be kMaxInt - kSystemPointerSize * kBitsPerByte - 1.
-  // Since we want a platform independent limit, choose a nice round number
-  // somewhere below that maximum.
-  static const uint32_t kMaxLengthBits = 1 << 30;  // ~1 billion.
+  // Maximum BigInt length, somewhat arbitrarily chosen.
+  static const uint32_t kMaxBitsBits = 30;
   static const uint32_t kMaxLength =
-      kMaxLengthBits / (kSystemPointerSize * kBitsPerByte);
+      ((1 << kMaxBitsBits) - 1) / (kSystemPointerSize * kBitsPerByte);
+  static const uint32_t kMaxBits =
+      kMaxLength * kSystemPointerSize * kBitsPerByte;  // ~1 billion.
 
   // Sign and length are stored in the same bitfield.  Since the GC needs to be
   // able to read the length concurrently, the getters and setters are atomic.
-  static const uint32_t kLengthFieldBits = 30;
-  static_assert(kMaxLength <= ((1 << kLengthFieldBits) - 1));
+  // We intentionally use all available bits, so that decoding the length
+  // field is just a "shr" instruction (and needs no bit mask).
+  // As a safeguard against malicious heap corruption, we limit the length
+  // field to the minimum size needed (24 on 64-bit, 25 on 32-bit). This
+  // prevents overflow bugs when adding two BigInt lengths, for example.
+  static const uint32_t kLengthFieldBits =
+      kMaxBitsBits - kSystemPointerSizeLog2 - kBitsPerByteLog2;
+  static_assert(kMaxLength <= ((1u << kLengthFieldBits) - 1));
+  static const uint32_t kPaddingBits = 32 - 1 /* sign */ - kLengthFieldBits;
   using SignBits = base::BitField<bool, 0, 1>;
-  using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
-  static_assert(LengthBits::kLastUsedBit < 32);
+  using PaddingBits = SignBits::Next<uint32_t, kPaddingBits>;
+  using LengthBits = PaddingBits::Next<uint32_t, kLengthFieldBits>;
+  static_assert(LengthBits::kLastUsedBit == 31);
+  // For historical reasons, the serialized format uses a different encoding.
+  using LengthBitsForSerialization = SignBits::Next<uint32_t, 31>;
+
+  void BigIntBaseShortPrint(std::ostream& os);
 
   DECL_VERIFIER(BigIntBase)
   DECL_PRINTER(BigIntBase)
@@ -181,7 +194,7 @@ V8_OBJECT class FreshlyAllocatedBigInt : public BigIntBase {
 V8_OBJECT class BigInt : public BigIntBase {
  public:
   // Implementation of the Spec methods, see:
-  // https://tc39.github.io/proposal-bigint/#sec-numeric-types
+  // https://tc39.es/proposal-bigint/#sec-numeric-types
   // Sections 1.1.1 through 1.1.19.
   static Handle<BigInt> UnaryMinus(Isolate* isolate, DirectHandle<BigInt> x);
   static MaybeDirectHandle<BigInt> BitwiseNot(Isolate* isolate,
@@ -247,8 +260,6 @@ V8_OBJECT class BigInt : public BigIntBase {
   uint32_t Words64Count();
   void ToWordsArray64(int* sign_bit, uint32_t* words64_count, uint64_t* words);
 
-  void BigIntShortPrint(std::ostream& os);
-
   inline static uint32_t SizeFor(uint32_t length) {
     return sizeof(BigInt) + length * kDigitSize;
   }
@@ -264,7 +275,7 @@ V8_OBJECT class BigInt : public BigIntBase {
       Isolate* isolate, DirectHandle<BigInt> bigint);
 
   // "The Number value for x", see:
-  // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
+  // https://tc39.es/ecma262/#sec-ecmascript-language-types-number-type
   // Returns a Smi or HeapNumber.
   static DirectHandle<Number> ToNumber(Isolate* isolate,
                                        DirectHandle<BigInt> x);

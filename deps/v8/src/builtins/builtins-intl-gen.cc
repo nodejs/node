@@ -98,6 +98,7 @@ TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
 }
 #endif
 
+// https://tc39.es/ecma262/#sec-string.prototype.tolowercase
 TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
   auto maybe_string = Parameter<Object>(Descriptor::kReceiver);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -108,6 +109,7 @@ TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
   Return(CallBuiltin(Builtin::kStringToLowerCaseIntl, context, string));
 }
 
+// https://tc39.es/ecma402/#sup-string.prototype.tolocalelowercase
 TF_BUILTIN(StringPrototypeToLocaleLowerCase, IntlBuiltinsAssembler) {
   TNode<Int32T> argc =
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
@@ -280,6 +282,7 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
   }
 }
 
+// https://tc39.es/ecma402/#sec-intl-list-format.prototype.format
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {
   ListFormatCommon(
       Parameter<Context>(Descriptor::kContext),
@@ -287,6 +290,7 @@ TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {
       Runtime::kFormatList, "Intl.ListFormat.prototype.format");
 }
 
+// https://tc39.es/ecma402/#sec-intl-list-format.prototype.formattoparts
 TF_BUILTIN(ListFormatPrototypeFormatToParts, IntlBuiltinsAssembler) {
   ListFormatCommon(
       Parameter<Context>(Descriptor::kContext),

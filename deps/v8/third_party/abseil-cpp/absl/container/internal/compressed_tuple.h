@@ -166,7 +166,7 @@ struct TupleMoveConstructible : std::false_type {};
 template <class... Ts, class... Vs>
 struct TupleMoveConstructible<true, CompressedTuple<Ts...>, Vs...>
     : std::integral_constant<
-          bool, absl::conjunction<
+          bool, std::conjunction<
                     TupleElementMoveConstructible<Ts, Vs&&>...>::value> {};
 
 template <typename T>
@@ -227,11 +227,11 @@ class ABSL_INTERNAL_COMPRESSED_TUPLE_DECLSPEC CompressedTuple
       : CompressedTuple::CompressedTupleImpl(absl::in_place, base...) {}
 
   template <typename First, typename... Vs,
-            absl::enable_if_t<
-                absl::conjunction<
+            std::enable_if_t<
+                std::conjunction<
                     // Ensure we are not hiding default copy/move constructors.
-                    absl::negation<std::is_same<void(CompressedTuple),
-                                                void(absl::decay_t<First>)>>,
+                    std::negation<std::is_same<void(CompressedTuple),
+                                                void(std::decay_t<First>)>>,
                     internal_compressed_tuple::TupleItemsMoveConstructible<
                         CompressedTuple<Ts...>, First, Vs...>>::value,
                 bool> = true>

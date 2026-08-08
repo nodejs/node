@@ -32,7 +32,7 @@ template <typename UC> fastfloat_really_inline constexpr bool has_simd_opt() {
 // able to optimize it well.
 template <typename UC>
 fastfloat_really_inline constexpr bool is_integer(UC c) noexcept {
-  return !(c > UC('9') || c < UC('0'));
+  return (unsigned)(c - UC('0')) <= 9u;
 }
 
 fastfloat_really_inline constexpr uint64_t byteswap(uint64_t val) {
@@ -42,10 +42,15 @@ fastfloat_really_inline constexpr uint64_t byteswap(uint64_t val) {
          (val & 0x000000000000FF00) << 40 | (val & 0x00000000000000FF) << 56;
 }
 
+fastfloat_really_inline constexpr uint32_t byteswap_32(uint32_t val) {
+  return (val >> 24) | ((val >> 8) & 0x0000FF00u) | ((val << 8) & 0x00FF0000u) |
+         (val << 24);
+}
+
 // Read 8 UC into a u64. Truncates UC if not char.
 template <typename UC>
 fastfloat_really_inline FASTFLOAT_CONSTEXPR20 uint64_t
-read8_to_u64(const UC *chars) {
+read8_to_u64(UC const *chars) {
   if (cpp20_and_in_constexpr() || !std::is_same<UC, char>::value) {
     uint64_t val = 0;
     for (int i = 0; i < 8; ++i) {
@@ -63,11 +68,30 @@ read8_to_u64(const UC *chars) {
   return val;
 }
 
+// Read 4 UC into a u32. Truncates UC if not char.
+template <typename UC>
+fastfloat_really_inline FASTFLOAT_CONSTEXPR20 uint32_t
+read4_to_u32(UC const *chars) {
+  if (cpp20_and_in_constexpr() || !std::is_same<UC, char>::value) {
+    uint32_t val = 0;
+    for (int i = 0; i < 4; ++i) {
+      val |= uint32_t(uint8_t(*chars)) << (i * 8);
+      ++chars;
+    }
+    return val;
+  }
+  uint32_t val;
+  ::memcpy(&val, chars, sizeof(uint32_t));
+#if FASTFLOAT_IS_BIG_ENDIAN == 1
+  val = byteswap_32(val);
+#endif
+  return val;
+}
 #ifdef FASTFLOAT_SSE2
 
-fastfloat_really_inline uint64_t simd_read8_to_u64(const __m128i data) {
+fastfloat_really_inline uint64_t simd_read8_to_u64(__m128i const data) {
   FASTFLOAT_SIMD_DISABLE_WARNINGS
-  const __m128i packed = _mm_packus_epi16(data, data);
+  __m128i const packed = _mm_packus_epi16(data, data);
 #ifdef FASTFLOAT_64BIT
   return uint64_t(_mm_cvtsi128_si64(packed));
 #else
@@ -79,26 +103,26 @@ fastfloat_really_inline uint64_t simd_read8_to_u64(const __m128i data) {
   FASTFLOAT_SIMD_RESTORE_WARNINGS
 }
 
-fastfloat_really_inline uint64_t simd_read8_to_u64(const char16_t *chars) {
+fastfloat_really_inline uint64_t simd_read8_to_u64(char16_t const *chars) {
   FASTFLOAT_SIMD_DISABLE_WARNINGS
   return simd_read8_to_u64(
-      _mm_loadu_si128(reinterpret_cast<const __m128i *>(chars)));
+      _mm_loadu_si128(reinterpret_cast<__m128i const *>(chars)));
   FASTFLOAT_SIMD_RESTORE_WARNINGS
 }
 
 #elif defined(FASTFLOAT_NEON)
 
-fastfloat_really_inline uint64_t simd_read8_to_u64(const uint16x8_t data) {
+fastfloat_really_inline uint64_t simd_read8_to_u64(uint16x8_t const data) {
   FASTFLOAT_SIMD_DISABLE_WARNINGS
   uint8x8_t utf8_packed = vmovn_u16(data);
   return vget_lane_u64(vreinterpret_u64_u8(utf8_packed), 0);
   FASTFLOAT_SIMD_RESTORE_WARNINGS
 }
 
-fastfloat_really_inline uint64_t simd_read8_to_u64(const char16_t *chars) {
+fastfloat_really_inline uint64_t simd_read8_to_u64(char16_t const *chars) {
   FASTFLOAT_SIMD_DISABLE_WARNINGS
   return simd_read8_to_u64(
-      vld1q_u16(reinterpret_cast<const uint16_t *>(chars)));
+      vld1q_u16(reinterpret_cast<uint16_t const *>(chars)));
   FASTFLOAT_SIMD_RESTORE_WARNINGS
 }
 
@@ -118,9 +142,9 @@ uint64_t simd_read8_to_u64(UC const *) {
 // credit  @aqrit
 fastfloat_really_inline FASTFLOAT_CONSTEXPR14 uint32_t
 parse_eight_digits_unrolled(uint64_t val) {
-  const uint64_t mask = 0x000000FF000000FF;
-  const uint64_t mul1 = 0x000F424000000064; // 100 + (1000000ULL << 32)
-  const uint64_t mul2 = 0x0000271000000001; // 1 + (10000ULL << 32)
+  uint64_t const mask = 0x000000FF000000FF;
+  uint64_t const mul1 = 0x000F424000000064; // 100 + (1000000ULL << 32)
+  uint64_t const mul2 = 0x0000271000000001; // 1 + (10000ULL << 32)
   val -= 0x3030303030303030;
   val = (val * 10) + (val >> 8); // val = (val * 2561) >> 8;
   val = (((val & mask) * mul1) + (((val >> 16) & mask) * mul2)) >> 32;
@@ -144,26 +168,38 @@ is_made_of_eight_digits_fast(uint64_t val) noexcept {
             0x8080808080808080));
 }
 
+fastfloat_really_inline constexpr bool
+is_made_of_four_digits_fast(uint32_t val) noexcept {
+  return !((((val + 0x46464646) | (val - 0x30303030)) & 0x80808080));
+}
+
+fastfloat_really_inline FASTFLOAT_CONSTEXPR14 uint32_t
+parse_four_digits_unrolled(uint32_t val) noexcept {
+  val -= 0x30303030;
+  val = (val * 10) + (val >> 8);
+  return (((val & 0x00FF00FF) * 0x00640001) >> 16) & 0xFFFF;
+}
+
 #ifdef FASTFLOAT_HAS_SIMD
 
 // Call this if chars might not be 8 digits.
 // Using this style (instead of is_made_of_eight_digits_fast() then
 // parse_eight_digits_unrolled()) ensures we don't load SIMD registers twice.
 fastfloat_really_inline FASTFLOAT_CONSTEXPR20 bool
-simd_parse_if_eight_digits_unrolled(const char16_t *chars,
+simd_parse_if_eight_digits_unrolled(char16_t const *chars,
                                     uint64_t &i) noexcept {
   if (cpp20_and_in_constexpr()) {
     return false;
   }
 #ifdef FASTFLOAT_SSE2
   FASTFLOAT_SIMD_DISABLE_WARNINGS
-  const __m128i data =
-      _mm_loadu_si128(reinterpret_cast<const __m128i *>(chars));
+  __m128i const data =
+      _mm_loadu_si128(reinterpret_cast<__m128i const *>(chars));
 
   // (x - '0') <= 9
   // http://0x80.pl/articles/simd-parsing-int-sequences.html
-  const __m128i t0 = _mm_add_epi16(data, _mm_set1_epi16(32720));
-  const __m128i t1 = _mm_cmpgt_epi16(t0, _mm_set1_epi16(-32759));
+  __m128i const t0 = _mm_add_epi16(data, _mm_set1_epi16(32720));
+  __m128i const t1 = _mm_cmpgt_epi16(t0, _mm_set1_epi16(-32759));
 
   if (_mm_movemask_epi8(t1) == 0) {
     i = i * 100000000 + parse_eight_digits_unrolled(simd_read8_to_u64(data));
@@ -173,12 +209,12 @@ simd_parse_if_eight_digits_unrolled(const char16_t *chars,
   FASTFLOAT_SIMD_RESTORE_WARNINGS
 #elif defined(FASTFLOAT_NEON)
   FASTFLOAT_SIMD_DISABLE_WARNINGS
-  const uint16x8_t data = vld1q_u16(reinterpret_cast<const uint16_t *>(chars));
+  uint16x8_t const data = vld1q_u16(reinterpret_cast<uint16_t const *>(chars));
 
   // (x - '0') <= 9
   // http://0x80.pl/articles/simd-parsing-int-sequences.html
-  const uint16x8_t t0 = vsubq_u16(data, vmovq_n_u16('0'));
-  const uint16x8_t mask = vcltq_u16(t0, vmovq_n_u16('9' - '0' + 1));
+  uint16x8_t const t0 = vsubq_u16(data, vmovq_n_u16('0'));
+  uint16x8_t const mask = vcltq_u16(t0, vmovq_n_u16('9' - '0' + 1));
 
   if (vminvq_u16(mask) == 0xFFFF) {
     i = i * 100000000 + parse_eight_digits_unrolled(simd_read8_to_u64(data));
@@ -208,7 +244,7 @@ bool simd_parse_if_eight_digits_unrolled(UC const *, uint64_t &) {
 
 template <typename UC, FASTFLOAT_ENABLE_IF(!std::is_same<UC, char>::value) = 0>
 fastfloat_really_inline FASTFLOAT_CONSTEXPR20 void
-loop_parse_if_eight_digits(const UC *&p, const UC *const pend, uint64_t &i) {
+loop_parse_if_eight_digits(UC const *&p, UC const *const pend, uint64_t &i) {
   if (!has_simd_opt<UC>()) {
     return;
   }
@@ -220,7 +256,7 @@ loop_parse_if_eight_digits(const UC *&p, const UC *const pend, uint64_t &i) {
 }
 
 fastfloat_really_inline FASTFLOAT_CONSTEXPR20 void
-loop_parse_if_eight_digits(const char *&p, const char *const pend,
+loop_parse_if_eight_digits(char const *&p, char const *const pend,
                            uint64_t &i) {
   // optimizes better than parse_if_eight_digits_unrolled() for UC = char.
   while ((std::distance(p, pend) >= 8) &&
@@ -259,12 +295,12 @@ template <typename UC> struct parsed_number_string_t {
   bool valid{false};
   bool too_many_digits{false};
   // contains the range of the significant digits
-  span<const UC> integer{};  // non-nullable
-  span<const UC> fraction{}; // nullable
+  span<UC const> integer{};  // non-nullable
+  span<UC const> fraction{}; // nullable
   parse_error error{parse_error::no_error};
 };
 
-using byte_span = span<const char>;
+using byte_span = span<char const>;
 using parsed_number_string = parsed_number_string_t<char>;
 
 template <typename UC>
@@ -279,7 +315,7 @@ report_parse_error(UC const *p, parse_error error) {
 
 // Assuming that you use no more than 19 digits, this will
 // parse an ASCII string.
-template <typename UC>
+template <bool basic_json_fmt, typename UC>
 fastfloat_really_inline FASTFLOAT_CONSTEXPR20 parsed_number_string_t<UC>
 parse_number_string(UC const *p, UC const *pend,
                     parse_options_t<UC> options) noexcept {
@@ -292,20 +328,20 @@ parse_number_string(UC const *p, UC const *pend,
   // assume p < pend, so dereference without checks;
   answer.negative = (*p == UC('-'));
   // C++17 20.19.3.(7.1) explicitly forbids '+' sign here
-  if ((*p == UC('-')) ||
-      (uint64_t(fmt & chars_format::allow_leading_plus) &&
-       !uint64_t(fmt & detail::basic_json_fmt) && *p == UC('+'))) {
+  if ((*p == UC('-')) || (uint64_t(fmt & chars_format::allow_leading_plus) &&
+                          !basic_json_fmt && *p == UC('+'))) {
     ++p;
     if (p == pend) {
       return report_parse_error<UC>(
           p, parse_error::missing_integer_or_dot_after_sign);
     }
-    if (uint64_t(fmt & detail::basic_json_fmt)) {
+    FASTFLOAT_IF_CONSTEXPR17(basic_json_fmt) {
       if (!is_integer(*p)) { // a sign must be followed by an integer
         return report_parse_error<UC>(p,
                                       parse_error::missing_integer_after_sign);
       }
-    } else {
+    }
+    else {
       if (!is_integer(*p) &&
           (*p !=
            decimal_point)) { // a sign must be followed by an integer or the dot
@@ -328,8 +364,8 @@ parse_number_string(UC const *p, UC const *pend,
   }
   UC const *const end_of_integer_part = p;
   int64_t digit_count = int64_t(end_of_integer_part - start_digits);
-  answer.integer = span<const UC>(start_digits, size_t(digit_count));
-  if (uint64_t(fmt & detail::basic_json_fmt)) {
+  answer.integer = span<UC const>(start_digits, size_t(digit_count));
+  FASTFLOAT_IF_CONSTEXPR17(basic_json_fmt) {
     // at least 1 digit in integer part, without leading zeros
     if (digit_count == 0) {
       return report_parse_error<UC>(p, parse_error::no_digits_in_integer_part);
@@ -341,7 +377,7 @@ parse_number_string(UC const *p, UC const *pend,
   }
 
   int64_t exponent = 0;
-  const bool has_decimal_point = (p != pend) && (*p == decimal_point);
+  bool const has_decimal_point = (p != pend) && (*p == decimal_point);
   if (has_decimal_point) {
     ++p;
     UC const *before = p;
@@ -355,17 +391,17 @@ parse_number_string(UC const *p, UC const *pend,
       i = i * 10 + digit; // in rare cases, this will overflow, but that's ok
     }
     exponent = before - p;
-    answer.fraction = span<const UC>(before, size_t(p - before));
+    answer.fraction = span<UC const>(before, size_t(p - before));
     digit_count -= exponent;
   }
-  if (uint64_t(fmt & detail::basic_json_fmt)) {
+  FASTFLOAT_IF_CONSTEXPR17(basic_json_fmt) {
     // at least 1 digit in fractional part
     if (has_decimal_point && exponent == 0) {
       return report_parse_error<UC>(p,
                                     parse_error::no_digits_in_fractional_part);
     }
-  } else if (digit_count ==
-             0) { // we must have encountered at least one integer!
+  }
+  else if (digit_count == 0) { // we must have encountered at least one integer!
     return report_parse_error<UC>(p, parse_error::no_digits_in_mantissa);
   }
   int64_t exp_number = 0; // explicit exponential part
@@ -441,17 +477,17 @@ parse_number_string(UC const *p, UC const *pend,
     if (digit_count > 19) {
       answer.too_many_digits = true;
       // Let us start again, this time, avoiding overflows.
-      // We don't need to check if is_integer, since we use the
+      // We don't need to call if is_integer, since we use the
       // pre-tokenized spans from above.
       i = 0;
       p = answer.integer.ptr;
       UC const *int_end = p + answer.integer.len();
-      const uint64_t minimal_nineteen_digit_integer{1000000000000000000};
+      uint64_t const minimal_nineteen_digit_integer{1000000000000000000};
       while ((i < minimal_nineteen_digit_integer) && (p != int_end)) {
         i = i * 10 + uint64_t(*p - UC('0'));
         ++p;
       }
-      if (i >= minimal_nineteen_digit_integer) { // We have a big integers
+      if (i >= minimal_nineteen_digit_integer) { // We have a big integer
         exponent = end_of_integer_part - p + exp_number;
       } else { // We have a value with a fractional component.
         p = answer.fraction.ptr;
@@ -482,7 +518,14 @@ parse_int_string(UC const *p, UC const *pend, T &value,
   UC const *const first = p;
 
   bool const negative = (*p == UC('-'));
+#ifdef FASTFLOAT_VISUAL_STUDIO
+#pragma warning(push)
+#pragma warning(disable : 4127)
+#endif
   if (!std::is_signed<T>::value && negative) {
+#ifdef FASTFLOAT_VISUAL_STUDIO
+#pragma warning(pop)
+#endif
     answer.ec = std::errc::invalid_argument;
     answer.ptr = first;
     return answer;
@@ -498,9 +541,151 @@ parse_int_string(UC const *p, UC const *pend, T &value,
     ++p;
   }
 
-  const bool has_leading_zeros = p > start_num;
+  bool const has_leading_zeros = p > start_num;
 
   UC const *const start_digits = p;
+
+  FASTFLOAT_IF_CONSTEXPR17((std::is_same<T, std::uint8_t>::value)) {
+    if (base == 10) {
+      const size_t len = (size_t)(pend - p);
+      if (len == 0) {
+        if (has_leading_zeros) {
+          value = 0;
+          answer.ec = std::errc();
+          answer.ptr = p;
+        } else {
+          answer.ec = std::errc::invalid_argument;
+          answer.ptr = first;
+        }
+        return answer;
+      }
+
+      uint32_t digits;
+
+#if FASTFLOAT_HAS_IS_CONSTANT_EVALUATED && FASTFLOAT_HAS_BIT_CAST
+      if (std::is_constant_evaluated()) {
+        uint8_t str[4]{};
+        for (size_t j = 0; j < 4 && j < len; ++j) {
+          str[j] = static_cast<uint8_t>(p[j]);
+        }
+        digits = std::bit_cast<uint32_t>(str);
+#if FASTFLOAT_IS_BIG_ENDIAN
+        digits = byteswap_32(digits);
+#endif
+      }
+#else
+      if (false) {
+      }
+#endif
+      else if (len >= 4) {
+        ::memcpy(&digits, p, 4);
+#if FASTFLOAT_IS_BIG_ENDIAN
+        digits = byteswap_32(digits);
+#endif
+      } else {
+        uint32_t b0 = static_cast<uint8_t>(p[0]);
+        uint32_t b1 = (len > 1) ? static_cast<uint8_t>(p[1]) : 0xFFu;
+        uint32_t b2 = (len > 2) ? static_cast<uint8_t>(p[2]) : 0xFFu;
+        uint32_t b3 = 0xFFu;
+        digits = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+      }
+
+      uint32_t magic =
+          ((digits + 0x46464646u) | (digits - 0x30303030u)) & 0x80808080u;
+      uint32_t tz = (uint32_t)countr_zero_32(magic); // 7, 15, 23, 31, or 32
+      uint32_t nd = (tz == 32) ? 4 : (tz >> 3);
+      nd = (uint32_t)(nd < len ? nd : len);
+      if (nd == 0) {
+        if (has_leading_zeros) {
+          value = 0;
+          answer.ec = std::errc();
+          answer.ptr = p;
+          return answer;
+        }
+        answer.ec = std::errc::invalid_argument;
+        answer.ptr = first;
+        return answer;
+      }
+      if (nd > 3) {
+        const UC *q = p + nd;
+        size_t rem = len - nd;
+        while (rem) {
+          if (*q < UC('0') || *q > UC('9'))
+            break;
+          ++q;
+          --rem;
+        }
+        answer.ec = std::errc::result_out_of_range;
+        answer.ptr = q;
+        return answer;
+      }
+
+      digits ^= 0x30303030u;
+      digits <<= ((4 - nd) * 8);
+
+      uint32_t check = ((digits >> 24) & 0xff) | ((digits >> 8) & 0xff00) |
+                       ((digits << 8) & 0xff0000);
+      if (check > 0x00020505) {
+        answer.ec = std::errc::result_out_of_range;
+        answer.ptr = p + nd;
+        return answer;
+      }
+      value = (uint8_t)((0x640a01 * digits) >> 24);
+      answer.ec = std::errc();
+      answer.ptr = p + nd;
+      return answer;
+    }
+  }
+
+  FASTFLOAT_IF_CONSTEXPR17((std::is_same<T, std::uint16_t>::value)) {
+    if (base == 10) {
+      const size_t len = size_t(pend - p);
+      if (len == 0) {
+        if (has_leading_zeros) {
+          value = 0;
+          answer.ec = std::errc();
+          answer.ptr = p;
+        } else {
+          answer.ec = std::errc::invalid_argument;
+          answer.ptr = first;
+        }
+        return answer;
+      }
+
+      if (len >= 4) {
+        uint32_t digits = read4_to_u32(p);
+        if (is_made_of_four_digits_fast(digits)) {
+          uint32_t v = parse_four_digits_unrolled(digits);
+          if (len >= 5 && is_integer(p[4])) {
+            v = v * 10 + uint32_t(p[4] - '0');
+            if (len >= 6 && is_integer(p[5])) {
+              answer.ec = std::errc::result_out_of_range;
+              const UC *q = p + 5;
+              while (q != pend && is_integer(*q)) {
+                q++;
+              }
+              answer.ptr = q;
+              return answer;
+            }
+            if (v > 65535) {
+              answer.ec = std::errc::result_out_of_range;
+              answer.ptr = p + 5;
+              return answer;
+            }
+            value = uint16_t(v);
+            answer.ec = std::errc();
+            answer.ptr = p + 5;
+            return answer;
+          }
+          // 4 digits
+          value = uint16_t(v);
+          answer.ec = std::errc();
+          answer.ptr = p + 4;
+          return answer;
+        }
+      }
+    }
+  }
 
   uint64_t i = 0;
   if (base == 10) {

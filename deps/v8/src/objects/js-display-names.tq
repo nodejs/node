@@ -15,6 +15,7 @@ bitfield struct JSDisplayNamesFlags extends uint31 {
   language_display: JSDisplayNamesLanguageDisplay: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDisplayNames extends JSObject {
   internal: Foreign;  // Managed<DisplayNamesInternal>
   flags: SmiTagged<JSDisplayNamesFlags>;

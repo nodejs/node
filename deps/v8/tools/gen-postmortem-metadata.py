@@ -509,7 +509,6 @@ extras_accessors = [
     'JSArrayBufferView, byte_length, size_t, kRawByteLengthOffset',
     'JSArrayBufferView, byte_offset, size_t, kRawByteOffsetOffset',
     'JSDate, value, Object, kValueOffset',
-    'JSRegExp, source, Object, kSourceOffset',
     'JSTypedArray, external_pointer, uintptr_t, kExternalPointerOffset',
     'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
     'Map, inobject_properties_start_or_constructor_function_index, char, kInobjectPropertiesStartOrConstructorFunctionIndexOffset',
@@ -546,7 +545,7 @@ extras_accessors = [
     'SlicedString, offset, SMI, offsetof(SlicedString, offset_)',
     'ThinString, actual, String, offsetof(ThinString, actual_)',
     'Symbol, name, Object, offsetof(Symbol, description_)',
-    'FixedArrayBase, length, SMI, kLengthOffset',
+    'FixedArrayBase, length, uint32_t, kLengthOffset',
 ]
 
 #

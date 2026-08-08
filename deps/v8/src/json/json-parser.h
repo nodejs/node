@@ -9,6 +9,7 @@
 
 #include "include/v8-callbacks.h"
 #include "src/base/bit-field.h"
+#include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/codegen/script-details.h"
@@ -465,7 +466,11 @@ class JsonParser final {
 
   void UpdatePointers() {
     DisallowGarbageCollection no_gc;
+    // Keeping the `GetChars()` result is safe because we update the pointer in
+    // the GCEpilogueCallback.
+    START_IGNORE_LIFETIME_SAFETY_WARNINGS();
     const Char* chars = Cast<SeqString>(source_)->GetChars(no_gc);
+    END_IGNORE_LIFETIME_SAFETY_WARNINGS();
     if (chars_ != chars) {
       size_t position = cursor_ - chars_;
       size_t length = end_ - chars_;
@@ -515,6 +520,10 @@ class JsonParser final {
   const Char* cursor_;
   const Char* end_;
   const Char* chars_;
+
+  // Remaining budget for heuristic internalization of non-key, short one-byte
+  // strings.
+  uint32_t remaining_heuristic_internalizations_;
 };
 
 // Explicit instantiation declarations.

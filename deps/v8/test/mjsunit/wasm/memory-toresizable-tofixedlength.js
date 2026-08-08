@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --js-staging
-// Flags: --experimental-wasm-rab-integration
 
 (function TestUnsharedTransitions() {
   let mem = new WebAssembly.Memory({initial: 1, maximum: 2});
