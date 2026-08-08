@@ -1,11 +1,20 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
 
 // Check if the two constants accepted by chmod() on Windows are defined.
 assert.notStrictEqual(fs.constants.S_IRUSR, undefined);
 assert.notStrictEqual(fs.constants.S_IWUSR, undefined);
+
+// O_SYNC, O_DSYNC and O_DIRECT have no POSIX macro on Windows, but libuv
+// honors them via FILE_FLAG_WRITE_THROUGH / FILE_FLAG_NO_BUFFERING, so they
+// are exposed under their portable names with libuv's flag values.
+if (common.isWindows) {
+  assert.strictEqual(fs.constants.O_SYNC, 0x08000000);
+  assert.strictEqual(fs.constants.O_DSYNC, 0x04000000);
+  assert.strictEqual(fs.constants.O_DIRECT, 0x02000000);
+}
 
 // Check null prototype.
 assert.strictEqual(Object.getPrototypeOf(fs.constants), null);
