@@ -1,0 +1,56 @@
+name: Author ready
+
+# Adds `author ready` to pull requests that qualify
+on:
+  schedule:
+    - cron: 25,55 * * * *
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  author-ready:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /tools/actions/author-ready.sh
+            /tools/actions/pr-state.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Collect pull requests to evaluate
+        id: collect
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Pull requests that might have become ready, plus the ones already
+          # labelled so the label comes back off when it stops holding.
+          candidates=$(gh pr list \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --json 'number' \
+                  --search 'review:approved draft:false -label:blocked -label:wip -label:"author ready"' \
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 200)
+          labelled=$(gh pr list \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --label 'author ready' \
+                  --json 'number' \
+                  -t '{{ range . }}{{ .number }} {{ end }}' \
+                  --limit 200)
+          numbers=$(printf '%s %s' "$candidates" "$labelled" |
+                      tr ' ' '\n' | grep -v '^$' | sort -un | tr '\n' ' ')
+          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+
+      - name: Add the label where it applies
+        if: steps.collect.outputs.numbers != ''
+        run: ./tools/actions/author-ready.sh ${{ steps.collect.outputs.numbers }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
