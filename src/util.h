@@ -392,14 +392,6 @@ constexpr size_t strsize(const T (&)[N]) {
   return N - 1;
 }
 
-// A type that has a valid std::char_traits specialization, as required by
-// std::basic_string and std::basic_string_view.
-template <typename T>
-concept standard_char_type =
-    std::is_same_v<T, char> || std::is_same_v<T, wchar_t> ||
-    std::is_same_v<T, char8_t> || std::is_same_v<T, char16_t> ||
-    std::is_same_v<T, char32_t>;
-
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
@@ -513,11 +505,11 @@ class MaybeStackBuffer {
       free(buf_);
   }
 
-  template <standard_char_type U = T>
+  template <StandardCharType U = T>
   inline std::basic_string<U> ToString() const {
     return {out(), length()};
   }
-  template <standard_char_type U = T>
+  template <StandardCharType U = T>
   inline std::basic_string_view<U> ToStringView() const {
     return {out(), length()};
   }
@@ -536,7 +528,7 @@ class MaybeStackBuffer {
 // or for small data, a copy of it. This object's lifetime is bound to the
 // original ArrayBufferView's lifetime.
 template <typename T, size_t kStackStorageSize = 64>
-  requires (sizeof(T) == 1)
+  requires(sizeof(T) == 1)
 class ArrayBufferViewContents {
  public:
   ArrayBufferViewContents() = default;
@@ -679,11 +671,6 @@ struct MallocedBuffer {
   MallocedBuffer& operator=(const MallocedBuffer&) = delete;
 };
 
-// Test whether some value can be called with ().
-template <typename T>
-concept is_callable =
-    std::is_function<T>::value || requires { &T::operator(); };
-
 template <typename T, void (*function)(T*)>
 struct FunctionDeleter {
   void operator()(T* pointer) const { function(pointer); }
@@ -715,8 +702,8 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            v8::Isolate* isolate);
 template <NumericValue T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                            const T& number,
-                                            v8::Isolate* isolate = nullptr);
+                                           const T& number,
+                                           v8::Isolate* isolate = nullptr);
 template <typename T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const std::vector<T>& vec,

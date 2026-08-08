@@ -487,8 +487,8 @@ v8::Local<v8::Value> ConvertNumberToV8Value(v8::Isolate* isolate,
 
 template <NumericValue T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                     const T& number,
-                                     v8::Isolate* isolate) {
+                                    const T& number,
+                                    v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   return ConvertNumberToV8Value(isolate, number);
 }
@@ -496,9 +496,8 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 template <typename T>
   requires std::is_arithmetic_v<T>
 v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
-                                              const std::vector<T>& vec,
-                                              v8::Isolate* isolate) {
-
+                                             const std::vector<T>& vec,
+                                             v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
@@ -547,7 +546,7 @@ void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
 }
 
 template <typename T, size_t S>
-  requires (sizeof(T) == 1)
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Value> value) {
   DCHECK(value->IsArrayBufferView() || value->IsSharedArrayBuffer() ||
@@ -556,7 +555,7 @@ ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
 }
 
 template <typename T, size_t S>
-  requires (sizeof(T) == 1)
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Object> value) {
   CHECK(value->IsArrayBufferView());
@@ -564,14 +563,14 @@ ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
 }
 
 template <typename T, size_t S>
-  requires (sizeof(T) == 1)
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::ArrayBufferView> abv) {
   Read(abv);
 }
 
 template <typename T, size_t S>
-  requires (sizeof(T) == 1)
+  requires(sizeof(T) == 1)
 void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
   length_ = abv->ByteLength();
   if (length_ > sizeof(stack_storage_) || abv->HasBuffer()) {
@@ -585,7 +584,7 @@ void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
 }
 
 template <typename T, size_t S>
-  requires (sizeof(T) == 1)
+  requires(sizeof(T) == 1)
 void ArrayBufferViewContents<T, S>::ReadValue(v8::Local<v8::Value> buf) {
   DCHECK(buf->IsArrayBufferView() || buf->IsSharedArrayBuffer() ||
          buf->IsArrayBuffer());
