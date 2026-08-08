@@ -66,9 +66,8 @@ class SeaSerializer : public BlobSerializer<SeaSerializer> {
       : BlobSerializer<SeaSerializer>(
             per_process::enabled_debug_list.enabled(DebugCategory::SEA)) {}
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   size_t Write(const T& data);
 };
 
@@ -150,9 +149,8 @@ class SeaDeserializer : public BlobDeserializer<SeaDeserializer> {
       : BlobDeserializer<SeaDeserializer>(
             per_process::enabled_debug_list.enabled(DebugCategory::SEA), v) {}
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   T Read();
 };
 
