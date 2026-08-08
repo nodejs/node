@@ -2180,6 +2180,12 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       rate = rate_v.As<Int32>()->Value();
+      if (rate <= 0) {
+        THROW_ERR_OUT_OF_RANGE(
+            env->isolate(),
+            "The \"options.rate\" argument must be a positive integer.");
+        return;
+      }
     }
 
     Local<Value> source_v;

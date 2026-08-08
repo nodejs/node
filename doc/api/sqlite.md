@@ -1326,7 +1326,7 @@ changes:
     database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
   * `target` {string} Name of the target database. This can be `'main'` (the default primary database) or any other
     database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
-  * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
+  * `rate` {integer} Positive number of pages to be transmitted in each batch of the backup. **Default:** `100`.
   * `progress` {Function} An optional callback function that will be called after each backup step. The argument passed
     to this callback is an {Object} with `remainingPages` and `totalPages` properties, describing the current progress
     of the backup operation.
