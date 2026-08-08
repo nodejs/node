@@ -4315,7 +4315,11 @@ argument to the function, to get a diff reading.
 
 <!-- YAML
 added: v0.1.104
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`process.getTitle()`][] to read the title
+> and [`process.setTitle()`][] to change it.
 
 * Type: {string}
 
@@ -4335,6 +4339,46 @@ cases.
 Assigning a value to `process.title` might not result in an accurate label
 within process manager applications such as macOS Activity Monitor or Windows
 Services Manager.
+
+As an alternative to direct assignment, use [`process.setTitle()`][].
+
+## `process.getTitle()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string}
+
+Returns the current process title. This is equivalent to reading
+[`process.title`][].
+
+## `process.setTitle(title)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `title` {string}
+
+Sets the process title. This is equivalent to assigning a string to
+[`process.title`][]. See [`process.title`][] for restrictions and platform
+limitations.
+
+If `title` is not a string, `setTitle()` throws a `TypeError`. This differs
+from assigning to [`process.title`][], which coerces the value to a string.
+
+```mjs
+import { setTitle } from 'node:process';
+
+setTitle('my-service');
+```
+
+```cjs
+const { setTitle } = require('node:process');
+
+setTitle('my-service');
+```
 
 ## `process.traceDeprecation`
 
@@ -4652,11 +4696,14 @@ cases:
 [`process.execPath`]: #processexecpath
 [`process.exit()`]: #processexitcode
 [`process.exitCode`]: #processexitcode_1
+[`process.getTitle()`]: #processgettitle
 [`process.hrtime()`]: #processhrtimetime
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal
 [`process.permission.has()`]: #processpermissionhasscope-reference
+[`process.setTitle()`]: #processsettitletitle
 [`process.setUncaughtExceptionCaptureCallback()`]: #processsetuncaughtexceptioncapturecallbackfn
+[`process.title`]: #processtitle
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`queueMicrotask()`]: globals.md#queuemicrotaskcallback
 [`readable.read()`]: stream.md#readablereadsize
