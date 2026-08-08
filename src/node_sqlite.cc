@@ -121,6 +121,10 @@ inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
       case SQLITE_TEXT: {                                                      \
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
+        if (v == nullptr) [[unlikely]] {                                       \
+          THROW_ERR_MEMORY_ALLOCATION_FAILED((isolate));                       \
+          break;                                                               \
+        }                                                                      \
         const int v_len = sqlite3_##from##_bytes(__VA_ARGS__);                 \
         (result) =                                                             \
             Utf8StringMaybeOneByte((isolate), std::string_view(v, v_len))      \
@@ -138,7 +142,9 @@ inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
             sqlite3_##from##_blob(__VA_ARGS__));                               \
         auto store = ArrayBuffer::NewBackingStore(                             \
             (isolate), size, BackingStoreInitializationMode::kUninitialized);  \
-        memcpy(store->Data(), data, size);                                     \
+        if (data != nullptr) [[likely]] {                                      \
+          memcpy(store->Data(), data, size);                                   \
+        }                                                                      \
         auto ab = ArrayBuffer::New((isolate), std::move(store));               \
         (result) = Uint8Array::New(ab, 0, size);                               \
         break;                                                                 \
