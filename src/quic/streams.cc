@@ -62,8 +62,6 @@ namespace quic {
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
   /* Set when the stream has a sessionid event handler */                      \
   V(WANTS_SESSIONID, wants_sessionid, uint8_t)                                 \
-  /* Set when the stream has a event handler for closing a WT session */       \
-  V(WANTS_WTSESSIONCLOSE, wants_wtsessionclose, uint8_t)                       \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a stop sending event handler */                   \
@@ -2046,7 +2044,7 @@ void Stream::EmitSessionid(stream_id session_id) {
 void Stream::EmitWTSessionClose(uint32_t wt_error_code,
                                 const uint8_t* msg,
                                 size_t msglen) {
-  if (!env()->can_call_into_js()  || !state()->wants_wtsessionclose) return;
+  if (!env()->can_call_into_js()) return;
   CallbackScope<Stream> cb_scope(this);
   Local<Value> argv[] = {
       Integer::NewFromUnsigned(env()->isolate(),
