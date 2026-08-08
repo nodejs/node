@@ -613,6 +613,11 @@ their dependencies. When a change is detected, the test runner will
 rerun the tests affected by the change.
 The test runner will continue to run until the process is terminated.
 
+This is subject to the isolation mode. With `--test-isolation=process` (the
+default), only the test files affected by the change are rerun. With
+`--test-isolation=none`, every test file in the run is rerun, because those
+files share a single process.
+
 ## Global setup and teardown
 
 <!-- YAML
