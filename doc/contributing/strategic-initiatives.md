@@ -8,7 +8,8 @@ agenda to ensure they are active and have the support they need.
 
 | Initiative             | Champion                         | Links                                         |
 | ---------------------- | -------------------------------- | --------------------------------------------- |
-| QUIC / HTTP3           | [James M Snell][jasnell]         | <https://github.com/nodejs/quic>              |
+| QUIC / HTTP3           | [James M Snell][jasnell]         | <https://github.com/nodejs/node>              |
+| Unified HTTP API       | [James M Snell][jasnell]         | <https://github.com/nodejs/node>              |
 | Shadow Realm           | [Chengzhong Wu][legendecas]      | <https://github.com/nodejs/node/issues/42528> |
 | V8 Currency            | [Michaël Zasso][targos]          |                                               |
 | Next-10                | [Jacob Smith][JakobJingleheimer] | <https://github.com/nodejs/next-10>           |
