@@ -2,7 +2,7 @@
 
 require('../common');
 
-const { URLPattern } = require('url');
+const { URL, URLPattern } = require('url');
 const assert = require('assert');
 
 // Verifies that calling URLPattern with no new keyword throws.
@@ -11,14 +11,14 @@ assert.throws(() => URLPattern(), {
   name: 'TypeError',
 });
 
-// Verifies that type checks are performed on the arguments.
+// A primitive URLPatternInput is converted to USVString before parsing.
 assert.throws(() => new URLPattern(1), {
-  code: 'ERR_INVALID_ARG_TYPE',
+  code: 'ERR_INVALID_URL_PATTERN',
   name: 'TypeError',
 });
 
 assert.throws(() => new URLPattern({}, 1), {
-  code: 'ERR_INVALID_ARG_TYPE',
+  code: 'ERR_INVALID_URL_PATTERN',
   name: 'TypeError',
 });
 
@@ -43,25 +43,62 @@ assert.throws(() => new URLPattern({}, '', 1), {
 
 const pattern = new URLPattern();
 
-assert.throws(() => pattern.exec(1), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-});
+// Primitive input and baseURL values behave like their USVString conversions.
+assert.deepStrictEqual(pattern.exec(1), pattern.exec('1'));
+assert.deepStrictEqual(pattern.exec('', 1), pattern.exec('', '1'));
+assert.strictEqual(pattern.test(1), pattern.test('1'));
+assert.strictEqual(pattern.test('', 1), pattern.test('', '1'));
 
-assert.throws(() => pattern.exec('', 1), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-});
+// Primitive URLPatternInput values select the USVString union branch.
+{
+  const baseURL = 'https://example/';
+  const p = new URLPattern(123, baseURL);
+  assert.strictEqual(p.pathname, '/123');
 
-assert.throws(() => pattern.test(1), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-});
+  const result = p.exec(123, baseURL);
+  assert.notStrictEqual(result, null);
+  assert.strictEqual(result.inputs[0], '123');
+  assert.strictEqual(p.test(123, baseURL), true);
+}
 
-assert.throws(() => pattern.test('', 1), {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-});
+// Present URLPatternInit members are converted to USVString.
+{
+  const p = new URLPattern({ pathname: 123 });
+  assert.strictEqual(p.pathname, '123');
+  assert.strictEqual(p.test({ pathname: 123 }), true);
+  assert.strictEqual(p.test({ pathname: 456 }), false);
+
+  const result = p.exec({ pathname: 123 });
+  assert.notStrictEqual(result, null);
+  assert.strictEqual(result.inputs[0].pathname, '123');
+}
+
+// Only undefined URLPatternInit members are treated as absent.
+{
+  const undefinedPathname = new URLPattern({ pathname: undefined });
+  assert.strictEqual(undefinedPathname.pathname, '*');
+
+  const nullPathname = new URLPattern({ pathname: null });
+  assert.strictEqual(nullPathname.pathname, 'null');
+}
+
+// URLPatternInit member conversion exceptions are propagated unchanged.
+{
+  const error = new Error('boom');
+  const input = {
+    pathname: {
+      toString() {
+        throw error;
+      },
+    },
+  };
+  const p = new URLPattern({ pathname: '123' });
+  const isExpectedError = (actual) => actual === error;
+
+  assert.throws(() => new URLPattern(input), isExpectedError);
+  assert.throws(() => p.exec(input), isExpectedError);
+  assert.throws(() => p.test(input), isExpectedError);
+}
 
 // Per WebIDL, undefined/null for a URLPatternInput (union including dictionary)
 // uses the default value (empty URLPatternInit {}).
@@ -117,6 +154,75 @@ assert.throws(
   assert.strictEqual(p.hostname, 'example.com');
   const p2 = new URLPattern('https://example.com', 'https://example.com', undefined);
   assert.strictEqual(p2.hostname, 'example.com');
+}
+
+// Constructor: baseURL is converted to USVString after overload resolution.
+{
+  let calls = 0;
+  const baseURL = {
+    toString() {
+      calls++;
+      return 'https://example.com/';
+    },
+  };
+  const p = new URLPattern('foo', baseURL, {});
+  assert.strictEqual(calls, 1);
+  assert.strictEqual(p.protocol, 'https');
+  assert.strictEqual(p.hostname, 'example.com');
+  assert.strictEqual(p.pathname, '/foo');
+}
+
+// exec() and test(): baseURL accepts string-convertible objects.
+{
+  const p = new URLPattern('https://example.com/foo');
+  const baseURL = new URL('https://example.com/');
+  assert.notStrictEqual(p.exec('foo', baseURL), null);
+  assert.strictEqual(p.test('foo', baseURL), true);
+}
+
+// Exceptions thrown while converting baseURL are propagated unchanged.
+{
+  const error = new Error('boom');
+  const baseURL = {
+    toString() {
+      throw error;
+    },
+  };
+  const isExpectedError = (actual) => actual === error;
+
+  assert.throws(
+    () => new URLPattern('foo', baseURL, {}),
+    isExpectedError,
+  );
+  assert.throws(() => pattern.exec('foo', baseURL), isExpectedError);
+  assert.throws(() => pattern.test('foo', baseURL), isExpectedError);
+}
+
+// Symbol conversion throws the native TypeError required by USVString.
+{
+  const symbol = Symbol();
+  const isUncodedTypeError = (error) =>
+    error instanceof TypeError && error.code === undefined;
+
+  assert.throws(
+    () => new URLPattern(symbol, 'https://example/'),
+    isUncodedTypeError,
+  );
+  assert.throws(
+    () => pattern.exec(symbol, 'https://example/'),
+    isUncodedTypeError,
+  );
+  assert.throws(
+    () => pattern.test(symbol, 'https://example/'),
+    isUncodedTypeError,
+  );
+
+  assert.throws(
+    () => new URLPattern('foo', symbol, {}),
+    isUncodedTypeError,
+  );
+  assert.throws(() => pattern.exec('foo', symbol), isUncodedTypeError);
+  assert.throws(() => pattern.test('foo', symbol), isUncodedTypeError);
 }
 
 // exec() and test(): undefined input should be treated as empty init.
