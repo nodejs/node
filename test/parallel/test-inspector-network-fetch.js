@@ -18,6 +18,7 @@ undici.setGlobalDispatcher(new undici.EnvHttpProxyAgent({
   connect: {
     rejectUnauthorized: false,
   },
+  noProxy: '*',
 }));
 
 const session = new inspector.Session();
