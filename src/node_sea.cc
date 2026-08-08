@@ -283,7 +283,9 @@ void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
-std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
+std::tuple<int, char**> FixupArgsForSEA(int argc,
+                                        char** argv,
+                                        std::vector<std::string>* errors) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
   if (IsSingleExecutable()) {
@@ -303,8 +305,10 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
       for (int i = 1; i < argc; ++i) {
         if (strncmp(argv[i], "--node-options=", 15) == 0) {
           std::string node_options = argv[i] + 15;
-          std::vector<std::string> errors;
-          cli_extension_args = ParseNodeOptionsEnvVar(node_options, &errors);
+          cli_extension_args = ParseNodeOptionsEnvVar(node_options, errors);
+          if (!errors->empty()) {
+            return {argc, argv};
+          }
           // Remove this argument by shifting the rest
           for (int j = i; j < argc - 1; ++j) {
             argv[j] = argv[j + 1];
