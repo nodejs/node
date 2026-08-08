@@ -1,0 +1,20 @@
+node:internal/modules/run_main:<line>
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(false)
+
+    at file://<project-root>/test/fixtures/source-map/output/source_map_assert_no_source_map.mjs:9:1
+    at <node-internal-frames>
+    at <node-internal-frames> {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js <node-version>
