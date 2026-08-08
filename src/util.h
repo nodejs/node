@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "node.h"
+#include "node_concepts.h"
 #include "node_exit_code.h"
 
 #include <climits>
@@ -40,6 +41,7 @@
 
 #include <array>
 #include <bit>
+#include <concepts>
 #include <filesystem>
 #include <limits>
 #include <memory>
@@ -99,7 +101,7 @@ inline char* Calloc(size_t n);
 inline char* UncheckedMalloc(size_t n);
 inline char* UncheckedCalloc(size_t n);
 
-template <typename T>
+template <std::integral T>
 inline T MultiplyWithOverflowCheck(T a, T b);
 
 namespace per_process {
@@ -366,12 +368,12 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
-template <typename T>
+template <std::ranges::range T>
 inline std::string ToLower(const T& in);
 
 // toupper() is locale-sensitive.  Use ToUpper() instead.
 inline char ToUpper(char c);
-template <typename T>
+template <std::ranges::range T>
 inline std::string ToUpper(const T& in);
 
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
@@ -534,6 +536,7 @@ class MaybeStackBuffer {
 // or for small data, a copy of it. This object's lifetime is bound to the
 // original ArrayBufferView's lifetime.
 template <typename T, size_t kStackStorageSize = 64>
+  requires (sizeof(T) == 1)
 class ArrayBufferViewContents {
  public:
   ArrayBufferViewContents() = default;
@@ -610,7 +613,7 @@ class BufferValue : public MaybeStackBuffer<char> {
 // silence a compiler warning about that.
 template <typename T> inline void USE(T&&) {}
 
-template <typename Fn>
+template <std::invocable Fn>
 struct OnScopeLeaveImpl {
   Fn fn_;
   bool active_;
@@ -630,7 +633,7 @@ struct OnScopeLeaveImpl {
 // auto on_scope_leave = OnScopeLeave([&] {
 //   // ... run some code ...
 // });
-template <typename Fn>
+template <std::invocable Fn>
 inline MUST_USE_RESULT OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
   return OnScopeLeaveImpl<Fn>{std::move(fn)};
 }
@@ -710,11 +713,10 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            v8_inspector::StringView str,
                                            v8::Isolate* isolate);
-template <typename T, typename test_for_number =
-    typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
+template <NumericValue T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                           const T& number,
-                                           v8::Isolate* isolate = nullptr);
+                                            const T& number,
+                                            v8::Isolate* isolate = nullptr);
 template <typename T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const std::vector<T>& vec,
