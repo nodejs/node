@@ -711,7 +711,8 @@ sqlTagStore.get`SELECT ${value}`;
 is equivalent to:
 
 ```js
-db.prepare('SELECT ?').get(value);
+using statement = db.prepare('SELECT ?');
+statement.get(value);
 ```
 
 However, in the first example, the tag store will cache the underlying prepared
