@@ -1047,10 +1047,6 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   int TrackHeaderPair() {
-    if (parser_.type != HTTP_REQUEST) {
-      return 0;
-    }
-
     header_pairs_ += 2;
 
     Local<Value> max_header_pairs_v;
