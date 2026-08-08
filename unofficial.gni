@@ -324,20 +324,47 @@ template("node_gn_build") {
     ]
   }
 
-  executable("node_js2c") {
-    deps = [
-      "deps/uv",
-      "$node_simdutf_path",
+  if (host_os == "win") {
+    host_executable_suffix = ".exe"
+  } else {
+    host_executable_suffix = ""
+  }
+  node_js2c_rustc_args = [
+    "--edition=2021",
+    "--crate-name",
+    "node_js2c",
+  ]
+  if (is_debug) {
+    node_js2c_rustc_args += [
+      "-C",
+      "debuginfo=2",
+      "-C",
+      "opt-level=0",
     ]
-    sources = [
-      "tools/js2c.cc",
-      "tools/executable_wrapper.h",
-      "src/embedded_data.cc",
-      "src/embedded_data.h",
-      "src/builtin_info.cc",
-      "src/builtin_info.h",
+  } else {
+    node_js2c_rustc_args += [
+      "-C",
+      "opt-level=2",
     ]
-    include_dirs = [ "src" ]
+  }
+  if (host_os == "linux" || host_os == "mac" || host_os == "openharmony") {
+    node_js2c_rustc_args += [
+      "--cfg",
+      "node_js2c_use_string_literals",
+    ]
+  }
+
+  action("node_js2c") {
+    script = "$node_v8_path/tools/run.py"
+    inputs = [ "tools/js2c.rs" ]
+    outputs = [ "$root_out_dir/node_js2c$host_executable_suffix" ]
+    args = [ "rustc" ] + node_js2c_rustc_args +
+           [
+             rebase_path("tools/js2c.rs", root_build_dir),
+             "-o",
+             rebase_path("$root_out_dir/node_js2c$host_executable_suffix",
+                         root_build_dir),
+           ]
   }
 
   action("run_node_js2c") {
@@ -359,16 +386,9 @@ template("node_gn_build") {
              [ "$target_gen_dir/config.gypi" ]
     outputs = [ "$target_gen_dir/node_javascript.cc" ]
 
-    # Get the path to node_js2c executable of the host toolchain.
-    if (host_os == "win") {
-      host_executable_suffix = ".exe"
-    } else {
-      host_executable_suffix = ""
-    }
     node_js2c_path =
-        get_label_info(":node_js2c($host_toolchain)", "root_out_dir") + "/" +
-        get_label_info(":node_js2c($host_toolchain)", "name") +
-        host_executable_suffix
+        get_label_info(":node_js2c($host_toolchain)", "root_out_dir") +
+        "/node_js2c" + host_executable_suffix
 
     args = [ rebase_path(node_js2c_path),
              rebase_path("$target_gen_dir/node_javascript.cc"),
