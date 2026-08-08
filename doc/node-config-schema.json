@@ -720,6 +720,10 @@
               "type": "boolean",
               "description": "enable printing JavaScript stacktrace on SIGINT"
             },
+            "trace-sigterm": {
+              "type": "boolean",
+              "description": "enable printing JavaScript stacktrace on SIGTERM"
+            },
             "trace-sync-io": {
               "type": "boolean",
               "description": "show stack trace when use of sync IO is detected after the first tick"
