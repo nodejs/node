@@ -23,7 +23,11 @@ const outputFile = buildSEA(fixtures.path('sea', 'exec-argv-extension-cli'));
 // Test that --node-options works with execArgvExtension: "cli"
 spawnSyncAndAssert(
   outputFile,
-  ['--node-options=--max-old-space-size=1024', 'user-arg1', 'user-arg2'],
+  [
+    '--node-options=--no-warnings --max-old-space-size=1024',
+    'user-arg1',
+    'user-arg2',
+  ],
   {
     env: {
       ...process.env,
