@@ -46,7 +46,7 @@ function stat_resource(resource, statSync = fs.statSync) {
 }
 
 function check_mtime(resource, mtime, statSync) {
-  mtime = fs._toUnixTimestamp(mtime);
+  mtime = getExpectedMtime(mtime);
   const stats = stat_resource(resource, statSync);
   const real_mtime = fs._toUnixTimestamp(stats.mtime);
   return mtime - real_mtime;
@@ -64,14 +64,17 @@ function expect_ok(syscall, resource, err, atime, mtime, statSync) {
   assert(
     // Check up to single-second precision.
     // Sub-second precision is OS and fs dependent.
-    !err && (mtime_diff < 2) || err && err.code === 'ENOSYS',
+    !err && (Math.abs(mtime_diff) < 2) || err && err.code === 'ENOSYS',
     `FAILED: expect_ok ${util.inspect(arguments)}
      check_mtime: ${mtime_diff}`
   );
 }
 
 function getExpectedMtime(mtime) {
-  // Negative numeric timestamps are normalized to "now" at call time.
+  // Keep negative numeric timestamps so the test catches normalization to now.
+  if (typeof mtime === 'number' && mtime < 0) {
+    return mtime;
+  }
   return fs._toUnixTimestamp(mtime);
 }
 
