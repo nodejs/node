@@ -917,6 +917,17 @@ tmpdir.refresh();
 }
 
 {
+  // pipeline() must not call back after it has thrown synchronously.
+  assert.throws(() => {
+    pipeline(Readable.from(['a']), new PassThrough(), function(source) {
+    }, common.mustNotCall());
+  }, (err) => {
+    assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
+    return true;
+  });
+}
+
+{
   let res = '';
   pipeline(async function*() {
     await Promise.resolve();
