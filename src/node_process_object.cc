@@ -59,8 +59,12 @@ static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  int32_t port = value->Int32Value(env->context()).FromMaybe(0);
+  if (!IsSafeJsInt(value)) {
+    return THROW_ERR_OUT_OF_RANGE(
+        env, "process.debugPort must be 0 or in range 1024 to 65535");
+  }
 
+  const int64_t port = value.As<Integer>()->Value();
   if ((port != 0 && port < 1024) || port > 65535) {
     return THROW_ERR_OUT_OF_RANGE(
       env,

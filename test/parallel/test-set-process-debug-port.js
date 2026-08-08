@@ -17,48 +17,74 @@ function check(value, expected) {
   assert.strictEqual(process.debugPort, expected);
 }
 
+function checkError(value, expected) {
+  const previous = process.debugPort;
+  assert.throws(() => {
+    process.debugPort = value;
+  }, expected);
+  assert.strictEqual(process.debugPort, previous);
+}
+
 // Expected usage with numbers.
 check(0, 0);
+check(-0, 0);
 check(kMinPort, kMinPort);
 check(kMinPort + 1, kMinPort + 1);
 check(kMaxPort - 1, kMaxPort - 1);
 check(kMaxPort, kMaxPort);
 
-// Numeric strings coerce.
-check('0', 0);
-check(`${kMinPort}`, kMinPort);
-check(`${kMinPort + 1}`, kMinPort + 1);
-check(`${kMaxPort - 1}`, kMaxPort - 1);
-check(`${kMaxPort}`, kMaxPort);
+// Values that are not safe integers do not coerce.
+[
+  '',
+  `${kMinPort}`,
+  false,
+  true,
+  null,
+  undefined,
+  1n,
+  Symbol(),
+  function() {},
+  {},
+  { valueOf: common.mustNotCall() },
+  [],
+  new Number(kMinPort),
+].forEach((value) => {
+  checkError(value, {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'process.debugPort must be 0 or in range 1024 to 65535',
+  });
+});
 
-// Most other values are coerced to 0.
-check('', 0);
-check(false, 0);
-check(NaN, 0);
-check(Infinity, 0);
-check(-Infinity, 0);
-check(function() {}, 0);
-check({}, 0);
-check([], 0);
-
-// Symbols do not coerce.
-assert.throws(() => {
-  process.debugPort = Symbol();
-}, /^TypeError: Cannot convert a Symbol value to a number$/);
+// Non-finite and fractional numbers are not safe integers.
+[
+  NaN,
+  Infinity,
+  -Infinity,
+  -0.5,
+  kMinPort + 0.5,
+  kMaxPort + 0.5,
+].forEach((value) => {
+  checkError(value, {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'process.debugPort must be 0 or in range 1024 to 65535',
+  });
+});
 
 // Verify port bounds checking.
 [
-  true,
   -1,
   1,
   kMinPort - 1,
   kMaxPort + 1,
-  '-1',
-  '1',
-  `${kMinPort - 1}`,
-  `${kMaxPort + 1}`,
+  2 ** 32,
+  2 ** 32 + kMinPort,
+  -(2 ** 32) + kMinPort,
 ].forEach((value) => {
-  assert.throws(() => {
-    process.debugPort = value;
-  }, /^RangeError: process\.debugPort must be 0 or in range 1024 to 65535$/);
+  checkError(value, {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'process.debugPort must be 0 or in range 1024 to 65535',
+  });
 });
