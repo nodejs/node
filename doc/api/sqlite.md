@@ -95,13 +95,19 @@ more data types than SQLite, only a subset of JavaScript types are supported.
 Attempting to write an unsupported data type to SQLite will result in an
 exception.
 
-| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
-| ------------- | -------------------------- | ------------------------------------- |
-| `NULL`        | {null}                     | {null}                                |
-| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
-| `REAL`        | {number}                   | {number}                              |
-| `TEXT`        | {string}                   | {string}                              |
-| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
+| Storage class | JavaScript to SQLite                                            | SQLite to JavaScript                  |
+| ------------- | --------------------------------------------------------------- | ------------------------------------- |
+| `NULL`        | {null}                                                          | {null}                                |
+| `INTEGER`     | {number}, {bigint}, or {boolean}                                | {number} or {bigint} _(configurable)_ |
+| `REAL`        | {number}                                                        | {number}                              |
+| `TEXT`        | {string}                                                        | {string}                              |
+| `BLOB`        | {TypedArray}, {DataView}, {ArrayBuffer}, or {SharedArrayBuffer} | {Uint8Array}                          |
+
+Booleans are written as the `INTEGER` values `1` and `0`. Like any other
+`INTEGER` value, they are read back as {number} by default, or as {bigint}
+values (`1n` and `0n`) when reading BigInts is enabled. Writing a {bigint} that
+does not fit in a signed 64-bit integer throws an `ERR_INVALID_ARG_VALUE`
+error.
 
 APIs that read values from SQLite have a configuration option that determines
 whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
@@ -810,6 +816,7 @@ added:
 -->
 
 * `changeset` {Uint8Array} A binary changeset or patchset.
+
 * `options` {Object} The configuration options for how the changes will be applied.
   * `filter` {Function} for each table affected by at least
     one change in the changeset, the `filter` callback is invoked with the
@@ -838,6 +845,7 @@ added:
     applying the changeset is aborted and the database is rolled back.
 
     **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
+
 * Returns: {boolean} Whether the changeset was applied successfully without being aborted.
 
 An exception is thrown if the database is not
@@ -963,11 +971,61 @@ times with different bound values. Parameters also offer protection against
 [SQL injection][] attacks. For these reasons, prepared statements are preferred
 over hand-crafted SQL strings when handling user input.
 
+### Binding parameters
+
+The `all()`, `get()`, `iterate()`, and `run()` methods bind their arguments to
+the parameters of the prepared statement before executing it. Parameters are
+either anonymous or named.
+
+Anonymous parameters are written as `?` in SQL and are bound in order from the
+arguments passed to the method. The `?NNN` form assigns SQLite parameter index
+`NNN` to a placeholder. Avoid mixing numbered and named parameters because they
+share parameter indexes.
+
+```js
+db.prepare('SELECT ? AS a, ? AS b').get('x', 42);
+// { a: 'x', b: 42 }
+db.prepare('SELECT ?2 AS a, ?1 AS b').get('first', 'second');
+// { a: 'second', b: 'first' }
+```
+
+Named parameters begin with one of the prefix characters `$`, `:`, or `@` in
+SQL. They are bound from an object passed as the first argument. Repeating a
+name in the SQL binds the same value to every occurrence.
+
+```js
+db.prepare('SELECT $a AS a, $b AS b').get({ $a: 1, $b: 2 });
+// { a: 1, b: 2 }
+db.prepare('SELECT :a AS a').get({ ':a': 1 });
+// { a: 1 }
+db.prepare('SELECT @a AS a').get({ '@a': 1 });
+// { a: 1 }
+db.prepare('SELECT $k AS a, $k AS b').get({ k: 7 });
+// { a: 7, b: 7 }
+```
+
+The last example omits the prefix character from the object key. Bare names are
+allowed by default; see [`statement.setAllowBareNamedParameters()`][] for their
+caveats.
+
+Binding a key that does not name a parameter of the statement throws an
+`ERR_INVALID_STATE` error unless unknown named parameters are ignored. See
+[`statement.setAllowUnknownNamedParameters()`][].
+
+See [Type conversion between JavaScript and SQLite][] for the values that can be
+bound. Binding any other value throws an `ERR_INVALID_ARG_TYPE` error.
+
 ### `statement.all([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -977,8 +1035,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Array} An array of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
   object correspond to the column names and values of the row.
@@ -986,7 +1044,8 @@ changes:
 This method executes a prepared statement and returns all results as an array of
 objects. If the prepared statement does not return any results, this method
 returns an empty array. The prepared statement [parameters are bound][] using
-the values in `namedParameters` and `anonymousParameters`.
+the values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
 
 ### `statement.columns()`
 
@@ -996,7 +1055,6 @@ added: v23.11.0
 
 * Returns: {Array} An array of objects. Each object corresponds to a column
   in the prepared statement, and contains the following properties:
-
   * `column` {string|null} The unaliased name of the column in the origin
     table, or `null` if the column is the result of an expression or subquery.
     This property is the result of [`sqlite3_column_origin_name()`][].
@@ -1034,6 +1092,12 @@ execution of this prepared statement. This property is a wrapper around
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -1043,8 +1107,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Object|undefined} An object corresponding to the first row returned
   by executing the prepared statement. The keys and values of the object
   correspond to the column names and values of the row. If no rows were returned
@@ -1053,7 +1117,8 @@ changes:
 This method executes a prepared statement and returns the first result as an
 object. If the prepared statement does not return any results, this method
 returns `undefined`. The prepared statement [parameters are bound][] using the
-values in `namedParameters` and `anonymousParameters`.
+values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
 
 ### `statement.iterate([namedParameters][, ...anonymousParameters])`
 
@@ -1062,6 +1127,12 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -1071,8 +1142,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Iterator} An iterable iterator of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
   object correspond to the column names and values of the row.
@@ -1080,13 +1151,20 @@ changes:
 This method executes a prepared statement and returns an iterator of
 objects. If the prepared statement does not return any results, this method
 returns an empty iterator. The prepared statement [parameters are bound][] using
-the values in `namedParameters` and `anonymousParameters`.
+the values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
 
 ### `statement.run([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -1096,8 +1174,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Object}
   * `changes` {number|bigint} The number of rows modified, inserted, or deleted
     by the most recently completed `INSERT`, `UPDATE`, or `DELETE` statement.
@@ -1111,7 +1189,8 @@ changes:
 
 This method executes a prepared statement and returns an object summarizing the
 resulting changes. The prepared statement [parameters are bound][] using the
-values in `namedParameters` and `anonymousParameters`.
+values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
 
 ### `statement.setAllowBareNamedParameters(enabled)`
 
@@ -1122,14 +1201,15 @@ added: v22.5.0
 * `enabled` {boolean} Enables or disables support for binding named parameters
   without the prefix character.
 
-The names of SQLite parameters begin with a prefix character. By default,
-`node:sqlite` allows binding named parameters without this prefix character in
-the parameter object. With the exception of the dollar sign character, these
-prefix characters require extra quoting when used in object keys.
+The names of SQLite parameters begin with a prefix character. However, with the
+exception of the dollar sign character, these prefix characters also require
+extra quoting when used in object keys.
 
-This method enables or disables support for bare named parameters, which do not
-require the prefix character in JavaScript code. There are several caveats to
-be aware of when bare named parameters are enabled:
+To improve ergonomics, `node:sqlite` allows bare named parameters, which do not
+require the prefix character in JavaScript code, by default. This method can be
+used to disable that behavior, requiring the prefix character when binding.
+There are several caveats to be aware of when bare named parameters are
+allowed:
 
 * The prefix character is still required in SQL.
 * The prefix character is still allowed in JavaScript. In fact, prefixed names
@@ -1212,11 +1292,18 @@ class execute synchronously.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Array} An array of objects representing the rows returned by the query.
 
@@ -1230,11 +1317,18 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Object | undefined} An object representing the first row returned by
   the query, or `undefined` if no rows are returned.
@@ -1248,11 +1342,18 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Iterator} An iterator that yields objects representing the rows returned by the query.
 
@@ -1265,11 +1366,18 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Object} An object containing information about the execution, including `changes` and `lastInsertRowid`.
 
@@ -1631,6 +1739,7 @@ callback function to indicate what type of operation is being authorized.
   </tr>
 </table>
 
+[Binding parameters]: #binding-parameters
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
@@ -1678,6 +1787,8 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
 [`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
+[`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
+[`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
 [busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
