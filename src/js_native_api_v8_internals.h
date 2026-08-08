@@ -40,6 +40,12 @@ using PersistentToLocal = node::PersistentToLocal;
   node::OnFatalError(location, message);
 }
 
+// Defined in node_api.cc
+extern const struct node_api_module_vtable* GetNodeApiModuleVTable();
+
+// Defined in js_native_api_v8.cc
+extern const struct node_api_js_vtable* GetNodeApiJsVTable();
+
 }  // end of namespace v8impl
 
 #endif  // SRC_JS_NATIVE_API_V8_INTERNALS_H_

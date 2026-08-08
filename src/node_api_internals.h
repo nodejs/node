@@ -10,14 +10,16 @@
 #include "node_api.h"
 #include "util-inl.h"
 
-struct node_napi_env__ : public napi_env__ {
-  static napi_env New(v8::Local<v8::Context> context,
-                      const std::string& module_filename,
-                      int32_t module_api_version);
+namespace v8impl {
 
-  node_napi_env__(v8::Local<v8::Context> context,
-                  const std::string& module_filename,
-                  int32_t module_api_version);
+struct NodeApiEnv : public NodeApiBaseEnv {
+  static NodeApiBaseEnv* New(v8::Local<v8::Context> context,
+                             const std::string& module_filename,
+                             int32_t module_api_version);
+
+  NodeApiEnv(v8::Local<v8::Context> context,
+             const std::string& module_filename,
+             int32_t module_api_version);
 
   bool can_call_into_js() const override;
   void CallFinalizer(napi_finalize cb, void* data, void* hint) override;
@@ -43,6 +45,6 @@ struct node_napi_env__ : public napi_env__ {
   bool finalization_scheduled = false;
 };
 
-using node_napi_env = node_napi_env__*;
+}  // end of namespace v8impl
 
 #endif  // SRC_NODE_API_INTERNALS_H_
