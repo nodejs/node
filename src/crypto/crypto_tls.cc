@@ -240,7 +240,7 @@ int SelectALPNCallback(
     unsigned int inlen,
     void* arg) {
   TLSWrap* w = static_cast<TLSWrap*>(SSL_get_app_data(s));
-  if (w->alpn_callback_enabled_) {
+  if (w->get_alpn_callback_enabled()) {
     Environment* env = w->env();
     HandleScope handle_scope(env->isolate());
 
@@ -275,7 +275,7 @@ int SelectALPNCallback(
     return SSL_TLSEXT_ERR_OK;
   }
 
-  const std::vector<unsigned char>& alpn_protos = w->alpn_protos_;
+  auto& alpn_protos = w->get_alpn_protos();
 
   if (alpn_protos.empty()) return SSL_TLSEXT_ERR_NOACK;
 
@@ -403,9 +403,9 @@ TLSWrap::TLSWrap(Environment* env,
       StreamBase(env),
       env_(env),
       kind_(kind),
-      sc_(sc),
-      has_active_write_issued_by_prev_listener_(
-          under_stream_ws == UnderlyingStreamWriteStatus::kHasActive) {
+      sc_(sc) {
+  flags_.has_active_write_issued_by_prev_listener =
+      under_stream_ws == UnderlyingStreamWriteStatus::kHasActive;
   MakeWeak();
   CHECK(sc_);
   ssl_ = sc_->CreateSSL();
@@ -444,8 +444,7 @@ SSL_SESSION* TLSWrap::ReleaseSession() {
 
 void TLSWrap::InvokeQueued(int status, const char* error_str) {
   Debug(this, "Invoking queued write callbacks (%d, %s)", status, error_str);
-  if (!write_callback_scheduled_)
-    return;
+  if (!flags_.write_callback_scheduled) return;
 
   if (current_write_) {
     BaseObjectPtr<AsyncWrap> current_write = std::move(current_write_);
@@ -465,8 +464,8 @@ void TLSWrap::NewSessionDoneCb() {
 bool TLSWrap::OnEarlyClientHello(const unsigned char* session_id,
                                  size_t session_id_len,
                                  bool has_ticket) {
-  if (!hello_emitted_) {
-    hello_emitted_ = true;
+  if (!flags_.hello_emitted) {
+    flags_.hello_emitted = true;
     Debug(this, "Scheduling onclienthello");
 
     // The hello data is only valid inside the library callback, and JS must
@@ -480,7 +479,7 @@ bool TLSWrap::OnEarlyClientHello(const unsigned char* session_id,
           if (ssl_) EmitClientHello(id, has_ticket);
         });
   }
-  return hello_answered_;
+  return flags_.hello_answered;
 }
 
 void TLSWrap::EmitClientHello(const std::vector<unsigned char>& session_id,
@@ -658,8 +657,8 @@ void TLSWrap::Start(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
-  CHECK(!wrap->started_);
-  wrap->started_ = true;
+  CHECK(!wrap->flags_.started);
+  wrap->flags_.started = true;
 
   // Send ClientHello handshake
   CHECK(wrap->is_client());
@@ -703,7 +702,7 @@ void TLSWrap::SSLInfoCallback(const SSL* ssl_, int where, int ret) {
     CHECK(!SSL_renegotiate_pending(ssl));
     Local<Value> callback;
 
-    c->established_ = true;
+    c->flags_.established = true;
 
     if (object->Get(env->context(), env->onhandshakedone_string())
           .ToLocal(&callback) && callback->IsFunction()) {
@@ -727,7 +726,7 @@ void TLSWrap::EncOut() {
     return;
   }
 
-  if (has_active_write_issued_by_prev_listener_) [[unlikely]] {
+  if (flags_.has_active_write_issued_by_prev_listener) [[unlikely]] {
     Debug(this,
           "Returning from EncOut(), "
           "has_active_write_issued_by_prev_listener_ is true");
@@ -735,9 +734,9 @@ void TLSWrap::EncOut() {
   }
 
   // Split-off queue
-  if (established_ && current_write_) {
+  if (flags_.established && current_write_) {
     Debug(this, "EncOut() write is scheduled");
-    write_callback_scheduled_ = true;
+    flags_.write_callback_scheduled = true;
   }
 
   if (ssl_ == nullptr) {
@@ -750,7 +749,7 @@ void TLSWrap::EncOut() {
     Debug(this, "No pending encrypted output");
     if (!pending_cleartext_input_ ||
         pending_cleartext_input_->ByteLength() == 0) {
-      if (!in_dowrite_) {
+      if (!flags_.in_dowrite) {
         Debug(this, "No pending cleartext input, not inside DoWrite()");
         InvokeQueued(0);
       } else {
@@ -805,7 +804,7 @@ void TLSWrap::EncOut() {
 void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
   Debug(this, "OnStreamAfterWrite(status = %d)", status);
 
-  if (has_active_write_issued_by_prev_listener_) [[unlikely]] {
+  if (flags_.has_active_write_issued_by_prev_listener) [[unlikely]] {
     Debug(this, "Notify write finish to the previous_listener_");
     CHECK_EQ(write_size_, 0);  // we must have restrained writes
 
@@ -830,7 +829,7 @@ void TLSWrap::OnStreamAfterWrite(WriteWrap* req_wrap, int status) {
 
   // Handle error
   if (status) {
-    if (shutdown_) {
+    if (flags_.shutdown) {
       Debug(this, "Ignoring error after shutdown");
       return;
     }
@@ -855,7 +854,7 @@ void TLSWrap::ClearOut() {
   Debug(this, "Trying to read cleartext output");
 
   // No reads after EOF
-  if (eof_) {
+  if (flags_.eof) {
     Debug(this, "Returning from ClearOut(), EOF reached");
     return;
   }
@@ -911,8 +910,8 @@ void TLSWrap::ClearOut() {
     int err = SSL_get_error(ssl_.get(), read);
     switch (err) {
       case SSL_ERROR_ZERO_RETURN:
-        if (!eof_) {
-          eof_ = true;
+        if (!flags_.eof) {
+          flags_.eof = true;
           EmitRead(UV_EOF);
         }
         return;
@@ -1005,7 +1004,7 @@ void TLSWrap::ClearIn() {
   int err = SSL_get_error(ssl_.get(), written);
   if (err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL) {
     Debug(this, "Got SSL error (%d)", err);
-    write_callback_scheduled_ = true;
+    flags_.write_callback_scheduled = true;
     // TODO(@sam-github) Should forward an error object with
     // .code/.function/.etc, if possible.
     InvokeQueued(UV_EPROTO, GetBIOError().c_str());
@@ -1049,7 +1048,7 @@ bool TLSWrap::IsClosing() {
 
 int TLSWrap::ReadStart() {
   Debug(this, "ReadStart()");
-  if (underlying_stream() != nullptr && !eof_)
+  if (underlying_stream() != nullptr && !flags_.eof)
     return underlying_stream()->ReadStart();
   return 0;
 }
@@ -1197,9 +1196,9 @@ int TLSWrap::DoWrite(WriteWrap* w,
 
   // Write any encrypted/handshake output that may be ready.
   // Guard against sync call of current_write_->Done(), its unsupported.
-  in_dowrite_ = true;
+  flags_.in_dowrite = true;
   EncOut();
-  in_dowrite_ = false;
+  flags_.in_dowrite = false;
 
   return 0;
 }
@@ -1216,8 +1215,7 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Debug(this, "Read %zd bytes from underlying stream", nread);
 
   // Ignore everything after close_notify (rfc5246#section-7.2.1)
-  if (eof_)
-    return;
+  if (flags_.eof) return;
 
   if (nread < 0)  {
     // Error should be emitted only after all data was read
@@ -1225,7 +1223,7 @@ void TLSWrap::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
 
     if (nread == UV_EOF) {
       // underlying stream already should have also called ReadStop on itself
-      eof_ = true;
+      flags_.eof = true;
     }
 
     EmitRead(nread);
@@ -1256,7 +1254,7 @@ int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
   if (ssl_ && SSL_shutdown(ssl_.get()) == 0)
     SSL_shutdown(ssl_.get());
 
-  shutdown_ = true;
+  flags_.shutdown = true;
   EncOut();
   return underlying_stream()->DoShutdown(req_wrap);
 }
@@ -1352,7 +1350,7 @@ void TLSWrap::Destroy() {
     return;
 
   // If there is a write happening, mark it as finished.
-  write_callback_scheduled_ = true;
+  flags_.write_callback_scheduled = true;
 
   // And destroy
   InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
@@ -1389,7 +1387,7 @@ void TLSWrap::ResumeAfterCertCb(void* arg) {
 void TLSWrap::EnableALPNCb(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
-  wrap->alpn_callback_enabled_ = true;
+  wrap->flags_.alpn_callback_enabled = true;
 
   SSL* ssl = wrap->ssl_.get();
   SSL_CTX* ssl_ctx = SSL_get_SSL_CTX(ssl);
@@ -1418,7 +1416,7 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
-  CHECK(!wrap->started_);
+  CHECK(!wrap->flags_.started);
   CHECK(wrap->is_client());
 
   CHECK(wrap->ssl_);
@@ -1633,7 +1631,7 @@ void TLSWrap::CertCbDone(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
 
-  CHECK(w->is_waiting_cert_cb() && w->cert_cb_running_);
+  CHECK(w->is_waiting_cert_cb() && w->flags_.cert_cb_running);
 
   Local<Object> object = w->object();
   Local<Value> ctx = object->Get(env->context(), env->sni_context_string())
@@ -1685,7 +1683,7 @@ void TLSWrap::CertCbDone(const FunctionCallbackInfo<Value>& args) {
   cb = w->cert_cb_;
   arg = w->cert_cb_arg_;
 
-  w->cert_cb_running_ = false;
+  w->flags_.cert_cb_running = false;
   w->cert_cb_ = nullptr;
   w->cert_cb_arg_ = nullptr;
 
@@ -2072,7 +2070,7 @@ void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {
 void TLSWrap::ClientHelloDone(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  w->hello_answered_ = true;
+  w->flags_.hello_answered = true;
   w->Cycle();
 }
 
@@ -2107,7 +2105,7 @@ void TLSWrap::GetTLSTicket(const FunctionCallbackInfo<Value>& args) {
 void TLSWrap::NewSessionDone(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  w->awaiting_new_session_ = false;
+  w->flags_.awaiting_new_session = false;
   w->NewSessionDoneCb();
 }
 
@@ -2188,7 +2186,7 @@ void TLSWrap::WritesIssuedByPrevListenerDone(
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
 
   Debug(w, "WritesIssuedByPrevListenerDone is called");
-  w->has_active_write_issued_by_prev_listener_ = false;
+  w->flags_.has_active_write_issued_by_prev_listener = false;
   w->EncOut();  // resume all of our restrained writes
 }
 
