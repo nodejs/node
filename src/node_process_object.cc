@@ -26,6 +26,7 @@ using v8::None;
 using v8::Object;
 using v8::PropertyCallbackInfo;
 using v8::SideEffectType;
+using v8::String;
 using v8::Value;
 
 static void ProcessTitleGetter(Local<Name> property,
@@ -41,7 +42,13 @@ static void ProcessTitleGetter(Local<Name> property,
 static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
-  node::Utf8Value title(info.GetIsolate(), value);
+  Isolate* isolate = info.GetIsolate();
+  Local<String> title_string;
+  if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&title_string)) {
+    return;
+  }
+
+  node::Utf8Value title(isolate, title_string);
   TRACE_EVENT_METADATA1(
       "__metadata", "process_name", "name", TRACE_STR_COPY(*title));
   uv_set_process_title(*title);
