@@ -37,7 +37,6 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
-using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::FunctionCallbackInfo;
@@ -215,7 +214,9 @@ void UDPWrap::Initialize(Local<Object> target,
   SetProtoMethod(
       isolate, t, "setBroadcast", SetLibuvInt32<uv_udp_set_broadcast>);
   SetProtoMethod(isolate, t, "setTTL", SetLibuvInt32<uv_udp_set_ttl>);
-  SetProtoMethod(isolate, t, "bufferSize", BufferSize);
+  SetProtoMethodNoSideEffect(
+      isolate, t, "getBufferSize", HandleWrap::GetBufferSize);
+  SetProtoMethod(isolate, t, "setBufferSize", HandleWrap::SetBufferSize);
   SetProtoMethodNoSideEffect(isolate, t, "getSendQueueSize", GetSendQueueSize);
   SetProtoMethodNoSideEffect(
       isolate, t, "getSendQueueCount", GetSendQueueCount);
@@ -262,7 +263,6 @@ void UDPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetLibuvInt32<uv_udp_set_multicast_loop>);
   registry->Register(SetLibuvInt32<uv_udp_set_broadcast>);
   registry->Register(SetLibuvInt32<uv_udp_set_ttl>);
-  registry->Register(BufferSize);
   registry->Register(GetSendQueueSize);
   registry->Register(GetSendQueueCount);
 }
@@ -383,41 +383,6 @@ void UDPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
 void UDPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   DoBind(args, AF_INET6);
-}
-
-
-void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  UDPWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(
-      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
-
-  CHECK(args[0]->IsUint32());
-  CHECK(args[1]->IsBoolean());
-  bool is_recv = args[1].As<Boolean>()->Value();
-  const char* uv_func_name = is_recv ? "uv_recv_buffer_size" :
-                                       "uv_send_buffer_size";
-
-  if (!args[0]->IsInt32()) {
-    USE(env->CollectUVExceptionInfo(args[2], UV_EINVAL, uv_func_name));
-    return;
-  }
-
-  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
-  int size = static_cast<int>(args[0].As<Uint32>()->Value());
-  int err;
-
-  if (is_recv)
-    err = uv_recv_buffer_size(handle, &size);
-  else
-    err = uv_send_buffer_size(handle, &size);
-
-  if (err != 0) {
-    USE(env->CollectUVExceptionInfo(args[2], err, uv_func_name));
-    return;
-  }
-
-  args.GetReturnValue().Set(size);
 }
 
 

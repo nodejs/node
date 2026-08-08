@@ -2957,8 +2957,9 @@ value.
 
 ### `ERR_SOCKET_BUFFER_SIZE`
 
-While using [`dgram.createSocket()`][], the size of the receive or send `Buffer`
-could not be determined.
+The size of the receive or send `Buffer` could not be determined or could not be
+set. Raised by the buffer size methods and the `recvBufferSize` and
+`sendBufferSize` options of [`dgram.Socket`][] and [`net.Socket`][].
 
 <a id="ERR_SOCKET_CLOSED"></a>
 
@@ -4672,6 +4673,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`crypto.scryptSync()`]: crypto.md#cryptoscryptsyncpassword-salt-keylen-options
 [`crypto.timingSafeEqual()`]: crypto.md#cryptotimingsafeequala-b
+[`dgram.Socket`]: dgram.md#class-dgramsocket
 [`dgram.connect()`]: dgram.md#socketconnectport-address-callback
 [`dgram.createSocket()`]: dgram.md#dgramcreatesocketoptions-callback
 [`dgram.disconnect()`]: dgram.md#socketdisconnect

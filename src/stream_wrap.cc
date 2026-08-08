@@ -153,6 +153,9 @@ Local<FunctionTemplate> LibuvStreamWrap::GetConstructorTemplate(
         Local<FunctionTemplate>(),
         static_cast<PropertyAttribute>(ReadOnly | DontDelete));
     SetProtoMethod(isolate, tmpl, "setBlocking", SetBlocking);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "getBufferSize", HandleWrap::GetBufferSize);
+    SetProtoMethod(isolate, tmpl, "setBufferSize", HandleWrap::SetBufferSize);
     StreamBase::AddMethods(env, tmpl);
     env->set_libuv_stream_wrap_ctor_template(tmpl);
   }

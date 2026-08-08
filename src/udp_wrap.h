@@ -147,7 +147,6 @@ class UDPWrap final : public HandleWrap,
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastInterface(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void BufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSendQueueSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetSendQueueCount(
       const v8::FunctionCallbackInfo<v8::Value>& args);

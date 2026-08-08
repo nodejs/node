@@ -60,6 +60,8 @@ class HandleWrap : public AsyncWrap {
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HasRef(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetBufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetBufferSize(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static inline bool IsAlive(const HandleWrap* wrap) {
     return wrap != nullptr &&
