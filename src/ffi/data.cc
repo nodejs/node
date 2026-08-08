@@ -685,7 +685,7 @@ void ExportBytes(const FunctionCallbackInfo<Value>& args) {
       args[0]->IsArrayBufferView()) {
     view.ReadValue(args[0]);
     if (view.WasDetached()) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
+      THROW_ERR_INVALID_ARG_VALUE(env, "ArrayBuffer is detached");
       return;
     }
   } else {
@@ -749,15 +749,26 @@ void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
   std::shared_ptr<BackingStore> store;
 
   if (args[0]->IsArrayBuffer()) {
-    store = args[0].As<ArrayBuffer>()->GetBackingStore();
+    Local<ArrayBuffer> buffer = args[0].As<ArrayBuffer>();
+    if (buffer->WasDetached()) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "ArrayBuffer is detached");
+      return;
+    }
+    store = buffer->GetBackingStore();
   } else if (args[0]->IsSharedArrayBuffer()) {
     store = args[0].As<SharedArrayBuffer>()->GetBackingStore();
   } else if (args[0]->IsArrayBufferView()) {
+    Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+    if (view->Buffer()->WasDetached()) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "ArrayBufferView is backed by a detached ArrayBuffer");
+      return;
+    }
     // Access the store here to ensure that it exists. Small typed arrays
     // may not have a store until this point and can instead be stored
     // entirely in-heap.
-    store = args[0].As<ArrayBufferView>()->Buffer()->GetBackingStore();
-    offset = args[0].As<ArrayBufferView>()->ByteOffset();
+    store = view->Buffer()->GetBackingStore();
+    offset = view->ByteOffset();
   } else {
     THROW_ERR_INVALID_ARG_TYPE(
         env,
