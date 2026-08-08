@@ -397,6 +397,19 @@ suite('DatabaseSync.prototype.prepare()', () => {
       message: /The "sql" argument must be a string/,
     });
   });
+
+  test('throws if sql contains no statement', (t) => {
+    using db = new DatabaseSync(':memory:');
+
+    for (const sql of ['', ' ', '\n', '\t', ';', ';;', '-- comment', '/* c */']) {
+      t.assert.throws(() => {
+        db.prepare(sql);
+      }, {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: 'The "sql" argument must contain a SQL statement.',
+      });
+    }
+  });
 });
 
 suite('DatabaseSync.prototype.exec()', () => {

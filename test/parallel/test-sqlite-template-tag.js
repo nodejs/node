@@ -348,3 +348,20 @@ test('tag store prevents circular reference leaks', async () => {
     return after < before * 1.5;
   }, 20);
 });
+
+test('tagged templates throw if the template contains no statement', () => {
+  for (const method of ['all', 'get', 'iterate', 'run']) {
+    for (const tag of [
+      () => sql[method]``,
+      () => sql[method]` `,
+      () => sql[method]`;`,
+      () => sql[method]`-- comment`,
+      () => sql[method]`/* c */`,
+    ]) {
+      assert.throws(tag, {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: 'The SQL template literal must contain a SQL statement.',
+      });
+    }
+  }
+});

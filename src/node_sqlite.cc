@@ -1576,6 +1576,13 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   StatementPtr stmt_ptr(s);
 
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+
+  if (s == nullptr) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, "The \"sql\" argument must contain a SQL statement.");
+    return;
+  }
+
   BaseObjectPtr<StatementSync> stmt = StatementSync::Create(
       env, BaseObjectPtr<DatabaseSync>(db), std::move(stmt_ptr));
   if (!stmt) {
@@ -2648,8 +2655,9 @@ StatementSync::~StatementSync() {
 }
 
 void StatementSync::Close() {
+  db_->UntrackStatement(this);
+
   if (!IsFinalized()) {
-    db_->UntrackStatement(this);
     Finalize();
   }
 }
@@ -3648,6 +3656,12 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
 
     if (r != SQLITE_OK) {
       THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
+      return BaseObjectPtr<StatementSync>();
+    }
+
+    if (s == nullptr) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The SQL template literal must contain a SQL statement.");
       return BaseObjectPtr<StatementSync>();
     }
 

@@ -662,6 +662,10 @@ console.log(query.get());
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Throws `ERR_INVALID_ARG_VALUE` if `sql` contains no statement.
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
@@ -679,6 +683,9 @@ added: v22.5.0
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
 around [`sqlite3_prepare_v2()`][].
+
+Throws `ERR_INVALID_ARG_VALUE` if `sql` contains no statement to compile, for
+example when it is empty or holds only whitespace or comments.
 
 ### `database.createTagStore([maxSize])`
 
@@ -1256,6 +1263,11 @@ class execute synchronously.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Throws `ERR_INVALID_ARG_VALUE` if the template contains no
+                 statement.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
@@ -1267,6 +1279,9 @@ added: v24.9.0
 Executes the given SQL query and returns all resulting rows as an array of
 objects.
 
+Throws `ERR_INVALID_ARG_VALUE` if the assembled template contains no statement
+to compile, for example when it is empty or holds only whitespace or comments.
+
 This function is intended to be used as a template literal tag, not to be
 called directly.
 
@@ -1274,6 +1289,11 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Throws `ERR_INVALID_ARG_VALUE` if the template contains no
+                 statement.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
@@ -1285,6 +1305,9 @@ added: v24.9.0
 
 Executes the given SQL query and returns the first resulting row as an object.
 
+Throws `ERR_INVALID_ARG_VALUE` if the assembled template contains no statement
+to compile, for example when it is empty or holds only whitespace or comments.
+
 This function is intended to be used as a template literal tag, not to be
 called directly.
 
@@ -1292,6 +1315,11 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Throws `ERR_INVALID_ARG_VALUE` if the template contains no
+                 statement.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
@@ -1302,6 +1330,9 @@ added: v24.9.0
 
 Executes the given SQL query and returns an iterator over the resulting rows.
 
+Throws `ERR_INVALID_ARG_VALUE` if the assembled template contains no statement
+to compile, for example when it is empty or holds only whitespace or comments.
+
 This function is intended to be used as a template literal tag, not to be
 called directly.
 
@@ -1309,6 +1340,11 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Throws `ERR_INVALID_ARG_VALUE` if the template contains no
+                 statement.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
@@ -1318,6 +1354,9 @@ added: v24.9.0
 * Returns: {Object} An object containing information about the execution, including `changes` and `lastInsertRowid`.
 
 Executes the given SQL query, which is expected to not return any rows (e.g., INSERT, UPDATE, DELETE).
+
+Throws `ERR_INVALID_ARG_VALUE` if the assembled template contains no statement
+to compile, for example when it is empty or holds only whitespace or comments.
 
 This function is intended to be used as a template literal tag, not to be
 called directly.
