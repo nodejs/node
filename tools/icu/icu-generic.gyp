@@ -200,19 +200,44 @@
                               '-v',
                               '-L', '<(icu_locales)'],
                 },
-                {
-                  # build final .dat -> .obj
-                  'action_name': 'genccode',
-                  'msvs_quote_cmd': 0,
-                  'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
-                  'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
-                              '<@(icu_asm_opts)', # -o
-                              '-d', '<(SHARED_INTERMEDIATE_DIR)/',
-                              '-n', 'icudata',
-                              '-e', 'icusmdt<(icu_ver_major)',
-                              '<@(_inputs)' ],
-                },
+              ],
+              'conditions': [
+                [ 'clang==1', {
+                  'actions': [
+                    {
+                      # build final .dat -> .obj
+                      'action_name': 'genccode',
+                      'msvs_quote_cmd': 0,
+                      'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                      'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                      # for Clang use "-c <(target_arch)" option
+                      'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                  '<@(icu_asm_opts)', # -o
+                                  '-c', '<(target_arch)',
+                                  '-d', '<(SHARED_INTERMEDIATE_DIR)/',
+                                  '-n', 'icudata',
+                                  '-e', 'icusmdt<(icu_ver_major)',
+                                  '<@(_inputs)' ],
+                    },
+                  ],
+                }, {
+                  'actions': [
+                    {
+                      # build final .dat -> .obj
+                      'action_name': 'genccode',
+                      'msvs_quote_cmd': 0,
+                      'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                      'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
+                      # for MSVC do not use "-c <(target_arch)" option
+                      'action': [ '<(PRODUCT_DIR)/genccode<(EXECUTABLE_SUFFIX)',
+                                  '<@(icu_asm_opts)', # -o
+                                  '-d', '<(SHARED_INTERMEDIATE_DIR)/',
+                                  '-n', 'icudata',
+                                  '-e', 'icusmdt<(icu_ver_major)',
+                                  '<@(_inputs)' ],
+                    },
+                  ],
+                }]
               ],
               # This file contains the small ICU data.
               'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.<(icu_asm_ext)' ],
