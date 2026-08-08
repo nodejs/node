@@ -119,6 +119,16 @@ tmpdir.refresh();
   }
 }
 
+// Test writeFileSync with UTF-8 encoding aliases
+{
+  const utf8Data = 'hello world! ä¸­æ–‡ â€” ðŸš€';
+  for (const encoding of ['utf8', 'utf-8', 'UTF8', 'UTF-8']) {
+    const file = tmpdir.resolve(`testWriteFileSyncEncoding_${encoding}.txt`);
+    fs.writeFileSync(file, utf8Data, { encoding });
+    assert.strictEqual(fs.readFileSync(file, 'utf8'), utf8Data);
+  }
+}
+
 // Test writeFileSync with an invalid input
 {
   const file = tmpdir.resolve('testWriteFileSyncInvalid.txt');
