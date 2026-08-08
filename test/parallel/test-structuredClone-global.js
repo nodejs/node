@@ -27,6 +27,17 @@ assert.strictEqual(structuredClone(undefined, null), undefined);
 // Transfer can be null or undefined.
 assert.strictEqual(structuredClone(undefined, { }), undefined);
 
+// Primitives clone to themselves.
+assert.strictEqual(structuredClone(null), null);
+assert.strictEqual(structuredClone(1), 1);
+assert.strictEqual(structuredClone('x'), 'x');
+assert.strictEqual(structuredClone(true), true);
+assert.strictEqual(structuredClone(10n), 10n);
+// -0 is preserved.
+assert.ok(Object.is(structuredClone(-0), -0));
+// Symbols are not cloneable and must throw.
+assert.throws(() => structuredClone(Symbol()), { name: 'DataCloneError' });
+
 // Transferables or its subclasses should be received with its closest transferable superclass
 for (const StreamClass of [ReadableStream, WritableStream, TransformStream]) {
   const original = new StreamClass();
