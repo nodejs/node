@@ -2658,12 +2658,17 @@ void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
   stmt->Close();
 }
 
 void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
   stmt->Close();
 }
 
@@ -3108,7 +3113,10 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
   Isolate* isolate = env->isolate();
+  auto stepping = stmt->MarkStepping();
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3135,6 +3143,9 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
+  auto stepping = stmt->MarkStepping();
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3158,6 +3169,9 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
+  auto stepping = stmt->MarkStepping();
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3182,6 +3196,9 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
+  auto stepping = stmt->MarkStepping();
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3471,6 +3488,9 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
+  auto stepping = stmt->MarkStepping();
   if (!ResetAndBindStatement(env, stmt.get(), args)) {
     return;
   }
@@ -3497,6 +3517,9 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
+  auto stepping = stmt->MarkStepping();
   if (!ResetAndBindStatement(env, stmt.get(), args)) {
     return;
   }
@@ -3525,6 +3548,9 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
+  auto stepping = stmt->MarkStepping();
   if (!ResetAndBindStatement(env, stmt.get(), args)) {
     return;
   }
@@ -3554,6 +3580,9 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
+  auto stepping = stmt->MarkStepping();
   if (!ResetAndBindStatement(env, stmt.get(), args)) {
     return;
   }
@@ -3766,6 +3795,8 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, iter->stmt_->IsFinalized(), "statement has been finalized");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, iter->stmt_->IsStepping(), "statement is currently being executed");
   Isolate* isolate = env->isolate();
 
   auto iter_template = getLazyIterTemplate(env);
@@ -3788,6 +3819,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
       iter->statement_reset_generation_ != iter->stmt_->reset_generation_,
       "iterator was invalidated");
 
+  auto stepping = iter->stmt_->MarkStepping();
   int r = sqlite3_step(iter->stmt_->statement_);
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(
@@ -3843,6 +3875,8 @@ void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, iter->stmt_->IsFinalized(), "statement has been finalized");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, iter->stmt_->IsStepping(), "statement is currently being executed");
   Isolate* isolate = env->isolate();
 
   sqlite3_reset(iter->stmt_->statement_);
