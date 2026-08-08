@@ -8,7 +8,7 @@
   * [Review guide](#review-guide)
   * [Approval requirements](#approval-requirements)
   * [Dependency changes](#dependency-changes)
-* [Splitting large pull requests](#splitting-large-pull-requests)
+* [Avoiding large pull requests](#avoiding-large-pull-requests)
   * [Feature forks and branches](#feature-forks-and-branches)
 * [Guidance for reviewers](#guidance-for-reviewers)
 
