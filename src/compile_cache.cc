@@ -96,6 +96,10 @@ const char* CompileCacheEntry::type_name() const {
       return "ESM";
     case CachedCodeType::kStrippedTypeScript:
       return "StrippedTypeScript";
+    case CachedCodeType::kTransformedTypeScript:
+      return "TransformedTypeScript";
+    case CachedCodeType::kTransformedTypeScriptWithSourceMaps:
+      return "TransformedTypeScriptWithSourceMaps";
     default:
       UNREACHABLE();
   }
@@ -349,7 +353,9 @@ void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
 
 void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
                                     std::string_view transpiled) {
-  CHECK(entry->type == CachedCodeType::kStrippedTypeScript);
+  CHECK(entry->type == CachedCodeType::kStrippedTypeScript ||
+        entry->type == CachedCodeType::kTransformedTypeScript ||
+        entry->type == CachedCodeType::kTransformedTypeScriptWithSourceMaps);
   Debug("[compile cache] saving transpilation cache for %s %s\n",
         entry->type_name(),
         entry->source_filename);
