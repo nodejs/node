@@ -3456,6 +3456,10 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65147
+    description: Added test and suite attribution to `test:stdout` and
+                 `test:stderr` events for built-in global `console` output.
   - version: v26.6.0
     pr-url: https://github.com/nodejs/node/pull/64309
     description: Added `entryFile` to events forwarded from child processes
