@@ -188,6 +188,8 @@ T* MallocOpenSSL(size_t count) {
   return static_cast<T*>(mem);
 }
 
+STRONG_BOOL(NULL_TERMINATE);
+
 // A helper class representing a read-only byte array. When deallocated, its
 // contents are zeroed.
 class ByteSource final {
@@ -251,10 +253,10 @@ class ByteSource final {
 
   static ByteSource FromString(Environment* env,
                                v8::Local<v8::String> str,
-                               bool ntc = false);
+                               NULL_TERMINATE ntc = NULL_TERMINATE::NO);
 
   static ByteSource FromBuffer(v8::Local<v8::Value> buffer,
-                               bool ntc = false);
+                               NULL_TERMINATE ntc = NULL_TERMINATE::NO);
 
   static ByteSource FromBIO(const ncrypto::BIOPointer& bio);
 

@@ -515,8 +515,9 @@ ByteSource ByteSource::FromStringOrBuffer(Environment* env,
                                   : FromString(env, value.As<String>());
 }
 
-ByteSource ByteSource::FromString(Environment* env, Local<String> str,
-                                  bool ntc) {
+ByteSource ByteSource::FromString(Environment* env,
+                                  Local<String> str,
+                                  NULL_TERMINATE ntc) {
   CHECK(str->IsString());
   size_t size = str->Utf8LengthV2(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
@@ -528,7 +529,7 @@ ByteSource ByteSource::FromString(Environment* env, Local<String> str,
   return ByteSource::Allocated(out.release());
 }
 
-ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
+ByteSource ByteSource::FromBuffer(Local<Value> buffer, NULL_TERMINATE ntc) {
   ArrayBufferOrViewContents<char> buf(buffer);
   return ntc ? buf.ToNullTerminatedCopy() : buf.ToByteSource();
 }
@@ -546,8 +547,9 @@ ByteSource ByteSource::FromSecretKeyBytes(
 
 ByteSource ByteSource::NullTerminatedCopy(Environment* env,
                                           Local<Value> value) {
-  return Buffer::HasInstance(value) ? FromBuffer(value, true)
-                                    : FromString(env, value.As<String>(), true);
+  return Buffer::HasInstance(value)
+             ? FromBuffer(value, NULL_TERMINATE::YES)
+             : FromString(env, value.As<String>(), NULL_TERMINATE::YES);
 }
 
 ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {

@@ -38,6 +38,9 @@
 namespace node {
 namespace crypto {
 
+STRONG_BOOL(OCSP);
+STRONG_BOOL(HAS_TICKET);
+
 class TLSWrap : public AsyncWrap,
                 public StreamBase,
                 public StreamListener {
@@ -70,9 +73,11 @@ class TLSWrap : public AsyncWrap,
   inline bool should_suspend_for_client_hello() const {
     return is_server() && session_callbacks_ && !hello_answered_;
   }
-  inline void set_cert_cb_running(bool on = true) { cert_cb_running_ = on; }
-  inline void set_awaiting_new_session(bool on = true) {
-    awaiting_new_session_ = on;
+  inline void set_cert_cb_running(ON on = ON::YES) {
+    cert_cb_running_ = on.toBool();
+  }
+  inline void set_awaiting_new_session(ON on = ON::YES) {
+    awaiting_new_session_ = on.toBool();
   }
   inline void enable_session_callbacks() { session_callbacks_ = true; }
   inline bool is_server() const { return kind_ == Kind::kServer; }
@@ -113,10 +118,10 @@ class TLSWrap : public AsyncWrap,
   // clientHelloDone(). The emit itself must not run on the library's stack.
   bool OnEarlyClientHello(const unsigned char* session_id,
                           size_t session_id_len,
-                          bool has_ticket);
+                          HAS_TICKET has_ticket);
 
   // Schedules 'oncertcb'. The handshake stays suspended until certCbDone().
-  void ScheduleCertCb(std::string servername, bool ocsp);
+  void ScheduleCertCb(std::string servername, OCSP ocsp);
 
   // Implement MemoryRetainer:
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -151,8 +156,8 @@ class TLSWrap : public AsyncWrap,
 
   void WaitForCertCb(CertCb cb, void* arg);
   void EmitClientHello(const std::vector<unsigned char>& session_id,
-                       bool has_ticket);
-  void EmitCertCb(const std::string& servername, bool ocsp);
+                       HAS_TICKET has_ticket);
+  void EmitCertCb(const std::string& servername, OCSP ocsp);
 
   TLSWrap(Environment* env,
           v8::Local<v8::Object> obj,

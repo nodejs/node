@@ -1095,6 +1095,9 @@ inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
         : value(booleanValue ? Value::YES : Value::NO) {}                      \
     constexpr explicit operator bool() const { return toBool(); }              \
     constexpr bool toBool() const { return value == YES; }                     \
+    v8::Local<v8::Boolean> ToJs(v8::Isolate* isolate) const {                  \
+      return v8::Boolean::New(isolate, toBool());                              \
+    }                                                                          \
     constexpr auto operator<=>(const Type&) const = default;                   \
     constexpr Type operator&&(const Type& other) const {                       \
       return Type(value == YES && other.value == YES);                         \
@@ -1110,6 +1113,9 @@ inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
   };                                                                           \
   inline constexpr Type Type::NO{Type::Value::NO};                             \
   inline constexpr Type Type::YES { Type::Value::YES }
+
+// A generic strong bool type that can be used for ON/OFF flags
+STRONG_BOOL(ON);
 
 }  // namespace node
 
