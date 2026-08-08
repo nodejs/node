@@ -756,6 +756,12 @@ void NewFSReqCallback(const FunctionCallbackInfo<Value>& args) {
   new FSReqCallback(binding_data, args.This(), args[0]->IsTrue());
 }
 
+void CancelFSReq(const FunctionCallbackInfo<Value>& args) {
+  FSReqBase* req_wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&req_wrap, args.This());
+  req_wrap->Cancel();
+}
+
 FSReqAfterScope::FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req)
     : wrap_(wrap),
       req_(req),
@@ -4264,6 +4270,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   fst->InstanceTemplate()->SetInternalFieldCount(
       FSReqBase::kInternalFieldCount);
   fst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+  SetProtoMethod(isolate, fst, "cancel", CancelFSReq);
   SetConstructorFunction(isolate, target, "FSReqCallback", fst);
 
   // Create FunctionTemplate for FileHandleReadWrap. There’s no need
@@ -4378,6 +4385,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(HandleToFd);
 #endif
   registry->Register(NewFSReqCallback);
+  registry->Register(CancelFSReq);
 
   registry->Register(FileHandle::New);
   registry->Register(FileHandle::Close);
