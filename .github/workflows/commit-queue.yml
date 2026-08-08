@@ -74,13 +74,14 @@ jobs:
 
       - name: Configure @node-core/utils
         run: |
-          ncu-config set branch "${GITHUB_REF_NAME}"
-          ncu-config set upstream origin
-          ncu-config set username "$USERNAME"
-          ncu-config set token "$GITHUB_TOKEN"
-          ncu-config set jenkins_token "$JENKINS_TOKEN"
-          ncu-config set repo "${REPOSITORY}"
-          ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
+          # Keep the config outside the workspace so checkout does not remove it.
+          ncu-config --global set branch "${GITHUB_REF_NAME}"
+          ncu-config --global set upstream origin
+          ncu-config --global set username "$USERNAME"
+          ncu-config --global set token "$GITHUB_TOKEN"
+          ncu-config --global set jenkins_token "$JENKINS_TOKEN"
+          ncu-config --global set repo "${REPOSITORY}"
+          ncu-config --global set owner "${GITHUB_REPOSITORY_OWNER}"
         env:
           USERNAME: ${{ secrets.JENKINS_USER }}
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
