@@ -1559,7 +1559,7 @@ class Http3ApplicationImpl final : public Session::Application {
       on_stream_close,
       on_receive_wt_data,
       on_wt_data_stream_open,
-      on_recv_wt_close_session};
+      on_recv_wt_close_session
   };
 };
 
