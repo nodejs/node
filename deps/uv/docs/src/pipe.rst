@@ -167,8 +167,8 @@ API
 
     Create a pair of connected pipe handles.
     Data may be written to `fds[1]` and read from `fds[0]`.
-    The resulting handles can be passed to `uv_pipe_open`, used with `uv_spawn`,
-    or for any other purpose.
+    The resulting handles can be passed to `uv_pipe_open`, used with
+    `uv_spawn` / `uv_spawn2` or for any other purpose.
 
     Valid values for `flags` are:
 

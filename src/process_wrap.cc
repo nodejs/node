@@ -59,6 +59,7 @@ enum ProcessFlags : uint32_t {
   kProcessFlagDetached = 1 << 0,
   kProcessFlagWindowsHide = 1 << 1,
   kProcessFlagWindowsVerbatimArguments = 1 << 2,
+  kProcessFlagPty = 1 << 3,
 };
 
 class ProcessWrap : public HandleWrap {
@@ -77,6 +78,7 @@ class ProcessWrap : public HandleWrap {
 
     SetProtoMethod(isolate, constructor, "spawn", Spawn);
     SetProtoMethod(isolate, constructor, "kill", Kill);
+    SetProtoMethod(isolate, constructor, "resize", Resize);
 
     SetConstructorFunction(context, target, "Process", constructor);
 
@@ -84,6 +86,7 @@ class ProcessWrap : public HandleWrap {
     NODE_DEFINE_CONSTANT(constants, kProcessFlagDetached);
     NODE_DEFINE_CONSTANT(constants, kProcessFlagWindowsHide);
     NODE_DEFINE_CONSTANT(constants, kProcessFlagWindowsVerbatimArguments);
+    NODE_DEFINE_CONSTANT(constants, kProcessFlagPty);
     target->Set(context, env->constants_string(), constants).Check();
   }
 
@@ -91,6 +94,7 @@ class ProcessWrap : public HandleWrap {
     registry->Register(New);
     registry->Register(Spawn);
     registry->Register(Kill);
+    registry->Register(Resize);
   }
 
   SET_NO_MEMORY_INFO()
@@ -133,7 +137,8 @@ class ProcessWrap : public HandleWrap {
   static Maybe<void> ParseStdioOptions(
       Environment* env,
       Local<Value> stdios_val,
-      std::vector<uv_stdio_container_t>* options_stdio) {
+      std::vector<uv_stdio_container_t>* options_stdio,
+      bool use_pty) {
     Local<Context> context = env->context();
     if (!stdios_val->IsArray()) {
       THROW_ERR_INVALID_ARG_TYPE(env, "options.stdio must be an array");
@@ -158,8 +163,24 @@ class ProcessWrap : public HandleWrap {
       if (type->StrictEquals(env->ignore_string())) {
         (*options_stdio)[i].flags = UV_IGNORE;
       } else if (type->StrictEquals(env->pipe_string())) {
-        (*options_stdio)[i].flags = static_cast<uv_stdio_flags>(
-            UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
+        unsigned int flags = UV_CREATE_PIPE;
+        if (use_pty) {
+          // UV_PROCESS_PTY requires exact directional flags:
+          // stdio[0]=CREATE|READABLE, stdio[1]=CREATE|WRITABLE, stdio[2]=IGNORE.
+          Local<Value> readable_v;
+          Local<Value> writable_v;
+          if (!stdio->Get(context, env->readable_string()).ToLocal(&readable_v) ||
+              !stdio->Get(context, env->writable_string()).ToLocal(&writable_v)) {
+            return Nothing<void>();
+          }
+          if (readable_v->BooleanValue(env->isolate()))
+            flags |= UV_READABLE_PIPE;
+          if (writable_v->BooleanValue(env->isolate()))
+            flags |= UV_WRITABLE_PIPE;
+        } else {
+          flags |= UV_READABLE_PIPE | UV_WRITABLE_PIPE;
+        }
+        (*options_stdio)[i].flags = static_cast<uv_stdio_flags>(flags);
         if (!StreamForWrap(env, stdio).To(&(*options_stdio)[i].data.stream)) {
           return Nothing<void>();
         }
@@ -294,23 +315,25 @@ class ProcessWrap : public HandleWrap {
       options.env = options_env.data();
     }
 
+    // args[5] flags (detached, windowsHide, windowsVerbatimArguments, pty)
+    CHECK(args[5]->IsUint32());
+    const uint32_t flags = args[5].As<Uint32>()->Value();
+    const bool use_pty = (flags & kProcessFlagPty) != 0;
+
     // args[4] stdio
     std::vector<uv_stdio_container_t> options_stdio;
-    if (ParseStdioOptions(env, args[4], &options_stdio).IsNothing()) {
+    if (ParseStdioOptions(env, args[4], &options_stdio, use_pty).IsNothing()) {
       return;
     }
     options.stdio = options_stdio.data();
     options.stdio_count = options_stdio.size();
 
-    // args[5] flags (detached, windowsHide, windowsVerbatimArguments)
-    CHECK(args[5]->IsUint32());
-    const uint32_t flags = args[5].As<Uint32>()->Value();
-
     if (flags & kProcessFlagWindowsHide) {
       options.flags |= UV_PROCESS_WINDOWS_HIDE;
     }
 
-    if (env->hide_console_windows()) {
+    // ConPTY rejects WINDOWS_HIDE / WINDOWS_HIDE_CONSOLE with UV_PROCESS_PTY.
+    if (!use_pty && env->hide_console_windows()) {
       options.flags |= UV_PROCESS_WINDOWS_HIDE_CONSOLE;
     }
 
@@ -322,9 +345,41 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_DETACHED;
     }
 
+    unsigned int pty_cols = 0;
+    unsigned int pty_rows = 0;
+    if (use_pty) {
+      options.flags |= UV_PROCESS_PTY;
+      // Clear hide flags that are incompatible with ConPTY.
+      options.flags &= ~(UV_PROCESS_WINDOWS_HIDE |
+                         UV_PROCESS_WINDOWS_HIDE_CONSOLE);
+      CHECK(args[8]->IsUint32());
+      CHECK(args[9]->IsUint32());
+      pty_cols = args[8].As<Uint32>()->Value();
+      pty_rows = args[9].As<Uint32>()->Value();
+    }
+
     if (err == 0) {
-      err = uv_spawn(env->event_loop(), &wrap->process_, &options);
-      wrap->MarkAsInitialized();
+      if (use_pty) {
+        uv_process_options2_t options2;
+        options2.version = UV_PROCESS_OPTIONS_VERSION;
+        options2.exit_cb = options.exit_cb;
+        options2.file = options.file;
+        options2.args = options.args;
+        options2.env = options.env;
+        options2.cwd = options.cwd;
+        options2.flags = options.flags;
+        options2.stdio_count = options.stdio_count;
+        options2.stdio = options.stdio;
+        options2.pty_cols = pty_cols;
+        options2.pty_rows = pty_rows;
+        options2.uid = options.uid;
+        options2.gid = options.gid;
+        err = uv_spawn2(env->event_loop(), &wrap->process_, &options2);
+      } else {
+        err = uv_spawn(env->event_loop(), &wrap->process_, &options);
+      }
+      if (err == 0)
+        wrap->MarkAsInitialized();
     }
 
     if (err == 0) {
@@ -356,6 +411,24 @@ class ProcessWrap : public HandleWrap {
     }
 #endif
     int err = uv_process_kill(&wrap->process_, signal);
+    args.GetReturnValue().Set(err);
+  }
+
+  static void Resize(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    ProcessWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+    unsigned int cols;
+    unsigned int rows;
+    if (!args[0]->Uint32Value(env->context()).To(&cols) ||
+        !args[1]->Uint32Value(env->context()).To(&rows)) {
+      return;
+    }
+    if (cols == 0 || rows == 0) {
+      args.GetReturnValue().Set(UV_EINVAL);
+      return;
+    }
+    int err = uv_pty_resize(&wrap->process_, cols, rows);
     args.GetReturnValue().Set(err);
   }
 

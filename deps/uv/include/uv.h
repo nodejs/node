@@ -1107,6 +1107,65 @@ typedef struct uv_process_options_s {
   uv_gid_t gid;
 } uv_process_options_t;
 
+#define UV_PROCESS_OPTIONS_VERSION_V0 0  /* Same as original uv_process_options_t */
+#define UV_PROCESS_OPTIONS_VERSION_V1 1  /* With pty fields */
+
+#define UV_PROCESS_OPTIONS_VERSION UV_PROCESS_OPTIONS_VERSION_V1
+
+typedef struct uv_process_options2_s {
+  /* Struct version. Simply set it to UV_PROCESS_OPTIONS_VERSION. */
+  int version;
+
+  uv_exit_cb exit_cb; /* Called after the process exits. */
+  const char* file;   /* Path to program to execute. */
+  /*
+   * Command line arguments. args[0] should be the path to the program. On
+   * Windows this uses CreateProcess which concatenates the arguments into a
+   * string this can cause some strange errors. See the note at
+   * windows_verbatim_arguments.
+   */
+  char** args;
+  /*
+   * This will be set as the environ variable in the subprocess. If this is
+   * NULL then the parents environ will be used.
+   */
+  char** env;
+  /*
+   * If non-null this represents a directory the subprocess should execute
+   * in. Stands for current working directory.
+   */
+  const char* cwd;
+  /*
+   * Various flags that control how uv_spawn() behaves. See the definition of
+   * `enum uv_process_flags` below.
+   */
+  unsigned int flags;
+  /*
+   * The `stdio` field points to an array of uv_stdio_container_t structs that
+   * describe the file descriptors that will be made available to the child
+   * process. The convention is that stdio[0] points to stdin, fd 1 is used for
+   * stdout, and fd 2 is stderr.
+   *
+   * Note that on windows file descriptors greater than 2 are available to the
+   * child process only if the child processes uses the MSVCRT runtime.
+   */
+  int stdio_count;
+  uv_stdio_container_t* stdio;
+  /*
+   * When starting the child with a PTY, these set the initial width and
+   * height.
+   */
+  unsigned int pty_cols;
+  unsigned int pty_rows;
+  /*
+   * Libuv can change the child process' user/group id. This happens only when
+   * the appropriate bits are set in the flags fields. This is not supported on
+   * windows; uv_spawn() will fail and set the error to UV_ENOTSUP.
+   */
+  uv_uid_t uid;
+  uv_gid_t gid;
+} uv_process_options2_t;
+
 /*
  * These are the flags that can be used for the uv_process_options.flags field.
  */
@@ -1160,7 +1219,16 @@ enum uv_process_flags {
    * search for the exact file name before trying variants with
    * extensions like '.exe' or '.cmd'.
    */
-  UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME = (1 << 7)
+  UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME = (1 << 7),
+  /*
+   * Start subprocess with a pseudo terminal. To use this flag, set
+   * stdio[0] to UV_CREATE_PIPE | UV_READABLE_PIPE and
+   * stdio[1] to UV_CREATE_PIPE | UV_WRITABLE_PIPE and
+   * stdio[2] to UV_IGNORE. The first pipe will be the PTY in (write here),
+   * while the second pipe will be the PTY out (read here). The child will have
+   * all standard FDs (0, 1 and 2) connected to the PTY as it should.
+   */
+  UV_PROCESS_PTY = (1 << 8)
 };
 
 /*
@@ -1176,6 +1244,12 @@ struct uv_process_s {
 UV_EXTERN int uv_spawn(uv_loop_t* loop,
                        uv_process_t* handle,
                        const uv_process_options_t* options);
+UV_EXTERN int uv_spawn2(uv_loop_t* loop,
+                       uv_process_t* handle,
+                       const uv_process_options2_t* options);
+UV_EXTERN int uv_pty_resize(uv_process_t* process,
+                            unsigned short cols,
+                            unsigned short rows);
 UV_EXTERN int uv_process_kill(uv_process_t*, int signum);
 UV_EXTERN int uv_kill(int pid, int signum);
 UV_EXTERN uv_pid_t uv_process_get_pid(const uv_process_t*);
