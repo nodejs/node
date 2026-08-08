@@ -9,6 +9,7 @@
 #include "sqlite3.h"
 #include "util.h"
 
+#include <algorithm>
 #include <array>
 #include <list>
 #include <map>
@@ -239,6 +240,26 @@ class DatabaseSync : public BaseObject {
   void DecrementCallbackDepth() { --callback_depth_; }
   bool IsInCallback() const { return callback_depth_ > 0; }
 
+  // SQLite forbids an authorizer callback from doing anything that modifies
+  // the database connection that invoked it, which includes preparing and
+  // stepping statements. See https://www.sqlite.org/c3ref/set_authorizer.html.
+  void IncrementAuthorizerDepth() { ++authorizer_depth_; }
+  void DecrementAuthorizerDepth() { --authorizer_depth_; }
+  bool IsInAuthorizerCallback() const { return authorizer_depth_ > 0; }
+
+  // Finalizing a statement frees its virtual machine, so a callback that
+  // SQLite invokes from inside sqlite3_step() must not finalize the statement
+  // being stepped. Other statements on the connection are safe to finalize.
+  void PushSteppingStatement(sqlite3_stmt* stmt) {
+    stepping_statements_.push_back(stmt);
+  }
+  void PopSteppingStatement() { stepping_statements_.pop_back(); }
+  bool IsSteppingStatement(sqlite3_stmt* stmt) const {
+    return std::find(stepping_statements_.begin(),
+                     stepping_statements_.end(),
+                     stmt) != stepping_statements_.end();
+  }
+
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
 
@@ -253,6 +274,8 @@ class DatabaseSync : public BaseObject {
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
   int callback_depth_ = 0;
+  int authorizer_depth_ = 0;
+  std::vector<sqlite3_stmt*> stepping_statements_;
 
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
@@ -427,6 +450,32 @@ class CallbackDepthGuard {
   ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
   CallbackDepthGuard(const CallbackDepthGuard&) = delete;
   CallbackDepthGuard& operator=(const CallbackDepthGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class SteppingStatementGuard {
+ public:
+  SteppingStatementGuard(DatabaseSync* db, sqlite3_stmt* stmt) : db_(db) {
+    db_->PushSteppingStatement(stmt);
+  }
+  ~SteppingStatementGuard() { db_->PopSteppingStatement(); }
+  SteppingStatementGuard(const SteppingStatementGuard&) = delete;
+  SteppingStatementGuard& operator=(const SteppingStatementGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class AuthorizerDepthGuard {
+ public:
+  explicit AuthorizerDepthGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementAuthorizerDepth();
+  }
+  ~AuthorizerDepthGuard() { db_->DecrementAuthorizerDepth(); }
+  AuthorizerDepthGuard(const AuthorizerDepthGuard&) = delete;
+  AuthorizerDepthGuard& operator=(const AuthorizerDepthGuard&) = delete;
 
  private:
   DatabaseSync* db_;
