@@ -171,6 +171,92 @@ const NETWORK_ERROR_CASES = [
     networkRequest({ request: omit(networkRequest().request, 'headers') }),
     'Missing request.headers in event',
   ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-missing-initiator-type',
+      initiator: {},
+    }),
+    'Missing initiator.type in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-missing-initiator-stack-callframes',
+      initiator: {
+        type: 'script',
+        stack: {},
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-invalid-initiator-stack-type',
+      initiator: {
+        type: 'script',
+        stack: [],
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-bigint-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: {
+          callFrames: [1n],
+        },
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-symbol-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: {
+          callFrames: [Symbol('frame')],
+        },
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-getter-throw-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: {
+          get callFrames() {
+            throw new Error('boom');
+          },
+        },
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      requestId: 'request-id-ownkeys-throw-initiator-stack',
+      initiator: {
+        type: 'script',
+        stack: new Proxy({}, {
+          ownKeys() {
+            throw new Error('boom');
+          },
+        }),
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
 
   [
     'responseReceived',
