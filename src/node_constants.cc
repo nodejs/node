@@ -1378,11 +1378,7 @@ void CreatePerContextProperties(Local<Object> target,
             FIXED_ONE_BYTE_STRING(isolate, "dlopen"),
             dlopen_constants)
       .Check();
-  os_constants
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(isolate, "errno"),
-            err_constants)
-      .Check();
+  os_constants->Set(env->context(), env->errno_string(), err_constants).Check();
   os_constants
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(isolate, "signals"),
