@@ -31,6 +31,8 @@ function main({ len, n }) {
   function newParser(type) {
     const parser = new HTTPParser();
     parser.initialize(type, {});
+    // Direct parsers bypass cleanParser(); use its production default.
+    parser.maxHeaderPairs = 2000;
 
     parser.headers = [];
 
