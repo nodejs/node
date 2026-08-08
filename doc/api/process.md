@@ -1513,6 +1513,18 @@ emitMyWarning();
 // Emits nothing
 ```
 
+## `process.entrypoint`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string | undefined}
+
+The URL of the entry point that Node.js was started with, such as
+`'file:///path/to/app.js'`. Worker threads inherit this value. If Node.js was
+started without an entry point, such as in the REPL, the value is {undefined}.
+
 ## `process.env`
 
 <!-- YAML
