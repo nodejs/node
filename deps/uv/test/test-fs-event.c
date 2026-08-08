@@ -587,32 +587,107 @@ TEST_IMPL(fs_event_watch_dir_recursive) {
 }
 
 #ifdef _WIN32
+static char short_path_file[MAX_PATH];
+
+static void short_path_timer_cb(uv_timer_t* handle) {
+  ++timer_cb_called;
+  touch_file(short_path_file);
+}
+
+/* Try to create a unique watch directory that has a 8.3 short component
+   under `parent` ("" means the cwd). If it's successful, fills `watch_dir`
+   and `short_dir` with the long and short forms of the created directory
+   respectively, and returns 1. Otherwise removes the directory created
+   and returns 0. */
+static int short_path_make(const char* parent,
+                           char* watch_dir, size_t watch_n,
+                           char* short_dir, size_t short_n) {
+  uv_fs_t req;
+  char tmpl[MAX_PATH];
+  WCHAR watch_dirw[MAX_PATH];
+  WCHAR short_dirw[MAX_PATH];
+  WCHAR long_dirw[MAX_PATH];
+  size_t pathlen;
+  int r;
+
+  if (parent[0] != '\0')
+    r = snprintf(tmpl, sizeof(tmpl), "%s\\watch_dirXXXXXX", parent);
+  else
+    r = snprintf(tmpl, sizeof(tmpl), "watch_dirXXXXXX");
+  if (r < 0 || (size_t) r >= sizeof(tmpl))
+    return 0;
+
+  r = uv_fs_mkdtemp(NULL, &req, tmpl, NULL);
+  if (r != 0) {
+    uv_fs_req_cleanup(&req);
+    return 0;
+  }
+
+  /* Copy the created path out before cleaning up the request that owns it. */
+  pathlen = strlen(req.path);
+  memcpy(watch_dir, req.path, pathlen + 1);
+  uv_fs_req_cleanup(&req);
+
+  /* The caller appends "\\file1" to both watch_dir and short_dir. If there is
+     no room for that suffix, skip this location. */
+  if (pathlen + sizeof("\\file1") <= watch_n &&
+      MultiByteToWideChar(CP_UTF8, 0, watch_dir, -1,
+                          watch_dirw, ARRAY_SIZE(watch_dirw)) != 0 &&
+      GetShortPathNameW(watch_dirw, short_dirw, ARRAY_SIZE(short_dirw)) != 0 &&
+      GetLongPathNameW(watch_dirw, long_dirw, ARRAY_SIZE(long_dirw)) != 0 &&
+      _wcsicmp(short_dirw, long_dirw) != 0 &&
+      WideCharToMultiByte(CP_UTF8, 0, short_dirw, -1,
+                          short_dir, (int) short_n, NULL, NULL) != 0)
+    return 1;
+
+  uv_fs_rmdir(NULL, &req, watch_dir, NULL);
+  uv_fs_req_cleanup(&req);
+  return 0;
+}
+
 TEST_IMPL(fs_event_watch_dir_short_path) {
   uv_loop_t* loop;
-  uv_fs_t req;
+  char temp_path[MAX_PATH];
+  char watch_dir[MAX_PATH];
+  char watch_file[MAX_PATH];
+  char short_dir[MAX_PATH];
+  size_t temp_len;
   int has_shortnames;
   int r;
 
-  /* Setup */
   loop = uv_default_loop();
-  delete_file("watch_dir/file1");
-  delete_dir("watch_dir/");
-  create_dir("watch_dir");
-  create_file("watch_dir/file1");
 
-  /* Newer version of Windows ship with
-     HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\NtfsDisable8dot3NameCreation
-     not equal to 0. So we verify the files we created are addressable by a 8.3
-     short name */
-  has_shortnames = uv_fs_stat(NULL, &req, "watch_~1", NULL) != UV_ENOENT;
+  /* This test needs the watched directory to have an 8.3 short component. The
+     generated "watch_dirXXXXXX" name is > 8 chars, so it gets a short alias on
+     volumes where 8.3 name creation is enabled. For non-system volumes on
+     newer Windows it's disabled by default (NtfsDisable8dot3NameCreation=3).
+     The temp dir and the cwd may be on different volumes, so try each and use
+     whichever has a short alias, and skip if neither does. */
+  has_shortnames = 0;
+  temp_len = sizeof(temp_path);
+  if (uv_os_tmpdir(temp_path, &temp_len) == 0)
+    has_shortnames = short_path_make(temp_path,
+                                     watch_dir, sizeof(watch_dir),
+                                     short_dir, sizeof(short_dir));
+  if (!has_shortnames)
+    has_shortnames = short_path_make("",
+                                     watch_dir, sizeof(watch_dir),
+                                     short_dir, sizeof(short_dir));
+
   if (has_shortnames) {
+    snprintf(watch_file, sizeof(watch_file), "%s\\file1", watch_dir);
+    /* short_path_file is used in the timer callback to touch the file. */
+    snprintf(short_path_file, sizeof(short_path_file), "%s\\file1", short_dir);
+    /* The directory was just created, so file1 cannot exist yet. */
+    create_file(watch_file);
+
     r = uv_fs_event_init(loop, &fs_event);
     ASSERT_OK(r);
-    r = uv_fs_event_start(&fs_event, fs_event_cb_dir, "watch_~1", 0);
+    r = uv_fs_event_start(&fs_event, fs_event_cb_dir, short_dir, 0);
     ASSERT_OK(r);
     r = uv_timer_init(loop, &timer);
     ASSERT_OK(r);
-    r = uv_timer_start(&timer, timer_cb_file, 100, 0);
+    r = uv_timer_start(&timer, short_path_timer_cb, 100, 0);
     ASSERT_OK(r);
 
     uv_run(loop, UV_RUN_DEFAULT);
@@ -620,11 +695,10 @@ TEST_IMPL(fs_event_watch_dir_short_path) {
     ASSERT_EQ(1, fs_event_cb_called);
     ASSERT_EQ(1, timer_cb_called);
     ASSERT_EQ(1, close_cb_called);
+    /* Cleanup */
+    delete_file(watch_file);
+    delete_dir(watch_dir);
   }
-
-  /* Cleanup */
-  delete_file("watch_dir/file1");
-  delete_dir("watch_dir/");
 
   MAKE_VALGRIND_HAPPY(loop);
 
