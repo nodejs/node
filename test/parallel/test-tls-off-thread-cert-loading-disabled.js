@@ -1,5 +1,6 @@
 'use strict';
-// This tests that when --use-openssl-ca is specified, no off-thread cert loading happens.
+// This tests that when --use-openssl-ca is specified, no off-thread cert
+// loading happens and default CA lookup without a certificate throws.
 
 const common = require('../common');
 if (!common.hasCrypto) {
@@ -18,6 +19,7 @@ spawnSyncAndAssert(
       NODE_DEBUG_NATIVE: 'crypto',
       NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'fake-startcom-root-cert.pem'),
       CERTS_TYPE: 'default',
+      EXPECTED_ERROR_CODE: 'ERR_MISSING_ARGS',
     }
   },
   {
