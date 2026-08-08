@@ -6,6 +6,7 @@
 
 #include <string>
 
+using node::ThreadsafeCopyOnWrite;
 using node::builtins::BuiltinLoader;
 using node::builtins::BuiltinSourceMap;
 
@@ -17,6 +18,22 @@ class PerProcessTest : public ::testing::Test {
 };
 
 namespace {
+
+struct CopyConstructOnly {
+  explicit CopyConstructOnly(int value) : value(value) {}
+  CopyConstructOnly() = delete;
+  CopyConstructOnly(const CopyConstructOnly&) = default;
+  CopyConstructOnly& operator=(const CopyConstructOnly&) = delete;
+
+  int value;
+};
+
+TEST(ThreadsafeCopyOnWriteTest, CloneCopyConstructsData) {
+  const ThreadsafeCopyOnWrite<CopyConstructOnly> original(42);
+  auto copy = original;
+
+  EXPECT_EQ(copy.write()->value, 42);
+}
 
 TEST_F(PerProcessTest, EmbeddedSources) {
   const auto& sources = PerProcessTest::get_sources_for_test();
