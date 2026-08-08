@@ -60,6 +60,8 @@ class SessionManager;
   V(stream_created, StreamCreated)                                             \
   V(stream_drain, StreamDrain)                                                 \
   V(stream_headers, StreamHeaders)                                             \
+  V(stream_sessionid, StreamSessionId)                                         \
+  V(stream_wtsessionclose, StreamWTSessionClose)                               \
   V(stream_reset, StreamReset)                                                 \
   V(stream_stop_sending, StreamStopSending)                                    \
   V(stream_trailers, StreamTrailers)
@@ -91,6 +93,7 @@ class SessionManager;
   V(enable_connect_protocol, "enableConnectProtocol")                          \
   V(enable_early_data, "enableEarlyData")                                      \
   V(enable_datagrams, "enableDatagrams")                                       \
+  V(enable_webtransport, "enableWebtransport")                                 \
   V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
   V(endpoint_udp, "Endpoint::UDP")                                             \

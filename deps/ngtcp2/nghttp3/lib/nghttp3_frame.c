@@ -133,6 +133,44 @@ size_t nghttp3_frame_write_origin_len(uint64_t *ppayloadlen,
          payloadlen;
 }
 
+uint8_t *nghttp3_frame_write_wt_stream(uint8_t *p,
+                                       const nghttp3_exfr_wt_stream *fr) {
+  p = nghttp3_put_uvarint(p, fr->type);
+  return nghttp3_put_uvarint(p, (uint64_t)fr->session_id);
+}
+
+size_t nghttp3_frame_write_wt_stream_len(const nghttp3_exfr_wt_stream *fr) {
+  return nghttp3_put_uvarintlen(fr->type) +
+         nghttp3_put_uvarintlen((uint64_t)fr->session_id);
+}
+
+uint8_t *nghttp3_frame_write_cpsl_wt_close_session(
+  uint8_t *p, const nghttp3_exfr_cpsl_wt_close_session *fr,
+  uint64_t payloadlen) {
+  p = nghttp3_frame_write_hd(p, NGHTTP3_FRAME_DATA, payloadlen);
+  p = nghttp3_frame_write_hd(p, fr->type,
+                             sizeof(fr->error_code) + fr->error_msg.len);
+  p = nghttp3_put_uint32be(p, fr->error_code);
+
+  if (fr->error_msg.len) {
+    p = nghttp3_cpymem(p, fr->error_msg.base, fr->error_msg.len);
+  }
+
+  return p;
+}
+
+size_t nghttp3_frame_write_cpsl_wt_close_session_len(
+  uint64_t *ppayloadlen, const nghttp3_exfr_cpsl_wt_close_session *fr) {
+  size_t cpsl_payloadlen = sizeof(fr->error_code) + fr->error_msg.len;
+  size_t payloadlen = nghttp3_put_uvarintlen(fr->type) +
+                      nghttp3_put_uvarintlen(cpsl_payloadlen) + cpsl_payloadlen;
+
+  *ppayloadlen = payloadlen;
+
+  return nghttp3_put_uvarintlen(NGHTTP3_FRAME_DATA) +
+         nghttp3_put_uvarintlen(payloadlen) + payloadlen;
+}
+
 int nghttp3_nva_copy(nghttp3_nv **pnva, const nghttp3_nv *nva, size_t nvlen,
                      const nghttp3_mem *mem) {
   size_t i;
