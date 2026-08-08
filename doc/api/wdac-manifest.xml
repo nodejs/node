@@ -1,0 +1,7 @@
+<!-- Manifest for WDAC integration on Windows. See docs/api/code_integrity.md for
+more information regarding WDAC and code integrity -->
+<?xml version="1.0" encoding="utf-8"?>
+<AppManifest Id="Node.js" xmlns="urn:schemas-microsoft-com:windows-defender-application-control">
+  <SettingDefinition Name="EnforceCodeIntegrity" Type="Bool" IgnoreAuditPolicies="false"/>
+  <SettingDefinition Name="DisableInteractiveMode" Type="Bool" IgnoreAuditPolicies="false"/>
+</AppManifest>
