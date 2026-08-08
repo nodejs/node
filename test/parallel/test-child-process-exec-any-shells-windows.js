@@ -59,9 +59,23 @@ cp.exec('where bash', common.mustCall((error, stdout) => {
     return;
   }
   const lines = stdout.trim().split(/[\r\n]+/g);
-  for (let i = 0; i < lines.length; ++i) {
-    const bashPath = lines[i].trim();
-    test(bashPath);
-    testCopy(`bash_${i}.exe`, bashPath);
-  }
+
+  cp.exec('wsl.exe -l -q', (err, out) => {
+    const hasWSLDistro = !err && out.trim().length > 0;
+
+    for (let i = 0; i < lines.length; ++i) {
+      const bashPath = lines[i].trim().replace(/^"+|"+$/g, '');
+      const bashPathLower = bashPath.toLowerCase();
+
+      const isWSLBash =
+        bashPathLower.includes('windowsapps') ||
+        bashPathLower.includes('\\system32\\bash.exe');
+
+      // Skip WSL bash tests if no WSL distro is installed
+      if (!isWSLBash || hasWSLDistro) test(bashPath);
+
+      // Skip symlink tests for WSL bash always
+      if (!isWSLBash) testCopy(`bash_${i}.exe`, bashPath);
+    }
+  });
 }));
