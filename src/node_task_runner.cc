@@ -11,6 +11,15 @@ static constexpr const char* env_var_separator = ";";
 static constexpr const char* env_var_separator = ":";
 #endif  // _WIN32
 
+static bool IsNodeRunEnvironmentVariable(const std::string& name) {
+#ifdef _WIN32
+  return StringEqualNoCase(name.c_str(), "NODE_RUN_SCRIPT_NAME") ||
+         StringEqualNoCase(name.c_str(), "NODE_RUN_PACKAGE_JSON_PATH");
+#else
+  return name == "NODE_RUN_SCRIPT_NAME" || name == "NODE_RUN_PACKAGE_JSON_PATH";
+#endif  // _WIN32
+}
+
 ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
                              const std::filesystem::path& package_json_path,
                              std::string_view script_name,
@@ -107,6 +116,12 @@ void ProcessRunner::SetEnvironmentVariables() {
       file_ = value;
     }
 #endif  // _WIN32
+
+    // These variables describe the current task and are added below. Do not
+    // retain inherited values, as that would create duplicate entries.
+    if (IsNodeRunEnvironmentVariable(name)) {
+      continue;
+    }
 
     if (StringEqualNoCase(name.c_str(), "path")) {
       // Add path env variable to the beginning of the PATH
