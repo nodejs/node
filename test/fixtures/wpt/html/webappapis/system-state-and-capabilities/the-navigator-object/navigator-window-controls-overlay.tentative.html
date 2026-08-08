@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<title>navigator.windowControlsOverlay</title>
+
+<script src='/resources/testharness.js'></script>
+<script src='/resources/testharnessreport.js'></script>
+
+<script>
+  test(function(){
+    assert_idl_attribute(navigator, 'windowControlsOverlay');
+  }, 'the windowControlsOverlay object should exist on the navigator object');
+
+  test(function(){
+    assert_idl_attribute(navigator.windowControlsOverlay, 'visible');
+  }, 'visible should be a member of the windowControlsOverlay object');
+
+  test(function(){
+    assert_false(navigator.windowControlsOverlay.visible);
+  }, 'visible should be false');
+
+  test(function(){
+    assert_idl_attribute(navigator.windowControlsOverlay, 'getTitlebarAreaRect');
+  }, 'getTitlebarAreaRect should be a method of the windowControlsOverlay object');
+
+  test(function(){
+    var rect = navigator.windowControlsOverlay.getTitlebarAreaRect();
+    assert_true(rect instanceof DOMRect);
+  }, 'getTitlebarAreaRect return type should be DOMRect');
+
+  test(function(){
+    var rect = navigator.windowControlsOverlay.getTitlebarAreaRect();
+    assert_equals(rect.x, 0);
+    assert_equals(rect.y, 0);
+    assert_equals(rect.width, 0);
+    assert_equals(rect.height, 0);
+  }, 'getTitlebarAreaRect should return a empty DOMRect');
+
+  test(function(){
+    assert_idl_attribute(navigator.windowControlsOverlay, 'ongeometrychange');
+  }, 'ongeometrychange should be a member of the windowControlsOverlay object');
+</script>

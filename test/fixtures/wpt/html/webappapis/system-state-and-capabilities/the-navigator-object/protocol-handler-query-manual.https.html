@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- Use a non-UTF-8 encoding to see how the handler URL is parsed -->
+<meta charset=windows-1254>
+<meta name=timeout content=long>
+<title>registerProtocolHandler() and a handler with %s in the query</title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script src=/service-workers/service-worker/resources/test-helpers.sub.js></script>
+<script>
+// Configure expectations for individual test
+window.type = "query";
+window.noSW = false;
+</script>
+<script src=resources/handler-tools.js></script>
+<ol>
+ <li><p>First, register the handler: <button onclick='register()'>Register</button>.
+ <li><p>Then, run the test: <button onclick='runTest()'>Run</button>.
+ <li><p>Or, run the test with U+0000 NULL: <button onclick='runTest({ includeNull: true })'>Run NULL</button>.
+</ol>
+<div id=log></div>

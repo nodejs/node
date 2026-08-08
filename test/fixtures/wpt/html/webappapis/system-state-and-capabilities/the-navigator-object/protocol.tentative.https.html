@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<title>protocol handlers</title>
+
+<script src='/resources/testharness.js'></script>
+<script src='/resources/testharnessreport.js'></script>
+
+<script>
+// This should be merged into protocol.https.html when/if
+// https://github.com/whatwg/html/pull/5482 is approved.
+[
+  'cabal',
+  'dat',
+  'did',
+  'dweb',
+  'ethereum',
+  'hyper',
+  'ipfs',
+  'ipns',
+  'ssb',
+].forEach(scheme => {
+  test(() => {
+    navigator.registerProtocolHandler(scheme, location.href + '/%s', "foo");
+  }, 'registerProtocolHandler: overriding the "' + scheme + '" protocol should work');
+
+  test(() => {
+    navigator.unregisterProtocolHandler(scheme, location.href + '/%s');
+  }, 'unregisterProtocolHandler: overriding the "' + scheme + '" protocol should work');
+});
+</script>

@@ -1,0 +1,23 @@
+<!doctype html>
+<p>This popup can be closed if it does not close itself.
+<p>
+<script>
+// This resource either gets navigated to through a service worker as a result of a URL that looks
+// like:
+// https://.../html/webappapis/system-state-and-capabilities/the-navigator-object/resources/handler/{type}/...
+// (the host is excluded to not upset the lint tool)
+// or it gets navigated to directly with the type appended to the end of the URL. In that case type
+// can only be fragment or query.
+
+let type = null;
+let swString = null;
+if (new URL(document.URL).pathname.endsWith("handler.html")) {
+  swString = "";
+  type = (document.URL.endsWith("fragment")) ? "fragment" : "query";
+} else {
+  type = document.URL.split("/")[9];
+  swString = "sw";
+}
+new BroadcastChannel(`protocol-handler-${type}${swString}`).postMessage(document.URL);
+window.close();
+</script>

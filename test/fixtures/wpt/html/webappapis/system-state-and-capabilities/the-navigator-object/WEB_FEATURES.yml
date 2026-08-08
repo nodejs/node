@@ -1,0 +1,10 @@
+rules:
+- plugins-and-mimetypes.html: [pdf-viewer]
+- navigator_user_agent.tentative.html: [ua-client-hints]
+- navigator_user_agent.https.tentative.html: [ua-client-hints]
+- protocol-*: [registerprotocolhandler]
+- navigator-window-controls-overlay.tentative.html: [window-controls-overlay]
+- navigator.any.js: [user-agent-sniffing]
+- get-navigatorlanguage-manual.html: [language]
+- navigatorlanguage.html: [language]
+- navigatorcookies-cookieenabled-*: [cookie-enabled]

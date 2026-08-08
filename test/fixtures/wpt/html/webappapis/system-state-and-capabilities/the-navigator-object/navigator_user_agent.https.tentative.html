@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+  test(t => {
+    assert_true("userAgentData" in navigator);
+    assert_true("NavigatorUAData" in window);
+    assert_equals(typeof self.NavigatorUAData, "function")
+  }, "navigator.userAgentData is exposed.");
+
+  promise_test(async t => {
+    let didMicrotaskRun = false;
+    const uaData = navigator.userAgentData;
+    const brandRegex = /^[a-zA-Z ()\-.\/:;=?_]+$/;
+    for (brandVersionPair of uaData.brands) {
+      assert_equals(typeof brandVersionPair.brand, "string", "brand should be a string");
+      assert_regexp_match(brandVersionPair.brand, brandRegex, "brand should not contain unexpected characters");
+      assert_equals(typeof brandVersionPair.version, "string", "version should be a string");
+    }
+    assert_equals(typeof uaData.mobile, "boolean", "mobile should be a boolean");
+
+    const highEntropyData = await uaData.getHighEntropyValues([
+      "platformVersion", "architecture", "model", "uaFullVersion", "fullVersionList", "formFactors"]);
+    assert_equals(typeof highEntropyData["platform"], "string", "Platform brand should be a string");
+    assert_equals(typeof highEntropyData["platformVersion"], "string", "Platform version should be a string");
+    assert_equals(typeof highEntropyData["architecture"], "string", "Architecture should be a string");
+    assert_equals(typeof highEntropyData["model"], "string", "Model should be a string");
+    assert_equals(typeof highEntropyData["uaFullVersion"], "string", "UAFullVersion should be a string");
+    for (formFactor of highEntropyData['formFactors']) {
+      assert_equals(typeof formFactor, "string", "Each FormFactors value should be a string");
+    }
+    for (brandVersionPair of highEntropyData['fullVersionList']) {
+      assert_equals(typeof brandVersionPair.brand, "string", "brand should be a string");
+      assert_regexp_match(brandVersionPair.brand, brandRegex, "brand should not contain unexpected characters");
+      assert_equals(typeof brandVersionPair.version, "string", "version should be a string");
+    }
+    const highEntropyData2 = await uaData.getHighEntropyValues([]);
+    assert_equals(typeof highEntropyData["platform"], "string", "Platform brand should be a string");
+    assert_false("platformVersion" in highEntropyData2, "Platform version should be an empty string");
+    assert_false("architecture" in highEntropyData2, "Architecture should be an empty string");
+    assert_false("model" in highEntropyData2, "Model should be an empty string");
+    assert_false("uaFullVersion" in highEntropyData2, "UAFullVersion should be an empty string");
+    assert_false("formFactors" in highEntropyData2, "FormFactors should be an empty array");
+    assert_false("fullVersionList" in highEntropyData2, "fullVersionList should not be present");
+    let finalPromise = uaData.getHighEntropyValues([]).then(() => {
+      assert_true(didMicrotaskRun, "getHighEntropyValues queued on a task");
+    });
+    await Promise.resolve().then(function() {
+      didMicrotaskRun = true;
+    });
+    return finalPromise;
+  }, "navigator.userAgentData returns a UserAgentMetadata object.");
+</script>

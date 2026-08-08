@@ -1,0 +1,24 @@
+{
+  "clientinformation.window.js": {
+    "skip": "Node.js does not have a window object nor clientInformation"
+  },
+  "historical.https.window.js": {
+    "fail": {
+      "note": "registerProtocolHandler is not implemented in Node.js",
+      "expected": [
+        "registerProtocolHandler has no third argument"
+      ]
+    }
+  },
+  "navigator.any.js": {
+    "fail": {
+      "note": "XMLHttpRequest is not available in Node.js",
+      "expected": [
+        "userAgent value"
+      ]
+    }
+  },
+  "per-global.window.js": {
+    "skip": "Node.js does not support multiple window globals"
+  }
+}
