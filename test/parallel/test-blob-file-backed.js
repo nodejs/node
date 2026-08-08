@@ -130,12 +130,9 @@ writeFileSync(testfile5, '');
 })().then(common.mustCall());
 
 (async () => {
-  // We currently do not allow File-backed blobs to be cloned or transferred
-  // across worker threads. This is largely because the underlying FdEntry
-  // is bound to the Environment/Realm under which is was created.
   const blob = await openAsBlob(__filename);
-  assert.throws(() => structuredClone(blob), {
-    code: 'ERR_INVALID_STATE',
-    message: 'Invalid state: File-backed Blobs are not cloneable'
-  });
+  const clone = structuredClone(blob);
+  assert.strictEqual(clone.size, blob.size);
+  assert.strictEqual(clone.type, blob.type);
+  assert.strictEqual(await clone.text(), await blob.text());
 })().then(common.mustCall());

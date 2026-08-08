@@ -14,6 +14,10 @@
 #include "v8.h"
 
 #include <algorithm>
+#include <cstdlib>
+#include <mutex>
+#include <optional>
+#include <unordered_map>
 
 namespace node {
 
@@ -101,6 +105,48 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(ArrayBuffer::New(isolate, std::move(store)));
+}
+
+struct BlobURLEntry {
+  std::shared_ptr<DataQueue> data_queue;
+  size_t length;
+  std::string type;
+};
+
+static std::mutex blob_url_registry_mutex;
+static std::unordered_map<std::string, BlobURLEntry> blob_url_registry;
+
+static void RevokeBlobURLEntry(const std::string& uuid);
+
+static void BlobURLCleanupHook(void* arg) {
+  std::string* uuid = static_cast<std::string*>(arg);
+  RevokeBlobURLEntry(*uuid);
+  delete uuid;
+}
+
+static void StoreBlobURLEntry(const std::string& uuid,
+                              std::shared_ptr<DataQueue> data_queue,
+                              size_t length,
+                              std::string type,
+                              Environment* env) {
+  std::lock_guard<std::mutex> lock(blob_url_registry_mutex);
+  blob_url_registry[uuid] = BlobURLEntry{std::move(data_queue), length,
+                                          std::move(type)};
+
+  std::string* uuid_copy = new std::string(uuid);
+  env->AddCleanupHook(BlobURLCleanupHook, uuid_copy);
+}
+
+static std::optional<BlobURLEntry> GetBlobURLEntry(const std::string& uuid) {
+  std::lock_guard<std::mutex> lock(blob_url_registry_mutex);
+  auto it = blob_url_registry.find(uuid);
+  if (it == blob_url_registry.end()) return std::nullopt;
+  return it->second;
+}
+
+static void RevokeBlobURLEntry(const std::string& uuid) {
+  std::lock_guard<std::mutex> lock(blob_url_registry_mutex);
+  blob_url_registry.erase(uuid);
 }
 
 void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
@@ -299,7 +345,7 @@ Blob::Reader::Reader(Environment* env,
                      Local<Object> obj,
                      BaseObjectPtr<Blob> strong_ptr)
     : AsyncWrap(env, obj, AsyncWrap::PROVIDER_BLOBREADER),
-      inner_(strong_ptr->data_queue_->get_reader()),
+      inner_(strong_ptr->data_queue_->get_reader(env)),
       strong_ptr_(std::move(strong_ptr)) {
   MakeWeak();
 }
@@ -463,7 +509,6 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());                       // Length
   CHECK(args[3]->IsString());                       // Type
 
-  BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
   Isolate* isolate = realm->isolate();
 
   Utf8Value key(isolate, args[0]);
@@ -473,10 +518,8 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
   size_t length = args[2].As<Uint32>()->Value();
   Utf8Value type(isolate, args[3]);
 
-  binding_data->store_data_object(
-      key.ToString(),
-      BlobBindingData::StoredDataObject(
-          BaseObjectPtr<Blob>(blob), length, type.ToString()));
+  StoreBlobURLEntry(key.ToString(), blob->data_queue_, length,
+                    type.ToString(), realm->env());
 }
 
 // Note: applying the V8 Fast API to the following function does not produce
@@ -485,7 +528,6 @@ void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
   Realm* realm = Realm::GetCurrent(args);
-  BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
   Isolate* isolate = realm->isolate();
 
   Utf8Value input(isolate, args[0].As<String>());
@@ -502,7 +544,7 @@ void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
     auto end_index = pathname.find(':', start_index + 1);
     if (end_index == std::string_view::npos) {
       auto id = std::string(pathname.substr(start_index + 1));
-      binding_data->revoke_data_object(id);
+      RevokeBlobURLEntry(id);
     }
   }
 }
@@ -510,29 +552,30 @@ void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
 void Blob::GetDataObject(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Realm* realm = Realm::GetCurrent(args);
-  BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
   Isolate* isolate = realm->isolate();
 
   Utf8Value key(isolate, args[0]);
+  std::optional<BlobURLEntry> stored = GetBlobURLEntry(key.ToString());
+  if (!stored.has_value()) return;
 
-  BlobBindingData::StoredDataObject stored =
-      binding_data->get_data_object(key.ToString());
-  if (stored.blob) {
-    Local<Value> type;
-    if (!String::NewFromUtf8(isolate,
-                             stored.type.c_str(),
-                             NewStringType::kNormal,
-                             static_cast<int>(stored.type.length()))
-             .ToLocal(&type)) {
-      return;
-    }
+  Environment* env = realm->env();
+  BaseObjectPtr<Blob> blob = Blob::Create(env, stored->data_queue);
+  if (!blob) return;
 
-    Local<Value> values[] = {stored.blob->object(),
-                             Uint32::NewFromUnsigned(isolate, stored.length),
-                             type};
-
-    args.GetReturnValue().Set(Array::New(isolate, values, arraysize(values)));
+  Local<Value> type;
+  if (!String::NewFromUtf8(isolate,
+                           stored->type.c_str(),
+                           NewStringType::kNormal,
+                           static_cast<int>(stored->type.length()))
+           .ToLocal(&type)) {
+    return;
   }
+
+  Local<Value> values[] = {blob->object(),
+                           Uint32::NewFromUnsigned(isolate, stored->length),
+                           type};
+
+  args.GetReturnValue().Set(Array::New(isolate, values, arraysize(values)));
 }
 
 void BlobBindingData::StoredDataObject::MemoryInfo(

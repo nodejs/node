@@ -191,6 +191,10 @@ class DataQueue : public MemoryRetainer {
     // idempotent and cannot preserve that quality, subsequent reads
     // must fail with an error when a variance is detected.
     virtual bool is_idempotent() const = 0;
+
+    // Create a reader for this entry. If `env` is provided, it may be used
+    // when the entry needs to create native resources in the current realm.
+    virtual std::shared_ptr<Reader> get_reader(Environment* env = nullptr) = 0;
   };
 
   // Creates an idempotent DataQueue with a pre-established collection
@@ -233,7 +237,7 @@ class DataQueue : public MemoryRetainer {
   // any number of readers can be created, all of which are guaranteed
   // to provide the same data. Otherwise, only a single reader is
   // permitted.
-  virtual std::shared_ptr<Reader> get_reader() = 0;
+  virtual std::shared_ptr<Reader> get_reader(Environment* env = nullptr) = 0;
 
   // Append a single new entry to the queue. Appending is only allowed
   // when is_idempotent() is false. std::nullopt will be returned
