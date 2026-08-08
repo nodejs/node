@@ -9,12 +9,11 @@ const fs = require('fs');
 const path = require('path');
 const vfs = require('node:vfs');
 
-const mountPoint = path.resolve('/tmp/vfs-opendirSync-' + process.pid);
 const myVfs = vfs.create();
 myVfs.mkdirSync('/src/subdir', { recursive: true });
 myVfs.writeFileSync('/src/hello.txt', 'hello');
 myVfs.writeFileSync('/src/data.json', '{}');
-myVfs.mount(mountPoint);
+const mountPoint = myVfs.mount();
 
 const dir = fs.opendirSync(path.join(mountPoint, 'src'));
 const names = [];

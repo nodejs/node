@@ -3,30 +3,25 @@
 
 // Error paths in the VFS mount layer:
 // - EXDEV when renaming/linking across different VFS instances or VFS<->real
-// - lastunmount handler cleanup (vfsState.handlers becomes null again)
-// - rename of root mount point is rejected as overlapping
+// - last-unmount handler cleanup (vfsState.handlers becomes null again)
+// - namespace isolation between layers
 
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const vfs = require('node:vfs');
 const { vfsState } = require('internal/fs/utils');
 
-const baseMountPoint = path.resolve('/tmp/vfs-mount-errors-' + process.pid);
-let mountCounter = 0;
-const nextMount = () => baseMountPoint + '-' + (mountCounter++);
-
 // EXDEV: rename across two different VFS instances
 {
-  const mountA = nextMount();
-  const mountB = nextMount();
   const a = vfs.create();
   const b = vfs.create();
   a.writeFileSync('/file.txt', 'a');
   b.mkdirSync('/x', { recursive: true });
-  a.mount(mountA);
-  b.mount(mountB);
+  const mountA = a.mount();
+  const mountB = b.mount();
 
   assert.throws(
     () => fs.renameSync(path.join(mountA, 'file.txt'),
@@ -39,14 +34,12 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
 
 // EXDEV: copyFileSync across two different VFS instances
 {
-  const mountA = nextMount();
-  const mountB = nextMount();
   const a = vfs.create();
   const b = vfs.create();
   a.writeFileSync('/file.txt', 'a');
   b.mkdirSync('/x', { recursive: true });
-  a.mount(mountA);
-  b.mount(mountB);
+  const mountA = a.mount();
+  const mountB = b.mount();
 
   assert.throws(
     () => fs.copyFileSync(path.join(mountA, 'file.txt'),
@@ -59,14 +52,12 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
 
 // EXDEV: linkSync across two different VFS instances
 {
-  const mountA = nextMount();
-  const mountB = nextMount();
   const a = vfs.create();
   const b = vfs.create();
   a.writeFileSync('/file.txt', 'a');
   b.mkdirSync('/x', { recursive: true });
-  a.mount(mountA);
-  b.mount(mountB);
+  const mountA = a.mount();
+  const mountB = b.mount();
 
   assert.throws(
     () => fs.linkSync(path.join(mountA, 'file.txt'),
@@ -79,10 +70,9 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
 
 // EXDEV: rename from VFS to a real-fs path
 {
-  const mountA = nextMount();
   const a = vfs.create();
   a.writeFileSync('/file.txt', 'a');
-  a.mount(mountA);
+  const mountA = a.mount();
 
   const tmpReal = '/tmp/vfs-mount-real-' + process.pid + '.txt';
   assert.throws(
@@ -96,25 +86,25 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
 {
   assert.strictEqual(vfsState.handlers, null);
   const x = vfs.create();
-  x.mount(nextMount());
+  x.mount();
   assert.notStrictEqual(vfsState.handlers, null);
   x.unmount();
   assert.strictEqual(vfsState.handlers, null);
 
   // And it re-installs on a subsequent mount
   const y = vfs.create();
-  y.mount(nextMount());
+  y.mount();
   assert.notStrictEqual(vfsState.handlers, null);
   y.unmount();
   assert.strictEqual(vfsState.handlers, null);
 }
 
-// Two parallel non-overlapping mounts both register, last-out clears handlers
+// Two parallel mounts both register, last-out clears handlers
 {
   const a = vfs.create();
   const b = vfs.create();
-  a.mount(nextMount());
-  b.mount(nextMount());
+  a.mount();
+  b.mount();
   assert.notStrictEqual(vfsState.handlers, null);
   a.unmount();
   assert.notStrictEqual(vfsState.handlers, null);
@@ -122,38 +112,30 @@ const nextMount = () => baseMountPoint + '-' + (mountCounter++);
   assert.strictEqual(vfsState.handlers, null);
 }
 
-// Overlap detection: nested-under and parent-of both rejected
+// Namespace isolation: a path in an unmounted (or never-mounted) layer
+// namespace is not served by other active layers.
 {
-  const parent = nextMount();
-  const child = path.join(parent, 'child');
   const a = vfs.create();
   const b = vfs.create();
-  a.mount(parent);
-  assert.throws(() => b.mount(child), { code: 'ERR_INVALID_STATE' });
-  a.unmount();
-
-  // Reverse direction: child first, then parent rejected
-  const c = vfs.create();
-  const d = vfs.create();
-  c.mount(child);
-  assert.throws(() => d.mount(parent), { code: 'ERR_INVALID_STATE' });
-  c.unmount();
-}
-
-// Equal mount points: second one rejected
-{
-  const m = nextMount();
-  const a = vfs.create();
-  const b = vfs.create();
-  a.mount(m);
-  assert.throws(() => b.mount(m), { code: 'ERR_INVALID_STATE' });
+  a.writeFileSync('/f.txt', 'a');
+  b.writeFileSync('/f.txt', 'b');
+  const mountA = a.mount();
+  const mountB = b.mount();
+  assert.notStrictEqual(mountA, mountB);
+  b.unmount();
+  // B's namespace is dead even though A is still mounted.
+  assert.strictEqual(fs.existsSync(path.join(mountB, 'f.txt')), false);
+  assert.strictEqual(fs.readFileSync(path.join(mountA, 'f.txt'), 'utf8'), 'a');
+  // A malformed layer segment under the VFS root is not served either.
+  const bogus = path.join(os.devNull, 'vfs', 'not-a-number', 'f.txt');
+  assert.strictEqual(fs.existsSync(bogus), false);
   a.unmount();
 }
 
 // Double-mount of same instance rejected
 {
   const a = vfs.create();
-  a.mount(nextMount());
-  assert.throws(() => a.mount(nextMount()), { code: 'ERR_INVALID_STATE' });
+  a.mount();
+  assert.throws(() => a.mount(), { code: 'ERR_INVALID_STATE' });
   a.unmount();
 }
