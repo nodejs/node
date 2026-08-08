@@ -297,6 +297,7 @@
   V(options_string, "options")                                                 \
   V(original_string, "original")                                               \
   V(output_string, "output")                                                   \
+  V(leased_string, "leased")                                                  \
   V(overlapped_string, "overlapped")                                           \
   V(p256_string, "P-256")                                                      \
   V(p384_string, "P-384")                                                      \

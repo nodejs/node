@@ -8,9 +8,10 @@
 
 <!-- source_link=lib/net.js -->
 
-The `node:net` module provides an asynchronous network API for creating stream-based
-TCP or [IPC][] servers ([`net.createServer()`][]) and clients
-([`net.createConnection()`][]).
+The `node:net` module provides an asynchronous network API for creating
+stream-based TCP or [IPC][] servers ([`net.createServer()`][]) and clients
+([`net.createConnection()`][]), and operating system pipe pairs
+([`net.createPipe()`][]).
 
 It can be accessed using:
 
@@ -2382,6 +2383,90 @@ Use `nc` to connect to a Unix domain socket server:
 nc -U /tmp/echo.sock
 ```
 
+## `net.createPipe()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+  * `readable` {net.Socket} The readable end of the pipe.
+  * `writable` {net.Socket} The writable end of the pipe.
+
+The `net.createPipe()` method creates an operating system pipe pair. The
+returned `readable` and `writable` streams are owned by the current process and
+may be passed to [`child_process.spawn()`][] using the [`stdio`][] option.
+
+When a `readable` endpoint is passed as child stdin or as another child fd, the
+child leases a readable handle. When a `writable` endpoint is passed as child
+stdout, stderr, or another child fd, the child leases a writable handle. A
+`readable` endpoint may not be passed as child stdout or stderr, and a
+`writable` endpoint may not be passed as child stdin. An endpoint may be leased
+to only one child process at a time. After the child process exits, endpoints
+created by [`net.createPipe()`][] are released from their lease and may be
+passed to another [`child_process.spawn()`][] call. Endpoints created by
+[`net.createPipe()`][] are not supported by synchronous child process APIs such
+as [`child_process.spawnSync()`][].
+
+A `readable` endpoint created by [`net.createPipe()`][] must not be flowing
+when it is passed to [`child_process.spawn()`][]. The child process
+[`'close'` event][child-process-close] does not wait for such an endpoint to
+close and does not resume it after the child process exits.
+
+The current process is responsible for the endpoint streams. Use normal stream
+idioms such as `end()` to finish writing and stream consumption to drain a
+readable endpoint. Use `resume()` when an unread readable endpoint should be
+drained without observing its data, and use `destroy()` when an endpoint is no
+longer needed without being naturally ended or drained.
+
+```cjs
+const { spawn } = require('node:child_process');
+const { createPipe } = require('node:net');
+const { text } = require('node:stream/consumers');
+
+const { readable, writable } = createPipe();
+const child = spawn(process.execPath, ['-e', `
+  const fs = require('node:fs');
+  const buffer = Buffer.alloc(1);
+  const count = fs.readSync(0, buffer, 0, 1, null);
+  fs.writeSync(1, buffer.subarray(0, count));
+`], {
+  stdio: [readable, 'pipe', 'inherit'],
+});
+
+const output = text(child.stdout);
+writable.end('abc');
+
+child.on('close', async () => {
+  console.log(await output); // Prints: a
+  console.log(await text(readable)); // Prints: bc
+});
+```
+
+```mjs
+import { spawn } from 'node:child_process';
+import { createPipe } from 'node:net';
+import { text } from 'node:stream/consumers';
+
+const { readable, writable } = createPipe();
+const child = spawn(process.execPath, ['-e', `
+  const fs = require('node:fs');
+  const buffer = Buffer.alloc(1);
+  const count = fs.readSync(0, buffer, 0, 1, null);
+  fs.writeSync(1, buffer.subarray(0, count));
+`], {
+  stdio: [readable, 'pipe', 'inherit'],
+});
+
+const output = text(child.stdout);
+writable.end('abc');
+
+child.on('close', async () => {
+  console.log(await output); // Prints: a
+  console.log(await text(readable)); // Prints: bc
+});
+```
+
 ## `net.getDefaultAutoSelectFamily()`
 
 <!-- YAML
@@ -2585,6 +2670,8 @@ console.log('listening on', server.address().port);
 [`ERR_SOCKET_HANDLE_ADOPTED`]: errors.md#err_socket_handle_adopted
 [`EventEmitter`]: events.md#class-eventemitter
 [`child_process.fork()`]: child_process.md#child_processforkmodulepath-args-options
+[`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
+[`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.lookup()` hints]: dns.md#supported-getaddrinfo-flags
 [`net.Server`]: #class-netserver
@@ -2597,6 +2684,7 @@ console.log('listening on', server.address().port);
 [`net.createConnection(options)`]: #netcreateconnectionoptions-connectlistener
 [`net.createConnection(path)`]: #netcreateconnectionpath-connectlistener
 [`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
+[`net.createPipe()`]: #netcreatepipe
 [`net.createServer()`]: #netcreateserveroptions-connectionlistener
 [`net.getDefaultAutoSelectFamily()`]: #netgetdefaultautoselectfamily
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: #netgetdefaultautoselectfamilyattempttimeout
@@ -2630,6 +2718,7 @@ console.log('listening on', server.address().port);
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
+[`stdio`]: child_process.md#optionsstdio
 [`worker_threads`]: worker_threads.md
 [`writable.destroy()`]: stream.md#writabledestroyerror
 [`writable.destroyed`]: stream.md#writabledestroyed
@@ -2637,6 +2726,7 @@ console.log('listening on', server.address().port);
 [`writable.writableLength`]: stream.md#writablewritablelength
 [dot-decimal notation]: https://en.wikipedia.org/wiki/Dot-decimal_notation
 [half-closed]: https://tools.ietf.org/html/rfc1122
+[child-process-close]: child_process.md#event-close
 [stream_writable_write]: stream.md#writablewritechunk-encoding-callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
