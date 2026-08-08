@@ -22,51 +22,44 @@ permissions:
   contents: read
 
 jobs:
-  get_mergeable_prs:
+  get_candidate_prs:
     permissions:
       pull-requests: read
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-slim
     outputs:
-      numbers: ${{ steps.get_mergeable_prs.outputs.numbers }}
+      candidates: ${{ steps.get_candidate_prs.outputs.candidates }}
     steps:
-      - name: Get Pull Requests
-        id: get_mergeable_prs
+      - name: Get Pull Request Candidates
+        id: get_candidate_prs
         run: |
-          prs=$(gh pr list \
+          list_prs() {
+            gh pr list \
                   --repo "$GITHUB_REPOSITORY" \
                   --base "$GITHUB_REF_NAME" \
                   --label 'commit-queue' \
+                  "$@" \
                   --json 'number' \
-                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked" \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
-          fast_track_prs=$(gh pr list \
-                  --repo "$GITHUB_REPOSITORY" \
-                  --base "$GITHUB_REF_NAME" \
-                  --label 'commit-queue' \
+                  --limit 100
+          }
+          aged_prs=$(list_prs \
+                  --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked")
+          fast_track_prs=$(list_prs \
                   --label 'fast-track' \
-                  --search "-label:blocked" \
-                  --json 'number' \
-                  -t '{{ range . }}{{ .number }} {{ end }}' \
-                  --limit 100)
-          numbers=$(echo $prs' '$fast_track_prs | jq -r -s 'unique | join(" ")')
-          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+                  --search "-label:blocked")
+          queued_prs=$(list_prs \
+                  --search "-label:blocked")
+          candidates=$(printf '%s %s %s\n' "$aged_prs" "$fast_track_prs" "$queued_prs" |
+                  jq -r -s 'reduce .[] as $pr ([]; if index($pr) then . else . + [$pr] end) | join(" ")')
+          echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   commitQueue:
-    needs: get_mergeable_prs
-    if: needs.get_mergeable_prs.outputs.numbers != ''
+    needs: get_candidate_prs
+    if: needs.get_candidate_prs.outputs.candidates != ''
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-        with:
-          # A personal token is required because pushing with GITHUB_TOKEN will
-          # prevent commits from running CI after they land. It needs
-          # to be set here because `checkout` configures GitHub authentication
-          # for push as well.
-          token: ${{ secrets.GH_USER_TOKEN }}
-
       # Install dependencies
       - name: Install Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
@@ -93,7 +86,86 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
+      - name: Filter Pull Requests
+        id: get_mergeable_prs
+        run: |
+          readme="${RUNNER_TEMP}/README.md"
+          curl -fsSLo "$readme" "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/README.md"
+
+          numbers=
+          # shellcheck disable=SC2086
+          for pr in $CANDIDATES; do
+            metadata="${RUNNER_TEMP}/metadata-${pr}.json"
+            output="${RUNNER_TEMP}/metadata-${pr}.txt"
+            if git node metadata "$pr" \
+                    --owner "$GITHUB_REPOSITORY_OWNER" \
+                    --repo "$REPOSITORY" \
+                    --readme "$readme" \
+                    --json > "$metadata" 2> "$output"; then
+              metadata_status=0
+            else
+              metadata_status=$?
+            fi
+
+            if [ -s "$output" ]; then
+              cat "$output"
+            fi
+
+            case "$metadata_status" in
+              0|2[0-9]|4[0-9]) ;;
+              *)
+                echo "git node metadata failed for pr ${pr} with exit code ${metadata_status}"
+                exit 1
+                ;;
+            esac
+
+            metadata_exit_code=$(jq -r '.exitCode' "$metadata") || {
+              echo "failed to parse metadata JSON for pr ${pr}"
+              exit 1
+            }
+            if [ "$metadata_exit_code" != "$metadata_status" ]; then
+              echo "metadata JSON exitCode mismatch for pr ${pr}"
+              exit 1
+            fi
+            metadata_reason_codes=$(jq -r '.reasonCodes | join(", ")' "$metadata") || {
+              echo "failed to parse metadata reason codes for pr ${pr}"
+              exit 1
+            }
+
+            if [ "$metadata_status" -eq 0 ]; then
+              echo "pr ${pr} is ready for the commit queue"
+              numbers="$numbers $pr"
+              continue
+            fi
+
+            if [ "$metadata_status" -ge 20 ] && [ "$metadata_status" -le 29 ]; then
+              echo "pr ${pr} skipped, not ready to land"
+              echo "reason codes: ${metadata_reason_codes}"
+              continue
+            fi
+
+            echo "pr ${pr} will be handled by the commit queue"
+            echo "reason codes: ${metadata_reason_codes}"
+            numbers="$numbers $pr"
+          done
+
+          numbers=$(echo "$numbers" | xargs)
+          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+        env:
+          CANDIDATES: ${{ needs.get_candidate_prs.outputs.candidates }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        if: steps.get_mergeable_prs.outputs.numbers != ''
+        with:
+          # A personal token is required because pushing with GITHUB_TOKEN will
+          # prevent commits from running CI after they land. It needs
+          # to be set here because `checkout` configures GitHub authentication
+          # for push as well.
+          token: ${{ secrets.GH_USER_TOKEN }}
+
       - name: Start the Commit Queue
-        run: ./tools/actions/commit-queue.sh "${GITHUB_REPOSITORY_OWNER}" "${REPOSITORY}" ${{ needs.get_mergeable_prs.outputs.numbers }}
+        if: steps.get_mergeable_prs.outputs.numbers != ''
+        run: ./tools/actions/commit-queue.sh "${GITHUB_REPOSITORY_OWNER}" "${REPOSITORY}" ${{ steps.get_mergeable_prs.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
