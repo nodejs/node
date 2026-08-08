@@ -15,7 +15,11 @@ In a future major version of Node.js this module will be removed. Users
 currently depending on the `punycode` module should switch to using the
 userland-provided [Punycode.js][] module instead. For punycode-based URL
 encoding, see [`url.domainToASCII`][] or, more generally, the
-[WHATWG URL API][].
+[WHATWG URL API][], which provides modern internationalization features for URLs.
+
+**Note:** As of Node.js v21.0.0, this module emits a runtime deprecation warning 
+when required. Applications relying on this module should migrate to alternatives 
+as soon as possible.
 
 The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:
