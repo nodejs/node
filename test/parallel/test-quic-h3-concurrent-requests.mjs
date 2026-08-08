@@ -72,7 +72,7 @@ const requests = paths.map(mustCall(async (path) => {
       ':authority': 'localhost',
     },
     onheaders: mustCall((headers) => {
-      assert.strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
       headersReceived.resolve();
     }),
   });

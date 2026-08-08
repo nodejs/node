@@ -74,7 +74,7 @@ async function getTicket(endpointOptions) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
   const body = await bytes(s);

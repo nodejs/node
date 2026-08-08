@@ -76,7 +76,7 @@ writeFileSync(testFile, testContent);
     },
     body: fh,
     onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
       clientHeadersReceived.resolve();
     }),
   });
