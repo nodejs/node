@@ -80,7 +80,14 @@ function createProxyServer(options = {}) {
 
     const normalizedHostname = hostname.startsWith('[') && hostname.endsWith(']') ?
       hostname.slice(1, -1) : hostname;
-    const proxyReq = net.connect(port, normalizedHostname, () => {
+    // A CONNECT tunnel is full-duplex. Keep the upstream socket writable after
+    // receiving a FIN so that the client-to-upstream pipe can finish draining.
+    // The reverse pipe will end `res`, and `res` will in turn end `proxyReq`.
+    const proxyReq = net.connect({
+      port,
+      host: normalizedHostname,
+      allowHalfOpen: true,
+    }, () => {
       res.write(
         'HTTP/1.1 200 Connection Established\r\n' +
         'Proxy-agent: Node.js-Proxy\r\n' +
