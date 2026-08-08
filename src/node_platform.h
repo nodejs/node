@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <cstdint>
 #include <functional>
 #include <queue>
 #include <type_traits>
@@ -19,6 +20,7 @@ namespace node {
 class NodePlatform;
 class IsolateData;
 class PerIsolatePlatformData;
+class WorkerThreadsTaskRunner;
 
 template <typename, typename = void>
 struct has_priority : std::false_type {};
@@ -52,7 +54,9 @@ class TaskQueue {
     std::unique_ptr<T> Pop();
     std::unique_ptr<T> BlockingPop();
     void NotifyOfOutstandingCompletion();
-    void BlockingDrain();
+    void WakeDrain();
+    void BlockingDrain(
+        const std::function<bool()>& flush_foreground_tasks);
     void Stop();
     PriorityQueue PopAll();
 
@@ -73,6 +77,7 @@ class TaskQueue {
   Mutex lock_;
   ConditionVariable tasks_available_;
   ConditionVariable outstanding_tasks_drained_;
+  uint64_t drain_wakeup_generation_;
   int outstanding_tasks_;
   bool stopped_;
   PriorityQueue task_queue_;
@@ -111,7 +116,8 @@ class PerIsolatePlatformData
   PerIsolatePlatformData(
       v8::Isolate* isolate,
       uv_loop_t* loop,
-      PlatformDebugLogLevel debug_log_level = PlatformDebugLogLevel::kNone);
+      PlatformDebugLogLevel debug_log_level = PlatformDebugLogLevel::kNone,
+      std::weak_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner = {});
   ~PerIsolatePlatformData() override;
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() override;
@@ -178,6 +184,7 @@ class PerIsolatePlatformData
   typedef std::unique_ptr<DelayedTask, void (*)(DelayedTask*)>
       DelayedTaskPointer;
   std::vector<DelayedTaskPointer> scheduled_delayed_tasks_;
+  std::weak_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner_;
   PlatformDebugLogLevel debug_log_level_ = PlatformDebugLogLevel::kNone;
 };
 
@@ -195,7 +202,9 @@ class WorkerThreadsTaskRunner {
                        const v8::SourceLocation& location,
                        double delay_in_seconds);
 
-  void BlockingDrain();
+  void BlockingDrain(
+      const std::function<bool()>& flush_foreground_tasks);
+  void NotifyForegroundTaskPosted();
   void Shutdown();
 
   int NumberOfWorkerThreads() const;

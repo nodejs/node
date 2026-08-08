@@ -300,8 +300,13 @@ void WorkerThreadsTaskRunner::PostDelayedTask(
       priority, std::move(task), delay_in_seconds);
 }
 
-void WorkerThreadsTaskRunner::BlockingDrain() {
-  pending_worker_tasks_.Lock().BlockingDrain();
+void WorkerThreadsTaskRunner::BlockingDrain(
+    const std::function<bool()>& flush_foreground_tasks) {
+  pending_worker_tasks_.Lock().BlockingDrain(flush_foreground_tasks);
+}
+
+void WorkerThreadsTaskRunner::NotifyForegroundTaskPosted() {
+  pending_worker_tasks_.Lock().WakeDrain();
 }
 
 void WorkerThreadsTaskRunner::Shutdown() {
@@ -317,8 +322,14 @@ int WorkerThreadsTaskRunner::NumberOfWorkerThreads() const {
 }
 
 PerIsolatePlatformData::PerIsolatePlatformData(
-    Isolate* isolate, uv_loop_t* loop, PlatformDebugLogLevel debug_log_level)
-    : isolate_(isolate), loop_(loop), debug_log_level_(debug_log_level) {
+    Isolate* isolate,
+    uv_loop_t* loop,
+    PlatformDebugLogLevel debug_log_level,
+    std::weak_ptr<WorkerThreadsTaskRunner> worker_thread_task_runner)
+    : isolate_(isolate),
+      loop_(loop),
+      worker_thread_task_runner_(std::move(worker_thread_task_runner)),
+      debug_log_level_(debug_log_level) {
   flush_tasks_ = new uv_async_t();
   CHECK_EQ(0, uv_async_init(loop, flush_tasks_, FlushTasks));
   flush_tasks_->data = static_cast<void*>(this);
@@ -355,12 +366,17 @@ void PerIsolatePlatformData::PostTaskImpl(std::unique_ptr<Task> task,
     fflush(stderr);
   }
 
-  auto locked = foreground_tasks_.Lock();
-  if (flush_tasks_ == nullptr) return;
-  // All foreground tasks are treated as user blocking tasks.
-  locked.Push(std::make_unique<TaskQueueEntry>(
-      std::move(task), v8::TaskPriority::kUserBlocking));
-  uv_async_send(flush_tasks_);
+  {
+    auto locked = foreground_tasks_.Lock();
+    if (flush_tasks_ == nullptr) return;
+    // All foreground tasks are treated as user blocking tasks.
+    locked.Push(std::make_unique<TaskQueueEntry>(
+        std::move(task), v8::TaskPriority::kUserBlocking));
+    uv_async_send(flush_tasks_);
+  }
+  if (auto runner = worker_thread_task_runner_.lock()) {
+    runner->NotifyForegroundTaskPosted();
+  }
 }
 
 void PerIsolatePlatformData::PostDelayedTaskImpl(
@@ -486,8 +502,8 @@ NodePlatform::~NodePlatform() {
 
 void NodePlatform::RegisterIsolate(Isolate* isolate, uv_loop_t* loop) {
   Mutex::ScopedLock lock(per_isolate_mutex_);
-  auto delegate =
-      std::make_shared<PerIsolatePlatformData>(isolate, loop, debug_log_level_);
+  auto delegate = std::make_shared<PerIsolatePlatformData>(
+      isolate, loop, debug_log_level_, worker_thread_task_runner_);
   IsolatePlatformDelegate* ptr = delegate.get();
   auto insertion = per_isolate_.emplace(
     isolate,
@@ -584,28 +600,14 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
   std::shared_ptr<PerIsolatePlatformData> per_isolate = ForNodeIsolate(isolate);
   if (!per_isolate) return;
 
-  do {
-    // FIXME(54918): we should not be blocking on the worker tasks on the
-    // main thread in one go. Doing so leads to two problems:
-    // 1. If any of the worker tasks post another foreground task and wait
-    //    for it to complete, and that foreground task is posted right after
-    //    we flush the foreground task queue and before the foreground thread
-    //    goes into sleep, we'll never be able to wake up to execute that
-    //    foreground task and in turn the worker task will never complete, and
-    //    we have a deadlock.
-    // 2. Worker tasks can be posted from any thread, not necessarily associated
-    //    with the current isolate, and we can be blocking on a worker task that
-    //    is associated with a completely unrelated isolate in the event loop.
-    //    This is suboptimal.
-    //
-    // However, not blocking on the worker tasks at all can lead to loss of some
-    // critical user-blocking worker tasks e.g. wasm async compilation tasks,
-    // which should block the main thread until they are completed, as the
-    // documentation suggests. As a compromise, we currently only block on
-    // user-blocking tasks to reduce the chance of deadlocks while making sure
-    // that critical user-blocking tasks are not lost.
-    worker_thread_task_runner_->BlockingDrain();
-  } while (per_isolate->FlushForegroundTasksInternal());
+  // Worker tasks are shared by all isolates, so this can still wait for
+  // unrelated work. BlockingDrain() only waits for user-blocking tasks so
+  // critical work such as asynchronous Wasm compilation is not discarded.
+  // Flush this isolate's foreground tasks while waiting so user-blocking
+  // workers that depend on them can make progress.
+  worker_thread_task_runner_->BlockingDrain([per_isolate]() {
+    return per_isolate->FlushForegroundTasksInternal();
+  });
 }
 
 bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
@@ -780,6 +782,7 @@ TaskQueue<T>::TaskQueue()
     : lock_(),
       tasks_available_(),
       outstanding_tasks_drained_(),
+      drain_wakeup_generation_(0),
       outstanding_tasks_(0),
       stopped_(false),
       task_queue_() {}
@@ -830,9 +833,40 @@ void TaskQueue<T>::Locked::NotifyOfOutstandingCompletion() {
 }
 
 template <class T>
-void TaskQueue<T>::Locked::BlockingDrain() {
-  while (queue_->outstanding_tasks_ > 0) {
-    queue_->outstanding_tasks_drained_.Wait(lock_);
+void TaskQueue<T>::Locked::WakeDrain() {
+  queue_->drain_wakeup_generation_++;
+  queue_->outstanding_tasks_drained_.Broadcast(lock_);
+}
+
+template <class T>
+void TaskQueue<T>::Locked::BlockingDrain(
+    const std::function<bool()>& flush_foreground_tasks) {
+  // Foreground tasks are flushed without the queue lock. Remember wakeups that
+  // arrive in that interval so they cannot be lost before Wait().
+  uint64_t observed_generation = queue_->drain_wakeup_generation_;
+  while (true) {
+    bool did_work;
+    {
+      Mutex::ScopedUnlock unlock(lock_);
+      did_work = flush_foreground_tasks();
+    }
+
+    if (queue_->drain_wakeup_generation_ != observed_generation) {
+      observed_generation = queue_->drain_wakeup_generation_;
+      continue;
+    }
+
+    while (queue_->outstanding_tasks_ > 0 &&
+           queue_->drain_wakeup_generation_ == observed_generation) {
+      queue_->outstanding_tasks_drained_.Wait(lock_);
+    }
+
+    if (queue_->drain_wakeup_generation_ != observed_generation) {
+      observed_generation = queue_->drain_wakeup_generation_;
+      continue;
+    }
+
+    if (!did_work) return;
   }
 }
 
