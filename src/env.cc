@@ -360,6 +360,12 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 #undef VS
 #undef VP
 
+#define V(Name, label, _, __)                                                  \
+  info.primitive_values.push_back(                                             \
+      creator->AddData(Name##_permission_string##_.Get(isolate)));
+  PERMISSIONS(V)
+#undef V
+
   info.primitive_values.reserve(info.primitive_values.size() +
                                 AsyncWrap::PROVIDERS_LENGTH);
   for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++) {
@@ -418,6 +424,21 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
 #undef VY
 #undef VS
 #undef VP
+
+#define V(Name, label, _, __)                                                  \
+  do {                                                                         \
+    MaybeLocal<String> maybe_field =                                           \
+        isolate_->GetDataFromSnapshotOnce<String>(                             \
+            info->primitive_values[i++]);                                      \
+    Local<String> field;                                                       \
+    if (!maybe_field.ToLocal(&field)) {                                        \
+      fprintf(stderr,                                                          \
+              "Failed to deserialize " #Name "_permission_string\n");          \
+    }                                                                          \
+    Name##_permission_string##_.Set(isolate_, field);                           \
+  } while (0);
+  PERMISSIONS(V)
+#undef V
 
   for (size_t j = 0; j < AsyncWrap::PROVIDERS_LENGTH; j++) {
     MaybeLocal<String> maybe_field =
@@ -518,6 +539,17 @@ void IsolateData::CreateProperties() {
                              sizeof(StringValue) - 1)                          \
           .ToLocalChecked());
   PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+
+#define V(Name, label, _, __)                                                  \
+  Name##_permission_string##_.Set(                                             \
+      isolate_,                                                                \
+      String::NewFromOneByte(isolate_,                                         \
+                             reinterpret_cast<const uint8_t*>(#Name),          \
+                             NewStringType::kInternalized,                     \
+                             sizeof(#Name) - 1)                                \
+          .ToLocalChecked());
+  PERMISSIONS(V)
 #undef V
 
   // Create all the provider strings that will be passed to JS. Place them in
@@ -628,6 +660,11 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 
   PER_ISOLATE_STRING_PROPERTIES(V)
+#undef V
+
+#define V(Name, label, _, __)                                                  \
+  tracker->TrackField(#Name "_permission_string", Name##_permission_string());
+  PERMISSIONS(V)
 #undef V
 
   tracker->TrackField("async_wrap_providers", async_wrap_providers_);
