@@ -1903,9 +1903,14 @@ True if `stream.destroy()` has been called.
 
 ### Aborting a stream
 
-A QuicStream can be aborted in three ways, each producing different
+A QuicStream can be aborted in several ways, each producing different
 wire-frame side effects:
 
+* [`stream.stopSending()`][] — Aborts only the readable side. Sends
+  `STOP_SENDING` to the peer. The writable side is unaffected.
+* [`stream.resetStream()`][] — Aborts only the writable side. Sends
+  `RESET_STREAM` to the peer. Unlike [`writer.fail(reason)`][], the wire
+  code is given directly rather than derived from an error.
 * [`writer.fail(reason)`][] — Aborts only the writable side. Sends
   `RESET_STREAM` to the peer. The readable side is unaffected; any data
   already buffered for read remains available.
@@ -1922,6 +1927,46 @@ When `error` is a [`QuicError`][], its [`error.errorCode`][] is used as
 the wire code for both `writer.fail()` and `stream.destroy()`. Otherwise
 the implementation falls back to the negotiated application protocol's
 "internal error" code (see [`QuicError`][]).
+
+[`stream.stopSending()`][] and [`stream.resetStream()`][] do
+not perform this derivation: they send `code` as given.
+
+### `stream.resetStream([code])`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `code` {number|bigint} The application error code to send to the peer.
+  **Default:** `0n`.
+
+Tells the peer that this end will not send any more data on this stream,
+sending a `RESET_STREAM` frame carrying `code`. The readable side is left
+open, so data already sent by the peer remains available to read.
+
+Any data still queued for sending is discarded. A reset stream is never
+acknowledged by the peer, so the outbound queue can no longer drain.
+
+No acknowledgement of this action is provided. The call does nothing if the
+stream has been destroyed, if it has already been reset, or if it is a
+remote-initiated unidirectional stream, which has no writable side to abort.
+
+### `stream.stopSending([code])`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `code` {number|bigint} The application error code to send to the peer.
+  **Default:** `0n`.
+
+Asks the peer to stop sending data on this stream, sending a `STOP_SENDING`
+frame carrying `code`. The writable side is left open, so this end can
+still send data.
+
+No acknowledgement of this action is provided. The call does nothing if the
+stream has been destroyed, or if it is a locally-initiated unidirectional
+stream, which has no readable side to abort.
 
 ### `stream.early`
 
@@ -4556,11 +4601,13 @@ throughput issues caused by flow control.
 [`stream.onwanttrailers`]: #streamonwanttrailers
 [`stream.pendingTrailers`]: #streampendingtrailers
 [`stream.priority`]: #streampriority
+[`stream.resetStream()`]: #streamresetstreamcode
 [`stream.sendHeaders()`]: #streamsendheadersheaders-options
 [`stream.sendInformationalHeaders()`]: #streamsendinformationalheadersheaders
 [`stream.sendTrailers()`]: #streamsendtrailersheaders
 [`stream.setBody()`]: #streamsetbodybody
 [`stream.setPriority()`]: #streamsetpriorityoptions
+[`stream.stopSending()`]: #streamstopsendingcode
 [`stream.writer`]: #streamwriter
 [`writer.fail()`]: #streamwriter
 [`writer.fail(reason)`]: #streamwriter
