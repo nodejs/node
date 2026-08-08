@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 // Resolving a path must not depend on what was stat'ed before it.
@@ -8,12 +9,6 @@
 // of the last stat made anywhere in the process, so an unrelated stat of a FIFO
 // made the walk stop early and hand back the path with its symlinks unresolved.
 // The unresolved path is then cached, so every later resolution repeats it.
-//
-// The walk only takes that branch once something has established the ancestors
-// as real, which is the state the module loader's realpath cache is in after it
-// has resolved anything else under the same directory. So this goes through
-// require() to reach it, and the second copy of the module is what the stale
-// read costs.
 
 const common = require('../common');
 
@@ -24,6 +19,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { realpathCacheKey } = require('internal/fs/utils');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
@@ -41,6 +37,35 @@ execFileSync('mkfifo', [fifo]);
 const throughLink = path.join(link, 'index.js');
 const throughReal = path.join(pkg, 'index.js');
 
+// The walk only skips a component once something has established it as real. A
+// cache carrying the ancestors is that state, and it is the state the module
+// loader's own cache is in after it has resolved anything else under the
+// directory.
+function ancestorCache() {
+  const cache = new Map();
+  let dir = '';
+  for (const part of tmpdir.path.split(path.sep).slice(1)) {
+    dir += path.sep + part;
+    cache.set(dir, dir);
+  }
+  return cache;
+}
+
+fs.statSync(path.join(pkg, 'index.js'));
+assert.strictEqual(
+  fs.realpathSync(throughLink, { [realpathCacheKey]: ancestorCache() }),
+  throughReal,
+);
+
+fs.statSync(fifo);
+assert.strictEqual(
+  fs.realpathSync(throughLink, { [realpathCacheKey]: ancestorCache() }),
+  throughReal,
+);
+
+// What the stale read costs through the module loader, whose cache puts the
+// walk in that same state: the symlink stays unresolved, so the file is loaded
+// a second time under a second name.
 require(tmpdir.resolve('warm.js'));
 fs.statSync(fifo);
 
