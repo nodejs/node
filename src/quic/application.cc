@@ -410,6 +410,12 @@ class DefaultApplication final : public Session::Application {
 
   void ResumeStream(stream_id id) override { ScheduleStream(id); }
 
+  void StreamWriteShut(stream_id id) override {
+    if (auto stream = session().FindStream(id)) [[likely]] {
+      stream->Unschedule();
+    }
+  }
+
   void BlockStream(stream_id id) override {
     if (auto stream = session().FindStream(id)) [[likely]] {
       // Remove the stream from the send queue. It will be re-scheduled
