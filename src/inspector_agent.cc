@@ -555,11 +555,7 @@ class NodeInspectorClient : public V8InspectorClient {
       return;
     }
     if (auto agent = env_->inspector_agent()) {
-      if (depth == 0) {
-        agent->DisableAsyncHook();
-      } else {
-        agent->EnableAsyncHook();
-      }
+      agent->SetAsyncHookTrackingEnabled(depth != 0);
     }
   }
 
@@ -655,6 +651,7 @@ class NodeInspectorClient : public V8InspectorClient {
 
   void installAdditionalCommandLineAPI(Local<Context> context,
                                        Local<Object> target) override {
+    if (!env_->can_call_into_js()) return;
     Local<Function> installer = env_->inspector_console_extension_installer();
     if (!installer.IsEmpty()) {
       Local<Value> argv[] = {target};
@@ -1076,58 +1073,69 @@ void Agent::RegisterAsyncHook(Isolate* isolate,
                               Local<Function> disable_function) {
   parent_env_->set_inspector_enable_async_hooks(enable_function);
   parent_env_->set_inspector_disable_async_hooks(disable_function);
-  if (pending_enable_async_hook_) {
-    CHECK(!pending_disable_async_hook_);
-    pending_enable_async_hook_ = false;
-    EnableAsyncHook();
-  } else if (pending_disable_async_hook_) {
-    CHECK(!pending_enable_async_hook_);
-    pending_disable_async_hook_ = false;
-    DisableAsyncHook();
-  }
+  SyncAsyncHookState();
 }
 
-void Agent::EnableAsyncHook() {
-  HandleScope scope(parent_env_->isolate());
-  Local<Function> enable = parent_env_->inspector_enable_async_hooks();
-  if (!enable.IsEmpty()) {
-    ToggleAsyncHook(parent_env_->isolate(), enable);
-  } else if (pending_disable_async_hook_) {
-    CHECK(!pending_enable_async_hook_);
-    pending_disable_async_hook_ = false;
-  } else {
-    pending_enable_async_hook_ = true;
-  }
+void Agent::SetAsyncHookTrackingEnabled(bool enabled) {
+  async_hook_wanted_ = enabled;
+  SyncAsyncHookState();
 }
 
-void Agent::DisableAsyncHook() {
-  HandleScope scope(parent_env_->isolate());
-  Local<Function> disable = parent_env_->inspector_disable_async_hooks();
-  if (!disable.IsEmpty()) {
-    ToggleAsyncHook(parent_env_->isolate(), disable);
-  } else if (pending_enable_async_hook_) {
-    CHECK(!pending_disable_async_hook_);
-    pending_enable_async_hook_ = false;
-  } else {
-    pending_disable_async_hook_ = true;
-  }
-}
+// Reconcile the state of the async hook used for async stack traces with the
+// state last requested by the protocol. The hook is set up in JS land,
+// (see inspector_async_hooks.js), which isn't safe to do when:
+// 1. We are in early bootstrap and the setup functions aren't registered in
+//    C++ yet.
+// 2. We are in a V8 interrupt requested by inspector protocol message
+//    dispatch e.g. from maxAsyncCallStackDepthChanged() notifications.
+// When it's not safe to call into JS, this is a no-op and we'll try again in
+// RegisterAsyncHook() (for 1) or from a scheduled immediate (for 2).
+void Agent::SyncAsyncHookState() {
+  // The debugger can request an interrupt within the toggle JS function itself,
+  // A nested call only records the new requested state, the outermost call sees
+  // it when re-checking the loop condition after each toggle.
+  if (syncing_async_hook_state_) return;
+  syncing_async_hook_state_ = true;
+  auto on_exit = OnScopeLeave([this]() { syncing_async_hook_state_ = false; });
 
-void Agent::ToggleAsyncHook(Isolate* isolate, Local<Function> fn) {
-  // Guard against running this during cleanup -- no async events will be
-  // emitted anyway at that point anymore, and calling into JS is not possible.
-  // This should probably not be something we're attempting in the first place,
-  // Refs: https://github.com/nodejs/node/pull/34362#discussion_r456006039
-  if (!parent_env_->can_call_into_js()) return;
-  CHECK(parent_env_->has_run_bootstrapping_code());
-  HandleScope handle_scope(isolate);
-  CHECK(!fn.IsEmpty());
-  auto context = parent_env_->context();
-  v8::TryCatch try_catch(isolate);
-  USE(fn->Call(context, Undefined(isolate), 0, nullptr));
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    PrintCaughtException(isolate, context, try_catch);
-    UNREACHABLE("Cannot toggle Inspector's AsyncHook, please report this.");
+  Isolate* isolate = parent_env_->isolate();
+  HandleScope scope(isolate);
+  while (async_hook_wanted_ != async_hook_enabled_) {
+    // Guard against running this during cleanup -- no async events will be
+    // emitted anyway at that point anymore, and calling into JS is not
+    // possible. This should probably not be something we're attempting in the
+    // first place,
+    // Refs: https://github.com/nodejs/node/pull/34362#discussion_r456006039
+    if (!parent_env_->can_call_into_js()) return;
+
+    bool enable = async_hook_wanted_;
+    Local<Function> fn = enable ? parent_env_->inspector_enable_async_hooks()
+                                : parent_env_->inspector_disable_async_hooks();
+    if (fn.IsEmpty()) return;
+
+    if (parent_env_->is_processing_v8_interrupt()) {
+      parent_env_->SetImmediate(
+          [](Environment* env) {
+            Agent* agent = env->inspector_agent();
+            if (agent != nullptr) agent->SyncAsyncHookState();
+          },
+          CallbackFlags::kUnrefed);
+      return;
+    }
+
+    CHECK(parent_env_->has_run_bootstrapping_code());
+    Local<Context> context = parent_env_->context();
+    v8::TryCatch try_catch(isolate);
+    USE(fn->Call(context, Undefined(isolate), 0, nullptr));
+    if (try_catch.HasCaught()) {
+      // Termination may abort the toggle invocation, retrying now would just
+      // be terminated again. Instead of recording the toggle that may not have
+      // taken effect, leave the states as-is so that a later sync retries.
+      if (try_catch.HasTerminated()) return;
+      PrintCaughtException(isolate, context, try_catch);
+      UNREACHABLE("Cannot toggle Inspector's AsyncHook, please report this.");
+    }
+    async_hook_enabled_ = enable;
   }
 }
 

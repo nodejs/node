@@ -623,6 +623,10 @@ inline void Environment::set_can_call_into_js(bool can_call_into_js) {
   can_call_into_js_ = can_call_into_js;
 }
 
+inline bool Environment::is_processing_v8_interrupt() const {
+  return is_processing_v8_interrupt_;
+}
+
 inline bool Environment::has_run_bootstrapping_code() const {
   return principal_realm_->has_run_bootstrapping_code();
 }
