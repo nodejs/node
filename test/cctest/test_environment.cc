@@ -1,6 +1,7 @@
 #include "libplatform/libplatform.h"
 #include "node_buffer.h"
 #include "node_internals.h"
+#include "node_process.h"
 #include "node_url.h"
 #include "util.h"
 
@@ -242,6 +243,68 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithSource) {
           reinterpret_cast<const uint8_t*>("require"))
           .ToLocalChecked())
           .ToLocalChecked()->IsFunction());
+}
+
+TEST_F(EnvironmentTest, EmitExperimentalWarning) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  node::LoadEnvironment(
+      *env,
+      "globalThis.warningCount = 0;"
+      "globalThis.throwOnWarning = false;"
+      "process.emitWarning = function() {"
+      "  globalThis.warningCount++;"
+      "  if (globalThis.throwOnWarning) throw new Error('warning failure');"
+      "};");
+
+  static uint64_t test_id = 0;
+  const std::string warning_prefix =
+      "cctest experimental warning " + std::to_string(test_id++);
+
+  v8::Maybe<bool> first =
+      node::ProcessEmitExperimentalWarning(*env, warning_prefix + " duplicate");
+  ASSERT_TRUE(first.IsJust());
+  EXPECT_TRUE(first.FromJust());
+
+  v8::Maybe<bool> duplicate =
+      node::ProcessEmitExperimentalWarning(*env, warning_prefix + " duplicate");
+  ASSERT_TRUE(duplicate.IsJust());
+  EXPECT_FALSE(duplicate.FromJust());
+
+  v8::Local<v8::Context> context = env.context();
+  v8::Local<v8::String> throw_on_warning_key =
+      v8::String::NewFromUtf8Literal(isolate_, "throwOnWarning");
+  ASSERT_TRUE(
+      context->Global()
+          ->Set(context, throw_on_warning_key, v8::Boolean::New(isolate_, true))
+          .FromMaybe(false));
+
+  {
+    v8::TryCatch try_catch(isolate_);
+    v8::Maybe<bool> failed = node::ProcessEmitExperimentalWarning(
+        *env, warning_prefix + " retry after exception");
+    EXPECT_TRUE(failed.IsNothing());
+    EXPECT_TRUE(try_catch.HasCaught());
+  }
+
+  ASSERT_TRUE(context->Global()
+                  ->Set(context,
+                        throw_on_warning_key,
+                        v8::Boolean::New(isolate_, false))
+                  .FromMaybe(false));
+  v8::Maybe<bool> retry = node::ProcessEmitExperimentalWarning(
+      *env, warning_prefix + " retry after exception");
+  ASSERT_TRUE(retry.IsJust());
+  EXPECT_TRUE(retry.FromJust());
+
+  v8::Local<v8::Value> warning_count =
+      context->Global()
+          ->Get(context,
+                v8::String::NewFromUtf8Literal(isolate_, "warningCount"))
+          .ToLocalChecked();
+  EXPECT_EQ(warning_count->Int32Value(context).FromJust(), 3);
 }
 
 TEST_F(EnvironmentTest, AtExitWithEnvironment) {

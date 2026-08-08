@@ -16,7 +16,7 @@ inline v8::Maybe<bool> ProcessEmitWarning(Environment* env,
                                           Args&&... args) {
   std::string warning = SPrintF(fmt, std::forward<Args>(args)...);
 
-  return ProcessEmitWarningGeneric(env, warning.c_str());
+  return ProcessEmitWarningGeneric(env, warning);
 }
 
 }  // namespace node

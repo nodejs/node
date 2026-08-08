@@ -3,7 +3,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #ifdef DEBUG
-#include "util.h"
+#include "util-inl.h"
 #endif  // DEBUG
 
 namespace node {
