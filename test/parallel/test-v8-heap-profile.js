@@ -4,6 +4,11 @@ require('../common');
 const assert = require('assert');
 const v8 = require('v8');
 
+function validateScriptIds(node) {
+  assert.strictEqual(typeof node.callFrame.scriptId, 'string');
+  node.children.forEach(validateScriptIds);
+}
+
 assert.throws(() => v8.startHeapProfile('bad'), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
@@ -48,7 +53,7 @@ assert.throws(
 {
   const handle = v8.startHeapProfile();
   const profile = handle.stop();
-  JSON.parse(profile);
+  validateScriptIds(JSON.parse(profile).head);
 }
 
 // Custom params with all flags.

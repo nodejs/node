@@ -4,6 +4,7 @@
 #include "util.h"
 
 #include <memory>
+#include <string>
 
 namespace node {
 
@@ -23,7 +24,7 @@ static void BuildHeapProfileNode(Isolate* isolate,
   writer->json_keyvalue("selfSize", selfSize);
   writer->json_keyvalue("id", node->node_id);
   writer->json_objectstart("callFrame");
-  writer->json_keyvalue("scriptId", node->script_id);
+  writer->json_keyvalue("scriptId", std::to_string(node->script_id));
   writer->json_keyvalue("lineNumber", node->line_number - 1);
   writer->json_keyvalue("columnNumber", node->column_number - 1);
   Utf8Value name(isolate, node->name);
