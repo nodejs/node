@@ -1,7 +1,7 @@
 // Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
-// Test: HTTP/3 webtransport client initiated bidi stream
-// Client creates a bidi stream and send data that is echoed back to the client
+// Test: HTTP/3 webtransport client initiated uni stream
+// Client creates an uni stream and send data to the server
 
 import { hasQuic, skip, mustCall, mustNotCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -50,8 +50,10 @@ for (let i = 0; i < numChunks; i++) {
 }
 
 const serverSessionOpened = Promise.withResolvers();
+const serverSessionRead = Promise.withResolvers();
 
-
+const readChunks = [];
+let serverSessionStream;
 const serverEndpoint = await listen(mustCall(async (ss) => {
   ss.onstream = mustNotCall(async (stream) => {
     console.log('Does nothing but is required! Fix me!');
@@ -67,21 +69,28 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
       // Deinstall handlers
       stream.onheaders = undefined;
       stream.onsessionid = undefined;
+      stream.closed.catch((error) => {
+        assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
+      })
       const sessionid2 = await serverSessionOpened.promise;
       assert.strictEqual(sessionid, sessionid2);
-      // Now we can echo all data.
-      const writer = stream.writer;
+      // Now we get the data
       for await (const chunks of stream) {
-        for (const chunk of chunks) {
-          while (!writer.writeSync(chunk)) {
-            // Flow controlled — wait for drain before retrying.
-            const drainable = writer[dp]();
-            if (drainable) await drainable;
-          }
-        }
+        readChunks.push(...chunks);
       }
-      writer.end();
-      await stream.closed;
+      const receivedBytes = readChunks.reduce((accu, curVal) => accu + curVal.byteLength, 0);
+
+      assert.strictEqual(receivedBytes, byteLength);
+      let receivedChecksum = 0;
+      for (const chunk of readChunks) {
+        receivedChecksum = (receivedChecksum + checksum(chunk)) | 0;
+      }
+      assert.strictEqual(receivedChecksum, expectedChecksum);
+      serverSessionStream.closed.catch(mustCall((error) => {
+        assert.strictEqual(error.errorCode, 200n);
+        assert.strictEqual(error.reason, 'all perfect');
+      }))
+      await serverSessionStream.closeWebtransportSessionStream(200, 'all perfect');
     }, stream.id !== 0n ? 1 : 0); // The second stream is a datastream
   }, 2);
 }), {
@@ -104,15 +113,10 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
         { terminal: false, webtransport: true }
       );
       serverSessionOpened.resolve(this.id);
+      serverSessionStream = this;
     } catch (error) {
       serverSessionOpened.reject(error);
     }
-    // Should only be installed on wt streams
-    this.onwtsessionclose = mustCall((code, reason) => {
-      assert.strictEqual(code, 200);
-      assert.strictEqual(reason, 'all perfect');
-      this.session.close();
-    });
   }),
 });
 
@@ -152,9 +156,13 @@ clientSession.onstream = mustNotCall((stream) => {
 await clientSession.opened;
 await webtransportSupport.promise;
 // Now we open a webtransport session, which is actually
-// a special bidirectional stream
+// a special unidirectional stream
 const wtSessionStream = await clientSession.createBidirectionalStream({
   body: '',
+});
+wtSessionStream.onwtsessionclose = mustCall((code, reason) => {
+  assert.strictEqual(code, 200);
+  assert.strictEqual(reason, 'all perfect');
 });
 wtSessionStream.sendHeaders({
   ':method': 'CONNECT',
@@ -167,47 +175,29 @@ wtSessionStream.sendHeaders({
   webtransport: true // Tell nghttp3 to treat the stream as a WT session stream
 });
 
-// Well let's get a bidi stream and send something
-const clientBidiStream = await clientSession.createBidirectionalStream({
+// Well let's get a unidi stream and send something
+const clientUnidiStream = await clientSession.createBidirectionalStream({
   incremental: true,
   webtransportSession: wtSessionStream // Associate it with the sessionStream
 });
+
+clientUnidiStream.closed.catch((error) => {
+    assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
+});
 // Next step send some data
-
-
-const readFromStream = mustCallAtLeast(async (stream) => {
-  const readChunks = [];
-  for await (const chunks of stream) {
-    readChunks.push(...chunks);
-  }
-  const receivedBytes = readChunks.reduce((accu, curVal) => accu + curVal.byteLength, 0);
-
-  assert.strictEqual(receivedBytes, byteLength);
-  let receivedChecksum = 0;
-  for (const chunk of readChunks) {
-    receivedChecksum = (receivedChecksum + checksum(chunk)) | 0;
-  }
-  assert.strictEqual(receivedChecksum, expectedChecksum);
-}, 1);
-
-
-const writeToStream = mustCallAtLeast(async (stream) => {
-  const w = stream.writer;
-  for (let i = 0; i < numChunks; i++) {
-    const chunk = buildChunk(i);
-    while (!w.writeSync(chunk)) {
-      // Flow controlled — wait for drain before retrying.
-      const drainable = w[dp]();
-      if (drainable) await drainable;
-    }
-  }
-  w.endSync();
-}, 1);
-
 await serverSessionOpened.promise;
 
-await Promise.all([readFromStream(clientBidiStream), writeToStream(clientBidiStream)]);
-await wtSessionStream.closeWebtransportSessionStream(200, 'all perfect');
+
+const w = clientUnidiStream.writer;
+for (let i = 0; i < numChunks; i++) {
+  const chunk = buildChunk(i);
+  while (!w.writeSync(chunk)) {
+    // Flow controlled — wait for drain before retrying.
+    const drainable = w[dp]();
+    if (drainable) await drainable;
+  }
+}
+w.endSync();
 
 try {
   await wtSessionStream.closed;
@@ -215,5 +205,6 @@ try {
   assert.strictEqual(error.errorCode, 200n);
   assert.strictEqual(error.reason, 'all perfect');
 }
+
 await clientSession.close();
 await serverEndpoint.close();
