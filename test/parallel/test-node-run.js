@@ -37,6 +37,28 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 1);
   });
 
+  it('recognizes cmd.exe case-insensitively', {
+    skip: !common.isWindows,
+  }, async () => {
+    const env = { ...process.env };
+    const comspecKey = Object.keys(env)
+      .find((key) => key.toLowerCase() === 'comspec');
+    assert.notStrictEqual(comspecKey, undefined);
+    const comspec = env[comspecKey];
+    assert.match(comspec, /cmd\.exe$/i);
+    delete env[comspecKey];
+    env.ComSpec = comspec.replace(/cmd\.exe$/i, 'CMD.EXE');
+
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'pwd-windows'],
+      { cwd: fixtures.path('run-script'), env },
+    );
+    assert.strictEqual(child.stdout.trim(), fixtures.path('run-script'));
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
   it('adds node_modules/.bin to path', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
