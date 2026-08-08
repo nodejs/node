@@ -24,6 +24,15 @@ function readFile(path, options) {
   });
 }
 
+function readFileFd(fd, options) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(fd, options, common.mustCall((err, data) => {
+      if (err) reject(err);
+      else resolve(data);
+    }));
+  });
+}
+
 async function withFstatSizeZero(fn) {
   const originalFstat = fsBinding.fstat;
   fsBinding.fstat = function(...args) {
@@ -128,6 +137,32 @@ async function withFstatSizeZero(fn) {
     code: 'ERR_INVALID_ARG_VALUE',
   });
 
+  {
+    const fd = fs.openSync(file, 'r');
+    try {
+      const buffer = Buffer.alloc(content.length - 1);
+      await assert.rejects(readFileFd(fd, { buffer }), {
+        code: 'ERR_INVALID_ARG_VALUE',
+      });
+    } finally {
+      fs.closeSync(fd);
+    }
+  }
+
+  {
+    const fd = fs.openSync(file, 'r');
+    try {
+      await assert.rejects(readFileFd(fd, {
+        buffer() {
+          return Buffer.alloc(content.length - 1);
+        },
+      }), {
+        code: 'ERR_INVALID_ARG_VALUE',
+      });
+    } finally {
+      fs.closeSync(fd);
+    }
+  }
 
   await withFstatSizeZero(common.mustCall(async () => {
     {
