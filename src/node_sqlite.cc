@@ -3675,6 +3675,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
       return BaseObjectPtr<StatementSync>();
     }
 
+    session->database_->statements_.insert(stmt_obj.get());
     session->sql_tags_.Put(sql, stmt_obj);
     stmt = stmt_obj;
   }
