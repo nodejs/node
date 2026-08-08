@@ -38,3 +38,14 @@ assert.strictEqual(myVfs.provider.supportsWatch, true);
   myVfs.watchFile('/wf.txt', { persistent: false }, listener);
   myVfs.unwatchFile('/wf.txt', listener);
 }
+
+// watchFile listener fires on change
+(async () => {
+  fs.writeFileSync(path.join(root, 'wf2.txt'), 'a');
+  const fired = new Promise((resolve) => {
+    myVfs.watchFile('/wf2.txt', { interval: 25 }, common.mustCall(resolve));
+  });
+  fs.writeFileSync(path.join(root, 'wf2.txt'), 'b');
+  await fired;
+  myVfs.unwatchFile('/wf2.txt');
+})().then(common.mustCall());
