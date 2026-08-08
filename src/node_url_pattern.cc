@@ -409,22 +409,28 @@ std::optional<ada::url_pattern_init> URLPattern::URLPatternInit::FromJsObject(
 }
 
 MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
-    Environment* env, const ada::url_pattern_component_result& result) {
+    Environment* env,
+    const ada::url_pattern_component_result& result,
+    const std::vector<std::string>& ordered_group_names) {
   auto isolate = env->isolate();
   auto context = env->context();
   LocalVector<Name> group_names(isolate);
   LocalVector<Value> group_values(isolate);
   group_names.reserve(result.groups.size());
   group_values.reserve(result.groups.size());
-  for (const auto& [group_key, group_value] : result.groups) {
+  for (const auto& group_key : ordered_group_names) {
+    const auto group = result.groups.find(group_key);
+    if (group == result.groups.end()) {
+      continue;
+    }
     Local<Value> key;
     if (!ToV8Value(context, group_key).ToLocal(&key)) {
       return {};
     }
     group_names.push_back(key.As<Name>());
     Local<Value> value;
-    if (group_value) {
-      if (!ToV8Value(env->context(), *group_value).ToLocal(&value)) {
+    if (group->second) {
+      if (!ToV8Value(env->context(), *group->second).ToLocal(&value)) {
         return {};
       }
     } else {
@@ -457,7 +463,9 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
 }
 
 MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
-    Environment* env, const ada::url_pattern_result& result) {
+    Environment* env,
+    const ada::url_pattern_result& result,
+    const ada::url_pattern<URLPatternRegexProvider>& url_pattern) {
   auto isolate = env->isolate();
 
   auto tmpl = env->urlpatternresult_template();
@@ -479,8 +487,10 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
 
   size_t index = 0;
   MaybeLocal<Value> vals[] = {
-      URLPatternComponentResult::ToJSObject(env, result.hash),
-      URLPatternComponentResult::ToJSObject(env, result.hostname),
+      URLPatternComponentResult::ToJSObject(
+          env, result.hash, url_pattern.hash_component.group_name_list),
+      URLPatternComponentResult::ToJSObject(
+          env, result.hostname, url_pattern.hostname_component.group_name_list),
       Array::New(env->context(),
                  result.inputs.size(),
                  [&index, &inputs = result.inputs, env]() {
@@ -495,12 +505,20 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
                      return URLPatternInit::ToJsObject(env, init);
                    }
                  }),
-      URLPatternComponentResult::ToJSObject(env, result.password),
-      URLPatternComponentResult::ToJSObject(env, result.pathname),
-      URLPatternComponentResult::ToJSObject(env, result.port),
-      URLPatternComponentResult::ToJSObject(env, result.protocol),
-      URLPatternComponentResult::ToJSObject(env, result.search),
-      URLPatternComponentResult::ToJSObject(env, result.username)};
+      URLPatternComponentResult::ToJSObject(
+          env, result.password, url_pattern.password_component.group_name_list),
+      URLPatternComponentResult::ToJSObject(
+          env, result.pathname, url_pattern.pathname_component.group_name_list),
+      URLPatternComponentResult::ToJSObject(
+          env, result.port, url_pattern.port_component.group_name_list),
+      URLPatternComponentResult::ToJSObject(
+          env, result.protocol, url_pattern.protocol_component.group_name_list),
+      URLPatternComponentResult::ToJSObject(
+          env, result.search, url_pattern.search_component.group_name_list),
+      URLPatternComponentResult::ToJSObject(
+          env,
+          result.username,
+          url_pattern.username_component.group_name_list)};
   return NewDictionaryInstanceNullProto(env->context(), tmpl, vals);
 }
 
@@ -552,7 +570,7 @@ MaybeLocal<Value> URLPattern::Exec(Environment* env,
                                    std::optional<std::string_view>& baseURL) {
   if (auto result = url_pattern_.exec(input, baseURL ? &*baseURL : nullptr)) {
     if (result->has_value()) {
-      return URLPatternResult::ToJSValue(env, result->value());
+      return URLPatternResult::ToJSValue(env, result->value(), url_pattern_);
     }
     return Null(env->isolate());
   }
