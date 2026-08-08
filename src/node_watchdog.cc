@@ -41,6 +41,7 @@ using v8::Value;
 
 Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out)
     : isolate_(isolate), timed_out_(timed_out) {
+  CHECK_NOT_NULL(timed_out);
 
   int rc;
   rc = uv_loop_init(&loop_);
@@ -103,6 +104,7 @@ void Watchdog::Timer(uv_timer_t* timer) {
 SigintWatchdog::SigintWatchdog(
   v8::Isolate* isolate, bool* received_signal)
     : isolate_(isolate), received_signal_(received_signal) {
+  CHECK_NOT_NULL(received_signal);
   Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(this);

@@ -44,9 +44,7 @@ enum class SignalPropagation {
 
 class Watchdog {
  public:
-  explicit Watchdog(v8::Isolate* isolate,
-                    uint64_t ms,
-                    bool* timed_out = nullptr);
+  explicit Watchdog(v8::Isolate* isolate, uint64_t ms, bool* timed_out);
   ~Watchdog();
   v8::Isolate* isolate() { return isolate_; }
 
@@ -75,8 +73,7 @@ class SigintWatchdogBase {
 
 class SigintWatchdog : public SigintWatchdogBase {
  public:
-  explicit SigintWatchdog(v8::Isolate* isolate,
-                          bool* received_signal = nullptr);
+  explicit SigintWatchdog(v8::Isolate* isolate, bool* received_signal);
   ~SigintWatchdog();
   v8::Isolate* isolate() { return isolate_; }
   SignalPropagation HandleSigint() override;
