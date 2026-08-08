@@ -1,0 +1,37 @@
+<!doctype html>
+<title>AbstractWorker.onerror</title>
+<link rel=help href="https://html.spec.whatwg.org/multipage/#runtime-script-errors-2">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#report-the-error">
+<link rel=help href="https://html.spec.whatwg.org/multipage/#the-event-handler-processing-algorithm">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+setup({allow_uncaught_exception:true});
+async_test(function() {
+  var worker = new Worker('AbstractWorker.onerror.js');
+  var error;
+  worker.onerror = this.step_func(function(a, b, c) {
+    error = a;
+    assert_equals('' + a, '[object ErrorEvent]');
+    assert_true("message" in a, 'ErrorEvent.message');
+    assert_equals(typeof a.message, "string", 'ErrorEvent.message');
+    assert_equals(a.filename, document.URL.replace('.html', '.js'), 'ErrorEvent.filename');
+    assert_true("lineno" in a, 'ErrorEvent.lineno');
+    assert_equals(typeof a.lineno, "number", 'ErrorEvent.lineno');
+    assert_equals(b, undefined, 'unexpected second argument to onerror');
+    assert_equals(c, undefined, 'unexpected third argument to onerror');
+  });
+  worker.onmessage = this.step_func(function(e) {
+    assert_unreached('onmessage was invoked but worker script shouldn\'t have compiled');
+  });
+  window.onerror = this.step_func_done(function(a, b, c, d, e, f) {
+    assert_equals(a, error.message, 'message');
+    assert_equals(b, error.filename, 'filename');
+    assert_equals(c, error.lineno, 'lineno');
+    assert_equals(d, error.colno, 'colno');
+    assert_equals(e, error.error, 'error');
+    assert_equals(f, undefined, 'unexpected sixth argument to onerror');
+  });
+});
+</script>

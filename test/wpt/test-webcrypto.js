@@ -8,7 +8,8 @@ const { join } = require('node:path');
 const { hasFIPS } = require('../common/crypto');
 const { WPTRunner } = require('../common/wpt');
 
-const runner = new WPTRunner('WebCryptoAPI');
+// Runs each spec in its own process; this suite has crashed the runner in CI.
+const runner = new WPTRunner('WebCryptoAPI', { backend: 'process' });
 
 runner.pretendGlobalThisAs('Window');
 

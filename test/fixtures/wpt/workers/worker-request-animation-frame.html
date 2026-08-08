@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>raf time in dedicated workers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+  async function waitForMessage(worker) {
+    return new Promise(resolve => {
+      worker.onmessage = event => resolve(event);
+    });
+  }
+
+  promise_test(t => {
+    const worker = new Worker('support/worker-request-animation-frame.js');
+    const message = waitForMessage(worker);
+    worker.postMessage('');
+    message.then((event) => {
+      const raf_time = event.data;
+      assert_true(performance.now() >= raf_time,
+                  'raf time cannot exceed time of page load');
+    });
+    return message;
+  }, 'requestAnimationTime reports frame time relative to worker load');
+</script>

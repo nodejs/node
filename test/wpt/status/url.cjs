@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  'historical.any.js': {
+  'historical.any.html': {
     'fail': {
       'expected': [
         'searchParams on location object',

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests for importScripts: cross-origin</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+promise_test(async t => {
+    const scope = 'resources/import-scripts-cross-origin';
+    await service_worker_unregister(t, scope);
+    let reg = await navigator.serviceWorker.register(
+      'resources/import-scripts-cross-origin-worker.sub.js', { scope: scope });
+    t.add_cleanup(_ => reg.unregister());
+    assert_not_equals(reg.installing, null, 'worker is installing');
+  }, 'importScripts() supports cross-origin requests');
+</script>
+</body>

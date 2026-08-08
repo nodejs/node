@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<title>Service Worker: CSS's base URL must be the response URL</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+const SCOPE = 'resources/fetch-request-css-base-url-iframe.html';
+const SCRIPT = 'resources/fetch-request-css-base-url-worker.js';
+let worker;
+
+var signalMessage;
+function getNextMessage() {
+  return new Promise(resolve => { signalMessage = resolve; });
+}
+
+promise_test(async (t) => {
+  const registration = await service_worker_unregister_and_register(
+      t, SCRIPT, SCOPE);
+  worker = registration.installing;
+  await wait_for_state(t, worker, 'activated');
+}, 'global setup');
+
+// Creates a test concerning the base URL of a stylesheet. It loads a
+// stylesheet from a controlled page. The stylesheet makes a subresource
+// request for an image. The service worker messages back the details of the
+// image request in order to test the base URL.
+//
+// The request URL for the stylesheet is under "resources/request-url-path/".
+// The service worker may respond in a way such that the response URL is
+// different to the request URL.
+function base_url_test(params) {
+  promise_test(async (t) => {
+    let frame;
+    t.add_cleanup(() => {
+      if (frame)
+        frame.remove();
+    });
+
+    // Ask the service worker to message this page once it gets the request
+    // for the image.
+    let channel = new MessageChannel();
+    const sawPong = getNextMessage();
+    channel.port1.onmessage = (event) => {
+      signalMessage(event.data);
+    };
+    worker.postMessage({port:channel.port2},[channel.port2]);
+
+    // It sends a pong back immediately. This ping/pong protocol helps deflake
+    // the test for browsers where message/fetch ordering isn't guaranteed.
+    assert_equals('pong', await sawPong);
+
+    // Load the frame which will load the stylesheet that makes the image
+    // request.
+    const sawResult = getNextMessage();
+    frame = await with_iframe(params.framePath);
+    const result = await sawResult;
+
+    // Test the image request.
+    const base = new URL('.', document.location).href;
+    assert_equals(result.url,
+                  base + params.expectImageRequestPath,
+                  'request');
+    assert_equals(result.referrer,
+                  base + params.expectImageRequestReferrer,
+                  'referrer');
+  }, params.description);
+}
+
+const cssFile = 'fetch-request-css-base-url-style.css';
+
+base_url_test({
+  framePath: SCOPE + '?fetch',
+  expectImageRequestPath: 'resources/sample.png',
+  expectImageRequestReferrer: `resources/${cssFile}?fetch`,
+  description: 'base URL when service worker does respondWith(fetch(responseUrl)).'});
+
+base_url_test({
+  framePath: SCOPE + '?newResponse',
+  expectImageRequestPath: 'resources/request-url-path/sample.png',
+  expectImageRequestReferrer: `resources/request-url-path/${cssFile}?newResponse`,
+  description: 'base URL when service worker does respondWith(new Response()).'});
+
+// Cleanup step: this must be the last promise_test.
+promise_test(async (t) => {
+  return service_worker_unregister(t, SCOPE);
+}, 'cleanup global state');
+</script>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+
+<script>
+const worker = 'resources/fetch-event-within-sw-worker.js';
+
+async function registerSwAndOpenFrame(t) {
+  const registration = await navigator.serviceWorker.register(
+      worker, { scope: 'resources/' });
+  t.add_cleanup(() => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+
+  const frame = await with_iframe('resources/simple.html');
+  t.add_cleanup(() => frame.remove());
+  return frame;
+}
+
+async function deleteCaches() {
+  const cacheKeys = await caches.keys();
+  await Promise.all(cacheKeys.map(c => caches.delete(c)));
+}
+
+promise_test(async t => {
+  t.add_cleanup(deleteCaches);
+
+  const iframe = await registerSwAndOpenFrame(t);
+  const fetchText =
+      await iframe.contentWindow.fetch('sample.txt').then(r => r.text());
+
+  const cache = await iframe.contentWindow.caches.open('test');
+  await cache.add('sample.txt');
+
+  const response = await cache.match('sample.txt');
+  const cacheText = await (response ? response.text() : 'cache match failed');
+  assert_equals(fetchText, 'intercepted', 'fetch intercepted');
+  assert_equals(cacheText, 'intercepted', 'cache.add intercepted');
+}, 'Service worker intercepts requests from window');
+
+promise_test(async t => {
+  const iframe = await registerSwAndOpenFrame(t);
+  const [fetchText, cacheText] = await Promise.all([
+    iframe.contentWindow.fetch('sample.txt-inner-fetch').then(r => r.text()),
+    iframe.contentWindow.fetch('sample.txt-inner-cache').then(r => r.text())
+  ]);
+  assert_equals(fetchText, 'Hello world\n', 'fetch within SW not intercepted');
+  assert_equals(cacheText, 'Hello world\n',
+                'cache.add within SW not intercepted');
+}, 'Service worker does not intercept fetch/cache requests within service ' +
+   'worker');
+</script>

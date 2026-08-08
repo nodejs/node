@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var script1 = normalizeURL('resources/empty-worker.js');
+var script2 = normalizeURL('resources/empty-worker.js?new');
+
+async_test(function(t) {
+    var scope = 'resources/scope/register-new-script-concurrently';
+    var register_promise1;
+    var register_promise2;
+
+    service_worker_unregister(t, scope)
+      .then(function() {
+          register_promise1 = navigator.serviceWorker.register(script1,
+                                                               {scope: scope});
+          register_promise2 = navigator.serviceWorker.register(script2,
+                                                               {scope: scope});
+          return register_promise1;
+        })
+      .then(function(registration) {
+          assert_equals(registration.installing.scriptURL, script1,
+                        'on first register, first script should be installing');
+          assert_equals(registration.waiting, null,
+                        'on first register, waiting should be null');
+          assert_equals(registration.active, null,
+                        'on first register, active should be null');
+          return register_promise2;
+        })
+      .then(function(registration) {
+          assert_equals(
+              registration.installing.scriptURL, script2,
+              'on second register, second script should be installing');
+          // Spec allows racing: the first register may have finished
+          // or the second one could have terminated the installing worker.
+          assert_true(registration.waiting == null ||
+                      registration.waiting.scriptURL == script1,
+                      'on second register, .waiting should be null or the ' +
+                      'first script');
+          assert_true(registration.active == null ||
+                      (registration.waiting == null &&
+                       registration.active.scriptURL == script1),
+                      'on second register, .active should be null or the ' +
+                      'first script');
+          return registration.unregister();
+        })
+      .then(function() {
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Register different scripts concurrently');
+
+async_test(function(t) {
+    var scope = 'resources/scope/register-then-register-new-script';
+    var registration;
+
+    service_worker_unregister_and_register(t, script1, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'on activated, installing should be null');
+          assert_equals(registration.waiting, null,
+                        'on activated, waiting should be null');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on activated, the first script should be active');
+          return navigator.serviceWorker.register(script2, {scope:scope});
+        })
+      .then(function(r) {
+          registration = r;
+          assert_equals(registration.installing.scriptURL, script2,
+                        'on second register, the second script should be ' +
+                        'installing');
+          assert_equals(registration.waiting, null,
+                        'on second register, waiting should be null');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on second register, the first script should be ' +
+                        'active');
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'on installed, installing should be null');
+          assert_equals(registration.waiting.scriptURL, script2,
+                        'on installed, the second script should be waiting');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on installed, the first script should be active');
+          return registration.unregister();
+        })
+      .then(function() {
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Register then register new script URL');
+
+async_test(function(t) {
+    var scope = 'resources/scope/register-then-register-new-script-404';
+    var registration;
+
+    service_worker_unregister_and_register(t, script1, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'on activated, installing should be null');
+          assert_equals(registration.waiting, null,
+                        'on activated, waiting should be null');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on activated, the first script should be active');
+          return navigator.serviceWorker.register('this-will-404.js',
+                                                  {scope:scope});
+        })
+      .then(
+        function() { assert_unreached('register should reject'); },
+        function(error) {
+          assert_equals(registration.installing, null,
+                        'on rejected, installing should be null');
+          assert_equals(registration.waiting, null,
+                        'on rejected, waiting should be null');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on rejected, the first script should be active');
+          return registration.unregister();
+        })
+      .then(function() {
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Register then register new script URL that 404s');
+
+async_test(function(t) {
+    var scope = 'resources/scope/register-then-register-new-script-reject-install';
+    var reject_script = normalizeURL('resources/reject-install-worker.js');
+    var registration;
+
+    service_worker_unregister_and_register(t, script1, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'on activated, installing should be null');
+          assert_equals(registration.waiting, null,
+                        'on activated, waiting should be null');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on activated, the first script should be active');
+          return navigator.serviceWorker.register(reject_script, {scope:scope});
+        })
+      .then(function(r) {
+          registration = r;
+          assert_equals(registration.installing.scriptURL, reject_script,
+                        'on update, the second script should be installing');
+          assert_equals(registration.waiting, null,
+                        'on update, waiting should be null');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on update, the first script should be active');
+          return wait_for_state(t, registration.installing, 'redundant');
+        })
+      .then(function() {
+          assert_equals(registration.installing, null,
+                        'on redundant, installing should be null');
+          assert_equals(registration.waiting, null,
+                        'on redundant, waiting should be null');
+          assert_equals(registration.active.scriptURL, script1,
+                        'on redundant, the first script should be active');
+          return registration.unregister();
+        })
+      .then(function() {
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Register then register new script that does not install');
+
+async_test(function(t) {
+    var scope = 'resources/scope/register-new-script-controller';
+    var iframe;
+    var registration;
+
+    service_worker_unregister_and_register(t, script1, scope)
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+          iframe = frame;
+          return navigator.serviceWorker.register(script2, { scope: scope })
+        })
+      .then(function(r) {
+          registration = r;
+          return wait_for_state(t, registration.installing, 'installed');
+        })
+      .then(function() {
+          var sw_container = iframe.contentWindow.navigator.serviceWorker;
+          assert_equals(sw_container.controller.scriptURL, script1,
+                        'the old version should control the old doc');
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+          var sw_container = frame.contentWindow.navigator.serviceWorker;
+          assert_equals(sw_container.controller.scriptURL, script1,
+                        'the old version should control a new doc');
+          var onactivated_promise = wait_for_state(t,
+                                                   registration.waiting,
+                                                   'activated');
+          frame.remove();
+          iframe.remove();
+          return onactivated_promise;
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+          var sw_container = frame.contentWindow.navigator.serviceWorker;
+          assert_equals(sw_container.controller.scriptURL, script2,
+                        'the new version should control a new doc');
+          frame.remove();
+          return registration.unregister();
+        })
+      .then(function() {
+          t.done();
+        })
+      .catch(unreached_rejection(t));
+  }, 'Register same-scope new script url effect on controller');
+
+</script>

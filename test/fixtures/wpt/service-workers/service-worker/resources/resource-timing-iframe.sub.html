@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="empty.js"></script>
+<script src="sample.js"></script>
+<script src="redirect.py?Redirect=empty.js"></script>
+<img src="square.png">
+<img src="https://{{hosts[alt][]}}:{{ports[https][0]}}/service-workers/service-worker/resources/square.png">
+<img src="missing.jpg">
+<img src="https://{{hosts[alt][]}}:{{ports[https][0]}}/service-workers/service-worker/resources/missing.asis">
+<img src='missing.jpg?SWRespondsWithFetch'>
+<script src='empty-worker.js'></script>

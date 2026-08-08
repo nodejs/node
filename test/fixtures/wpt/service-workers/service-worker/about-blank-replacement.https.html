@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<title>Service Worker: about:blank replacement handling</title>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+// This test attempts to verify various initial about:blank document
+// creation is accurately reflected via the Clients API.  The goal is
+// for Clients API to reflect what the browser actually does and not
+// to make special cases for the API.
+//
+// If your browser does not create an about:blank document in certain
+// cases then please just mark the test expected fail for now.  The
+// reuse of globals from about:blank documents to the final load document
+// has particularly bad interop at the moment.  Hopefully we can evolve
+// tests like this to eventually align browsers.
+
+const worker = 'resources/about-blank-replacement-worker.js';
+
+// Helper routine that creates an iframe that internally has some kind
+// of nested window.  The nested window could be another iframe or
+// it could be a popup window.
+function createFrameWithNestedWindow(url) {
+  return new Promise((resolve, reject) => {
+    let frame = document.createElement('iframe');
+    frame.src = url;
+    document.body.appendChild(frame);
+
+    window.addEventListener('message', function onMsg(evt) {
+      if (evt.data.type !== 'NESTED_LOADED') {
+        return;
+      }
+      window.removeEventListener('message', onMsg);
+      if (evt.data.result && evt.data.result.startsWith('failure:')) {
+        reject(evt.data.result);
+        return;
+      }
+      resolve(frame);
+    });
+  });
+}
+
+// Helper routine to request the given worker find the client with
+// the specified URL using the clients.matchAll() API.
+function getClientIdByURL(worker, url) {
+  return new Promise(resolve => {
+    navigator.serviceWorker.addEventListener('message', function onMsg(evt) {
+      if (evt.data.type !== 'GET_CLIENT_ID') {
+        return;
+      }
+      navigator.serviceWorker.removeEventListener('message', onMsg);
+      resolve(evt.data.result);
+    });
+    worker.postMessage({ type: 'GET_CLIENT_ID', url: url.toString() });
+  });
+}
+
+async function doAsyncTest(t, scope) {
+  let reg = await service_worker_unregister_and_register(t, worker, scope);
+
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  await wait_for_state(t, reg.installing, 'activated');
+
+  // Load the scope as a frame.  We expect this in turn to have a nested
+  // iframe.  The service worker will intercept the load of the nested
+  // iframe and populate its body with the client ID of the initial
+  // about:blank document it sees via clients.matchAll().
+  let frame = await createFrameWithNestedWindow(scope);
+  let initialResult = frame.contentWindow.nested().document.body.textContent;
+  assert_false(initialResult.startsWith('failure:'), `result: ${initialResult}`);
+
+  assert_equals(frame.contentWindow.navigator.serviceWorker.controller.scriptURL,
+                frame.contentWindow.nested().navigator.serviceWorker.controller.scriptURL,
+                'nested about:blank should have same controlling service worker');
+
+  // Next, ask the service worker to find the final client ID for the fully
+  // loaded nested frame.
+  let nestedURL = new URL(frame.contentWindow.nested().location);
+  let finalResult = await getClientIdByURL(reg.active, nestedURL);
+  assert_false(finalResult.startsWith('failure:'), `result: ${finalResult}`);
+
+  // If the nested frame doesn't have a URL to load, then there is no fetch
+  // event and the body should be empty.  We can't verify the final client ID
+  // against anything.
+  if (nestedURL.href === 'about:blank' ||
+      nestedURL.href === 'about:srcdoc') {
+    assert_equals('', initialResult, 'about:blank text content should be blank');
+  }
+
+  // If the nested URL is not about:blank, though, then the fetch event handler
+  // should have populated the body with the client id of the initial about:blank.
+  // Verify the final client id matches.
+  else {
+    assert_equals(initialResult, finalResult, 'client ID values should match');
+  }
+
+  frame.remove();
+}
+
+promise_test(async function(t) {
+  // Execute a test where the nested frame is simply loaded normally.
+  await doAsyncTest(t, 'resources/about-blank-replacement-frame.py');
+}, 'Initial about:blank is controlled, exposed to clients.matchAll(), and ' +
+   'matches final Client.');
+
+promise_test(async function(t) {
+  // Execute a test where the nested frame is modified immediately by
+  // its parent.  In this case we add a message listener so the service
+  // worker can ping the client to verify its existence.  This ping-pong
+  // check is performed during the initial load and when verifying the
+  // final loaded client.
+  await doAsyncTest(t, 'resources/about-blank-replacement-ping-frame.py');
+}, 'Initial about:blank modified by parent is controlled, exposed to ' +
+   'clients.matchAll(), and matches final Client.');
+
+promise_test(async function(t) {
+  // Execute a test where the nested window is a popup window instead of
+  // an iframe.  This should behave the same as the simple iframe case.
+  await doAsyncTest(t, 'resources/about-blank-replacement-popup-frame.py');
+}, 'Popup initial about:blank is controlled, exposed to clients.matchAll(), and ' +
+   'matches final Client.');
+
+promise_test(async function(t) {
+  const scope = 'resources/about-blank-replacement-uncontrolled-nested-frame.html';
+
+  let reg = await service_worker_unregister_and_register(t, worker, scope);
+
+  t.add_cleanup(() => service_worker_unregister(t, scope));
+
+  await wait_for_state(t, reg.installing, 'activated');
+
+  // Load the scope as a frame.  We expect this in turn to have a nested
+  // iframe.  Unlike the other tests in this file the nested iframe URL
+  // is not covered by a service worker scope.  It should end up as
+  // uncontrolled even though its initial about:blank is controlled.
+  let frame = await createFrameWithNestedWindow(scope);
+  let nested = frame.contentWindow.nested();
+  let initialResult = nested.document.body.textContent;
+
+  // The nested iframe should not have been intercepted by the service
+  // worker.  The empty.html nested frame has "hello world" for its body.
+  assert_equals(initialResult.trim(), 'hello world', `result: ${initialResult}`);
+
+  assert_not_equals(frame.contentWindow.navigator.serviceWorker.controller, null,
+                'outer frame should be controlled');
+
+  assert_equals(nested.navigator.serviceWorker.controller, null,
+                'nested frame should not be controlled');
+
+  frame.remove();
+}, 'Initial about:blank is controlled, exposed to clients.matchAll(), and ' +
+   'final Client is not controlled by a service worker.');
+
+promise_test(async function(t) {
+  // Execute a test where the nested frame is an iframe without a src
+  // attribute.  This simple nested about:blank should still inherit the
+  // controller and be visible to clients.matchAll().
+  await doAsyncTest(t, 'resources/about-blank-replacement-blank-nested-frame.html');
+}, 'Simple about:blank is controlled and is exposed to clients.matchAll().');
+
+promise_test(async function(t) {
+  // Execute a test where the nested frame is an iframe using a non-empty
+  // srcdoc containing only a tag pair so its textContent is still empty.
+  // This nested iframe should still inherit the controller and be visible
+  // to clients.matchAll().
+  await doAsyncTest(t, 'resources/about-blank-replacement-srcdoc-nested-frame.html');
+}, 'Nested about:srcdoc is controlled and is exposed to clients.matchAll().');
+
+promise_test(async function(t) {
+  // Execute a test where the nested frame is dynamically added without a src
+  // attribute.  This simple nested about:blank should still inherit the
+  // controller and be visible to clients.matchAll().
+  await doAsyncTest(t, 'resources/about-blank-replacement-blank-dynamic-nested-frame.html');
+}, 'Dynamic about:blank is controlled and is exposed to clients.matchAll().');
+
+</script>
+</body>

@@ -1,0 +1,23 @@
+<!doctype html>
+<title>dedicated and shared worker in same page</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function() {
+  var worker = new Worker('001.js');
+  worker.onmessage = this.step_func(function(e) {
+    assert_equals(e.data, 'dedicated');
+    this.done();
+  });
+  worker.postMessage('dedicated');
+}, 'dedicated');
+async_test(function() {
+  var shared = new SharedWorker('001.js', '');
+  shared.port.onmessage = this.step_func(function(e) {
+    assert_equals(e.data, 'shared');
+    this.done();
+  });
+  shared.port.postMessage('shared');
+}, 'shared');
+</script>

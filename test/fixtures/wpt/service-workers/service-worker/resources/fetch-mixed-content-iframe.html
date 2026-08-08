@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="test-helpers.sub.js?pipe=sub"></script>
+<script>
+var params = get_query_params(location.href);
+var SCOPE = 'fetch-mixed-content-iframe-inscope-to-' + params['target'] + '.html';
+var URL = 'fetch-rewrite-worker.js';
+var host_info = get_host_info();
+
+window.addEventListener('message', on_message, false);
+
+navigator.serviceWorker.getRegistration(SCOPE)
+  .then(function(registration) {
+      if (registration)
+        return registration.unregister();
+    })
+  .then(function() {
+      return navigator.serviceWorker.register(URL, {scope: SCOPE});
+    })
+  .then(function(registration) {
+      return new Promise(function(resolve) {
+          registration.addEventListener('updatefound', function() {
+              resolve(registration.installing);
+            });
+        });
+    })
+  .then(function(worker) {
+      worker.addEventListener('statechange', on_state_change);
+    })
+  .catch(function(reason) {
+      window.parent.postMessage({results: 'FAILURE: ' + reason.message},
+                                host_info['HTTPS_ORIGIN']);
+     });
+
+function on_state_change(event) {
+  if (event.target.state != 'activated')
+    return;
+  var frame = document.createElement('iframe');
+  frame.src = SCOPE;
+  document.body.appendChild(frame);
+}
+
+function on_message(e) {
+  navigator.serviceWorker.getRegistration(SCOPE)
+    .then(function(registration) {
+        if (registration)
+          return registration.unregister();
+      })
+    .then(function() {
+      window.parent.postMessage(e.data, host_info['HTTPS_ORIGIN']);
+    })
+    .catch(function(reason) {
+        window.parent.postMessage({results: 'FAILURE: ' + reason.message},
+                                  host_info['HTTPS_ORIGIN']);
+     });
+}
+
+function get_query_params(url) {
+  var search = (new URL(url)).search;
+  if (!search) {
+    return {};
+  }
+  var ret = {};
+  var params = search.substring(1).split('&');
+  params.forEach(function(param) {
+      var element = param.split('=');
+      ret[decodeURIComponent(element[0])] = decodeURIComponent(element[1]);
+    });
+  return ret;
+}
+</script>

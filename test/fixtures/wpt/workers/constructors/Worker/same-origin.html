@@ -1,0 +1,65 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>same-origin checks; the script is in a script element</title>
+<meta name="timeout" content="long">
+<link rel=help href="https://html.spec.whatwg.org/multipage/workers.html#dom-worker">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+// Needed to prevent a race condition if a worker throws an exception that may or may
+// not propogate to the window before the tests finish
+setup({allow_uncaught_exception: true});
+
+function testWorkerHelper(t, script) {
+  var worker = new Worker(script);
+  worker.onerror = t.step_func_done(function(e) {
+    assert_true(e instanceof Event);
+  });
+}
+
+test(function() {
+  assert_throws_dom("SyntaxError", function() { new Worker('https://test:test'); });
+}, "non-parsable URL");
+
+async_test(function(t) {
+  // Parses fine as a URL, fails to fetch according to Fetch
+  testWorkerHelper(t, 'unsupported:');
+}, "unsupported_scheme");
+
+async_test(function() {
+  var worker = new Worker('data:,postMessage(1);');
+  worker.onmessage = this.step_func_done(function(e) {
+    assert_equals(e.data, 1);
+  });
+}, "data_url");
+
+async_test(function(t) {
+  testWorkerHelper(t, 'about:blank');
+}, "about_blank");
+
+async_test(function(t) {
+  testWorkerHelper(t, 'http://www.example.invalid/');
+}, "example_invalid");
+
+async_test(function(t) {
+  testWorkerHelper(t, location.protocol+'//'+location.hostname+':81/');
+}, "port_81");
+
+async_test(function(t) {
+  testWorkerHelper(t, 'https://'+location.hostname+':80/');
+}, "https_port_80");
+
+async_test(function(t) {
+  testWorkerHelper(t, 'https://'+location.hostname+':8000/');
+}, "https_port_8000");
+
+async_test(function(t) {
+  testWorkerHelper(t, 'http://'+location.hostname+':8012/');
+}, "http_post_8012");
+
+async_test(function(t) {
+  testWorkerHelper(t,'javascript:""');
+}, "javascript_url");
+
+</script>

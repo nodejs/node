@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>register on a secure page after redirect from an non-secure url</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+'use strict';
+
+var host_info = get_host_info();
+
+// Loads a non-secure url in a new window, which redirects to |target_url|.
+// That page then registers a service worker, and messages back with the result.
+// Returns a promise that resolves with the result.
+function redirect_and_register(target_url) {
+  var redirect_url = host_info.HTTP_REMOTE_ORIGIN + base_path() +
+    'resources/redirect.py?Redirect=';
+  var child = window.open(redirect_url + encodeURIComponent(target_url));
+  return new Promise(resolve => {
+        window.addEventListener('message', e => resolve(e.data));
+      })
+    .then(function(result) {
+        child.close();
+        return result;
+      });
+}
+
+promise_test(function(t) {
+  var target_url = window.location.origin + base_path() +
+      'resources/http-to-https-redirect-and-register-iframe.html';
+
+    return redirect_and_register(target_url)
+      .then(result => {
+          assert_equals(result, 'OK');
+        });
+  }, 'register on a secure page after redirect from an non-secure url');
+
+promise_test(function(t) {
+    var target_url = host_info.HTTP_REMOTE_ORIGIN + base_path() +
+      'resources/http-to-https-redirect-and-register-iframe.html';
+
+    return redirect_and_register(target_url)
+      .then(result => {
+          assert_equals(result, 'FAIL: navigator.serviceWorker is undefined');
+        });
+  }, 'register on a non-secure page after redirect from an non-secure url');
+</script>
+</body>

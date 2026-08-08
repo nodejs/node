@@ -1,0 +1,208 @@
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+var host_info = get_host_info();
+
+function get_boundary(headers) {
+  var reg = new RegExp('multipart\/form-data; boundary=(.*)');
+  for (var i = 0; i < headers.length; ++i) {
+    if (headers[i][0] != 'content-type') {
+      continue;
+    }
+    var regResult = reg.exec(headers[i][1]);
+    if (!regResult) {
+      continue;
+    }
+    return regResult[1];
+  }
+  return '';
+}
+
+function xhr_send(url_base, method, data, with_credentials) {
+  return new Promise(function(resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.onload = function() {
+        resolve(JSON.parse(xhr.response));
+      };
+      xhr.onerror = function() {
+        reject('XHR should succeed.');
+      };
+      xhr.responseType = 'text';
+      if (with_credentials) {
+        xhr.withCredentials = true;
+      }
+      xhr.open(method, url_base + '/sample?test', true);
+      xhr.send(data);
+    });
+}
+
+function get_sorted_header_name_list(headers) {
+  var header_names = [];
+  var idx, name;
+
+  for (idx = 0; idx < headers.length; ++idx) {
+    name = headers[idx][0];
+    // The `Accept-Language` header is optional; its presence should not
+    // influence test results.
+    //
+    // > 4. If request’s header list does not contain `Accept-Language`, user
+    // >    agents should append `Accept-Language`/an appropriate value to
+    // >    request's header list.
+    //
+    // https://fetch.spec.whatwg.org/#fetching
+    if (name === 'accept-language') {
+      continue;
+    }
+
+    header_names.push(name);
+  }
+  header_names.sort();
+  return header_names;
+}
+
+function get_header_test() {
+  return xhr_send(host_info['HTTPS_ORIGIN'], 'GET', '', false)
+    .then(function(response) {
+        assert_array_equals(
+          get_sorted_header_name_list(response.headers),
+          ["accept"],
+          'event.request has the expected headers for same-origin GET.');
+      });
+}
+
+function post_header_test() {
+  return xhr_send(host_info['HTTPS_ORIGIN'], 'POST', '', false)
+    .then(function(response) {
+        assert_array_equals(
+          get_sorted_header_name_list(response.headers),
+          ["accept", "content-type"],
+          'event.request has the expected headers for same-origin POST.');
+      });
+}
+
+function cross_origin_get_header_test() {
+  return xhr_send(host_info['HTTPS_REMOTE_ORIGIN'], 'GET', '', false)
+    .then(function(response) {
+        assert_array_equals(
+          get_sorted_header_name_list(response.headers),
+          ["accept"],
+          'event.request has the expected headers for cross-origin GET.');
+      });
+}
+
+function cross_origin_post_header_test() {
+  return xhr_send(host_info['HTTPS_REMOTE_ORIGIN'], 'POST', '', false)
+    .then(function(response) {
+        assert_array_equals(
+          get_sorted_header_name_list(response.headers),
+          ["accept", "content-type"],
+          'event.request has the expected headers for cross-origin POST.');
+      });
+}
+
+function string_test() {
+  return xhr_send(host_info['HTTPS_ORIGIN'], 'POST', 'test string', false)
+    .then(function(response) {
+        assert_equals(response.method, 'POST');
+        assert_equals(response.body, 'test string');
+      });
+}
+
+function blob_test() {
+  return xhr_send(host_info['HTTPS_ORIGIN'], 'POST', new Blob(['test blob']),
+                  false)
+    .then(function(response) {
+        assert_equals(response.method, 'POST');
+        assert_equals(response.body, 'test blob');
+      });
+}
+
+function custom_method_test() {
+  return xhr_send(host_info['HTTPS_ORIGIN'], 'XXX', 'test string xxx', false)
+    .then(function(response) {
+        assert_equals(response.method, 'XXX');
+        assert_equals(response.body, 'test string xxx');
+      });
+}
+
+function options_method_test() {
+  return xhr_send(host_info['HTTPS_ORIGIN'], 'OPTIONS', 'test string xxx', false)
+    .then(function(response) {
+        assert_equals(response.method, 'OPTIONS');
+        assert_equals(response.body, 'test string xxx');
+      });
+}
+
+function form_data_test() {
+    var formData = new FormData();
+    formData.append('sample string', '1234567890');
+    formData.append('sample blob', new Blob(['blob content']));
+    formData.append('sample file', new File(['file content'], 'file.dat'));
+    return xhr_send(host_info['HTTPS_ORIGIN'], 'POST', formData, false)
+    .then(function(response) {
+        assert_equals(response.method, 'POST');
+        var boundary = get_boundary(response.headers);
+        var expected_body =
+          '--' + boundary + '\r\n' +
+          'Content-Disposition: form-data; name="sample string"\r\n' +
+          '\r\n' +
+          '1234567890\r\n' +
+          '--' + boundary + '\r\n' +
+          'Content-Disposition: form-data; name="sample blob"; ' +
+          'filename="blob"\r\n' +
+          'Content-Type: application/octet-stream\r\n' +
+          '\r\n' +
+          'blob content\r\n' +
+          '--' + boundary + '\r\n' +
+          'Content-Disposition: form-data; name="sample file"; ' +
+          'filename="file.dat"\r\n' +
+          'Content-Type: application/octet-stream\r\n' +
+          '\r\n' +
+          'file content\r\n' +
+          '--' + boundary + '--\r\n';
+        assert_equals(response.body, expected_body, "form data response content is as expected");
+      });
+}
+
+function mode_credentials_test() {
+  return xhr_send(host_info['HTTPS_ORIGIN'], 'GET', '', false)
+    .then(function(response){
+        assert_equals(response.mode, 'cors');
+        assert_equals(response.credentials, 'same-origin');
+        return xhr_send(host_info['HTTPS_ORIGIN'], 'GET', '', true);
+      })
+    .then(function(response){
+        assert_equals(response.mode, 'cors');
+        assert_equals(response.credentials, 'include');
+        return xhr_send(host_info['HTTPS_REMOTE_ORIGIN'], 'GET', '', false);
+      })
+    .then(function(response){
+        assert_equals(response.mode, 'cors');
+        assert_equals(response.credentials, 'same-origin');
+        return xhr_send(host_info['HTTPS_REMOTE_ORIGIN'], 'GET', '', true);
+      })
+    .then(function(response){
+        assert_equals(response.mode, 'cors');
+        assert_equals(response.credentials, 'include');
+      });
+}
+
+function data_url_test() {
+  return new Promise(function(resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+          resolve(xhr.response);
+        };
+        xhr.onerror = function() {
+          reject('XHR should succeed.');
+        };
+        xhr.responseType = 'text';
+        xhr.open('GET', 'data:text/html,Foobar', true);
+        xhr.send();
+      })
+    .then(function(data) {
+        assert_equals(data, 'Foobar');
+      });
+}
+</script>

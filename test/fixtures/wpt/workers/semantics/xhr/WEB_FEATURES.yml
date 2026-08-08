@@ -1,0 +1,7 @@
+rules:
+- 003.html: [shared-workers]
+- 004.html: [shared-workers]
+- 006.html: [shared-workers]
+- 001.html: [dedicated-workers]
+- 002.html: [dedicated-workers]
+- 005.html: [dedicated-workers]

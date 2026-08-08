@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test clients.get(resultingClientId)</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+const scope = "resources/";
+let worker;
+
+// Setup. Keep this as the first promise_test.
+promise_test(async (t) => {
+  const registration = await service_worker_unregister_and_register(
+      t, 'resources/get-resultingClientId-worker.js',
+      scope);
+  worker = registration.installing;
+  await wait_for_state(t, worker, 'activated');
+}, 'global setup');
+
+// Sends |command| to the worker and returns a promise that resolves to its
+// response. There should only be one inflight command at a time.
+async function sendCommand(command) {
+  const saw_message = new Promise((resolve) => {
+    navigator.serviceWorker.onmessage = (event) => {
+      resolve(event.data);
+    };
+  });
+  worker.postMessage(command);
+  return saw_message;
+}
+
+// Wrapper for 'startTest' command. Tells the worker a test is starting,
+// so it resets state and keeps itself alive until 'finishTest'.
+async function startTest(t) {
+  const result = await sendCommand({command: 'startTest'});
+  assert_equals(result, 'ok', 'startTest');
+
+  t.add_cleanup(async () => {
+    return finishTest();
+  });
+}
+
+// Wrapper for 'finishTest' command.
+async function finishTest() {
+  const result = await sendCommand({command: 'finishTest'});
+  assert_equals(result, 'ok', 'finishTest');
+}
+
+// Wrapper for 'getResultingClient' command. Tells the worker to return
+// clients.get(event.resultingClientId) for the navigation that occurs
+// during this test.
+//
+// The return value describes how clients.get() settled. It also includes
+// |queriedId| which is the id passed to clients.get() (the resultingClientId
+// in this case).
+//
+// Example value:
+// {
+//   queriedId: 'abc',
+//   promiseState: fulfilled,
+//   promiseValue: client,
+//   client: {
+//     id: 'abc',
+//     url: '//example.com/client'
+//   }
+// }
+async function getResultingClient() {
+  return sendCommand({command: 'getResultingClient'});
+}
+
+// Wrapper for 'getClient' command. Tells the worker to return
+// clients.get(|id|). The return value is as in the getResultingClient()
+// documentation.
+async function getClient(id) {
+  return sendCommand({command: 'getClient', id: id});
+}
+
+// Navigates to |url|. Returns the result of clients.get() on the
+// resultingClientId.
+async function navigateAndGetResultingClient(t, url) {
+  const resultPromise = getResultingClient();
+  const frame = await with_iframe(url);
+  t.add_cleanup(() => {
+    frame.remove();
+  });
+  const result = await resultPromise;
+  const resultingClientId = result.queriedId;
+
+  // First test clients.get(event.resultingClientId) inside the fetch event. The
+  // behavior of this is subtle due to the use of iframes and about:blank
+  // replacement. The spec probably requires that it resolve to the original
+  // about:blank client, and that later that client should be discarded after
+  // load if the load was to another origin. Implementations might differ. For
+  // now, this test just asserts that the promise resolves. See
+  // https://github.com/w3c/ServiceWorker/issues/1385.
+  assert_equals(result.promiseState, 'fulfilled',
+                'get(event.resultingClientId) in the fetch event should fulfill');
+
+  // Test clients.get() on the previous resultingClientId again. By this
+  // time the load finished, so it's more straightforward how this promise
+  // should settle. Return the result of this promise.
+  return await getClient(resultingClientId);
+}
+
+// Test get(resultingClientId) in the basic same-origin case.
+promise_test(async (t) => {
+  await startTest(t);
+
+  const url = new URL('resources/empty.html', window.location);
+  const result = await navigateAndGetResultingClient(t, url);
+  assert_equals(result.promiseState, 'fulfilled', 'promiseState');
+  assert_equals(result.promiseValue, 'client', 'promiseValue');
+  assert_equals(result.client.url, url.href, 'client.url',);
+  assert_equals(result.client.id, result.queriedId, 'client.id');
+}, 'get(resultingClientId) for same-origin document');
+
+// Test get(resultingClientId) when the response redirects to another origin.
+promise_test(async (t) => {
+  await startTest(t);
+
+  // Navigate to a URL that redirects to another origin.
+  const base_url = new URL('.', window.location);
+  const host_info = get_host_info();
+  const other_origin_url = new URL(base_url.pathname + 'resources/empty.html',
+                                   host_info['HTTPS_REMOTE_ORIGIN']);
+  const url = new URL('resources/empty.html', window.location);
+  const pipe = `status(302)|header(Location, ${other_origin_url})`;
+  url.searchParams.set('pipe', pipe);
+
+  // The original reserved client should have been discarded on cross-origin
+  // redirect.
+  const result = await navigateAndGetResultingClient(t, url);
+  assert_equals(result.promiseState, 'fulfilled', 'promiseState');
+  assert_equals(result.promiseValue, 'undefinedValue', 'promiseValue');
+}, 'get(resultingClientId) on cross-origin redirect');
+
+// Test get(resultingClientId) when the document is sandboxed to a unique
+// origin using a CSP HTTP response header.
+promise_test(async (t) => {
+  await startTest(t);
+
+  // Navigate to a URL that has CSP sandboxing set in the HTTP response header.
+  const url = new URL('resources/empty.html', window.location);
+  const pipe = 'header(Content-Security-Policy, sandbox)';
+  url.searchParams.set('pipe', pipe);
+
+  // The original reserved client should have been discarded upon loading
+  // the sandboxed document.
+  const result = await navigateAndGetResultingClient(t, url);
+  assert_equals(result.promiseState, 'fulfilled', 'promiseState');
+  assert_equals(result.promiseValue, 'undefinedValue', 'promiseValue');
+}, 'get(resultingClientId) for document sandboxed by CSP header');
+
+// Test get(resultingClientId) when the document is sandboxed with
+// allow-same-origin.
+promise_test(async (t) => {
+  await startTest(t);
+
+  // Navigate to a URL that has CSP sandboxing set in the HTTP response header.
+  const url = new URL('resources/empty.html', window.location);
+  const pipe = 'header(Content-Security-Policy, sandbox allow-same-origin)';
+  url.searchParams.set('pipe', pipe);
+
+  // The client should be the original reserved client, as it's same-origin.
+  const result = await navigateAndGetResultingClient(t, url);
+  assert_equals(result.promiseState, 'fulfilled', 'promiseState');
+  assert_equals(result.promiseValue, 'client', 'promiseValue');
+  assert_equals(result.client.url, url.href, 'client.url',);
+  assert_equals(result.client.id, result.queriedId, 'client.id');
+}, 'get(resultingClientId) for document sandboxed by CSP header with allow-same-origin');
+
+// Cleanup. Keep this as the last promise_test.
+promise_test(async (t) => {
+  return service_worker_unregister(t, scope);
+}, 'global cleanup');
+</script>

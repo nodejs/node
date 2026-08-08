@@ -129,6 +129,7 @@ class EnvironmentOptions : public Options {
   bool experimental_addon_modules = true;
   bool experimental_eventsource = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_ffi = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_web_worker = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_websocket = true;
   bool experimental_sqlite = HAVE_SQLITE;
   bool experimental_stream_iter = EXPERIMENTALS_DEFAULT_VALUE;

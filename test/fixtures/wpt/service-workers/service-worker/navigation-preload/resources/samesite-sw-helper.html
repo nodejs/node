@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Navigation Preload Same Site SW registrator</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="../../resources/test-helpers.sub.js"></script>
+<script>
+
+/**
+ *  This is a helper file to register/unregister service worker in a same-site
+ *  iframe.
+ **/
+
+async function messageToParent(msg) {
+  parent.postMessage(msg, '*');
+}
+
+onmessage = async (e) => {
+  // t is a , but the helper function needs a test object.
+  let t = {
+    step_func: (func) => func,
+  };
+  if (e.data === "Register") {
+    let reg = await service_worker_unregister_and_register(t, "samesite-worker.js", ".");
+    let worker = reg.installing;
+    await wait_for_state(t, worker, 'activated');
+    await messageToParent("SW Registered");
+  } else if (e.data == "Unregister") {
+    await service_worker_unregister(t, ".");
+    await messageToParent("SW Unregistered");
+  }
+}
+
+</script>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script>
+function fetch_url(url) {
+    return new Promise(function(resolve, reject) {
+        var request = new XMLHttpRequest();
+        request.addEventListener('load', function(event) {
+            if (request.status == 200)
+                resolve(request.response);
+            else
+                reject(Error(request.statusText));
+        });
+        request.open('GET', url);
+        request.send();
+    });
+}
+</script>

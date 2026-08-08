@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+var worker_url = 'resources/empty-worker.js';
+
+promise_test(async function(t) {
+    const scope = 'resources/scope/re-register-resolves-to-new-value';
+    const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+    t.add_cleanup(() => registration.unregister());
+
+    await wait_for_state(t, registration.installing, 'activated');
+    await registration.unregister();
+    const newRegistration = await navigator.serviceWorker.register(worker_url, { scope });
+    t.add_cleanup(() => newRegistration.unregister());
+
+    assert_not_equals(
+      registration, newRegistration,
+      'register should resolve to a new value'
+    );
+  }, 'Unregister then register resolves to a new value');
+
+promise_test(async function(t) {
+  const scope = 'resources/scope/re-register-while-old-registration-in-use';
+  const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+  t.add_cleanup(() => registration.unregister());
+
+  await wait_for_state(t, registration.installing, 'activated');
+  const frame = await with_iframe(scope);
+  t.add_cleanup(() => frame.remove());
+
+  await registration.unregister();
+  const newRegistration = await navigator.serviceWorker.register(worker_url, { scope });
+  t.add_cleanup(() => newRegistration.unregister());
+
+  assert_not_equals(
+    registration, newRegistration,
+    'Unregister and register should always create a new registration'
+  );
+}, 'Unregister then register does not resolve to the original value even if the registration is in use.');
+
+promise_test(function(t) {
+    var scope = 'resources/scope/re-register-does-not-affect-existing-controllee';
+    var iframe;
+    var registration;
+    var controller;
+
+    return service_worker_unregister_and_register(t, worker_url, scope)
+      .then(function(r) {
+          t.add_cleanup(function() {
+            return service_worker_unregister(t, scope);
+          });
+
+          registration = r;
+          return wait_for_state(t, r.installing, 'activated');
+        })
+      .then(function() {
+          return with_iframe(scope);
+        })
+      .then(function(frame) {
+          iframe = frame;
+          controller = iframe.contentWindow.navigator.serviceWorker.controller;
+          return registration.unregister();
+        })
+      .then(function() {
+          return navigator.serviceWorker.register(worker_url, { scope: scope });
+        })
+      .then(function(newRegistration) {
+          assert_equals(registration.installing, null,
+                        'installing version is null');
+          assert_equals(registration.waiting, null, 'waiting version is null');
+          assert_equals(
+              iframe.contentWindow.navigator.serviceWorker.controller,
+              controller,
+              'the worker from the first registration is the controller');
+          iframe.remove();
+        });
+  }, 'Unregister then register does not affect existing controllee');
+
+promise_test(async function(t) {
+  const scope = 'resources/scope/resurrection';
+  const altWorkerURL = worker_url + '?alt';
+  const registration = await service_worker_unregister_and_register(t, worker_url, scope);
+  t.add_cleanup(() => registration.unregister());
+
+  await wait_for_state(t, registration.installing, 'activating');
+  const iframe = await with_iframe(scope);
+  t.add_cleanup(() => iframe.remove());
+
+  await registration.unregister();
+  const newRegistration = await navigator.serviceWorker.register(altWorkerURL, { scope });
+  t.add_cleanup(() => newRegistration.unregister());
+
+  assert_equals(newRegistration.active, null, 'Registration is new');
+
+  await wait_for_state(t, newRegistration.installing, 'activating');
+
+  const newIframe = await with_iframe(scope);
+  t.add_cleanup(() => newIframe.remove());
+
+  const iframeController = iframe.contentWindow.navigator.serviceWorker.controller;
+  const newIframeController = newIframe.contentWindow.navigator.serviceWorker.controller;
+
+  assert_not_equals(iframeController, newIframeController, 'iframes have different controllers');
+}, 'Unregister then register does not resurrect the registration');
+</script>

@@ -1,0 +1,23 @@
+<!--
+postMessage('FAIL');
+/*
+-->
+<!doctype html>
+<title>undefined as argument</title>
+<link rel=help href="http://www.whatwg.org/html/#dom-worker">
+<link rel=help href="http://dev.w3.org/2006/webapi/WebIDL/#es-DOMString">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var t = async_test();
+t.step(function() {
+  var worker = new Worker(undefined);
+  worker.addEventListener('message', t.step_func_done(function(e) {
+    assert_equals(e.data, 'undefined')
+  }), false);
+});
+</script>
+<!--
+*/
+//-->

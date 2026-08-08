@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>NavigationPreloadManager.getState</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="../resources/test-helpers.sub.js"></script>
+<script src="resources/helpers.js"></script>
+<body>
+<script>
+function post_and_wait_for_reply(worker, message) {
+  return new Promise(resolve => {
+      navigator.serviceWorker.onmessage = e => { resolve(e.data); };
+      worker.postMessage(message);
+    });
+}
+
+promise_test(t => {
+  const scope = '../resources/get-state';
+  const script = '../resources/empty-worker.js';
+  var np;
+
+  return service_worker_unregister_and_register(t, script, scope)
+    .then(r => {
+        np = r.navigationPreload;
+        add_completion_callback(() => r.unregister());
+        return wait_for_state(t, r.installing, 'activated');
+      })
+    .then(() => np.getState())
+    .then(state => {
+        expect_navigation_preload_state(state, false, 'true', 'default state');
+        return np.enable();
+      })
+    .then(result => {
+        assert_equals(result, undefined,
+                      'enable() should resolve to undefined');
+        return np.getState();
+      })
+    .then(state => {
+        expect_navigation_preload_state(state, true, 'true',
+                                        'state after enable()');
+        return np.disable();
+      })
+    .then(result => {
+        assert_equals(result, undefined,
+                      'disable() should resolve to undefined');
+        return np.getState();
+      })
+    .then(state => {
+        expect_navigation_preload_state(state, false, 'true',
+                                        'state after disable()');
+        return np.setHeaderValue('dreams that cannot be');
+      })
+    .then(result => {
+        assert_equals(result, undefined,
+                      'setHeaderValue() should resolve to undefined');
+        return np.getState();
+      })
+    .then(state => {
+        expect_navigation_preload_state(state, false, 'dreams that cannot be',
+                                        'state after setHeaderValue()');
+        return np.setHeaderValue('').then(() => np.getState());
+      })
+    .then(state => {
+        expect_navigation_preload_state(state, false, '',
+                                        'after setHeaderValue to empty string');
+        return np.setHeaderValue(null).then(() => np.getState());
+      })
+    .then(state => {
+        expect_navigation_preload_state(state, false, 'null',
+                                        'after setHeaderValue to null');
+        return promise_rejects_js(t,
+            TypeError,
+            np.setHeaderValue('what\uDC00\uD800this'),
+            'setHeaderValue() should throw if passed surrogates');
+      })
+    .then(() => {
+        return promise_rejects_js(t,
+            TypeError,
+            np.setHeaderValue('zer\0o'),
+            'setHeaderValue() should throw if passed \\0');
+      })
+    .then(() => {
+        return promise_rejects_js(t,
+            TypeError,
+            np.setHeaderValue('\rcarriage'),
+            'setHeaderValue() should throw if passed \\r');
+      })
+    .then(() => {
+        return promise_rejects_js(t,
+            TypeError,
+            np.setHeaderValue('newline\n'),
+            'setHeaderValue() should throw if passed \\n');
+      })
+    .then(() => {
+        return promise_rejects_js(t,
+            TypeError,
+            np.setHeaderValue(),
+            'setHeaderValue() should throw if passed undefined');
+      })
+    .then(() => np.enable().then(() => np.getState()))
+    .then(state => {
+        expect_navigation_preload_state(state, true, 'null',
+                                        'enable() should not change header');
+      });
+  }, 'getState');
+
+// This test sends commands to a worker to call enable()/disable()/getState().
+// It checks the results from the worker and verifies that they match the
+// navigation preload state accessible from the page.
+promise_test(t => {
+  const scope = 'resources/get-state-worker';
+  const script = 'resources/get-state-worker.js';
+  var worker;
+  var registration;
+
+  return service_worker_unregister_and_register(t, script, scope)
+    .then(r => {
+        registration = r;
+        add_completion_callback(() => registration.unregister());
+        worker = registration.installing;
+        return wait_for_state(t, worker, 'activated');
+      })
+    .then(() => {
+        // Call getState().
+        return post_and_wait_for_reply(worker, 'getState');
+      })
+    .then(data => {
+        return Promise.all([data, registration.navigationPreload.getState()]);
+      })
+    .then(states => {
+        expect_navigation_preload_state(states[0], false, 'true',
+                                        'default state (from worker)');
+        expect_navigation_preload_state(states[1], false, 'true',
+                                        'default state (from page)');
+        // Call enable() and then getState().
+        return post_and_wait_for_reply(worker, 'enable');
+      })
+    .then(data => {
+        assert_equals(data, undefined, 'enable() should resolve to undefined');
+        return Promise.all([
+            post_and_wait_for_reply(worker, 'getState'),
+            registration.navigationPreload.getState()
+          ]);
+      })
+    .then(states => {
+        expect_navigation_preload_state(states[0], true, 'true',
+                                        'state after enable() (from worker)');
+        expect_navigation_preload_state(states[1], true, 'true',
+                                        'state after enable() (from page)');
+        // Call disable() and then getState().
+        return post_and_wait_for_reply(worker, 'disable');
+      })
+    .then(data => {
+        assert_equals(data, undefined,
+                      '.disable() should resolve to undefined');
+        return Promise.all([
+            post_and_wait_for_reply(worker, 'getState'),
+            registration.navigationPreload.getState()
+          ]);
+      })
+    .then(states => {
+        expect_navigation_preload_state(states[0], false, 'true',
+                                        'state after disable() (from worker)');
+        expect_navigation_preload_state(states[1], false, 'true',
+                                        'state after disable() (from page)');
+        return post_and_wait_for_reply(worker, 'setHeaderValue');
+      })
+    .then(data => {
+        assert_equals(data, undefined,
+                      '.setHeaderValue() should resolve to undefined');
+        return Promise.all([
+            post_and_wait_for_reply(worker, 'getState'),
+            registration.navigationPreload.getState()]);
+      })
+    .then(states => {
+        expect_navigation_preload_state(
+            states[0], false, 'insightful',
+            'state after setHeaderValue() (from worker)');
+        expect_navigation_preload_state(
+            states[1], false, 'insightful',
+            'state after setHeaderValue() (from page)');
+      });
+  }, 'getState from a worker');
+
+// This tests navigation preload API when there is no active worker. It calls
+// the API from the main page and then from the worker itself.
+promise_test(t => {
+  const scope = 'resources/wait-for-activate-worker';
+  const script = 'resources/wait-for-activate-worker.js';
+  var registration;
+  var np;
+  return service_worker_unregister_and_register(t, script, scope)
+    .then(r => {
+        registration = r;
+        np = registration.navigationPreload;
+        add_completion_callback(() => registration.unregister());
+        return Promise.all([
+            promise_rejects_dom(
+                t, 'InvalidStateError', np.enable(),
+                'enable should reject if there is no active worker'),
+            promise_rejects_dom(
+                t, 'InvalidStateError', np.disable(),
+                'disable should reject if there is no active worker'),
+            promise_rejects_dom(
+                t, 'InvalidStateError', np.setHeaderValue('umm'),
+                'setHeaderValue should reject if there is no active worker')]);
+      })
+    .then(() => np.getState())
+    .then(state => {
+        expect_navigation_preload_state(state, false, 'true',
+                                        'state before activation');
+        return post_and_wait_for_reply(registration.installing, 'ping');
+      })
+    .then(result => assert_equals(result, 'PASS'));
+  }, 'no active worker');
+</script>
+</body>

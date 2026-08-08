@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Update on navigation</title>
+<script src='/resources/testharness.js'></script>
+<script src='/resources/testharnessreport.js'></script>
+<script src='resources/test-helpers.sub.js'></script>
+<script>
+promise_test(async (t) => {
+    var script = 'resources/update-fetch-worker.py';
+    var scope = 'resources/trickle.py?ms=1000&count=1';
+
+    const registration = await service_worker_unregister_and_register(t, script, scope);
+    t.add_cleanup(() => registration.unregister());
+
+    if (registration.installing)
+        await wait_for_state(t, registration.installing, 'activated');
+
+    const frame = await with_iframe(scope);
+    t.add_cleanup(() => frame.remove());
+}, 'The active service worker in charge of a navigation load should not be terminated as part of updating the registration');
+</script>

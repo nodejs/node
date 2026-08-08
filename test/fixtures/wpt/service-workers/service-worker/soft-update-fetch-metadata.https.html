@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>Test that soft update script fetches send the same Fetch Metadata headers as the initial fetches</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/utils.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+const scope = 'resources/';
+
+async function register_worker(t, scriptURL, options) {
+  await service_worker_unregister(t, scope);
+  const registration = await navigator.serviceWorker.register(scriptURL, options);
+  t.add_cleanup(() => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  return registration;
+}
+
+async function trigger_soft_update_and_get_records(recordsURL, expectedRecordCount) {
+  const frame = await with_iframe(scope + 'blank.html');
+  frame.remove();
+
+  let records = [];
+  let counter = 0;
+  do {
+    await new Promise(resolve => step_timeout(resolve, 50));
+    records = await (await fetch(recordsURL)).json();
+  } while (records.length < expectedRecordCount && ++counter < 100);
+
+  return records;
+}
+
+function assert_records(records, expectedRecordCount, expectedRecord, description) {
+  // We expect records[0] to be the registration triggered load and records[1] to be the soft update load.
+  assert_greater_than_equal(records.length, expectedRecordCount,
+                            `${description}, got ${JSON.stringify(records)}`);
+  for (let index = 0; index < records.length; ++index)
+    assert_object_equals(records[index], expectedRecord, `${description}, request #${index}`);
+}
+
+promise_test(async (t) => {
+  const scriptURL = `${scope}soft-update-fetch-metadata.py?token=${token()}&kind=classic`;
+  await register_worker(t, scriptURL);
+
+  const records = await trigger_soft_update_and_get_records(`${scriptURL}&get_records`, 2);
+  assert_records(records, 2, {
+    'service-worker': 'script',
+    'sec-fetch-dest': 'serviceworker',
+    'sec-fetch-mode': 'same-origin',
+    'sec-fetch-site': 'same-origin',
+    'url': new URL(scriptURL, window.location).toString(),
+  }, 'expected one install and one update check request for the main script');
+}, 'headers of the main script');
+
+promise_test(async (t) => {
+  const importToken = token();
+  const scriptURL = `${scope}soft-update-fetch-metadata.py?token=${token()}&kind=classic-with-import&importtoken=${importToken}`;
+  const importedScriptURL = `${scope}soft-update-fetch-metadata.py?token=${importToken}&kind=imported`;
+  await register_worker(t, scriptURL);
+
+  const records = await trigger_soft_update_and_get_records(`${importedScriptURL}&get_records`, 2);
+  assert_records(records, 2, {
+    'service-worker': null,
+    'sec-fetch-dest': 'script',
+    'sec-fetch-mode': 'no-cors',
+    'sec-fetch-site': 'same-origin',
+    'url': new URL(importedScriptURL, window.location).toString(),
+  }, 'expected one install and one update check request for the imported script');
+}, 'headers of a script imported by a classic script');
+
+promise_test(async (t) => {
+  const importToken = token();
+  const scriptURL = `${scope}soft-update-fetch-metadata.py?token=${token()}&kind=module-with-import&importtoken=${importToken}`;
+  const importedScriptURL = `${scope}soft-update-fetch-metadata.py?token=${importToken}&kind=imported`;
+  await register_worker(t, scriptURL, { type: 'module' });
+
+  const records = await trigger_soft_update_and_get_records(`${importedScriptURL}&get_records`, 2);
+  assert_records(records, 2, {
+    'url': window.location + importedScriptURL,
+    'service-worker': null,
+    'sec-fetch-dest': 'serviceworker',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'url': new URL(importedScriptURL, window.location).toString(),
+  }, 'expected one install and one update check request for the imported module script');
+}, 'headers of a script imported by a module script');
+</script>

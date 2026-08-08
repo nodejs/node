@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Cache Storage: Verify nested worker functionality</title>
+<link rel="help" href="https://w3c.github.io/ServiceWorker/#cache-storage">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+
+promise_test(async function(t) {
+   const worker = new Worker("cache-api-nested-worker1.js");
+   const result = await new Promise((resolve, reject) => {
+       worker.onmessage = e => resolve(e.data);
+       t.step_timeout(() => reject("test timed out"), 2000);
+   });
+   assert_equals(result, "PASS");
+}, "Cache API in nested worker");
+</script>

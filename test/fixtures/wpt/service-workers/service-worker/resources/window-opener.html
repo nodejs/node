@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8"/>
+<meta name="referrer" content="origin">
+<script>
+function onLoad() {
+  self.onmessage = evt => {
+    if (self.opener)
+      self.opener.postMessage(evt.data, '*');
+    else
+      self.top.postMessage(evt.data, '*');
+  }
+  const params = new URLSearchParams(self.location.search);
+  const w = window.open(params.get('target'));
+  self.addEventListener('unload', evt => w.close());
+}
+self.addEventListener('load', onLoad);
+</script>

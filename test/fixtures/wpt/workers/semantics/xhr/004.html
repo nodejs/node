@@ -1,0 +1,16 @@
+<!doctype html>
+<title>sync XMLHttpRequest in shared worker</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+var t = async_test();
+function runtest() {
+  var worker = new SharedWorker('004.js', '');
+  worker.port.onmessage = this.step_func(function(e) {
+    assert_equals(e.data, '');
+    this.done();
+  });
+}
+</script>
+<iframe src=001-1.xml onload="t.step(runtest);"></iframe>

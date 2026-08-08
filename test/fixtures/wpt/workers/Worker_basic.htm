@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title> Web Workers Basic Tests </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+function create_worker() {
+  return new Worker('./support/WorkerBasic.js');
+}
+
+test(function() {
+  var worker = create_worker();
+  assert_class_string(worker, "Worker");
+}, "Worker constructor");
+
+async_test(function(t) {
+  var worker = create_worker();
+  worker.onmessage = t.step_func_done(function(e) {
+    assert_equals(e.data, "Pass");
+  });
+  worker.postMessage("start");
+}, "MessageEvent.data");
+
+async_test(function(t) {
+  var worker = create_worker();
+  worker.addEventListener("message", t.step_func_done(function(e) {
+    assert_equals(e.type, "message");
+  }), true);
+  worker.postMessage("start");
+}, "MessageEvent.type");
+</script>

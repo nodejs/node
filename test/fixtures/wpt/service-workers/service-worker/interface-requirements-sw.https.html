@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>Service Worker Global Scope Interfaces</title>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+'use strict';
+
+// interface-requirements-worker.sub.js checks additional interface
+// requirements, on top of the basic IDL that is validated in
+// service-workers/idlharness.any.js
+service_worker_test(
+  'resources/interface-requirements-worker.sub.js',
+  'Interfaces and attributes in ServiceWorkerGlobalScope');
+</script>

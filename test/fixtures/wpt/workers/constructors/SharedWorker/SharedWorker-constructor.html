@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>Test SharedWorker constructor functionality.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  assert_throws_js(Error,
+                   function() {
+                     new SharedWorker({toString:function(){throw new Error()}})},
+                   'toString exception should be propagated');
+}, 'Test toString propagation exception.');
+
+test(() => {
+  assert_throws_js(TypeError,
+                   function() { new SharedWorker(); },
+                   'invoking SharedWorker constructor without arguments should result ' +
+                   'in an exception.')
+}, 'Test Sharedworker creation with no arguments');
+
+
+test(() => {
+  assert_throws_dom("SyntaxError",
+                    function() { var Sharedworker = new SharedWorker('http://invalid:123$'); },
+                    'Invoking SharedWorker constructor with invalid script URL should ' +
+                    'result in an exception.');
+}, 'Test invalid script URL.');
+
+</script>

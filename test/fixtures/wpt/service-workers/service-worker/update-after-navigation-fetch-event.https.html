@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<meta name=timeout content=long>
+<title>Service Worker: Update should be triggered after a navigation</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+async function cleanup(frame, registration) {
+  if (frame)
+    frame.remove();
+  if (registration)
+   await registration.unregister();
+}
+
+promise_test(async t => {
+  const script = 'resources/update_shell.py?filename=empty.js';
+  const scope = 'resources/scope/update';
+  let registration;
+  let frame;
+
+  async function run() {
+    registration = await service_worker_unregister_and_register(
+        t, script, scope);
+    await wait_for_state(t, registration.installing, 'activated');
+
+    // Navigation should trigger update.
+    frame = await with_iframe(scope);
+    await wait_for_update(t, registration);
+  }
+
+  try {
+    await run();
+  } finally {
+    await cleanup(frame, registration);
+  }
+}, 'Update should be triggered after a navigation (no fetch event worker).');
+
+promise_test(async t => {
+  const script = 'resources/update_shell.py?filename=simple-intercept-worker.js';
+  const scope = 'resources/scope/update';
+  let registration;
+  let frame;
+
+  async function run() {
+    registration = await service_worker_unregister_and_register(
+        t, script, scope);
+    await wait_for_state(t, registration.installing, 'activated');
+
+    // Navigation should trigger update (network fallback).
+    frame = await with_iframe(scope + '?ignore');
+    await wait_for_update(t, registration);
+
+    // Navigation should trigger update (respondWith called).
+    frame.src = scope + '?string';
+    await wait_for_update(t, registration);
+  }
+
+  try {
+    await run();
+  } finally {
+    await cleanup(frame, registration);
+  }
+}, 'Update should be triggered after a navigation (fetch event worker).');
+
+promise_test(async t => {
+  const script = 'resources/update_shell.py?filename=empty.js';
+  const scope = 'resources/';
+  let registration;
+  let frame;
+
+  async function run() {
+    registration = await service_worker_unregister_and_register(
+        t, script, scope);
+    await wait_for_state(t, registration.installing, 'activated');
+
+    // Navigation should trigger update. Don't use with_iframe as it waits for
+    // the onload event.
+    frame = document.createElement('iframe');
+    frame.src = 'resources/malformed-http-response.asis';
+    document.body.appendChild(frame);
+    await wait_for_update(t, registration);
+  }
+
+  try {
+    await run();
+  } finally {
+    await cleanup(frame, registration);
+  }
+}, 'Update should be triggered after a navigation (network error).');
+</script>

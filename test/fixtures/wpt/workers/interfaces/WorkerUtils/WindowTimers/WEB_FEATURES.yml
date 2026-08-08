@@ -1,0 +1,6 @@
+rules:
+- 003.html: [setinterval]
+- 004.html: [setinterval]
+- 005.html: [setinterval]
+- 001.html: [settimeout]
+- 002.html: [settimeout]

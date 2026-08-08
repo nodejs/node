@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<title>Service Worker: Mixed content of fetch()</title>
+<meta name=timeout content=long>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<body></body>
+<script>
+async_test(function(t) {
+    var host_info = get_host_info();
+    window.addEventListener('message', t.step_func(on_message), false);
+    with_iframe(
+      host_info['HTTPS_ORIGIN'] + base_path() +
+      'resources/fetch-mixed-content-iframe.html?target=outscope');
+    function on_message(e) {
+      assert_equals(e.data.results, 'finish');
+      t.done();
+    }
+  }, 'Verify Mixed content of fetch() in a Service Worker');
+</script>

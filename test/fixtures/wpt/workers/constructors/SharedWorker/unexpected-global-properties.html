@@ -1,0 +1,12 @@
+<!doctype html>
+<title>unexpected members/interface objects/constructors</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  const worker = new SharedWorker('unexpected-global-properties.js');
+  worker.port.onmessage = t.step_func_done(e => {
+    assert_equals(e.data, '');
+  });
+}, 'Test unexpected properties are not in global scope');
+</script>

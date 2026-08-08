@@ -1,0 +1,38 @@
+<!doctype html>
+<script>
+const baseLocation = window.location;
+const parentWorkerScript = `
+  const childWorkerScript = 'self.onmessage = async (e) => {' +
+    '  const response = await fetch(e.data);' +
+    '  const text = await response.text();' +
+    '  self.postMessage(text);' +
+    '};';
+  const blob = new Blob([childWorkerScript], { type: 'text/javascript' });
+  const blobUrl = URL.createObjectURL(blob);
+  const childWorker = new Worker(blobUrl);
+
+  // When a message comes from the parent frame, sends a resource url to the
+  // child worker.
+  self.onmessage = (e) => {
+    childWorker.postMessage(e.data);
+  };
+  // When a message comes from the child worker, sends a content of fetch() to
+  // the parent frame.
+  childWorker.onmessage = (e) => {
+    self.postMessage(e.data);
+  };
+`;
+const blob = new Blob([parentWorkerScript], { type: 'text/javascript' });
+const blobUrl = URL.createObjectURL(blob);
+const worker = new Worker(blobUrl);
+
+function fetch_in_worker(url) {
+  const resourceUrl = new URL(url, baseLocation).href;
+  return new Promise((resolve) => {
+    worker.onmessage = (event) => {
+      resolve(event.data);
+    };
+    worker.postMessage(resourceUrl);
+  });
+}
+</script>
