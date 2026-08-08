@@ -96,13 +96,25 @@ fs.mkdirSync(testDir, { recursive: true });
 // mkdir / rmdir / recursive mkdir
 {
   const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
-  realVfs.mkdirSync('/new-dir');
+  assert.strictEqual(realVfs.mkdirSync('/new-dir'), undefined);
   assert.strictEqual(fs.existsSync(path.join(testDir, 'new-dir')), true);
   realVfs.rmdirSync('/new-dir');
   assert.strictEqual(fs.existsSync(path.join(testDir, 'new-dir')), false);
 
-  realVfs.mkdirSync('/deep/nested/dir', { recursive: true });
+  // Recursive mkdir returns the first created directory as a VFS path, never
+  // as a path inside the provider root.
+  const created = realVfs.mkdirSync('/deep/nested/dir', { recursive: true });
+  assert.strictEqual(created, '/deep');
   assert.strictEqual(fs.existsSync(path.join(testDir, 'deep/nested/dir')), true);
+
+  // Nothing to create resolves to undefined.
+  assert.strictEqual(realVfs.mkdirSync('/deep/nested', { recursive: true }),
+                     undefined);
+  // Only the first missing component is reported.
+  assert.strictEqual(realVfs.mkdirSync('/deep/nested/dir/x/y',
+                                       { recursive: true }), '/deep/nested/dir/x');
+  fs.rmdirSync(path.join(testDir, 'deep/nested/dir/x/y'));
+  fs.rmdirSync(path.join(testDir, 'deep/nested/dir/x'));
   fs.rmdirSync(path.join(testDir, 'deep/nested/dir'));
   fs.rmdirSync(path.join(testDir, 'deep/nested'));
   fs.rmdirSync(path.join(testDir, 'deep'));
