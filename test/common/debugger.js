@@ -14,10 +14,6 @@ if (common.isWindows || common.isMacOS) {
   TIMEOUT = common.platformTimeout(15000);
 }
 
-function isPreBreak(output) {
-  return /Break on start/.test(output) && /1 \(function \(exports/.test(output);
-}
-
 function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true }) {
   let stderrOutput = '';
   const child = spawn(process.execPath, [
@@ -114,11 +110,6 @@ function startCLI(args, flags = [], spawnOpts = {}, opts = { randomPort: true })
 
     async waitForInitialBreak() {
       await this.waitFor(/break (?:on start )?in/i);
-
-      if (isPreBreak(this.output)) {
-        await this.command('next', false);
-        return this.waitFor(/break in/);
-      }
     },
 
     get breakInfo() {
