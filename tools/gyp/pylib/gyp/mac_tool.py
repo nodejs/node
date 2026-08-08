@@ -254,8 +254,13 @@ class MacTool:
     def ExecFilterLibtool(self, *cmd_list):
         """Calls libtool and filters out '/path/to/libtool: file: foo.o has no
         symbols'."""
-        libtool_re = re.compile(
+        libtool_no_symbols_re = re.compile(
             r"^.*libtool: (?:for architecture: \S* )?file: .* has no symbols$"
+        )
+        # Newer Apple cctools emits the same warning as:
+        #   libtool: warning: 'foo.o' has no symbols
+        libtool_no_symbols_warning_re = re.compile(
+            r"^.*libtool: warning: '.*' has no symbols$"
         )
         libtool_re5 = re.compile(
             r"^.*libtool: warning for library: "
@@ -271,7 +276,11 @@ class MacTool:
         libtoolout = subprocess.Popen(cmd_list, stderr=subprocess.PIPE, env=env)
         err = libtoolout.communicate()[1].decode("utf-8")
         for line in err.splitlines():
-            if not libtool_re.match(line) and not libtool_re5.match(line):
+            if (
+                not libtool_no_symbols_re.match(line)
+                and not libtool_no_symbols_warning_re.match(line)
+                and not libtool_re5.match(line)
+            ):
                 print(line, file=sys.stderr)
         # Unconditionally touch the output .a file on the command line if present
         # and the command succeeded. A bit hacky.
