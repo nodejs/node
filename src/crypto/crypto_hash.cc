@@ -79,7 +79,7 @@ constexpr BoringSSLDigest kBoringSSLDigests[] = {
 };
 #endif
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
 void PushAliases(const char* name, void* data) {
   static_cast<std::vector<std::string>*>(data)->push_back(name);
 }
@@ -155,7 +155,7 @@ void SaveSupportedHashAlgorithms(const EVP_MD* md,
   Environment* env = static_cast<Environment*>(arg);
   env->supported_hash_algorithms.push_back(from);
 }
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+#endif  // !OPENSSL_IS_BORINGSSL
 
 const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
   if (env->supported_hash_algorithms.empty()) {
@@ -165,7 +165,7 @@ const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
       static_cast<void>(digest.get);
       env->supported_hash_algorithms.emplace_back(digest.name);
     }
-#elif OPENSSL_VERSION_MAJOR >= 3
+#elif !defined(OPENSSL_IS_BORINGSSL)
     // Since we'll fetch the EVP_MD*, cache them along the way to speed up
     // later lookups instead of throwing them away immediately.
     EVP_MD_do_all_sorted(SaveSupportedHashAlgorithmsAndCacheMD, env);
@@ -194,7 +194,7 @@ void Hash::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
   size_t size = env->alias_to_md_id_map.size();
   LocalVector<Name> names(isolate);
   LocalVector<Value> values(isolate);
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   names.reserve(size);
   values.reserve(size);
   for (auto& [alias, id] : env->alias_to_md_id_map) {
@@ -218,7 +218,7 @@ const EVP_MD* GetDigestImplementation(Environment* env,
   CHECK(cache_id_val->IsInt32());
   CHECK(algorithm_cache->IsObject());
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   int32_t cache_id = cache_id_val.As<Int32>()->Value();
   if (cache_id != -1) {  // Alias already cached, return the cached EVP_MD*.
     return GetCachedMDByID(env, cache_id);
@@ -266,7 +266,7 @@ void MarkInvalidXofLength() {
 // version-independent.
 #if !OPENSSL_VERSION_PREREQ(3, 4)
 bool IsShakeDigest(const EVP_MD* md) {
-#if OPENSSL_VERSION_MAJOR >= 3
+#ifndef OPENSSL_IS_BORINGSSL
   return EVP_MD_is_a(md, "SHAKE128") || EVP_MD_is_a(md, "SHAKE256");
 #else
   const char* name = OBJ_nid2sn(EVP_MD_type(md));
