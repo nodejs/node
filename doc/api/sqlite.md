@@ -53,11 +53,14 @@ const insert = database.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 // Execute the prepared statement with bound values.
 insert.run(1, 'hello');
 insert.run(2, 'world');
+// Finalize the prepared statement once it is no longer needed.
+insert.close();
 // Create a prepared statement to read data from the database.
 const query = database.prepare('SELECT * FROM data ORDER BY key');
 // Execute the prepared statement and log the result set.
 console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
+query.close();
 ```
 
 ```cjs
@@ -76,11 +79,14 @@ const insert = database.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 // Execute the prepared statement with bound values.
 insert.run(1, 'hello');
 insert.run(2, 'world');
+// Finalize the prepared statement once it is no longer needed.
+insert.close();
 // Create a prepared statement to read data from the database.
 const query = database.prepare('SELECT * FROM data ORDER BY key');
 // Execute the prepared statement and log the result set.
 console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
+query.close();
 ```
 
 ## Type conversion between JavaScript and SQLite
@@ -264,7 +270,8 @@ db.aggregate('sumint', {
   step: (acc, value) => acc + value,
 });
 
-db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+using query = db.prepare('SELECT sumint(y) as total FROM t3');
+query.get(); // { total: 21 }
 ```
 
 ```mjs
@@ -285,7 +292,8 @@ db.aggregate('sumint', {
   step: (acc, value) => acc + value,
 });
 
-db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+using query = db.prepare('SELECT sumint(y) as total FROM t3');
+query.get(); // { total: 21 }
 ```
 
 ### `database.close()`
@@ -463,7 +471,8 @@ db.setAuthorizer((actionCode) => {
 });
 
 // This will work
-db.prepare('SELECT 1').get();
+using query = db.prepare('SELECT 1');
+query.get();
 
 // This will throw an error due to authorization denial
 try {
@@ -486,7 +495,8 @@ db.setAuthorizer((actionCode) => {
 });
 
 // This will work
-db.prepare('SELECT 1').get();
+using query = db.prepare('SELECT 1');
+query.get();
 
 // This will throw an error due to authorization denial
 try {
@@ -627,7 +637,8 @@ original.close();
 
 const clone = new DatabaseSync(':memory:');
 clone.deserialize(buffer);
-console.log(clone.prepare('SELECT value FROM t').get());
+using query = clone.prepare('SELECT value FROM t');
+console.log(query.get());
 // Prints: { value: 'hello' }
 ```
 
@@ -642,7 +653,8 @@ original.close();
 
 const clone = new DatabaseSync(':memory:');
 clone.deserialize(buffer);
-console.log(clone.prepare('SELECT value FROM t').get());
+using query = clone.prepare('SELECT value FROM t');
+console.log(query.get());
 // Prints: { value: 'hello' }
 ```
 
@@ -699,7 +711,8 @@ sqlTagStore.get`SELECT ${value}`;
 is equivalent to:
 
 ```js
-db.prepare('SELECT ?').get(value);
+using statement = db.prepare('SELECT ?');
+statement.get(value);
 ```
 
 However, in the first example, the tag store will cache the underlying prepared
@@ -863,7 +876,7 @@ targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
 const session = sourceDb.createSession();
 
-const insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+using insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 insert.run(1, 'hello');
 insert.run(2, 'world');
 
@@ -883,7 +896,7 @@ targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
 const session = sourceDb.createSession();
 
-const insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+using insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 insert.run(1, 'hello');
 insert.run(2, 'world');
 
