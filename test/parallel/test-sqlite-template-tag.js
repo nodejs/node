@@ -257,6 +257,40 @@ test('a finished iterator stays done and does not restart', () => {
   assert.strictEqual(iter.next().done, true);
 });
 
+test('createTagStore throws on invalid maxSize', () => {
+  const db = new DatabaseSync(':memory:');
+
+  assert.throws(() => db.createTagStore(0), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(-1), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(NaN), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(1.5), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore('abc'), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(Number.MAX_SAFE_INTEGER), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+});
+
 test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
 });
