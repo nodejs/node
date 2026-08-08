@@ -299,4 +299,36 @@ new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
+
+  it('should not surface internal watch messages to worker message listeners', async () => {
+    // Regression test for https://github.com/nodejs/node/issues/65044:
+    // watch mode reports each worker's dependencies to the supervisor over the
+    // worker's message channel. Those internal `watch:require`/`watch:import`
+    // messages must not be delivered to user `worker.on('message')` listeners.
+    const dir = createTmpDir();
+    const worker = path.join(dir, 'worker.js');
+
+    writeFileSync(worker, `
+console.log('worker running');
+`);
+
+    const file = createTmpFile(`
+const { Worker } = require('node:worker_threads');
+const w = new Worker(${JSON.stringify(worker)});
+w.on('message', (message) => {
+  console.log('LEAKED ' + JSON.stringify(message));
+});
+`, '.js', dir);
+
+    const { stderr, stdout } = await runWriteSucceed({
+      file,
+      watchedFile: worker,
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.ok(
+      !stdout.some((line) => line.startsWith('LEAKED') || line.includes('watch:require')),
+      `internal watch message leaked to a user listener: ${inspect(stdout)}`,
+    );
+  });
 });
