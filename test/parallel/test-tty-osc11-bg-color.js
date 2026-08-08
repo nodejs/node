@@ -7,12 +7,24 @@ if (!common.isMainThread)
 const assert = require('assert');
 const tty = require('tty');
 
-// Placeholder test: just verifies the API surface exists and returns
-// a Promise. Real OSC 11 protocol/timeout tests will be added once
-// the implementation is complete.
+// getBackgroundColor() must always return a Promise, and that Promise
+// must settle (never hang forever) even when the terminal doesn't
+// respond. Use a short timeout override so this doesn't slow down CI
+// on machines without a responsive terminal attached.
 const stream = new tty.WriteStream(1);
 
 assert.strictEqual(typeof stream.getBackgroundColor, 'function');
 
-const result = stream.getBackgroundColor();
+const result = stream.getBackgroundColor({ timeout: 50 });
 assert.ok(result instanceof Promise);
+
+result.then(common.mustCall((color) => {
+  if (color !== undefined) {
+    assert.strictEqual(typeof color.r, 'number');
+    assert.strictEqual(typeof color.g, 'number');
+    assert.strictEqual(typeof color.b, 'number');
+    for (const channel of [color.r, color.g, color.b]) {
+      assert.ok(channel >= 0 && channel <= 255);
+    }
+  }
+}));
