@@ -133,6 +133,24 @@ jobs:
         env:
           NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
 
+  lint-crates:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            tools/nix/pkgs.nix
+            deps/v8/DEPS
+            deps/crates/check-deps-in-sync-with-v8.sh
+            deps/crates/Cargo.toml
+            deps/crates/Cargo.lock
+          sparse-checkout-cone-mode: false
+      - uses: cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f  # v31.10.5
+      - name: Validate dependencies
+        run: nix-shell -I nixpkgs=./tools/nix/pkgs.nix --pure -p cacert gawk git jq tomlq --run ./deps/crates/check-deps-in-sync-with-v8.sh
+
   lint-py:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-slim
