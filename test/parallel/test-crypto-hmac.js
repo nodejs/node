@@ -297,8 +297,9 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
 }
 
 // Calling digest() after the Hmac has already been used as a stream must
-// return an empty buffer (the DEP0206 repeat-digest guard), not uninitialized
-// stack memory. The stream itself must still produce the correct digest.
+// throw ERR_CRYPTO_HASH_FINALIZED (the DEP0206 end-of-life behavior), not
+// return uninitialized stack memory. The stream itself must still produce the
+// correct digest.
 // See: https://github.com/nodejs/node/issues/28245
 {
   const key = 'key';
@@ -309,7 +310,7 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
   const streamDigest = streamHmac.read();
 
   // digest() after the stream already finalized must not return garbage.
-  assert.deepStrictEqual(streamHmac.digest(), Buffer.from(''));
+  assert.throws(() => streamHmac.digest(), { code: 'ERR_CRYPTO_HASH_FINALIZED' });
 
   // Sanity check: the stream itself produced the correct digest.
   const expected = crypto.createHmac('sha256', key).update(data).digest();
