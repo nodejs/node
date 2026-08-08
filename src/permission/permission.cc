@@ -106,10 +106,11 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
 }  // namespace
 
 #define V(Name, label, _, __)                                                  \
-  if (perm == PermissionScope::k##Name) return #Name;
-const char* Permission::PermissionToString(const PermissionScope perm) {
+  if (perm == PermissionScope::k##Name) return env->Name##_permission_string();
+v8::Local<v8::String> Permission::PermissionToString(
+    Environment* env, const PermissionScope perm) {
   PERMISSIONS(V)
-  return nullptr;
+  UNREACHABLE();
 }
 #undef V
 
@@ -192,12 +193,9 @@ MaybeLocal<Value> CreateAccessDeniedError(Environment* env,
   Local<Object> err = ERR_ACCESS_DENIED(
       env->isolate(), "Access to this API has been restricted. %s", suggestion);
 
-  Local<Value> perm_string;
   Local<Value> resource_string;
-  std::string_view perm_str = Permission::PermissionToString(perm);
-  if (!ToV8Value(env->context(), perm_str, env->isolate())
-           .ToLocal(&perm_string) ||
-      !ToV8Value(env->context(), res, env->isolate())
+  Local<Value> perm_string = Permission::PermissionToString(env, perm);
+  if (!ToV8Value(env->context(), res, env->isolate())
            .ToLocal(&resource_string) ||
       err->Set(env->context(), env->permission_string(), perm_string)
           .IsNothing() ||
@@ -263,18 +261,13 @@ bool Permission::is_scope_granted(Environment* env,
         v8::Local<v8::Context> context = env->context();
         v8::Local<v8::Object> msg =
             v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
-        const char* perm_str = PermissionToString(permission);
         msg->Set(context,
                  env->permission_string(),
-                 v8::String::NewFromUtf8(isolate, perm_str).ToLocalChecked())
+                 PermissionToString(env, permission))
             .Check();
         msg->Set(context,
                  env->resource_string(),
-                 v8::String::NewFromUtf8(isolate,
-                                         res.data(),
-                                         v8::NewStringType::kNormal,
-                                         static_cast<int>(res.size()))
-                     .ToLocalChecked())
+                 ToV8Value(context, res).ToLocalChecked())
             .Check();
         ch->Publish(env, msg);
         publishing_ = false;
@@ -333,18 +326,13 @@ void Permission::Drop(Environment* env,
       v8::Local<v8::Context> context = env->context();
       v8::Local<v8::Object> msg =
           v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
-      const char* perm_str = PermissionToString(scope);
       msg->Set(context,
                env->permission_string(),
-               v8::String::NewFromUtf8(isolate, perm_str).ToLocalChecked())
+               PermissionToString(env, scope))
           .Check();
       msg->Set(context,
                env->resource_string(),
-               v8::String::NewFromUtf8(isolate,
-                                       param.data(),
-                                       v8::NewStringType::kNormal,
-                                       static_cast<int>(param.size()))
-                   .ToLocalChecked())
+               ToV8Value(context, param).ToLocalChecked())
           .Check();
       msg->Set(context,
                FIXED_ONE_BYTE_STRING(isolate, "drop"),
