@@ -870,7 +870,10 @@ void TLSWrap::ClearOut() {
   char out[kClearOutChunkSize];
   int read;
   for (;;) {
-    read = SSL_read(ssl_.get(), out, sizeof(out));
+    {
+      SSLLibraryCallScope ssl_library_call_scope(this);
+      read = SSL_read(ssl_.get(), out, sizeof(out));
+    }
     Debug(this, "Read %d bytes of cleartext output", read);
 
     if (read <= 0)
@@ -991,7 +994,11 @@ void TLSWrap::ClearIn() {
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   NodeBIO::FromBIO(enc_out_)->set_allocate_tls_hint(bs->ByteLength());
-  int written = SSL_write(ssl_.get(), bs->Data(), bs->ByteLength());
+  int written;
+  {
+    SSLLibraryCallScope ssl_library_call_scope(this);
+    written = SSL_write(ssl_.get(), bs->Data(), bs->ByteLength());
+  }
   Debug(this, "Writing %zu bytes, written = %d", bs->ByteLength(), written);
   CHECK(written == -1 || written == static_cast<int>(bs->ByteLength()));
 
@@ -1094,6 +1101,33 @@ int TLSWrap::DoWrite(WriteWrap* w,
     }
   }
 
+  // If we got here from a call inside the OpenSSL/BoringSSL stack, we need to
+  // defer reentrant write calls:
+  if (in_ssl_library_call()) {
+    Debug(this, "Deferring write issued from the SSL library's stack");
+    CHECK(!current_write_);
+    current_write_.reset(w->GetAsyncWrap());
+
+    if (length > 0) {
+      CHECK(!pending_cleartext_input_ ||
+            pending_cleartext_input_->ByteLength() == 0);
+      std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+          env()->isolate(),
+          length,
+          BackingStoreInitializationMode::kUninitialized);
+      size_t offset = 0;
+      for (i = 0; i < count; i++) {
+        memcpy(
+            static_cast<char*>(bs->Data()) + offset, bufs[i].base, bufs[i].len);
+        offset += bufs[i].len;
+      }
+      pending_cleartext_input_ = std::move(bs);
+    }
+
+    ScheduleDeferredCycle();
+    return 0;
+  }
+
   // We want to trigger a Write() on the underlying stream to drive the stream
   // system, but don't want to encrypt empty buffers into a TLS frame, so see
   // if we can find something to Write().
@@ -1159,12 +1193,18 @@ int TLSWrap::DoWrite(WriteWrap* w,
     }
 
     NodeBIO::FromBIO(enc_out_)->set_allocate_tls_hint(length);
-    written = SSL_write(ssl_.get(), bs->Data(), length);
+    {
+      SSLLibraryCallScope ssl_library_call_scope(this);
+      written = SSL_write(ssl_.get(), bs->Data(), length);
+    }
   } else {
     // Only one buffer: try to write directly, only store if it fails
     uv_buf_t* buf = &bufs[nonempty_i];
     NodeBIO::FromBIO(enc_out_)->set_allocate_tls_hint(buf->len);
-    written = SSL_write(ssl_.get(), buf->base, buf->len);
+    {
+      SSLLibraryCallScope ssl_library_call_scope(this);
+      written = SSL_write(ssl_.get(), buf->base, buf->len);
+    }
 
     if (written == -1) {
       bs = ArrayBuffer::NewBackingStore(
@@ -1251,14 +1291,47 @@ ShutdownWrap* TLSWrap::CreateShutdownWrap(Local<Object> req_wrap_object) {
 
 int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
   Debug(this, "DoShutdown()");
+
+  // We must not call SSL_shutdown from inside the TLS library stack, so
+  // defer if required:
+  if (in_ssl_library_call()) {
+    Debug(this, "Deferring shutdown issued from the SSL library's stack");
+    CHECK(!pending_shutdown_);
+    pending_shutdown_.reset(req_wrap->GetAsyncWrap());
+    ScheduleDeferredCycle();
+    return 0;
+  }
+
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  if (ssl_ && SSL_shutdown(ssl_.get()) == 0)
-    SSL_shutdown(ssl_.get());
+  if (ssl_) {
+    SSLLibraryCallScope ssl_library_call_scope(this);
+    if (SSL_shutdown(ssl_.get()) == 0) SSL_shutdown(ssl_.get());
+  }
 
   shutdown_ = true;
   EncOut();
   return underlying_stream()->DoShutdown(req_wrap);
+}
+
+void TLSWrap::ScheduleDeferredCycle() {
+  if (deferred_cycle_scheduled_) return;
+  deferred_cycle_scheduled_ = true;
+
+  BaseObjectPtr<TLSWrap> strong_ref{this};
+  env()->SetImmediate([this, strong_ref](Environment* env) {
+    deferred_cycle_scheduled_ = false;
+    if (ssl_) Cycle();
+  });
+}
+
+void TLSWrap::FlushPendingShutdown() {
+  if (!pending_shutdown_ || !ssl_) return;
+
+  BaseObjectPtr<AsyncWrap> pending = std::move(pending_shutdown_);
+  ShutdownWrap* req_wrap = ShutdownWrap::FromObject(pending);
+  int err = DoShutdown(req_wrap);
+  if (err != 0) req_wrap->Done(err);
 }
 
 void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
@@ -1356,6 +1429,13 @@ void TLSWrap::Destroy() {
 
   // And destroy
   InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
+
+  // A shutdown held back off the SSL library's stack will never be replayed
+  // now, so complete it here rather than leaving the stream waiting on it.
+  if (pending_shutdown_) {
+    BaseObjectPtr<AsyncWrap> pending = std::move(pending_shutdown_);
+    ShutdownWrap::FromObject(pending)->Done(UV_ECANCELED);
+  }
 
   env()->external_memory_accounter()->Decrease(env()->isolate(), kExternalSize);
   ssl_.reset();
@@ -2193,6 +2273,13 @@ void TLSWrap::WritesIssuedByPrevListenerDone(
 }
 
 void TLSWrap::Cycle() {
+  // With no loop to extend, cycling now would re-enter the SSL library.
+  if (cycle_depth_ == 0 && in_ssl_library_call()) {
+    Debug(this, "Deferring cycle requested from the SSL library's stack");
+    ScheduleDeferredCycle();
+    return;
+  }
+
   // Prevent recursion
   if (++cycle_depth_ > 1)
     return;
@@ -2200,6 +2287,10 @@ void TLSWrap::Cycle() {
   for (; cycle_depth_ > 0; cycle_depth_--) {
     ClearIn();
     ClearOut();
+    // ClearOut() could defer a write/shutdown, so we ClearIn() again now
+    // to avoid needing a second pass:
+    ClearIn();
+    FlushPendingShutdown();
     // EncIn() doesn't exist, it happens via stream listener callbacks.
     EncOut();
   }
