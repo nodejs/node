@@ -25,6 +25,20 @@ assert.notStrictEqual(process.title, title);
 process.title = title;
 assert.strictEqual(process.title, title);
 
+assert.throws(() => {
+  process.title = Symbol();
+}, /^TypeError: Cannot convert a Symbol value to a string$/);
+assert.strictEqual(process.title, title);
+
+assert.throws(() => {
+  process.title = {
+    toString() {
+      throw new Error('Cannot convert process title');
+    },
+  };
+}, /^Error: Cannot convert process title$/);
+assert.strictEqual(process.title, title);
+
 try {
   execSync('command -v ps');
 } catch (err) {
