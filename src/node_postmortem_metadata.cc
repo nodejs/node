@@ -36,12 +36,13 @@
   V(ListNode_ReqWrap, next_, uintptr_t, ListNode<ReqWrapBase>::next_)
 
 extern "C" {
-int nodedbg_const_ContextEmbedderIndex__kEnvironment__int;
-int nodedbg_const_BaseObject__kInternalFieldCount__int;
-int nodedbg_const_HandleWrap__kInternalFieldCount__int;
-int nodedbg_const_ReqWrap__kInternalFieldCount__int;
-uintptr_t nodedbg_offset_ExternalString__data__uintptr_t;
-uintptr_t nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue;
+NODE_EXTERN int nodedbg_const_ContextEmbedderIndex__kEnvironment__int;
+NODE_EXTERN int nodedbg_const_BaseObject__kInternalFieldCount__int;
+NODE_EXTERN int nodedbg_const_HandleWrap__kInternalFieldCount__int;
+NODE_EXTERN int nodedbg_const_ReqWrap__kInternalFieldCount__int;
+NODE_EXTERN uintptr_t nodedbg_offset_ExternalString__data__uintptr_t;
+NODE_EXTERN uintptr_t
+    nodedbg_offset_ReqWrap__req_wrap_queue___ListNode_ReqWrapQueue;
 
 #define V(Class, Member, Type, Accessor)                                      \
   NODE_EXTERN uintptr_t NODEDBG_OFFSET(Class, Member, Type);
