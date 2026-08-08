@@ -753,6 +753,7 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
 
   if (per_process::cli_options->disable_proto != "delete" &&
       per_process::cli_options->disable_proto != "throw" &&
+      per_process::cli_options->disable_proto != "warn" &&
       per_process::cli_options->disable_proto != "") {
     errors->emplace_back("invalid mode passed to --disable-proto");
     // TODO(joyeecheung): merge into kInvalidCommandLineArgument.
