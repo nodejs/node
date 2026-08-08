@@ -69,12 +69,18 @@ A `boolean` that is always `true` for `tty.ReadStream` instances.
 
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64140
+    description: The `mode` argument supports `'raw'` and `'io'`.
 -->
 
-* `mode` {boolean} If `true`, configures the `tty.ReadStream` to operate as a
-  raw device. If `false`, configures the `tty.ReadStream` to operate in its
-  default mode. The `readStream.isRaw` property will be set to the resulting
-  mode.
+* `mode` {boolean|string} If `true` or `'raw'`, configures the
+  `tty.ReadStream` to operate as a raw device. If `'io'`, configures the
+  `tty.ReadStream` to operate in binary-safe I/O mode. If `false`, configures
+  the `tty.ReadStream` to operate in its default mode. The `readStream.isRaw`
+  property will be set to whether the stream is in raw mode, and the
+  `readStream.rawMode` property will be set to the resulting mode.
 * Returns: {this} The read stream instance.
 
 Allows configuration of `tty.ReadStream` so that it operates as a raw device.
@@ -85,6 +91,22 @@ by the terminal is disabled, including echoing input
 characters. <kbd>Ctrl</kbd>+<kbd>C</kbd> will no longer cause a `SIGINT` when
 in this mode. This mode does not affect terminal output processing, such as
 newline translation on Unix terminals.
+
+When in binary-safe I/O mode, terminal output processing is also disabled.
+This corresponds to libuv's `UV_TTY_MODE_IO` mode and is not supported on
+Windows.
+
+### `readStream.rawMode`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean|string}
+
+The current raw mode for the `tty.ReadStream`. This is `false` when the stream
+is in its default mode, `'raw'` when raw input mode is enabled, and `'io'` when
+binary-safe I/O mode is enabled.
 
 ## Class: `tty.WriteStream`
 
