@@ -1078,6 +1078,39 @@ inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
       ->ToString(context)
       .ToLocalChecked();
 }
+
+// A type that can be used to represent a boolean value in a way that is
+// distinct from the built-in bool type... Specifically, it is used to
+// avoid bool arguments where the callsite is not clear about what the
+// boolean value represents.
+// Adopted from cloudflare/workerd
+// https://github.com/cloudflare/workerd/blob/main/src/workerd/util/strong-bool.h
+// where it is used for exactly the same purpose.
+#define STRONG_BOOL(Type)                                                      \
+  class Type final {                                                           \
+   public:                                                                     \
+    static const Type NO;                                                      \
+    static const Type YES;                                                     \
+    constexpr explicit Type(bool booleanValue)                                 \
+        : value(booleanValue ? Value::YES : Value::NO) {}                      \
+    constexpr explicit operator bool() const { return toBool(); }              \
+    constexpr bool toBool() const { return value == YES; }                     \
+    constexpr auto operator<=>(const Type&) const = default;                   \
+    constexpr Type operator&&(const Type& other) const {                       \
+      return Type(value == YES && other.value == YES);                         \
+    }                                                                          \
+    constexpr Type operator||(const Type& other) const {                       \
+      return Type(value == YES || other.value == YES);                         \
+    }                                                                          \
+                                                                               \
+   private:                                                                    \
+    enum class Value : std::uint8_t { NO, YES };                               \
+    constexpr Type(Value value) : value(value) {}                              \
+    Value value;                                                               \
+  };                                                                           \
+  inline constexpr Type Type::NO{Type::Value::NO};                             \
+  inline constexpr Type Type::YES { Type::Value::YES }
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
