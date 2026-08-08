@@ -584,11 +584,15 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
   int saved_stdio_flags[3] = {-1, -1, -1};
   for (int fd = 0; fd < 3; fd++) {
     int prev = persist_standard_stream(fd);
-    if (prev < 0) {
+    if (prev < 0 && errno != EBADF) {
       int fcntl_errno = errno;
       // Undo changes already applied to earlier fds before throwing.
       for (int j = 0; j < fd; j++) {
-        fcntl(j, F_SETFD, saved_stdio_flags[j]);
+        if (saved_stdio_flags[j] >= 0 &&
+            fcntl(j, F_SETFD, saved_stdio_flags[j]) < 0) {
+          fcntl_errno = errno;
+          break;
+        }
       }
       env->ThrowErrnoException(fcntl_errno, "fcntl");
       return;
@@ -610,7 +614,11 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
   // throw an ErrnoException so JS can catch it.
   int execve_errno = errno;
   for (int fd = 0; fd < 3; fd++) {
-    fcntl(fd, F_SETFD, saved_stdio_flags[fd]);
+    if (saved_stdio_flags[fd] >= 0 &&
+        fcntl(fd, F_SETFD, saved_stdio_flags[fd]) < 0) {
+      env->ThrowErrnoException(errno, "fcntl");
+      return;
+    }
   }
   env->ThrowErrnoException(execve_errno, "execve", nullptr, *executable);
 }
