@@ -1238,7 +1238,7 @@ port2.postMessage(circularData);
 ```
 
 `transferList` may be a list of {ArrayBuffer}, [`MessagePort`][],
-[`FileHandle`][], {net.Server}, and {net.Socket} objects.
+[`FileHandle`][], {net.Server}, {net.Socket}, and {net.BoundSocket} objects.
 After transferring, they are not usable on the sending side of the channel
 anymore (even if they are not contained in `value`).
 
@@ -1249,6 +1249,8 @@ freshly accepted or created TCP connection that has not yet started reading and
 has no buffered data, otherwise `postMessage()` throws
 `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. This makes it possible to accept
 connections on one thread and distribute them across a pool of worker threads.
+Transferring a {net.BoundSocket} moves an un-adopted pre-bound socket, so a
+port can be reserved synchronously on one thread and adopted on another.
 Only TCP handles are supported.
 
 If `value` contains {SharedArrayBuffer} instances, those are accessible

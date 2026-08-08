@@ -3004,8 +3004,9 @@ A call was made and the UDP subsystem was not running.
 ### `ERR_SOCKET_HANDLE_ADOPTED`
 
 An operation was attempted on a [`BoundSocket`][] that had already been adopted
-by a [`net.Server`][] or [`net.Socket`][]. Once a bound socket is adopted, its
-`address()` and `close()` methods can no longer be used.
+by a [`net.Server`][] or [`net.Socket`][], or transferred to another thread.
+Once a bound socket is adopted or transferred, its `address()` and `close()`
+methods can no longer be used.
 
 <a id="ERR_SOURCE_MAP_CORRUPT"></a>
 
@@ -3573,9 +3574,10 @@ The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 
 ### `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`
 
-An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
-via a `worker_threads` `postMessage()` call while it was not in a transferable
-state, for example because it had already started reading or had buffered data.
+An attempt was made to transfer a `net.Socket`, `net.Server` or
+`net.BoundSocket` to another thread via a `worker_threads` `postMessage()` call
+while it was not in a transferable state, for example because it had already
+started reading, had buffered data, or had already been adopted.
 
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
