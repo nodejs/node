@@ -111,7 +111,8 @@ class Permission {
   FORCE_INLINE bool warning_only() const { return warning_only_; }
 
   static PermissionScope StringToPermission(const std::string& perm);
-  static const char* PermissionToString(PermissionScope perm);
+  static v8::Local<v8::String> PermissionToString(Environment* env,
+                                                  PermissionScope perm);
   static void ThrowAccessDenied(Environment* env,
                                 PermissionScope perm,
                                 const std::string_view& res);
