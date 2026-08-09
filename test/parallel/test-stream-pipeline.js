@@ -1774,3 +1774,28 @@ tmpdir.refresh();
     }),
   );
 }
+{
+  // https://github.com/nodejs/node/issues/65127
+  // When pipeline() throws synchronously while wiring streams together,
+  // it must NOT also invoke the callback — and never with success.
+  // A node stream wired before the throwing stage increments finishCount,
+  // so a naive teardown would fire the callback with no error (double
+  // report: the caller already received the exception).
+  const r = Readable.from(['a']);
+  const t = new Transform({
+    transform(chunk, encoding, callback) {
+      callback(null, chunk);
+    },
+  });
+  let threw = false;
+  try {
+    pipeline(r, t, () => 42, common.mustNotCall());
+  } catch (err) {
+    threw = true;
+    assert.strictEqual(err.code, 'ERR_INVALID_RETURN_VALUE');
+  }
+  assert.strictEqual(threw, true);
+  // Give any stray finish callbacks a chance to fire; if the bug
+  // regresses, common.mustNotCall() fails the test.
+  setTimeout(() => {}, 100);
+}
