@@ -7,9 +7,7 @@
 #include "permission/permission_base.h"
 #include "util.h"
 
-namespace node {
-
-namespace permission {
+namespace node::permission {
 
 class FSPermission final : public PermissionBase {
  public:
@@ -125,9 +123,12 @@ class FSPermission final : public PermissionBase {
           // Handle optional trailing
           // path = /home/subdirectory
           // child = subdirectory/*
-          if (idx >= path.length() &&
-              child->prefix[i] == node::kPathSeparator) {
-            continue;
+          if (idx >= path.length()) {
+            if (child->prefix[i] == node::kPathSeparator) {
+              continue;
+            }
+            // Path is exhausted but prefix expects more characters
+            return nullptr;
           }
 
           if (path[idx++] != child->prefix[i]) {
@@ -185,9 +186,7 @@ class FSPermission final : public PermissionBase {
   bool allow_all_out_ = false;
 };
 
-}  // namespace permission
-
-}  // namespace node
+}  // namespace node::permission
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_PERMISSION_FS_PERMISSION_H_
