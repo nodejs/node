@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <v8.h>
 #include <concepts>
 #include <limits>
 #include <type_traits>
@@ -31,6 +32,12 @@ concept StandardCharType =
 // Test whether some value can be called with ().
 template <typename T>
 concept IsCallable = std::is_function<T>::value || requires { &T::operator(); };
+
+// Types that can reside on V8's managed heap (v8::Value, v8::Object, etc.).
+// Used to select the MaybeStackBuffer specialization that holds handles in a
+// v8::LocalVector instead of malloc'd memory.
+template <typename T>
+concept V8Type = std::is_base_of_v<v8::Data, T>;
 
 }  // namespace node
 

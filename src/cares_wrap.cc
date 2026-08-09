@@ -187,12 +187,12 @@ Local<Array> AddrTTLToArray(
     Environment* env,
     const T* addrttls,
     size_t naddrttls) {
-  MaybeStackBuffer<Local<Value>, 8> ttls(naddrttls);
+  MaybeStackBuffer<Value, 8> ttls(env->isolate(), naddrttls);
   for (size_t i = 0; i < naddrttls; i++) {
     ttls[i] = Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl);
   }
 
-  return Array::New(env->isolate(), ttls.out(), naddrttls);
+  return ttls.ToArray();
 }
 
 // Parse the CSV produced by ares_get_servers_csv() back into (ip, port)
