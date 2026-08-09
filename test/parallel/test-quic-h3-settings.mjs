@@ -71,7 +71,7 @@ const decoder = new TextDecoder();
       'x-second': 'two',
     },
     onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
 
@@ -129,7 +129,7 @@ const decoder = new TextDecoder();
       'x-long': longValue,
     },
     onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
 
@@ -185,7 +185,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
     }),
   });
 

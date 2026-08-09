@@ -94,7 +94,7 @@ const stream = await clientSession.createBidirectionalStream({
     ':authority': 'localhost',
   },
   onheaders: mustCall(function(headers) {
-    assert.strictEqual(headers[':status'], '200');
+    assert.strictEqual(headers[':status'], 200);
     clientHeadersReceived.resolve();
   }),
   ontrailers: mustCall(function(trailers) {
@@ -114,7 +114,7 @@ assert.strictEqual(decoder.decode(body), responseBody);
 await clientTrailersReceived.promise;
 
 // stream.headers should still be the initial headers, not trailers.
-assert.strictEqual(stream.headers[':status'], '200');
+assert.strictEqual(stream.headers[':status'], 200);
 
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();
