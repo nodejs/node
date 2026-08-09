@@ -1368,7 +1368,7 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
 }
 
 void Stream::EnqueuePendingWebtransportStream(int64_t sessionid) {
-  Debug(this, "Enqueing Webtransport Session strean for pending stream");
+  Debug(this, "Enqueing Webtransport Session stream for pending stream");
   pending_webtransport_session_ = sessionid;
 }
 
