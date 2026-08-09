@@ -3445,6 +3445,11 @@ bool SQLTagStore::ResetAndBindStatement(
     Environment* env,
     StatementSync* stmt,
     const FunctionCallbackInfo<Value>& args) {
+  if (stmt->IsFinalized()) {
+    THROW_ERR_INVALID_STATE(env, "statement has been finalized");
+    return false;
+  }
+
   Isolate* isolate = env->isolate();
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);

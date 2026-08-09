@@ -127,6 +127,20 @@ test('rejects parameters outside of template expressions', () => {
   ldb.close();
 });
 
+test('rejects queries that contain no statement', () => {
+  const expectedError = {
+    code: 'ERR_INVALID_STATE',
+    message: /statement has been finalized/,
+  };
+
+  for (const method of ['run', 'get', 'all', 'iterate']) {
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      sql[method]`-- comment`;
+    }, expectedError);
+  }
+});
+
 test('TagStore capacity, size, and clear', () => {
   assert.strictEqual(sql.capacity, 10);
   assert.strictEqual(sql.size, 0);
