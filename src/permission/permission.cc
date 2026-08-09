@@ -141,53 +141,49 @@ PermissionScope Permission::StringToPermission(std::string_view perm) {
 #undef V
 
 Permission::Permission() : enabled_(false), warning_only_(false) {
-  std::shared_ptr<PermissionBase> fs = std::make_shared<FSPermission>();
-  std::shared_ptr<PermissionBase> child_p =
-      std::make_shared<ChildProcessPermission>();
-  std::shared_ptr<PermissionBase> worker_t =
-      std::make_shared<WorkerPermission>();
-  std::shared_ptr<PermissionBase> inspector =
-      std::make_shared<InspectorPermission>();
-  std::shared_ptr<PermissionBase> wasi = std::make_shared<WASIPermission>();
-  std::shared_ptr<PermissionBase> net = std::make_shared<NetPermission>();
-  std::shared_ptr<PermissionBase> addon = std::make_shared<AddonPermission>();
-  std::shared_ptr<FFIPermission> ffi = std::make_shared<FFIPermission>();
-  std::shared_ptr<PermissionBase> openssl_store =
-      std::make_shared<OpenSSLStorePermission>();
+  auto fs = std::make_shared<FSPermission>();
+  auto child_p = std::make_shared<ChildProcessPermission>();
+  auto worker_t = std::make_shared<WorkerPermission>();
+  auto inspector = std::make_shared<InspectorPermission>();
+  auto wasi = std::make_shared<WASIPermission>();
+  auto net = std::make_shared<NetPermission>();
+  auto addon = std::make_shared<AddonPermission>();
+  auto ffi = std::make_shared<FFIPermission>();
+  auto openssl_store = std::make_shared<OpenSSLStorePermission>();
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, fs));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = fs;
   FILESYSTEM_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, child_p));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = child_p;
   CHILD_PROCESS_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, worker_t));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = worker_t;
   WORKER_THREADS_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, inspector));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = inspector;
   INSPECTOR_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, wasi));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = wasi;
   WASI_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, net));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = net;
   NET_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, addon));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = addon;
   ADDON_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, ffi));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = ffi;
   FFI_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_.insert(std::make_pair(PermissionScope::k##Name, openssl_store));
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = openssl_store;
   OPENSSL_STORE_PERMISSIONS(V)
 #undef V
 }
@@ -264,10 +260,10 @@ bool Permission::is_scope_granted(Environment* env,
                                   std::string_view res) const {
   CHECK(permission != PermissionScope::kPermissionsRoot &&
         permission != PermissionScope::kPermissionsCount);
-  auto perm_node = nodes_.find(permission);
+  auto& perm_node = nodes_[static_cast<size_t>(permission)];
   bool result = false;
-  if (perm_node != nodes_.end()) {
-    result = perm_node->second->is_granted(env, permission, res);
+  if (perm_node) {
+    result = perm_node->is_granted(env, permission, res);
   }
 
   if (!result && !publishing_) {
@@ -296,17 +292,13 @@ BaseObjectPtr<diagnostics_channel::Channel> Permission::GetOrCreateChannel(
     Environment* env, PermissionScope scope) const {
   CHECK(scope != PermissionScope::kPermissionsRoot &&
         scope != PermissionScope::kPermissionsCount);
-  auto it = channels_.find(scope);
-  if (it != channels_.end()) {
-    // Promote weak ref to strong for the duration of this call.
-    BaseObjectPtr<diagnostics_channel::Channel> ptr(it->second.get());
-    if (ptr) return ptr;
-    channels_.erase(it);
-  }
+  auto& weak_ch = channels_[static_cast<size_t>(scope)];
+  // Promote weak ref to strong for the duration of this call.
+  BaseObjectPtr<diagnostics_channel::Channel> ptr(weak_ch.get());
+  if (ptr) return ptr;
   auto channel_name = GetDiagnosticsChannelName(scope);
   if (auto ch = diagnostics_channel::Channel::Get(env, channel_name)) {
-    channels_.emplace(scope,
-                      BaseObjectWeakPtr<diagnostics_channel::Channel>(ch));
+    weak_ch = BaseObjectWeakPtr<diagnostics_channel::Channel>(ch.get());
     return ch;
   }
   return {};
@@ -315,9 +307,9 @@ BaseObjectPtr<diagnostics_channel::Channel> Permission::GetOrCreateChannel(
 void Permission::Apply(Environment* env,
                        std::span<const std::string> allow,
                        PermissionScope scope) {
-  auto permission = nodes_.find(scope);
-  if (permission != nodes_.end()) {
-    permission->second->Apply(env, allow, scope);
+  auto& perm_node = nodes_[static_cast<size_t>(scope)];
+  if (perm_node) {
+    perm_node->Apply(env, allow, scope);
   }
 }
 
@@ -326,9 +318,9 @@ void Permission::Drop(Environment* env,
                       std::string_view param) {
   CHECK(scope != PermissionScope::kPermissionsRoot &&
         scope != PermissionScope::kPermissionsCount);
-  auto permission = nodes_.find(scope);
-  if (permission != nodes_.end()) {
-    permission->second->Drop(env, scope, param);
+  auto& perm_node = nodes_[static_cast<size_t>(scope)];
+  if (perm_node) {
+    perm_node->Drop(env, scope, param);
   }
 
   // Publish to diagnostics channel so observers can track drops
