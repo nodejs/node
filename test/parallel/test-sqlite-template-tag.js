@@ -317,6 +317,29 @@ test('sql error messages are descriptive', () => {
   });
 });
 
+test('rejects SQL that contains no statements', () => {
+  const expectedError = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /contains no statements/,
+  };
+
+  for (const method of ['run', 'get', 'all', 'iterate']) {
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      sql[method]`-- comment`;
+    }, expectedError);
+
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      sql[method]``;
+    }, expectedError);
+  }
+
+  // A rejected statement must not be cached, so a later valid query with the
+  // same tag store still works.
+  assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'bob'})`.changes, 1);
+});
+
 test('a tag store keeps the database alive by itself', () => {
   const sql = new DatabaseSync(':memory:').createTagStore();
 
