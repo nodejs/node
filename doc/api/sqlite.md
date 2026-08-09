@@ -1011,6 +1011,9 @@ db.prepare('SELECT ?2 AS a, ?1 AS b').get('first', 'second');
 // { a: 'second', b: 'first' }
 ```
 
+Passing more anonymous parameters than the statement accepts throws an
+`ERR_INVALID_STATE` error. The `?NNN` form raises the number accepted to `NNN`.
+
 Named parameters begin with one of the prefix characters `$`, `:`, or `@` in
 SQL. They are bound from an object passed as the first argument. Repeating a
 name in the SQL binds the same value to every occurrence.
