@@ -15,7 +15,7 @@ COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 commit_queue_failed() {
   pr=$1
 
-  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}"
+  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
   # shellcheck disable=SC2154
   cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -46,9 +46,6 @@ for pr in "$@"; do
     echo "pr ${pr} skipped, CI still running"
     continue
   fi
-
-  # Delete the commit queue label
-  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL"
 
   if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
@@ -114,6 +111,9 @@ for pr in "$@"; do
   gh pr comment "$pr" --body "Landed in $commits"
 
   [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh pr close "$pr"
+
+  # Delete the commit queue label (but ignore errors, it's no big deal if a closed PR still has the label)
+  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL" || true
 done
 
 rm -f labels.json
