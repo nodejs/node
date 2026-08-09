@@ -3,6 +3,7 @@
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
 
+using node::BaseObjectPtr;
 using node::diagnostics_channel::Channel;
 
 class DiagnosticsChannelTest : public EnvironmentTestFixture {};
@@ -279,15 +280,15 @@ TEST_F(DiagnosticsChannelTest, NativeChannelsGrowSubscriberStorage) {
       "globalThis.__dc.subscribe('test:cctest:grow:0', "
       "                          globalThis.__firstSubscriber);");
 
-  Channel* first = Channel::Get(*env, "test:cctest:grow:0");
-  ASSERT_NE(first, nullptr);
+  auto first = Channel::Get(*env, "test:cctest:grow:0");
+  ASSERT_TRUE(first);
   ASSERT_TRUE(first->HasSubscribers());
 
-  Channel* last = nullptr;
+  BaseObjectPtr<Channel> last;
   for (size_t i = 1; i <= 1024; i++) {
     std::string name = "test:cctest:grow:" + std::to_string(i);
     last = Channel::Get(*env, name.c_str());
-    ASSERT_NE(last, nullptr);
+    ASSERT_TRUE(last);
   }
 
   RunJS(isolate_,
