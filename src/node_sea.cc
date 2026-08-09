@@ -325,10 +325,11 @@ std::tuple<int, char**> FixupArgsForSEA(int argc,
                      cli_extension_args.size() + 2);
     new_argv.emplace_back(argv[0]);
 
+    exec_argv_storage.reserve(sea_resource.exec_argv.size() +
+                              cli_extension_args.size());
+
     // Insert exec argv from SEA config
     if (!sea_resource.exec_argv.empty()) {
-      exec_argv_storage.reserve(sea_resource.exec_argv.size() +
-                                cli_extension_args.size());
       for (const auto& arg : sea_resource.exec_argv) {
         exec_argv_storage.emplace_back(arg);
         new_argv.emplace_back(exec_argv_storage.back().data());
