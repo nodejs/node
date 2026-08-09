@@ -6930,7 +6930,7 @@ void ParseGoogleTestFlagsOnly(int* argc, char** argv) {
   std::vector<char*> positional_args;
   std::vector<absl::UnrecognizedFlag> unrecognized_flags;
   absl::ParseAbseilFlagsOnly(*argc, argv, positional_args, unrecognized_flags);
-  absl::flat_hash_set<absl::string_view> unrecognized;
+  absl::flat_hash_set<std::string_view> unrecognized;
   for (const auto& flag : unrecognized_flags) {
     unrecognized.insert(flag.flag_name);
   }
