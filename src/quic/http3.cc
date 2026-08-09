@@ -503,8 +503,11 @@ class Http3ApplicationImpl final : public Session::Application {
       code = error.code();
     }
 
-    int rv = nghttp3_conn_close_stream2(*this, 
-      NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET, stream->id(), code, 0);
+    int rv = nghttp3_conn_close_stream2(*this,
+      NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET,
+      stream->id(),
+      code,
+      0);
     // If the call is successful, Http3Application::OnStreamClose callback will
     // be invoked when the stream is ready to be closed. We'll handle destroying
     // the actual Stream object there.
@@ -798,7 +801,8 @@ class Http3ApplicationImpl final : public Session::Application {
     return Http3ConnectionPointer(conn);
   }
 
-  void OnStreamClose(Stream* stream, uint32_t flags,
+  void OnStreamClose(Stream* stream,
+                     uint32_t flags,
                      error_code rx_app_error_code,
                      error_code tx_app_error_code) {
     if (flags & NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET) {
@@ -1192,8 +1196,8 @@ class Http3ApplicationImpl final : public Session::Application {
                              void* stream_user_data) {
     NGHTTP3_CALLBACK_SCOPE(app);
     if (auto stream = app.session().FindStream(id)) {
-      app.OnStreamClose(stream.get(), flags, rx_app_error_code,
-        tx_app_error_code);
+      app.OnStreamClose(
+          stream.get(), flags, rx_app_error_code, tx_app_error_code);
     }
     return NGTCP2_SUCCESS;
   }
@@ -1419,8 +1423,7 @@ class Http3ApplicationImpl final : public Session::Application {
       on_end_origin,
       on_rand,
       on_receive_settings,
-      on_stream_close
-  };
+      on_stream_close};
 };
 
 std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {
