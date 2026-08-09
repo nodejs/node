@@ -73,8 +73,7 @@ class Channel : public BaseObject {
           uint32_t index,
           std::string name);
 
-  // Returns a non-owning pointer. Lifetime is managed by BindingData.
-  static Channel* Get(Environment* env, const char* name);
+  static BaseObjectPtr<Channel> Get(Environment* env, std::string_view name);
 
   inline bool HasSubscribers() const {
     return binding_data_ != nullptr && binding_data_->subscribers_[index_] > 0;
