@@ -18,8 +18,8 @@
 #include "permission/worker_permission.h"
 #include "v8.h"
 
+#include <array>
 #include <string_view>
-#include <unordered_map>
 
 namespace node {
 
@@ -140,14 +140,17 @@ class Permission {
   BaseObjectPtr<diagnostics_channel::Channel> GetOrCreateChannel(
       Environment* env, PermissionScope scope) const;
 
-  std::unordered_map<PermissionScope, std::shared_ptr<PermissionBase>> nodes_;
+  static constexpr size_t kPermissionCount =
+      static_cast<size_t>(PermissionScope::kPermissionsCount);
+
+  std::array<std::shared_ptr<PermissionBase>, kPermissionCount> nodes_;
   bool enabled_;
   bool warning_only_;
   mutable bool publishing_ = false;
   // Weak refs: BindingData (via BaseObjectPtr) is the sole owner of Channels.
   // Using weak refs here avoids keeping Channels alive past Realm teardown.
-  mutable std::unordered_map<PermissionScope,
-                             BaseObjectWeakPtr<diagnostics_channel::Channel>>
+  mutable std::array<BaseObjectWeakPtr<diagnostics_channel::Channel>,
+                     kPermissionCount>
       channels_;
 };
 
