@@ -127,7 +127,6 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
 
 static bool FastHas(Local<Value> receiver,
                     Local<Value> scope_arg,
-                    Local<Value> resource_arg,
                     // NOLINTNEXTLINE(runtime/references) This is V8 api.
                     FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("permission.has");
@@ -148,8 +147,31 @@ static bool FastHas(Local<Value> receiver,
     return false;
   }
 
-  if (resource_arg->IsUndefined()) {
-    return env->permission()->is_granted(env, scope);
+  return env->permission()->is_granted(env, scope);
+}
+
+static bool FastHasResource(
+    Local<Value> receiver,
+    Local<Value> scope_arg,
+    Local<Value> resource_arg,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("permission.has");
+  auto isolate = options.isolate;
+  v8::HandleScope handle_scope(isolate);
+  auto context = isolate->GetCurrentContext();
+
+  Environment* env = Environment::GetCurrent(context);
+
+  Local<String> str;
+  if (!scope_arg->ToString(context).ToLocal(&str)) {
+    return false;
+  }
+  Utf8Value utf8_scope(isolate, str);
+  PermissionScope scope =
+      Permission::StringToPermission(utf8_scope.ToStringView());
+  if (scope == PermissionScope::kPermissionsRoot) {
+    return false;
   }
 
   Local<String> res_str;
@@ -164,7 +186,8 @@ static bool FastHas(Local<Value> receiver,
   return env->permission()->is_granted(env, scope, utf8_res.ToStringView());
 }
 
-static CFunction fast_has_(CFunction::Make(FastHas));
+static CFunction fast_has_methods_[] = {CFunction::Make(FastHas),
+                                        CFunction::Make(FastHasResource)};
 
 }  // namespace
 
@@ -370,7 +393,8 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  SetFastMethodNoSideEffect(context, target, "has", Has, &fast_has_);
+  SetFastMethodNoSideEffect(
+      context, target, "has", Has, {fast_has_methods_, 2});
   SetMethod(context, target, "drop", Drop);
 
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
@@ -378,7 +402,9 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Has);
-  registry->Register(fast_has_);
+  for (const CFunction& method : fast_has_methods_) {
+    registry->Register(method);
+  }
   registry->Register(Drop);
 }
 
