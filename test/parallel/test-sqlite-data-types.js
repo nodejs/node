@@ -151,6 +151,41 @@ suite('data binding and mapping', () => {
     });
   });
 
+  test('throws when more values are provided than the statement accepts', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY) STRICT;');
+
+    t.assert.throws(() => {
+      db.prepare('INSERT INTO data (key) VALUES (?)').run(1, 2);
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /Too many parameter values were provided.+accepts 1 parameter/,
+    });
+
+    // A statement with no parameters at all.
+    t.assert.throws(() => {
+      db.prepare('SELECT 1').get(5);
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /Too many parameter values were provided.+accepts 0 parameter/,
+    });
+
+    // Excess anonymous values alongside named parameters.
+    t.assert.throws(() => {
+      db.prepare('INSERT INTO data (key) VALUES ($k)').run({ $k: 1 }, 2);
+    }, {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /Too many parameter values were provided.+accepts 1 parameter/,
+    });
+
+    // The correct number of values still binds.
+    t.assert.deepStrictEqual(
+      db.prepare('INSERT INTO data (key) VALUES (?)').run(10),
+      { changes: 1, lastInsertRowid: 10 },
+    );
+  });
+
   test('throws when binding a BigInt that is too large', (t) => {
     const max = 9223372036854775807n; // Largest 64-bit signed integer value.
     const db = new DatabaseSync(nextDb());

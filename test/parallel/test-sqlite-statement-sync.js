@@ -310,7 +310,7 @@ suite('StatementSync.prototype.run()', () => {
     t.assert.deepStrictEqual(stmt.run(), { changes: 1, lastInsertRowid: 1 });
   });
 
-  test('SQLite throws when trying to bind too many parameters', (t) => {
+  test('throws when trying to bind too many parameters', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const setup = db.exec(
@@ -321,10 +321,8 @@ suite('StatementSync.prototype.run()', () => {
     t.assert.throws(() => {
       stmt.run(1, 2, 3);
     }, {
-      code: 'ERR_SQLITE_ERROR',
-      message: 'column index out of range',
-      errcode: 25,
-      errstr: 'column index out of range',
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /Too many parameter values were provided.+accepts 2 parameter/,
     });
   });
 

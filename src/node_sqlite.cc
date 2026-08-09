@@ -2702,11 +2702,26 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
     anon_start++;
   }
 
+  int param_count = sqlite3_bind_parameter_count(statement_);
+
   for (int i = anon_start; i < args.Length(); ++i) {
     while (1) {
       const char* param = sqlite3_bind_parameter_name(statement_, anon_idx);
       if (param == nullptr || param[0] == '?') break;
       anon_idx++;
+    }
+
+    // More values were supplied than the statement has parameters to bind
+    // them to. Report that directly instead of letting sqlite3_bind_*()
+    // surface its "column index out of range" error, which reads as a
+    // problem with the table rather than with the call.
+    if (anon_idx > param_count) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env(),
+          "Too many parameter values were provided. The statement accepts %d "
+          "parameter(s), which are already bound.",
+          param_count);
+      return false;
     }
 
     if (!BindValue(args[i], anon_idx)) {
