@@ -646,6 +646,10 @@ console.log(query.get());
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65157
+    description: Throw `ERR_INVALID_ARG_VALUE` if `sql` contains no statements.
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
