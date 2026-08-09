@@ -309,7 +309,7 @@ added: v22.5.0
 -->
 
 Closes the database connection. An exception is thrown if the database is not
-open. An \[`ERR_INVALID_STATE`]\[] error is thrown if the method is called while
+open. An [`ERR_INVALID_STATE`][] error is thrown if the method is called while
 a statement is executing, such as inside a user-defined function, an aggregate
 function, or an authorizer callback. This method is a wrapper around
 [`sqlite3_close_v2()`][].
