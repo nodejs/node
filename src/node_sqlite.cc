@@ -3613,6 +3613,7 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  Isolate* isolate = env->isolate();
   bool needs_reset = true;
   auto reset = OnScopeLeave([&]() {
     if (needs_reset) sqlite3_reset(stmt->statement_);
