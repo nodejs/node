@@ -265,14 +265,15 @@ await withPoisoned(
     info: new Uint8Array(0),
   }, key, length);
 
-  // [EnforceRange] and [Clamp] are not set for a plain `unsigned long`, so
-  // 2 ** 32 wraps to 0 rather than throwing or clamping.
+  // deriveBits length is [EnforceRange], so 2 ** 32 must throw even when
+  // conversion option properties are inherited from Object.prototype.
   for (const attribute of ['enforceRange', 'clamp']) {
     await withPoisoned(
       inherited(attribute, true),
-      common.mustCall(async () => {
-        await assert.rejects(hkdf(2 ** 32), { code: 'ERR_OUT_OF_RANGE' });
-      }));
+      common.mustCall(() => assert.rejects(hkdf(2 ** 32), {
+        code: 'ERR_OUT_OF_RANGE',
+        name: 'TypeError',
+      })));
   }
 
   // [AllowResizable] is not set for BufferSource.
