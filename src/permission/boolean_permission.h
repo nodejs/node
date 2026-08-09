@@ -5,9 +5,7 @@
 
 #include "permission/permission_base.h"
 
-namespace node {
-
-namespace permission {
+namespace node::permission {
 
 // A simple boolean permission that either denies or allows access.
 // Used for permission scopes that don't need per-resource granularity.
@@ -46,9 +44,7 @@ using DenyOnlyPermission = BooleanPermission<true>;
 // Apply grants access, Drop revokes.
 using AllowRevokePermission = BooleanPermission<false>;
 
-}  // namespace permission
-
-}  // namespace node
+}  // namespace node::permission
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_PERMISSION_BOOLEAN_PERMISSION_H_
