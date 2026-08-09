@@ -1,0 +1,100 @@
+npm init -y
+npm install express cors bcryptjs jsonwebtoken sqlite3
+const express = require('express');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const sqlite3 = require('sqlite3').verbose();
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+const JWT_SECRET = "moneyzip_secret_key_change_this";
+const db = new sqlite3.Database('./moneyzip.db');
+
+// Create tables
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT UNIQUE,
+    name TEXT,
+    pin_hash TEXT,
+    balance REAL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER,
+    receiver_id INTEGER,
+    amount REAL,
+    type TEXT,
+    status TEXT,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+});
+
+// Signup
+app.post('/signup', async (req, res) => {
+  const { phone, name, pin } = req.body;
+  const pin_hash = await bcrypt.hash(pin, 10);
+  db.run('INSERT INTO users (phone, name, pin_hash) VALUES (?,?,?)',
+    [phone, name, pin_hash], function(err) {
+      if(err) return res.status(400).json({error: "Phone already exists"});
+      res.json({message: "Account created", userId: this.lastID});
+  });
+});
+
+// Login
+app.post('/login', (req, res) => {
+  const { phone, pin } = req.body;
+  db.get('SELECT * FROM users WHERE phone =?', [phone], async (err, user) => {
+    if(!user) return res.status(400).json({error: "User not found"});
+    const valid = await bcrypt.compare(pin, user.pin_hash);
+    if(!valid) return res.status(400).json({error: "Wrong PIN"});
+    const token = jwt.sign({id: user.id}, JWT_SECRET);
+    res.json({token, user: {id: user.id, name: user.name, phone: user.phone, balance: user.balance}});
+  });
+});
+
+// Get Balance
+app.get('/balance/:id', auth, (req, res) => {
+  db.get('SELECT balance FROM users WHERE id =?', [req.params.id], (err, row) => {
+    res.json({balance: row.balance});
+  });
+});
+
+// Send Money - FREE between Money Zip users
+app.post('/send', auth, (req, res) => {
+  const { sender_id, receiver_phone, amount } = req.body;
+
+  db.get('SELECT * FROM users WHERE phone =?', [receiver_phone], (err, receiver) => {
+    if(!receiver) return res.status(400).json({error: "Receiver not on Money Zip"});
+
+    db.get('SELECT balance FROM users WHERE id =?', [sender_id], (err, sender) => {
+      if(sender.balance < amount) return res.status(400).json({error: "Insufficient balance"});
+
+      // Deduct sender, Add receiver
+      db.run('UPDATE users SET balance = balance -? WHERE id =?', [amount, sender_id]);
+      db.run('UPDATE users SET balance = balance +? WHERE id =?', [amount, receiver.id]);
+
+      // Log transaction
+      db.run('INSERT INTO transactions (sender_id, receiver_id, amount, type, status) VALUES (?,?,?,?,?)',
+        [sender_id, receiver.id, amount, 'wallet_to_wallet', 'success']);
+
+      res.json({message: `GH₵${amount} sent to ${receiver.name} - FREE`});
+    });
+  });
+});
+
+// Middleware to check token
+function auth(req, res, next) {
+  const token = req.headers['authorization'];
+  if(!token) return res.status(401).json({error: "No token"});
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch { res.status(401).json({error: "Invalid token"}) }
+}
+
+app.listen(3000, () => console.log("Money Zip Backend running on http://localhost:3000"));node server.js
