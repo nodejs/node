@@ -60,7 +60,11 @@ ProcessRunner::ProcessRunner(std::shared_ptr<InitializationResultImpl> result,
   }
 
 #ifdef _WIN32
-  if (file_.ends_with("cmd.exe")) {
+  static constexpr std::string_view cmd_exe = "cmd.exe";
+  if (file_.size() >= cmd_exe.size() &&
+      StringEqualNoCaseN(file_.data() + file_.size() - cmd_exe.size(),
+                         cmd_exe.data(),
+                         cmd_exe.size())) {
     // If the file is cmd.exe, use the following command line arguments:
     // "/c" Carries out the command and exit.
     // "/d" Disables execution of AutoRun commands.
