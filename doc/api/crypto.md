@@ -5608,9 +5608,12 @@ changes:
 
 * `buffer` {ArrayBuffer|Buffer|TypedArray|DataView} Must be supplied. The
   size of the provided `buffer` must not be larger than `2**31 - 1`.
-* `offset` {number} **Default:** `0`
-* `size` {number} **Default:** `buffer.length - offset`. The `size` must
-  not be larger than `2**31 - 1`.
+* `offset` {number} The start position, in elements for a `TypedArray` and in
+  bytes for an `ArrayBuffer` or `DataView`. **Default:** `0`
+* `size` {number} The amount to fill, in the same units as `offset`.
+  **Default:** `buffer.length - offset` for a `TypedArray`, or
+  `buffer.byteLength - offset` for an `ArrayBuffer` or `DataView`. The `size`
+  must not be larger than `2**31 - 1`.
 * `callback` {Function} `function(err, buf) {}`.
 
 This function is similar to [`crypto.randomBytes()`][] but requires the first
@@ -5745,9 +5748,12 @@ changes:
 
 * `buffer` {ArrayBuffer|Buffer|TypedArray|DataView} Must be supplied. The
   size of the provided `buffer` must not be larger than `2**31 - 1`.
-* `offset` {number} **Default:** `0`
-* `size` {number} **Default:** `buffer.length - offset`. The `size` must
-  not be larger than `2**31 - 1`.
+* `offset` {number} The start position, in elements for a `TypedArray` and in
+  bytes for an `ArrayBuffer` or `DataView`. **Default:** `0`
+* `size` {number} The amount to fill, in the same units as `offset`.
+  **Default:** `buffer.length - offset` for a `TypedArray`, or
+  `buffer.byteLength - offset` for an `ArrayBuffer` or `DataView`. The `size`
+  must not be larger than `2**31 - 1`.
 * Returns: {ArrayBuffer|Buffer|TypedArray|DataView} The object passed as
   `buffer` argument.
 
