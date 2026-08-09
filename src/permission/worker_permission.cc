@@ -1,7 +1,6 @@
 #include "permission/worker_permission.h"
 
 #include <string>
-#include <vector>
 
 namespace node {
 

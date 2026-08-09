@@ -1,7 +1,5 @@
 #include "permission.h"
-#include "base_object-inl.h"
 #include "env-inl.h"
-#include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_debug.h"
 #include "node_diagnostics_channel.h"
@@ -9,6 +7,15 @@
 #include "node_external_reference.h"
 #include "node_file.h"
 
+#include "permission/addon_permission.h"
+#include "permission/child_process_permission.h"
+#include "permission/ffi_permission.h"
+#include "permission/fs_permission.h"
+#include "permission/inspector_permission.h"
+#include "permission/net_permission.h"
+#include "permission/openssl_store_permission.h"
+#include "permission/wasi_permission.h"
+#include "permission/worker_permission.h"
 #include "permission/permission_base.h"
 #include "v8-fast-api-calls.h"
 #include "v8-template.h"
@@ -16,7 +23,6 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace node {
 
