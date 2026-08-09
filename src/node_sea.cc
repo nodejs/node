@@ -283,6 +283,18 @@ void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
+void IsSeaDynamicImportFromFileSystemEnabled(
+    const FunctionCallbackInfo<Value>& args) {
+  if (!IsSingleExecutable()) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+
+  SeaResource sea_resource = FindSingleExecutableResource();
+  args.GetReturnValue().Set(static_cast<bool>(
+      sea_resource.flags & SeaFlags::kAllowDynamicImportFromFileSystem));
+}
+
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
@@ -443,6 +455,18 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
       }
       if (use_code_cache_value) {
         result.flags |= SeaFlags::kUseCodeCache;
+      }
+    } else if (key == "allowDynamicImportFromFileSystem") {
+      bool allow_dynamic_import_from_file_system;
+      if (field.value().get_bool().get(allow_dynamic_import_from_file_system)) {
+        FPrintF(stderr,
+                "\"allowDynamicImportFromFileSystem\" field of %s is not a "
+                "Boolean\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (allow_dynamic_import_from_file_system) {
+        result.flags |= SeaFlags::kAllowDynamicImportFromFileSystem;
       }
     } else if (key == "assets") {
       simdjson::ondemand::object assets_object;
@@ -918,6 +942,10 @@ void Initialize(Local<Object> target,
             target,
             "isExperimentalSeaWarningNeeded",
             IsExperimentalSeaWarningNeeded);
+  SetMethod(context,
+            target,
+            "isSeaDynamicImportFromFileSystemEnabled",
+            IsSeaDynamicImportFromFileSystemEnabled);
   SetMethod(context, target, "getAsset", GetAsset);
   SetMethod(context, target, "getAssetKeys", GetAssetKeys);
 }
@@ -925,6 +953,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
   registry->Register(IsExperimentalSeaWarningNeeded);
+  registry->Register(IsSeaDynamicImportFromFileSystemEnabled);
   registry->Register(GetAsset);
   registry->Register(GetAssetKeys);
 }
