@@ -39,10 +39,8 @@ void FreeRecursivelyNode(
     return;
   }
 
-  if (node->children.size()) {
-    for (auto& c : node->children) {
-      FreeRecursivelyNode(c.second);
-    }
+  for (auto& [label, child] : node->children) {
+    FreeRecursivelyNode(child);
   }
 
   delete node->wildcard_child;
@@ -106,7 +104,7 @@ void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
         node::DebugCategory::PERMISSION_MODEL, "%s%s\n", indent, node->prefix);
   }
 
-  if (node->children.size() > 0) {
+  if (!node->children.empty()) {
     size_t count = 0;
     size_t total = node->children.size();
 
@@ -120,10 +118,10 @@ void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
       }
     }
 
-    for (const auto& pair : node->children) {
+    for (const auto& [label, child] : node->children) {
       count++;
       bool child_is_last = (count == total);
-      PrintTree(pair.second, depth + 1, next_branch_prefix, child_is_last);
+      PrintTree(child, depth + 1, next_branch_prefix, child_is_last);
     }
   }
 }
@@ -278,8 +276,8 @@ FSPermission::RadixTree::~RadixTree() {
 }
 
 void FSPermission::RadixTree::Clear() {
-  for (auto& c : root_node_->children) {
-    FreeRecursivelyNode(c.second);
+  for (auto& [label, child] : root_node_->children) {
+    FreeRecursivelyNode(child);
   }
   root_node_->children.clear();
   delete root_node_->wildcard_child;
@@ -294,15 +292,14 @@ bool FSPermission::RadixTree::Lookup(std::string_view s,
     return when_empty_return;
   }
   size_t parent_node_prefix_len = current_node->prefix.length();
-  const std::string path(s);
-  auto path_len = path.length();
+  auto path_len = s.length();
 
   while (true) {
     if (parent_node_prefix_len == path_len && current_node->IsEndNode()) {
       return true;
     }
 
-    auto node = current_node->NextNode(path, parent_node_prefix_len);
+    auto node = current_node->NextNode(s, parent_node_prefix_len);
     if (node == nullptr) {
       return false;
     }
