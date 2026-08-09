@@ -3658,6 +3658,14 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
       return BaseObjectPtr<StatementSync>();
     }
 
+    // sqlite3_prepare_v2() reports success without producing a statement when
+    // the input holds no SQL, such as a comment. Such a statement cannot be
+    // bound or executed, so reject it instead of caching it.
+    if (s == nullptr) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "The SQL query contains no statements.");
+      return BaseObjectPtr<StatementSync>();
+    }
+
     BaseObjectPtr<StatementSync> stmt_obj = StatementSync::Create(
         env, BaseObjectPtr<DatabaseSync>(session->database_), s);
 
