@@ -130,7 +130,7 @@ test('rejects parameters outside of template expressions', () => {
 test('rejects queries that contain no statement', () => {
   const expectedError = {
     code: 'ERR_INVALID_STATE',
-    message: /statement has been finalized/,
+    message: /query contains no statement/,
   };
 
   for (const method of ['run', 'get', 'all', 'iterate']) {

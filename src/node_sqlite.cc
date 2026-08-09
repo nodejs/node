@@ -3446,7 +3446,7 @@ bool SQLTagStore::ResetAndBindStatement(
     StatementSync* stmt,
     const FunctionCallbackInfo<Value>& args) {
   if (stmt->IsFinalized()) {
-    THROW_ERR_INVALID_STATE(env, "statement has been finalized");
+    THROW_ERR_INVALID_STATE(env, "query contains no statement");
     return false;
   }
 
