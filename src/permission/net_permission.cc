@@ -1,6 +1,5 @@
 #include "net_permission.h"
 
-#include <iostream>
 #include <string>
 
 namespace node {
