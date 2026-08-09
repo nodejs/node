@@ -53,9 +53,6 @@ const serverSessionOpened = Promise.withResolvers();
 
 
 const serverEndpoint = await listen(mustCall(async (ss) => {
-  ss.onstream = mustNotCall(async (stream) => {
-    console.log('Does nothing but is required! Fix me!');
-  });
   ss.onapplication = mustCall((aopts) => {
     assert.strictEqual(!aopts.enableDatagrams, false);
   });
@@ -91,7 +88,11 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { maxDatagramFrameSize: 100 },
+  transportParams: { 
+    maxDatagramFrameSize: 1000,
+    initialMaxStreamsBidi: 100, // default value according to spec
+    initialMaxStreamsUni: 100, // especially important as limit default is 0
+  },
   onheaders: mustCall(function(headers) {
     try {
       assert.strictEqual(headers[':scheme'], 'https');
@@ -124,7 +125,11 @@ const clientSession = await connect(serverEndpoint.address, {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { maxDatagramFrameSize: 1000 },
+  transportParams: { 
+    maxDatagramFrameSize: 1000,
+    initialMaxStreamsBidi: 100, // default value according to spec
+    initialMaxStreamsUni: 100, // especially important as limit default is 0
+  },
 });
 
 const webtransportSupport = Promise.withResolvers();
