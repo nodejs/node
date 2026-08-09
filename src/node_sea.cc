@@ -841,7 +841,7 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   if (sea_resource.assets.empty()) {
     return;
   }
-  auto it = sea_resource.assets.find(*key);
+  auto it = sea_resource.assets.find(std::string_view(*key, key.length()));
   if (it == sea_resource.assets.end()) {
     return;
   }
