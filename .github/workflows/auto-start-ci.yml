@@ -1,3 +1,6 @@
+# This action uses the following secrets:
+#   JENKINS_USER: GitHub user whose Jenkins token is defined below
+#   JENKINS_TOKEN: Jenkins token, to be used to check CI status
 name: Auto Start CI
 
 on:
@@ -36,7 +39,7 @@ jobs:
                   -t '{{ range . }}{{ .number }} {{ end }}' \
                   --limit 5)" >> "$GITHUB_OUTPUT"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
   start-ci:
     permissions:
       contents: read
@@ -59,10 +62,10 @@ jobs:
           ncu-config set token "$GH_TOKEN"
           ncu-config set jenkins_token "$JENKINS_TOKEN"
           ncu-config set owner "$GITHUB_REPOSITORY_OWNER"
-          ncu-config set repo "$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)"
+          ncu-config set repo "${GITHUB_REPOSITORY#*/}"
         env:
           USERNAME: ${{ secrets.JENKINS_USER }}
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Start the CI
@@ -70,5 +73,4 @@ jobs:
           curl -fsSL "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/tools/actions/start-ci.sh" \
           | sh -s -- ${{ needs.get-prs-for-ci.outputs.numbers }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
