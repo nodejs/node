@@ -178,11 +178,11 @@ void Channel::Unlink() {
   publish_fn_.Reset();
 }
 
-Channel* Channel::Get(Environment* env, const char* name) {
+BaseObjectPtr<Channel> Channel::Get(Environment* env, std::string_view name) {
   Realm* realm = env->principal_realm();
   BindingData* binding = realm->GetBindingData<BindingData>();
   if (binding == nullptr) {
-    return nullptr;
+    return {};
   }
   uint32_t index = binding->GetOrCreateChannelIndex(std::string(name));
 
@@ -208,22 +208,24 @@ Channel* Channel::Get(Environment* env, const char* name) {
              .ToLocalChecked()
              ->NewInstance(context)
              .ToLocal(&wrap)) {
-      return nullptr;
+      return {};
     }
 
     binding->channels_[index] = MakeDetachedBaseObject<Channel>(
         env, wrap, binding, index, std::string(name));
   }
 
-  Channel* channel = binding->channels_[index].get();
+  auto& channel = binding->channels_[index];
 
   // Late-bind: link to the JS channel when the callback is available.
   if (!binding->link_callback_.IsEmpty() && !channel->IsLinked()) {
     Isolate* isolate = env->isolate();
     HandleScope handle_scope(isolate);
     Local<Context> context = env->context();
-    Local<String> js_name = String::NewFromUtf8(isolate, name).ToLocalChecked();
-    Local<Value> argv[] = {js_name, Integer::NewFromUnsigned(isolate, index)};
+    Local<Value> argv[] = {
+      ToV8Value(context, name).ToLocalChecked(),
+      Integer::NewFromUnsigned(isolate, index),
+    };
     Local<Value> result;
     if (binding->link_callback_.Get(isolate)
             ->Call(context, v8::Undefined(isolate), arraysize(argv), argv)
