@@ -304,12 +304,10 @@ BaseObjectPtr<diagnostics_channel::Channel> Permission::GetOrCreateChannel(
     channels_.erase(it);
   }
   auto channel_name = GetDiagnosticsChannelName(scope);
-  diagnostics_channel::Channel* ch =
-      diagnostics_channel::Channel::Get(env, channel_name.data());
-  if (ch != nullptr) {
+  if (auto ch = diagnostics_channel::Channel::Get(env, channel_name)) {
     channels_.emplace(scope,
                       BaseObjectWeakPtr<diagnostics_channel::Channel>(ch));
-    return BaseObjectPtr<diagnostics_channel::Channel>(ch);
+    return ch;
   }
   return {};
 }
