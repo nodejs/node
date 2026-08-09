@@ -610,7 +610,7 @@ class Http3ApplicationImpl final : public Session::Application {
   bool MakeWebtransportStream(Stream& stream, int64_t sessionid) override {
     if (stream.is_pending()) {
       Debug(&session(),
-            "Enqueing Webtransport Session strean for pending stream");
+            "Enqueing Webtransport Session stream for pending stream");
       auto& state = GetOrCreateStreamState(stream);
       state.pending_webtransport_session = sessionid;
       return true;
