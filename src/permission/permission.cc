@@ -3,12 +3,14 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_debug.h"
 #include "node_diagnostics_channel.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
 
 #include "permission/permission_base.h"
+#include "v8-fast-api-calls.h"
 #include "v8-template.h"
 #include "v8.h"
 
@@ -18,13 +20,16 @@
 
 namespace node {
 
+using v8::CFunction;
 using v8::Context;
 using v8::DictionaryTemplate;
+using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::IntegrityLevel;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::String;
 using v8::Undefined;
 using v8::Value;
 
@@ -120,6 +125,47 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
 
   return args.GetReturnValue().Set(env->permission()->is_granted(env, scope));
 }
+
+static bool FastHas(Local<Value> receiver,
+                    Local<Value> scope_arg,
+                    Local<Value> resource_arg,
+                    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                    FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("permission.has");
+  auto isolate = options.isolate;
+  v8::HandleScope handle_scope(isolate);
+  auto context = isolate->GetCurrentContext();
+
+  Environment* env = Environment::GetCurrent(context);
+
+  Local<String> str;
+  if (!scope_arg->ToString(context).ToLocal(&str)) {
+    return false;
+  }
+  Utf8Value utf8_scope(isolate, str);
+  PermissionScope scope =
+      Permission::StringToPermission(utf8_scope.ToStringView());
+  if (scope == PermissionScope::kPermissionsRoot) {
+    return false;
+  }
+
+  if (resource_arg->IsUndefined()) {
+    return env->permission()->is_granted(env, scope);
+  }
+
+  Local<String> res_str;
+  if (!resource_arg->ToString(context).ToLocal(&res_str)) {
+    return false;
+  }
+  Utf8Value utf8_res(isolate, res_str);
+  if (utf8_res.length() == 0) {
+    return false;
+  }
+
+  return env->permission()->is_granted(env, scope, utf8_res.ToStringView());
+}
+
+static CFunction fast_has_(CFunction::Make(FastHas));
 
 }  // namespace
 
@@ -349,7 +395,7 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
-  SetMethodNoSideEffect(context, target, "has", Has);
+  SetFastMethodNoSideEffect(context, target, "has", Has, &fast_has_);
   SetMethod(context, target, "drop", Drop);
 
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
@@ -357,6 +403,7 @@ void Initialize(Local<Object> target,
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Has);
+  registry->Register(fast_has_);
   registry->Register(Drop);
 }
 
