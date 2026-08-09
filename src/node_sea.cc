@@ -508,6 +508,14 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     }
   }
 
+  if (!document.at_end()) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: %s\n",
+            config_path,
+            simdjson::error_message(simdjson::TRAILING_CONTENT));
+    return std::nullopt;
+  }
+
   if (static_cast<bool>(result.flags & SeaFlags::kUseSnapshot) &&
       static_cast<bool>(result.flags & SeaFlags::kUseCodeCache)) {
     // TODO(joyeecheung): code cache in snapshot should be configured by
