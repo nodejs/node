@@ -826,6 +826,7 @@ console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
 
 * `input` {string | Object} A URL or URL parts
 * `baseURL` {string | undefined} A base URL string
+* Returns {boolean}
 
 Input can be a string or an object providing the individual URL parts. The
 object members can be any of `protocol`, `username`, `password`, `hostname`,
