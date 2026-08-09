@@ -424,10 +424,9 @@ void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
             info->primitive_values[i++]);                                      \
     Local<String> field;                                                       \
     if (!maybe_field.ToLocal(&field)) {                                        \
-      fprintf(stderr,                                                          \
-              "Failed to deserialize " #Name "_permission_string\n");          \
+      fprintf(stderr, "Failed to deserialize " #Name "_permission_string\n");  \
     }                                                                          \
-    Name##_permission_string##_.Set(isolate_, field);                           \
+    Name##_permission_string##_.Set(isolate_, field);                          \
   } while (0);
   PERMISSIONS(V)
 #undef V

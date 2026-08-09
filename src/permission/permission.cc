@@ -8,6 +8,7 @@
 #include "node_external_reference.h"
 #include "node_file.h"
 
+#include "v8-template.h"
 #include "v8.h"
 
 #include <memory>
@@ -17,11 +18,13 @@
 namespace node {
 
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::FunctionCallbackInfo;
 using v8::IntegrityLevel;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::Undefined;
 using v8::Value;
 
 namespace permission {
@@ -49,6 +52,20 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
     default:
       return {};
   }
+}
+
+Local<DictionaryTemplate> GetPermissionDiagnosicsTemplate(Environment* env) {
+  auto tmpl = env->permission_diagnostic_channel_message();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "permission",
+        "resource",
+        "drop",
+    };
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    env->set_permission_diagnostic_channel_message(tmpl);
+  }
+  return tmpl;
 }
 
 // permission.drop('fs.read', '/tmp/')
@@ -245,17 +262,14 @@ bool Permission::is_scope_granted(Environment* env,
         v8::Isolate* isolate = env->isolate();
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context = env->context();
-        v8::Local<v8::Object> msg =
-            v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
-        msg->Set(context,
-                 env->permission_string(),
-                 PermissionToString(env, permission))
-            .Check();
-        msg->Set(context,
-                 env->resource_string(),
-                 ToV8Value(context, res).ToLocalChecked())
-            .Check();
-        ch->Publish(env, msg);
+        v8::MaybeLocal<v8::Value> values[] = {
+            PermissionToString(env, permission),
+            ToV8Value(context, res),
+            Undefined(isolate),
+        };
+        ch->Publish(
+            env,
+            GetPermissionDiagnosicsTemplate(env)->NewInstance(context, values));
         publishing_ = false;
       }
     }
@@ -310,21 +324,15 @@ void Permission::Drop(Environment* env,
       v8::Isolate* isolate = env->isolate();
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = env->context();
-      v8::Local<v8::Object> msg =
-          v8::Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
-      msg->Set(context,
-               env->permission_string(),
-               PermissionToString(env, scope))
-          .Check();
-      msg->Set(context,
-               env->resource_string(),
-               ToV8Value(context, param).ToLocalChecked())
-          .Check();
-      msg->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "drop"),
-               v8::Boolean::New(isolate, true))
-          .Check();
-      ch->Publish(env, msg);
+
+      v8::MaybeLocal<v8::Value> values[] = {
+          PermissionToString(env, scope),
+          ToV8Value(context, param),
+          v8::True(isolate),
+      };
+      ch->Publish(
+          env,
+          GetPermissionDiagnosicsTemplate(env)->NewInstance(context, values));
       publishing_ = false;
     }
   }
