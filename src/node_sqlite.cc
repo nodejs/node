@@ -3852,11 +3852,11 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
+    iter->done_ = true;
     RESET_OR_THROW(env->isolate(),
                    iter->stmt_->db_.get(),
                    iter->stmt_->statement_,
                    void());
-    iter->done_ = true;
     MaybeLocal<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
     Local<Object> result;
     if (NewDictionaryInstanceNullProto(env->context(), iter_template, values)
