@@ -100,8 +100,8 @@ class Permission {
   Permission();
 
   FORCE_INLINE bool is_granted(Environment* env,
-                               const PermissionScope permission,
-                               const std::string_view& res = "") const {
+                               PermissionScope permission,
+                               std::string_view res = "") const {
     if (!enabled_) [[likely]] {
       return true;
     }
@@ -112,32 +112,30 @@ class Permission {
 
   FORCE_INLINE bool warning_only() const { return warning_only_; }
 
-  static PermissionScope StringToPermission(const std::string& perm);
+  static PermissionScope StringToPermission(std::string_view perm);
   static v8::Local<v8::String> PermissionToString(Environment* env,
                                                   PermissionScope perm);
   static void ThrowAccessDenied(Environment* env,
                                 PermissionScope perm,
-                                const std::string_view& res);
+                                std::string_view res);
   static void AsyncThrowAccessDenied(Environment* env,
                                      fs::FSReqBase* req_wrap,
                                      PermissionScope perm,
-                                     const std::string_view& res);
+                                     std::string_view res);
 
   // CLI Call
   void Apply(Environment* env,
-             const std::vector<std::string>& allow,
+             std::span<const std::string> allow,
              PermissionScope scope);
   // Runtime Call
-  void Drop(Environment* env,
-            PermissionScope scope,
-            const std::string_view& param = "");
+  void Drop(Environment* env, PermissionScope scope, std::string_view param);
   void EnablePermissions();
   void EnableWarningOnly();
 
  private:
   COLD_NOINLINE bool is_scope_granted(Environment* env,
-                                      const PermissionScope permission,
-                                      const std::string_view& res = "") const;
+                                      PermissionScope permission,
+                                      std::string_view res = "") const;
 
   BaseObjectPtr<diagnostics_channel::Channel> GetOrCreateChannel(
       Environment* env, PermissionScope scope) const;
@@ -155,7 +153,7 @@ class Permission {
 
 v8::MaybeLocal<v8::Value> CreateAccessDeniedError(Environment* env,
                                                   PermissionScope perm,
-                                                  const std::string_view& res);
+                                                  std::string_view res);
 
 }  // namespace permission
 

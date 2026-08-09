@@ -223,8 +223,8 @@ BaseObjectPtr<Channel> Channel::Get(Environment* env, std::string_view name) {
     HandleScope handle_scope(isolate);
     Local<Context> context = env->context();
     Local<Value> argv[] = {
-      ToV8Value(context, name).ToLocalChecked(),
-      Integer::NewFromUnsigned(isolate, index),
+        ToV8Value(context, name).ToLocalChecked(),
+        Integer::NewFromUnsigned(isolate, index),
     };
     Local<Value> result;
     if (binding->link_callback_.Get(isolate)

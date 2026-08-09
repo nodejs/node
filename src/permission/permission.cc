@@ -59,7 +59,7 @@ constexpr std::string_view GetDiagnosticsChannelName(PermissionScope scope) {
   }
 }
 
-Local<DictionaryTemplate> GetPermissionDiagnosicsTemplate(Environment* env) {
+Local<DictionaryTemplate> GetPermissionDiagnosticsTemplate(Environment* env) {
   auto tmpl = env->permission_diagnostic_channel_message();
   if (tmpl.IsEmpty()) {
     static constexpr std::string_view names[] = {
@@ -93,7 +93,7 @@ static void Drop(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  env->permission()->Drop(env, scope);
+  env->permission()->Drop(env, scope, "");
 }
 
 // permission.has('fs.in', '/tmp/')
@@ -125,8 +125,8 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
 
 #define V(Name, label, _, __)                                                  \
   if (perm == PermissionScope::k##Name) return env->Name##_permission_string();
-v8::Local<v8::String> Permission::PermissionToString(
-    Environment* env, const PermissionScope perm) {
+v8::Local<v8::String> Permission::PermissionToString(Environment* env,
+                                                     PermissionScope perm) {
   PERMISSIONS(V)
   UNREACHABLE();
 }
@@ -134,7 +134,7 @@ v8::Local<v8::String> Permission::PermissionToString(
 
 #define V(Name, label, _, __)                                                  \
   if (perm == label) return PermissionScope::k##Name;
-PermissionScope Permission::StringToPermission(const std::string& perm) {
+PermissionScope Permission::StringToPermission(std::string_view perm) {
   PERMISSIONS(V)
   return PermissionScope::kPermissionsRoot;
 }
@@ -206,7 +206,7 @@ const char* GetErrorFlagSuggestion(node::permission::PermissionScope perm) {
 
 MaybeLocal<Value> CreateAccessDeniedError(Environment* env,
                                           PermissionScope perm,
-                                          const std::string_view& res) {
+                                          std::string_view res) {
   const char* suggestion = GetErrorFlagSuggestion(perm);
   Local<Object> err = ERR_ACCESS_DENIED(
       env->isolate(), "Access to this API has been restricted. %s", suggestion);
@@ -226,7 +226,7 @@ MaybeLocal<Value> CreateAccessDeniedError(Environment* env,
 
 void Permission::ThrowAccessDenied(Environment* env,
                                    PermissionScope perm,
-                                   const std::string_view& res) {
+                                   std::string_view res) {
   Local<Value> err;
   if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
     env->isolate()->ThrowException(err);
@@ -238,7 +238,7 @@ void Permission::ThrowAccessDenied(Environment* env,
 void Permission::AsyncThrowAccessDenied(Environment* env,
                                         fs::FSReqBase* req_wrap,
                                         PermissionScope perm,
-                                        const std::string_view& res) {
+                                        std::string_view res) {
   Local<Value> err;
   if (CreateAccessDeniedError(env, perm, res).ToLocal(&err)) {
     return req_wrap->Reject(err);
@@ -260,8 +260,8 @@ void Permission::EnableWarningOnly() {
 }
 
 bool Permission::is_scope_granted(Environment* env,
-                                  const PermissionScope permission,
-                                  const std::string_view& res) const {
+                                  PermissionScope permission,
+                                  std::string_view res) const {
   CHECK(permission != PermissionScope::kPermissionsRoot &&
         permission != PermissionScope::kPermissionsCount);
   auto perm_node = nodes_.find(permission);
@@ -284,7 +284,7 @@ bool Permission::is_scope_granted(Environment* env,
       };
       ch->Publish(
           env,
-          GetPermissionDiagnosicsTemplate(env)->NewInstance(context, values));
+          GetPermissionDiagnosticsTemplate(env)->NewInstance(context, values));
       publishing_ = false;
     }
   }
@@ -313,7 +313,7 @@ BaseObjectPtr<diagnostics_channel::Channel> Permission::GetOrCreateChannel(
 }
 
 void Permission::Apply(Environment* env,
-                       const std::vector<std::string>& allow,
+                       std::span<const std::string> allow,
                        PermissionScope scope) {
   auto permission = nodes_.find(scope);
   if (permission != nodes_.end()) {
@@ -323,7 +323,7 @@ void Permission::Apply(Environment* env,
 
 void Permission::Drop(Environment* env,
                       PermissionScope scope,
-                      const std::string_view& param) {
+                      std::string_view param) {
   CHECK(scope != PermissionScope::kPermissionsRoot &&
         scope != PermissionScope::kPermissionsCount);
   auto permission = nodes_.find(scope);
@@ -347,7 +347,7 @@ void Permission::Drop(Environment* env,
       };
       ch->Publish(
           env,
-          GetPermissionDiagnosicsTemplate(env)->NewInstance(context, values));
+          GetPermissionDiagnosticsTemplate(env)->NewInstance(context, values));
       publishing_ = false;
     }
   }

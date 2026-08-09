@@ -52,7 +52,7 @@ void FreeRecursivelyNode(
 bool is_tree_granted(
     node::Environment* env,
     const node::permission::FSPermission::RadixTree* granted_tree,
-    const std::string_view& param) {
+    std::string_view param) {
   std::string resolved_param = node::PathResolve(env, {param});
 #ifdef _WIN32
   // Remove leading "\\?\" from UNC path
@@ -137,7 +137,7 @@ namespace permission {
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
 void FSPermission::Apply(Environment* env,
-                         const std::vector<std::string>& allow,
+                         std::span<const std::string> allow,
                          PermissionScope scope) {
   for (const std::string& res : allow) {
     if (res == "*") {
@@ -156,7 +156,7 @@ void FSPermission::Apply(Environment* env,
 
 void FSPermission::Drop(Environment* env,
                         PermissionScope scope,
-                        const std::string_view& param) {
+                        std::string_view param) {
   if (param.empty()) {
     // Drop all access for this scope
     if (scope == PermissionScope::kFileSystemRead ||
@@ -250,7 +250,7 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
 
 bool FSPermission::is_granted(Environment* env,
                               PermissionScope perm,
-                              const std::string_view& param = "") const {
+                              std::string_view param = "") const {
   switch (perm) {
     case PermissionScope::kFileSystem:
       return allow_all_in_ && allow_all_out_;
@@ -287,7 +287,7 @@ void FSPermission::RadixTree::Clear() {
   root_node_->is_leaf = false;
 }
 
-bool FSPermission::RadixTree::Lookup(const std::string_view& s,
+bool FSPermission::RadixTree::Lookup(std::string_view s,
                                      bool when_empty_return) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
   if (current_node->children.empty()) {

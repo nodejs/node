@@ -16,14 +16,14 @@ namespace permission {
 class FSPermission final : public PermissionBase {
  public:
   void Apply(Environment* env,
-             const std::vector<std::string>& allow,
+             std::span<const std::string> allow,
              PermissionScope scope) override;
   void Drop(Environment* env,
             PermissionScope scope,
-            const std::string_view& param = "") override;
+            std::string_view param) override;
   bool is_granted(Environment* env,
                   PermissionScope perm,
-                  const std::string_view& param) const override;
+                  std::string_view param) const override;
 
   struct RadixTree {
     struct Node {
@@ -146,8 +146,8 @@ class FSPermission final : public PermissionBase {
     ~RadixTree();
     void Insert(const std::string& s);
     void Clear();
-    bool Lookup(const std::string_view& s) const { return Lookup(s, false); }
-    bool Lookup(const std::string_view& s, bool when_empty_return) const;
+    bool Lookup(std::string_view s) const { return Lookup(s, false); }
+    bool Lookup(std::string_view s, bool when_empty_return) const;
 
    private:
     Node* root_node_;
