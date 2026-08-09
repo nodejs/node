@@ -91,7 +91,7 @@ const decoder = new TextDecoder();
     },
     onheaders: mustCall(function(headers) {
       // Client should also receive lowercased response header names.
-      assert.strictEqual(headers[':status'], '200');
+      assert.strictEqual(headers[':status'], 200);
       assert.strictEqual(headers['content-type'], 'text/html');
       assert.strictEqual(headers['x-response-header'], 'ResponseValue');
 
@@ -148,7 +148,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall((headers) => {
-      assert.strictEqual(headers[':status'], '204');
+      assert.strictEqual(headers[':status'], 204);
     }),
   });
 
