@@ -21,7 +21,7 @@ const { createRequire } = await import('node:module');
 const require = createRequire(import.meta.url);
 const { getQuicSessionState } = require('internal/quic/quic');
 
-const { listen, connect } = await import('node:http3');
+const { listenHttp3: listen, connectHttp3: connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));

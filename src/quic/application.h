@@ -187,7 +187,7 @@ struct ApplicationFactory {
 
   // Parses the application-specific settings value, supplied through an
   // internal symbol by the application's consumer layer (e.g.
-  // node:http3), into an opaque holder carried on Session::Options.
+  // the HTTP/3 JS layer), into an opaque holder carried on Session::Options.
   // Called while session options are processed; invalid user-supplied
   // values should throw and return Nothing.
   v8::Maybe<std::shared_ptr<void>> (*parse_settings)(

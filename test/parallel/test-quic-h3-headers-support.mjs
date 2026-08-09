@@ -3,7 +3,8 @@
 // Test: QuicStream/QuicSession expose no HTTP/3 surface.
 // The HTTP/3 members (sendHeaders, sendInformationalHeaders, sendTrailers,
 // headers, onheaders, oninfo, ontrailers, onwanttrailers) were stripped from
-// the public node:quic API; node:http3 reaches them via internal symbols.
+// the public node:quic API; the HTTP/3 layer reaches them via internal
+// symbols.
 // Regardless of the negotiated ALPN, plain QUIC streams must expose none of
 // them: the methods are undefined and the callback names are plain inert
 // expando properties with no prototype accessors behind them.

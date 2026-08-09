@@ -16,7 +16,7 @@ const cert = fixtures.readKey('agent1-cert.pem');
 
 // Test that the h3 ALPN negotiates normally but doesn't auto-activate
 // HTTP/3. ALPN is reported, not type-changing. HTTP/3 is used via
-// the 'node:http3' module explicitly.
+// the HTTP/3 API explicitly.
 // Both server and client explicitly configure the h3 ALPN.
 
 const { createRequire } = await import('node:module');

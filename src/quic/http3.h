@@ -11,7 +11,7 @@ namespace quic {
 // Registers the HTTP/3 application factory (creation, settings parsing,
 // and session-ticket hooks) under the name "http3". Called once at
 // binding initialization; a session installs the application only when
-// its options request that name explicitly (set by node:http3).
+// its options request that name explicitly (set by the HTTP/3 JS layer).
 void RegisterHttp3Application();
 
 void CreateHttp3Handle(const v8::FunctionCallbackInfo<v8::Value>& args);

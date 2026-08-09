@@ -12,7 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { connect, listen, Http3Session, Http3Stream } = await import('node:http3');
+const { connectHttp3: connect, listenHttp3: listen, Http3Session, Http3Stream } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 

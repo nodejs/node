@@ -128,7 +128,7 @@ inline size_t FormatPriority(char* buf, size_t buflen, const nghttp3_pri& pri) {
 // ============================================================================
 // The HTTP/3 application settings: the RFC 9114/9204 SETTINGS values
 // advertised to the peer plus the local header-processing limits. The
-// values are supplied by node:http3 (the `settings` option of
+// values are supplied by the HTTP/3 JS layer (the `settings` option of
 // http3.connect()/listen()), carried opaquely through Session::Options,
 // and parsed here by the registered parse hook. The QUIC core never
 // knows these field names.
@@ -834,7 +834,7 @@ class Http3Application final : public Session::Application {
     // nghttp3_conn_get_stream_priority is only available on the server
     // side, where it reflects the peer's requested priority (e.g., from
     // PRIORITY_UPDATE frames). The client tracks its own requested priority
-    // in node:http3, and doesn't use this.
+    // in the HTTP/3 JS layer, and doesn't use this.
     if (!session().is_server()) {
       return {StreamPriority::DEFAULT, StreamPriorityFlags::NON_INCREMENTAL};
     }
@@ -1854,9 +1854,9 @@ void RegisterHttp3ExternalReferences(ExternalReferenceRegistry* registry) {
 }
 
 void InitHttp3PerContext(Local<Object> target) {
-  // The HTTP/3 header kind/flags values consumed by node:http3 when calling
-  // the kHttp3Handle methods. These are http3-owned constants exposed on the
-  // quic binding object.
+  // The HTTP/3 header kind/flags values consumed by the HTTP/3 JS layer when
+  // calling the kHttp3Handle methods. These are http3-owned constants exposed
+  // on the quic binding object.
   constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
       static_cast<uint8_t>(HeadersKind::HINTS);
   constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =

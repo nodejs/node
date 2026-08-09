@@ -131,7 +131,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     // The name of the protocol application to install on the session
     // (see application.h). Set only by internal consumer layers (e.g.
-    // node:http3); empty means the session runs the native raw-stream
+    // the HTTP/3 JS layer); empty means the session runs the native raw-stream
     // path with no application installed.
     std::string application;
 

@@ -46,8 +46,7 @@ const expectedJsons = linkedHtmls
                        .map((name) => name.replace('.html', '.json'));
 const expectedDocs = linkedHtmls.concat(expectedJsons);
 const renamedDocs = ['policy.json', 'policy.html'];
-const skipedDocs = ['dtls.json', 'dtls.html', 'quic.json', 'quic.html',
-                    'http3.json', 'http3.html'];
+const skipedDocs = ['dtls.json', 'dtls.html', 'quic.json', 'quic.html'];
 
 // Test that all the relative links in the TOC match to the actual documents.
 for (const expectedDoc of expectedDocs) {

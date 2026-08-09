@@ -16,7 +16,7 @@ if (!hasQuic) {
 }
 
 const { listen: quicListen, connect: quicConnect } = await import('node:quic');
-const { Http3Session } = await import('node:http3');
+const { Http3Session } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
