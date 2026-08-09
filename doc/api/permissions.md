@@ -133,7 +133,7 @@ const config = fs.readFileSync('/etc/myapp/config.json', 'utf8');
 // Drop read access to /etc/myapp after initialization
 process.permission.drop('fs.read', '/etc/myapp');
 
-// This will now throw ERR_ACCESS_DENIED
+// This will now return false
 process.permission.has('fs.read', '/etc/myapp/config.json'); // false
 
 // Drop child process permission entirely
@@ -211,7 +211,7 @@ $ node --permission index.js
 * `index.js` will be included in the allowed file system read list
 
 ```console
-$ node -r /path/to/custom-require.js --permission index.js.
+$ node -r /path/to/custom-require.js --permission index.js
 ```
 
 * `/path/to/custom-require.js` will be included in the allowed file system read
