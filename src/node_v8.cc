@@ -745,17 +745,17 @@ void Initialize(Local<Object> target,
   // Heap space names are extracted once and exposed to JavaScript to
   // avoid excessive creation of heap space name Strings.
   HeapSpaceStatistics s;
-  MaybeStackBuffer<Local<Value>, 16> heap_spaces(number_of_heap_spaces);
+  MaybeStackBuffer<Value, 16> heap_spaces(env->isolate(),
+                                          number_of_heap_spaces);
   for (size_t i = 0; i < number_of_heap_spaces; i++) {
     env->isolate()->GetHeapSpaceStatistics(&s, i);
     heap_spaces[i] = String::NewFromUtf8(env->isolate(), s.space_name())
                                              .ToLocalChecked();
   }
   target
-      ->Set(
-          context,
-          FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
-          Array::New(env->isolate(), heap_spaces.out(), number_of_heap_spaces))
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "kHeapSpaces"),
+            heap_spaces.ToArray())
       .Check();
 
   SetMethod(context,

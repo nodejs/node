@@ -41,7 +41,6 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
 using ncrypto::X509Pointer;
-using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
@@ -1956,7 +1955,7 @@ void TLSWrap::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
   SSL* ssl = w->ssl_.get();
   int nsig = SSL_get_shared_sigalgs(ssl, 0, nullptr, nullptr, nullptr, nullptr,
                                     nullptr);
-  MaybeStackBuffer<Local<Value>, 16> ret_arr(nsig);
+  MaybeStackBuffer<Value, 16> ret_arr(env->isolate(), nsig);
 
   for (int i = 0; i < nsig; i++) {
     int hash_nid;
@@ -2023,8 +2022,7 @@ void TLSWrap::GetSharedSigalgs(const FunctionCallbackInfo<Value>& args) {
     ret_arr[i] = OneByteString(env->isolate(), sig_with_md);
   }
 
-  args.GetReturnValue().Set(
-                 Array::New(env->isolate(), ret_arr.out(), ret_arr.length()));
+  args.GetReturnValue().Set(ret_arr.ToArray());
 }
 
 void TLSWrap::ExportKeyingMaterial(const FunctionCallbackInfo<Value>& args) {

@@ -526,6 +526,85 @@ class MaybeStackBuffer {
   T buf_st_[kStackStorageSize];
 };
 
+template <V8Type T, size_t kStackStorageSize>
+class MaybeStackBuffer<T, kStackStorageSize> {
+ public:
+  using V = v8::Local<T>;
+
+  MaybeStackBuffer(const MaybeStackBuffer&) = delete;
+  MaybeStackBuffer& operator=(const MaybeStackBuffer& other) = delete;
+
+  const V* out() const { return buf_; }
+  V* out() { return buf_; }
+
+  // operator* for compatibility with `v8::String::(Utf8)Value`
+  V* operator*() { return buf_; }
+  const V* operator*() const { return buf_; }
+
+  V& operator[](size_t index) {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
+  const V& operator[](size_t index) const {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
+  size_t length() const { return length_; }
+
+  // Current maximum capacity of the buffer with which SetLength() can be used
+  // without first calling AllocateSufficientStorage().
+  size_t capacity() const { return capacity_; }
+
+  // Make sure enough space for `storage` entries is available.
+  // This method can be called multiple times throughout the lifetime of the
+  // buffer, but once this has been called Invalidate() cannot be used.
+  // Content of the buffer in the range [0, length()) is preserved.
+  void AllocateSufficientStorage(size_t storage);
+
+  void SetLength(size_t length) {
+    // capacity() returns how much memory is actually available.
+    CHECK_LE(length, capacity());
+    length_ = length;
+  }
+
+  // If the buffer is stored in a LocalVector rather than on the stack.
+  bool IsAllocated() const { return !IsInvalidated() && buf_ != buf_st_; }
+
+  // If Invalidate() has been called.
+  bool IsInvalidated() const { return buf_ == nullptr; }
+
+  explicit MaybeStackBuffer(v8::Isolate* isolate)
+      : isolate_(isolate),
+        length_(0),
+        capacity_(arraysize(buf_st_)),
+        buf_(buf_st_) {
+    // Default to a zero-length, null-terminated buffer.
+    buf_[0] = V();
+  }
+
+  MaybeStackBuffer(v8::Isolate* isolate, size_t storage)
+      : MaybeStackBuffer(isolate) {
+    AllocateSufficientStorage(storage);
+  }
+
+  // LocalVector (via optional) handles cleanup automatically.
+  ~MaybeStackBuffer() = default;
+
+  v8::Local<v8::Array> ToArray() const {
+    return v8::Array::New(isolate_, buf_, length_);
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  size_t length_;
+  size_t capacity_;
+  V* buf_;
+  V buf_st_[kStackStorageSize];
+  std::optional<v8::LocalVector<T>> local_vector_;
+};
+
 // Provides access to an ArrayBufferView's storage, either the original,
 // or for small data, a copy of it. This object's lifetime is bound to the
 // original ArrayBufferView's lifetime.
@@ -782,10 +861,13 @@ constexpr inline bool IsBigEndian() {
 static_assert(IsLittleEndian() || IsBigEndian(),
               "Node.js does not support mixed-endian systems");
 
-class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
+class SlicedArguments : public MaybeStackBuffer<v8::Value> {
  public:
   inline explicit SlicedArguments(
       const v8::FunctionCallbackInfo<v8::Value>& args, size_t start = 0);
+  inline SlicedArguments(v8::Isolate* isolate,
+                         const v8::FunctionCallbackInfo<v8::Value>& args,
+                         size_t start = 0);
 };
 
 // Convert a v8::PersistentBase, e.g. v8::Global, to a Local, with an extra
