@@ -8,6 +8,7 @@
 #include "node_external_reference.h"
 #include "node_file.h"
 
+#include "permission/permission_base.h"
 #include "v8-template.h"
 #include "v8.h"
 
@@ -261,6 +262,8 @@ void Permission::EnableWarningOnly() {
 bool Permission::is_scope_granted(Environment* env,
                                   const PermissionScope permission,
                                   const std::string_view& res) const {
+  CHECK(permission != PermissionScope::kPermissionsRoot &&
+        permission != PermissionScope::kPermissionsCount);
   auto perm_node = nodes_.find(permission);
   bool result = false;
   if (perm_node != nodes_.end()) {
@@ -268,24 +271,21 @@ bool Permission::is_scope_granted(Environment* env,
   }
 
   if (!result && !publishing_) {
-    auto channel_name = GetDiagnosticsChannelName(permission);
-    if (!channel_name.empty()) {
-      auto ch = GetOrCreateChannel(env, permission);
-      if (ch && ch->HasSubscribers()) {
-        publishing_ = true;
-        v8::Isolate* isolate = env->isolate();
-        v8::HandleScope handle_scope(isolate);
-        v8::Local<v8::Context> context = env->context();
-        v8::MaybeLocal<v8::Value> values[] = {
-            PermissionToString(env, permission),
-            ToV8Value(context, res),
-            Undefined(isolate),
-        };
-        ch->Publish(
-            env,
-            GetPermissionDiagnosicsTemplate(env)->NewInstance(context, values));
-        publishing_ = false;
-      }
+    auto ch = GetOrCreateChannel(env, permission);
+    if (ch && ch->HasSubscribers()) {
+      publishing_ = true;
+      v8::Isolate* isolate = env->isolate();
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = env->context();
+      v8::MaybeLocal<v8::Value> values[] = {
+          PermissionToString(env, permission),
+          ToV8Value(context, res),
+          Undefined(isolate),
+      };
+      ch->Publish(
+          env,
+          GetPermissionDiagnosicsTemplate(env)->NewInstance(context, values));
+      publishing_ = false;
     }
   }
 
@@ -294,6 +294,8 @@ bool Permission::is_scope_granted(Environment* env,
 
 BaseObjectPtr<diagnostics_channel::Channel> Permission::GetOrCreateChannel(
     Environment* env, PermissionScope scope) const {
+  CHECK(scope != PermissionScope::kPermissionsRoot &&
+        scope != PermissionScope::kPermissionsCount);
   auto it = channels_.find(scope);
   if (it != channels_.end()) {
     // Promote weak ref to strong for the duration of this call.
@@ -324,14 +326,15 @@ void Permission::Apply(Environment* env,
 void Permission::Drop(Environment* env,
                       PermissionScope scope,
                       const std::string_view& param) {
+  CHECK(scope != PermissionScope::kPermissionsRoot &&
+        scope != PermissionScope::kPermissionsCount);
   auto permission = nodes_.find(scope);
   if (permission != nodes_.end()) {
     permission->second->Drop(env, scope, param);
   }
 
   // Publish to diagnostics channel so observers can track drops
-  auto channel_name = GetDiagnosticsChannelName(scope);
-  if (!channel_name.empty() && !publishing_) {
+  if (!publishing_) {
     auto ch = GetOrCreateChannel(env, scope);
     if (ch && ch->HasSubscribers()) {
       publishing_ = true;
