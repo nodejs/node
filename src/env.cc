@@ -954,6 +954,7 @@ Environment::Environment(IsolateData* isolate_data,
 
   if (options_->permission || options_->permission_audit) {
     permission()->EnablePermissions();
+    static const std::array args = {std::string("*")};
     if (options_->permission_audit) {
       permission()->EnableWarningOnly();
     }
@@ -962,29 +963,29 @@ Environment::Environment(IsolateData* isolate_data,
     // unless explicitly allowed by the user
     if (!options_->allow_addons) {
       options_->allow_native_addons = false;
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kAddon);
+      permission()->Apply(this, args, permission::PermissionScope::kAddon);
     }
     if (!options_->allow_inspector) {
       flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
+      permission()->Apply(this, args, permission::PermissionScope::kInspector);
     }
     if (!options_->allow_child_process) {
       permission()->Apply(
-          this, {"*"}, permission::PermissionScope::kChildProcess);
+          this, args, permission::PermissionScope::kChildProcess);
     }
     if (!options_->allow_ffi) {
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kFFI);
+      permission()->Apply(this, args, permission::PermissionScope::kFFI);
     }
     if (!options_->allow_openssl_store) {
       permission()->Apply(
-          this, {"*"}, permission::PermissionScope::kOpenSSLStore);
+          this, args, permission::PermissionScope::kOpenSSLStore);
     }
     if (!options_->allow_worker_threads) {
       permission()->Apply(
-          this, {"*"}, permission::PermissionScope::kWorkerThreads);
+          this, args, permission::PermissionScope::kWorkerThreads);
     }
     if (!options_->allow_wasi) {
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
+      permission()->Apply(this, args, permission::PermissionScope::kWASI);
     }
 
     // Implicit allow entrypoint to kFileSystemRead
@@ -1019,7 +1020,7 @@ Environment::Environment(IsolateData* isolate_data,
     }
 
     if (options_->allow_net) {
-      permission()->Apply(this, {"*"}, permission::PermissionScope::kNet);
+      permission()->Apply(this, args, permission::PermissionScope::kNet);
     }
   }
 }
