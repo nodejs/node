@@ -30,8 +30,7 @@ class FSPermission final : public PermissionBase {
       Node* wildcard_child = nullptr;
       bool is_leaf = false;
 
-      explicit Node(std::string_view pre)
-          : prefix(pre) {}
+      explicit Node(std::string_view pre) : prefix(pre) {}
 
       Node() = default;
 
@@ -44,7 +43,10 @@ class FSPermission final : public PermissionBase {
 
       void SetChild(char label, Node* node) {
         for (auto& [c, n] : children) {
-          if (c == label) { n = node; return; }
+          if (c == label) {
+            n = node;
+            return;
+          }
         }
         children.emplace_back(label, node);
       }

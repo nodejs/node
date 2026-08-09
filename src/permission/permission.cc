@@ -7,15 +7,8 @@
 #include "node_external_reference.h"
 #include "node_file.h"
 
-#include "permission/addon_permission.h"
-#include "permission/child_process_permission.h"
-#include "permission/ffi_permission.h"
+#include "permission/boolean_permission.h"
 #include "permission/fs_permission.h"
-#include "permission/inspector_permission.h"
-#include "permission/net_permission.h"
-#include "permission/openssl_store_permission.h"
-#include "permission/wasi_permission.h"
-#include "permission/worker_permission.h"
 #include "permission/permission_base.h"
 #include "v8-fast-api-calls.h"
 #include "v8-template.h"
@@ -194,49 +187,25 @@ PermissionScope Permission::StringToPermission(std::string_view perm) {
 
 Permission::Permission() : enabled_(false), warning_only_(false) {
   auto fs = std::make_shared<FSPermission>();
-  auto child_p = std::make_shared<ChildProcessPermission>();
-  auto worker_t = std::make_shared<WorkerPermission>();
-  auto inspector = std::make_shared<InspectorPermission>();
-  auto wasi = std::make_shared<WASIPermission>();
-  auto net = std::make_shared<NetPermission>();
-  auto addon = std::make_shared<AddonPermission>();
-  auto ffi = std::make_shared<FFIPermission>();
-  auto openssl_store = std::make_shared<OpenSSLStorePermission>();
 #define V(Name, _, __, ___)                                                    \
   nodes_[static_cast<size_t>(PermissionScope::k##Name)] = fs;
   FILESYSTEM_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = child_p;
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] =                      \
+      std::make_shared<DenyOnlyPermission>();
   CHILD_PROCESS_PERMISSIONS(V)
-#undef V
-#define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = worker_t;
   WORKER_THREADS_PERMISSIONS(V)
-#undef V
-#define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = inspector;
   INSPECTOR_PERMISSIONS(V)
-#undef V
-#define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = wasi;
   WASI_PERMISSIONS(V)
-#undef V
-#define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = net;
-  NET_PERMISSIONS(V)
-#undef V
-#define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = addon;
   ADDON_PERMISSIONS(V)
-#undef V
-#define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = ffi;
   FFI_PERMISSIONS(V)
+  OPENSSL_STORE_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
-  nodes_[static_cast<size_t>(PermissionScope::k##Name)] = openssl_store;
-  OPENSSL_STORE_PERMISSIONS(V)
+  nodes_[static_cast<size_t>(PermissionScope::k##Name)] =                      \
+      std::make_shared<AllowRevokePermission>();
+  NET_PERMISSIONS(V)
 #undef V
 }
 
