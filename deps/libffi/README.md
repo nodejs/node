@@ -201,6 +201,28 @@ History
 
 See the git log for details at http://github.com/libffi/libffi.
 
+    3.8.0 August-8-2026
+        Add FFI_TYPE_VECTOR (SIMD) type support with libffi-computed
+          layout, for aarch64 and x86-64 (#1000, closes #773).
+        Add ffi_call_plan_size to report the total memory a reusable call
+          plan owns, for embedders that account for the memory held by
+          long-lived plans.
+        Add powerpc64 ELFv2 _Complex long double support for both
+          IBM-128 (double-double) and IEEE-128 formats (#1003, closes #1001).
+        Fix powerpc64 big-endian ELFv2 closures returning 5-, 6-, or
+          7-byte structs: missing return jump-table entries produced a
+          wrong result and leaked a libffi code pointer.
+        Fix ia64 return-value jump-table desync after the FFI_TYPE_LAST
+          bump, which corrupted small-struct and HFA returns.
+        Fix powerpc Darwin closure returns broken by #951 (#1002).
+        Return small (1, 2, 4 or 8 byte) structs in registers on the i386
+          FreeBSD and OpenBSD targets, matching the platform ABI and
+          fixing a segfault on struct returns through ffi_call and closures.
+        Cache the static trampoline "unsupported" result on hosts whose
+          page size exceeds the trampoline table mapping, avoiding
+          redundant re-initialization on every closure allocation
+          (e.g. 64K-page aarch64).
+
     3.7.1 July-10-2026
         Fix aarch64 ffi_call memory corruption when passing many large
           structs by value.

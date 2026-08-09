@@ -118,7 +118,7 @@ ffi_prep_cif_machdep(ffi_cif *cif)
       break;
     case FFI_TYPE_STRUCT:
       {
-#if defined(X86_WIN32) || defined(X86_DARWIN)
+#if defined(X86_WIN32) || defined(X86_DARWIN) || defined(X86_FREEBSD)
         size_t size = cif->rtype->size;
         if (size == 1)
           flags = X86_RET_STRUCT_1B;

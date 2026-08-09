@@ -2,7 +2,7 @@ dnl Process this with autoconf to create configure
 
 AC_PREREQ([2.68])
 
-AC_INIT([libffi],[3.7.1],[http://github.com/libffi/libffi/issues])
+AC_INIT([libffi],[3.8.0],[http://github.com/libffi/libffi/issues])
 AC_CONFIG_HEADERS([fficonfig.h])
 
 dnl Derive the version macros from AC_INIT so they cannot drift when the

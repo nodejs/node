@@ -94,6 +94,10 @@ typedef enum ffi_abi
 #define FFI_TARGET_HAS_COMPLEX_TYPE
 #endif
 
+/* AAPCS64 passes 8- and 16-byte vectors in V/Q registers and homogeneous
+   vector aggregates in consecutive V/Q registers; see is_vfp_type.  */
+#define FFI_TARGET_HAS_VECTOR_TYPE
+
 #define FFI_TARGET_HAS_INT128 1
 
 #endif
