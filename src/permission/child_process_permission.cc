@@ -1,7 +1,6 @@
 #include "child_process_permission.h"
 
 #include <string>
-#include <vector>
 
 namespace node {
 

@@ -1,7 +1,6 @@
 #include "permission/ffi_permission.h"
 
 #include <string>
-#include <vector>
 
 namespace node {
 

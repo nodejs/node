@@ -1,7 +1,6 @@
 #include "permission/openssl_store_permission.h"
 
 #include <string>
-#include <vector>
 
 namespace node {
 
