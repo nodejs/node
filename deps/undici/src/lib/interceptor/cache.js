@@ -540,13 +540,16 @@ module.exports = (opts = {}) => {
 
   return dispatch => {
     return (opts, handler) => {
-      if (!opts.origin || arrayIncludes(safeMethodsToNotCache, opts.method)) {
-        // Not a method we want to cache or we don't have the origin, skip
+      if (arrayIncludes(safeMethodsToNotCache, opts.method)) {
+        // Not a method we want to cache, skip
         return dispatch(opts, handler)
       }
 
       // Check if origin is in whitelist
       if (origins !== undefined) {
+        if (!opts.origin) {
+          return dispatch(opts, handler)
+        }
         const requestOrigin = opts.origin.toString().toLowerCase()
         let isAllowed = false
 

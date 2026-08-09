@@ -148,9 +148,7 @@ function getMalformedRestrictiveDirectiveName (key) {
  * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
  */
 function makeCacheKey (opts) {
-  if (!opts.origin) {
-    throw new Error('opts.origin is undefined')
-  }
+  const origin = opts.origin ? opts.origin.toString() : ''
 
   let fullPath = opts.path || '/'
 
@@ -159,7 +157,7 @@ function makeCacheKey (opts) {
   }
 
   return {
-    origin: opts.origin.toString(),
+    origin,
     method: opts.method,
     path: fullPath,
     headers: opts.headers
