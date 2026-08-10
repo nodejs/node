@@ -1673,8 +1673,8 @@ or `256`.
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
-  `'AES-KW'`
+* Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`,
+  `'AES-OCB'`, or `'AES-KW'`
 
 ### Class: `Argon2Params`
 
