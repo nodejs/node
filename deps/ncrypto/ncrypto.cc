@@ -1033,32 +1033,33 @@ bool IsSafeAltName(const char* name, size_t length, AltNameOption option) {
   return true;
 }
 
-void PrintAltName(const BIOPointer& out,
-                  const char* name,
-                  size_t length,
-                  AltNameOption option = AltNameOption::NONE,
-                  const char* safe_prefix = nullptr) {
+[[nodiscard]] bool PrintAltName(const BIOPointer& out,
+                                const char* name,
+                                size_t length,
+                                AltNameOption option = AltNameOption::NONE,
+                                const char* safe_prefix = nullptr) {
   if (IsSafeAltName(name, length, option)) {
     // For backward-compatibility, append "safe" names without any
     // modifications.
     if (safe_prefix != nullptr) {
-      BIO_printf(out.get(), "%s:", safe_prefix);
+      if (BIO_printf(out.get(), "%s:", safe_prefix) < 0) return false;
     }
-    BIO_write(out.get(), name, length);
+    int len = static_cast<int>(length);
+    if (BIO_write(out.get(), name, len) != len) return false;
   } else {
     // If a name is not "safe", we cannot embed it without special
     // encoding. This does not usually happen, but we don't want to hide
     // it from the user either. We use JSON compatible escaping here.
-    BIO_write(out.get(), "\"", 1);
+    if (BIO_write(out.get(), "\"", 1) != 1) return false;
     if (safe_prefix != nullptr) {
-      BIO_printf(out.get(), "%s:", safe_prefix);
+      if (BIO_printf(out.get(), "%s:", safe_prefix) < 0) return false;
     }
     for (size_t j = 0; j < length; j++) {
       char c = static_cast<char>(name[j]);
       if (c == '\\') {
-        BIO_write(out.get(), "\\\\", 2);
+        if (BIO_write(out.get(), "\\\\", 2) != 2) return false;
       } else if (c == '"') {
-        BIO_write(out.get(), "\\\"", 2);
+        if (BIO_write(out.get(), "\\\"", 2) != 2) return false;
       } else if ((c >= ' ' && c != ',' && c <= '~') ||
                  (option == AltNameOption::UTF8 && (c & 0x80))) {
         // Note that the above condition explicitly excludes commas, which means
@@ -1067,17 +1068,20 @@ void PrintAltName(const BIOPointer& out,
         // it correctly either way. We only do this to account for third-party
         // code that might be splitting the string at commas (as Node.js itself
         // used to do).
-        BIO_write(out.get(), &c, 1);
+        if (BIO_write(out.get(), &c, 1) != 1) return false;
       } else {
         // Control character or non-ASCII character. We treat everything as
         // Latin-1, which corresponds to the first 255 Unicode code points.
         const char hex[] = "0123456789abcdef";
         char u[] = {'\\', 'u', '0', '0', hex[(c & 0xf0) >> 4], hex[c & 0x0f]};
-        BIO_write(out.get(), u, sizeof(u));
+        if (BIO_write(out.get(), u, sizeof(u)) != static_cast<int>(sizeof(u))) {
+          return false;
+        }
       }
     }
-    BIO_write(out.get(), "\"", 1);
+    if (BIO_write(out.get(), "\"", 1) != 1) return false;
   }
+  return true;
 }
 
 // This function emulates the behavior of i2v_GENERAL_NAME in a safer and less
@@ -1085,29 +1089,32 @@ void PrintAltName(const BIOPointer& out,
 bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
   if (gen->type == GEN_DNS) {
     ASN1_IA5STRING* name = gen->d.dNSName;
-    BIO_write(out.get(), "DNS:", 4);
+    if (BIO_write(out.get(), "DNS:", 4) != 4) return false;
     // Note that the preferred name syntax (see RFCs 5280 and 1034) with
     // wildcards is a subset of what we consider "safe", so spec-compliant DNS
     // names will never need to be escaped.
-    PrintAltName(out,
-                 reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
-                 ASN1_STRING_length(name));
+    return PrintAltName(
+        out,
+        reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+        ASN1_STRING_length(name));
   } else if (gen->type == GEN_EMAIL) {
     ASN1_IA5STRING* name = gen->d.rfc822Name;
-    BIO_write(out.get(), "email:", 6);
-    PrintAltName(out,
-                 reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
-                 ASN1_STRING_length(name));
+    if (BIO_write(out.get(), "email:", 6) != 6) return false;
+    return PrintAltName(
+        out,
+        reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+        ASN1_STRING_length(name));
   } else if (gen->type == GEN_URI) {
     ASN1_IA5STRING* name = gen->d.uniformResourceIdentifier;
-    BIO_write(out.get(), "URI:", 4);
+    if (BIO_write(out.get(), "URI:", 4) != 4) return false;
     // The set of "safe" names was designed to include just about any URI,
     // with a few exceptions, most notably URIs that contains commas (see
     // RFC 2396). In other words, most legitimate URIs will not require
     // escaping.
-    PrintAltName(out,
-                 reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
-                 ASN1_STRING_length(name));
+    return PrintAltName(
+        out,
+        reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+        ASN1_STRING_length(name));
   } else if (gen->type == GEN_DIRNAME) {
     // Earlier versions of Node.js used X509_NAME_oneline to print the X509_NAME
     // object. The format was non standard and should be avoided. The use of
@@ -1121,7 +1128,7 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     // format may contain Unicode characters and it is likely to contain commas,
     // which require escaping. Fortunately, the recently safeguarded function
     // PrintAltName handles all of that safely.
-    BIO_printf(out.get(), "DirName:");
+    if (BIO_printf(out.get(), "DirName:") < 0) return false;
     BIOPointer tmp(BIO_new(BIO_s_mem()));
     NCRYPTO_ASSERT_TRUE(tmp);
     if (X509_NAME_print_ex(
@@ -1132,28 +1139,30 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     char* oline = nullptr;
     long n_bytes = BIO_get_mem_data(tmp.get(), &oline);  // NOLINT(runtime/int)
     NCRYPTO_ASSERT_TRUE(n_bytes >= 0);
-    PrintAltName(out,
-                 oline,
-                 static_cast<size_t>(n_bytes),
-                 ncrypto::AltNameOption::UTF8,
-                 nullptr);
+    return PrintAltName(out,
+                        oline,
+                        static_cast<size_t>(n_bytes),
+                        ncrypto::AltNameOption::UTF8,
+                        nullptr);
   } else if (gen->type == GEN_IPADD) {
-    BIO_printf(out.get(), "IP Address:");
+    if (BIO_printf(out.get(), "IP Address:") < 0) return false;
     const ASN1_OCTET_STRING* ip = gen->d.ip;
     const unsigned char* b = ASN1_STRING_get0_data(ip);
     int ip_len = ASN1_STRING_length(ip);
     if (ip_len == 4) {
-      BIO_printf(out.get(), "%d.%d.%d.%d", b[0], b[1], b[2], b[3]);
+      return BIO_printf(out.get(), "%d.%d.%d.%d", b[0], b[1], b[2], b[3]) >= 0;
     } else if (ip_len == 16) {
       for (unsigned int j = 0; j < 8; j++) {
         uint16_t pair = (b[2 * j] << 8) | b[2 * j + 1];
-        BIO_printf(out.get(), (j == 0) ? "%X" : ":%X", pair);
+        if (BIO_printf(out.get(), (j == 0) ? "%X" : ":%X", pair) < 0) {
+          return false;
+        }
       }
     } else {
 #if OPENSSL_VERSION_MAJOR >= 3
-      BIO_printf(out.get(), "<invalid length=%d>", ip_len);
+      return BIO_printf(out.get(), "<invalid length=%d>", ip_len) >= 0;
 #else
-      BIO_printf(out.get(), "<invalid>");
+      return BIO_printf(out.get(), "<invalid>") >= 0;
 #endif
     }
   } else if (gen->type == GEN_RID) {
@@ -1161,7 +1170,7 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     // instead always print its numeric representation.
     char oline[256];
     OBJ_obj2txt(oline, sizeof(oline), gen->d.rid, true);
-    BIO_printf(out.get(), "Registered ID:%s", oline);
+    return BIO_printf(out.get(), "Registered ID:%s", oline) >= 0;
   } else if (gen->type == GEN_OTHERNAME) {
     // The format that is used here is based on OpenSSL's implementation of
     // GENERAL_NAME_print (as of OpenSSL 3.0.1). Earlier versions of Node.js
@@ -1195,31 +1204,33 @@ bool PrintGeneralName(const BIOPointer& out, const GENERAL_NAME* gen) {
     int val_type = gen->d.otherName->value->type;
     if (prefix == nullptr || (unicode && val_type != V_ASN1_UTF8STRING) ||
         (!unicode && val_type != V_ASN1_IA5STRING)) {
-      BIO_printf(out.get(), "othername:<unsupported>");
+      return BIO_printf(out.get(), "othername:<unsupported>") >= 0;
     } else {
-      BIO_printf(out.get(), "othername:");
+      if (BIO_printf(out.get(), "othername:") < 0) return false;
       if (unicode) {
         auto name = gen->d.otherName->value->value.utf8string;
-        PrintAltName(out,
-                     reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
-                     ASN1_STRING_length(name),
-                     AltNameOption::UTF8,
-                     prefix);
+        return PrintAltName(
+            out,
+            reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+            ASN1_STRING_length(name),
+            AltNameOption::UTF8,
+            prefix);
       } else {
         auto name = gen->d.otherName->value->value.ia5string;
-        PrintAltName(out,
-                     reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
-                     ASN1_STRING_length(name),
-                     AltNameOption::NONE,
-                     prefix);
+        return PrintAltName(
+            out,
+            reinterpret_cast<const char*>(ASN1_STRING_get0_data(name)),
+            ASN1_STRING_length(name),
+            AltNameOption::NONE,
+            prefix);
       }
     }
   } else if (gen->type == GEN_X400) {
     // TODO(tniessen): this is what OpenSSL does, implement properly instead
-    BIO_printf(out.get(), "X400Name:<unsupported>");
+    return BIO_printf(out.get(), "X400Name:<unsupported>") >= 0;
   } else if (gen->type == GEN_EDIPARTY) {
     // TODO(tniessen): this is what OpenSSL does, implement properly instead
-    BIO_printf(out.get(), "EdiPartyName:<unsupported>");
+    return BIO_printf(out.get(), "EdiPartyName:<unsupported>") >= 0;
   } else {
     // This is safe because X509V3_EXT_d2i would have returned nullptr in this
     // case already.
@@ -1245,7 +1256,9 @@ bool SafeX509SubjectAltNamePrint(const BIOPointer& out,
   for (OPENSSL_SIZE_T i = 0; i < sk_GENERAL_NAME_num(names); i++) {
     GENERAL_NAME* gen = sk_GENERAL_NAME_value(names, i);
 
-    if (i != 0) BIO_write(out.get(), ", ", 2);
+    if (i != 0 && !(ok = BIO_write(out.get(), ", ", 2) == 2)) {
+      break;
+    }
 
     if (!(ok = ncrypto::PrintGeneralName(out, gen))) {
       break;
@@ -1271,11 +1284,15 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext) {
   for (OPENSSL_SIZE_T i = 0; i < sk_ACCESS_DESCRIPTION_num(descs); i++) {
     ACCESS_DESCRIPTION* desc = sk_ACCESS_DESCRIPTION_value(descs, i);
 
-    if (i != 0) BIO_write(out.get(), "\n", 1);
+    if (i != 0 && !(ok = BIO_write(out.get(), "\n", 1) == 1)) {
+      break;
+    }
 
     char objtmp[80];
     i2t_ASN1_OBJECT(objtmp, sizeof(objtmp), desc->method);
-    BIO_printf(out.get(), "%s - ", objtmp);
+    if (!(ok = BIO_printf(out.get(), "%s - ", objtmp) >= 0)) {
+      break;
+    }
     if (!(ok = ncrypto::PrintGeneralName(out, desc->location))) {
       break;
     }
@@ -1283,7 +1300,7 @@ bool SafeX509InfoAccessPrint(const BIOPointer& out, const X509_EXTENSION* ext) {
   sk_ACCESS_DESCRIPTION_pop_free(descs, ACCESS_DESCRIPTION_free);
 
 #if OPENSSL_VERSION_MAJOR < 3
-  BIO_write(out.get(), "\n", 1);
+  if (ok && BIO_write(out.get(), "\n", 1) != 1) return false;
 #endif
 
   return ok;
@@ -1407,7 +1424,7 @@ BIOPointer X509View::getValidFrom() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert_));
+  if (ASN1_TIME_print(bio.get(), X509_get0_notBefore(cert_)) <= 0) return {};
   return bio;
 }
 
@@ -1416,7 +1433,7 @@ BIOPointer X509View::getValidTo() const {
   if (cert_ == nullptr) return {};
   BIOPointer bio(BIO_new(BIO_s_mem()));
   if (!bio) return {};
-  ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert_));
+  if (ASN1_TIME_print(bio.get(), X509_get0_notAfter(cert_)) <= 0) return {};
   return bio;
 }
 
