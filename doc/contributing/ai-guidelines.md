@@ -64,8 +64,8 @@ When using AI as a coding assistant:
 
 * **Test thoroughly.** Existing tests should not be removed or modified
   without human verification. It is crucial to verify, with human judgement,
-  the correctness of new tests against the expected behavior of the feature
-  being tested, independently of the feature's implementation.
+  the correctness of new tests against the intended behavior of the feature
+  being tested, independently of how the implementation happens to behave.
 
 * **Do not disappear.** If you open a PR, follow it through. Respond to
   feedback and iterate until the work lands or is explicitly closed. If you
