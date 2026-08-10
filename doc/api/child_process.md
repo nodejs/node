@@ -1055,7 +1055,9 @@ pipes between the parent and child. The value is one of the following:
    file descriptor is duplicated in the child process to the fd that
    corresponds to the index in the `stdio` array. The stream must have an
    underlying descriptor (file streams do not start until the `'open'` event has
-   occurred).
+   occurred). Pipe endpoints returned by [`net.createPipe()`][] may be passed
+   here. Readable endpoints returned by [`net.createPipe()`][] must not be
+   flowing when passed here.
    **NOTE:** While it is technically possible to pass `stdin` as a writable or
    `stdout`/`stderr` as readable, it is not recommended.
    Readable and writable streams are designed with distinct behaviors, and using
@@ -1441,6 +1443,12 @@ streams of a child process have been closed. This is distinct from the
 [`'exit'`][] event, since multiple processes might share the same stdio
 streams. The `'close'` event will always emit after [`'exit'`][] was
 already emitted, or [`'error'`][] if the child process failed to spawn.
+Readable stdio streams created by Node.js are resumed after the child process
+exits so they can be fully consumed and closed before the `'close'` event is
+emitted. Endpoints created by [`net.createPipe()`][] are an exception to this
+rule and are not resumed by the child process. Their stream lifecycle remains
+owned by the parent process, and consequently the child process `'close'` event
+does not wait for such streams to close.
 
 If the process exited, `code` is the final exit code of the process, otherwise
 `null`. If the process terminated due to receipt of a signal, `signal` is the
@@ -2374,6 +2382,7 @@ or [`child_process.fork()`][].
 [`maxBuffer` and Unicode]: #maxbuffer-and-unicode
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
+[`net.createPipe()`]: net.md#netcreatepipe
 [`options.detached`]: #optionsdetached
 [`process.disconnect()`]: process.md#processdisconnect
 [`process.env`]: process.md#processenv
