@@ -1015,7 +1015,7 @@ parser.add_argument('--enable-static',
     action='store_true',
     dest='enable_static',
     default=None,
-    help='build as static library')
+    help=argparse.SUPPRESS) # Deprecated
 
 parser.add_argument('--no-browser-globals',
     action='store_true',
@@ -1862,9 +1862,6 @@ def configure_node(o):
   if options.v8_options:
     o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
 
-  if options.enable_static:
-    o['variables']['node_target_type'] = 'static_library'
-
   o['variables']['node_debug_lib'] = b(options.node_debug_lib)
 
   if options.debug_nghttp2:
@@ -1907,10 +1904,13 @@ def configure_node(o):
   else:
     o['variables']['coverage'] = 'false'
 
+  if options.enable_static and options.shared:
+    error('--enable-static must not be set with --shared')
+  if options.enable_static:
+    warn('--enable-static is deprecated and libnode.a is always produced')
+
   if options.shared:
     o['variables']['node_target_type'] = 'shared_library'
-  elif options.enable_static:
-    o['variables']['node_target_type'] = 'static_library'
   else:
     o['variables']['node_target_type'] = 'executable'
 
