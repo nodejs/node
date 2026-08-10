@@ -169,7 +169,7 @@ added: v8.3.0
 Cancel all outstanding DNS queries made by this resolver. The corresponding
 callbacks will be called with an error with code `ECANCELLED`.
 
-### `resolver.setLocalAddress([ipv4][, ipv6])`
+### `resolver.setLocalAddress(ipv4[, ipv6])`
 
 <!-- YAML
 added:
@@ -178,7 +178,6 @@ added:
 -->
 
 * `ipv4` {string} A string representation of an IPv4 address.
-  **Default:** `'0.0.0.0'`
 * `ipv6` {string} A string representation of an IPv6 address.
   **Default:** `'::0'`
 
@@ -186,8 +185,8 @@ The resolver instance will send its requests from the specified IP address.
 This allows programs to specify outbound interfaces when used on multi-homed
 systems.
 
-If a v4 or v6 address is not specified, it is set to the default and the
-operating system will choose a local address automatically.
+If the IPv6 address is not specified, it is set to the default and the operating
+system will choose a local address automatically.
 
 The resolver will use the v4 local address when making requests to IPv4 DNS
 servers, and the v6 local address when making requests to IPv6 DNS servers.
