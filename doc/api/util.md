@@ -1070,7 +1070,7 @@ const baz = Object.create(null, { [Symbol.toStringTag]: { value: 'foo' } });
 
 util.inspect(new Foo()); // 'Foo [bar] {}'
 util.inspect(new Bar()); // 'Bar {}'
-util.inspect(baz);       // '[foo] {}'
+util.inspect(baz);       // '[Object: null prototype] [foo] {}'
 ```
 
 Circular references point to their anchor by using a reference index:
