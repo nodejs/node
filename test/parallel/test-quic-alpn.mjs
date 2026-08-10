@@ -49,9 +49,9 @@ await clientSession.close();
 // rather than silently defaulting.
 await assert.rejects(listen(mustNotCall(), {
   sni: { '*': { keys: [key], certs: [cert] } },
-}), { code: 'ERR_INVALID_ARG_VALUE', message: /options\.alpn/ });
+}), { code: 'ERR_MISSING_OPTION', message: /options\.alpn/ });
 await assert.rejects(connect(serverEndpoint.address, { verifyPeer: 'manual' }), {
-  code: 'ERR_INVALID_ARG_VALUE', message: /options\.alpn/,
+  code: 'ERR_MISSING_OPTION', message: /options\.alpn/,
 });
 
 await serverEndpoint.close();

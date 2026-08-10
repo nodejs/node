@@ -103,3 +103,31 @@ const tooLate = { code: 'ERR_INVALID_STATE', message: /before it becomes active/
   await client.close();
   await endpoint.close();
 }
+
+// Client: a wrap after the session has created streams is rejected, even
+// pre-handshake: an application installed then would strand the pending
+// native streams' queued data. The pending stream itself must still be
+// delivered over the native path once the handshake completes.
+{
+  const serverGot = Promise.withResolvers();
+  const endpoint = await quicListen(mustCall((quicSession) => {
+    quicSession.onstream = mustCall(async (stream) => {
+      assert.strictEqual(dec.decode(await bytes(stream)), 'x');
+      quicSession.close();
+      serverGot.resolve();
+    });
+  }), serverOpts);
+  const client = await quicConnect(endpoint.address, clientOpts);
+  // Create a raw (native-path) stream before the handshake completes;
+  // it is pending until the handshake, but already owns queued data.
+  const raw = await client.createUnidirectionalStream({ body: enc.encode('x') });
+  assert.throws(() => new Http3Session(client), {
+    code: 'ERR_INVALID_STATE',
+    message: /before any streams are created/,
+  });
+  await client.opened;
+  await serverGot.promise;
+  await raw.closed;
+  await client.close();
+  await endpoint.close();
+}

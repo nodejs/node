@@ -2392,10 +2392,11 @@ added: REPLACEME
 
 Attaches HTTP/3 to an existing `node:quic` session.
 
-The HTTP/3 session must be attached before the QUIC session becomes active and
-begins emitting events: for servers that means synchronously inside a server's
-`onsession` callback, or for clients before the handshake completes. Throws
-`ERR_INVALID_STATE` if the QUIC session is already attached or active.
+The HTTP/3 session must be attached before any streams are created locally, and
+before the QUIC session becomes active and begins emitting events. For servers
+that means synchronously inside a server's `onsession` callback, or for clients
+before the handshake completes. Throws `ERR_INVALID_STATE` if the QUIC session
+is already attached, already active, or already has streams.
 
 ### `http3session.request(headers[, options])`
 
@@ -2765,6 +2766,16 @@ added: REPLACEME
 * Type: {Http3Session}
 
 The session that owns this stream. Read only.
+
+### `http3stream.stream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.QuicStream}
+
+The underlying QUIC stream. Read only.
 
 ### `http3stream.onheaders`
 
@@ -3161,7 +3172,7 @@ added:
 
 The ALPN (Application-Layer Protocol Negotiation) identifier(s). This option is
 **required**: `node:quic` is transport-only and assumes no application protocol,
-so a session created without an ALPN is rejected with an `ERR_INVALID_ARG_VALUE`
+so a session created without an ALPN is rejected with an `ERR_MISSING_OPTION`
 error. Consumers that layer a protocol on top set it themselves (for example
 [`connectHttp3()`][] negotiates `'h3'`).
 

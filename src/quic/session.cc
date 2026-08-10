@@ -3375,6 +3375,12 @@ BaseObjectPtr<Stream> Session::FindStream(stream_id id) const {
   return it->second;
 }
 
+bool Session::has_streams() const {
+  if (is_destroyed()) return false;
+  return !impl_->streams_.empty() || !pending_bidi_stream_queue().IsEmpty() ||
+         !pending_uni_stream_queue().IsEmpty();
+}
+
 Session::StreamsMap Session::streams() const {
   if (is_destroyed()) return {};
   return impl_->streams_;

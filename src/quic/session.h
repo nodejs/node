@@ -327,6 +327,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool has_application() const;
   Application& application() const;
 
+  bool has_streams() const;
+
   // True once the session has started delivering events to JS, which we use
   // as a gate for attaching an Application - it has to happen before this.
   bool is_active() const { return active_; }

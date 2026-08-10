@@ -343,6 +343,11 @@ class Stream final : public AsyncWrap,
   void ReceiveStopSending(QuicError error);
   void ReceiveStreamReset(uint64_t final_size, QuicError error);
 
+  // Records receive-side activity on the stream (the received_at stat, which
+  // also feeds the idle-timeout clock). ReceiveData updates this for DATA
+  // payloads; applications must call it for non-DATA traffic they deliver.
+  void RecordReceiveActivity();
+
   // Sends a reset stream to the peer to tell it we will not be sending any
   // more data for this stream. This has the effect of shutting down the
   // writable side of the stream for this peer. Any data that is held in the
@@ -407,7 +412,6 @@ class Stream final : public AsyncWrap,
 
   // Notifies the JavaScript side that the peer asked it to stop sending.
   void EmitStopSending(const QuicError& error);
-
 
   // Notifies the JavaScript side that sending data on the stream has been
   // blocked because of flow control restriction.

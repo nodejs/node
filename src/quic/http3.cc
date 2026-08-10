@@ -251,8 +251,8 @@ MaybeLocal<Object> Http3Settings::ToObject(Environment* env) const {
   static constexpr std::string_view names[] = {"maxHeaderPairs",
                                                "maxHeaderLength",
                                                "maxFieldSectionSize",
-                                               "qpackMaxDtableCapacity",
-                                               "qpackEncoderMaxDtableCapacity",
+                                               "qpackMaxDTableCapacity",
+                                               "qpackEncoderMaxDTableCapacity",
                                                "qpackBlockedStreams",
                                                "enableConnectProtocol"};
   if (tmpl.IsEmpty()) {
@@ -1119,6 +1119,7 @@ class Http3Application final : public Session::Application {
   }
 
   void EmitHeaders(Stream* stream) {
+    stream->RecordReceiveActivity();
     auto it = header_state_.find(stream->id());
     if (it == header_state_.end()) return;
     auto& hs = it->second;
@@ -1826,11 +1827,12 @@ void CreateHttp3Handle(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args[0]);
 
   if (!session->has_application()) {
-    if (session->is_active()) {
+    if (session->is_active() || session->has_streams()) {
       THROW_ERR_INVALID_STATE(
           session->env(),
           "An application can only be attached to a QUIC session before it "
-          "becomes active (begins emitting events)");
+          "becomes active (begins emitting events) and before any streams "
+          "are created");
       return;
     }
     session->SetApplication(CreateHttp3Application(session));

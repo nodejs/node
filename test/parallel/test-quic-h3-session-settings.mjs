@@ -45,9 +45,9 @@ function checkSettings(settings, what) {
   assert.strictEqual(settings.maxHeaderLength, customSettings.maxHeaderLength);
   assert.strictEqual(settings.maxFieldSectionSize,
                      customSettings.maxFieldSectionSize);
-  assert.strictEqual(settings.qpackMaxDtableCapacity,
+  assert.strictEqual(settings.qpackMaxDTableCapacity,
                      customSettings.qpackMaxDTableCapacity);
-  assert.strictEqual(settings.qpackEncoderMaxDtableCapacity,
+  assert.strictEqual(settings.qpackEncoderMaxDTableCapacity,
                      customSettings.qpackEncoderMaxDTableCapacity);
   assert.strictEqual(settings.qpackBlockedStreams,
                      customSettings.qpackBlockedStreams);
