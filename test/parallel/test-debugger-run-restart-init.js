@@ -79,9 +79,29 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
   const runGate = createGate();
   const restartGate = createGate();
   const gates = [null, runGate, restartGate];
+  const client = new EventEmitter();
+  let nodeRuntimeEnableCount = 0;
+  client.callMethod = common.mustCall(async (method) => {
+    calls.push(method);
+    if (method === 'NodeRuntime.enable') {
+      const emitWaiting = () => {
+        calls.push('NodeRuntime.waitingForDebugger');
+        client.emit('NodeRuntime.waitingForDebugger');
+      };
+      // Cover notifications arriving both before and after the enable reply.
+      if (nodeRuntimeEnableCount++ % 2 === 0) {
+        emitWaiting();
+      } else {
+        setImmediate(emitWaiting);
+      }
+    } else {
+      assert.strictEqual(method, 'NodeRuntime.disable');
+    }
+  }, 6);
   const inspector = {
-    client: new EventEmitter(),
+    client,
     domainNames: ['Debugger', 'HeapProfiler', 'Profiler', 'Runtime'],
+    options: { script: 'debugger-target.js' },
     stdin: new PassThrough(),
     stdout: new PassThrough(),
     run: common.mustCall(async () => {
@@ -103,6 +123,29 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
 
   assert.deepStrictEqual(
     calls.filter((call) => (
+      call === 'NodeRuntime.enable' ||
+      call === 'NodeRuntime.waitingForDebugger' ||
+      call === 'NodeRuntime.disable' ||
+      call === 'Runtime.runIfWaitingForDebugger'
+    )),
+    [
+      'NodeRuntime.enable',
+      'NodeRuntime.waitingForDebugger',
+      'NodeRuntime.disable',
+      'Runtime.runIfWaitingForDebugger',
+      'NodeRuntime.enable',
+      'NodeRuntime.waitingForDebugger',
+      'NodeRuntime.disable',
+      'Runtime.runIfWaitingForDebugger',
+      'NodeRuntime.enable',
+      'NodeRuntime.waitingForDebugger',
+      'NodeRuntime.disable',
+      'Runtime.runIfWaitingForDebugger',
+    ],
+  );
+
+  assert.deepStrictEqual(
+    calls.filter((call) => (
       call === 'inspector.run' ||
       call === 'Runtime.runIfWaitingForDebugger'
     )),
@@ -116,4 +159,25 @@ async function assertCommandWaitsForInit(repl, command, gate, calls) {
   );
 
   repl.close();
+
+  const attachCalls = [];
+  const attachClient = new EventEmitter();
+  attachClient.callMethod = common.mustNotCall();
+  const attachInspector = {
+    client: attachClient,
+    domainNames: ['Debugger', 'HeapProfiler', 'Profiler', 'Runtime'],
+    options: {},
+    stdin: new PassThrough(),
+    stdout: new PassThrough(),
+    suspendReplWhile(fn) {
+      return fn();
+    },
+  };
+
+  for (const domain of attachInspector.domainNames) {
+    attachInspector[domain] = createAgent(domain, attachCalls, []);
+  }
+
+  const attachRepl = await createRepl(attachInspector)();
+  attachRepl.close();
 })().then(common.mustCall());
