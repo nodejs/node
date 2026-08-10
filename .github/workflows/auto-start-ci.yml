@@ -1,6 +1,6 @@
 # This action uses the following secrets:
 #   JENKINS_USER: GitHub user whose Jenkins token is defined below
-#   JENKINS_TOKEN: Jenkins token, to be used to check CI status
+#   JENKINS_TOKEN: Jenkins token, to be used to start CI
 name: Auto Start CI
 
 on:
