@@ -59,7 +59,10 @@ jobs:
     needs: get_candidate_prs
     if: needs.get_candidate_prs.outputs.candidates != ''
     permissions:
+      checks: read
+      contents: read
       pull-requests: read
+      statuses: read
     runs-on: ubuntu-slim
     steps:
       # Install dependencies
