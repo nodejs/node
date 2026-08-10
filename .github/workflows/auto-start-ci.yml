@@ -42,8 +42,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
   start-ci:
     permissions:
+      checks: read
       contents: read
       pull-requests: write
+      statuses: read
     needs: get-prs-for-ci
     if: needs.get-prs-for-ci.outputs.numbers != ''
     runs-on: ubuntu-slim
