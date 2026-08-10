@@ -112,15 +112,15 @@ inline MaybeLocal<Value> IntegerToValue(Isolate* isolate,
     return BigInt::New(isolate, value);
   }
 
-  if (value >= -kMaxSafeJsInteger && value <= kMaxSafeJsInteger) {
-    return Number::New(isolate, value);
+  if (value < -kMaxSafeJsInteger || value > kMaxSafeJsInteger) {
+    THROW_ERR_OUT_OF_RANGE(
+        isolate,
+        "Value is too large to be represented as a JavaScript number: %" PRId64,
+        value);
+    return MaybeLocal<Value>();
   }
 
-  THROW_ERR_OUT_OF_RANGE(
-      isolate,
-      "Value is too large to be represented as a JavaScript number: %" PRId64,
-      value);
-  return MaybeLocal<Value>();
+  return Number::New(isolate, value);
 }
 
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
