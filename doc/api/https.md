@@ -222,9 +222,13 @@ See [`server.requestTimeout`][] in the `node:http` module.
 
 <!-- YAML
 added: v0.11.2
+changes:
+  - version: v13.0.0
+    pr-url: https://github.com/nodejs/node/pull/27558
+    description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* `msecs` {number} **Default:** `120000` (2 minutes)
+* `msecs` {number} **Default:** 0 (no timeout)
 * `callback` {Function}
 * Returns: {https.Server}
 
@@ -248,9 +252,13 @@ See [`server.timeout`][] in the `node:http` module.
 
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62782
+    description: The default value changed from 5 to 65 seconds.
 -->
 
-* Type: {number} **Default:** `5000` (5 seconds)
+* Type: {number} **Default:** `65000` (65 seconds)
 
 See [`server.keepAliveTimeout`][] in the `node:http` module.
 
