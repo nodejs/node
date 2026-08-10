@@ -927,7 +927,7 @@ changes:
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
     See [Advanced serialization for `child_process`][] for more details.
-    **Default:** `false`.
+    **Default:** `'json'`.
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`.
   * `stdio` {Array} Configures the stdio of forked processes. Because the
