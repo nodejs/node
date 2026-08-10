@@ -58,8 +58,6 @@ jobs:
   commitQueue:
     needs: get_candidate_prs
     if: needs.get_candidate_prs.outputs.candidates != ''
-    permissions:
-      pull-requests: read
     runs-on: ubuntu-slim
     steps:
       # Install dependencies
@@ -80,13 +78,13 @@ jobs:
           ncu-config --global set branch "${GITHUB_REF_NAME}"
           ncu-config --global set upstream origin
           ncu-config --global set username "$USERNAME"
-          ncu-config --global set token "$GH_TOKEN"
+          ncu-config --global set token "$GITHUB_TOKEN"
           ncu-config --global set jenkins_token "$JENKINS_TOKEN"
           ncu-config --global set repo "${REPOSITORY}"
           ncu-config --global set owner "${GITHUB_REPOSITORY_OWNER}"
         env:
           USERNAME: ${{ secrets.JENKINS_USER }}
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Filter Pull Requests
@@ -156,7 +154,7 @@ jobs:
           echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
         env:
           CANDIDATES: ${{ needs.get_candidate_prs.outputs.candidates }}
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         if: steps.get_mergeable_prs.outputs.numbers != ''
@@ -169,8 +167,6 @@ jobs:
 
       - name: Start the Commit Queue
         if: steps.get_mergeable_prs.outputs.numbers != ''
-        run: |
-          ncu-config set token "$GH_TOKEN"
-          ./tools/actions/commit-queue.sh "${GITHUB_REPOSITORY_OWNER}" "${REPOSITORY}" ${{ steps.get_mergeable_prs.outputs.numbers }}
+        run: ./tools/actions/commit-queue.sh "${GITHUB_REPOSITORY_OWNER}" "${REPOSITORY}" ${{ steps.get_mergeable_prs.outputs.numbers }}
         env:
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
