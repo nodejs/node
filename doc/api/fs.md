@@ -4271,7 +4271,7 @@ added:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|bigint} **Default:** `null`
+  * `position` {integer|bigint|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
