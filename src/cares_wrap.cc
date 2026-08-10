@@ -644,6 +644,7 @@ Maybe<int> ParseTxtReply(Environment* env,
     // Each TXT record is a chunk consisting of one or more character-strings.
     LocalVector<Value> chunks(env->isolate());
     size_t str_count = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
+    chunks.reserve(str_count);
     for (size_t j = 0; j < str_count; j++) {
       size_t str_len = 0;
       const unsigned char* str =
