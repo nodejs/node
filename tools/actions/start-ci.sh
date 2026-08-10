@@ -4,7 +4,7 @@ set -xe
 
 REQUEST_CI_LABEL="request-ci"
 REQUEST_CI_FAILED_LABEL="request-ci-failed"
-cqurl="${GITHUB_SERVER_URL?:}/${GITHUB_REPOSITORY?:}/actions/runs/${GITHUB_RUN_ID?:}"
+cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
 for pr in "$@"; do
   gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --remove-label "$REQUEST_CI_LABEL"

@@ -8,7 +8,7 @@ DEFAULT_BRANCH=main
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
-cqurl="${GITHUB_SERVER_URL?:}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID?:}"
+cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
 commit_queue_failed() {
   pr=$1
