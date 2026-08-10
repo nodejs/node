@@ -538,7 +538,23 @@ test('Long values should be truncated for display', () => {
                        `${strictEqualMessageStart}+ actual - expected\n\n` +
                       `+ '${'A'.repeat(1000)}'\n- ''\n`);
     assert.strictEqual(err.actual.length, 1000);
-    assert.ok(inspect(err).includes(`actual: '${'A'.repeat(488)}...'`));
+    assert.ok(inspect(err).includes(`actual: '${'A'.repeat(512)}...'`));
+    return true;
+  });
+});
+
+test('Truncated long values should keep the beginning of the string', () => {
+  // Use a heterogeneous string so the retained portion is distinguishable
+  // from the discarded portion (a homogeneous string cannot tell the head
+  // from the tail). The first `kMaxLongStringLength` (512) characters should
+  // be kept, followed by an ellipsis.
+  const actual = 'a'.repeat(300) + 'b'.repeat(300);
+  assert.throws(() => {
+    assert.strictEqual(actual, '');
+  }, (err) => {
+    const kept = `${'a'.repeat(300)}${'b'.repeat(212)}`;
+    assert.ok(inspect(err).includes(`actual: '${kept}...'`),
+              `expected the beginning of the string to be kept, got ${inspect(err)}`);
     return true;
   });
 });

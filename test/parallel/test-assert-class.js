@@ -166,8 +166,8 @@ const truncatedBs = 'B\\n'.repeat(10) + '...';
 const longStringOfAs = 'A'.repeat(10_000);
 const longStringOfBs = 'B'.repeat(10_000);
 
-const longLinesOfAsWithEllipsis = longStringOfAs.substring(0, 9_488) + '...';
-const longLinesOFBsWithEllipsis = longStringOfBs.substring(0, 9_488) + '...';
+const longLinesOfAsWithEllipsis = longStringOfAs.substring(0, 512) + '...';
+const longLinesOFBsWithEllipsis = longStringOfBs.substring(0, 512) + '...';
 test('Assert class non strict with full diff', () => {
   const assertInstance = new Assert({ diff: 'full', strict: false });
 
