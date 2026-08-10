@@ -821,6 +821,25 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
     });
   });
 
+  test('BigInt is required for reading large last insert row IDs', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY) STRICT');
+    const insert = db.prepare('INSERT INTO data VALUES (?)');
+
+    t.assert.throws(() => {
+      insert.run(9007199254740993n);
+    }, {
+      code: 'ERR_OUT_OF_RANGE',
+      message: /^Value is too large to be represented as a JavaScript number: 9007199254740993$/,
+    });
+
+    insert.setReadBigInts(true);
+    t.assert.deepStrictEqual(insert.run(9007199254740995n), {
+      changes: 1n,
+      lastInsertRowid: 9007199254740995n,
+    });
+  });
+
   test('throws if the statement is already finalized', (t) => {
     using db = new DatabaseSync(':memory:');
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
