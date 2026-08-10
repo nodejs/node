@@ -236,6 +236,18 @@ void HeapProfiler::StopSamplingHeapProfiler() {
   MaybeClearStringsStorage();
 }
 
+void HeapProfiler::SetSamplingHeapProfilerInterval(uint64_t sample_interval) {
+  if (sampling_heap_profiler_) {
+    sampling_heap_profiler_->SetSamplingInterval(sample_interval);
+  }
+}
+
+std::vector<v8::AllocationProfile::Sample>
+HeapProfiler::GetSamplingHeapProfilerSamples() {
+  if (!sampling_heap_profiler_) return {};
+  return sampling_heap_profiler_->GetSamples();
+}
+
 v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
   if (sampling_heap_profiler_) {
     return sampling_heap_profiler_->GetAllocationProfile();

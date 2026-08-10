@@ -836,6 +836,11 @@ class V8_EXPORT AllocationProfile {
      * been collected by GC.
      */
     bool is_live;
+
+    /**
+     * Sample interval in bytes used when this sample was selected.
+     */
+    uint64_t sample_interval;
   };
 
   /**
@@ -1256,6 +1261,22 @@ class V8_EXPORT HeapProfiler {
    * Stops the sampling heap profile and discards the current profile.
    */
   void StopSamplingHeapProfiler();
+
+  /**
+   * Updates the sampling interval for a currently running sampling heap
+   * profiler. The new interval is used for future sample scheduling.
+   *
+   * No-op if the sampling heap profiler is not running.
+   */
+  void SetSamplingHeapProfilerInterval(uint64_t sample_interval);
+
+  /**
+   * Returns the currently retained allocation samples without materializing
+   * the full allocation profile tree.
+   *
+   * Returns an empty vector if the sampling heap profiler is not running.
+   */
+  std::vector<AllocationProfile::Sample> GetSamplingHeapProfilerSamples();
 
   /**
    * Returns the sampled profile of allocations allocated (and still live) since
