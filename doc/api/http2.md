@@ -2842,6 +2842,10 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62782
+    description: The default value for `http1Options.keepAliveTimeout`
+                 changed from 5 to 65 seconds.
   - version:
      - v25.7.0
      - v24.15.0
@@ -2992,7 +2996,7 @@ changes:
     * `keepAliveTimeout` {number} The number of milliseconds of inactivity
       a server needs to wait for additional incoming data, after it has
       finished writing the last response, before a socket will be destroyed.
-      **Default:** `5000`.
+      **Default:** `65000`.
   * `Http2ServerRequest` {http2.Http2ServerRequest} Specifies the
     `Http2ServerRequest` class to use.
     Useful for extending the original `Http2ServerRequest`.
@@ -3070,6 +3074,10 @@ server.listen(8000);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62782
+    description: The default value for `http1Options.keepAliveTimeout`
+                 changed from 5 to 65 seconds.
   - version:
      - v25.7.0
      - v24.15.0
@@ -3216,7 +3224,7 @@ changes:
     * `keepAliveTimeout` {number} The number of milliseconds of inactivity
       a server needs to wait for additional incoming data, after it has
       finished writing the last response, before a socket will be destroyed.
-      **Default:** `5000`.
+      **Default:** `65000`.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2SecureServer}
 
