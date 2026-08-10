@@ -324,7 +324,9 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     maybe_ret = Function::New(context,
                               use_sb ? DynamicLibrary::InvokeFunctionSB
                                      : DynamicLibrary::InvokeFunction,
-                              info->object());
+                              info->object(),
+                              0,
+                              v8::ConstructorBehavior::kThrow);
   }
 
   Local<Function> ret;
@@ -377,8 +379,11 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // (strings, Buffers, ArrayBuffers, and ArrayBufferViews).
     if (has_ptr_args) {
       Local<Function> slow_fn;
-      if (!Function::New(
-               context, DynamicLibrary::InvokeFunction, info->object())
+      if (!Function::New(context,
+                         DynamicLibrary::InvokeFunction,
+                         info->object(),
+                         0,
+                         v8::ConstructorBehavior::kThrow)
                .ToLocal(&slow_fn)) {
         return MaybeLocal<Function>();
       }
