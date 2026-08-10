@@ -85,4 +85,38 @@ let pass = 0;
     .then(common.mustCall());
 }
 
+{
+  // options.min must be a number.
+  const stream = new ReadableStream({
+    start(c) {
+      c.enqueue(new Uint8Array([1, 2, 3]));
+    },
+    type: 'bytes',
+  });
+  const reader = stream.getReader({ mode: 'byob' });
+
+  assert
+    .rejects(reader.read(new Uint8Array(3), { min: 'not a number' }), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+    })
+    .then(common.mustCall());
+}
+
+{
+  // A valid numeric options.min still works as expected.
+  const stream = new ReadableStream({
+    start(c) {
+      c.enqueue(new Uint8Array([1, 2, 3]));
+    },
+    type: 'bytes',
+  });
+  const reader = stream.getReader({ mode: 'byob' });
+
+  reader.read(new Uint8Array(3), { min: 1 }).then(common.mustCall(({ value, done }) => {
+    assert.strictEqual(done, false);
+    assert.deepStrictEqual([...value], [1, 2, 3]);
+  }));
+}
+
 process.on('exit', () => assert.strictEqual(pass, 2));
