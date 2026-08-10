@@ -570,6 +570,19 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   fi.emit('keypress', '.', deleteWordRightKey);
   fi.emit('data', '\n');
   rli.close();
+
+  // Punctuation runs separated by whitespace: delete-word-right must remove
+  // exactly the span that word-right traverses. Regression for a `\W+` class
+  // that also consumed the whitespace and the following punctuation run.
+  [rli, fi] = getInterface({ terminal: true, prompt: '' });
+  fi.emit('data', '-> => x');
+  fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+  rli.on('line', common.mustCall((line) => {
+    assert.strictEqual(line, '=> x');
+  }));
+  fi.emit('keypress', '.', deleteWordRightKey);
+  fi.emit('data', '\n');
+  rli.close();
 });
 
 // deleteLeft
