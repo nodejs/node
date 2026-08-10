@@ -12098,6 +12098,17 @@ void HeapProfiler::StopSamplingHeapProfiler() {
   reinterpret_cast<i::HeapProfiler*>(this)->StopSamplingHeapProfiler();
 }
 
+void HeapProfiler::SetSamplingHeapProfilerInterval(uint64_t sample_interval) {
+  reinterpret_cast<i::HeapProfiler*>(this)->SetSamplingHeapProfilerInterval(
+      sample_interval);
+}
+
+std::vector<AllocationProfile::Sample>
+HeapProfiler::GetSamplingHeapProfilerSamples() {
+  return reinterpret_cast<i::HeapProfiler*>(this)
+      ->GetSamplingHeapProfilerSamples();
+}
+
 AllocationProfile* HeapProfiler::GetAllocationProfile() {
   return reinterpret_cast<i::HeapProfiler*>(this)->GetAllocationProfile();
 }
