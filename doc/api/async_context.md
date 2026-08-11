@@ -11,7 +11,7 @@
 These classes are used to associate state and propagate it throughout
 callbacks and promise chains.
 They allow storing data throughout the lifetime of a web request
-or any other asynchronous duration. It is similar to thread-local storage
+or any other asynchronous operation. It is similar to thread-local storage
 in other languages.
 
 The `AsyncLocalStorage` and `AsyncResource` classes are part of the
@@ -142,7 +142,7 @@ changes:
   * `defaultValue` {any} The default value to be used when no store is provided.
   * `name` {string} A name for the `AsyncLocalStorage` value.
 
-Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
+Creates a new instance of `AsyncLocalStorage`. A Store is only provided within a
 `run()` call or after an `enterWith()` call.
 
 ### Static method: `AsyncLocalStorage.bind(fn)`
@@ -222,11 +222,11 @@ to `asyncLocalStorage.getStore()` will return `undefined` until
 `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()` is called again.
 
 When calling `asyncLocalStorage.disable()`, all current contexts linked to the
-instance will be exited.
+instance are exited.
 
 Calling `asyncLocalStorage.disable()` is required before the
 `asyncLocalStorage` can be garbage collected. This does not apply to stores
-provided by the `asyncLocalStorage`, as those objects are garbage collected
+provided by the `asyncLocalStorage` instance, as those objects are garbage collected
 along with the corresponding async resources.
 
 Use this method when the `asyncLocalStorage` is not in use anymore
@@ -750,7 +750,7 @@ changes:
 * `fn` {Function} The function to bind to the current `AsyncResource`.
 * `thisArg` {any}
 
-Binds the given function to execute to this `AsyncResource`'s scope.
+Binds the given function to execute within this `AsyncResource`'s scope.
 
 ### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 
@@ -773,8 +773,8 @@ then restore the original execution context.
 * Returns: {AsyncResource} A reference to `asyncResource`.
 
 Call all `destroy` hooks. This should only ever be called once. An error will
-be thrown if it is called more than once. This **must** be manually called. If
-the resource is left to be collected by the GC then the `destroy` hooks will
+be thrown if it is called more than once. This method **must** be called manually. If
+the resource is left to be collected by the GC, then the `destroy` hooks will
 never be called.
 
 ### `asyncResource.asyncId()`
@@ -811,7 +811,7 @@ parentPort.on('message', (task) => {
 });
 ```
 
-a Worker pool around it could use the following structure:
+a worker pool around it could use the following structure:
 
 ```mjs
 import { AsyncResource } from 'node:async_hooks';
