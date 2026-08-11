@@ -60,11 +60,13 @@ struct ffi_aix_trampoline_struct {
 # define PPC_LD_S32		PPC_LD_R3
 # define PPC_LD_PTR		PPC_LD_R3
 # define PPC_LD_I64		PPC_LD_R3R4
+# define PPC_LD_STRUCT		10
 #else
 # define PPC_LD_U32		10
 # define PPC_LD_S32		11
 # define PPC_LD_PTR		PPC_LD_R3
 # define PPC_LD_I64		PPC_LD_R3
+# define PPC_LD_STRUCT		12
 #endif
 
 extern void ffi_closure_ASM (void);
@@ -1260,6 +1262,13 @@ ffi_closure_helper_common (ffi_cif* cif,
   long             i, avn;
   ffi_dblfl *      end_pfr = pfr + NUM_FPR_ARG_REGISTERS;
   unsigned         size_al;
+  int              struct_ret_by_value = 0;
+  /* When a struct is returned by value, ffi_closure_ASM's jump-table
+     dispatch carries only a small integer return code (see PPC_LD_* above),
+     with no room for cif->rtype.  We hand cif->rtype back in the first
+     parameter-save slot -- which is dead by the time we return -- for the
+     PPC_LD_STRUCT fragment in darwin_closure.S to recover.  */
+  unsigned long *  pgr0 = pgr;
 #if defined(POWERPC_DARWIN64)
   unsigned 	   fpsused = 0;
 #endif
@@ -1275,12 +1284,16 @@ ffi_closure_helper_common (ffi_cif* cif,
 	  rvalue = (void *) *pgr;
 	  pgr++;
 	}
+      else
+	struct_ret_by_value = 1;
 #elif defined(DARWIN_PPC)
       if (cif->rtype->size > 4)
 	{
 	  rvalue = (void *) *pgr;
 	  pgr++;
 	}
+      else
+	struct_ret_by_value = 1;
 #else /* assume we return by ref.  */
       rvalue = (void *) *pgr;
       pgr++;
@@ -1480,7 +1493,17 @@ ffi_closure_helper_common (ffi_cif* cif,
   switch (cif->rtype->type)
     {
     case FFI_TYPE_VOID:
+      return PPC_LD_NONE;
     case FFI_TYPE_STRUCT:
+      /* A by-reference struct return needs nothing further here: the result
+	 was written straight to the caller's buffer.  A by-value struct
+	 return is loaded into registers by darwin_closure.S, which needs
+	 cif->rtype -- hand it back in the first parameter-save slot.  */
+      if (struct_ret_by_value)
+	{
+	  *pgr0 = (unsigned long) cif->rtype;
+	  return PPC_LD_STRUCT;
+	}
       return PPC_LD_NONE;
     case FFI_TYPE_FLOAT:
       return PPC_LD_F32;
