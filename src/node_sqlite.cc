@@ -2803,11 +2803,23 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
     anon_start++;
   }
 
+  int param_count = sqlite3_bind_parameter_count(statement_);
+
   for (int i = anon_start; i < args.Length(); ++i) {
-    while (1) {
+    while (anon_idx <= param_count) {
       const char* param = sqlite3_bind_parameter_name(statement_, anon_idx);
       if (param == nullptr || param[0] == '?') break;
       anon_idx++;
+    }
+
+    if (anon_idx > param_count) {
+      THROW_ERR_INVALID_STATE(
+          env(),
+          "Too many anonymous parameter values were provided. "
+          "The statement accepts %d, but received %d",
+          i - anon_start,
+          args.Length() - anon_start);
+      return false;
     }
 
     if (!BindValue(args[i], anon_idx)) {
