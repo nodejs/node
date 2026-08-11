@@ -1052,7 +1052,7 @@ function onSocketClose () {
 
 function clearIdleSocketValidation (socket) {
   if (socket[kIdleSocketValidationTimeout]) {
-    clearImmediate(socket[kIdleSocketValidationTimeout])
+    clearTimeout(socket[kIdleSocketValidationTimeout])
     socket[kIdleSocketValidationTimeout] = null
   }
 
@@ -1061,14 +1061,14 @@ function clearIdleSocketValidation (socket) {
 
 function scheduleIdleSocketValidation (client, socket) {
   socket[kIdleSocketValidation] = 1
-  socket[kIdleSocketValidationTimeout] = setImmediate(() => {
+  socket[kIdleSocketValidationTimeout] = setTimeout(() => {
     socket[kIdleSocketValidationTimeout] = null
     socket[kIdleSocketValidation] = 2
 
     if (client[kSocket] === socket && !socket.destroyed) {
       client[kResume]()
     }
-  })
+  }, 0)
   socket[kIdleSocketValidationTimeout].unref?.()
 }
 

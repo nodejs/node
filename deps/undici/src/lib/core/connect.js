@@ -105,13 +105,27 @@ function buildConnector ({ allowH2, preferH2, useH2c, maxCachedSessions, socketP
 
       port = port || 80
 
-      socket = net.connect({
+      const connectOptions = {
         highWaterMark: 64 * 1024, // Same as nodejs fs streams.
         ...options,
         localAddress,
         port,
         host: hostname
-      })
+      }
+
+      const family = net.isIP(hostname)
+      if (family !== 0 && servername && servername !== hostname) {
+        connectOptions.host = servername
+        connectOptions.lookup = (_hostname, lookupOptions, cb) => {
+          if (lookupOptions.all) {
+            cb(null, [{ address: hostname, family }])
+          } else {
+            cb(null, hostname, family)
+          }
+        }
+      }
+
+      socket = net.connect(connectOptions)
       if (useH2c === true) {
         socket.alpnProtocol = 'h2'
       }
