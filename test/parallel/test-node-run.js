@@ -293,7 +293,8 @@ describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, ()
       [ '--run', `positional-args${envSuffix}`, '--', '%PAYLOAD%', '$PAYLOAD'],
       { cwd: fixtures.path('run-script'), env: { ...process.env, PAYLOAD: 'env value' } },
     );
-    assert.strictEqual(child.stdout,
+    assert.strictEqual(
+      child.stdout,
       common.isWindows ?
         `Raw '"^%PAYLOAD^%" "$PAYLOAD"'\r\nArguments: '%PAYLOAD% $PAYLOAD'\r\nThe total number of arguments is: 2\r\n` :
         "Arguments: '%PAYLOAD% $PAYLOAD'\nThe total number of arguments is: 2\n");
