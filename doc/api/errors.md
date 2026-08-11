@@ -397,6 +397,32 @@ error object, such as a {Proxy}.
 Indicates the failure of an assertion. For details, see
 [`Class: assert.AssertionError`][].
 
+## Class: `DOMException`
+
+<!-- YAML
+added: v17.0.0
+-->
+
+* Extends: {errors.Error}
+
+The Web IDL {DOMException} class. These errors are thrown by web-platform APIs
+in Node.js such as [`fetch()`][], {AbortController}, {AbortSignal}, and Web
+Streams. For details, see also [`Class: DOMException`][] on the Globals page.
+
+The [`domException.name`][] property identifies the type of the exception (for
+example, `'AbortError'`). Unlike most errors in Node.js, the
+[`domException.code`][] property is a number that corresponds to a
+[legacy error code name][Web IDL error names] (for example, `20` for
+`ABORT_ERR`).
+
+Node.js-specific APIs that support {AbortSignal} (such as
+[`events.once()`][]) throw a Node.js `AbortError` (a native {errors.Error} with
+`name` of `'AbortError'` and `code` of [`'ABORT_ERR'`][]) rather than a
+{DOMException}. To identify abort errors in either case, checking
+`err?.name === 'AbortError'` is sufficient.
+
+See also [`ABORT_ERR`][].
+
 ## Class: `RangeError`
 
 * Extends: {errors.Error}
@@ -4640,6 +4666,7 @@ An error occurred trying to allocate memory. This should never happen.
 [V8's stack trace API]: https://v8.dev/docs/stack-trace-api
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
 [WHATWG URL API]: url.md#the-whatwg-url-api
+[Web IDL error names]: https://webidl.spec.whatwg.org/#dfn-error-names-table
 [`"exports"`]: packages.md#exports
 [`"imports"`]: packages.md#imports
 [`'uncaughtException'`]: process.md#event-uncaughtexception
@@ -4648,6 +4675,9 @@ An error occurred trying to allocate memory. This should never happen.
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`BoundSocket`]: net.md#class-netboundsocket
+[`'ABORT_ERR'`]: #abort_err
+[`ABORT_ERR`]: #abort_err
+[`Class: DOMException`]: globals.md#class-domexception
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
 [`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
@@ -4676,10 +4706,13 @@ An error occurred trying to allocate memory. This should never happen.
 [`dgram.createSocket()`]: dgram.md#dgramcreatesocketoptions-callback
 [`dgram.disconnect()`]: dgram.md#socketdisconnect
 [`dgram.remoteAddress()`]: dgram.md#socketremoteaddress
+[`domException.code`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/code
 [`domException.name`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/name
 [`errno`(3) man page]: https://man7.org/linux/man-pages/man3/errno.3.html
 [`error.code`]: #errorcode
 [`error.message`]: #errormessage
+[`events.once()`]: events.md#eventsonceemitter-name-options
+[`fetch()`]: globals.md#fetch
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.cp()`]: fs.md#fscpsrc-dest-options-callback
 [`fs.readFileSync`]: fs.md#fsreadfilesyncpath-options
