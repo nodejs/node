@@ -35,6 +35,7 @@
 #include <string_view>
 #include <memory>
 #include <span>
+#include <optional>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -116,8 +117,9 @@ public:
   std::expected<void, Error>
   send_packet_or_blocked(const ngtcp2_path &path, unsigned int ecn,
                          std::span<const uint8_t> data, size_t gso_size);
-  std::expected<void, Error> on_stream_close(int64_t stream_id,
-                                             uint64_t app_error_code);
+  std::expected<void, Error>
+  on_stream_close(int64_t stream_id, std::optional<uint64_t> rx_app_error_code,
+                  std::optional<uint64_t> tx_app_error_code);
   void on_extend_max_streams();
   std::expected<void, Error> handle_error();
   std::expected<void, Error> make_stream_early();

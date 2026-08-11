@@ -62,7 +62,10 @@ constexpr T NumBitsToBytes(T bits) {
   return (bits / CHAR_BIT) + ((CHAR_BIT - 1 + (bits % CHAR_BIT)) / CHAR_BIT);
 }
 
-bool ProcessFipsOptions();
+// Applies the FIPS related command line options. Returns a description of
+// what went wrong, or std::nullopt when there was nothing to do or the
+// options were applied successfully.
+std::optional<std::string> ProcessFipsOptions();
 
 bool InitCryptoOnce(v8::Isolate* isolate);
 void InitCryptoOnce();
@@ -477,7 +480,7 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
     {
       node::errors::TryCatchScope try_catch(env);
       if (value->IsObject()) {
-        then_key = FIXED_ONE_BYTE_STRING(env->isolate(), "then");
+        then_key = env->then_string();
         v8::Local<v8::Object> object = value.As<v8::Object>();
         v8::Maybe<bool> has_own_then =
             object->HasOwnProperty(context, then_key);
@@ -729,8 +732,8 @@ class ArrayBufferOrViewContents final {
   }
 
   template <typename M>
+    requires(sizeof(M) == 1)
   void CopyTo(M* dest, size_t len) const {
-    static_assert(sizeof(M) == 1, "sizeof(M) must equal 1");
     len = std::min(len, size());
     if (len > 0 && data() != nullptr) {
       memcpy(dest, data(), len);

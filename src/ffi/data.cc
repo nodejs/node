@@ -739,7 +739,8 @@ void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1) {
     THROW_ERR_INVALID_ARG_TYPE(
         env,
-        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+        "The first argument must be a Buffer, ArrayBuffer, SharedArrayBuffer, "
+        "or ArrayBufferView");
     return;
   }
 
@@ -758,9 +759,10 @@ void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
     store = args[0].As<ArrayBufferView>()->Buffer()->GetBackingStore();
     offset = args[0].As<ArrayBufferView>()->ByteOffset();
   } else {
-    THROW_ERR_INVALID_ARG_TYPE(env,
-                               "The first argument must be a Buffer, "
-                               "ArrayBuffer, or ArrayBufferView");
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, "
+        "ArrayBuffer, SharedArrayBuffer, or ArrayBufferView");
     return;
   }
 

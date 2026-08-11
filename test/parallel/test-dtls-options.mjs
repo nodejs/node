@@ -49,3 +49,17 @@ assert.throws(() => {
 assert.throws(() => {
   connect('localhost', 99999);
 }, { code: 'ERR_OUT_OF_RANGE' });
+
+// Test: mtu must be an integer within [256, 65535].
+assert.throws(() => {
+  connect('127.0.0.1', 4433, { mtu: 100 });
+}, { code: 'ERR_OUT_OF_RANGE' });
+
+assert.throws(() => {
+  connect('127.0.0.1', 4433, { mtu: 70000 });
+}, { code: 'ERR_OUT_OF_RANGE' });
+
+// Test: alpn must be a string array or Buffer.
+assert.throws(() => {
+  connect('127.0.0.1', 4433, { alpn: 123 });
+}, { code: 'ERR_INVALID_ARG_TYPE' });

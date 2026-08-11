@@ -13,14 +13,16 @@ const {
   generateKeyPair,
 } = require('crypto');
 const {
+  hasFIPS,
   testEncryptDecrypt,
   testSignVerify,
 } = require('../common/crypto');
 
 // Test RSA-PSS.
 {
+  const modulusLength = hasFIPS(3) ? 2048 : 512;
   generateKeyPair('rsa-pss', {
-    modulusLength: 512,
+    modulusLength,
     saltLength: 16,
     hashAlgorithm: 'sha256',
     mgf1HashAlgorithm: 'sha256'
@@ -28,7 +30,7 @@ const {
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
       mgf1HashAlgorithm: 'sha256',
@@ -38,7 +40,7 @@ const {
     assert.strictEqual(privateKey.type, 'private');
     assert.strictEqual(privateKey.asymmetricKeyType, 'rsa-pss');
     assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {
-      modulusLength: 512,
+      modulusLength,
       publicExponent: 65537n,
       hashAlgorithm: 'sha256',
       mgf1HashAlgorithm: 'sha256',

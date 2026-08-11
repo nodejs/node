@@ -48,8 +48,12 @@ static void *default_realloc(void *ptr, size_t size, void *mem_user_data) {
   return realloc(ptr, size);
 }
 
-static nghttp2_mem mem_default = {NULL, default_malloc, default_free,
-                                  default_calloc, default_realloc};
+static nghttp2_mem mem_default = {
+  .malloc = default_malloc,
+  .free = default_free,
+  .calloc = default_calloc,
+  .realloc = default_realloc,
+};
 
 nghttp2_mem *nghttp2_mem_default(void) { return &mem_default; }
 

@@ -7,7 +7,7 @@ const http = require('http');
 const server = http.createServer((req, res) => {
   res.end('ok');
 }).listen(0, common.mustCall(() => {
-  const agent = http.Agent({
+  const agent = new http.Agent({
     keepAlive: true,
     maxSockets: 5,
     maxFreeSockets: 2

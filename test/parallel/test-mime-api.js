@@ -185,3 +185,17 @@ assert.throws(() => params.set('x', `x${NOT_HTTP_QUOTED_STRING_CODE_POINT}`), /p
   assert.strictEqual(params.has('foo'), false);
   assert.deepStrictEqual([...params], []);
 }
+
+{
+  // Non-throwing MimeType.parse, works for valid
+  const mime = MIMEType.parse('text/plain;Charset=value');
+  assert.strictEqual(mime.params.get('Charset'), 'value');
+  assert.strictEqual(mime.params.get('charset'), 'value');
+  assert.strictEqual(mime.params.get('CHARSET'), 'value');
+  assert.strictEqual(mime.params.has('Charset'), true);
+  assert.strictEqual(`${mime.params}`, 'charset=value');
+
+  // Returns null on Invalid
+  const invalidMime = MIMEType.parse('text plain');
+  assert.strictEqual(invalidMime, null);
+}

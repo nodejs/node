@@ -1,3 +1,610 @@
+commit 12ffd1f9dc56fcea79d2f742f424301ae668d663
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 8 18:08:29 2026 -0400
+
+    README: order 3.8.0 notes by decreasing importance
+    
+    Lead with new capabilities (VECTOR types, ffi_call_plan_size, ppc64
+    _Complex long double), then correctness fixes by severity, then the
+    trampoline caching optimization.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 8f2a41d9d89dd8ee2c2438f1e2f9cf04aa9a53d4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 8 18:05:33 2026 -0400
+
+    Release 3.8.0
+    
+    Bump version to 3.8.0, soname to libffi.so.8.5.0 (libtool 13:0:5) for the
+    new public interfaces added this cycle (FFI_TYPE_VECTOR, ffi_call_plan_size),
+    date the README history section, and update doc/version.texi.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit d956fe177ccfd4bb91ae7cb3ccaa0f8935a76522
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 8 17:38:40 2026 -0400
+
+    testsuite: distribute plan_size.c
+    
+    The ffi_call_plan_size test added in #1006 was not listed in EXTRA_DIST,
+    so it would be omitted from release tarballs (it still runs from a git
+    checkout, where dejagnu globs *.c). Add it alongside the other plan_*.c
+    tests.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 670a0327b7d1576712a3cad7b9297f59f23d5430
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 8 17:09:22 2026 -0400
+
+    README: note i386 BSD small-struct register return
+    
+    Follow-up to #1010, which returns small structs in registers on i386
+    FreeBSD/OpenBSD but did not update the History section.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit f744bc303fa4c69f1202ce283b866ebc768e0432
+Merge: abc18be0 5b8fa3fe
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 8 17:09:02 2026 -0400
+
+    Merge pull request #1010 from DTW-Thalion/x86-bsd-small-struct-return
+    
+    x86: return small structs in registers on the BSD i386 targets
+
+commit abc18be0d9ba9cc37c955b317e63cd52fd0d90ee
+Merge: ed742112 5f24e6a0
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 8 16:57:36 2026 -0400
+
+    Merge pull request #1006 from rvandermeulen/call-plan-size
+    
+    call_plan: add ffi_call_plan_size to report a plan's allocation
+
+commit ed7421122880e4daff87f1c8623d508a2e2c5c9a
+Merge: e43f2548 e6db2d38
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 8 16:41:24 2026 -0400
+
+    Merge pull request #1009 from libffi/fix-jumptable-desync-family
+    
+    Fix FFI_TYPE_LAST/vector jump-table desyncs on ia64, ppc64 (BE ELFv2), and aarch64
+
+commit e6db2d38decee8bf6321472dff5147ad311e639a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Aug 7 17:00:49 2026 -0400
+
+    aarch64: reject sub-4-byte vector lanes in HVA classification
+    
+    is_vfp_type() maps a homogeneous vector aggregate's lane width onto the
+    S/D/Q register classes via FFI_TYPE_FLOAT + intlog2(reg_size) - 2, and
+    encodes the result as an AARCH64_RET_* code.  A lane narrower than 4 bytes
+    (e.g. a struct of two 2-byte vectors, which libffi's own initialize_vector
+    accepts) yields intlog2(reg_size) < 2, producing a code below
+    AARCH64_RET_S4.  extend_hfa_type() then computes a negative jump-table
+    offset (h - AARCH64_RET_S4) and branches before its table -- a wild
+    computed branch during ffi_call argument marshalling.
+    
+    Such a type has no short-vector register class under AAPCS64, so reject it
+    in is_vfp_type() (returning 0 routes it through the generic aggregate
+    path).  Fixing it at the source covers both the argument path
+    (extend_hfa_type) and the return path.  Verified on aarch64 (Fedora under
+    qemu-aarch64): a call passing such an HVA segfaults before the fix and
+    returns correctly after it.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 159268174ece06f6854c6d1bca1a9b95961f6ae9
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Aug 7 08:18:51 2026 -0400
+
+    powerpc64: fix big-endian ELFv2 closure returns of 5/6/7-byte structs
+    
+    On big-endian ppc64 ELFv2, ffi_closure_helper_LINUX64 returns the load
+    codes PPC64_LD_STRUCT_5/6/7 (17/18/19) for closures returning a 5-, 6-,
+    or 7-byte struct, but linux64_closure.S only defined return jump-table
+    entries through PPC64_LD_STRUCT_3 (16).  The E() macro places each 16-byte
+    slot with .align 4 (no .org), so codes 17/18/19 fell through into the
+    .Lmoredouble continuation: the closure loaded FP registers and returned
+    without writing r3, so the ELFv2 caller read back the computed jump
+    target -- a libffi code address -- as the struct value (wrong result plus
+    a code-pointer disclosure).  Little-endian ELFv2 is unaffected (those
+    codes alias PPC_LD_R3/I64); big-endian ELFv1 returns structs by reference
+    and never emits the codes.
+    
+    Add the three missing handlers, loading the struct right-justified into
+    r3 per the ELFv2 convention.  Verified on big-endian ppc64 ELFv2 (Adélie
+    Linux under qemu-ppc64): testsuite/libffi.closures/cls_{5,6,7}_1_byte.c
+    abort before the fix and pass after it.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 3fdd99b5d2fb4c8f940d82fc4b1e530e743c685b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Aug 7 06:11:00 2026 -0400
+
+    ia64: fix return jump-table desync after FFI_TYPE_LAST bump
+    
+    The .Lst_table/.Lld_table return-value dispatch tables in unix.S are
+    indexed by the FFI_IA64_TYPE_SMALL_STRUCT/HFA_* codes, which are
+    FFI_TYPE_LAST-relative, but the tables hardcoded 20 entries assuming
+    FFI_TYPE_LAST == FFI_TYPE_COMPLEX (15).  The conditional __int128
+    support added in 3.6.0 advanced FFI_TYPE_LAST to SINT128 (17), and
+    FFI_TYPE_VECTOR advanced it to 18, shifting SMALL_STRUCT to 19 -- so a
+    small-struct return dispatched to the HFA-ldouble handler's 16-byte
+    stfe store, an out-of-bounds write past rvalue, and HFA returns indexed
+    off the end of the table entirely.
+    
+    Add the missing UINT128/SINT128/VECTOR slots to both tables (pointing at
+    the existing not-implemented void handler, matching FFI_TYPE_COMPLEX)
+    and a FFI_TYPE_LAST tripwire, mirroring the pa and win64 guards.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 5b8fa3fed84ce17768eeb379f5b81663172482e9
+Author: Todd White <todd.white@thalion.global>
+Date:   Fri Aug 7 19:40:05 2026 -0400
+
+    x86: return small structs in registers on the BSD i386 targets
+    
+    i386 FreeBSD and OpenBSD return a struct of 1, 2, 4 or 8 bytes in eax and
+    edx, as Darwin and win32 do. ffi_prep_cif_machdep applied the size test
+    only under X86_WIN32 and X86_DARWIN, so on these targets it recorded
+    X86_RET_STRUCTPOP and allocated a return pointer the callee never writes,
+    and a struct return through ffi_call or through a closure read a value
+    that was never stored.
+    
+    configure.host already maps i?86-*-freebsd* and i?86-*-openbsd* to
+    TARGET=X86_FREEBSD, and include/ffi.h.in defines that name, so extend the
+    condition to it. Sizes 3, 6 and 12 continue to be returned in memory.
+
+commit 5f24e6a05574b1aa74cca77b1ecd6413a8105f62
+Author: Ryan VanderMeulen <rvandermeulen@mozilla.com>
+Date:   Wed Aug 5 11:09:51 2026 -0400
+
+    call_plan: add ffi_call_plan_size to report a plan's allocation
+    
+    ffi_call_plan is opaque, so an embedder that tracks the memory a long-lived
+    plan holds has no way to ask how big it is.  The only options are to hardcode
+    a guess or to hardcode knowledge of the private struct layout, and both go
+    stale silently on the next release.
+    
+    The x86-64 backend records the byte count in ffi_plan at the point it is
+    passed to malloc, so the reported value cannot drift from the allocation it
+    describes; ffi_call_plan_size adds that to the handle and treats a signature
+    with no fast path as owning nothing beyond it.  The generic backend's plan is
+    a bare handle, so it reports sizeof (struct ffi_call_plan).  The counter lives
+    in ffi_plan rather than in the handle so that only plans that actually own a
+    move-list pay for it, and plans without one pay nothing.
+    
+    Computing the size in the query from cif->nargs instead would duplicate
+    build_plan's allocation formula in a second place, and would report the wrong
+    number if the cif were re-prepared with a different argument count after the
+    plan was built.
+    
+    The new symbol gets its own version node rather than joining
+    LIBFFI_CALL_PLAN_8.4, which shipped in 3.7.0: adding to a released node would
+    let a binary that needs ffi_call_plan_size look satisfiable against a 3.7.x
+    library that exports the node without the symbol, turning a clean link error
+    into a runtime failure.  libtool-version is left alone, since rule 2 in that
+    file defers version updates to immediately before a release.
+
+commit e43f254881f9010a26c48f595928461c0432c7b4
+Merge: 2fd434cd 04d721cc
+Author: Anthony Green <green@moxielogic.com>
+Date:   Thu Aug 6 00:40:32 2026 -0400
+
+    Merge pull request #1008 from libffi/fix-win64-vector-small-struct-flags
+    
+    x86: fix Win64 small-struct returns broken by FFI_TYPE_VECTOR
+
+commit 04d721cc448316dbba5af506be46315efabd80e3
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Aug 5 22:59:29 2026 -0400
+
+    x86: fix Win64 small-struct returns broken by FFI_TYPE_VECTOR
+    
+    Adding FFI_TYPE_VECTOR (#1000) moved FFI_TYPE_LAST from FFI_TYPE_SINT128
+    (17) to FFI_TYPE_VECTOR (18).  The Win64 return pseudo-types
+    
+      FFI_TYPE_SMALL_STRUCT_1B/2B/4B = FFI_TYPE_LAST + 1..3
+    
+    are FFI_TYPE_LAST-relative, so they shifted from 18/19/20 to 19/20/21.
+    The win64.S / win64_intel.S return-value dispatch is a computed jump
+    table indexed by cif->flags (base + flags*8) whose handlers are emitted
+    contiguously right after FFI_TYPE_SINT128, with no slot for value 18.
+    Under the sequential E() variant used by the MSVC/ml64 build, the
+    size-1/2/4 small-struct handlers therefore sat one 8-byte slot below the
+    flag values ffiw64.c now emits, so small structs returned by value were
+    written with the wrong width (or fell off the table into abort).  This
+    showed up as 14 execution failures in the "Windows 64-bit Visual C++" CI
+    job (s55, struct3, struct_by_value_small, struct_return_2H, the small
+    cls_* / single_entry_structs closures, and bhaible DGTEST 47/53/55).
+    
+    Add an FFI_TYPE_VECTOR abort stub between SINT128 and SMALL_STRUCT_1B in
+    both tables so the jump table stays contiguous and the small-struct
+    entries realign with their (shifted) code values.  Win64 does not marshal
+    vectors -- ffi_prep_cif_core rejects them since FFI_TARGET_HAS_VECTOR_TYPE
+    is undefined there -- so the slot is never reached at runtime.
+    
+    Also add a pa-style compile-time tripwire to src/x86/ffitarget.h so the
+    next generic type added bumps FFI_TYPE_LAST and #errors until the win64
+    tables are updated in step.  32-bit x86 is unaffected: sysv.S indexes its
+    store table by the independent X86_RET_* enum, not FFI_TYPE_LAST.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 2fd434cd9ada4d3d97b355e62c3ce3a969682230
+Merge: a00279c2 2aa33761
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Aug 2 10:18:45 2026 -0400
+
+    Merge pull request #1005 from libffi/tramp-cache-unsupported-verdict
+    
+    tramp: cache the static trampoline "unsupported" verdict
+
+commit 2aa33761c0536339f9f322902b9bb3a981114724
+Merge: 76883c62 a00279c2
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Aug 2 10:18:33 2026 -0400
+
+    Merge branch 'master' into tramp-cache-unsupported-verdict
+
+commit 76883c628a5273f71fb025e75bf1076adae3bb4b
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Aug 2 10:05:22 2026 -0400
+
+    tramp: cache the static trampoline "unsupported" verdict
+    
+    ffi_tramp_init() bailed out with a plain `return 0` when the system page
+    size exceeds the trampoline code table mapping, without recording the
+    outcome in tramp_globals.status.  Because that early return was the only
+    failure exit that left status as UNINITIALIZED, every subsequent
+    ffi_tramp_alloc()/ffi_tramp_is_supported() call re-ran the full
+    initialization (ffi_tramp_arch(), sysconf(), etc.) instead of
+    short-circuiting on the cached verdict like the other two failure paths.
+    
+    The comparison is between two process-lifetime invariants -- map_size is
+    a compile-time constant from ffi_tramp_arch(), and page_size is fixed for
+    the life of the process (and only checked when sysconf() returned a valid
+    value) -- so it can never flip.  Caching FAILED is therefore safe and
+    matches the intent of the status field.
+    
+    Affects hosts with pages larger than the 16K table, in practice 64K-page
+    aarch64 kernels, where static trampolines are correctly declined but the
+    decline was recomputed on every closure allocation.  No functional change
+    on 4K/16K-page hosts.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit a00279c2dc8e191ae5136b46bf6ae0e7a8da5b7a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 1 07:17:23 2026 -0400
+
+    Note unreleased development changes in README history
+    
+    Add a "Development source only" History block for changes on master
+    since 3.7.1: FFI_TYPE_VECTOR SIMD support (#1000), powerpc64 _Complex
+    long double (#1003), and the powerpc Darwin closure fix (#1002).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit ce77ca107a5cb0d10d5525c9422f0207e6c79ebf
+Merge: d257b084 19dbdb53
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Aug 1 07:09:17 2026 -0400
+
+    Merge pull request #1000 from edusperoni/feat/vector-types
+    
+    Add FFI_TYPE_VECTOR: vector (SIMD) type support with libffi-computed layout
+
+commit d257b08495e95248f66b7bd50dd106ea19124df9
+Merge: 333d87cf b2170647
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Jul 28 00:47:29 2026 -0400
+
+    Merge pull request #1004 from libffi/fix-1002-ppc-darwin-closure
+    
+    powerpc: fix Darwin closure returns broken by #951
+
+commit b2170647583461f42dc2d9f201211fcafda2429f
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Jul 27 20:08:15 2026 -0400
+
+    powerpc: fix Darwin closure returns broken by #951
+    
+    PR #951 (840add3b) changed the shared PowerPC closure helper,
+    ffi_closure_helper_common, to return a small PPC_LD_* jump-table index
+    instead of the ffi_type*, and rewrote aix_closure.S to consume it -- but
+    left darwin_closure.S expecting the old ffi_type* and dereferencing it.
+    With the helper now returning a small integer, ffi_closure_ASM
+    dereferenced e.g. 0 (PPC_LD_NONE, a void return) as a pointer, faulting
+    on a load from address 0.  This crashed essentially every closure call
+    -- including every gobject-introspection signal handler -- on 32- and
+    64-bit PowerPC Darwin (SIGBUS at ffi_closure_ASM, dar=0; issue #1002).
+    
+    Convert darwin_closure.S to the PPC_LD_* convention, mirroring
+    aix_closure.S: drop the ffi_type* dereference, use the returned index
+    directly, and reorder the return-value jump table into PPC_LD_* order
+    (NONE, R3, R3R4, F32, F64, F128, U8, S8, U16, S16, and on ppc64 U32, S32).
+    
+    Darwin, unlike AIX, returns small structs by value in registers, which
+    the existing assembly handles (Lsmallstruct/Lfour/Lstructend).  The
+    helper's return code is a single small integer with no room for
+    cif->rtype, which that assembly needs, so for a by-value struct return
+    the helper now stashes cif->rtype in the first parameter-save slot (dead
+    by return time) and returns a new PPC_LD_STRUCT code; the PPC_LD_STRUCT
+    fragment recovers it and drives the unchanged struct machinery.  By-
+    reference struct returns still return PPC_LD_NONE.
+    
+    Based on the approach in a patch by Sergey Fedorov (@barracuda156); the
+    jump table here is reordered to the PPC_LD_* layout so that float,
+    double, long double, sub-word and 64-bit returns also dispatch correctly.
+    
+    I have no PowerPC Darwin hardware; the jump-table fragment offsets were
+    checked by assembling for powerpc and powerpc64, but runtime
+    confirmation on 10.5/10.6 is still needed.
+    
+    Fixes #1002.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit 333d87cf201ee279c9870fb5ad3e48e3a08aa6e5
+Merge: 46cb2e38 d7cd3a61
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Jul 27 08:52:34 2026 -0400
+
+    Merge pull request #1003 from libffi/fix-ppc64le-complex-longdouble
+    
+    powerpc64: implement _Complex long double for both IBM-128 and IEEE-128
+
+commit d7cd3a6194885c85255c77782a05a153a42b29a5
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Jul 27 07:06:39 2026 -0400
+
+    powerpc64: implement _Complex long double for both IBM-128 and IEEE-128
+    
+    Complex support for POWERPC64 ELFv2 (f0ca157, #970) defined
+    FFI_TARGET_HAS_COMPLEX_TYPE, which flips complex.exp from marking the
+    libffi.complex suite UNSUPPORTED to running it.  _Complex long double
+    was deliberately deferred with FFI_BAD_TYPEDEF, so ffi_prep_cif failed
+    and every libffi.complex/*longdouble* test aborted.  This was not caught
+    upstream because an XFAIL entry in the rlgl CI policy masked the FAILs.
+    
+    Implement both long double formats:
+    
+      - IBM-128 (double-double): each _Complex long double is passed and
+        returned as four doubles (real hi/lo, imag hi/lo) in f1-f4, with a
+        GPR shadow doubleword per FPR, and returned as a double homogeneous
+        aggregate.
+    
+      - IEEE binary128: real in v2, imag in v3; each half occupies a vector
+        register (or a 16-byte-aligned parameter save slot with two GPR
+        shadow doublewords) and is returned via the vector-homogeneous
+        small-struct path.
+    
+    discover_homogeneous_aggregate now accepts FFI_TYPE_LONGDOUBLE as a
+    _Complex inner type so struct-of-complex-longdouble is treated as an HFA.
+    Covers ffi_prep_cif, ffi_prep_args64, and the closure decode/return
+    paths.
+    
+    Fixes #1001.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit debc00a0114d8530d6d691862028c607aa17dd6a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Jul 26 07:28:36 2026 -0400
+
+    Update doc version
+
+commit 19dbdb53e869e07fbff05c86d634e8c08c9a7f61
+Author: Eduardo Speroni <edusperoni@gmail.com>
+Date:   Tue Jul 21 20:32:24 2026 -0300
+
+    testsuite: fix vector suite CI failures on gcc and MSVC
+    
+    Two fixes for the libffi.vector suite:
+    
+    - vector_double4.c: the non-aarch64 branch built its own void_args
+      array and never read the already-populated args, tripping gcc's
+      -Wunused-but-set-variable (an excess-errors FAIL on Linux x86-64
+      with gcc; clang does not emit this warning).  Use args for the
+      negative argument-passing check instead.
+    
+    - vector.exp: the suite only probed FFI_TARGET_HAS_VECTOR_TYPE, but
+      the tests are written with the GCC/Clang vector extension.  On
+      Windows ARM64 the aarch64 port enables the feature while MSVC
+      cannot compile __attribute__ ((vector_size)), so every test failed
+      to build.  Add a compile probe and mark the suite unsupported when
+      the compiler lacks the syntax.
+
+commit 71a95a2cd433b151b3fcf83a0a830eb9aa38fa3a
+Author: Eduardo Speroni <edusperoni@gmail.com>
+Date:   Tue Jul 21 16:44:26 2026 -0300
+
+    testsuite: add libffi.vector suite for vector (SIMD) types
+    
+    Model a new testsuite/libffi.vector/ directory on testsuite/libffi.complex:
+    vector.exp reuses the same dg/run-many-tests driver and skips every test as
+    "unsupported" on ports whose headers do not define
+    FFI_TARGET_HAS_VECTOR_TYPE (libffi_feature_test), so unsupported targets
+    still compile the gating cleanly.
+    
+    Vector types are built with the portable __attribute__((vector_size)) via a
+    small make_vector_type() helper (vector.h); each test cross-checks the value
+    returned through ffi against a direct native call.  Coverage:
+    
+      - vector_float32x4 / vector_float32x2 / vector_double2 / vector_int32x4:
+        pass and return 8- and 16-byte float, double and integer vectors
+        (float32x4 is the vec4 shape of libffi/libffi#773);
+      - vector_args_spill: ten vectors interleaved with int/double scalars,
+        exhausting the vector argument registers and spilling to the stack;
+      - vector_vec3: Clang-only ext_vector_type(3), verifying the 12->16 byte
+        power-of-two padding matches a natively compiled callee (a no-op on
+        other compilers);
+      - vector_double4: on AArch64 a 32-byte vector round-trips (by reference /
+        in memory); elsewhere ffi_prep_cif must return FFI_BAD_TYPEDEF, checked
+        for both return and argument;
+      - vector_hva: a struct of two identical vectors (HVA) passes and returns
+        on both AArch64 (Q-register pair) and x86-64 (SSE struct classification);
+      - cls_vector: a closure receiving vector arguments and returning a vector;
+      - vector_validate: heterogeneous lanes, an empty vector, and a non-scalar
+        lane are each rejected with FFI_BAD_TYPEDEF, and a well-formed vector is
+        accepted with the computed power-of-two size and min(size,16) alignment.
+    
+    The files are added to testsuite/Makefile.am EXTRA_DIST, matching how
+    libffi.complex is distributed.
+    
+    References: libffi/libffi#414, libffi/libffi#773.
+
+commit 93b274cec912ac2395575a8bd4dfcb527f61599c
+Author: Eduardo Speroni <edusperoni@gmail.com>
+Date:   Tue Jul 21 16:32:04 2026 -0300
+
+    x86-64: marshal vector (SIMD) types per the System V psABI
+    
+    Define FFI_TARGET_HAS_VECTOR_TYPE for the SysV x86-64 backend (ffi64.c;
+    32-bit x86 and the Windows ffiw64.c backend are excluded) and integrate
+    FFI_TYPE_VECTOR into the existing psABI classifier without restructuring
+    it:
+    
+      - classify_argument gains a FFI_TYPE_VECTOR case: an 8-byte vector is
+        one SSE eightbyte (X86_64_SSE_CLASS); a 16-byte vector is one %xmm
+        register (X86_64_SSE_CLASS + X86_64_SSEUP_CLASS).  The existing
+        INTEGERSI/SSESF/SSEDF/UINT128 handling is untouched, and the SSE+SSEUP
+        argument marshalling already merges both eightbytes into one %xmm.
+      - ffi_prep_cif_machdep classifies vector returns symmetrically: 8 bytes
+        in %xmm0 (UNIX64_RET_XMM64), 16 bytes in %xmm0 (UNIX64_RET_XMM128).
+      - Vectors wider than 16 bytes return FFI_BAD_TYPEDEF from
+        ffi_prep_cif_machdep, for both returns and arguments.  Correct
+        %ymm/%zmm passing needs unix64.S register-save changes and is left as
+        a v1 limitation rather than silently passing them in memory.
+    
+    Closures need no separate change: the closure paths reuse
+    classify_argument for arguments and cif->flags for the return.
+    
+    References: libffi/libffi#414.
+
+commit 5eaa8a389de61fc3b056f62c48ceade1931b5413
+Author: Eduardo Speroni <edusperoni@gmail.com>
+Date:   Tue Jul 21 16:30:12 2026 -0300
+
+    aarch64: marshal vector (SIMD) types per AAPCS64
+    
+    Define FFI_TARGET_HAS_VECTOR_TYPE for AArch64 and teach is_vfp_type to
+    classify FFI_TYPE_VECTOR, so ffi_call and closures pass and return
+    vectors the way AAPCS64 (and current GCC/Clang) do:
+    
+      - 8- and 16-byte vectors travel in a single V/Q register (a Short
+        Vector), for float, double and integer lane types alike;
+      - homogeneous vector aggregates -- a struct of up to four identical
+        8- or 16-byte vectors -- travel in that many consecutive V/Q
+        registers (an HVA), e.g. struct{float32x4 a,b} in {q0,q1};
+      - a bare vector wider than 16 bytes (e.g. a 32-byte double4) has no
+        short-vector register class, so is_vfp_type returns 0 and the
+        existing composite path passes it by invisible reference and returns
+        it in memory -- exactly what a natively compiled callee expects.
+    
+    is_simd() reports the width of one Neon register slot (a bare vector's
+    whole size, or one lane vector of an HVA); is_vfp_type() encodes
+    num_registers slots of that width onto the existing AARCH64_RET_{D,Q}*
+    codes via intlog2.  is_hfa0/is_hfa1 recurse through FFI_TYPE_VECTOR so
+    HVA homogeneity is checked, and the three fundamental-type dispatch
+    switches (machdep return, ffi_call_int, ffi_closure_SYSV_inner) route
+    FFI_TYPE_VECTOR through is_vfp_type alongside FFI_TYPE_STRUCT.
+    
+    Ported from the battle-tested NativeScript aarch64 vector marshaller,
+    adapted to the FFI_TYPE_VECTOR API and extended so that integer-lane
+    vectors (e.g. int32x4) are classified into V registers too -- the
+    original only handled floating-point lanes.
+    
+    References: libffi/libffi#414, libffi/libffi#773 (aarch64 vec4 return).
+
+commit b6b8be54acc90f7db1dcf3d1c91238a5a9bca185
+Author: Eduardo Speroni <edusperoni@gmail.com>
+Date:   Tue Jul 21 16:26:33 2026 -0300
+
+    core: add FFI_TYPE_VECTOR fundamental type with computed layout
+    
+    Introduce a portable API for marshalling vector (SIMD) types -- the
+    values produced by GCC's __attribute__((vector_size)) and Clang's
+    ext_vector_type.  This answers the stalled PR #414 and the maintainer's
+    2018 design questions
+    (https://sourceware.org/legacy-ml/libffi-discuss/2018/msg00020.html):
+    rather than requiring callers to hand-compute a vector's size and
+    alignment (and gating the feature behind configure), libffi now derives
+    the layout itself and the type code is defined unconditionally.
+    
+    A vector is described exactly like a struct: type == FFI_TYPE_VECTOR and
+    a NULL-terminated elements[] array, except every element must point to
+    the SAME fundamental scalar (float, double, or a fixed-width integer
+    UINT8..SINT64) and the count is the number of lanes.  The caller leaves
+    size and alignment at zero; ffi_prep_cif computes:
+    
+      size      = lane_size * count, rounded up to the next power of two
+                  (matches Clang ext_vector_type storage: 3 x float -> 16,
+                  3 x double -> 32; GCC vector_size already requires pow2
+                  totals so it is identical there);
+      alignment = min(size, 16).
+    
+    Validation (identical scalar lanes, count >= 1, scalar-only) yields
+    FFI_BAD_TYPEDEF otherwise.
+    
+      - include/ffi.h.in: FFI_TYPE_VECTOR = 18 (after SINT128 = 17),
+        FFI_TYPE_LAST bumped.  Defined unconditionally, no configure gating.
+      - src/prep_cif.c: initialize_vector() computes the layout in
+        initialize_aggregate; ffi_type_contains_vector() rejects vectors
+        (including nested in structs, argument or return) with
+        FFI_BAD_TYPEDEF on any port that does not define
+        FFI_TARGET_HAS_VECTOR_TYPE -- no aborts.  Vector returns reserve the
+        hidden return-pointer slot like structs.
+      - src/raw_api.c, src/java_raw_api.c: plumb FFI_TYPE_VECTOR alongside
+        FFI_TYPE_STRUCT, mirroring how FFI_TYPE_COMPLEX is handled.
+      - src/debug.c: ffi_type_test requires elements != NULL for vectors.
+      - src/pa/ffitarget.h: bump the FFI_PA_TYPE_LAST tripwire; PA gates
+        vectors out in prep_cif so its jump tables are never reached.
+      - doc/libffi.texi: new "Vector Types" node documenting the API, the
+        computed-layout rule, the psABI framing, and the per-port support
+        table.
+    
+    No port defines FFI_TARGET_HAS_VECTOR_TYPE yet, so this commit rejects
+    every vector signature; the per-architecture ports follow.
+    
+    References: libffi/libffi#414, libffi/libffi#773.
+
+commit 46cb2e3871059f7f5113329ddcca818de3a8cfae
+Merge: ca86812c 8cd11a77
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 16:51:18 2026 -0400
+
+    Merge pull request #998 from bgilbert/tests
+    
+    testsuite: Remember to distribute tests added for 3.7.1
+
+commit 8cd11a772d8a0b687f43390697baa002ae6504d5
+Author: Benjamin Gilbert <bgilbert@backtick.net>
+Date:   Fri Jul 10 11:56:55 2026 -0700
+
+    testsuite: Remember to distribute tests added for 3.7.1
+
+commit ca86812cd430cff3018e491ba75a4f3c9ea969d2
+Author: Anthony Green <green@moxielogic.com>
+Date:   Fri Jul 10 10:56:47 2026 -0400
+
+    ci: Don't publish rlgl reports on tag pushes
+    
+    A tag and its commit fire two CI runs at the same SHA.  Both run the
+    publish-reports job, which deploys a fixed-name github-pages artifact
+    via actions/deploy-pages; the two deployments collide and one fails
+    with BlobNotFound (seen on the v3.7.1 tag run).  The same-SHA branch
+    push already publishes the reports, so gate the job off tag pushes.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
 commit 5c1c43091ed611fdea774374355eb938c73a9157
 Author: Anthony Green <green@moxielogic.com>
 Date:   Fri Jul 10 09:50:53 2026 -0400

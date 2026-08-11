@@ -153,6 +153,7 @@ class EnvironmentOptions : public Options {
   bool allow_net = false;
   bool allow_wasi = false;
   bool allow_ffi = false;
+  bool allow_openssl_store = false;
   bool allow_worker_threads = false;
   bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
   bool async_context_frame = true;
@@ -221,6 +222,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_skip_pattern;
   std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
+  bool coverage_include_all = false;
   std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
   bool trace_deprecation = false;

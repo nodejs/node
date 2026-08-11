@@ -1032,11 +1032,11 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 ### Configure OpenSSL appname
 
 Node.js can use an OpenSSL configuration file by specifying the environment
-variable `OPENSSL_CONF`, or using the command line option `--openssl-conf`, and
-if none of those are specified will default to reading the default OpenSSL
-configuration file `openssl.cnf`. Node.js will only read a section that is by
-default named `nodejs_conf`, but this name can be overridden using the following
-configure option:
+variable `OPENSSL_CONF`, or using the command line option `--openssl-config`,
+which takes precedence. If neither is specified, Node.js defaults to reading the
+default OpenSSL configuration file `openssl.cnf`. Node.js will only read a
+section that is by default named `nodejs_conf`, but this name can be overridden
+using the following configure option:
 
 ```bash
 ./configure --openssl-conf-name=<some_conf_name>
@@ -1047,6 +1047,8 @@ configure option:
 Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
 [OpenSSL's provider model](https://docs.openssl.org/3.0/man7/crypto/#OPENSSL-PROVIDERS).
 It is not necessary to rebuild Node.js to enable support for FIPS.
+
+When using OpenSSL 1.1.1, Node.js must be built against a FIPS-capable OpenSSL.
 
 See [FIPS mode](doc/api/crypto.md#fips-mode) for more information on how to
 enable FIPS support in Node.js.

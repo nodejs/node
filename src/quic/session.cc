@@ -1611,11 +1611,11 @@ struct Session::Impl final : public MemoryRetainer {
     return NGTCP2_SUCCESS;
   }
 
-  static int on_stream_stop_sending(ngtcp2_conn* conn,
-                                    stream_id stream_id,
-                                    error_code app_error_code,
-                                    void* user_data,
-                                    void* stream_user_data) {
+  static int on_receive_stream_stop_sending(ngtcp2_conn* conn,
+                                            stream_id stream_id,
+                                            error_code app_error_code,
+                                            void* user_data,
+                                            void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     auto* stream = Stream::From(stream_user_data);
     if (stream == nullptr) return NGTCP2_SUCCESS;
@@ -1652,7 +1652,7 @@ struct Session::Impl final : public MemoryRetainer {
 
   static constexpr ngtcp2_callbacks CLIENT = {
       ngtcp2_crypto_client_initial_cb,
-      nullptr,
+      nullptr,  // stream_stop_sending
       ngtcp2_crypto_recv_crypto_data_cb,
       on_handshake_completed,
       on_receive_version_negotiation,
@@ -1686,7 +1686,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_acknowledge_datagram,
       on_lost_datagram,
       nullptr,  // get_path_challenge_data (deprecated, use v2 below)
-      on_stream_stop_sending,
+      nullptr,  // stream_stop_sending
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
       on_receive_tx_key,
@@ -1697,12 +1697,15 @@ struct Session::Impl final : public MemoryRetainer {
       on_cid_status,
       ngtcp2_crypto_get_path_challenge_data2_cb,
 #ifdef NGTCP2_CALLBACKS_V4
+      on_receive_stream_stop_sending,
+#ifdef NGTCP2_CALLBACKS_V5
       nullptr,
-#endif
+#endif  // NGTCP2_CALLBACKS_V5
+#endif  // NGTCP2_CALLBACKS_V4
   };
 
   static constexpr ngtcp2_callbacks SERVER = {
-      nullptr,
+      nullptr,  // stream_stop_sending
       ngtcp2_crypto_recv_client_initial_cb,
       ngtcp2_crypto_recv_crypto_data_cb,
       on_handshake_completed,
@@ -1737,7 +1740,7 @@ struct Session::Impl final : public MemoryRetainer {
       on_acknowledge_datagram,
       on_lost_datagram,
       nullptr,  // get_path_challenge_data (deprecated, use v2 below)
-      on_stream_stop_sending,
+      nullptr,  // stream_stop_sending
       ngtcp2_crypto_version_negotiation_cb,
       nullptr,
       on_receive_tx_key,
@@ -1748,8 +1751,11 @@ struct Session::Impl final : public MemoryRetainer {
       on_cid_status,
       ngtcp2_crypto_get_path_challenge_data2_cb,
 #ifdef NGTCP2_CALLBACKS_V4
+      on_receive_stream_stop_sending,
+#ifdef NGTCP2_CALLBACKS_V5
       nullptr,
-#endif
+#endif  // NGTCP2_CALLBACKS_V5
+#endif  // NGTCP2_CALLBACKS_V4
   };
 };
 
@@ -2813,9 +2819,9 @@ bool Session::ReadPacket(const uint8_t* data,
       Debug(this, "Session successfully received %zu-byte packet", len);
       if (!is_destroyed()) [[likely]] {
         STAT_INCREMENT_N(Stats, bytes_received, len);
-        // Process deferred operations that couldn't run inside callback
-        // scopes (e.g., HTTP/3 GOAWAY handling that calls into JS).
-        application().PostReceive();
+        // Process deferred application operations after ALPN selection - not
+        // necessarily resolved yet as ClientHello can span multiple packets.
+        if (has_application()) application().PostReceive();
         // Surface a server session to JS once its ClientHello has been
         // processed (OnSelectAlpn fired: SNI + ALPN are known and reliable).
         // Held first-flight events - including 0-RTT request streams - replay

@@ -211,6 +211,15 @@ void EmitCmp(uint8_t** cursor, unsigned lhs, unsigned rhs) {
   EmitModRM(cursor, rhs, lhs);
 }
 
+void EmitCmpBytePtrZero(uint8_t** cursor, unsigned base) {
+  // cmp byte ptr [base], 0. The closed flag is a stable bool owned by the
+  // FFIFunction kept alive by this trampoline's FunctionTemplate data.
+  EmitRex(cursor, false, 7, base);
+  Emit8(cursor, 0x80);
+  Emit8(cursor, (7 << 3) | (base & 7));
+  Emit8(cursor, 0);
+}
+
 void EmitXorEax(uint8_t** cursor) {
   // Return nullptr/zero after the helper has already scheduled the JS exception.
   Emit8(cursor, 0x31);
@@ -285,7 +294,16 @@ void* AllocateCodeNear(uintptr_t target_address, size_t code_size) {
     const uintptr_t base = target_address & ~(page_size - 1);
     // Search a small window around the target first. Shared libraries usually
     // leave nearby holes, and keeping the trampoline close enables jmp rel32.
-    constexpr uintptr_t kMaxPages = 1024;
+    //
+    // The window doubles as the capacity of the near-text region: every
+    // trampoline keeps one page in it, so about 2 * kMaxPages trampolines per
+    // library can use jmp rel32 before the window is full and later ones take
+    // the far placement below. Each candidate costs an mmap syscall that is
+    // expected to fail, and a layout with no hole within a few pages of the
+    // text rarely has one further out either, so a wide window mostly buys
+    // failed probes. Keep it small enough that an exhausted window costs a few
+    // microseconds while still covering typical per-library symbol counts.
+    constexpr uintptr_t kMaxPages = 16;
     for (uintptr_t i = 1; i <= kMaxPages; i++) {
       const uintptr_t delta = i * page_size;
       const uintptr_t candidates[] = {
@@ -327,14 +345,15 @@ void* AllocateCodeNear(uintptr_t target_address, size_t code_size) {
 }  // namespace
 
 extern "C" bool node_ffi_create_fast_trampoline(
-    void* target,
+    const node::ffi::FastFFITrampolineConfig& config,
     const node::ffi::FastFFIType* args,
     size_t argc,
     node::ffi::FastFFIType result,
     node::ffi::FastFFITrampoline* out) {
   // Null inputs mean the caller cannot safely create executable code for this
   // signature. Report rejection so the generic FFI path can be used instead.
-  if (target == nullptr || out == nullptr) {
+  if (config.target == nullptr || config.closed == nullptr ||
+      config.isolate == nullptr || out == nullptr) {
     return false;
   }
 
@@ -377,13 +396,36 @@ extern "C" bool node_ffi_create_fast_trampoline(
   // Generate into writable anonymous memory first; the page is made executable
   // only after the instruction stream is complete and the instruction cache is
   // synchronized.
-  const uintptr_t target_address = reinterpret_cast<uintptr_t>(target);
+  const uintptr_t target_address =
+      reinterpret_cast<uintptr_t>(config.target);
   void* code = AllocateCodeNear(target_address, kCodeSize);
   if (code == MAP_FAILED) {
     return false;
   }
 
   uint8_t* cursor = static_cast<uint8_t*>(code);
+
+  EmitMovImm64(&cursor, kR11, reinterpret_cast<uintptr_t>(config.closed));
+  EmitCmpBytePtrZero(&cursor, kR11);
+  uint8_t* open_branch = cursor;
+  Emit8(&cursor, 0x74);  // je open
+  Emit8(&cursor, 0);
+
+  // The closed path is cold. Align the stack, pass the isolate to the helper,
+  // and return after it schedules ERR_FFI_LIBRARY_CLOSED. V8 checks for
+  // pending exceptions immediately after the Fast API call.
+  EmitPushRbp(&cursor);
+  EmitMovImm64(&cursor, kRdi, reinterpret_cast<uintptr_t>(config.isolate));
+  EmitMovImm64(
+      &cursor,
+      kR11,
+      reinterpret_cast<uintptr_t>(node_ffi_fast_library_closed));
+  EmitCall(&cursor, kR11);
+  EmitXorEax(&cursor);
+  EmitPopRbp(&cursor);
+  EmitRet(&cursor);
+  open_branch[1] = static_cast<uint8_t>(cursor - (open_branch + 2));
+
   const bool tail_call = !has_buffer_args && !NeedsNarrow(result);
   if (!tail_call) {
     EmitPushRbp(&cursor);
@@ -689,12 +731,12 @@ void FreeCode(void* code, size_t code_size) {
 }  // namespace
 
 extern "C" bool node_ffi_create_fast_trampoline(
-    void* target,
+    const node::ffi::FastFFITrampolineConfig& config,
     const node::ffi::FastFFIType* args,
     size_t argc,
     node::ffi::FastFFIType result,
     node::ffi::FastFFITrampoline* out) {
-  if (target == nullptr || out == nullptr || argc > 3) {
+  if (config.target == nullptr || out == nullptr || argc > 3) {
     return false;
   }
 
@@ -724,7 +766,8 @@ extern "C" bool node_ffi_create_fast_trampoline(
     }
   }
 
-  EmitMovImm64(&cursor, kR11, reinterpret_cast<uintptr_t>(target));
+  EmitMovImm64(
+      &cursor, kR11, reinterpret_cast<uintptr_t>(config.target));
   if (tail_call) {
     // The caller already provided Win64 shadow space for the trampoline; after
     // the receiver-slot shuffle, the target can reuse the same stack shape.

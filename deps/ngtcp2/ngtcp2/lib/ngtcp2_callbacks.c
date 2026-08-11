@@ -63,6 +63,9 @@ size_t ngtcp2_callbackslen_version(int callbacks_version) {
   switch (callbacks_version) {
   case NGTCP2_CALLBACKS_VERSION:
     return sizeof(callbacks);
+  case NGTCP2_CALLBACKS_V4:
+    return offsetof(ngtcp2_callbacks, recv_stop_sending) +
+           sizeof(callbacks.recv_stop_sending);
   case NGTCP2_CALLBACKS_V3:
     return offsetof(ngtcp2_callbacks, get_path_challenge_data2) +
            sizeof(callbacks.get_path_challenge_data2);

@@ -8,14 +8,16 @@ import { ConstantsBinding } from './internalBinding/constants';
 import { CryptoBinding } from './internalBinding/crypto';
 import { DebugBinding } from './internalBinding/debug';
 import { EncodingBinding } from './internalBinding/encoding_binding';
-import { HttpParserBinding } from './internalBinding/http_parser';
-import { InspectorBinding } from './internalBinding/inspector';
-import { IPCSerdesBinding } from './internalBinding/ipc_serdes';
 import { FsBinding } from './internalBinding/fs';
 import { FsDirBinding } from './internalBinding/fs_dir';
+import { HeapUtilsBinding } from './internalBinding/heap_utils';
+import { HttpParserBinding } from './internalBinding/http_parser';
 import { ICUBinding } from './internalBinding/icu';
+import { InspectorBinding } from './internalBinding/inspector';
+import { IPCSerdesBinding } from './internalBinding/ipc_serdes';
 import { LocksBinding } from './internalBinding/locks';
 import { MessagingBinding } from './internalBinding/messaging';
+import { ModulesBinding } from './internalBinding/modules';
 import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
 import { ProcessBinding } from './internalBinding/process';
@@ -32,7 +34,6 @@ import { UtilBinding } from './internalBinding/util';
 import { UVBinding } from './internalBinding/uv';
 import { WASIBinding } from './internalBinding/wasi';
 import { WorkerBinding } from './internalBinding/worker';
-import { ModulesBinding } from './internalBinding/modules';
 import { ZlibBinding } from './internalBinding/zlib';
 
 interface InternalBindingMap {
@@ -48,6 +49,7 @@ interface InternalBindingMap {
   encoding_binding: EncodingBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
+  heap_utils: HeapUtilsBinding;
   http_parser: HttpParserBinding;
   icu: ICUBinding;
   inspector: InspectorBinding;

@@ -26,7 +26,7 @@ const cluster = require('cluster');
 
 if (cluster.isWorker) {
   const http = require('http');
-  http.Server(() => {
+  new http.Server(() => {
 
   }).listen(0, '127.0.0.1');
 

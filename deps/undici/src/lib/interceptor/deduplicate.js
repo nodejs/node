@@ -59,7 +59,7 @@ module.exports = (opts = {}) => {
 
   return dispatch => {
     return (opts, handler) => {
-      if (!opts.origin || methods.includes(opts.method) === false) {
+      if (opts.upgrade || methods.includes(opts.method) === false) {
         return dispatch(opts, handler)
       }
 

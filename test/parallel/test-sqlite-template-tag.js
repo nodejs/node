@@ -90,6 +90,43 @@ test('queries with no results', () => {
   assert.strictEqual(count, 0);
 });
 
+test('rejects parameters outside of template expressions', () => {
+  const ldb = new DatabaseSync(':memory:');
+  const lsql = ldb.createTagStore();
+  ldb.exec(`
+    CREATE TABLE secrets(owner TEXT, token TEXT);
+    INSERT INTO secrets VALUES ('victim', 'secret');
+    CREATE TABLE transfers(from_user TEXT, amount INTEGER);
+  `);
+
+  const expectedError = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /must be bound using template literal placeholders/,
+  };
+
+  for (const method of ['get', 'all', 'iterate']) {
+    // Prime the cached statement with a bound value before each attempt.
+    // eslint-disable-next-line no-unused-expressions
+    lsql.all`SELECT token FROM secrets WHERE owner = ${'victim'}`;
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      lsql[method]`SELECT token FROM secrets WHERE owner = ?`;
+    }, expectedError);
+  }
+
+  // eslint-disable-next-line no-unused-expressions
+  lsql.run`INSERT INTO transfers VALUES (${'victim'},${100})`;
+  assert.throws(() => {
+    // eslint-disable-next-line no-unused-expressions
+    lsql.run`INSERT INTO transfers VALUES (?,?)`;
+  }, expectedError);
+  assert.strictEqual(
+    ldb.prepare('SELECT COUNT(*) AS count FROM transfers').get().count,
+    1);
+
+  ldb.close();
+});
+
 test('TagStore capacity, size, and clear', () => {
   assert.strictEqual(sql.capacity, 10);
   assert.strictEqual(sql.size, 0);
@@ -220,6 +257,40 @@ test('a finished iterator stays done and does not restart', () => {
   assert.strictEqual(iter.next().done, true);
 });
 
+test('createTagStore throws on invalid maxSize', () => {
+  const db = new DatabaseSync(':memory:');
+
+  assert.throws(() => db.createTagStore(0), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(-1), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(NaN), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(1.5), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore('abc'), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    message: /maxSize/,
+  });
+
+  assert.throws(() => db.createTagStore(Number.MAX_SAFE_INTEGER), {
+    code: 'ERR_OUT_OF_RANGE',
+    message: /maxSize/,
+  });
+});
+
 test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
 });
@@ -244,6 +315,29 @@ test('sql error messages are descriptive', () => {
     code: 'ERR_SQLITE_ERROR',
     message: /no such table/i,
   });
+});
+
+test('rejects SQL that contains no statements', () => {
+  const expectedError = {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: /contains no statements/,
+  };
+
+  for (const method of ['run', 'get', 'all', 'iterate']) {
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      sql[method]`-- comment`;
+    }, expectedError);
+
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      sql[method]``;
+    }, expectedError);
+  }
+
+  // A rejected statement must not be cached, so a later valid query with the
+  // same tag store still works.
+  assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'bob'})`.changes, 1);
 });
 
 test('a tag store keeps the database alive by itself', () => {

@@ -17,6 +17,7 @@ const {
   }
 } = require('node:util')
 const { InvalidArgumentError } = require('../core/errors')
+const requestAborted = Symbol('request aborted')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -153,6 +154,11 @@ function getResponseData (data) {
     return data
   } else if (data instanceof ArrayBuffer) {
     return data
+  } else if (ArrayBuffer.isView(data)) {
+    // A DataView, or any non-Uint8Array typed array, is a byte container
+    // rather than a plain object. Buffer.from() cannot read one directly, so
+    // expose the bytes it covers instead of letting it reach JSON.stringify.
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
   } else if (typeof data === 'object') {
     return JSON.stringify(data)
   } else if (data) {
@@ -225,9 +231,15 @@ function deleteMockDispatch (mockDispatches, key) {
 }
 
 /**
- * @param {string} path Path to remove trailing slash from
+ * @param {string|RegExp|Function} path Path, or path matcher, to remove trailing slash from
  */
 function removeTrailingSlash (path) {
+  // Registered path matchers may be a RegExp or a function, which have no
+  // trailing slash to strip; hand those back for matchValue to apply.
+  if (typeof path !== 'string') {
+    return path
+  }
+
   while (path.endsWith('/')) {
     path = path.slice(0, -1)
   }
@@ -302,9 +314,13 @@ function mockDispatch (opts, handler) {
   mockDispatch.consumed = !mockDispatch.persist && timesInvoked >= times
   mockDispatch.pending = timesInvoked < times
 
+  const hasBodyHooks = typeof handler.onBodySent === 'function' ||
+    typeof handler.onRequestSent === 'function'
+
   // Here's where we resolve a callback if a callback is present for the dispatch data.
-  if (mockDispatch.data.callback) {
-    const callbackResult = mockDispatch.data.callback(opts)
+  if (mockDispatch.data.callback && (!hasBodyHooks || opts.body == null)) {
+    const { callback, ...responseDefaults } = mockDispatch.data
+    const callbackResult = callback(opts)
 
     // An asynchronous reply options callback resolves to the reply data, so
     // the dispatch can only continue once the returned promise settles.
@@ -313,18 +329,25 @@ function mockDispatch (opts, handler) {
     if (isPromise(callbackResult)) {
       callbackResult.then(
         (resolvedData) => {
-          mockDispatch.data = { ...mockDispatch.data, ...resolvedData }
+          if (resolvedData == null || typeof resolvedData !== 'object') {
+            handler.onResponseError(null, new InvalidArgumentError('reply options callback must return an object'))
+            return
+          }
+          mockDispatch.data = { ...responseDefaults, ...resolvedData }
           dispatchMockReply(mockDispatches, mockDispatch, key, opts, handler)
         },
         (error) => {
-          deleteMockDispatch(mockDispatches, key)
           handler.onResponseError(null, error)
         }
       )
       return true
     }
 
-    mockDispatch.data = { ...mockDispatch.data, ...callbackResult }
+    if (callbackResult == null || typeof callbackResult !== 'object') {
+      throw new InvalidArgumentError('reply options callback must return an object')
+    }
+
+    mockDispatch.data = { ...responseDefaults, ...callbackResult }
   }
 
   return dispatchMockReply(mockDispatches, mockDispatch, key, opts, handler)
@@ -335,12 +358,12 @@ function mockDispatch (opts, handler) {
  */
 function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler) {
   // Parse mockDispatch data
-  const { data: { statusCode, data, headers, trailers, error }, delay } = mockDispatch
+  const { data: response, delay } = mockDispatch
 
   // If specified, trigger dispatch error
-  if (error !== null) {
+  if (response.error !== null) {
     deleteMockDispatch(mockDispatches, key)
-    handler.onResponseError(null, error)
+    handler.onResponseError(null, response.error)
     return true
   }
 
@@ -375,32 +398,107 @@ function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler) {
     }
   }
 
+  let replyOpts = opts
+  const dispatches = mockDispatches
+
   // Call onRequestStart to allow the handler to receive the controller
   handler.onRequestStart?.(controller, null)
 
-  // Handle the request with a delay if necessary
-  if (typeof delay === 'number' && delay > 0) {
-    timer = setTimeout(() => {
-      timer = null
-      handleReply(mockDispatches)
-    }, delay)
-  } else {
-    handleReply(mockDispatches)
+  if (aborted) {
+    return true
   }
 
-  function handleReply (mockDispatches, _data = data) {
+  const requestBody = dispatchRequestBody(opts.body, handler, controller, () => aborted)
+
+  if (isPromise(requestBody)) {
+    requestBody.then((body) => {
+      if (body === requestAborted) {
+        return
+      }
+
+      if (body !== opts.body) {
+        replyOpts = { ...opts, body }
+      }
+
+      sendReply()
+    }, (error) => controller.abort(error))
+    return true
+  }
+
+  if (requestBody === requestAborted) {
+    return true
+  }
+
+  if (requestBody !== opts.body) {
+    replyOpts = { ...opts, body: requestBody }
+  }
+
+  sendReply()
+
+  function sendReply () {
+    if (response.callback) {
+      const { callback, ...responseDefaults } = response
+      let callbackResult
+      try {
+        callbackResult = callback(replyOpts)
+      } catch (err) {
+        deleteMockDispatch(mockDispatches, key)
+        handler.onResponseError(null, err)
+        return
+      }
+
+      if (isPromise(callbackResult)) {
+        callbackResult.then(
+          (resolvedData) => {
+            if (resolvedData == null || typeof resolvedData !== 'object') {
+              handler.onResponseError(null, new InvalidArgumentError('reply options callback must return an object'))
+              return
+            }
+            mockDispatch.data = { ...responseDefaults, ...resolvedData }
+            handleReply(dispatches, mockDispatch.data)
+          },
+          (err) => {
+            handler.onResponseError(null, err)
+          }
+        )
+        return
+      }
+
+      if (callbackResult == null || typeof callbackResult !== 'object') {
+        throw new InvalidArgumentError('reply options callback must return an object')
+      }
+
+      mockDispatch.data = { ...responseDefaults, ...callbackResult }
+      handleReply(dispatches, mockDispatch.data)
+      return
+    }
+
+    // Handle the request with a delay if necessary
+    if (typeof delay === 'number' && delay > 0) {
+      timer = setTimeout(() => {
+        timer = null
+        handleReply(dispatches)
+      }, delay)
+    } else {
+      handleReply(dispatches)
+    }
+  }
+
+  function handleReply (mockDispatches, _response = response) {
     // Don't send response if the request was aborted
     if (aborted) {
       return
     }
 
+    const { statusCode, data, headers, trailers } = _response
+
     // fetch's HeadersList is a 1D string array
     const optsHeaders = Array.isArray(opts.headers)
       ? buildHeadersFromArray(opts.headers)
       : opts.headers
-    const body = typeof _data === 'function'
-      ? _data({ ...opts, headers: optsHeaders })
-      : _data
+    const body = typeof data === 'function'
+      ? data({ ...replyOpts, headers: optsHeaders })
+      : data
 
     // util.types.isPromise is likely needed for jest.
     if (isPromise(body)) {
@@ -409,7 +507,7 @@ function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler) {
       // synchronously throw the error, which breaks some tests.
       // Rather, we wait for the callback to resolve if it is a
       // promise, and then re-run handleReply with the new body.
-      return body.then((newData) => handleReply(mockDispatches, newData))
+      return body.then((newData) => handleReply(mockDispatches, { ..._response, data: newData }))
     }
 
     // Check again if aborted after async body resolution
@@ -418,8 +516,8 @@ function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler) {
     }
 
     const responseData = getResponseData(body)
-    const responseHeaders = generateKeyValues(headers)
-    const responseTrailers = generateKeyValues(trailers)
+    const responseHeaders = generateKeyValues(headers ?? {})
+    const responseTrailers = generateKeyValues(trailers ?? {})
 
     // Update the controller with response data
     controller.rawHeaders = responseHeaders
@@ -432,6 +530,97 @@ function dispatchMockReply (mockDispatches, mockDispatch, key, opts, handler) {
   }
 
   return true
+}
+
+function dispatchRequestBody (body, handler, controller, isAborted) {
+  if (typeof handler.onBodySent !== 'function' && typeof handler.onRequestSent !== 'function') {
+    return body
+  }
+
+  if (body == null) {
+    return callOnRequestSent(handler, controller, isAborted) ? body : requestAborted
+  }
+
+  if (body && typeof body[Symbol.asyncIterator] === 'function') {
+    return dispatchAsyncIterableBody(body, handler, controller, isAborted)
+  }
+
+  if (isIterableBody(body)) {
+    const chunks = []
+
+    for (const chunk of body) {
+      if (isAborted()) {
+        return requestAborted
+      }
+      chunks.push(chunk)
+      if (!callOnBodySent(handler, controller, chunk) || isAborted()) {
+        return requestAborted
+      }
+    }
+
+    return callOnRequestSent(handler, controller, isAborted) ? chunks : requestAborted
+  }
+
+  if (isAborted()) {
+    return requestAborted
+  }
+
+  if (!callOnBodySent(handler, controller, body)) {
+    return requestAborted
+  }
+
+  return callOnRequestSent(handler, controller, isAborted) ? body : requestAborted
+}
+
+async function dispatchAsyncIterableBody (body, handler, controller, isAborted) {
+  const chunks = []
+
+  for await (const chunk of body) {
+    if (isAborted()) {
+      return requestAborted
+    }
+    chunks.push(chunk)
+    if (!callOnBodySent(handler, controller, chunk) || isAborted()) {
+      return requestAborted
+    }
+  }
+
+  if (!callOnRequestSent(handler, controller, isAborted)) {
+    return requestAborted
+  }
+
+  return {
+    async * [Symbol.asyncIterator] () {
+      yield * chunks
+    }
+  }
+}
+
+function callOnBodySent (handler, controller, chunk) {
+  try {
+    handler.onBodySent?.(chunk)
+    return true
+  } catch (error) {
+    controller.abort(error)
+    return false
+  }
+}
+
+function callOnRequestSent (handler, controller, isAborted) {
+  try {
+    handler.onRequestSent?.()
+    return !isAborted()
+  } catch (error) {
+    controller.abort(error)
+    return false
+  }
+}
+
+function isIterableBody (body) {
+  return typeof body !== 'string' &&
+    !Buffer.isBuffer(body) &&
+    !ArrayBuffer.isView(body) &&
+    typeof body[Symbol.iterator] === 'function'
 }
 
 function buildMockDispatch () {

@@ -1,23 +1,12 @@
 // META: title=WebCryptoAPI: digest() cSHAKE algorithms
 // META: script=../util/helpers.js
+// META: script=digest_test_data.js
+// META: script=digest.js
 // META: timeout=long
 
 var subtle = crypto.subtle; // Change to test prefixed implementations
 
-var sourceData = {
-  empty: new Uint8Array(0),
-  short: new Uint8Array([
-    21, 110, 234, 124, 193, 76, 86, 203, 148, 219, 3, 10, 74, 157, 149, 255,
-  ]),
-  medium: new Uint8Array([
-    182, 200, 249, 223, 100, 140, 208, 136, 183, 15, 56, 231, 65, 151, 177, 140,
-    184, 30, 30, 67, 80, 213, 11, 204, 184, 251, 90, 115, 121, 200, 123, 178,
-    227, 214, 237, 84, 97, 237, 30, 159, 54, 243, 64, 163, 150, 42, 68, 107,
-    129, 91, 121, 75, 75, 212, 58, 68, 3, 80, 32, 119, 178, 37, 108, 200, 7,
-    131, 127, 58, 172, 209, 24, 235, 75, 156, 43, 174, 184, 151, 6, 134, 37,
-    171, 172, 161, 147,
-  ]),
-};
+var sourceData = getDigestSourceData(false);
 
 // Test different output lengths for cSHAKE
 var digestLengths = [0, 256, 384, 512];
@@ -158,91 +147,19 @@ var digestedData = {
 };
 
 // Test cSHAKE digest algorithms with variable output lengths
-Object.keys(digestedData).forEach(function (alg) {
-  digestLengths.forEach(function (length) {
-    Object.keys(sourceData).forEach(function (size) {
-      promise_test(function (test) {
-        return crypto.subtle
-          .digest({ name: alg, outputLength: length }, sourceData[size])
-          .then(function (result) {
-            assert_true(
-              equalBuffers(result, digestedData[alg][length][size]),
-              'digest matches expected'
-            );
-          });
-      }, alg + ' with ' + length + ' bit output and ' + size + ' source data');
-
-      if (sourceData[size].length > 0) {
-        promise_test(function (test) {
-          var buffer = new Uint8Array(sourceData[size]);
-          // Alter the buffer before calling digest
-          buffer[0] = ~buffer[0];
-          return crypto.subtle
-            .digest({
-              get name() {
-                // Alter the buffer back while calling digest
-                buffer[0] = sourceData[size][0];
-                return alg;
-              },
-              outputLength: length
-            }, buffer)
-            .then(function (result) {
-              assert_true(
-                equalBuffers(result, digestedData[alg][length][size]),
-                'digest matches expected'
-              );
-            });
-        }, alg + ' with ' + length + ' bit output and ' + size + ' source data and altered buffer during call');
-
-        promise_test(function (test) {
-          var buffer = new Uint8Array(sourceData[size]);
-          var promise = crypto.subtle
-            .digest({ name: alg, outputLength: length }, buffer)
-            .then(function (result) {
-              assert_true(
-                equalBuffers(result, digestedData[alg][length][size]),
-                'digest matches expected'
-              );
-            });
-          // Alter the buffer after calling digest
-          buffer[0] = ~buffer[0];
-          return promise;
-        }, alg + ' with ' + length + ' bit output and ' + size + ' source data and altered buffer after call');
-
-        promise_test(function (test) {
-          var buffer = new Uint8Array(sourceData[size]);
-          return crypto.subtle
-            .digest({
-              get name() {
-                // Transfer the buffer while calling digest
-                buffer.buffer.transfer();
-                return alg;
-              },
-              outputLength: length
-            }, buffer)
-            .then(function (result) {
-              assert_true(
-                equalBuffers(result, digestedData[alg][length].empty),
-                'digest on transferred buffer should match result for empty buffer'
-              );
-            });
-        }, alg + ' with ' + length + ' bit output and ' + size + ' source data and transferred buffer during call');
-
-        promise_test(function (test) {
-          var buffer = new Uint8Array(sourceData[size]);
-          var promise = crypto.subtle
-            .digest({ name: alg, outputLength: length }, buffer)
-            .then(function (result) {
-              assert_true(
-                equalBuffers(result, digestedData[alg][length][size]),
-                'digest matches expected'
-              );
-            });
-          // Transfer the buffer after calling digest
-          buffer.buffer.transfer();
-          return promise;
-        }, alg + ' with ' + length + ' bit output and ' + size + ' source data and transferred buffer after call');
-      }
+runDigestTests(subtle, sourceData, function (size) {
+  var vectors = [];
+  Object.keys(digestedData).forEach(function (alg) {
+    digestLengths.forEach(function (length) {
+      vectors.push({
+        algorithm: {name: alg, outputLength: length},
+        expected: digestedData[alg][length][size],
+        emptyExpected: digestedData[alg][length].empty,
+        label: alg + ' with ' + length + ' bit output and ' +
+          size + ' source data',
+        mutations: true,
+      });
     });
   });
+  return vectors;
 });

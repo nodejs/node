@@ -41,6 +41,7 @@ The current security stewards are documented in the main Node.js
 | HeroDevs and NodeSource | Marco / Rafael  | 2026-Jan-13  |
 | NodeSource              | Rafael          | 2026-Mar-24  |
 | Platformatic            | Antoine         | 2026-Jun-18  |
+| NodeSource              | Rafael          | 2026-Jul-29  |
 | Datadog                 | Bryan           |              |
 | IBM                     | Joe             |              |
 | Platformatic            | Matteo          |              |

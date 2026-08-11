@@ -323,6 +323,9 @@ fd.createReadStream({ start: 90, end: 99 });
 <!-- YAML
 added: v16.11.0
 changes:
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52037
+    description: bump default highWaterMark.
   - version:
     - v21.0.0
     - v20.10.0
@@ -335,7 +338,8 @@ changes:
   * `autoClose` {boolean} **Default:** `true`
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {number} **Default:** See
+    [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
@@ -697,7 +701,9 @@ close the `FileHandle` automatically. User code must still call the
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
 -->
@@ -1819,7 +1825,9 @@ try {
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
   - version:
@@ -2936,6 +2944,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63851
+    description: Add the `windowsHandle` option.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/40013
     description: The `fs` option does not need `open` method if an `fd` was provided.
@@ -2992,6 +3003,8 @@ changes:
   * `highWaterMark` {integer} **Default:** `64 * 1024`
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
+  * `windowsHandle` {bigint} A raw Win32 `HANDLE` value to read from, in place
+    of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.ReadStream}
 
 `options` can include `start` and `end` values to read a range of bytes from
@@ -3011,6 +3024,12 @@ If `fd` points to a character device that only supports blocking reads
 (such as keyboard or sound card), read operations do not finish until data is
 available. This can prevent the process from exiting and the stream from
 closing naturally.
+
+On Windows, a value passed in `fd` is interpreted as a CRT file descriptor. To
+use a raw Win32 `HANDLE` instead, such as an inherited anonymous pipe handle
+obtained from another process, pass it as `windowsHandle`. The handle is wrapped
+in a file descriptor that the stream owns and closes. The `windowsHandle` option
+throws on non-Windows platforms and cannot be combined with the `fs` option.
 
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
@@ -3062,6 +3081,12 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63851
+    description: Add the `windowsHandle` option.
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52037
+    description: bump default highWaterMark.
   - version:
     - v21.0.0
     - v20.10.0
@@ -3119,9 +3144,12 @@ changes:
   * `start` {integer}
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
-  * `highWaterMark` {number} **Default:** `16384`
+  * `highWaterMark` {number} **Default:** See
+    [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
+  * `windowsHandle` {bigint} A raw Win32 `HANDLE` value to write to, in place
+    of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -3135,6 +3163,12 @@ the file descriptor will be closed automatically. If `autoClose` is false,
 then the file descriptor won't be closed, even if there's an error.
 It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
+
+On Windows, a value passed in `fd` is interpreted as a CRT file descriptor. To
+use a raw Win32 `HANDLE` instead, such as an inherited anonymous pipe handle
+obtained from another process, pass it as `windowsHandle`. The handle is wrapped
+in a file descriptor that the stream owns and closes. The `windowsHandle` option
+throws on non-Windows platforms and cannot be combined with the `fs` option.
 
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
@@ -4312,7 +4346,9 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
   - version: v18.0.0
@@ -6553,7 +6589,9 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.8
 changes:
-  - version: v26.4.0
+  - version:
+     - v26.4.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/63634
     description: Added support for the `buffer` option.
   - version: v7.6.0
@@ -8751,10 +8789,36 @@ The following constants are meant for use with `fs.open()`.
     is available on Windows operating systems only. On other operating systems,
     this flag is ignored.</td>
   </tr>
+  <tr>
+    <td><code>UV_FS_O_TEMPORARY</code></td>
+    <td>When set, the file is deleted automatically when the last handle to it
+    is closed. This flag is available on Windows operating systems only. On
+    other operating systems, this flag is ignored.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_O_SHORT_LIVED</code></td>
+    <td>Hint that the file is short-lived, so the system avoids flushing it to
+    disk when possible. This flag is available on Windows operating systems
+    only. On other operating systems, this flag is ignored.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_O_SEQUENTIAL</code></td>
+    <td>Hint that the file is accessed sequentially from beginning to end, to
+    optimize caching. This flag is available on Windows operating systems only.
+    On other operating systems, this flag is ignored.</td>
+  </tr>
+  <tr>
+    <td><code>UV_FS_O_RANDOM</code></td>
+    <td>Hint that the file is accessed randomly, to optimize caching. This flag
+    is available on Windows operating systems only. On other operating systems,
+    this flag is ignored.</td>
+  </tr>
 </table>
 
 On Windows, only `O_APPEND`, `O_CREAT`, `O_EXCL`, `O_RDONLY`, `O_RDWR`,
-`O_TRUNC`, `O_WRONLY`, and `UV_FS_O_FILEMAP` are available.
+`O_TRUNC`, `O_WRONLY`, `UV_FS_O_FILEMAP`, `UV_FS_O_TEMPORARY`,
+`UV_FS_O_SHORT_LIVED`, `UV_FS_O_SEQUENTIAL`, and `UV_FS_O_RANDOM` are
+available.
 
 ##### File type constants
 
@@ -9349,6 +9413,7 @@ the file contents.
 [`minimatch`]: https://github.com/isaacs/minimatch
 [`node:stream/iter`]: stream_iter.md
 [`statfs.bsize`]: #statfsbsize
+[`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
 [`stream/iter pipeTo()`]: stream_iter.md#pipetosource-transforms-writer-options
 [`stream/iter pull()`]: stream_iter.md#pullsource-transforms-options
 [`stream/iter pullSync()`]: stream_iter.md#pullsyncsource-transforms

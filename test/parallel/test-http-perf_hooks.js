@@ -21,7 +21,7 @@ const makeRequest = common.mustCall((options) => {
   });
 }, 2);
 
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   let result = '';
 
   req.setEncoding('utf8');

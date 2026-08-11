@@ -111,22 +111,35 @@ added: v1.0.0
     `autoSelectFamily` is enabled. **Default:** `250`.
   * `allowH2` {boolean} Enables HTTP/2 support when the server assigns it a
     higher priority through ALPN negotiation. **Default:** `true`.
-  * `useH2c` {boolean} Enforces h2c (HTTP/2 cleartext) for non-HTTPS
-    connections. **Default:** `false`.
-  * `maxConcurrentStreams` {number} The maximum number of concurrent HTTP/2
+  * `useH2c` {boolean} _Deprecated: use h2Options.useH2c instead_ Enforces h2c (HTTP/2 cleartext) for non-HTTPS
+  connections. **Default:** `false`.
+  * `maxConcurrentStreams` {number} _Deprecated: use h2Options.useH2c instead_ The maximum number of concurrent HTTP/2
     streams for a single session. Once h2 is negotiated this — not `pipelining`,
     which is HTTP/1.1 only — is the ceiling used to dispatch in-flight requests.
     It may be overridden by the server's `SETTINGS_MAX_CONCURRENT_STREAMS`
     frame. **Default:** `100`.
-  * `initialWindowSize` {number} The HTTP/2 stream-level flow-control window
-    size (`SETTINGS_INITIAL_WINDOW_SIZE`). Must be a positive integer.
-    **Default:** `262144`.
-  * `connectionWindowSize` {number} The HTTP/2 connection-level flow-control
+  * `connectionWindowSize` {number} _Deprecated: use h2Options.connectionWindowSize instead_ The HTTP/2 connection-level flow-control
     window size set via `ClientHttp2Session.setLocalWindowSize()`. Must be a
     positive integer. **Default:** `524288`.
-  * `pingInterval` {number} The time interval, in milliseconds, between HTTP/2
+  * `pingInterval` {number} _Deprecated: use h2Options.pingInterval instead_ The time interval, in milliseconds, between HTTP/2
     PING frames. Set to `0` to disable PING frames. Applies only to HTTP/2
     connections and emits a `ping` event on the client. **Default:** `60e3`.
+  * `h2Options` {object} Set of options for HTTP/2 sessions
+    * `useH2c` {boolean} Enforces h2c (HTTP/2 cleartext) for non-HTTPS
+    connections. **Default:** `false`.
+    * `maxConcurrentStreams` {number} The maximum number of concurrent HTTP/2
+      streams for a single session. Once h2 is negotiated this — not `pipelining`,
+      which is HTTP/1.1 only — is the ceiling used to dispatch in-flight requests.
+      It may be overridden by the server's `SETTINGS_MAX_CONCURRENT_STREAMS`
+      frame. **Default:** `100`.
+    * `connectionWindowSize` {number} The HTTP/2 connection-level flow-control
+      window size set via `ClientHttp2Session.setLocalWindowSize()`. Must be a
+      positive integer. **Default:** `524288`.
+    * `pingInterval` {number} The time interval, in milliseconds, between HTTP/2
+      PING frames. Set to `0` to disable PING frames. Applies only to HTTP/2
+      connections and emits a `ping` event on the client. **Default:** `60e3`.
+    * `settings` {object} `SETTINGS` frame options. For full reference, take a
+      look to [HTTP/2#Settings Object](https://nodejs.org/api/http2.html#settings-object)
   * `webSocket` {Object} (optional) WebSocket-specific configuration.
     * `maxFragments` {number} The maximum number of fragments in a message. Set
       to `0` to disable the limit. **Default:** `131072`.

@@ -179,6 +179,7 @@
       'src/node_zlib.cc',
       'src/path.cc',
       'src/permission/child_process_permission.cc',
+      'src/permission/openssl_store_permission.cc',
       'src/permission/ffi_permission.cc',
       'src/permission/fs_permission.cc',
       'src/permission/inspector_permission.cc',
@@ -254,6 +255,7 @@
       'src/node_blob.h',
       'src/node_buffer.h',
       'src/node_builtins.h',
+      'src/node_concepts.h',
       'src/node_config_file.h',
       'src/node_constants.h',
       'src/node_context_data.h',
@@ -314,6 +316,7 @@
       'src/node_worker.h',
       'src/path.h',
       'src/permission/child_process_permission.h',
+      'src/permission/openssl_store_permission.h',
       'src/permission/ffi_permission.h',
       'src/permission/fs_permission.h',
       'src/permission/inspector_permission.h',
@@ -405,6 +408,7 @@
       'src/crypto/crypto_timing.cc',
       'src/crypto/crypto_cipher.cc',
       'src/crypto/crypto_context.cc',
+      'src/crypto/crypto_tls_certificates.cc',
       'src/crypto/crypto_ec.cc',
       'src/crypto/crypto_pqc.cc',
       'src/crypto/crypto_kem.cc',
@@ -415,7 +419,6 @@
       'src/crypto/crypto_rsa.cc',
       'src/crypto/crypto_spkac.cc',
       'src/crypto/crypto_util.cc',
-      'src/crypto/crypto_clienthello.cc',
       'src/crypto/crypto_dh.cc',
       'src/crypto/crypto_hash.cc',
       'src/crypto/crypto_keys.cc',
@@ -425,7 +428,6 @@
       'src/crypto/crypto_x509.cc',
       'src/crypto/crypto_argon2.h',
       'src/crypto/crypto_bio.h',
-      'src/crypto/crypto_clienthello-inl.h',
       'src/crypto/crypto_dh.h',
       'src/crypto/crypto_hmac.h',
       'src/crypto/crypto_kmac.h',
@@ -441,8 +443,8 @@
       'src/crypto/crypto_keygen.h',
       'src/crypto/crypto_scrypt.h',
       'src/crypto/crypto_tls.h',
-      'src/crypto/crypto_clienthello.h',
       'src/crypto/crypto_context.h',
+      'src/crypto/crypto_tls_certificates.h',
       'src/crypto/crypto_ec.h',
       'src/crypto/crypto_pqc.h',
       'src/crypto/crypto_hkdf.h',
@@ -471,7 +473,6 @@
       'src/tracing/trace_event_legacy.h',
     ],
     'node_cctest_openssl_sources': [
-      'test/cctest/test_crypto_clienthello.cc',
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
     ],
@@ -1053,7 +1054,7 @@
             ],
           },
           'conditions': [
-            ['openssl_is_fips!=""', {
+            ['openssl_is_fips=="true"', {
               'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
             }],
           ],
@@ -1260,6 +1261,11 @@
           'sources': [
             'src/res/node.rc',
           ],
+          'libraries': [
+            'Dbghelp.lib',
+            'winmm.lib',
+            'Ws2_32.lib',
+          ],
         }],
       ],
     }, # node_lib_target_name
@@ -1309,54 +1315,6 @@
         }],
       ],
     }, # fuzz_env
-    { # fuzz_ClientHelloParser.cc
-      'target_name': 'fuzz_ClientHelloParser',
-      'type': 'executable',
-      'dependencies': [
-        '<(node_lib_target_name)',
-      ],
-      'includes': [
-        'node.gypi'
-      ],
-      'include_dirs': [
-        'src',
-        'tools/msvs/genfiles',
-        'deps/v8/include',
-        'deps/cares/include',
-        'deps/uv/include',
-        'test/cctest',
-      ],
-      'defines': [
-        'NODE_ARCH="<(target_arch)"',
-        'NODE_PLATFORM="<(OS)"',
-        'NODE_WANT_INTERNALS=1',
-      ],
-      'sources': [
-        'test/fuzzers/fuzz_ClientHelloParser.cc',
-      ],
-      'conditions': [
-        [ 'node_shared_hdr_histogram=="false"', {
-          'dependencies': [
-            'deps/histogram/histogram.gyp:histogram',
-          ],
-        }],
-        [ 'node_shared_uvwasi=="false"', {
-          'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
-          'include_dirs': [ 'deps/uvwasi/include' ],
-        }],
-        ['OS=="linux" or OS=="openharmony"', {
-          'ldflags': [ '-fsanitize=fuzzer' ]
-        }],
-        # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
-          'type': 'none',
-        }],
-        # Avoid excessive LTO
-        ['enable_lto=="true"', {
-          'ldflags': [ '-fno-lto' ],
-        }],
-      ],
-    }, # fuzz_ClientHelloParser.cc
     { # fuzz_strings
       'target_name': 'fuzz_strings',
       'type': 'executable',
@@ -1772,6 +1730,10 @@
 
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
+      # node_mksnapshot statically links node_base; it must not use the
+      # dllimport path meant for executables that load the libnode DLL.
+      'defines!': [ 'BUILDING_NODE_EXTENSION' ],
+
       'sources': [
         'src/node_snapshot_stub.cc',
         'tools/snapshot/node_mksnapshot.cc',
@@ -1854,12 +1816,26 @@
          'sources': [
            'tools/gen_node_def.cc'
          ],
+         'conditions': [
+           # When cross-compiling, build this tool for the host so it can
+           # run during the build. The MSVS generator expects it to be
+           # named gen_node_def_host.exe in that case.
+           ['want_separate_host_toolset', {
+             'toolsets': ['host'],
+           }],
+         ],
        },
        {
          'target_name': 'generate_node_def',
          'dependencies': [
-           'gen_node_def',
            '<(node_lib_target_name)',
+         ],
+         'conditions': [
+           ['want_separate_host_toolset', {
+             'dependencies': ['gen_node_def#host'],
+           }, {
+             'dependencies': ['gen_node_def'],
+           }],
          ],
          'type': 'none',
          'actions': [

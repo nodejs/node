@@ -43,6 +43,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "gtest/gtest-matchers.h"
 #include "gtest/internal/gtest-internal.h"
@@ -62,6 +63,10 @@ const char kInternalRunDeathTestFlag[] = "internal_run_death_test";
 inline Matcher<const ::std::string&> MakeDeathTestMatcher(
     ::testing::internal::RE regex) {
   return ContainsRegex(regex.pattern());
+}
+inline Matcher<const ::std::string&> MakeDeathTestMatcher(
+    std::string_view regex) {
+  return ContainsRegex(regex);
 }
 inline Matcher<const ::std::string&> MakeDeathTestMatcher(const char* regex) {
   return ContainsRegex(regex);

@@ -330,6 +330,25 @@ classify_argument (ffi_type *type, enum x86_64_reg_class classes[],
 	  }
 	return words;
       }
+    case FFI_TYPE_VECTOR:
+      /* A Short Vector occupies SSE registers: an 8-byte vector is a single
+	 SSE eightbyte; a 16-byte vector is one %xmm register (SSE + SSEUP).
+	 Wider vectors would need %ymm/%zmm handling this port does not
+	 implement; classify them as memory here and reject them outright in
+	 ffi_prep_cif_machdep so the caller gets FFI_BAD_TYPEDEF, not a
+	 silently wrong in-memory pass.  */
+      if (type->size == 8)
+	{
+	  classes[0] = X86_64_SSE_CLASS;
+	  return 1;
+	}
+      else if (type->size == 16)
+	{
+	  classes[0] = X86_64_SSE_CLASS;
+	  classes[1] = X86_64_SSEUP_CLASS;
+	  return 2;
+	}
+      return 0;
     case FFI_TYPE_COMPLEX:
       {
 	ffi_type *inner = type->elements[0];
@@ -533,6 +552,16 @@ ffi_prep_cif_machdep (ffi_cif *cif)
 	    }
 	}
       break;
+    case FFI_TYPE_VECTOR:
+      /* An 8-byte vector returns in the low half of %xmm0; a 16-byte vector
+	 fills %xmm0 (SSE + SSEUP).  Wider vectors are unsupported here.  */
+      if (rtype_size == 8)
+	flags = UNIX64_RET_XMM64;
+      else if (rtype_size == 16)
+	flags = UNIX64_RET_XMM128;
+      else
+	return FFI_BAD_TYPEDEF;
+      break;
     case FFI_TYPE_COMPLEX:
       switch (rtype->elements[0]->type)
 	{
@@ -576,6 +605,15 @@ ffi_prep_cif_machdep (ffi_cif *cif)
     default:
       return FFI_BAD_TYPEDEF;
     }
+
+  /* Reject vectors wider than 16 bytes as arguments: correct %ymm/%zmm
+     passing needs unix64.S register-save changes that are out of scope for
+     this port, and classify_argument would otherwise silently treat them as
+     an in-memory aggregate.  */
+  for (i = 0, avn = cif->nargs; i < avn; i++)
+    if (cif->arg_types[i]->type == FFI_TYPE_VECTOR
+	&& cif->arg_types[i]->size > 16)
+      return FFI_BAD_TYPEDEF;
 
   /* Go over all arguments and determine the way they should be passed.
      If it's in a register and there is space for it, let that be so. If
@@ -782,6 +820,7 @@ typedef struct
   unsigned fast;        /* nonzero -> lean trampoline eligible             */
   unsigned retcode;     /* UNIX64_RET_* (low byte of flags) for the store  */
   int      thunk_n;     /* >=0 -> ffi_gp_thunks[thunk_n], else -1          */
+  unsigned alloc_bytes; /* malloc'd size, reported by ffi_call_plan_size   */
   ffi_move moves[];
 } ffi_plan;
 
@@ -828,7 +867,7 @@ build_plan (ffi_cif *cif)
   unsigned i, avn = cif->nargs;
   enum x86_64_reg_class classes[MAX_CLASSES];
   unsigned nm, gprcount, ssecount;
-  size_t argp_off;
+  size_t argp_off, nbytes;
   ffi_plan *plan;
   int all_gp64 = 1;	/* every arg is exactly one 64-bit GP move? */
 
@@ -848,9 +887,11 @@ build_plan (ffi_cif *cif)
     }
 
   /* One self-contained allocation: header + moves, released with plain free(). */
-  plan = malloc (sizeof (ffi_plan) + sizeof (ffi_move) * (2 * avn + 1));
+  nbytes = sizeof (ffi_plan) + sizeof (ffi_move) * (2 * avn + 1);
+  plan = malloc (nbytes);
   if (plan == NULL)
     return NULL;
+  plan->alloc_bytes = (unsigned) nbytes;
 
   nm = gprcount = ssecount = 0;
   argp_off = 0;
@@ -1068,6 +1109,17 @@ ffi_call_plan_free (ffi_call_plan *plan)
       free (plan->fast);
       free (plan);
     }
+}
+
+size_t
+ffi_call_plan_size (ffi_call_plan *plan)
+{
+  if (plan == NULL)
+    return 0;
+  /* The move-list carries its own size; a signature with no fast path owns
+     nothing beyond the handle.  */
+  return sizeof (struct ffi_call_plan)
+	 + (plan->fast != NULL ? plan->fast->alloc_bytes : 0);
 }
 
 extern void

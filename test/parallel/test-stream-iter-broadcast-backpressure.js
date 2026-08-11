@@ -147,6 +147,26 @@ async function testWritevAsync() {
   assert.strictEqual(data, 'hello world');
 }
 
+// Zero-byte writes do not consume buffer entries.
+async function testZeroByteWrites() {
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
+  const consumer = bc.push();
+
+  for (let i = 0; i < 1000; i++) {
+    assert.strictEqual(writer.writeSync(''), true);
+    assert.strictEqual(writer.writevSync([]), true);
+  }
+  await writer.write('');
+  await writer.writev([]);
+  assert.strictEqual(writer.canWrite, true);
+  writer.endSync();
+
+  let entries = 0;
+  const iterator = consumer[Symbol.asyncIterator]();
+  while (!(await iterator.next()).done) entries++;
+  assert.strictEqual(entries, 0);
+}
+
 // endSync returns the total byte count
 async function testEndSyncReturnValue() {
   const { writer, broadcast: bc } = broadcast({ budget: 16384 });
@@ -165,5 +185,6 @@ Promise.all([
   testBlockBackpressureContent(),
   testStrictBackpressureOverflow(),
   testWritevAsync(),
+  testZeroByteWrites(),
   testEndSyncReturnValue(),
 ]).then(common.mustCall());

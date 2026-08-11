@@ -4341,6 +4341,9 @@ npx codemod@latest @nodejs/http2-priority-signaling
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64853
+    description: Runtime deprecation.
   - version:
       - v24.2.0
       - v22.17.0
@@ -4348,11 +4351,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Instantiating classes without the `new` qualifier exported by the `node:http` module is deprecated.
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
-`OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
+`OutgoingMessage`, `IncomingMessage`, `ServerResponse`, `ClientRequest`, `Server`, and `Agent`.
 
 An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-classes-with-new)):
 
@@ -4694,6 +4697,23 @@ underlying stream are emitted from `req`. On the write-side you can use
 `res.writableFinished` to confirm whether the response was written
 successfully before the response closed.
 
+### DEP0208: `Server.prototype._listen2`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64794
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+`net.Server.prototype._listen2` is an undocumented alias for an internal
+function that sets up the listening handle. It is kept only so that code
+replacing it keeps being called by [`server.listen()`][], and it will be
+removed in a future version of Node.js. Use [`server.listen()`][] instead of
+calling or overriding `_listen2`.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4707,7 +4727,7 @@ successfully before the response closed.
 [`--pending-deprecation`]: cli.md#--pending-deprecation
 [`--throw-deprecation`]: cli.md#--throw-deprecation
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
-[`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize
+[`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize-alignment
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
@@ -4811,6 +4831,7 @@ successfully before the response closed.
 [`response.writableEnded`]: http.md#responsewritableended
 [`response.writableFinished`]: http.md#responsewritablefinished
 [`script.createCachedData()`]: vm.md#scriptcreatecacheddata
+[`server.listen()`]: net.md#serverlisten
 [`setInterval()`]: timers.md#setintervalcallback-delay-args
 [`setTimeout()`]: timers.md#settimeoutcallback-delay-args
 [`socket.bufferSize`]: net.md#socketbuffersize
@@ -4841,7 +4862,7 @@ successfully before the response closed.
 [`writable.writableLength`]: stream.md#writablewritablelength
 [`zlib.bytesWritten`]: zlib.md#zlibbyteswritten
 [alloc]: buffer.md#static-method-bufferallocsize-fill-encoding
-[alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize
+[alloc_unsafe_size]: buffer.md#static-method-bufferallocunsafesize-alignment
 [caveats of asynchronous customization hooks]: module.md#caveats-of-asynchronous-customization-hooks
 [from_arraybuffer]: buffer.md#static-method-bufferfromarraybuffer-byteoffset-length
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding

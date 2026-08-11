@@ -96,6 +96,7 @@ class PlaceDep {
         target,
         preferDedupe: this.preferDedupe,
         explicitRequest: this.explicitRequest,
+        auditReport: this.auditReport,
       })
       this.checks.set(target, cpd)
 

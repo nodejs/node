@@ -63,15 +63,15 @@ jobs:
         with:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up sccache
         if: github.base_ref == 'main' || github.ref_name == 'main'
-        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
+        uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba  # v0.0.11
         with:
-          version: v0.16.0
+          version: v0.17.0
       - name: Build
         run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test Internet

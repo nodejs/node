@@ -1,0 +1,59 @@
+# Copyright (C) 2026 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING3.  If not see
+# <http://www.gnu.org/licenses/>.
+
+dg-init
+libffi-init
+
+global srcdir subdir
+
+# The tests are written with the GCC/Clang vector extension
+# (__attribute__ ((vector_size (N)))).  A target port can support
+# FFI_TYPE_VECTOR at the ABI level while the compiler under test (e.g.
+# MSVC) cannot compile that syntax, so probe the compiler with an actual
+# compilation, not just a preprocessor check.
+proc libffi_vector_syntax_test { } {
+    set src "vecprobe[pid].c"
+    set obj "vecprobe[pid].o"
+
+    set f [open $src "w"]
+    puts $f "typedef float probe_v4 __attribute__ ((vector_size (16)));"
+    puts $f "probe_v4 probe_var;"
+    puts $f "int main (void) { return 0; }"
+    close $f
+
+    set lines [libffi_target_compile $src $obj object ""]
+    file delete $src
+    file delete $obj
+
+    return [string match "" $lines]
+}
+
+set tlist [lsort [glob -nocomplain -- $srcdir/$subdir/*.{c,cc}]]
+
+if { [libffi_feature_test "#ifdef FFI_TARGET_HAS_VECTOR_TYPE"]
+     && [libffi_vector_syntax_test] } {
+    run-many-tests $tlist ""
+} else {
+    foreach test $tlist {
+	unsupported "$test"
+    }
+}
+
+dg-finish
+
+# Local Variables:
+# tcl-indent-level:4
+# End:

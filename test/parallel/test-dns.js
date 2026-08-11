@@ -90,6 +90,22 @@ assert(existing.length > 0);
   });
 }
 
+{
+  // Out-of-range ports, which should throw a clean error.
+  const invalidPorts = [2 ** 16, 2 ** 32, 2 ** 64];
+  invalidPorts.forEach((port) => {
+    assert.throws(
+      () => {
+        dns.setServers([`1.2.3.4:${port}`]);
+      },
+      {
+        name: 'RangeError',
+        code: 'ERR_SOCKET_BAD_PORT'
+      }
+    );
+  });
+}
+
 const goog = [
   '8.8.8.8',
   '8.8.4.4',
@@ -133,6 +149,10 @@ const portsExpected = [
 ];
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
+
+// Port 0 means "use the default port" for c-ares.
+dns.setServers(['4.4.4.4:0', '[2001:4860:4860::8888]:0']);
+assert.deepStrictEqual(dns.getServers(), ['4.4.4.4', '2001:4860:4860::8888']);
 
 // Link-local IPv6 addresses require a zone index (scope id) to be usable;
 // c-ares drops link-local servers configured without one.

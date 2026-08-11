@@ -6,6 +6,7 @@
 #include "env-inl.h"
 #include "node_options.h"
 #include "trace_event.h"
+#include "trace_event_helper.h"
 
 #include "trace_event_perfetto.h"
 
@@ -21,22 +22,36 @@ constexpr uint64_t kReadPeriodMs = 5000;
 // trace file grows without bound.
 constexpr uint64_t kMaxFileSizeBytes = 64 * 1024 * 1024;  // 64 MiB
 
-void replace_substring(std::string* target,
-                       std::string_view search,
-                       std::string_view insert) {
-  size_t pos = target->find(search);
-  for (; pos != std::string::npos; pos = target->find(search, pos)) {
-    target->replace(pos, search.size(), insert);
-    pos += insert.size();
-  }
-}
-
 std::set<std::string> flatten(
     const std::unordered_map<int, std::multiset<std::string>>& map) {
   std::set<std::string> result;
   for (const auto& id_value : map)
     result.insert(id_value.second.begin(), id_value.second.end());
   return result;
+}
+
+void perfetto_log_callback(perfetto::LogMessageCallbackArgs args) {
+  const char* level_str = "UNKNOWN";
+  switch (args.level) {
+    case perfetto::base::kLogDebug:
+      level_str = "DEBUG";
+      break;
+    case perfetto::base::kLogInfo:
+      level_str = "INFO";
+      break;
+    case perfetto::base::kLogImportant:
+      level_str = "IMPORTANT";
+      break;
+    case perfetto::base::kLogError:
+      level_str = "ERROR";
+      break;
+  }
+  per_process::Debug(DebugCategory::PERFETTO,
+                     "[%s] %s:%d: %s\n",
+                     level_str,
+                     args.filename,
+                     args.line,
+                     args.message);
 }
 
 }  // namespace
@@ -104,9 +119,7 @@ class SimpleWriter : public TraceWriter {
     ++file_num_;
     uv_fs_t req;
 
-    std::string filepath(log_file_pattern_);
-    replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
-    replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
+    std::string filepath = GetTraceFilePath(log_file_pattern_, file_num_);
 
     if (fd_ >= 0) {
       uv_fs_close(loop_, &req, fd_, nullptr);
@@ -263,6 +276,7 @@ PerfettoTracingAgent::PerfettoTracingAgent() {
   // Set up the in-process backend that the tracing controller will connect
   // to.
   perfetto::TracingInitArgs init_args;
+  init_args.log_message_callback = perfetto_log_callback;
   init_args.backends = perfetto::BackendType::kInProcessBackend;
   perfetto::Tracing::Initialize(init_args);
 

@@ -22,6 +22,11 @@ on:
         required: false
         type: string
         default: ''
+      pkcs11-store-test:
+        description: Whether to enable the PKCS#11-backed crypto STORE test
+        required: false
+        type: boolean
+        default: false
     secrets:
       CACHIX_AUTH_TOKEN:
         description: Cachix auth token for nodejs.cachix.org.
@@ -48,7 +53,7 @@ jobs:
           tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
           echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
         with:
           extra_nix_config: sandbox = true
 
@@ -84,6 +89,7 @@ jobs:
             --arg ccache "${NIX_SCCACHE:-null}" \
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
+            --arg pkcs11 ${{ inputs.pkcs11-store-test }} \
             ${{ inputs.extra-nix-flags }} \
             --run '
                 make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"

@@ -127,6 +127,22 @@ async function testAbortSignal() {
   );
 }
 
+async function testWriterEndWithPreAbortedSignal() {
+  const [channelA, channelB] = duplex();
+  const reason = new Error('end aborted');
+
+  await assert.rejects(
+    channelA.writer.end({ signal: AbortSignal.abort(reason) }),
+    (error) => error === reason,
+  );
+
+  await channelA.writer.write('still open');
+  const completedEnd = channelA.writer.end();
+  assert.strictEqual(await text(channelB.readable), 'still open');
+  assert.strictEqual(await completedEnd, 10);
+  await channelB.close();
+}
+
 async function testEmptyDuplex() {
   const [channelA, channelB] = duplex();
 
@@ -182,6 +198,7 @@ Promise.all([
   testWithOptions(),
   testPerChannelOptions(),
   testAbortSignal(),
+  testWriterEndWithPreAbortedSignal(),
   testEmptyDuplex(),
   testChannelFail(),
   testAbortSignalBothChannels(),

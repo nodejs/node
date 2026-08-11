@@ -26,6 +26,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const tls = require('tls');
+const { hasFIPS } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 const passKey = fixtures.readKey('rsa_private_encrypted.pem');
@@ -36,6 +37,33 @@ assert(Buffer.isBuffer(passKey));
 assert(Buffer.isBuffer(cert));
 assert.strictEqual(typeof passKey.toString(), 'string');
 assert.strictEqual(typeof cert.toString(), 'string');
+
+if (hasFIPS(3)) {
+  const encryptedKeyOptions = {
+    key: passKey,
+    passphrase: 'password',
+    cert,
+  };
+  assert.throws(() => tls.Server(encryptedKeyOptions), {
+    code: 'ERR_OSSL_EVP_UNSUPPORTED',
+  });
+  assert.throws(() => tls.connect(encryptedKeyOptions), {
+    code: 'ERR_OSSL_EVP_UNSUPPORTED',
+  });
+
+  const server = tls.Server({ key: rawKey, passphrase: 'ignored', cert });
+  server.listen(0, common.mustCall(function() {
+    const client = tls.connect({
+      port: this.address().port,
+      key: rawKey,
+      passphrase: 'ignored',
+      cert,
+      rejectUnauthorized: false,
+    }, common.mustCall(() => client.end()));
+    client.on('close', common.mustCall(() => server.close()));
+  }));
+  return;
+}
 
 function onSecureConnect() {
   return common.mustCall(function() { this.end(); });

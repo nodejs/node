@@ -469,7 +469,11 @@ bool TurboShakeTraits::DeriveBits(Environment* env,
                                   CryptoJobMode mode,
                                   CryptoErrorStore* errors) {
   CHECK_GT(params.output_length, 0);
-  char* buf = MallocOpenSSL<char>(params.output_length);
+  char* buf = static_cast<char*>(OPENSSL_malloc(params.output_length));
+  if (buf == nullptr) {
+    errors->Insert(NodeCryptoError::ALLOCATION_FAILED);
+    return false;
+  }
 
   const uint8_t* input = reinterpret_cast<const uint8_t*>(params.data.data());
   size_t input_len = params.data.size();
@@ -595,7 +599,11 @@ bool KangarooTwelveTraits::DeriveBits(Environment* env,
     return false;
   }
 
-  char* buf = MallocOpenSSL<char>(params.output_length);
+  char* buf = static_cast<char*>(OPENSSL_malloc(params.output_length));
+  if (buf == nullptr) {
+    errors->Insert(NodeCryptoError::ALLOCATION_FAILED);
+    return false;
+  }
 
   switch (params.variant) {
     case KangarooTwelveVariant::KT128:

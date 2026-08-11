@@ -694,6 +694,14 @@ export interface Options {
   locations?: boolean
 
   /**
+   * Pass an optional `{line, column}` object to use for the start of
+   * the parse. This is mostly useful when using `parseExpressionAt`
+   * with `locations: true`, to prevent the parser from having to
+   * determine the line position at the start position.
+   */
+  startLocation?: {line: number, column: number}
+
+  /**
    * a callback that will cause Acorn to call that export function with object in the same
    * format as tokens returned from `tokenizer().getToken()`. Note
    * that you are not allowed to call the parser from the

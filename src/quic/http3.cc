@@ -1399,7 +1399,11 @@ class Http3ApplicationImpl final : public Session::Application {
       on_receive_origin,
       on_end_origin,
       on_rand,
-      on_receive_settings};
+      on_receive_settings,
+#ifdef NGHTTP3_CALLBACKS_V4
+      nullptr,
+#endif  // NGHTTP3_CALLBACKS_V4
+  };
 };
 
 std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {

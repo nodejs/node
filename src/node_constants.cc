@@ -1137,7 +1137,12 @@ void DefineFsConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_EXCL);
 #endif
 
-NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
+  // Windows-only open flags honored by libuv. They are 0 on other platforms.
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_TEMPORARY);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_SHORT_LIVED);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_SEQUENTIAL);
+  NODE_DEFINE_CONSTANT(target, UV_FS_O_RANDOM);
 
 #ifdef O_NOCTTY
   NODE_DEFINE_CONSTANT(target, O_NOCTTY);
@@ -1373,11 +1378,7 @@ void CreatePerContextProperties(Local<Object> target,
             FIXED_ONE_BYTE_STRING(isolate, "dlopen"),
             dlopen_constants)
       .Check();
-  os_constants
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(isolate, "errno"),
-            err_constants)
-      .Check();
+  os_constants->Set(env->context(), env->errno_string(), err_constants).Check();
   os_constants
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(isolate, "signals"),
