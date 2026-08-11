@@ -1366,6 +1366,10 @@ not reset the counter. Asserting that a statement does not perform a full table
 scan (`statement.stat('fullscanStep') === 0`) is a useful check to guard
 against degenerate performance.
 
+The `'filterMiss'` and `'filterHit'` counters require SQLite 3.38.0 or later.
+Builds linked against an older SQLite with `--shared-sqlite` do not expose them,
+and passing either name throws `ERR_INVALID_ARG_VALUE`.
+
 ## Class: `SQLTagStore`
 
 <!-- YAML

@@ -567,8 +567,18 @@ suite('StatementSync.prototype.expandedSQL', () => {
 suite('StatementSync.prototype.stat()', () => {
   const counters = [
     'fullscanStep', 'sort', 'autoindex', 'vmStep', 'reprepare',
-    'run', 'filterMiss', 'filterHit', 'memused',
+    'run', 'memused',
   ];
+
+  // 'filterMiss' and 'filterHit' map to SQLITE_STMTSTATUS_FILTER_MISS and
+  // SQLITE_STMTSTATUS_FILTER_HIT, which were added in SQLite 3.38.0. Builds
+  // using an older shared SQLite do not expose them.
+  const [major, minor] = process.versions.sqlite.split('.').map(Number);
+  const hasFilterCounters = major > 3 || (major === 3 && minor >= 38);
+
+  if (hasFilterCounters) {
+    counters.push('filterMiss', 'filterHit');
+  }
 
   test('returns a number for every valid counter', (t) => {
     using db = new DatabaseSync(':memory:');
