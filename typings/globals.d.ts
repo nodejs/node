@@ -7,6 +7,7 @@ import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
 import { CryptoBinding } from './internalBinding/crypto';
 import { DebugBinding } from './internalBinding/debug';
+import { DiagnosticsChannelBinding } from './internalBinding/diagnostics_channel';
 import { EncodingBinding } from './internalBinding/encoding_binding';
 import { FsBinding } from './internalBinding/fs';
 import { FsDirBinding } from './internalBinding/fs_dir';
@@ -46,6 +47,7 @@ interface InternalBindingMap {
   constants: ConstantsBinding;
   crypto: CryptoBinding;
   debug: DebugBinding;
+  diagnostics_channel: DiagnosticsChannelBinding;
   encoding_binding: EncodingBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
