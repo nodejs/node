@@ -110,6 +110,27 @@ function run_test(algorithmNames, slowTest) {
                 assert_unreached("exportKey threw an unexpected error: " + err.toString());
             })
         }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages));
+
+        // Special case for ECDH and ECDSA: check that the generated key length is consistent.
+        // Particularly for P-521, there is a high risk of the generated key being one byte short
+        // if the implementation isn't careful.
+        if (algorithm.namedCurve && extractable) {
+            promise_test(async function(test) {
+                // We run about 20 variants of this test, times 10 key generations below,
+                // so this should have a decent chance of catching issues.
+                await Promise.all(Array.from({ length: 10 }).map(async () => {
+                    const { privateKey, publicKey } = await subtle.generateKey(algorithm, extractable, usages);
+                    const [jwkPub, jwkPriv] = await Promise.all([
+                        subtle.exportKey('jwk', publicKey),
+                        subtle.exportKey('jwk', privateKey),
+                    ]);
+                    const expectedLength = Math.ceil(Math.ceil(parseInt(algorithm.namedCurve.substring(2)) / 8) * 4/3);
+                    assert_equals(jwkPub.x.length, expectedLength, "Public key value x has correct length");
+                    assert_equals(jwkPub.y.length, expectedLength, "Public key value y has correct length");
+                    assert_equals(jwkPriv.d.length, expectedLength, "Private key value d has correct length");
+                }));
+            }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages) + " produces consistent length key");
+        }
     }
 
     // Test all valid sets of parameters for successful
