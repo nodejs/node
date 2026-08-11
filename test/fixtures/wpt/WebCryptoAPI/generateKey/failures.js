@@ -1,6 +1,3 @@
-function run_test(algorithmNames) {
-    var subtle = crypto.subtle; // Change to test prefixed implementations
-
 // These tests check that generateKey throws an error, and that
 // the error is of the right type, for a wide set of incorrect parameters.
 //
@@ -19,42 +16,83 @@ function run_test(algorithmNames) {
 // helper functions that generate all possible test parameters for
 // different situations.
 
-    var testVectors = getGenerateKeyTestVectors(algorithmNames);
-
-
-    function parameterString(algorithm, extractable, usages) {
-        if (typeof algorithm !== "object" && typeof algorithm !== "string") {
-            alert(algorithm);
-        }
-
-        var result = "(" +
-                        objectToString(algorithm) + ", " +
-                        objectToString(extractable) + ", " +
-                        objectToString(usages) +
-                     ")";
-
-        return result;
+function parameterString(algorithm, extractable, usages) {
+    if (typeof algorithm !== "object" && typeof algorithm !== "string") {
+        alert(algorithm);
     }
 
-    // Test that a given combination of parameters results in an error,
-    // AND that it is the correct kind of error.
-    //
-    // Expected error is either a number, tested against the error code,
-    // or a string, tested against the error name.
-    function testError(algorithm, extractable, usages, expectedError, testTag) {
-        promise_test(function(test) {
-            return crypto.subtle.generateKey(algorithm, extractable, usages)
-            .then(function(result) {
-                assert_unreached("Operation succeeded, but should not have");
-            }, function(err) {
-                if (typeof expectedError === "number") {
-                    assert_equals(err.code, expectedError, testTag + " not supported");
-                } else {
-                    assert_equals(err.name, expectedError, testTag + " not supported");
-                }
+    var result = "(" +
+                    objectToString(algorithm) + ", " +
+                    objectToString(extractable) + ", " +
+                    objectToString(usages) +
+                 ")";
+
+    return result;
+}
+
+// Test that a given combination of parameters results in an error,
+// AND that it is the correct kind of error.
+//
+// Expected error is either a number, tested against the error code,
+// or a string, tested against the error name.
+function testError(algorithm, extractable, usages, expectedError, testTag) {
+    promise_test(function(test) {
+        return crypto.subtle.generateKey(algorithm, extractable, usages)
+        .then(function(result) {
+            assert_unreached("Operation succeeded, but should not have");
+        }, function(err) {
+            if (typeof expectedError === "number") {
+                assert_equals(err.code, expectedError, testTag + " not supported");
+            } else {
+                assert_equals(err.name, expectedError, testTag + " not supported");
+            }
+        });
+    }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages));
+}
+
+
+// Algorithm normalization happens before generateKey looks at any other
+// argument, so these cases are independent of the algorithm under test and
+// only need to run once for the whole suite.
+function run_bad_algorithm_test() {
+    // Algorithm normalization should fail with "Not supported"
+    var badAlgorithmNames = [
+        "AES",
+        {name: "AES"},
+        {name: "AES", length: 128},
+        {name: "AES-CMAC", length: 128},    // Removed after CR
+        {name: "AES-CFB", length: 128},      // Removed after CR
+        {name: "HMAC", hash: "MD5"},
+        {name: "RSA", hash: "SHA-256", modulusLength: 2048, publicExponent: new Uint8Array([1,0,1])},
+        {name: "RSA-PSS", hash: "SHA", modulusLength: 2048, publicExponent: new Uint8Array([1,0,1])},
+        {name: "EC", namedCurve: "P521"}
+    ];
+
+
+    // Algorithm normalization failures should be found first
+    // - all other parameters can be good or bad, should fail
+    //   due to NotSupportedError.
+    badAlgorithmNames.forEach(function(algorithm) {
+        allValidUsages(["decrypt", "sign", "deriveBits"], true, []) // Small search space, shouldn't matter because should fail before used
+        .forEach(function(usages) {
+            [false, true, "RED", 7].forEach(function(extractable){
+                testError(algorithm, extractable, usages, "NotSupportedError", "Bad algorithm");
             });
-        }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages));
-    }
+        });
+    });
+
+    // Empty algorithm should fail with TypeError
+    allValidUsages(["decrypt", "sign", "deriveBits"], true, []) // Small search space, shouldn't matter because should fail before used
+        .forEach(function(usages) {
+            [false, true, "RED", 7].forEach(function(extractable){
+                testError({}, extractable, usages, "TypeError", "Empty algorithm");
+            });
+        });
+}
+
+
+function run_test(algorithmNames) {
+    var testVectors = getGenerateKeyTestVectors(algorithmNames);
 
 
     // Given an algorithm name, create several invalid parameters.
@@ -108,44 +146,8 @@ function run_test(algorithmNames) {
 
 
 // Now test for properly handling errors
-// - Unsupported algorithm
 // - Bad usages for algorithm
 // - Bad key lengths
-
-    // Algorithm normalization should fail with "Not supported"
-    var badAlgorithmNames = [
-        "AES",
-        {name: "AES"},
-        {name: "AES", length: 128},
-        {name: "AES-CMAC", length: 128},    // Removed after CR
-        {name: "AES-CFB", length: 128},      // Removed after CR
-        {name: "HMAC", hash: "MD5"},
-        {name: "RSA", hash: "SHA-256", modulusLength: 2048, publicExponent: new Uint8Array([1,0,1])},
-        {name: "RSA-PSS", hash: "SHA", modulusLength: 2048, publicExponent: new Uint8Array([1,0,1])},
-        {name: "EC", namedCurve: "P521"}
-    ];
-
-
-    // Algorithm normalization failures should be found first
-    // - all other parameters can be good or bad, should fail
-    //   due to NotSupportedError.
-    badAlgorithmNames.forEach(function(algorithm) {
-        allValidUsages(["decrypt", "sign", "deriveBits"], true, []) // Small search space, shouldn't matter because should fail before used
-        .forEach(function(usages) {
-            [false, true, "RED", 7].forEach(function(extractable){
-                testError(algorithm, extractable, usages, "NotSupportedError", "Bad algorithm");
-            });
-        });
-    });
-
-    // Empty algorithm should fail with TypeError
-    allValidUsages(["decrypt", "sign", "deriveBits"], true, []) // Small search space, shouldn't matter because should fail before used
-        .forEach(function(usages) {
-            [false, true, "RED", 7].forEach(function(extractable){
-                testError({}, extractable, usages, "TypeError", "Empty algorithm");
-            });
-        });
-
 
     // Algorithms normalize okay, but usages bad (though not empty).
     // It shouldn't matter what other extractable is. Should fail
