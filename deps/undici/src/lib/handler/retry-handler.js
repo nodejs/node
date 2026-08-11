@@ -241,6 +241,11 @@ class RetryHandler {
   }
 
   onResponseStart (controller, statusCode, headers, statusMessage) {
+    if (statusCode < 200) {
+      this.handler.onResponseStart?.(this.controllerProxy, statusCode, headers, statusMessage)
+      return
+    }
+
     this.error = null
     this.retryCount += 1
     this.statusCode = statusCode
@@ -305,7 +310,7 @@ class RetryHandler {
         // First time we receive 206
         const range = parseRangeHeader(headers['content-range'])
 
-        if (range == null) {
+        if (range == null || range.end == null) {
           this.headersSent = true
           this.handler.onResponseStart?.(
             this.controllerProxy,
@@ -330,7 +335,7 @@ class RetryHandler {
       }
 
       // We make our best to checkpoint the body for further range headers
-      if (this.end == null) {
+      if (this.end == null && this.opts.method !== 'HEAD') {
         const contentLength = headers['content-length']
         this.end = contentLength != null ? Number(contentLength) - 1 : null
       }

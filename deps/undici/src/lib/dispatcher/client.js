@@ -53,10 +53,8 @@ const {
   kHTTPContext,
   kMaxConcurrentStreams,
   kHostAuthority,
-  kHTTP2InitialWindowSize,
-  kHTTP2ConnectionWindowSize,
   kResume,
-  kPingInterval
+  kHTTP2Options
 } = require('../core/symbols.js')
 const connectH1 = require('./client-h1.js')
 const connectH2 = require('./client-h2.js')
@@ -74,6 +72,16 @@ const noop = () => { }
 
 function getPipelining (client) {
   return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1
+}
+
+let h2NamespaceOptsWarning = false
+function emitH2OptionsNamespaceWarning (optName) {
+  if (h2NamespaceOptsWarning === true) return
+
+  process.emitWarning(`Use h2Options.${optName} instead. ${optName} for H2 will be deprecated in future major.`, {
+    code: 'UNDICI-H2-OPTIONS'
+  })
+  h2NamespaceOptsWarning = true
 }
 
 // Protocol-aware dispatch ceiling. h1 RFC7230 pipelining is unrelated to h2
@@ -128,7 +136,8 @@ class Client extends DispatcherBase {
     initialWindowSize,
     connectionWindowSize,
     pingInterval,
-    webSocket
+    webSocket,
+    h2Options
   } = {}) {
     if (keepAlive !== undefined) {
       throw new InvalidArgumentError('unsupported keepAlive, use pipelining=0 instead')
@@ -216,24 +225,55 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('allowH2 must be a valid boolean value')
     }
 
-    if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== 'number' || maxConcurrentStreams < 1)) {
-      throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
-    }
+    // We validate only if allowH2 is enabled or null (enabled by default)
+    if (allowH2 !== false) {
+      // Prioritise new h2Options object, otherwise fallback to prior configuration options
+      if (h2Options != null) {
+        if (h2Options.useH2c != null && typeof h2Options.useH2c !== 'boolean') {
+          throw new InvalidArgumentError('h2Options.useH2c must be a valid boolean value')
+        }
 
-    if (useH2c != null && typeof useH2c !== 'boolean') {
-      throw new InvalidArgumentError('useH2c must be a valid boolean value')
-    }
+        if (h2Options.settings?.initialWindowSize != null && (!Number.isInteger(h2Options.settings.initialWindowSize) || h2Options.settings.initialWindowSize < 1)) {
+          throw new InvalidArgumentError('h2Options.settings.initialWindowSize must be a positive integer, greater than 0')
+        }
 
-    if (initialWindowSize != null && (!Number.isInteger(initialWindowSize) || initialWindowSize < 1)) {
-      throw new InvalidArgumentError('initialWindowSize must be a positive integer, greater than 0')
-    }
+        if (h2Options.maxConcurrentStreams != null && (!Number.isInteger(h2Options.connectionWindowSize) || h2Options.maxConcurrentStreams < 1)) {
+          throw new InvalidArgumentError('h2Options.maxConcurrentStreams must be a positive integer, greater than 0')
+        }
 
-    if (connectionWindowSize != null && (!Number.isInteger(connectionWindowSize) || connectionWindowSize < 1)) {
-      throw new InvalidArgumentError('connectionWindowSize must be a positive integer, greater than 0')
-    }
+        if (h2Options.connectionWindowSize != null && (!Number.isInteger(h2Options.connectionWindowSize) || h2Options.connectionWindowSize < 1)) {
+          throw new InvalidArgumentError('h2Options.connectionWindowSize must be a positive integer, greater than 0')
+        }
 
-    if (pingInterval != null && (typeof pingInterval !== 'number' || !Number.isInteger(pingInterval) || pingInterval < 0)) {
-      throw new InvalidArgumentError('pingInterval must be a positive integer, greater or equal to 0')
+        if (h2Options.pingInterval != null && (typeof h2Options.pingInterval !== 'number' || !Number.isInteger(h2Options.pingInterval) || h2Options.pingInterval < 0)) {
+          throw new InvalidArgumentError('h2Options.pingInterval must be a positive integer, greater or equal to 0')
+        }
+      } else {
+        if (useH2c != null && typeof useH2c !== 'boolean') {
+          emitH2OptionsNamespaceWarning('useH2c')
+          throw new InvalidArgumentError('useH2c must be a valid boolean value')
+        }
+
+        if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== 'number' || maxConcurrentStreams < 1)) {
+          emitH2OptionsNamespaceWarning('maxConcurrentStreams')
+          throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
+        }
+
+        if (initialWindowSize != null && (!Number.isInteger(initialWindowSize) || initialWindowSize < 1)) {
+          emitH2OptionsNamespaceWarning('initialWindowSize')
+          throw new InvalidArgumentError('initialWindowSize must be a positive integer, greater than 0')
+        }
+
+        if (connectionWindowSize != null && (!Number.isInteger(connectionWindowSize) || connectionWindowSize < 1)) {
+          emitH2OptionsNamespaceWarning('connectionWindowSize')
+          throw new InvalidArgumentError('connectionWindowSize must be a positive integer, greater than 0')
+        }
+
+        if (pingInterval != null && (typeof pingInterval !== 'number' || !Number.isInteger(pingInterval) || pingInterval < 0)) {
+          emitH2OptionsNamespaceWarning('pingInterval')
+          throw new InvalidArgumentError('pingInterval must be a positive integer, greater or equal to 0')
+        }
+      }
     }
 
     super({ webSocket })
@@ -243,8 +283,8 @@ class Client extends DispatcherBase {
         ...tls,
         maxCachedSessions,
         allowH2,
-        useH2c,
         socketPath,
+        useH2c: h2Options?.useH2c ?? useH2c,
         timeout: connectTimeout,
         ...(typeof autoSelectFamily === 'boolean' ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
@@ -280,16 +320,20 @@ class Client extends DispatcherBase {
     this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1
     this[kHTTPContext] = null
     // h2
-    this[kMaxConcurrentStreams] = maxConcurrentStreams != null ? maxConcurrentStreams : 100 // Max peerConcurrentStreams for a Node h2 server
-    // HTTP/2 window sizes are set to higher defaults than Node.js core for better performance:
-    // - initialWindowSize: 262144 (256KB) vs Node.js default 65535 (64KB - 1)
-    //   Allows more data to be sent before requiring acknowledgment, improving throughput
-    //   especially on high-latency networks. This matches common production HTTP/2 servers.
-    // - connectionWindowSize: 524288 (512KB) vs Node.js default (none set)
-    //   Provides better flow control for the entire connection across multiple streams.
-    this[kHTTP2InitialWindowSize] = initialWindowSize != null ? initialWindowSize : 262144
-    this[kHTTP2ConnectionWindowSize] = connectionWindowSize != null ? connectionWindowSize : 524288
-    this[kPingInterval] = pingInterval != null ? pingInterval : 60e3 // Default ping interval for h2 - 1 minute
+    this[kHTTP2Options] = {
+      pingInterval: h2Options?.pingInterval ?? pingInterval ?? 60e3,
+      connectionWindowSize: h2Options?.connectionWindowSize ?? connectionWindowSize ?? 524288,
+      maxConcurrentStreams: h2Options?.maxConcurrentStreams ?? maxConcurrentStreams ?? 100, // Max peerConcurrentStreams for a Node h2 server
+      sessionOptions: {
+        // HTTP/2 window sizes are set to higher defaults than Node.js core for better performance:
+        // - initialWindowSize: 262144 (256KB) vs Node.js default 65535 (64KB - 1)
+        //   Allows more data to be sent before requiring acknowledgment, improving throughput
+        //   especially on high-latency networks. This matches common production HTTP/2 servers.
+        // - connectionWindowSize: 524288 (512KB) vs Node.js default (none set)
+        //   Provides better flow control for the entire connection across multiple streams.
+        initialWindowSize: h2Options?.initialWindowSize ?? initialWindowSize ?? 262144
+      }
+    }
 
     // kQueue is built up of 3 sections separated by
     // the kRunningIdx and kPendingIdx indices.
@@ -672,6 +716,7 @@ function _resume (client, sync) {
     }
 
     if (!client[kHTTPContext]) {
+      client[kServerName] = request.servername
       connect(client)
       return
     }
