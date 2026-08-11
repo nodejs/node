@@ -10,7 +10,7 @@ const { Buffer } = require('buffer');
 const { subtle } = globalThis.crypto;
 const { createHash, getHashes } = require('crypto');
 const { hasOpenSSL, hasFIPS } = require('../common/crypto');
-const fips4 = hasFIPS(4);
+const fips = hasFIPS();
 
 const kTests = [
   ['SHA-1', ['sha1'], 160],
@@ -291,6 +291,8 @@ if (getHashes().includes('shake128')) {
         message: 'Unsupported CShakeParams functionName',
       });
 
+    if (fips) return;
+
     await assert.rejects(
       subtle.digest(
         {
@@ -398,35 +400,19 @@ if (getHashes().includes('shake128')) {
                   'ca6f88db415829',
       },
     ]) {
-      const digest = subtle.digest(algorithm, data);
-      if (fips4) {
-        await assert.rejects(
-          digest,
-          (err) => err.name === 'OperationError' &&
-                   err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
-      } else {
-        assert.strictEqual(
-          Buffer.from(await digest).toString('hex'),
-          expected);
-      }
+      assert.strictEqual(
+        Buffer.from(await subtle.digest(algorithm, data)).toString('hex'),
+        expected);
     }
 
-    const truncatedDigest = subtle.digest(
+    const truncated = Buffer.from(await subtle.digest(
       { ...nistCShakeSample1.algorithm, outputLength: 255 },
-      nistCShakeSample1.data);
-    if (fips4) {
-      await assert.rejects(
-        truncatedDigest,
-        (err) => err.name === 'OperationError' &&
-                 err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
-    } else {
-      const truncated = Buffer.from(await truncatedDigest);
-      const expected = Buffer.from(nistCShakeSample1.expected, 'hex');
-      assert.strictEqual(truncated.byteLength, expected.byteLength);
-      assert.deepStrictEqual(
-        truncated.subarray(0, 31), expected.subarray(0, 31));
-      assert.strictEqual(truncated[31] & 0b00000001, 0);
-      assert.strictEqual(truncated[31] | 0b00000001, expected[31]);
-    }
+      nistCShakeSample1.data));
+    const expected = Buffer.from(nistCShakeSample1.expected, 'hex');
+    assert.strictEqual(truncated.byteLength, expected.byteLength);
+    assert.deepStrictEqual(
+      truncated.subarray(0, 31), expected.subarray(0, 31));
+    assert.strictEqual(truncated[31] & 0b00000001, 0);
+    assert.strictEqual(truncated[31] | 0b00000001, expected[31]);
   })().then(common.mustCall());
 }

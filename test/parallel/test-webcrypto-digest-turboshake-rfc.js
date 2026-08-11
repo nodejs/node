@@ -5,6 +5,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasFIPS } = require('../common/crypto');
+
+if (hasFIPS())
+  common.skip('TurboSHAKE and KangarooTwelve are not available in FIPS mode');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 

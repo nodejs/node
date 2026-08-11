@@ -68,6 +68,7 @@ constexpr T NumBitsToBytes(T bits) {
 // options were applied successfully.
 std::optional<std::string> ProcessFipsOptions();
 void InstallFipsIndicatorCallback();
+bool IsFipsEnabled();
 
 bool InitCryptoOnce(v8::Isolate* isolate);
 void InitCryptoOnce();

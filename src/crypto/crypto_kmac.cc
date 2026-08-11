@@ -151,6 +151,8 @@ bool DeriveBitsWithCShake(const KmacConfig& params,
                           const void* key_data,
                           size_t key_size,
                           ByteSource* out) {
+  if (IsFipsEnabled()) return false;
+
   const size_t key_length_bytes = NumBitsToBytes(params.key_length);
   if (key_size < key_length_bytes) return false;
 
