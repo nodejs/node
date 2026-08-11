@@ -639,6 +639,27 @@ async function testWrongKeyType(
   assert.deepStrictEqual(bits, new ArrayBuffer(0));
 })().then(common.mustCall());
 
+// HKDF output is limited to 255 digest blocks.
+(async function() {
+  const key = await crypto.subtle.importKey(
+    'raw', new Uint8Array(0), 'HKDF', false, ['deriveBits']);
+  const algorithm = {
+    name: 'HKDF',
+    hash: 'SHA-256',
+    info: new Uint8Array(0),
+    salt: new Uint8Array(0),
+  };
+
+  const bits = await crypto.subtle.deriveBits(algorithm, key, 65280);
+  assert.strictEqual(bits.byteLength, 8160);
+
+  await assert.rejects(
+    crypto.subtle.deriveBits(algorithm, key, 65288), {
+      name: 'OperationError',
+      message: 'length exceeds the maximum derived bit length',
+    });
+})().then(common.mustCall());
+
 // OpenSSL limits info to 1024 bytes
 (async function() {
   const key = await crypto.subtle.importKey('raw', new Uint8Array(0), 'HKDF', false, ['deriveBits']);
