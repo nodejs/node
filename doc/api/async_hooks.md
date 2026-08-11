@@ -46,7 +46,7 @@ interface, and each thread will use a new set of async IDs.
 
 ## Overview
 
-Following is a simple overview of the public API.
+The following is a simple overview of the public API.
 
 ```mjs
 import async_hooks from 'node:async_hooks';
@@ -163,12 +163,12 @@ added: v8.1.0
 Registers functions to be called for different lifetime events of each async
 operation.
 
-The callbacks `init()`/`before()`/`after()`/`destroy()` are called for the
-respective asynchronous event during a resource's lifetime.
+The `init()`/`before()`/`after()`/`destroy()` callbacks are called for the
+respective asynchronous events during a resource's lifetime.
 
 All callbacks are optional. For example, if only resource cleanup needs to
 be tracked, then only the `destroy` callback needs to be passed. The
-specifics of all functions that can be passed to `callbacks` is in the
+specifics of all functions that can be passed to `callbacks` are in the
 [Hook Callbacks][] section.
 
 ```mjs
@@ -212,7 +212,7 @@ via the async hooks mechanism, the `init()`, `before()`, `after()`, and
 ### Error handling
 
 If any `AsyncHook` callbacks throw, the application will print the stack trace
-and exit. The exit path does follow that of an uncaught exception, but
+and exit. The exit path follows that of an uncaught exception, but
 all `'uncaughtException'` listeners are removed, thus forcing the process to
 exit. The `'exit'` callbacks will still be called unless the application is run
 with `--abort-on-uncaught-exception`, in which case a stack trace will be
@@ -314,8 +314,8 @@ instance is destroyed.
 * `resource` {Object} Reference to the resource representing the async
   operation, needs to be released during _destroy_.
 
-Called when a class is constructed that has the _possibility_ to emit an
-asynchronous event. This _does not_ mean the instance must call
+Called when a class is constructed that has the _possibility_ of emitting an
+asynchronous event. This _does not_ mean that the instance must call
 `before`/`after` before `destroy` is called, only that the possibility
 exists.
 
@@ -443,7 +443,7 @@ The context tracking use case is covered by the stable API [`AsyncLocalStorage`]
 This example only illustrates async hooks operation but [`AsyncLocalStorage`][]
 fits better to this use case.
 
-The following is an example with additional information about the calls to
+The following example includes additional information about the calls to
 `init` between the `before` and `after` calls, specifically what the
 callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
@@ -569,8 +569,8 @@ API the user's callback is placed in a `process.nextTick()`. Which is why
 `TickObject` is present in the output and is a 'parent' for `.listen()`
 callback.
 
-The graph only shows _when_ a resource was created, not _why_, so to track
-the _why_ use `triggerAsyncId`. Which can be represented with the following
+The graph only shows _when_ a resource was created, not _why_. To track
+the _why_, use `triggerAsyncId`. Which can be represented with the following
 graph:
 
 ```console
@@ -591,12 +591,12 @@ TCPSERVERWRAP(5)
 * `asyncId` {number}
 
 When an asynchronous operation is initiated (such as a TCP server receiving a
-new connection) or completes (such as writing data to disk) a callback is
+new connection) or completes (such as writing data to disk), a callback is
 called to notify the user. The `before` callback is called just before said
 callback is executed. `asyncId` is the unique identifier assigned to the
 resource about to execute the callback.
 
-The `before` callback will be called 0 to N times. The `before` callback
+The `before` callback may be called 0 to N times. The `before` callback
 will typically be called 0 times if the asynchronous operation was cancelled
 or, for example, if no connections are received by a TCP server. Persistent
 asynchronous resources like a TCP server will typically call the `before`
@@ -668,14 +668,14 @@ added:
 -->
 
 * Returns: {Object} The resource representing the current execution.
-  Useful to store data within the resource.
+  Useful for storing data within the resource.
 
 Resource objects returned by `executionAsyncResource()` are most often internal
 Node.js handle objects with undocumented APIs. Using any functions or properties
 on the object is likely to crash your application and should be avoided.
 
-Using `executionAsyncResource()` in the top-level execution context will
-return an empty object as there is no handle or request object to use,
+Using `executionAsyncResource()` in the top-level execution context returns
+an empty object as there is no handle or request object to use,
 but having an object representing the top-level can be helpful.
 
 ```mjs
@@ -698,7 +698,7 @@ open(__filename, 'r', (err, fd) => {
 });
 ```
 
-This can be used to implement continuation local storage without the
+This can be used to implement continuation-local storage without the
 use of a tracking `Map` to store the metadata:
 
 ```mjs
@@ -763,8 +763,8 @@ changes:
     description: Renamed from `currentId`.
 -->
 
-* Returns: {number} The `asyncId` of the current execution context. Useful to
-  track when something calls.
+* Returns: {number} The `asyncId` of the current execution context. Useful for
+  tracking when something calls.
 
 ```mjs
 import { executionAsyncId } from 'node:async_hooks';
@@ -788,7 +788,7 @@ fs.open(path, 'r', (err, fd) => {
 });
 ```
 
-The ID returned from `executionAsyncId()` is related to execution timing, not
+The ID returned by `executionAsyncId()` is related to execution timing, not
 causality (which is covered by `triggerAsyncId()`):
 
 ```js
@@ -810,7 +810,7 @@ See the section on [promise execution tracking][].
 ### `async_hooks.triggerAsyncId()`
 
 * Returns: {number} The ID of the resource responsible for calling the callback
-  that is currently being executed.
+  currently being executed.
 
 ```js
 const server = net.createServer((conn) => {
@@ -821,8 +821,8 @@ const server = net.createServer((conn) => {
 
 }).listen(port, () => {
   // Even though all callbacks passed to .listen() are wrapped in a nextTick()
-  // the callback itself exists because the call to the server's .listen()
-  // was made. So the return value would be the ID of the server.
+  // the callback itself exists because the server's .listen()
+  // method was called. So the return value would be the ID of the server.
   async_hooks.triggerAsyncId();
 });
 ```
