@@ -259,7 +259,7 @@ WebCryptoCipherStatus AES_KW_Cipher(Environment* env,
 // implementation here:
 // https://github.com/chromium/chromium/blob/7af6cfd/components/webcrypto/algorithms/aes_ctr.cc
 
-template <typename T>
+template <std::integral T>
 T CeilDiv(T a, T b) {
   return a == 0 ? 0 : 1 + (a - 1) / b;
 }

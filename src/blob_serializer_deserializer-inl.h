@@ -90,8 +90,8 @@ std::string BlobSerializerDeserializer::GetName() const {
 // Helper for reading numeric types.
 template <typename Impl>
 template <typename T>
+  requires std::is_arithmetic_v<T>
 T BlobDeserializer<Impl>::ReadArithmetic() {
-  static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
   T result;
   ReadArithmetic(&result, 1);
   return result;
@@ -158,8 +158,8 @@ std::string_view BlobDeserializer<Impl>::ReadStringView(StringLogMode mode) {
 // Helper for reading an array of numeric types.
 template <typename Impl>
 template <typename T>
+  requires std::is_arithmetic_v<T>
 void BlobDeserializer<Impl>::ReadArithmetic(T* out, size_t count) {
-  static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
   DCHECK_GT(count, 0);  // Should not read contents for vectors of size 0.
   if (is_debug) {
     std::string name = GetName<T>();
@@ -180,8 +180,8 @@ void BlobDeserializer<Impl>::ReadArithmetic(T* out, size_t count) {
 // Helper for reading numeric vectors.
 template <typename Impl>
 template <typename Number>
+  requires std::is_arithmetic_v<Number>
 std::vector<Number> BlobDeserializer<Impl>::ReadArithmeticVector(size_t count) {
-  static_assert(std::is_arithmetic_v<Number>, "Not an arithmetic type");
   DCHECK_GT(count, 0);  // Should not read contents for vectors of size 0.
   std::vector<Number> result(count);
   ReadArithmetic(result.data(), count);
@@ -191,8 +191,8 @@ std::vector<Number> BlobDeserializer<Impl>::ReadArithmeticVector(size_t count) {
 // Helper for reading non-numeric vectors.
 template <typename Impl>
 template <typename T>
+  requires(!std::is_arithmetic_v<T>)
 std::vector<T> BlobDeserializer<Impl>::ReadNonArithmeticVector(size_t count) {
-  static_assert(!std::is_arithmetic_v<T>, "Arithmetic type");
   DCHECK_GT(count, 0);  // Should not read contents for vectors of size 0.
   std::vector<T> result;
   result.reserve(count);
@@ -224,8 +224,8 @@ T BlobDeserializer<Impl>::ReadElement() {
 // Helper for writing numeric types.
 template <typename Impl>
 template <typename T>
+  requires std::is_arithmetic_v<T>
 size_t BlobSerializer<Impl>::WriteArithmetic(const T& data) {
-  static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
   return WriteArithmetic(&data, 1);
 }
 
@@ -303,8 +303,8 @@ static size_t kPreviewCount = 16;
 // Helper for writing an array of numeric types.
 template <typename Impl>
 template <typename T>
+  requires std::is_arithmetic_v<T>
 size_t BlobSerializer<Impl>::WriteArithmetic(const T* data, size_t count) {
-  static_assert(std::is_arithmetic_v<T>, "Arithmetic type");
   DCHECK_GT(count, 0);  // Should not write contents for vectors of size 0.
   if (is_debug) {
     size_t preview_count = count < kPreviewCount ? count : kPreviewCount;
@@ -338,18 +338,18 @@ size_t BlobSerializer<Impl>::WriteArithmetic(const T* data, size_t count) {
 // Helper for writing numeric vectors.
 template <typename Impl>
 template <typename Number>
+  requires std::is_arithmetic_v<Number>
 size_t BlobSerializer<Impl>::WriteArithmeticVector(
     const std::vector<Number>& data) {
-  static_assert(std::is_arithmetic_v<Number>, "Arithmetic type");
   return WriteArithmetic(data.data(), data.size());
 }
 
 // Helper for writing non-numeric vectors.
 template <typename Impl>
 template <typename T>
-size_t BlobSerializer<Impl>::WriteNonArithmeticVector(
-    const std::vector<T>& data) {
-  static_assert(!std::is_arithmetic_v<T>, "Arithmetic type");
+  requires(!std::is_arithmetic_v<T>)
+size_t
+    BlobSerializer<Impl>::WriteNonArithmeticVector(const std::vector<T>& data) {
   DCHECK_GT(data.size(),
             0);  // Should not write contents for vectors of size 0.
   size_t written_total = 0;

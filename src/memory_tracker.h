@@ -2,6 +2,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_concepts.h"
 #include "v8-profiler.h"
 
 #include <uv.h>
@@ -229,10 +230,7 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const std::basic_string<T>& value,
                          const char* node_name = nullptr);
-  template <typename T,
-            typename test_for_number = typename std::
-                enable_if<std::numeric_limits<T>::is_specialized, bool>::type,
-            typename dummy = bool>
+  template <NumericValue T>
   inline void TrackField(const char* edge_name,
                          const T& value,
                          const char* node_name = nullptr);

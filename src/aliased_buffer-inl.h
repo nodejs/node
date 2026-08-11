@@ -12,6 +12,7 @@ namespace node {
 typedef size_t AliasedBufferIndex;
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(
     v8::Isolate* isolate, const size_t count, const AliasedBufferIndex* index)
     : isolate_(isolate), count_(count), byte_offset_(0), index_(index) {
@@ -34,6 +35,7 @@ AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(
     v8::Isolate* isolate,
     const size_t byte_offset,
@@ -65,6 +67,7 @@ AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(
     const AliasedBufferBase& that)
     : isolate_(that.isolate_),
@@ -76,6 +79,7 @@ AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 AliasedBufferIndex AliasedBufferBase<NativeT, V8T>::Serialize(
     v8::Local<v8::Context> context, v8::SnapshotCreator* creator) {
   DCHECK(is_valid());
@@ -83,6 +87,7 @@ AliasedBufferIndex AliasedBufferBase<NativeT, V8T>::Serialize(
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline void AliasedBufferBase<NativeT, V8T>::Deserialize(
     v8::Local<v8::Context> context) {
   DCHECK_NOT_NULL(index_);
@@ -99,6 +104,7 @@ inline void AliasedBufferBase<NativeT, V8T>::Deserialize(
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 AliasedBufferBase<NativeT, V8T>& AliasedBufferBase<NativeT, V8T>::operator=(
     AliasedBufferBase<NativeT, V8T>&& that) noexcept {
   DCHECK(is_valid());
@@ -116,41 +122,48 @@ AliasedBufferBase<NativeT, V8T>& AliasedBufferBase<NativeT, V8T>::operator=(
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 v8::Local<V8T> AliasedBufferBase<NativeT, V8T>::GetJSArray() const {
   DCHECK(is_valid());
   return js_array_.Get(isolate_);
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 void AliasedBufferBase<NativeT, V8T>::Release() {
   DCHECK_NULL(index_);
   js_array_.Reset();
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline void AliasedBufferBase<NativeT, V8T>::MakeWeak() {
   DCHECK(is_valid());
   js_array_.SetWeak();
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 v8::Local<v8::ArrayBuffer> AliasedBufferBase<NativeT, V8T>::GetArrayBuffer()
     const {
   return GetJSArray()->Buffer();
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline const NativeT* AliasedBufferBase<NativeT, V8T>::GetNativeBuffer() const {
   DCHECK(is_valid());
   return buffer_;
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline const NativeT* AliasedBufferBase<NativeT, V8T>::operator*() const {
   return GetNativeBuffer();
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline void AliasedBufferBase<NativeT, V8T>::SetValue(const size_t index,
                                                       NativeT value) {
   DCHECK_LT(index, count_);
@@ -159,6 +172,7 @@ inline void AliasedBufferBase<NativeT, V8T>::SetValue(const size_t index,
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline const NativeT AliasedBufferBase<NativeT, V8T>::GetValue(
     const size_t index) const {
   DCHECK(is_valid());
@@ -167,6 +181,7 @@ inline const NativeT AliasedBufferBase<NativeT, V8T>::GetValue(
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 typename AliasedBufferBase<NativeT, V8T>::Reference
 AliasedBufferBase<NativeT, V8T>::operator[](size_t index) {
   DCHECK(is_valid());
@@ -174,16 +189,19 @@ AliasedBufferBase<NativeT, V8T>::operator[](size_t index) {
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 NativeT AliasedBufferBase<NativeT, V8T>::operator[](size_t index) const {
   return GetValue(index);
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 size_t AliasedBufferBase<NativeT, V8T>::Length() const {
   return count_;
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 void AliasedBufferBase<NativeT, V8T>::reserve(size_t new_capacity) {
   DCHECK(is_valid());
   DCHECK_GE(new_capacity, count_);
@@ -214,11 +232,13 @@ void AliasedBufferBase<NativeT, V8T>::reserve(size_t new_capacity) {
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline bool AliasedBufferBase<NativeT, V8T>::is_valid() const {
   return index_ == nullptr && !js_array_.IsEmpty();
 }
 
 template <typename NativeT, typename V8T>
+  requires std::is_scalar_v<NativeT>
 inline size_t AliasedBufferBase<NativeT, V8T>::SelfSize() const {
   return sizeof(*this);
 }

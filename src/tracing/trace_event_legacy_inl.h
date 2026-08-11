@@ -9,6 +9,8 @@
 #error Perfetto is enabled.
 #endif
 
+#include <concepts>
+
 #include "v8-platform.h"
 #include "tracing/agent_legacy.h"
 #include "tracing/trace_event_helper.h"
@@ -558,9 +560,8 @@ static inline void SetTraceValue(v8::ConvertableToTraceFormat* convertable_value
   *value = static_cast<uint64_t>(reinterpret_cast<intptr_t>(convertable_value));
 }
 
-template <typename T>
-static inline typename std::enable_if<
-    std::is_convertible<T*, v8::ConvertableToTraceFormat*>::value>::type
+template <std::derived_from<v8::ConvertableToTraceFormat> T>
+static inline void
 SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type, uint64_t* value) {
   SetTraceValue(ptr.release(), type, value);
 }

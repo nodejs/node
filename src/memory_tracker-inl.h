@@ -203,7 +203,7 @@ void MemoryTracker::TrackField(const char* edge_name,
   TrackField(edge_name, container, node_name, element_name);
 }
 
-template <typename T, typename test_for_number, typename dummy>
+template <NumericValue T>
 void MemoryTracker::TrackField(const char* edge_name,
                                const T& value,
                                const char* node_name) {
