@@ -70,7 +70,7 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
 }:
 
 {
-  # "default" OpenSSL release line, should be kept in sync with the bundled version:
+  # \"default\" OpenSSL release line, should be kept in sync with the bundled version:
   openssl = pkgs.\(.default);
 
   # Other OpenSSL variants we want to test for:
