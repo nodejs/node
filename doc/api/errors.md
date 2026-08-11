@@ -4674,9 +4674,9 @@ An error occurred trying to allocate memory. This should never happen.
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
-[`BoundSocket`]: net.md#class-netboundsocket
 [`'ABORT_ERR'`]: #abort_err
 [`ABORT_ERR`]: #abort_err
+[`BoundSocket`]: net.md#class-netboundsocket
 [`Class: DOMException`]: globals.md#class-domexception
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
 [`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
