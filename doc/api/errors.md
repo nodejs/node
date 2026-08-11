@@ -4669,12 +4669,12 @@ An error occurred trying to allocate memory. This should never happen.
 [Web IDL error names]: https://webidl.spec.whatwg.org/#dfn-error-names-table
 [`"exports"`]: packages.md#exports
 [`"imports"`]: packages.md#imports
+[`'ABORT_ERR'`]: #abort_err
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--disable-proto=throw`]: cli.md#--disable-protomode
 [`--force-fips`]: cli.md#--force-fips
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
-[`'ABORT_ERR'`]: #abort_err
 [`ABORT_ERR`]: #abort_err
 [`BoundSocket`]: net.md#class-netboundsocket
 [`Class: DOMException`]: globals.md#class-domexception
