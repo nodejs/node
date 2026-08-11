@@ -93,6 +93,6 @@ contributor time.
   conciseness.
 
 [Developer's Certificate of Origin]: ../../CONTRIBUTING.md#developers-certificate-of-origin-11
-[OpenJS Foundation AI Coding Assistants Policy]: https://openjsf.cdn.prismic.io/openjsf/aca4d5GXnQHGZDiZ_OpenJS_AI_Coding_Assistants_Policy.pdf
+[OpenJS Foundation AI Coding Assistants Policy]: https://ai-coding-assistants-policy.openjsf.org/
 [commit message guidelines]: ./pull-requests.md#commit-message-guidelines
 [the Node.js moderation policy]: https://github.com/nodejs/admin/blob/main/Moderation-Policy.md
