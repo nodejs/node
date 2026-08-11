@@ -1063,6 +1063,7 @@ util.inspect({ hasOwnProperty: null });
     assert.strictEqual(opts.budget, undefined);
     assert.strictEqual(opts.indentationLvl, undefined);
     assert.strictEqual(opts.showHidden, false);
+    assert.strictEqual(opts.maxObjectProperties, Infinity);
     assert.strictEqual(inspect, util.inspect);
     assert.deepStrictEqual(
       new Set(Object.keys(inspect.defaultOptions).concat(['stylize'])),
@@ -1599,6 +1600,318 @@ if (typeof Symbol !== 'undefined') {
   assert(util.inspect(x, { maxArrayLength: Infinity }).endsWith(' 0, 0\n]'));
 }
 
+// maxObjectProperties limits named properties independently for each object.
+{
+  const value = { first: 1, second: 2, third: 3 };
+  const unlimited = '{ first: 1, second: 2, third: 3 }';
+
+  assert.strictEqual(util.inspect(value), unlimited);
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: 2 }),
+    '{ first: 1, second: 2, ... 1 more property }'
+  );
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: 1 }),
+    '{ first: 1, ... 2 more properties }'
+  );
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: 0 }),
+    '{ ... 3 more properties }'
+  );
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: 0.5 }),
+    '{ ... 3 more properties }'
+  );
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: -1 }),
+    '{ ... 3 more properties }'
+  );
+  assert.strictEqual(
+    util.inspect({ only: 1 }, { maxObjectProperties: 0 }),
+    '{ ... 1 more property }'
+  );
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: null }),
+    unlimited
+  );
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: Infinity }),
+    unlimited
+  );
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: NaN }),
+    unlimited
+  );
+
+  assert.strictEqual(
+    util.inspect(
+      { outer: { first: 1, second: 2 }, sibling: 3 },
+      { maxObjectProperties: 1 }
+    ),
+    '{ outer: { first: 1, ... 1 more property }, ... 1 more property }'
+  );
+}
+
+// Array-like entries and collection entries use maxArrayLength, while named
+// properties use maxObjectProperties.
+{
+  const array = [1, 2];
+  array.first = 3;
+  array.second = 4;
+  assert.strictEqual(
+    util.inspect(array, { maxArrayLength: 1, maxObjectProperties: 1 }),
+    '[ 1, ... 1 more item, first: 3, ... 1 more property ]'
+  );
+
+  // The default grouping behavior must not change when the property limit is
+  // inactive.
+  const arrayWithProperty = Array.from({ length: 20 }, (_, i) => i);
+  arrayWithProperty.p0 = 0;
+  assert.strictEqual(
+    util.inspect(arrayWithProperty, { maxArrayLength: 20 }),
+    '[\n' +
+      '  0,  1,  2,  3,  4,  5,  6,\n' +
+      '  7,  8,  9,  10, 11, 12, 13,\n' +
+      '  14, 15, 16, 17, 18, 19,\n' +
+      '  p0: 0\n' +
+      ']'
+  );
+
+  const truncatedArrayWithProperties = Array.from(
+    { length: 20 },
+    (_, i) => i,
+  );
+  truncatedArrayWithProperties.foo = 1;
+  truncatedArrayWithProperties.bar = 2;
+  assert.strictEqual(
+    util.inspect(truncatedArrayWithProperties, { maxArrayLength: 10 }),
+    '[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... 10 more items, ' +
+      'foo: 1, bar: 2 ]'
+  );
+
+  const groupedArray = Array.from({ length: 10 }, (_, i) => i);
+  groupedArray.extra = true;
+  assert.match(
+    util.inspect(groupedArray, {
+      maxObjectProperties: 0,
+      showHidden: true,
+    }),
+    /\n {2}\.\.\. 2 more properties\n\]$/
+  );
+
+  const truncatedGroupedArray = Array.from({ length: 20 }, (_, i) => i);
+  truncatedGroupedArray.extra = true;
+  assert.strictEqual(
+    util.inspect(truncatedGroupedArray, {
+      maxArrayLength: 10,
+      maxObjectProperties: 0,
+    }),
+    '[\n' +
+      '  0, 1, 2, 3, 4,\n' +
+      '  5, 6, 7, 8, 9,\n' +
+      '  ... 10 more items,\n' +
+      '  ... 1 more property\n' +
+      ']'
+  );
+
+  const truncatedArrayWithProperty = Array.from(
+    { length: 20 },
+    (_, i) => i,
+  );
+  truncatedArrayWithProperty.p0 = 0;
+  truncatedArrayWithProperty.p1 = 1;
+  truncatedArrayWithProperty.p2 = 2;
+  assert.strictEqual(
+    util.inspect(truncatedArrayWithProperty, {
+      maxArrayLength: 10,
+      maxObjectProperties: 1,
+    }),
+    '[\n' +
+      '  0,\n' +
+      '  1,\n' +
+      '  2,\n' +
+      '  3,\n' +
+      '  4,\n' +
+      '  5,\n' +
+      '  6,\n' +
+      '  7,\n' +
+      '  8,\n' +
+      '  9,\n' +
+      '  ... 10 more items,\n' +
+      '  p0: 0,\n' +
+      '  ... 2 more properties\n' +
+      ']'
+  );
+
+  const typedArray = new Uint8Array([1, 2]);
+  typedArray.first = 3;
+  typedArray.second = 4;
+  assert.strictEqual(
+    util.inspect(typedArray, {
+      maxArrayLength: 1,
+      maxObjectProperties: 1,
+    }),
+    'Uint8Array(2) [ 1, ... 1 more item, first: 3, ... 1 more property ]'
+  );
+
+  const map = new Map([['first', 1], ['second', 2]]);
+  map.first = 3;
+  map.second = 4;
+  assert.strictEqual(
+    util.inspect(map, { maxArrayLength: 1, maxObjectProperties: 1 }),
+    "Map(2) { 'first' => 1, ... 1 more item, first: 3, " +
+      '... 1 more property }'
+  );
+
+  const set = new Set([1, 2]);
+  set.first = 3;
+  set.second = 4;
+  assert.strictEqual(
+    util.inspect(set, { maxArrayLength: 1, maxObjectProperties: 1 }),
+    'Set(2) { 1, ... 1 more item, first: 3, ... 1 more property }'
+  );
+
+  const promise = Promise.resolve(1);
+  promise.property = 2;
+  assert.strictEqual(
+    util.inspect(promise, { maxObjectProperties: 0 }),
+    'Promise { 1, ... 1 more property }'
+  );
+}
+
+// Hidden, symbol, and user-defined prototype properties share the property
+// budget, with own properties taking precedence.
+{
+  class Foo {}
+  Object.defineProperty(Foo.prototype, 'inherited', {
+    configurable: true,
+    enumerable: true,
+    value: 4,
+  });
+  Object.defineProperty(Foo.prototype, 'hiddenInherited', {
+    configurable: true,
+    value: 5,
+  });
+
+  const symbol = Symbol('own');
+  const value = new Foo();
+  value.own = 1;
+  Object.defineProperty(value, 'hidden', { value: 2 });
+  value[symbol] = 3;
+
+  assert.strictEqual(
+    util.inspect(value, { showHidden: true, maxObjectProperties: 3 }),
+    'Foo { own: 1, [hidden]: 2, Symbol(own): 3, ... 2 more properties }'
+  );
+  assert.strictEqual(
+    util.inspect(value, { showHidden: true, maxObjectProperties: 4 }),
+    'Foo {\n' +
+      '  own: 1,\n' +
+      '  [hidden]: 2,\n' +
+      '  Symbol(own): 3,\n' +
+      '  inherited: 4,\n' +
+      '  ... 1 more property\n' +
+      '}'
+  );
+
+  const farPrototype = { far: 1 };
+  const nearPrototype = { __proto__: farPrototype, near: 2 };
+  assert.strictEqual(
+    util.inspect({ __proto__: nearPrototype }, {
+      maxObjectProperties: 1,
+      showHidden: true,
+    }),
+    '{ near: 2, ... 1 more property }'
+  );
+}
+
+// Omitted values and getters are not evaluated.
+{
+  const value = {
+    retained: 1,
+    omitted: { [util.inspect.custom]: common.mustNotCall() },
+  };
+  Object.defineProperty(value, 'getter', {
+    enumerable: true,
+    get: common.mustNotCall(),
+  });
+  assert.strictEqual(
+    util.inspect(value, { getters: true, maxObjectProperties: 1 }),
+    '{ retained: 1, ... 2 more properties }'
+  );
+
+  class WithGetter {
+    get omittedPrototypeGetter() {
+      return common.mustNotCall()();
+    }
+  }
+  const withGetter = new WithGetter();
+  withGetter.retained = 1;
+  assert.strictEqual(
+    util.inspect(withGetter, {
+      getters: true,
+      maxObjectProperties: 1,
+      showHidden: true,
+    }),
+    'WithGetter { retained: 1, ... 1 more property }'
+  );
+}
+
+// Sorting applies after discovery and limiting.
+{
+  const value = {};
+  value.z = 1;
+  value.a = 2;
+  value.m = 3;
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: 2, sorted: true }),
+    '{ a: 2, z: 1, ... 1 more property }'
+  );
+}
+
+// Property limiting happens after type-specific key normalization.
+{
+  const boxed = new String('abc');
+  boxed.extra = true;
+  assert.strictEqual(
+    util.inspect(boxed, { maxObjectProperties: 1 }),
+    "[String: 'abc'] { extra: true }"
+  );
+
+  const error = new Error('boom', { cause: 'root' });
+  const output = util.inspect(error, { maxObjectProperties: 0 });
+  assert.doesNotMatch(output, /cause:/);
+  assert.match(output, /\.\.\. 1 more property/);
+}
+
+// Built-in typed array metadata does not consume the property budget.
+{
+  const value = new Uint8Array([1, 2]);
+  value.extra = true;
+  const output = util.inspect(value, {
+    breakLength: Infinity,
+    maxObjectProperties: 0,
+    showHidden: true,
+  });
+  assert.match(output, /\[BYTES_PER_ELEMENT\]: 1/);
+  assert.match(output, /\[buffer\]: ArrayBuffer/);
+  assert.match(output, /\.\.\. 1 more property/);
+}
+
+// The option is passed to custom inspection functions.
+{
+  const value = {
+    [util.inspect.custom]: common.mustCall((depth, options) => {
+      assert.strictEqual(options.maxObjectProperties, 1);
+      return 'custom';
+    }),
+  };
+  assert.strictEqual(
+    util.inspect(value, { maxObjectProperties: 1 }),
+    'custom'
+  );
+}
+
 {
   const obj = { foo: 'abc', bar: 'xyz' };
   const oneLine = util.inspect(obj, { breakLength: Infinity });
@@ -1619,6 +1932,7 @@ if (typeof Symbol !== 'undefined') {
 {
   const arr = new Array(101).fill();
   const obj = { a: { a: { a: { a: 1 } } } };
+  const properties = { first: 1, second: 2 };
 
   const oldOptions = { ...util.inspect.defaultOptions };
 
@@ -1627,6 +1941,11 @@ if (typeof Symbol !== 'undefined') {
   assert.doesNotMatch(util.inspect(arr), /1 more item/);
   util.inspect.defaultOptions.maxArrayLength = oldOptions.maxArrayLength;
   assert.match(util.inspect(arr), /1 more item/);
+  util.inspect.defaultOptions.maxObjectProperties = 1;
+  assert.match(util.inspect(properties), /1 more property/);
+  util.inspect.defaultOptions.maxObjectProperties =
+    oldOptions.maxObjectProperties;
+  assert.doesNotMatch(util.inspect(properties), /more propert/);
   util.inspect.defaultOptions.depth = null;
   assert.doesNotMatch(util.inspect(obj), /Object/);
   util.inspect.defaultOptions.depth = oldOptions.depth;
@@ -1637,11 +1956,17 @@ if (typeof Symbol !== 'undefined') {
   );
 
   // Set multiple options through object assignment.
-  util.inspect.defaultOptions = { maxArrayLength: null, depth: 2 };
+  util.inspect.defaultOptions = {
+    depth: 2,
+    maxArrayLength: null,
+    maxObjectProperties: 1,
+  };
   assert.doesNotMatch(util.inspect(arr), /1 more item/);
+  assert.match(util.inspect(properties), /1 more property/);
   assert.match(util.inspect(obj), /Object/);
   util.inspect.defaultOptions = oldOptions;
   assert.match(util.inspect(arr), /1 more item/);
+  assert.doesNotMatch(util.inspect(properties), /more propert/);
   assert.match(util.inspect(obj), /Object/);
   assert.strictEqual(
     JSON.stringify(util.inspect.defaultOptions),
@@ -3522,6 +3847,66 @@ assert.strictEqual(
     inspect(obj, { showHidden: true, colors: true }),
     '{ \x1B[2mabc: \x1B[33mtrue\x1B[39m\x1B[22m, ' +
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
+  );
+
+  class Nested {}
+  Nested.prototype.nested = { a: { b: { c: { d: 1 } } } };
+  assert.strictEqual(
+    inspect(new Nested(), { showHidden: true }),
+    'Nested { nested: { a: { b: { c: [Object] } } } }'
+  );
+
+  class Deep {}
+  Deep.prototype.p = {
+    l1: { l2: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+  };
+  assert.strictEqual(
+    inspect({ x: new Deep(), y: 1 }, { showHidden: true }),
+    '{\n' +
+      "  x: Deep { p: { l1: { l2: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } } },\n" +
+      '  y: 1\n' +
+      '}'
+  );
+
+  const getterCalls = [];
+  const getterParent = {
+    get proto() {
+      getterCalls.push('proto');
+      return 2;
+    },
+  };
+  const getterPrototype = {
+    __proto__: getterParent,
+    get own() {
+      getterCalls.push('own');
+      return 1;
+    },
+  };
+  const getterValue = { __proto__: getterPrototype };
+  Object.defineProperty(getterValue, 'instance', {
+    enumerable: true,
+    get() {
+      getterCalls.push('instance');
+      return 3;
+    },
+  });
+  inspect(getterValue, { getters: true, showHidden: true });
+  assert.deepStrictEqual(getterCalls, ['own', 'proto', 'instance']);
+
+  const ownCircular = {};
+  ownCircular.self = ownCircular;
+  const protoCircular = {};
+  protoCircular.self = protoCircular;
+  const circularValue = {
+    __proto__: { proto: protoCircular },
+    own: ownCircular,
+  };
+  assert.strictEqual(
+    inspect(circularValue, { showHidden: true }),
+    '{\n' +
+      '  own: <ref *2> { self: [Circular *2] },\n' +
+      '  proto: <ref *1> { self: [Circular *1] }\n' +
+      '}'
   );
 
   assert.match(

@@ -1170,6 +1170,26 @@ test('Check proxies', () => {
   );
 });
 
+test('Assertion errors ignore the maxObjectProperties default', () => {
+  const original = util.inspect.defaultOptions.maxObjectProperties;
+  util.inspect.defaultOptions.maxObjectProperties = 1;
+  try {
+    assert.throws(
+      () => assert.deepStrictEqual({ a: 1, b: 2 }, { a: 1, b: 3 }),
+      {
+        message: `${defaultMsgStartFull}\n\n` +
+          '  {\n' +
+          '    a: 1,\n' +
+          '+   b: 2\n' +
+          '-   b: 3\n' +
+          '  }\n'
+      }
+    );
+  } finally {
+    util.inspect.defaultOptions.maxObjectProperties = original;
+  }
+});
+
 test('Strict equal with identical objects that are not identical ' +
      'by reference and longer than 50 elements', () => {
   // E.g., assert.deepStrictEqual({ a: Symbol() }, { a: Symbol() })
