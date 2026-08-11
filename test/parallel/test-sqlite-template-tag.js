@@ -371,3 +371,20 @@ test('tag store prevents circular reference leaks', async () => {
     return after < before * 1.5;
   }, 20);
 });
+
+test('cached statements are finalized when the database is closed', () => {
+  const db = new DatabaseSync(':memory:');
+  const sql = db.createTagStore();
+
+  db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+  db.exec('INSERT INTO foo (id) VALUES (1)');
+  assert.deepStrictEqual(sql.all`SELECT id FROM foo`, [{ __proto__: null, id: 1 }]);
+
+  db.close();
+  db.open();
+
+  assert.throws(() => sql.all`SELECT id FROM foo`, {
+    code: 'ERR_SQLITE_ERROR',
+    message: /no such table/i,
+  });
+});
