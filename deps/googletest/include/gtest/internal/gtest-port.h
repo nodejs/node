@@ -293,9 +293,10 @@
 #include <limits>
 #include <locale>
 #include <memory>
+// #include <mutex>  // Guarded by GTEST_IS_THREADSAFE below
 #include <ostream>
 #include <string>
-// #include <mutex>  // Guarded by GTEST_IS_THREADSAFE below
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -949,21 +950,21 @@ GTEST_API_ bool IsTrue(bool condition);
 #ifdef GTEST_USES_RE2
 
 // This is almost `using RE = ::RE2`, except it is copy-constructible, and it
-// needs to disambiguate the `std::string`, `absl::string_view`, and `const
+// needs to disambiguate the `std::string`, `std::string_view`, and `const
 // char*` constructors.
 class GTEST_API_ [[nodiscard]] RE {
  public:
-  RE(absl::string_view regex) : regex_(regex) {}                  // NOLINT
-  RE(const char* regex) : RE(absl::string_view(regex)) {}         // NOLINT
-  RE(const std::string& regex) : RE(absl::string_view(regex)) {}  // NOLINT
+  RE(std::string_view regex) : regex_(regex) {}                  // NOLINT
+  RE(const char* regex) : RE(std::string_view(regex)) {}         // NOLINT
+  RE(const std::string& regex) : RE(std::string_view(regex)) {}  // NOLINT
   RE(const RE& other) : RE(other.pattern()) {}
 
   const std::string& pattern() const { return regex_.pattern(); }
 
-  static bool FullMatch(absl::string_view str, const RE& re) {
+  static bool FullMatch(std::string_view str, const RE& re) {
     return RE2::FullMatch(str, re.regex_);
   }
-  static bool PartialMatch(absl::string_view str, const RE& re) {
+  static bool PartialMatch(std::string_view str, const RE& re) {
     return RE2::PartialMatch(str, re.regex_);
   }
 
@@ -2396,7 +2397,6 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 #ifdef GTEST_HAS_ABSL
 // Always use absl::string_view for Matcher<> specializations if googletest
 // is built with absl support.
-#define GTEST_INTERNAL_HAS_STRING_VIEW 1
 #include "absl/strings/string_view.h"
 namespace testing {
 namespace internal {
@@ -2404,26 +2404,15 @@ using StringView = ::absl::string_view;
 }  // namespace internal
 }  // namespace testing
 #else
-#if defined(__cpp_lib_string_view) ||             \
-    (GTEST_INTERNAL_HAS_INCLUDE(<string_view>) && \
-     GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
 // Otherwise for C++17 and higher use std::string_view for Matcher<>
 // specializations.
-#define GTEST_INTERNAL_HAS_STRING_VIEW 1
-#include <string_view>
 namespace testing {
 namespace internal {
-using StringView = ::std::string_view;
+using StringView = std::string_view;
 }  // namespace internal
 }  // namespace testing
-// The case where absl is configured NOT to alias std::string_view is not
-// supported.
-#endif  // __cpp_lib_string_view
 #endif  // GTEST_HAS_ABSL
-
-#ifndef GTEST_INTERNAL_HAS_STRING_VIEW
-#define GTEST_INTERNAL_HAS_STRING_VIEW 0
-#endif
+#define GTEST_INTERNAL_HAS_STRING_VIEW 1
 
 #if defined(__cpp_lib_three_way_comparison)
 #define GTEST_INTERNAL_HAS_COMPARE_LIB 1
