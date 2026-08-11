@@ -35,18 +35,7 @@ SHOULD_ABORT=
 
 for pr in "$@"; do
   gh pr view "$pr" --json labels --jq ".labels" > labels.json
-  # Skip PR if CI was requested
-  if jq -e 'map(.name) | index("request-ci")' < labels.json; then
-    echo "pr ${pr} skipped, waiting for CI to start"
-    continue
-  fi
-
-  # Skip PR if CI is still running
-  if gh pr checks "$pr" | grep -q "\spending\s"; then
-    echo "pr ${pr} skipped, CI still running"
-    continue
-  fi
-
+  
   if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
   elif jq -e 'map(.name) | index("commit-queue-rebase")' < labels.json; then
