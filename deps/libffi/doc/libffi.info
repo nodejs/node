@@ -301,6 +301,7 @@ File: libffi.info,  Node: Types,  Next: Multiple ABIs,  Prev: Simple Example,  U
 * Type Example::                Structure type example.
 * Complex::                     Complex types.
 * Complex Type Example::        Complex type example.
+* Vector Types::                Vector (SIMD) types.
 
 
 File: libffi.info,  Node: Primitive Types,  Next: Structures,  Up: Types
@@ -660,7 +661,7 @@ functions ‘ffi_prep_cif’ and ‘ffi_prep_args’ abort the program if they
 encounter a complex type.
 
 
-File: libffi.info,  Node: Complex Type Example,  Prev: Complex,  Up: Types
+File: libffi.info,  Node: Complex Type Example,  Next: Vector Types,  Prev: Complex,  Up: Types
 
 2.3.7 Complex Type Example
 --------------------------
@@ -747,6 +748,92 @@ compilers that support them:
 type descriptors in the previous example.
 
 
+File: libffi.info,  Node: Vector Types,  Prev: Complex Type Example,  Up: Types
+
+2.3.8 Vector Types
+------------------
+
+‘libffi’ can marshal vector (SIMD) types -- the values produced by GCC's
+‘__attribute__((vector_size (N)))’ and Clang's ‘ext_vector_type’ -- on
+the platforms listed in the support table below.  A vector is described
+just like a structure, except that every element pointer refers to the
+_same_ fundamental scalar type and the number of elements is the number
+of vector lanes.
+
+ -- Data type: ffi_type
+     ‘size_t size’
+          This must be set to ‘0’.  ‘libffi’ computes the storage size
+          (see below) from the element type and lane count.
+
+     ‘unsigned short alignment’
+          This must be set to ‘0’.  ‘libffi’ computes the alignment.
+
+     ‘unsigned short type’
+          For a vector type, this must be set to ‘FFI_TYPE_VECTOR’.
+
+     ‘ffi_type **elements’
+          This is a ‘NULL’-terminated array of pointers to ‘ffi_type’
+          objects.  Every entry must point to the same scalar element
+          type, and the number of entries is the vector's lane count N
+          (N >= 1).  The element type must be one of ‘ffi_type_float’,
+          ‘ffi_type_double’, or a fixed-width integer (‘ffi_type_uint8’
+          through ‘ffi_type_sint64’); ‘long double’ and aggregate
+          element types are not permitted.
+
+Computed layout
+...............
+
+Because the caller leaves ‘size’ and ‘alignment’ at ‘0’, ‘libffi’
+derives them so that applications need not encode compiler- or
+platform-specific rules:
+
+   • ‘size’ is lane\_size \times N rounded _up_ to the next power of
+     two.  This matches Clang's ‘ext_vector_type’ storage -- for example
+     a three-lane ‘float’ vector occupies 16 bytes and a three-lane
+     ‘double’ vector occupies 32 bytes.  GCC's ‘vector_size’ already
+     requires power-of-two byte totals, so the rule is identical there.
+
+   • ‘alignment’ is ‘min(size, 16)’.
+
+   If the element list is heterogeneous, empty, or uses a disallowed
+element type, ‘ffi_prep_cif’ returns ‘FFI_BAD_TYPEDEF’.
+
+psABI framing
+.............
+
+At the call boundary the platform's processor-specific ABI (AAPCS64 on
+AArch64, the System V x86-64 psABI on x86-64) decides how a vector is
+passed and returned, independently of which compiler produced it.  The
+historical divergence between GCC's ‘vector_size’ and Clang's
+‘ext_vector_type’ concerns only in-memory _layout_ (notably the padding
+of odd-lane vectors such as ‘float3’); the power-of-two size rule above
+pins that layout down, so a value marshalled by ‘libffi’ matches what a
+natively compiled caller or callee expects.
+
+Per-port support
+................
+
+Port                 Vector support
+--------------------------------------------------------------------------
+AArch64 (AAPCS64)    8- and 16-byte vectors in a single V/Q register;
+                     homogeneous vector aggregates (structs of up to
+                     four identical 8- or 16-byte vectors) in
+                     consecutive V/Q registers.  A bare vector larger
+                     than 16 bytes (for example a 32-byte ‘double4’)
+                     has no short-vector register class and is passed
+                     and returned in memory, exactly as AAPCS64 and
+                     current compilers do.
+x86-64 (System V     8- and 16-byte vectors in an SSE register (‘%xmm0’
+psABI)               for returns).  A bare vector larger than 16 bytes
+                     needs ‘%ymm’/‘%zmm’ register handling that this
+                     port does not yet implement, so ‘ffi_prep_cif’
+                     returns ‘FFI_BAD_TYPEDEF’ for it.
+Other ports          Not supported: ‘ffi_prep_cif’ returns
+                     ‘FFI_BAD_TYPEDEF’ for any signature that mentions
+                     a vector type, including one nested inside a
+                     struct.
+
+
 File: libffi.info,  Node: Multiple ABIs,  Next: Reusable Call Plans,  Prev: Types,  Up: Using libffi
 
 2.4 Multiple ABIs
@@ -794,6 +881,14 @@ prepared ‘ffi_cif’.
      Releases a plan returned by ‘ffi_call_plan_alloc’.  Passing ‘NULL’
      is harmless.  The ‘ffi_cif’ the plan was built from is not
      affected.
+
+ -- Function: size_t ffi_call_plan_size (ffi_call_plan *PLAN)
+     Returns the total number of bytes ‘libffi’ allocated for PLAN,
+     including any internal argument-placement data it owns.  Returns
+     zero when PLAN is ‘NULL’.  The result does not include the
+     ‘ffi_cif’, which the caller owns.  This is intended for embedders
+     that account for the memory held by long-lived plans and would
+     otherwise have to guess at the size of an opaque type.
 
 
 File: libffi.info,  Node: The Closure API,  Next: Closure Example,  Prev: Reusable Call Plans,  Up: Using libffi
@@ -1056,6 +1151,7 @@ Index
 * ffi_call_plan_alloc:                   Reusable Call Plans. (line  12)
 * ffi_call_plan_free:                    Reusable Call Plans. (line  32)
 * ffi_call_plan_invoke:                  Reusable Call Plans. (line  22)
+* ffi_call_plan_size:                    Reusable Call Plans. (line  37)
 * ffi_closure_alloc:                     The Closure API.     (line  19)
 * ffi_closure_free:                      The Closure API.     (line  26)
 * FFI_CLOSURES:                          The Closure API.     (line  13)
@@ -1075,6 +1171,8 @@ Index
 * ffi_type <1>:                          Structures.          (line  10)
 * ffi_type <2>:                          Complex.             (line  15)
 * ffi_type <3>:                          Complex.             (line  15)
+* ffi_type <4>:                          Vector Types.        (line  13)
+* ffi_type <5>:                          Vector Types.        (line  13)
 * ffi_type_complex_double:               Primitive Types.     (line  82)
 * ffi_type_complex_float:                Primitive Types.     (line  79)
 * ffi_type_complex_longdouble:           Primitive Types.     (line  85)
@@ -1101,6 +1199,7 @@ Index
 * ffi_type_void:                         Primitive Types.     (line  10)
 * Foreign Function Interface:            Introduction.        (line  31)
 * size_t:                                The Basics.          (line 125)
+* size_t <1>:                            Reusable Call Plans. (line  37)
 * unsigned int:                          The Basics.          (line 122)
 * unsigned long:                         The Basics.          (line 117)
 * void:                                  The Basics.          (line  72)
@@ -1118,21 +1217,22 @@ Node: Using libffi4569
 Node: The Basics5172
 Node: Simple Example11346
 Node: Types12403
-Node: Primitive Types12914
-Node: Structures15231
-Node: Size and Alignment16342
-Node: Arrays Unions Enums18613
-Node: Type Example21590
-Node: Complex22896
-Node: Complex Type Example24410
-Node: Multiple ABIs27462
-Node: Reusable Call Plans27849
-Node: The Closure API29566
-Node: Closure Example33908
-Node: Thread Safety35552
-Node: Memory Usage36385
-Node: Missing Features37660
-Node: Index38037
+Node: Primitive Types12967
+Node: Structures15284
+Node: Size and Alignment16395
+Node: Arrays Unions Enums18666
+Node: Type Example21643
+Node: Complex22949
+Node: Complex Type Example24463
+Node: Vector Types27536
+Node: Multiple ABIs31575
+Node: Reusable Call Plans31962
+Node: The Closure API34155
+Node: Closure Example38497
+Node: Thread Safety40141
+Node: Memory Usage40974
+Node: Missing Features42249
+Node: Index42626
 
 End Tag Table
 

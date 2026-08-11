@@ -107,8 +107,13 @@ discover_homogeneous_aggregate (ffi_abi abi,
 	unsigned int inner_elnum = 0;
 	unsigned int inner
 	  = discover_homogeneous_aggregate (abi, t->elements[0], &inner_elnum);
-	if (inner == FFI_TYPE_FLOAT || inner == FFI_TYPE_DOUBLE)
+	if (inner == FFI_TYPE_FLOAT || inner == FFI_TYPE_DOUBLE
+	    || inner == FFI_TYPE_LONGDOUBLE)
 	  {
+	    /* A _Complex of an FP base counts as two of that base: an
+	       FP-HFA struct member.  For IBM-128 long double each half is
+	       itself two FPRs (inner_elnum == 2), so a _Complex long double
+	       contributes four FPRs.  */
 	    *elnum = 2 * inner_elnum;
 	    return inner;
 	  }
@@ -257,11 +262,17 @@ homogeneous:
           goto homogeneous;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
         case FFI_TYPE_LONGDOUBLE:
-          /* Only the 64-bit long double case is wired up; IBM-128 and
-             IEEE-binary128 _Complex are left as a follow-up.  */
-          if ((cif->abi & (FFI_LINUX_LONG_DOUBLE_128
-                           | FFI_LINUX_LONG_DOUBLE_IEEE128)) != 0)
-            return FFI_BAD_TYPEDEF;
+          if ((cif->abi & FFI_LINUX_LONG_DOUBLE_IEEE128) != 0)
+            {
+              /* IEEE-128 _Complex long double: real in v2, imag in v3.
+                 Return via the vector-homogeneous small-struct path.  */
+              flags |= FLAG_RETURNS_SMST | FLAG_RETURNS_VEC;
+              break;
+            }
+          /* IBM-128 _Complex long double is returned like a homogeneous
+             aggregate of doubles: real in f1:f2, imag in f3:f4.  (For a
+             64-bit long double this reduces to the FFI_TYPE_DOUBLE case,
+             real in f1 and imag in f2.)  */
           flags |= FLAG_RETURNS_SMST;
           rtype = FFI_TYPE_DOUBLE;
           goto homogeneous;
@@ -393,11 +404,21 @@ homogeneous:
 	      break;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
 	    case FFI_TYPE_LONGDOUBLE:
-	      if ((cif->abi & (FFI_LINUX_LONG_DOUBLE_128
-			       | FFI_LINUX_LONG_DOUBLE_IEEE128)) != 0)
-		return FFI_BAD_TYPEDEF;
-	      fparg_count += 2;
-	      intarg_count += 2;
+	      if ((cif->abi & FFI_LINUX_LONG_DOUBLE_IEEE128) != 0)
+		{
+		  /* Two IEEE-128 halves: each occupies a vector register plus
+		     two GPR shadow doublewords, the pair 16-byte aligned.  */
+		  vecarg_count += 2;
+		  intarg_count = (intarg_count + 1) & ~0x1;
+		  intarg_count += 4;
+		  if (vecarg_count > NUM_VEC_ARG_REGISTERS64)
+		    flags |= FLAG_ARG_NEEDS_PSAVE;
+		  break;
+		}
+	      /* IBM-128: each half is a pair of FPRs, and each FPR half
+		 consumes a GPR shadow doubleword -- four of each in total.  */
+	      fparg_count += 4;
+	      intarg_count += 4;
 	      if (fparg_count > NUM_FPR_ARG_REGISTERS64)
 		flags |= FLAG_ARG_NEEDS_PSAVE;
 	      break;
@@ -755,10 +776,51 @@ ffi_prep_args64 (extended_cif *ecif, unsigned long *const stack)
 	case FFI_TYPE_COMPLEX:
 	  elt = (*ptr)->elements[0]->type;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
-	  /* 64-bit long double is equivalent to double; the IBM-128 and
-	     IEEE-binary128 variants were rejected in prep_cif.  */
+	  if (elt == FFI_TYPE_LONGDOUBLE
+	      && (ecif->cif->abi & FFI_LINUX_LONG_DOUBLE_IEEE128) != 0)
+	    {
+	      /* IEEE-128 _Complex long double: each half goes in its own
+		 vector register (or the parameter save area), 16-byte
+		 aligned, consuming two GPR shadow doublewords.  */
+	      float128 *cval = (float128 *) *p_argv.v;
+	      unsigned int j;
+	      for (j = 0; j < 2; j++)
+		{
+		  next_arg.p = FFI_ALIGN (next_arg.p, 16);
+		  if (next_arg.ul == gpr_end.ul)
+		    next_arg.ul = rest.ul;
+		  if (vecarg_count < NUM_VEC_ARG_REGISTERS64 && i < nfixedargs)
+		    memcpy (vec_base.f128++, cval + j, sizeof (float128));
+		  else
+		    memcpy (next_arg.f128, cval + j, sizeof (float128));
+		  if (++next_arg.f128 == gpr_end.f128)
+		    next_arg.f128 = rest.f128;
+		  vecarg_count++;
+		}
+	      FFI_ASSERT (flags & FLAG_VEC_ARGUMENTS);
+	      break;
+	    }
 	  if (elt == FFI_TYPE_LONGDOUBLE)
-	    elt = FFI_TYPE_DOUBLE;
+	    {
+	      /* IBM-128 _Complex long double: four doubles (real hi/lo,
+		 imag hi/lo) into consecutive FPRs, each with a GPR shadow
+		 doubleword.  */
+	      double *cval = (double *) *p_argv.v;
+	      unsigned int j;
+	      for (j = 0; j < 4; j++)
+		{
+		  double_tmp = cval[j];
+		  if (fparg_count < NUM_FPR_ARG_REGISTERS64 && i < nfixedargs)
+		    *fpr_base.d++ = double_tmp;
+		  else
+		    *next_arg.d = double_tmp;
+		  if (++next_arg.ul == gpr_end.ul)
+		    next_arg.ul = rest.ul;
+		  fparg_count++;
+		}
+	      FFI_ASSERT (flags & FLAG_FP_ARGUMENTS);
+	      break;
+	    }
 #endif
 	  if (elt == FFI_TYPE_FLOAT)
 	    {
@@ -1336,8 +1398,45 @@ ffi_closure_helper_LINUX64 (ffi_cif *cif,
 	    unsigned int j;
 	    elt = arg_types[i]->elements[0]->type;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
+	    if (elt == FFI_TYPE_LONGDOUBLE
+		&& (cif->abi & FFI_LINUX_LONG_DOUBLE_IEEE128) != 0)
+	      {
+		/* IEEE-128: each half arrives in a vector register (or the
+		   16-byte-aligned parameter save area) with two GPR shadow
+		   doublewords.  */
+		float128 *cval = alloca (2 * sizeof (float128));
+		if (((unsigned long) pst & 0xF) != 0)
+		  ++pst;
+		for (j = 0; j < 2; j++)
+		  {
+		    if (pvec < end_pvec && i < nfixedargs)
+		      memcpy (&cval[j], pvec++, sizeof (float128));
+		    else
+		      memcpy (&cval[j], pst, sizeof (float128));
+		    pst += 2;
+		  }
+		avalue[i] = cval;
+		break;
+	      }
 	    if (elt == FFI_TYPE_LONGDOUBLE)
-	      elt = FFI_TYPE_DOUBLE;
+	      {
+		/* IBM-128: four doubles, each in an FPR (or one GPR shadow
+		   doubleword) -- real hi/lo then imag hi/lo.  */
+		double *cval = alloca (4 * sizeof (double));
+		for (j = 0; j < 4; j++)
+		  {
+		    if (pfr < end_pfr && i < nfixedargs)
+		      {
+			cval[j] = pfr->d;
+			pfr++;
+		      }
+		    else
+		      cval[j] = *(double *) pst;
+		    pst++;
+		  }
+		avalue[i] = cval;
+		break;
+	      }
 #endif
 	    if (elt == FFI_TYPE_FLOAT)
 	      {
@@ -1448,7 +1547,13 @@ ffi_closure_helper_LINUX64 (ffi_cif *cif,
 	int inner = cif->rtype->elements[0]->type;
 #if FFI_TYPE_LONGDOUBLE != FFI_TYPE_DOUBLE
 	if (inner == FFI_TYPE_LONGDOUBLE)
-	  inner = FFI_TYPE_DOUBLE;
+	  {
+	    /* IEEE-128 _Complex long double returns in v2:v3; IBM-128 in
+	       f1:f2 (real) and f3:f4 (imag), i.e. as a double HFA.  */
+	    if ((cif->abi & FFI_LINUX_LONG_DOUBLE_IEEE128) != 0)
+	      return PPC64_LD_VECTOR_HOMOG;
+	    inner = FFI_TYPE_DOUBLE;
+	  }
 #endif
 	if (inner == FFI_TYPE_FLOAT)
 	  return PPC64_LD_FLOAT_HOMOG;

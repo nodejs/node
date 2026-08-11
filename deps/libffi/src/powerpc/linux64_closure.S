@@ -345,6 +345,21 @@ E PPC64_LD_STRUCT_3
 	lwz %r3, RETVAL+4(%r1)
 	srd %r3, %r3, 8
 	epilogue
+
+E PPC64_LD_STRUCT_5
+	ld %r3, RETVAL+0(%r1)
+	srdi %r3, %r3, 24
+	epilogue
+
+E PPC64_LD_STRUCT_6
+	ld %r3, RETVAL+0(%r1)
+	srdi %r3, %r3, 16
+	epilogue
+
+E PPC64_LD_STRUCT_7
+	ld %r3, RETVAL+0(%r1)
+	srdi %r3, %r3, 8
+	epilogue
 #endif
 
 .Lmoredouble:

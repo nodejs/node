@@ -69,6 +69,15 @@ LIBFFI_CALL_PLAN_8.4 {
     ffi_call_plan_free;
 } LIBFFI_BASE_8.1;
 
+/* ----------------------------------------------------------------------
+   Call plan footprint query (ffi_call_plan_size).  A fresh node because
+   LIBFFI_CALL_PLAN_8.4 has already shipped.
+   -------------------------------------------------------------------- */
+LIBFFI_CALL_PLAN_8.5 {
+  global:
+    ffi_call_plan_size;
+} LIBFFI_CALL_PLAN_8.4;
+
 #ifdef FFI_TARGET_HAS_COMPLEX_TYPE
 LIBFFI_COMPLEX_8.0 {
   global:

@@ -89,8 +89,13 @@ typedef enum ffi_abi {
    to the default case and is mapped to FFI_TYPE_INT, so cif->flags never
    exceeds FFI_TYPE_COMPLEX and the existing tables remain sufficient.  Bump
    FFI_PA_TYPE_LAST to the current FFI_TYPE_LAST once you have confirmed any
-   newly added generic type is likewise handled (or the tables extended).  */
-#define FFI_PA_TYPE_LAST FFI_TYPE_SINT128
+   newly added generic type is likewise handled (or the tables extended).
+
+   FFI_TYPE_VECTOR (18) is likewise not reached here: PA does not define
+   FFI_TARGET_HAS_VECTOR_TYPE, so ffi_prep_cif_core rejects any vector
+   signature with FFI_BAD_TYPEDEF before machdep runs.  Bumping the tripwire
+   past it is therefore safe.  */
+#define FFI_PA_TYPE_LAST FFI_TYPE_VECTOR
 
 /* Tripwire: when a new generic type is added FFI_TYPE_LAST changes and this
    fires, forcing a review of ffi_prep_cif_machdep and the linux.S / hpux32.S
