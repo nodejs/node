@@ -100,15 +100,15 @@ test('fast FFI refreshes cached temporary string buffers', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   const overwriteString = lib.getFunction('overwrite_string', {
     arguments: ['string', 'i32', 'u64'],
-    return: 'pointer',
+    return: 'u8',
   });
 
   try {
     const mutated = overwriteString('hello', 0x79, 1n);
-    assert.strictEqual(ffi.toString(mutated), 'yello');
+    assert.strictEqual(mutated, 0x79);
 
     const refreshed = overwriteString('hello', 0x79, 0n);
-    assert.strictEqual(ffi.toString(refreshed), 'hello');
+    assert.strictEqual(refreshed, 0x68);
   } finally {
     lib.close();
   }
