@@ -135,6 +135,12 @@ class StatementSync;
 class BackupJob;
 class Session;
 
+inline void FinalizeStatement(sqlite3_stmt* stmt) {
+  sqlite3_finalize(stmt);
+}
+
+using StatementPtr = DeleteFnPtr<sqlite3_stmt, FinalizeStatement>;
+
 class StatementExecutionHelper {
  public:
   static v8::MaybeLocal<v8::Value> All(Environment* env,
@@ -263,13 +269,13 @@ class StatementSync : public BaseObject {
   StatementSync(Environment* env,
                 v8::Local<v8::Object> object,
                 BaseObjectPtr<DatabaseSync> db,
-                sqlite3_stmt* stmt);
+                StatementPtr stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<StatementSync> Create(Environment* env,
                                              BaseObjectPtr<DatabaseSync> db,
-                                             sqlite3_stmt* stmt);
+                                             StatementPtr stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -299,7 +305,7 @@ class StatementSync : public BaseObject {
   ~StatementSync() override;
   void Close();
   BaseObjectPtr<DatabaseSync> db_;
-  sqlite3_stmt* statement_;
+  StatementPtr statement_;
   bool return_arrays_ = false;
   bool use_big_ints_;
   bool allow_bare_named_params_;
