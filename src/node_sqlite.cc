@@ -177,19 +177,11 @@ Local<DictionaryTemplate> getLazyIterTemplate(Environment* env) {
 }
 }  // namespace
 
-// Helper function to find limit info from JS property name
-static constexpr const LimitInfo* GetLimitInfoFromName(std::string_view name) {
-  for (const auto& info : kLimitMapping) {
-    if (name == info.js_name) {
-      return &info;
-    }
-  }
-  return nullptr;
-}
-
-static constexpr const StatusInfo* GetStatusInfoFromName(
-    std::string_view name) {
-  for (const auto& info : kStatusMapping) {
+// Helper function to look up a mapping entry by its JS-facing name
+template <typename T, size_t N>
+static constexpr const T* FindByJsName(const std::array<T, N>& mapping,
+                                       std::string_view name) {
+  for (const auto& info : mapping) {
     if (name == info.js_name) {
       return &info;
     }
@@ -803,7 +795,8 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
   Isolate* isolate = env->isolate();
 
   Utf8Value prop_name(isolate, property);
-  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+  const LimitInfo* limit_info =
+      FindByJsName(kLimitMapping, prop_name.ToStringView());
 
   if (limit_info == nullptr) {
     return Intercepted::kNo;  // Unknown property, let default handling occur
@@ -835,7 +828,8 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
   Isolate* isolate = env->isolate();
 
   Utf8Value prop_name(isolate, property);
-  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+  const LimitInfo* limit_info =
+      FindByJsName(kLimitMapping, prop_name.ToStringView());
 
   if (limit_info == nullptr) {
     return Intercepted::kNo;
@@ -883,7 +877,8 @@ Intercepted DatabaseSyncLimits::LimitsQuery(
 
   Isolate* isolate = info.GetIsolate();
   Utf8Value prop_name(isolate, property);
-  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+  const LimitInfo* limit_info =
+      FindByJsName(kLimitMapping, prop_name.ToStringView());
 
   if (!limit_info) {
     return Intercepted::kNo;
@@ -3375,7 +3370,8 @@ void StatementSync::Stat(const FunctionCallbackInfo<Value>& args) {
   }
 
   Utf8Value counter(isolate, args[0].As<String>());
-  const StatusInfo* status_info = GetStatusInfoFromName(counter.ToStringView());
+  const StatusInfo* status_info =
+      FindByJsName(kStatusMapping, counter.ToStringView());
   if (status_info == nullptr) {
     THROW_ERR_INVALID_ARG_VALUE(
         isolate, "The \"counter\" argument is not a valid statistic name.");
