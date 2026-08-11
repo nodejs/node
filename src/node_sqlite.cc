@@ -3384,6 +3384,20 @@ void StatementSync::Stat(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Integer::New(isolate, value));
 }
 
+void StatementSync::ResetStats(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+
+  // sqlite3_stmt_status() resets a single counter per call, so every exposed
+  // counter is visited. The returned value is the pre-reset one and is unused.
+  for (const auto& info : kStatusMapping) {
+    sqlite3_stmt_status(stmt->statement_, info.sqlite_status_id, true);
+  }
+}
+
 void StatementSync::SetAllowBareNamedParameters(
     const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
@@ -3810,6 +3824,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
                             FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
                             StatementSync::ExpandedSQLGetter);
     SetProtoMethodNoSideEffect(isolate, tmpl, "stat", StatementSync::Stat);
+    SetProtoMethod(isolate, tmpl, "resetStats", StatementSync::ResetStats);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowBareNamedParameters",

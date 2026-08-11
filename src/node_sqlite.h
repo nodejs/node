@@ -303,6 +303,7 @@ class StatementSync : public BaseObject {
   static void ExpandedSQLGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stat(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ResetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowBareNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowUnknownNamedParameters(

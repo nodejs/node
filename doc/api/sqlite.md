@@ -1196,6 +1196,17 @@ returns an empty iterator. The prepared statement [parameters are bound][] using
 the values in `namedParameters` and `anonymousParameters`. See
 [Binding parameters][].
 
+### `statement.resetStats()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets every counter reported by [`statement.stat()`][] back to zero. This
+method is a wrapper around [`sqlite3_stmt_status()`][] and is useful for
+measuring a specific workload without the counts accumulated by earlier
+executions of the same prepared statement.
+
 ### `statement.run([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
@@ -1882,6 +1893,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
 [`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
 [`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
+[`statement.stat()`]: #statementstatcounter
 [busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html

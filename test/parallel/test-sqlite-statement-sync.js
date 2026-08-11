@@ -571,7 +571,7 @@ suite('StatementSync.prototype.stat()', () => {
   ];
 
   test('returns a number for every valid counter', (t) => {
-    using db = new DatabaseSync(nextDb());
+    using db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
     const stmt = db.prepare('SELECT * FROM data');
     for (const counter of counters) {
@@ -580,7 +580,7 @@ suite('StatementSync.prototype.stat()', () => {
   });
 
   test('counts virtual machine steps and runs after execution', (t) => {
-    using db = new DatabaseSync(nextDb());
+    using db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
     const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
     for (let i = 1; i <= 5; i++) {
@@ -596,7 +596,7 @@ suite('StatementSync.prototype.stat()', () => {
   });
 
   test('detects full table scans', (t) => {
-    using db = new DatabaseSync(nextDb());
+    using db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
     const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
     for (let i = 1; i <= 10; i++) {
@@ -615,7 +615,7 @@ suite('StatementSync.prototype.stat()', () => {
   });
 
   test('reading a counter does not reset it', (t) => {
-    using db = new DatabaseSync(nextDb());
+    using db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
     const stmt = db.prepare('SELECT * FROM data');
     stmt.all();
@@ -624,7 +624,7 @@ suite('StatementSync.prototype.stat()', () => {
   });
 
   test('throws if the counter argument is not a string', (t) => {
-    using db = new DatabaseSync(nextDb());
+    using db = new DatabaseSync(':memory:');
     const stmt = db.prepare('SELECT 1');
     t.assert.throws(() => stmt.stat(), {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -637,7 +637,7 @@ suite('StatementSync.prototype.stat()', () => {
   });
 
   test('throws if the counter name is unknown', (t) => {
-    using db = new DatabaseSync(nextDb());
+    using db = new DatabaseSync(':memory:');
     const stmt = db.prepare('SELECT 1');
     t.assert.throws(() => stmt.stat('nope'), {
       code: 'ERR_INVALID_ARG_VALUE',
@@ -646,10 +646,67 @@ suite('StatementSync.prototype.stat()', () => {
   });
 
   test('throws if the statement is finalized', (t) => {
-    const db = new DatabaseSync(nextDb());
+    const db = new DatabaseSync(':memory:');
     const stmt = db.prepare('SELECT 1');
     db.close();
     t.assert.throws(() => stmt.stat('run'), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
+
+suite('StatementSync.prototype.resetStats()', () => {
+  test('returns undefined', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    t.assert.strictEqual(stmt.resetStats(), undefined);
+  });
+
+  test('clears every counter', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    for (let i = 1; i <= 5; i++) {
+      insert.run(i, `val-${i}`);
+    }
+
+    // Force a full table scan so more than one counter is non-zero.
+    const stmt = db.prepare('SELECT * FROM data WHERE val = ?');
+    stmt.all('val-3');
+    t.assert.ok(stmt.stat('run') > 0);
+    t.assert.ok(stmt.stat('vmStep') > 0);
+    t.assert.ok(stmt.stat('fullscanStep') > 0);
+
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('run'), 0);
+    t.assert.strictEqual(stmt.stat('vmStep'), 0);
+    t.assert.strictEqual(stmt.stat('fullscanStep'), 0);
+  });
+
+  test('counters accumulate again after a reset', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const stmt = db.prepare('SELECT * FROM data');
+    stmt.all();
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('run'), 0);
+    stmt.all();
+    t.assert.strictEqual(stmt.stat('run'), 1);
+  });
+
+  test('is a no-op when no counters have been incremented', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('run'), 0);
+  });
+
+  test('throws if the statement is finalized', (t) => {
+    const db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    db.close();
+    t.assert.throws(() => stmt.resetStats(), {
       code: 'ERR_INVALID_STATE',
       message: /statement has been finalized/,
     });
