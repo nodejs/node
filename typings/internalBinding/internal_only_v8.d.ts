@@ -1,3 +1,3 @@
 export interface InternalOnlyV8Binding {
-  queryObjects(prototype: object): object[];
+  queryObjects(prototype: unknown): object[];
 }
