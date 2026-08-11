@@ -911,6 +911,9 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: The `RawJSON` exotic objects are recognized now.
   - version:
     - v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59710
