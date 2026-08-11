@@ -255,6 +255,7 @@
       'src/node_blob.h',
       'src/node_buffer.h',
       'src/node_builtins.h',
+      'src/node_concepts.h',
       'src/node_config_file.h',
       'src/node_constants.h',
       'src/node_context_data.h',

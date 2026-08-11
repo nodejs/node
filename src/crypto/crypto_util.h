@@ -732,8 +732,8 @@ class ArrayBufferOrViewContents final {
   }
 
   template <typename M>
+    requires(sizeof(M) == 1)
   void CopyTo(M* dest, size_t len) const {
-    static_assert(sizeof(M) == 1, "sizeof(M) must equal 1");
     len = std::min(len, size());
     if (len > 0 && data() != nullptr) {
       memcpy(dest, data(), len);

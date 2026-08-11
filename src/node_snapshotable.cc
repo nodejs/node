@@ -155,9 +155,8 @@ class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
                 DebugCategory::SNAPSHOT_SERDES),
             v) {}
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   T Read();
 };
 
@@ -172,9 +171,8 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
     sink.reserve(4 * 1024 * 1024);
   }
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   size_t Write(const T& data);
 };
 
@@ -733,13 +731,13 @@ static std::string FormatSize(size_t size) {
 }
 
 template <typename T>
+  requires(std::same_as<T, uint8_t> || std::same_as<T, char>)
 void WriteByteVectorLiteral(std::ostream* ss,
                             const T* vec,
                             size_t size,
                             const char* var_name,
                             bool use_array_literals) {
   constexpr bool is_uint8_t = std::is_same_v<T, uint8_t>;
-  static_assert(is_uint8_t || std::is_same_v<T, char>);
   constexpr const char* type_name = is_uint8_t ? "uint8_t" : "char";
   if (!use_array_literals) {
     const uint8_t* data = reinterpret_cast<const uint8_t*>(vec);

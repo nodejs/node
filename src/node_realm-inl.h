@@ -92,10 +92,8 @@ inline T* Realm::GetBindingData() {
   return result;
 }
 
-template <typename T, typename... Args>
+template <std::derived_from<BaseObject> T, typename... Args>
 inline T* Realm::AddBindingData(v8::Local<v8::Object> target, Args&&... args) {
-  // This won't compile if T is not a BaseObject subclass.
-  static_assert(std::is_base_of_v<BaseObject, T>);
   // The binding data must be weak so that it won't keep the realm reachable
   // from strong GC roots indefinitely. The wrapper object of binding data
   // should be referenced from JavaScript, thus the binding data should be
