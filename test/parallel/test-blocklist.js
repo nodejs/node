@@ -814,6 +814,13 @@ const util = require('util');
   assert(blockList.check('127.255.255.255'));
   assert(blockList.check('::1', 'ipv6'));
 
+  // IPv4 "this" network / unspecified (alternate localhost spellings)
+  assert(blockList.check('0.0.0.0'));
+  assert(blockList.check('0.0.0.1'));
+
+  // IPv6 unspecified
+  assert(blockList.check('::', 'ipv6'));
+
   // Link-local
   assert(blockList.check('169.254.0.1'));
   assert(blockList.check('fe80::1', 'ipv6'));
