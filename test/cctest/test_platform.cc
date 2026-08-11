@@ -1,6 +1,8 @@
 #include "node_internals.h"
 #include "libplatform/libplatform.h"
 
+#include <atomic>
+#include <cstdint>
 #include <string>
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
@@ -38,6 +40,51 @@ class RepostingTask : public v8::Task {
   node::NodePlatform* platform_;
 };
 
+class ForegroundSignalTask : public v8::Task {
+ public:
+  explicit ForegroundSignalTask(uv_sem_t* semaphore) : semaphore_(semaphore) {}
+
+  void Run() final { uv_sem_post(semaphore_); }
+
+ private:
+  uv_sem_t* semaphore_;
+};
+
+class WorkerTaskWaitingForForeground : public v8::Task {
+ public:
+  WorkerTaskWaitingForForeground(
+      std::shared_ptr<v8::TaskRunner> foreground_task_runner,
+      uv_sem_t* foreground_task_finished,
+      std::atomic<bool>* unblocked_by_foreground)
+      : foreground_task_runner_(std::move(foreground_task_runner)),
+        foreground_task_finished_(foreground_task_finished),
+        unblocked_by_foreground_(unblocked_by_foreground) {}
+
+  void Run() final {
+    foreground_task_runner_->PostTask(
+        std::make_unique<ForegroundSignalTask>(foreground_task_finished_));
+
+    // Bound the wait so an unfixed binary fails instead of hanging cctest.
+    constexpr uint64_t kTimeoutNanoseconds = 5'000'000'000ULL;
+    const uint64_t deadline = uv_hrtime() + kTimeoutNanoseconds;
+    while (true) {
+      int err = uv_sem_trywait(foreground_task_finished_);
+      if (err == 0) {
+        unblocked_by_foreground_->store(true);
+        return;
+      }
+      CHECK_EQ(UV_EAGAIN, err);
+      if (uv_hrtime() >= deadline) return;
+      uv_sleep(1);
+    }
+  }
+
+ private:
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  uv_sem_t* foreground_task_finished_;
+  std::atomic<bool>* unblocked_by_foreground_;
+};
+
 class PlatformTest : public EnvironmentTestFixture {};
 
 TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
@@ -58,6 +105,30 @@ TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
   EXPECT_TRUE(platform->FlushForegroundTasks(isolate_));
   EXPECT_EQ(3, run_count);
   EXPECT_FALSE(platform->FlushForegroundTasks(isolate_));
+}
+
+TEST_F(PlatformTest, DrainTasksRunsForegroundTasksNeededByWorker) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env {handle_scope, argv};
+
+  uv_sem_t foreground_task_finished;
+  CHECK_EQ(0, uv_sem_init(&foreground_task_finished, 0));
+  std::atomic<bool> unblocked_by_foreground{false};
+  auto foreground_task_runner = platform->GetForegroundTaskRunner(
+      isolate_, v8::TaskPriority::kUserBlocking);
+  platform->PostTaskOnWorkerThread(
+      v8::TaskPriority::kUserBlocking,
+      std::make_unique<WorkerTaskWaitingForForeground>(
+          std::move(foreground_task_runner),
+          &foreground_task_finished,
+          &unblocked_by_foreground));
+
+  platform->DrainTasks(isolate_);
+
+  EXPECT_TRUE(unblocked_by_foreground.load());
+  uv_sem_destroy(&foreground_task_finished);
 }
 
 // Tests the registration of an abstract `IsolatePlatformDelegate` instance as
