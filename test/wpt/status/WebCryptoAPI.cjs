@@ -117,6 +117,12 @@ if (hasFIPS(3)) {
     ]);
 }
 
+if (hasFIPS()) {
+  skip(
+    'digest/kangarootwelve.tentative.https.any.js',
+    'digest/turboshake.tentative.https.any.js');
+}
+
 // OpenSSL 3.0 through 3.3 reject SHA-1 signature generation in FIPS mode.
 // OpenSSL 3.4 permits it for legacy use cases while marking the operation as
 // non-approved through a per-operation FIPS indicator. Node does not expose
@@ -171,8 +177,10 @@ if (hasFIPS(4)) {
     ]);
 }
 
-skipSubtests(
-  ['digest/kangarootwelve.tentative.https.any.js', /C=(?:\d{4,}|5(?:1[3-9]|[2-9]\d)|[6-9]\d{2}) bytes/]);
+if (!hasFIPS()) {
+  skipSubtests(
+    ['digest/kangarootwelve.tentative.https.any.js', /C=(?:\d{4,}|5(?:1[3-9]|[2-9]\d)|[6-9]\d{2}) bytes/]);
+}
 
 function assertNoOverlap(fileSkips, subtestSkips) {
   const subtestSkipFiles = new Set(Object.keys(subtestSkips));
