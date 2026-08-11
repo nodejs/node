@@ -59,7 +59,6 @@ Matcher<std::string>::Matcher(const std::string& s) { *this = Eq(s); }
 // s.
 Matcher<std::string>::Matcher(const char* s) { *this = Eq(std::string(s)); }
 
-#if GTEST_INTERNAL_HAS_STRING_VIEW
 // Constructs a matcher that matches a const StringView& whose value is
 // equal to s.
 Matcher<const internal::StringView&>::Matcher(const std::string& s) {
@@ -93,6 +92,5 @@ Matcher<internal::StringView>::Matcher(const char* s) {
 Matcher<internal::StringView>::Matcher(internal::StringView s) {
   *this = Eq(std::string(s));
 }
-#endif  // GTEST_INTERNAL_HAS_STRING_VIEW
 
 }  // namespace testing
