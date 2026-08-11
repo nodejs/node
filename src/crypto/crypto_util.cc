@@ -146,6 +146,11 @@ bool InitCryptoOnce(Isolate* isolate) {
 // be part of a larger mutex for global OpenSSL state.
 static Mutex fips_mutex;
 
+bool IsFipsEnabled() {
+  Mutex::ScopedLock fips_lock(fips_mutex);
+  return ncrypto::isFipsEnabled();
+}
+
 void InitCryptoOnce() {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
   Mutex::ScopedLock fips_lock(fips_mutex);
@@ -223,8 +228,7 @@ void InitCryptoOnce() {
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Mutex::ScopedLock fips_lock(fips_mutex);
-  args.GetReturnValue().Set(ncrypto::isFipsEnabled() ? 1 : 0);
+  args.GetReturnValue().Set(IsFipsEnabled() ? 1 : 0);
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {

@@ -812,6 +812,11 @@ Maybe<void> CShakeTraits::AdditionalConfig(
     CShakeConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
+  if (IsFipsEnabled()) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return Nothing<void>();
+  }
+
   CHECK(args[offset]->IsString());  // Algorithm name
   Utf8Value algorithm_name(env->isolate(), args[offset]);
   std::string_view algorithm_str = algorithm_name.ToStringView();
