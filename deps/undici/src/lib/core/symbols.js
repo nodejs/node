@@ -56,6 +56,7 @@ module.exports = {
   kCounter: Symbol('socket request counter'),
   kMaxResponseSize: Symbol('max response size'),
   kHTTP2Session: Symbol('http2Session'),
+  kHTTP2Options: Symbol('http2 options'),
   kHTTP2SessionState: Symbol('http2Session state'),
   kRetryHandlerDefaultRetry: Symbol('retry agent default retry'),
   kConstruct: Symbol('constructable'),
