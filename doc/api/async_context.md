@@ -142,7 +142,7 @@ changes:
   * `defaultValue` {any} The default value to be used when no store is provided.
   * `name` {string} A name for the `AsyncLocalStorage` value.
 
-Creates a new instance of `AsyncLocalStorage`. A Store is only provided within a
+Creates a new instance of `AsyncLocalStorage`. A store is only provided within a
 `run()` call or after an `enterWith()` call.
 
 ### Static method: `AsyncLocalStorage.bind(fn)`
