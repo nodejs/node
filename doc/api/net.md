@@ -266,6 +266,8 @@ The included ranges are:
 * `169.254.0.0/16` — IPv4 link-local
 * `fe80::/10` — IPv6 link-local
 * `fc00::/7` — IPv6 unique local (ULA)
+* `100.64.0.0/10` — RFC 6598 shared address space (CGNAT)
+* `198.18.0.0/15` — RFC 2544 benchmarking methodology
 
 ```js
 const blockList = new net.BlockList();
