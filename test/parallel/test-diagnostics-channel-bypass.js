@@ -166,20 +166,14 @@ const { AsyncLocalStorage } = require('async_hooks');
   // Bypass store, must NOT be entered inside bypass().
   ch.bindStore(als, common.mustNotCall(), { bypassId: key });
 
-  // Handler verifies:
-  // - normal store WAS entered (normalAls has value)
-  // - bypass store was NOT entered (als is undefined)
-  const handler = common.mustCall(() => {
-    assert.strictEqual(normalAls.getStore()?.value, 42);
-    assert.strictEqual(als.getStore(), undefined);
-  });
-  ch.subscribe(handler);
-
   bypass(key, common.mustCall(() => {
-    ch.runStores({ value: 42 }, common.mustCall());
+    ch.runStores({ value: 42 }, common.mustCall(() => {
+      // Assertions inside runStores where store context exists
+      assert.strictEqual(normalAls.getStore()?.value, 42);
+      assert.strictEqual(als.getStore(), undefined);
+    }));
   }));
 
-  ch.unsubscribe(handler);
   ch.unbindStore(als);
   ch.unbindStore(normalAls);
 }
@@ -189,11 +183,17 @@ const { AsyncLocalStorage } = require('async_hooks');
   const ch = channel('test-bypass-wrong-type');
   const bad = 'not-allowed';
   assert.throws(() => ch.subscribe(() => {}, { bypassId: bad }), {
-    name: 'TypeError'
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
   });
   const als = new AsyncLocalStorage();
   assert.throws(() => ch.bindStore(als, (d) => d, { bypassId: bad }), {
-    name: 'TypeError'
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+  });
+  assert.throws(() => bypass(bad, () => {}), {
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
   });
 }
 
