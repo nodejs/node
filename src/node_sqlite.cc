@@ -3188,7 +3188,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
 
   bool needs_reset = true;
   auto reset = OnScopeLeave([&]() {
-    if (needs_reset) sqlite3_reset(stmt->statement_);
+    if (needs_reset) sqlite3_reset(stmt->statement_.get());
   });
   Local<Value> result;
   if (StatementExecutionHelper::All(env,
@@ -3198,7 +3198,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
     RESET_AND_CHECK(
-        isolate, stmt->db_.get(), stmt->statement_, needs_reset, void());
+        isolate, stmt->db_.get(), stmt->statement_.get(), needs_reset, void());
     args.GetReturnValue().Set(result);
   }
 }
@@ -3635,7 +3635,7 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   bool needs_reset = true;
   auto reset = OnScopeLeave([&]() {
-    if (needs_reset) sqlite3_reset(stmt->statement_);
+    if (needs_reset) sqlite3_reset(stmt->statement_.get());
   });
   Local<Value> result;
   if (StatementExecutionHelper::All(env,
@@ -3645,7 +3645,7 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
                                     stmt->use_big_ints_)
           .ToLocal(&result)) {
     RESET_AND_CHECK(
-        isolate, stmt->db_.get(), stmt->statement_, needs_reset, void());
+        isolate, stmt->db_.get(), stmt->statement_.get(), needs_reset, void());
     args.GetReturnValue().Set(result);
   }
 }
@@ -3885,7 +3885,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
     iter->done_ = true;
     RESET_OR_THROW(env->isolate(),
                    iter->stmt_->db_.get(),
-                   iter->stmt_->statement_,
+                   iter->stmt_->statement_.get(),
                    void());
     MaybeLocal<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
     Local<Object> result;
