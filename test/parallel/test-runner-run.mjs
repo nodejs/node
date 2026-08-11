@@ -213,6 +213,43 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     assert.strictEqual(result[5], '# tests 1\n');
   });
 
+  it('should apply testNamePatterns and testSkipPatterns with isolation \'none\'', async () => {
+    const stream = run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      isolation: 'none',
+      testNamePatterns: [/should/],
+      testSkipPatterns: [/skipped/],
+    });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall((event) => {
+      assert.strictEqual(event.name, 'this should be executed');
+    }, 1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should run tests with testNamePatterns in watch mode with isolation \'none\'', async () => {
+    // The name filters must not be applied to the file level test that wraps
+    // the spawned process. Without this, no test ever runs.
+    const controller = new AbortController();
+    const passes = [];
+    const stream = run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      watch: true,
+      isolation: 'none',
+      signal: controller.signal,
+      testNamePatterns: [/executed/],
+    });
+    stream.on('test:pass', (event) => {
+      passes.push(event.name);
+      controller.abort();
+    });
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    assert.ok(passes.length > 0);
+    assert.ok(!passes.includes('this should be skipped'));
+  });
+
   it('should pass only to children', async () => {
     const result = await run({
       files: [join(testFixtures, 'test_only.js')],
