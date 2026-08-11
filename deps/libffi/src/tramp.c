@@ -417,9 +417,19 @@ ffi_tramp_init (void)
     &tramp_globals.map_size);
   tramp_globals.ntramp = tramp_globals.map_size / tramp_globals.size;
 
+  /*
+   * The trampoline code table is a single, fixed-size mapping.  If the
+   * system page size is larger than that mapping, the static trampoline
+   * mechanism cannot be used.  Both values are invariant for the life of
+   * the process, so cache the FAILED verdict rather than re-running the
+   * whole initialization on every allocation.
+   */
   page_size = sysconf (_SC_PAGESIZE);
   if (page_size >= 0 && (size_t)page_size > tramp_globals.map_size)
-    return 0;
+    {
+      tramp_globals.status = TRAMP_GLOBALS_FAILED;
+      return 0;
+    }
 
   if (ffi_tramp_init_os ())
     {
