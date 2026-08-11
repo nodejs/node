@@ -45,6 +45,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "gtest/gtest-printers.h"
@@ -543,9 +544,8 @@ Matcher<std::string> : public internal::MatcherBase<std::string> {
   Matcher(const char* s);  // NOLINT
 };
 
-#if GTEST_INTERNAL_HAS_STRING_VIEW
 // The following two specializations allow the user to write str
-// instead of Eq(str) and "foo" instead of Eq("foo") when a absl::string_view
+// instead of Eq(str) and "foo" instead of Eq("foo") when a std::string_view
 // matcher is expected.
 template <>
 class GTEST_API_ [[nodiscard]] Matcher<const internal::StringView&>
@@ -569,7 +569,7 @@ class GTEST_API_ [[nodiscard]] Matcher<const internal::StringView&>
   // Allows the user to write "foo" instead of Eq("foo") sometimes.
   Matcher(const char* s);  // NOLINT
 
-  // Allows the user to pass absl::string_views or std::string_views directly.
+  // Allows the user to pass std::string_views directly.
   Matcher(internal::StringView s);  // NOLINT
 };
 
@@ -596,10 +596,9 @@ class GTEST_API_ [[nodiscard]] Matcher<internal::StringView>
   // Allows the user to write "foo" instead of Eq("foo") sometimes.
   Matcher(const char* s);  // NOLINT
 
-  // Allows the user to pass absl::string_views or std::string_views directly.
+  // Allows the user to pass std::string_views directly.
   Matcher(internal::StringView s);  // NOLINT
 };
-#endif  // GTEST_INTERNAL_HAS_STRING_VIEW
 
 // Prints a matcher in a human-readable format.
 template <typename T>
@@ -812,9 +811,26 @@ class [[nodiscard]] ImplicitCastEqMatcher {
   StoredRhs stored_rhs_;
 };
 
-template <typename T,
-          typename = std::enable_if_t<std::is_constructible_v<std::string, T>>>
-using StringLike = T;
+// Dummy function (never defined) whose return type evaluates to std::string if
+// the given type is a string-like type that can be converted to std::string,
+// either directly or through an intermediate std::string_view.
+template <class T>
+extern std::enable_if_t<std::is_constructible_v<std::string, T>, std::string>
+ResolveAsString(const void* /* preferred */);
+
+#if GTEST_HAS_STD_WSTRING
+// Same as above, but for std::wstring. In cases where both conversions are
+// possible, this overload takes lower priority.
+template <class T>
+extern std::enable_if_t<std::is_constructible_v<std::wstring, T>, std::wstring>
+ResolveAsString(... /* fallback */);
+#endif
+
+// Evaluates to the std::basic_string type that the given string-like type can
+// be converted to. Prefers std::string over std::wstring if both are possible.
+// Fails in a SFINAE-friendly way if no conversion was viable.
+template <typename T>
+using StringType = decltype(ResolveAsString<T>(nullptr));
 
 // Implements polymorphic matchers MatchesRegex(regex) and
 // ContainsRegex(regex), which can be used as a Matcher<T> as long as
@@ -824,12 +840,10 @@ class [[nodiscard]] MatchesRegexMatcher {
   MatchesRegexMatcher(const RE* regex, bool full_match)
       : regex_(regex), full_match_(full_match) {}
 
-#if GTEST_INTERNAL_HAS_STRING_VIEW
   bool MatchAndExplain(const internal::StringView& s,
                        MatchResultListener* listener) const {
     return MatchAndExplain(std::string(s), listener);
   }
-#endif  // GTEST_INTERNAL_HAS_STRING_VIEW
 
   // Accepts pointer types, particularly:
   //   const char*
@@ -844,7 +858,7 @@ class [[nodiscard]] MatchesRegexMatcher {
   // Matches anything that can convert to std::string.
   //
   // This is a template, not just a plain function with const std::string&,
-  // because absl::string_view has some interfering non-explicit constructors.
+  // because std::string_view has some interfering non-explicit constructors.
   template <class MatcheeStringType>
   bool MatchAndExplain(const MatcheeStringType& s,
                        MatchResultListener* /* listener */) const {
@@ -877,9 +891,10 @@ inline PolymorphicMatcher<internal::MatchesRegexMatcher> MatchesRegex(
   return MakePolymorphicMatcher(internal::MatchesRegexMatcher(regex, true));
 }
 template <typename T = std::string>
-PolymorphicMatcher<internal::MatchesRegexMatcher> MatchesRegex(
-    const internal::StringLike<T>& regex) {
-  return MatchesRegex(new internal::RE(std::string(regex)));
+std::enable_if_t<std::is_constructible_v<internal::RE, internal::StringType<T>>,
+                 PolymorphicMatcher<internal::MatchesRegexMatcher>>
+MatchesRegex(const T& regex) {
+  return MatchesRegex(new internal::RE(internal::StringType<T>(regex)));
 }
 
 // Matches a string that contains regular expression 'regex'.
@@ -889,9 +904,10 @@ inline PolymorphicMatcher<internal::MatchesRegexMatcher> ContainsRegex(
   return MakePolymorphicMatcher(internal::MatchesRegexMatcher(regex, false));
 }
 template <typename T = std::string>
-PolymorphicMatcher<internal::MatchesRegexMatcher> ContainsRegex(
-    const internal::StringLike<T>& regex) {
-  return ContainsRegex(new internal::RE(std::string(regex)));
+std::enable_if_t<std::is_constructible_v<internal::RE, internal::StringType<T>>,
+                 PolymorphicMatcher<internal::MatchesRegexMatcher>>
+ContainsRegex(const T& regex) {
+  return ContainsRegex(new internal::RE(internal::StringType<T>(regex)));
 }
 
 // Creates a polymorphic matcher that matches anything equal to x.

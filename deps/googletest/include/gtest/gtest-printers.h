@@ -291,11 +291,9 @@ struct ConvertibleToIntegerPrinter {
 };
 
 struct ConvertibleToStringViewPrinter {
-#if GTEST_INTERNAL_HAS_STRING_VIEW
   static void PrintValue(internal::StringView value, ::std::ostream* os) {
     internal::UniversalPrint(value, os);
   }
-#endif
 };
 
 #ifdef GTEST_HAS_ABSL
@@ -703,12 +701,12 @@ void PrintRawArrayTo(const T a[], size_t count, ::std::ostream* os) {
   }
 }
 
-// Overloads for ::std::string and ::std::string_view
-GTEST_API_ void PrintStringTo(::std::string_view s, ::std::ostream* os);
+// Overloads for ::std::string and std::string_view
+GTEST_API_ void PrintStringTo(std::string_view s, ::std::ostream* os);
 inline void PrintTo(const ::std::string& s, ::std::ostream* os) {
   PrintStringTo(s, os);
 }
-inline void PrintTo(::std::string_view s, ::std::ostream* os) {
+inline void PrintTo(std::string_view s, ::std::ostream* os) {
   PrintStringTo(s, os);
 }
 
@@ -752,16 +750,14 @@ inline void PrintTo(::std::wstring_view s, ::std::ostream* os) {
 }
 #endif  // GTEST_HAS_STD_WSTRING
 
-#if GTEST_INTERNAL_HAS_STRING_VIEW
 // Overload for internal::StringView. Needed for build configurations where
 // internal::StringView is an alias for absl::string_view, but absl::string_view
 // is a distinct type from std::string_view.
 template <int&... ExplicitArgumentBarrier, typename T = internal::StringView,
-          std::enable_if_t<!std::is_same_v<T, ::std::string_view>, int> = 0>
+          std::enable_if_t<!std::is_same_v<T, std::string_view>, int> = 0>
 inline void PrintTo(internal::StringView sp, ::std::ostream* os) {
   PrintStringTo(sp, os);
 }
-#endif  // GTEST_INTERNAL_HAS_STRING_VIEW
 
 inline void PrintTo(std::nullptr_t, ::std::ostream* os) { *os << "(nullptr)"; }
 
