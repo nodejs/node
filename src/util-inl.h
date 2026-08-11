@@ -195,7 +195,7 @@ char ToLower(char c) {
   return std::tolower(c, std::locale::classic());
 }
 
-template <typename T>
+template <std::ranges::range T>
 std::string ToLower(const T& in) {
   auto it = std::cbegin(in);
   auto end = std::cend(in);
@@ -210,7 +210,7 @@ char ToUpper(char c) {
   return std::toupper(c, std::locale::classic());
 }
 
-template <typename T>
+template <std::ranges::range T>
 std::string ToUpper(const T& in) {
   auto it = std::cbegin(in);
   auto end = std::cend(in);
@@ -239,7 +239,7 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
-template <typename T>
+template <std::integral T>
 inline T MultiplyWithOverflowCheck(T a, T b) {
   auto ret = a * b;
   if (a != 0)
@@ -485,7 +485,7 @@ v8::Local<v8::Value> ConvertNumberToV8Value(v8::Isolate* isolate,
   return v8::Number::New(isolate, static_cast<double>(number));
 }
 
-template <typename T, typename>
+template <NumericValue T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const T& number,
                                     v8::Isolate* isolate) {
@@ -494,14 +494,10 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 }
 
 template <typename T>
+  requires std::is_arithmetic_v<T>
 v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
                                              const std::vector<T>& vec,
                                              v8::Isolate* isolate) {
-  static_assert(
-      std::is_same_v<T, bool> || std::is_integral_v<T> ||
-          std::is_floating_point_v<T>,
-      "Only primitive types (bool, integral, floating-point) are supported.");
-
   if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
@@ -550,6 +546,7 @@ void MaybeStackBuffer<T, kStackStorageSize>::AllocateSufficientStorage(
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Value> value) {
   DCHECK(value->IsArrayBufferView() || value->IsSharedArrayBuffer() ||
@@ -558,6 +555,7 @@ ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::Object> value) {
   CHECK(value->IsArrayBufferView());
@@ -565,14 +563,15 @@ ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 ArrayBufferViewContents<T, S>::ArrayBufferViewContents(
     v8::Local<v8::ArrayBufferView> abv) {
   Read(abv);
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
-  static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
   length_ = abv->ByteLength();
   if (length_ > sizeof(stack_storage_) || abv->HasBuffer()) {
     auto buf_data = abv->Buffer()->Data();
@@ -585,8 +584,8 @@ void ArrayBufferViewContents<T, S>::Read(v8::Local<v8::ArrayBufferView> abv) {
 }
 
 template <typename T, size_t S>
+  requires(sizeof(T) == 1)
 void ArrayBufferViewContents<T, S>::ReadValue(v8::Local<v8::Value> buf) {
-  static_assert(sizeof(T) == 1, "Only supports one-byte data at the moment");
   DCHECK(buf->IsArrayBufferView() || buf->IsSharedArrayBuffer() ||
          buf->IsArrayBuffer());
 
@@ -649,10 +648,7 @@ constexpr std::string_view FastStringKey::as_string_view() const {
 }
 
 // Converts a V8 numeric value to a corresponding C++ primitive or enum type.
-template <typename T,
-          bool loose = false,
-          typename = std::enable_if_t<std::numeric_limits<T>::is_specialized ||
-                                      std::is_enum_v<T>>>
+template <NumericOrEnum T, bool loose = false>
 T FromV8Value(v8::Local<v8::Value> value) {
   if constexpr (std::is_enum_v<T>) {
     using Underlying = std::underlying_type_t<T>;
