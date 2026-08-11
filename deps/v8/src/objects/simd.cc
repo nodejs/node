@@ -348,7 +348,10 @@ uintptr_t fast_search_avx(T* array, uintptr_t array_len, uintptr_t index,
 }
 #endif  // ifdef __SSE3__
 
-#ifdef NEON64
+// When built with other toolchains, do not count on it to expose
+// __builtin_sve_* on a per-function basis. Fallback to Neon.
+#if defined(NEON64) && defined(__clang__)
+#define V8_ENABLE_SIMD_SVE 1
 
 template <typename ScalarType>
 struct SVEOperations {
@@ -628,7 +631,7 @@ TARGET_SVE inline uintptr_t fast_search_sve(T* array, uintptr_t array_len,
   return no_match;
 }
 
-#endif  // NEON64
+#endif  // defined(NEON64) && defined(__clang__)
 
 #undef IS_CLANG_WIN
 #undef VECTORIZED_LOOP_Neon
@@ -637,15 +640,15 @@ TARGET_SVE inline uintptr_t fast_search_sve(T* array, uintptr_t array_len,
 template <typename T>
 inline uintptr_t search(T* array, uintptr_t array_len, uintptr_t index,
                         T search_element) {
-#ifdef NEON64
+#ifdef V8_ENABLE_SIMD_SVE
   if (get_vectorization_kind() == SimdKinds::kSVE) {
     return fast_search_sve(array, array_len, index, search_element);
   }
-#else
+#elif !defined(NEON64)
   if (get_vectorization_kind() == SimdKinds::kAVX2) {
     return fast_search_avx(array, array_len, index, search_element);
   }
-#endif  // NEON64
+#endif
 
   return fast_search_noavx(array, array_len, index, search_element);
 }
