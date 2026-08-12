@@ -11,7 +11,7 @@
 These classes are used to associate state and propagate it throughout
 callbacks and promise chains.
 They allow storing data throughout the lifetime of a web request
-or any other asynchronous duration. It is similar to thread-local storage
+or any other asynchronous operation. It is similar to thread-local storage
 in other languages.
 
 The `AsyncLocalStorage` and `AsyncResource` classes are part of the
@@ -142,7 +142,7 @@ changes:
   * `defaultValue` {any} The default value to be used when no store is provided.
   * `name` {string} A name for the `AsyncLocalStorage` value.
 
-Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
+Creates a new instance of `AsyncLocalStorage`. A store is only provided within a
 `run()` call or after an `enterWith()` call.
 
 ### Static method: `AsyncLocalStorage.bind(fn)`
@@ -222,7 +222,7 @@ to `asyncLocalStorage.getStore()` will return `undefined` until
 `asyncLocalStorage.run()` or `asyncLocalStorage.enterWith()` is called again.
 
 When calling `asyncLocalStorage.disable()`, all current contexts linked to the
-instance will be exited.
+`asyncLocalStorage` instance will be exited.
 
 Calling `asyncLocalStorage.disable()` is required before the
 `asyncLocalStorage` can be garbage collected. This does not apply to stores
