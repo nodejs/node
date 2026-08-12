@@ -3381,7 +3381,7 @@ void StatementSync::Stat(const FunctionCallbackInfo<Value>& args) {
 
   // The reset flag is always false; the counter is read without being cleared.
   int value = sqlite3_stmt_status(
-      stmt->statement_, status_info->sqlite_status_id, false);
+      stmt->statement_.get(), status_info->sqlite_status_id, false);
   args.GetReturnValue().Set(Integer::New(isolate, value));
 }
 
@@ -3401,7 +3401,7 @@ void StatementSync::ResetStats(const FunctionCallbackInfo<Value>& args) {
     if (info.sqlite_status_id == SQLITE_STMTSTATUS_MEMUSED) {
       continue;
     }
-    sqlite3_stmt_status(stmt->statement_, info.sqlite_status_id, true);
+    sqlite3_stmt_status(stmt->statement_.get(), info.sqlite_status_id, true);
   }
 
   // The column name cache is keyed on SQLITE_STMTSTATUS_REPREPARE, which was
