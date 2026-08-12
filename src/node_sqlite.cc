@@ -2699,6 +2699,7 @@ void StatementSync::Finalize() {
 
 void StatementSync::InvalidateColumnNameCache() {
   cached_column_names_.clear();
+  cached_column_names_reprepare_count_ = -1;
 }
 
 inline bool StatementSync::IsFinalized() {
@@ -3393,9 +3394,20 @@ void StatementSync::ResetStats(const FunctionCallbackInfo<Value>& args) {
 
   // sqlite3_stmt_status() resets a single counter per call, so every exposed
   // counter is visited. The returned value is the pre-reset one and is unused.
+  // SQLITE_STMTSTATUS_MEMUSED is skipped: it reports current memory usage
+  // rather than an accumulated counter, and SQLite ignores the reset flag for
+  // it.
   for (const auto& info : kStatusMapping) {
+    if (info.sqlite_status_id == SQLITE_STMTSTATUS_MEMUSED) {
+      continue;
+    }
     sqlite3_stmt_status(stmt->statement_, info.sqlite_status_id, true);
   }
+
+  // The column name cache is keyed on SQLITE_STMTSTATUS_REPREPARE, which was
+  // just zeroed. Without invalidating, a later re-prepare can make the counter
+  // match the cached generation again and the stale names would be reused.
+  stmt->InvalidateColumnNameCache();
 }
 
 void StatementSync::SetAllowBareNamedParameters(

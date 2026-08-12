@@ -673,6 +673,53 @@ suite('StatementSync.prototype.resetStats()', () => {
     t.assert.strictEqual(stmt.resetStats(), undefined);
   });
 
+  // The column name cache is keyed on the reprepare counter, which
+  // resetStats() zeroes. A later re-prepare must not be able to make the
+  // counter match the cached generation again and reuse stale names.
+  test('invalidates cached iterator column names', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(a); INSERT INTO data VALUES (1)');
+    const stmt = db.prepare('SELECT * FROM data');
+
+    db.exec('ALTER TABLE data RENAME COLUMN a TO b');
+    stmt.iterate().toArray();
+    stmt.resetStats();
+    db.exec('ALTER TABLE data RENAME COLUMN b TO c');
+
+    t.assert.deepStrictEqual(stmt.iterate().toArray(), [
+      { __proto__: null, c: 1 },
+    ]);
+  });
+
+  test('invalidates the cache when the column count grows', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t(a); INSERT INTO t VALUES (1)');
+    const stmt = db.prepare('SELECT * FROM t');
+
+    db.exec('ALTER TABLE t ADD COLUMN b DEFAULT 2');
+    stmt.iterate().toArray();
+    stmt.resetStats();
+    db.exec('ALTER TABLE t ADD COLUMN c DEFAULT 3');
+
+    t.assert.deepStrictEqual(stmt.iterate().toArray(), [
+      { __proto__: null, a: 1, b: 2, c: 3 },
+    ]);
+  });
+
+  test('does not reset memused', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t(a); INSERT INTO t VALUES (1),(2),(3)');
+    const stmt = db.prepare('SELECT * FROM t ORDER BY a');
+    stmt.all();
+
+    // memused reports current memory usage rather than an accumulated
+    // counter, so SQLite ignores the reset flag for it.
+    const before = stmt.stat('memused');
+    t.assert.ok(before > 0);
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('memused'), before);
+  });
+
   test('clears every counter', (t) => {
     using db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');

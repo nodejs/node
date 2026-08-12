@@ -1202,7 +1202,8 @@ the values in `namedParameters` and `anonymousParameters`. See
 added: REPLACEME
 -->
 
-Resets every counter reported by [`statement.stat()`][] back to zero. This
+Resets every counter reported by [`statement.stat()`][] back to zero, except
+`memused`, which reports current memory usage and cannot be reset. This
 method is a wrapper around [`sqlite3_stmt_status()`][] and is useful for
 measuring a specific workload without the counts accumulated by earlier
 executions of the same prepared statement.
@@ -1350,7 +1351,7 @@ added: REPLACEME
     prepared statement.
   * `'reprepare'` The number of times the statement has been automatically
     reprepared due to schema changes or changes to bound parameters.
-  * `'run'` The number of times the statement has run to completion.
+  * `'run'` The number of execution cycles started by the prepared statement.
   * `'filterMiss'` The number of times the Bloom filter returned a result that
     required the join step to be processed as normal.
   * `'filterHit'` The number of times a join step was bypassed because a Bloom
