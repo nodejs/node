@@ -712,8 +712,8 @@ suite('StatementSync.prototype.resetStats()', () => {
     const stmt = db.prepare('SELECT * FROM t ORDER BY a');
     stmt.all();
 
-    // memused reports current memory usage rather than an accumulated
-    // counter, so SQLite ignores the reset flag for it.
+    // The memused counter reports current memory usage rather than an
+    // accumulated total, so SQLite ignores the reset flag for it.
     const before = stmt.stat('memused');
     t.assert.ok(before > 0);
     stmt.resetStats();
