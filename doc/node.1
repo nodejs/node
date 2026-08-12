@@ -476,7 +476,7 @@ Node.js enables V8's trap-handler-based WebAssembly bound checks on 64-bit platf
 which significantly improves WebAssembly performance by eliminating the need for
 inline bound checks. This optimization requires allocating a large virtual memory
 cage per WebAssembly memory instance (currently typically 8GB for 32-bit WebAssembly memory,
-16GB for 64-bit WebAssembly memory) to trap out-of-bounds accesses. On most 64-bit
+16GB for 64-bit WebAssembly memory) to trap out-of-bounds access. On most 64-bit
 platforms, the virtual memory address space is usually large enough (around 128TB)
 to accommodate typical WebAssembly usages, but if the machine has manual limits
 on virtual memory (e.g. through \fBulimit -v\fR), WebAssembly memory allocation is
