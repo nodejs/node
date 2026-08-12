@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-internals
+// Flags: --experimental-ffi --expose-internals --allow-natives-syntax
 'use strict';
 
 const common = require('../common');
@@ -65,6 +65,31 @@ test('fast FFI buffer arguments reject invalid values', () => {
     assert.throws(() => functions.first_byte(123), {
       code: 'ERR_INVALID_ARG_VALUE',
     });
+  } finally {
+    lib.close();
+  }
+});
+
+test('optimized pointer arguments reject direct SharedArrayBuffers', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const firstByte = lib.getFunction('first_byte', {
+    arguments: ['pointer'],
+    return: 'u8',
+  });
+  const regular = new ArrayBuffer(1);
+  const shared = new SharedArrayBuffer(1);
+  const expected = { code: 'ERR_INVALID_ARG_VALUE' };
+
+  try {
+    assert.throws(() => firstByte(shared), expected);
+
+    eval('%PrepareFunctionForOptimization(firstByte)');
+    firstByte(regular);
+    firstByte(regular);
+    eval('%OptimizeFunctionOnNextCall(firstByte)');
+    firstByte(regular);
+
+    assert.throws(() => firstByte(shared), expected);
   } finally {
     lib.close();
   }
