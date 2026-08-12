@@ -919,7 +919,7 @@ Error.prepareStackTrace = (error, trace) => {
 };
 ```
 
-Note that enabling source maps can introduce latency to your application
+Note, enabling source maps can introduce latency to your application
 when `Error.stack` is accessed. If you access `Error.stack` frequently
 in your application, take into account the performance implications
 of `--enable-source-maps`.
