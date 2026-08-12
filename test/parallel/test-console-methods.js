@@ -14,6 +14,7 @@ const methods = [
   'log',
   'warn',
   'dir',
+  'json',
   'time',
   'timeEnd',
   'timeLog',

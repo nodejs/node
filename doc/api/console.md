@@ -328,6 +328,36 @@ added: v0.1.100
 
 The `console.info()` function is an alias for [`console.log()`][].
 
+### console.json(...values)
+<!-- YAML
+added: REPLACEME
+-->
+* `...values` {any}
+
+Serializes each argument as JSON using [`JSON.stringify()`][] with 2-space
+indentation and prints the result to `stdout`. Each value is printed on its own
+line. This is useful for inspecting objects without the extra annotations added
+by [`util.inspect()`][] (such as `[Object: null prototype]`).
+
+```js
+console.json({ foo: 'bar' });
+// Prints: {
+//   "foo": "bar"
+// }
+
+// Works cleanly with null-prototype objects
+const obj = Object.assign(Object.create(null), { foo: 'bar' });
+console.json(obj);
+// Prints: {
+//   "foo": "bar"
+// }
+```
+
+Non-JSON-serializable values (circular references, `undefined`, functions,
+symbols) will throw a `TypeError`, unlike [`console.log()`][] which handles
+them gracefully. Use [`util.inspect()`][] or [`console.dir()`][] for those
+cases.
+
 ### console.log([data][, ...args])
 <!-- YAML
 added: v0.1.100
