@@ -114,47 +114,53 @@ for (const method of ['all', 'get', 'run', 'iterate']) {
   }
 
   // Tag store methods resolve to a cached statement, which may be the one
-  // currently being stepped.
-  test(`tag store reentry during statement.${method}()`, () => {
-    const db = new DatabaseSync(':memory:');
-    const sql = db.createTagStore(10);
-    db.exec(`
-      CREATE TABLE data (value INTEGER, padding TEXT);
-      INSERT INTO data VALUES (1, '${'x'.repeat(400)}'),
-                              (2, '${'y'.repeat(400)}');
-    `);
+  // currently being stepped. Each reentrant method has its own guard, so all
+  // four are exercised.
+  for (const reentrant of ['run', 'get', 'all', 'iterate']) {
+    test(`tag store ${reentrant} reentry during statement.${method}()`, () => {
+      const db = new DatabaseSync(':memory:');
+      const sql = db.createTagStore(10);
+      db.exec(`
+        CREATE TABLE data (value INTEGER, padding TEXT);
+        INSERT INTO data VALUES (1, '${'x'.repeat(400)}'),
+                                (2, '${'y'.repeat(400)}');
+      `);
 
-    let thrown;
-    db.function('reenter_tag', (value) => {
-      if (thrown === undefined) {
-        try {
-          // The identical tagged literal resolves to the same cached
-          // statement that is mid-execution.
-          // eslint-disable-next-line no-unused-expressions
-          sql.run`SELECT reenter_tag(value), padding FROM data`;
-          thrown = null;
-        } catch (err) {
-          thrown = err;
+      let thrown;
+      db.function('reenter_tag', (value) => {
+        if (thrown === undefined) {
+          try {
+            // The identical tagged literal resolves to the same cached
+            // statement that is mid-execution.
+            // All four reject at call time, iterate() included, so the
+            // result is never consumed.
+            // eslint-disable-next-line no-unused-expressions
+            sql[reentrant]`SELECT reenter_tag(value), padding FROM data`;
+            thrown = null;
+          } catch (err) {
+            thrown = err;
+          }
         }
+        return value;
+      });
+
+      if (method === 'iterate') {
+        for (const row of sql.iterate`SELECT reenter_tag(value), padding FROM data`) {
+          assert.ok(row);
+        }
+      } else {
+        // eslint-disable-next-line no-unused-expressions
+        sql[method]`SELECT reenter_tag(value), padding FROM data`;
       }
-      return value;
+
+      assert.ok(thrown, `tag store ${reentrant} reentry was not rejected`);
+      assert.strictEqual(thrown.code, 'ERR_INVALID_STATE');
+      assert.strictEqual(thrown.message,
+                         'statement is already being executed');
+
+      db.close();
     });
-
-    if (method === 'iterate') {
-      for (const row of sql.iterate`SELECT reenter_tag(value), padding FROM data`) {
-        assert.ok(row);
-      }
-    } else {
-      // eslint-disable-next-line no-unused-expressions
-      sql[method]`SELECT reenter_tag(value), padding FROM data`;
-    }
-
-    assert.ok(thrown, 'tag store reentry was not rejected');
-    assert.strictEqual(thrown.code, 'ERR_INVALID_STATE');
-    assert.strictEqual(thrown.message, 'statement is already being executed');
-
-    db.close();
-  });
+  }
 
   // A UDF may prepare and finalize its own helper statements. Only the
   // statement being stepped is off limits.

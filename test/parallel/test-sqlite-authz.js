@@ -344,7 +344,21 @@ suite('authorizer callback reentrancy', () => {
       function: () => db.function('noop', () => 1),
       aggregate: () => db.aggregate('agg', { start: 0, step: (acc) => acc }),
       enableLoadExtension: () => db.enableLoadExtension(false),
+      enableDefensive: () => db.enableDefensive(true),
       limits: () => { db.limits.length = 100; },
+    };
+
+    assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
+  });
+
+  // loadExtension() checks that extension loading is enabled before reaching
+  // the authorizer guard, so it needs a database opened with allowExtension.
+  it('rejects loadExtension', () => {
+    const db = new DatabaseSync(':memory:', { allowExtension: true });
+    db.enableLoadExtension(true);
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const cases = {
+      loadExtension: () => db.loadExtension('/nonexistent/extension'),
     };
 
     assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
@@ -448,6 +462,36 @@ suite('authorizer callback reentrancy', () => {
         ran = true;
         try {
           stmt.close();
+          outcome = 'did not throw';
+        } catch (err) {
+          outcome = `${err.code}: ${err.message}`;
+        }
+      }
+      return constants.SQLITE_OK;
+    });
+
+    stmt.get();
+
+    assert.strictEqual(outcome, steppingError);
+  });
+
+  // Unlike an already-finalized statement, disposing the one being stepped
+  // would free the running virtual machine, so it throws.
+  it('rejects disposing the statement being stepped', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t (x INTEGER)');
+    db.exec('INSERT INTO t VALUES (1)');
+    const stmt = db.prepare('SELECT x FROM t');
+    stmt.get();
+    db.exec('ALTER TABLE t ADD COLUMN y INTEGER');
+
+    let outcome = 'authorizer callback did not run';
+    let ran = false;
+    db.setAuthorizer(() => {
+      if (!ran) {
+        ran = true;
+        try {
+          stmt[Symbol.dispose]();
           outcome = 'did not throw';
         } catch (err) {
           outcome = `${err.code}: ${err.message}`;
