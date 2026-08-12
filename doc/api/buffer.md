@@ -400,7 +400,7 @@ console.log(buf.length);
 // Prints: 16
 ```
 
-The `Buffer.from()` and [`TypedArray.from()`][] have different signatures and
+The `Buffer.from()` and [`TypedArray.from()`][] methods have different signatures and
 implementations. Specifically, the {TypedArray} variants accept a second
 argument that is a mapping function that is invoked on every element of the
 typed array:
@@ -536,7 +536,7 @@ added:
   - v20.16.0
 -->
 
-The `blob.bytes()` method returns the byte of the `Blob` object as a `Promise<Uint8Array>`.
+The `blob.bytes()` method returns the bytes of the `Blob` object as a `Promise<Uint8Array>`.
 
 ```js
 const blob = new Blob(['hello']);
@@ -567,7 +567,7 @@ added:
 * `end` {number} The ending index.
 * `type` {string} The content-type for the new `Blob`
 
-Creates and returns a new `Blob` containing a subset of this `Blob` objects
+Creates and returns a new `Blob` containing a subset of this `Blob` object's
 data. The original `Blob` is not altered.
 
 ### `blob.stream()`
@@ -604,7 +604,7 @@ added:
 * Returns: {ReadableStream}
 
 Returns a new `ReadableStream` that allows the content of the `Blob` to be read
-as a stream of UTF-8 decoded strings. It is equivalent to piping
+as a stream of UTF-8-decoded strings. It is equivalent to piping
 [`blob.stream()`][] through a [`TextDecoderStream`][] set up with UTF-8.
 
 ### `blob.type`
@@ -682,7 +682,7 @@ blob.text().then(console.log);
 
 ## Class: `Buffer`
 
-The `Buffer` class is a global type for dealing with binary data directly.
+The `Buffer` class is a global type for dealing directly with binary data.
 It can be constructed in a variety of ways.
 
 ### Static method: `Buffer.alloc(size[, fill[, encoding]])`
@@ -907,7 +907,7 @@ _may contain sensitive data_. Use [`buf.fill(0)`][`buf.fill()`] to initialize
 such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`][] to allocate new `Buffer` instances,
-allocations less than `Buffer.poolSize >>> 1` (32KiB when default poolSize is used) are sliced
+allocations less than `Buffer.poolSize >>> 1` (32KiB when the default poolSize is used) are sliced
 from a single pre-allocated `Buffer`. This allows applications to avoid the
 garbage collection overhead of creating many individually allocated `Buffer`
 instances. This approach improves both performance and memory usage by
@@ -5232,7 +5232,7 @@ added:
 * `options` {Object}
   * `endings` {string} One of either `'transparent'` or `'native'`. When set
     to `'native'`, line endings in string source parts will be converted to
-    the platform native line-ending as specified by `require('node:os').EOL`.
+    the platform-native line endings as specified by `require('node:os').EOL`.
   * `type` {string} The File content-type.
   * `lastModified` {number} The last modified date of the file.
     **Default:** `Date.now()`.
