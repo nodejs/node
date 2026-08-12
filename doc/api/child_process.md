@@ -55,8 +55,8 @@ option if the output will not be consumed.
 The command lookup is performed using the `options.env.PATH` environment
 variable if `env` is in the `options` object. Otherwise, `process.env.PATH` is
 used. If `options.env` is set without `PATH`, lookup on Unix is performed
-on a default search path search of `/usr/bin:/bin` (see your operating system's
-manual for execvpe/execvp), on Windows the current processes environment
+on a default search path of `/usr/bin:/bin` (see your operating system's
+manual for execvpe/execvp), On Windows, the current process's environment
 variable `PATH` is used.
 
 On Windows, environment variables are case-insensitive. Node.js
@@ -567,7 +567,7 @@ child. See [`subprocess.send()`][] for details.
 Keep in mind that spawned Node.js child processes are
 independent of the parent with exception of the IPC communication channel
 that is established between the two. Each process has its own memory, with
-their own V8 instances. Because of the additional resource allocations
+its own V8 instance. Because of the additional resource allocations
 required, spawning a large number of child Node.js processes is not
 recommended.
 
@@ -844,7 +844,7 @@ grep.on('close', (code) => {
 });
 ```
 
-Example of checking for failed `spawn`:
+Example of checking for a failed `spawn`:
 
 ```cjs
 const { spawn } = require('node:child_process');
@@ -953,7 +953,7 @@ const subprocess = spawn(process.argv[0], ['child_program.js'], {
 subprocess.unref();
 ```
 
-Alternatively one can redirect the child process' output into files:
+Alternatively, one can redirect the child process's output into files:
 
 ```cjs
 const { openSync } = require('node:fs');
