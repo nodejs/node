@@ -31,17 +31,20 @@ assert.strictEqual(
   '{"foo":"bar"}\n'
 );
 
-// Multiple args — each printed on a separate line
+// With space for pretty-printing
 assert.strictEqual(
-  captured(() => c.json({ a: 1 }, { b: 2 })),
-  '{"a":1}\n{"b":2}\n'
+  captured(() => c.json({ foo: 'bar' }, null, 2)),
+  '{\n  "foo": "bar"\n}\n'
+);
+
+// With replacer array
+assert.strictEqual(
+  captured(() => c.json({ foo: 'bar', baz: 1 }, ['foo'])),
+  '{"foo":"bar"}\n'
 );
 
 // Array
-assert.strictEqual(
-  captured(() => c.json([1, 2, 3])),
-  '[1,2,3]\n'
-);
+assert.strictEqual(captured(() => c.json([1, 2, 3])), '[1,2,3]\n');
 
 // Primitives
 assert.strictEqual(captured(() => c.json(42)), '42\n');
