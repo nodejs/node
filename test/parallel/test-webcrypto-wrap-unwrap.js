@@ -485,7 +485,7 @@ async function testNonByteLengthWrapUnwrap({
     implicitAlgorithm: hmacAlgorithm,
   });
 
-  if (hasOpenSSL(3)) {
+  if (hasOpenSSL(3) && getFips() !== 1) {
     const kmacAlgorithm = { name: 'KMAC128' };
     const kmacKey = await subtle.importKey(
       'raw-secret',

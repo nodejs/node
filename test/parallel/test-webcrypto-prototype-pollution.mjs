@@ -142,16 +142,24 @@ if (supports('digest', 'cSHAKE128')) {
       outputLength: 256,
       customization: new Uint8Array([1, 2, 3]),
     };
-    const expected = new Uint8Array(await subtle.digest(algorithm, data));
-    const plain = new Uint8Array(
-      await subtle.digest({ name: 'cSHAKE128', outputLength: 256 }, data));
-    assert.notDeepStrictEqual(expected, plain);
-    await withPoisoned(poisonTypedArrayByteLength(0),
-                       common.mustCall(async () => {
-                         assert.deepStrictEqual(
-                           new Uint8Array(await subtle.digest(algorithm, data)),
-                           expected);
-                       }));
+    if (getFips() === 1) {
+      await withPoisoned(poisonTypedArrayByteLength(0), common.mustCall(() =>
+        assert.rejects(subtle.digest(algorithm, data), {
+          name: 'NotSupportedError',
+          message: 'Unsupported CShakeParams customization',
+        })));
+    } else {
+      const expected = new Uint8Array(await subtle.digest(algorithm, data));
+      const plain = new Uint8Array(
+        await subtle.digest({ name: 'cSHAKE128', outputLength: 256 }, data));
+      assert.notDeepStrictEqual(expected, plain);
+      await withPoisoned(poisonTypedArrayByteLength(0),
+                         common.mustCall(async () => {
+                           assert.deepStrictEqual(
+                             new Uint8Array(await subtle.digest(algorithm, data)),
+                             expected);
+                         }));
+    }
   }
 }
 
@@ -291,17 +299,17 @@ await withPoisoned(
 // enforceRangeOptions(): [EnforceRange] uses IntegerPart, not round-half-even.
 {
   const key = await subtle.importKey(
-    'raw-secret', new Uint8Array(4), 'PBKDF2', false, ['deriveBits']);
+    'raw-secret', new Uint8Array(32), 'PBKDF2', false, ['deriveBits']);
   const pbkdf2 = (iterations) => subtle.deriveBits({
     name: 'PBKDF2',
     hash: 'SHA-256',
     salt: new Uint8Array(16),
     iterations,
-  }, key, 8);
+  }, key, 112);
 
-  const expected = new Uint8Array(await pbkdf2(1));
+  const expected = new Uint8Array(await pbkdf2(1000));
   await withPoisoned(inherited('clamp', true), common.mustCall(async () => {
-    assert.deepStrictEqual(new Uint8Array(await pbkdf2(1.5)), expected);
+    assert.deepStrictEqual(new Uint8Array(await pbkdf2(1000.5)), expected);
   }));
 }
 

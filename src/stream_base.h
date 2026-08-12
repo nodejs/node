@@ -432,12 +432,11 @@ class StreamBase : public StreamResource {
   friend class Environment;  // For kNumStreamBaseStateFields.
 };
 
-
 // These are helpers for creating `ShutdownWrap`/`WriteWrap` instances.
 // `OtherBase` must have a constructor that matches the `AsyncWrap`
-// constructors’s (Environment*, Local<Object>, AsyncWrap::Provider) signature
+// constructors's (Environment*, Local<Object>, AsyncWrap::Provider) signature
 // and be a subclass of `AsyncWrap`.
-template <typename OtherBase>
+template <std::derived_from<AsyncWrap> OtherBase>
 class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
  public:
   enum InternalFields {
@@ -459,7 +458,7 @@ class SimpleShutdownWrap : public ShutdownWrap, public OtherBase {
   }
 };
 
-template <typename OtherBase>
+template <std::derived_from<AsyncWrap> OtherBase>
 class SimpleWriteWrap : public WriteWrap, public OtherBase {
  public:
   enum InternalFields {

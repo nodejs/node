@@ -103,14 +103,12 @@ namespace i18n {
 namespace {
 
 template <typename T>
+  requires(sizeof(T) == 1 || sizeof(T) == 2)
 MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
   Local<Object> ret;
   if (!Buffer::New(env, buf).ToLocal(&ret)) {
     return {};
   }
-
-  static_assert(sizeof(T) == 1 || sizeof(T) == 2,
-                "Currently only one- or two-byte buffers are supported");
   if constexpr (sizeof(T) > 1 && IsBigEndian()) {
     SPREAD_BUFFER_ARG(ret, retbuf);
     CHECK(nbytes::SwapBytes16(retbuf_data, retbuf_length));

@@ -286,66 +286,68 @@ if (hasOpenSSL(3)) {
       { name: 'SyntaxError', message: 'Usages cannot be empty when importing a secret key.' });
 
     {
-      const importedZeroImplicit = await subtle.importKey(
-        'raw-secret',
-        new Uint8Array(),
-        name,
-        true,
-        ['sign', 'verify']);
-      const importedZeroImplicitRaw =
-        await subtle.exportKey('raw-secret', importedZeroImplicit);
-      assert.strictEqual(importedZeroImplicit.algorithm.length, 0);
-      assert.strictEqual(importedZeroImplicitRaw.byteLength, 0);
-
-      const importedZeroExplicit = await subtle.importKey(
-        'raw-secret',
-        new Uint8Array(),
-        { name, length: 0 },
-        true,
-        ['sign', 'verify']);
-      const importedZeroExplicitRaw =
-        await subtle.exportKey('raw-secret', importedZeroExplicit);
-      assert.strictEqual(importedZeroExplicit.algorithm.length, 0);
-      assert.strictEqual(importedZeroExplicitRaw.byteLength, 0);
-
-      await assert.rejects(
-        subtle.importKey(
+      if (getFips() !== 1) {
+        const importedZeroImplicit = await subtle.importKey(
           'raw-secret',
-          new Uint8Array([0xff]),
+          new Uint8Array(),
+          name,
+          true,
+          ['sign', 'verify']);
+        const importedZeroImplicitRaw =
+          await subtle.exportKey('raw-secret', importedZeroImplicit);
+        assert.strictEqual(importedZeroImplicit.algorithm.length, 0);
+        assert.strictEqual(importedZeroImplicitRaw.byteLength, 0);
+
+        const importedZeroExplicit = await subtle.importKey(
+          'raw-secret',
+          new Uint8Array(),
           { name, length: 0 },
           true,
-          ['sign', 'verify']),
-        { name: 'DataError', message: 'Invalid key length' });
+          ['sign', 'verify']);
+        const importedZeroExplicitRaw =
+          await subtle.exportKey('raw-secret', importedZeroExplicit);
+        assert.strictEqual(importedZeroExplicit.algorithm.length, 0);
+        assert.strictEqual(importedZeroExplicitRaw.byteLength, 0);
 
-      const generated = await subtle.generateKey(
-        { name, length: 9 },
-        true,
-        ['sign', 'verify']);
-      const generatedRaw = await subtle.exportKey('raw-secret', generated);
-      assert.strictEqual(generated.algorithm.length, 9);
-      assert.strictEqual(generatedRaw.byteLength, 2);
-      assert.strictEqual(new Uint8Array(generatedRaw)[1] & 0b01111111, 0);
+        await assert.rejects(
+          subtle.importKey(
+            'raw-secret',
+            new Uint8Array([0xff]),
+            { name, length: 0 },
+            true,
+            ['sign', 'verify']),
+          { name: 'DataError', message: 'Invalid key length' });
 
-      const importedExplicit = await subtle.importKey(
-        'raw-secret',
-        new Uint8Array([0xff, 0xff]),
-        { name, length: 9 },
-        true,
-        ['sign', 'verify']);
-      const importedExplicitRaw = await subtle.exportKey('raw-secret', importedExplicit);
-      assert.strictEqual(importedExplicit.algorithm.length, 9);
-      assert.deepStrictEqual(
-        new Uint8Array(importedExplicitRaw),
-        new Uint8Array([0xff, 0x80]));
-
-      await assert.rejects(
-        subtle.importKey(
-          'raw-secret',
-          new Uint8Array([0xff]),
+        const generated = await subtle.generateKey(
           { name, length: 9 },
           true,
-          ['sign', 'verify']),
-        { name: 'DataError', message: 'Invalid key length' });
+          ['sign', 'verify']);
+        const generatedRaw = await subtle.exportKey('raw-secret', generated);
+        assert.strictEqual(generated.algorithm.length, 9);
+        assert.strictEqual(generatedRaw.byteLength, 2);
+        assert.strictEqual(new Uint8Array(generatedRaw)[1] & 0b01111111, 0);
+
+        const importedExplicit = await subtle.importKey(
+          'raw-secret',
+          new Uint8Array([0xff, 0xff]),
+          { name, length: 9 },
+          true,
+          ['sign', 'verify']);
+        const importedExplicitRaw = await subtle.exportKey('raw-secret', importedExplicit);
+        assert.strictEqual(importedExplicit.algorithm.length, 9);
+        assert.deepStrictEqual(
+          new Uint8Array(importedExplicitRaw),
+          new Uint8Array([0xff, 0x80]));
+
+        await assert.rejects(
+          subtle.importKey(
+            'raw-secret',
+            new Uint8Array([0xff]),
+            { name, length: 9 },
+            true,
+            ['sign', 'verify']),
+          { name: 'DataError', message: 'Invalid key length' });
+      }
     }
   }
 
