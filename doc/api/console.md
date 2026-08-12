@@ -328,33 +328,30 @@ added: v0.1.100
 
 The `console.info()` function is an alias for [`console.log()`][].
 
-### console.json(value[, replacer[, space]])
+### console.json(...values)
 <!-- YAML
 added: REPLACEME
 -->
-* `value` {any}
-* `replacer` {Function|Array} Passed directly to [`JSON.stringify()`][].
-* `space` {number|string} Passed directly to [`JSON.stringify()`][].
+* `...values` {any}
 
-Prints `JSON.stringify(value, replacer, space)` to `stdout`. Arguments are
-passed directly to [`JSON.stringify()`][], so the caller controls formatting.
-This is useful for inspecting objects without the annotations added by
-[`util.inspect()`][] (such as `[Object: null prototype]`).
+Serializes each argument with [`JSON.stringify()`][] and prints the result to
+`stdout`. Each value is printed on its own line. This is useful for inspecting
+objects without the annotations added by [`util.inspect()`][] (such as
+`[Object: null prototype]`).
 
 ```js
 console.json({ foo: 'bar' });
 // Prints: {"foo":"bar"}
 
-console.json({ foo: 'bar' }, null, 2);
-// Prints:
-// {
-//   "foo": "bar"
-// }
-
 // Works cleanly with null-prototype objects
 const obj = Object.assign(Object.create(null), { foo: 'bar' });
 console.json(obj);
 // Prints: {"foo":"bar"}
+
+// Multiple values printed on separate lines
+console.json({ a: 1 }, { b: 2 });
+// Prints: {"a":1}
+//         {"b":2}
 ```
 
 Throws `TypeError` for non-serializable values such as circular references.

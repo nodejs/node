@@ -18,7 +18,7 @@ function captured(fn) {
   return output;
 }
 
-// Basic object — no indentation by default
+// Basic object
 assert.strictEqual(
   captured(() => c.json({ foo: 'bar' })),
   '{"foo":"bar"}\n'
@@ -31,16 +31,10 @@ assert.strictEqual(
   '{"foo":"bar"}\n'
 );
 
-// Caller controls indentation via JSON.stringify args
+// Multiple args — each printed on a separate line
 assert.strictEqual(
-  captured(() => c.json({ foo: 'bar' }, null, 2)),
-  '{\n  "foo": "bar"\n}\n'
-);
-
-// Replacer array
-assert.strictEqual(
-  captured(() => c.json({ foo: 'bar', baz: 1 }, ['foo'])),
-  '{"foo":"bar"}\n'
+  captured(() => c.json({ a: 1 }, { b: 2 })),
+  '{"a":1}\n{"b":2}\n'
 );
 
 // Array
