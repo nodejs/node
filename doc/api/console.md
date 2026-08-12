@@ -132,7 +132,7 @@ changes:
     `false` disables coloring while inspecting values. Setting to
     `'auto'` makes color support depend on the value of the `isTTY` property
     and the value returned by `getColorDepth()` on the respective stream. This
-    option can not be used, if `inspectOptions.colors` is set as well.
+    option cannot be used if `inspectOptions.colors` is set as well.
     **Default:** `'auto'`.
   * `inspectOptions` {Object|Map} Specifies options that are passed along to
     [`util.inspect()`][]. Can be an options object or, if different options
@@ -197,7 +197,7 @@ changes:
 * `value` {any} The value tested for being truthy.
 * `...message` {any} All arguments besides `value` are used as error message.
 
-`console.assert()` writes a message if `value` is [falsy][] or omitted. It only
+`console.assert()` writes a message if `value` is [falsy][] or is omitted. It only
 writes a message and does not otherwise affect execution. The output always
 starts with `"Assertion failed"`. If provided, `message` is formatted using
 [`util.format()`][].
@@ -307,7 +307,7 @@ added: v0.1.101
 
 * `obj` {any}
 * `options` {Object}
-  * `showHidden` {boolean} If `true` then the object's non-enumerable and symbol
+  * `showHidden` {boolean} If `true`, then the object's non-enumerable and symbol
     properties will be shown too. **Default:** `false`.
   * `depth` {number} Tells [`util.inspect()`][] how many times to recurse while
     formatting the object. This is useful for inspecting large complicated
@@ -580,7 +580,7 @@ added: v8.0.0
 
 This method does not display anything unless used in the inspector. The
 `console.profile()` method starts a JavaScript CPU profile with an optional
-label until [`console.profileEnd()`][] is called. The profile is then added to
+label that runs until [`console.profileEnd()`][] is called. The profile is then added to
 the **Profile** panel of the inspector.
 
 ```js
@@ -598,7 +598,7 @@ added: v8.0.0
 
 * `label` {string}
 
-This method does not display anything unless used in the inspector. Stops the
+This method does not display anything unless used in the inspector. It stops the
 current JavaScript CPU profiling session if one has been started and prints
 the report to the **Profiles** panel of the inspector. See
 [`console.profile()`][] for an example.
