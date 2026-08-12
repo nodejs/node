@@ -108,7 +108,7 @@ socket and sends it to interested workers. The workers then accept
 incoming connections directly.
 
 The second approach should, in theory, give the best performance.
-In practice however, distribution tends to be very unbalanced due
+In practice, however, distribution tends to be very unbalanced due
 to operating system scheduler vagaries. Loads have been observed
 where over 70% of all connections ended up in just two processes,
 out of a total of eight.
@@ -153,8 +153,8 @@ added: v0.7.0
 
 * Extends: {EventEmitter}
 
-A `Worker` object contains all public information and method about a worker.
-In the primary it can be obtained using `cluster.workers`. In a worker
+A `Worker` object contains all public information and methods about a worker.
+In the primary it can be obtained using `cluster.workers`. In a worker,
 it can be obtained using `cluster.worker`.
 
 ### Event: `'disconnect'`
@@ -981,7 +981,7 @@ The only attribute of a worker that cannot be set via `.setupPrimary()` is
 the `env` passed to [`.fork()`][].
 
 The defaults above apply to the first call only; the defaults for later
-calls are the current values at the time of `cluster.setupPrimary()` is called.
+calls are the current values at the time `cluster.setupPrimary()` is called.
 
 ```mjs
 import cluster from 'node:cluster';
