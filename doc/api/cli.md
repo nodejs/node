@@ -519,7 +519,7 @@ snapshot building process, which can load built-in modules, but not additional u
 Users can bundle their applications into a single script with their bundler
 of choice before building a snapshot.
 
-As it's complicated to ensure the serializablity of all built-in modules,
+As it's complicated to ensure the serializability of all built-in modules,
 which are also growing over time, only a subset of the built-in modules are
 well tested to be serializable during the snapshot building process.
 The Node.js core test suite checks that a few fairly complex applications
