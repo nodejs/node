@@ -48,9 +48,7 @@ jobs:
           fast_track_prs=$(list_prs \
                   --label 'fast-track' \
                   --search "-label:blocked")
-          queued_prs=$(list_prs \
-                  --search "-label:blocked")
-          candidates=$(printf '%s %s %s\n' "$aged_prs" "$fast_track_prs" "$queued_prs" |
+          candidates=$(printf '%s %s\n' "$fast_track_prs" "$aged_prs" |
                   jq -r -s 'reduce .[] as $pr ([]; if index($pr) then . else . + [$pr] end) | join(" ")')
           echo "candidates=$candidates" >> "$GITHUB_OUTPUT"
         env:
