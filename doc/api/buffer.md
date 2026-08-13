@@ -2023,7 +2023,7 @@ const b = Buffer.allocUnsafe(50).fill('h');
 console.log(b.toString());
 // Prints: hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 
-// Fill a buffer with empty string
+// Fill a buffer with an empty string
 const c = Buffer.allocUnsafe(5).fill('');
 
 console.log(c.fill(''));
@@ -2057,7 +2057,7 @@ then only the bytes of that character that fit into `buf` are written:
 ```mjs
 import { Buffer } from 'node:buffer';
 
-// Fill a `Buffer` with character that takes up two bytes in UTF-8.
+// Fill a `Buffer` with a character that takes up two bytes in UTF-8.
 
 console.log(Buffer.allocUnsafe(5).fill('\u0222'));
 // Prints: <Buffer c8 a2 c8 a2 c8>
@@ -2367,7 +2367,7 @@ changes:
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
 * `start` {integer} Where to begin searching in `buf`. If negative, then
-  offset is calculated from the end of `buf`. **Default:**
+  the offset is calculated from the end of `buf`. **Default:**
   `buf.length - 1`.
 * `end` {integer} Where to stop searching in `buf` (exclusive). **Default:**
   `buf.length`.
@@ -2377,7 +2377,7 @@ changes:
 * Returns: {integer} The index of the last occurrence of `value` in `buf`, or
   `-1` if `buf` does not contain `value`.
 
-Identical to [`buf.indexOf()`][], except the last occurrence of `value` is found
+This is identical to [`buf.indexOf()`][], except that the last occurrence of `value` is found
 rather than the first occurrence.
 
 ```mjs
@@ -2441,7 +2441,7 @@ If `value` is not a string, number, or `Buffer`, this method will throw a
 an integer between 0 and 255.
 
 If `byteOffset` is not a number, it will be coerced to a number. Any arguments
-that coerce to `NaN`, like `{}` or `undefined`, will search the whole buffer.
+that coerce to `NaN`, such as `{}` or `undefined`, will search the whole buffer.
 This behavior matches [`String.prototype.lastIndexOf()`][].
 
 ```mjs
