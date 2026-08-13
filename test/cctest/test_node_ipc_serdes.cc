@@ -175,7 +175,7 @@ TEST_F(IPCSerdesTest, RoundTripsTypedArray) {
   // A plain Uint8Array must not come back as a Node Buffer.
   Environment* env = *test_env;
   EXPECT_FALSE(
-      out->GetPrototypeV2()->StrictEquals(env->buffer_prototype_object()));
+      out->GetPrototype()->StrictEquals(env->buffer_prototype_object()));
 }
 
 TEST_F(IPCSerdesTest, BufferRoundTripsAsBuffer) {
@@ -202,7 +202,7 @@ TEST_F(IPCSerdesTest, BufferRoundTripsAsBuffer) {
   // plain Uint8Array.
   Environment* env = *test_env;
   EXPECT_TRUE(
-      out->GetPrototypeV2()->StrictEquals(env->buffer_prototype_object()));
+      out->GetPrototype()->StrictEquals(env->buffer_prototype_object()));
   EXPECT_EQ(node::Buffer::Length(out), static_cast<size_t>(6));
   EXPECT_EQ(memcmp(node::Buffer::Data(out), "Hello!", 6), 0);
 }
