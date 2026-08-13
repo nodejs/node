@@ -810,14 +810,18 @@ collecting code coverage from tests for more details.
 Enable module mocking in the test runner.
 This feature requires \fB--allow-worker\fR if used with the Permission Model.
 .
-.It Fl -experimental-test-tag-filter Ns = Ns Ar <tag>
-Run only tests whose tag set contains \fB<tag>\fR. Tests declare tags via the
-\fBtags\fR option on \fBtest()\fR, \fBit()\fR, \fBsuite()\fR, or \fBdescribe()\fR; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
-The flag may be specified more than once; tests must contain \fBevery\fR
-filter value to run. See Test tags for details on declaring and
-inheriting tags.
+.It Fl -experimental-test-tag-filter Ns = Ns Ar '<expr>'
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the \fBtags\fR option on \fBtest()\fR, \fBit()\fR, \fBsuite()\fR, or
+\fBdescribe()\fR. Tags inherit from suites to nested tests by union.
+The expression supports boolean operators (\fBand\fR/\fB&&\fR, \fBor\fR/\fB||\fR,
+\fBnot\fR/\fB!\fR), parentheses for grouping, and \fB*\fR wildcards inside identifiers.
+Standard precedence applies: \fBnot\fR binds tighter than \fBand\fR, which binds
+tighter than \fBor\fR. See Test tags for the full grammar and behavior.
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 .
 .It Fl -experimental-vfs
 Enable the experimental \fBnode:vfs\fR module.
