@@ -14,7 +14,8 @@ assert.ok(binding.os.errno);
 assert.ok(binding.fs);
 assert.ok(binding.crypto);
 
-['os', 'fs', 'crypto'].forEach((l) => {
+const moduleNames = ['os', 'fs', 'crypto'];
+for (const l of moduleNames) {
   for (const k of Object.keys(binding[l])) {
     if (typeof binding[l][k] === 'object') { // errno and signals
       for (const j of Object.keys(binding[l][k])) {
@@ -25,6 +26,6 @@ assert.ok(binding.crypto);
       assert.strictEqual(binding[l][k], constants[k]);
     }
   }
-});
+}
 
 assert.ok(Object.isFrozen(constants));
