@@ -286,6 +286,23 @@ test('ffi validates memory access arguments', () => {
     assert.throws(() => ffi.exportArrayBufferView('bad', ptr, 4), { code: 'ERR_INVALID_ARG_TYPE' });
     assert.throws(() => ffi.exportArrayBufferView(new Uint8Array([1]), ptr, -1), { code: 'ERR_OUT_OF_RANGE' });
     assert.throws(() => ffi.exportArrayBufferView(new Uint8Array([1, 2]), ptr, 1), { code: 'ERR_OUT_OF_RANGE' });
+    ffi.exportArrayBufferView(new Uint8Array(new SharedArrayBuffer(1)), ptr, 1);
+
+    const detachedArrayBuffer = new ArrayBuffer(1);
+    detachedArrayBuffer.transfer();
+    assert.throws(() => ffi.exportArrayBuffer(detachedArrayBuffer, ptr, 1), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+
+    for (const View of [Uint8Array, DataView]) {
+      const arrayBuffer = new ArrayBuffer(1);
+      const view = new View(arrayBuffer);
+      arrayBuffer.transfer();
+      assert.throws(() => ffi.exportArrayBufferView(view, ptr, 1), {
+        code: 'ERR_INVALID_ARG_VALUE',
+      });
+    }
+
     assert.throws(() => ffi.toBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
     assert.throws(() => ffi.toArrayBuffer(maxPointer, 8), /pointer and length exceed the platform address range/);
     assert.throws(() => ffi.toBuffer(1n, bufferConstants.MAX_LENGTH + 1), { code: 'ERR_BUFFER_TOO_LARGE' });
