@@ -62,32 +62,55 @@ test('untagged parent runs only the matching tagged child', () => {
   assert.doesNotMatch(stdout, /plain sibling/);
 });
 
-test('repeated --experimental-test-tag-filter ANDs together', () => {
-  // db AND integration: only "db plus integration" satisfies both.
-  const { status, stdout } = run([
-    '--experimental-test-tag-filter=db',
-    '--experimental-test-tag-filter=integration',
-  ]);
+test('not X also includes untagged tests', () => {
+  const { status, stdout } = run(['--experimental-test-tag-filter=not flaky']);
   assert.strictEqual(status, 0);
-  pass(stdout, 1);
-  assert.match(stdout, /ok \d+ - db plus integration/);
-  assert.doesNotMatch(stdout, /^ok \d+ - db only/m);
-  assert.doesNotMatch(stdout, /^ok \d+ - db flaky/m);
+  pass(stdout, 8);
+  assert.match(stdout, /ok \d+ - untagged/);
+  assert.doesNotMatch(stdout, /db flaky/);
+  assert.doesNotMatch(stdout, /^ok \d+ - only flaky/m);
 });
 
-test('untagged tests are excluded under any positive filter', () => {
-  const { status, stdout } = run(['--experimental-test-tag-filter=db']);
+test('repeated --experimental-test-tag-filter ANDs together', () => {
+  const { status, stdout } = run([
+    '--experimental-test-tag-filter=db',
+    '--experimental-test-tag-filter=not flaky',
+  ]);
   assert.strictEqual(status, 0);
+  pass(stdout, 2);
+  assert.match(stdout, /ok \d+ - db only/);
+  assert.match(stdout, /ok \d+ - db plus integration/);
+  assert.doesNotMatch(stdout, /db flaky/);
+});
+
+test('bare * matches any tagged test, excludes untagged', () => {
+  const { status, stdout } = run(['--experimental-test-tag-filter=*']);
+  assert.strictEqual(status, 0);
+  pass(stdout, 8);
   assert.doesNotMatch(stdout, /^ok \d+ - untagged/m);
 });
 
+test('wildcard prefix: db* matches db, db:postgres, etc.', () => {
+  const { status, stdout } = run(['--experimental-test-tag-filter=db*']);
+  assert.strictEqual(status, 0);
+  pass(stdout, 4);
+  assert.match(stdout, /db wildcard match/);
+});
+
+test('boolean composition: unit && !slow', () => {
+  const { status, stdout } = run(['--experimental-test-tag-filter=unit && !slow']);
+  assert.strictEqual(status, 0);
+  pass(stdout, 1);
+  assert.match(stdout, /ok \d+ - unit only/);
+});
+
 test('isolation=none produces identical filtered set', () => {
-  const proc = run(['--experimental-test-tag-filter=db']);
-  const none = run(['--experimental-test-tag-filter=db'], ['--test-isolation=none']);
+  const proc = run(['--experimental-test-tag-filter=unit && !slow']);
+  const none = run(['--experimental-test-tag-filter=unit && !slow'], ['--test-isolation=none']);
   assert.strictEqual(proc.status, 0);
   assert.strictEqual(none.status, 0);
-  pass(proc.stdout, 3);
-  pass(none.stdout, 3);
+  pass(proc.stdout, 1);
+  pass(none.stdout, 1);
 });
 
 test('combined with --test-skip-pattern (pure AND)', () => {
@@ -101,8 +124,44 @@ test('combined with --test-skip-pattern (pure AND)', () => {
   assert.doesNotMatch(stdout, /db flaky/);
 });
 
+test('malformed expression: unbalanced parenthesis errors at startup', () => {
+  const { status, stderr, stdout } = run(['--experimental-test-tag-filter=(a']);
+  assert.notStrictEqual(status, 0);
+  // Match the full sentinel error line so noise elsewhere in stderr can't
+  // satisfy the assertion via interleaved substrings.
+  assert.match(
+    stderr,
+    /^TypeError \[ERR_INVALID_ARG_VALUE\]: The argument '--experimental-test-tag-filter\[0\]' expected '\)' at position \d+/m,
+  );
+  // No file should have been spawned.
+  assert.doesNotMatch(stdout, /^ok 1 -/m);
+});
+
+test('malformed expression: dangling operator errors at startup', () => {
+  const { status, stderr } = run(['--experimental-test-tag-filter=a and']);
+  assert.notStrictEqual(status, 0);
+  assert.match(
+    stderr,
+    /^TypeError \[ERR_INVALID_ARG_VALUE\]: The argument '--experimental-test-tag-filter\[0\]' unexpected token 'EOF' at position \d+/m,
+  );
+});
+
 test('empty --experimental-test-tag-filter= is rejected by argv parser', () => {
   const { status, stderr } = run(['--experimental-test-tag-filter=']);
   assert.notStrictEqual(status, 0);
   assert.match(stderr, /requires an argument/);
+});
+
+test('reserved word as tag value errors at registration', () => {
+  const child = spawnSync(process.execPath, [
+    '-e',
+    "require('node:test').test('x', { tags: ['and'] }, () => {});",
+  ]);
+  assert.notStrictEqual(child.status, 0);
+  // Match the full sentinel error line so noise elsewhere in stderr can't
+  // satisfy the assertion via interleaved substrings.
+  assert.match(
+    child.stderr.toString(),
+    /^TypeError \[ERR_INVALID_ARG_VALUE\]: The property 'options\.tags\[0\]' must not be the reserved word/m,
+  );
 });
