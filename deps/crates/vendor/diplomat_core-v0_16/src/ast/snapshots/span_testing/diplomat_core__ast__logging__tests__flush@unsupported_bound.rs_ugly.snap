@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Unsupported trait bound
+In src/ast/snapshots/span_testing/unsupported_bound.rs:3:39:
+...impl use<'a, T> + AB...
+        ^^^^^^^^^^
+Expected lifetime or trait name.

@@ -1,10 +1,11 @@
-//! Code to convert the Rust-styled field/variant (e.g. `my_field`, `MyType`) to the
-//! case of the source (e.g. `my-field`, `MY_FIELD`).
+//! Code to convert the Rust-styled field/variant (e.g. `my_field`, `MyType`) to
+//! the case of the source (e.g. `my-field`, `MY_FIELD`).
 
 use self::RenameRule::*;
 use std::fmt::{self, Debug, Display};
 
-/// The different possible ways to change case of fields in a struct, or variants in an enum.
+/// The different possible ways to change case of fields in a struct, or
+/// variants in an enum.
 #[derive(Copy, Clone, PartialEq)]
 pub enum RenameRule {
     /// Don't apply a default rename rule.
@@ -48,12 +49,11 @@ impl RenameRule {
                 return Ok(*rule);
             }
         }
-        Err(ParseError {
-            unknown: rename_all_str,
-        })
+        Err(ParseError { unknown: rename_all_str })
     }
 
-    /// Apply a renaming rule to an enum variant, returning the version expected in the source.
+    /// Apply a renaming rule to an enum variant, returning the version expected
+    /// in the source.
     pub fn apply_to_variant(self, variant: &str) -> String {
         match self {
             None | PascalCase => variant.to_owned(),
@@ -72,13 +72,12 @@ impl RenameRule {
             }
             ScreamingSnakeCase => SnakeCase.apply_to_variant(variant).to_ascii_uppercase(),
             KebabCase => SnakeCase.apply_to_variant(variant).replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase
-                .apply_to_variant(variant)
-                .replace('_', "-"),
+            ScreamingKebabCase => ScreamingSnakeCase.apply_to_variant(variant).replace('_', "-"),
         }
     }
 
-    /// Apply a renaming rule to a struct field, returning the version expected in the source.
+    /// Apply a renaming rule to a struct field, returning the version expected
+    /// in the source.
     pub fn apply_to_field(self, field: &str) -> String {
         match self {
             None | LowerCase | SnakeCase => field.to_owned(),
@@ -139,9 +138,7 @@ impl<'a> Display for ParseError<'a> {
 #[test]
 fn rename_variants() {
     for &(original, lower, upper, camel, snake, screaming, kebab, screaming_kebab) in &[
-        (
-            "Outcome", "outcome", "OUTCOME", "outcome", "outcome", "OUTCOME", "outcome", "OUTCOME",
-        ),
+        ("Outcome", "outcome", "OUTCOME", "outcome", "outcome", "OUTCOME", "outcome", "OUTCOME"),
         (
             "VeryTasty",
             "verytasty",
@@ -163,19 +160,14 @@ fn rename_variants() {
         assert_eq!(SnakeCase.apply_to_variant(original), snake);
         assert_eq!(ScreamingSnakeCase.apply_to_variant(original), screaming);
         assert_eq!(KebabCase.apply_to_variant(original), kebab);
-        assert_eq!(
-            ScreamingKebabCase.apply_to_variant(original),
-            screaming_kebab
-        );
+        assert_eq!(ScreamingKebabCase.apply_to_variant(original), screaming_kebab);
     }
 }
 
 #[test]
 fn rename_fields() {
     for &(original, upper, pascal, camel, screaming, kebab, screaming_kebab) in &[
-        (
-            "outcome", "OUTCOME", "Outcome", "outcome", "OUTCOME", "outcome", "OUTCOME",
-        ),
+        ("outcome", "OUTCOME", "Outcome", "outcome", "OUTCOME", "outcome", "OUTCOME"),
         (
             "very_tasty",
             "VERY_TASTY",

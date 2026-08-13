@@ -1,0 +1,169 @@
+---
+source: core/src/ast/idents.rs
+expression: file
+---
+name:
+  - ffi
+  - start:
+      line: 2
+      col: 4
+    end:
+      line: 2
+      col: 7
+    range:
+      start: 24
+      end: 27
+    span_location:
+      FilePath: "./snapshots/span_testing.txt"
+imports: []
+declared_types:
+  ? - Whitespacingtest
+    - start:
+        line: 4
+        col: 21
+      end:
+        line: 4
+        col: 37
+      range:
+        start: 75
+        end: 91
+      span_location:
+        FilePath: "./snapshots/span_testing.txt"
+  : Opaque:
+      name:
+        - Whitespacingtest
+        - start:
+            line: 4
+            col: 21
+          end:
+            line: 4
+            col: 37
+          range:
+            start: 75
+            end: 91
+          span_location:
+            FilePath: "./snapshots/span_testing.txt"
+      docs:
+        - - cfg: Star
+            lines: ""
+        - []
+      lifetimes: {}
+      methods: []
+      mutability: Immutable
+      attrs: {}
+      dtor_abi_name:
+        - Whitespacingtest_destroy
+        - ~
+declared_traits: {}
+declared_functions:
+  ? - newlines_test
+    - start:
+        line: 7
+        col: 4
+      end:
+        line: 7
+        col: 17
+      range:
+        start: 122
+        end: 135
+      span_location:
+        FilePath: "./snapshots/span_testing.txt"
+  : name:
+      - newlines_test
+      - start:
+          line: 7
+          col: 4
+        end:
+          line: 7
+          col: 17
+        range:
+          start: 122
+          end: 135
+        span_location:
+          FilePath: "./snapshots/span_testing.txt"
+    abi_name:
+      - diplomat_external_newlines_test
+      - start:
+          line: 7
+          col: 4
+        end:
+          line: 7
+          col: 17
+        range:
+          start: 122
+          end: 135
+        span_location:
+          FilePath: "./snapshots/span_testing.txt"
+    params:
+      - name:
+          - a
+          - start:
+              line: 9
+              col: 8
+            end:
+              line: 9
+              col: 9
+            range:
+              start: 150
+              end: 151
+            span_location:
+              FilePath: "./snapshots/span_testing.txt"
+        ty:
+          Primitive: i32
+        attrs: {}
+      - name:
+          - b
+          - start:
+              line: 10
+              col: 10
+            end:
+              line: 10
+              col: 11
+            range:
+              start: 170
+              end: 171
+            span_location:
+              FilePath: "./snapshots/span_testing.txt"
+        ty:
+          Primitive: usize
+        attrs: {}
+      - name:
+          - c
+          - start:
+              line: 11
+              col: 8
+            end:
+              line: 11
+              col: 9
+            range:
+              start: 188
+              end: 189
+            span_location:
+              FilePath: "./snapshots/span_testing.txt"
+        ty:
+          Named:
+            path:
+              elements:
+                - - Whitespacingtest
+                  - start:
+                      line: 11
+                      col: 12
+                    end:
+                      line: 11
+                      col: 28
+                    range:
+                      start: 192
+                      end: 208
+                    span_location:
+                      FilePath: "./snapshots/span_testing.txt"
+            lifetimes: []
+        attrs: {}
+    output_type: ~
+    lifetimes: {}
+    attrs: {}
+    docs:
+      - - cfg: Star
+          lines: ""
+      - []
+sub_modules: []
+attrs: {}

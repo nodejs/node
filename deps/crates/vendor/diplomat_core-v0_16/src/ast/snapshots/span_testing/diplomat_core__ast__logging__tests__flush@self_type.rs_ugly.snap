@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Self type not found
+In src/ast/snapshots/span_testing/self_type.rs:3:10:
+...impl [usize; 1] {...
+        ^^^^^^^^^^
+Expected Path type
