@@ -5233,7 +5233,7 @@ added:
   * `endings` {string} One of either `'transparent'` or `'native'`. When set
     to `'native'`, line endings in string source parts will be converted to
     the platform native line-ending as specified by `require('node:os').EOL`.
-  * `type` {string} The File content-type.
+  * `type` {string} The content-type of the File.
   * `lastModified` {number} The last modified date of the file.
     **Default:** `Date.now()`.
 
@@ -5282,7 +5282,7 @@ added:
 Decodes a string of Base64-encoded data into bytes, and encodes those bytes
 into a string using Latin-1 (ISO-8859-1).
 
-The `data` may be any JavaScript-value that can be coerced into a string.
+The `data` may be any JavaScript value that can be coerced into a string.
 
 **This function is only provided for compatibility with legacy web platform APIs
 and should never be used in new code, because they use strings to represent
@@ -5432,7 +5432,7 @@ changes:
 
 * `source` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance.
 * `fromEnc` {string} The current encoding.
-* `toEnc` {string} To target encoding.
+* `toEnc` {string} The target encoding.
 * Returns: {Buffer}
 
 Re-encodes the given `Buffer` or `Uint8Array` instance from one character
@@ -5550,12 +5550,12 @@ of allocating a 3 byte buffer with content `"100"`. This is commonly possible
 using JSON API calls. Since JSON distinguishes between numeric and string types,
 it allows injection of numbers where a naively written application that does not
 validate its input sufficiently might expect to always receive a string.
-Before Node.js 8.0.0, the 100 byte buffer might contain
+Before Node.js 8.0.0, the 100-byte buffer might contain
 arbitrary pre-existing in-memory data, so may be used to expose in-memory
 secrets to a remote attacker. Since Node.js 8.0.0, exposure of memory cannot
 occur because the data is zero-filled. However, other attacks are still
 possible, such as causing very large buffers to be allocated by the server,
-leading to performance degradation or crashing on memory exhaustion.
+leading to performance degradation or crashes due to memory exhaustion.
 
 To make the creation of `Buffer` instances more reliable and less error-prone,
 the various forms of the `new Buffer()` constructor have been **deprecated**
@@ -5671,7 +5671,7 @@ fs.open('/dev/sda', flags, (err, fd) => {
 
 Alignment can also be worth requesting purely for performance, even when no
 interface demands it. Aligning a hot `Buffer` to the cache line size (64 bytes on
-most contemporary CPUs) keeps it from straddling one more cache line than it
+most contemporary CPUs) keeps it from straddling an additional cache line than it
 needs to, so that a small structure is fetched with one cache miss instead of
 two, and page-aligned (4096 bytes) allocations similarly help interfaces that map
 or pin memory. These are micro-optimizations: measure before reaching for them,
@@ -5686,7 +5686,7 @@ whose start is always aligned to 64 bytes, and only falls back to an allocation
 of its own when `alignment` is larger than that. Either way,
 [`buf.byteOffset`][] is usually not 0 and [`buf.buffer`][] is larger than `size`,
 so code that reaches past the `Buffer` into its underlying `ArrayBuffer` must
-take the offset into account, as it must for pooled `Buffer`s.
+take the offset into account, as it must with pooled `Buffer`s.
 
 The alignment is a property of the returned `Buffer` and is preserved for its
 whole lifetime, but it is not inherited by other views: [`buf.subarray`][],
