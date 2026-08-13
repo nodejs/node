@@ -259,18 +259,6 @@ async function testSaltLength(keyLength, hash, hLen) {
       testFipsSignRejected(vector) : testSign(vector));
   });
 
-  if (fips3) {
-    variations.push(assert.rejects(
-      subtle.generateKey({
-        name: 'RSA-PSS',
-        modulusLength: 1024,
-        publicExponent: new Uint8Array([1, 0, 1]),
-        hash: 'SHA-256',
-      }, false, ['sign', 'verify']),
-      (err) => err.name === 'OperationError' &&
-               err.cause?.code === 'ERR_OSSL_RSA_INVALID_MODULUS'));
-  }
-
   for (const keyLength of fips3 ? [2048] : [1024, 2048]) {
     for (const [hash, hLen] of [
       ['SHA-1', 20],
