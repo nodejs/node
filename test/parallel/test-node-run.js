@@ -9,7 +9,7 @@ const assert = require('node:assert');
 const fixtures = require('../common/fixtures');
 const envSuffix = common.isWindows ? '-windows' : '';
 
-describe('node --run [command]', () => {
+describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('returns error on non-existent file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
@@ -243,5 +243,20 @@ describe('node --run [command]', () => {
     assert.match(child.stderr, /Can't find "scripts" field in/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
+  });
+
+  it('escapes shell characters', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', `positional-args${envSuffix}`, '--', '%PAYLOAD%', '$PAYLOAD'],
+      { cwd: fixtures.path('run-script'), env: { ...process.env, PAYLOAD: 'env value' } },
+    );
+    assert.strictEqual(
+      child.stdout,
+      common.isWindows ?
+        `Raw '"^%PAYLOAD^%" "$PAYLOAD"'\r\nArguments: '%PAYLOAD% $PAYLOAD'\r\nThe total number of arguments is: 2\r\n` :
+        "Arguments: '%PAYLOAD% $PAYLOAD'\nThe total number of arguments is: 2\n");
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
   });
 });

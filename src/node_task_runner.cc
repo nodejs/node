@@ -154,7 +154,7 @@ std::string EscapeShell(const std::string_view input) {
   }
 
   static constexpr std::string_view forbidden_characters =
-      "[\t\n\r \"#$&'()*;<>?\\\\`|~]";
+      "[\t\n\r \"#$&'()*;<>%?\\\\`|~]";
 
   // Check if input contains any forbidden characters
   // If it doesn't, return the input as is.
@@ -174,6 +174,7 @@ std::string EscapeShell(const std::string_view input) {
   static const std::regex tripleSingleQuote("\\\\\"\"\"");
   escaped = std::regex_replace(escaped, leadingQuotePairs, "");
   escaped = std::regex_replace(escaped, tripleSingleQuote, "\\\"");
+  escaped = std::regex_replace(escaped, std::regex("%"), "^%");
 #else
   // Replace single quotes("'") with `'"'"'` and wrap the result
   // in single quotes.
