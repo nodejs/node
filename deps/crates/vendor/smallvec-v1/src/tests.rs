@@ -1040,6 +1040,29 @@ fn drain_keep_rest() {
     assert_eq!(a, SmallVec::<[i32; 3]>::from_slice(&[1i32, 3, 5, 6, 7, 8]));
 }
 
+// Regression test: keep_rest on a SmallVec with zero inline capacity must
+// still move tail elements to fill the gap left by drained items.
+// Using Box<u8> so that Miri detects the use-after-move / double-drop
+// caused by the missing backshift.
+#[cfg(feature = "drain_keep_rest")]
+#[test]
+fn drain_keep_rest_zero_inline_capacity() {
+    let mut a: SmallVec<[Box<u8>; 0]> = SmallVec::new();
+    for i in 1u8..=8 {
+        a.push(Box::new(i));
+    }
+
+    let mut df = a.drain_filter(|x| **x % 2 == 0);
+
+    assert_eq!(*df.next().unwrap(), 2);
+    assert_eq!(*df.next().unwrap(), 4);
+
+    df.keep_rest();
+
+    let values: Vec<u8> = a.iter().map(|b| **b).collect();
+    assert_eq!(values, vec![1, 3, 5, 6, 7, 8]);
+}
+
 /// This assortment of tests, in combination with miri, verifies we handle UB on fishy arguments
 /// given to SmallVec. Draining and extending the allocation are fairly well-tested earlier, but
 /// `smallvec.insert(usize::MAX, val)` once slipped by!

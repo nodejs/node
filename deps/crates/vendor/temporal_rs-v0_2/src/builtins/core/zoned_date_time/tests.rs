@@ -1278,3 +1278,104 @@ fn hours_in_day_dst_changes() {
         assert_eq!(spring.hours_in_day_with_provider(provider), Ok(23.0));
     })
 }
+
+// Case where midnight occurs twice (e.g., Antarctica/Casey on 2010-03-05).
+// Upstream tests: https://github.com/tc39/test262/pull/5047
+#[test]
+fn test_same_date_starts_twice() {
+    test_all_providers!(provider: {
+        let zdt1 = ZonedDateTime::from_utf8_with_provider(
+            b"2010-03-04T23:10:00+11:00[Antarctica/Casey]",
+            Disambiguation::Compatible,
+            OffsetDisambiguation::Use,
+            provider,
+        );
+        if zdt1.is_err() {
+            std::println!("Antarctica/Casey not supported by provider, skipping test.");
+            return;
+        }
+        let zdt1 = zdt1.unwrap();
+
+        let zdt2 = ZonedDateTime::from_utf8_with_provider(
+            b"2010-03-05T00:45:00+11:00[Antarctica/Casey]",
+            Disambiguation::Compatible,
+            OffsetDisambiguation::Use,
+            provider,
+        ).unwrap();
+
+        let zdt3 = ZonedDateTime::from_utf8_with_provider(
+            b"2010-03-04T23:10:00+08:00[Antarctica/Casey]",
+            Disambiguation::Compatible,
+            OffsetDisambiguation::Use,
+            provider,
+        ).unwrap();
+
+        let zdt4 = ZonedDateTime::from_utf8_with_provider(
+            b"2010-03-05T00:45:00+08:00[Antarctica/Casey]",
+            Disambiguation::Compatible,
+            OffsetDisambiguation::Use,
+            provider,
+        ).unwrap();
+
+        let start_of_march4 = "2010-03-04T00:00:00+11:00[Antarctica/Casey]";
+        let start_of_march5 = "2010-03-05T00:00:00+11:00[Antarctica/Casey]";
+        let start_of_march6 = "2010-03-06T00:00:00+08:00[Antarctica/Casey]";
+
+        // Hours in day
+        assert_eq!(zdt1.hours_in_day_with_provider(provider).unwrap(), 24.0);
+        assert_eq!(zdt2.hours_in_day_with_provider(provider).unwrap(), 27.0);
+        assert_eq!(zdt3.hours_in_day_with_provider(provider).unwrap(), 24.0);
+        assert_eq!(zdt4.hours_in_day_with_provider(provider).unwrap(), 27.0);
+
+        // Start of day
+        assert_eq!(zdt1.start_of_day_with_provider(provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march4);
+        assert_eq!(zdt2.start_of_day_with_provider(provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+        assert_eq!(zdt3.start_of_day_with_provider(provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march4);
+        assert_eq!(zdt4.start_of_day_with_provider(provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+
+        // Rounding down
+        for rounding_mode in [RoundingMode::Floor, RoundingMode::Trunc] {
+            let options = RoundingOptions {
+                smallest_unit: Some(Unit::Day),
+                rounding_mode: Some(rounding_mode),
+                ..Default::default()
+            };
+            assert_eq!(zdt1.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march4);
+            assert_eq!(zdt2.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+            assert_eq!(zdt3.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march4);
+            assert_eq!(zdt4.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+        }
+
+        // Rounding to nearest
+        for rounding_mode in [
+            RoundingMode::HalfCeil,
+            RoundingMode::HalfEven,
+            RoundingMode::HalfExpand,
+            RoundingMode::HalfFloor,
+            RoundingMode::HalfTrunc,
+        ] {
+            let options = RoundingOptions {
+                smallest_unit: Some(Unit::Day),
+                rounding_mode: Some(rounding_mode),
+                ..Default::default()
+            };
+            assert_eq!(zdt1.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+            assert_eq!(zdt2.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+            assert_eq!(zdt3.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+            assert_eq!(zdt4.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+        }
+
+        // Rounding up
+        for rounding_mode in [RoundingMode::Ceil, RoundingMode::Expand] {
+            let options = RoundingOptions {
+                smallest_unit: Some(Unit::Day),
+                rounding_mode: Some(rounding_mode),
+                ..Default::default()
+            };
+            assert_eq!(zdt1.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+            assert_eq!(zdt2.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march6);
+            assert_eq!(zdt3.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march5);
+            assert_eq!(zdt4.round_with_provider(options, provider).unwrap().to_string_with_provider(provider).unwrap(), start_of_march6);
+        }
+    })
+}
