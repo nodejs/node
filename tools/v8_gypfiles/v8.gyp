@@ -2093,7 +2093,7 @@
         'conditions': [
           ['v8_use_perfetto==1', {
             'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?if .v8_use_perfetto.*?sources \\+= ")',
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_cluster_source_set.\\"cppgc_base.*?if .v8_use_perfetto.*?sources \\+= ")',
             ],
           }],
         ],
