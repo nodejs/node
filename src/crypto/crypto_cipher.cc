@@ -93,6 +93,11 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     // If it is, then the getCipherInfo will succeed with the given
     // values.
     auto ctx = CipherCtxPointer::New();
+    if (!ctx) {
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Failed to allocate cipher context");
+    }
+
     if (!ctx.init(cipher, true)) {
       return;
     }
@@ -338,7 +343,10 @@ void CipherBase::CommonInit(const char* cipher_type,
   MarkPopErrorOnReturn mark_pop_error_on_return;
   CHECK(!ctx_);
   ctx_ = CipherCtxPointer::New();
-  CHECK(ctx_);
+  if (!ctx_) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env(), "Failed to allocate cipher context");
+  }
 
   if (cipher.isWrapMode()) {
     ctx_.setAllowWrap();
@@ -793,6 +801,7 @@ bool PublicKeyCipher::Cipher(
     const EVPKeyPointer& pkey,
     int padding,
     const Digest& digest,
+    const Digest& mgf1_digest,
     const ArrayBufferOrViewContents<unsigned char>& oaep_label,
     const ArrayBufferOrViewContents<unsigned char>& data,
     std::unique_ptr<BackingStore>* out) {
@@ -802,6 +811,7 @@ bool PublicKeyCipher::Cipher(
   const ncrypto::Cipher::CipherParams params{
       .padding = padding,
       .digest = digest,
+      .mgf1_digest = mgf1_digest,
       .label = label,
   };
 
@@ -829,7 +839,11 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
-  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(args, &offset);
+  // TODO(panva): Use GetPrivateKeyFromJs() for private operations, then
+  // remove allow_private_key_store and URL handling from
+  // GetPublicOrPrivateKeyFromJs().
+  auto data = KeyObjectData::GetPublicOrPrivateKeyFromJs(
+      args, &offset, operation == PublicKeyCipher::kPrivate);
   if (!data) return;
   const auto& pkey = data.GetAsymmetricKey();
   if (!pkey) return;
@@ -870,8 +884,17 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   if (!oaep_label.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "oaepLabel is too big");
   }
+
+  Digest mgf1_digest;
+  if (args[offset + 4]->IsString()) {
+    Utf8Value mgf1_str(env->isolate(), args[offset + 4]);
+    mgf1_digest = Digest::FromName(*mgf1_str);
+    if (!mgf1_digest) return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
+  }
+
   std::unique_ptr<BackingStore> out;
-  if (!Cipher<cipher>(env, pkey, padding, digest, oaep_label, buf, &out)) {
+  if (!Cipher<cipher>(
+          env, pkey, padding, digest, mgf1_digest, oaep_label, buf, &out)) {
     return ThrowCryptoError(env, ERR_get_error());
   }
 

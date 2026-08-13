@@ -333,6 +333,9 @@
       'NDEBUG',
       'OPENSSL_USE_NODELETE',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
       'FIPS_MODULE',
       'FIPS_MODULE',
     ],
@@ -342,7 +345,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux64-riscv64': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
     'linker_script': '<(PRODUCT_DIR)/../../deps/openssl/config/archs/linux64-riscv64/no-asm/providers/fips.ld'
   },

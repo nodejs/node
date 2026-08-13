@@ -12,7 +12,7 @@ if (process.features.openssl_is_boringssl) {
 
 const {
   hasOpenSSL,
-  hasOpenSSL3,
+  hasFIPS,
 } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 const { inspect } = require('util');
@@ -29,8 +29,24 @@ const DEFAULT_MAX_VERSION = tls.DEFAULT_MAX_VERSION;
 function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
   assert(proto || cerr || serr, 'test missing any expectations');
 
+  const legacyProtocols = new Set([
+    'TLSv1',
+    'TLSv1.1',
+    'TLSv1_method',
+    'TLSv1_1_method',
+  ]);
+  const expectedLegacyProtocol = proto === 'TLSv1' || proto === 'TLSv1.1';
+  const legacyOnlyConfiguration = [cprot, sprot, cmax, smax]
+    .some((value) => legacyProtocols.has(value));
+  const fipsLegacyFailure = hasFIPS(3) &&
+    (expectedLegacyProtocol || (!proto && legacyOnlyConfiguration));
+
+  if (hasFIPS(3) && expectedLegacyProtocol) {
+    proto = undefined;
+  }
+
   let ciphers;
-  if (hasOpenSSL3 && (proto === 'TLSv1' || proto === 'TLSv1.1' ||
+  if (hasOpenSSL(3) && (proto === 'TLSv1' || proto === 'TLSv1.1' ||
       proto === 'TLSv1_1_method' || proto === 'TLSv1_method' ||
       sprot === 'TLSv1_1_method' || sprot === 'TLSv1_method')) {
     if (serr !== 'ERR_SSL_UNSUPPORTED_PROTOCOL')
@@ -65,6 +81,27 @@ function test(cmin, cmax, cprot, smin, smax, sprot, proto, cerr, serr) {
     console.log('test:', u(cmin), u(cmax), u(cprot), u(smin), u(smax), u(sprot),
                 u(ciphers), 'expect', u(proto), u(cerr), u(serr));
     console.log('  ', where);
+    if (fipsLegacyFailure) {
+      const errors = [pair.client.err, pair.server.err].filter(Boolean);
+      assert(errors.length > 0);
+      const expectedCodes = new Set([
+        'ERR_SSL_NO_PROTOCOLS_AVAILABLE',
+        'ERR_SSL_NO_SUITABLE_DIGEST_ALGORITHM',
+        'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE',
+        'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE',
+        'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+        'ERR_SSL_UNEXPECTED_MESSAGE',
+        'ERR_SSL_UNSUPPORTED_PROTOCOL',
+        'ERR_SSL_VERSION_TOO_LOW',
+        'ERR_SSL_WRONG_VERSION_NUMBER',
+      ]);
+      if (hasFIPS(4))
+        expectedCodes.add('ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE');
+      for (const error of errors)
+        assert(expectedCodes.has(error.code), error);
+      return cleanup();
+    }
+
     if (!proto) {
       console.log('client', pair.client.err ? pair.client.err.code : undefined);
       console.log('server', pair.server.err ? pair.server.err.code : undefined);
@@ -139,9 +176,9 @@ test(U, U, 'TLS_method', U, U, 'TLSv1_method', 'TLSv1');
 
 // OpenSSL 1.1.1 and 3.0 use a different error code and alert (sent to the
 // client) when no protocols are enabled on the server.
-const NO_PROTOCOLS_AVAILABLE_SERVER = hasOpenSSL3 ?
+const NO_PROTOCOLS_AVAILABLE_SERVER = hasOpenSSL(3) ?
   'ERR_SSL_NO_PROTOCOLS_AVAILABLE' : 'ERR_SSL_INTERNAL_ERROR';
-const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT = hasOpenSSL3 ?
+const NO_PROTOCOLS_AVAILABLE_SERVER_ALERT = hasOpenSSL(3) ?
   'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' : 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR';
 
 // SSLv23 also means "any supported protocol" greater than the default
@@ -200,7 +237,7 @@ test(U, U, 'TLSv1_2_method', U, U, 'TLSv1_2_method', 'TLSv1.2');
 test(U, U, 'TLSv1_1_method', U, U, 'TLSv1_1_method', 'TLSv1.1');
 test(U, U, 'TLSv1_method', U, U, 'TLSv1_method', 'TLSv1');
 
-// The default default.
+// The default configuration.
 if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
   test(U, U, 'TLSv1_1_method', U, U, U,
        U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
@@ -215,7 +252,7 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.2') {
     test(U, U, U, U, U, 'TLSv1_method',
          U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
   } else {
-    // TLS1.3 client hellos are are not understood by TLS1.1 or below.
+    // TLS1.3 client hellos are not understood by TLS1.1 or below.
     test(U, U, U, U, U, 'TLSv1_1_method',
          U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
          'ERR_SSL_UNSUPPORTED_PROTOCOL');
@@ -237,7 +274,7 @@ if (DEFAULT_MIN_VERSION === 'TLSv1.1') {
     test(U, U, U, U, U, 'TLSv1_method',
          U, 'ERR_SSL_UNSUPPORTED_PROTOCOL', 'ERR_SSL_WRONG_VERSION_NUMBER');
   } else {
-    // TLS1.3 client hellos are are not understood by TLS1.1 or below.
+    // TLS1.3 client hellos are not understood by TLS1.1 or below.
     test(U, U, U, U, U, 'TLSv1_method',
          U, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
          'ERR_SSL_UNSUPPORTED_PROTOCOL');

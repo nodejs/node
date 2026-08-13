@@ -12,7 +12,7 @@ const { assertProbeJson } = require('../common/debugger-probe');
 const cwd = fixtures.path('debugger');
 const fixture = 'probe-inspector-close-two-probes.js';
 const marker = 'probe-inspector-close-marker';
-const timeoutMs = common.platformTimeout(1000);
+const timeoutMs = common.platformTimeout(3000);
 const probes = [
   { expr: 'closeInspector()', target: { suffix: fixture, line: 10 } },
   { expr: 'firstProbeLine', target: { suffix: fixture, line: 11 } },
@@ -24,7 +24,7 @@ spawnSyncAndExit(process.execPath, [
   '--probe', `${fixture}:10`, '--expr', probes[0].expr,
   '--probe', `${fixture}:11`, '--expr', probes[1].expr,
   fixture,
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   status: 1,
   signal: null,
   stdout(output) {

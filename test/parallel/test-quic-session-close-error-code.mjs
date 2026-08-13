@@ -12,8 +12,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 
-const { strictEqual, rejects } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,14 +26,17 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      strictEqual(err.message.includes('42n'), true,
-                  'error message should contain the code');
-      strictEqual(err.message.includes('client shutdown'), true,
-                  'error message should contain the reason');
+      assert.strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.strictEqual(err.message.includes('42'), true); // Error message should contain the code
+      assert.strictEqual(err.message.includes('client shutdown'), true); // Error message should contain the reason
+      assert.strictEqual(err.errorCode, 42n);
+      assert.strictEqual(err.type, 'application');
+      assert.strictEqual(err.reason, 'client shutdown');
     });
-    await rejects(serverSession.closed, {
+    await assert.rejects(serverSession.closed, {
       code: 'ERR_QUIC_APPLICATION_ERROR',
+      errorCode: 42n,
+      reason: 'client shutdown',
     });
     serverGot.resolve();
   }));
@@ -70,11 +71,12 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
-      strictEqual(err.message.includes('1n'), true,
-                  'error message should contain the code');
+      assert.strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
+      assert.strictEqual(err.message.includes('1'), true); // Error message should contain the code
+      assert.strictEqual(err.errorCode, 1n);
+      assert.strictEqual(err.type, 'transport');
     });
-    await rejects(serverSession.closed, {
+    await assert.rejects(serverSession.closed, {
       code: 'ERR_QUIC_TRANSPORT_ERROR',
     });
     serverGot.resolve();
@@ -101,10 +103,13 @@ const { listen, connect } = await import('../common/quic.mjs');
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      strictEqual(err.message.includes('99n'), true);
+      assert.strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
+      assert.strictEqual(err.message.includes('99'), true);
+      assert.strictEqual(err.errorCode, 99n);
+      assert.strictEqual(err.type, 'application');
+      assert.strictEqual(err.reason, 'destroy with code');
     });
-    await rejects(serverSession.closed, {
+    await assert.rejects(serverSession.closed, {
       code: 'ERR_QUIC_APPLICATION_ERROR',
     });
     serverGot.resolve();
@@ -114,7 +119,7 @@ const { listen, connect } = await import('../common/quic.mjs');
     reuseEndpoint: false,
     onerror: mustCall((err) => {
       // The JS error passed to destroy is delivered via onerror.
-      strictEqual(err.message, 'fatal error');
+      assert.strictEqual(err.message, 'fatal error');
     }),
   });
   await clientSession.opened;
@@ -128,7 +133,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   });
 
   // The closed promise rejects with the JS error, not the QUIC error.
-  await rejects(clientSession.closed, jsError);
+  await assert.rejects(clientSession.closed, jsError);
 
   await serverGot.promise;
   await serverEndpoint.close();

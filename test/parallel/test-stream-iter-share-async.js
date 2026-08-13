@@ -30,7 +30,7 @@ async function testShareMultipleConsumers() {
     yield [new TextEncoder().encode('chunk3')];
   }
 
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
 
   const c1 = shared.pull();
   const c2 = shared.pull();
@@ -97,7 +97,7 @@ async function testShareCancelMidIteration() {
       sourceReturnCalled = true;
     }
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
   const consumer = shared.pull();
 
   const items = [];
@@ -141,8 +141,8 @@ async function testShareAbortSignal() {
     yield [enc.encode('b')];
   }
   const shared = share(source(), {
-    highWaterMark: 1,
-    backpressure: 'block',
+    budget: 16384,
+    backpressure: 'unbounded',
     signal: ac.signal,
   });
   const fast = shared.pull()[Symbol.asyncIterator]();
@@ -196,6 +196,25 @@ async function testShareAbortSignalWhileSourcePullPending() {
   await Promise.all([rejected1, rejected2]);
 }
 
+async function testSharePullAbortSignalRejectsPendingNext() {
+  const ac = new AbortController();
+  const reason = new Error('pull aborted');
+  const shared = share(
+    // eslint-disable-next-line require-yield
+    (async function* never() {
+      await new Promise(() => {});
+    })(),
+  );
+  const iter = shared.pull({ signal: ac.signal })[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  const rejected = assert.rejects(pendingNext, (error) => error === reason);
+  ac.abort(reason);
+
+  await rejected;
+  shared.cancel();
+}
+
 async function testShareAlreadyAborted() {
   const shared = share(from('data'), { signal: AbortSignal.abort() });
   const consumer = shared.pull();
@@ -240,7 +259,7 @@ async function testShareLateJoiningConsumer() {
     yield [enc.encode('b')];
     yield [enc.encode('c')];
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
 
   // First consumer reads all data
   const c1 = shared.pull();
@@ -262,7 +281,7 @@ async function testShareConsumerBreak() {
     yield [enc.encode('b')];
     yield [enc.encode('c')];
   }
-  const shared = share(gen(), { highWaterMark: 16 });
+  const shared = share(gen(), { budget: 16384 });
   const c1 = shared.pull();
   const c2 = shared.pull();
 
@@ -306,6 +325,24 @@ async function testShareMultipleConsumersConcurrentPull() {
   assert.strictEqual(t3, expected);
 }
 
+async function testShareConsumerConcurrentNextCalls() {
+  async function* source() {
+    const enc = new TextEncoder();
+    yield [enc.encode('first')];
+    yield [enc.encode('second')];
+  }
+
+  const shared = share(source());
+  const it = shared.pull()[Symbol.asyncIterator]();
+  const first = it.next();
+  const second = it.next();
+
+  const [r1, r2] = await Promise.all([first, second]);
+  const dec = new TextDecoder();
+  assert.strictEqual(dec.decode(r1.value[0]), 'first');
+  assert.strictEqual(dec.decode(r2.value[0]), 'second');
+}
+
 // share() accepts string source directly (normalized via from())
 async function testShareStringSource() {
   const shared = share('hello-share');
@@ -322,10 +359,12 @@ Promise.all([
   testShareCancelWithReason(),
   testShareAbortSignal(),
   testShareAbortSignalWhileSourcePullPending(),
+  testSharePullAbortSignalRejectsPendingNext(),
   testShareAlreadyAborted(),
   testShareSourceError(),
   testShareLateJoiningConsumer(),
   testShareConsumerBreak(),
   testShareMultipleConsumersConcurrentPull(),
+  testShareConsumerConcurrentNextCalls(),
   testShareStringSource(),
 ]).then(common.mustCall());

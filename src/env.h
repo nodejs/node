@@ -189,6 +189,11 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #undef VS
 #undef VP
 
+#define V(Name, label, _, __)                                                  \
+  inline v8::Local<v8::String> Name##_permission_string() const;
+  PERMISSIONS(V)
+#undef V
+
 #define VM(PropertyName) V(PropertyName##_binding_template, v8::ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> PropertyName() const;                             \
@@ -234,6 +239,12 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #undef VS
 #undef VY
 #undef VP
+
+#define V(Name, label, _, __)                                                  \
+  v8::Eternal<v8::String> Name##_permission_string##_;
+  PERMISSIONS(V)
+#undef V
+
   // Keep a list of all Persistent strings used for AsyncWrap Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH>
       async_wrap_providers_;
@@ -875,6 +886,11 @@ class Environment final : public MemoryRetainer {
 #undef VY
 #undef VP
 
+#define V(Name, label, _, __)                                                  \
+  inline v8::Local<v8::String> Name##_permission_string() const;
+  PERMISSIONS(V)
+#undef V
+
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
@@ -1037,6 +1053,7 @@ class Environment final : public MemoryRetainer {
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
+  bool HasNativeImmediates() const;
 
   uv_buf_t allocate_managed_buffer(const size_t suggested_size);
   std::unique_ptr<v8::BackingStore> release_managed_buffer(const uv_buf_t& buf);

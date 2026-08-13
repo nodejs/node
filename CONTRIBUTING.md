@@ -1,5 +1,10 @@
 # Contributing to Node.js
 
+> \[!TIP]
+> Contributing for the first time? Please read our
+> [Guide for First-Time Contributors](./doc/contributing/first-contributions.md) for tips
+> and answers to FAQs.
+
 Contributions to Node.js include code, documentation, answering user questions,
 running the project's infrastructure, and advocating for all types of Node.js
 users.
@@ -20,6 +25,7 @@ works.
 * [Issues](#issues)
 * [Pull Requests](#pull-requests)
 * [Automation and bots](#automation-and-bots)
+* [AI Use Policy and Guidelines](#ai-use-policy-and-guidelines)
 * [Developer's Certificate of Origin 1.1](#developers-certificate-of-origin-11)
 
 ## [Code of Conduct](./doc/contributing/code-of-conduct.md)
@@ -60,6 +66,15 @@ Interactions (including Issues, Comments, Pull Requests and Reviews) made
 by an automation that was not authorized by Node.js collaborators are
 subject to immediate moderation enforcement on the automation and owner
 without notice.
+
+## [AI Use Policy and Guidelines](./doc/contributing/ai-guidelines.md)
+
+Node.js requires contributors to understand and take full responsibility for
+every change they propose. Pull requests containing AI-generated code the
+contributor has not personally understood, tested, and verified will likely be closed
+without review.
+
+See [details on our AI use policy and guidelines](./doc/contributing/ai-guidelines.md).
 
 ## Developer's Certificate of Origin 1.1
 

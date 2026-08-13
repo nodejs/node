@@ -234,7 +234,7 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
 template <typename FT, FT F, typename R, typename... Args>
 void WASI::WasiFunction<FT, F, R, Args...>::SetFunction(
     Environment* env, const char* name, Local<FunctionTemplate> tmpl) {
-  auto c_function = CFunction::Make(FastCallback);
+  static auto c_function = CFunction::Make(FastCallback);
   Local<FunctionTemplate> t =
       FunctionTemplate::New(env->isolate(),
                             SlowCallback,
@@ -358,8 +358,8 @@ template <typename FT,
           FT F,
           typename R,
           typename... Args,
-          std::size_t... Indices,
-          typename std::enable_if_t<!std::is_void<R>::value, bool> = true>
+          std::size_t... Indices>
+  requires(!std::is_void_v<R>)
 inline void CallAndSetReturn(std::index_sequence<Indices...>,
                              const FunctionCallbackInfo<Value>& args,
                              WASI* wasi,
@@ -372,8 +372,8 @@ template <typename FT,
           FT F,
           typename R,
           typename... Args,
-          std::size_t... Indices,
-          typename std::enable_if_t<std::is_void<R>::value, bool> = true>
+          std::size_t... Indices>
+  requires std::is_void_v<R>
 inline void CallAndSetReturn(std::index_sequence<Indices...>,
                              const FunctionCallbackInfo<Value>& args,
                              WASI* wasi,

@@ -111,15 +111,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 # define NODE_DEPRECATED(message, declarator) declarator
 #else  // NODE_WANT_INTERNALS
-# if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __attribute__((deprecated(message))) declarator
-# elif defined(_MSC_VER)
-#  define NODE_DEPRECATED(message, declarator)                                 \
-    __declspec(deprecated) declarator
-# else
-#  define NODE_DEPRECATED(message, declarator) declarator
-# endif
+#define NODE_DEPRECATED(message, declarator) [[deprecated(message)]] declarator
 #endif
 
 // Forward-declare libuv loop
@@ -698,17 +690,8 @@ NODE_EXTERN Environment* CreateEnvironment(
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags = EnvironmentFlags::kDefaultFlags,
     ThreadId thread_id = {} /* allocates a thread id automatically */,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
-
-NODE_EXTERN Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    v8::Local<v8::Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
-    std::string_view thread_name);
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {},
+    std::string_view thread_name = {});
 
 // Returns a handle that can be passed to `LoadEnvironment()`, making the
 // child Environment accessible to the inspector as if it were a Node.js Worker.
@@ -860,6 +843,16 @@ NODE_EXTERN void SetProcessExitHandler(
     Environment* env,
     std::function<void(Environment*, int)>&& handler);
 NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
+
+// Sets a process-global handler invoked when Node.js programmatically aborts.
+// Nullable strings representing the location and reason for the abort may or
+// may not be passed as a parameter to the handler. The handler should not
+// return, but node will ensure that the process exits after the handler is
+// called regardless of whether or not it returns. Passing nullptr restores the
+// default handler. This is process-global and may be invoked before any Isolate
+// or Environment exists.
+using AbortHandler = void (*)(const char* location, const char* message);
+NODE_EXTERN void SetAbortHandler(AbortHandler handler);
 
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);

@@ -10,6 +10,7 @@
 #include "memory_tracker.h"
 #include "v8.h"
 
+#include <climits>
 #include <string>
 
 namespace node {
@@ -105,6 +106,7 @@ class PublicKeyCipher {
                      const ncrypto::EVPKeyPointer& pkey,
                      int padding,
                      const ncrypto::Digest& digest,
+                     const ncrypto::Digest& mgf1_digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
                      std::unique_ptr<v8::BackingStore>* out);
@@ -123,6 +125,18 @@ enum class WebCryptoCipherStatus {
   INVALID_KEY_TYPE,
   FAILED
 };
+
+inline bool TryGetIntCipherOutputLength(size_t input_len,
+                                        size_t output_overhead,
+                                        int* output_len) {
+  static constexpr size_t kMaxLength = INT_MAX;
+  if (output_overhead > kMaxLength ||
+      input_len > kMaxLength - output_overhead) {
+    return false;
+  }
+  *output_len = static_cast<int>(input_len + output_overhead);
+  return true;
+}
 
 // CipherJob is a base implementation class for implementations of
 // one-shot sync and async ciphers. It has been added primarily to
@@ -255,9 +269,8 @@ class CipherJob final : public CryptoJob<CipherTraits> {
 
   SET_SELF_SIZE(CipherJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    if (IsCryptoJobAsync(CryptoJob<CipherTraits>::mode()))
-      tracker->TrackFieldWithSize("in", in_.size());
-    tracker->TrackFieldWithSize("out", out_.size());
+    tracker->TraitTrackInline(in_, "in");
+    tracker->TraitTrackInline(out_, "out");
     CryptoJob<CipherTraits>::MemoryInfo(tracker);
   }
 

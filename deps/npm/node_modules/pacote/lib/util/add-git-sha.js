@@ -8,7 +8,10 @@ const addGitSha = (spec, sha) => {
     return `${base}#${sha}`
   } else {
     // don't use new URL for this, because it doesn't handle scp urls
-    return spec.rawSpec.replace(/#.*$/, '') + `#${sha}`
+    // strip the committish with indexOf/slice to avoid a regexp redos
+    const hashIndex = spec.rawSpec.indexOf('#')
+    const base = hashIndex === -1 ? spec.rawSpec : spec.rawSpec.slice(0, hashIndex)
+    return `${base}#${sha}`
   }
 }
 

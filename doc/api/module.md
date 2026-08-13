@@ -245,6 +245,7 @@ changes:
   * `deregister()` {Function} Remove the registered hooks so that they are no
     longer called. Hooks are otherwise retained for the lifetime of the running
     process.
+  * `[Symbol.dispose]` {Function} The same as `deregister`.
 
 Register [hooks][] that customize Node.js module resolution and loading behavior.
 See [Customization hooks][]. The returned object can be used to
@@ -534,7 +535,7 @@ For general use cases, it's recommended to call `module.enableCompileCache()` wi
 specifying the `options.directory`, so that the directory can be overridden by the
 `NODE_COMPILE_CACHE` environment variable when necessary.
 
-Since compile cache is supposed to be a optimization that is not mission critical, this
+Since compile cache is supposed to be an optimization that is not mission critical, this
 method is designed to not throw any exception when the compile cache cannot be enabled.
 Instead, it will return an object containing an error message in the `message` field to
 aid debugging. If compile cache is enabled successfully, the `directory` field in the

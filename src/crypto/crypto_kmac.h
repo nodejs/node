@@ -10,19 +10,19 @@
 
 namespace node::crypto {
 
-#if OPENSSL_WITH_KMAC
+#if OPENSSL_WITH_EVP_MAC
 
 enum class KmacVariant { KMAC128, KMAC256 };
 
 struct KmacConfig final : public MemoryRetainer {
-  CryptoJobMode job_mode;
   SignConfiguration::Mode mode;
   KeyObjectData key;
   ByteSource data;
   ByteSource signature;
   ByteSource customization;
   KmacVariant variant;
-  uint32_t length;  // Output length in bytes
+  size_t key_length;  // Key length in bits
+  uint32_t length;    // Output length in bits
 
   KmacConfig() = default;
 
@@ -71,7 +71,7 @@ namespace Kmac {
 void Initialize(Environment* env, v8::Local<v8::Object> target) {}
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {}
 }  // namespace Kmac
-#endif  // OPENSSL_WITH_KMAC
+#endif  // OPENSSL_WITH_EVP_MAC
 
 }  // namespace node::crypto
 

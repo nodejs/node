@@ -196,7 +196,7 @@ Some of the things to highlight include:
   time we all have other responsibilities that affect how much time we have
   available to do so.
 * People are volunteering their time to review your PRs and answer questions in
-  the issues you open. Be mindfull of your asks for their time and acknowledge
+  the issues you open. Be mindful of your asks for their time and acknowledge
   the gift of their time. Too many issues/PRs in a short period of time may
   overwhelm maintainers leading to less progress versus more, try to pace your
   issues and PRs so that you don't have too many open at the same time. The

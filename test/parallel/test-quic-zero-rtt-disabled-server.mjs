@@ -10,9 +10,6 @@ import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,8 +17,8 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 
@@ -88,8 +85,8 @@ const cs2 = await connect(serverEndpoint2.address, {
 await cs2.sendDatagram(new Uint8Array([1]));
 
 const info2 = await cs2.opened;
-strictEqual(info2.earlyDataAttempted, true);
-strictEqual(info2.earlyDataAccepted, false);
+assert.strictEqual(info2.earlyDataAttempted, true);
+assert.strictEqual(info2.earlyDataAccepted, false);
 
 await cs2.closed;
 await serverEndpoint2.close();

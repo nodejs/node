@@ -203,13 +203,6 @@ static int pkcs7_decrypt_rinfo(unsigned char **pek, int *peklen,
     if (EVP_PKEY_decrypt_init(pctx) <= 0)
         goto err;
 
-    if (EVP_PKEY_is_a(pkey, "RSA"))
-        /* upper layer pkcs7 code incorrectly assumes that a successful RSA
-         * decryption means that the key matches ciphertext (which never
-         * was the case, implicit rejection or not), so to make it work
-         * disable implicit rejection for RSA keys */
-        EVP_PKEY_CTX_ctrl_str(pctx, "rsa_pkcs1_implicit_rejection", "0");
-
     ret = evp_pkey_decrypt_alloc(pctx, &ek, &eklen, fixlen,
         ri->enc_key->data, ri->enc_key->length);
     if (ret <= 0)

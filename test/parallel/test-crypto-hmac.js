@@ -6,13 +6,9 @@ if (!common.hasCrypto) {
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 
-{
-  const Hmac = crypto.Hmac;
-  const instance = crypto.Hmac('sha256', 'Node');
-  assert(instance instanceof Hmac, 'Hmac is expected to return a new instance' +
-                                   ' when called without `new`');
-}
+const fips3 = hasFIPS(3);
 
 assert.throws(
   () => crypto.createHmac(null),
@@ -24,7 +20,7 @@ assert.throws(
 
 // This used to segfault. See: https://github.com/nodejs/node/issues/9819
 assert.throws(
-  () => crypto.createHmac('sha256', 'key').digest({
+  () => crypto.createHmac('sha256', '0123456789abcdef').digest({
     toString: () => { throw new Error('boom'); },
   }),
   {
@@ -40,9 +36,14 @@ assert.throws(
   });
 
 function testHmac(algo, key, data, expected) {
-  // FIPS does not support MD5.
-  if (crypto.getFips() && algo === 'md5')
+  if (crypto.getFips() === 1 && algo === 'md5') {
+    if (fips3) {
+      assert.throws(() => crypto.createHmac(algo, Buffer.alloc(32)), {
+        code: 'ERR_OSSL_EVP_UNSUPPORTED',
+      });
+    }
     return;
+  }
 
   if (!Array.isArray(data))
     data = [data];
@@ -66,6 +67,19 @@ function testHmac(algo, key, data, expected) {
   // Test HMAC with multiple updates.
   testHmac('sha1', 'Node', ['some data', 'to hmac'],
            '19fd6e1ba73d9ed2224dd5094a71babe85d9a892');
+}
+
+{
+  // Historically, dss1 and DSS1 are SHA-1 aliases.
+  const key = '0123456789abcdef';
+  const expected =
+    crypto.createHmac('sha1', key).update('data').digest('hex');
+
+  for (const algo of ['dss1', 'DSS1']) {
+    assert.strictEqual(
+      crypto.createHmac(algo, key).update('data').digest('hex'),
+      expected);
+  }
 }
 
 // Test HMAC (Wikipedia Test Cases)
@@ -407,48 +421,16 @@ const rfc2202_sha1 = [
 for (const { key, data, hmac } of rfc2202_sha1)
   testHmac('sha1', key, data, hmac);
 
-assert.strictEqual(
-  crypto.createHmac('sha256', 'w00t').digest('ucs2'),
-  crypto.createHmac('sha256', 'w00t').digest().toString('ucs2'));
-
-// Check initialized -> uninitialized state transition after calling digest().
 {
-  const expected =
-      '\u0010\u0041\u0052\u00c5\u00bf\u00dc\u00a0\u007b\u00c6\u0033' +
-      '\u00ee\u00bd\u0046\u0019\u009f\u0002\u0055\u00c9\u00f4\u009d';
-  {
-    const h = crypto.createHmac('sha1', 'key').update('data');
-    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(expected, 'latin1'));
-    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(''));
-  }
-  {
-    const h = crypto.createHmac('sha1', 'key').update('data');
-    assert.strictEqual(h.digest('latin1'), expected);
-    assert.strictEqual(h.digest('latin1'), '');
-  }
-}
-
-// Check initialized -> uninitialized state transition after calling digest().
-// Calls to update() omitted intentionally.
-{
-  const expected =
-      '\u00f4\u002b\u00b0\u00ee\u00b0\u0018\u00eb\u00bd\u0045\u0097' +
-      '\u00ae\u0072\u0013\u0071\u001e\u00c6\u0007\u0060\u0084\u003f';
-  {
-    const h = crypto.createHmac('sha1', 'key');
-    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(expected, 'latin1'));
-    assert.deepStrictEqual(h.digest('buffer'), Buffer.from(''));
-  }
-  {
-    const h = crypto.createHmac('sha1', 'key');
-    assert.strictEqual(h.digest('latin1'), expected);
-    assert.strictEqual(h.digest('latin1'), '');
-  }
+  const key = '0123456789abcdef';
+  assert.strictEqual(
+    crypto.createHmac('sha256', key).digest('ucs2'),
+    crypto.createHmac('sha256', key).digest().toString('ucs2'));
 }
 
 {
   assert.throws(
-    () => crypto.createHmac('sha7', 'key'),
+    () => crypto.createHmac('sha7', '0123456789abcdef'),
     /Invalid digest/);
 }
 
@@ -459,14 +441,4 @@ assert.strictEqual(
     crypto.createHmac('sha256', buf).update('foo').digest(),
     crypto.createHmac('sha256', keyObject).update('foo').digest(),
   );
-}
-
-{
-  crypto.Hmac('sha256', 'Node');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hmac constructor is deprecated.',
-       'DEP0181'],
-    ]
-  });
 }

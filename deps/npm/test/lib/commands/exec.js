@@ -220,6 +220,41 @@ t.test('finds workspace dep first', async t => {
   t.ok(exists.isFile(), 'bin ran, creating file')
 })
 
+t.test('finds workspace dep bin under linked install strategy', async t => {
+  const { npm } = await loadMockNpm(t, {
+    config: {
+      'install-strategy': 'linked',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: '@npmcli/npx-workspace-root-test',
+        workspaces: ['workspace-a', 'tool'],
+      }),
+      'workspace-a': {
+        'package.json': JSON.stringify({
+          name: 'workspace-a',
+          dependencies: { tool: '*' },
+        }),
+      },
+      tool: {
+        'package.json': JSON.stringify({
+          name: 'tool',
+          version: '1.0.0',
+          bin: { 'npx-test': 'index.js' },
+        }),
+        'index.js': `#!/usr/bin/env node
+  require('fs').writeFileSync('npm-exec-test-success', '')`,
+      },
+    },
+  })
+
+  await npm.exec('install', [])
+  npm.config.set('workspace', ['workspace-a'])
+  await npm.exec('exec', ['npx-test'])
+  const exists = await fs.stat(path.join(npm.prefix, 'workspace-a', 'npm-exec-test-success'))
+  t.ok(exists.isFile(), 'workspace-local bin ran instead of falling back to the registry')
+})
+
 t.test('npx --no-install @npmcli/npx-test', async t => {
   const registry = new MockRegistry({
     tap: t,
@@ -302,4 +337,69 @@ t.test('can run packages with keywords', async t => {
   } catch (err) {
     t.fail(err, 'should not throw')
   }
+})
+
+t.test('exec threads allowScripts policy from .npmrc through to libexec', async t => {
+  let capturedOpts
+  const fakeLibexec = async (opts) => {
+    capturedOpts = opts
+  }
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'host', version: '1.0.0' }),
+      '.npmrc': 'allow-scripts = canvas',
+    },
+    mocks: {
+      libnpmexec: fakeLibexec,
+    },
+  })
+  await npm.exec('exec', ['some-pkg'])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true },
+    'allowScripts populated from .npmrc layer')
+})
+
+t.test('exec ignores project package.json#allowScripts (RFC: .npmrc-only)', async t => {
+  // Per RFC line 299, exec/npx consults only user/global .npmrc. Project
+  // package.json policy must NOT influence npx behaviour, even when the
+  // user is running npx inside a project that has its own allowScripts.
+  let capturedOpts
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { sharp: true },
+      }),
+    },
+    mocks: {
+      libnpmexec: async (opts) => {
+        capturedOpts = opts
+      },
+    },
+  })
+  await npm.exec('exec', ['some-pkg'])
+  // package.json policy is skipped; no other layer has policy; result is null.
+  t.equal(capturedOpts.allowScripts, null)
+})
+
+t.test('exec reads .npmrc policy even when project package.json has a different policy', async t => {
+  // .npmrc-tier policy wins because package.json is skipped entirely.
+  let capturedOpts
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { sharp: true },
+      }),
+      '.npmrc': 'allow-scripts = canvas',
+    },
+    mocks: {
+      libnpmexec: async (opts) => {
+        capturedOpts = opts
+      },
+    },
+  })
+  await npm.exec('exec', ['some-pkg'])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true })
 })

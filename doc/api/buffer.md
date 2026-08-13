@@ -593,6 +593,20 @@ added:
 Returns a promise that fulfills with the contents of the `Blob` decoded as a
 UTF-8 string.
 
+### `blob.textStream()`
+
+<!-- YAML
+added:
+ - v26.5.0
+ - v24.19.0
+-->
+
+* Returns: {ReadableStream}
+
+Returns a new `ReadableStream` that allows the content of the `Blob` to be read
+as a stream of UTF-8 decoded strings. It is equivalent to piping
+[`blob.stream()`][] through a [`TextDecoderStream`][] set up with UTF-8.
+
 ### `blob.type`
 
 <!-- YAML
@@ -779,11 +793,14 @@ data that might not have been allocated for `Buffer`s.
 
 A `TypeError` will be thrown if `size` is not a number.
 
-### Static method: `Buffer.allocUnsafe(size)`
+### Static method: `Buffer.allocUnsafe(size[, alignment])`
 
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65003
+    description: Added the `alignment` argument.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45796
     description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
@@ -798,6 +815,9 @@ changes:
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
+* `alignment` {integer} If given, the memory backing the new `Buffer` will start
+  at an address that is a multiple of `alignment`. Must be a power of two no
+  larger than `2 ** 30`. See [Aligned allocations][].
 * Returns: {Buffer}
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
@@ -853,11 +873,14 @@ pool, while `Buffer.allocUnsafe(size).fill(fill)` _will_ use the internal
 difference is subtle but can be important when an application requires the
 additional performance that [`Buffer.allocUnsafe()`][] provides.
 
-### Static method: `Buffer.allocUnsafeSlow(size)`
+### Static method: `Buffer.allocUnsafeSlow(size[, alignment])`
 
 <!-- YAML
 added: v5.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65003
+    description: Added the `alignment` argument.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45796
     description: Throw ERR_INVALID_ARG_TYPE or ERR_OUT_OF_RANGE instead of
@@ -869,6 +892,9 @@ changes:
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
+* `alignment` {integer} If given, the memory backing the new `Buffer` will start
+  at an address that is a multiple of `alignment`. Must be a power of two no
+  larger than `2 ** 30`. See [Aligned allocations][].
 * Returns: {Buffer}
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
@@ -881,7 +907,7 @@ _may contain sensitive data_. Use [`buf.fill(0)`][`buf.fill()`] to initialize
 such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`][] to allocate new `Buffer` instances,
-allocations less than `Buffer.poolSize >>> 1` (4KiB when default poolSize is used) are sliced
+allocations less than `Buffer.poolSize >>> 1` (32KiB when default poolSize is used) are sliced
 from a single pre-allocated `Buffer`. This allows applications to avoid the
 garbage collection overhead of creating many individually allocated `Buffer`
 instances. This approach improves both performance and memory usage by
@@ -1513,9 +1539,15 @@ console.log(Buffer.isEncoding(''));
 
 <!-- YAML
 added: v0.11.3
+changes:
+  - version:
+    - v26.3.0
+    - v24.18.0
+    pr-url: https://github.com/nodejs/node/pull/63597
+    description: Default raised from 8192 to 65536.
 -->
 
-* Type: {integer} **Default:** `8192`
+* Type: {integer} **Default:** `65536`
 
 This is the size (in bytes) of pre-allocated internal `Buffer` instances used
 for pooling. This value may be modified.
@@ -5301,6 +5333,11 @@ npx codemod@latest @nodejs/buffer-atob-btoa
 added:
   - v19.6.0
   - v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64504
+    description: Detached `ArrayBuffer`s and views backed by them are treated
+                 as empty.
 -->
 
 * `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
@@ -5309,7 +5346,7 @@ added:
 This function returns `true` if `input` contains only valid ASCII-encoded data,
 including the case in which `input` is empty.
 
-Throws if the `input` is a detached array buffer.
+A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
 
 ### `buffer.isUtf8(input)`
 
@@ -5317,6 +5354,11 @@ Throws if the `input` is a detached array buffer.
 added:
   - v19.4.0
   - v18.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64504
+    description: Detached `ArrayBuffer`s and views backed by them are treated
+                 as empty.
 -->
 
 * `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
@@ -5325,7 +5367,7 @@ added:
 This function returns `true` if `input` contains only valid UTF-8-encoded data,
 including the case in which `input` is empty.
 
-Throws if the `input` is a detached array buffer.
+A detached `ArrayBuffer`, or a `TypedArray` backed by one, is treated as empty.
 
 ### `buffer.INSPECT_MAX_BYTES`
 
@@ -5582,16 +5624,92 @@ While there are clear performance advantages to using
 [`Buffer.allocUnsafe()`][], extra care _must_ be taken in order to avoid
 introducing security vulnerabilities into an application.
 
+### Aligned allocations
+
+Some operating system interfaces require the memory they operate on to be
+aligned, and on some hardware alignment is merely faster. The most common
+example of the former is unbuffered ("direct") file I/O, which on Linux requires
+the buffer address, the file offset and the transfer length to all be multiples
+of the logical block size of the underlying device:
+
+```mjs
+import { open } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { Buffer } from 'node:buffer';
+
+const blockSize = 4096;
+
+// The buffer address must be block-aligned for O_DIRECT to accept it.
+const buf = Buffer.allocUnsafeSlow(blockSize, blockSize);
+
+const file = await open('/dev/sda', constants.O_RDONLY | constants.O_DIRECT);
+try {
+  await file.read(buf, 0, blockSize, 0);
+} finally {
+  await file.close();
+}
+```
+
+```cjs
+const fs = require('node:fs');
+const { Buffer } = require('node:buffer');
+
+const blockSize = 4096;
+
+// The buffer address must be block-aligned for O_DIRECT to accept it.
+const buf = Buffer.allocUnsafeSlow(blockSize, blockSize);
+
+const flags = fs.constants.O_RDONLY | fs.constants.O_DIRECT;
+fs.open('/dev/sda', flags, (err, fd) => {
+  if (err) throw err;
+  fs.read(fd, buf, 0, blockSize, 0, (err) => {
+    fs.close(fd, () => {});
+    if (err) throw err;
+  });
+});
+```
+
+Alignment can also be worth requesting purely for performance, even when no
+interface demands it. Aligning a hot `Buffer` to the cache line size (64 bytes on
+most contemporary CPUs) keeps it from straddling one more cache line than it
+needs to, so that a small structure is fetched with one cache miss instead of
+two, and page-aligned (4096 bytes) allocations similarly help interfaces that map
+or pin memory. These are micro-optimizations: measure before reaching for them,
+since the extra bytes are not free.
+
+Because the address of a `Buffer`'s memory cannot be chosen directly, extra bytes
+have to be allocated or skipped to reach an aligned address.
+[`Buffer.allocUnsafeSlow()`][] over-allocates up to `alignment - 1` bytes and
+positions the returned `Buffer` at the first suitably aligned byte within them.
+[`Buffer.allocUnsafe()`][] instead pads its offset into the shared internal pool,
+whose start is always aligned to 64 bytes, and only falls back to an allocation
+of its own when `alignment` is larger than that. Either way,
+[`buf.byteOffset`][] is usually not 0 and [`buf.buffer`][] is larger than `size`,
+so code that reaches past the `Buffer` into its underlying `ArrayBuffer` must
+take the offset into account, as it must for pooled `Buffer`s.
+
+The alignment is a property of the returned `Buffer` and is preserved for its
+whole lifetime, but it is not inherited by other views: [`buf.subarray`][],
+[`buf.slice()`][] and `structuredClone()` may all produce unaligned `Buffer`s.
+
+Alignment also does not survive being captured in a startup snapshot: memory does
+not keep its address across serialization, so a `Buffer` allocated while
+[`--build-snapshot`][] is in effect is not aligned in the deserialized process.
+Allocate inside a [`v8.startupSnapshot.setDeserializeMainFunction()`][] callback,
+or after startup, if the alignment has to hold at run time.
+
 [ASCII]: https://en.wikipedia.org/wiki/ASCII
+[Aligned allocations]: #aligned-allocations
 [Base64]: https://en.wikipedia.org/wiki/Base64
 [ISO-8859-1]: https://en.wikipedia.org/wiki/ISO-8859-1
 [RFC 4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
 [UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
+[`--build-snapshot`]: cli.md#--build-snapshot
 [`Buffer.alloc()`]: #static-method-bufferallocsize-fill-encoding
-[`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize
-[`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize
+[`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize-alignment
+[`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize-alignment
 [`Buffer.concat()`]: #static-method-bufferconcatlist-totallength
 [`Buffer.copyBytesFrom()`]: #static-method-buffercopybytesfromview-offset-length
 [`Buffer.from(array)`]: #static-method-bufferfromarray
@@ -5606,15 +5724,18 @@ introducing security vulnerabilities into an application.
 [`String.prototype.indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf
 [`String.prototype.lastIndexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
+[`TextDecoderStream`]: webstreams.md#class-textdecoderstream
 [`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`TypedArray.prototype.set()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/set
 [`TypedArray.prototype.slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/slice
 [`TypedArray.prototype.subarray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/subarray
+[`blob.stream()`]: #blobstream
 [`buf.buffer`]: #bufbuffer
+[`buf.byteOffset`]: #bufbyteoffset
 [`buf.compare()`]: #bufcomparetarget-targetstart-targetend-sourcestart-sourceend
 [`buf.entries()`]: #bufentries
 [`buf.fill()`]: #buffillvalue-offset-end-encoding
-[`buf.indexOf()`]: #bufindexofvalue-byteoffset-encoding
+[`buf.indexOf()`]: #bufindexofvalue-start-end-encoding
 [`buf.keys()`]: #bufkeys
 [`buf.length`]: #buflength
 [`buf.slice()`]: #bufslicestart-end
@@ -5625,6 +5746,7 @@ introducing security vulnerabilities into an application.
 [`buffer.constants.MAX_STRING_LENGTH`]: #bufferconstantsmax_string_length
 [`buffer.kMaxLength`]: #bufferkmaxlength
 [`util.inspect()`]: util.md#utilinspectobject-options
+[`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8::Uint8Array::kMaxLength`]: https://v8.github.io/api/head/classv8_1_1Uint8Array.html#a7677e3d0c9c92e4d40bef7212f5980c6
 [base64url]: https://tools.ietf.org/html/rfc4648#section-5
 [endianness]: https://en.wikipedia.org/wiki/Endianness

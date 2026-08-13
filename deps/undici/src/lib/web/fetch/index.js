@@ -11,7 +11,7 @@ const {
   getResponseState
 } = require('./response')
 const { HeadersList } = require('./headers')
-const { Request, cloneRequest, getRequestDispatcher, getRequestState } = require('./request')
+const { Request, cloneRequest, getRequestDispatcher, getRequestState, removeRequestAbortListener } = require('./request')
 const zlib = require('node:zlib')
 const {
   makePolicyContainer,
@@ -208,7 +208,7 @@ function fetch (input, init = undefined) {
   let controller = null
 
   // 11. Add the following abort steps to requestObject’s signal:
-  addAbortListener(
+  const removeAbortListener = addAbortListener(
     requestObject.signal,
     () => {
       // 1. Set locallyAborted to true.
@@ -227,6 +227,15 @@ function fetch (input, init = undefined) {
       abortFetch(p, request, realResponse, requestObject.signal.reason, controller.controller)
     }
   )
+
+  // Remove the `abort` listeners registered above and in the Request
+  // constructor once the fetch has settled. Without this, reusing a single
+  // signal across many requests leaks listeners and Node.js emits a
+  // MaxListenersExceededWarning. See https://github.com/nodejs/undici/issues/5285
+  const cleanupAbortListeners = () => {
+    removeAbortListener()
+    removeRequestAbortListener(requestObject)
+  }
 
   // 12. Let handleFetchDone given response response be to finalize and
   // report timing with response, globalObject, and "fetch".
@@ -252,6 +261,7 @@ function fetch (input, init = undefined) {
       //    deserializedError.
 
       abortFetch(p, request, responseObject, controller.serializedAbortReason, controller.controller)
+      cleanupAbortListeners()
       return
     }
 
@@ -259,6 +269,7 @@ function fetch (input, init = undefined) {
     // and terminate these substeps.
     if (response.type === 'error') {
       p.reject(new TypeError('fetch failed', { cause: response.error }))
+      cleanupAbortListeners()
       return
     }
 
@@ -273,7 +284,10 @@ function fetch (input, init = undefined) {
 
   controller = fetching({
     request,
-    processResponseEndOfBody: handleFetchDone,
+    processResponseEndOfBody: (response) => {
+      handleFetchDone(response)
+      cleanupAbortListeners()
+    },
     processResponse,
     dispatcher: getRequestDispatcher(requestObject), // undici
     // Keep requestObject alive to prevent its AbortController from being GC'd
@@ -1417,7 +1431,16 @@ async function httpNetworkOrCacheFetch (
     // Otherwise:
 
     // 1. Set httpRequest to a clone of request.
-    httpRequest = cloneRequest(request)
+    // Implementations are encouraged to avoid teeing request’s body’s stream
+    // when request’s body’s source is null as only a single body is needed in
+    // that case. E.g., when request’s body’s source is null, redirects and
+    // authentication will end up failing the fetch.
+    if (request.body?.source != null) {
+      httpRequest = cloneRequest(request)
+    } else {
+      httpRequest = cloneRequest({ ...request, body: null })
+      httpRequest.body = request.body
+    }
 
     // 2. Set httpFetchParams to a copy of fetchParams.
     httpFetchParams = { ...fetchParams }
@@ -1546,7 +1569,7 @@ async function httpNetworkOrCacheFetch (
   //    TODO: https://github.com/whatwg/fetch/issues/1285#issuecomment-896560129
   if (!httpRequest.headersList.contains('accept-encoding', true)) {
     if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) {
-      httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate', true)
+      httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate, zstd', true)
     } else {
       httpRequest.headersList.append('accept-encoding', 'gzip, deflate', true)
     }

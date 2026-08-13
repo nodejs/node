@@ -153,6 +153,44 @@ async function testPullSignalAbortMidIteration() {
   await assert.rejects(() => iter.next(), { name: 'AbortError' });
 }
 
+async function testPullSignalAbortWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(source, { signal: ac.signal })[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
+async function testPullSignalAbortWithTransformWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(
+    source,
+    (chunks) => chunks,
+    { signal: ac.signal },
+  )[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
 // Pull consumer break (return()) cleans up transform signal
 async function testPullConsumerBreakCleanup() {
   let signalAborted = false;
@@ -320,7 +358,7 @@ async function testTransformReturnsArrayBuffer() {
 // pipeTo() accepts a string source directly (normalized via from())
 async function testPipeToStringSource() {
   const { pipeTo, push: pushFn, text: textFn } = require('stream/iter');
-  const { writer, readable } = pushFn({ highWaterMark: 10 });
+  const { writer, readable } = pushFn({ budget: 16384 });
   const consume = (async () => textFn(readable))();
   await pipeTo('hello-pipe', writer);
   const data = await consume;
@@ -361,6 +399,8 @@ async function testTransformOptionsNotShared() {
     testPullSourceError(),
     testTapCallbackError(),
     testPullSignalAbortMidIteration(),
+    testPullSignalAbortWhileSourceNextPending(),
+    testPullSignalAbortWithTransformWhileSourceNextPending(),
     testPullConsumerBreakCleanup(),
     testPullTransformReturnsPromise(),
     testPullTransformYieldsStrings(),

@@ -41,6 +41,7 @@ class SessionManager;
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_close, EndpointClose)                                             \
   V(session_close, SessionClose)                                               \
+  V(session_application, SessionApplication)                                   \
   V(session_early_data_rejected, SessionEarlyDataRejected)                     \
   V(session_goaway, SessionGoaway)                                             \
   V(session_datagram, SessionDatagram)                                         \
@@ -60,6 +61,7 @@ class SessionManager;
   V(stream_drain, StreamDrain)                                                 \
   V(stream_headers, StreamHeaders)                                             \
   V(stream_reset, StreamReset)                                                 \
+  V(stream_stop_sending, StreamStopSending)                                    \
   V(stream_trailers, StreamTrailers)
 
 // The various JS strings the implementation uses.
@@ -76,6 +78,7 @@ class SessionManager;
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
   V(cc_algorithm, "cc")                                                        \
+  V(certificate_compression, "certificateCompression")                         \
   V(certs, "certs")                                                            \
   V(code, "code")                                                              \
   V(ciphers, "ciphers")                                                        \
@@ -305,6 +308,8 @@ class BindingData final
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
+  v8::Local<v8::String> error_name_string(const char* name);
+
   size_t current_ngtcp2_memory_ = 0;
 
   // The following set up various storage and accessors for common strings,
@@ -356,6 +361,9 @@ class BindingData final
 #define V(name, _) mutable v8::Eternal<v8::String> on_##name##_string_;
   QUIC_JS_CALLBACKS(V)
 #undef V
+
+  // Lazy cache backing error_name_string()
+  std::unordered_map<const char*, v8::Eternal<v8::String>> error_name_strings_;
 
   std::unique_ptr<SessionManager> session_manager_;
 

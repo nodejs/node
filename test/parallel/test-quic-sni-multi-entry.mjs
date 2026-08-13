@@ -8,9 +8,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -18,12 +15,12 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key1 = createPrivateKey(readKey('agent1-key.pem'));
-const cert1 = readKey('agent1-cert.pem');
-const key2 = createPrivateKey(readKey('agent2-key.pem'));
-const cert2 = readKey('agent2-cert.pem');
-const key3 = createPrivateKey(readKey('agent3-key.pem'));
-const cert3 = readKey('agent3-cert.pem');
+const key1 = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert1 = fixtures.readKey('agent1-cert.pem');
+const key2 = createPrivateKey(fixtures.readKey('agent2-key.pem'));
+const cert2 = fixtures.readKey('agent2-cert.pem');
+const key3 = createPrivateKey(fixtures.readKey('agent3-key.pem'));
+const cert3 = fixtures.readKey('agent3-cert.pem');
 
 let sessionCount = 0;
 const allDone = Promise.withResolvers();
@@ -31,7 +28,7 @@ const allDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   const info = await serverSession.opened;
   // Each client should negotiate with the correct servername.
-  strictEqual(typeof info.servername, 'string');
+  assert.strictEqual(typeof info.servername, 'string');
   serverSession.close();
   await serverSession.closed;
   if (++sessionCount === 3) allDone.resolve();
@@ -52,7 +49,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     alpn: 'quic-test',
   });
   const info = await cs.opened;
-  strictEqual(info.servername, 'host1.example.com');
+  assert.strictEqual(info.servername, 'host1.example.com');
   await cs.closed;
 }
 
@@ -64,7 +61,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
     alpn: 'quic-test',
   });
   const info = await cs.opened;
-  strictEqual(info.servername, 'host2.example.com');
+  assert.strictEqual(info.servername, 'host2.example.com');
   await cs.closed;
 }
 

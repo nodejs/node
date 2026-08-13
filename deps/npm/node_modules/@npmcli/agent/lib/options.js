@@ -37,6 +37,10 @@ const normalizeOptions = (opts) => {
   // remove timeout since we already used it to set our own idle timeout
   delete normalized.timeout
 
+  // since opts is often passed when initiating requests, it may contain
+  // headers, which should not be saved in an agent
+  delete normalized.headers
+
   return normalized
 }
 

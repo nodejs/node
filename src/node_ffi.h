@@ -4,6 +4,7 @@
 
 #include "base_object.h"
 #include "ffi.h"
+#include "ffi/fast.h"
 #include "uv.h"
 
 #include <cstdint>
@@ -13,20 +14,41 @@
 #include <unordered_map>
 #include <vector>
 
+// libffi only accelerates reusable call plans on x86-64 System V. Other
+// targets implement the API by calling ffi_call(), which adds no benefit.
+#if defined(FFI_VERSION_NUMBER) && FFI_VERSION_NUMBER >= 30700 &&              \
+    defined(__x86_64__) && !defined(__ILP32__) && !defined(X86_WIN64) &&       \
+    !defined(_WIN32)
+#define NODE_FFI_HAS_FAST_CALL_PLAN 1
+#endif
+
 namespace node::ffi {
 
 class DynamicLibrary;
 struct FFIFunction;
 
 struct FFIFunction {
-  bool closed;
+  FFIFunction() = default;
+  FFIFunction(const FFIFunction&) = delete;
+  FFIFunction& operator=(const FFIFunction&) = delete;
+  FFIFunction(FFIFunction&&) = delete;
+  FFIFunction& operator=(FFIFunction&&) = delete;
 
-  void* ptr;
-  ffi_cif cif;
+  bool closed = false;
+
+  void* ptr = nullptr;
+  ffi_cif cif = {};
   std::vector<ffi_type*> args;
-  ffi_type* return_type;
+  ffi_type* return_type = nullptr;
   std::vector<std::string> arg_type_names;
   std::string return_type_name;
+#if defined(NODE_FFI_HAS_FAST_CALL_PLAN)
+  // The plan borrows cif, so it must remain uniquely owned by this instance.
+  std::unique_ptr<ffi_call_plan, decltype(&ffi_call_plan_free)> call_plan{
+      nullptr, ffi_call_plan_free};
+#endif
+
+  void Invoke(void* result, void** values);
 };
 
 class FFIFunctionInfo final : public BaseObject {
@@ -54,6 +76,8 @@ class FFIFunctionInfo final : public BaseObject {
  private:
   std::shared_ptr<FFIFunction> fn;
   std::shared_ptr<v8::BackingStore> sb_backing;
+  std::unique_ptr<FastFFIMetadata> fast_metadata;
+  std::unique_ptr<FastFFIMetadata> fast_buffer_metadata;
 
   friend class DynamicLibrary;
 };
@@ -139,12 +163,18 @@ class DynamicLibrary : public BaseObject {
       const std::shared_ptr<FFIFunction>& fn);
   static void CleanupFunctionInfo(
       const v8::WeakCallbackInfo<FFIFunctionInfo>& data);
+  bool is_closed() const;
 
-  uv_lib_t lib_;
-  void* handle_;
+  uv_lib_t lib_ = {};
   std::string path_;
   std::unordered_map<std::string, void*> symbols_;
   std::unordered_map<std::string, std::shared_ptr<FFIFunction>> functions_;
+  // Callables created for `functions_`, so repeated resolution of the same
+  // symbol reuses one wrapper instead of emitting another trampoline. The
+  // handles are weak: an entry disappears once user code drops the wrapper,
+  // which keeps the map from rooting the library through the wrapper's
+  // FFIFunctionInfo.
+  std::unordered_map<std::string, v8::Global<v8::Function>> function_wrappers_;
   std::unordered_map<void*, std::unique_ptr<FFICallback>> callbacks_;
 };
 
@@ -175,6 +205,7 @@ void ToBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ExportBytes(const v8::FunctionCallbackInfo<v8::Value>& args);
 void GetRawPointer(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetCurrentEventLoop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node::ffi
 

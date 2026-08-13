@@ -4,12 +4,15 @@
 #if HAVE_OPENSSL && HAVE_DTLS
 
 #include <base_object-inl.h>
+#include <crypto/crypto_bio.h>
+#include <crypto/crypto_tls_certificates.h>
 #include <crypto/crypto_util.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <node_errors.h>
 #include <node_sockaddr-inl.h>
 #include <util-inl.h>
+#include <uv.h>
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -35,6 +38,11 @@ namespace dtls {
 namespace {
 // The cookie secret is 32 bytes (256 bits).
 constexpr size_t kCookieSecretLen = 32;
+// Cookies are bound to a coarse time window so they expire. A cookie is
+// accepted for the window it was minted in and the immediately preceding one,
+// giving ~30-60s of validity -- ample for the cookie exchange while bounding
+// how long a captured cookie can be replayed.
+constexpr uint64_t kCookieWindowNs = 30ull * 1000 * 1000 * 1000;
 }  // namespace
 
 DTLSContext::DTLSContext(Environment* env,
@@ -180,34 +188,16 @@ void DTLSContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value cert_pem(env->isolate(), args[0]);
 
-  BIO* bio = BIO_new_mem_buf(*cert_pem, cert_pem.length());
-  if (bio == nullptr) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "BIO_new_mem_buf failed");
+  auto bio = crypto::NodeBIO::NewFixed(*cert_pem, cert_pem.length());
+  if (!bio) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to create BIO");
   }
 
-  X509* x509 = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr);
-  if (x509 == nullptr) {
-    BIO_free(bio);
+  ncrypto::X509Pointer cert;
+  ncrypto::X509Pointer issuer;
+  if (crypto::SSL_CTX_use_certificate_chain(
+          ctx->ctx_.get(), std::move(bio), &cert, &issuer) != 1) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "PEM_read_bio_X509 failed");
-  }
-
-  int ret = SSL_CTX_use_certificate(ctx->ctx_.get(), x509);
-  X509_free(x509);
-
-  // Read any additional chain certificates.
-  while ((x509 = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr)) !=
-         nullptr) {
-    SSL_CTX_add_extra_chain_cert(ctx->ctx_.get(), x509);
-    // Note: SSL_CTX_add_extra_chain_cert takes ownership, don't free x509.
-  }
-
-  // Clear any error from the chain reading loop (expected EOF).
-  ERR_clear_error();
-  BIO_free(bio);
-
-  if (ret != 1) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                             "SSL_CTX_use_certificate failed");
   }
 }
 
@@ -222,25 +212,20 @@ void DTLSContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value key_pem(env->isolate(), args[0]);
 
-  BIO* bio = BIO_new_mem_buf(*key_pem, key_pem.length());
-  if (bio == nullptr) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "BIO_new_mem_buf failed");
+  auto bio = crypto::NodeBIO::NewFixed(*key_pem, key_pem.length());
+  if (!bio) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to create BIO");
   }
 
-  EVP_PKEY* pkey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
-  BIO_free(bio);
-
-  if (pkey == nullptr) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                             "PEM_read_bio_PrivateKey failed");
-  }
-
-  int ret = SSL_CTX_use_PrivateKey(ctx->ctx_.get(), pkey);
-  EVP_PKEY_free(pkey);
-
-  if (ret != 1) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
-                                             "SSL_CTX_use_PrivateKey failed");
+  switch (crypto::UsePrivateKey(ctx->ctx_.get(), bio)) {
+    case crypto::PrivateKeyResult::kSuccess:
+      break;
+    case crypto::PrivateKeyResult::kParseError:
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "PEM_read_bio_PrivateKey failed");
+    case crypto::PrivateKeyResult::kApplyError:
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                               "SSL_CTX_use_PrivateKey failed");
   }
 
   // Verify that the private key matches the certificate.
@@ -261,24 +246,13 @@ void DTLSContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value ca_pem(env->isolate(), args[0]);
 
-  BIO* bio = BIO_new_mem_buf(*ca_pem, ca_pem.length());
-  if (bio == nullptr) {
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "BIO_new_mem_buf failed");
+  auto bio = crypto::NodeBIO::NewFixed(*ca_pem, ca_pem.length());
+  if (!bio) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to create BIO");
   }
 
-  X509_STORE* store = SSL_CTX_get_cert_store(ctx->ctx_.get());
-  X509* x509;
-  int count = 0;
-  while ((x509 = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr)) !=
-         nullptr) {
-    X509_STORE_add_cert(store, x509);
-    X509_free(x509);
-    count++;
-  }
-  ERR_clear_error();
-  BIO_free(bio);
-
-  if (count == 0) {
+  ncrypto::ClearErrorOnReturn clear_error_on_return;
+  if (crypto::AddCACertificates(env, ctx->ctx_.get(), bio) == 0) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "No CA certificates found in PEM data");
   }
@@ -317,8 +291,11 @@ void DTLSContext::SetALPN(const FunctionCallbackInfo<Value>& args) {
     ctx->alpn_protos_.assign(data, data + len);
     SSL_CTX_set_alpn_select_cb(ctx->ctx_.get(), ALPNSelectCallback, ctx);
   } else {
-    // Client: advertise protocols to the server.
-    SSL_CTX_set_alpn_protos(ctx->ctx_.get(), data, len);
+    // Client: advertise protocols to the server. Returns 0 on success.
+    if (SSL_CTX_set_alpn_protos(ctx->ctx_.get(), data, len) != 0) {
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "SSL_CTX_set_alpn_protos failed");
+    }
   }
 }
 
@@ -349,7 +326,7 @@ void DTLSContext::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
 void DTLSContext::LoadDefaultCAs(const FunctionCallbackInfo<Value>& args) {
   DTLSContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
-  SSL_CTX_set_default_verify_paths(ctx->ctx_.get());
+  crypto::UseDefaultRootCertStore(ctx->env(), ctx->ctx_.get());
 }
 
 void DTLSContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
@@ -368,64 +345,77 @@ void DTLSContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-// HMAC-SHA256 based cookie generation using the peer's address.
-// During DTLSv1_listen(), the peer address is taken from
-// DTLSContext::current_cookie_peer_ (set synchronously before the call).
-// During session handshake, the peer address is taken from the
+// HMAC-SHA256 cookie derived from the peer's address and a coarse time window
+// so cookies expire (see kCookieWindowNs). During DTLSv1_listen() the peer
+// address comes from DTLSContext::current_cookie_peer_ (set synchronously
+// before the call); during the session handshake it comes from the
 // DTLSSession stored in SSL app_data.
-int DTLSContext::CookieGenerateCallback(SSL* ssl,
-                                        unsigned char* cookie,
-                                        unsigned int* cookie_len) {
+bool DTLSContext::ComputeCookie(SSL* ssl,
+                                uint64_t window,
+                                unsigned char* out,
+                                unsigned int* out_len) {
   SSL_CTX* ctx = SSL_get_SSL_CTX(ssl);
   DTLSContext* dtls_ctx = static_cast<DTLSContext*>(SSL_CTX_get_app_data(ctx));
   CHECK_NOT_NULL(dtls_ctx);
 
-  unsigned char addr_buf[sizeof(struct sockaddr_storage)];
+  // Message = peer address bytes followed by the 8-byte window counter.
+  unsigned char msg[sizeof(struct sockaddr_storage) + sizeof(uint64_t)];
   size_t addr_len = 0;
 
   void* app_data = SSL_get_app_data(ssl);
   if (app_data != nullptr) {
     // Session handshake path.
-    auto* session = static_cast<DTLSSession*>(app_data);
-    const sockaddr* sa = session->remote_address().data();
+    const sockaddr* sa =
+        static_cast<DTLSSession*>(app_data)->remote_address().data();
     addr_len = SocketAddress::GetLength(sa);
-    memcpy(addr_buf, sa, addr_len);
+    memcpy(msg, sa, addr_len);
   } else {
-    // DTLSv1_listen path — use the peer address stored on the context.
+    // DTLSv1_listen path -- use the peer address stored on the context.
     const sockaddr* sa = dtls_ctx->current_cookie_peer_.data();
     addr_len = SocketAddress::GetLength(sa);
-    memcpy(addr_buf, sa, addr_len);
+    memcpy(msg, sa, addr_len);
   }
 
-  unsigned int hmac_len = 0;
+  // Append the window counter in a fixed byte order.
+  for (size_t i = 0; i < sizeof(uint64_t); i++) {
+    msg[addr_len + i] = static_cast<unsigned char>((window >> (8 * i)) & 0xff);
+  }
+
   unsigned char* result = HMAC(EVP_sha256(),
                                dtls_ctx->cookie_secret_.data(),
                                dtls_ctx->cookie_secret_.size(),
-                               addr_buf,
-                               addr_len,
-                               cookie,
-                               &hmac_len);
+                               msg,
+                               addr_len + sizeof(uint64_t),
+                               out,
+                               out_len);
+  return result != nullptr;
+}
 
-  if (result == nullptr) return 0;
-
-  *cookie_len = hmac_len;
-  return 1;
+int DTLSContext::CookieGenerateCallback(SSL* ssl,
+                                        unsigned char* cookie,
+                                        unsigned int* cookie_len) {
+  const uint64_t window = uv_hrtime() / kCookieWindowNs;
+  return ComputeCookie(ssl, window, cookie, cookie_len) ? 1 : 0;
 }
 
 int DTLSContext::CookieVerifyCallback(SSL* ssl,
                                       const unsigned char* cookie,
                                       unsigned int cookie_len) {
-  // Generate the expected cookie and compare.
+  const uint64_t window = uv_hrtime() / kCookieWindowNs;
+
+  // Accept a cookie minted in the current window or the immediately preceding
+  // one, so a handshake that straddles a window boundary still succeeds.
   unsigned char expected[EVP_MAX_MD_SIZE];
   unsigned int expected_len = 0;
-
-  if (CookieGenerateCallback(ssl, expected, &expected_len) != 1) {
-    return 0;
+  for (int i = 0; i < 2; i++) {
+    if (i == 1 && window == 0) break;
+    if (ComputeCookie(ssl, window - i, expected, &expected_len) &&
+        cookie_len == expected_len &&
+        CRYPTO_memcmp(cookie, expected, expected_len) == 0) {
+      return 1;
+    }
   }
-
-  if (cookie_len != expected_len) return 0;
-
-  return CRYPTO_memcmp(cookie, expected, expected_len) == 0 ? 1 : 0;
+  return 0;
 }
 
 int DTLSContext::ALPNSelectCallback(SSL* ssl,

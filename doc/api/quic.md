@@ -137,8 +137,12 @@ To avoid this, servers should use compact certificate chains:
   large RSA intermediates. The choice of CA directly affects handshake latency.
 
 Certificate compression ([RFC 8879][]) can also address this issue by
-compressing the certificate chain during the handshake. However, Node.js does
-not currently support TLS certificate compression.
+compressing the certificate chain during the handshake, often keeping the
+server's Certificate message within the amplification limit and avoiding the
+extra round trip. Certificate compression is opt-in via the
+[`certificateCompression`][] TLS option and is disabled by default. When
+enabled, it applies to both the server's certificate and, for mutual TLS,
+the client's certificate.
 
 ### Rate limiting
 
@@ -529,6 +533,21 @@ with either a `QuicEndpoint` or `EndpointOptions` as the argument.
 At most, any single `QuicEndpoint` can only be configured to listen as
 a server once.
 
+## `quic.listEndpoints([options])`
+
+<!-- YAML
+added: v26.4.0
+-->
+
+* `options` {object}
+  * `active` {boolean} If `true` (the default), only returns endpoints that are
+    active (not destroyed, not closing, and not busy). If `false` returns all
+    endpoints.
+* Returns: {quic.QuicEndpoint\[]}
+
+Returns the list of all `QuicEndpoint` instances. By default, only active
+endpoints are returned.
+
 ## `quic.constants`
 
 <!-- YAML
@@ -911,7 +930,7 @@ A `QuicSession` represents the local side of a QUIC connection.
 ### `session.applicationOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {quic.ApplicationOptions}
@@ -919,6 +938,8 @@ added: REPLACEME
 The current application-level options for this session. These include settings
 that are specific to the negotiated application protocol (e.g. HTTP/3) and may
 be negotiated separately from the transport parameters. Read only.
+You can use the callback [`session.onapplication`][] to be informed, when settings
+from the remote arrive.
 
 ### `session.close([options])`
 
@@ -1032,7 +1053,7 @@ True if `session.destroy()` has been called. Read only.
 ### `session.localTransportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {quic.TransportParams|null}
@@ -1050,6 +1071,16 @@ added: v23.8.0
 
 The endpoint that created this session. Returns `null` if the session
 has been destroyed. Read only.
+
+### `session.onapplication`
+
+<!-- YAML
+added: v26.4.0
+-->
+
+* Type: {quic.OnApplicationCallback}
+
+The callback to invoke when new application options, e.g. HTTP/3 settings arrived.
 
 ### `session.onerror`
 
@@ -1253,8 +1284,8 @@ added: v23.8.0
   * `body` {string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView |
     Blob | FileHandle | AsyncIterable | Iterable | Promise | null}
     The outbound body source. See [`stream.setBody()`][] for details on
-    supported types. When omitted, the stream starts half-closed (writable
-    side open, no body queued).
+    supported types. When omitted, the stream's outgoing side remains
+    writable with no body queued; no FIN is sent immediately.
   * `headers` {Object} Initial request or response headers to send. Only
     used when the session supports headers (e.g. HTTP/3). If `body` is not
     specified and `headers` is provided, the stream is treated as
@@ -1265,7 +1296,7 @@ added: v23.8.0
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
-  * `highWaterMark` {number} The maximum number of bytes that the writer
+  * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
@@ -1281,7 +1312,8 @@ added: v23.8.0
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new bidirectional stream. If the `body` option is not specified,
-the outgoing stream will be half-closed. The `priority` and `incremental`
+the stream's outgoing side remains writable and no FIN is sent
+immediately. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
 The `headers`, `onheaders`, `ontrailers`, `oninfo`, and `onwanttrailers`
 options are only used when the session supports headers (e.g. HTTP/3).
@@ -1296,7 +1328,8 @@ added: v23.8.0
   * `body` {string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView |
     Blob | FileHandle | AsyncIterable | Iterable | Promise | null}
     The outbound body source. See [`stream.setBody()`][] for details on
-    supported types. When omitted, the stream is closed immediately.
+    supported types. When omitted, the stream's outgoing side remains
+    writable with no body queued; no FIN is sent immediately.
   * `headers` {Object} Initial request headers to send.
   * `priority` {string} The priority level of the stream. One of `'high'`,
     `'default'`, or `'low'`. **Default:** `'default'`.
@@ -1304,7 +1337,7 @@ added: v23.8.0
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
-  * `highWaterMark` {number} The maximum number of bytes that the writer
+  * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
@@ -1318,7 +1351,8 @@ added: v23.8.0
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new unidirectional stream. If the `body` option is not specified,
-the outgoing stream will be closed. The `priority` and `incremental`
+the stream's outgoing side remains writable and no FIN is sent
+immediately. The `priority` and `incremental`
 options are only used when the session supports priority (e.g. HTTP/3).
 
 ### `session.path`
@@ -1336,7 +1370,7 @@ The local and remote socket addresses associated with the session. Read only.
 ### `session.remoteTransportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {quic.TransportParams|null|undefined}
@@ -1391,17 +1425,44 @@ will be silently dropped and `0n` returned. The local
 `maxDatagramFrameSize` transport parameter (default: `1200` bytes) controls
 what this endpoint advertises to the peer as its own maximum.
 
+### `session.servername`
+
+<!-- YAML
+added: v26.6.0
+-->
+
+* Type: {string|boolean|null}
+
+The SNI (Server Name Indication) host name associated with the session. This is
+`null` before the client hello is processed. Once the hello has been
+processed, this is either the host name string or `false` if the handshake
+had no SNI.
+
+### `session.alpnProtocol`
+
+<!-- YAML
+added: v26.6.0
+-->
+
+* Type: {string|null}
+
+The negotiated ALPN protocol. This is `null` before the client hello is
+processed. Once ALPN has been negotiated, this is the protocol string. ALPN
+is mandatory in QUIC so this is never `false` on successful connections,
+unlike `node:tls` where this is optional.
+
 ### `session.certificate`
 
 <!-- YAML
 added: v26.2.0
 -->
 
-* Type: {Object|undefined}
+* Type: {crypto.X509Certificate|undefined}
 
-The local certificate as an object with properties such as `subject`,
-`issuer`, `valid_from`, `valid_to`, `fingerprint`, etc. Returns `undefined`
-if the session is destroyed or no certificate is available.
+The local certificate as a [`crypto.X509Certificate`][] instance. Server
+sessions return the certificate configured for the negotiated SNI host.
+Client sessions return `undefined` unless a client certificate was sent.
+Returns `undefined` if the session is destroyed.
 
 ### `session.peerCertificate`
 
@@ -1409,11 +1470,11 @@ if the session is destroyed or no certificate is available.
 added: v26.2.0
 -->
 
-* Type: {Object|undefined}
+* Type: {crypto.X509Certificate|undefined}
 
-The peer's certificate as an object with properties such as `subject`,
-`issuer`, `valid_from`, `valid_to`, `fingerprint`, etc. Returns `undefined`
-if the session is destroyed or the peer did not present a certificate.
+The peer's certificate as a [`crypto.X509Certificate`][] instance. Returns
+`undefined` if the peer did not present a certificate or the session is
+destroyed.
 
 ### `session.ephemeralKeyInfo`
 
@@ -1862,9 +1923,14 @@ True if `stream.destroy()` has been called.
 
 ### Aborting a stream
 
-A QuicStream can be aborted in three ways, each producing different
+A QuicStream can be aborted in several ways, each producing different
 wire-frame side effects:
 
+* [`stream.stopSending()`][] — Aborts only the readable side. Sends
+  `STOP_SENDING` to the peer. The writable side is unaffected.
+* [`stream.resetStream()`][] — Aborts only the writable side. Sends
+  `RESET_STREAM` to the peer. Unlike [`writer.fail(reason)`][], the wire
+  code is given directly rather than derived from an error.
 * [`writer.fail(reason)`][] — Aborts only the writable side. Sends
   `RESET_STREAM` to the peer. The readable side is unaffected; any data
   already buffered for read remains available.
@@ -1881,6 +1947,46 @@ When `error` is a [`QuicError`][], its [`error.errorCode`][] is used as
 the wire code for both `writer.fail()` and `stream.destroy()`. Otherwise
 the implementation falls back to the negotiated application protocol's
 "internal error" code (see [`QuicError`][]).
+
+[`stream.stopSending()`][] and [`stream.resetStream()`][] do
+not perform this derivation: they send `code` as given.
+
+### `stream.resetStream([code])`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `code` {number|bigint} The application error code to send to the peer.
+  **Default:** `0n`.
+
+Tells the peer that this end will not send any more data on this stream,
+sending a `RESET_STREAM` frame carrying `code`. The readable side is left
+open, so data already sent by the peer remains available to read.
+
+Any data still queued for sending is discarded. A reset stream is never
+acknowledged by the peer, so the outbound queue can no longer drain.
+
+No acknowledgement of this action is provided. The call does nothing if the
+stream has been destroyed, if it has already been reset, or if it is a
+remote-initiated unidirectional stream, which has no writable side to abort.
+
+### `stream.stopSending([code])`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `code` {number|bigint} The application error code to send to the peer.
+  **Default:** `0n`.
+
+Asks the peer to stop sending data on this stream, sending a `STOP_SENDING`
+frame carrying `code`. The writable side is left open, so this end can
+still send data.
+
+No acknowledgement of this action is provided. The call does nothing if the
+stream has been destroyed, or if it is a locally-initiated unidirectional
+stream, which has no readable side to abort.
 
 ### `stream.early`
 
@@ -1909,7 +2015,7 @@ added: v23.8.0
 The directionality of the stream, or `null` if the stream has been destroyed
 or is still pending. Read only.
 
-### `stream.highWaterMark`
+### `stream.budget`
 
 <!-- YAML
 added: v26.2.0
@@ -1972,8 +2078,7 @@ added: v23.8.0
 
 The callback to invoke when the peer aborts a direction of the stream by
 sending a `RESET_STREAM` frame (the peer abandons their writable side, so
-no further data will arrive on our readable side) or a `STOP_SENDING`
-frame (the peer asks us to stop writing on our writable side).
+no further data will arrive on our readable side).
 
 The callback receives a Node.js error whose `errorCode` (`bigint`)
 property carries the application error code from the wire frame.
@@ -1983,6 +2088,21 @@ the application chooses how to react. Common patterns are: ignore (and
 continue using the still-active direction on a bidirectional stream),
 abort the other direction with [`writer.fail()`][], or tear down the
 whole stream with [`stream.destroy()`][]. Read/write.
+
+### `stream.onstopsending`
+
+<!-- YAML
+added: v26.7.0
+-->
+
+* Type: {quic.OnStreamErrorCallback}
+
+The callback to invoke when the peer aborts a direction of the stream by
+sending a `STOP_SENDING` frame (the peer asks us to stop writing on our
+writable side).
+
+The callback receives a Node.js error whose `errorCode` (`bigint`)
+property carries the application error code from the wire frame. Read/write.
 
 ### `stream.headers`
 
@@ -2221,7 +2341,8 @@ The Writer has the following methods:
   the QUIC transport-layer `INTERNAL_ERROR` (`0x1`) for raw QUIC).
   See [`stream.destroy()`][] for a full-stream abort that also resets
   the readable side via `STOP_SENDING`.
-* `desiredSize` — Available capacity in bytes, or `null` if closed/errored.
+* `canWrite` — `true` if writes will be accepted, `false` if at capacity,
+  or `null` if closed/errored.
 
 The bytes from each `writeSync()` / `writevSync()` / `write()` / `writev()`
 input chunk are copied into an internal buffer, so the caller's source
@@ -2304,7 +2425,7 @@ added: v23.8.0
 ### `streamStats.bytesAccumulated`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {bigint}
@@ -2366,7 +2487,7 @@ added: v23.8.0
 ### `streamStats.maxBytesAccumulated`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {bigint}
@@ -2422,7 +2543,7 @@ added: v23.8.0
 ### type: `ApplicationOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {Object}
@@ -2588,7 +2709,9 @@ When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 #### `endpointOptions.reusePort`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v26.3.0
+  - v24.18.0
 -->
 
 * Type: {boolean}
@@ -2850,7 +2973,7 @@ await listen((session) => { /* ... */ }, {
 });
 ```
 
-#### `sessionOptions.ca` (client only)
+#### `sessionOptions.ca`
 
 <!-- YAML
 added: v23.8.0
@@ -2858,8 +2981,7 @@ added: v23.8.0
 
 * Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
-The CA certificates to use for client sessions. For server sessions, CA
-certificates are specified per-identity in the [`sessionOptions.sni`][] map.
+The CA certificates to use for sessions.
 
 #### `sessionOptions.cc`
 
@@ -2885,6 +3007,34 @@ added: v23.8.0
 The TLS certificates to use for client sessions. For server sessions,
 certificates are specified per-identity in the [`sessionOptions.sni`][] map.
 
+#### `sessionOptions.certificateCompression`
+
+<!-- YAML
+added: v26.6.0
+-->
+
+* Type: {string\[]} One or more of `'zlib'`, `'brotli'`, or `'zstd'`, in
+  preference order.
+
+Enables TLS certificate compression ([RFC 8879][]) for this session. When
+omitted, certificate compression is disabled.
+
+On the server side, the certificate chain is compressed using the first
+listed algorithm that the client advertises support for. On the client side,
+the listed algorithms are advertised to the server so that the server may
+compress its certificate. When client authentication is in use, the option
+also controls compression of the client's certificate.
+
+Compressing the certificate chain is especially useful for QUIC because it
+reduces the size of the server's first flight, which is bounded by the
+anti-amplification limit (see [Certificate size and handshake
+performance][]). Certificate compression requires TLS 1.3, which QUIC always
+uses.
+
+At most three algorithms may be specified. The option is silently ignored if
+Node.js was built against a shared OpenSSL that lacks certificate compression
+support.
+
 #### `sessionOptions.ciphers`
 
 <!-- YAML
@@ -2895,7 +3045,7 @@ added: v23.8.0
 
 The list of supported TLS 1.3 cipher algorithms.
 
-#### `sessionOptions.crl` (client only)
+#### `sessionOptions.crl`
 
 <!-- YAML
 added: v23.8.0
@@ -2903,8 +3053,7 @@ added: v23.8.0
 
 * Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
-The CRL to use for client sessions. For server sessions, CRLs are specified
-per-identity in the [`sessionOptions.sni`][] map.
+The CRL to use for sessions.
 
 #### `sessionOptions.enableEarlyData`
 
@@ -3113,7 +3262,7 @@ to complete before timing out.
 #### `sessionOptions.initialRtt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {bigint|number}
@@ -3198,7 +3347,6 @@ contain:
 * `keys` {KeyObject|KeyObject\[]} The TLS private keys. **Required.**
 * `certs` {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
   The TLS certificates. **Required.**
-  Optional certificate revocation lists.
 * `verifyPrivateKey` {boolean} Verify the private key. Default: `false`.
 * `port` {number} The port to advertise in ORIGIN frames (RFC 9412) for
   this host name. **Default:** `443`. Only used for HTTP/3 sessions.
@@ -3212,7 +3360,7 @@ const endpoint = await listen(callback, {
   sni: {
     '*': { keys: [defaultKey], certs: [defaultCert] },
     'api.example.com': { keys: [apiKey], certs: [apiCert], port: 8443 },
-    'www.example.com': { keys: [wwwKey], certs: [wwwCert], ca: [customCA] },
+    'www.example.com': { keys: [wwwKey], certs: [wwwCert] },
     'internal.example.com': { keys: [intKey], certs: [intCert], authoritative: false },
   },
 });
@@ -3350,7 +3498,7 @@ creating a session. The negotiated values can be observed via the
 #### `transportParams.initialSCID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {string}
@@ -3363,7 +3511,7 @@ available in the `session.localTransportParams` and
 #### `transportParams.originalDCID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {string}
@@ -3489,7 +3637,7 @@ a datagram that can be _sent_ is determined by the peer's
 #### `transportParams.retrySCID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {string}
@@ -3508,13 +3656,13 @@ functions. If a callback throws synchronously or returns a promise that
 rejects, the error is caught and the owning session or stream is destroyed
 with that error:
 
-* Stream callbacks (`onblocked`, `onreset`, `onheaders`, `ontrailers`,
-  `oninfo`, `onwanttrailers`): the stream is destroyed.
-* Session callbacks (`onstream`, `ondatagram`, `ondatagramstatus`,
-  `onpathvalidation`, `onsessionticket`, `onnewtoken`,
-  `onversionnegotiation`, `onorigin`, `ongoaway`, `onhandshake`,
-  `onkeylog`, `onqlog`): the session is destroyed along with all of its
-  streams.
+* Stream callbacks (`onblocked`, `onreset`, `onstopsending`, `onheaders`,
+  `ontrailers`, `oninfo`, `onwanttrailers`): the stream is destroyed.
+* Session callbacks (`onapplication`, `onstream`, `ondatagram`,
+  `ondatagramstatus`, `onpathvalidation`, `onsessionticket`,
+  `onnewtoken`, `onversionnegotiation`, `onorigin`, `ongoaway`,
+  `onhandshake`, `onkeylog`, `onqlog`): the session is destroyed along
+  with all of its streams.
 
 Before destruction, the optional [`session.onerror`][] or
 [`stream.onerror`][] callback is invoked (if set), giving the application a
@@ -3533,7 +3681,11 @@ added: v23.8.0
 * `this` {quic.QuicEndpoint}
 * `session` {quic.QuicSession}
 
-The callback function that is invoked when a new session is initiated by a remote peer.
+The callback function that is invoked when a new server session is initiated by
+a remote peer. It is called once the peer's TLS `ClientHello` has been
+processed, so the negotiated TLS parameters are immediately available when
+the callback runs. Sessions whose handshake is rejected before this point are
+never surfaced.
 
 ### Callback: `OnStreamCallback`
 
@@ -3567,6 +3719,19 @@ added: v23.8.0
   datagram was sent but the network lost it. `'abandoned'` means the
   datagram was never sent on the wire (dropped due to queue overflow,
   send attempt limit exceeded, or frame size rejection).
+
+### Callback: `OnApplicationCallback`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `this` {quic.QuicSession}
+* `applicationoption` {quic.QuicSession}
+
+The callback function that is invoked when application options change.
+E.g. for http/3 settings are included in applications options and
+may arrive after the connection is established.
 
 ### Callback: `OnPathValidationCallback`
 
@@ -3825,8 +3990,9 @@ A few things to note:
   the request is `HEADERS` followed by `END_STREAM`.
 * The `onheaders` callback receives the response pseudo-headers and
   regular headers in a single object with lowercase string keys.
-  After the callback returns, the same object is also accessible
-  via [`stream.headers`][].
+  For incoming headers, the `:status` pseudo-header is converted to
+  a `number`, matching HTTP/2 behavior. After the callback returns,
+  the same object is also accessible via [`stream.headers`][].
 * Reading `for await (const chunks of stream)` consumes the response
   body. Each iteration yields a `Uint8Array[]` batch of chunks.
 * HTTP semantic helpers (URL parsing, method/status validation,
@@ -4041,6 +4207,17 @@ added: v23.8.0
 * `busy` {boolean}
 
 Published when an endpoint's busy state changes.
+
+### Channel: `quic.session.application`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `applicationoptions` {quic.ApplicationOptions} Current application options.
+* `session` {quic.QuicSession}
+
+Published when a locally-initiated stream is opened.
 
 ### Channel: `quic.session.created.client`
 
@@ -4350,10 +4527,9 @@ added: v26.2.0
 * `session` {quic.QuicSession}
 * `error` {any} The QUIC error associated with the reset.
 
-Published when a stream receives a STOP\_SENDING or RESET\_STREAM frame
-from the peer, indicating the peer has aborted the stream. This is a
-key signal for diagnosing application-level issues such as cancelled
-requests.
+Published when a stream receives a RESET\_STREAM frame from the peer,
+indicating the peer has aborted its sending direction. This is a key signal
+for diagnosing application-level issues such as cancelled requests.
 
 ### Channel: `quic.stream.blocked`
 
@@ -4370,6 +4546,7 @@ throughput issues caused by flow control.
 
 [Aborting a stream]: #aborting-a-stream
 [Callback error handling]: #callback-error-handling
+[Certificate size and handshake performance]: #certificate-size-and-handshake-performance
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
 [Permission Model]: permissions.md#permission-model
@@ -4399,6 +4576,8 @@ throughput issues caused by flow control.
 [`application.enableConnectProtocol`]: #sessionoptionsapplication
 [`application.enableDatagrams`]: #sessionoptionsapplication
 [`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`certificateCompression`]: #sessionoptionscertificatecompression
+[`crypto.X509Certificate`]: crypto.md#class-x509certificate
 [`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal
@@ -4425,6 +4604,7 @@ throughput issues caused by flow control.
 [`session.createUnidirectionalStream()`]: #sessioncreateunidirectionalstreamoptions
 [`session.destroy()`]: #sessiondestroyerror-options
 [`session.maxPendingDatagrams`]: #sessionmaxpendingdatagrams
+[`session.onapplication`]: #sessiononapplication
 [`session.ondatagram`]: #sessionondatagram
 [`session.ondatagramstatus`]: #sessionondatagramstatus
 [`session.onearlyrejected`]: #sessiononearlyrejected
@@ -4452,11 +4632,13 @@ throughput issues caused by flow control.
 [`stream.onwanttrailers`]: #streamonwanttrailers
 [`stream.pendingTrailers`]: #streampendingtrailers
 [`stream.priority`]: #streampriority
+[`stream.resetStream()`]: #streamresetstreamcode
 [`stream.sendHeaders()`]: #streamsendheadersheaders-options
 [`stream.sendInformationalHeaders()`]: #streamsendinformationalheadersheaders
 [`stream.sendTrailers()`]: #streamsendtrailersheaders
 [`stream.setBody()`]: #streamsetbodybody
 [`stream.setPriority()`]: #streamsetpriorityoptions
+[`stream.stopSending()`]: #streamstopsendingcode
 [`stream.writer`]: #streamwriter
 [`writer.fail()`]: #streamwriter
 [`writer.fail(reason)`]: #streamwriter

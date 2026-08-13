@@ -20,10 +20,11 @@ class Channel;
 
 class BindingData : public SnapshotableObject {
  public:
-  static constexpr size_t kMaxChannels = 1024;
+  static constexpr size_t kInitialChannelCapacity = 1024;
 
   struct InternalFieldInfo : public node::InternalFieldInfoBase {
     AliasedBufferIndex subscribers;
+    size_t subscribers_capacity;
   };
 
   BindingData(Realm* realm,
@@ -48,8 +49,6 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::FunctionTemplate> channel_wrap_template_;
   std::vector<BaseObjectPtr<Channel>> channels_;
 
-  static void GetOrCreateChannelIndex(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LinkNativeChannel(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -74,8 +73,7 @@ class Channel : public BaseObject {
           uint32_t index,
           std::string name);
 
-  // Returns a non-owning pointer. Lifetime is managed by BindingData.
-  static Channel* Get(Environment* env, const char* name);
+  static BaseObjectPtr<Channel> Get(Environment* env, std::string_view name);
 
   inline bool HasSubscribers() const {
     return binding_data_ != nullptr && binding_data_->subscribers_[index_] > 0;

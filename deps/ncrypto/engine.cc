@@ -1,12 +1,18 @@
 #include "ncrypto.h"
 
+#if !defined(OPENSSL_NO_ENGINE) &&                                             \
+    ((defined(NCRYPTO_ENGINE_COMPAT) && NCRYPTO_ENGINE_COMPAT) ||              \
+     NCRYPTO_USE_LEGACY_OPENSSL)
+#include <openssl/engine.h>
+#endif
+
 namespace ncrypto {
 
 // ============================================================================
 // Engine
 
 #ifndef OPENSSL_NO_ENGINE
-EnginePointer::EnginePointer(ENGINE* engine_, bool finish_on_exit_)
+EnginePointer::EnginePointer(void* engine_, bool finish_on_exit_)
     : engine(engine_), finish_on_exit(finish_on_exit_) {}
 
 EnginePointer::EnginePointer(EnginePointer&& other) noexcept
@@ -24,21 +30,22 @@ EnginePointer& EnginePointer::operator=(EnginePointer&& other) noexcept {
   return *new (this) EnginePointer(std::move(other));
 }
 
-void EnginePointer::reset(ENGINE* engine_, bool finish_on_exit_) {
+void EnginePointer::reset(void* engine_, bool finish_on_exit_) {
   if (engine != nullptr) {
+    ENGINE* current = static_cast<ENGINE*>(engine);
     if (finish_on_exit) {
       // This also does the equivalent of ENGINE_free.
-      ENGINE_finish(engine);
+      ENGINE_finish(current);
     } else {
-      ENGINE_free(engine);
+      ENGINE_free(current);
     }
   }
   engine = engine_;
   finish_on_exit = finish_on_exit_;
 }
 
-ENGINE* EnginePointer::release() {
-  ENGINE* ret = engine;
+void* EnginePointer::release() {
+  void* ret = engine;
   engine = nullptr;
   finish_on_exit = false;
   return ret;
@@ -52,8 +59,9 @@ EnginePointer EnginePointer::getEngineByName(const char* name,
     // Engine not found, try loading dynamically.
     engine = EnginePointer(ENGINE_by_id("dynamic"));
     if (engine) {
-      if (!ENGINE_ctrl_cmd_string(engine.get(), "SO_PATH", name, 0) ||
-          !ENGINE_ctrl_cmd_string(engine.get(), "LOAD", nullptr, 0)) {
+      ENGINE* current = static_cast<ENGINE*>(engine.engine);
+      if (!ENGINE_ctrl_cmd_string(current, "SO_PATH", name, 0) ||
+          !ENGINE_ctrl_cmd_string(current, "LOAD", nullptr, 0)) {
         engine.reset();
       }
     }
@@ -64,19 +72,24 @@ EnginePointer EnginePointer::getEngineByName(const char* name,
 bool EnginePointer::setAsDefault(uint32_t flags, CryptoErrorList* errors) {
   if (engine == nullptr) return false;
   ClearErrorOnReturn clear_error_on_return(errors);
-  return ENGINE_set_default(engine, flags) != 0;
+  return ENGINE_set_default(static_cast<ENGINE*>(engine), flags) != 0;
 }
 
 bool EnginePointer::init(bool finish_on_exit) {
   if (engine == nullptr) return false;
   if (finish_on_exit) setFinishOnExit();
-  return ENGINE_init(engine) == 1;
+  return ENGINE_init(static_cast<ENGINE*>(engine)) == 1;
 }
 
 EVPKeyPointer EnginePointer::loadPrivateKey(const char* key_name) {
   if (engine == nullptr) return EVPKeyPointer();
-  return EVPKeyPointer(
-      ENGINE_load_private_key(engine, key_name, nullptr, nullptr));
+  return EVPKeyPointer(ENGINE_load_private_key(
+      static_cast<ENGINE*>(engine), key_name, nullptr, nullptr));
+}
+
+bool EnginePointer::setClientCertEngine(SSL_CTX* ctx) {
+  if (engine == nullptr || ctx == nullptr) return false;
+  return SSL_CTX_set_client_cert_engine(ctx, static_cast<ENGINE*>(engine)) == 1;
 }
 
 void EnginePointer::initEnginesOnce() {

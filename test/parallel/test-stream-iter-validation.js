@@ -3,8 +3,9 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { Writable } = require('stream');
 const {
-  from, fromSync, pull, pullSync, pipeTo,
+  from, fromSync, pull, pullSync, pipeTo, fromWritable,
   push, duplex, broadcast, Broadcast, share, shareSync,
   Share, SyncShare,
   bytes, bytesSync, text, textSync,
@@ -20,18 +21,21 @@ const {
 // push() validation
 // =============================================================================
 
-// HighWaterMark must be integer >= 1
-assert.throws(() => push({ highWaterMark: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => push({ highWaterMark: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
-// Values < 1 are clamped to 1
-assert.strictEqual(push({ highWaterMark: 0 }).writer.desiredSize, 1);
-assert.strictEqual(push({ highWaterMark: -1 }).writer.desiredSize, 1);
-assert.strictEqual(push({ highWaterMark: -100 }).writer.desiredSize, 1);
+// Budget must be integer >= 16384
+assert.throws(() => push({ budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => push({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
+// Values < 16384 are rejected
+assert.throws(() => push({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => push({ budget: -1 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => push({ budget: -100 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => push({ budget: 16383 }), { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum accepted value
+assert.strictEqual(push({ budget: 16384 }).writer.canWrite, true);
 // MAX_SAFE_INTEGER is accepted
-assert.strictEqual(push({ highWaterMark: Number.MAX_SAFE_INTEGER }).writer.desiredSize,
-                   Number.MAX_SAFE_INTEGER);
+assert.strictEqual(push({ budget: Number.MAX_SAFE_INTEGER }).writer.canWrite,
+                   true);
 // Values above MAX_SAFE_INTEGER are rejected by validateInteger
-assert.throws(() => push({ highWaterMark: Number.MAX_SAFE_INTEGER + 1 }),
+assert.throws(() => push({ budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 
 // Signal must be AbortSignal
@@ -41,6 +45,19 @@ assert.throws(() => push({ signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
 // Transforms must be functions or transform objects
 assert.throws(() => push(42, {}), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => push('bad', {}), { code: 'ERR_INVALID_ARG_TYPE' });
+
+// Writer options.signal must be AbortSignal
+{
+  const { writer } = push();
+  const badOptions = { signal: 'bad' };
+  assert.throws(() => writer.write('a', badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['b'], badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end(badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  writer.endSync();
+}
 
 // Writer.writev requires array
 {
@@ -69,33 +86,27 @@ assert.throws(() => duplex('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => duplex({ a: 42 }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => duplex({ b: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
 
-// highWaterMark validation (cascades through to push())
-assert.throws(() => duplex({ highWaterMark: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => duplex({ highWaterMark: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
-assert.throws(() => duplex({ highWaterMark: Number.MAX_SAFE_INTEGER + 1 }),
+// Budget validation (cascades through to push())
+assert.throws(() => duplex({ budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => duplex({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => duplex({ budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 
-// Values < 1 are clamped to 1 (both directions)
-{
-  const [a, b] = duplex({ highWaterMark: 0 });
-  assert.strictEqual(a.writer.desiredSize, 1);
-  assert.strictEqual(b.writer.desiredSize, 1);
-  a.close();
-  b.close();
-}
+// Values < 16384 are rejected (both directions)
+assert.throws(() => duplex({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
 // MAX_SAFE_INTEGER is accepted
 {
-  const [a, b] = duplex({ highWaterMark: Number.MAX_SAFE_INTEGER });
-  assert.strictEqual(a.writer.desiredSize, Number.MAX_SAFE_INTEGER);
-  assert.strictEqual(b.writer.desiredSize, Number.MAX_SAFE_INTEGER);
+  const [a, b] = duplex({ budget: Number.MAX_SAFE_INTEGER });
+  assert.strictEqual(a.writer.canWrite, true);
+  assert.strictEqual(b.writer.canWrite, true);
   a.close();
   b.close();
 }
 // Per-direction overrides
 {
-  const [a, b] = duplex({ a: { highWaterMark: 0 }, b: { highWaterMark: 5 } });
-  assert.strictEqual(a.writer.desiredSize, 1); // clamped
-  assert.strictEqual(b.writer.desiredSize, 5);
+  const [a, b] = duplex({ a: { budget: 16384 }, b: { budget: 32768 } });
+  assert.strictEqual(a.writer.canWrite, true);
+  assert.strictEqual(b.writer.canWrite, true);
   a.close();
   b.close();
 }
@@ -118,34 +129,45 @@ assert.throws(() => pullSync(fromSync('a'), 42), { code: 'ERR_INVALID_ARG_TYPE' 
 // broadcast() validation
 // =============================================================================
 
-assert.throws(() => broadcast({ highWaterMark: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => broadcast({ highWaterMark: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
-assert.throws(() => broadcast({ highWaterMark: Number.MAX_SAFE_INTEGER + 1 }),
+assert.throws(() => broadcast({ budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => broadcast({ budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => broadcast({ budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 
-// Values < 1 are clamped to 1 (need a consumer for desiredSize to work)
+// Values < 16384 are rejected
+assert.throws(() => broadcast({ budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => broadcast({ budget: -1 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => broadcast({ budget: 16383 }), { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum accepted value
 {
-  const bc = broadcast({ highWaterMark: 0 });
+  const bc = broadcast({ budget: 16384 });
   bc.broadcast.push();
-  assert.strictEqual(bc.writer.desiredSize, 1);
-  bc.writer.endSync();
-}
-{
-  const bc = broadcast({ highWaterMark: -1 });
-  bc.broadcast.push();
-  assert.strictEqual(bc.writer.desiredSize, 1);
+  assert.strictEqual(bc.writer.canWrite, true);
   bc.writer.endSync();
 }
 // MAX_SAFE_INTEGER is accepted
 {
-  const bc = broadcast({ highWaterMark: Number.MAX_SAFE_INTEGER });
+  const bc = broadcast({ budget: Number.MAX_SAFE_INTEGER });
   bc.broadcast.push();
-  assert.strictEqual(bc.writer.desiredSize, Number.MAX_SAFE_INTEGER);
+  assert.strictEqual(bc.writer.canWrite, true);
   bc.writer.endSync();
 }
 
 assert.throws(() => broadcast({ signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG_VALUE' });
+
+// BroadcastWriter options.signal must be AbortSignal
+{
+  const { writer } = broadcast();
+  const badOptions = { signal: 'bad' };
+  assert.throws(() => writer.write('a', badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['b'], badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end(badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  writer.endSync();
+}
 
 // BroadcastWriter.writev requires array
 {
@@ -157,39 +179,62 @@ assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG
   writer.endSync();
 }
 
-// Broadcast.from rejects non-iterable input
+// Broadcast.from rejects non-streamable input
 assert.throws(() => Broadcast.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => Broadcast.from('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
+
+// fromWritable Writer options.signal must be AbortSignal
+{
+  const writable = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    },
+  });
+  const writer = fromWritable(writable);
+  const badOptions = { signal: 'bad' };
+  assert.throws(() => writer.write('a', badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(['b'], badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.end(badOptions),
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  writable.destroy();
+}
 
 // =============================================================================
 // share() / shareSync() validation
 // =============================================================================
 
 assert.throws(() => share(42), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => share(from('a'), { highWaterMark: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => share(from('a'), { highWaterMark: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
-assert.throws(() => share(from('a'), { highWaterMark: Number.MAX_SAFE_INTEGER + 1 }),
+assert.throws(() => share(from('a'), { budget: 'bad' }), { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(() => share(from('a'), { budget: 1.5 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => share(from('a'), { budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => share(from('a'), { signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => share(from('a'), { backpressure: 'bad' }), { code: 'ERR_INVALID_ARG_VALUE' });
 
-// share() values < 1 are clamped (no desiredSize, but accepts the value)
-share(from('a'), { highWaterMark: 0 }).cancel();
-share(from('a'), { highWaterMark: -1 }).cancel();
-share(from('a'), { highWaterMark: Number.MAX_SAFE_INTEGER }).cancel();
+// share() values < 16384 are rejected
+assert.throws(() => share(from('a'), { budget: 0 }), { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => share(from('a'), { budget: -1 }), { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum, MAX_SAFE_INTEGER is accepted
+share(from('a'), { budget: 16384 }).cancel();
+share(from('a'), { budget: Number.MAX_SAFE_INTEGER }).cancel();
 
 assert.throws(() => shareSync(42), { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => shareSync(fromSync('a'), { highWaterMark: 'bad' }),
+assert.throws(() => shareSync(fromSync('a'), { budget: 'bad' }),
               { code: 'ERR_INVALID_ARG_TYPE' });
-assert.throws(() => shareSync(fromSync('a'), { highWaterMark: 1.5 }),
+assert.throws(() => shareSync(fromSync('a'), { budget: 1.5 }),
               { code: 'ERR_OUT_OF_RANGE' });
-assert.throws(() => shareSync(fromSync('a'), { highWaterMark: Number.MAX_SAFE_INTEGER + 1 }),
+assert.throws(() => shareSync(fromSync('a'), { budget: Number.MAX_SAFE_INTEGER + 1 }),
               { code: 'ERR_OUT_OF_RANGE' });
 
-// shareSync() values < 1 are clamped (accepts the value)
-shareSync(fromSync('a'), { highWaterMark: 0 }).cancel();
-shareSync(fromSync('a'), { highWaterMark: -1 }).cancel();
-shareSync(fromSync('a'), { highWaterMark: Number.MAX_SAFE_INTEGER }).cancel();
+// shareSync() values < 16384 are rejected
+assert.throws(() => shareSync(fromSync('a'), { budget: 0 }),
+              { code: 'ERR_OUT_OF_RANGE' });
+assert.throws(() => shareSync(fromSync('a'), { budget: -1 }),
+              { code: 'ERR_OUT_OF_RANGE' });
+// 16384 is the minimum, MAX_SAFE_INTEGER is accepted
+shareSync(fromSync('a'), { budget: 16384 }).cancel();
+shareSync(fromSync('a'), { budget: Number.MAX_SAFE_INTEGER }).cancel();
 
 // Share.from / SyncShare.fromSync reject non-iterable
 assert.throws(() => Share.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
@@ -308,7 +353,16 @@ async function testAsyncValidation() {
 
   // Zstd pledgedSrcSize
   await assert.rejects(consume(compressZstd({ pledgedSrcSize: 'bad' })), TYPE);
-  await assert.rejects(consume(compressZstd({ pledgedSrcSize: -1 })), RANGE);
+  for (const pledgedSrcSize of [
+    NaN,
+    Infinity,
+    -Infinity,
+    1.9,
+    -1,
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    await assert.rejects(consume(compressZstd({ pledgedSrcSize })), RANGE);
+  }
 }
 
 // =============================================================================
@@ -317,27 +371,27 @@ async function testAsyncValidation() {
 
 // Push with valid options
 {
-  const { writer } = push({ highWaterMark: 2 });
+  const { writer } = push({ budget: 16384 });
   writer.writeSync('hello');
   writer.endSync();
 }
 
 // Duplex with valid options
 {
-  const [a, b] = duplex({ highWaterMark: 2 });
+  const [a, b] = duplex({ budget: 16384 });
   a.close();
   b.close();
 }
 
 // Broadcast with valid options
 {
-  const { writer } = broadcast({ highWaterMark: 4 });
+  const { writer } = broadcast({ budget: 16384 });
   writer.endSync();
 }
 
 // Share with valid options
 {
-  const shared = share(from('hello'), { highWaterMark: 4 });
+  const shared = share(from('hello'), { budget: 16384 });
   shared.cancel();
 }
 

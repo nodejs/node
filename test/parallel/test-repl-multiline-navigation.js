@@ -8,6 +8,8 @@ const assert = require('assert');
 const repl = require('internal/repl');
 const stream = require('stream');
 
+common.skipIfInspectorDisabled();
+
 class ActionStream extends stream.Stream {
   run(data) {
     const _iter = data[Symbol.iterator]();

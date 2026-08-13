@@ -6,7 +6,7 @@ let tls // include tls conditionally since it is not always available
 const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError } = require('../core/errors')
 const { Socks5Client, STATES } = require('../core/socks5-client')
-const { kDispatch, kClose, kDestroy } = require('../core/symbols')
+const { kBusy, kConnected, kDispatch, kClose, kDestroy } = require('../core/symbols')
 const Pool = require('./pool')
 const buildConnector = require('../core/connect')
 const { debuglog } = require('node:util')
@@ -19,6 +19,7 @@ const kProxyAuth = Symbol('proxy auth')
 const kProxyProtocol = Symbol('proxy protocol')
 const kPools = Symbol('pools')
 const kConnector = Symbol('connector')
+const kRequestTls = Symbol('request tls settings')
 
 // Static flag to ensure warning is only emitted once per process
 let experimentalWarningEmitted = false
@@ -53,6 +54,7 @@ class Socks5ProxyAgent extends DispatcherBase {
     this[kProxyUrl] = url
     this[kProxyHeaders] = options.headers || {}
     this[kProxyProtocol] = options.proxyTls ? 'https:' : 'http:'
+    this[kRequestTls] = options.requestTls
 
     // Extract auth from URL or options
     this[kProxyAuth] = {
@@ -205,9 +207,9 @@ class Socks5ProxyAgent extends DispatcherBase {
                 }
                 debug('upgrading to TLS')
                 finalSocket = tls.connect({
+                  ...this[kRequestTls],
                   socket,
-                  servername: targetHost,
-                  ...connectOpts.tls || {}
+                  servername: this[kRequestTls]?.servername || targetHost
                 })
 
                 const tlsReady = Promise.withResolvers()
@@ -224,6 +226,20 @@ class Socks5ProxyAgent extends DispatcherBase {
           }
         })
         this[kPools].set(originKey, pool)
+
+        const closePoolIfUnused = () => {
+          if (this[kPools].get(originKey) !== pool || pool[kConnected] > 0 || pool[kBusy]) {
+            return
+          }
+
+          this[kPools].delete(originKey)
+          if (!pool.destroyed) {
+            pool.close()
+          }
+        }
+
+        pool.on('disconnect', closePoolIfUnused)
+        pool.on('connectionError', closePoolIfUnused)
       }
 
       // Dispatch the request through the per-origin pool

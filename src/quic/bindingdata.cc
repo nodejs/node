@@ -435,6 +435,14 @@ QUIC_JS_CALLBACKS(V)
 
 #undef V
 
+Local<String> BindingData::error_name_string(const char* name) {
+  auto& slot = error_name_strings_[name];
+  if (slot.IsEmpty()) {
+    slot.Set(env()->isolate(), OneByteString(env()->isolate(), name));
+  }
+  return slot.Get(env()->isolate());
+}
+
 JS_METHOD_IMPL(BindingData::SetCallbacks) {
   auto env = Environment::GetCurrent(args);
   auto isolate = env->isolate();

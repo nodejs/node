@@ -2,7 +2,7 @@
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
-const { existsSync } = require('node:fs');
+const { existsSync, mkdirSync } = require('node:fs');
 const { join } = require('node:path');
 const { DatabaseSync, StatementSync } = require('node:sqlite');
 const { suite, test } = require('node:test');
@@ -308,6 +308,42 @@ suite('DatabaseSync.prototype.open()', () => {
     });
     t.assert.strictEqual(db.isOpen, true);
   });
+
+  test('does not leave the database open after a failed open', (t) => {
+    // Regression test for https://github.com/nodejs/node/issues/63831
+    const dbDir = join(tmpdir.path, `database-dir-${cnt++}`);
+    const dbPath = join(dbDir, 'failed-open.db');
+    using db = new DatabaseSync(dbPath, { open: false });
+
+    // The directory does not exist, so opening the database fails.
+    t.assert.throws(() => {
+      db.open();
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /unable to open database file/,
+    });
+    t.assert.strictEqual(db.isOpen, false);
+
+    // The connection must not be usable after a failed open.
+    t.assert.throws(() => {
+      db.exec('SELECT 1');
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+    t.assert.throws(() => {
+      db.function('fn', () => {});
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+
+    // The database can be opened once the underlying problem is resolved.
+    mkdirSync(dbDir);
+    t.assert.strictEqual(db.open(), undefined);
+    t.assert.strictEqual(db.isOpen, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+  });
 });
 
 suite('DatabaseSync.prototype.close()', () => {
@@ -360,6 +396,32 @@ suite('DatabaseSync.prototype.prepare()', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "sql" argument must be a string/,
     });
+  });
+
+  test('throws if sql contains no statements', (t) => {
+    using db = new DatabaseSync(nextDb());
+
+    for (const sql of ['', '   ', ';', '-- comment', '/* comment */']) {
+      t.assert.throws(() => {
+        db.prepare(sql);
+      }, {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /contains no statements/,
+      });
+    }
+  });
+
+  test('prepares statements that contain comments', (t) => {
+    using db = new DatabaseSync(nextDb());
+    const queries = [
+      '-- lead\nSELECT 1 AS v',
+      'SELECT 1 AS v -- trail',
+      'SELECT /* mid */ 1 AS v',
+    ];
+
+    for (const sql of queries) {
+      t.assert.strictEqual(db.prepare(sql).get().v, 1);
+    }
   });
 });
 

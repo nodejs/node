@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -259,9 +259,9 @@ static TXE *qtx_ensure_free_txe(OSSL_QTX *qtx, size_t alloc_len)
  * of the TXE might change; the new address is returned, or NULL on failure, in
  * which case the original TXE remains valid.
  */
-static TXE *qtx_resize_txe(OSSL_QTX *qtx, TXE_LIST *txl, TXE *txe, size_t n)
+static TXE *qtx_resize_txe(OSSL_QTX *qtx, TXE *txe, size_t n)
 {
-    TXE *txe2, *p;
+    TXE *txe2;
 
     /* Should never happen. */
     if (txe == NULL)
@@ -270,27 +270,21 @@ static TXE *qtx_resize_txe(OSSL_QTX *qtx, TXE_LIST *txl, TXE *txe, size_t n)
     if (n >= SIZE_MAX - sizeof(TXE))
         return NULL;
 
-    /* Remove the item from the list to avoid accessing freed memory */
-    p = ossl_list_txe_prev(txe);
-    ossl_list_txe_remove(txl, txe);
+    /*
+     * to resize txe, the caller must detach it from the list first,
+     * fail if txe is still attached.
+     */
+    if (!ossl_assert(ossl_list_txe_prev(txe) == NULL
+            && ossl_list_txe_next(txe) == NULL))
+        return NULL;
 
     /*
      * NOTE: We do not clear old memory, although it does contain decrypted
      * data.
      */
     txe2 = OPENSSL_realloc(txe, sizeof(TXE) + n);
-    if (txe2 == NULL) {
-        if (p == NULL)
-            ossl_list_txe_insert_head(txl, txe);
-        else
-            ossl_list_txe_insert_after(txl, p, txe);
+    if (txe2 == NULL)
         return NULL;
-    }
-
-    if (p == NULL)
-        ossl_list_txe_insert_head(txl, txe2);
-    else
-        ossl_list_txe_insert_after(txl, p, txe2);
 
     if (qtx->cons == txe)
         qtx->cons = txe2;
@@ -303,13 +297,12 @@ static TXE *qtx_resize_txe(OSSL_QTX *qtx, TXE_LIST *txl, TXE *txe, size_t n)
  * Ensure the data buffer attached to an TXE is at least n bytes in size.
  * Returns NULL on failure.
  */
-static TXE *qtx_reserve_txe(OSSL_QTX *qtx, TXE_LIST *txl,
-    TXE *txe, size_t n)
+static TXE *qtx_reserve_txe(OSSL_QTX *qtx, TXE *txe, size_t n)
 {
     if (txe->alloc_len >= n)
         return txe;
 
-    return qtx_resize_txe(qtx, txl, txe, n);
+    return qtx_resize_txe(qtx, txe, n);
 }
 
 /* Move a TXE from pending to free. */
@@ -830,6 +823,16 @@ int ossl_qtx_write_pkt(OSSL_QTX *qtx, const OSSL_QTX_PKT *pkt)
          * serialize/encrypt the packet. We always encrypt packets as soon as
          * our caller gives them to us, which relieves the caller of any need to
          * keep the plaintext around.
+         *
+         * the txe can have three distinct states:
+         *	- attached to free list
+         *	- attached to tx list
+         *	- detached.
+         *
+         * if txe is detached (not member of free/tx list), then it is kept
+         * in qtx->cons. The qtx_ensure_cons() here either returns the txe
+         * from free list or existing ->cons txe. The txe we obtain here
+         * is detached.
          */
         txe = qtx_ensure_cons(qtx);
         if (txe == NULL)
@@ -839,8 +842,20 @@ int ossl_qtx_write_pkt(OSSL_QTX *qtx, const OSSL_QTX_PKT *pkt)
          * Ensure TXE has at least MDPL bytes allocated. This should only be
          * possible if the MDPL has increased.
          */
-        if (!qtx_reserve_txe(qtx, NULL, txe, qtx->mdpl))
+        txe = qtx_reserve_txe(qtx, txe, qtx->mdpl);
+        if (txe == NULL) {
+            /*
+             * realloc of txe failed. however it is still kept in ->cons,
+             * no memory leak.
+             * The question is what we should do here to handle error,
+             * is doing `return 0` enough? or shall we discard ->cons and
+             * put it back to free list?
+             * or just stop coalescing the packet and dispatch it to network
+             * right now so the next packet tx can start from fresh?
+             * I think this is the problem for another day.
+             */
             return 0;
+        }
 
         if (!was_coalescing) {
             /* Set addresses in TXE. */
@@ -867,6 +882,11 @@ int ossl_qtx_write_pkt(OSSL_QTX *qtx, const OSSL_QTX_PKT *pkt)
                 /*
                  * We failed due to insufficient length, so end the current
                  * datagram and try again.
+                 *
+                 * the ossl_qtx_finish_dgram() also puts the txe (-.cons) to
+                 * tx list, so ->cons becomes attached again. The function also
+                 * sets ->cons to NULL so the next loop iteration starts with
+                 * fresh txe (which is also safe to resize).
                  */
                 ossl_qtx_finish_dgram(qtx);
                 was_coalescing = 0;

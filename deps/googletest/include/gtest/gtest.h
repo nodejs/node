@@ -1818,14 +1818,13 @@ class [[nodiscard]] TestWithParam : public Test,
 #define GTEST_EXPECT_TRUE(condition)                      \
   GTEST_TEST_BOOLEAN_(condition, #condition, false, true, \
                       GTEST_NONFATAL_FAILURE_)
-#define GTEST_EXPECT_FALSE(condition)                        \
-  GTEST_TEST_BOOLEAN_(!(condition), #condition, true, false, \
+#define GTEST_EXPECT_FALSE(condition)                     \
+  GTEST_TEST_BOOLEAN_(condition, #condition, true, false, \
                       GTEST_NONFATAL_FAILURE_)
 #define GTEST_ASSERT_TRUE(condition) \
   GTEST_TEST_BOOLEAN_(condition, #condition, false, true, GTEST_FATAL_FAILURE_)
-#define GTEST_ASSERT_FALSE(condition)                        \
-  GTEST_TEST_BOOLEAN_(!(condition), #condition, true, false, \
-                      GTEST_FATAL_FAILURE_)
+#define GTEST_ASSERT_FALSE(condition) \
+  GTEST_TEST_BOOLEAN_(condition, #condition, true, false, GTEST_FATAL_FAILURE_)
 
 // Define these macros to 1 to omit the definition of the corresponding
 // EXPECT or ASSERT, which clashes with some users' own code.
@@ -2164,7 +2163,7 @@ class GTEST_API_ [[nodiscard]] ScopedTrace {
 // to cause a compiler error.
 template <typename T1, typename T2>
 constexpr bool StaticAssertTypeEq() noexcept {
-  static_assert(std::is_same<T1, T2>::value, "T1 and T2 are not the same type");
+  static_assert(std::is_same_v<T1, T2>, "T1 and T2 are not the same type");
   return true;
 }
 
@@ -2310,7 +2309,7 @@ template <int&... ExplicitParameterBarrier, typename Factory>
 TestInfo* RegisterTest(const char* test_suite_name, const char* test_name,
                        const char* type_param, const char* value_param,
                        const char* file, int line, Factory factory) {
-  using TestT = typename std::remove_pointer<decltype(factory())>::type;
+  using TestT = std::remove_pointer_t<decltype(factory())>;
 
   class FactoryImpl : public internal::TestFactoryBase {
    public:

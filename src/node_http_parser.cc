@@ -96,6 +96,7 @@ const uint32_t kLenientOptionalLFAfterCR = 1 << 6;
 const uint32_t kLenientOptionalCRLFAfterChunk = 1 << 7;
 const uint32_t kLenientOptionalCRBeforeLF = 1 << 8;
 const uint32_t kLenientSpacesAfterChunkSize = 1 << 9;
+const uint32_t kLenientHeaderValueRelaxed = 1 << 10;
 const uint32_t kLenientAll =
     kLenientHeaders | kLenientChunkedLength | kLenientKeepAlive |
     kLenientTransferEncoding | kLenientVersion | kLenientDataAfterClose |
@@ -317,6 +318,7 @@ class Parser : public AsyncWrap, public StreamListener {
     num_fields_ = num_values_ = 0;
     headers_completed_ = false;
     chunk_extensions_nread_ = 0;
+    received_data_ = true;
     last_message_start_ = uv_hrtime();
     allocator_.Reset();
     url_.Reset();
@@ -373,6 +375,11 @@ class Parser : public AsyncWrap, public StreamListener {
 
     if (num_fields_ == num_values_) {
       // start of new field name
+      rv = TrackHeaderPair();
+      if (rv != 0) {
+        return rv;
+      }
+
       num_fields_++;
       if (num_fields_ == kMaxHeaderFieldsCount) {
         // ran out of space - flush to javascript land
@@ -457,6 +464,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     num_fields_ = 0;
     num_values_ = 0;
+    header_pairs_ = 0;
 
     // METHOD
     if (parser_.type == HTTP_REQUEST) {
@@ -549,6 +557,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     if (num_fields_)
       Flush();  // Flush trailing HTTP headers.
+
+    header_pairs_ = 0;
 
     Local<Object> obj = object();
     Local<Value> cb = obj->Get(env()->context(),
@@ -723,6 +733,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     if (connectionsList != nullptr) {
       parser->connectionsList_ = connectionsList;
+      parser->received_data_ = false;
 
       // This protects from a DoS attack where an attacker establishes
       // the connection without sending any data on applications where
@@ -1006,6 +1017,11 @@ class Parser : public AsyncWrap, public StreamListener {
     if (lenient_flags & kLenientSpacesAfterChunkSize) {
       llhttp_set_lenient_spaces_after_chunk_size(&parser_, 1);
     }
+#if LLHTTP_VERSION_MAJOR * 1000 + LLHTTP_VERSION_MINOR >= 9004
+    if (lenient_flags & kLenientHeaderValueRelaxed) {
+      llhttp_set_lenient_header_value_relaxed(&parser_, 1);
+    }
+#endif
 
     header_nread_ = 0;
     url_.Reset();
@@ -1017,6 +1033,7 @@ class Parser : public AsyncWrap, public StreamListener {
     is_being_freed_ = false;
     headers_completed_ = false;
     max_http_header_size_ = max_http_header_size;
+    header_pairs_ = 0;
   }
 
 
@@ -1029,6 +1046,34 @@ class Parser : public AsyncWrap, public StreamListener {
     return 0;
   }
 
+  int TrackHeaderPair() {
+    if (parser_.type != HTTP_REQUEST) {
+      return 0;
+    }
+
+    header_pairs_ += 2;
+
+    Local<Value> max_header_pairs_v;
+    if (!object()
+             ->Get(env()->context(),
+                   FIXED_ONE_BYTE_STRING(env()->isolate(), "maxHeaderPairs"))
+             .ToLocal(&max_header_pairs_v)) {
+      got_exception_ = true;
+      return -1;
+    }
+
+    if (!max_header_pairs_v->IsNumber()) {
+      return 0;
+    }
+
+    const double max_header_pairs = max_header_pairs_v.As<Number>()->Value();
+    if (max_header_pairs > 0 && header_pairs_ > max_header_pairs) {
+      llhttp_set_error_reason(&parser_, "HPE_HEADER_OVERFLOW:Header overflow");
+      return HPE_USER;
+    }
+
+    return 0;
+  }
 
   int MaybePause() {
     if (!pending_pause_) {
@@ -1063,7 +1108,9 @@ class Parser : public AsyncWrap, public StreamListener {
   size_t current_buffer_len_;
   const char* current_buffer_data_;
   bool headers_completed_ = false;
+  size_t header_pairs_ = 0;
   bool pending_pause_ = false;
+  bool received_data_ = false;
   uint64_t header_nread_ = 0;
   uint64_t chunk_extensions_nread_ = 0;
   uint64_t max_http_header_size_;
@@ -1144,7 +1191,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
   LocalVector<Value> result(isolate);
   result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
-    if (parser->last_message_start_ == 0) {
+    if (parser->last_message_start_ == 0 || !parser->received_data_) {
       result.emplace_back(parser->object());
     }
   }
@@ -1332,6 +1379,16 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
          Integer::NewFromUnsigned(isolate, kLenientOptionalCRBeforeLF));
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientSpacesAfterChunkSize"),
          Integer::NewFromUnsigned(isolate, kLenientSpacesAfterChunkSize));
+  // kLenientHeaderValueRelaxed requires llhttp >= 9.4.0 for the
+  // llhttp_set_lenient_header_value_relaxed() API. Export 0 on older
+  // shared-library builds so JS can detect feature availability.
+#if LLHTTP_VERSION_MAJOR * 1000 + LLHTTP_VERSION_MINOR >= 9004
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientHeaderValueRelaxed"),
+         Integer::NewFromUnsigned(isolate, kLenientHeaderValueRelaxed));
+#else
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientHeaderValueRelaxed"),
+         Integer::NewFromUnsigned(isolate, 0));
+#endif
 
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
          Integer::NewFromUnsigned(isolate, kLenientAll));

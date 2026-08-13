@@ -60,7 +60,7 @@ activities, such as applying labels and closing/reopening/assigning issues.
 For more information on the roles and permissions, see ["Permission levels for
 repositories owned by an organization"](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization).
 
-When triagging issues and PRs:
+When triaging issues and PRs:
 
 * Show patience and empathy, especially to first-time contributors.
 * Show no patience towards spam or troll, close the issue without interacting with it and

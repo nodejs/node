@@ -1,5 +1,5 @@
 /*
- * Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2024-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,7 +62,6 @@ static int slh_dsa_key_hash_init(SLH_DSA_KEY *key)
     key->hash_func = ossl_slh_get_hash_fn(is_shake);
     return 1;
 err:
-    slh_dsa_key_hash_cleanup(key);
     return 0;
 }
 
@@ -206,7 +205,7 @@ int ossl_slh_dsa_key_equal(const SLH_DSA_KEY *key1, const SLH_DSA_KEY *key2,
         if (!key_checked
             && (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
             if (key1->has_priv && key2->has_priv) {
-                if (memcmp(key1->priv, key2->priv,
+                if (CRYPTO_memcmp(key1->priv, key2->priv,
                         key1->params->pk_len)
                     != 0)
                     return 0;

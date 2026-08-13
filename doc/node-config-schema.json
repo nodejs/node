@@ -103,6 +103,10 @@
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
             },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
+            },
             "allow-wasi": {
               "type": "boolean",
               "description": "allow wasi when any permissions are set"
@@ -242,11 +246,7 @@
             },
             "experimental-print-required-tla": {
               "type": "boolean",
-              "description": "Print pending top-level await. If --require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to to find and print top-level await in the graph"
-            },
-            "experimental-repl-await": {
-              "type": "boolean",
-              "description": "experimental await keyword support in REPL"
+              "description": "Print pending top-level await. If --require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to find and print top-level await in the graph"
             },
             "experimental-require-module": {
               "type": "boolean",
@@ -867,6 +867,10 @@
             "allow-net": {
               "type": "boolean",
               "description": "allow use of network when any permissions are set"
+            },
+            "allow-openssl-store": {
+              "type": "boolean",
+              "description": "allow use of OpenSSL STORE loaders when any permissions are set"
             },
             "allow-wasi": {
               "type": "boolean",

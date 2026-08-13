@@ -27,6 +27,7 @@
 #include "node.h"
 #include "node_external_reference.h"
 #include "node_profiling.h"
+#include "permission/permission.h"
 #include "util-inl.h"
 #include "v8-profiler.h"
 #include "v8.h"
@@ -200,6 +201,14 @@ void SetHeapSnapshotNearHeapLimit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint32_t limit = args[0].As<v8::Uint32>()->Value();
   CHECK_GT(limit, 0);
+
+  std::string dir = env->options()->diagnostic_dir;
+  if (dir.empty()) {
+    dir = Environment::GetCwd(env->exec_path());
+  }
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemWrite, dir);
+
   env->AddHeapSnapshotNearHeapLimitCallback();
   env->set_heap_snapshot_near_heap_limit(limit);
 }
@@ -336,6 +345,8 @@ static const char* GetGCTypeName(v8::GCType gc_type) {
   switch (gc_type) {
     case v8::GCType::kGCTypeScavenge:
       return "Scavenge";
+    case v8::GCType::kGCTypeMinorMarkSweep:
+      return "MinorMarkSweep";
     case v8::GCType::kGCTypeMarkSweepCompact:
       return "MarkSweepCompact";
     case v8::GCType::kGCTypeIncrementalMarking:

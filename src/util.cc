@@ -468,6 +468,31 @@ void SetFastMethodNoSideEffect(
   that->Set(name_string, t);
 }
 
+void SetFastMethodNoSideEffect(
+    Local<v8::Context> context,
+    Local<v8::Object> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Local<v8::Function> function = FunctionTemplate::NewWithCFunctionOverloads(
+                                     isolate,
+                                     slow_callback,
+                                     Local<Value>(),
+                                     Local<v8::Signature>(),
+                                     0,
+                                     v8::ConstructorBehavior::kThrow,
+                                     v8::SideEffectType::kHasNoSideEffect,
+                                     methods)
+                                     ->GetFunction(context)
+                                     .ToLocalChecked();
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->Set(context, name_string, function).Check();
+}
+
 void SetMethodNoSideEffect(Local<v8::Context> context,
                            Local<v8::Object> that,
                            const std::string_view name,
@@ -810,6 +835,17 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
   }
 
   return v8::Just(mode);
+}
+
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    std::string_view str,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
+  if (str.size() >= static_cast<size_t>(v8::String::kMaxLength)) [[unlikely]] {
+    ThrowErrStringTooLong(isolate);
+    return v8::MaybeLocal<v8::Value>();
+  }
+  return StringBytes::Encode(isolate, str.data(), str.size(), UTF8);
 }
 
 }  // namespace node

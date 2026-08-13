@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -28,7 +26,7 @@ const clientSession = await connect(serverEndpoint.address, {
 // Destroy immediately without waiting for opened.
 clientSession.destroy();
 
-strictEqual(clientSession.destroyed, true);
+assert.strictEqual(clientSession.destroyed, true);
 
 // Opened may reject (session destroyed before handshake completed)
 // or resolve if handshake completed fast enough.

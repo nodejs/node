@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 ensureFixtureLibrary();
 
 const { lib, functions } = ffi.dlopen(libraryPath, {
-  add_f64: { result: 'f64', parameters: ['f64', 'f64'] },
+  add_f64: { return: 'f64', arguments: ['f64', 'f64'] },
 });
 
 const add = functions.add_f64;

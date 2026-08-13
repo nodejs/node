@@ -8,7 +8,9 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+const rejectsXCurves = hasFIPS(3, 5);
 
 const keyData = {
   'Ed25519': {
@@ -413,9 +415,19 @@ async function testImportRaw({ name, publicUsages }) {
     for (const extractable of [true, false]) {
       tests.push(testImportSpki(vector, extractable));
       tests.push(testImportPkcs8(vector, extractable));
-      tests.push(testImportJwk(vector, extractable));
+      if (rejectsXCurves && vector.name.startsWith('X')) {
+        tests.push(assert.rejects(
+          testImportJwk(vector, extractable),
+          { name: 'DataError' }));
+      } else {
+        tests.push(testImportJwk(vector, extractable));
+      }
     }
-    tests.push(testImportRaw(vector));
+    if (rejectsXCurves && vector.name.startsWith('X')) {
+      tests.push(assert.rejects(testImportRaw(vector), { name: 'DataError' }));
+    } else {
+      tests.push(testImportRaw(vector));
+    }
   }
   await Promise.all(tests);
 })().then(common.mustCall());

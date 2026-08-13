@@ -114,8 +114,7 @@ void PrintBytesInObjectToImpl(const unsigned char* obj_bytes, size_t count,
 // char32_t.
 template <typename CharType>
 char32_t ToChar32(CharType in) {
-  return static_cast<char32_t>(
-      static_cast<typename std::make_unsigned<CharType>::type>(in));
+  return static_cast<char32_t>(static_cast<std::make_unsigned_t<CharType>>(in));
 }
 
 }  // namespace
@@ -516,13 +515,13 @@ bool IsValidUTF8(const char* str, size_t length) {
 void ConditionalPrintAsText(const char* str, size_t length, ostream* os) {
   if (!ContainsUnprintableControlCodes(str, length) &&
       IsValidUTF8(str, length)) {
-    *os << "\n    As Text: \"" << ::std::string_view(str, length) << "\"";
+    *os << "\n    As Text: \"" << std::string_view(str, length) << "\"";
   }
 }
 
 }  // anonymous namespace
 
-void PrintStringTo(::std::string_view s, ostream* os) {
+void PrintStringTo(std::string_view s, ostream* os) {
   if (PrintCharsAsStringTo(s.data(), s.size(), os) == kHexEscape) {
     if (GTEST_FLAG_GET(print_utf8)) {
       ConditionalPrintAsText(s.data(), s.size(), os);

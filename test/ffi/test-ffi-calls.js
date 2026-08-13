@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc
+// Flags: --experimental-ffi --expose-gc --allow-natives-syntax
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
@@ -62,8 +62,16 @@ test('ffi bool signatures use uint8 values', () => {
       arguments: ['bool', 'bool'],
       return: 'bool',
     });
-    assert.strictEqual(boolAdder(1, 0), 1);
-    assert.throws(() => boolAdder(true, false), /Argument 0 must be a uint8/);
+    function callBoolAdder(a, b) {
+      return boolAdder(a, b);
+    }
+
+    eval('%PrepareFunctionForOptimization(callBoolAdder)');
+    assert.strictEqual(callBoolAdder(1, 0), 1);
+    eval('%OptimizeFunctionOnNextCall(callBoolAdder)');
+    assert.strictEqual(callBoolAdder(1, 0), 1);
+    assert.throws(
+      () => callBoolAdder(true, false), /Argument 0 must be a uint8/);
   } finally {
     lib.close();
   }
@@ -109,6 +117,47 @@ test('ffi strings and buffers cross the boundary correctly', () => {
     assert.strictEqual(symbols.sum_buffer(arrayBuffer, BigInt(arrayBuffer.byteLength)), 42n);
   } finally {
     lib.close();
+  }
+});
+
+test('ffi string signatures convert strings to temporary pointers', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    string_length: { arguments: ['string'], return: 'u64' },
+    safe_strlen: { arguments: ['str'], return: 'i32' },
+  });
+  try {
+    assert.strictEqual(functions.string_length('hello ffi'), 9n);
+    assert.strictEqual(functions.safe_strlen('hello ffi'), 9);
+    assert.strictEqual(functions.safe_strlen(null), -1);
+    assert.strictEqual(functions.safe_strlen(undefined), -1);
+  } finally {
+    lib.close();
+  }
+});
+
+test('ffi buffer and ArrayBuffer signatures pass backing-store pointers', () => {
+  {
+    const { lib, functions } = ffi.dlopen(libraryPath, {
+      first_byte: { arguments: ['buffer'], return: 'u8' },
+    });
+    try {
+      assert.strictEqual(functions.first_byte(Buffer.from([42, 1])), 42);
+      assert.strictEqual(functions.first_byte(new Uint8Array([43, 1])), 43);
+    } finally {
+      lib.close();
+    }
+  }
+
+  {
+    const { lib, functions } = ffi.dlopen(libraryPath, {
+      first_byte: { arguments: ['arraybuffer'], return: 'u8' },
+    });
+    try {
+      const ab = new Uint8Array([44, 1]).buffer;
+      assert.strictEqual(functions.first_byte(ab), 44);
+    } finally {
+      lib.close();
+    }
   }
 });
 

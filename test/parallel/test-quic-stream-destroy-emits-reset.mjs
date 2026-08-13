@@ -12,12 +12,10 @@
 // code is the negotiated application's "internal error" code: for
 // the test fixture's non-h3 ALPN (`quic-test`) the C++
 // DefaultApplication reports `1n`, which propagates to the server
-// as `ERR_QUIC_APPLICATION_ERROR` carrying `1n` in its message.
+// as `ERR_QUIC_APPLICATION_ERROR` exposing `errorCode === 1n`.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
-
-const { strictEqual, ok, rejects } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -30,17 +28,15 @@ const serverResetSeen = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     stream.onreset = mustCall((err) => {
-      strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      // The DefaultApplication's internal error code is 0x1n, which
-      // util.format renders as `1n` (BigInt) in the message text.
-      ok(err.message.includes('1n'),
-         `expected '1n' in message, got: ${err.message}`);
+      assert.strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
+      // The DefaultApplication's internal error code is 0x1n.
+      assert.strictEqual(err.errorCode, 1n);
       serverResetSeen.resolve();
     });
 
     // The peer's reset causes stream.closed to reject with the reset
     // error code.
-    await rejects(stream.closed, {
+    await assert.rejects(stream.closed, {
       code: 'ERR_QUIC_APPLICATION_ERROR',
     });
   });
@@ -61,7 +57,7 @@ const stream = await clientSession.createBidirectionalStream({
 const err = new Error('destroy without writer');
 // Pre-attach the rejection assertion before destroying so the
 // resulting `stream.closed` rejection isn't reported as unhandled.
-const clientClosedAssertion = rejects(stream.closed, err);
+const clientClosedAssertion = assert.rejects(stream.closed, err);
 
 stream.destroy(err);
 

@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, throws } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -22,19 +20,19 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
 
   // Session onerror validation: non-functions throw.
-  throws(() => { serverSession.onerror = 'not a function'; }, errorCheck);
-  throws(() => { serverSession.onerror = 42; }, errorCheck);
-  throws(() => { serverSession.onerror = null; }, errorCheck);
+  assert.throws(() => { serverSession.onerror = 'not a function'; }, errorCheck);
+  assert.throws(() => { serverSession.onerror = 42; }, errorCheck);
+  assert.throws(() => { serverSession.onerror = null; }, errorCheck);
 
   // Setting to a function works.
   const fn = () => {};
   serverSession.onerror = fn;
   // The getter returns the bound version, not the original.
-  strictEqual(typeof serverSession.onerror, 'function');
+  assert.strictEqual(typeof serverSession.onerror, 'function');
 
   // Setting to undefined clears it.
   serverSession.onerror = undefined;
-  strictEqual(serverSession.onerror, undefined);
+  assert.strictEqual(serverSession.onerror, undefined);
 
   serverSession.close();
 }));
@@ -47,17 +45,17 @@ const stream = await clientSession.createBidirectionalStream({
   body: new TextEncoder().encode('x'),
 });
 
-throws(() => { stream.onerror = 'not a function'; }, errorCheck);
-throws(() => { stream.onerror = 42; }, errorCheck);
-throws(() => { stream.onerror = null; }, errorCheck);
+assert.throws(() => { stream.onerror = 'not a function'; }, errorCheck);
+assert.throws(() => { stream.onerror = 42; }, errorCheck);
+assert.throws(() => { stream.onerror = null; }, errorCheck);
 
 // Setting to a function works.
 stream.onerror = () => {};
-strictEqual(typeof stream.onerror, 'function');
+assert.strictEqual(typeof stream.onerror, 'function');
 
 // Setting to undefined clears it.
 stream.onerror = undefined;
-strictEqual(stream.onerror, undefined);
+assert.strictEqual(stream.onerror, undefined);
 
 await clientSession.closed;
 await serverEndpoint.close();

@@ -17,7 +17,7 @@ function test(res, header, code) {
   });
 }
 
-const server = http.Server(common.mustCall(function(req, res) {
+const server = new http.Server(common.mustCall(function(req, res) {
   switch (reqNum) {
     case 0:
       test(res, -1, '-1');

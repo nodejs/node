@@ -44,7 +44,7 @@ env:
   CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} clang++-19
   SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
   SCCACHE_IDLE_TIMEOUT: '0'
-  RUSTC_VERSION: '1.82'
+  RUSTC_VERSION: '1.86'
 
 permissions:
   contents: read
@@ -58,7 +58,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
           path: node
@@ -71,17 +71,15 @@ jobs:
           rustup override set "$RUSTC_VERSION"
           rustup --version
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up sccache
         if: github.base_ref == 'main' || github.ref_name == 'main'
-        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
+        uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba  # v0.0.11
         with:
-          version: v0.12.0
-      - name: Environment Information
-        run: npx envinfo
+          version: v0.17.0
       - name: Build
         working-directory: node
         run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"

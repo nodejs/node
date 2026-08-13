@@ -12,7 +12,7 @@ Note: This command is unaware of workspaces.
 
 Before using npm trust commands, ensure the following requirements are met:
 
-* **npm version**: `npm@11.10.0` or above is required. Use `npm install -g npm@^11.10.0` to update if needed.
+* **npm version**: `npm@11.15.0` or above is required. Use `npm install -g npm@^11.15.0` to update if needed.
 * **Write permissions on the package**: You must have write access to the package you're configuring.
 * **2FA enabled on account**: Two-factor authentication must be enabled at the account level. Even if it's not currently enabled, you must enable it to use trust commands.
 * **Supported authentication methods**: Granular Access Tokens (GAT) with the bypass 2FA option are not supported. Legacy basic auth (username and password) credentials will not work for trust commands or endpoints.

@@ -121,7 +121,6 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_OPERATION_FAILED, TypeError)                                           \
   V(ERR_OPTIONS_BEFORE_BOOTSTRAPPING, Error)                                   \
   V(ERR_OUT_OF_RANGE, RangeError)                                              \
-  V(ERR_REQUIRE_ASYNC_MODULE, Error)                                           \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
   V(ERR_SOURCE_PHASE_NOT_DEFINED, SyntaxError)                                 \
@@ -266,28 +265,6 @@ inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
                                                int64_t timeout) {
   THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(
       env, "Script execution timed out after %dms", timeout);
-}
-
-inline void THROW_ERR_REQUIRE_ASYNC_MODULE(
-    Environment* env,
-    v8::Local<v8::Value> filename,
-    v8::Local<v8::Value> parent_filename) {
-  static constexpr const char* prefix =
-      "require() cannot be used on an ESM graph with top-level await. Use "
-      "import() instead. To see where the top-level await comes from, use "
-      "--experimental-print-required-tla.";
-  std::string message = prefix;
-  if (!parent_filename.IsEmpty() && parent_filename->IsString()) {
-    Utf8Value utf8(env->isolate(), parent_filename);
-    message += "\n  From ";
-    message += utf8.ToStringView();
-  }
-  if (!filename.IsEmpty() && filename->IsString()) {
-    Utf8Value utf8(env->isolate(), filename);
-    message += "\n  Requiring ";
-    message += utf8.ToStringView();
-  }
-  THROW_ERR_REQUIRE_ASYNC_MODULE(env, message);
 }
 
 inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {

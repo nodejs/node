@@ -286,6 +286,11 @@
       'openssl/crypto/cms/cms_rsa.c',
       'openssl/crypto/cms/cms_sd.c',
       'openssl/crypto/cms/cms_smime.c',
+      'openssl/crypto/comp/c_brotli.c',
+      'openssl/crypto/comp/c_zlib.c',
+      'openssl/crypto/comp/c_zstd.c',
+      'openssl/crypto/comp/comp_err.c',
+      'openssl/crypto/comp/comp_lib.c',
       'openssl/crypto/conf/conf_api.c',
       'openssl/crypto/conf/conf_def.c',
       'openssl/crypto/conf/conf_err.c',
@@ -1115,6 +1120,16 @@
       'OPENSSL_USE_NODELETE',
       'L_ENDIAN',
       'OPENSSL_BUILDING_OPENSSL',
+      'BROTLI',
+      'ZLIB',
+      'ZSTD',
+      'OPENSSL_PIC',
+    ],
+    'openssl_defines_exported_linux64-loongarch64': [
+      'NDEBUG',
+      'OPENSSL_USE_NODELETE',
+      'L_ENDIAN',
+      'OPENSSL_BUILDING_OPENSSL',
       'OPENSSL_PIC',
     ],
     'openssl_cflags_linux64-loongarch64': [
@@ -1123,7 +1138,7 @@
       '-Wall -O3',
     ],
     'openssl_ex_libs_linux64-loongarch64': [
-      '-ldl -pthread',
+      '-lm -ldl -pthread',
     ],
   },
   'include_dirs': [
@@ -1139,6 +1154,6 @@
   'sources': ['<@(openssl_sources)', '<@(openssl_sources_linux64-loongarch64)'],
   'direct_dependent_settings': {
     'include_dirs': ['./include', '.'],
-    'defines': ['<@(openssl_defines_linux64-loongarch64)'],
+    'defines': ['<@(openssl_defines_exported_linux64-loongarch64)'],
   },
 }

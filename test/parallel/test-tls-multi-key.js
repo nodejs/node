@@ -35,6 +35,7 @@ if (process.features.openssl_is_boringssl) {
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
+const { hasFIPS } = require('../common/crypto');
 
 // Key is ordered as ec, rsa, cert is ordered as rsa, ec.
 test({
@@ -143,6 +144,17 @@ test({
 });
 
 function test(options) {
+  if (hasFIPS(3) && options.pfx) {
+    const serverOptions = { ...options };
+    delete serverOptions.rsaCN;
+    delete serverOptions.eccCN;
+    delete serverOptions.client;
+    assert.throws(() => tls.createServer(serverOptions), {
+      code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION',
+    });
+    return;
+  }
+
   const rsaCN = options.rsaCN || 'agent1';
   const eccCN = options.eccCN || 'agent2';
   const clientTrustRoots = options.client.ca;

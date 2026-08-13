@@ -208,8 +208,8 @@ starting Node.js. The [`node:ffi`][] module also requires the
 Example:
 
 ```js
-const { DynamicLibrary } = require('node:ffi');
-const lib = new DynamicLibrary('mylib.so');
+const { DynamicLibrary, suffix } = require('node:ffi');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 ```
 
 ```console
@@ -248,7 +248,7 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 * `*` - To allow all `FileSystemRead` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-read` flags.
-  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
+  Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder2/`
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -290,7 +290,7 @@ The valid arguments for the `--allow-fs-write` flag are:
 
 * `*` - To allow all `FileSystemWrite` operations.
 * Multiple paths can be allowed using multiple `--allow-fs-write` flags.
-  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder1/`
+  Example `--allow-fs-write=/folder1/ --allow-fs-write=/folder2/`
 
 Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
@@ -360,6 +360,25 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
   code: 'ERR_ACCESS_DENIED',
 }
 ```
+
+### `--allow-openssl-store`
+
+<!-- YAML
+added: v26.7.0
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to use
+OpenSSL STORE loaders by default, for example to load a private key from a
+{URL} passed to [`crypto.createPrivateKey()`][]. Attempts to do so will throw
+an `ERR_ACCESS_DENIED` unless the user explicitly passes the
+`--allow-openssl-store` flag. This permission can be dropped at runtime via
+[`permission.drop()`][].
+
+This flag grants broad authority to configured OpenSSL STORE loaders. A loader
+may access files, devices, tokens, or the network. Access performed by a loader
+is not constrained by the `fs.read`, `fs.write`, or `net` permission scopes.
 
 ### `--allow-wasi`
 
@@ -495,7 +514,7 @@ I am from the snapshot
 
 For more information, check out the [`v8.startupSnapshot` API][] documentation.
 
-The snapshot currently only supports loding a single entrypoint during the
+The snapshot currently only supports loading a single entrypoint during the
 snapshot building process, which can load built-in modules, but not additional user-land modules.
 Users can bundle their applications into a single script with their bundler
 of choice before building a snapshot.
@@ -731,9 +750,13 @@ Disable the ability of starting a debugging session by sending a
 added:
   - v21.3.0
   - v20.11.0
+changes:
+  - version: v26.7.0
+    pr-url: https://github.com/nodejs/node/pull/64742
+    description: The `--disable-warning` flag is now stable.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Disable specific process warnings by `code` or `type`.
 
@@ -786,7 +809,8 @@ added:
 - v20.15.0
 changes:
   - version:
-    - v26.0.0
+     - v26.0.0
+     - v24.19.0
     pr-url: https://github.com/nodejs/node/pull/62132
     description: Node.js now automatically disables the trap handler when there is not
                  enough virtual memory available at startup to allocate one cage.
@@ -858,8 +882,9 @@ priority than `--dns-result-order`.
 added: v6.0.0
 -->
 
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
-against FIPS-compatible OpenSSL.)
+Enable [FIPS mode][] at startup. With OpenSSL 3, a configured provider named
+`fips` must be available and initialize successfully. With OpenSSL 1.1.1,
+Node.js must be built against a FIPS-capable OpenSSL.
 
 ### `--enable-source-maps`
 
@@ -1039,9 +1064,15 @@ It is possible to run code containing inline types unless the
 added:
   - v23.6.0
   - v22.20.0
+changes:
+  - version:
+     - v26.5.0
+     - v24.19.0
+    pr-url: https://github.com/nodejs/node/pull/64221
+    description: This is enabled by default.
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.2 - Release candidate
 
 Enable experimental import support for `.node` addons.
 
@@ -1051,9 +1082,13 @@ Enable experimental import support for `.node` addons.
 added:
  - v23.10.0
  - v22.16.0
+changes:
+  - version: v26.7.0
+    pr-url: https://github.com/nodejs/node/pull/64516
+    description: Marked as release candidate.
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.2 - Release candidate
 
 If present, Node.js will look for a configuration file at the specified path.
 If the path is not specified, Node.js will look for a `node.config.json` file
@@ -1266,6 +1301,19 @@ passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
 
+### `--experimental-import-text`
+
+<!-- YAML
+added:
+  - v26.5.0
+  - v24.19.0
+-->
+
+> Stability: 1.0 - Early development
+
+Enable experimental support for importing modules with
+`with { type: 'text' }`.
+
 ### `--experimental-inspector-network-resource`
 
 <!-- YAML
@@ -1328,17 +1376,41 @@ added:
 
 Enable experimental support for the network inspection with Chrome DevTools.
 
+### `--experimental-package-map=<path>`
+
+<!-- YAML
+added: v26.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental package map resolution. The `path` argument specifies the
+location of a JSON configuration file that defines package resolution mappings.
+
+```bash
+node --experimental-package-map=./package-map.json app.js
+```
+
+When enabled, bare specifier resolution consults the package map for resolution.
+This allows explicit control over which packages can import which dependencies.
+
+See [Package maps][] for details on the configuration file format and
+resolution algorithm.
+
 ### `--experimental-print-required-tla`
 
 <!-- YAML
 added:
   - v22.0.0
   - v20.17.0
+changes:
+  - version: v26.5.0
+    pr-url: https://github.com/nodejs/node/pull/64154
+    description: Print the top-level awaits without evaluating the modules.
 -->
 
-If the ES module being `require()`'d contains top-level `await`, this flag
-allows Node.js to evaluate the module, try to locate the
-top-level awaits, and print their location to help users find them.
+If the ES module graph cannot be `require()`'d because it contains any top-level `await`,
+this flag allows Node.js to locate and print their locations.
 
 ### `--experimental-quic`
 
@@ -1438,27 +1510,35 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
-### `--experimental-test-tag-filter=<tag>`
+### `--experimental-test-tag-filter='<expr>'`
 
 <!-- YAML
-added: v26.2.0
+added:
+ - v26.2.0
+ - v24.19.0
 -->
 
 > Stability: 1.0 - Early development
 
-Run only tests whose tag set contains `<tag>`. Tests declare tags via the
-`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the `tags` option on `test()`, `it()`, `suite()`, or
+`describe()`. Tags inherit from suites to nested tests by union.
 
-The flag may be specified more than once; tests must contain **every**
-filter value to run. See [Test tags][] for details on declaring and
-inheriting tags.
+The expression supports boolean operators (`and`/`&&`, `or`/`||`,
+`not`/`!`), parentheses for grouping, and `*` wildcards inside identifiers.
+Standard precedence applies: `not` binds tighter than `and`, which binds
+tighter than `or`. See [Test tags][] for the full grammar and behavior.
+
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 
 ### `--experimental-vfs`
 
 <!-- YAML
-added: REPLACEME
+added: v26.4.0
 -->
 
 > Stability: 1 - Experimental
@@ -1506,25 +1586,6 @@ added:
 
 Enable experimental support for the worker inspection with Chrome DevTools.
 
-### `--expose-gc`
-
-<!-- YAML
-added:
-  - v22.3.0
-  - v20.18.0
--->
-
-> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
-> change upstream.
-
-This flag will expose the gc extension from V8.
-
-```js
-if (globalThis.gc) {
-  globalThis.gc();
-}
-```
-
 ### `--force-context-aware`
 
 <!-- YAML
@@ -1539,8 +1600,8 @@ Disable loading native addons that are not [context-aware][].
 added: v6.0.0
 -->
 
-Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as `--enable-fips`.)
+Enable [FIPS mode][] at startup and prevent it from being disabled from script
+code. The same OpenSSL requirements as [`--enable-fips`][] apply.
 
 ### `--force-node-api-uncaught-exceptions-policy`
 
@@ -1982,14 +2043,6 @@ node --max-old-space-size-percentage=50 index.js
 node --max-old-space-size-percentage=75 index.js
 ```
 
-### `--napi-modules`
-
-<!-- YAML
-added: v7.10.0
--->
-
-This option is a no-op. It is kept for compatibility.
-
 ### `--network-family-autoselection-attempt-timeout`
 
 <!-- YAML
@@ -2057,14 +2110,6 @@ added: v21.2.0
 > Stability: 1 - Experimental
 
 Disable exposition of [Navigator API][] on the global scope.
-
-### `--no-experimental-repl-await`
-
-<!-- YAML
-added: v16.6.0
--->
-
-Use this flag to disable top-level await in REPL.
 
 ### `--no-experimental-require-module`
 
@@ -2246,9 +2291,11 @@ usually only useful for developers debugging Node.js itself.
 added: v6.9.0
 -->
 
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built
-against FIPS-enabled OpenSSL.
+Load an OpenSSL configuration file on startup. The file can activate an
+OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
+[FIPS mode][].
+
+This option takes precedence over the `OPENSSL_CONF` environment variable.
 
 ### `--openssl-legacy-provider`
 
@@ -2309,6 +2356,9 @@ changes:
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
 
+> See also [`--permission-audit`](#--permission-audit) for an audit-only mode
+> that logs violations without denying access.
+
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
 * Network - manageable through [`--allow-net`][] flag
@@ -2317,6 +2367,7 @@ following permissions are restricted:
 * WASI - manageable through [`--allow-wasi`][] flag
 * Addons - manageable through [`--allow-addons`][] flag
 * FFI - manageable through [`--allow-ffi`](#--allow-ffi) flag
+* OpenSSL STORE loaders - manageable through [`--allow-openssl-store`][] flag
 
 ### `--permission-audit`
 
@@ -2324,9 +2375,22 @@ following permissions are restricted:
 added: v25.8.0
 -->
 
-Enable audit only for the permission model. When enabled, permission checks
-are performed but access is not denied. Instead, a warning is emitted for
-each permission violation via diagnostics channel.
+Enable audit mode for the permission model. When enabled, permission checks
+are performed but access is **not** denied — no `ERR_ACCESS_DENIED` error is
+thrown. Instead, each permission violation is published through the
+`node:diagnostics_channel` module, and execution continues normally.
+
+This flag does not require [`--permission`](#--permission) to be specified. The
+`--allow-*` flags are not needed in audit mode, since no
+access is denied.
+
+Audit mode is useful for discovering what permissions your application
+requires before deploying with [`--permission`](#--permission). See the
+[Permission Model][] documentation for the list of diagnostics channel names
+and the message format.
+
+If both [`--permission`](#--permission) and `--permission-audit` are specified,
+`--permission` takes precedence and the Permission Model runs in enforce mode.
 
 ### `--preserve-symlinks`
 
@@ -2685,6 +2749,9 @@ The following environment variables are set when running a script with `--run`:
 * `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
 
+Environment variables loaded from a file with [`--env-file`][] are not applied
+to the command executed by `--run`.
+
 ### `--secure-heap-min=n`
 
 <!-- YAML
@@ -2840,6 +2907,21 @@ This option may be specified multiple times to include multiple glob patterns.
 
 If both `--test-coverage-exclude` and `--test-coverage-include` are provided,
 files must meet **both** criteria to be included in the coverage report.
+
+### `--test-coverage-include-all`
+
+<!-- YAML
+added: v26.7.0
+-->
+
+> Stability: 1 - Experimental
+
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+
+Candidate files are searched for in the current working directory, and are
+subject to the same `--test-coverage-include` and `--test-coverage-exclude`
+filtering as the rest of the report.
 
 ### `--test-coverage-lines=threshold`
 
@@ -3390,8 +3472,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This is equivalent to setting the [`NODE_USE_ENV_PROXY=1`][] environment variable.
 When both are set, `--use-env-proxy` takes precedence.
@@ -3772,6 +3859,7 @@ one is included in the list below.
 * `--allow-fs-write`
 * `--allow-inspector`
 * `--allow-net`
+* `--allow-openssl-store`
 * `--allow-wasi`
 * `--allow-worker`
 * `--conditions`, `-C`
@@ -3796,10 +3884,12 @@ one is included in the list below.
 * `--experimental-eventsource`
 * `--experimental-ffi`
 * `--experimental-import-meta-resolve`
+* `--experimental-import-text`
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-logger`
 * `--experimental-modules`
+* `--experimental-package-map`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
 * `--experimental-require-module`
@@ -3834,13 +3924,11 @@ one is included in the list below.
 * `--localstorage-file`
 * `--max-http-header-size`
 * `--max-old-space-size-percentage`
-* `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
 * `--no-async-context-frame`
 * `--no-deprecation`
 * `--no-experimental-global-navigator`
-* `--no-experimental-repl-await`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-websocket`
@@ -3880,6 +3968,7 @@ one is included in the list below.
 * `--test-coverage-branches`
 * `--test-coverage-exclude`
 * `--test-coverage-functions`
+* `--test-coverage-include-all`
 * `--test-coverage-include`
 * `--test-coverage-lines`
 * `--test-global-setup`
@@ -4076,8 +4165,13 @@ added:
 > Stability: 1.1 - Active Development
 
 When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
-environment variables during startup, and tunnels requests over the
+environment variables during startup, and routes requests through the
 specified proxy.
+
+Use this only with proxies that are trusted and authorized for the deployment.
+Proxy support is intended for reaching external networks through authorized
+proxy servers, for example when a firewall requires one. It is not for hiding
+traffic or evading network policy. See [Built-in Proxy Support][].
 
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
 When both are set, `--use-env-proxy` takes precedence.
@@ -4183,9 +4277,8 @@ environment variable is arbitrary.
 added: v6.11.0
 -->
 
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-`./configure --openssl-fips`.
+Load an OpenSSL configuration file on startup. The file can be used as part of
+a [FIPS mode][] configuration.
 
 If the [`--openssl-config`][] command-line option is used, the environment
 variable is ignored.
@@ -4384,6 +4477,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 <!-- v8-options end -->
 
 [#42511]: https://github.com/nodejs/node/issues/42511
+[Built-in Proxy Support]: http.md#built-in-proxy-support
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [Chromium's policy for locally trusted certificates]: https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#does-the-chrome-certificate-verifier-consider-local-trust-decisions
 [CommonJS module]: modules.md
@@ -4391,6 +4485,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ECMAScript module]: esm.md#modules-ecmascript-modules
 [EventSource Web API]: https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
+[FIPS mode]: crypto.md#fips-mode
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Logger]: logger.md
@@ -4398,6 +4493,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
+[Package maps]: packages.md#package-maps
 [Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
@@ -4413,12 +4509,14 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-net`]: #--allow-net
+[`--allow-openssl-store`]: #--allow-openssl-store
 [`--allow-wasi`]: #--allow-wasi
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--disable-sigusr1`]: #--disable-sigusr1
+[`--enable-fips`]: #--enable-fips
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
@@ -4443,6 +4541,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`NO_COLOR`]: https://no-color.org
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
+[`crypto.createPrivateKey()`]: crypto.md#cryptocreateprivatekeykey
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
@@ -4453,6 +4552,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
+[`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version

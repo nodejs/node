@@ -841,6 +841,13 @@ void Environment::set_process_exit_handler(
 #undef VY
 #undef VP
 
+#define V(Name, label, _, __)                                                  \
+  inline v8::Local<v8::String> IsolateData::Name##_permission_string() const { \
+    return Name##_permission_string##_.Get(isolate_);                          \
+  }
+  PERMISSIONS(V)
+#undef V
+
 #define VM(PropertyName) V(PropertyName##_binding_template, v8::ObjectTemplate)
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> IsolateData::PropertyName() const {               \
@@ -869,6 +876,13 @@ void Environment::set_process_exit_handler(
 #undef VS
 #undef VY
 #undef VP
+
+#define V(Name, label, _, __)                                                  \
+  inline v8::Local<v8::String> Environment::Name##_permission_string() const { \
+    return isolate_data()->Name##_permission_string();                         \
+  }
+  PERMISSIONS(V)
+#undef V
 
 #define V(PropertyName, TypeName)                                              \
   inline v8::Local<TypeName> Environment::PropertyName() const {               \

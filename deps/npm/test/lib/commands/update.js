@@ -95,3 +95,33 @@ t.test('completion', async t => {
   const res = await update.completion({ conf: { argv: { remain: ['npm', 'update'] } } })
   t.type(res, Array)
 })
+
+t.test('update threads allowScripts policy through to arborist', async t => {
+  // The reify step uses the resolved policy. The advisory warning is
+  // emitted from reifyFinish (already covered by install.js tests),
+  // so here we verify the call site populates opts.allowScripts.
+  let capturedOpts
+  const FakeArborist = function (opts) {
+    capturedOpts = opts
+    this.options = opts
+    this.actualTree = { inventory: new Map() }
+  }
+  FakeArborist.prototype.reify = async function () {}
+
+  const mock = await _mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { canvas: true },
+      }),
+    },
+    mocks: {
+      '@npmcli/arborist': FakeArborist,
+      '{LIB}/utils/reify-finish.js': async () => {},
+    },
+  })
+  await mock.npm.exec('update', [])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true },
+    'opts.allowScripts populated from package.json')
+})

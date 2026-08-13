@@ -5,7 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 // OpenSSL has a set of security levels which affect what algorithms
-// are available by default. Different OpenSSL veresions have different
+// are available by default. Different OpenSSL versions have different
 // default security levels and we use this value to adjust what a test
 // expects based on the security level. You can read more in
 // https://docs.openssl.org/1.1.1/man3/SSL_CTX_set_security_level/#default-callback-behaviour
@@ -13,7 +13,9 @@ const secLevel = require('internal/crypto/util').getOpenSSLSecLevel();
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
+const fips3 = hasFIPS(3);
+const fips4 = hasFIPS(4);
 
 const key = fixtures.readKey('agent2-key.pem');
 const cert = fixtures.readKey('agent2-cert.pem');
@@ -29,7 +31,7 @@ function test(size, err, next, minDHSizeOverride) {
   const options = {
     key: key,
     cert: cert,
-    dhparam: loadDHParam(size),
+    dhparam: size === 'auto' ? 'auto' : loadDHParam(size),
     ciphers: 'DHE-RSA-AES128-GCM-SHA256'
   };
 
@@ -60,7 +62,8 @@ function test(size, err, next, minDHSizeOverride) {
     if (err) {
       client.on('error', common.mustCall((e) => {
         nerror++;
-        assert.strictEqual(e.code, 'ERR_TLS_DH_PARAM_SIZE');
+        assert.strictEqual(e.code, fips3 && !fips4 ?
+          'ERR_SSL_BAD_DH_VALUE' : 'ERR_TLS_DH_PARAM_SIZE');
         server.close();
       }));
     }
@@ -86,7 +89,11 @@ function testDHE3072() {
 }
 
 if (!process.features.openssl_is_boringssl) {
-  if (hasOpenSSL(4, 0)) {
+  if (fips3 && !fips4) {
+    // The FIPS provider rejects explicit DH parameters without a validated
+    // subgroup, while OpenSSL's built-in FFDHE group remains available.
+    testDHE2048(true, () => test('auto', false, null, 2048));
+  } else if (hasOpenSSL(4, 0)) {
     // OpenSSL 4.0 implements RFC 7919 FFDHE negotiation for TLS 1.2 and
     // ignores the server-supplied dhparam in favor of FFDHE-2048. The 3072
     // success case is therefore replaced by a 2048 success case.

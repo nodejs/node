@@ -1,4 +1,4 @@
-// Flags: --experimental-sqlite
+// Flags: --expose-gc --experimental-sqlite
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
@@ -79,6 +79,22 @@ test('session.changeset() - closed database results in exception', (t) => {
     name: 'Error',
     message: 'database is not open',
   });
+});
+
+test('session methods - reopened database results in exception', (t) => {
+  for (const method of ['changeset', 'close']) {
+    const database = new DatabaseSync(':memory:');
+    const session = database.createSession();
+    database.close();
+    database.open();
+
+    t.assert.throws(() => {
+      session[method]();
+    }, {
+      name: 'Error',
+      message: 'session is not open',
+    });
+  }
 });
 
 test('database.applyChangeset() - closed database results in exception', (t) => {
@@ -232,7 +248,7 @@ suite('conflict resolution', () => {
     const insertSql = 'INSERT INTO data (key, value) VALUES (?, ?)';
     const session = database1.createSession();
     database1.prepare(insertSql).run(1, 'hello');
-    database2.prepare(insertSql).run(2, 'hello');  // database2 already constains hello
+    database2.prepare(insertSql).run(2, 'hello');  // database2 already contains hello
 
     return {
       database2,
@@ -388,6 +404,13 @@ test('filter handler throws', (t) => {
     name: 'Error',
     message: 'Error filtering table data1'
   });
+
+  t.assert.throws(() => {
+    database2.exec('CREATE TABLEEEE');
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    message: /syntax error/,
+  });
 });
 
 test('database.createSession() - filter changes', (t) => {
@@ -496,6 +519,27 @@ test('database.applyChangeset() - wrong arguments', (t) => {
   });
 });
 
+test('database.applyChangeset() - malformed changeset returns SQLITE_CORRUPT', {
+  skip: process.config.variables.node_shared_sqlite ?
+    'requires the bundled SQLite session fix' : false,
+}, (t) => {
+  const database = new DatabaseSync(':memory:');
+  database.exec('CREATE TABLE t1(a INTEGER PRIMARY KEY, b, c, d)');
+
+  const changeset = Buffer.from(
+    '540401000000743100177e0072286565286565',
+    'hex');
+
+  t.assert.throws(() => {
+    database.applyChangeset(changeset);
+  }, {
+    name: 'Error',
+    message: 'database disk image is malformed',
+    errcode: 11,
+    code: 'ERR_SQLITE_ERROR',
+  });
+});
+
 test('session.patchset()', (t) => {
   const database = new DatabaseSync(':memory:');
   database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
@@ -566,6 +610,36 @@ test('session.close() - closing twice', (t) => {
     name: 'Error',
     message: 'session is not open'
   });
+});
+
+test('session - keeps its database alive after the db handle is dropped', async (t) => {
+  const { gcUntil, onGC } = require('../common/gc');
+
+  // The DatabaseSync handle is created in a nested scope and never referenced
+  // again, so the returned session is the only thing keeping it reachable.
+  let dbCollected = false;
+  const session = (() => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+    onGC(database, { ongc: () => { dbCollected = true; } });
+    const s = database.createSession();
+    database.exec("INSERT INTO data VALUES (1, 'hello')");
+    return s;
+  })();
+
+  // The session must keep the database alive across GC. Previously it held
+  // only a weak reference, so the database could be collected and using the
+  // session afterwards dereferenced a dangling pointer and crashed.
+  await gcUntil('database is collected', () => dbCollected, 5).then(
+    () => { throw new Error('session did not keep its database alive'); },
+    () => {}, // Expected: the database is never collected, so gcUntil rejects.
+  );
+  t.assert.strictEqual(dbCollected, false);
+
+  // The database is still open and usable through the still-alive session.
+  const changeset = session.changeset();
+  t.assert.ok(changeset.byteLength > 0);
+  session.close();
 });
 
 test('session supports ERM', (t) => {

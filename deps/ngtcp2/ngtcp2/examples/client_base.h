@@ -34,6 +34,7 @@
 #include <string>
 #include <string_view>
 #include <functional>
+#include <filesystem>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
@@ -79,10 +80,10 @@ struct Config {
   // timeout is an idle timeout for QUIC connection.
   ngtcp2_duration timeout{30 * NGTCP2_SECONDS};
   // session_file is a path to a file to write, and read TLS session.
-  const char *session_file{};
+  std::filesystem::path session_file;
   // tp_file is a path to a file to write, and read QUIC transport
   // parameters.
-  const char *tp_file{};
+  std::filesystem::path tp_file;
   // show_secret is true if transport secrets should be printed out.
   bool show_secret{};
   // change_local_addr is the duration after which client changes
@@ -102,7 +103,7 @@ struct Config {
   std::string_view http_method{"GET"sv};
   // download is a path to a directory where a downloaded file is
   // saved.  If it is empty, no file is saved.
-  std::string_view download;
+  std::filesystem::path download;
   // requests contains URIs to request.
   std::vector<Request> requests;
   // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
@@ -112,10 +113,10 @@ struct Config {
   // disabled.
   bool no_http_dump{};
   // qlog_file is the path to write qlog.
-  std::string_view qlog_file;
+  std::filesystem::path qlog_file;
   // qlog_dir is the path to directory where qlog is stored.  qlog_dir
   // and qlog_file are mutually exclusive.
-  std::string_view qlog_dir;
+  std::filesystem::path qlog_dir;
   // max_data is the initial connection-level flow control window.
   uint64_t max_data{24_m};
   // max_stream_data_bidi_local is the initial stream-level flow
@@ -158,7 +159,7 @@ struct Config {
   ngtcp2_cc_algo cc_algo{NGTCP2_CC_ALGO_CUBIC};
   // token_file is a path to file to read or write token from
   // NEW_TOKEN frame.
-  std::string_view token_file;
+  std::filesystem::path token_file;
   // sni is the value sent in TLS SNI, overriding DNS name of the
   // remote host.
   std::string_view sni;
@@ -196,7 +197,7 @@ struct Config {
   std::vector<uint8_t> ech_config_list;
   // ech_config_list_file is a path to a file to read and write
   // ECHConfigList.
-  const char *ech_config_list_file{};
+  std::filesystem::path ech_config_list_file;
   // no_gso disables GSO.
   bool no_gso{};
   // show_stat, if true, displays the connection statistics when the

@@ -38,6 +38,7 @@
         ],
       }],
     ],
+    'perfetto_gyp_file': '../../deps/perfetto/perfetto.gyp',
   },
   'includes': ['toolchain.gypi', 'features.gypi'],
   'target_defaults': {
@@ -149,6 +150,7 @@
             '<@(torque_outputs_inc)',
           ],
           'action': [
+            '<@(emulator)',
             '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)torque<(EXECUTABLE_SUFFIX)',
             '-o', '<(SHARED_INTERMEDIATE_DIR)/torque-generated',
             '-v8-root', '<(V8_ROOT)',
@@ -269,6 +271,7 @@
           'action': [
             '<(python)',
             '<(V8_ROOT)/tools/run.py',
+            '<@(emulator)',
             '<@(_inputs)',
             '<@(_outputs)',
           ],
@@ -290,6 +293,13 @@
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-full.cc',
       ],
+      'conditions': [
+        ['v8_use_perfetto==1', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
+      ],
     },  # v8_init
     {
       'target_name': 'v8_initializers',
@@ -310,6 +320,11 @@
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
       ],
       'conditions': [
+        ['v8_use_perfetto==1', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['v8_enable_webassembly==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
@@ -340,12 +355,12 @@
             '<(V8_ROOT)/src/builtins/arm64/builtins-arm64.cc',
           ],
         }],
-        ['v8_target_arch=="riscv64" or v8_target_arch=="riscv64"', {
+        ['v8_target_arch=="riscv64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/riscv/builtins-riscv.cc',
           ],
         }],
-        ['v8_target_arch=="loong64" or v8_target_arch=="loong64"', {
+        ['v8_target_arch=="loong64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/loong64/builtins-loong64.cc',
           ],
@@ -470,12 +485,18 @@
             }],
           ],
           'action': [
+            '<@(emulator)',
             '>@(_inputs)',
             '>@(mksnapshot_flags)',
           ],
         },
       ],
       'conditions': [
+        ['v8_use_perfetto==1', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['want_separate_host_toolset', {
           'dependencies': [
             'generate_bytecode_builtins_list',
@@ -668,6 +689,19 @@
                   '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
                 ],
               }],
+              ['v8_target_arch=="riscv64"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
+                ],
+              }],
+            ],
+          }],
+          ['v8_use_perfetto==1', {
+            'sources!': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_use_perfetto.*?sources \\-= ")',
+            ],
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_use_perfetto.*?sources \\+= ")',
             ],
           }],
           ['v8_enable_webassembly==1', {
@@ -952,6 +986,11 @@
         'abseil.gyp:abseil',
       ],
       'conditions': [
+        ['v8_use_perfetto==1', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['v8_enable_maglev==0', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?!v8_enable_maglev.*?sources \\+= ")',
@@ -1082,6 +1121,14 @@
         '<@(inspector_all_sources)',
       ],
       'conditions': [
+        ['v8_use_perfetto==1', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_use_perfetto.*?sources \\+= ")',
+          ],
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['v8_enable_snapshot_compression==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_snapshot_compression.*?sources \\+= ")',
@@ -1132,6 +1179,11 @@
             ['v8_target_arch=="ppc64"', {
               'sources': [
                 '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
+              ],
+            }],
+            ['v8_target_arch=="riscv64"', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
               ],
             }],
           ],
@@ -1688,14 +1740,13 @@
         }],
         ['v8_use_perfetto==1', {
           'sources!': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources -= ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources \\-= ")',
           ],
           'sources': [
-            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources += ")',
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_libplatform.*?v8_use_perfetto.*?sources \\+= ")',
           ],
           'dependencies': [
-            '<(V8_ROOT)/third_party/perfetto:libperfetto',
-            '<(V8_ROOT)/third_party/perfetto/protos/perfetto/trace:lite',
+            '<(perfetto_gyp_file):perfetto_sdk',
           ],
         }],
         ['v8_enable_system_instrumentation==1 and is_win', {
@@ -1805,6 +1856,11 @@
         },
       },
       'conditions': [
+        ['v8_use_perfetto==1', {
+          'dependencies': [
+            '<(perfetto_gyp_file):perfetto_sdk',
+          ],
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host'],
         }],
@@ -1990,6 +2046,7 @@
           'action': [
             '<(python)',
             '<(V8_ROOT)/tools/run.py',
+            '<@(emulator)',
             '<@(_inputs)',
             '<@(_outputs)',
           ],
@@ -2013,6 +2070,13 @@
       'direct_dependent_settings': {
         'sources': [
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?sources = ")',
+        ],
+        'conditions': [
+          ['v8_use_perfetto==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_source_set.\\"cppgc_base.*?if .v8_use_perfetto.*?sources \\+= ")',
+            ],
+          }],
         ],
       },
     },  # cppgc_base

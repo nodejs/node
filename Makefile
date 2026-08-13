@@ -856,7 +856,7 @@ VERSION=v$(RAWVER)
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only
-doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
+doc-only: $(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/llms.txt out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
@@ -901,6 +901,22 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 	fi
 endif
 
+out/doc/llms.txt: $(apidoc_sources) tools/doc/node_modules | out/doc
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t llms-txt \
+			-i doc/api/*.md \
+			--ignore $(skip_apidoc_files) \
+			-o $(@D) \
+			-c ./CHANGELOG.md \
+			-v $(VERSION) \
+			--type-map doc/type-map.json \
+		) \
+	fi
+
 out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping $@ (no crypto and/or no ICU)"; \
@@ -913,6 +929,22 @@ out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 			-c ./CHANGELOG.md \
 			-v $(VERSION) \
 			--type-map doc/type-map.json \
+		) \
+	fi
+
+doc/node.1:
+	$(error Please use 'make node.1' instead of 'make $@'.)
+
+.PHONY: node.1
+node.1: doc/api/cli.md tools/doc/node_modules
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $@ (no crypto and/or no ICU)"; \
+	else \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
+			-o doc \
 		) \
 	fi
 
@@ -1464,8 +1496,26 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 	@$(call available-node,$(run-lint-md))
 	@touch $@
 
+tools/.manpagelintstamp: doc/node.1 doc/api/cli.md tools/doc/node_modules
+	$(info Verifying that $< is up to date...)
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+		echo "Skipping $< verification (no crypto and/or no ICU)"; \
+	else \
+		$(RM) -r tools/doc/.manpagecheck && \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-v $(VERSION) \
+			--config-file tools/doc/man-page.doc-kit.config.mjs \
+		) \
+		if ! diff -u $< tools/doc/.manpagecheck/node.1; then \
+			echo '$< is out of date; run `make node.1` to regenerate it.' >&2; \
+			exit 1; \
+		fi; \
+	fi
+	@touch $@
+
 .PHONY: lint-md
-lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
+lint-md: lint-js-doc | tools/.mdlintstamp tools/.manpagelintstamp ## Lint the markdown documents maintained by us in the codebase.
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
@@ -1522,7 +1572,7 @@ LINT_CPP_EXCLUDE ?=
 LINT_CPP_EXCLUDE += src/node_root_certs.h
 LINT_CPP_EXCLUDE += $(LINT_CPP_ADDON_DOC_FILES)
 # These files were copied more or less verbatim from V8.
-LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
+LINT_CPP_EXCLUDE += src/tracing/trace_event_legacy.h src/tracing/trace_event_legacy_inl.h
 
 # deps/ncrypto is included in this list, as it is maintained in
 # this repository, and should be linted. Eventually it should move

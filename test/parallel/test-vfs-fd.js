@@ -80,6 +80,26 @@ const vfs = require('node:vfs');
   myVfs.closeSync(fd);
 }
 
+// Test readSync with Node's current-position sentinel
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'hello world');
+
+  const fd = myVfs.openSync('/file.txt');
+  const buffer1 = Buffer.alloc(5);
+  const buffer2 = Buffer.alloc(6);
+
+  let bytesRead = myVfs.readSync(fd, buffer1, 0, 5, -1);
+  assert.strictEqual(bytesRead, 5);
+  assert.strictEqual(buffer1.toString(), 'hello');
+
+  bytesRead = myVfs.readSync(fd, buffer2, 0, 6, -1);
+  assert.strictEqual(bytesRead, 6);
+  assert.strictEqual(buffer2.toString(), ' world');
+
+  myVfs.closeSync(fd);
+}
+
 // Test readSync with explicit position
 {
   const myVfs = vfs.create();

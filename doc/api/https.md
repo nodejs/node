@@ -100,6 +100,10 @@ changes:
 
     See [`Session Resumption`][] for information about TLS session reuse.
 
+Requests that specify a custom `checkServerIdentity` option are not eligible
+for connection reuse or TLS session reuse by an `https.Agent`, unless the
+`checkServerIdentity` option was specified when constructing the Agent.
+
 #### Event: `'keylog'`
 
 <!-- YAML
@@ -423,6 +427,9 @@ a `timeout` of 5 seconds.
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63966
+    description: The `clientCertEngine` option is runtime deprecated.
   - version:
     - v22.4.0
     - v20.16.0

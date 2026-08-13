@@ -291,11 +291,9 @@ struct ConvertibleToIntegerPrinter {
 };
 
 struct ConvertibleToStringViewPrinter {
-#if GTEST_INTERNAL_HAS_STRING_VIEW
   static void PrintValue(internal::StringView value, ::std::ostream* os) {
     internal::UniversalPrint(value, os);
   }
-#endif
 };
 
 #ifdef GTEST_HAS_ABSL
@@ -703,12 +701,12 @@ void PrintRawArrayTo(const T a[], size_t count, ::std::ostream* os) {
   }
 }
 
-// Overloads for ::std::string and ::std::string_view
-GTEST_API_ void PrintStringTo(::std::string_view s, ::std::ostream* os);
+// Overloads for ::std::string and std::string_view
+GTEST_API_ void PrintStringTo(std::string_view s, ::std::ostream* os);
 inline void PrintTo(const ::std::string& s, ::std::ostream* os) {
   PrintStringTo(s, os);
 }
-inline void PrintTo(::std::string_view s, ::std::ostream* os) {
+inline void PrintTo(std::string_view s, ::std::ostream* os) {
   PrintStringTo(s, os);
 }
 
@@ -752,16 +750,14 @@ inline void PrintTo(::std::wstring_view s, ::std::ostream* os) {
 }
 #endif  // GTEST_HAS_STD_WSTRING
 
-#if GTEST_INTERNAL_HAS_STRING_VIEW
 // Overload for internal::StringView. Needed for build configurations where
 // internal::StringView is an alias for absl::string_view, but absl::string_view
 // is a distinct type from std::string_view.
 template <int&... ExplicitArgumentBarrier, typename T = internal::StringView,
-          std::enable_if_t<!std::is_same_v<T, ::std::string_view>, int> = 0>
+          std::enable_if_t<!std::is_same_v<T, std::string_view>, int> = 0>
 inline void PrintTo(internal::StringView sp, ::std::ostream* os) {
   PrintStringTo(sp, os);
 }
-#endif  // GTEST_INTERNAL_HAS_STRING_VIEW
 
 inline void PrintTo(std::nullptr_t, ::std::ostream* os) { *os << "(nullptr)"; }
 
@@ -863,8 +859,8 @@ void PrintTupleTo(const T& t, std::integral_constant<size_t, I>,
     GTEST_INTENTIONAL_CONST_COND_POP_()
     *os << ", ";
   }
-  UniversalPrinter<typename std::tuple_element<I - 1, T>::type>::Print(
-      std::get<I - 1>(t), os);
+  UniversalPrinter<std::tuple_element_t<I - 1, T>>::Print(std::get<I - 1>(t),
+                                                          os);
 }
 
 template <typename... Types>
@@ -945,13 +941,13 @@ template <typename T>
 class [[nodiscard]] UniversalPrinter<std::optional<T>> {
  public:
   static void Print(const std::optional<T>& value, ::std::ostream* os) {
-    *os << '(';
     if (!value) {
-      *os << "nullopt";
+      UniversalPrint(std::nullopt, os);
     } else {
+      *os << '(';
       UniversalPrint(*value, os);
+      *os << ')';
     }
-    *os << ')';
   }
 };
 
@@ -961,27 +957,38 @@ class [[nodiscard]] UniversalPrinter<std::nullopt_t> {
   static void Print(std::nullopt_t, ::std::ostream* os) { *os << "(nullopt)"; }
 };
 
+struct UniversalPrinterVisitor {
+  template <typename T>
+  void operator()(const T& arg) const {
+    *os << "'" << GetTypeName<T>() << "(index = " << index << ")' with value ";
+    UniversalPrint(arg, os);
+  }
+  ::std::ostream* os;
+  std::size_t index;
+};
+
 // Printer for std::variant
 template <typename... T>
 class [[nodiscard]] UniversalPrinter<std::variant<T...>> {
  public:
   static void Print(const std::variant<T...>& value, ::std::ostream* os) {
-    *os << '(';
-    std::visit(Visitor{os, value.index()}, value);
-    *os << ')';
-  }
-
- private:
-  struct Visitor {
-    template <typename U>
-    void operator()(const U& u) const {
-      *os << "'" << GetTypeName<U>() << "(index = " << index
-          << ")' with value ";
-      UniversalPrint(u, os);
+    if (value.valueless_by_exception()) {
+      *os << "(valueless)";
+    } else {
+      *os << '(';
+      std::visit(UniversalPrinterVisitor{os, value.index()}, value);
+      *os << ')';
     }
-    ::std::ostream* os;
-    std::size_t index;
-  };
+  }
+};
+
+// Printer for std::monostate
+template <>
+class [[nodiscard]] UniversalPrinter<std::monostate> {
+ public:
+  static void Print(std::monostate, ::std::ostream* os) {
+    *os << "(monostate)";
+  }
 };
 
 // UniversalPrintArray(begin, len, os) prints an array of 'len'
@@ -1218,7 +1225,7 @@ template <typename Tuple>
 Strings UniversalTersePrintTupleFieldsToStrings(const Tuple& value) {
   Strings result;
   TersePrintPrefixToStrings(
-      value, std::integral_constant<size_t, std::tuple_size<Tuple>::value>(),
+      value, std::integral_constant<size_t, std::tuple_size_v<Tuple>>(),
       &result);
   return result;
 }

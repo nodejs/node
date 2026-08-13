@@ -237,9 +237,13 @@ diagnostics_channel.unsubscribe('my-channel', onMessage);
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64525
+    description: Marked as stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 * `nameOrChannels` {string|TracingChannel} Channel name or
   object containing all the [TracingChannel Channels][]
@@ -744,9 +748,13 @@ The scope must be used with the `using` syntax to ensure proper disposal.
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64525
+    description: Marked as stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 The class `TracingChannel` is a collection of [TracingChannel Channels][] which
 together express a single traceable action. It is used to formalize and
@@ -948,20 +956,23 @@ added:
  - v19.9.0
  - v18.19.0
 changes:
+  - version: v26.5.0
+    pr-url: https://github.com/nodejs/node/pull/62407
+    description: Non-native-Promise thenables are now returned as-is,
+                 preserving their original type and methods.
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61766
-    description: Custom thenables will no longer be wrapped in native Promises.
-                 Non-thenables will be returned with a warning.
+    description: Non-thenables will be returned with a warning.
 -->
 
 * `fn` {Function} Function to wrap a trace around
 * `context` {Object} Shared object to correlate trace events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
-* Returns: {any} The return value of the given function, or the result of
-  calling `.then(...)` on the return value if the tracing channel has active
-  subscribers. If the return value is not a Promise or thenable, then
-  it is returned as-is and a warning is emitted.
+* Returns: {any} The return value of the given function. If the return value
+  is a Promise or thenable, tracing events will be published when it settles.
+  If the return value is not a Promise or thenable, it is returned as-is and
+  a warning is emitted.
 
 Trace an asynchronous function call which returns a {Promise} or
 [thenable object][]. This will always produce a [`start` event][] and

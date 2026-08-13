@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   sysv.S - Copyright (c) 2017  Anthony Green
+   sysv.S - Copyright (c) 2017, 2026  Anthony Green
           - Copyright (c) 2013  The Written Word, Inc.
           - Copyright (c) 1996,1998,2001-2003,2005,2008,2010  Red Hat, Inc.
    
@@ -91,7 +91,7 @@
 
 ffi_call_i386:
 L(UW0):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 #if !HAVE_FASTCALL
 	movl	4(%esp), %ecx
@@ -110,8 +110,8 @@ L(UW0):
 	   perspective of the unwind info, it hasn't moved.  */
 	movl	%ecx, %ebp
 L(UW1):
-	# cfi_def_cfa(%ebp, 8)
-	# cfi_rel_offset(%ebp, 0)
+	/* cfi_def_cfa(%ebp, 8) */
+	/* cfi_rel_offset(%ebp, 0) */
 
 	movl	%edx, %esp		/* set outgoing argument stack */
 	movl	20+R_EAX*4(%ebp), %eax	/* set register arguments */
@@ -123,7 +123,7 @@ L(UW1):
 	movl	12(%ebp), %ecx		/* load return type code */
 	movl	%ebx, 8(%ebp)		/* preserve %ebx */
 L(UW2):
-	# cfi_rel_offset(%ebx, 8)
+	/* cfi_rel_offset(%ebx, 8) */
 
 	andl	$X86_RET_TYPE_MASK, %ecx
 #ifdef __PIC__
@@ -175,13 +175,13 @@ L(e1):
 	movl	%ebp, %esp
 	popl	%ebp
 L(UW3):
-	# cfi_remember_state
-	# cfi_def_cfa(%esp, 4)
-	# cfi_restore(%ebx)
-	# cfi_restore(%ebp)
+	/* cfi_remember_state */
+	/* cfi_def_cfa(%esp, 4) */
+	/* cfi_restore(%ebx) */
+	/* cfi_restore(%ebp) */
 	ret
 L(UW4):
-	# cfi_restore_state
+	/* cfi_restore_state */
 
 E(L(store_table), X86_RET_STRUCTPOP)
 	jmp	L(e1)
@@ -201,7 +201,7 @@ E(L(store_table), X86_RET_UNUSED15)
 	ud2
 
 L(UW5):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(ffi_call_i386)
 
 /* The inner helper is declared as
@@ -296,11 +296,11 @@ L(C1(UW,UWN)):								\
 	FFI_HIDDEN(C(ffi_go_closure_EAX))
 C(ffi_go_closure_EAX):
 L(UW6):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 	subl	$closure_FS, %esp
 L(UW7):
-	# cfi_def_cfa_offset(closure_FS + 4)
+	/* cfi_def_cfa_offset(closure_FS + 4) */
 	FFI_CLOSURE_SAVE_REGS
 	movl	4(%eax), %edx			/* copy cif */
 	movl	8(%eax), %ecx			/* copy fun */
@@ -309,7 +309,7 @@ L(UW7):
 	movl	%eax, closure_CF+36(%esp)	/* closure is user_data */
 	jmp	L(do_closure_i386)
 L(UW8):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_go_closure_EAX))
 
 	.balign	16
@@ -317,11 +317,11 @@ ENDF(C(ffi_go_closure_EAX))
 	FFI_HIDDEN(C(ffi_go_closure_ECX))
 C(ffi_go_closure_ECX):
 L(UW9):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 	subl	$closure_FS, %esp
 L(UW10):
-	# cfi_def_cfa_offset(closure_FS + 4)
+	/* cfi_def_cfa_offset(closure_FS + 4) */
 	FFI_CLOSURE_SAVE_REGS
 	movl	4(%ecx), %edx			/* copy cif */
 	movl	8(%ecx), %eax			/* copy fun */
@@ -330,7 +330,7 @@ L(UW10):
 	movl	%ecx, closure_CF+36(%esp)	/* closure is user_data */
 	jmp	L(do_closure_i386)
 L(UW11):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_go_closure_ECX))
 
 /* The closure entry points are reached from the ffi_closure trampoline.
@@ -342,11 +342,11 @@ ENDF(C(ffi_go_closure_ECX))
 
 C(ffi_closure_i386):
 L(UW12):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 	subl	$closure_FS, %esp
 L(UW13):
-	# cfi_def_cfa_offset(closure_FS + 4)
+	/* cfi_def_cfa_offset(closure_FS + 4) */
 
 	FFI_CLOSURE_SAVE_REGS
 	FFI_CLOSURE_COPY_TRAMP_DATA
@@ -391,17 +391,17 @@ E(L(load_table2), X86_RET_VOID)
 L(e2):
 	addl	$closure_FS, %esp
 L(UW16):
-	# cfi_adjust_cfa_offset(-closure_FS)
+	/* cfi_adjust_cfa_offset(-closure_FS) */
 	ret
 L(UW17):
-	# cfi_adjust_cfa_offset(closure_FS)
+	/* cfi_adjust_cfa_offset(closure_FS) */
 E(L(load_table2), X86_RET_STRUCTPOP)
 	addl	$closure_FS, %esp
 L(UW18):
-	# cfi_adjust_cfa_offset(-closure_FS)
+	/* cfi_adjust_cfa_offset(-closure_FS) */
 	ret	$4
 L(UW19):
-	# cfi_adjust_cfa_offset(closure_FS)
+	/* cfi_adjust_cfa_offset(closure_FS) */
 E(L(load_table2), X86_RET_STRUCTARG)
 	jmp	L(e2)
 E(L(load_table2), X86_RET_STRUCT_1B)
@@ -418,7 +418,7 @@ E(L(load_table2), X86_RET_UNUSED15)
 	ud2
 
 L(UW20):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_closure_i386))
 
 	.balign	16
@@ -426,11 +426,11 @@ ENDF(C(ffi_closure_i386))
 	FFI_HIDDEN(C(ffi_go_closure_STDCALL))
 C(ffi_go_closure_STDCALL):
 L(UW21):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 	subl	$closure_FS, %esp
 L(UW22):
-	# cfi_def_cfa_offset(closure_FS + 4)
+	/* cfi_def_cfa_offset(closure_FS + 4) */
 	FFI_CLOSURE_SAVE_REGS
 	movl	4(%ecx), %edx			/* copy cif */
 	movl	8(%ecx), %eax			/* copy fun */
@@ -439,7 +439,7 @@ L(UW22):
 	movl	%ecx, closure_CF+36(%esp)	/* closure is user_data */
 	jmp	L(do_closure_STDCALL)
 L(UW23):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_go_closure_STDCALL))
 
 /* For REGISTER, we have no available parameter registers, and so we
@@ -450,20 +450,18 @@ ENDF(C(ffi_go_closure_STDCALL))
 	FFI_HIDDEN(C(ffi_closure_REGISTER))
 C(ffi_closure_REGISTER):
 L(UW24):
-	# cfi_startproc
-	# cfi_def_cfa(%esp, 8)
-	# cfi_offset(%eip, -8)
+	/* cfi_startproc */
+	/* cfi_def_cfa(%esp, 8) */
+	/* cfi_offset(%eip, -8) */
 	_CET_ENDBR
 	subl	$closure_FS-4, %esp
 L(UW25):
-	# cfi_def_cfa_offset(closure_FS + 4)
+	/* cfi_def_cfa_offset(closure_FS + 4) */
 	FFI_CLOSURE_SAVE_REGS
-	movl	closure_FS-4(%esp), %ecx	/* load retaddr */
-	movl	closure_FS(%esp), %eax		/* load closure */
-	movl	%ecx, closure_FS(%esp)		/* move retaddr */
+	movl	closure_FS-4(%esp), %eax	/* load closure */
 	jmp	L(do_closure_REGISTER)
 L(UW26):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_closure_REGISTER))
 
 /* For STDCALL (and others), we need to pop N bytes of arguments off
@@ -475,11 +473,11 @@ ENDF(C(ffi_closure_REGISTER))
 	FFI_HIDDEN(C(ffi_closure_STDCALL))
 C(ffi_closure_STDCALL):
 L(UW27):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 	subl	$closure_FS, %esp
 L(UW28):
-	# cfi_def_cfa_offset(closure_FS + 4)
+	/* cfi_def_cfa_offset(closure_FS + 4) */
 
 	FFI_CLOSURE_SAVE_REGS
 
@@ -570,7 +568,7 @@ E(L(load_table3), X86_RET_UNUSED15)
 	ud2
 
 L(UW31):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_closure_STDCALL))
 
 #if defined(FFI_EXEC_STATIC_TRAMP)
@@ -670,14 +668,14 @@ ENDF(C(trampoline_code_table))
 	FFI_HIDDEN(C(ffi_closure_raw_SYSV))
 C(ffi_closure_raw_SYSV):
 L(UW32):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 	subl	$raw_closure_S_FS, %esp
 L(UW33):
-	# cfi_def_cfa_offset(raw_closure_S_FS + 4)
+	/* cfi_def_cfa_offset(raw_closure_S_FS + 4) */
 	movl	%ebx, raw_closure_S_FS-4(%esp)
 L(UW34):
-	# cfi_rel_offset(%ebx, raw_closure_S_FS-4)
+	/* cfi_rel_offset(%ebx, raw_closure_S_FS-4) */
 
 	movl	FFI_TRAMPOLINE_SIZE+8(%eax), %edx	/* load cl->user_data */
 	movl	%edx, 12(%esp)
@@ -700,7 +698,7 @@ L(pc4):
 #endif
 	movl	raw_closure_S_FS-4(%esp), %ebx
 L(UW35):
-	# cfi_restore(%ebx)
+	/* cfi_restore(%ebx) */
 	movl	16(%esp), %eax				/* Optimistic load */
 	jmp	*%ecx
 
@@ -737,17 +735,17 @@ E(L(load_table4), X86_RET_VOID)
 L(e4):
 	addl	$raw_closure_S_FS, %esp
 L(UW36):
-	# cfi_adjust_cfa_offset(-raw_closure_S_FS)
+	/* cfi_adjust_cfa_offset(-raw_closure_S_FS) */
 	ret
 L(UW37):
-	# cfi_adjust_cfa_offset(raw_closure_S_FS)
+	/* cfi_adjust_cfa_offset(raw_closure_S_FS) */
 E(L(load_table4), X86_RET_STRUCTPOP)
 	addl	$raw_closure_S_FS, %esp
 L(UW38):
-	# cfi_adjust_cfa_offset(-raw_closure_S_FS)
+	/* cfi_adjust_cfa_offset(-raw_closure_S_FS) */
 	ret	$4
 L(UW39):
-	# cfi_adjust_cfa_offset(raw_closure_S_FS)
+	/* cfi_adjust_cfa_offset(raw_closure_S_FS) */
 E(L(load_table4), X86_RET_STRUCTARG)
 	jmp	L(e4)
 E(L(load_table4), X86_RET_STRUCT_1B)
@@ -764,7 +762,7 @@ E(L(load_table4), X86_RET_UNUSED15)
 	ud2
 
 L(UW40):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_closure_raw_SYSV))
 
 #define raw_closure_T_FS	(16+16+8)
@@ -774,27 +772,27 @@ ENDF(C(ffi_closure_raw_SYSV))
 	FFI_HIDDEN(C(ffi_closure_raw_THISCALL))
 C(ffi_closure_raw_THISCALL):
 L(UW41):
-	# cfi_startproc
+	/* cfi_startproc */
 	_CET_ENDBR
 	/* Rearrange the stack such that %ecx is the first argument.
 	   This means moving the return address.  */
 	popl	%edx
 L(UW42):
-	# cfi_def_cfa_offset(0)
-	# cfi_register(%eip, %edx)
+	/* cfi_def_cfa_offset(0) */
+	/* cfi_register(%eip, %edx) */
 	pushl	%ecx
 L(UW43):
-	# cfi_adjust_cfa_offset(4)
+	/* cfi_adjust_cfa_offset(4) */
 	pushl	%edx
 L(UW44):
-	# cfi_adjust_cfa_offset(4)
-	# cfi_rel_offset(%eip, 0)
+	/* cfi_adjust_cfa_offset(4) */
+	/* cfi_rel_offset(%eip, 0) */
 	subl	$raw_closure_T_FS, %esp
 L(UW45):
-	# cfi_adjust_cfa_offset(raw_closure_T_FS)
+	/* cfi_adjust_cfa_offset(raw_closure_T_FS) */
 	movl	%ebx, raw_closure_T_FS-4(%esp)
 L(UW46):
-	# cfi_rel_offset(%ebx, raw_closure_T_FS-4)
+	/* cfi_rel_offset(%ebx, raw_closure_T_FS-4) */
 
 	movl	FFI_TRAMPOLINE_SIZE+8(%eax), %edx	/* load cl->user_data */
 	movl	%edx, 12(%esp)
@@ -817,7 +815,7 @@ L(pc5):
 #endif
 	movl	raw_closure_T_FS-4(%esp), %ebx
 L(UW47):
-	# cfi_restore(%ebx)
+	/* cfi_restore(%ebx) */
 	movl	16(%esp), %eax				/* Optimistic load */
 	jmp	*%ecx
 
@@ -854,18 +852,18 @@ E(L(load_table5), X86_RET_VOID)
 L(e5):
 	addl	$raw_closure_T_FS, %esp
 L(UW48):
-	# cfi_adjust_cfa_offset(-raw_closure_T_FS)
+	/* cfi_adjust_cfa_offset(-raw_closure_T_FS) */
 	/* Remove the extra %ecx argument we pushed.  */
 	ret	$4
 L(UW49):
-	# cfi_adjust_cfa_offset(raw_closure_T_FS)
+	/* cfi_adjust_cfa_offset(raw_closure_T_FS) */
 E(L(load_table5), X86_RET_STRUCTPOP)
 	addl	$raw_closure_T_FS, %esp
 L(UW50):
-	# cfi_adjust_cfa_offset(-raw_closure_T_FS)
+	/* cfi_adjust_cfa_offset(-raw_closure_T_FS) */
 	ret	$8
 L(UW51):
-	# cfi_adjust_cfa_offset(raw_closure_T_FS)
+	/* cfi_adjust_cfa_offset(raw_closure_T_FS) */
 E(L(load_table5), X86_RET_STRUCTARG)
 	jmp	L(e5)
 E(L(load_table5), X86_RET_STRUCT_1B)
@@ -882,7 +880,7 @@ E(L(load_table5), X86_RET_UNUSED15)
 	ud2
 
 L(UW52):
-	# cfi_endproc
+	/* cfi_endproc */
 ENDF(C(ffi_closure_raw_THISCALL))
 
 #endif /* !FFI_NO_RAW_API */
@@ -961,6 +959,10 @@ ENDF(C(__x86.get_pc_thunk.dx))
 
 #ifdef HAVE_AS_X86_PCREL
 # define PCREL(X)	X-.
+#elif defined(__clang__)
+/* clang's integrated assembler rejects the X@rel variant (#947); the
+   pc-relative label difference works wherever @rel would.  */
+# define PCREL(X)	X - .
 #else
 # define PCREL(X)	X@rel
 #endif
@@ -1267,6 +1269,6 @@ L(EFDE9):
 
 #endif /* ifdef __i386__ */
 
-#if defined __ELF__ && defined __linux__
+#if defined __ELF__ && (defined __linux__ || defined __FreeBSD__)
 	.section	.note.GNU-stack,"",@progbits
 #endif

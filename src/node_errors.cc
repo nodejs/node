@@ -393,6 +393,30 @@ void AppendExceptionLine(Environment* env,
             .FromMaybe(false));
 }
 
+namespace {
+// Default handler: Dumps native + JS backtraces to stderr and exits. This
+// indirectly calls backtrace so it can not be marked as [[noreturn]] (see the
+// comment on node::Assert() below). `message` and `location` are ignored
+// because the assertion/fatal-error message, if any, is already printed to
+// stderr by the caller (Assert()/OnFatalError()) before this handler runs.
+void DefaultAbortHandler(const char* /*location*/, const char* /*message*/) {
+  DumpNativeBacktrace(stderr);
+  DumpJavaScriptBacktrace(stderr);
+  fflush(stderr);
+  ABORT_NO_BACKTRACE();
+}
+// Constant-initialized, so this is valid from load time, safe even for a
+// CHECK() during early startup, before any SetAbortHandler call.
+AbortHandler g_abort_handler = DefaultAbortHandler;
+}  // namespace
+
+void SetAbortHandler(AbortHandler handler) {
+  g_abort_handler = handler ? handler : DefaultAbortHandler;
+}
+AbortHandler GetAbortHandler() {
+  return g_abort_handler;
+}
+
 void Assert(const AssertionInfo& info) {
   std::string name = GetHumanReadableProcessName();
 
@@ -406,7 +430,7 @@ void Assert(const AssertionInfo& info) {
           info.message);
 
   fflush(stderr);
-  ABORT();
+  ABORT_WITH_DETAILS(info.file_line, info.message);
 }
 
 enum class EnhanceFatalException { kEnhance, kDontEnhance };
@@ -584,7 +608,7 @@ static void ReportFatalException(Environment* env,
   }
 
   fflush(stderr);
-  ABORT();
+  ABORT_WITH_DETAILS(location, message);
 }
 
 void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
@@ -620,7 +644,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
   }
 
   fflush(stderr);
-  ABORT();
+  ABORT_WITH_DETAILS(location, message);
 }
 
 v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
@@ -1064,7 +1088,12 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
                   filename,
                   message->GetLineNumber(env->context()).FromMaybe(-1),
                   msg);
-      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
+      // Defer the warning to the next event loop iteration. This prevents
+      // crashes when V8 emits warnings during code evaluation with
+      // throwOnSideEffect.
+      env->SetImmediate([warning](Environment* env) {
+        ProcessEmitWarningGeneric(env, warning, "V8");
+      });
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:

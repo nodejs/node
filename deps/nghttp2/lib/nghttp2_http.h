@@ -48,7 +48,7 @@
  *     if it was not received because of compatibility reasons.
  */
 int nghttp2_http_on_header(nghttp2_session *session, nghttp2_stream *stream,
-                           nghttp2_frame *frame, nghttp2_hd_nv *nv,
+                           const nghttp2_frame *frame, nghttp2_hd_nv *nv,
                            int trailer);
 
 /*

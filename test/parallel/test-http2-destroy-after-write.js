@@ -28,6 +28,7 @@ server.listen(0, common.mustCall(() => {
   stream.on('response', common.mustCall(function(headers) {
     assert.strictEqual(headers[':status'], 200);
   }));
+  stream.on('error', () => {});
   stream.on('close', common.mustCall(() => {
     client.close();
     server.close();

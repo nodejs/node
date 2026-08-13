@@ -7,7 +7,7 @@ const assert = require('assert');
 // When the response is ended immediately, `req` should emit `close`
 // after `res`
 {
-  const server = http.Server(common.mustCall((req, res) => {
+  const server = new http.Server(common.mustCall((req, res) => {
     let resClosed = false;
     let reqClosed = false;
 
@@ -47,7 +47,7 @@ const assert = require('assert');
 // When there's no `data` handler attached to `req`,
 // `req` should emit `close` after `res`.
 {
-  const server = http.Server(common.mustCall((req, res) => {
+  const server = new http.Server(common.mustCall((req, res) => {
     let resClosed = false;
     let reqClosed = false;
 
@@ -91,7 +91,7 @@ const assert = require('assert');
 // https://github.com/nodejs/node/pull/33035 introduced this change in behavior.
 // See https://github.com/nodejs/node/pull/33035#issuecomment-751482764
 {
-  const server = http.Server(common.mustCall((req, res) => {
+  const server = new http.Server(common.mustCall((req, res) => {
     let resClosed = false;
     let reqClosed = false;
 

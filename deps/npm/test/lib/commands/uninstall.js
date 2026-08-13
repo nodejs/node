@@ -214,3 +214,30 @@ t.test('completion', async t => {
   const res = await uninstall.completion({ conf: { argv: { remain: ['npm', 'uninstall'] } } })
   t.match(res, ['bar', 'foo'])
 })
+
+t.test('uninstall threads allowScripts policy through to arborist', async t => {
+  let capturedOpts
+  const FakeArborist = function (opts) {
+    capturedOpts = opts
+    this.options = opts
+    this.actualTree = { inventory: new Map() }
+  }
+  FakeArborist.prototype.reify = async () => {}
+
+  const { npm } = await _mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { canvas: true },
+      }),
+    },
+    mocks: {
+      '@npmcli/arborist': FakeArborist,
+      '{LIB}/utils/reify-finish.js': async () => {},
+    },
+  })
+  await npm.exec('uninstall', ['canvas'])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true },
+    'opts.allowScripts populated from package.json')
+})

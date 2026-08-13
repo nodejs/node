@@ -52,6 +52,32 @@ static_assert(
     CheckLimitIndices(),
     "Each kLimitMapping entry's sqlite_limit_id must match its index");
 
+// Mapping from JavaScript counter names to SQLite statement status constants
+struct StatusInfo {
+  std::string_view js_name;
+  int sqlite_status_id;
+};
+
+// SQLITE_STMTSTATUS_FILTER_HIT and SQLITE_STMTSTATUS_FILTER_MISS require
+// SQLite >= 3.38.0. Older shared-library builds omit the two counters.
+#if SQLITE_VERSION_NUMBER >= 3038000
+#define NODE_SQLITE_HAS_FILTER_STATUS 1
+#endif
+
+inline constexpr auto kStatusMapping = std::to_array<StatusInfo>({
+    {"fullscanStep", SQLITE_STMTSTATUS_FULLSCAN_STEP},
+    {"sort", SQLITE_STMTSTATUS_SORT},
+    {"autoindex", SQLITE_STMTSTATUS_AUTOINDEX},
+    {"vmStep", SQLITE_STMTSTATUS_VM_STEP},
+    {"reprepare", SQLITE_STMTSTATUS_REPREPARE},
+    {"run", SQLITE_STMTSTATUS_RUN},
+#ifdef NODE_SQLITE_HAS_FILTER_STATUS
+    {"filterMiss", SQLITE_STMTSTATUS_FILTER_MISS},
+    {"filterHit", SQLITE_STMTSTATUS_FILTER_HIT},
+#endif
+    {"memused", SQLITE_STMTSTATUS_MEMUSED},
+});
+
 class DatabaseOpenConfiguration {
  public:
   explicit DatabaseOpenConfiguration(std::string&& location)
@@ -133,6 +159,13 @@ class DatabaseSyncLimits;
 class StatementSyncIterator;
 class StatementSync;
 class BackupJob;
+class Session;
+
+inline void FinalizeStatement(sqlite3_stmt* stmt) {
+  sqlite3_finalize(stmt);
+}
+
+using StatementPtr = DeleteFnPtr<sqlite3_stmt, FinalizeStatement>;
 
 class StatementExecutionHelper {
  public:
@@ -228,6 +261,10 @@ class DatabaseSync : public BaseObject {
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
 
+  void IncrementCallbackDepth() { ++callback_depth_; }
+  void DecrementCallbackDepth() { --callback_depth_; }
+  bool IsInCallback() const { return callback_depth_ > 0; }
+
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
 
@@ -241,9 +278,10 @@ class DatabaseSync : public BaseObject {
   bool enable_load_extension_;
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
+  int callback_depth_ = 0;
 
   std::set<BackupJob*> backups_;
-  std::set<sqlite3_session*> sessions_;
+  std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 
   friend class DatabaseSyncLimits;
@@ -257,13 +295,13 @@ class StatementSync : public BaseObject {
   StatementSync(Environment* env,
                 v8::Local<v8::Object> object,
                 BaseObjectPtr<DatabaseSync> db,
-                sqlite3_stmt* stmt);
+                StatementPtr stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<StatementSync> Create(Environment* env,
                                              BaseObjectPtr<DatabaseSync> db,
-                                             sqlite3_stmt* stmt);
+                                             StatementPtr stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -272,12 +310,16 @@ class StatementSync : public BaseObject {
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExpandedSQLGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stat(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ResetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowBareNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowUnknownNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
   bool GetCachedColumnNames(v8::LocalVector<v8::Name>* keys);
@@ -289,8 +331,9 @@ class StatementSync : public BaseObject {
 
  private:
   ~StatementSync() override;
+  void Close();
   BaseObjectPtr<DatabaseSync> db_;
-  sqlite3_stmt* statement_;
+  StatementPtr statement_;
   bool return_arrays_ = false;
   bool use_big_ints_;
   bool allow_bare_named_params_;
@@ -339,7 +382,7 @@ class Session : public BaseObject {
  public:
   Session(Environment* env,
           v8::Local<v8::Object> object,
-          BaseObjectWeakPtr<DatabaseSync> database,
+          BaseObjectPtr<DatabaseSync> database,
           sqlite3_session* session);
   ~Session() override;
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
@@ -349,7 +392,7 @@ class Session : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
-                                       BaseObjectWeakPtr<DatabaseSync> database,
+                                       BaseObjectPtr<DatabaseSync> database,
                                        sqlite3_session* session);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -359,7 +402,9 @@ class Session : public BaseObject {
  private:
   void Delete();
   sqlite3_session* session_;
-  BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
+  BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
+
+  friend class DatabaseSync;
 };
 
 class SQLTagStore : public BaseObject {
@@ -393,16 +438,33 @@ class SQLTagStore : public BaseObject {
  private:
   static BaseObjectPtr<StatementSync> PrepareStatement(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool ResetAndBindStatement(
+      Environment* env,
+      StatementSync* stmt,
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   BaseObjectWeakPtr<DatabaseSync> database_;
   LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
   friend class StatementExecutionHelper;
+};
+
+class CallbackDepthGuard {
+ public:
+  explicit CallbackDepthGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementCallbackDepth();
+  }
+  ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
+  CallbackDepthGuard(const CallbackDepthGuard&) = delete;
+  CallbackDepthGuard& operator=(const CallbackDepthGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
 };
 
 class UserDefinedFunction {
  public:
   UserDefinedFunction(Environment* env,
                       v8::Local<v8::Function> fn,
-                      DatabaseSync* db,
+                      BaseObjectWeakPtr<DatabaseSync> db,
                       bool use_bigint_args);
   ~UserDefinedFunction();
   static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
@@ -411,7 +473,7 @@ class UserDefinedFunction {
  private:
   Environment* env_;
   v8::Global<v8::Function> fn_;
-  DatabaseSync* db_;
+  BaseObjectWeakPtr<DatabaseSync> db_;
   bool use_bigint_args_;
 };
 

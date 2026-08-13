@@ -1,6 +1,8 @@
 # Mocking Request
 
-Undici has its own mocking [utility](/docs/docs/api/MockAgent.md). It allow us to intercept undici HTTP requests and return mocked values instead. It can be useful for testing purposes.
+<!--type=misc-->
+
+Undici has its own mocking [utility](../api/MockAgent.md). It allow us to intercept undici HTTP requests and return mocked values instead. It can be useful for testing purposes.
 
 Example:
 
@@ -73,7 +75,7 @@ const badRequest = await bankTransfer('1234567890', '100')
 assert.deepEqual(badRequest, { message: 'bank account not found' })
 ```
 
-Explore other MockAgent functionality [here](/docs/docs/api/MockAgent.md)
+Explore other MockAgent functionality [here](../api/MockAgent.md)
 
 ## Access agent call history
 
@@ -100,7 +102,7 @@ setGlobalDispatcher(mockAgent)
 // this call is made (not intercepted)
 await fetch(`http://localhost:3000/endpoint?query='hello'`, {
   method: 'POST',
-  headers: { 'content-type': 'application/json' }
+  headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ data: '' })
 })
 
@@ -123,11 +125,11 @@ assert.ok(mockAgent.getCallHistory()?.calls().length === 0)
 
 Calling `mockAgent.close()` will automatically clear and delete every call history for you.
 
-Explore other MockAgent functionality [here](/docs/docs/api/MockAgent.md)
+Explore other MockAgent functionality [here](../api/MockAgent.md)
 
-Explore other MockCallHistory functionality [here](/docs/docs/api/MockCallHistory.md)
+Explore other MockCallHistory functionality [here](../api/MockCallHistory.md)
 
-Explore other MockCallHistoryLog functionality [here](/docs/docs/api/MockCallHistoryLog.md)
+Explore other MockCallHistoryLog functionality [here](../api/MockCallHistoryLog.md)
 
 ## Debug Mock Value
 
@@ -179,7 +181,7 @@ mockPool.intercept({
 
 in this case opts will be
 
-```
+```js
 {
   method: 'POST',
   headers: { 'X-TOKEN-SECRET': 'SuperSecretToken' },

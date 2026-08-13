@@ -151,10 +151,12 @@ const generateFlagsTable = (definitionPool) => {
     if (!defaultVal) {
       defaultVal = String(def.default)
     }
+    defaultVal = defaultVal.replace(/\n/g, ' ').trim()
     let typeVal = def.typeDescription || String(def.type)
     if (def.required) {
       typeVal = `${typeVal} (required)`
     }
+    typeVal = typeVal.replace(/\n/g, ' ').trim()
     const desc = (def.description || '').replace(/\n/g, ' ').trim()
     return `| ${flagsStr} | ${defaultVal} | ${typeVal} | ${desc} |`
   })

@@ -8,10 +8,12 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { hasOpenSSL } = require('../common/crypto');
+const { hasOpenSSL, hasFIPS } = require('../common/crypto');
 const assert = require('assert');
 const crypto = require('crypto');
 const fixtures = require('../common/fixtures');
+
+const fips3 = hasFIPS(3);
 
 function getError(fn) {
   let err;
@@ -69,14 +71,26 @@ const data = Buffer.from('test data');
 // Sign: RSA key too small for digest (OpenSSL error)
 {
   const { privateKey } = crypto.generateKeyPairSync('rsa', {
-    modulusLength: 512,
+    modulusLength: fips3 ? 2048 : 512,
   });
+  const key = fips3 ? {
+    key: privateKey,
+    padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+    saltLength: 256,
+  } : privateKey;
+  const digest = fips3 ? 'sha256' : 'sha512';
 
-  const syncErr = getError(() => crypto.sign('sha512', data, privateKey));
-  assert.match(syncErr.message, /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i);
+  const syncErr = getError(() => crypto.sign(digest, data, key));
+  if (fips3) {
+    assert.strictEqual(syncErr.code,
+                       'ERR_OSSL_RSA_DATA_TOO_LARGE_FOR_KEY_SIZE');
+  } else {
+    assert.match(
+      syncErr.message, /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i);
+  }
 
-  crypto.sign('sha512', data, privateKey, common.mustCall((asyncErr) => {
-    assertErrorMatch(syncErr, asyncErr, 'sign: RSA 512 + sha512');
+  crypto.sign(digest, data, key, common.mustCall((asyncErr) => {
+    assertErrorMatch(syncErr, asyncErr, 'sign: RSA policy error');
   }));
 }
 
@@ -160,7 +174,9 @@ const data = Buffer.from('test data');
 
 // DH: Mismatched DH group params (OpenSSL error)
 {
-  const alice = crypto.generateKeyPairSync('dh', { group: 'modp5' });
+  const alice = crypto.generateKeyPairSync('dh', {
+    group: fips3 ? 'modp14' : 'modp5',
+  });
   const bob = crypto.generateKeyPairSync('dh', { group: 'modp18' });
 
   const syncErr = getError(() =>

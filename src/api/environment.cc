@@ -424,24 +424,6 @@ Environment* CreateEnvironment(
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags,
     ThreadId thread_id,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
-  return CreateEnvironment(isolate_data,
-                           context,
-                           args,
-                           exec_args,
-                           flags,
-                           thread_id,
-                           std::move(inspector_parent_handle),
-                           {});
-}
-
-Environment* CreateEnvironment(
-    IsolateData* isolate_data,
-    Local<Context> context,
-    const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args,
-    EnvironmentFlags::Flags flags,
-    ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
     std::string_view thread_name) {
   Isolate* isolate = isolate_data->isolate();

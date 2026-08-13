@@ -2,8 +2,6 @@
 function run_test(algorithmNames, slowTest) {
     var subtle = crypto.subtle; // Change to test prefixed implementations
 
-    setup({explicit_timeout: true});
-
 // These tests check that generateKey successfully creates keys
 // when provided any of a wide set of correct parameters
 // and that they can be exported afterwards.
@@ -17,42 +15,7 @@ function run_test(algorithmNames, slowTest) {
 // helper functions that generate all possible test parameters for
 // different situations.
 
-    var allTestVectors = [ // Parameters that should work for generateKey
-        {name: "AES-CTR",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-CBC",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-GCM",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-OCB",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "ChaCha20-Poly1305",  resultType: CryptoKey, usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "AES-KW",   resultType: CryptoKey, usages: ["wrapKey", "unwrapKey"], mandatoryUsages: []},
-        {name: "HMAC",     resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
-        {name: "RSASSA-PKCS1-v1_5", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "RSA-PSS",  resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "RSA-OAEP", resultType: "CryptoKeyPair", usages: ["encrypt", "decrypt", "wrapKey", "unwrapKey"], mandatoryUsages: ["decrypt", "unwrapKey"]},
-        {name: "ECDSA",    resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ECDH",     resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
-        {name: "Ed25519",  resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "Ed448",    resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-DSA-44", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-DSA-65", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-DSA-87", resultType: "CryptoKeyPair", usages: ["sign", "verify"], mandatoryUsages: ["sign"]},
-        {name: "ML-KEM-512", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
-        {name: "ML-KEM-768", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
-        {name: "ML-KEM-1024", resultType: "CryptoKeyPair", usages: ["decapsulateBits", "decapsulateKey", "encapsulateBits", "encapsulateKey"], mandatoryUsages: ["decapsulateBits", "decapsulateKey"]},
-        {name: "X25519",   resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
-        {name: "X448",     resultType: "CryptoKeyPair", usages: ["deriveKey", "deriveBits"], mandatoryUsages: ["deriveKey", "deriveBits"]},
-        {name: "KMAC128",  resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
-        {name: "KMAC256",  resultType: CryptoKey, usages: ["sign", "verify"], mandatoryUsages: []},
-    ];
-
-    var testVectors = [];
-    if (algorithmNames && !Array.isArray(algorithmNames)) {
-        algorithmNames = [algorithmNames];
-    };
-    allTestVectors.forEach(function(vector) {
-        if (!algorithmNames || algorithmNames.includes(vector.name)) {
-            testVectors.push(vector);
-        }
-    });
+    var testVectors = getGenerateKeyTestVectors(algorithmNames);
 
     function parameterString(algorithm, extractable, usages) {
         var result = "(" +
@@ -93,6 +56,7 @@ function run_test(algorithmNames, slowTest) {
                     ];
                     if (extractable)
                         promises.push(subtle.exportKey('raw-seed', result.privateKey));
+                    await Promise.all(promises);
                 } else if (resultType === "CryptoKeyPair") {
                     const promises = [
                         subtle.exportKey('jwk', result.publicKey),
@@ -146,6 +110,27 @@ function run_test(algorithmNames, slowTest) {
                 assert_unreached("exportKey threw an unexpected error: " + err.toString());
             })
         }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages));
+
+        // Special case for ECDH and ECDSA: check that the generated key length is consistent.
+        // Particularly for P-521, there is a high risk of the generated key being one byte short
+        // if the implementation isn't careful.
+        if (algorithm.namedCurve && extractable) {
+            promise_test(async function(test) {
+                // We run about 20 variants of this test, times 10 key generations below,
+                // so this should have a decent chance of catching issues.
+                await Promise.all(Array.from({ length: 10 }).map(async () => {
+                    const { privateKey, publicKey } = await subtle.generateKey(algorithm, extractable, usages);
+                    const [jwkPub, jwkPriv] = await Promise.all([
+                        subtle.exportKey('jwk', publicKey),
+                        subtle.exportKey('jwk', privateKey),
+                    ]);
+                    const expectedLength = Math.ceil(Math.ceil(parseInt(algorithm.namedCurve.substring(2)) / 8) * 4/3);
+                    assert_equals(jwkPub.x.length, expectedLength, "Public key value x has correct length");
+                    assert_equals(jwkPub.y.length, expectedLength, "Public key value y has correct length");
+                    assert_equals(jwkPriv.d.length, expectedLength, "Private key value d has correct length");
+                }));
+            }, testTag + ": generateKey" + parameterString(algorithm, extractable, usages) + " produces consistent length key");
+        }
     }
 
     // Test all valid sets of parameters for successful

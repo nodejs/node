@@ -24,7 +24,7 @@ const common = require('../common');
 const http = require('http');
 
 let serverRes;
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   serverRes = res;
   res.writeHead(200);
   res.write('Part of my res.');

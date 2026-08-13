@@ -5,7 +5,9 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_v8_platform-inl.h"
+#include "permission/permission.h"
 #include "tracing/agent.h"
+#include "tracing/trace_event_helper.h"
 #include "util-inl.h"
 
 #include <set>
@@ -73,7 +75,7 @@ void NodeCategorySet::New(const FunctionCallbackInfo<Value>& args) {
     if (!*val) return;
     categories.emplace(*val);
   }
-  CHECK_NOT_NULL(GetTracingAgentWriter());
+  CHECK_NOT_NULL(tracing::Agent::GetInstance());
   new NodeCategorySet(env, args.This(), std::move(categories));
 }
 
@@ -85,8 +87,15 @@ void NodeCategorySet::Enable(const FunctionCallbackInfo<Value>& args) {
   if (!category_set->enabled_ && !categories.empty()) {
     // Starts the Tracing Agent if it wasn't started already (e.g. through
     // a command line flag.)
-    StartTracingAgent();
-    GetTracingAgentWriter()->Enable(categories);
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        category_set->env(),
+        permission::PermissionScope::kFileSystemWrite,
+        tracing::GetTraceFilePath(
+            per_process::cli_options->trace_event_file_pattern, 1));
+    auto* agent = tracing::Agent::GetInstance();
+    agent->StartTracing(per_process::cli_options->trace_event_categories);
+    tracing::AgentWriterHandle* writer = agent->GetDefaultWriterHandle();
+    writer->Enable(categories);
     category_set->enabled_ = true;
   }
 }
@@ -97,7 +106,9 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(category_set);
   const auto& categories = category_set->GetCategories();
   if (category_set->enabled_ && !categories.empty()) {
-    GetTracingAgentWriter()->Disable(categories);
+    auto* agent = tracing::Agent::GetInstance();
+    tracing::AgentWriterHandle* writer = agent->GetDefaultWriterHandle();
+    writer->Disable(categories);
     category_set->enabled_ = false;
   }
 }
@@ -105,7 +116,7 @@ void NodeCategorySet::Disable(const FunctionCallbackInfo<Value>& args) {
 void GetEnabledCategories(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string categories =
-      GetTracingAgentWriter()->agent()->GetEnabledCategories();
+      tracing::Agent::GetInstance()->GetEnabledCategories();
   Local<Value> ret;
   if (!categories.empty() &&
       ToV8Value(env->context(), categories, env->isolate()).ToLocal(&ret)) {
@@ -177,6 +188,14 @@ void NodeCategorySet::Initialize(Local<Object> target,
                   .Check();
   target->Set(context, trace,
               binding->Get(context, trace).ToLocalChecked()).Check();
+
+  Local<String> use_perfetto =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "usePerfetto");
+#if defined(V8_USE_PERFETTO)
+  target->Set(context, use_perfetto, v8::True(isolate)).Check();
+#else
+  target->Set(context, use_perfetto, v8::False(isolate)).Check();
+#endif
 }
 
 void NodeCategorySet::RegisterExternalReferences(

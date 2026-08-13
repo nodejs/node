@@ -726,7 +726,9 @@ static int evp_pkey_signature_init(EVP_PKEY_CTX *ctx, EVP_SIGNATURE *signature,
              * iteration we're on.
              */
             EVP_SIGNATURE_free(signature);
+            signature = NULL;
             EVP_KEYMGMT_free(tmp_keymgmt);
+            tmp_keymgmt = NULL;
 
             switch (iter) {
             case 1:

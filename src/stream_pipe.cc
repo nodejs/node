@@ -58,8 +58,9 @@ void StreamPipe::Unpipe(bool is_in_deletion) {
 
   is_closed_ = true;
   is_reading_ = false;
-  source()->RemoveStreamListener(&readable_listener_);
-  if (pending_writes_ == 0)
+  // Source may already be gone here during destroy
+  if (source() != nullptr) source()->RemoveStreamListener(&readable_listener_);
+  if (pending_writes_ == 0 || sink_destroyed_)
     sink()->RemoveStreamListener(&writable_listener_);
 
   if (is_in_deletion) return;
@@ -159,13 +160,18 @@ void StreamPipe::WritableListener::OnStreamAfterWrite(WriteWrap* w,
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
   pipe->pending_writes_--;
   if (pipe->is_closed_) {
-    if (pipe->pending_writes_ == 0) {
+    // If the sink has been destroyed, pending_writes_ may have been
+    // reset and we should check <= 0 instead of == 0. Also guard
+    // against the listener having already been removed.
+    bool writes_done = pipe->sink_destroyed_ ? pipe->pending_writes_ <= 0
+                                             : pipe->pending_writes_ == 0;
+    if (writes_done) {
       Environment* env = pipe->env();
       HandleScope handle_scope(env->isolate());
       Context::Scope context_scope(env->context());
       if (pipe->MakeCallback(env->oncomplete_string(), 0, nullptr).IsEmpty())
         return;
-      stream()->RemoveStreamListener(this);
+      if (stream() != nullptr) stream()->RemoveStreamListener(this);
     }
     return;
   }
@@ -204,8 +210,14 @@ void StreamPipe::WritableListener::OnStreamAfterShutdown(ShutdownWrap* w,
 void StreamPipe::ReadableListener::OnStreamDestroy() {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   pipe->source_destroyed_ = true;
-  if (!pipe->is_eof_) {
-    OnStreamRead(UV_EPIPE, uv_buf_init(nullptr, 0));
+  if (pipe->is_eof_) return;
+
+  // Mirror ReadableListener::OnStreamRead() teardown, but without
+  // other stream interactions:
+  pipe->is_eof_ = true;
+  if (pipe->pending_writes_ == 0) {
+    pipe->sink()->Shutdown();
+    pipe->Unpipe();
   }
 }
 
@@ -213,15 +225,16 @@ void StreamPipe::WritableListener::OnStreamDestroy() {
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
   pipe->sink_destroyed_ = true;
   pipe->is_eof_ = true;
-  pipe->pending_writes_ = 0;
+  // Don't reset pending_writes_ here; let OnStreamAfterWrite track
+  // completion naturally. Unpipe() will remove this listener from the
+  // sink regardless of pending_writes_ since sink_destroyed_ is set.
   pipe->Unpipe();
 }
 
 void StreamPipe::WritableListener::OnStreamWantsWrite(size_t suggested_size) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::writable_listener_, this);
   pipe->wanted_data_ = suggested_size;
-  if (pipe->is_reading_ || pipe->is_closed_)
-    return;
+  if (pipe->is_reading_ || pipe->is_closed_ || pipe->source_destroyed_) return;
   HandleScope handle_scope(pipe->env()->isolate());
   InternalCallbackScope callback_scope(pipe,
       InternalCallbackScope::kSkipTaskQueues);

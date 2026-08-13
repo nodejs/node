@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffi.c - Copyright (C) 2004  Anthony Green
+   ffi.c - Copyright (C) 2004, 2026  Anthony Green
    Copyright (C) 2007  Free Software Foundation, Inc.
 	   Copyright (C) 2008  Red Hat, Inc.
    
@@ -240,8 +240,8 @@ void ffi_closure_eabi (unsigned arg1, unsigned arg2, unsigned arg3,
       /* Functions return 4-byte or smaller results in gr8.  8-byte
 	 values also use gr9.  We fill the both, even for small return
 	 values, just to avoid a branch.  */ 
-      asm ("ldi  @(%0, #0), gr8" : : "r" (&rvalue));
-      asm ("ldi  @(%0, #0), gr9" : : "r" (&((int *) &rvalue)[1]));
+      __asm__ ("ldi  @(%0, #0), gr8" : : "r" (&rvalue));
+      __asm__ ("ldi  @(%0, #0), gr9" : : "r" (&((int *) &rvalue)[1]));
     }
 }
 

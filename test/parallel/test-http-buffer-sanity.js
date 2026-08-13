@@ -32,7 +32,7 @@ for (let i = 0; i < buffer.length; i++) {
   buffer[i] = i % 256;
 }
 
-const server = http.Server(common.mustCallAtLeast(function(req, res) {
+const server = new http.Server(common.mustCallAtLeast(function(req, res) {
   server.close();
 
   let i = 0;

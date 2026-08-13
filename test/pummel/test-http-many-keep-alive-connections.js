@@ -29,7 +29,7 @@ let responses = 0;
 let requests = 0;
 let connection;
 
-const server = http.Server(common.mustCall((req, res) => {
+const server = new http.Server(common.mustCall((req, res) => {
   requests++;
   assert.strictEqual(req.connection, connection);
   res.writeHead(200);

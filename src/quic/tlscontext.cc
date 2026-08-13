@@ -3,6 +3,7 @@
 #ifndef OPENSSL_NO_QUIC
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <crypto/crypto_tls_certificates.h>
 #include <crypto/crypto_util.h>
 #include <debug_utils-inl.h>
 #include <env-inl.h>
@@ -12,6 +13,9 @@
 #include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+#include <openssl/comp.h>
+#endif
 #include <util-inl.h>
 #include <v8.h>
 #include "application.h"
@@ -29,7 +33,6 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLCtxPointer;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
-using ncrypto::X509Pointer;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
@@ -375,6 +378,7 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
     return SSL_TLSEXT_ERR_NOACK;
   }
   session.SetApplication(std::move(app));
+  session.set_hello_processed();
 
   return SSL_TLSEXT_ERR_OK;
 }
@@ -524,12 +528,6 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     }
   }
 
-  // Only load system CA certificates if no custom CAs are provided.
-  // SSL_CTX_set_default_verify_paths involves filesystem I/O to read
-  // the system CA bundle.
-  if (options_.ca.empty()) {
-    SSL_CTX_set_default_verify_paths(ctx.get());
-  }
   if (options_.keylog) {
     SSL_CTX_set_keylog_callback(ctx.get(), OnKeylog);
   }
@@ -547,30 +545,16 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
   {
     ClearErrorOnReturn clear_error_on_return;
     if (options_.ca.empty()) {
-      auto store = crypto::GetOrCreateRootCertStore(env);
-      X509_STORE_up_ref(store);
-      SSL_CTX_set_cert_store(ctx.get(), store);
+      crypto::UseDefaultRootCertStore(env, ctx.get());
     } else {
       for (const auto& ca : options_.ca) {
         uv_buf_t buf = ca;
         if (buf.len == 0) {
-          auto store = crypto::GetOrCreateRootCertStore(env);
-          X509_STORE_up_ref(store);
-          SSL_CTX_set_cert_store(ctx.get(), store);
+          crypto::UseDefaultRootCertStore(env, ctx.get());
         } else {
           BIOPointer bio = crypto::NodeBIO::NewFixed(buf.base, buf.len);
           CHECK(bio);
-          X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-          while (
-              auto x509 = X509Pointer(PEM_read_bio_X509_AUX(
-                  bio.get(), nullptr, crypto::NoPasswordCallback, nullptr))) {
-            if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
-              cert_store = crypto::NewRootCertStore(env);
-              SSL_CTX_set_cert_store(ctx.get(), cert_store);
-            }
-            CHECK_EQ(1, X509_STORE_add_cert(cert_store, x509.get()));
-            CHECK_EQ(1, SSL_CTX_add_client_CA(ctx.get(), x509.get()));
-          }
+          crypto::AddCACertificates(env, ctx.get(), bio);
         }
       }
     }
@@ -594,14 +578,52 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     }
   }
 
+  // TLS certificate compression (RFC 8879). OpenSSL enables all available
+  // algorithms by default once compression libraries are linked, so we
+  // always clear the preference first to keep certificate compression
+  // opt-in (matching the behavior of node:tls). When the
+  // certificateCompression option is set, apply the requested algorithms
+  // and pre-compress the certificate(s) loaded above. QUIC always uses
+  // TLS 1.3, which is the minimum required for certificate compression.
+#ifdef NODE_OPENSSL_HAS_CERT_COMP
+  {
+    ClearErrorOnReturn clear_error_on_return;
+    SSL_CTX_set1_cert_comp_preference(ctx.get(), nullptr, 0);
+
+    // The JS layer packs (length | alg0<<8 | alg1<<16 | alg2<<24) into a
+    // single uint32. IDs match TLSEXT_comp_cert_zlib (1), _brotli (2),
+    // _zstd (3).
+    const uint32_t packed = options_.certificate_compression;
+    const size_t len = packed & 0xff;
+    if (len > 0) {
+      // TLSEXT_comp_cert_limit bounds the zero-terminated algs array; the
+      // number of usable algorithms is one fewer.
+      constexpr size_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
+      if (len > kMaxCompAlgs) {
+        validation_error_ = "Invalid certificate compression preference";
+        return SSLCtxPointer();
+      }
+      int algs[kMaxCompAlgs];
+      for (size_t i = 0; i < len; i++) {
+        algs[i] = (packed >> (8 * (i + 1))) & 0xff;
+      }
+      if (!SSL_CTX_set1_cert_comp_preference(ctx.get(), algs, len)) {
+        validation_error_ = "Failed to set certificate compression preference";
+        return SSLCtxPointer();
+      }
+      // Pre-compress the loaded certificate(s) for the preferred algorithms.
+      // Returns 0 when no certificate is loaded (e.g. a client context) or
+      // when compression did not reduce the size; both are non-fatal.
+      constexpr int kCompressAllAlgs = 0;
+      SSL_CTX_compress_certs(ctx.get(), kCompressAllAlgs);
+    }
+  }
+#endif  // NODE_OPENSSL_HAS_CERT_COMP
+
   {
     ClearErrorOnReturn clear_error_on_return;
     for (const auto& key : options_.keys) {
-      if (key.GetKeyType() != crypto::KeyType::kKeyTypePrivate) {
-        validation_error_ = "Invalid key";
-        return SSLCtxPointer();
-      }
-      if (!SSL_CTX_use_PrivateKey(ctx.get(), key.GetAsymmetricKey().get())) {
+      if (!crypto::UsePrivateKey(ctx.get(), key)) {
         validation_error_ = "Invalid key";
         return SSLCtxPointer();
       }
@@ -613,25 +635,10 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
     for (const auto& crl : options_.crl) {
       uv_buf_t buf = crl;
       BIOPointer bio = crypto::NodeBIO::NewFixed(buf.base, buf.len);
-      DeleteFnPtr<X509_CRL, X509_CRL_free> crlptr(PEM_read_bio_X509_CRL(
-          bio.get(), nullptr, crypto::NoPasswordCallback, nullptr));
-
-      if (!crlptr) {
+      if (!crypto::AddCRL(env, ctx.get(), bio)) {
         validation_error_ = "Invalid CRL";
         return SSLCtxPointer();
       }
-
-      X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-      if (cert_store == crypto::GetOrCreateRootCertStore(env)) {
-        cert_store = crypto::NewRootCertStore(env);
-        SSL_CTX_set_cert_store(ctx.get(), cert_store);
-      }
-
-      CHECK_EQ(1, X509_STORE_add_crl(cert_store, crlptr.get()));
-      CHECK_EQ(
-          1,
-          X509_STORE_set_flags(
-              cert_store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL));
     }
   }
 
@@ -730,9 +737,9 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
       !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
-      !SET(authoritative) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
-      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
-      !SET_VECTOR(Store, crl)) {
+      !SET(certificate_compression) || !SET(authoritative) ||
+      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
+      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -761,6 +768,8 @@ std::string TLSContext::Options::ToString() const {
          (verify_private_key ? std::string("yes") : std::string("no"));
   res += prefix + "ciphers: " + ciphers;
   res += prefix + "groups: " + groups;
+  res += prefix +
+         "certificate compression: " + std::to_string(certificate_compression);
   res += prefix + "keys: " + std::to_string(keys.size());
   res += prefix + "certs: " + std::to_string(certs.size());
   res += prefix + "ca: " + std::to_string(ca.size());

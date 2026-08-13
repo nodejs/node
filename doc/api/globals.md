@@ -571,7 +571,7 @@ in your Node.js process reading the `process.versions.undici` property.
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
 The dispatcher must be compatible with `undici`'s
-[`Dispatcher` class](https://undici.nodejs.org/#/docs/api/Dispatcher.md).
+[`Dispatcher` class](https://undici.nodejs.org/api/Dispatcher).
 
 ```js
 fetch(url, { dispatcher: new MyAgent() });

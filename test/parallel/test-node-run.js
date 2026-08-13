@@ -5,11 +5,14 @@ common.requireNoPackageJSONAbove();
 
 const { it, describe } = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const envSuffix = common.isWindows ? '-windows' : '';
 
-describe('node --run [command]', () => {
+describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('returns error on non-existent file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
@@ -32,6 +35,28 @@ describe('node --run [command]', () => {
     );
     assert.match(child.stdout, /Error: no test specified/);
     assert.strictEqual(child.code, 1);
+  });
+
+  it('recognizes cmd.exe case-insensitively', {
+    skip: !common.isWindows,
+  }, async () => {
+    const env = { ...process.env };
+    const comspecKey = Object.keys(env)
+      .find((key) => key.toLowerCase() === 'comspec');
+    assert.notStrictEqual(comspecKey, undefined);
+    const comspec = env[comspecKey];
+    assert.match(comspec, /cmd\.exe$/i);
+    delete env[comspecKey];
+    env.ComSpec = comspec.replace(/cmd\.exe$/i, 'CMD.EXE');
+
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'pwd-windows'],
+      { cwd: fixtures.path('run-script'), env },
+    );
+    assert.strictEqual(child.stdout.trim(), fixtures.path('run-script'));
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
   });
 
   it('adds node_modules/.bin to path', async () => {
@@ -143,15 +168,15 @@ describe('node --run [command]', () => {
   it('appends positional arguments', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C'],
+      [ '--run', `positional-args${envSuffix}`, '--', '--help "hello world test"', 'A', 'B', 'C', 'I think therefore I\'m'],
       { cwd: fixtures.path('run-script') },
     );
     if (common.isWindows) {
-      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C'/);
+      assert.match(child.stdout, /Arguments: '--help ""hello world test"" A B C I think therefore I'm'/);
     } else {
-      assert.match(child.stdout, /Arguments: '--help "hello world test" A B C'/);
+      assert.match(child.stdout, /Arguments: '--help "hello world test" A B C I think therefore I'm'/);
     }
-    assert.match(child.stdout, /The total number of arguments are: 4/);
+    assert.match(child.stdout, /The total number of arguments is: 5/);
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
@@ -201,6 +226,45 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
+  it('handles package paths outside the active Windows code page',
+     { skip: !common.isWindows }, async () => {
+       tmpdir.refresh();
+
+       const projectDir = path.join(tmpdir.path, 'node-run-\u{20BB7}');
+       const packageJsonPath = path.join(projectDir, 'package.json');
+       const nodeModulesBin = path.join(projectDir, 'node_modules', '.bin');
+       const checkScript = path.join(projectDir, 'check.js');
+
+       fs.mkdirSync(nodeModulesBin, { recursive: true });
+       fs.writeFileSync(packageJsonPath, JSON.stringify({
+         scripts: {
+           unicode: `"${process.execPath}" check.js`,
+         },
+       }));
+       fs.writeFileSync(checkScript, `
+         'use strict';
+         console.log(JSON.stringify({
+           cwd: process.cwd(),
+           packageJsonPath: process.env.NODE_RUN_PACKAGE_JSON_PATH,
+           path: process.env.PATH,
+         }));
+       `);
+
+       const child = await common.spawnPromisified(
+         process.execPath,
+         [ '--run', 'unicode'],
+         { cwd: projectDir },
+       );
+
+       assert.strictEqual(child.stderr, '');
+       assert.strictEqual(child.code, 0);
+
+       const output = JSON.parse(child.stdout);
+       assert.strictEqual(output.cwd, projectDir);
+       assert.strictEqual(output.packageJsonPath, packageJsonPath);
+       assert.strictEqual(output.path.split(path.delimiter)[0], nodeModulesBin);
+     });
+
   it('returns error on unparsable file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
@@ -221,5 +285,20 @@ describe('node --run [command]', () => {
     assert.match(child.stderr, /Can't find "scripts" field in/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
+  });
+
+  it('escapes shell characters', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', `positional-args${envSuffix}`, '--', '%PAYLOAD%', '$PAYLOAD'],
+      { cwd: fixtures.path('run-script'), env: { ...process.env, PAYLOAD: 'env value' } },
+    );
+    assert.strictEqual(
+      child.stdout,
+      common.isWindows ?
+        `Raw '"^%PAYLOAD^%" "$PAYLOAD"'\r\nArguments: '%PAYLOAD% $PAYLOAD'\r\nThe total number of arguments is: 2\r\n` :
+        "Arguments: '%PAYLOAD% $PAYLOAD'\nThe total number of arguments is: 2\n");
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
   });
 });

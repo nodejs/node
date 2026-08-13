@@ -26,7 +26,6 @@
 
 #include <cstring>
 #include <cassert>
-#include <iostream>
 #include <fstream>
 #include <limits>
 
@@ -37,23 +36,16 @@
 #include "client_base.h"
 #include "template.h"
 
-namespace {
-auto _ = [] {
-  if (ngtcp2_crypto_ossl_init() != 0) {
-    assert(0);
-    abort();
-  }
-
-  return 0;
-}();
-} // namespace
-
 extern Config config;
+
+TLSClientContext::TLSClientContext() { ngtcp2_crypto_ossl_init(); }
 
 TLSClientContext::~TLSClientContext() {
   if (ssl_ctx_) {
     SSL_CTX_free(ssl_ctx_);
   }
+
+  ngtcp2_crypto_ossl_free();
 }
 
 SSL_CTX *TLSClientContext::get_native_handle() const { return ssl_ctx_; }
@@ -69,10 +61,10 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
       std::numeric_limits<uint32_t>::max()) {
     std::println(stderr, "max_early_data_size is not 0xffffffff");
   }
-  auto f = BIO_new_file(config.session_file, "w");
+  auto f = BIO_new_file(config.session_file.c_str(), "w");
   if (f == nullptr) {
     std::println(stderr, "Could not write TLS session in {}",
-                 config.session_file);
+                 config.session_file.native());
     return 0;
   }
 
@@ -123,7 +115,7 @@ std::expected<void, Error> TLSClientContext::init(const char *private_key_file,
     }
   }
 
-  if (config.session_file) {
+  if (!config.session_file.empty()) {
     SSL_CTX_set_session_cache_mode(ssl_ctx_, SSL_SESS_CACHE_CLIENT |
                                                SSL_SESS_CACHE_NO_INTERNAL);
     SSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);

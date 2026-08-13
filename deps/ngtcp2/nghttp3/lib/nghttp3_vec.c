@@ -37,7 +37,7 @@ uint64_t nghttp3_vec_len(const nghttp3_vec *vec, size_t n) {
   return res;
 }
 
-int64_t nghttp3_vec_len_varint(const nghttp3_vec *vec, size_t n) {
+int nghttp3_vec_len_uvarint(uint64_t *dest, const nghttp3_vec *vec, size_t n) {
   uint64_t res = 0;
   size_t len;
   size_t i;
@@ -51,5 +51,7 @@ int64_t nghttp3_vec_len_varint(const nghttp3_vec *vec, size_t n) {
     res += len;
   }
 
-  return (int64_t)res;
+  *dest = res;
+
+  return 0;
 }

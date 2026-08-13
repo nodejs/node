@@ -293,9 +293,10 @@
 #include <limits>
 #include <locale>
 #include <memory>
+// #include <mutex>  // Guarded by GTEST_IS_THREADSAFE below
 #include <ostream>
 #include <string>
-// #include <mutex>  // Guarded by GTEST_IS_THREADSAFE below
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -363,18 +364,24 @@
 #define GTEST_DISABLE_MSC_WARNINGS_POP_()
 #endif
 
-// Clang on Windows does not understand MSVC's pragma warning.
-// We need clang-specific way to disable function deprecation warning.
-#ifdef __clang__
-#define GTEST_DISABLE_MSC_DEPRECATED_PUSH_()                            \
+// Pragmas to disable function deprecation warnings.
+#if defined(__clang__)
+#define GTEST_DISABLE_DEPRECATED_PUSH_()                                \
   _Pragma("clang diagnostic push")                                      \
       _Pragma("clang diagnostic ignored \"-Wdeprecated-declarations\"") \
           _Pragma("clang diagnostic ignored \"-Wdeprecated-implementations\"")
-#define GTEST_DISABLE_MSC_DEPRECATED_POP_() _Pragma("clang diagnostic pop")
+#define GTEST_DISABLE_DEPRECATED_POP_() _Pragma("clang diagnostic pop")
+#elif defined(__GNUC__)
+#define GTEST_DISABLE_DEPRECATED_PUSH_() \
+  _Pragma("GCC diagnostic push")         \
+      _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#define GTEST_DISABLE_DEPRECATED_POP_() _Pragma("GCC diagnostic pop")
+#elif defined(_MSC_VER)
+#define GTEST_DISABLE_DEPRECATED_PUSH_() GTEST_DISABLE_MSC_WARNINGS_PUSH_(4996)
+#define GTEST_DISABLE_DEPRECATED_POP_() GTEST_DISABLE_MSC_WARNINGS_POP_()
 #else
-#define GTEST_DISABLE_MSC_DEPRECATED_PUSH_() \
-  GTEST_DISABLE_MSC_WARNINGS_PUSH_(4996)
-#define GTEST_DISABLE_MSC_DEPRECATED_POP_() GTEST_DISABLE_MSC_WARNINGS_POP_()
+#define GTEST_DISABLE_DEPRECATED_PUSH_()
+#define GTEST_DISABLE_DEPRECATED_POP_()
 #endif
 
 // Brings in definitions for functions used in the testing::internal::posix
@@ -593,7 +600,8 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
      defined(GTEST_OS_DRAGONFLY) || defined(GTEST_OS_GNU_KFREEBSD) || \
      defined(GTEST_OS_OPENBSD) || defined(GTEST_OS_HAIKU) ||          \
      defined(GTEST_OS_GNU_HURD) || defined(GTEST_OS_SOLARIS) ||       \
-     defined(GTEST_OS_AIX) || defined(GTEST_OS_ZOS))
+     defined(GTEST_OS_AIX) || defined(GTEST_OS_ZOS) ||                \
+     (defined(GTEST_OS_EMSCRIPTEN) && defined(__EMSCRIPTEN_PTHREADS__)))
 #define GTEST_HAS_PTHREAD 1
 #else
 #define GTEST_HAS_PTHREAD 0
@@ -942,21 +950,21 @@ GTEST_API_ bool IsTrue(bool condition);
 #ifdef GTEST_USES_RE2
 
 // This is almost `using RE = ::RE2`, except it is copy-constructible, and it
-// needs to disambiguate the `std::string`, `absl::string_view`, and `const
+// needs to disambiguate the `std::string`, `std::string_view`, and `const
 // char*` constructors.
 class GTEST_API_ [[nodiscard]] RE {
  public:
-  RE(absl::string_view regex) : regex_(regex) {}                  // NOLINT
-  RE(const char* regex) : RE(absl::string_view(regex)) {}         // NOLINT
-  RE(const std::string& regex) : RE(absl::string_view(regex)) {}  // NOLINT
+  RE(std::string_view regex) : regex_(regex) {}                  // NOLINT
+  RE(const char* regex) : RE(std::string_view(regex)) {}         // NOLINT
+  RE(const std::string& regex) : RE(std::string_view(regex)) {}  // NOLINT
   RE(const RE& other) : RE(other.pattern()) {}
 
   const std::string& pattern() const { return regex_.pattern(); }
 
-  static bool FullMatch(absl::string_view str, const RE& re) {
+  static bool FullMatch(std::string_view str, const RE& re) {
     return RE2::FullMatch(str, re.regex_);
   }
-  static bool PartialMatch(absl::string_view str, const RE& re) {
+  static bool PartialMatch(std::string_view str, const RE& re) {
     return RE2::PartialMatch(str, re.regex_);
   }
 
@@ -2118,7 +2126,7 @@ inline int IsATTY(int fd) {
 
 // Functions deprecated by MSVC 8.0.
 
-GTEST_DISABLE_MSC_DEPRECATED_PUSH_()
+GTEST_DISABLE_DEPRECATED_PUSH_()
 
 // ChDir(), FReopen(), FDOpen(), Read(), Write(), Close(), and
 // StrError() aren't needed on Windows CE at this time and thus not
@@ -2180,7 +2188,7 @@ inline const char* GetEnv(const char* name) {
 #endif
 }
 
-GTEST_DISABLE_MSC_DEPRECATED_POP_()
+GTEST_DISABLE_DEPRECATED_POP_()
 
 #ifdef GTEST_OS_WINDOWS_MOBILE
 // Windows CE has no C library. The abort() function is used in
@@ -2301,22 +2309,29 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 
 // Macros for defining flags.
 #define GTEST_DEFINE_bool_(name, default_val, doc)  \
+  GTEST_DECLARE_bool_(name);                        \
   namespace testing {                               \
   GTEST_API_ bool GTEST_FLAG(name) = (default_val); \
   }                                                 \
   static_assert(true, "no-op to require trailing semicolon")
 #define GTEST_DEFINE_int32_(name, default_val, doc)         \
+  GTEST_DECLARE_int32_(name);                               \
   namespace testing {                                       \
   GTEST_API_ std::int32_t GTEST_FLAG(name) = (default_val); \
   }                                                         \
   static_assert(true, "no-op to require trailing semicolon")
 #define GTEST_DEFINE_string_(name, default_val, doc)         \
+  GTEST_DECLARE_string_(name);                               \
   namespace testing {                                        \
   GTEST_API_ ::std::string GTEST_FLAG(name) = (default_val); \
   }                                                          \
   static_assert(true, "no-op to require trailing semicolon")
 
 // Macros for declaring flags.
+//
+// We also need to declare the flag in the public namespace to avoid triggering
+// -Wmissing-variable-declarations warnings, as reported here:
+// https://github.com/google/googletest/issues/4897
 #define GTEST_DECLARE_bool_(name)          \
   namespace testing {                      \
   GTEST_API_ extern bool GTEST_FLAG(name); \
@@ -2382,7 +2397,6 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 #ifdef GTEST_HAS_ABSL
 // Always use absl::string_view for Matcher<> specializations if googletest
 // is built with absl support.
-#define GTEST_INTERNAL_HAS_STRING_VIEW 1
 #include "absl/strings/string_view.h"
 namespace testing {
 namespace internal {
@@ -2390,30 +2404,17 @@ using StringView = ::absl::string_view;
 }  // namespace internal
 }  // namespace testing
 #else
-#if defined(__cpp_lib_string_view) ||             \
-    (GTEST_INTERNAL_HAS_INCLUDE(<string_view>) && \
-     GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
 // Otherwise for C++17 and higher use std::string_view for Matcher<>
 // specializations.
-#define GTEST_INTERNAL_HAS_STRING_VIEW 1
-#include <string_view>
 namespace testing {
 namespace internal {
-using StringView = ::std::string_view;
+using StringView = std::string_view;
 }  // namespace internal
 }  // namespace testing
-// The case where absl is configured NOT to alias std::string_view is not
-// supported.
-#endif  // __cpp_lib_string_view
 #endif  // GTEST_HAS_ABSL
+#define GTEST_INTERNAL_HAS_STRING_VIEW 1
 
-#ifndef GTEST_INTERNAL_HAS_STRING_VIEW
-#define GTEST_INTERNAL_HAS_STRING_VIEW 0
-#endif
-
-#if (defined(__cpp_lib_three_way_comparison) || \
-     (GTEST_INTERNAL_HAS_INCLUDE(<compare>) &&  \
-      GTEST_INTERNAL_CPLUSPLUS_LANG >= 201907L))
+#if defined(__cpp_lib_three_way_comparison)
 #define GTEST_INTERNAL_HAS_COMPARE_LIB 1
 #else
 #define GTEST_INTERNAL_HAS_COMPARE_LIB 0

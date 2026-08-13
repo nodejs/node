@@ -1363,10 +1363,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Sub_d:
       __ Sub_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kLoong64SubOvf_d:
+    case kLoong64SubOvf_d: {
+      UseScratchRegisterScope temps(masm());
+      DCHECK(temps.hasAvailable());
+      temps.Exclude(t8);
       __ SubOverflow_d(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), t8);
       break;
+    }
     case kLoong64Mul_w:
       __ Mul_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -4591,7 +4595,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     return;
   } else {
-    PrintF("AssembleArchBranch Unimplemented arch_opcode is : %d\n",
+    PrintF("AssembleArchBoolean Unimplemented arch_opcode is : %d\n",
            instr->arch_opcode());
     TRACE("UNIMPLEMENTED code_generator_loong64: %s at line %d\n", __FUNCTION__,
           __LINE__);
@@ -4646,56 +4650,49 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   size_t output_index = instr->OutputCount() - 1;
   // We don't know how many inputs were consumed by the condition, so we have to
   // calculate the indices of the last two inputs.
-  DCHECK_GE(instr->InputCount(), 4);
   size_t true_value_index = instr->InputCount() - 2;
   size_t false_value_index = instr->InputCount() - 1;
+  Register result = i.OutputRegister(output_index);
+  Register v_true = i.InputOrZeroRegister(true_value_index);
+  Register v_false = i.InputOrZeroRegister(false_value_index);
+
+  DCHECK(
+      LocationOperand::cast(instr->OutputAt(output_index))->representation() ==
+      MachineRepresentation::kWord64);
 
   if (instr->arch_opcode() == kLoong64Tst) {
+    DCHECK_GE(instr->InputCount(), 4);
     Condition cc = FlagsConditionToConditionTst(condition);
-    Register result = i.OutputRegister(output_index);
-    Register v_true = i.InputOrZeroRegister(true_value_index);
-    Register v_false = i.InputOrZeroRegister(false_value_index);
-    if (v_true == zero_reg || v_false == zero_reg) {
-      if (v_true == zero_reg) {
-        v_true = v_false;
-        cc = NegateCondition(cc);
-      }
-      if (cc == eq)
-        __ masknez(result, v_true, t8);
-      else
-        __ maskeqz(result, v_true, t8);
-    } else if (result == v_true || result == v_false) {
-      if (result == v_false) {
-        v_false = v_true;
-        cc = NegateCondition(cc);
-      }
-      Label done;
-      __ Branch(&done, cc, t8, Operand(0));
-      __ Move(result, v_false);
-      __ bind(&done);
-    } else {
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      if (cc == eq) {
-        Register temp = v_true;
-        v_true = v_false;
-        v_false = temp;
-      }
-      __ maskeqz(scratch, v_true, t8);
-      __ masknez(result, v_false, t8);
-      __ or_(result, scratch, result);
+    if (cc == eq) {
+      Register temp = v_true;
+      v_true = v_false;
+      v_false = temp;
     }
+    __ SelectWord(result, t8, v_true, v_false);
     UseScratchRegisterScope temps(masm());
     temps.Include(t8);
     return;
   } else if (instr->arch_opcode() == kLoong64Cmp64 ||
-             instr->arch_opcode() == kLoong64Cmp32) {
+             instr->arch_opcode() == kLoong64Cmp32 ||
+             instr->arch_opcode() == kArchStackPointerGreaterThan) {
     Condition cc = FlagsConditionToConditionCmp(condition);
-    Register left = i.InputRegister(0);
-    Operand right = i.InputOperand(1);
-    Register result = i.OutputRegister(output_index);
-    Register v_true = i.InputOrZeroRegister(true_value_index);
-    Register v_false = i.InputOrZeroRegister(false_value_index);
+    Register left = no_reg;
+    Operand right = Operand(0);
+    if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
+      DCHECK_GE(instr->InputCount(), 3);
+      DCHECK((cc == ls) || (cc == hi));
+      left = sp;
+      right = i.InputOperand(0);
+      uint32_t offset;
+      if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
+        left = i.TempRegister(1);
+        __ Sub_d(left, sp, offset);
+      }
+    } else {
+      DCHECK_GE(instr->InputCount(), 4);
+      left = i.InputRegister(0);
+      right = i.InputOperand(1);
+    }
     if (v_true == zero_reg || v_false == zero_reg) {
       if (v_true == zero_reg) {
         v_true = v_false;
@@ -4724,6 +4721,108 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
       __ Move(result, v_true);
       __ bind(&done);
     }
+    return;
+  } else if (instr->arch_opcode() == kLoong64Add_d ||
+             instr->arch_opcode() == kLoong64Sub_d) {
+    DCHECK_GE(instr->InputCount(), 4);
+    Condition cc = FlagsConditionToConditionOvf(condition);
+    if (cc == eq) {
+      Register temp = v_true;
+      v_true = v_false;
+      v_false = temp;
+    }
+    UseScratchRegisterScope temps(masm());
+    Register scratch1 = temps.Acquire();
+    Register scratch2 = temps.Acquire();
+    __ srai_d(scratch1, i.OutputRegister(), 32);
+    __ srai_w(scratch2, i.OutputRegister(), 31);
+    if (v_false == zero_reg) {
+      __ xor_(scratch1, scratch1, scratch2);
+      __ maskeqz(result, v_true, scratch1);
+    } else if (v_true == zero_reg) {
+      __ xor_(scratch1, scratch1, scratch2);
+      __ masknez(result, v_false, scratch1);
+    } else if (result == v_true || result == v_false) {
+      if (result == v_false) {
+        v_false = v_true;
+        cc = NegateCondition(cc);
+      }
+      Label done;
+      __ Branch(&done, cc, scratch2, Operand(scratch1));
+      __ Move(result, v_false);
+      __ bind(&done);
+    } else {
+      Label true_label, done;
+      __ Branch(&true_label, cc, scratch2, Operand(scratch1));
+      __ Move(result, v_false);
+      __ Branch(&done);
+      __ bind(&true_label);
+      __ Move(result, v_true);
+      __ bind(&done);
+    }
+    return;
+  } else if (instr->arch_opcode() == kLoong64AddOvf_d ||
+             instr->arch_opcode() == kLoong64SubOvf_d) {
+    DCHECK_GE(instr->InputCount(), 4);
+    // Overflow occurs if overflow register is negative
+    Condition cc = lt;
+    if (condition == kNotOverflow) {
+      Register temp = v_true;
+      v_true = v_false;
+      v_false = temp;
+    }
+    if (v_false == zero_reg) {
+      __ slt(t8, t8, zero_reg);
+      __ maskeqz(result, v_true, t8);
+    } else if (v_true == zero_reg) {
+      __ slt(t8, t8, zero_reg);
+      __ masknez(result, v_false, t8);
+    } else if (result == v_true || result == v_false) {
+      if (result == v_false) {
+        v_false = v_true;
+        cc = NegateCondition(cc);
+      }
+      Label done;
+      __ Branch(&done, cc, t8, Operand(zero_reg));
+      __ Move(result, v_false);
+      __ bind(&done);
+    } else {
+      Label true_label, done;
+      __ Branch(&true_label, cc, t8, Operand(zero_reg));
+      __ Move(result, v_false);
+      __ Branch(&done);
+      __ bind(&true_label);
+      __ Move(result, v_true);
+      __ bind(&done);
+    }
+    UseScratchRegisterScope temps(masm());
+    temps.Include(t8);
+  } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
+             instr->arch_opcode() == kLoong64MulOvf_d) {
+    DCHECK_GE(instr->InputCount(), 4);
+    Condition cc = FlagsConditionToConditionOvf(condition);
+    if (cc == eq) {
+      Register temp = v_true;
+      v_true = v_false;
+      v_false = temp;
+    }
+    __ SelectWord(result, t8, v_true, v_false);
+    UseScratchRegisterScope temps(masm());
+    temps.Include(t8);
+    return;
+  } else if (instr->arch_opcode() == kLoong64Float32Cmp ||
+             instr->arch_opcode() == kLoong64Float64Cmp) {
+    bool predicate;
+    FlagsConditionToConditionCmpFPU(&predicate, condition);
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    if (!predicate) {
+      Register temp = v_true;
+      v_true = v_false;
+      v_false = temp;
+    }
+    __ movcf2gr(scratch, FCC0);
+    __ SelectWord(result, scratch, v_true, v_false);
     return;
   } else {
     PrintF("AssembleArchSelect Unimplemented arch_opcode is : %d\n",

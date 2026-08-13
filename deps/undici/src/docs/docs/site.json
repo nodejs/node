@@ -1,0 +1,125 @@
+{
+  "sidebar": [
+    {
+      "groupName": "Documentation",
+      "items": [
+        { "link": "/", "label": "Home" },
+        { "link": "/getting-started", "label": "Getting Started" }
+      ]
+    },
+    {
+      "groupName": "API",
+      "items": [
+        {
+          "label": "Core",
+          "items": [
+            { "link": "/api/Dispatcher", "label": "Dispatcher" },
+            { "link": "/api/Client", "label": "Client" },
+            { "link": "/api/H2CClient", "label": "H2CClient" },
+            { "link": "/api/Pool", "label": "Pool" },
+            { "link": "/api/BalancedPool", "label": "BalancedPool" },
+            { "link": "/api/RoundRobinPool", "label": "RoundRobinPool" },
+            { "link": "/api/Agent", "label": "Agent" },
+            { "link": "/api/PoolStats", "label": "PoolStats" },
+            { "link": "/api/Connector", "label": "Connector" }
+          ]
+        },
+        {
+          "label": "Proxy & Agents",
+          "items": [
+            { "link": "/api/ProxyAgent", "label": "ProxyAgent" },
+            {
+              "link": "/api/EnvHttpProxyAgent",
+              "label": "EnvHttpProxyAgent"
+            },
+            { "link": "/api/Socks5ProxyAgent", "label": "Socks5ProxyAgent" },
+            { "link": "/api/RetryAgent", "label": "RetryAgent" }
+          ]
+        },
+        {
+          "label": "Web Standards",
+          "items": [
+            { "link": "/api/Fetch", "label": "Fetch" },
+            { "link": "/api/EventSource", "label": "EventSource" },
+            { "link": "/api/WebSocket", "label": "WebSocket" },
+            { "link": "/api/Cookies", "label": "Cookies" },
+            { "link": "/api/CacheStorage", "label": "CacheStorage" },
+            { "link": "/api/ContentType", "label": "MIME Type Parsing" }
+          ]
+        },
+        {
+          "label": "Mocking",
+          "items": [
+            { "link": "/api/MockClient", "label": "MockClient" },
+            { "link": "/api/MockPool", "label": "MockPool" },
+            { "link": "/api/MockAgent", "label": "MockAgent" },
+            { "link": "/api/SnapshotAgent", "label": "SnapshotAgent" },
+            { "link": "/api/MockCallHistory", "label": "MockCallHistory" },
+            {
+              "link": "/api/MockCallHistoryLog",
+              "label": "MockCallHistoryLog"
+            },
+            { "link": "/api/MockErrors", "label": "MockErrors" }
+          ]
+        },
+        {
+          "label": "Interceptors",
+          "items": [
+            { "link": "/api/Interceptors", "label": "Interceptors" }
+          ]
+        },
+        {
+          "label": "Handlers",
+          "items": [
+            { "link": "/api/RedirectHandler", "label": "RedirectHandler" },
+            { "link": "/api/RetryHandler", "label": "RetryHandler" }
+          ]
+        },
+        {
+          "label": "Diagnostics & Utilities",
+          "items": [
+            { "link": "/api/Errors", "label": "Errors" },
+            {
+              "link": "/api/DiagnosticsChannel",
+              "label": "Diagnostics Channel Support"
+            },
+            { "link": "/api/Debug", "label": "Debug" },
+            { "link": "/api/Util", "label": "Util" },
+            {
+              "link": "/api/GlobalInstallation",
+              "label": "Global Installation"
+            },
+            { "link": "/api/api-lifecycle", "label": "API Lifecycle" }
+          ]
+        }
+      ]
+    },
+    {
+      "groupName": "Best Practices",
+      "items": [
+        {
+          "link": "/best-practices/undici-vs-builtin-fetch",
+          "label": "Undici vs. Built-in Fetch"
+        },
+        {
+          "link": "/best-practices/migrating-from-v7-to-v8",
+          "label": "Migrating from Undici 7 to 8"
+        },
+        { "link": "/best-practices/proxy", "label": "Proxy" },
+        {
+          "link": "/best-practices/client-certificate",
+          "label": "Client Certificate"
+        },
+        {
+          "link": "/best-practices/writing-tests",
+          "label": "Writing Tests"
+        },
+        {
+          "link": "/best-practices/mocking-request",
+          "label": "Mocking Request"
+        },
+        { "link": "/best-practices/crawling", "label": "Crawling" }
+      ]
+    }
+  ]
+}

@@ -27,6 +27,19 @@ The
 and
 .I service
 parameters give the hostname and service as NULL-terminated C strings.
+Either
+.I name
+or
+.I service
+may be NULL, but not both.  If
+.I name
+is NULL, the returned addresses are synthesized from
+.IR service :
+the wildcard address (0.0.0.0 or ::) is returned when
+.B ARES_AI_PASSIVE
+is set in
+.IR ai_flags ,
+otherwise the loopback address (127.0.0.1 or ::1) is returned.
 The
 .I hints
 parameter is an
@@ -62,6 +75,16 @@ Specifies additional options, see below.
 If this option is set
 .I service
 field will be treated as a numeric value.
+.TP 19
+.B ARES_AI_PASSIVE
+If this option is set and
+.I name
+is NULL, the returned addresses will use the wildcard address (0.0.0.0 or ::),
+suitable for
+.BR bind (2)ing
+a socket that will accept connections.  If not set and
+.I name
+is NULL, the loopback address (127.0.0.1 or ::1) is returned instead.
 .TP 19
 .B ARES_AI_CANONNAME
 The ares_addrinfo structure will return a canonical names list.

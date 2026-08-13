@@ -49,6 +49,33 @@ const isValidUrl = u => {
   }
 }
 
+// npm's web-login response names the canonical npmjs registry in `doneUrl`, which a proxy/mirror forwards verbatim.
+// The poll would then hit npmjs.org instead of the proxy that holds the session, so rewrite only that npmjs host to the configured registry origin, preserving the path prefix and query string.
+// Any other done host is left untouched, since a non-npmjs canonical host cannot be inferred here and may be served intentionally.
+const CANONICAL_REGISTRY_HOST = 'registry.npmjs.org'
+
+// doneUrl is already validated by isValidUrl and registry is the origin a prior
+// POST /-/v1/login succeeded against, so both parse cleanly here.
+const replaceDoneUrlOrigin = (doneUrl, registry) => {
+  if (!registry) {
+    return doneUrl
+  }
+  const done = new URL(doneUrl)
+  if (done.hostname !== CANONICAL_REGISTRY_HOST) {
+    return doneUrl
+  }
+  const reg = new URL(registry)
+  done.protocol = reg.protocol
+  done.host = reg.host
+  const prefix = reg.pathname.replace(/\/$/, '')
+  if (prefix && prefix !== '/' &&
+      done.pathname !== prefix &&
+      !done.pathname.startsWith(prefix + '/')) {
+    done.pathname = prefix + done.pathname
+  }
+  return done.href
+}
+
 const webAuth = async (opener, opts, body) => {
   try {
     const res = await fetch('/-/v1/login', {
@@ -65,7 +92,7 @@ const webAuth = async (opener, opts, body) => {
       throw new WebLoginInvalidResponse('POST', res, content)
     }
 
-    return await webAuthOpener(opener, loginUrl, doneUrl, opts)
+    return await webAuthOpener(opener, loginUrl, replaceDoneUrlOrigin(doneUrl, opts.registry), opts)
   } catch (er) {
     if ((er.statusCode >= 400 && er.statusCode <= 499) || er.statusCode === 500) {
       throw new WebLoginNotSupported('POST', {

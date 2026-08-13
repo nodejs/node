@@ -282,6 +282,12 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int64_t interval = args[0].As<Integer>()->Value();
   CHECK_GT(interval, 0);
+  if (args[1]->IsTrue()) {
+    BaseObjectPtr<IterationHistogram> histogram =
+        IterationHistogram::Create(env, Histogram::Options{1});
+    args.GetReturnValue().Set(histogram->object());
+    return;
+  }
   BaseObjectPtr<IntervalHistogram> histogram =
       IntervalHistogram::Create(env, interval, [](Histogram& histogram) {
         uint64_t delta = histogram.RecordDelta();
@@ -365,6 +371,7 @@ void CreatePerContextProperties(Local<Object> target,
 
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_MAJOR);
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_MINOR);
+  NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_MINOR_MARK_SWEEP);
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_INCREMENTAL);
   NODE_DEFINE_CONSTANT(constants, NODE_PERFORMANCE_GC_WEAKCB);
 
@@ -413,6 +420,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_performance_now);
   HistogramBase::RegisterExternalReferences(registry);
   IntervalHistogram::RegisterExternalReferences(registry);
+  IterationHistogram::RegisterExternalReferences(registry);
 }
 }  // namespace performance
 }  // namespace node

@@ -1613,6 +1613,8 @@ i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
       !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
   obj->set_non_masking(flags & PropertyHandlerFlags::kNonMasking);
   obj->set_has_no_side_effect(flags & PropertyHandlerFlags::kHasNoSideEffect);
+  obj->set_has_dont_delete_property(
+      flags & PropertyHandlerFlags::kHasDontDeleteProperty);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -4219,6 +4221,44 @@ std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
 
 void* v8::SharedArrayBuffer::Data() const {
   return Utils::OpenDirectHandle(this)->backing_store();
+}
+
+template <bool is_shared>
+static size_t CopyArrayBufferBytesImpl(const void* source_buffer,
+                                       size_t source_start,
+                                       size_t source_length,
+                                       void* target_buffer, size_t target_start,
+                                       size_t target_length,
+                                       size_t bytes_to_copy) {
+  source_start = std::min(source_start, source_length);
+  target_start = std::min(target_start, target_length);
+  size_t source_size = source_length - source_start;
+  size_t target_size = target_length - target_start;
+  bytes_to_copy = std::min({bytes_to_copy, source_size, target_size});
+  if (bytes_to_copy == 0) return 0;
+  const char* src = static_cast<const char*>(source_buffer) + source_start;
+  char* dst = static_cast<char*>(target_buffer) + target_start;
+  if (is_shared) {
+    base::Relaxed_Memmove(reinterpret_cast<base::Atomic8*>(dst),
+                          reinterpret_cast<const base::Atomic8*>(src),
+                          bytes_to_copy);
+  } else {
+    std::memmove(dst, src, bytes_to_copy);
+  }
+  return bytes_to_copy;
+}
+
+size_t v8::SharedArrayBuffer::CopyArrayBufferBytes(
+    size_t source_start, size_t bytes_to_copy, Local<SharedArrayBuffer> target,
+    size_t target_start) const {
+  i::DisallowGarbageCollection no_gc;
+  auto self = Utils::OpenDirectHandle(this);
+  auto that = Utils::OpenDirectHandle(*target);
+  DCHECK(!that->is_immutable());
+  return CopyArrayBufferBytesImpl<true>(self->backing_store(), source_start,
+                                        self->GetByteLength(),
+                                        that->backing_store(), target_start,
+                                        that->GetByteLength(), bytes_to_copy);
 }
 
 void v8::ArrayBuffer::CheckCast(Value* that) {
@@ -8905,6 +8945,21 @@ bool v8::ArrayBuffer::WasDetached() const {
 
 bool v8::ArrayBuffer::IsImmutable() const {
   return Utils::OpenDirectHandle(this)->is_immutable();
+}
+
+size_t v8::ArrayBuffer::CopyArrayBufferBytes(size_t source_start,
+                                             size_t bytes_to_copy,
+                                             Local<ArrayBuffer> target,
+                                             size_t target_start) const {
+  i::DisallowGarbageCollection no_gc;
+  auto self = Utils::OpenDirectHandle(this);
+  auto that = Utils::OpenDirectHandle(*target);
+  if (self->was_detached()) return 0;
+  if (that->was_detached() || that->is_immutable()) return 0;
+  return CopyArrayBufferBytesImpl<false>(self->backing_store(), source_start,
+                                         self->GetByteLength(),
+                                         that->backing_store(), target_start,
+                                         that->GetByteLength(), bytes_to_copy);
 }
 
 namespace {
