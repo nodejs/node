@@ -3353,6 +3353,19 @@ added:
 
 Prints a stack trace on SIGINT.
 
+### `--trace-sigterm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Prints a stack trace on SIGTERM.
+
+Unlike a `SIGTERM` handler installed with `process.on('SIGTERM')`, the trace is
+also printed while JavaScript is stuck, for example in an infinite loop. If
+the application does not handle `SIGTERM` itself, the process is terminated by
+the signal as usual once the trace has been printed.
+
 ### `--trace-sync-io`
 
 <!-- YAML
@@ -3990,6 +4003,7 @@ one is included in the list below.
 * `--trace-exit`
 * `--trace-require-module`
 * `--trace-sigint`
+* `--trace-sigterm`
 * `--trace-sync-io`
 * `--trace-tls`
 * `--trace-uncaught`

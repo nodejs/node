@@ -1620,6 +1620,13 @@ from the \fBnode_modules\fR folder is excluded.
 .It Fl -trace-sigint
 Prints a stack trace on SIGINT.
 .
+.It Fl -trace-sigterm
+Prints a stack trace on SIGTERM.
+Unlike a \fBSIGTERM\fR handler installed with \fBprocess.on('SIGTERM')\fR, the trace is
+also printed while JavaScript is stuck, for example in an infinite loop. If
+the application does not handle \fBSIGTERM\fR itself, the process is terminated by
+the signal as usual once the trace has been printed.
+.
 .It Fl -trace-sync-io
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
@@ -2223,6 +2230,8 @@ one is included in the list below.
 \fB--trace-require-module\fR
 .It
 \fB--trace-sigint\fR
+.It
+\fB--trace-sigterm\fR
 .It
 \fB--trace-sync-io\fR
 .It
