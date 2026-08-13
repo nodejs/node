@@ -1199,8 +1199,8 @@ appropriate for `Buffer.from()` variants.
 added: v5.10.0
 -->
 
-* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An {ArrayBuffer},
-  {SharedArrayBuffer}, for example the `.buffer` property of a
+* `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An {ArrayBuffer} or
+  {SharedArrayBuffer}, for example, the `.buffer` property of a
   {TypedArray}.
 * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
 * `length` {integer} Number of bytes to expose.
@@ -1277,8 +1277,8 @@ console.log(buf.length);
 // Prints: 2
 ```
 
-A `TypeError` will be thrown if `arrayBuffer` is not an {ArrayBuffer} or a
-{SharedArrayBuffer} or another type appropriate for `Buffer.from()`
+A `TypeError` will be thrown if `arrayBuffer` is not an {ArrayBuffer}, a
+{SharedArrayBuffer}, or another type appropriate for `Buffer.from()`
 variants.
 
 It is important to remember that a backing `ArrayBuffer` can cover a range
@@ -1643,7 +1643,7 @@ using `buf.buffer`, as other parts of the `ArrayBuffer` may be unrelated
 to the `Buffer` object itself.
 
 A common issue when creating a `TypedArray` object that shares its memory with
-a `Buffer` is that in this case one needs to specify the `byteOffset` correctly:
+a `Buffer` is that the `byteOffset` needs to be specified correctly:
 
 ```mjs
 import { Buffer } from 'node:buffer';
