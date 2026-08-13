@@ -6,11 +6,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 builder.startRecGroup();
-let array = builder.addArray(kWasmF64, true);
-let array_subtype = builder.addArray(kWasmF64, true, array, true);
+let array = builder.addArray(kWasmF64);
+let array_subtype = builder.addArray(kWasmF64, {supertype: array, final: true});
 let func = builder.addType(makeSig([], [kWasmF64]))
-let array_array = builder.addArray(wasmRefNullType(array_subtype), false);
-let array_array_subtype = builder.addArray(wasmRefNullType(array_subtype), false, array_array, true);
+let array_array = builder.addArray(
+  wasmRefNullType(array_subtype), {mutable: false});
+let array_array_subtype = builder.addArray(
+  wasmRefNullType(array_subtype),
+  {mutable: false, supertype: array_array, final: true});
 builder.endRecGroup();
 builder.addFunction("main", func)
   .addLocals(kWasmI32, 1)

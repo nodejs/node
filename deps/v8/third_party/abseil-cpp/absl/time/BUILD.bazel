@@ -25,7 +25,7 @@ load(
 )
 
 package(
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = [
         "header_modules",
         "layering_check",
@@ -53,6 +53,7 @@ cc_library(
     ],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
     deps = [
         "//absl/base",
         "//absl/base:config",
@@ -64,6 +65,50 @@ cc_library(
         "//absl/time/internal/cctz:civil_time",
         "//absl/time/internal/cctz:time_zone",
         "//absl/types:optional",
+    ],
+)
+
+cc_library(
+    name = "clock_interface",
+    srcs = [
+        "clock_interface.cc",
+    ],
+    hdrs = [
+        "clock_interface.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":time",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:no_destructor",
+        "//absl/base:nullability",
+        "//absl/base:raw_logging_internal",
+        "//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "simulated_clock",
+    testonly = True,
+    srcs = [
+        "simulated_clock.cc",
+    ],
+    hdrs = [
+        "simulated_clock.h",
+    ],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":clock_interface",
+        ":time",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:nullability",
+        "//absl/synchronization",
     ],
 )
 
@@ -103,8 +148,47 @@ cc_test(
         "//absl/hash:hash_testing",
         "//absl/numeric:int128",
         "//absl/random",
+        "//absl/strings",
         "//absl/strings:str_format",
         "//absl/time/internal/cctz:time_zone",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "clock_interface_test",
+    srcs = [
+        "clock_interface_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":clock_interface",
+        ":time",
+        "//absl/functional:bind_front",
+        "//absl/synchronization",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "simulated_clock_test",
+    srcs = [
+        "simulated_clock_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":clock_interface",
+        ":simulated_clock",
+        ":time",
+        "//absl/base:core_headers",
+        "//absl/base:raw_logging_internal",
+        "//absl/functional:bind_front",
+        "//absl/random",
+        "//absl/synchronization",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

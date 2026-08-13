@@ -7,7 +7,10 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <atomic>
+#include <limits>
+#include <type_traits>
 
 #include "include/v8config.h"
 #include "src/base/base-export.h"
@@ -214,43 +217,59 @@ inline void MemCopyAndSwitchEndianness(void* dst, const void* src,
 }
 #endif
 
+// Helper to replicate an integral `value` across all bytes of a uintptr_t word.
 template <typename T>
-V8_INLINE bool TryTrivialCopy(const T* src_begin, const T* src_end, T* dest) {
-  DCHECK_LE(src_begin, src_end);
-  if constexpr (std::is_trivially_copyable_v<T>) {
-    const size_t count = src_end - src_begin;
-    base::MemCopy(dest, src_begin, count * sizeof(T));
-    return true;
-  }
-  return false;
-}
-
-template <typename T>
-V8_INLINE bool TryTrivialMove(const T* src_begin, const T* src_end, T* dest) {
-  DCHECK_LE(src_begin, src_end);
-  if constexpr (std::is_trivially_copyable_v<T>) {
-    const size_t count = src_end - src_begin;
-    base::MemMove(dest, src_begin, count * sizeof(T));
-    return true;
-  }
-  return false;
-}
-
-// Fills `destination` with `count` `value`s.
-template <typename T, typename U>
-constexpr void Memset(T* destination, U value, size_t count)
-  requires std::is_trivially_assignable_v<T&, U>
-{
-  for (size_t i = 0; i < count; i++) {
-    destination[i] = value;
+  requires std::is_integral_v<T>
+constexpr uintptr_t ReplicateValueWord(T value) {
+  if constexpr (sizeof(T) >= sizeof(uintptr_t)) {
+    return static_cast<uintptr_t>(value);
+  } else {
+    using UnsignedT = std::conditional_t<
+        sizeof(T) == 1, uint8_t,
+        std::conditional_t<
+            sizeof(T) == 2, uint16_t,
+            std::conditional_t<sizeof(T) == 4, uint32_t, uint64_t>>>;
+    constexpr uintptr_t kMultiplier =
+        static_cast<uintptr_t>(-1) / std::numeric_limits<UnsignedT>::max();
+    return static_cast<uintptr_t>(static_cast<UnsignedT>(value)) * kMultiplier;
   }
 }
 
 // Fills `destination` with `count` `value`s.
 template <typename T>
-inline void Relaxed_Memset(T* destination, T value, size_t count)
+V8_INLINE void Relaxed_Memset(T* destination, T value, size_t count)
   requires std::is_integral_v<T>
 {
+#if defined(__ATOMIC_RELAXED) && (defined(__GNUC__) || defined(__clang__))
+  if constexpr (sizeof(T) < sizeof(uintptr_t)) {
+    constexpr size_t kElementsPerWord = sizeof(uintptr_t) / sizeof(T);
+    // Prologue: store elements until `destination` is word-aligned.
+    while (reinterpret_cast<uintptr_t>(destination) % sizeof(uintptr_t) != 0 &&
+           count > 0) {
+      std::atomic_ref<T>(*destination).store(value, std::memory_order_relaxed);
+      destination++;
+      count--;
+    }
+    // Main loop: store word-sized chunks using may_alias attribute and
+    // __atomic_store_n.
+    using AliasedWord = uintptr_t __attribute__((may_alias));
+    const uintptr_t word_val = ReplicateValueWord<T>(value);
+    AliasedWord* word_dest = reinterpret_cast<AliasedWord*>(destination);
+    size_t words = count / kElementsPerWord;
+    for (size_t w = 0; w < words; w++) {
+      __atomic_store_n(word_dest + w, word_val, __ATOMIC_RELAXED);
+    }
+    destination += words * kElementsPerWord;
+    count -= words * kElementsPerWord;
+    // Epilogue: store remaining trailing elements.
+    while (count > 0) {
+      std::atomic_ref<T>(*destination).store(value, std::memory_order_relaxed);
+      destination++;
+      count--;
+    }
+    return;
+  }
+#endif
   for (size_t i = 0; i < count; i++) {
     std::atomic_ref<T>(destination[i]).store(value, std::memory_order_relaxed);
   }

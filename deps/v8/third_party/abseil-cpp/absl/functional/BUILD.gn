@@ -1,6 +1,8 @@
 # Copyright 2020 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
@@ -18,7 +20,11 @@ absl_source_set("any_invocable") {
 
 absl_test("any_invocable_test") {
   sources = [
-    "any_invocable_test.cc",
+    "any_invocable_test.h",
+    "any_invocable_test_inst1.cc",
+    "any_invocable_test_inst2.cc",
+    "any_invocable_test_inst3.cc",
+    "any_invocable_test_inst4.cc",
     "internal/any_invocable.h",
   ]
   deps = [
@@ -31,6 +37,24 @@ absl_test("any_invocable_test") {
   ]
 }
 
+absl_source_set("bind_back") {
+  sources = [ "internal/back_binder.h" ]
+  public = [ "bind_back.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/container:compressed_tuple",
+    "//third_party/abseil-cpp/absl/utility",
+  ]
+}
+
+absl_test("bind_back_test") {
+  sources = [ "bind_back_test.cc" ]
+  deps = [
+    ":bind_back",
+    "//third_party/abseil-cpp/absl/memory",
+  ]
+}
+
 absl_source_set("bind_front") {
   sources = [ "internal/front_binder.h" ]
   public = [ "bind_front.h" ]
@@ -38,6 +62,14 @@ absl_source_set("bind_front") {
     "//third_party/abseil-cpp/absl/container:compressed_tuple",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/utility",
+  ]
+}
+
+absl_test("bind_front_test") {
+  sources = [ "bind_front_test.cc" ]
+  deps = [
+    ":bind_front",
+    "//third_party/abseil-cpp/absl/memory",
   ]
 }
 
@@ -80,6 +112,5 @@ absl_test("overload_test") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
-    "//third_party/abseil-cpp/absl/types:variant",
   ]
 }

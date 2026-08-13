@@ -14,9 +14,13 @@
 
 #include "absl/random/internal/fast_uniform_bits.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <random>
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

@@ -8,6 +8,7 @@
 
 #include <limits>
 
+#include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
@@ -37,6 +38,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 namespace {
 
@@ -158,8 +160,7 @@ class BacktrackStack {
   using ValueT = int;
   base::SmallVector<ValueT, kStaticCapacity> data_;
 
-  static constexpr int kMaxSize =
-      RegExpStack::kMaximumStackSize / sizeof(ValueT);
+  static constexpr int kMaxSize = Stack::kMaximumStackSize / sizeof(ValueT);
 };
 
 // Registers used during interpreter execution. These consist of output
@@ -174,7 +175,7 @@ class InterpreterRegisters {
 
   InterpreterRegisters(int total_register_count, RegisterT* output_registers,
                        int output_register_count)
-      : registers_(total_register_count),
+      : registers_(total_register_count, kNoMatchValue),
         output_registers_(output_registers),
         total_register_count_(total_register_count),
         output_register_count_(output_register_count) {
@@ -185,10 +186,6 @@ class InterpreterRegisters {
     SBXCHECK_GE(total_register_count, output_register_count);
     SBXCHECK_LE(total_register_count, RegExpMacroAssembler::kMaxRegisterCount);
     DCHECK_NOT_NULL(output_registers);
-
-    // Initialize the output register region to -1 signifying 'no match'.
-    std::memset(registers_.data(), kNoMatchValue,
-                output_register_count * sizeof(RegisterT));
     USE(total_register_count_);
   }
 
@@ -299,7 +296,7 @@ IrregexpInterpreter::Result HandleInterrupts(
         AllowGarbageCollection yes_gc;
         result = isolate->stack_guard()->HandleInterrupts();
       }
-      if (IsExceptionHole(result, isolate)) {
+      if (IsExceptionHole(result)) {
         return IrregexpInterpreter::EXCEPTION;
       }
 
@@ -339,11 +336,11 @@ bool IndexIsInBounds(int index, int length) {
 // next handler we simply jump (goto) directly to its address.
 #if V8_USE_COMPUTED_GOTO
 #define BC_LABEL(name) BC_k##name:
-#define DECODE()                                                          \
-  do {                                                                    \
-    RegExpBytecode next_bc = RegExpBytecodes::FromPtr(next_pc);           \
-    next_handler_addr =                                                   \
-        dispatch_table[RegExpBytecodes::ToByte(next_bc) & kBytecodeMask]; \
+#define DECODE()                                                    \
+  do {                                                              \
+    Bytecode next_bc = Bytecodes::FromPtr(next_pc);                 \
+    next_handler_addr =                                             \
+        dispatch_table[Bytecodes::ToByte(next_bc) & kBytecodeMask]; \
   } while (false)
 #define DISPATCH()  \
   pc = next_pc;     \
@@ -352,7 +349,7 @@ bool IndexIsInBounds(int index, int length) {
 // dispatch (A large switch statement inside a loop with a case for every
 // bytecode).
 #else  // V8_USE_COMPUTED_GOTO
-#define BC_LABEL(name) case RegExpBytecode::k##name:
+#define BC_LABEL(name) case Bytecode::k##name:
 #define DECODE() ((void)0)
 #define DISPATCH()  \
   pc = next_pc;     \
@@ -366,8 +363,8 @@ bool IndexIsInBounds(int index, int length) {
 // don't hit the cache and have to fetch the next handler address from physical
 // memory, instructions between ADVANCE/SET_PC_FROM_OFFSET and DISPATCH can
 // potentially be executed unconditionally, reducing memory stall.
-#define ADVANCE()                                   \
-  next_pc = pc + RegExpBytecodes::Size(current_bc); \
+#define ADVANCE()                             \
+  next_pc = pc + Bytecodes::Size(current_bc); \
   DECODE()
 
 #define SET_PC_FROM_OFFSET(offset) \
@@ -390,12 +387,11 @@ bool IndexIsInBounds(int index, int length) {
 #define BYTECODES_END() CLOSE_BLOCK
 
 #ifdef ENABLE_DISASSEMBLER
-#define BYTECODE(Name, ...)                                              \
-  CLOSE_BLOCK                                                            \
-  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);       \
-  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current,    \
-                        current_char, RegExpBytecodes::Size(current_bc), \
-                        #Name);
+#define BYTECODE(Name, ...)                                           \
+  CLOSE_BLOCK                                                         \
+  BC_LABEL(Name) OPEN_BLOCK INIT(Name __VA_OPT__(, ) __VA_ARGS__);    \
+  MaybeTraceInterpreter(code_base, pc, backtrack_stack.sp(), current, \
+                        current_char, Bytecodes::Size(current_bc), #Name);
 #else
 #define BYTECODE(Name, ...) \
   CLOSE_BLOCK               \
@@ -403,8 +399,8 @@ bool IndexIsInBounds(int index, int length) {
 #endif  // ENABLE_DISASSEMBLER
 
 #define INIT(Name, ...)                                                     \
-  constexpr RegExpBytecode current_bc = RegExpBytecode::k##Name;            \
-  using Operands = RegExpBytecodeOperands<current_bc>;                      \
+  constexpr Bytecode current_bc = Bytecode::k##Name;                        \
+  using Operands = BytecodeOperands<current_bc>;                            \
   __VA_OPT__(auto argument_tuple = std::apply(                              \
                  [&](auto... ops) {                                         \
                    return std::make_tuple(                                  \
@@ -496,6 +492,7 @@ bool CheckSpecialClassRanges(uint32_t current_char,
     case StandardCharacterSet::kEverything:
       return true;
   }
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -517,7 +514,7 @@ IrregexpInterpreter::Result RawMatch(
   // filled with kBreaks, indicating an invalid operation. This way using
   // kBytecodeMask guarantees no OOB access to the dispatch table.
   constexpr int kPaddedBytecodeCount =
-      base::bits::RoundUpToPowerOfTwo32(RegExpBytecodes::kCount);
+      base::bits::RoundUpToPowerOfTwo32(Bytecodes::kCount);
   constexpr int kBytecodeMask = kPaddedBytecodeCount - 1;
   static_assert(std::numeric_limits<uint8_t>::max() >= kBytecodeMask);
 
@@ -527,12 +524,12 @@ IrregexpInterpreter::Result RawMatch(
   // to the dispatch table gets masked using kBytecodeMask in DECODE(). This way
   // we can only get values between 0 (only the least significant byte of an
   // integer is used) and kPaddedBytecodeCount - 1 (kBytecodeMask is defined to
-  // be exactly this value). All entries from RegExpBytecodes::kCount to
+  // be exactly this value). All entries from Bytecodes::kCount to
   // kRegExpPaddedBytecodeCount are automatically filled with kBreak (invalid
   // operation).
 
 #define DECLARE_DISPATCH_TABLE_ENTRY(name, ...) &&BC_k##name,
-  static const void* const unsafe_dispatch_table[RegExpBytecodes::kCount] = {
+  static const void* const unsafe_dispatch_table[Bytecodes::kCount] = {
       REGEXP_BYTECODE_LIST(DECLARE_DISPATCH_TABLE_ENTRY)};
 #undef DECLARE_DISPATCH_TABLE_ENTRY
 #undef BYTECODE_FILLER_ITERATOR
@@ -544,7 +541,7 @@ IrregexpInterpreter::Result RawMatch(
 
         size_t i = 0;
         // Copy all valid Bytecodes to the dispatch table.
-        for (; i < RegExpBytecodes::kCount; ++i) {
+        for (; i < Bytecodes::kCount; ++i) {
           table[i] = unsafe_dispatch_table[i];
         }
         // Fill dispatch table from last defined bytecode up to the next power
@@ -573,7 +570,7 @@ IrregexpInterpreter::Result RawMatch(
     DECODE();
     DISPATCH();
 #else
-    switch (RegExpBytecodes::FromPtr(pc)) {
+    switch (Bytecodes::FromPtr(pc)) {
 #endif  // V8_USE_COMPUTED_GOTO
     BYTECODES_START()
     BYTECODE(Break) { UNREACHABLE(); }
@@ -695,13 +692,12 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(LoadCurrentCharacter, cp_offset, on_failure) {
-      int pos = current + cp_offset;
-      if (pos >= subject.length() || pos < 0) {
+    BYTECODE(LoadCurrentCharacter, cp_offset, bounds_check_offset, on_failure) {
+      if (!IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         SET_PC_FROM_OFFSET(on_failure);
       } else {
         ADVANCE();
-        current_char = subject[pos];
+        current_char = subject[current + cp_offset];
       }
       DISPATCH();
     }
@@ -711,13 +707,12 @@ IrregexpInterpreter::Result RawMatch(
       current_char = subject[pos];
       DISPATCH();
     }
-    BYTECODE(Load2CurrentChars, cp_offset, on_failure) {
-      int pos = current + cp_offset;
-      if (pos + 2 > subject.length() || pos < 0) {
+    BYTECODE(Load2CurrentChars, cp_offset, bounds_check_offset, on_failure) {
+      if (!IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         SET_PC_FROM_OFFSET(on_failure);
       } else {
         ADVANCE();
-        current_char = Load2Characters(subject, pos);
+        current_char = Load2Characters(subject, current + cp_offset);
       }
       DISPATCH();
     }
@@ -727,14 +722,13 @@ IrregexpInterpreter::Result RawMatch(
       current_char = Load2Characters(subject, pos);
       DISPATCH();
     }
-    BYTECODE(Load4CurrentChars, cp_offset, on_failure) {
+    BYTECODE(Load4CurrentChars, cp_offset, bounds_check_offset, on_failure) {
       DCHECK_EQ(1, sizeof(Char));
-      int pos = current + cp_offset;
-      if (pos + 4 > subject.length() || pos < 0) {
+      if (!IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         SET_PC_FROM_OFFSET(on_failure);
       } else {
         ADVANCE();
-        current_char = Load4Characters(subject, pos);
+        current_char = Load4Characters(subject, current + cp_offset);
       }
       DISPATCH();
     }
@@ -1012,9 +1006,9 @@ IrregexpInterpreter::Result RawMatch(
       }
       DISPATCH();
     }
-    BYTECODE(SkipUntilChar, cp_offset, advance_by, character, on_match,
-             on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+    BYTECODE(SkipUntilChar, cp_offset, advance_by, character,
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (character == current_char) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1026,8 +1020,8 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SkipUntilCharAnd, cp_offset, advance_by, character, mask,
-             eats_at_least, on_match, on_no_match) {
-      while (IndexIsInBounds(current + eats_at_least, subject.length())) {
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (character == (current_char & mask)) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1038,22 +1032,9 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilCharPosChecked, cp_offset, advance_by, character,
-             eats_at_least, on_match, on_no_match) {
-      while (IndexIsInBounds(current + eats_at_least, subject.length())) {
-        current_char = subject[current + cp_offset];
-        if (character == current_char) {
-          SET_PC_FROM_OFFSET(on_match);
-          DISPATCH();
-        }
-        ADVANCE_CURRENT_POSITION(advance_by);
-      }
-      SET_PC_FROM_OFFSET(on_no_match);
-      DISPATCH();
-    }
-    BYTECODE(SkipUntilBitInTable, cp_offset, advance_by, table, on_match,
-             on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+    BYTECODE(SkipUntilBitInTable, cp_offset, advance_by, table,
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (CheckBitInTable(current_char, table)) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1065,8 +1046,8 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SkipUntilGtOrNotBitInTable, cp_offset, advance_by, character,
-             table, on_match, on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+             table, bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         if (current_char > character) {
           SET_PC_FROM_OFFSET(on_match);
@@ -1081,9 +1062,9 @@ IrregexpInterpreter::Result RawMatch(
       SET_PC_FROM_OFFSET(on_no_match);
       DISPATCH();
     }
-    BYTECODE(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2, on_match,
-             on_no_match) {
-      while (IndexIsInBounds(current + cp_offset, subject.length())) {
+    BYTECODE(SkipUntilCharOrChar, cp_offset, advance_by, char1, char2,
+             bounds_check_offset, on_match, on_no_match) {
+      while (IndexIsInBounds(current + bounds_check_offset, subject.length())) {
         current_char = subject[current + cp_offset];
         // The two if-statements below are split up intentionally, as combining
         // them seems to result in register allocation behaving quite
@@ -1105,7 +1086,7 @@ IrregexpInterpreter::Result RawMatch(
              max_offset, chars1, mask1, chars2, mask2, on_match1, on_match2,
              on_failure) {
       DCHECK_GE(cp_offset, 0);
-      DCHECK_GE(max_offset, cp_offset);
+      DCHECK_GE(max_offset, cp_offset + 3);
       // We should only get here in 1-byte mode.
       DCHECK_EQ(1, sizeof(Char));
       while (IndexIsInBounds(current + max_offset, subject.length())) {
@@ -1127,15 +1108,16 @@ IrregexpInterpreter::Result RawMatch(
       DISPATCH();
     }
     BYTECODE(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
-             bc1_cp_offset, bc1_on_failure, bc2_cp_offset, bc3_characters,
-             bc3_mask, bc4_by, bc5_cp_offset, bc6_characters, bc6_mask,
-             bc6_on_equal, bc7_characters, bc7_mask, bc7_on_equal,
-             bc8_characters, bc8_mask, fallthrough_jump_target) {
+             bc1_bounds_check_offset, bc1_on_failure, bc1_cp_offset,
+             bc2_characters, bc2_mask, bc3_by, bc4_bounds_check_offset,
+             bc4_cp_offset, bc5_characters, bc5_mask, bc5_on_equal,
+             bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,
+             fallthrough_jump_target) {
       // We should only get here in 1-byte mode.
       DCHECK_EQ(1, sizeof(Char));
 
       while (true) {
-        // bcO: kSkipUntilBitInTable
+        // bc0: kSkipUntilBitInTable
         // on_match and on_no_match are constrained to jump to bc1.
         while (IndexIsInBounds(current + bc0_cp_offset, subject.length())) {
           current_char = subject[current + bc0_cp_offset];
@@ -1145,53 +1127,54 @@ IrregexpInterpreter::Result RawMatch(
           ADVANCE_CURRENT_POSITION(bc0_advance_by);
         }
 
-        // bc1: kCheckPosition
-        if (!IndexIsInBounds(current + bc1_cp_offset, subject.length())) {
+        // bc1: kLoad4CurrentChars
+        if (!IndexIsInBounds(current + bc1_bounds_check_offset,
+                             subject.length())) {
           SET_PC_FROM_OFFSET(bc1_on_failure);
           DISPATCH();
         }
 
-        // bc2: Load4CurrentCharsUnchecked
-        int pos = current + bc2_cp_offset;
+        // Load 4 characters
+        int pos = current + bc1_cp_offset;
         current_char = Load4Characters(subject, pos);
 
-        // bc3: AndCheck4Chars
-        // on_equal is constrained to jump to bc5.
-        if (bc3_characters == (current_char & bc3_mask)) {
-          // bc5: Load4CurrentChars
-          // on_failure is constrained to jump to bc4.
-          DCHECK_GE(bc5_cp_offset, 0);
-          if (current + bc5_cp_offset + 4 > subject.length()) {
-            // bc4: AdvanceCpAndGoto
+        // bc2: AndCheck4Chars
+        // on_equal is constrained to jump to bc4.
+        if (bc2_characters == (current_char & bc2_mask)) {
+          // bc4: Load4CurrentChars
+          // on_failure is constrained to jump to bc3 (AdvanceCpAndGoto).
+          if (!IndexIsInBounds(current + bc4_bounds_check_offset,
+                               subject.length())) {
+            // bc3: AdvanceCpAndGoto
             // on_goto is constrained to jump back to bc0.
-            ADVANCE_CURRENT_POSITION(bc4_by);
+            ADVANCE_CURRENT_POSITION(bc3_by);
             continue;
           }
           // TODO(jgruber): Usually we can reuse some of the bytes loaded above.
-          pos = current + bc5_cp_offset;
+          pos = current + bc4_cp_offset;
           current_char = Load4Characters(subject, pos);
 
+          // bc5: AndCheck4Chars
+          if (bc5_characters == (current_char & bc5_mask)) {
+            SET_PC_FROM_OFFSET(bc5_on_equal);
+            DISPATCH();
+          }
           // bc6: AndCheck4Chars
           if (bc6_characters == (current_char & bc6_mask)) {
             SET_PC_FROM_OFFSET(bc6_on_equal);
             DISPATCH();
           }
-          // bc7: AndCheck4Chars
+          // bc7: AndCheckNot4Chars
+          // on_not_equal is constrained to jump to bc3.
           if (bc7_characters == (current_char & bc7_mask)) {
-            SET_PC_FROM_OFFSET(bc7_on_equal);
-            DISPATCH();
-          }
-          // bc8: AndCheckNot4Chars
-          // on_not_equal is constrained to jump to bc4.
-          if (bc8_characters == (current_char & bc8_mask)) {
             SET_PC_FROM_OFFSET(fallthrough_jump_target);
             DISPATCH();
           }
         }
 
-        // bc4: AdvanceCpAndGoto
+        // bc3: AdvanceCpAndGoto
         // on_goto is constrained to jump back to bc0.
-        ADVANCE_CURRENT_POSITION(bc4_by);
+        ADVANCE_CURRENT_POSITION(bc3_by);
       }
 
       UNREACHABLE();
@@ -1263,7 +1246,7 @@ int IrregexpInterpreter::Match(Isolate* isolate,
       subject_length = kTruncateSubjectAtLength;
       opt_truncated = " (truncated)";
     }
-    Tagged<String> pattern = Cast<String>(regexp_data->source());
+    Tagged<String> pattern = regexp_data->escaped_source();
     PrintF("\n\nStart bytecode interpreter. Pattern /%s/ Subject '%s'%s\n",
            pattern->ToCString().get(),
            subject_string->ToCString(0, subject_length).get(), opt_truncated);
@@ -1297,7 +1280,7 @@ int IrregexpInterpreter::Match(Isolate* isolate,
     if (next_start_position == current_output_registers[0]) {
       // Zero-length matches.
       // TODO(jgruber): Use AdvanceStringIndex based on flat contents instead.
-      next_start_position = static_cast<int>(RegExpUtils::AdvanceStringIndex(
+      next_start_position = static_cast<int>(Utils::AdvanceStringIndex(
           subject_string, next_start_position, is_any_unicode));
       if (next_start_position > static_cast<int>(subject_string->length())) {
         break;
@@ -1378,8 +1361,8 @@ int IrregexpInterpreter::MatchForCallFromJs(
   DisallowHandleDereference no_deref;
 
   Tagged<String> subject_string = Cast<String>(Tagged<Object>(subject));
-  Tagged<IrRegExpData> regexp_data_obj =
-      SbxCast<IrRegExpData>(Tagged<Object>(regexp_data));
+  Tagged<IrRegExpData> regexp_data_obj = SbxCast<IrRegExpData>(
+      TrustedCast<TrustedObject>(Tagged<Object>(regexp_data)));
 
   if (regexp_data_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation
@@ -1402,5 +1385,6 @@ int IrregexpInterpreter::MatchForCallFromRuntime(
                RegExp::CallOrigin::kFromRuntime);
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

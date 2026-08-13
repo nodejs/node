@@ -14,13 +14,17 @@
 
 #include "absl/random/internal/explicit_seed_seq.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <random>
 #include <utility>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/random/seed_sequences.h"
+#include "absl/base/config.h"
+#include "absl/base/macros.h"
 
 namespace {
 
@@ -44,13 +48,13 @@ bool ConformsToInterface() {
   // Check that param() and size() return state provided to constructor.
   {
     uint32_t init_array[] = {1, 2, 3, 4, 5};
-    Sseq seq(init_array, &init_array[ABSL_ARRAYSIZE(init_array)]);
-    EXPECT_EQ(seq.size(), ABSL_ARRAYSIZE(init_array));
+    Sseq seq(init_array, &init_array[std::size(init_array)]);
+    EXPECT_EQ(seq.size(), std::size(init_array));
 
-    uint32_t state_array[ABSL_ARRAYSIZE(init_array)];
+    uint32_t state_array[std::size(init_array)];
     seq.param(state_array);
 
-    for (int i = 0; i < ABSL_ARRAYSIZE(state_array); i++) {
+    for (int i = 0; i < std::size(state_array); i++) {
       EXPECT_EQ(state_array[i], i + 1);
     }
   }
@@ -59,7 +63,7 @@ bool ConformsToInterface() {
     Sseq seq;
     uint32_t seeds[5];
 
-    seq.generate(seeds, &seeds[ABSL_ARRAYSIZE(seeds)]);
+    seq.generate(seeds, &seeds[std::size(seeds)]);
   }
   return true;
 }

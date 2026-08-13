@@ -1,0 +1,25 @@
+{
+  "owners": ["caiolima@igalia.com"],
+  "name": "ImportDefer",
+  "run_count": 1,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "timeout_arm64": 240,
+  "units": "score",
+  "flags": ["--allow-natives-syntax", "--js-defer-import-eval"],
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Throughput",
+      "path": ["ImportDefer"],
+      "main": "run.js",
+      "results_regexp": "^%s\\-ImportDefer\\(Score\\): (.+)$",
+      "resources": ["value.js", "hotaccess-eager.js", "hotaccess-defer.js"],
+      "tests": [
+        {"name": "HotAccessEager"},
+        {"name": "HotAccessDefer"}
+      ]
+    }
+  ]
+}

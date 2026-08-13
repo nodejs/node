@@ -15,6 +15,11 @@
 #include "v8-snapshot.h"      // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
+namespace cppgc {
+template <typename T>
+class GarbageCollected;
+}  // namespace cppgc
+
 namespace v8 {
 
 class Function;
@@ -318,36 +323,35 @@ class V8_EXPORT Context : public Data {
                                                     EmbedderDataTypeTag tag);
   V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
                                                     EmbedderDataTypeTag tag);
-
-  V8_DEPRECATED(
-      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
-      "parameter instead.")
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
-                                                    int index) {
-    return GetAlignedPointerFromEmbedderData(isolate, index,
-                                             kEmbedderDataTypeTagDefault);
-  }
-
-  V8_DEPRECATED(
-      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
-      "parameter instead.")
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index) {
-    return GetAlignedPointerFromEmbedderData(index,
-                                             kEmbedderDataTypeTagDefault);
+  template <typename T>
+    requires std::is_base_of_v<cppgc::GarbageCollected<T>, T>
+  V8_INLINE T* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                CppHeapPointerTag tag) {
+    // TODO(ahaas): This is a temporary implementation, the actual
+    // implementation will follow with the refactoring of EmbedderDataSlots.
+    // The refactoring will regress the existing API, as the fast path will move
+    // to this new API.
+    // By using this temporary implementation, blink's ScriptState can already
+    // switch to the new API, and thereby switch from the old fast path to the
+    // new fast path directly.
+    return static_cast<T*>(GetAlignedPointerFromEmbedderData(
+        isolate, index, kEmbedderDataTypeTagDefault));
   }
 
   void SetAlignedPointerInEmbedderData(int index, void* value,
                                        EmbedderDataTypeTag tag);
 
-  /**
-   * Sets a 2-byte-aligned native pointer in the embedder data with the given
-   * index, growing the data as needed. Note that index 0 currently has a
-   * special meaning for Chrome's debugger.
-   */
-  V8_DEPRECATED(
-      "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
-      "instead.")
-  void SetAlignedPointerInEmbedderData(int index, void* value) {
+  template <typename T>
+    requires std::is_base_of_v<cppgc::GarbageCollected<T>, T>
+  void SetAlignedPointerInEmbedderData(int index, T* value,
+                                       CppHeapPointerTag tag) {
+    // TODO(ahaas): This is a temporary implementation, the actual
+    // implementation will follow with the refactoring of EmbedderDataSlots.
+    // The refactoring will regress the existing API, as the fast path will move
+    // to this new API.
+    // By using this temporary implementation, blink's ScriptState can already
+    // switch to the new API, and thereby switch from the old fast path to the
+    // new fast path directly.
     SetAlignedPointerInEmbedderData(index, value, kEmbedderDataTypeTagDefault);
   }
 
@@ -401,6 +405,14 @@ class V8_EXPORT Context : public Data {
   using AbortScriptExecutionCallback = void (*)(Isolate* isolate,
                                                 Local<Context> context);
   void SetAbortScriptExecution(AbortScriptExecutionCallback callback);
+
+  /**
+   * Set callback for getting high resolution timestamps in Temporal.
+   */
+  using TemporalHostSystemUTCEpochNanosecondsCallback =
+      int64_t (*)(Local<Context> context);
+  void SetTemporalHostSystemUTCEpochNanosecondsCallback(
+      TemporalHostSystemUTCEpochNanosecondsCallback callback);
 
   /**
    * Set or clear hooks to be invoked for promise lifecycle operations.

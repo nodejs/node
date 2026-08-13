@@ -147,7 +147,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
         DirectHandle<JSPrototype> prototype;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, prototype, JSProxy::GetPrototype(it.GetHolder<JSProxy>()));
-        if (IsNull(*prototype, isolate)) {
+        if (IsNull(*prototype)) {
           return ReadOnlyRoots(isolate).undefined_value();
         }
         return ObjectLookupAccessor(isolate, prototype, key, component);
@@ -191,7 +191,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
 }  // namespace
 
 // ES6 B.2.2.2 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__defineGetter__
 BUILTIN(ObjectDefineGetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);  // Receiver.
@@ -201,7 +201,7 @@ BUILTIN(ObjectDefineGetter) {
 }
 
 // ES6 B.2.2.3 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__defineSetter__
 BUILTIN(ObjectDefineSetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);  // Receiver.
@@ -211,7 +211,7 @@ BUILTIN(ObjectDefineSetter) {
 }
 
 // ES6 B.2.2.4 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__lookupGetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__lookupGetter__
 BUILTIN(ObjectLookupGetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);
@@ -220,7 +220,7 @@ BUILTIN(ObjectLookupGetter) {
 }
 
 // ES6 B.2.2.5 a.k.a.
-// https://tc39.github.io/ecma262/#sec-object.prototype.__lookupSetter__
+// https://tc39.es/ecma262/#sec-object.prototype.__lookupSetter__
 BUILTIN(ObjectLookupSetter) {
   HandleScope scope(isolate);
   DirectHandle<JSAny> object = args.at<JSAny>(0);
@@ -258,7 +258,7 @@ BUILTIN(ObjectPrototypeSetProto) {
   HandleScope scope(isolate);
   // 1. Let O be ? RequireObjectCoercible(this value).
   DirectHandle<Object> object = args.receiver();
-  if (IsNullOrUndefined(*object, isolate)) {
+  if (IsNullOrUndefined(*object)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -267,7 +267,7 @@ BUILTIN(ObjectPrototypeSetProto) {
 
   // 2. If Type(proto) is neither Object nor Null, return undefined.
   DirectHandle<Object> proto = args.at(1);
-  if (!IsNull(*proto, isolate) && !IsJSReceiver(*proto)) {
+  if (!IsNull(*proto) && !IsJSReceiver(*proto)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -351,7 +351,8 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
   DirectHandle<JSObject> descriptors =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  for (int i = 0; i < keys->length(); ++i) {
+  uint32_t keys_len = keys->ulength().value();
+  for (uint32_t i = 0; i < keys_len; ++i) {
     DirectHandle<Name> key(Cast<Name>(keys->get(i)), isolate);
     PropertyDescriptor descriptor;
     Maybe<bool> did_get_descriptor = JSReceiver::GetOwnPropertyDescriptor(

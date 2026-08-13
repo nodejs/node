@@ -66,7 +66,7 @@ fields:
     directly to the corresponding ninja / compile.py invocation. This
     list may contain entries that are *not* listed in the input (see
     the description of `additional_compile_targets` above and
-    [design_spec.md](the design spec) for how this works).
+    [the design spec](design_spec.md) for how this works).
   * `invalid_targets`: a list of any targets that were passed in
     either of the input lists that weren't actually found in the graph.
   * `test_targets`: the subset of the input `test_targets` that are
@@ -85,7 +85,7 @@ fields:
        `additional_compile_targets`. In this case the targets do not
        need to be pruned).
 
-See [design_spec.md](the design spec) for more details and examples; the
+See [the design spec](design_spec.md) for more details and examples; the
 differences can be subtle.  We won't even go into how the `targets` and
 `build_targets` differ from each other or from `compile_targets` and
 `test_targets`.
@@ -117,7 +117,7 @@ must be specified so that `mb` can figure out which config to use. The
 build/compile steps (and only with those builders).
 
 By default, MB will look for a bot config file under `//ios/build/bots` (see
-[design_spec.md](the design spec) for details of how the bot config files
+[the design spec](design_spec.md) for details of how the bot config files
 work). If no matching one is found, will then look in
 `//tools/mb/mb_config.pyl` to look up the config information, but you can
 specify a custom config file using the `-f/--config-file` flag.

@@ -316,20 +316,6 @@ Try to break custom preview..
         args : [
             [0] : {
                 type : string
-                value : Custom Formatter Failed: Uncaught 1
-            }
-        ]
-        executionContextId : <executionContextId>
-        timestamp : <timestamp>
-        type : error
-    }
-}
-{
-    method : Runtime.consoleAPICalled
-    params : {
-        args : [
-            [0] : {
-                type : string
                 value : Custom Formatter Failed: Uncaught 2
             }
         ]

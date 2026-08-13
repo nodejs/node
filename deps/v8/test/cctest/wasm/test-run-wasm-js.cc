@@ -107,7 +107,7 @@ WASM_COMPILED_EXEC_TEST(Run_CallJS_Add_jswrapped) {
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_i(), js_function};
-  WasmRunner<int, int> r(execution_tier, kWasmOrigin, &import);
+  WasmRunner<int, int> r(execution_tier, &import);
   uint32_t js_index = 0;
   r.Build({WASM_CALL_FUNCTION(js_index, WASM_LOCAL_GET(0))});
 
@@ -127,7 +127,7 @@ void RunJSSelectTest(TestExecutionTier tier, int which) {
     FunctionSig sig(1, num_params, types);
 
     ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(tier, kWasmOrigin, &import);
+    WasmRunner<void> r(tier, &import);
     uint32_t js_index = 0;
 
     WasmFunctionCompiler& t = r.NewFunction(&sig);
@@ -389,7 +389,7 @@ void RunJSSelectAlignTest(TestExecutionTier tier, int num_args,
   for (int which = 0; which < num_params; which++) {
     HandleScope scope(isolate);
     ManuallyImportedJSFunction import = CreateJSSelector(&sig, which);
-    WasmRunner<void> r(tier, kWasmOrigin, &import);
+    WasmRunner<void> r(tier, &import);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
     t.Build(base::VectorOf(code.data(), end));
 
@@ -492,7 +492,7 @@ void RunPickerTest(TestExecutionTier tier, bool indirect) {
 
   ManuallyImportedJSFunction import = {sigs.i_iii(), js_function};
 
-  WasmRunner<int32_t, int32_t> r(tier, kWasmOrigin, &import);
+  WasmRunner<int32_t, int32_t> r(tier, &import);
 
   const uint32_t js_index = 0;
   const int32_t left = -2;

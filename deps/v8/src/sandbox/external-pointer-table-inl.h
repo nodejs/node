@@ -8,6 +8,7 @@
 #include "src/sandbox/external-pointer-table.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/sandbox/check.h"
 #include "src/sandbox/compactible-external-entity-table-inl.h"
 #include "src/sandbox/external-pointer.h"
 
@@ -45,11 +46,17 @@ void ExternalPointerTableEntry::SetExternalPointer(Address value,
   DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
   DCHECK(payload_.load(std::memory_order_relaxed).ContainsPointer());
 
-  Payload new_payload(value, tag);
-  // Writing an entry currently also marks it as alive. In the future, we might
-  // want to drop this and instead use write barriers where necessary.
-  new_payload.SetMarkBit();
-  payload_.store(new_payload, std::memory_order_relaxed);
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  while (true) {
+    Payload new_payload(value, tag);
+    if (old_payload.HasMarkBitSet()) {
+      new_payload.SetMarkBit();
+    }
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      break;
+    }
+  }
   MaybeUpdateRawPointerForLSan(value);
 }
 
@@ -65,15 +72,19 @@ Address ExternalPointerTableEntry::ExchangeExternalPointer(
   // The 2nd most significant byte must be empty as we store the tag in int.
   DCHECK_EQ(0, value & kExternalPointerTagAndMarkbitMask);
 
-  Payload new_payload(value, tag);
-  // Writing an entry currently also marks it as alive. In the future, we might
-  // want to drop this and instead use write barriers where necessary.
-  new_payload.SetMarkBit();
-  Payload old_payload =
-      payload_.exchange(new_payload, std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsPointer());
-  MaybeUpdateRawPointerForLSan(value);
-  return old_payload.Untag(tag);
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  while (true) {
+    DCHECK(old_payload.ContainsPointer());
+    Payload new_payload(value, tag);
+    if (old_payload.HasMarkBitSet()) {
+      new_payload.SetMarkBit();
+    }
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      MaybeUpdateRawPointerForLSan(value);
+      return old_payload.Untag(tag);
+    }
+  }
 }
 
 ExternalPointerTag ExternalPointerTableEntry::GetExternalPointerTag() const {
@@ -109,21 +120,20 @@ std::optional<uint32_t> ExternalPointerTableEntry::GetNextFreelistEntryIndex()
   return payload.ExtractFreelistLink();
 }
 
-void ExternalPointerTableEntry::Mark() {
+bool ExternalPointerTableEntry::Mark() {
   auto old_payload = payload_.load(std::memory_order_relaxed);
-  DCHECK(old_payload.ContainsPointer());
-
-  auto new_payload = old_payload;
-  new_payload.SetMarkBit();
-
-  // We don't need to perform the CAS in a loop: if the new value is not equal
-  // to the old value, then the mutator must've just written a new value into
-  // the entry. This in turn must've set the marking bit already (see e.g.
-  // SetExternalPointer), so we don't need to do it again.
-  bool success = payload_.compare_exchange_strong(old_payload, new_payload,
-                                                  std::memory_order_relaxed);
-  DCHECK(success || old_payload.HasMarkBitSet());
-  USE(success);
+  while (true) {
+    DCHECK(old_payload.ContainsPointer());
+    if (old_payload.HasMarkBitSet()) {
+      return false;
+    }
+    auto new_payload = old_payload;
+    new_payload.SetMarkBit();
+    if (payload_.compare_exchange_weak(old_payload, new_payload,
+                                       std::memory_order_relaxed)) {
+      return true;
+    }
+  }
 }
 
 void ExternalPointerTableEntry::MakeEvacuationEntry(Address handle_location) {
@@ -264,51 +274,73 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
   uint32_t index = HandleToIndex(handle);
   DCHECK(space->Contains(index));
 
-  // If the table is being compacted and the entry is inside the evacuation
-  // area, then allocate and set up an evacuation entry for it.
-  MaybeCreateEvacuationEntry(space, index, handle_location);
+  // Bail out in case the entry was already marked.
+  if (!at(index).Mark()) {
+    return;
+  }
 
-  // Even if the entry is marked for evacuation, it still needs to be marked as
-  // alive as it may be visited during sweeping before being evacuation.
-  at(index).Mark();
+  // If the table is being compacted and the entry is inside the evacuation
+  // area, then allocate and set up an evacuation entry for it. Only one such
+  // entry must exist for any given `handle_location` which is ensured by
+  // properly bailing out on marked entries above.
+  MaybeCreateEvacuationEntry(space, index, handle_location);
 }
 
-void ExternalPointerTable::Evacuate(Space* from_space, Space* to_space,
-                                    ExternalPointerHandle handle,
-                                    Address handle_location,
-                                    EvacuateMarkMode mode) {
+ExternalPointerHandle ExternalPointerTable::Evacuate(
+    Space* from_space, Space* to_space, ExternalPointerHandle handle,
+    Address handle_location, EvacuateMarkMode mode) {
   DCHECK(from_space->BelongsTo(this));
   DCHECK(to_space->BelongsTo(this));
 
   CHECK(IsValidHandle(handle));
 
-  auto handle_ptr = reinterpret_cast<ExternalPointerHandle*>(handle_location);
-
-#ifdef DEBUG
-  // Unlike Mark(), we require that the mutator is stopped, so we can simply
-  // verify that the location stores the handle with a non-atomic load.
-  DCHECK_EQ(handle, *handle_ptr);
-#endif
-
   // If the handle is null, it doesn't have an EPT entry; no evacuation is
   // needed.
-  if (handle == kNullExternalPointerHandle) return;
+  if (handle == kNullExternalPointerHandle) return kNullExternalPointerHandle;
 
-  uint32_t from_index = HandleToIndex(handle);
-  DCHECK(from_space->Contains(from_index));
-  uint32_t to_index = AllocateEntry(to_space);
-
-  at(from_index).Evacuate(at(to_index), mode);
-  ExternalPointerHandle new_handle = IndexToHandle(to_index);
-
-  if (Address addr = at(to_index).ExtractManagedResourceOrNull()) {
-    ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
-    DCHECK_EQ(resource->ept_entry_, handle);
-    resource->ept_entry_ = new_handle;
+  const uint32_t from_index = HandleToIndex(handle);
+  // The handle may legitimately already point into old space.
+  if (!from_space->Contains(from_index)) {
+    return handle;
   }
 
-  // Update slot to point to new handle.
-  base::AsAtomic32::Relaxed_Store(handle_ptr, new_handle);
+  auto old_payload = at(from_index).GetRawPayload();
+  SBXCHECK(old_payload.ContainsPointer());
+
+  const uint32_t to_index = AllocateEntry(to_space);
+  ExternalPointerHandle new_handle = IndexToHandle(to_index);
+
+  ExternalPointerTableEntry::Payload zapped_payload(
+      kNullAddress, kExternalPointerZappedEntryTag);
+  // In legitimate execution, handles and slots are 1:1, so exactly one thread
+  // evacuates this entry. Atomically claim and zap the young entry. If multiple
+  // handles point to the same entry (due to sandbox heap corruption), the CAS
+  // fails and safely traps via SBXCHECK.
+  SBXCHECK(at(from_index)
+               .payload_.compare_exchange_strong(old_payload, zapped_payload,
+                                                 std::memory_order_acq_rel));
+  switch (mode) {
+    case EvacuateMarkMode::kTransferMark:
+      break;
+    case EvacuateMarkMode::kLeaveUnmarked:
+      DCHECK(!old_payload.HasMarkBitSet());
+      break;
+    case EvacuateMarkMode::kClearMark:
+      DCHECK(old_payload.HasMarkBitSet());
+      old_payload.ClearMarkBit();
+      break;
+  }
+  at(to_index).SetRawPayload(old_payload);
+#if defined(LEAK_SANITIZER)
+  at(to_index).raw_pointer_for_lsan_ = at(from_index).raw_pointer_for_lsan_;
+#endif
+  if (Address addr = at(to_index).ExtractManagedResourceOrNull()) {
+    ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
+    resource->ept_entry_ = new_handle;
+  }
+  base::AsAtomic32::Relaxed_Store(
+      reinterpret_cast<ExternalPointerHandle*>(handle_location), new_handle);
+  return new_handle;
 }
 
 // static
@@ -405,6 +437,42 @@ void ExternalPointerTable::FreeManagedResourceIfPresent(uint32_t entry_index) {
                    resource->ept_entry_ == IndexToHandle(entry_index));
     resource->ept_entry_ = kNullExternalPointerHandle;
   }
+}
+
+void ExternalPointerTable::RelocateManagedResourceIfPresent(
+    uint32_t old_index, uint32_t new_index) {
+  if (Address addr = at(new_index).ExtractManagedResourceOrNull()) {
+    ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
+    DCHECK_EQ(resource->ept_entry_, IndexToHandle(old_index));
+    resource->ept_entry_ = IndexToHandle(new_index);
+  }
+}
+
+inline bool ExternalEntityTableCompactionTraits<
+    ExternalPointerTableEntry>::IsValidHandle(Handle handle) {
+  return ExternalPointerTable::IsValidHandle(handle);
+}
+inline uint32_t ExternalEntityTableCompactionTraits<
+    ExternalPointerTableEntry>::HandleToIndex(Handle handle) {
+  return ExternalPointerTable::HandleToIndex(handle);
+}
+inline ExternalPointerHandle ExternalEntityTableCompactionTraits<
+    ExternalPointerTableEntry>::IndexToHandle(uint32_t index) {
+  return ExternalPointerTable::IndexToHandle(index);
+}
+template <typename Table>
+void ExternalEntityTableCompactionTraits<ExternalPointerTableEntry>::FreeEntry(
+    Table* base_table, uint32_t index) {
+  auto* table = static_cast<ExternalPointerTable*>(base_table);
+  table->FreeManagedResourceIfPresent(index);
+}
+template <typename Table>
+void ExternalEntityTableCompactionTraits<
+    ExternalPointerTableEntry>::RelocateAuxiliaryEntryData(Table* base_table,
+                                                           uint32_t old_index,
+                                                           uint32_t new_index) {
+  auto* table = static_cast<ExternalPointerTable*>(base_table);
+  table->RelocateManagedResourceIfPresent(old_index, new_index);
 }
 
 }  // namespace internal

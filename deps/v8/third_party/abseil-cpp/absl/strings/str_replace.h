@@ -160,7 +160,7 @@ template <typename StrToStrMapping>
 std::vector<ViableSubstitution> FindSubstitutions(
     absl::string_view s, const StrToStrMapping& replacements) {
   std::vector<ViableSubstitution> subs;
-  subs.reserve(replacements.size());
+  subs.reserve(std::size(replacements));
 
   for (const auto& rep : replacements) {
     using std::get;

@@ -52,6 +52,7 @@ class DataViewLoweringReducer : public Next {
       case kExternalBigUint64Array:
         return __ Word64ReverseBytes(value);
     }
+    UNREACHABLE();
   }
 
   OpIndex REDUCE(LoadDataViewElement)(V<Object> object, V<WordPtr> storage,

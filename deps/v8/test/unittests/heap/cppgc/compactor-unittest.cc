@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/compactor.h"
+#include "src/heap/cppgc-internal/compactor.h"
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/custom-space.h"
 #include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
-#include "src/heap/cppgc/garbage-collector.h"
-#include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap-page.h"
-#include "src/heap/cppgc/marker.h"
-#include "src/heap/cppgc/stats-collector.h"
+#include "src/heap/cppgc-internal/garbage-collector.h"
+#include "src/heap/cppgc-internal/heap-object-header.h"
+#include "src/heap/cppgc-internal/heap-page.h"
+#include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -47,8 +47,9 @@ struct CompactableHolder
     : public GarbageCollected<CompactableHolder<kNumObjects>> {
  public:
   explicit CompactableHolder(cppgc::AllocationHandle& allocation_handle) {
-    for (int i = 0; i < kNumObjects; ++i)
+    for (int i = 0; i < kNumObjects; ++i) {
       objects[i] = MakeGarbageCollected<CompactableGCed>(allocation_handle);
+    }
   }
 
   void Trace(Visitor* visitor) const {

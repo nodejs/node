@@ -18,6 +18,10 @@
 #include "src/libplatform/default-job.h"
 #include "src/libplatform/default-worker-threads-task-runner.h"
 
+#if defined(V8_ENABLE_PARTITION_ALLOC)
+#include "third_party/partition_alloc/src/partition_alloc/partition_address_space.h"
+#endif
+
 namespace v8 {
 namespace platform {
 
@@ -287,6 +291,14 @@ v8::ThreadIsolatedAllocator* DefaultPlatform::GetThreadIsolatedAllocator() {
     return &thread_isolated_allocator_;
   }
   return nullptr;
+}
+
+size_t DefaultPlatform::GetZeroSegmentSize() {
+#if defined(V8_ENABLE_PARTITION_ALLOC)
+  return partition_alloc::internal::PartitionAddressSpace::GetZeroSegmentSize();
+#else
+  return 0;
+#endif
 }
 
 void DefaultPlatform::NotifyIsolateShutdown(Isolate* isolate) {

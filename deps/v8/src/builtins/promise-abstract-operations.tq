@@ -40,7 +40,7 @@ extern transitioning builtin EnqueueMicrotask(Context, Microtask): Undefined;
 
 macro ExtractHandlerContextInternal(
     implicit context: Context)(
-    handler: Callable|Undefined): Context labels NotFound {
+    handler: Callable|JSGeneratorObject|Undefined): Context labels NotFound {
   let iter: JSAny = handler;
   while (true) {
     typeswitch (iter) {
@@ -53,6 +53,9 @@ macro ExtractHandlerContextInternal(
       case (f: JSFunction): {
         return f.context;
       }
+      case (g: JSGeneratorObject): {
+        return g.context;
+      }
       case (JSAny): {
         break;
       }
@@ -62,7 +65,8 @@ macro ExtractHandlerContextInternal(
 }
 
 macro ExtractHandlerContext(
-    implicit context: Context)(handler: Callable|Undefined): Context {
+    implicit context: Context)(
+    handler: Callable|JSGeneratorObject|Undefined): Context {
   try {
     return ExtractHandlerContextInternal(handler) otherwise NotFound;
   } label NotFound deferred {
@@ -71,8 +75,8 @@ macro ExtractHandlerContext(
 }
 
 macro ExtractHandlerContext(
-    implicit context: Context)(primary: Callable|Undefined,
-    secondary: Callable|Undefined): Context {
+    implicit context: Context)(primary: Callable|JSGeneratorObject|Undefined,
+    secondary: Callable|JSGeneratorObject|Undefined): Context {
   try {
     return ExtractHandlerContextInternal(primary) otherwise NotFound;
   } label NotFound deferred {
@@ -85,8 +89,8 @@ macro ExtractHandlerContext(
 transitioning macro MorphAndEnqueuePromiseReaction(
     implicit context: Context)(promiseReaction: PromiseReaction,
     argument: JSAny, reactionType: constexpr PromiseReactionType): void {
-  let primaryHandler: Callable|Undefined;
-  let secondaryHandler: Callable|Undefined;
+  let primaryHandler: Callable|JSGeneratorObject|Undefined;
+  let secondaryHandler: Callable|JSGeneratorObject|Undefined;
   if constexpr (reactionType == kPromiseReactionFulfill) {
     primaryHandler = promiseReaction.fulfill_handler;
     secondaryHandler = promiseReaction.reject_handler;
@@ -150,6 +154,19 @@ transitioning macro MorphAndEnqueuePromiseReaction(
 transitioning macro TriggerPromiseReactions(
     implicit context: Context)(reactions: Zero|PromiseReaction,
     argument: JSAny, reactionType: constexpr PromiseReactionType): void {
+  // Fast path for 0 or 1 reaction.
+  typeswitch (reactions) {
+    case (Zero): {
+      return;
+    }
+    case (reaction: PromiseReaction): {
+      if (TaggedEqual(reaction.next, kZero)) {
+        MorphAndEnqueuePromiseReaction(reaction, argument, reactionType);
+        return;
+      }
+    }
+  }
+
   // We need to reverse the {reactions} here, since we record them on the
   // JSPromise in the reverse order.
   let current = reactions;

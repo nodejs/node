@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbofan --turbolev --turbolev-future --allow-natives-syntax
+// Flags: --turbofan --turbolev --wasm-in-js-inlining-wrapper
+// Flags: --allow-natives-syntax
 // Flags: --trace-turbo-filter=jsFunc --trace-turbo-graph --no-stress-maglev
+// Flags: --no-turbolev-non-eager-loop-peeling
 
 d8.file.execute("test/mjsunit/mjsunit.js");
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -39,11 +41,12 @@ m.val.value = 1000;
 jsFunc();
 assertEquals(0, m.val.value);
 
-// Expectation: In the TurboshaftOptimize phase there is a call to a wasm
-// function whose output directly goes into the branch instruction needed for
-// the loop. There is no other usage of the DidntThrow output of the wasm call.
+// Expectation: In the TurboshaftMemoryOptimization phase there is a call to a
+// wasm function whose output directly goes into the branch instruction needed
+// for the loop. There is no other usage of the DidntThrow output of the wasm
+// call.
 
-// CHECK-LABEL: ----- V8.TFTurboshaftOptimize -----
+// CHECK-LABEL: ----- V8.TFTurboshaftMemoryOptimization -----
 // CHECK: LOOP B{{[0-9]+}}
 // CHECK: [[Call:[0-9]+]]: Call{{.*}}WasmFunctionIndirect
 // CHECK: [[DidntThrow:[0-9]+]]: DidntThrow(#[[Call]])

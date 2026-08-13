@@ -1,0 +1,18 @@
+Checks that restarting an OSR-optimized frame works.
+Paused at (after evaluation):
+function foo() {
+  #debugger;
+}
+
+Pause stack:
+  foo:2 (canBeRestarted = true)
+  osr_caller:9 (canBeRestarted = true)
+
+Restarting osr_caller frame...
+Restarting function "osr_caller" ...
+Paused at (after restart):
+function osr_caller() {
+  for (let i = #0; i < 1000; i++) {
+    if (i == 10) %OptimizeOsr();
+
+Resuming...

@@ -1,0 +1,3 @@
+Tests that Profiler domain is not available in untrusted session.
+console.profile in untrusted session did not crash.
+Error: Called non-existent method. 'Profiler.enable' wasn't found code: -32601

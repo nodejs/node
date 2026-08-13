@@ -10,17 +10,27 @@
 // This file is loaded before each correctness test cases and won't get
 // minimized.
 
-// Mock Math.pow due to precision differences between 32 and 64 bits.
+// Mock Math function due to precision differences between 32 and 64 bits.
+// Math.pow:
 // https://crbug.com/380147861
 // https://crbug.com/380322452
 // https://crbug.com/381129314
 // https://crbug.com/417090728
+// Math.tanh:
+// https://crbug.com/493841436
 (function() {
-  const origMathPow = Math.pow;
   const origNumber = Number;
   const origToExponential = Number.prototype.toExponential;
+
+  const origMathPow = Math.pow;
   Math.pow = function(a, b) {
     let result = origMathPow(a, b);
+    return origNumber(origToExponential.call(result, 10));
+  }
+
+  const origMathTanh = Math.tanh;
+  Math.tanh = function(a) {
+    let result = origMathTanh(a);
     return origNumber(origToExponential.call(result, 10));
   }
 })();

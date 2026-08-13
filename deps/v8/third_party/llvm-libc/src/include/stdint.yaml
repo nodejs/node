@@ -1,0 +1,130 @@
+header: stdint.h
+standards:
+  - stdc
+macros:
+  - macro_name: INT8_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT16_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT32_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT64_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT8_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT16_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT32_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT64_MIN
+    macro_header: stdint-macros.h
+  - macro_name: UINT8_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT16_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT32_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT64_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST8_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST16_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST32_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST64_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST8_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST16_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST32_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT_LEAST64_MIN
+    macro_header: stdint-macros.h
+  - macro_name: UINT_LEAST8_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT_LEAST16_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT_LEAST32_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT_LEAST64_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST8_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST16_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST32_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST64_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST8_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST16_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST32_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT_FAST64_MIN
+    macro_header: stdint-macros.h
+  - macro_name: UINT_FAST8_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT_FAST16_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT_FAST32_MAX
+    macro_header: stdint-macros.h
+  - macro_name: UINT_FAST64_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INTPTR_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INTPTR_MIN
+    macro_header: stdint-macros.h
+  - macro_name: UINTPTR_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INTMAX_MAX
+    macro_header: stdint-macros.h
+  - macro_name: INTMAX_MIN
+    macro_header: stdint-macros.h
+  - macro_name: UINTMAX_MAX
+    macro_header: stdint-macros.h
+  - macro_name: PTRDIFF_MAX
+    macro_header: stdint-macros.h
+  - macro_name: PTRDIFF_MIN
+    macro_header: stdint-macros.h
+  - macro_name: SIG_ATOMIC_MAX
+    macro_header: stdint-macros.h
+  - macro_name: SIG_ATOMIC_MIN
+    macro_header: stdint-macros.h
+  - macro_name: SIZE_MAX
+    macro_header: stdint-macros.h
+  - macro_name: WCHAR_MAX
+    macro_header: stdint-macros.h
+  - macro_name: WCHAR_MIN
+    macro_header: stdint-macros.h
+  - macro_name: WINT_MAX
+    macro_header: stdint-macros.h
+  - macro_name: WINT_MIN
+    macro_header: stdint-macros.h
+  - macro_name: INT8_C
+    macro_header: stdint-macros.h
+  - macro_name: INT16_C
+    macro_header: stdint-macros.h
+  - macro_name: INT32_C
+    macro_header: stdint-macros.h
+  - macro_name: INT64_C
+    macro_header: stdint-macros.h
+  - macro_name: UINT8_C
+    macro_header: stdint-macros.h
+  - macro_name: UINT16_C
+    macro_header: stdint-macros.h
+  - macro_name: UINT32_C
+    macro_header: stdint-macros.h
+  - macro_name: UINT64_C
+    macro_header: stdint-macros.h
+  - macro_name: INTMAX_C
+    macro_header: stdint-macros.h
+  - macro_name: UINTMAX_C
+    macro_header: stdint-macros.h
+types: []
+enums: []
+objects: []
+functions: []

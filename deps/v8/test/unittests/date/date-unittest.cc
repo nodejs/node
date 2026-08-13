@@ -50,10 +50,11 @@ class DateCacheMock : public DateCache {
  private:
   Rule* FindRuleFor(int year, int month, int day, int time_in_day_sec) {
     Rule* result = nullptr;
-    for (int i = 0; i < rules_count_; i++)
+    for (int i = 0; i < rules_count_; i++) {
       if (Match(&rules_[i], year, month, day, time_in_day_sec)) {
         result = &rules_[i];
       }
+    }
     return result;
   }
 
@@ -64,13 +65,15 @@ class DateCacheMock : public DateCache {
     int start_day = ComputeRuleDay(year, rule->start_month, rule->start_day);
     if (rule->start_month == month && start_day > day) return false;
     if (rule->start_month == month && start_day == day &&
-        2 * 3600 > time_in_day_sec)
+        2 * 3600 > time_in_day_sec) {
       return false;
+    }
     int end_day = ComputeRuleDay(year, rule->end_month, rule->end_day);
     if (rule->end_month == month && end_day < day) return false;
     if (rule->end_month == month && end_day == day &&
-        2 * 3600 <= time_in_day_sec)
+        2 * 3600 <= time_in_day_sec) {
       return false;
+    }
     return true;
   }
 

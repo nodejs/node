@@ -45,6 +45,8 @@ class Variable final : public ZoneObject {
     // Var declared variables never need initialization.
     DCHECK(!(mode == VariableMode::kVar &&
              initialization_flag == kNeedsInitialization));
+    DCHECK_IMPLIES(mode == VariableMode::kConst,
+                   maybe_assigned_flag == kNotAssigned);
     DCHECK_IMPLIES(is_static_flag == IsStaticFlag::kStatic,
                    IsImmutableLexicalOrPrivateVariableMode(mode));
   }
@@ -61,7 +63,7 @@ class Variable final : public ZoneObject {
   // parameter initializers.
   void set_scope(Scope* scope) { scope_ = scope; }
 
-  Handle<String> name() const { return name_->string(); }
+  Handle<InternalizedString> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return VariableModeField::decode(bit_field_); }
   void set_mode(VariableMode mode) {
@@ -167,6 +169,20 @@ class Variable final : public ZoneObject {
 
     // Otherwise, defer to the flag set when this Variable was constructed.
     return initialization_flag() == kNeedsInitialization;
+  }
+
+  enum class HoleCheckState : uint8_t {
+    kUncached = 0,
+    kForce = 1,
+    kSkip = 2,
+  };
+
+  HoleCheckState hole_check_state() const {
+    return HoleCheckStateField::decode(hole_check_analysis_bit_field_);
+  }
+  void set_hole_check_state(HoleCheckState state) {
+    hole_check_analysis_bit_field_ =
+        HoleCheckStateField::update(hole_check_analysis_bit_field_, state);
   }
 
   enum ForceHoleInitializationFlag {
@@ -361,6 +377,8 @@ class Variable final : public ZoneObject {
   using HoleCheckBitmapIndexField = base::BitField16<uint8_t, 0, 8>;
   using ForceHoleInitializationFlagField =
       HoleCheckBitmapIndexField::Next<ForceHoleInitializationFlag, 2>;
+  using HoleCheckStateField =
+      ForceHoleInitializationFlagField::Next<HoleCheckState, 2>;
 
   Variable** next() { return &next_; }
   friend List;

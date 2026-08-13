@@ -132,9 +132,9 @@ class PerThreadSemTest : public testing::Test {
     return PerThreadSem::Wait(t);
   }
 
-  // convenience overload
+  // absl::Time overload, absolute expiry
   static bool Wait(absl::Time t) {
-    return Wait(KernelTimeout(t));
+    return PerThreadSem::WaitAbsolute(t);
   }
 
   static void Tick(base_internal::ThreadIdentity *identity) {

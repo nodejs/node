@@ -19,6 +19,7 @@
 namespace v8::internal {
 
 // static
+template <PretenuringHandler::FindMementoMode mode>
 void PretenuringHandler::UpdateAllocationSite(
     Heap* heap, Tagged<Map> map, Tagged<HeapObject> object, int object_size,
     PretenuringFeedbackMap* pretenuring_feedback) {
@@ -37,7 +38,7 @@ void PretenuringHandler::UpdateAllocationSite(
     return;
   }
   Tagged<AllocationMemento> memento_candidate =
-      FindAllocationMemento<kForGC>(heap, map, object, object_size);
+      FindAllocationMemento<mode>(heap, map, object, object_size);
   if (memento_candidate.is_null()) {
     return;
   }
@@ -51,14 +52,15 @@ void PretenuringHandler::UpdateAllocationSite(
 }
 
 // static
+template <PretenuringHandler::FindMementoMode mode>
 void PretenuringHandler::UpdateAllocationSite(
     Heap* heap, Tagged<Map> map, Tagged<HeapObject> object,
     SafeHeapObjectSize object_size,
     PretenuringFeedbackMap* pretenuring_feedback) {
   // TODO(425150995): We should have uint versions for allocation to avoid
   // introducing OOBs via sign-extended ints along the way.
-  UpdateAllocationSite(heap, map, object, object_size.value(),
-                       pretenuring_feedback);
+  UpdateAllocationSite<mode>(heap, map, object, object_size.value(),
+                             pretenuring_feedback);
 }
 
 // static
@@ -76,11 +78,12 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   // For uses from within the GC, the size here may actually change when e.g.
   // updating mementos during marking in the young generation collector. This is
   // not an issue with Scavenger that stops the mutator.
-  DCHECK_IMPLIES(mode != FindMementoMode::kForGC || !v8_flags.minor_ms,
-                 object_size == object->SizeFromMap(map));
+  DCHECK_IMPLIES(
+      mode != FindMementoMode::kForConcurrentGC || !v8_flags.minor_ms,
+      object_size == object->SizeFromMap(map));
   // For configurations where object size changes, we can check that it only
   // shinks in case the sizes are not matching.
-  DCHECK_IMPLIES(mode == FindMementoMode::kForGC && v8_flags.minor_ms,
+  DCHECK_IMPLIES(mode == FindMementoMode::kForConcurrentGC && v8_flags.minor_ms,
                  object_size >= object->SizeFromMap(map));
   Address object_address = object.address();
   Address memento_address =
@@ -93,7 +96,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
 
   // If the page is being swept, treat it as if the memento was already swept
   // and bail out.
-  if constexpr (mode != FindMementoMode::kForGC) {
+  if constexpr (mode == FindMementoMode::kForRuntime) {
     MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
     NormalPage* object_page = SbxCast<NormalPage>(object_chunk->Metadata());
     if (!object_page->SweepingDone()) {
@@ -129,6 +132,10 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   switch (mode) {
     case kForGC:
       return memento_candidate;
+    case kForConcurrentGC:
+      // During concurrent marking, the memento can reside in uninitialized LAB
+      // space, similar to the runtime case.
+      [[fallthrough]];
     case kForRuntime:
       if (memento_candidate.is_null()) return {};
       // Either the object is the last object in the new space, or there is
@@ -143,8 +150,6 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
         return memento_candidate;
       }
       return {};
-    default:
-      UNREACHABLE();
   }
   UNREACHABLE();
 }
