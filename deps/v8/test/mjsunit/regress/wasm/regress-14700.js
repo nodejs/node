@@ -6,7 +6,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
 let $struct0 = builder.addStruct([makeField(kWasmI32, true)]);
-let $array0 = builder.addArray(wasmRefType($struct0), true);
+let $array0 = builder.addArray(wasmRefType($struct0));
 
 builder.addFunction("main", kSig_i_v).exportFunc()
   .addLocals(wasmRefType($struct0), 1)

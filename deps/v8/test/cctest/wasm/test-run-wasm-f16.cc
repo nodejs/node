@@ -19,7 +19,7 @@ namespace wasm {
 namespace test_run_wasm_f16 {
 
 WASM_EXEC_TEST(F16Load) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<float> r(execution_tier);
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(4);
   r.Build({WASM_F16_LOAD_MEM(WASM_I32V_1(4))});
@@ -28,7 +28,7 @@ WASM_EXEC_TEST(F16Load) {
 }
 
 WASM_EXEC_TEST(F16Store) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t> r(execution_tier);
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(4);
   r.Build({WASM_F16_STORE_MEM(WASM_I32V_1(4), WASM_F32(2.75)), WASM_ZERO});
@@ -37,10 +37,10 @@ WASM_EXEC_TEST(F16Store) {
 }
 
 WASM_EXEC_TEST(F16x8Splat) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, float> r(execution_tier);
   // Set up a global to hold output vector.
-  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   uint8_t param1 = 0;
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(param1))),
            WASM_ONE});
@@ -48,22 +48,23 @@ WASM_EXEC_TEST(F16x8Splat) {
   FOR_FLOAT32_INPUTS(x) {
     r.Call(x);
     uint16_t expected = fp16_ieee_from_fp32_value(x);
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 8; i++) {
-      uint16_t actual = LANE(g, i);
+      uint16_t actual_lane = LANE(actual.to_i16x8(), i);
       if (std::isnan(x)) {
-        CHECK(isnan(actual));
+        CHECK(isnan(actual_lane));
       } else {
-        CHECK_EQ(actual, expected);
+        CHECK_EQ(actual_lane, expected);
       }
     }
   }
 }
 
 WASM_EXEC_TEST(F16x8ReplaceLane) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t> r(execution_tier);
   // Set up a global to hold output vector.
-  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   // Build function to replace each lane with its (FP) index.
   r.Build({WASM_SIMD_F16x8_SPLAT(WASM_F32(3.14159f)),
            WASM_F32(0.0f),
@@ -95,20 +96,25 @@ WASM_EXEC_TEST(F16x8ReplaceLane) {
            WASM_ONE});
 
   r.Call();
+  Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
   for (int i = 0; i < 8; i++) {
-    CHECK_EQ(fp16_ieee_from_fp32_value(i), LANE(g, i));
+    CHECK_EQ(fp16_ieee_from_fp32_value(static_cast<float>(i)),
+             LANE(actual.to_i16x8(), i));
   }
 }
 
 WASM_EXEC_TEST(F16x8ExtractLane) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t> r(execution_tier);
-  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
-  float* globals[8];
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* globals[8];
+  std::array<int16_t, 8> g_val;
   for (int i = 0; i < 8; i++) {
-    LANE(g, i) = fp16_ieee_from_fp32_value(i);
-    globals[i] = r.builder().AddGlobal<float>(kWasmF32);
+    LANE(g_val, i) =
+        static_cast<int16_t>(fp16_ieee_from_fp32_value(static_cast<float>(i)));
+    globals[i] = r.builder().AddGlobal(kWasmF32);
   }
+  r.builder().WriteGlobal(*g, WasmValue(Simd128(g_val)));
 
   r.Build(
       {WASM_GLOBAL_SET(1, WASM_SIMD_F16x8_EXTRACT_LANE(0, WASM_GLOBAL_GET(0))),
@@ -123,7 +129,7 @@ WASM_EXEC_TEST(F16x8ExtractLane) {
 
   r.Call();
   for (int i = 0; i < 8; i++) {
-    CHECK_EQ(*globals[i], i);
+    CHECK_EQ(r.builder().ReadGlobal(*globals[i]).to_f32(), i);
   }
 }
 
@@ -141,7 +147,7 @@ WASM_EXEC_TEST(F16x8ExtractLane) {
     return fp16_ieee_from_fp32_value(COp(fp16_ieee_to_fp32_value(a)));     \
   }                                                                        \
   WASM_EXEC_TEST(F16x8##WasmName) {                                        \
-    i::v8_flags.experimental_wasm_fp16 = true;                             \
+    i::v8_flags.wasm_fp16 = true;                                          \
     RunF16x8UnOpTest(execution_tier, kExprF16x8##WasmName, WasmName##F16); \
   }
 
@@ -163,7 +169,7 @@ UN_OP_LIST(TEST_UN_OP)
     return fp16_ieee_to_fp32_value(a) COp fp16_ieee_to_fp32_value(b) ? -1 : 0; \
   }                                                                            \
   WASM_EXEC_TEST(F16x8##WasmName) {                                            \
-    i::v8_flags.experimental_wasm_fp16 = true;                                 \
+    i::v8_flags.wasm_fp16 = true;                                              \
     RunF16x8CompareOpTest(execution_tier, kExprF16x8##WasmName, WasmName);     \
   }
 
@@ -192,7 +198,7 @@ float Mul(float a, float b) { return a * b; }
         COp(fp16_ieee_to_fp32_value(a), fp16_ieee_to_fp32_value(b)));       \
   }                                                                         \
   WASM_EXEC_TEST(F16x8##WasmName) {                                         \
-    i::v8_flags.experimental_wasm_fp16 = true;                              \
+    i::v8_flags.wasm_fp16 = true;                                           \
     RunF16x8BinOpTest(execution_tier, kExprF16x8##WasmName, WasmName##F16); \
   }
 
@@ -202,11 +208,11 @@ BIN_OP_LIST(TEST_BIN_OP)
 #undef BIN_OP_LIST
 
 WASM_EXEC_TEST(F16x8ConvertI16x8) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // Create two output vectors to hold signed and unsigned results.
-  uint16_t* g0 = r.builder().AddGlobal<uint16_t>(kWasmS128);
-  uint16_t* g1 = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* g1 = r.builder().AddGlobal(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
   uint8_t value = 0;
   uint8_t temp1 = r.AllocateLocal(kWasmS128);
@@ -219,12 +225,14 @@ WASM_EXEC_TEST(F16x8ConvertI16x8) {
 
   FOR_INT16_INPUTS(x) {
     r.Call(x);
-    uint16_t expected_signed = fp16_ieee_from_fp32_value(x);
+    uint16_t expected_signed = fp16_ieee_from_fp32_value(static_cast<float>(x));
     uint16_t expected_unsigned =
-        fp16_ieee_from_fp32_value(static_cast<uint16_t>(x));
+        fp16_ieee_from_fp32_value(static_cast<float>(static_cast<uint16_t>(x)));
+    Simd128 actual0 = r.builder().ReadGlobal(*g0).to_s128();
+    Simd128 actual1 = r.builder().ReadGlobal(*g1).to_s128();
     for (int i = 0; i < 8; i++) {
-      CHECK_EQ(expected_signed, LANE(g0, i));
-      CHECK_EQ(expected_unsigned, LANE(g1, i));
+      CHECK_EQ(expected_signed, ULANE(actual0.to_i16x8(), i));
+      CHECK_EQ(expected_unsigned, LANE(actual1.to_i16x8(), i));
     }
   }
 }
@@ -245,11 +253,11 @@ int16_t ConvertToInt(uint16_t f16, bool unsigned_result) {
 
 // Tests both signed and unsigned conversion.
 WASM_EXEC_TEST(I16x8ConvertF16x8) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, float> r(execution_tier);
   // Create two output vectors to hold signed and unsigned results.
-  int16_t* g0 = r.builder().AddGlobal<int16_t>(kWasmS128);
-  int16_t* g1 = r.builder().AddGlobal<int16_t>(kWasmS128);
+  const WasmGlobal* g0 = r.builder().AddGlobal(kWasmS128);
+  const WasmGlobal* g1 = r.builder().AddGlobal(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
   uint8_t value = 0;
   uint8_t temp1 = r.AllocateLocal(kWasmS128);
@@ -264,19 +272,21 @@ WASM_EXEC_TEST(I16x8ConvertF16x8) {
     if (!PlatformCanRepresent(x)) continue;
     r.Call(x);
     int16_t expected_signed = ConvertToInt(fp16_ieee_from_fp32_value(x), false);
-    int16_t expected_unsigned =
+    uint16_t expected_unsigned =
         ConvertToInt(fp16_ieee_from_fp32_value(x), true);
+    Simd128 actual0 = r.builder().ReadGlobal(*g0).to_s128();
+    Simd128 actual1 = r.builder().ReadGlobal(*g1).to_s128();
     for (int i = 0; i < 8; i++) {
-      CHECK_EQ(expected_signed, LANE(g0, i));
-      CHECK_EQ(expected_unsigned, LANE(g1, i));
+      CHECK_EQ(expected_signed, LANE(actual0.to_i16x8(), i));
+      CHECK_EQ(expected_unsigned, ULANE(actual1.to_i16x8(), i));
     }
   }
 }
 
 WASM_EXEC_TEST(F16x8DemoteF32x4Zero) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, float> r(execution_tier);
-  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
                0, WASM_SIMD_UNOP(kExprF16x8DemoteF32x4Zero,
                                  WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0)))),
@@ -285,21 +295,22 @@ WASM_EXEC_TEST(F16x8DemoteF32x4Zero) {
   FOR_FLOAT32_INPUTS(x) {
     r.Call(x);
     uint16_t expected = fp16_ieee_from_fp32_value(x);
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 4; i++) {
-      uint16_t actual = LANE(g, i);
-      CheckFloat16LaneResult(x, x, expected, actual, true);
+      uint16_t actual_lane = LANE(actual.to_i16x8(), i);
+      CheckFloat16LaneResult(x, x, expected, actual_lane, true);
     }
     for (int i = 4; i < 8; i++) {
-      uint16_t actual = LANE(g, i);
-      CheckFloat16LaneResult(x, x, 0, actual, true);
+      uint16_t actual_lane = LANE(actual.to_i16x8(), i);
+      CheckFloat16LaneResult(x, x, 0, actual_lane, true);
     }
   }
 }
 
 WASM_EXEC_TEST(F16x8DemoteF64x2Zero) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, double> r(execution_tier);
-  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
                0, WASM_SIMD_UNOP(kExprF16x8DemoteF64x2Zero,
                                  WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(0)))),
@@ -308,21 +319,22 @@ WASM_EXEC_TEST(F16x8DemoteF64x2Zero) {
   FOR_FLOAT64_INPUTS(x) {
     r.Call(x);
     uint16_t expected = DoubleToFloat16(x);
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 2; i++) {
-      uint16_t actual = LANE(g, i);
-      CheckFloat16LaneResult(x, x, expected, actual, true);
+      uint16_t actual_lane = LANE(actual.to_i16x8(), i);
+      CheckFloat16LaneResult(x, x, expected, actual_lane, true);
     }
     for (int i = 2; i < 8; i++) {
-      uint16_t actual = LANE(g, i);
-      CheckFloat16LaneResult(x, x, 0, actual, true);
+      uint16_t actual_lane = LANE(actual.to_i16x8(), i);
+      CheckFloat16LaneResult(x, x, 0, actual_lane, true);
     }
   }
 }
 
 WASM_EXEC_TEST(F32x4PromoteLowF16x8) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, float> r(execution_tier);
-  float* g = r.builder().AddGlobal<float>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   r.Build({WASM_GLOBAL_SET(
                0, WASM_SIMD_UNOP(kExprF32x4PromoteLowF16x8,
                                  WASM_SIMD_F16x8_SPLAT(WASM_LOCAL_GET(0)))),
@@ -331,9 +343,10 @@ WASM_EXEC_TEST(F32x4PromoteLowF16x8) {
   FOR_FLOAT32_INPUTS(x) {
     r.Call(x);
     float expected = fp16_ieee_to_fp32_value(fp16_ieee_from_fp32_value(x));
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 4; i++) {
-      float actual = LANE(g, i);
-      CheckFloatResult(x, x, expected, actual, true);
+      float actual_lane = LANE(actual.to_f32x4(), i);
+      CheckFloatResult(x, x, expected, actual_lane, true);
     }
   }
 }
@@ -386,10 +399,10 @@ base::Vector<const FMOperation> qfms_vector() {
 }
 
 WASM_EXEC_TEST(F16x8Qfma) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold output.
-  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   r.Build(
       {WASM_GLOBAL_SET(0, WASM_SIMD_F16x8_QFMA(
@@ -400,18 +413,20 @@ WASM_EXEC_TEST(F16x8Qfma) {
   for (FMOperation x : qfma_vector()) {
     r.Call(x.a, x.b, x.c);
     uint16_t expected = fp16_ieee_from_fp32_value(x.fused_result);
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 8; i++) {
-      uint16_t actual = LANE(g, i);
-      CheckFloat16LaneResult(x.a, x.b, x.c, expected, actual, true /* exact */);
+      uint16_t actual_lane = LANE(actual.to_i16x8(), i);
+      CheckFloat16LaneResult(x.a, x.b, x.c, expected, actual_lane,
+                             true /* exact */);
     }
   }
 }
 
 WASM_EXEC_TEST(F16x8Qfms) {
-  i::v8_flags.experimental_wasm_fp16 = true;
+  i::v8_flags.wasm_fp16 = true;
   WasmRunner<int32_t, float, float, float> r(execution_tier);
   // Set up global to hold output.
-  uint16_t* g = r.builder().AddGlobal<uint16_t>(kWasmS128);
+  const WasmGlobal* g = r.builder().AddGlobal(kWasmS128);
   uint8_t value1 = 0, value2 = 1, value3 = 2;
   r.Build(
       {WASM_GLOBAL_SET(0, WASM_SIMD_F16x8_QFMS(
@@ -423,9 +438,11 @@ WASM_EXEC_TEST(F16x8Qfms) {
   for (FMOperation x : qfms_vector()) {
     r.Call(x.a, x.b, x.c);
     uint16_t expected = fp16_ieee_from_fp32_value(x.fused_result);
+    Simd128 actual = r.builder().ReadGlobal(*g).to_s128();
     for (int i = 0; i < 8; i++) {
-      uint16_t actual = LANE(g, i);
-      CheckFloat16LaneResult(x.a, x.b, x.c, expected, actual, true /* exact */);
+      uint16_t actual_lane = LANE(actual.to_i16x8(), i);
+      CheckFloat16LaneResult(x.a, x.b, x.c, expected, actual_lane,
+                             true /* exact */);
     }
   }
 }

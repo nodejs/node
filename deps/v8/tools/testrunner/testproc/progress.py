@@ -13,10 +13,11 @@ from testrunner.testproc.resultdb import rdb_sink, ResultDBIndicator
 class ResultsTracker(base.TestProcObserver):
   @staticmethod
   def create(options):
-    return ResultsTracker(options.exit_after_n_failures)
+    return ResultsTracker(options.exit_after_n_failures, options.quiet)
 
   """Tracks number of results and stops to run tests if max_failures reached."""
-  def __init__(self, max_failures):
+
+  def __init__(self, max_failures, quiet):
     super(ResultsTracker, self).__init__()
     self._requirement = base.DROP_OUTPUT
 
@@ -24,6 +25,7 @@ class ResultsTracker(base.TestProcObserver):
     self.remaining = 0
     self.total = 0
     self.max_failures = max_failures
+    self.quiet = quiet
 
   def _on_next_test(self, test):
     self.total += 1
@@ -39,13 +41,16 @@ class ResultsTracker(base.TestProcObserver):
         self.stop()
 
   def standard_show(self, tests):
-    if tests.test_count_estimate:
-      percentage = float(self.total) / tests.test_count_estimate * 100
-    else:
-      percentage = 0
-    print(('>>> %d base tests produced %d (%d%s)'
-           ' non-filtered tests') %
-          (tests.test_count_estimate, self.total, percentage, '%'))
+    if not self.quiet:
+      if tests.test_count_estimate:
+        percentage = float(self.total) / tests.test_count_estimate * 100
+      else:
+        percentage = 0
+      print(('>>> %d base tests produced %d (%d%s)'
+             ' non-filtered tests') %
+            (tests.test_count_estimate, self.total, percentage, '%'))
+    # Always report how many tests ran: without it, an over-eager filter that
+    # matched nothing is indistinguishable from a successful run.
     print('>>> %d tests ran' % (self.total - self.remaining))
 
   def exit_code(self):

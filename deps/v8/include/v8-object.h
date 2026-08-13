@@ -198,9 +198,14 @@ using AccessorNameGetterCallback =
  * See Object::SetNativeDataProperty and
  * ObjectTemplate::SetNativeDataProperty methods.
  */
-using AccessorNameSetterCallback =
+using AccessorNameSetterCallbackV2 =
     void (*)(Local<Name> property, Local<Value> value,
-             const PropertyCallbackInfo<void>& info);
+             const PropertyCallbackInfo<Boolean>& info);
+// TODO(https://crbug.com/348660658): deprecate and remove.
+using AccessorNameSetterCallback  //
+    V8_DEPRECATE_SOON("Use AccessorNameSetterCallbackV2 instead.") =
+        void (*)(Local<Name> property, Local<Value> value,
+                 const PropertyCallbackInfo<void>& info);
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
@@ -403,7 +408,7 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter,
-      AccessorNameSetterCallback setter = nullptr,
+      AccessorNameSetterCallbackV2 setter = nullptr,
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
@@ -469,17 +474,15 @@ class V8_EXPORT Object : public Value {
   /**
    * Get the prototype object (same as calling Object.getPrototypeOf(..)).
    * This does not consult the security handler.
-   * TODO(http://crbug.com/333672197): rename back to GetPrototype().
    */
-  Local<Value> GetPrototypeV2();
+  Local<Value> GetPrototype();
 
   /**
    * Set the prototype object (same as calling Object.setPrototypeOf(..)).
    * This does not consult the security handler.
-   * TODO(http://crbug.com/333672197): rename back to SetPrototype().
    */
-  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototypeV2(Local<Context> context,
-                                                   Local<Value> prototype);
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetPrototype(Local<Context> context,
+                                                 Local<Value> prototype);
 
   /**
    * Finds an instance of the given function template in the prototype
@@ -807,6 +810,18 @@ class V8_EXPORT Object : public Value {
   void* GetAlignedPointerFromEmbedderDataInCreationContext(
       int index, EmbedderDataTypeTag tag);
 
+  void* GetAlignedPointerFromEmbedderDataInCreationContext(
+      v8::Isolate* isolate, int index, CppHeapPointerTag tag) {
+    // TODO(ahaas): This is a temporary implementation, the actual
+    // implementation will follow with the refactoring of EmbedderDataSlots.
+    // The refactoring will regress the existing API, as the fast path will move
+    // to this new API.
+    // By using this temporary implementation, blink's ScriptState can already
+    // switch to the new API, and thereby switch from the old fast path to the
+    // new fast path directly.
+    return GetAlignedPointerFromEmbedderDataInCreationContext(
+        isolate, index, kEmbedderDataTypeTagDefault);
+  }
   /**
    * Checks whether a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
@@ -1068,6 +1083,8 @@ T* Object::Unwrap(v8::Isolate* isolate,
 template <CppHeapPointerTag tag>
 void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
                   v8::Object::Wrappable* wrappable) {
+  static_assert(kObjectWrappableTagRange.Contains(tag),
+                "CppHeapPointerTag must be within kObjectWrappableTagRange");
   auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
   Wrap(isolate, obj, tag, wrappable);
 }
@@ -1076,6 +1093,8 @@ void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
 template <CppHeapPointerTag tag>
 void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
                   v8::Object::Wrappable* wrappable) {
+  static_assert(kObjectWrappableTagRange.Contains(tag),
+                "CppHeapPointerTag must be within kObjectWrappableTagRange");
   auto obj =
       internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
   Wrap(isolate, obj, tag, wrappable);
@@ -1086,6 +1105,8 @@ template <CppHeapPointerTag tag>
 void Object::Wrap(v8::Isolate* isolate,
                   const BasicTracedReference<Object>& wrapper,
                   v8::Object::Wrappable* wrappable) {
+  static_assert(kObjectWrappableTagRange.Contains(tag),
+                "CppHeapPointerTag must be within kObjectWrappableTagRange");
   auto obj =
       internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
   Wrap(isolate, obj, tag, wrappable);

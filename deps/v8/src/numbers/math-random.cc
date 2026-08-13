@@ -14,16 +14,25 @@
 namespace v8 {
 namespace internal {
 
+// Use RefillCache on 32-bit architecture since CSA/Torque can't generate
+// code operating with 64-bit values.
+const bool kUseRefillCache = kSystemPointerSize == 4;
+
 void MathRandom::InitializeContext(Isolate* isolate,
                                    DirectHandle<Context> native_context) {
-  auto cache = Cast<FixedDoubleArray>(
-      isolate->factory()->NewFixedDoubleArray(kCacheSize));
-  for (int i = 0; i < kCacheSize; i++) cache->set(i, 0);
-  native_context->set_math_random_cache(*cache);
   DirectHandle<PodArray<State>> pod =
       PodArray<State>::New(isolate, 1, AllocationType::kOld);
   native_context->set_math_random_state(*pod);
   ResetContext(*native_context);
+  if (kUseRefillCache) {
+    auto cache = Cast<FixedDoubleArray>(
+        isolate->factory()->NewFixedDoubleArray(kCacheSize));
+    for (int i = 0; i < kCacheSize; i++) cache->set(i, 0);
+    native_context->set_math_random_cache(*cache);
+  } else {
+    native_context->set_math_random_cache(
+        ReadOnlyRoots(isolate).undefined_value());
+  }
 }
 
 void MathRandom::ResetContext(Tagged<Context> native_context) {
@@ -32,7 +41,8 @@ void MathRandom::ResetContext(Tagged<Context> native_context) {
   Cast<PodArray<State>>(native_context->math_random_state())->set(0, state);
 }
 
-Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
+Address MathRandom::InitializeAndMaybeRefillCache(Isolate* isolate,
+                                                  Address raw_native_context) {
   Tagged<Context> native_context =
       Cast<Context>(Tagged<Object>(raw_native_context));
   DisallowGarbageCollection no_gc;
@@ -55,10 +65,15 @@ Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
     CHECK(state.s0 != 0 || state.s1 != 0);
   }
 
+  if (!kUseRefillCache) {
+    pod->set(0, state);
+    return Smi::zero().ptr();
+  }
+
   Tagged<FixedDoubleArray> cache =
       Cast<FixedDoubleArray>(native_context->math_random_cache());
   // Create random numbers.
-  for (int i = 0; i < kCacheSize; i++) {
+  for (int i = kCacheSize - 1; i >= 0; i--) {
     // Generate random numbers using xorshift128+.
     uint64_t random =
         base::RandomNumberGenerator::XorShift128(&state.s0, &state.s1);

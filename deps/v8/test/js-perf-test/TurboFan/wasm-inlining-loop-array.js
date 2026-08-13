@@ -29,7 +29,7 @@ if (use_module_builder) {
 
   if (use_module_builder) {
     let builder = new WasmModuleBuilder();
-    let backingStore = builder.addArray(kWasmI32, true);
+    let backingStore = builder.addArray(kWasmI32);
     let arrayStruct = builder.addStruct([
       makeField(kWasmI32 /*length*/, true),
       makeField(wasmRefType(backingStore), true)

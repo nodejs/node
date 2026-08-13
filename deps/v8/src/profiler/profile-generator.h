@@ -16,6 +16,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/base/hashing.h"
+#include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
 #include "src/execution/vm-state.h"
@@ -133,6 +134,7 @@ class CodeEntry {
       case CodeType::OTHER:
         return "other";
     }
+    UNREACHABLE();
   }
 
   // Returns the start address of the instruction segment represented by this
@@ -230,15 +232,13 @@ class CodeEntry {
   size_t AddRef() {
     DCHECK(is_ref_counted());
     DCHECK_LT(ref_count_, std::numeric_limits<size_t>::max());
-    ref_count_++;
-    return ref_count_;
+    return ++ref_count_;
   }
 
   size_t DecRef() {
     DCHECK(is_ref_counted());
     DCHECK_GT(ref_count_, 0UL);
-    ref_count_--;
-    return ref_count_;
+    return --ref_count_;
   }
 
   using EventField = base::BitField<LogEventListener::Event, 0, 4>;

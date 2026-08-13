@@ -807,13 +807,7 @@ void MacroAssembler::Fminnm(const VRegister& fd, const VRegister& fn,
 
 void MacroAssembler::Fmov(VRegister fd, VRegister fn) {
   DCHECK(allow_macro_instructions());
-  // Only emit an instruction if fd and fn are different, and they are both D
-  // registers. fmov(s0, s0) is not a no-op because it clears the top word of
-  // d0. Technically, fmov(d0, d0) is not a no-op either because it clears the
-  // top of q0, but VRegister does not currently support Q registers.
-  if (fd != fn || !fd.Is64Bits()) {
-    fmov(fd, fn);
-  }
+  fmov(fd, fn);
 }
 
 void MacroAssembler::Fmov(VRegister fd, Register rn) {
@@ -1248,6 +1242,48 @@ void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
 }
 
 void MacroAssembler::SmiUntag(Register smi) { SmiUntag(smi, smi); }
+
+void MacroAssembler::SmiUntagUnsigned(Register dst, Register src) {
+  DCHECK(dst.Is64Bits() && src.Is64Bits());
+  if (v8_flags.enable_slow_asserts) {
+    AssertSmi(src);
+  }
+  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
+  if (COMPRESS_POINTERS_BOOL) {
+    Ubfx(dst.W(), src.W(), kSmiShift, kSmiValueSize);
+  } else {
+    Lsr(dst, src, kSmiShift);
+  }
+}
+
+void MacroAssembler::SmiUntagUnsigned(Register dst, const MemOperand& src) {
+  DCHECK(dst.Is64Bits());
+  if (SmiValuesAre32Bits()) {
+    if (src.IsImmediateOffset() && src.shift_amount() == 0) {
+      // Load value directly from the upper half-word.
+      // Assumes that Smis are shifted by 32 bits and little endianness.
+      DCHECK_EQ(kSmiShift, 32);
+      Ldr(dst.W(),
+          MemOperand(src.base(), src.offset() + (kSmiShift / kBitsPerByte),
+                     src.addrmode()));
+    } else {
+      Ldr(dst, src);
+      SmiUntagUnsigned(dst);
+    }
+  } else {
+    DCHECK(SmiValuesAre31Bits());
+    if (COMPRESS_POINTERS_BOOL) {
+      Ldr(dst.W(), src);
+    } else {
+      Ldr(dst, src);
+    }
+    SmiUntagUnsigned(dst);
+  }
+}
+
+void MacroAssembler::SmiUntagUnsigned(Register smi) {
+  SmiUntagUnsigned(smi, smi);
+}
 
 void MacroAssembler::SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
 

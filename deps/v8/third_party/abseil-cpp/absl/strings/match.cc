@@ -15,8 +15,10 @@
 #include "absl/strings/match.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/optimization.h"
@@ -36,13 +38,101 @@ bool EqualsIgnoreCase(absl::string_view piece1,
   // memcasecmp uses absl::ascii_tolower().
 }
 
-bool StrContainsIgnoreCase(absl::string_view haystack,
-                           absl::string_view needle) noexcept {
-  while (haystack.size() >= needle.size()) {
-    if (StartsWithIgnoreCase(haystack, needle)) return true;
-    haystack.remove_prefix(1);
+namespace {
+
+// For larger haystacks (n >= 256), Case-Insensitive Boyer-Moore-Horspool
+// provides sub-linear O(N / M) average-case performance, although it still has
+// O(N * M) theoretical worst-case scaling.
+// Scans the haystack from left to right using a search window of size `m`.
+// For each window offset, Horspool inspects the rightmost character of the
+// window (`haystack[pos + m - 1]`) first, enabling multi-byte shifts when
+// mismatches occur and reducing average search time to O(N / M).
+ABSL_ATTRIBUTE_NOINLINE bool StrContainsIgnoreCaseBMH(
+    absl::string_view haystack, absl::string_view needle) noexcept {
+  const size_t n = haystack.size();
+  const size_t m = needle.size();
+
+  // Step 1: Initialize the 256-entry shift table.
+  // Unknown characters default to full window shift of `m` bytes.
+  size_t shift[256];
+  for (size_t i = 0; i < 256; ++i) {
+    shift[i] = m;
+  }
+
+  // Populate shift distances for needle[0..m-2]. Dual assignment for
+  // ascii_tolower and ascii_toupper stores distance from rightmost occurrence
+  // to end of needle.
+  for (size_t i = 0; i < m - 1; ++i) {
+    const unsigned char c = static_cast<unsigned char>(needle[i]);
+    shift[static_cast<unsigned char>(absl::ascii_tolower(c))] = m - 1 - i;
+    shift[static_cast<unsigned char>(absl::ascii_toupper(c))] = m - 1 - i;
+  }
+
+  // Step 2: Search loop across candidate window offsets.
+  size_t pos = 0;
+  while (pos <= n - m) {
+    const unsigned char last_hay =
+        static_cast<unsigned char>(haystack[pos + m - 1]);
+    const unsigned char last_needle = static_cast<unsigned char>(needle[m - 1]);
+
+    // Check 1: Inspect right-most character of window first.
+    if (last_hay == last_needle ||
+        absl::ascii_tolower(last_hay) == absl::ascii_tolower(last_needle)) {
+      // Check 2: Pre-filter on first character of window.
+      const unsigned char first_hay = static_cast<unsigned char>(haystack[pos]);
+      const unsigned char first_needle = static_cast<unsigned char>(needle[0]);
+      if (first_hay == first_needle ||
+          absl::ascii_tolower(first_hay) == absl::ascii_tolower(first_needle)) {
+        // Check 3: Compare interior (m - 2) bytes.
+        if (EqualsIgnoreCase(haystack.substr(pos + 1, m - 2),
+                             needle.substr(1, m - 2))) {
+          return true;
+        }
+      }
+    }
+
+    // Advance window by shift distance determined by right-most haystack byte.
+    pos += shift[last_hay];
   }
   return false;
+}
+
+}  // namespace
+
+bool StrContainsIgnoreCase(absl::string_view haystack,
+                           absl::string_view needle) noexcept {
+  const size_t n = haystack.size();
+  const size_t m = needle.size();
+  if (m == 0) return true;
+  if (n < m) return false;
+  if (m == 1) return StrContainsIgnoreCase(haystack, needle[0]);
+
+  // For short haystacks (n < 256) or small needles (m == 2), avoid the
+  // initialization overhead of a 256-entry shift table. Instead, use a fast
+  // first-and-last character prefilter before inspecting interior bytes.
+  if (n < 256 || m == 2) {
+    const char first_needle =
+        absl::ascii_tolower(static_cast<unsigned char>(needle[0]));
+    const char last_needle =
+        absl::ascii_tolower(static_cast<unsigned char>(needle[m - 1]));
+
+    for (size_t pos = 0; pos <= n - m; ++pos) {
+      const unsigned char first_hay = static_cast<unsigned char>(haystack[pos]);
+      if (absl::ascii_tolower(first_hay) != first_needle) continue;
+
+      const unsigned char last_hay =
+          static_cast<unsigned char>(haystack[pos + m - 1]);
+      if (absl::ascii_tolower(last_hay) != last_needle) continue;
+
+      if (m == 2 || EqualsIgnoreCase(haystack.substr(pos + 1, m - 2),
+                                     needle.substr(1, m - 2))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return StrContainsIgnoreCaseBMH(haystack, needle);
 }
 
 bool StrContainsIgnoreCase(absl::string_view haystack,
@@ -51,10 +141,15 @@ bool StrContainsIgnoreCase(absl::string_view haystack,
   char lower_needle = absl::ascii_tolower(static_cast<unsigned char>(needle));
   if (upper_needle == lower_needle) {
     return StrContains(haystack, needle);
-  } else {
-    const char both_cstr[3] = {lower_needle, upper_needle, '\0'};
-    return haystack.find_first_of(both_cstr) != absl::string_view::npos;
   }
+  if (haystack.size() < 64) {
+    for (char c : haystack) {
+      if (c == lower_needle || c == upper_needle) return true;
+    }
+    return false;
+  }
+  const char both_cstr[3] = {lower_needle, upper_needle, '\0'};
+  return haystack.find_first_of(both_cstr) != absl::string_view::npos;
 }
 
 bool StartsWithIgnoreCase(absl::string_view text,

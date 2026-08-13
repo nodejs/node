@@ -1,42 +1,34 @@
 # Copyright 2021 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
 absl_source_set("sample_recorder") {
   public = [ "internal/sample_recorder.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/synchronization",
     "//third_party/abseil-cpp/absl/time",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
-# TODO: Re-enable once the issue with gmock activating generic gtest
-# printers hitting issues with -Wmicrosoft-cast.
-# absl_test("sample_recorder_test") {
-#   sources = [ "internal/sample_recorder_test.cc" ]
-#   deps = [
-#     ":sample_recorder",
-#     "//third_party/abseil-cpp/absl/base:core_headers",
-#     "//third_party/abseil-cpp/absl/random",
-#     "//third_party/abseil-cpp/absl/synchronization",
-#     "//third_party/abseil-cpp/absl/synchronization:thread_pool",
-#     "//third_party/abseil-cpp/absl/time",
-#   ]
-# }
+# TODO: Re-enable once the issue with gmock activating generic gtest printers
+# hitting issues with -Wmicrosoft-cast.
+# absl_test("sample_recorder_test")
 
 absl_source_set("exponential_biased") {
   sources = [ "internal/exponential_biased.cc" ]
   public = [ "internal/exponential_biased.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_test("exponential_biased_test") {
@@ -50,6 +42,7 @@ absl_test("exponential_biased_test") {
 absl_source_set("periodic_sampler") {
   sources = [ "internal/periodic_sampler.cc" ]
   public = [ "internal/periodic_sampler.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":exponential_biased",
     "//third_party/abseil-cpp/absl/base:core_headers",
@@ -67,6 +60,7 @@ absl_test("periodic_sampler_test") {
 absl_source_set("profile_builder") {
   sources = [ "internal/profile_builder.cc" ]
   public = [ "internal/profile_builder.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
@@ -75,6 +69,7 @@ absl_source_set("profile_builder") {
     "//third_party/abseil-cpp/absl/container:flat_hash_map",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:str_format",
+    "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:span",
   ]
 }
@@ -82,6 +77,7 @@ absl_source_set("profile_builder") {
 absl_source_set("hashtable") {
   sources = [ "hashtable.cc" ]
   public = [ "hashtable.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":profile_builder",
     "//third_party/abseil-cpp/absl/base:config",

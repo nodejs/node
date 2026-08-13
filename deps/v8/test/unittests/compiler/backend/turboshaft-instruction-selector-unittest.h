@@ -9,6 +9,8 @@
 #include <set>
 #include <type_traits>
 
+#include "src/base/logging.h"
+#include "src/base/strong-alias.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -215,6 +217,18 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
                                               parameter2_type)) {
       Init();
     }
+    StreamBuilder(TurboshaftInstructionSelectorTest* test,
+                  MachineType return_type, MachineType parameter0_type,
+                  MachineType parameter1_type, MachineType parameter2_type,
+                  MachineType parameter3_type)
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
+          test_(test),
+          call_descriptor_(MakeCallDescriptor(
+              test->zone(), return_type, parameter0_type, parameter1_type,
+              parameter2_type, parameter3_type)) {
+      Init();
+    }
 
     Stream Build(CpuFeature feature) { return Build(CpuFeatureSet{feature}); }
     Stream Build(CpuFeature feature1, CpuFeature feature2) {
@@ -226,7 +240,9 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     Stream Build(CpuFeatureSet features,
                  StreamBuilderMode mode = kTargetInstructions,
                  InstructionSelector::SourcePositionMode source_position_mode =
-                     InstructionSelector::kAllSourcePositions);
+                     InstructionSelector::kAllSourcePositions,
+                 InstructionSelector::EnableScheduling enable_scheduling =
+                     InstructionSelector::kDisableScheduling);
 
     const FrameStateFunctionInfo* GetFrameStateFunctionInfo(
         uint16_t parameter_count, int local_count);
@@ -281,7 +297,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     static const TSCallDescriptor* MakeSimpleTSCallDescriptor(
         Zone* zone, MachineSignature* msig) {
       return TSCallDescriptor::Create(MakeSimpleCallDescriptor(zone, msig),
-                                      CanThrow::kYes, LazyDeoptOnThrow::kNo,
+                                      CanThrow{true}, LazyDeoptOnThrow{false},
                                       zone);
     }
 
@@ -295,6 +311,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
         UNOP_LIST(CASE)
 #undef CASE
       }
+      UNREACHABLE();
     }
 
     OpIndex Emit(TSBinop op, OpIndex left, OpIndex right) {
@@ -305,6 +322,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
         BINOP_LIST(CASE)
 #undef CASE
       }
+      UNREACHABLE();
     }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -316,6 +334,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
         TERNOP_LIST(CASE)
 #undef CASE
       }
+      UNREACHABLE();
     }
 #endif
 
@@ -325,6 +344,26 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       DCHECK_EQ(Get(result).outputs_rep().size(), 1);
       DCHECK_EQ(Get(result).outputs_rep()[0], v_traits<T>::rep);
       return V<T>::Cast(result);
+    }
+
+    V<Float32> Float32Binop(OpIndex left, OpIndex right,
+                            FloatBinopOp::Kind kind) {
+      switch (kind) {
+        default:
+          UNREACHABLE();
+        case FloatBinopOp::Kind::kAdd:
+          return Float32Add(left, right);
+        case FloatBinopOp::Kind::kMul:
+          return Float32Mul(left, right);
+        case FloatBinopOp::Kind::kMin:
+          return Float32Min(left, right);
+        case FloatBinopOp::Kind::kMax:
+          return Float32Max(left, right);
+        case FloatBinopOp::Kind::kSub:
+          return Float32Sub(left, right);
+        case FloatBinopOp::Kind::kDiv:
+          return Float32Div(left, right);
+      }
     }
 
     // Some helpers to have the same interface as the Turbofan instruction
@@ -481,6 +520,20 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     DECL_SIMD128_EXTRACT_LANE(F32x4, , Float32)
     DECL_SIMD128_EXTRACT_LANE(F64x2, , Float64)
 #undef DECL_SIMD128_EXTRACT_LANE
+
+#define DECL_SIMD128_REPLACE_LANE(Name, Type)                                 \
+  V<Type> Name##ReplaceLane(V<Simd128> into, V<Any> new_lane, uint8_t lane) { \
+    return V<Type>::Cast(Simd128ReplaceLane(                                  \
+        into, new_lane, Simd128ReplaceLaneOp::Kind::k##Name, lane));          \
+  }
+    DECL_SIMD128_REPLACE_LANE(I8x16, Word32)
+    DECL_SIMD128_REPLACE_LANE(I16x8, Word32)
+    DECL_SIMD128_REPLACE_LANE(I32x4, Word32)
+    DECL_SIMD128_REPLACE_LANE(I64x2, Word64)
+    DECL_SIMD128_REPLACE_LANE(F16x8, Float32)
+    DECL_SIMD128_REPLACE_LANE(F32x4, Float32)
+    DECL_SIMD128_REPLACE_LANE(F64x2, Float64)
+#undef DECL_SIMD128_REPLACE_LANE
 
 #define DECL_SIMD128_REDUCE(Name)                                           \
   V<Simd128> Name##AddReduce(V<Simd128> input) {                            \

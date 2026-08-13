@@ -225,8 +225,9 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
     *contextId = executionContextId.value();
   } else if (uniqueContextId.has_value()) {
     internal::V8DebuggerId uniqueId(uniqueContextId.value());
-    if (!uniqueId.isValid())
+    if (!uniqueId.isValid()) {
       return Response::InvalidParams("invalid uniqueContextId");
+    }
     int id = inspector->resolveUniqueContextId(uniqueId);
     if (!id) return Response::InvalidParams("uniqueContextId not found");
     *contextId = id;
@@ -234,8 +235,9 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
     v8::HandleScope handles(inspector->isolate());
     v8::Local<v8::Context> defaultContext =
         inspector->client()->ensureDefaultContextInGroup(contextGroupId);
-    if (defaultContext.IsEmpty())
+    if (defaultContext.IsEmpty()) {
       return Response::ServerError("Cannot find default execution context");
+    }
     *contextId = InspectedContext::contextId(defaultContext);
   }
 
@@ -364,8 +366,7 @@ void V8RuntimeAgentImpl::evaluate(
     std::unique_ptr<protocol::Runtime::SerializationOptions>
         serializationOptions,
     std::unique_ptr<EvaluateCallback> callback) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
-               "EvaluateScript");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"), "EvaluateScript");
   int contextId = 0;
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
                                     std::move(executionContextId),
@@ -385,7 +386,14 @@ void V8RuntimeAgentImpl::evaluate(
   if (silent.value_or(false)) scope.ignoreExceptionsAndMuteConsole();
   if (userGesture.value_or(false)) scope.pretendUserGesture();
 
-  if (includeCommandLineAPI.value_or(false)) scope.installCommandLineAPI();
+  if (includeCommandLineAPI.value_or(false)) {
+    scope.installCommandLineAPI();
+    if (scope.tryCatch().HasCaught()) {
+      callback->sendFailure(
+          Response::ServerError("Failed to install command line API"));
+      return;
+    }
+  }
 
   const bool replMode = maybeReplMode.value_or(false);
 
@@ -590,8 +598,9 @@ Response V8RuntimeAgentImpl::getProperties(
   scope.ignoreExceptionsAndMuteConsole();
   v8::MicrotasksScope microtasks_scope(scope.context(),
                                        v8::MicrotasksScope::kRunMicrotasks);
-  if (!scope.object()->IsObject())
+  if (!scope.object()->IsObject()) {
     return Response::ServerError("Value with given id is not an object");
+  }
 
   v8::Local<v8::Object> object = scope.object().As<v8::Object>();
 
@@ -616,10 +625,12 @@ Response V8RuntimeAgentImpl::getProperties(
       object, scope.objectGroupName(), accessorPropertiesOnly.value_or(false),
       &internalPropertiesProtocolArray, &privatePropertiesProtocolArray);
   if (!response.IsSuccess()) return response;
-  if (!internalPropertiesProtocolArray->empty())
+  if (!internalPropertiesProtocolArray->empty()) {
     *internalProperties = std::move(internalPropertiesProtocolArray);
-  if (!privatePropertiesProtocolArray->empty())
+  }
+  if (!privatePropertiesProtocolArray->empty()) {
     *privateProperties = std::move(privatePropertiesProtocolArray);
+  }
   return Response::Success();
 }
 
@@ -661,10 +672,10 @@ Response V8RuntimeAgentImpl::setMaxCallStackSizeToCapture(int size) {
     return Response::ServerError(
         "maxCallStackSizeToCapture should be non-negative");
   }
-  TRACE_EVENT_WITH_FLOW1(
-      TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-      "V8RuntimeAgentImpl::setMaxCallStackSizeToCapture", this,
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "size", size);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+              "V8RuntimeAgentImpl::setMaxCallStackSizeToCapture",
+              perfetto::Flow::ProcessScoped(reinterpret_cast<uintptr_t>(this)),
+              "size", size);
   if (!m_enabled) return Response::ServerError("Runtime agent is not enabled");
   m_state->setInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture, size);
   m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
@@ -884,8 +895,9 @@ void V8RuntimeAgentImpl::terminateExecution(
 namespace {
 protocol::DictionaryValue* getOrCreateDictionary(
     protocol::DictionaryValue* dict, const String16& key) {
-  if (protocol::DictionaryValue* bindings = dict->getObject(key))
+  if (protocol::DictionaryValue* bindings = dict->getObject(key)) {
     return bindings;
+  }
   dict->setObject(key, protocol::DictionaryValue::create());
   return dict->getObject(key);
 }
@@ -900,13 +912,13 @@ Response V8RuntimeAgentImpl::addBinding(
   }
   if (executionContextId.has_value()) {
     int contextId = executionContextId.value();
-    InspectedContext* context =
+    std::shared_ptr<InspectedContext> context =
         m_inspector->getContext(m_session->contextGroupId(), contextId);
     if (!context) {
       return Response::InvalidParams(
           "Cannot find execution context with given executionContextId");
     }
-    addBinding(context, name);
+    addBinding(context.get(), name);
     return Response::Success();
   }
 
@@ -934,8 +946,9 @@ Response V8RuntimeAgentImpl::addBinding(
       m_session->contextGroupId(),
       [&name, &executionContextName, this](InspectedContext* context) {
         if (executionContextName.has_value() &&
-            executionContextName.value() != context->humanReadableName())
+            executionContextName.value() != context->humanReadableName()) {
           return;
+        }
         addBinding(context, name);
       });
   return Response::Success();
@@ -966,8 +979,9 @@ void V8RuntimeAgentImpl::bindingCallback(
 
 void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
                                     const String16& name) {
+  int contextId = context->contextId();
   auto it = m_activeBindings.find(name);
-  if (it != m_activeBindings.end() && it->second.count(context->contextId())) {
+  if (it != m_activeBindings.end() && it->second.count(contextId)) {
     return;
   }
   v8::HandleScope handles(m_inspector->isolate());
@@ -981,12 +995,13 @@ void V8RuntimeAgentImpl::addBinding(InspectedContext* context,
           .ToLocal(&functionValue)) {
     v8::Maybe<bool> success = global->Set(localContext, v8Name, functionValue);
     USE(success);
-    if (it == m_activeBindings.end()) {
-      m_activeBindings.emplace(name,
-                               std::unordered_set<int>(context->contextId()));
-    } else {
-      m_activeBindings.at(name).insert(context->contextId());
+
+    // The context might have been destroyed during the Set() call due to
+    // re-entrant JS.
+    if (!m_inspector->getContext(m_session->contextGroupId(), contextId)) {
+      return;
     }
+    m_activeBindings[name].insert(contextId);
   }
 }
 
@@ -1018,8 +1033,9 @@ Response V8RuntimeAgentImpl::getExceptionDetails(
   if (!response.IsSuccess()) return response;
 
   const v8::Local<v8::Value> error = scope.object();
-  if (!error->IsNativeError())
+  if (!error->IsNativeError()) {
     return Response::ServerError("errorObjectId is not a JS error object");
+  }
 
   const v8::Local<v8::Message> message =
       v8::debug::CreateMessageFromException(m_inspector->isolate(), error);
@@ -1055,6 +1071,8 @@ void V8RuntimeAgentImpl::bindingCalled(const String16& name,
 }
 
 void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
+  int contextGroupId = context->contextGroupId();
+  int contextId = context->contextId();
   const String16 contextName = context->humanReadableName();
   if (!m_enabled) return;
 
@@ -1063,6 +1081,7 @@ void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
   if (globalBindings) {
     for (size_t i = 0; i < globalBindings->size(); ++i) {
       addBinding(context, globalBindings->at(i).first);
+      if (!m_inspector->getContext(contextGroupId, contextId)) return;
     }
   }
 
@@ -1074,24 +1093,29 @@ void V8RuntimeAgentImpl::addBindings(InspectedContext* context) {
     if (bindings) {
       for (size_t i = 0; i < bindings->size(); ++i) {
         addBinding(context, bindings->at(i).first);
+        if (!m_inspector->getContext(contextGroupId, contextId)) return;
       }
     }
   }
 }
 
 void V8RuntimeAgentImpl::restore() {
-  if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled, false))
+  if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled,
+                                false)) {
     return;
+  }
   m_frontend.executionContextsCleared();
   enable();
   if (m_state->booleanProperty(
-          V8RuntimeAgentImplState::customObjectFormatterEnabled, false))
+          V8RuntimeAgentImplState::customObjectFormatterEnabled, false)) {
     m_session->setCustomObjectFormatterEnabled(true);
+  }
 
   int size;
   if (m_state->getInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture,
-                          &size))
+                          &size)) {
     m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
+  }
 
   m_inspector->forEachContext(
       m_session->contextGroupId(),
@@ -1100,9 +1124,9 @@ void V8RuntimeAgentImpl::restore() {
 
 Response V8RuntimeAgentImpl::enable() {
   if (m_enabled) return Response::Success();
-  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                         "V8RuntimeAgentImpl::enable", this,
-                         TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+              "V8RuntimeAgentImpl::enable",
+              perfetto::Flow::ProcessScoped(reinterpret_cast<uintptr_t>(this)));
   m_inspector->client()->beginEnsureAllContextsInGroup(
       m_session->contextGroupId());
   m_enabled = true;
@@ -1114,11 +1138,16 @@ Response V8RuntimeAgentImpl::enable() {
       m_inspector->ensureConsoleMessageStorage(m_session->contextGroupId());
   // The message queue can be cleared by a getter during message formatting.
   // Make a copy of the message to avoid a UAF.
-  const auto& messages = storage->messages();
-  const size_t size = messages.size();
+  // Also, the storage itself can be destroyed and recreated, so re-fetch the
+  // storage on each iteration.
+  size_t size = storage->messages().size();
   for (size_t i = 0; i < size; ++i) {
-    if (i >= messages.size()) break;
-    V8ConsoleMessage message = *messages[i];
+    if (m_inspector->consoleMessageStorage(m_session->contextGroupId()) !=
+        storage) {
+      break;
+    }
+    if (i >= storage->messages().size()) break;
+    V8ConsoleMessage message = *storage->messages()[i];
     if (!reportMessage(&message, false)) {
       break;
     }
@@ -1128,9 +1157,10 @@ Response V8RuntimeAgentImpl::enable() {
 
 Response V8RuntimeAgentImpl::disable() {
   if (!m_enabled) return Response::Success();
-  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                         "V8RuntimeAgentImpl::disable", this,
-                         TRACE_EVENT_FLAG_FLOW_IN);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+              "V8RuntimeAgentImpl::disable",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  reinterpret_cast<uintptr_t>(this)));
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_state->remove(V8RuntimeAgentImplState::contextBindings);
@@ -1192,9 +1222,10 @@ void V8RuntimeAgentImpl::reportExecutionContextDestroyed(
 void V8RuntimeAgentImpl::inspect(
     std::unique_ptr<protocol::Runtime::RemoteObject> objectToInspect,
     std::unique_ptr<protocol::DictionaryValue> hints, int executionContextId) {
-  if (m_enabled)
+  if (m_enabled) {
     m_frontend.inspectRequested(std::move(objectToInspect), std::move(hints),
                                 executionContextId);
+  }
 }
 
 void V8RuntimeAgentImpl::messageAdded(V8ConsoleMessage* message) {

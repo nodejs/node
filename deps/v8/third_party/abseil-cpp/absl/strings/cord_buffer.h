@@ -32,6 +32,7 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/internal/cord_internal.h"
@@ -549,7 +550,7 @@ inline size_t CordBuffer::length() const {
 }
 
 inline void CordBuffer::SetLength(size_t length) {
-  ABSL_HARDENING_ASSERT(length <= capacity());
+  absl::base_internal::HardeningAssertLE(length, capacity());
   if (rep_.is_short()) {
     rep_.set_short_length(length);
   } else {
@@ -558,7 +559,8 @@ inline void CordBuffer::SetLength(size_t length) {
 }
 
 inline void CordBuffer::IncreaseLengthBy(size_t n) {
-  ABSL_HARDENING_ASSERT(n <= capacity() && length() + n <= capacity());
+  absl::base_internal::HardeningAssertLE(n, capacity());
+  absl::base_internal::HardeningAssertLE(length() + n, capacity());
   if (rep_.is_short()) {
     rep_.add_short_length(n);
   } else {

@@ -41,18 +41,10 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   static constexpr bool kUseContiguousMemory = true;
   static constexpr size_t kReservationSize = size;
   static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
-#if defined(V8_TARGET_OS_WIN)
-  // On windows the allocation granularity is 64KB and thus we cannot make a
-  // segment smaller than that.
-  static constexpr bool kUseSegmentPool = false;
-#else
-  static constexpr bool kUseSegmentPool = kMinimumOSPageSize <= 16 * KB;
-#endif
-  static constexpr size_t kSegmentSize = kUseSegmentPool ? 16 * KB : 64 * KB;
+  static constexpr size_t kSegmentSize = 64 * KB;
 #else
   // On 32 bit, segments are individually mapped.
   static constexpr bool kUseContiguousMemory = false;
-  static constexpr bool kUseSegmentPool = false;
 #ifdef V8_TARGET_OS_WIN
   // On windows the allocation granularity is 64KB.
   static constexpr size_t kSegmentSize = 64 * KB;
@@ -65,12 +57,6 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   // bounds.
   static_assert(kUseContiguousMemory || !V8_ENABLE_SANDBOX_BOOL);
 
-  // For managing the table's backing memory, the table is partitioned into
-  // segments of this size. Segments can then be allocated and freed using the
-  // AllocateAndInitializeSegment() and FreeTableSegment() routines.
-  static constexpr size_t kSegmentPoolSize = 4;
-  static constexpr uint32_t kSegmentPoolFreeEntry =
-      std::numeric_limits<uint32_t>::max();
   static constexpr size_t kEntriesPerSegment = kSegmentSize / kEntrySize;
   static constexpr size_t kAlignment = kSegmentSize;
   static constexpr size_t kNumReadOnlySegments = 64 * KB / kSegmentSize;
@@ -215,8 +201,6 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   std::optional<std::pair<Segment, FreelistHead>>
   TryAllocateAndInitializeSegment();
   std::optional<Segment> TryAllocateSegment();
-  std::optional<Segment> TryGetSegmentFromPool();
-  std::optional<Segment> FillSegmentsPool(bool return_a_segment);
 
   // Initialize a table segment with a freelist.
   //
@@ -247,12 +231,6 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   // and free the segments that make up the table.
   VirtualAddressSpace* vas_ = nullptr;
 
-  // The segment pool contains allocated but not yet initialized pages. It is
-  // only used in combination with VirtualAddressSubSpaces. The pool reduces
-  // lock-contention on startup. Since we split allocations into smaller
-  // segments it takes less time to initialize the freelists.
-  base::Mutex* segment_pool_grow_mutex_ = nullptr;
-  std::array<std::atomic<uint32_t>, kSegmentPoolSize> segment_pool_ = {};
   // Used during set-up of read only segments.
   uint32_t read_only_segments_used_ = 0;
 };

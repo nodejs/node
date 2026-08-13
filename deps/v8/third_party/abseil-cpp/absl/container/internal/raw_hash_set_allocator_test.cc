@@ -70,13 +70,13 @@ class CheckedAlloc {
   };
 
   using propagate_on_container_copy_assignment =
-      std::integral_constant<bool, (Spec & kPropagateOnCopy) != 0>;
+      std::bool_constant<(Spec & kPropagateOnCopy) != 0>;
 
   using propagate_on_container_move_assignment =
-      std::integral_constant<bool, (Spec & kPropagateOnMove) != 0>;
+      std::bool_constant<(Spec & kPropagateOnMove) != 0>;
 
   using propagate_on_container_swap =
-      std::integral_constant<bool, (Spec & kPropagateOnSwap) != 0>;
+      std::bool_constant<(Spec & kPropagateOnSwap) != 0>;
 
   CheckedAlloc select_on_container_copy_construction() const {
     if (Spec & kPropagateOnCopy) return *this;

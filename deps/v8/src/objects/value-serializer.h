@@ -12,8 +12,10 @@
 #include "src/base/macros.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
+#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/handles/maybe-handles.h"
+#include "src/objects/backing-store.h"
 #include "src/utils/identity-map.h"
 #include "src/zone/zone.h"
 
@@ -49,7 +51,16 @@ enum class SerializationTag : uint8_t;
  */
 class ValueSerializer {
  public:
-  ValueSerializer(Isolate* isolate, v8::ValueSerializer::Delegate* delegate);
+  explicit ValueSerializer(
+      Isolate* isolate,
+      v8::ValueSerializer::SharedImmutableArrayBufferMode
+          share_immutable_array_buffer =
+              v8::ValueSerializer::SharedImmutableArrayBufferMode::kDisabled);
+  ValueSerializer(
+      Isolate* isolate, v8::ValueSerializer::Delegate* delegate,
+      v8::ValueSerializer::SharedImmutableArrayBufferMode
+          share_immutable_array_buffer =
+              v8::ValueSerializer::SharedImmutableArrayBufferMode::kDisabled);
   ~ValueSerializer();
   ValueSerializer(const ValueSerializer&) = delete;
   ValueSerializer& operator=(const ValueSerializer&) = delete;
@@ -96,6 +107,11 @@ class ValueSerializer {
    * The default is not to treat ArrayBufferViews as host objects.
    */
   void SetTreatArrayBufferViewsAsHostObjects(bool mode);
+
+  std::vector<std::shared_ptr<BackingStore>>
+  ReleaseSharedImmutableBackingStores() {
+    return std::move(shared_immutable_backing_stores_);
+  }
 
  private:
   // Managing allocations of the internal buffer.
@@ -194,6 +210,11 @@ class ValueSerializer {
 
   // The conveyor used to keep shared objects alive.
   SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
+
+  v8::ValueSerializer::SharedImmutableArrayBufferMode
+      share_immutable_array_buffer_ =
+          v8::ValueSerializer::SharedImmutableArrayBufferMode::kDisabled;
+  std::vector<std::shared_ptr<BackingStore>> shared_immutable_backing_stores_;
 };
 
 /*
@@ -243,12 +264,19 @@ class ValueDeserializer {
   void TransferArrayBuffer(uint32_t transfer_id,
                            DirectHandle<JSArrayBuffer> array_buffer);
 
+  void SetSharedImmutableBackingStores(
+      std::vector<std::shared_ptr<BackingStore>> stores) {
+    shared_immutable_backing_stores_ = std::move(stores);
+  }
+
   /*
    * Publicly exposed wire format writing methods.
    * These are intended for use within the delegate's WriteHostObject method.
    */
   bool ReadUint32(uint32_t* value) V8_WARN_UNUSED_RESULT;
   bool ReadUint64(uint64_t* value) V8_WARN_UNUSED_RESULT;
+  // Read value as uint64_t and check that it fits into size_t.
+  bool ReadSizeT(size_t* value) V8_WARN_UNUSED_RESULT;
   bool ReadDouble(double* value) V8_WARN_UNUSED_RESULT;
   bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
   bool ReadByte(uint8_t* value) V8_WARN_UNUSED_RESULT;
@@ -299,9 +327,11 @@ class ValueDeserializer {
   MaybeDirectHandle<JSMap> ReadJSMap() V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSSet> ReadJSSet() V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBuffer> ReadJSArrayBuffer(
-      bool is_shared, bool is_resizable,
+      SharedFlag is_shared, ResizableFlag is_resizable,
       bool is_immutable) V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBuffer> ReadTransferredJSArrayBuffer()
+      V8_WARN_UNUSED_RESULT;
+  MaybeDirectHandle<JSArrayBuffer> ReadSharedImmutableJSArrayBuffer()
       V8_WARN_UNUSED_RESULT;
   MaybeDirectHandle<JSArrayBufferView> ReadJSArrayBufferView(
       DirectHandle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
@@ -344,6 +374,8 @@ class ValueDeserializer {
 
   // The conveyor used to keep shared objects alive.
   const SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
+
+  std::vector<std::shared_ptr<BackingStore>> shared_immutable_backing_stores_;
 };
 
 }  // namespace internal

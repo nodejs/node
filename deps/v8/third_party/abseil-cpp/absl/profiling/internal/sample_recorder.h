@@ -168,7 +168,7 @@ void SampleRecorder<T>::PushDead(T* sample) {
 template <typename T>
 template <typename... Targs>
 T* SampleRecorder<T>::PopDead(Targs... args) {
-  absl::MutexLock graveyard_lock(graveyard_.init_mu);
+  absl::ReleasableMutexLock graveyard_lock(graveyard_.init_mu);
 
   // The list is circular, so eventually it collapses down to
   //   graveyard_.dead == &graveyard_
@@ -178,6 +178,11 @@ T* SampleRecorder<T>::PopDead(Targs... args) {
 
   absl::MutexLock sample_lock(sample->init_mu);
   graveyard_.dead = sample->dead;
+  // Release the global graveyard lock early, before the potentially slow
+  // preparation.
+  graveyard_lock.Release();
+  // Prepare the sample while still holding the per-sample lock.
+  // `Iterate` will wait for the lock to be released.
   sample->dead = nullptr;
   sample->PrepareForSampling(std::forward<Targs>(args)...);
   return sample;

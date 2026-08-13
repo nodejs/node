@@ -23,7 +23,7 @@ BUILTIN(DisposableStackConstructor) {
   isolate->CountUsage(v8::Isolate::kExplicitResourceManagement);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (IsUndefined(*args.new_target(), isolate)) {
+  if (IsUndefined(*args.new_target())) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(

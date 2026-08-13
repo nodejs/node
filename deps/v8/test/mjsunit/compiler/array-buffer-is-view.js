@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --turbofan
 
 // Test that ObjectIsArrayBufferView lowering works correctly
-// in EffectControlLinearizer in the case that the input is
+// in MachineLoweringReducer in the case that the input is
 // known to be a HeapObject by TurboFan. For this we use the
 // simple trick with an object literal whose field `x` will
 // only ever contain HeapObjects and so the representation
@@ -35,7 +35,7 @@
 })();
 
 // Test that ObjectIsArrayBufferView lowering works correctly
-// in EffectControlLinearizer in the case that the input is
+// in MachineLoweringReducer in the case that the input is
 // some arbitrary tagged value.
 (function() {
   function foo(x) {

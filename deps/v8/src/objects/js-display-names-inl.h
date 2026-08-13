@@ -12,6 +12,7 @@
 #include "src/objects/js-display-names.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -20,11 +21,19 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-display-names-tq-inl.inc"
+Tagged<CppGCManaged<DisplayNamesInternal>> JSDisplayNames::internal() const {
+  return Cast<CppGCManaged<DisplayNamesInternal>>(internal_.load());
+}
 
-ACCESSORS(JSDisplayNames, internal, Tagged<Managed<DisplayNamesInternal>>,
-          kInternalOffset)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisplayNames)
+void JSDisplayNames::set_internal(
+    Tagged<CppGCManaged<DisplayNamesInternal>> value, WriteBarrierMode mode) {
+  internal_.store(this, value, mode);
+}
+
+int JSDisplayNames::flags() const { return flags_.load().value(); }
+void JSDisplayNames::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 inline void JSDisplayNames::set_style(Style style) {
   DCHECK(StyleBits::is_valid(style));

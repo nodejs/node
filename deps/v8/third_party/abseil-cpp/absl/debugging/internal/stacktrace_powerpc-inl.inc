@@ -92,6 +92,13 @@ static void **NextStackFrame(void **old_sp, const void *uc) {
   }
   if ((uintptr_t)new_sp % kStackAlignment != 0) return nullptr;
 
+  // Verify readability before using new_sp.
+  if (!STRICT_UNWINDING && new_sp != nullptr &&
+      !absl::debugging_internal::AddressIsReadable(
+          StacktracePowerPCGetLRPtr(new_sp))) {
+    return nullptr;
+  }
+
 #if defined(__linux__)
   enum StackTraceKernelSymbolStatus {
       kNotInitialized = 0, kAddressValid, kAddressInvalid };

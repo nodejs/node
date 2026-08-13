@@ -1,12 +1,15 @@
 # Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+#
+# Generated file. DO NOT EDIT.
 
 import("//third_party/abseil-cpp/absl.gni")
 
 absl_source_set("graphcycles_internal") {
   sources = [ "internal/graphcycles.cc" ]
   public = [ "internal/graphcycles.h" ]
+  visibility = [ ":*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:base_internal",
@@ -15,12 +18,12 @@ absl_source_set("graphcycles_internal") {
     "//third_party/abseil-cpp/absl/base:malloc_internal",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
   ]
-  visibility = [ ":*" ]
 }
 
 absl_source_set("kernel_timeout_internal") {
   sources = [ "internal/kernel_timeout.cc" ]
   public = [ "internal/kernel_timeout.h" ]
+  visibility = [ ":*" ]
   deps = [
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
@@ -28,7 +31,6 @@ absl_source_set("kernel_timeout_internal") {
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/time",
   ]
-  visibility = [ ":*" ]
 }
 
 absl_test("kernel_timeout_internal_test") {
@@ -100,18 +102,9 @@ absl_test("barrier_test") {
   ]
 }
 
-# Conflicts at link time with "tracing_strong_test" because also defines
-# strong functions for AbslInternalTraceWait and alike
-# absl_test("blocking_counter_test") {
-#   sources = [ "blocking_counter_test.cc" ]
-#   deps = [
-#     ":synchronization",
-#     "//third_party/abseil-cpp/absl/base:config",
-#     "//third_party/abseil-cpp/absl/base:core_headers",
-#     "//third_party/abseil-cpp/absl/base:tracing_internal",
-#     "//third_party/abseil-cpp/absl/time",
-#   ]
-# }
+# Conflicts at link time with "tracing_strong_test" because also defines strong
+# functions for AbslInternalTraceWait and alike
+# absl_test("blocking_counter_test")
 
 absl_test("graphcycles_test") {
   sources = [ "internal/graphcycles_test.cc" ]
@@ -126,12 +119,12 @@ absl_test("graphcycles_test") {
 absl_source_set("thread_pool") {
   testonly = true
   public = [ "internal/thread_pool.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
   deps = [
     ":synchronization",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
-  visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
 absl_test("mutex_test") {
@@ -151,39 +144,25 @@ absl_test("mutex_test") {
 }
 
 # Doesn't compile.
-# absl_test("mutex_method_pointer_test") {
-#   sources = [ "mutex_method_pointer_test.cc" ]
-#   deps = [
-#     ":synchronization",
-#     "//third_party/abseil-cpp/absl/base:config",
-#   ]
-# }
+# absl_test("mutex_method_pointer_test")
 
-# Conflicts at link time with "tracing_strong_test" because also defines
-# strong functions for AbslInternalTraceWait and alike
-# absl_test("notification_test") {
-#   sources = [ "notification_test.cc" ]
-#   deps = [
-#     ":synchronization",
-#     "//third_party/abseil-cpp/absl/base:config",
-#     "//third_party/abseil-cpp/absl/base:core_headers",
-#     "//third_party/abseil-cpp/absl/base:tracing_internal",
-#     "//third_party/abseil-cpp/absl/time",
-#   ]
-# }
+# Conflicts at link time with "tracing_strong_test" because also defines strong
+# functions for AbslInternalTraceWait and alike
+# absl_test("notification_test")
 
 absl_source_set("per_thread_sem_test_common") {
   testonly = true
   sources = [ "internal/per_thread_sem_test.cc" ]
+  visibility = [ ":*" ]
   deps = [
     ":synchronization",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/time",
+    "//third_party/googletest:gmock",
     "//third_party/googletest:gtest",
   ]
-  visibility = [ ":*" ]
 }
 
 absl_test("per_thread_sem_test") {
@@ -206,12 +185,5 @@ absl_test("waiter_test") {
     "//third_party/abseil-cpp/absl/time",
   ]
 }
-# Has it's own main function and thus can't be included into absl_tests target
-# absl_test("lifetime_test") {
-#   sources = [ "lifetime_test.cc" ]
-#   deps = [
-#     ":synchronization",
-#     "//third_party/abseil-cpp/absl/base:core_headers",
-#     "//third_party/abseil-cpp/absl/log:check",
-#   ]
-# }
+# lifetime_test is excluded because defines its own main function
+# absl_test("lifetime_test")

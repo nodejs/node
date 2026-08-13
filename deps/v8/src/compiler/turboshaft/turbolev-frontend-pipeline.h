@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_TURBOSHAFT_TURBOLEV_FRONTEND_PIPELINE_H_
 #define V8_COMPILER_TURBOSHAFT_TURBOLEV_FRONTEND_PIPELINE_H_
 
+#include <optional>
+
 #include "src/compiler/turboshaft/phase.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -27,13 +29,22 @@ class TurbolevFrontendPipeline {
   std::unique_ptr<maglev::MaglevCompilationInfo> compilation_info_;
   maglev::Graph* graph_;
 
-  bool ShouldPrintMaglevGraph() {
-    return data_.info()->trace_turbo_graph() ||
-           v8_flags.print_turbolev_frontend;
+  bool TurbolevPhaseMatchesFilter(maglev::MaglevPhase phase);
+
+  bool ShouldPrintMaglevGraph(std::optional<maglev::MaglevPhase> phase = std::nullopt) {
+    if (!data_.info()->trace_turbo_graph() &&
+        !v8_flags.print_turbolev_frontend) {
+      return false;
+    }
+    if (phase.has_value() && !TurbolevPhaseMatchesFilter(phase.value())) {
+      return false;
+    }
+    return true;
   }
 
+
   void PrintBytecode();
-  void PrintMaglevGraph(const char* msg);
+  void PrintMaglevGraph(maglev::MaglevPhase phase);
   void PrintInliningTreeDebugInfo();
 
   template <typename Phase, typename... Args>

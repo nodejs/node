@@ -24,6 +24,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -31,6 +32,7 @@
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
 #include "absl/base/internal/exception_testing.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits_test_helper.h"
 #include "absl/base/macros.h"
 #include "absl/base/options.h"
@@ -205,6 +207,42 @@ TEST(IntVec, AtThrows) {
                                  "failed bounds check");
 }
 
+TEST(IntVec, LengthThrows) {
+  IntVec v = {1, 2, 3};
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.insert(v.begin(), v.max_size() + 1, 0),
+                                 std::length_error, "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(
+      v.insert(v.begin(), static_cast<size_t>(-1), 0), std::length_error,
+      "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.resize(v.max_size() + 1), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.reserve(v.max_size() + 1), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(static_cast<void>(IntVec(v.max_size() + 1, 0)),
+                                 std::length_error, "failed length check");
+}
+
+template <typename T>
+struct SmallMaxAllocator : std::allocator<T> {
+  template <typename U>
+  struct rebind {
+    using other = SmallMaxAllocator<U>;
+  };
+  size_t max_size() const noexcept { return 2; }
+};
+
+TEST(IntVec, EmplaceLengthThrows) {
+  absl::InlinedVector<int, 1, SmallMaxAllocator<int>> v = {1, 2};
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.push_back(3), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.emplace_back(3), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.insert(v.begin(), 3), std::length_error,
+                                 "failed length check");
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(v.emplace(v.begin(), 3), std::length_error,
+                                 "failed length check");
+}
+
 TEST(IntVec, ReverseIterator) {
   for (size_t len = 0; len < 20; len++) {
     IntVec v;
@@ -257,9 +295,9 @@ TEST(IntVec, Hardened) {
   Fill(&v, 10);
   EXPECT_EQ(v[9], 9);
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH_IF_SUPPORTED(v[10], "");
   EXPECT_DEATH_IF_SUPPORTED(v[static_cast<size_t>(-1)], "");
-  EXPECT_DEATH_IF_SUPPORTED(v.resize(v.max_size() + 1), "");
 #endif
 }
 
@@ -475,16 +513,16 @@ TEST(InlinedVectorTest, MoveOnly) {
   v.emplace(v.begin(), MoveOnly{});
 }
 TEST(InlinedVectorTest, Noexcept) {
-  EXPECT_TRUE(std::is_nothrow_move_constructible<IntVec>::value);
-  EXPECT_TRUE((std::is_nothrow_move_constructible<
-               absl::InlinedVector<MoveOnly, 2>>::value));
+  EXPECT_TRUE(std::is_nothrow_move_constructible_v<IntVec>);
+  EXPECT_TRUE(
+      (std::is_nothrow_move_constructible_v<absl::InlinedVector<MoveOnly, 2>>));
 
   struct MoveCanThrow {
     MoveCanThrow(MoveCanThrow&&) {}
   };
   EXPECT_EQ(absl::default_allocator_is_nothrow::value,
-            (std::is_nothrow_move_constructible<
-                absl::InlinedVector<MoveCanThrow, 2>>::value));
+            (std::is_nothrow_move_constructible_v<
+                absl::InlinedVector<MoveCanThrow, 2>>));
 }
 
 TEST(InlinedVectorTest, EmplaceBack) {
@@ -823,7 +861,7 @@ class NotTriviallyDestructible {
       : p_(new int(*other.p_)) {}
 
   NotTriviallyDestructible& operator=(const NotTriviallyDestructible& other) {
-    p_ = absl::make_unique<int>(*other.p_);
+    p_ = std::make_unique<int>(*other.p_);
     return *this;
   }
 
@@ -1768,7 +1806,9 @@ TEST(AllocatorSupportTest, Constructors) {
   MyAlloc alloc(&allocated);
   { AllocVec ABSL_ATTRIBUTE_UNUSED v; }
   { AllocVec ABSL_ATTRIBUTE_UNUSED v(alloc); }
-  { AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + ABSL_ARRAYSIZE(ia), alloc); }
+  {
+    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + std::size(ia), alloc);
+  }
   { AllocVec ABSL_ATTRIBUTE_UNUSED v({1, 2, 3}, alloc); }
 
   AllocVec v2;
@@ -1791,7 +1831,7 @@ TEST(AllocatorSupportTest, CountAllocations) {
   EXPECT_THAT(bytes_allocated, Eq(0));
   EXPECT_THAT(instance_count, Eq(0));
   {
-    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + ABSL_ARRAYSIZE(ia), alloc);
+    AllocVec ABSL_ATTRIBUTE_UNUSED v(ia, ia + std::size(ia), alloc);
     EXPECT_THAT(bytes_allocated,
                 Eq(static_cast<int64_t>(v.size() * sizeof(int))));
     EXPECT_THAT(instance_count, Eq(static_cast<int64_t>(v.size())));
@@ -1866,8 +1906,8 @@ TEST(AllocatorSupportTest, SwapBothAllocated) {
     const int ia2[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
     MyAlloc a1(&allocated1);
     MyAlloc a2(&allocated2);
-    AllocVec v1(ia1, ia1 + ABSL_ARRAYSIZE(ia1), a1);
-    AllocVec v2(ia2, ia2 + ABSL_ARRAYSIZE(ia2), a2);
+    AllocVec v1(ia1, ia1 + std::size(ia1), a1);
+    AllocVec v2(ia2, ia2 + std::size(ia2), a2);
     EXPECT_LT(v1.capacity(), v2.capacity());
     EXPECT_THAT(allocated1,
                 Eq(static_cast<int64_t>(v1.capacity() * sizeof(int))));
@@ -1895,8 +1935,8 @@ TEST(AllocatorSupportTest, SwapOneAllocated) {
     const int ia2[] = {0, 1, 2, 3};
     MyAlloc a1(&allocated1);
     MyAlloc a2(&allocated2);
-    AllocVec v1(ia1, ia1 + ABSL_ARRAYSIZE(ia1), a1);
-    AllocVec v2(ia2, ia2 + ABSL_ARRAYSIZE(ia2), a2);
+    AllocVec v1(ia1, ia1 + std::size(ia1), a1);
+    AllocVec v2(ia2, ia2 + std::size(ia2), a2);
     EXPECT_THAT(allocated1,
                 Eq(static_cast<int64_t>(v1.capacity() * sizeof(int))));
     EXPECT_THAT(allocated2, Eq(0));
@@ -1995,7 +2035,7 @@ TEST(AllocatorSupportTest, SizeAllocConstructor) {
 TEST(InlinedVectorTest, MinimumAllocatorCompilesUsingTraits) {
   using T = int;
   using A = std::allocator<T>;
-  using ATraits = absl::allocator_traits<A>;
+  using ATraits = std::allocator_traits<A>;
 
   struct MinimumAllocator {
     using value_type = T;
@@ -2274,5 +2314,75 @@ TEST(IntVec, EraseIfMatchesAll) {
   EXPECT_EQ(absl::erase_if(v, [](int i) { return i > 0; }), 3u);
   EXPECT_THAT(v, IsEmpty());
 }
+
+#ifdef ABSL_HAVE_EXCEPTIONS
+struct ThrowOnMove {
+  static constexpr uint32_t kAlive = 0xA11FE123;
+  static constexpr uint32_t kDestroyed = 0xDEADBEEF;
+
+  explicit ThrowOnMove(int* count) : alive_count(count), sentinel(kAlive) {
+    if (alive_count) ++(*alive_count);
+  }
+  ThrowOnMove(const ThrowOnMove&) = delete;
+  ThrowOnMove& operator=(const ThrowOnMove&) = delete;
+  ThrowOnMove(ThrowOnMove&& other)
+      : alive_count(other.alive_count), sentinel(kAlive) {
+    if (other.should_throw) throw std::runtime_error("ThrowOnMove");
+    if (alive_count) ++(*alive_count);
+  }
+  ~ThrowOnMove() {
+    EXPECT_EQ(sentinel, kAlive)
+        << "Double destroy detected: destructor called twice on memory slot!";
+    sentinel = kDestroyed;
+    if (alive_count) {
+      EXPECT_GT(*alive_count, 0)
+          << "More destructors called than constructors!";
+      --(*alive_count);
+    }
+  }
+
+  int* alive_count = nullptr;
+  uint32_t sentinel = kDestroyed;
+  bool should_throw = false;
+};
+
+TEST(InlinedVectorTest, SwapExceptionSafety) {
+  int alive_count = 0;
+  try {
+    absl::InlinedVector<ThrowOnMove, 2> a;
+    a.emplace_back(&alive_count);
+    absl::InlinedVector<ThrowOnMove, 2> b;
+    b.emplace_back(&alive_count);
+    b[0].should_throw = true;
+    a.swap(b);
+    FAIL() << "Expected swap to throw std::runtime_error";
+  } catch (const std::runtime_error&) {
+    // Expected exception from throwing move-constructor inside swap.
+  }
+  EXPECT_EQ(alive_count, 0)
+      << "Mismatch between constructor and destructor calls!";
+}
+
+// Ensures that an exception thrown during move construction doesn't leave the
+// inlined vector in a bad state. Needs ASAN for reliable detection.
+TEST(InlinedVectorTest, TruncatesBeforeThrowingMoveConstruction) {
+  using Vec = absl::InlinedVector<ThrowOnMove, 1>;
+  int count = 0;
+  {
+    Vec dest;
+    dest.reserve(dest.capacity() + 1);  // force heap allocation
+    dest.emplace_back(&count);
+
+    Vec src;
+    src.emplace_back(&count).should_throw = true;
+
+    try {
+      dest = std::move(src);
+    } catch (const std::runtime_error&) {
+    }
+  }
+  EXPECT_EQ(count, 0);
+}
+#endif
 
 }  // anonymous namespace

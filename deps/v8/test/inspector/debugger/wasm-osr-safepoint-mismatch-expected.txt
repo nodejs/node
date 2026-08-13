@@ -1,0 +1,7 @@
+Verifies OSR safepoint consistency on ARM64
+
+Running test: test
+Calling main...
+Paused at breakpoint
+Stepping into (triggers OSR to kForStepping)...
+Paused after stepInto

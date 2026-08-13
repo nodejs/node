@@ -43,67 +43,7 @@ class AllocationPlatform : public TestPlatform {
 
 AllocationPlatform* AllocationPlatform::current_platform = nullptr;
 
-// PartitionAlloc is configured to terminate on OOM, not returning nullptr.
-// These functions are not called in the tests that test nullptr return.
-#ifndef V8_ENABLE_PARTITION_ALLOC
-bool DidCallOnCriticalMemoryPressure() {
-  return AllocationPlatform::current_platform &&
-         AllocationPlatform::current_platform->oom_callback_called;
-}
-
-// No OS should be able to malloc/new this number of bytes. Generate enough
-// random values in the address space to get a very large fraction of it. Using
-// even larger values is that overflow from rounding or padding can cause the
-// allocations to succeed somehow.
-size_t GetHugeMemoryAmount() {
-  static size_t huge_memory = 0;
-  if (!huge_memory) {
-    for (int i = 0; i < 100; i++) {
-      huge_memory |=
-          reinterpret_cast<size_t>(v8::internal::GetRandomMmapAddr());
-    }
-    // Make it larger than the available address space.
-    huge_memory *= 2;
-    CHECK_NE(0, huge_memory);
-  }
-  return huge_memory;
-}
-
-void OnMallocedOperatorNewOOM(const char* location, const char* message) {
-  // exit(0) if the OOM callback was called and location matches expectation.
-  CHECK(DidCallOnCriticalMemoryPressure());
-  CHECK_EQ(0, strcmp(location, "Malloced operator new"));
-  v8::base::OS::ExitProcess(0);
-}
-
-void OnNewArrayOOM(const char* location, const char* message) {
-  // exit(0) if the OOM callback was called and location matches expectation.
-  CHECK(DidCallOnCriticalMemoryPressure());
-  CHECK_EQ(0, strcmp(location, "NewArray"));
-  v8::base::OS::ExitProcess(0);
-}
-
-void OnAlignedAllocOOM(const char* location, const char* message) {
-  // exit(0) if the OOM callback was called and location matches expectation.
-  CHECK(DidCallOnCriticalMemoryPressure());
-  CHECK_EQ(0, strcmp(location, "AlignedAlloc"));
-  v8::base::OS::ExitProcess(0);
-}
-#endif  // V8_ENABLE_PARTITION_ALLOC
-
 }  // namespace
-
-// PartitionAlloc is configured to terminate on OOM.
-#ifndef V8_ENABLE_PARTITION_ALLOC
-TEST_WITH_PLATFORM(AccountingAllocatorOOM, AllocationPlatform) {
-  v8::internal::AccountingAllocator allocator;
-  CHECK(!platform.oom_callback_called);
-  v8::internal::Segment* result =
-      allocator.AllocateSegment(GetHugeMemoryAmount());
-  // On a few systems, allocation somehow succeeds.
-  CHECK_EQ(result == nullptr, platform.oom_callback_called);
-}
-#endif  // V8_ENABLE_PARTITION_ALLOC
 
 // We use |AllocateAtLeast| in the accounting allocator, so we check only that
 // we have _at least_ the expected amount of memory allocated.
@@ -133,54 +73,6 @@ TEST_WITH_PLATFORM(AccountingAllocatorCurrentAndMax, AllocationPlatform) {
   CHECK_EQ(0, allocator.GetCurrentMemoryUsage());
   CHECK(!platform.oom_callback_called);
 }
-
-// PartitionAlloc is configured to terminate on OOM.
-#ifndef V8_ENABLE_PARTITION_ALLOC
-TEST_WITH_PLATFORM(MallocedOperatorNewOOM, AllocationPlatform) {
-  CHECK(!platform.oom_callback_called);
-  CcTest::isolate()->SetFatalErrorHandler(OnMallocedOperatorNewOOM);
-  // On failure, this won't return, since a Malloced::New failure is fatal.
-  // In that case, behavior is checked in OnMallocedOperatorNewOOM before exit.
-  void* result = v8::internal::Malloced::operator new(GetHugeMemoryAmount());
-  CHECK_EQ(result == nullptr, platform.oom_callback_called);
-}
-
-TEST_WITH_PLATFORM(NewArrayOOM, AllocationPlatform) {
-  CHECK(!platform.oom_callback_called);
-  CcTest::isolate()->SetFatalErrorHandler(OnNewArrayOOM);
-  // On failure, this won't return, since a NewArray failure is fatal.
-  // In that case, behavior is checked in OnNewArrayOOM before exit.
-  void* result = v8::internal::NewArray<int8_t>(GetHugeMemoryAmount());
-  CHECK_EQ(result == nullptr, platform.oom_callback_called);
-}
-
-TEST_WITH_PLATFORM(AlignedAllocOOM, AllocationPlatform) {
-  CHECK(!platform.oom_callback_called);
-  CcTest::isolate()->SetFatalErrorHandler(OnAlignedAllocOOM);
-  // On failure, this won't return, since an AlignedAlloc failure is fatal.
-  // In that case, behavior is checked in OnAlignedAllocOOM before exit.
-  void* result = v8::internal::AlignedAllocWithRetry(
-      GetHugeMemoryAmount(), v8::internal::AllocatePageSize());
-  CHECK_EQ(result == nullptr, platform.oom_callback_called);
-}
-
-TEST_WITH_PLATFORM(AllocVirtualMemoryOOM, AllocationPlatform) {
-  CHECK(!platform.oom_callback_called);
-  v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
-                                     GetHugeMemoryAmount());
-  // On a few systems, allocation somehow succeeds.
-  CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
-}
-
-TEST_WITH_PLATFORM(AlignedAllocVirtualMemoryOOM, AllocationPlatform) {
-  CHECK(!platform.oom_callback_called);
-  v8::internal::VirtualMemory result(
-      v8::internal::GetPlatformPageAllocator(), GetHugeMemoryAmount(),
-      v8::PageAllocator::AllocationHint(), v8::internal::AllocatePageSize());
-  // On a few systems, allocation somehow succeeds.
-  CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
-}
-#endif  // V8_ENABLE_PARTITION_ALLOC
 
 #endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&
         // !defined(THREAD_SANITIZER)

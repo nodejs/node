@@ -25,9 +25,6 @@ class WasmBuiltinsAssembler : public CodeStubAssembler {
   TNode<NativeContext> LoadContextFromInstanceData(
       TNode<WasmTrustedInstanceData>);
 
-  TNode<WasmTrustedInstanceData> LoadSharedPartFromInstanceData(
-      TNode<WasmTrustedInstanceData>);
-
   TNode<FixedArray> LoadTablesFromInstanceData(TNode<WasmTrustedInstanceData>);
 
   TNode<FixedArray> LoadFuncRefsFromInstanceData(

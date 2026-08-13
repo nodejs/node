@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff --no-wasm-lazy-compilation
+// Flags: --no-wasm-lazy-compilation
 // Flags: --no-wasm-loop-unrolling --no-wasm-loop-peeling
 
 // This test case creates nested loops which contain struct.get calls that
@@ -30,7 +30,7 @@ const nestedLoopCount = 30;
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmAnyRef, true);
+  let array = builder.addArray(kWasmAnyRef);
   let struct = builder.addStruct([
     makeField(wasmRefType(array), true)
   ]);

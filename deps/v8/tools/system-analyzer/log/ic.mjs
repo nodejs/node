@@ -4,6 +4,9 @@
 import {LogEntry} from './log.mjs';
 
 export class IcLogEntry extends LogEntry {
+  static get typeName() {
+    return 'ic';
+  }
   constructor(
       type, fn_file, time, line, column, key, oldState, newState, map, reason,
       modifier, codeEntry) {
@@ -62,8 +65,31 @@ export class IcLogEntry extends LogEntry {
 
   static get propertyNames() {
     return [
-      'type', 'category', 'functionName', 'script', 'sourcePosition', 'code',
-      'state', 'key', 'map', 'reason'
+      'type',
+      'category',
+      'functionName',
+      'script',
+      'sourcePosition',
+      'code',
+      'state',
+      'key',
+      'map',
+      'reason',
     ];
+  }
+
+  toDetailJSON() {
+    return {
+      ...super.toDetailJSON(),
+      category: this.category,
+      functionName: this.functionName,
+      state: this.state,
+      key: this.key,
+      map: this.map?.id ?? '<unknown>',
+      reason: this.reason,
+      modifier: this.modifier,
+      script: this.file,
+      code: this.codeEntry?.logEntry?.toString() ?? '<unknown>'
+    };
   }
 }

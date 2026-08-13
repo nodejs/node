@@ -206,9 +206,8 @@ void TracingAccountingAllocator::UpdateMemoryTrafficAndReportMemoryUsage(
   }
   if (V8_UNLIKELY(TracingFlags::zone_stats.load(std::memory_order_relaxed) &
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
-                         "V8.Zone_Stats", TRACE_EVENT_SCOPE_THREAD, "stats",
-                         TRACE_STR_COPY(trace_str.c_str()));
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.zone_stats"),
+                        "V8.Zone_Stats", "stats", trace_str.c_str());
   }
 }
 

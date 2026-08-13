@@ -13,6 +13,23 @@ namespace compiler {
 
 bool InstructionScheduler::SchedulerSupported() { return true; }
 
+ResourceAllocation InstructionScheduler::GetResourceTable() {
+  std::array units = std::to_array<ResourceAllocation::TableEntry>({
+      {ArchInstResource::kFetch, 1},
+      {ArchInstResource::kIntSingle, 1},
+      {ArchInstResource::kIntMulti, 1},
+      {ArchInstResource::kFP, 1},
+      {ArchInstResource::kLoad, 1},
+      {ArchInstResource::kStore, 1},
+  });
+  return ResourceAllocation(units);
+}
+
+ArchInstResource InstructionScheduler::GetInstructionResource(
+    const Instruction* instr) {
+  return ArchInstResource::kIntSingle;
+}
+
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {

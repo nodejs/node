@@ -311,11 +311,11 @@ constexpr auto BinaryOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
-  // a0: left operand
-  // a1: right operand
-  // a2: feedback slot
-  return RegisterArray(a0, a1, a2);
+constexpr auto BinaryOp_WithEmbeddedFeedbackOffsetDescriptor::registers() {
+  // a1: left operand
+  // a0: right operand
+  // a2: feedback offset
+  return RegisterArray(a1, a0, a2);
 }
 
 // static

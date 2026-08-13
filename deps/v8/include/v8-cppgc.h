@@ -53,6 +53,11 @@ struct V8_EXPORT CppHeapCreateParams {
    */
   cppgc::Heap::SweepingType sweeping_support =
       cppgc::Heap::SweepingType::kIncrementalAndConcurrent;
+  /**
+   * Optional marker representing the stack start of the thread creating the
+   * heap.
+   */
+  std::optional<cppgc::StackStartMarker> stack_start_marker = std::nullopt;
 };
 
 /**
@@ -80,15 +85,6 @@ class V8_EXPORT CppHeap {
    *   other APIs. Valid as long as the underlying `CppHeap` is alive.
    */
   cppgc::HeapHandle& GetHeapHandle();
-
-  /**
-   * Terminate clears all roots and performs multiple garbage collections to
-   * reclaim potentially newly created objects in destructors.
-   *
-   * After this call, object allocation is prohibited.
-   */
-  V8_DEPRECATED("Terminate gets automatically called in the CppHeap destructor")
-  void Terminate();
 
   /**
    * \param detail_level specifies whether should return detailed

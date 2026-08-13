@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-type-reflection
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const dummyFunc =
-    new WebAssembly.Function({parameters: [], results: []}, () => 15);
+    new WebAssemblyFunction({parameters: [], results: []}, () => 15);
 
 const tests = [
   {type: 'i32', input: 12.5, expected: 12},
@@ -28,7 +26,7 @@ const tests = [
 (function TestNoReturn() {
   print(arguments.callee.name);
   const jsFunc =
-      new WebAssembly.Function({parameters: [], results: []}, () => 15);
+      new WebAssemblyFunction({parameters: [], results: []}, () => 15);
 
   assertEquals(undefined, jsFunc());
 })();
@@ -36,7 +34,7 @@ const tests = [
 (function TestSingleReturn() {
   print(arguments.callee.name);
   for (const test of tests) {
-    const jsFunc = new WebAssembly.Function(
+    const jsFunc = new WebAssemblyFunction(
         {parameters: [], results: [test.type]}, () => test.input);
 
     assertEquals(test.expected, jsFunc());
@@ -46,7 +44,7 @@ const tests = [
 (function TestSingleParam() {
   print(arguments.callee.name);
   for (const test of tests) {
-    const jsFunc = new WebAssembly.Function(
+    const jsFunc = new WebAssemblyFunction(
         {parameters: [test.type], results: []},
         (param) => assertEquals(test.expected, param));
     jsFunc(test.input);
@@ -57,7 +55,7 @@ const tests = [
   print(arguments.callee.name);
   for (const param of tests) {
     for (const ret of tests) {
-      const jsFunc = new WebAssembly.Function(
+      const jsFunc = new WebAssemblyFunction(
           {parameters: ['i32', param.type], results: ['f32', ret.type]},
           (foo, p) => {
             assertEquals(param.expected, p);
@@ -72,20 +70,20 @@ const tests = [
 (function TestAnyfuncThrows() {
   print(arguments.callee.name);
 
-  let jsFunc = new WebAssembly.Function(
+  let jsFunc = new WebAssemblyFunction(
       {parameters: [], results: ['anyfunc']}, () => 'no function');
 
   assertThrows(() => jsFunc(), TypeError);
-  jsFunc = new WebAssembly.Function(
+  jsFunc = new WebAssemblyFunction(
       {parameters: ['anyfunc'], results: []}, () => 'no function');
 
   assertThrows(() => jsFunc('no function'), TypeError);
 
-  jsFunc = new WebAssembly.Function(
+  jsFunc = new WebAssemblyFunction(
       {parameters: [], results: ['i32', 'anyfunc']}, () => [12, 'no function']);
 
   assertThrows(() => jsFunc(), TypeError);
-  jsFunc = new WebAssembly.Function(
+  jsFunc = new WebAssemblyFunction(
       {parameters: ['f32', 'anyfunc'], results: []}, () => 'no function');
 
   assertThrows(() => jsFunc(32, 'no function'), TypeError);
@@ -97,14 +95,14 @@ const tests = [
     return i + j;
   }
   const jsFunc =
-      new WebAssembly.Function({parameters: ['f64'], results: ['i32']}, add);
+      new WebAssemblyFunction({parameters: ['f64'], results: ['i32']}, add);
   jsFunc();
   jsFunc(1, 2, 3, 4);
 }) ();
 
 (function TestInvalidParam() {
   print(arguments.callee.name);
-    const jsFunc = new WebAssembly.Function(
+    const jsFunc = new WebAssemblyFunction(
         {parameters: ['v128'], results: []},
         (param) => assertUnreachable());
     assertThrows(jsFunc, TypeError);

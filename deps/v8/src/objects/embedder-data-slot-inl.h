@@ -12,8 +12,9 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
+#include "src/objects/heap-object-field-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-objects-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/isolate.h"
 
@@ -39,9 +40,7 @@ void EmbedderDataSlot::Initialize(Tagged<Object> initial_value) {
   DCHECK(IsSmi(initial_value) ||
          ReadOnlyHeap::Contains(Cast<HeapObject>(initial_value)));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(initial_value);
-#ifdef V8_COMPRESS_POINTERS
   ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());
-#endif
 }
 
 Tagged<Object> EmbedderDataSlot::load_tagged() const {
@@ -50,10 +49,8 @@ Tagged<Object> EmbedderDataSlot::load_tagged() const {
 
 void EmbedderDataSlot::store_smi(Tagged<Smi> value) {
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
-#ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());
-#endif
 }
 
 // static
@@ -65,14 +62,13 @@ void EmbedderDataSlot::store_tagged(Tagged<EmbedderDataArray> array,
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
 #endif
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
-  ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
-      .Relaxed_Store(value);
-  WRITE_BARRIER(array, slot_offset + kTaggedPayloadOffset, value);
-#ifdef V8_COMPRESS_POINTERS
+  Address tagged_addr = FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset);
+  ObjectSlot(tagged_addr).Relaxed_Store(value);
+  WriteBarrier::ForValue(&*array, MaybeObjectSlot(tagged_addr), value,
+                         UPDATE_WRITE_BARRIER);
   // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(array, slot_offset + kRawPayloadOffset))
       .Relaxed_Store(Smi::zero());
-#endif
 }
 
 // static
@@ -88,11 +84,9 @@ void EmbedderDataSlot::store_tagged(Tagged<JSObject> object,
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
   WRITE_BARRIER(object, slot_offset + kTaggedPayloadOffset, value);
-#ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(object, slot_offset + kRawPayloadOffset))
       .Relaxed_Store(Smi::zero());
-#endif
 }
 
 bool EmbedderDataSlot::ToAlignedPointer(
@@ -107,17 +101,18 @@ bool EmbedderDataSlot::ToAlignedPointer(
   *out_pointer = reinterpret_cast<void*>(ReadExternalPointerField(
       address() + kExternalPointerOffset, isolate, tag_range));
   return true;
+#elif !defined(V8_COMPRESS_POINTERS)
+  Address raw_value = base::ReadUnalignedValue<Address>(
+      address() + kExternalPointerOffset);
+  *out_pointer = reinterpret_cast<void*>(raw_value);
+  return true;
 #else
-  Address raw_value;
-  if (COMPRESS_POINTERS_BOOL) {
-    // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
-    // fields (external pointers, doubles and BigInt data) are only kTaggedSize
-    // aligned so we have to use unaligned pointer friendly way of accessing
-    // them in order to avoid undefined behavior in C++ code.
-    raw_value = base::ReadUnalignedValue<Address>(address());
-  } else {
-    raw_value = *location();
-  }
+  static_assert(COMPRESS_POINTERS_BOOL);
+  // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
+  // fields (external pointers, doubles and BigInt data) are only kTaggedSize
+  // aligned so we have to use unaligned pointer friendly way of accessing
+  // them in order to avoid undefined behavior in C++ code.
+  Address raw_value = base::ReadUnalignedValue<Address>(address());
   *out_pointer = reinterpret_cast<void*>(raw_value);
   return HAS_SMI_TAG(raw_value);
 #endif  // V8_ENABLE_SANDBOX
@@ -130,7 +125,7 @@ bool EmbedderDataSlot::ToGenericAlignedPointer(IsolateForSandbox isolate,
 }
 
 bool EmbedderDataSlot::DeprecatedToAlignedPointer(IsolateForSandbox isolate,
-                                                  void** out_pointer) const {
+                                                   void** out_pointer) const {
   return ToAlignedPointer(
       isolate, out_pointer, {kFirstEmbedderDataTag, kLastEmbedderDataTag});
 }
@@ -152,6 +147,10 @@ bool EmbedderDataSlot::store_aligned_pointer(IsolateForSandbox isolate,
   // barrier can be performed here.
   size_t offset = address() - host.address() + kExternalPointerOffset;
   host->WriteLazilyInitializedExternalPointerField(offset, isolate, value, tag);
+  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
+  return true;
+#elif !defined(V8_COMPRESS_POINTERS)
+  base::WriteUnalignedValue<Address>(address() + kExternalPointerOffset, value);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else
@@ -204,17 +203,19 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
   // in order to avoid undefined behavior in C++ code.
   return base::ReadUnalignedValue<EmbedderDataSlot::RawData>(address());
 #else
-  return *location();
+  return RawData{
+      base::ReadUnalignedValue<Address>(address() + kExternalPointerOffset),
+      ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load().ptr()};
 #endif
 }
 
 void EmbedderDataSlot::store_raw(IsolateForSandbox isolate,
-                                 EmbedderDataSlot::RawData data,
+                                 RawData data,
                                  const DisallowGarbageCollection& no_gc) {
   gc_safe_store(isolate, data);
 }
 
-void EmbedderDataSlot::gc_safe_store(IsolateForSandbox isolate, Address value) {
+void EmbedderDataSlot::gc_safe_store(IsolateForSandbox isolate, RawData value) {
 #ifdef V8_COMPRESS_POINTERS
   static_assert(kSmiShiftSize == 0);
   static_assert(SmiValuesAre31Bits());
@@ -237,7 +238,9 @@ void EmbedderDataSlot::gc_safe_store(IsolateForSandbox isolate, Address value) {
       reinterpret_cast<AtomicTagged_t*>(address() + kRawPayloadOffset), hi);
 #else
   ObjectSlot(address() + kTaggedPayloadOffset)
-      .Relaxed_Store(Tagged<Smi>(value));
+      .Relaxed_Store(Tagged<Object>(value.tagged));
+  base::WriteUnalignedValue<Address>(address() + kExternalPointerOffset,
+                                     value.pointer);
 #endif
 }
 

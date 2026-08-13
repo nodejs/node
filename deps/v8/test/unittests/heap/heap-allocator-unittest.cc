@@ -23,19 +23,18 @@ TEST_F(HeapAllocatorTest, TryResizeLargeObject) {
   HeapAllocator* allocator = i_isolate->main_thread_local_heap()->allocator();
   v8::Isolate::Scope isolate_scope(this->v8_isolate());
   HandleScope scope(i_isolate);
-  constexpr size_t kInitialElements = 64 * KB;
-  constexpr size_t kResizedElements = 2 * kInitialElements;
+  constexpr uint32_t kInitialElements = 64 * KB;
+  constexpr uint32_t kResizedElements = 2 * kInitialElements;
   Handle<FixedArray> array = i_isolate->factory()->NewFixedArray(
       kInitialElements, AllocationType::kYoung, AllocationHint().WithMayGrow());
   ReadOnlyRoots roots{i_isolate};
 
-  for (size_t i = kInitialElements; i < kResizedElements; i++) {
+  for (uint32_t i = kInitialElements; i < kResizedElements; i++) {
     CHECK(allocator->TryResizeLargeObject(
         *array, FixedArray::SizeFor(static_cast<int>(i)),
         FixedArray::SizeFor(static_cast<int>(i + 1))));
-    array->set_capacity(static_cast<int>(i + 1));
-    MemsetTagged((*array)->RawFieldOfElementAt(static_cast<int>(i)),
-                 roots.undefined_value(), 1);
+    array->set_capacity(i + 1);
+    MemsetTagged((*array)->RawFieldOfElementAt(i), roots.undefined_value(), 1);
 
     if (i % 20'000 == 0) {
       InvokeMinorGC();

@@ -28,7 +28,8 @@ TurboshaftInstructionSelectorTest::Stream
 TurboshaftInstructionSelectorTest::StreamBuilder::Build(
     CpuFeatureSet features,
     TurboshaftInstructionSelectorTest::StreamBuilderMode mode,
-    InstructionSelector::SourcePositionMode source_position_mode) {
+    InstructionSelector::SourcePositionMode source_position_mode,
+    InstructionSelector::EnableScheduling scheduling_mode) {
   if (v8_flags.trace_turbo) {
     StdoutStream{} << "=== Graph before instruction selection ===" << std::endl
                    << output_graph();
@@ -60,7 +61,7 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
       test_->zone(), graph.op_id_count(), &linkage, &sequence, &graph, nullptr,
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
       &max_unoptimized_frame_height, &max_pushed_argument_count,
-      source_position_mode, features, InstructionSelector::kDisableScheduling,
+      source_position_mode, features, scheduling_mode,
       InstructionSelector::kEnableRootsRelativeAddressing,
       InstructionSelector::kDisableTraceTurboJson,
       InstructionSelector::kNoDeterministicNan);
@@ -447,7 +448,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
                                                     // We inserted 0 here.
   EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
-  EXPECT_TRUE(IsUndefined(*s.ToHeapObject(call_instr->InputAt(6)), isolate()));
+  EXPECT_TRUE(IsUndefined(*s.ToHeapObject(call_instr->InputAt(6))));
 
   // Function.
   EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(7)));

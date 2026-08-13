@@ -16,6 +16,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <random>
 #include <unordered_set>
@@ -284,7 +285,7 @@ TEST(GraphCycles, RandomizedTest) {
         int to = RandomNode(&rng, &nodes);
         GraphId path[2*kMaxNodes];
         int path_len = graph_cycles.FindPath(id[nodes[from]], id[nodes[to]],
-                                             ABSL_ARRAYSIZE(path), path);
+                                             std::size(path), path);
         std::unordered_set<int> seen;
         bool reachable = IsReachable(&edges, nodes[from], nodes[to], &seen);
         bool gc_reachable =
@@ -388,10 +389,10 @@ class GraphCyclesTest : public ::testing::Test {
 
   std::string Path(int x, int y) {
     GraphId path[5];
-    int np = g_.FindPath(Get(id_, x), Get(id_, y), ABSL_ARRAYSIZE(path), path);
+    int np = g_.FindPath(Get(id_, x), Get(id_, y), std::size(path), path);
     std::string result;
     for (int i = 0; i < np; i++) {
-      if (i >= ABSL_ARRAYSIZE(path)) {
+      if (i >= int{std::size(path)}) {
         result += " ...";
         break;
       }

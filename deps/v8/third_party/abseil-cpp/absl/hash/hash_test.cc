@@ -26,6 +26,7 @@
 #include <ios>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <set>
 #include <string>
@@ -34,6 +35,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -49,8 +51,6 @@
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord_test_helpers.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
-#include "absl/types/variant.h"
 
 #ifdef ABSL_INTERNAL_STD_FILESYSTEM_PATH_HASH_AVAILABLE
 #include <filesystem>  // NOLINT
@@ -192,7 +192,7 @@ TEST(HashValueTest, PointerAlignment) {
     constexpr size_t kMask = (1 << (kLog2NumValues + 7)) - 1;
     size_t stuck_bits = (~bits_or | bits_and) & kMask;
     int stuck_bit_count = absl::popcount(stuck_bits);
-    size_t max_stuck_bits = 5;
+    size_t max_stuck_bits = 8;
     EXPECT_LE(stuck_bit_count, max_stuck_bits)
         << "0x" << std::hex << stuck_bits;
 
@@ -365,7 +365,7 @@ TEST(HashValueTest, SmartPointers) {
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
       std::forward_as_tuple(&i, nullptr,                    //
                             unique1, unique2, unique_null,  //
-                            absl::make_unique<int>(),       //
+                            std::make_unique<int>(),        //
                             shared1, shared2, shared_null,  //
                             std::make_shared<int>()),
       SmartPointerEq{}));
@@ -484,6 +484,17 @@ TEST(HashValueTest, WString) {
       std::wstring(L"Iñtërnâtiônàlizætiøn"))));
 }
 
+#ifdef __cpp_char8_t
+TEST(HashValueTest, U8String) {
+  EXPECT_TRUE((is_hashable<std::u8string>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
+      std::u8string(), std::u8string(u8"ABC"), std::u8string(u8"ABC"),
+      std::u8string(u8"Some other different string"),
+      std::u8string(u8"Iñtërnâtiônàlizætiøn"))));
+}
+#endif
+
 TEST(HashValueTest, U16String) {
   EXPECT_TRUE((is_hashable<std::u16string>::value));
 
@@ -510,6 +521,18 @@ TEST(HashValueTest, WStringView) {
       std::wstring_view(L"Some other different string_view"),
       std::wstring_view(L"Iñtërnâtiônàlizætiøn"))));
 }
+
+#ifdef __cpp_char8_t
+TEST(HashValueTest, U8StringView) {
+  EXPECT_TRUE((is_hashable<std::u8string_view>::value));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      std::make_tuple(std::u8string_view(), std::u8string_view(u8"ABC"),
+                      std::u8string_view(u8"ABC"),
+                      std::u8string_view(u8"Some other different string_view"),
+                      std::u8string_view(u8"Iñtërnâtiônàlizætiøn"))));
+}
+#endif
 
 TEST(HashValueTest, U16StringView) {
   EXPECT_TRUE((is_hashable<std::u16string_view>::value));
@@ -558,6 +581,8 @@ TEST(HashValueTest, StdFilesystemPath) {
       std::filesystem::path("c:\\//"),
       std::filesystem::path("c://"),
       std::filesystem::path("c://\\"),
+      std::filesystem::path("c:/a"),
+      std::filesystem::path("c:\\a"),
       std::filesystem::path("/e/p"),
       std::filesystem::path("/s/../e/p"),
       std::filesystem::path("e/p"),
@@ -748,24 +773,22 @@ TEST(HashValueTest, PrivateSanity) {
 }
 
 TEST(HashValueTest, Optional) {
-  EXPECT_TRUE(is_hashable<absl::optional<Private>>::value);
+  EXPECT_TRUE(is_hashable<std::optional<Private>>::value);
 
-  using O = absl::optional<Private>;
+  using O = std::optional<Private>;
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
       std::make_tuple(O{}, O{{1}}, O{{-1}}, O{{10}})));
 }
 
 TEST(HashValueTest, Variant) {
-  using V = absl::variant<Private, std::string>;
+  using V = std::variant<Private, std::string>;
   EXPECT_TRUE(is_hashable<V>::value);
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(std::make_tuple(
       V(Private{1}), V(Private{-1}), V(Private{2}), V("ABC"), V("BCD"))));
 
-#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
   struct S {};
-  EXPECT_FALSE(is_hashable<absl::variant<S>>::value);
-#endif
+  EXPECT_FALSE(is_hashable<std::variant<S>>::value);
 }
 
 TEST(HashValueTest, ReferenceWrapper) {
@@ -790,43 +813,41 @@ template <typename T, typename = void>
 struct IsHashCallable : std::false_type {};
 
 template <typename T>
-struct IsHashCallable<T, absl::void_t<decltype(std::declval<absl::Hash<T>>()(
+struct IsHashCallable<T, std::void_t<decltype(std::declval<absl::Hash<T>>()(
                             std::declval<const T&>()))>> : std::true_type {};
 
 template <typename T, typename = void>
 struct IsAggregateInitializable : std::false_type {};
 
 template <typename T>
-struct IsAggregateInitializable<T, absl::void_t<decltype(T{})>>
+struct IsAggregateInitializable<T, std::void_t<decltype(T{})>>
     : std::true_type {};
 
 TEST(IsHashableTest, ValidHash) {
   EXPECT_TRUE((is_hashable<int>::value));
-  EXPECT_TRUE(std::is_default_constructible<absl::Hash<int>>::value);
-  EXPECT_TRUE(std::is_copy_constructible<absl::Hash<int>>::value);
-  EXPECT_TRUE(std::is_move_constructible<absl::Hash<int>>::value);
-  EXPECT_TRUE(absl::is_copy_assignable<absl::Hash<int>>::value);
-  EXPECT_TRUE(absl::is_move_assignable<absl::Hash<int>>::value);
+  EXPECT_TRUE(std::is_default_constructible_v<absl::Hash<int>>);
+  EXPECT_TRUE(std::is_copy_constructible_v<absl::Hash<int>>);
+  EXPECT_TRUE(std::is_move_constructible_v<absl::Hash<int>>);
+  EXPECT_TRUE(std::is_copy_assignable_v<absl::Hash<int>>);
+  EXPECT_TRUE(std::is_move_assignable_v<absl::Hash<int>>);
   EXPECT_TRUE(IsHashCallable<int>::value);
   EXPECT_TRUE(IsAggregateInitializable<absl::Hash<int>>::value);
 }
 
-#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 TEST(IsHashableTest, PoisonHash) {
   struct X {};
   EXPECT_FALSE((is_hashable<X>::value));
-  EXPECT_FALSE(std::is_default_constructible<absl::Hash<X>>::value);
-  EXPECT_FALSE(std::is_copy_constructible<absl::Hash<X>>::value);
-  EXPECT_FALSE(std::is_move_constructible<absl::Hash<X>>::value);
-  EXPECT_FALSE(absl::is_copy_assignable<absl::Hash<X>>::value);
-  EXPECT_FALSE(absl::is_move_assignable<absl::Hash<X>>::value);
+  EXPECT_FALSE(std::is_default_constructible_v<absl::Hash<X>>);
+  EXPECT_FALSE(std::is_copy_constructible_v<absl::Hash<X>>);
+  EXPECT_FALSE(std::is_move_constructible_v<absl::Hash<X>>);
+  EXPECT_FALSE(std::is_copy_assignable_v<absl::Hash<X>>);
+  EXPECT_FALSE(std::is_move_assignable_v<absl::Hash<X>>);
   EXPECT_FALSE(IsHashCallable<X>::value);
 #if !defined(__GNUC__) || defined(__clang__)
   // TODO(b/144368551): As of GCC 8.4 this does not compile.
   EXPECT_FALSE(IsAggregateInitializable<absl::Hash<X>>::value);
 #endif
 }
-#endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 
 // Hashable types
 //
@@ -895,8 +916,8 @@ struct CustomHashType {
 
 template <InvokeTag allowed, InvokeTag... tags>
 struct EnableIfContained
-    : std::enable_if<absl::disjunction<
-          std::integral_constant<bool, allowed == tags>...>::value> {};
+    : std::enable_if<
+          std::disjunction_v<std::bool_constant<allowed == tags>...>> {};
 
 template <
     typename H, InvokeTag... Tags,
@@ -962,13 +983,11 @@ void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>, T...) {
 }
 
 void TestCustomHashType(InvokeTagConstant<InvokeTag::kNone>) {
-#if ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
   // is_hashable is false if we don't support any of the hooks.
   using type = CustomHashType<>;
   EXPECT_FALSE(is_hashable<type>());
   EXPECT_FALSE(is_hashable<const type>());
   EXPECT_FALSE(is_hashable<const type&>());
-#endif  // ABSL_META_INTERNAL_STD_HASH_SFINAE_FRIENDLY_
 }
 
 template <InvokeTag Tag, typename... T>
@@ -1022,10 +1041,10 @@ struct StructWithPadding {
 
 static_assert(sizeof(StructWithPadding) > sizeof(char) + sizeof(int),
               "StructWithPadding doesn't have padding");
-static_assert(std::is_standard_layout<StructWithPadding>::value, "");
+static_assert(std::is_standard_layout_v<StructWithPadding>, "");
 
 // This check has to be disabled because libstdc++ doesn't support it.
-// static_assert(std::is_trivially_constructible<StructWithPadding>::value, "");
+// static_assert(std::is_trivially_constructible_v<StructWithPadding>, "");
 
 template <typename T>
 struct ArraySlice {
@@ -1244,6 +1263,9 @@ TEST(HashOf, DoubleSignCollision) {
 TEST(PrecombineLengthMix, ShortStringCollision) {
 #if defined(__wasm__)
   GTEST_SKIP() << "Fails flakily on wasm due to no ASLR and 32-bit size_t.";
+#endif
+#if defined(__ANDROID__) && defined(__arm__)
+  GTEST_SKIP() << "Fails on 32-bit Android due to layout changes.";
 #endif
   std::string s1 = "00";
   std::string s2 = "000";

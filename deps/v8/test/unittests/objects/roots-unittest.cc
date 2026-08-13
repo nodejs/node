@@ -112,6 +112,9 @@ TEST_F(RootsTest, TestHeapNumberList) {
   ReadOnlyRoots roots(isolate());
   for (auto pos = RootIndex::kFirstReadOnlyRoot;
        pos <= RootIndex::kLastReadOnlyRoot; ++pos) {
+#if V8_ENABLE_WEBASSEMBLY
+    if (pos == RootIndex::kWasmNull) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
     auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;
