@@ -3031,7 +3031,7 @@ changes:
   `0 < byteLength <= 6`.
 * Returns: {integer}
 
-Reads `byteLength` number of bytes from `buf` at the specified `offset`
+Reads `byteLength` bytes from `buf` at the specified `offset`
 and interprets the result as a big-endian, two's complement signed value
 supporting up to 48 bits of accuracy.
 
@@ -3084,7 +3084,7 @@ changes:
   `0 < byteLength <= 6`.
 * Returns: {integer}
 
-Reads `byteLength` number of bytes from `buf` at the specified `offset`
+Reads `byteLength` bytes from `buf` at the specified `offset`
 and interprets the result as a little-endian, two's complement signed value
 supporting up to 48 bits of accuracy.
 
@@ -3371,7 +3371,7 @@ changes:
   `0 < byteLength <= 6`.
 * Returns: {integer}
 
-Reads `byteLength` number of bytes from `buf` at the specified `offset`
+Reads `byteLength` bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned big-endian integer supporting
 up to 48 bits of accuracy.
 
@@ -3426,7 +3426,7 @@ changes:
   `0 < byteLength <= 6`.
 * Returns: {integer}
 
-Reads `byteLength` number of bytes from `buf` at the specified `offset`
+Reads `byteLength` bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned, little-endian integer supporting
 up to 48 bits of accuracy.
 
@@ -3462,7 +3462,7 @@ added: v3.0.0
 * Returns: {Buffer}
 
 Returns a new `Buffer` that references the same memory as the original, but
-offset and cropped by the `start` and `end` indexes.
+is offset and cropped by the `start` and `end` indexes.
 
 Specifying `end` greater than [`buf.length`][] will return the same result as
 that of `end` equal to [`buf.length`][].
@@ -3589,7 +3589,7 @@ changes:
 * Returns: {Buffer}
 
 Returns a new `Buffer` that references the same memory as the original, but
-offset and cropped by the `start` and `end` indexes.
+is offset and cropped by the `start` and `end` indexes.
 
 This method is not compatible with the `Uint8Array.prototype.slice()`,
 which is a superclass of `Buffer`. To copy the slice, use
