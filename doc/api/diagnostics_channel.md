@@ -165,12 +165,17 @@ const channel = diagnostics_channel.channel('my-channel');
 added:
  - v18.7.0
  - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65383
+    description: Returns a `Disposable` which removes the handler.
 -->
 
 * `name` {string|symbol} The channel name
 * `onMessage` {Function} The handler to receive channel messages
   * `message` {any} The message data
   * `name` {string|symbol} The name of the channel
+* Returns: {Disposable} A Disposable that removes the message handler.
 
 Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
@@ -190,6 +195,32 @@ const diagnostics_channel = require('node:diagnostics_channel');
 diagnostics_channel.subscribe('my-channel', (message, name) => {
   // Received data
 });
+```
+
+The returned Disposable removes the message handler, which allows the
+subscription to be scoped with the [`using`][] syntax. Disposing it more than
+once has no further effect.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+{
+  using subscription = diagnostics_channel.subscribe('my-channel', (message, name) => {
+    // Received data
+  });
+}
+// The handler is removed on scope exit
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+{
+  using subscription = diagnostics_channel.subscribe('my-channel', (message, name) => {
+    // Received data
+  });
+}
+// The handler is removed on scope exit
 ```
 
 #### `diagnostics_channel.unsubscribe(name, onMessage)`
@@ -425,6 +456,9 @@ added:
  - v15.1.0
  - v14.17.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65383
+    description: Returns a `Disposable` which removes the handler.
   - version:
     - v24.8.0
     - v22.20.0
@@ -440,6 +474,7 @@ changes:
 * `onMessage` {Function} The handler to receive channel messages
   * `message` {any} The message data
   * `name` {string|symbol} The name of the channel
+* Returns: {Disposable} A Disposable that removes the message handler.
 
 Register a message handler to subscribe to this channel. This message handler
 will be run synchronously whenever a message is published to the channel. Any
@@ -463,6 +498,39 @@ const channel = diagnostics_channel.channel('my-channel');
 channel.subscribe((message, name) => {
   // Received data
 });
+```
+
+The returned Disposable removes the message handler, which allows the
+subscription to be scoped with the [`using`][] syntax instead of pairing the
+call with [`channel.unsubscribe(onMessage)`][]. Disposing it more than once has
+no further effect.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+const channel = diagnostics_channel.channel('my-channel');
+
+{
+  using subscription = channel.subscribe((message, name) => {
+    // Received data
+  });
+  console.log(channel.hasSubscribers); // true
+}
+console.log(channel.hasSubscribers); // false
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const channel = diagnostics_channel.channel('my-channel');
+
+{
+  using subscription = channel.subscribe((message, name) => {
+    // Received data
+  });
+  console.log(channel.hasSubscribers); // true
+}
+console.log(channel.hasSubscribers); // false
 ```
 
 #### `channel.unsubscribe(onMessage)`
@@ -770,6 +838,10 @@ dynamically.
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65383
+    description: Returns a `Disposable` which removes the handlers.
 -->
 
 * `subscribers` {Object} Set of [TracingChannel Channels][] subscribers
@@ -778,6 +850,8 @@ added:
   * `asyncStart` {Function} The [`asyncStart` event][] subscriber
   * `asyncEnd` {Function} The [`asyncEnd` event][] subscriber
   * `error` {Function} The [`error` event][] subscriber
+* Returns: {Disposable} A Disposable that removes every subscriber the call
+  registered.
 
 Helper to subscribe a collection of functions to the corresponding channels.
 This is the same as calling [`channel.subscribe(onMessage)`][] on each channel
@@ -829,6 +903,46 @@ channels.subscribe({
     // Handle error message
   },
 });
+```
+
+The returned Disposable removes every subscriber the call registered, which
+allows the whole set to be scoped with the [`using`][] syntax. Disposing it more
+than once has no further effect.
+
+```mjs
+import diagnostics_channel from 'node:diagnostics_channel';
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+{
+  using subscription = channels.subscribe({
+    start(message) {
+      // Handle start message
+    },
+    end(message) {
+      // Handle end message
+    },
+  });
+}
+// Both handlers are removed on scope exit
+```
+
+```cjs
+const diagnostics_channel = require('node:diagnostics_channel');
+
+const channels = diagnostics_channel.tracingChannel('my-channel');
+
+{
+  using subscription = channels.subscribe({
+    start(message) {
+      // Handle start message
+    },
+    end(message) {
+      // Handle end message
+    },
+  });
+}
+// Both handlers are removed on scope exit
 ```
 
 #### `tracingChannel.unsubscribe(subscribers)`
@@ -1208,11 +1322,17 @@ if (wc.hasSubscribers) {
 
 <!-- YAML
 added: v26.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65383
+    description: Returns a `Disposable` which removes the handlers.
 -->
 
 * `handlers` {Object} Set of channel subscribers
   * `start` {Function} The start event subscriber
   * `end` {Function} The end event subscriber
+* Returns: {Disposable} A Disposable that removes every subscriber the call
+  registered.
 
 Subscribe to the bounded channel events. This is equivalent to calling
 [`channel.subscribe(onMessage)`][] on each channel individually.
@@ -1245,6 +1365,46 @@ wc.subscribe({
     // Handle end
   },
 });
+```
+
+The returned Disposable removes every subscriber the call registered, which
+allows the whole set to be scoped with the [`using`][] syntax. Disposing it more
+than once has no further effect.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+{
+  using subscription = wc.subscribe({
+    start(message) {
+      // Handle start
+    },
+    end(message) {
+      // Handle end
+    },
+  });
+}
+// Both handlers are removed on scope exit
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+{
+  using subscription = wc.subscribe({
+    start(message) {
+      // Handle start
+    },
+    end(message) {
+      // Handle end
+    },
+  });
+}
+// Both handlers are removed on scope exit
 ```
 
 #### `boundedChannel.unsubscribe(handlers)`
@@ -1986,6 +2146,7 @@ statement, since both are still in use while the event is being delivered; see
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [`statement.close()`]: sqlite.md#statementclose
+[`using`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/using
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
 [thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables
