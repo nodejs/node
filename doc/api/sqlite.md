@@ -1188,6 +1188,18 @@ returns an empty iterator. The prepared statement [parameters are bound][] using
 the values in `namedParameters` and `anonymousParameters`. See
 [Binding parameters][].
 
+### `statement.resetStats()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets every counter reported by [`statement.stat()`][] back to zero, except
+`memused`, which reports current memory usage and cannot be reset. This
+method is a wrapper around [`sqlite3_stmt_status()`][] and is useful for
+measuring a specific workload without the counts accumulated by earlier
+executions of the same prepared statement.
+
 ### `statement.run([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
@@ -1313,6 +1325,43 @@ added: REPLACEME
 
 Finalizes the prepared statement. If the prepared statement is already
 finalized, then this is a no-op.
+
+### `statement.stat(counter)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `counter` {string} The name of the counter to read. One of:
+
+  * `'fullscanStep'` The number of times SQLite has stepped forward in a table
+    as part of a full table scan.
+  * `'sort'` The number of sort operations that have occurred.
+  * `'autoindex'` The number of rows inserted into transient indices that were
+    created automatically to help joins run faster.
+  * `'vmStep'` The number of virtual machine operations executed by the
+    prepared statement.
+  * `'reprepare'` The number of times the statement has been automatically
+    reprepared due to schema changes or changes to bound parameters.
+  * `'run'` The number of execution cycles started by the prepared statement.
+  * `'filterMiss'` The number of times the Bloom filter returned a result that
+    required the join step to be processed as normal.
+  * `'filterHit'` The number of times a join step was bypassed because a Bloom
+    filter returned not-found.
+  * `'memused'` The approximate number of bytes of heap memory used to store
+    the prepared statement.
+
+* Returns: {number} The current value of the requested counter.
+
+Returns one of the runtime counters that SQLite tracks for this prepared
+statement. This method is a wrapper around [`sqlite3_stmt_status()`][] and does
+not reset the counter. Asserting that a statement does not perform a full table
+scan (`statement.stat('fullscanStep') === 0`) is a useful check to guard
+against degenerate performance.
+
+The `'filterMiss'` and `'filterHit'` counters require SQLite 3.38.0 or later.
+Builds linked against an older SQLite with `--shared-sqlite` do not expose them,
+and passing either name throws `ERR_INVALID_ARG_VALUE`.
 
 ## Class: `SQLTagStore`
 
@@ -1832,6 +1881,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_serialize()`]: https://sqlite.org/c3ref/serialize.html
 [`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_stmt_status()`]: https://www.sqlite.org/c3ref/stmt_status.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
 [`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
@@ -1840,6 +1890,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
 [`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
 [`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
+[`statement.stat()`]: #statementstatcounter
 [busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
