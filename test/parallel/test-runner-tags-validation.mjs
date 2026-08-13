@@ -37,6 +37,26 @@ test('empty-string tag throws ERR_INVALID_ARG_VALUE', () => {
   );
 });
 
+test('forbidden characters throw ERR_INVALID_ARG_VALUE', () => {
+  for (const bad of ['a b', 'a\tb', 'a\nb', 'a&b', 'a|b', 'a!b', 'a(b', 'a)b', 'a*b', '*', '&&', '||']) {
+    assert.throws(
+      () => test('x', { tags: [bad] }, () => {}),
+      { code: 'ERR_INVALID_ARG_VALUE' },
+      `expected throw for tag=${JSON.stringify(bad)}`,
+    );
+  }
+});
+
+test('reserved words throw ERR_INVALID_ARG_VALUE in any casing', () => {
+  for (const word of ['and', 'AND', 'And', 'or', 'OR', 'Or', 'not', 'NOT', 'Not']) {
+    assert.throws(
+      () => test('x', { tags: [word] }, () => {}),
+      { code: 'ERR_INVALID_ARG_VALUE' },
+      `expected throw for reserved word ${word}`,
+    );
+  }
+});
+
 test('Unicode and most punctuation are allowed', () => {
   // None of these should throw.
   test('unicode-1', { tags: ['café'] }, () => {});
@@ -80,7 +100,7 @@ test('suite() and describe() validate tags identically', () => {
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
   assert.throws(
-    () => describe('s', { tags: [''] }, () => {}),
+    () => describe('s', { tags: ['and'] }, () => {}),
     { code: 'ERR_INVALID_ARG_VALUE' },
   );
 });
@@ -89,6 +109,13 @@ test('it() validates tags identically to test()', () => {
   assert.throws(
     () => it('i', { tags: [42] }, () => {}),
     { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+});
+
+test('it() validates tags identically to test()', () => {
+  assert.throws(
+    () => it('i', { tags: ['a b'] }, () => {}),
+    { code: 'ERR_INVALID_ARG_VALUE' },
   );
 });
 
