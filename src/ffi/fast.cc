@@ -246,18 +246,45 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
   // returns zero after throwing, preventing the native target from seeing an
   // invalid pointer value.
   constexpr uintptr_t kInvalidBuffer = std::numeric_limits<uintptr_t>::max();
+  v8::Isolate* isolate = options != nullptr ? options->isolate : nullptr;
 
   // Accept only memory-backed JS values in the native helper. Other pointer
   // conversions, including strings, stay in the JS wrapper so their temporary
   // lifetime is explicit.
   if (value->IsArrayBufferView()) {
+    v8::Local<v8::ArrayBufferView> view = value.As<v8::ArrayBufferView>();
+    if (view->Buffer()->WasDetached()) {
+      if (isolate != nullptr) {
+        // No HandleScope is active during a Fast API call, so open one before
+        // creating the error object.
+        v8::HandleScope scope(isolate);
+        THROW_ERR_INVALID_ARG_VALUE(
+            isolate,
+            "Argument %u is an ArrayBufferView backed by a detached "
+            "ArrayBuffer",
+            index);
+      }
+      return kInvalidBuffer;
+    }
     return PointerFromValue(value);
   }
-  if (value->IsArrayBuffer() || value->IsSharedArrayBuffer()) {
+  if (value->IsArrayBuffer()) {
+    if (value.As<v8::ArrayBuffer>()->WasDetached()) {
+      if (isolate != nullptr) {
+        // No HandleScope is active during a Fast API call, so open one before
+        // creating the error object.
+        v8::HandleScope scope(isolate);
+        THROW_ERR_INVALID_ARG_VALUE(
+            isolate, "Argument %u is a detached ArrayBuffer", index);
+      }
+      return kInvalidBuffer;
+    }
+    return PointerFromValue(value);
+  }
+  if (value->IsSharedArrayBuffer()) {
     return PointerFromValue(value);
   }
 
-  v8::Isolate* isolate = options != nullptr ? options->isolate : nullptr;
   if (isolate != nullptr) {
     // No HandleScope is active during a Fast API call, so open one before
     // creating the error object.

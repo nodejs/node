@@ -146,6 +146,41 @@ test('ffi getRawPointer returns raw addresses for byte sources', () => {
   assert.strictEqual(sharedViewPointer, sharedArrayBufferPointer + 2n);
 });
 
+test('ffi rejects detached array buffers and views as pointers', () => {
+  const arrayBuffer = new ArrayBuffer(8);
+  const typedArray = new Uint8Array(arrayBuffer);
+  const dataView = new DataView(arrayBuffer);
+
+  arrayBuffer.transfer();
+
+  assert.throws(() => ffi.exportArrayBuffer(arrayBuffer, 0n, 0), {
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: 'ArrayBuffer is detached',
+  });
+
+  for (const [value, rawPointerMessage, argumentMessage] of [
+    [
+      arrayBuffer,
+      'ArrayBuffer is detached',
+      'Argument 0 is a detached ArrayBuffer',
+    ],
+    ...[typedArray, dataView].map((view) => [
+      view,
+      'ArrayBufferView is backed by a detached ArrayBuffer',
+      'Argument 0 is an ArrayBufferView backed by a detached ArrayBuffer',
+    ]),
+  ]) {
+    assert.throws(() => ffi.getRawPointer(value), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: rawPointerMessage,
+    });
+    assert.throws(() => symbols.pointer_to_usize(value), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: argumentMessage,
+    });
+  }
+});
+
 test('ffi exportString and exportBuffer copy data into native memory', () => {
   withAllocations(common.mustCall((alloc) => {
     const stringPtr = alloc(16);
