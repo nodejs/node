@@ -1023,7 +1023,7 @@ pipes between the parent and child. The value is one of the following:
    created for fds 0, 1, and 2 are also available as [`subprocess.stdin`][],
    [`subprocess.stdout`][] and [`subprocess.stderr`][], respectively.
    These are not actual Unix pipes and therefore the child process
-   can not use them by their descriptor files,
+   cannot use them by their descriptor files,
    e.g. `/dev/fd/2` or `/dev/stdout`.
 2. `'overlapped'`: Same as `'pipe'` except that the `FILE_FLAG_OVERLAPPED` flag
    is set on the handle. This is necessary for overlapped I/O on the child
@@ -1051,8 +1051,8 @@ pipes between the parent and child. The value is one of the following:
    `process.stdin`, `process.stdout`, and `process.stderr`, respectively. In
    any other position, equivalent to `'ignore'`.
 6. {Stream} object: Share a readable or writable stream that refers to a tty,
-   file, socket, or a pipe with the child process. The stream's underlying
-   file descriptor is duplicated in the child process to the fd that
+   file, socket, or pipe with the child process. The stream's underlying
+   file descriptor is duplicated in the child process as the fd that
    corresponds to the index in the `stdio` array. The stream must have an
    underlying descriptor (file streams do not start until the `'open'` event has
    occurred).
@@ -1158,8 +1158,8 @@ changes:
     as stdin to the spawned process. If `stdio[0]` is set to `'pipe'`, Supplying
     this value will override `stdio[0]`.
   * `stdio` {string|Array} Child's stdio configuration.
-    See [`child_process.spawn()`][]'s [`stdio`][]. `stderr` by default will
-    be output to the parent process' stderr unless `stdio` is specified.
+    See [`child_process.spawn()`][]'s [`stdio`][]. `stderr` will
+    be output to the parent process' stderr by default unless `stdio` is specified.
     **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
@@ -1493,7 +1493,7 @@ added: v0.7.2
 
 The `'disconnect'` event is emitted after calling the
 [`subprocess.disconnect()`][] method in parent process or
-[`process.disconnect()`][] in child process. After disconnecting it is no longer
+[`process.disconnect()`][] in child process. After disconnecting, it is no longer
 possible to send or receive messages, and the [`subprocess.connected`][]
 property is `false`.
 
@@ -1638,7 +1638,7 @@ added: v0.7.2
 
 Closes the IPC channel between parent and child processes, allowing the child
 process to exit gracefully once there are no other connections keeping it alive.
-After calling this method the `subprocess.connected` and
+After calling this method, the `subprocess.connected` and
 `process.connected` properties in both the parent and child processes
 (respectively) will be set to `false`, and it will be no longer possible
 to pass messages between the processes.
@@ -1940,13 +1940,13 @@ Applications should avoid using such messages or listening for
 
 The optional `sendHandle` argument that may be passed to `subprocess.send()` is
 for passing a TCP server or socket object to the child process. The child process will
-receive the object as the second argument passed to the callback function
-registered on the [`'message'`][] event. Any data that is received
+receive the object as the second argument to the callback registered
+for the [`'message'`][] event. Any data that is received
 and buffered in the socket will not be sent to the child. Sending IPC sockets is
 not supported on Windows.
 
 The optional `callback` is a function that is invoked after the message is
-sent but before the child process may have received it. The function is called with a
+sent but before the child process may receive it. The function is called with a
 single argument: `null` on success, or an [`Error`][] object on failure.
 
 If no `callback` function is provided and the message cannot be sent, an
@@ -2018,7 +2018,7 @@ supported on Unix platforms.
 
 #### Example: sending a socket object
 
-Similarly, the `sendHandler` argument can be used to pass the handle of a
+Similarly, the `sendHandle` argument can be used to pass the handle of a
 socket to the child process. The example below spawns two children that each
 handle connections with "normal" or "special" priority:
 
@@ -2087,7 +2087,7 @@ process.on('message', (m, socket) => {
 Do not use `.maxConnections` on a socket that has been passed to a subprocess.
 The parent cannot track when the socket is destroyed.
 
-Any `'message'` handlers in the subprocess should verify that `socket` exists,
+Any `'message'` handlers in the subprocess should verify that the `socket` exists,
 as the connection may have been closed during the time it takes to send the
 connection to the child.
 
@@ -2096,7 +2096,7 @@ connection to the child.
 * Type: {string|null}
 
 The `subprocess.signalCode` property indicates the signal received by
-the child process if any, else `null`.
+the child process, if any; otherwise, `null`.
 
 When the child process is terminated by a signal, [`subprocess.exitCode`][] will be `null`.
 To get the corresponding POSIX exit code, use
