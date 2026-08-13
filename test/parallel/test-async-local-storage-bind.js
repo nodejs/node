@@ -4,11 +4,11 @@ const common = require('../common');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
-[1, false, '', {}, []].forEach((i) => {
+for (const i of [1, false, '', {}, []]) {
   assert.throws(() => AsyncLocalStorage.bind(i), {
     code: 'ERR_INVALID_ARG_TYPE'
   });
-});
+}
 
 const fn = common.mustCall(AsyncLocalStorage.bind(() => 123));
 assert.strictEqual(fn(), 123);
