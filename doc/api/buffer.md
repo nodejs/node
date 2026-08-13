@@ -4023,8 +4023,8 @@ changes:
 
 Writes `string` to `buf` at `offset` according to the character encoding in
 `encoding`. The `length` parameter is the number of bytes to write. If `buf` did
-not contain enough space to fit the entire string, only part of `string` will be
-written. However, partially encoded characters will not be written.
+not contain enough space to fit the entire string, only part of the `string` will
+be written. However, partially encoded characters will not be written.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -4204,7 +4204,7 @@ changes:
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` as little-endian
+Writes `value` to `buf` at the specified `offset` as little-endian.
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -4458,7 +4458,7 @@ changes:
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` as big-endian.  The `value`
+Writes `value` to `buf` at the specified `offset` as big-endian. The `value`
 must be a valid signed 16-bit integer. Behavior is undefined when `value` is
 anything other than a signed 16-bit integer.
 
@@ -4502,7 +4502,7 @@ changes:
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` as little-endian.  The `value`
+Writes `value` to `buf` at the specified `offset` as little-endian. The `value`
 must be a valid signed 16-bit integer. Behavior is undefined when `value` is
 anything other than a signed 16-bit integer.
 
