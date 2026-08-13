@@ -522,7 +522,7 @@ void Initialize(Local<Object> target,
 
   {
     const Local<Object> prototype =
-        SharedArrayBuffer::New(isolate, 0)->GetPrototypeV2().As<Object>();
+        SharedArrayBuffer::New(isolate, 0)->GetPrototype().As<Object>();
     const Local<Object> descriptor =
         prototype
             ->GetOwnPropertyDescriptor(
