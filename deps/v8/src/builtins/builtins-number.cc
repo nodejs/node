@@ -7,6 +7,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -55,7 +56,7 @@ BUILTIN(NumberPrototypeToExponential) {
                                isolate->factory()->NewStringFromAsciiChecked(
                                    "toExponential()")));
   }
-  int const f = IsUndefined(*args.atOrUndefined(isolate, 1), isolate)
+  int const f = IsUndefined(*args.atOrUndefined(isolate, 1))
                     ? -1
                     : static_cast<int>(fraction_digits_number);
   char chars[kDoubleToExponentialMaxChars];
@@ -167,7 +168,7 @@ BUILTIN(NumberPrototypeToPrecision) {
   double const value_number = Object::NumberValue(*value);
 
   // If no {precision} was specified, just return ToString of {value}.
-  if (IsUndefined(*precision, isolate)) {
+  if (IsUndefined(*precision)) {
     return *isolate->factory()->NumberToString(value);
   }
 

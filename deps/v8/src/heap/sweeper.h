@@ -76,6 +76,7 @@ class Sweeper {
     // Returns true if any swept pages can be allocated on.
     bool ParallelSweepSpace(
         AllocationSpace identity, SweepingMode sweeping_mode,
+        bool is_main_thread,
         uint32_t max_pages = std::numeric_limits<uint32_t>::max());
     // Intended to be called either with a JobDelegate from a job. Returns true
     // if iteration is finished.
@@ -84,7 +85,7 @@ class Sweeper {
 
    private:
     void ParallelSweepPage(NormalPage* page, AllocationSpace identity,
-                           SweepingMode sweeping_mode);
+                           SweepingMode sweeping_mode, bool is_main_thread);
 
     bool ParallelIteratePromotedPages(JobDelegate* delegate);
     bool ParallelIteratePromotedPages();
@@ -127,7 +128,7 @@ class Sweeper {
 
   // Returns true if any swept pages can be allocated on.
   bool ParallelSweepSpace(
-      AllocationSpace identity, SweepingMode sweeping_mode,
+      AllocationSpace identity, SweepingMode sweeping_mode, bool is_main_thread,
       uint32_t max_pages = std::numeric_limits<uint32_t>::max());
 
   void EnsurePageIsSwept(NormalPage* page);
@@ -190,7 +191,8 @@ class Sweeper {
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
   void RawSweep(NormalPage* p, FreeSpaceTreatmentMode free_space_treatment_mode,
-                SweepingMode sweeping_mode, bool should_reduce_memory);
+                SweepingMode sweeping_mode, bool should_reduce_memory,
+                bool is_main_thread);
 
   void ZeroOrDiscardUnusedMemory(NormalPage* page, Address addr, size_t size);
 

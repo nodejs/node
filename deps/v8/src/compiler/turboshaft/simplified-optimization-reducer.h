@@ -107,8 +107,44 @@ class SimplifiedOptimizationReducer : public Next {
     goto no_change;
   }
 
+  V<Word32> REDUCE(TruncateJSPrimitiveToWord32OrDeopt)(
+      V<JSPrimitive> input, V<EagerFrameState> frame_state,
+      TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement,
+      const FeedbackSource& feedback) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceTruncateJSPrimitiveToWord32OrDeopt(
+          input, frame_state, input_requirement, feedback);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    // Fold TruncateJSPrimitiveToWord32OrDeopt(ConvertUntaggedToJSPrimitive(x))
+    // -> x if the conversion kinds are compatible.
+    if (const ConvertUntaggedToJSPrimitiveOp* convert =
+            matcher_.TryCast<ConvertUntaggedToJSPrimitiveOp>(input)) {
+      bool is_valid_conversion =
+          input_requirement ==
+                  TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement::kSmi
+              ? convert->kind ==
+                    ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi
+              : convert->kind ==
+                    any_of(
+                        ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi,
+                        ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+                            kNumber,
+                        ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+                            kHeapNumber);
+
+      if (is_valid_conversion &&
+          convert->input_rep == RegisterRepresentation::Word32()) {
+        return convert->input<Word32>();
+      }
+    }
+
+    goto no_change;
+  }
+
   V<Untagged> REDUCE(ChangeOrDeopt)(V<Untagged> input,
-                                    V<FrameState> frame_state,
+                                    V<EagerFrameState> frame_state,
                                     ChangeOrDeoptOp::Kind kind,
                                     CheckForMinusZeroMode minus_zero_mode,
                                     const FeedbackSource& feedback) {
@@ -187,7 +223,7 @@ class SimplifiedOptimizationReducer : public Next {
   }
 
   V<Word> REDUCE(WordBinopDeoptOnOverflow)(
-      V<Word> left, V<Word> right, V<FrameState> frame_state,
+      V<Word> left, V<Word> right, V<EagerFrameState> frame_state,
       WordBinopDeoptOnOverflowOp::Kind kind, WordRepresentation rep,
       FeedbackSource feedback, CheckForMinusZeroMode mode) {
     LABEL_BLOCK(no_change) {

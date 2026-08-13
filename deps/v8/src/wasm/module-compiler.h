@@ -31,10 +31,7 @@ class Vector;
 
 namespace internal {
 
-class JSArrayBuffer;
-class JSPromise;
 class WasmModuleObject;
-class WasmInstanceObject;
 class WasmTrustedInstanceData;
 
 namespace wasm {
@@ -47,6 +44,7 @@ class NativeModule;
 class ProfileInformation;
 class StreamingDecoder;
 class WasmCode;
+class WasmError;
 struct WasmModule;
 
 V8_EXPORT_PRIVATE
@@ -69,15 +67,8 @@ std::shared_ptr<wasm::WasmWrapperHandle> CompileImportWrapperForTest(
     Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
     int expected_arity, Suspend suspend);
 
-// Triggered by the WasmCompileLazy builtin. The return value indicates whether
-// compilation was successful. Lazy compilation can fail only if validation is
-// also lazy.
-bool CompileLazy(Isolate*, NativeModule*, int func_index);
-
-// Throws the compilation error after failed lazy compilation.
-void ThrowLazyCompilationError(Isolate* isolate,
-                               const NativeModule* native_module,
-                               int func_index);
+// Triggered by the WasmCompileLazy builtin.
+void CompileLazy(Isolate*, NativeModule*, int func_index);
 
 // Trigger tier-up of a particular function to TurboFan. If tier-up was already
 // triggered, we instead increase the priority with exponential back-off.
@@ -106,6 +97,16 @@ void PublishDetectedFeatures(WasmDetectedFeatures, Isolate*,
 // allocates on the V8 heap (e.g. creating the module object) must be a
 // foreground task. All other tasks (e.g. decoding and validating, the majority
 // of the work of compilation) can be background tasks.
+//
+// An AsyncCompileJob can be used in two ways:
+// 1. Non-streaming: The entire wire bytes are available upfront.
+//    {StartAsyncDecoding} is called to start the process.
+// 2. Streaming: Bytes arrive in chunks. {CreateStreamingDecoder} is called to
+//    get a {StreamingDecoder} which is then used by the embedder to push bytes.
+//    In this case, the {AsyncCompileJob} is driven by the {StreamingDecoder},
+//    and the job's lifetime is tied to the completion or abortion of the
+//    stream.
+//
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
  public:
@@ -126,6 +127,7 @@ class AsyncCompileJob {
   std::shared_ptr<StreamingDecoder> CreateStreamingDecoder();
 
   void Abort();
+  void PrepareForRemoval();
   void CancelPendingForegroundTask();
 
   // Return the isolate that this AsyncCompileJob belongs to, or `nullptr` if
@@ -194,8 +196,6 @@ class AsyncCompileJob {
                      bool cache_hit) &&;
   void Failed() &&;
 
-  void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
-
   void StartForegroundTask();
   void StartBackgroundTask();
 
@@ -246,7 +246,7 @@ class AsyncCompileJob {
   const char* const api_method_name_;
   const WasmEnabledFeatures enabled_features_;
   WasmDetectedFeatures detected_features_;
-  CompileTimeImports compile_imports_;
+  const CompileTimeImports compile_imports_;
   base::TimeTicks start_time_;
   base::TimeTicks compilation_finished_time_;
   // Copy of the module wire bytes, moved into the {new_native_module_} on its
@@ -287,6 +287,8 @@ class AsyncCompileJob {
 
   // The compilation id to identify trace events linked to this compilation.
   const int compilation_id_;
+
+  bool prepared_for_removal_ = false;
 };
 
 // The main purpose of this class is to copy the feedback vectors that live in

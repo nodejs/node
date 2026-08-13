@@ -8,6 +8,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/compiler.h"
+#include "src/objects/contexts.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -157,6 +158,51 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
   CHECK_EQ(64, dict->Capacity());
 }
 
+TEST_F(TestWithNativeContext, ContextMaps) {
+  auto VerifyFunctionPrototypeMap = [this](int stored_map_context_index,
+                                           int stored_ctor_context_index) {
+    DirectHandle<Context> context = native_context();
+
+    DirectHandle<Map> this_map(
+        Cast<Map>(context->GetNoCell(stored_map_context_index)), i_isolate());
+
+    DirectHandle<JSFunction> fun(
+        Cast<JSFunction>(context->GetNoCell(stored_ctor_context_index)),
+        i_isolate());
+    DirectHandle<JSObject> proto(
+        Cast<JSObject>(fun->initial_map()->prototype()), i_isolate());
+    DirectHandle<Map> that_map(proto->map(), i_isolate());
+
+    EXPECT_TRUE(proto->HasFastProperties());
+    EXPECT_EQ(*this_map, *that_map);
+  };
+
+  VerifyFunctionPrototypeMap(Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
+                             Context::STRING_FUNCTION_INDEX);
+  VerifyFunctionPrototypeMap(Context::REGEXP_PROTOTYPE_MAP_INDEX,
+                             Context::REGEXP_FUNCTION_INDEX);
+  VerifyFunctionPrototypeMap(Context::OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX,
+                             Context::OBJECT_FUNCTION_INDEX);
+}
+
+TEST_F(TestWithNativeContext, InitialObjects) {
+  // Initial ArrayIterator prototype.
+  EXPECT_EQ(native_context()->initial_array_iterator_prototype(),
+            *RunJS<JSObject>("[][Symbol.iterator]().__proto__"));
+  // Initial Array prototype.
+  EXPECT_EQ(native_context()->initial_array_prototype(),
+            *RunJS<JSObject>("Array.prototype"));
+  // Initial Generator prototype.
+  EXPECT_EQ(native_context()->initial_generator_prototype(),
+            *RunJS<JSObject>("(function*(){}).__proto__.prototype"));
+  // Initial Iterator prototype.
+  EXPECT_EQ(native_context()->initial_iterator_prototype(),
+            *RunJS<JSObject>("[][Symbol.iterator]().__proto__.__proto__"));
+  // Initial Object prototype.
+  EXPECT_EQ(native_context()->initial_object_prototype(),
+            *RunJS<JSObject>("Object.prototype"));
+}
+
 TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   // Check that the empty_function has a properly set up ScopeInfo.
   DirectHandle<JSFunction> function = RunJS<JSFunction>("(function(){})");
@@ -303,6 +349,21 @@ TEST_F(ObjectTest, NoSideEffectsToString) {
               "#<Object>");
 }
 
+TEST_F(ObjectTest, NoSideEffectsToMaybeStringWithProxy) {
+  Factory* factory = i_isolate()->factory();
+
+  HandleScope scope(i_isolate());
+
+  DirectHandle<JSObject> target =
+      factory->NewJSObject(i_isolate()->object_function());
+  JSObject::AddProperty(i_isolate(), target, factory->constructor_string(),
+                        factory->null_value(), NONE);
+  DirectHandle<JSProxy> proxy = factory->NewJSProxy(
+      target, factory->NewJSObject(i_isolate()->object_function()), false);
+
+  EXPECT_TRUE(Object::NoSideEffectsToMaybeString(i_isolate(), proxy).is_null());
+}
+
 TEST_F(ObjectTest, EnumCache) {
   i::Factory* factory = i_isolate()->factory();
   v8::HandleScope scope(isolate());
@@ -377,11 +438,11 @@ TEST_F(ObjectTest, EnumCache) {
     Tagged<EnumCache> enum_cache =
         cc->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(enum_cache->keys()->length().value(), 3u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 3u);
   }
 
-  // Initializing the EnumCache for the the topmost map {a} will not create the
+  // Initializing the EnumCache for the topmost map {a} will not create the
   // cache for the other maps.
   RunJS("var s = 0; for (let key in a) { s += a[key] };");
   {
@@ -402,8 +463,8 @@ TEST_F(ObjectTest, EnumCache) {
     CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
     CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
 
-    CHECK_EQ(enum_cache->keys()->length(), 1);
-    CHECK_EQ(enum_cache->indices()->length(), 1);
+    CHECK_EQ(enum_cache->keys()->length().value(), 1u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 1u);
   }
 
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
@@ -428,10 +489,10 @@ TEST_F(ObjectTest, EnumCache) {
     CHECK_EQ(enum_cache, *previous_enum_cache);
     CHECK_NE(enum_cache->keys(), *previous_keys);
     CHECK_NE(enum_cache->indices(), *previous_indices);
-    CHECK_EQ(previous_keys->length(), 1);
-    CHECK_EQ(previous_indices->length(), 1);
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(previous_keys->length().value(), 1u);
+    CHECK_EQ(previous_indices->length().value(), 1u);
+    CHECK_EQ(enum_cache->keys()->length().value(), 3u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 3u);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
@@ -465,8 +526,8 @@ TEST_F(ObjectTest, EnumCache) {
     CHECK_EQ(enum_cache, *previous_enum_cache);
     CHECK_EQ(enum_cache->keys(), *previous_keys);
     CHECK_EQ(enum_cache->indices(), *previous_indices);
-    CHECK_EQ(enum_cache->keys()->length(), 3);
-    CHECK_EQ(enum_cache->indices()->length(), 3);
+    CHECK_EQ(enum_cache->keys()->length().value(), 3u);
+    CHECK_EQ(enum_cache->indices()->length().value(), 3u);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
@@ -716,7 +777,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
 
       default:
         // All the other functions must have the default instance type.
-        CHECK_EQ(instance_type, JS_FUNCTION_TYPE);
+        CHECK(InstanceTypeChecker::IsJSFunction(instance_type));
         break;
     }
   }

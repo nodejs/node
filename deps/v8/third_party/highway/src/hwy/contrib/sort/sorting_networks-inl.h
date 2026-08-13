@@ -197,6 +197,7 @@ HWY_INLINE void Sort16(D d, Traits st, V& v0, V& v1, V& v2, V& v3, V& v4, V& v5,
 // st.SortPairsDistance1 to compile. `if constexpr` in the caller would also
 // work, but is not available in C++11. We write out the (unused) argument types
 // rather than `...` because GCC 9 (but not 10) fails to compile with `...`.
+// TODO: use C++17.
 
 template <size_t kKeysPerVector, class D, class Traits, class V,
           HWY_IF_LANES_LE(kKeysPerVector, 1)>
@@ -891,6 +892,16 @@ HWY_NOINLINE void SortingNetwork(Traits st, T* HWY_RESTRICT buf, size_t cols) {
 #else
 template <class Base>
 struct SharedTraits : public Base {};
+
+namespace detail {
+
+// Empty function to avoid a possible -Wpragma-clang-attribute warning if
+// compiling with Clang
+static HWY_INLINE HWY_MAYBE_UNUSED void HWY_CONCAT(UnusedSortingNetworksFunc,
+                                                   __LINE__)() {}
+
+}  // namespace detail
+
 #endif  // VQSORT_ENABLED
 
 }  // namespace detail

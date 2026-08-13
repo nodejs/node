@@ -168,7 +168,7 @@ class OffHeapCompressedObjectSlotBase : public SlotBase<Subclass, Tagged_t> {
   inline TObject Relaxed_Load() const;
   // TODO(saelo): same as in CompressedObjectSlot, consider removing the load
   // variant with a PtrComprCageBase but instead adding one with an isolate
-  // parameter that simply forwards the the parameterless variant.
+  // parameter that simply forwards the parameterless variant.
   inline TObject Relaxed_Load(PtrComprCageBase cage_base) const;
   inline Tagged_t Relaxed_Load_Raw() const;
   static inline Tagged<Object> RawToTagged(PtrComprCageBase cage_base,

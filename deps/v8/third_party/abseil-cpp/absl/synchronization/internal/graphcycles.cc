@@ -28,6 +28,9 @@
 // (2) When a new edge (x->y) is inserted, do nothing if rank[x] < rank[y].
 // (3) Otherwise: adjust ranks in the neighborhood of x and y.
 
+#include <cstddef>
+#include <iterator>
+
 #include "absl/base/attributes.h"
 // This file is a no-op if the required LowLevelAlloc support is missing.
 #include "absl/base/internal/low_level_alloc.h"
@@ -692,7 +695,8 @@ void GraphCycles::UpdateStackTrace(GraphId id, int priority,
   if (n == nullptr || n->priority >= priority) {
     return;
   }
-  n->nstack = (*get_stack_trace)(n->stack, ABSL_ARRAYSIZE(n->stack));
+  n->nstack =
+      (*get_stack_trace)(n->stack, static_cast<int>(std::size(n->stack)));
   n->priority = priority;
 }
 

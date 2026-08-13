@@ -11,6 +11,7 @@ namespace v8::internal::compiler::turboshaft {
 
 void WasmSimdPhase::Run(PipelineData* data, Zone* temp_zone) {
   WasmShuffleAnalyzer analyzer(temp_zone, data->graph());
+  analyzer.Run();
 
   if (analyzer.ShouldReduce()) {
     data->set_wasm_shuffle_analyzer(&analyzer);

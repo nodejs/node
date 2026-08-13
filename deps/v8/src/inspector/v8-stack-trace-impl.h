@@ -118,7 +118,7 @@ class AsyncStackTrace {
   AsyncStackTrace& operator=(const AsyncStackTrace&) = delete;
   static std::shared_ptr<AsyncStackTrace> capture(V8Debugger*,
                                                   const String16& description,
-                                                  bool skipTopFrame = false);
+                                                  int skipFrameCount);
   static uintptr_t store(V8Debugger* debugger,
                          std::shared_ptr<AsyncStackTrace> stack);
 

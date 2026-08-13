@@ -12,8 +12,12 @@
 
 namespace v8::internal {
 
+class CppGCManagedBase;
+class NativeContext;
+
 // Object types that can have a cpp heap object pointer field.
-using CppHeapPointerWrapperObjectT = UnionOf<JSObject, CppHeapExternalObject>;
+using CppHeapPointerWrapperObjectT =
+    UnionOf<JSObject, CppHeapExternalObject, NativeContext, CppGCManagedBase>;
 
 // Helper union that doesn't actually exist as type. Used to get and set the cpp
 // heap pointer for objects that are associated with one. Use by value.
@@ -24,6 +28,7 @@ class CppHeapObjectWrapper {
 
   V8_INLINE explicit CppHeapObjectWrapper(Tagged<JSObject> object);
   V8_INLINE explicit CppHeapObjectWrapper(Tagged<CppHeapExternalObject> object);
+  V8_INLINE explicit CppHeapObjectWrapper(Tagged<CppGCManagedBase> object);
 
   V8_INLINE void InitializeCppHeapWrapper();
 
@@ -36,8 +41,8 @@ class CppHeapObjectWrapper {
                                       CppHeapPointerTagRange tag_range) const;
 
  private:
-  static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset ==
-                JSSpecialObject::kCppHeapWrappableOffset);
+  static_assert(offsetof(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable_) ==
+                offsetof(JSSpecialObject, cpp_heap_wrappable_));
 
   Tagged<CppHeapPointerWrapperObjectT> object_;
   int offset_;

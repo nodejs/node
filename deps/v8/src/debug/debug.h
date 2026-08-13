@@ -31,6 +31,7 @@ class InterpretedFrame;
 class JavaScriptFrame;
 class JSGeneratorObject;
 class StackFrame;
+class ProtectedFixedArray;
 
 // Step actions.
 enum StepAction : int8_t {
@@ -256,7 +257,8 @@ class V8_EXPORT_PRIVATE Debug {
                     debug::BreakReasons break_reasons = {});
   debug::DebugDelegate::ActionAfterInstrumentation OnInstrumentationBreak();
 
-  std::optional<Tagged<Object>> OnThrow(DirectHandle<Object> exception)
+  std::optional<Tagged<Object>> OnThrow(DirectHandle<Object> exception,
+                                        bool is_stack_overflow = false)
       V8_WARN_UNUSED_RESULT;
   void OnPromiseReject(DirectHandle<Object> promise,
                        DirectHandle<Object> value);
@@ -380,14 +382,6 @@ class V8_EXPORT_PRIVATE Debug {
   // Walks the call stack to see if any frames are not ignore listed.
   bool AllFramesOnStackAreBlackboxed();
 
-  // Set new script source, throw an exception if error occurred. When preview
-  // is true: try to set source, throw exception if any without actual script
-  // change. stack_changed is true if after editing script on pause stack is
-  // changed and client should request stack trace again.
-  bool SetScriptSource(Handle<Script> script, Handle<String> source,
-                       bool preview, bool allow_top_frame_live_editing,
-                       debug::LiveEditResult* result);
-
   int GetFunctionDebuggingId(DirectHandle<JSFunction> function);
 
   // Threading support.
@@ -502,6 +496,8 @@ class V8_EXPORT_PRIVATE Debug {
   uint64_t IsolateId() const { return isolate_id_; }
   void SetIsolateId(uint64_t id) { isolate_id_ = id; }
 
+  bool IsTemporaryObject(DirectHandle<HeapObject> object) const;
+
  private:
   explicit Debug(Isolate* isolate);
   ~Debug();
@@ -529,7 +525,8 @@ class V8_EXPORT_PRIVATE Debug {
 
   void OnException(DirectHandle<Object> exception,
                    MaybeDirectHandle<JSPromise> promise,
-                   v8::debug::ExceptionType exception_type);
+                   v8::debug::ExceptionType exception_type,
+                   bool is_stack_overflow = false);
 
   void ProcessCompileEvent(bool has_compile_error, DirectHandle<Script> script);
 
@@ -601,8 +598,6 @@ class V8_EXPORT_PRIVATE Debug {
   bool hook_on_function_call_;
   // Suppress debug events.
   bool is_suppressed_;
-  // Running liveedit.
-  bool running_live_edit_ = false;
   // Do not trigger debug break events.
   bool break_disabled_;
   // Do not break on break points.
@@ -723,10 +718,10 @@ class V8_EXPORT_PRIVATE Debug {
   friend class DebugScope;
   friend class DisableBreak;
   friend class DisableTemporaryObjectTracking;
-  friend class LiveEdit;
   friend class SuppressDebug;
 
-  friend DirectHandle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
+  friend DirectHandle<ProtectedFixedArray>
+  GetDebuggedFunctions();                            // In test-debug.cc
   friend void CheckDebuggerUnloaded();               // In test-debug.cc
 };
 

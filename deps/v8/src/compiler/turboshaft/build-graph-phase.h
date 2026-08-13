@@ -13,6 +13,7 @@
 
 namespace v8::internal::compiler {
 class TFPipelineData;
+class Schedule;
 }  // namespace v8::internal::compiler
 
 namespace v8::internal::compiler::turboshaft {
@@ -21,8 +22,7 @@ struct BuildGraphPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(BuildGraph)
 
   std::optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
-                                   compiler::TFPipelineData* turbofan_data,
-                                   Linkage* linkage);
+                                   Schedule* schedule, Linkage* linkage);
 };
 
 }  // namespace v8::internal::compiler::turboshaft

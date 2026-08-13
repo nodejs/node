@@ -33,8 +33,10 @@ BlockProcessResult TruncationProcessor::PreProcessBasicBlock(
   return BlockProcessResult::kContinue;
 }
 
-void TruncationProcessor::PostProcessBasicBlock(BasicBlock* block) {
+BlockProcessResult TruncationProcessor::PostProcessBasicBlock(
+    BasicBlock* block) {
   reducer_.FlushNodesToBlock();
+  return BlockProcessResult::kContinue;
 }
 
 void TruncationProcessor::PreProcessNode(Node* node,

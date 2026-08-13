@@ -1,0 +1,9 @@
+Tests that destroying context from inside Error.prepareStackTrace during console.log does not crash
+{
+    type : string
+    value : Error: trigger
+}
+{
+    type : string
+    value : End of test
+}

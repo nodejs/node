@@ -125,8 +125,9 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
 
-  DirectHandle<Managed<icu::ListFormatter>> managed_formatter =
-      Managed<icu::ListFormatter>::From(isolate, 0, std::move(formatter));
+  DirectHandle<CppGCManaged<icu::ListFormatter>> managed_formatter =
+      CppGCManaged<icu::ListFormatter>::Create(isolate, 0,
+                                               std::move(formatter));
 
   // Now all properties are ready, so we can allocate the result object.
   DirectHandle<JSListFormat> list_format =
@@ -147,7 +148,7 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
   return list_format;
 }
 
-// ecma402 #sec-intl.pluralrules.prototype.resolvedoptions
+// https://tc39.es/ecma402/#sec-intl.pluralrules.prototype.resolvedoptions
 DirectHandle<JSObject> JSListFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSListFormat> format) {
   Factory* factory = isolate->factory();
@@ -201,9 +202,9 @@ namespace {
 // Extract String from FixedArray into array of UnicodeString
 Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
     Isolate* isolate, DirectHandle<FixedArray> array) {
-  int length = array->length();
+  const uint32_t length = array->ulength().value();
   std::vector<icu::UnicodeString> result;
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     Handle<Object> item(array->get(i), isolate);
     DCHECK(IsString(*item));
     Handle<String> item_str = Cast<String>(item);
@@ -225,7 +226,8 @@ MaybeDirectHandle<T> FormatListCommon(
   MAYBE_RETURN(maybe_array, DirectHandle<T>());
   std::vector<icu::UnicodeString> array = maybe_array.FromJust();
 
-  icu::ListFormatter* formatter = format->icu_formatter()->raw();
+  CppGCManaged<icu::ListFormatter>::Ptr formatter =
+      format->icu_formatter()->ptr();
   DCHECK_NOT_NULL(formatter);
 
   UErrorCode status = U_ZERO_ERROR;
@@ -275,7 +277,7 @@ MaybeDirectHandle<JSArray> FormattedListToJSArray(
 
 }  // namespace
 
-// ecma402 #sec-formatlist
+// https://tc39.es/ecma402/#sec-formatlist
 MaybeDirectHandle<String> JSListFormat::FormatList(
     Isolate* isolate, DirectHandle<JSListFormat> format,
     DirectHandle<FixedArray> list) {
@@ -283,7 +285,7 @@ MaybeDirectHandle<String> JSListFormat::FormatList(
                                   Intl::FormattedToString);
 }
 
-// ecma42 #sec-formatlisttoparts
+// ecma42 https://tc39.es/ecma262/#sec-formatlisttoparts
 MaybeDirectHandle<JSArray> JSListFormat::FormatListToParts(
     Isolate* isolate, DirectHandle<JSListFormat> format,
     DirectHandle<FixedArray> list) {

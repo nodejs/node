@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <span>
+
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
 #include "src/base/strings.h"
@@ -41,10 +43,11 @@ void CheckIsDetached(v8::Local<v8::TypedArray> ta) {
 }
 
 void CheckIsTypedArrayVarDetached(const char* name) {
-  v8::base::ScopedVector<char> source(1024);
+  auto source = v8::base::OwnedVector<char>::NewForOverwrite(1024);
   v8::base::SNPrintF(
-      source, "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0",
-      name, name, name);
+      source.as_vector(),
+      "%s.byteLength == 0 && %s.byteOffset == 0 && %s.length == 0", name, name,
+      name);
   CHECK(CompileRun(source.begin())->IsTrue());
   v8::Local<v8::TypedArray> ta = CompileRun(name).As<v8::TypedArray>();
   CheckIsDetached(ta);
@@ -1100,7 +1103,7 @@ void TestArrayBufferViewGetContent(const char* source, void* expected) {
 
   auto view = v8::Local<v8::ArrayBufferView>::Cast(CompileRun(source));
   uint8_t buffer[i::JSTypedArray::kMaxSizeInHeap];
-  v8::MemorySpan<uint8_t> storage(buffer);
+  std::span<uint8_t> storage(buffer);
   storage = view->GetContents(storage);
   CHECK_EQ(view->ByteLength(), storage.size());
   if (expected) {

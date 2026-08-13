@@ -1,0 +1,22 @@
+add_header_library(
+  kernel_statx_types
+  HDRS
+    kernel_statx_types.h
+  DEPENDS
+    libc.hdr.stdint_proxy
+    libc.src.__support.macros.config
+)
+
+add_header_library(
+  stat_via_statx
+  HDRS
+    stat_via_statx.h
+  DEPENDS
+    .kernel_statx_types
+    libc.hdr.stdint_proxy
+    libc.hdr.types.struct_stat
+    libc.src.__support.common
+    libc.src.__support.error_or
+    libc.src.__support.macros.config
+    libc.src.__support.OSUtil.linux.syscall_wrappers.statx
+)

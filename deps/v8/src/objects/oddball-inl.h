@@ -8,16 +8,21 @@
 #include "src/objects/oddball.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/handles/handles.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/primitive-heap-object-inl.h"
+#include "src/objects/heap-number.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+DEF_CAST_TRAITS(Oddball)
+ODDBALL_LIST(DEF_CAST_TRAITS)
 
 double Oddball::to_number_raw() const { return to_number_raw_.value(); }
 void Oddball::set_to_number_raw(double value) {
@@ -56,14 +61,14 @@ Handle<Number> Oddball::ToNumber(Isolate* isolate,
   return handle(input->to_number(), isolate);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBoolean) {
-  return IsOddball(obj, cage_base) &&
+DEF_HEAP_OBJECT_PREDICATE(IsBoolean) {
+  return IsOddball(obj) &&
          ((Cast<Oddball>(obj)->kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 bool Boolean::ToBool(Isolate* isolate) const {
-  DCHECK(IsBoolean(this, isolate));
-  return IsTrue(this, isolate);
+  DCHECK(IsBoolean(Tagged<HeapObject>(this)));
+  return Is<True>(this);
 }
 
 }  // namespace internal

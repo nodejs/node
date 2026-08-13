@@ -15,7 +15,7 @@ const expected1 = [
   {type: "month", value: "Jan", source: "shared"},
   {type: "literal", value: " ", source: "shared"},
   {type: "day", value: "3", source: "startRange"},
-  {type: "literal", value: "\u2009–\u2009", source: "shared"},
+  {type: "literal", value: " – ", source: "shared"},
   {type: "day", value: "5", source: "endRange"},
   {type: "literal", value: ", ", source: "shared"},
   {type: "year", value: "2019", source: "shared"}
@@ -37,7 +37,7 @@ const expected2 = [
   {type: "day", value: "5", source: "shared"},
   {type: "literal", value: ", ", source: "shared"},
   {type: "hour", value: "7", source: "startRange"},
-  {type: "literal", value: "\u2009–\u2009", source: "shared"},
+  {type: "literal", value: " – ", source: "shared"},
   {type: "hour", value: "10", source: "endRange"},
   {type: "literal", value: " ", source: "shared"},
   {type: "dayPeriod", value: "PM", source: "shared"}

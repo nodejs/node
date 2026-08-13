@@ -91,7 +91,7 @@ void ModuleGenerationTest::Test(WasmModuleGenerationOptions options,
                                   debug_mask);
 
   // Do not generate SIMD if the CPU does not support SIMD.
-  if (options.generate_simd() && !CpuFeatures::SupportsWasmSimd128()) {
+  if (options.generate_simd() && !CpuFeatures::SupportsSimd128()) {
     options = options - WasmModuleGenerationOption::kGenerateSIMD;
   }
 

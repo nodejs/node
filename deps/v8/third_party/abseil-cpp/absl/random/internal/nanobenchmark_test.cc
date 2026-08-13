@@ -14,6 +14,10 @@
 
 #include "absl/random/internal/nanobenchmark.h"
 
+#include <cstddef>
+#include <cstdint>
+
+#include "absl/base/config.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/numbers.h"

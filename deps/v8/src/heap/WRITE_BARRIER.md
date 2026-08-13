@@ -9,10 +9,26 @@ The write barrier is required for multiple purposes:
 
 The generational barrier is always enabled, while the other barriers are only enabled while incremental/concurrent marking is running.
 
+# Eliminating Write Barriers
+
 `WriteBarrier::IsRequired()` is the source of truth of whether a barrier is required at any given point in time.
 Write barriers should only be omitted via proper bottlenecks in the corresponding layers, ensuring that such operations can be verified in non-release builds.
+For example, using `SKIP_WRITE_BARRIER` triggers write barrier verification in debug builds.
 
-# Overview
+## Rules
+A write barrier can be omitted when storing a Smi or a read-only object, since neither can create an interesting reference for the GC.
+
+A write barrier can also be omitted when storing into the *most recent young allocation*.
+This is often called an *initializing store*.
+The host object must have been allocated in young generation and no potential GC point (e.g. an allocation, a stack guard check) may have occurred between the allocation and the store.
+This is safe because the GC specifically supports elimination for this case to remove a large fraction of write barriers.
+
+None of the three write barrier kinds are necessary for such stores:
+* **Old-to-new (generational) barrier:** Not needed because the host object is itself young, so there is no old-to-new reference to record.
+* **Old-to-old (evacuation) barrier:** Not needed because the host object is young, so there is no old-to-old slot to track. The GC can still relocate young objects during a GC; new-to-new slots are discovered by scanning the young generation during the atomic GC pause. This is cheap because the young generation is usually small relative to the full heap size. Note that old-to-new references are still recorded by the generational barrier even during incremental marking. That way we discover all references to young objects.
+* **Marking barrier:** This is the trickiest case. Concurrent marking bails out of tracing objects that reside in the current new space LAB (linear allocation buffer) and pushes them into an "on hold" queue. This prevents such objects from becoming black — they remain grey. Grey objects are marked but are also contained in the worklist - so they will be traced at some point in the future. All of this means that the host object for such cases can never be black - so we also do not need a WB to prevent black-to-white references here. This is also where the *most recently allocated object* limitation comes from.
+
+# Implementation
 The barrier is split into multiple separate parts (ordered from fastest to slowest):
 1. fast (inline) code path,
 2. deferred (out-of-line) code path,
@@ -50,10 +66,10 @@ Otherwise the deferred code jumps back to the regular instruction stream.
 The slow path of the barrier is shared between all compilers and call sites.
 In the generational barrier the field/slot is simply recorded in the old-to-new slot set.
 During incremental/concurrent marking it also marks the `value` object and may record the slot in the old-to-old remembered set for pointers to evacuation candidates.
-This part of the barrier is implemented in CSA in [builtins-internal-gen.cc](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/builtins/builtins-internal-gen.cc?q=WriteBarrierCodeStubAssembler) and used in the [RecordWriteXXX](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/builtins/builtins-internal-gen.cc?q=RecordWriteSaveFp) builtins.
+This part of the barrier is implemented in CSA in [builtins-internal-gen.cc](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/builtins/builtins-internal-gen.cc?q=WriteBarrierCodeStubAssembler) and used in the [RecordWriteXXX](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/builtins/builtins-internal-gen.cc?q=RecordWriteSaveFP) builtins.
 
 ## C++ slow path (#4)
-Inserting into the slot set in the [RecordWriteXXX](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/builtins/builtins-internal-gen.cc?q=RecordWriteSaveFp) builtins may need to `malloc()` memory.
+Inserting into the slot set in the [RecordWriteXXX](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/builtins/builtins-internal-gen.cc?q=RecordWriteSaveFP) builtins may need to `malloc()` memory.
 The builtin therefore may call into C++ for this operation.
 The C++ function for this is [Heap::InsertIntoRememberedSetFromCode](https://source.chromium.org/chromium/chromium/src/+/main:v8/src/heap/heap.cc?q=Heap::InsertIntoRememberedSetFromCode).
 

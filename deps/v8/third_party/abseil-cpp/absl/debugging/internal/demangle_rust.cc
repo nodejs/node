@@ -653,7 +653,15 @@ class RustSymbolParser {
     // A nonempty digit sequence denotes its base-62 value plus 1.
     int encoded_number = 0;
     bool overflowed = false;
-    while (IsAlpha(Peek()) || IsDigit(Peek())) {
+    for (int scanned = 0; IsAlpha(Peek()) || IsDigit(Peek()); ++scanned) {
+      // Cap the scan length: a u64 fits in 11 base-62 digits, and int overflows
+      // after ~5, so anything beyond ~16 digits is already failing to parse.
+      if (scanned >= 16) {
+        // Reject pathologically long runs so a backref cannot re-scan
+        // arbitrarily long stretches of input per iteration.
+        return false;
+      }
+
       const char c = Take();
       if (encoded_number >= std::numeric_limits<int>::max()/62) {
         // If we are close to overflowing an int, keep parsing but stop updating
@@ -712,14 +720,30 @@ class RustSymbolParser {
     if (!ParseDecimalNumber(num_bytes)) return false;
     (void)Eat('_');  // optional separator, needed if a digit follows
     if (is_punycoded) {
-      DecodeRustPunycodeOptions options;
-      options.punycode_begin = &encoding_[pos_];
-      options.punycode_end = &encoding_[pos_] + num_bytes;
-      options.out_begin = out_;
-      options.out_end = out_end_;
-      out_ = DecodeRustPunycode(options);
-      if (out_ == nullptr) return false;
-      pos_ += static_cast<size_t>(num_bytes);
+      // A length exceeding the remaining input would make punycode_end point
+      // past the end of the buffer, forming an out-of-bounds pointer.
+      if (static_cast<size_t>(num_bytes) > std::strlen(&encoding_[pos_])) {
+        return false;
+      }
+      if (silence_depth_ == 0) {
+        DecodeRustPunycodeOptions options;
+        options.punycode_begin = &encoding_[pos_];
+        options.punycode_end = &encoding_[pos_] + num_bytes;
+        options.out_begin = out_;
+        options.out_end = out_end_;
+        out_ = DecodeRustPunycode(options);
+        if (out_ == nullptr) return false;
+        pos_ += static_cast<size_t>(num_bytes);
+      } else {
+        // Output is silenced, so like EmitChar and Emit we produce nothing and
+        // use no output space.  Still consume the identifier's encoded bytes,
+        // stopping at a premature NUL exactly as the raw-bytes branch below
+        // does, so a suppressed punycoded identifier (e.g. a punycoded
+        // fn-signature abi) cannot leak into the demangling.
+        for (int i = 0; i < num_bytes; ++i) {
+          if (Take() == '\0') return false;
+        }
+      }
     }
 
     // Emit the beginnings of braced forms like {shim:vtable#0}.

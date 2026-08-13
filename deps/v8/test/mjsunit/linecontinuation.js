@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// https://tc39.github.io/ecma262/#sec-literals-string-literals
+// https://tc39.es/ecma262/#sec-literals-string-literals
 //
 // LineContinuation ::
 //   \ LineTerminatorSequence

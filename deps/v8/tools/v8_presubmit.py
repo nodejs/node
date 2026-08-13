@@ -849,6 +849,12 @@ def FindTests(workspace):
   return scripts_without_excluded
 
 
+def CheckMarkdown(workspace):
+  script = join(workspace, 'tools', 'dev', 'markdown_checker.py')
+  print('Running ' + script)
+  return subprocess.call(['vpython3', script], stdout=subprocess.PIPE) == 0
+
+
 def PyTests(workspace):
   result = True
   for script in FindTests(workspace):
@@ -940,14 +946,15 @@ def Main():
   (options, args) = parser.parse_args()
   use_linter_cache = not options.no_linter_cache
   checks = [
-    CheckDeps,
-    ClangFormatProcessor(use_cache=use_linter_cache),
-    TorqueLintProcessor(use_cache=use_linter_cache),
-    JSLintProcessor(use_cache=use_linter_cache),
-    SourceProcessor(),
-    StatusFilesProcessor(),
-    PyTests,
-    GCMoleProcessor(),
+      CheckDeps,
+      ClangFormatProcessor(use_cache=use_linter_cache),
+      TorqueLintProcessor(use_cache=use_linter_cache),
+      JSLintProcessor(use_cache=use_linter_cache),
+      SourceProcessor(),
+      StatusFilesProcessor(),
+      CheckMarkdown,
+      PyTests,
+      GCMoleProcessor(),
   ]
   if not options.no_lint:
     checks.append(CppLintProcessor(use_cache=use_linter_cache))

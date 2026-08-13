@@ -118,19 +118,7 @@ InspectorTest.runAsyncTestSuite([
 
   function testWeakRef() {
     return logExpressionProperties('new WeakRef(globalThis)');
-  },
-
-  function testArrayBufferDetached() {
-    return logExpressionProperties(
-        '(() => { const buffer = new ArrayBuffer(16); %ArrayBufferDetach(buffer); return buffer; })()',
-        {accessorPropertiesOnly: true, ownProperties: false});
-  },
-
-  function testArrayBufferAttached() {
-    return logExpressionProperties(
-        'new ArrayBuffer(16)',
-        {accessorPropertiesOnly: true, ownProperties: false});
-  },
+  }
 ]);
 
 async function logExpressionProperties(expression, flags) {

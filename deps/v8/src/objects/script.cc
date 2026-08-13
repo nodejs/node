@@ -13,6 +13,44 @@
 
 namespace v8::internal {
 
+const char* ToString(Script::Type type) {
+  switch (type) {
+    case Script::Type::kNative:
+      return "native";
+    case Script::Type::kExtension:
+      return "extension";
+    case Script::Type::kNormal:
+      return "normal";
+#if V8_ENABLE_WEBASSEMBLY
+    case Script::Type::kWasm:
+      return "wasm";
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case Script::Type::kInspector:
+      return "inspector";
+  }
+  UNREACHABLE();
+}
+
+const char* ToString(Script::CompilationType type) {
+  switch (type) {
+    case Script::CompilationType::kHost:
+      return "host";
+    case Script::CompilationType::kEval:
+      return "eval";
+  }
+  UNREACHABLE();
+}
+
+const char* ToString(Script::CompilationState type) {
+  switch (type) {
+    case Script::CompilationState::kInitial:
+      return "initial";
+    case Script::CompilationState::kCompiled:
+      return "compiled";
+  }
+  UNREACHABLE();
+}
+
 template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     DirectHandle<Script> script, IsolateT* isolate,
@@ -24,11 +62,12 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
-  CHECK_LT(function_literal_id, script->infos()->length());
-  Tagged<MaybeObject> shared = script->infos()->get(function_literal_id);
+  CHECK_LT(static_cast<uint32_t>(function_literal_id),
+           script->infos()->ulength().value());
+  Tagged<MaybeObject> shared =
+      script->infos()->get(function_literal_id, kAcquireLoad);
   Tagged<HeapObject> heap_object;
-  if (!shared.GetHeapObject(&heap_object) ||
-      IsUndefined(heap_object, isolate)) {
+  if (!shared.GetHeapObject(&heap_object) || IsUndefined(heap_object)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
   Handle<SharedFunctionInfo> result(Cast<SharedFunctionInfo>(heap_object),
@@ -57,7 +96,7 @@ Tagged<Script> Script::Iterator::Next() {
   if (o != Tagged<Object>()) {
     return Cast<Script>(o);
   }
-  return Script();
+  return Tagged<Script>();
 }
 
 // static
@@ -83,6 +122,29 @@ int Script::GetEvalPosition(Isolate* isolate, DirectHandle<Script> script) {
   return position;
 }
 
+void Script::set_eval_from_shared(Tagged<SharedFunctionInfo> shared,
+                                  WriteBarrierMode mode) {
+  DCHECK(!is_wrapped());
+  set_eval_from_shared_or_wrapped_arguments(shared, mode);
+}
+
+Tagged<SharedFunctionInfo> Script::eval_from_shared() const {
+  DCHECK(has_eval_from_shared());
+  return Cast<SharedFunctionInfo>(eval_from_shared_or_wrapped_arguments());
+}
+
+Tagged<Script> Script::GetEvalOrigin() {
+  DisallowGarbageCollection no_gc;
+  Tagged<Script> origin_script = this;
+  while (origin_script->has_eval_from_shared()) {
+    Tagged<HeapObject> maybe_script =
+        origin_script->eval_from_shared()->script();
+    CHECK(IsScript(maybe_script));
+    origin_script = Cast<Script>(maybe_script);
+  }
+  return origin_script;
+}
+
 String::LineEndsVector Script::GetLineEnds(Isolate* isolate,
                                            DirectHandle<Script> script) {
   DCHECK(!script->has_line_ends());
@@ -103,7 +165,7 @@ void Script::InitLineEndsInternal(IsolateT* isolate,
   DCHECK(script->CanHaveLineEnds());
   Tagged<Object> src_obj = script->source();
   if (!IsString(src_obj)) {
-    DCHECK(IsUndefined(src_obj, isolate));
+    DCHECK(IsUndefined(src_obj));
     script->set_line_ends(ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     DCHECK(IsString(src_obj));
@@ -142,7 +204,7 @@ bool Script::GetPositionInfo(DirectHandle<Script> script, int position,
 #ifdef DEBUG
   if (script->type() == Type::kWasm) {
     DCHECK(script->has_line_ends());
-    DCHECK_EQ(Cast<FixedArray>(script->line_ends())->length(), 0);
+    DCHECK_EQ(Cast<FixedArray>(script->line_ends())->ulength().value(), 0);
   }
 #endif  // DEBUG
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -168,18 +230,6 @@ bool Script::IsSubjectToDebugging() const {
 bool Script::IsUserJavaScript() const {
   return type() == Script::Type::kNormal;
 }
-
-#if V8_ENABLE_WEBASSEMBLY
-bool Script::ContainsAsmModule() {
-  DisallowGarbageCollection no_gc;
-  SharedFunctionInfo::ScriptIterator iter(Isolate::Current(), *this);
-  for (Tagged<SharedFunctionInfo> sfi = iter.Next(); !sfi.is_null();
-       sfi = iter.Next()) {
-    if (sfi->HasAsmWasmData()) return true;
-  }
-  return false;
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Script::TraceScriptRundown() {
   DisallowGarbageCollection no_gc;
@@ -215,8 +265,8 @@ void Script::TraceScriptRundown() {
   if (IsString(this->name())) {
     value->SetString("url", Cast<String>(this->name())->ToCString().get());
   }
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
-               "ScriptCatchup", "data", std::move(value));
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+              "ScriptCatchup", "data", std::move(value));
 }
 
 void Script::TraceScriptRundownSources() {
@@ -235,33 +285,30 @@ void Script::TraceScriptRundownSources() {
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetInteger("limit", kSourceMaxLength);
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "TooLargeScriptCatchup", "data", std::move(value));
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+                "TooLargeScriptCatchup", "data", std::move(value));
   } else if (source_length <= kSplitMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
     value->SetString("isolate", std::to_string(isolate->debug()->IsolateId()));
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetString("sourceText", source->ToCString().get());
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "ScriptCatchup", "data", std::move(value));
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+                "ScriptCatchup", "data", std::move(value));
   } else {
     int32_t split_count = source_length / kSplitMaxLength + 1;
-    std::unique_ptr<char[]> source_ptr = source->ToCString();
     for (int32_t i = 0; i < split_count; i++) {
       int32_t begin = i * kSplitMaxLength;
-      int32_t end = std::min(begin + kSplitMaxLength, source_length);
+      int32_t length = std::min(kSplitMaxLength, source_length - begin);
       auto split_trace_value = v8::tracing::TracedValue::Create();
       split_trace_value->SetInteger("splitIndex", i);
       split_trace_value->SetInteger("splitCount", split_count);
       split_trace_value->SetString(
           "isolate", std::to_string(isolate->debug()->IsolateId()));
       split_trace_value->SetInteger("scriptId", script_id);
-      split_trace_value->SetString(
-          "sourceText", std::string(source_ptr.get() + begin, end - begin));
-      TRACE_EVENT1(
+      split_trace_value->SetString("sourceText",
+                                   source->ToCString(begin, length).get());
+      TRACE_EVENT(
           TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
           "LargeScriptCatchup", "data", std::move(split_trace_value));
     }
@@ -328,24 +375,26 @@ int GetLineEnd(const Tagged<FixedArray>& array, int line) {
   return Smi::ToInt(array->get(line));
 }
 
-int GetLength(const String::LineEndsVector& vector) {
-  return static_cast<int>(vector.size());
+uint32_t GetLength(const String::LineEndsVector& vector) {
+  return static_cast<uint32_t>(vector.size());
 }
 
-int GetLength(const Tagged<FixedArray>& array) { return array->length(); }
+uint32_t GetLength(const Tagged<FixedArray>& array) {
+  return array->ulength().value();
+}
 
 template <typename LineEndsContainer>
 bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
                                       int position, Script::PositionInfo* info,
                                       const DisallowGarbageCollection& no_gc) {
-  const int ends_len = GetLength(ends);
+  const uint32_t ends_len = GetLength(ends);
   if (ends_len == 0) return false;
 
   // Return early on invalid positions. Negative positions behave as if 0 was
   // passed, and positions beyond the end of the script return as failure.
   if (position < 0) {
     position = 0;
-  } else if (position > GetLineEnd(ends, ends_len - 1)) {
+  } else if (position > GetLineEnd(ends, static_cast<int>(ends_len - 1))) {
     return false;
   }
 
@@ -356,7 +405,7 @@ bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
     info->column = position;
   } else {
     int left = 0;
-    int right = ends_len - 1;
+    int right = static_cast<int>(ends_len - 1);
 
     while (right > 0) {
       DCHECK_LE(left, right);
@@ -385,8 +434,9 @@ template <typename LineEndsContainer>
 bool Script::GetPositionInfoInternal(
     const LineEndsContainer& ends, int position, Script::PositionInfo* info,
     const DisallowGarbageCollection& no_gc) const {
-  if (!GetLineEndsContainerPositionInfo(ends, position, info, no_gc))
+  if (!GetLineEndsContainerPositionInfo(ends, position, info, no_gc)) {
     return false;
+  }
 
   // Line end is position of the linebreak character.
   info->line_end = GetLineEnd(ends, info->line);
@@ -417,7 +467,8 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   // For wasm, we use the byte offset as the column.
   if (type() == Script::Type::kWasm) {
     DCHECK_LE(0, position);
-    wasm::NativeModule* native_module = wasm_native_module();
+    CppGCManaged<wasm::NativeModule>::Ptr native_module =
+        wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
     if (module->functions.empty()) return false;
     info->line = 0;
@@ -430,7 +481,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
   if (!has_line_ends()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
-    if (!GetPositionInfoSlow(*this, position, no_gc, info)) {
+    if (!GetPositionInfoSlow(this, position, no_gc, info)) {
       return false;
     }
   } else {
@@ -511,10 +562,9 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
     return isolate->factory()->empty_string();
   }
 
-  PtrComprCageBase cage_base(isolate);
   {
-    Tagged<Object> maybe_source_hash = script->source_hash(cage_base);
-    if (IsString(maybe_source_hash, cage_base)) {
+    Tagged<Object> maybe_source_hash = script->source_hash();
+    if (IsString(maybe_source_hash)) {
       DirectHandle<String> precomputed(Cast<String>(maybe_source_hash),
                                        isolate);
       if (precomputed->length() > 0) {
@@ -525,9 +575,9 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
 
   DirectHandle<String> src_text;
   {
-    Tagged<Object> maybe_script_source = script->source(cage_base);
+    Tagged<Object> maybe_script_source = script->source();
 
-    if (!IsString(maybe_script_source, cage_base)) {
+    if (!IsString(maybe_script_source)) {
       return isolate->factory()->empty_string();
     }
     src_text = direct_handle(Cast<String>(maybe_script_source), isolate);

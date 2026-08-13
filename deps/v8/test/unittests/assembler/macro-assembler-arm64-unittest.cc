@@ -36,7 +36,7 @@ class MacroAssemblerTest : public TestWithIsolate {};
 
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -59,7 +59,7 @@ TEST_F(MacroAssemblerTest, TestHardAbort) {
 
 TEST_F(MacroAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
+  MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired{false},
                       buffer->CreateView());
   __ set_root_array_available(false);
   __ set_abort_hard(true);
@@ -95,7 +95,7 @@ TEST_F(MacroAssemblerTest, CompareAndBranch) {
     TRACED_FOREACH(int, imm, kTestCases) {
       auto buffer = AllocateAssemblerBuffer();
       MacroAssembler masm(isolate(), AssemblerOptions{},
-                          CodeObjectRequired::kNo, buffer->CreateView());
+                          CodeObjectRequired{false}, buffer->CreateView());
       __ set_root_array_available(false);
       __ set_abort_hard(true);
 
@@ -141,25 +141,33 @@ struct MoveObjectAndSlotTestCase {
   Register dst_slot;
   Register object;
   Register offset_register = no_reg;
+  Extend offset_extend = NO_EXTEND;
 };
 
 const MoveObjectAndSlotTestCase kMoveObjectAndSlotTestCases[] = {
     {"no overlap", x0, x1, x2},
     {"no overlap", x0, x1, x2, x3},
+    {"no overlap", x0, x1, x2, w3, UXTW},
 
     {"object == dst_object", x2, x1, x2},
     {"object == dst_object", x2, x1, x2, x3},
+    {"object == dst_object", x2, x1, x2, w3, UXTW},
 
     {"object == dst_slot", x1, x2, x2},
     {"object == dst_slot", x1, x2, x2, x3},
+    {"object == dst_slot", x1, x2, x2, w3, UXTW},
 
     {"offset == dst_object", x0, x1, x2, x0},
+    {"offset == dst_object", x0, x1, x2, w0, UXTW},
 
     {"offset == dst_object && object == dst_slot", x0, x1, x1, x0},
+    {"offset == dst_object && object == dst_slot", x0, x1, x1, w0, UXTW},
 
     {"offset == dst_slot", x0, x1, x2, x1},
+    {"offset == dst_slot", x0, x1, x2, w1, UXTW},
 
-    {"offset == dst_slot && object == dst_object", x0, x1, x0, x1}};
+    {"offset == dst_slot && object == dst_object", x0, x1, x0, x1},
+    {"offset == dst_slot && object == dst_object", x0, x1, x0, w1, UXTW}};
 
 // Make sure we include offsets that cannot be encoded in an add instruction.
 const int kOffsets[] = {0, 42, kMaxRegularHeapObjectSize, 0x101001};
@@ -175,8 +183,8 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
   const MoveObjectAndSlotTestCase test_case = GetParam();
   TRACED_FOREACH(int32_t, offset, kOffsets) {
     auto buffer = AllocateAssemblerBuffer();
-    MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
-                        buffer->CreateView());
+    MacroAssembler masm(isolate(), AssemblerOptions{},
+                        CodeObjectRequired{false}, buffer->CreateView());
 
     {
       AssemblerBufferWriteScope rw_buffer_scope(*buffer);
@@ -194,7 +202,12 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
         offset_operand = Operand(offset);
       } else {
         __ Mov(test_case.offset_register, Operand(offset));
-        offset_operand = Operand(test_case.offset_register);
+        if (test_case.offset_extend == NO_EXTEND) {
+          offset_operand = Operand(test_case.offset_register);
+        } else {
+          offset_operand =
+              Operand(test_case.offset_register, test_case.offset_extend);
+        }
       }
 
       std::stringstream comment;

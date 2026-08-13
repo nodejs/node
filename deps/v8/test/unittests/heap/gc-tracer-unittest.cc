@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-internal/object-allocator.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,7 +27,8 @@ void SampleAllocation(GCTracer* tracer, base::TimeTicks time,
                       size_t per_space_counter_bytes) {
   // Increment counters of all spaces.
   tracer->SampleAllocation(time, per_space_counter_bytes,
-                           per_space_counter_bytes, per_space_counter_bytes);
+                           per_space_counter_bytes, per_space_counter_bytes,
+                           per_space_counter_bytes);
 }
 
 enum class StartTracingMode {
@@ -79,8 +81,9 @@ void StopTracing(Heap* heap, GarbageCollector collector,
     case GarbageCollector::MARK_COMPACTOR:
       if (heap->cpp_heap()) {
         using namespace cppgc::internal;
-        StatsCollector* stats_collector =
-            CppHeap::From(heap->cpp_heap())->stats_collector();
+        CppHeap* cpp_heap = CppHeap::From(heap->cpp_heap());
+        cpp_heap->object_allocator().ResetLinearAllocationBuffers();
+        StatsCollector* stats_collector = cpp_heap->stats_collector();
         stats_collector->NotifyMarkingStarted(
             CollectionType::kMajor, cppgc::Heap::MarkingType::kAtomic,
             MarkingConfig::IsForcedGC::kNotForced);
@@ -120,6 +123,9 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   EXPECT_EQ(expected_throughput1,
             static_cast<size_t>(
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput1,
+            static_cast<size_t>(
+                tracer->ExternalAllocationThroughputInBytesPerMillisecond()));
   const int time3 = 1000;
   const size_t counter3 = 30000;
   SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
@@ -139,6 +145,39 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
   EXPECT_EQ(expected_throughput2,
             static_cast<size_t>(
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput2,
+            static_cast<size_t>(
+                tracer->ExternalAllocationThroughputInBytesPerMillisecond()));
+
+  const int time4 = 2000;
+  const size_t counter4 = 31000;
+  SampleAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time4),
+                   counter4);
+  // rate4 = 1 byte/ms, which is less than expected_throughput2 (~34),
+  // so we use decrease_decay = 1000ms.
+  // decay_exponent = -1000/1000 = -1.0
+  const double rate4 =
+      static_cast<double>(counter4 - counter3) / (time4 - time3);
+  // Decrease allocation throughput now to 1 byte/ms.
+  EXPECT_EQ(rate4, 1.0);
+  // Decrease decay is 1s, so exponent is -1s/1s = -1.0.
+  const size_t expected_throughput3 =
+      rate4 * (1.0 - exp2(-1.0)) + exp2(-1.0) * expected_throughput2;
+  EXPECT_LT(expected_throughput3, expected_throughput2);
+  EXPECT_GT(expected_throughput3, rate4);
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(
+      expected_throughput3,
+      static_cast<size_t>(
+          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->ExternalAllocationThroughputInBytesPerMillisecond()));
 }
 
 TEST_F(GCTracerTest, RegularScope) {

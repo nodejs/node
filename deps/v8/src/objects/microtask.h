@@ -16,13 +16,12 @@ namespace internal {
 
 class StructBodyDescriptor;
 class MicrotaskQueueBuiltinsAssembler;
-
-#include "torque-generated/src/objects/microtask-tq.inc"
+class JSGeneratorObject;
 
 // Abstract base class for all microtasks that can be scheduled on the
 // microtask queue. This class merely serves the purpose of a marker
 // interface.
-V8_OBJECT class Microtask : public StructLayout {
+V8_OBJECT class Microtask : public Struct {
  public:
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   inline Tagged<Object> continuation_preserved_embedder_data() const;
@@ -36,6 +35,7 @@ V8_OBJECT class Microtask : public StructLayout {
  private:
   friend class TorqueGeneratedMicrotaskAsserts;
   friend class MicrotaskQueueBuiltinsAssembler;
+  friend class GlobalQueueMicrotaskAssembler;
   friend class JSPromise;
   friend struct ObjectTraits<Microtask>;
 
@@ -53,8 +53,8 @@ V8_OBJECT class CallbackTask : public Microtask {
   inline void set_callback(Tagged<Foreign> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Foreign> data() const;
-  inline void set_data(Tagged<Foreign> value,
+  inline Tagged<Object> data() const;
+  inline void set_data(Tagged<Object> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_VERIFIER(CallbackTask)
@@ -65,7 +65,7 @@ V8_OBJECT class CallbackTask : public Microtask {
   friend class MicrotaskQueueBuiltinsAssembler;
 
   TaggedMember<Foreign> callback_;
-  TaggedMember<Foreign> data_;
+  TaggedMember<Object> data_;
 } V8_OBJECT_END;
 
 // A CallableTask is a special (internal) Microtask that allows us to
@@ -77,8 +77,8 @@ V8_OBJECT class CallableTask : public Microtask {
   inline void set_callable(Tagged<JSReceiver> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Context> context() const;
-  inline void set_context(Tagged<Context> value,
+  inline Tagged<NativeContext> context() const;
+  inline void set_context(Tagged<NativeContext> value,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
@@ -89,9 +89,48 @@ V8_OBJECT class CallableTask : public Microtask {
  private:
   friend class TorqueGeneratedCallableTaskAsserts;
   friend class MicrotaskQueueBuiltinsAssembler;
+  friend class GlobalQueueMicrotaskAssembler;
 
   TaggedMember<JSReceiver> callable_;
-  TaggedMember<Context> context_;
+  TaggedMember<NativeContext> context_;
+} V8_OBJECT_END;
+
+// Specialized microtask for resuming async generators/functions when the
+// awaited/yielded value is a non-thenable.  Avoids closure allocation and
+// indirect Call dispatch.  The |kind| field selects the resume behaviour.
+V8_OBJECT class AsyncResumeTask : public Microtask {
+ public:
+  // Determines which resume logic the microtask handler executes.
+  enum Kind {
+    // Async generator yield: resolve iterator result with done=false.
+    kYield = 0,
+    // Async function await: resume the generator with kNext.
+    kAsyncFunctionAwait = 1,
+  };
+
+  inline Tagged<JSGeneratorObject> generator() const;
+  inline void set_generator(Tagged<JSGeneratorObject> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> value() const;
+  inline void set_value(Tagged<Object> val,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int kind() const;
+  inline void set_kind(int kind);
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+  DECL_VERIFIER(AsyncResumeTask)
+  DECL_PRINTER(AsyncResumeTask)
+
+ private:
+  friend class TorqueGeneratedAsyncResumeTaskAsserts;
+  friend struct ObjectTraits<AsyncResumeTask>;
+
+  TaggedMember<JSGeneratorObject> generator_;
+  TaggedMember<Object> value_;
+  TaggedMember<Smi> kind_;
 } V8_OBJECT_END;
 
 template <>
@@ -100,6 +139,13 @@ struct ObjectTraits<Microtask> {
   static constexpr int kContinuationPreservedEmbedderDataOffset =
       offsetof(Microtask, continuation_preserved_embedder_data_);
 #endif
+};
+
+template <>
+struct ObjectTraits<AsyncResumeTask> {
+  static constexpr int kGeneratorOffset = offsetof(AsyncResumeTask, generator_);
+  static constexpr int kValueOffset = offsetof(AsyncResumeTask, value_);
+  static constexpr int kKindOffset = offsetof(AsyncResumeTask, kind_);
 };
 
 }  // namespace internal

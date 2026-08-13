@@ -19,7 +19,7 @@ class FeedbackVectorHelper {
  public:
   explicit FeedbackVectorHelper(Handle<FeedbackVector> vector)
       : vector_(vector) {
-    int slot_count = vector->length();
+    uint32_t slot_count = vector->length().value();
     slots_.reserve(slot_count);
     DisallowGarbageCollection no_gc;
     FeedbackMetadataIterator iter(vector->metadata(), no_gc);

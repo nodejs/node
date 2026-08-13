@@ -14,7 +14,9 @@
 
 #include "absl/debugging/internal/demangle.h"
 
+#include <array>
 #include <cstdlib>
+#include <memory>
 #include <string>
 
 #include "gmock/gmock.h"
@@ -29,6 +31,7 @@ ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 namespace {
 
+using ::testing::Contains;
 using ::testing::ContainsRegex;
 
 TEST(Demangle, FunctionTemplate) {
@@ -466,6 +469,31 @@ TEST(Demangle, AvoidSignedOverflowForUnfortunateParameterNumbers) {
   ASSERT_TRUE(Demangle("_ZZN1S1fEPFvvEEd2147483648_NKUlvE_clEv",
                        tmp, sizeof(tmp)));
   EXPECT_STREQ(tmp, "S::f()::{default arg#1}::{lambda()#1}::operator()()");
+}
+
+TEST(Demangle, NegativeUnnamedTypeNumbers) {
+  char tmp[100];
+
+  // An omitted <number> denotes index 1 and is left as the -1 sentinel.
+  ASSERT_TRUE(Demangle("_ZUt_", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "{unnamed type#1}");
+  ASSERT_TRUE(Demangle("_ZUlvE_", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "{lambda()#1}");
+
+  // Reject an explicitly negative <number>.  Left unstrained, <number> + 2 is
+  // negative, and MaybeAppendDecimal emits (val % 10) + '0' per digit, which
+  // for a negative val yields characters below '0'.
+  ASSERT_FALSE(Demangle("_ZUtn3_", tmp, sizeof(tmp)));
+  ASSERT_FALSE(Demangle("_ZUlvEn3_", tmp, sizeof(tmp)));
+
+  // ParseNumber truncates to int, so an in-range-looking <number> can also
+  // arrive negative.
+  ASSERT_FALSE(Demangle("_ZUt2147483648_", tmp, sizeof(tmp)));
+  ASSERT_FALSE(Demangle("_ZUlvE2147483648_", tmp, sizeof(tmp)));
+
+  // The largest <number> whose index still fits in an int is unaffected.
+  ASSERT_TRUE(Demangle("_ZUt2147483645_", tmp, sizeof(tmp)));
+  EXPECT_STREQ(tmp, "{unnamed type#2147483647}");
 }
 
 TEST(Demangle, SubstpackNotationForTroublesomeTemplatePack) {
@@ -1907,6 +1935,13 @@ TEST(Demangle, DelegatesToDemangleRustSymbolEncoding) {
   EXPECT_STREQ("my_crate::my_func", tmp);
 }
 
+TEST(Demangle, DemanglingNulTerminatesOnParsingFailure) {
+  std::array buf = {'\xAA', '\xAA', '\xAA', '\xAA'};
+  EXPECT_FALSE(Demangle("_ZN1xBE", std::data(buf), std::size(buf)));
+  // Ensure string is properly NUL-terminated despite parsing failure.
+  EXPECT_THAT(buf, Contains('\0'));
+}
+
 // Tests that verify that Demangle footprint is within some limit.
 // They are not to be run under sanitizers as the sanitizers increase
 // stack consumption by about 4x.
@@ -2000,7 +2035,7 @@ TEST(Demangle, DemangleStackConsumption) {
 
 static void TestOnInput(const char* input) {
   static const int kOutSize = 1048576;
-  auto out = absl::make_unique<char[]>(kOutSize);
+  auto out = std::make_unique<char[]>(kOutSize);
   Demangle(input, out.get(), kOutSize);
 }
 

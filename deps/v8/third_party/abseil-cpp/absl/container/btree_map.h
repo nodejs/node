@@ -94,7 +94,7 @@ using map_params = typename ApplyWithoutDefaultSuffix<
              typename btree_map_defaults<Key, Data>::IsMulti>,
     TypeList<Key, Data, Compare, Alloc,
              std::integral_constant<int, TargetNodeSize>,
-             std::integral_constant<bool, IsMulti>>>::type;
+             std::bool_constant<IsMulti>>>::type;
 
 }  // namespace container_internal
 

@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -172,14 +173,18 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
       }
     }
   }
-  // New frame pointer is valid if it is inside either known stack or readable.
-  // This assumes that everything within either known stack is readable. Outside
-  // either known stack but readable is unexpected, and possibly corrupt, but
-  // for now assume it is valid. If it isn't actually valid, the next frame will
-  // be corrupt and we will detect that next iteration.
-  if (new_inside_signal_stack ||
-      (new_fp_comparable >= stack_info->stack_low &&
-       new_fp_comparable < stack_info->stack_high) ||
+  // Verify that the candidate frame pointer lies inside a positively discovered
+  // and narrowed thread stack boundary. When stack boundaries are unknown (e.g.
+  // in open-source builds or outside Linux threads), stack_low defaults to
+  // getpagesize() and stack_high defaults to kUnknownStackEnd. Requiring both
+  // stack_high < kUnknownStackEnd and getpagesize() < stack_low ensures we only
+  // short-circuit AddressIsReadable() when thread stack bounds are known.
+  const bool new_inside_known_thread_stack =
+      stack_info->stack_high < kUnknownStackEnd &&
+      static_cast<size_t>(getpagesize()) < stack_info->stack_low &&
+      new_fp_comparable >= stack_info->stack_low &&
+      new_fp_comparable < stack_info->stack_high;
+  if (new_inside_signal_stack || new_inside_known_thread_stack ||
       absl::debugging_internal::AddressIsReadable(new_frame_pointer)) {
     return new_frame_pointer;
   }
@@ -211,6 +216,17 @@ static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
   stack_info.stack_high = kUnknownStackEnd;
   stack_info.sig_stack_low = stack_info.stack_low;
   stack_info.sig_stack_high = kUnknownStackEnd;
+
+#if defined(__linux__)
+  // Similarly for the signal stack, retrieve the information into sig_stack and
+  // then pass it down per call. Calling sigaltstack with nullptr as the first
+  // argument doesn't change the signal stack.
+  stack_t sig_stack;
+  if (sigaltstack(nullptr, &sig_stack) == 0) {
+    stack_info.sig_stack_low = reinterpret_cast<uintptr_t>(sig_stack.ss_sp);
+    stack_info.sig_stack_high = stack_info.sig_stack_low + sig_stack.ss_size;
+  }
+#endif
 
   // The frame pointer points to low address of a frame.  The first 64-bit
   // word of a frame points to the next frame up the call chain, which normally

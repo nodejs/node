@@ -18,6 +18,7 @@
 #include <stdlib.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -63,6 +64,8 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
+
+ABSL_CONST_INIT std::atomic<bool> g_disable_indirect_flag_expansion(false);
 
 absl::Mutex& ProcessingChecksMutex() {
   static absl::NoDestructor<absl::Mutex> mutex;
@@ -354,6 +357,12 @@ void CheckDefaultValuesParsingRoundtrip() {
 // etc.
 bool ReadFlagfiles(const std::vector<std::string>& flagfiles,
                    std::vector<ArgsList>& input_args) {
+  if (!flags_internal::IsIndirectFlagExpansionEnabled()) {
+    flags_internal::ReportUsageError(
+        "Skipping expansion of --flagfile as it is disabled.", false);
+    return true;
+  }
+
   bool success = true;
   for (auto it = flagfiles.rbegin(); it != flagfiles.rend(); ++it) {
     ArgsList al;
@@ -376,6 +385,13 @@ bool ReadFlagfiles(const std::vector<std::string>& flagfiles,
 bool ReadFlagsFromEnv(const std::vector<std::string>& flag_names,
                       std::vector<ArgsList>& input_args,
                       bool fail_on_absent_in_env) {
+  if (!flags_internal::IsIndirectFlagExpansionEnabled()) {
+    flags_internal::ReportUsageError(
+        "Skipping expansion of --fromenv/--tryfromenv as it is disabled.",
+        false);
+    return true;
+  }
+
   bool success = true;
   std::vector<std::string> args;
 
@@ -921,7 +937,15 @@ HelpMode ParseAbseilFlagsOnlyImpl(
              : HelpMode::kNone;
 }
 
+bool IsIndirectFlagExpansionEnabled() {
+  return !g_disable_indirect_flag_expansion;
+}
+
 }  // namespace flags_internal
+
+void DisableFlagfileAndEnvParsing() {
+  flags_internal::g_disable_indirect_flag_expansion = true;
+}
 
 void ParseAbseilFlagsOnly(int argc, char* argv[],
                           std::vector<char*>& positional_args,

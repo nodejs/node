@@ -57,8 +57,9 @@ class ContextNameResolver final : public v8::HeapProfiler::ContextNameResolver {
       : m_offset(0), m_strings(10000), m_session(session) {}
 
   const char* GetName(v8::Local<v8::Context> context) override {
-    InspectedContext* inspected_context = m_session->inspector()->getContext(
-        m_session->contextGroupId(), InspectedContext::contextId(context));
+    std::shared_ptr<InspectedContext> inspected_context =
+        m_session->inspector()->getContext(
+            m_session->contextGroupId(), InspectedContext::contextId(context));
     if (!inspected_context) return nullptr;
     String16 name = inspected_context->origin();
     size_t length = name.length();
@@ -267,12 +268,14 @@ V8HeapProfilerAgentImpl::~V8HeapProfilerAgentImpl() {
 
 void V8HeapProfilerAgentImpl::restore() {
   if (m_state->booleanProperty(HeapProfilerAgentState::heapProfilerEnabled,
-                               false))
+                               false)) {
     m_frontend.resetProfiles();
+  }
   if (m_state->booleanProperty(
-          HeapProfilerAgentState::heapObjectsTrackingEnabled, false))
+          HeapProfilerAgentState::heapObjectsTrackingEnabled, false)) {
     startTrackingHeapObjectsInternal(m_state->booleanProperty(
         HeapProfilerAgentState::allocationTrackingEnabled, false));
+  }
   if (m_state->booleanProperty(
           HeapProfilerAgentState::samplingHeapProfilerEnabled, false)) {
     double samplingInterval = m_state->doubleProperty(
@@ -384,8 +387,9 @@ Response V8HeapProfilerAgentImpl::takeHeapSnapshotNow(
   v8::HeapProfiler* profiler = m_isolate->GetHeapProfiler();
   DCHECK(profiler);
   std::unique_ptr<HeapSnapshotProgress> progress;
-  if (protocolOptions.m_reportProgress)
+  if (protocolOptions.m_reportProgress) {
     progress.reset(new HeapSnapshotProgress(&m_frontend));
+  }
 
   ContextNameResolver resolver(m_session);
   v8::HeapProfiler::HeapSnapshotOptions options;
@@ -420,11 +424,13 @@ Response V8HeapProfilerAgentImpl::getObjectByHeapObjectId(
 
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Object> heapObject = objectByHeapObjectId(m_isolate, id);
-  if (heapObject.IsEmpty())
+  if (heapObject.IsEmpty()) {
     return Response::ServerError("Object is not available");
+  }
 
-  if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject))
+  if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject)) {
     return Response::ServerError("Object is not available");
+  }
 
   v8::Local<v8::Context> creationContext;
   if (!heapObject->GetCreationContext(m_isolate).ToLocal(&creationContext)) {
@@ -452,11 +458,13 @@ Response V8HeapProfilerAgentImpl::addInspectedHeapObject(
 
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::Object> heapObject = objectByHeapObjectId(m_isolate, id);
-  if (heapObject.IsEmpty())
+  if (heapObject.IsEmpty()) {
     return Response::ServerError("Object is not available");
+  }
 
-  if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject))
+  if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject)) {
     return Response::ServerError("Object is not available");
+  }
   m_session->addInspectedObject(
       std::unique_ptr<InspectableHeapObject>(new InspectableHeapObject(id)));
   return Response::Success();
@@ -589,11 +597,13 @@ buildSampingHeapProfileNode(v8::Isolate* isolate,
                             const v8::AllocationProfile::Node* node) {
   auto children = std::make_unique<
       protocol::Array<protocol::HeapProfiler::SamplingHeapProfileNode>>();
-  for (const auto* child : node->children)
+  for (const auto* child : node->children) {
     children->emplace_back(buildSampingHeapProfileNode(isolate, child));
+  }
   size_t selfSize = 0;
-  for (const auto& allocation : node->allocations)
+  for (const auto& allocation : node->allocations) {
     selfSize += allocation.size * allocation.count;
+  }
   std::unique_ptr<protocol::Runtime::CallFrame> callFrame =
       protocol::Runtime::CallFrame::create()
           .setFunctionName(toProtocolString(isolate, node->name))
@@ -631,8 +641,9 @@ Response V8HeapProfilerAgentImpl::getSamplingProfile(
   v8::HandleScope scope(m_isolate);
   std::unique_ptr<v8::AllocationProfile> v8Profile(
       profiler->GetAllocationProfile());
-  if (!v8Profile)
+  if (!v8Profile) {
     return Response::ServerError("V8 sampling heap profiler was not started.");
+  }
   v8::AllocationProfile::Node* root = v8Profile->GetRootNode();
   auto samples = std::make_unique<
       protocol::Array<protocol::HeapProfiler::SamplingHeapProfileSample>>();

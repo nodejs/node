@@ -1,23 +1,23 @@
 # JS-Fuzzer
 
-Javascript fuzzer for stand-alone shells like D8, Chakra, JSC or Spidermonkey.
+JavaScript fuzzer for stand-alone shells like D8, Chakra, JSC or Spidermonkey.
 
 Original author: Oliver Chang
 
 # Building
 
 This fuzzer may require versions of node that are newer than available on
-ClusterFuzz, so we use [pkg](https://github.com/zeit/pkg) to create a self
-contained binary) out of this.
+ClusterFuzz, so we use [pkg](https://github.com/zeit/pkg) to create a
+self-contained binary out of this.
 
 ## Prereqs
-You need to intall nodejs and npm. Run `npm install` in this directory.
+You need to install nodejs and npm. Run `npm install` in this directory.
 
 ## Fuzzing DB
 This fuzzer requires a fuzzing DB. To build one, get the latest `web_tests.zip`
 from [gs://clusterfuzz-data/web_tests.zip](
 https://storage.cloud.google.com/clusterfuzz-data/web_tests.zip) and unzip it
-(note https://crbug.com/v8/10891 for making this data publicly available).
+(note https://crbug.com/40643747 for making this data publicly available).
 Then run:
 
 ```bash
@@ -82,7 +82,7 @@ $ WEB_TESTS=/path/to/web_tests OUTPUT=/path/to/output/folder ./gen_exceptions.sh
 
 # Experimenting (limited to differential fuzzing)
 
-To locally evaluate the fuzzer, setup a work directory as follows:
+To locally evaluate the fuzzer, set up a work directory as follows:
 
 ```bash
 $ workdir/
@@ -96,14 +96,14 @@ The `app_dir` folder can be a symlink or should contain the bundled
 version of `d8` with all files required for execution.
 Copy the packaged `ochang_js_fuzzer` executable and the `db` folder
 to the `fuzzer` directory or use a symlink.
-The `input` directory is the root folder of the corpus, i.e. pointing
+The `input` directory is the root folder of the corpus, i.e., pointing
 to the unzipped data of `gs://clusterfuzz-data/web_tests.zip`.
 The `output` directory is expected to be empty. It'll contain all
 output of the fuzzing session. Start the experiments with:
 
 ```bash
 $ # Around ~40000 corresponds to 24h of fuzzing on a workstation.
-$ NUM_RUNS = 40000
+$ NUM_RUNS=40000
 $ python tools/workbench.py $NUM_RUNS
 ```
 
@@ -116,8 +116,49 @@ $ cat workdir/output/stats.json | python -m json.tool
 When failures are found, you can forge minimization command lines with:
 
 ```bash
-$ MINIMIZER_PATH = path/to/minimizer
+$ MINIMIZER_PATH=path/to/minimizer
 $ python tools/minimize.py $MINIMIZER_PATH
 ```
 
-The path should point to a local checkout of the [minimizer](https://chrome-internal.googlesource.com/chrome/tools/clusterfuzz/+/refs/heads/master/src/python/bot/minimizer/).
+The path should point to a local checkout of the [minimizer](
+https://chrome-internal.googlesource.com/chrome/tools/clusterfuzz/+/refs/heads/master/src/python/bot/minimizer/).
+
+# Local Execution (Clusterfuzz Simulation)
+
+To simulate Clusterfuzz's behavior locally—generating test cases and running
+them against a `d8` binary to find crashes—use the
+`tools/run_locally_against_d8.py` script.
+
+This script automates:
+1.  Generating a batch of test cases using the fuzzer.
+2.  Executing each test case with `d8` (applying any generated flags).
+3.  Detecting crashes (via signals, exit codes, or "FATAL" error messages).
+4.  Saving crashing test cases and their flags to a local directory.
+
+## Usage
+
+```bash
+$ python3 tools/run_locally_against_d8.py [options]
+```
+
+### Options
+- `--num-tests <n>`: Total number of test cases to generate and run (default: 10000).
+- `--num-crashes <n>`: Stop execution after finding this many crashes
+  (default: 10).
+- `--d8 <path>`: Path to the `d8` binary to test (default:
+  `../../../../out/x64.release/d8` relative to script).
+- `--crash-dir <path>`: Directory where crashing test cases will be saved
+  (default: `workdir/crash/` in js_fuzzer directory).
+- `--batch-size <n>`: Number of tests to generate in each fuzzer invocation
+  (default: 100).
+- `--extra-flags "<flags>"`: Extra flags to always pass to `d8`
+  (e.g. `--extra-flags "--turbofan --allow-natives-syntax"`).
+- `--jobs <n>`: Number of parallel `d8` jobs to run (default: CPU count).
+
+## Results
+- **Crashes**: Any test cases that cause `d8` to crash are saved in the
+  `crash/` directory (or the directory specified by `--crash-dir`). Each crash
+  artifact includes the `.js` test file and its corresponding `flags-N.js` file
+  if applicable.
+- **Progress**: The script outputs real-time progress to the terminal, showing
+  how many tests have been run and how many crashes have been found so far.

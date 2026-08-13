@@ -14,6 +14,8 @@
 
 #include "absl/random/internal/salted_seed_seq.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <random>
 #include <utility>
@@ -21,6 +23,8 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/macros.h"
+#include "absl/random/internal/seed_material.h"
 
 using absl::random_internal::GetSaltMaterial;
 using absl::random_internal::MakeSaltedSeedSeq;
@@ -49,12 +53,12 @@ void ConformsToInterface() {
   {
     uint32_t init_array[] = {1, 2, 3, 4, 5};
     Sseq seq(std::begin(init_array), std::end(init_array));
-    EXPECT_EQ(seq.size(), ABSL_ARRAYSIZE(init_array));
+    EXPECT_EQ(seq.size(), std::size(init_array));
 
     std::vector<uint32_t> state_vector;
     seq.param(std::back_inserter(state_vector));
 
-    EXPECT_EQ(state_vector.size(), ABSL_ARRAYSIZE(init_array));
+    EXPECT_EQ(state_vector.size(), std::size(init_array));
     for (int i = 0; i < state_vector.size(); i++) {
       EXPECT_EQ(state_vector[i], i + 1);
     }

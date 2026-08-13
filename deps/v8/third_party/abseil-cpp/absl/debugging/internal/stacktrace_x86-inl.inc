@@ -17,6 +17,7 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_STACKTRACE_X86_INL_INC_
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_X86_INL_INC_
 
+#include <cstddef>
 #if defined(__linux__) && (defined(__i386__) || defined(__x86_64__))
 #include <ucontext.h>  // for ucontext_t
 #endif

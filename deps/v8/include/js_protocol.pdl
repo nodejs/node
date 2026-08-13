@@ -212,6 +212,8 @@ domain Debugger
       optional boolean throwOnSideEffect
       # Terminate execution after timing out (number of milliseconds).
       experimental optional Runtime.TimeDelta timeout
+      # Specifies the scope number to evaluate the expression in (default: 0, innermost scope).
+      experimental optional integer scopeNumber
     returns
       # Object wrapper for the evaluation result.
       Runtime.RemoteObject result
@@ -485,14 +487,8 @@ domain Debugger
       # New return value.
       Runtime.CallArgument newValue
 
-  # Edits JavaScript source live.
-  #
-  # In general, functions that are currently on the stack can not be edited with
-  # a single exception: If the edited function is the top-most stack frame and
-  # that is the only activation of that function on the stack. In this case
-  # the live edit will be successful and a `Debugger.restartFrame` for the
-  # top-most function is automatically triggered.
-  command setScriptSource
+  # Live edit is no longer supported and this command always fails with a "no longer available" error.
+  deprecated command setScriptSource
     parameters
       # Id of the script to edit.
       Runtime.ScriptId scriptId

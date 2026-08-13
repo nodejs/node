@@ -23,9 +23,11 @@
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/codegen/assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/factory.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
@@ -38,12 +40,15 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
+#include "src/objects/bytecode-array-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/free-space-inl.h"
+#include "src/objects/instruction-stream-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "test/common/noop-bytecode-verifier.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -98,37 +103,6 @@ TEST(Heap, GenerationSizesFromHeapSize) {
     EXPECT_EQ(limit.expected_old_size, actual_old);
     EXPECT_EQ(limit.expected_young_size, actual_young);
   }
-}
-
-void AssertLowMemoryOldGenerationSizeFromPhysicalMemory(
-    uint64_t physical_memory) {
-  ASSERT_EQ(128 * i::Heap::HeapLimitMultiplier(physical_memory) * MB,
-            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
-}
-
-void AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-    uint64_t physical_memory, size_t adjust) {
-  // The expected value is old_generation_size + semi_space_multiplier *
-  // semi_space_size.
-
-  ASSERT_EQ(i::Heap::DefaultMaxHeapSize(physical_memory) / adjust,
-            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
-}
-
-TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
-  // Low memory
-  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(0);
-  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(512u * MB);
-
-  // High memory
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(1) * GB, 4);
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(2) * GB, 2);
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(4) * GB, 1);
-  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
-      static_cast<uint64_t>(8) * GB, 1);
 }
 
 TEST(Heap, LimitsComputationBoundariesClamp) {
@@ -219,136 +193,14 @@ std::pair<size_t, size_t> HeapLimitsForPhysicalMemory(
 }
 }  // anonymous namespace
 
-TEST_F(HeapTest, ExpectedDefaultGenerationLimitsForPhysicalMemory) {
+TEST_F(HeapTest, ExpectedGenerationLimitsForPhysicalMemory) {
   if (v8_flags.max_semi_space_size != 0) return;
 
   struct OldLimit {
     uint64_t physical_memory;
     // Max old generation allocation limit for 32-bit.
     uint64_t arch_32bit;
-    // Max old generation allocation limit for 64-bit (no pointer compression).
-    uint64_t arch_64bit;
-    // Max old generation allocation limit for 64-bit with pointer compression.
-    uint64_t arch_ptr_compr;
-  };
-
-  struct YoungLimit {
-    uint64_t physical_memory;
-    uint64_t scavenger;
-    uint64_t scavenger_android;
-    uint64_t minor_ms;
-  };
-
-  static constexpr uint64_t kMB = static_cast<uint64_t>(MB);
-  static constexpr uint64_t kGB = static_cast<uint64_t>(GB);
-
-  // Expected young generation limits.
-  std::vector<YoungLimit> young_limits = {
-      {512 * kMB, 4 * kMB, 2 * kMB, 32 * kMB},
-      {1 * kGB, 8 * kMB, 2 * kMB, 64 * kMB},
-      {1536 * kMB, 16 * kMB, 4 * kMB, 72 * kMB},
-      {2 * kGB, 16 * kMB, 4 * kMB, 72 * kMB},
-      {3 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
-      {4 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
-      {6 * kGB, 32 * kMB, 8 * kMB, 72 * kMB},
-      {8 * kGB - 1, 32 * kMB, 8 * kMB, 72 * kMB},
-      {8 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
-      {15 * kGB - 1, 32 * kMB, 32 * kMB, 72 * kMB},
-      {15 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
-      {16 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
-      {32 * kGB, 32 * kMB, 32 * kMB, 72 * kMB},
-  };
-
-  const size_t max_young_gen =
-      v8_flags.minor_ms ? (2 * 72 * MB) : (3 * 32 * MB);
-
-  // Expected old generation limits.
-  std::vector<OldLimit> old_limits = {
-      {512 * kMB, 128 * kMB, 256 * kMB, 256 * kMB},
-      {1 * kGB, 256 * kMB, 512 * kMB, 512 * kMB},
-      {1536 * kMB, 384 * kMB, 768 * kMB, 768 * kMB},
-      {2 * kGB, 512 * kMB, 1 * kGB, 1 * kGB},
-      {3 * kGB, 768 * kMB, 1536 * kMB, 1536 * kMB},
-      {4 * kGB, kGB, 2 * kGB, 2 * kGB},
-      {6 * kGB, kGB, 2 * kGB, 2 * kGB},
-      {8 * kGB - 1, kGB, 2 * kGB, 2 * kGB},
-      {8 * kGB, kGB, 2 * kGB, 2 * kGB},
-      {15 * kGB - 1, kGB, 2 * kGB, 2 * kGB},
-      {15 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
-      {16 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
-      {32 * kGB, kGB, 4 * kGB, 4 * kGB - max_young_gen},
-  };
-
-  EXPECT_EQ(young_limits.size(), old_limits.size());
-  size_t last = 0;
-
-  for (size_t i = 0; i < young_limits.size(); i++) {
-    // Make sure that list is sorted by physical memory size.
-    EXPECT_LT(last, young_limits[i].physical_memory);
-    last = young_limits[i].physical_memory;
-
-    // Make sure that same physical memory is tested for both old & young.
-    EXPECT_EQ(young_limits[i].physical_memory, old_limits[i].physical_memory);
-  }
-
-  // There are no devices with < 1GB of RAM. We only test 512MB so we can show
-  // that limits remain the same.
-  EXPECT_EQ(512 * kMB, young_limits[0].physical_memory);
-  EXPECT_EQ(1 * kGB, young_limits[1].physical_memory);
-
-  for (size_t i = 0; i < old_limits.size(); i++) {
-    const YoungLimit& young_limit = young_limits[i];
-    const OldLimit& old_limit = old_limits[i];
-    uint64_t physical_memory = old_limit.physical_memory;
-
-#if V8_OS_ANDROID
-    // On Android we currently use Desktop-like limits on devices with >= 8GB of
-    // RAM.
-    EXPECT_EQ(v8_flags.high_end_android_physical_memory_threshold, 8u);
-    const uint64_t expected_old =
-        physical_memory >= 8 * kGB && kSystemPointerSize == 8
-            ? old_limit.arch_ptr_compr
-            : old_limit.arch_32bit;
-    // Android enforces 8MB limit on semi-space size unless high-end android
-    // mode is enabled.
-    const uint64_t expected_young = v8_flags.minor_ms
-                                        ? young_limit.minor_ms
-                                        : young_limit.scavenger_android;
-#elif defined(V8_TARGET_ARCH_32_BIT)
-    const uint64_t expected_old = old_limit.arch_32bit;
-    const uint64_t expected_young =
-        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
-#elif V8_COMPRESS_POINTERS
-    const uint64_t expected_old = old_limit.arch_ptr_compr;
-    const uint64_t expected_young =
-        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
-#else
-    const uint64_t expected_old = old_limit.arch_64bit;
-    const uint64_t expected_young =
-        v8_flags.minor_ms ? young_limit.minor_ms : young_limit.scavenger;
-#endif
-
-    auto [actual_old, actual_young] =
-        HeapLimitsForPhysicalMemory(physical_memory);
-
-    if (actual_old != expected_old || actual_young != expected_young) {
-      printf("Error for physical memory size %dMB\n",
-             static_cast<int>(physical_memory / kMB));
-    }
-
-    EXPECT_EQ(actual_old, expected_old);
-    EXPECT_EQ(actual_young, expected_young);
-  }
-}
-
-TEST_F(HeapTest, ExpectedNewGenerationLimitsForPhysicalMemory) {
-  if (v8_flags.max_semi_space_size != 0) return;
-  v8_flags.new_old_generation_heap_size = true;
-
-  struct OldLimit {
-    uint64_t physical_memory;
-    // Max old generation allocation limit for 32-bit.
-    uint64_t arch_32bit;
+    uint64_t arch_64bit_android;
     // Max old generation allocation limit for 64-bit.
     uint64_t arch_64bit;
   };
@@ -382,19 +234,19 @@ TEST_F(HeapTest, ExpectedNewGenerationLimitsForPhysicalMemory) {
 
   // Expected old generation limits.
   std::vector<OldLimit> old_limits = {
-      {512 * kMB, 256 * kMB, 256 * kMB},
-      {1 * kGB, 256 * kMB, 512 * kMB},
-      {1536 * kMB, 384 * kMB, 768 * kMB},
-      {2 * kGB, 512 * kMB, 1 * kGB},
-      {3 * kGB, 768 * kMB, 1536 * kMB},
-      {4 * kGB, kGB, 2 * kGB},
-      {6 * kGB, kGB, 3 * kGB},
-      {8 * kGB - 1, kGB, 4 * kGB},
-      {8 * kGB, kGB, 4 * kGB},
-      {15 * kGB - 1, kGB, 4 * kGB},
-      {15 * kGB, kGB, 4 * kGB},
-      {16 * kGB, kGB, 4 * kGB},
-      {32 * kGB, kGB, 4 * kGB},
+      {512 * kMB, 256 * kMB, 256 * kMB, 256 * kMB},
+      {1 * kGB, 256 * kMB, 256 * kMB, 512 * kMB},
+      {1536 * kMB, 384 * kMB, 384 * kMB, 768 * kMB},
+      {2 * kGB, 512 * kMB, 512 * kMB, 1 * kGB},
+      {3 * kGB, 768 * kMB, 768 * kMB, 1536 * kMB},
+      {4 * kGB, kGB, kGB, 2 * kGB},
+      {6 * kGB, kGB, 1 * kGB + 512 * kMB, 3 * kGB},
+      {8 * kGB - 1, kGB, 2 * kGB, 4 * kGB},
+      {8 * kGB, kGB, 2 * kGB, 4 * kGB},
+      {15 * kGB - 1, kGB, 3 * kGB + 768 * kMB, 4 * kGB},
+      {15 * kGB, kGB, 3 * kGB + 768 * kMB, 4 * kGB},
+      {16 * kGB, kGB, 4 * kGB, 4 * kGB},
+      {32 * kGB, kGB, 4 * kGB, 4 * kGB},
   };
 
   EXPECT_EQ(young_limits.size(), old_limits.size());
@@ -421,6 +273,8 @@ TEST_F(HeapTest, ExpectedNewGenerationLimitsForPhysicalMemory) {
 
 #if defined(V8_TARGET_ARCH_32_BIT)
     const uint64_t expected_old = old_limit.arch_32bit;
+#elif V8_OS_ANDROID
+    const uint64_t expected_old = old_limit.arch_64bit_android;
 #else
     const uint64_t expected_old = old_limit.arch_64bit;
 #endif
@@ -691,8 +545,9 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   if (!isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
-      v8_flags.stress_incremental_marking)
+      v8_flags.stress_incremental_marking) {
     return;
+  }
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
   ManualGCScope manual_gc_scope(isolate());
   v8::HandleScope scope(iso);
@@ -742,8 +597,9 @@ static size_t GetRememberedSetSize(Isolate* isolate, Tagged<HeapObject> obj) {
 
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking ||
-      v8_flags.scavenger_chaos_mode)
+      v8_flags.scavenger_chaos_mode) {
     return;
+  }
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.scavenger_precise_object_pinning = false;
   ManualGCScope manual_gc_scope(isolate());
@@ -808,8 +664,9 @@ TEST_F(HeapTest, Regress978156) {
   SimulateFullSpace(heap->new_space(), &arrays);
   // 3. Trim the last array by one word thus creating a one-word filler.
   DirectHandle<FixedArray> last = arrays.back();
-  CHECK_GT(last->length(), 0);
-  heap->RightTrimArray(*last, last->length() - 1, last->length());
+  const uint32_t last_len = last->length().value();
+  CHECK_GT(last_len, 0);
+  heap->RightTrimArray(*last, last_len - 1, last_len);
   // 4. Get the last filler on the page.
   Tagged<HeapObject> filler = HeapObject::FromAddress(
       MutablePage::FromHeapObject(isolate(), *last)->area_end() - kTaggedSize);
@@ -1017,6 +874,33 @@ TEST_F(HeapTest, ContainsSlow) {
   CHECK(heap->lo_space()->ContainsSlow(
       MemoryChunk::FromAddress(large_arr->address())->address()));
   CHECK(!heap->lo_space()->ContainsSlow(0));
+}
+
+TEST_F(HeapTest, ReadOnlySpaceContainsSlowRejectsAddressPastAreaEnd) {
+  // After ShrinkToHighWaterMark, memory past area_end is decommitted,
+  // so reporting it as "contained" simply because it's within the chunk
+  // can be incorrect and lead to crashes when callers dereference it.
+  Heap* heap = isolate()->heap();
+  ReadOnlySpace* ro_space = heap->read_only_space();
+  const auto& pages = ro_space->pages();
+  CHECK(!pages.empty());
+
+  for (ReadOnlyPage* page : pages) {
+    Address area_start = page->area_start();
+    Address area_end = page->area_end();
+    Address chunk_end = page->ChunkAddress() + kRegularPageSize;
+
+    // Addresses within the committed area must be reported as contained.
+    CHECK(ro_space->ContainsSlow(area_start));
+    CHECK(ro_space->ContainsSlow(area_end - 1));
+
+    // Addresses past area_end but still within the original chunk range must
+    // NOT be reported as contained — that memory may be decommitted.
+    if (area_end < chunk_end) {
+      CHECK(!ro_space->ContainsSlow(area_end));
+      CHECK(!ro_space->ContainsSlow(chunk_end - 1));
+    }
+  }
 }
 
 TEST_F(
@@ -1390,6 +1274,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
   stats.malloced_memory = ByteSize(next_value());
   stats.malloced_peak_memory = ByteSize(next_value());
   stats.isolate_count = next_value();
+  stats.native_context_count = next_value();
   stats.is_main_isolate = true;
   stats.last_os_error = next_value();
 
@@ -1473,6 +1358,7 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
        stats.near_death_global_handle_count},
       {"v8-oom-free-global-handle-count", stats.free_global_handle_count},
       {"v8-oom-isolate-count", stats.isolate_count},
+      {"v8-oom-native-context-count", stats.native_context_count},
       {"v8-oom-last-os-error", stats.last_os_error},
   };
 
@@ -1533,7 +1419,7 @@ void FatalMemoryErrorCallbackForTest(const char* location,
                                      const OOMDetails& details) {
   CHECK_NOT_NULL(g_crash_key_store_for_oom);
   // Update this number when adding/removing crash keys.
-  CHECK_EQ(g_crash_key_store_for_oom->size(), 41u);
+  CHECK_EQ(g_crash_key_store_for_oom->size(), 42u);
   CHECK(g_crash_key_store_for_oom->HasKey("v8-oom-stack"));
   base::OS::PrintError("Reached end of test.\n");
   std::abort();
@@ -1547,6 +1433,126 @@ TEST_F(HeapTest, CheckCrashKeysAreReportedInOOM) {
   EXPECT_DEATH_IF_SUPPORTED(
       { heap()->FatalProcessOutOfMemory("CheckCrashKeysAreReportedInOOM"); },
       "Reached end of test.");
+  g_crash_key_store_for_oom = nullptr;
+}
+
+TEST_F(HeapTest, FindCodeForInnerPointer) {
+#define __ assm.
+
+  Assembler assm(i_isolate()->allocator(), AssemblerOptions{});
+
+  __ nop();  // supported on all architectures
+
+  CodeDesc desc;
+  assm.GetCode(i_isolate(), &desc);
+  DirectHandle<InstructionStream> code(
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
+          .Build()
+          ->instruction_stream(),
+      i_isolate());
+  EXPECT_TRUE(IsInstructionStream(*code));
+
+  Tagged<HeapObject> obj = Cast<HeapObject>(*code);
+  Address obj_addr = obj.address();
+
+  for (int i = 0; i < obj->Size(); i += kTaggedSize) {
+    Tagged<Code> lookup_result = heap()->FindCodeForInnerPointer(obj_addr + i);
+    EXPECT_EQ(*code, lookup_result->instruction_stream());
+  }
+
+  DirectHandle<InstructionStream> copy(
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
+          .Build()
+          ->instruction_stream(),
+      i_isolate());
+  Tagged<HeapObject> obj_copy = Cast<HeapObject>(*copy);
+  Tagged<Code> not_right = heap()->FindCodeForInnerPointer(
+      obj_copy.address() + obj_copy->Size() / 2);
+  EXPECT_NE(not_right->instruction_stream(), *code);
+  EXPECT_EQ(not_right->instruction_stream(), *copy);
+#undef __
+}
+
+TEST_F(HeapTest, BytecodeArray) {
+  if (!v8_flags.compact) return;
+  if (v8_flags.precise_object_pinning) return;
+  static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
+  static const int kRawBytesSize = sizeof(kRawBytes);
+  static const int32_t kFrameSize = 32;
+  static const uint16_t kParameterCount = 2;
+  static const uint16_t kMaxArguments = 0;
+
+  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope(isolate());
+  Factory* factory = i_isolate()->factory();
+  HandleScope scope(i_isolate());
+
+  SimulateFullSpace(heap()->trusted_space());
+
+  IndirectHandle<TrustedFixedArray> constant_pool =
+      factory->NewTrustedFixedArray(5);
+  for (int i = 0; i < 5; i++) {
+    IndirectHandle<Object> number = factory->NewHeapNumber(i);
+    constant_pool->set(i, *number);
+  }
+
+  IndirectHandle<TrustedByteArray> handler_table =
+      factory->NewTrustedByteArray(3);
+
+  // Allocate and initialize BytecodeArray
+  IndirectHandle<BytecodeArray> array = factory->NewBytecodeArray(
+      kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
+      constant_pool, handler_table);
+
+  EXPECT_TRUE(IsBytecodeArray(*array));
+
+#ifdef V8_ENABLE_SANDBOX
+  // BytecodeArrays are not exposed to the sandbox ("published") immediately
+  // after allocation. Instead, this only happens once the bytecode has been
+  // verified. This way, we ensure that we only execute safe bytecode.
+  EXPECT_FALSE(array->IsPublished(i_isolate()));
+  NoOpBytecodeVerifier::Verify(i_isolate(), array);
+  EXPECT_TRUE(array->IsPublished(i_isolate()));
+#endif  // V8_ENABLE_SANDBOX
+
+  EXPECT_EQ(array->length(), (int)sizeof(kRawBytes));
+  EXPECT_EQ(array->frame_size(), kFrameSize);
+  EXPECT_EQ(array->parameter_count(), kParameterCount);
+  EXPECT_EQ(array->constant_pool(), *constant_pool);
+  EXPECT_EQ(array->handler_table(), *handler_table);
+  EXPECT_LE(array->address(), array->GetFirstBytecodeAddress());
+  EXPECT_GE(array->address() + array->BytecodeArraySize(),
+            array->GetFirstBytecodeAddress() + array->length());
+  for (int i = 0; i < kRawBytesSize; i++) {
+    EXPECT_EQ(Memory<uint8_t>(array->GetFirstBytecodeAddress() + i),
+              kRawBytes[i]);
+    EXPECT_EQ(array->get(i), kRawBytes[i]);
+  }
+
+  Tagged<TrustedFixedArray> old_constant_pool_address = *constant_pool;
+
+  // Perform a full garbage collection and force the constant pool to be on an
+  // evacuation candidate.
+  i::MutablePage::FromHeapObject(isolate(), *constant_pool)
+      ->set_forced_evacuation_candidate_for_testing(true);
+  {
+    // We need to invoke GC without stack, otherwise no compaction is performed.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap());
+    InvokeMajorGC();
+  }
+
+  // BytecodeArray should survive.
+  EXPECT_EQ(array->length(), kRawBytesSize);
+  EXPECT_EQ(array->frame_size(), kFrameSize);
+  for (int i = 0; i < kRawBytesSize; i++) {
+    EXPECT_EQ(array->get(i), kRawBytes[i]);
+    EXPECT_EQ(Memory<uint8_t>(array->GetFirstBytecodeAddress() + i),
+              kRawBytes[i]);
+  }
+
+  // Constant pool should have been migrated.
+  EXPECT_EQ(array->constant_pool().ptr(), constant_pool->ptr());
+  EXPECT_NE(array->constant_pool().ptr(), old_constant_pool_address.ptr());
 }
 
 }  // namespace internal

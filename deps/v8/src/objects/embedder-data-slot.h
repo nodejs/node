@@ -33,14 +33,18 @@ class Object;
 class EmbedderDataSlot
     : public SlotBase<EmbedderDataSlot, Address, kTaggedSize> {
  public:
-#ifdef V8_ENABLE_SANDBOX
+#if defined(V8_ENABLE_SANDBOX) || !defined(V8_COMPRESS_POINTERS)
   // When the sandbox is enabled, an EmbedderDataSlot always contains a valid
   // external pointer table index (initially, zero) in it's "raw" part and a
   // valid tagged value in its 32-bit "tagged" part.
+  // When pointer compression is disabled, an EmbedderDataSlot similarly
+  // contains two separate fields: a tagged value in its "tagged" part and a
+  // raw external pointer in its "raw" part.
   //
-  // Layout (sandbox):
+  // Layout (sandbox or no pointer compression):
   // +-----------------------------------+-----------------------------------+
-  // | Tagged (Smi/CompressedPointer)    | External Pointer Table Index      |
+  // | Tagged (Smi/Pointer)              | External Pointer Table Index /    |
+  // |                                   | External Pointer                  |
   // +-----------------------------------+-----------------------------------+
   // ^                                   ^
   // kTaggedPayloadOffset                kRawPayloadOffset
@@ -77,16 +81,8 @@ class EmbedderDataSlot
   static constexpr int kTaggedPayloadOffset = 0;
   static constexpr int kRawPayloadOffset = kTaggedSize;
 #else
-  // Layout (no pointer compression):
-  // +-----------------------------------------------------------------------+
-  // | Tagged (Smi/Pointer) OR External Pointer                              |
-  // +-----------------------------------------------------------------------+
-  // ^
-  // kTaggedPayloadOffset
-  // kExternalPointerOffset
-  static constexpr int kTaggedPayloadOffset = 0;
-  static constexpr int kExternalPointerOffset = 0;
-#endif  // V8_ENABLE_SANDBOX
+  static_assert(false, "Unsupported configuration");
+#endif  // V8_ENABLE_SANDBOX || !V8_COMPRESS_POINTERS
 
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
@@ -95,7 +91,18 @@ class EmbedderDataSlot
   V8_INLINE EmbedderDataSlot(Tagged<JSObject> object, int embedder_field_index);
 
   // Opaque type used for storing raw embedder data.
-  using RawData = Address;
+#ifdef V8_COMPRESS_POINTERS
+  using RawData = uint64_t;
+#else
+  struct RawData {
+    Address pointer;
+    Address tagged;
+    constexpr RawData() : pointer(0), tagged(0) {}
+    constexpr RawData(Address pointer, Address tagged)
+        : pointer(pointer), tagged(tagged) {}
+    constexpr RawData(Address addr) : pointer(addr), tagged(0) {}
+  };
+#endif
 
   V8_INLINE void Initialize(Tagged<Object> initial_value);
 
@@ -152,7 +159,7 @@ class EmbedderDataSlot
  private:
   // Stores given value to the embedder data slot in a concurrent-marker
   // friendly manner (tagged part of the slot is written atomically).
-  V8_INLINE void gc_safe_store(IsolateForSandbox isolate, Address value);
+  V8_INLINE void gc_safe_store(IsolateForSandbox isolate, RawData value);
 };
 
 }  // namespace internal

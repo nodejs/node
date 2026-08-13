@@ -343,7 +343,7 @@ class PMU {
 
 // Monostate, see header.
 PMU& GetPMU() {
-  static PMU pmu;
+  static PMU& pmu = *new PMU();  // avoids exit-dtor warning (no dtor required)
   return pmu;
 }
 

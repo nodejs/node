@@ -16,11 +16,21 @@
   'memory64/memory64': [FAIL],
   'memory64/table64': [FAIL],
   'table': [FAIL],
-
-  # Implementation in progress.
-  'proposals/stack-switching/stack-switching/cont': [FAIL],
-  'proposals/stack-switching/stack-switching/resume_throw': [FAIL],
 }],  # ALWAYS
+
+['lower_limits_mode', {
+  # These tests need longer strings.
+  'f32': [SKIP],
+  'f32_cmp': [SKIP],
+  'f64': [SKIP],
+  'f64_cmp': [SKIP],
+  'simd/simd_f32x4_arith': [SKIP],
+  'simd/simd_f32x4_cmp': [SKIP],
+  'simd/simd_f32x4_pmin_pmax': [SKIP],
+  'simd/simd_f64x2_arith': [SKIP],
+  'simd/simd_f64x2_cmp': [SKIP],
+  'simd/simd_f64x2_pmin_pmax': [SKIP],
+}],
 
 ['arch == arm and not simulator_run', {
   # See https://crbug.com/v8/10938 denormals not handled correctly on ARM.
@@ -93,6 +103,7 @@
 
 ##############################################################################
 ['has_wasm_interpreter and variant == jitless', {
+  'float_exprs': [SKIP],
   'memory64/*': [SKIP],
   'multi-memory/*': [SKIP],
   'instance': [SKIP],
@@ -132,10 +143,11 @@
   'bulk-memory/memory_copy': [SKIP],
 }],  # tsan == True
 
-['variant == nooptimization', {
-  # No Liftoff implementation yet.
-  'proposals/stack-switching/stack-switching/cont': [FAIL],
-  'proposals/stack-switching/stack-switching/resume_throw': [FAIL],
-}],
+['system == windows and asan', {
+  # TODO(502105792): Started failing on Windows asan after we started updating
+  # the TEB StackLimit/StackBase on stack switch. Possibly a false positive
+  # according to asan warning.
+  'proposals/stack-switching/stack-switching/cont': [SKIP],
+}],  # system == windows and asan
 
 ]

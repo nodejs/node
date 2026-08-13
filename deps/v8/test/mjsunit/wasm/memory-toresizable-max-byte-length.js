@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-rab-integration
-
 (function TestToResizableMaxPages() {
   let mem = new WebAssembly.Memory({initial: 1, maximum: 2**16});
   assertEquals(2**16, mem.buffer.maxByteLength);
