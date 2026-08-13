@@ -177,9 +177,11 @@ Local<DictionaryTemplate> getLazyIterTemplate(Environment* env) {
 }
 }  // namespace
 
-// Helper function to find limit info from JS property name
-static constexpr const LimitInfo* GetLimitInfoFromName(std::string_view name) {
-  for (const auto& info : kLimitMapping) {
+// Helper function to look up a mapping entry by its JS-facing name
+template <typename T, size_t N>
+static constexpr const T* FindByJsName(const std::array<T, N>& mapping,
+                                       std::string_view name) {
+  for (const auto& info : mapping) {
     if (name == info.js_name) {
       return &info;
     }
@@ -793,7 +795,8 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
   Isolate* isolate = env->isolate();
 
   Utf8Value prop_name(isolate, property);
-  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+  const LimitInfo* limit_info =
+      FindByJsName(kLimitMapping, prop_name.ToStringView());
 
   if (limit_info == nullptr) {
     return Intercepted::kNo;  // Unknown property, let default handling occur
@@ -825,7 +828,8 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
   Isolate* isolate = env->isolate();
 
   Utf8Value prop_name(isolate, property);
-  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+  const LimitInfo* limit_info =
+      FindByJsName(kLimitMapping, prop_name.ToStringView());
 
   if (limit_info == nullptr) {
     return Intercepted::kNo;
@@ -873,7 +877,8 @@ Intercepted DatabaseSyncLimits::LimitsQuery(
 
   Isolate* isolate = info.GetIsolate();
   Utf8Value prop_name(isolate, property);
-  const LimitInfo* limit_info = GetLimitInfoFromName(prop_name.ToStringView());
+  const LimitInfo* limit_info =
+      FindByJsName(kLimitMapping, prop_name.ToStringView());
 
   if (!limit_info) {
     return Intercepted::kNo;
@@ -2694,6 +2699,7 @@ void StatementSync::Finalize() {
 
 void StatementSync::InvalidateColumnNameCache() {
   cached_column_names_.clear();
+  cached_column_names_reprepare_count_ = -1;
 }
 
 inline bool StatementSync::IsFinalized() {
@@ -3350,6 +3356,60 @@ void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void StatementSync::Stat(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  Isolate* isolate = env->isolate();
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
+                               "The \"counter\" argument must be a string.");
+    return;
+  }
+
+  Utf8Value counter(isolate, args[0].As<String>());
+  const StatusInfo* status_info =
+      FindByJsName(kStatusMapping, counter.ToStringView());
+  if (status_info == nullptr) {
+    THROW_ERR_INVALID_ARG_VALUE(
+        isolate, "The \"counter\" argument is not a valid statistic name.");
+    return;
+  }
+
+  // The reset flag is always false; the counter is read without being cleared.
+  int value = sqlite3_stmt_status(
+      stmt->statement_.get(), status_info->sqlite_status_id, false);
+  args.GetReturnValue().Set(Integer::New(isolate, value));
+}
+
+void StatementSync::ResetStats(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+
+  // sqlite3_stmt_status() resets a single counter per call, so every exposed
+  // counter is visited. The returned value is the pre-reset one and is unused.
+  // SQLITE_STMTSTATUS_MEMUSED is skipped: it reports current memory usage
+  // rather than an accumulated counter, and SQLite ignores the reset flag for
+  // it.
+  for (const auto& info : kStatusMapping) {
+    if (info.sqlite_status_id == SQLITE_STMTSTATUS_MEMUSED) {
+      continue;
+    }
+    sqlite3_stmt_status(stmt->statement_.get(), info.sqlite_status_id, true);
+  }
+
+  // The column name cache is keyed on SQLITE_STMTSTATUS_REPREPARE, which was
+  // just zeroed. Without invalidating, a later re-prepare can make the counter
+  // match the cached generation again and the stale names would be reused.
+  stmt->InvalidateColumnNameCache();
+}
+
 void StatementSync::SetAllowBareNamedParameters(
     const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
@@ -3775,6 +3835,8 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
                             StatementSync::ExpandedSQLGetter);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "stat", StatementSync::Stat);
+    SetProtoMethod(isolate, tmpl, "resetStats", StatementSync::ResetStats);
     SetProtoMethod(isolate,
                    tmpl,
                    "setAllowBareNamedParameters",

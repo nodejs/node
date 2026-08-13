@@ -52,6 +52,32 @@ static_assert(
     CheckLimitIndices(),
     "Each kLimitMapping entry's sqlite_limit_id must match its index");
 
+// Mapping from JavaScript counter names to SQLite statement status constants
+struct StatusInfo {
+  std::string_view js_name;
+  int sqlite_status_id;
+};
+
+// SQLITE_STMTSTATUS_FILTER_HIT and SQLITE_STMTSTATUS_FILTER_MISS require
+// SQLite >= 3.38.0. Older shared-library builds omit the two counters.
+#if SQLITE_VERSION_NUMBER >= 3038000
+#define NODE_SQLITE_HAS_FILTER_STATUS 1
+#endif
+
+inline constexpr auto kStatusMapping = std::to_array<StatusInfo>({
+    {"fullscanStep", SQLITE_STMTSTATUS_FULLSCAN_STEP},
+    {"sort", SQLITE_STMTSTATUS_SORT},
+    {"autoindex", SQLITE_STMTSTATUS_AUTOINDEX},
+    {"vmStep", SQLITE_STMTSTATUS_VM_STEP},
+    {"reprepare", SQLITE_STMTSTATUS_REPREPARE},
+    {"run", SQLITE_STMTSTATUS_RUN},
+#ifdef NODE_SQLITE_HAS_FILTER_STATUS
+    {"filterMiss", SQLITE_STMTSTATUS_FILTER_MISS},
+    {"filterHit", SQLITE_STMTSTATUS_FILTER_HIT},
+#endif
+    {"memused", SQLITE_STMTSTATUS_MEMUSED},
+});
+
 class DatabaseOpenConfiguration {
  public:
   explicit DatabaseOpenConfiguration(std::string&& location)
@@ -284,6 +310,8 @@ class StatementSync : public BaseObject {
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExpandedSQLGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Stat(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ResetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowBareNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowUnknownNamedParameters(
