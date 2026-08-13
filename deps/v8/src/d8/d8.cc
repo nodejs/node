@@ -1441,7 +1441,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
   return result;
 }
 
-MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
+MaybeLocal<Promise> Shell::JSONModuleEvaluationSteps(Local<Context> context,
                                                    Local<Module> module) {
   Isolate* isolate = Isolate::GetCurrent();
 
