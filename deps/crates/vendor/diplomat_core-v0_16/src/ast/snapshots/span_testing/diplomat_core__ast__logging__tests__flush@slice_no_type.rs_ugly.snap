@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Expected type argument
+In src/ast/snapshots/span_testing/slice_no_type.rs:3:31:
+...sl : DiplomatSlice) {}...
+        ^^^^^^^^^^^^^
+Add slice type specification here

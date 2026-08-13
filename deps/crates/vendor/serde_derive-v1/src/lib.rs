@@ -13,7 +13,7 @@
 //!
 //! [https://serde.rs/derive.html]: https://serde.rs/derive.html
 
-#![doc(html_root_url = "https://docs.rs/serde_derive/1.0.228")]
+#![doc(html_root_url = "https://docs.rs/serde_derive/1.0.229")]
 #![cfg_attr(not(check_cfg), allow(unexpected_cfgs))]
 // Ignored clippy lints
 #![allow(
@@ -97,10 +97,7 @@ struct private;
 
 impl private {
     fn ident(&self) -> Ident {
-        Ident::new(
-            concat!("__private", env!("CARGO_PKG_VERSION_PATCH")),
-            Span::call_site(),
-        )
+        Ident::new(concat!("__private", env!("CARGO_PKG_VERSION_PATCH")), Span::call_site())
     }
 }
 
@@ -113,15 +110,11 @@ impl ToTokens for private {
 #[proc_macro_derive(Serialize, attributes(serde))]
 pub fn derive_serialize(input: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(input as DeriveInput);
-    ser::expand_derive_serialize(&mut input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
+    ser::expand_derive_serialize(&mut input).unwrap_or_else(syn::Error::into_compile_error).into()
 }
 
 #[proc_macro_derive(Deserialize, attributes(serde))]
 pub fn derive_deserialize(input: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(input as DeriveInput);
-    de::expand_derive_deserialize(&mut input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
+    de::expand_derive_deserialize(&mut input).unwrap_or_else(syn::Error::into_compile_error).into()
 }

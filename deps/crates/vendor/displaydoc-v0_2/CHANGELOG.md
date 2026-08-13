@@ -6,7 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-header -->
 
-## [Unreleased] - ReleaseDate
+# [Unreleased] - ReleaseDate
+
+# [0.2.6] - 2026-05-27
+
+## Added
+- Support for multi-line doc comments (#57, #62)
+
+## Changed
+- Use `BTreeMap` for determinism in generated code (#52)
+- Add `#[allow(unused_assignments)]` to generated code (#56)
+- Exclude development scripts from published package (#60)
+- Bump `pretty_assertions` dependency to 1.4.0 (#53)
 
 # [0.2.5] - 2024-06-20
 
@@ -50,7 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lines are needed.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/yaahc/displaydoc/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/yaahc/displaydoc/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/yaahc/displaydoc/compare/v0.2.5...v0.2.6
+[0.2.5]: https://github.com/yaahc/displaydoc/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/yaahc/displaydoc/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/yaahc/displaydoc/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/yaahc/displaydoc/compare/v0.2.1...v0.2.2

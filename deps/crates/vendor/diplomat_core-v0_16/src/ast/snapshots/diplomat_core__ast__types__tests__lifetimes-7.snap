@@ -1,0 +1,72 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { Result<OkRef<'a, 'b>, ErrRef<'c>> },\nNone, &SpanLocation::None)"
+---
+Result:
+  - Named:
+      path:
+        elements:
+          - - OkRef
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+      lifetimes:
+        - Named:
+            - a
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+        - Named:
+            - b
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+  - Named:
+      path:
+        elements:
+          - - ErrRef
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+      lifetimes:
+        - Named:
+            - c
+            - start:
+                line: 1
+                col: 0
+              end:
+                line: 1
+                col: 0
+              range:
+                start: 0
+                end: 0
+              span_location: None
+  - Stdlib

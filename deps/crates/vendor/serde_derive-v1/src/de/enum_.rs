@@ -17,7 +17,8 @@ pub(super) fn deserialize(
     variants: &[Variant],
     cattrs: &attr::Container,
 ) -> Fragment {
-    // The variants have already been checked (in ast.rs) that all untagged variants appear at the end
+    // The variants have already been checked (in ast.rs) that all untagged variants
+    // appear at the end
     match variants.iter().position(|var| var.attrs.untagged()) {
         Some(variant_idx) => {
             let (tagged, untagged) = variants.split_at(variant_idx);
@@ -54,10 +55,8 @@ fn deserialize_homogeneous_enum(
 }
 
 pub fn prepare_enum_variant_enum(variants: &[Variant]) -> (TokenStream, Stmts) {
-    let deserialized_variants = variants
-        .iter()
-        .enumerate()
-        .filter(|&(_i, variant)| !variant.attrs.skip_deserializing());
+    let deserialized_variants =
+        variants.iter().enumerate().filter(|&(_i, variant)| !variant.attrs.skip_deserializing());
 
     let fallthrough = deserialized_variants
         .clone()
@@ -68,9 +67,8 @@ pub fn prepare_enum_variant_enum(variants: &[Variant]) -> (TokenStream, Stmts) {
         });
 
     let variants_stmt = {
-        let variant_names = deserialized_variants
-            .clone()
-            .flat_map(|(_i, variant)| variant.attrs.aliases());
+        let variant_names =
+            deserialized_variants.clone().flat_map(|(_i, variant)| variant.attrs.aliases());
         quote! {
             #[doc(hidden)]
             const VARIANTS: &'static [&'static str] = &[ #(#variant_names),* ];

@@ -1,0 +1,9 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Found DiplomatSlice without primitive or DiplomatSlice-like generic
+In src/ast/snapshots/span_testing/invalid_slice.rs:3:36:
+...lice<Unknown>) {}...
+        ^^^^^^^
+Must be a primitive or DiplomatSlice-like generic
