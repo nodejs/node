@@ -276,6 +276,15 @@ Uncaught SyntaxError: Identifier 'm' has already been declared
 
 [`--no-experimental-repl-await`][] shall disable top-level await in REPL.
 
+### Error handling
+
+By default, uncaught exceptions in the REPL are printed to the output stream
+(as with `Uncaught Error: REPL await` above). `uncaughtException` listeners
+can be added freely in both standalone and nested REPLs. The `handleError`
+option of [`repl.start()`][] can customize this behavior, including
+forwarding exceptions to [`'uncaughtException'`][] by returning
+`'unhandled'`.
+
 ### Reverse-i-search
 
 <!-- YAML
@@ -468,6 +477,9 @@ const options = { useColors: true };
 const firstInstance = repl.start(options);
 const secondInstance = new repl.REPLServer(options);
 ```
+
+Calling `repl.REPLServer()` without the `new` keyword throws a `TypeError`
+(see [DEP0185][]).
 
 ### Event: `'exit'`
 
@@ -1170,6 +1182,7 @@ avoiding open network interfaces.
 
 Original code from <https://gist.github.com/TooTallNate/2053342>.
 
+[DEP0185]: deprecations.md#dep0185-instantiating-noderepl-classes-without-new
 [TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.md#event-uncaughtexception
