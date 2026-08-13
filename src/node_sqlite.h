@@ -340,7 +340,7 @@ class DatabaseSync : public BaseObject {
   std::set<BackupJob*> backups_;
   std::unordered_set<Session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
-  diagnostics_channel::Channel* trace_channel_ = nullptr;
+  BaseObjectPtr<diagnostics_channel::Channel> trace_channel_;
 
   friend class DatabaseSyncLimits;
   friend class Session;
