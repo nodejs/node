@@ -81,7 +81,7 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
   }
 " | jq -r '"{
   pkgs ? import ./pkgs.nix {
-    config.permittedInsecurePackages = [ \(.permittedInsecurePackages | map(@json) | join(" ")) ];
+    config.permittedInsecurePackages = [ \(.permittedInsecurePackages | if length > 0 then "\(map(@json) | join(" ")) " else "" end)];
   },
 }:
 
