@@ -46,19 +46,13 @@ V8SerializationDuplicateTracker::LinkExistingOrCreate(
   return result;
 }
 
-namespace {
-// This tag value has been picked arbitrarily between 0 and
-// V8_EXTERNAL_POINTER_TAG_COUNT.
-constexpr v8::ExternalPointerTypeTag kDictionaryValueTag = 11;
-}  // namespace
-
 void V8SerializationDuplicateTracker::SetKnownSerializedValue(
     v8::Local<v8::Value> v8Value, protocol::DictionaryValue* serializedValue) {
   m_v8ObjectToSerializedDictionary =
       m_v8ObjectToSerializedDictionary
           ->Set(m_context, v8Value,
                 v8::External::New(v8::Isolate::GetCurrent(), serializedValue,
-                                  kDictionaryValueTag))
+                                  v8::kDictionaryValueTag))
           .ToLocalChecked();
 }
 
@@ -73,7 +67,7 @@ V8SerializationDuplicateTracker::FindKnownSerializedValue(
   }
 
   return static_cast<protocol::DictionaryValue*>(
-      knownValue.As<v8::External>()->Value(kDictionaryValueTag));
+      knownValue.As<v8::External>()->Value(v8::kDictionaryValueTag));
 }
 
 V8SerializationDuplicateTracker::V8SerializationDuplicateTracker(

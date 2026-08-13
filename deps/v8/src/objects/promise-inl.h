@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/promise-tq-inl.inc"
-
 Tagged<Object> PromiseReactionJobTask::argument() const {
   return argument_.load();
 }
@@ -35,11 +33,11 @@ void PromiseReactionJobTask::set_context(Tagged<Context> value,
   context_.store(this, value, mode);
 }
 
-Tagged<UnionOf<JSCallable, Undefined>> PromiseReactionJobTask::handler() const {
+Tagged<PromiseReactionHandler> PromiseReactionJobTask::handler() const {
   return handler_.load();
 }
-void PromiseReactionJobTask::set_handler(
-    Tagged<UnionOf<JSCallable, Undefined>> value, WriteBarrierMode mode) {
+void PromiseReactionJobTask::set_handler(Tagged<PromiseReactionHandler> value,
+                                         WriteBarrierMode mode) {
   handler_.store(this, value, mode);
 }
 
@@ -124,20 +122,23 @@ void PromiseReaction::set_next(Tagged<UnionOf<PromiseReaction, Smi>> value,
   next_.store(this, value, mode);
 }
 
-Tagged<UnionOf<JSCallable, Undefined>> PromiseReaction::reject_handler() const {
+Tagged<UnionOf<JSCallable, JSGeneratorObject, Undefined>>
+PromiseReaction::reject_handler() const {
   return reject_handler_.load();
 }
 void PromiseReaction::set_reject_handler(
-    Tagged<UnionOf<JSCallable, Undefined>> value, WriteBarrierMode mode) {
+    Tagged<UnionOf<JSCallable, JSGeneratorObject, Undefined>> value,
+    WriteBarrierMode mode) {
   reject_handler_.store(this, value, mode);
 }
 
-Tagged<UnionOf<JSCallable, Undefined>> PromiseReaction::fulfill_handler()
-    const {
+Tagged<UnionOf<JSCallable, JSGeneratorObject, Undefined>>
+PromiseReaction::fulfill_handler() const {
   return fulfill_handler_.load();
 }
 void PromiseReaction::set_fulfill_handler(
-    Tagged<UnionOf<JSCallable, Undefined>> value, WriteBarrierMode mode) {
+    Tagged<UnionOf<JSCallable, JSGeneratorObject, Undefined>> value,
+    WriteBarrierMode mode) {
   fulfill_handler_.store(this, value, mode);
 }
 

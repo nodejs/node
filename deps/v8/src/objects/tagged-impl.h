@@ -6,6 +6,7 @@
 #define V8_OBJECTS_TAGGED_IMPL_H_
 
 #include "include/v8-internal.h"
+#include "include/v8config.h"
 #include "src/base/export-template.h"
 #include "src/base/macros.h"
 #include "src/common/checks.h"
@@ -30,7 +31,7 @@ bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
 // values and also take into account whether the tagged value is expected to be
 // weak reference to a HeapObject or cleared weak reference.
 template <HeapObjectReferenceType kRefType, typename StorageType>
-class TaggedImpl {
+class V8_GSL_POINTER TaggedImpl {
  public:
   static_assert(std::is_same_v<StorageType, Address> ||
                     std::is_same_v<StorageType, Tagged_t>,

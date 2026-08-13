@@ -164,8 +164,9 @@ void DoubleToBignum(double val, base::Bignum& b) {
 // with correct rounding (nearest, ties to even).
 double BignumToDouble(const base::Bignum& bignum_val, bool negative) {
   base::Bignum zero;
-  if (base::Bignum::Compare(bignum_val, zero) == 0)
+  if (base::Bignum::Compare(bignum_val, zero) == 0) {
     return negative ? -0.0 : 0.0;
+  }
 
   char buffer[2048];
   bool ok = bignum_val.ToHexString(buffer, sizeof(buffer));
@@ -178,20 +179,22 @@ double BignumToDouble(const base::Bignum& bignum_val, bool negative) {
 
   int first_digit_val = 0;
   char c = buffer[first_nz];
-  if (c >= '0' && c <= '9')
+  if (c >= '0' && c <= '9') {
     first_digit_val = c - '0';
-  else if (c >= 'A' && c <= 'F')
+  } else if (c >= 'A' && c <= 'F') {
     first_digit_val = c - 'A' + 10;
-  else if (c >= 'a' && c <= 'f')
+  } else if (c >= 'a' && c <= 'f') {
     first_digit_val = c - 'a' + 10;
+  }
 
   int msb_in_digit = 0;
-  if (first_digit_val >= 8)
+  if (first_digit_val >= 8) {
     msb_in_digit = 3;
-  else if (first_digit_val >= 4)
+  } else if (first_digit_val >= 4) {
     msb_in_digit = 2;
-  else if (first_digit_val >= 2)
+  } else if (first_digit_val >= 2) {
     msb_in_digit = 1;
+  }
 
   int msb_pos = (static_cast<int>(len) - 1 - static_cast<int>(first_nz)) * 4 +
                 msb_in_digit;
@@ -206,12 +209,13 @@ double BignumToDouble(const base::Bignum& bignum_val, bool negative) {
   while (cur < len && bits_filled < 64) {
     int hex_val = 0;
     char ch = buffer[cur];
-    if (ch >= '0' && ch <= '9')
+    if (ch >= '0' && ch <= '9') {
       hex_val = ch - '0';
-    else if (ch >= 'A' && ch <= 'F')
+    } else if (ch >= 'A' && ch <= 'F') {
       hex_val = ch - 'A' + 10;
-    else if (ch >= 'a' && ch <= 'f')
+    } else if (ch >= 'a' && ch <= 'f') {
       hex_val = ch - 'a' + 10;
+    }
 
     if (bits_filled <= 60) {
       f |= static_cast<uint64_t>(hex_val) << (60 - bits_filled);
@@ -272,10 +276,11 @@ TEST_F(MathXsumTest, BignumVerificationSmoke) {
     for (double d : addends) {
       base::Bignum b;
       DoubleToBignum(std::abs(d), b);
-      if (d >= 0)
+      if (d >= 0) {
         pos.AddBignum(b);
-      else
+      } else {
         neg.AddBignum(b);
+      }
     }
     int cmp = base::Bignum::Compare(pos, neg);
     double res;
@@ -319,10 +324,11 @@ TEST_F(MathXsumTest, FuzzAgainstBignum) {
       sacc.Add(v);
       base::Bignum term;
       DoubleToBignum(std::abs(v), term);
-      if (v >= 0)
+      if (v >= 0) {
         pos_sum.AddBignum(term);
-      else
+      } else {
         neg_sum.AddBignum(term);
+      }
     }
 
     double result_s = sacc.Round();

@@ -82,6 +82,7 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
     return Get().force_assert_statements_;
   }
   static void SetAnnotateIR() { Get().annotate_ir_ = true; }
+  static void SetTorqueDwarf() { Get().torque_dwarf_ = true; }
   static bool annotate_ir() { return Get().annotate_ir_; }
   static Ast* ast() { return &Get().ast_; }
   static std::string MakeUniqueName(const std::string& base) {
@@ -99,19 +100,6 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
     cpp::File csa_header;
     std::stringstream csa_ccfile;
     cpp::File csa_cc;
-
-    std::stringstream class_definition_headerfile;
-
-    // The beginning of the generated -inl.inc file, which includes declarations
-    // for functions corresponding to Torque macros.
-    std::stringstream class_definition_inline_headerfile_macro_declarations;
-    // The second part of the generated -inl.inc file, which includes
-    // definitions for functions declared in the first part.
-    std::stringstream class_definition_inline_headerfile_macro_definitions;
-    // The portion of the generated -inl.inc file containing member function
-    // definitions for the generated class.
-    std::stringstream class_definition_inline_headerfile;
-
     std::stringstream class_definition_ccfile;
     cpp::File class_definition_cc;
 
@@ -130,18 +118,8 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   static bool IsInstanceTypesInitialized() {
     return Get().instance_types_initialized_;
   }
-  static void EnsureInCCOutputList(TorqueMacro* macro, SourceId source) {
-    GlobalContext& c = Get();
-    auto item = std::make_pair(macro, source);
-    if (c.macros_for_cc_output_set_.insert(item).second) {
-      c.macros_for_cc_output_.push_back(item);
-    }
-    EnsureInCCDebugOutputList(macro, source);
-  }
-  static const std::vector<std::pair<TorqueMacro*, SourceId>>&
-  AllMacrosForCCOutput() {
-    return Get().macros_for_cc_output_;
-  }
+  static bool torque_dwarf() { return Get().torque_dwarf_; }
+
   static void EnsureInCCDebugOutputList(TorqueMacro* macro, SourceId source) {
     GlobalContext& c = Get();
     auto item = std::make_pair(macro, source);
@@ -159,14 +137,14 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   bool collect_kythe_data_;
   bool force_assert_statements_;
   bool annotate_ir_;
+  bool torque_dwarf_;
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::set<CppInclude> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
   std::map<std::string, size_t> fresh_ids_;
-  std::vector<std::pair<TorqueMacro*, SourceId>> macros_for_cc_output_;
-  std::set<std::pair<TorqueMacro*, SourceId>> macros_for_cc_output_set_;
+
   std::vector<std::pair<TorqueMacro*, SourceId>> macros_for_cc_debug_output_;
   std::set<std::pair<TorqueMacro*, SourceId>> macros_for_cc_debug_output_set_;
   bool instance_types_initialized_ = false;

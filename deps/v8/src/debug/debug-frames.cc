@@ -7,6 +7,8 @@
 #include "src/builtins/accessors.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
+#include "src/objects/debug-objects-inl.h"
+#include "src/sandbox/check.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
@@ -89,8 +91,10 @@ DirectHandle<String> FrameInspector::GetFunctionName() {
 #endif  // V8_ENABLE_DRUMBRAKE
     auto wasm_frame = WasmFrame::cast(frame_);
     auto instance_data = handle(wasm_frame->trusted_instance_data(), isolate_);
-    return GetWasmFunctionDebugName(isolate_, instance_data,
-                                    wasm_frame->function_index());
+    int top_func_index = FrameSummary::Get(wasm_frame, inlined_frame_index_)
+                             .AsWasm()
+                             .function_index();
+    return GetWasmFunctionDebugName(isolate_, instance_data, top_func_index);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return JSFunction::GetDebugName(isolate_, function_);
@@ -116,25 +120,35 @@ RedirectActiveFunctions::RedirectActiveFunctions(
     Isolate* isolate, Tagged<SharedFunctionInfo> shared, Mode mode)
     : shared_(shared), mode_(mode) {
   DCHECK(shared->HasBytecodeArray());
-  DCHECK_IMPLIES(mode == Mode::kUseDebugBytecode,
-                 shared->HasDebugInfo(isolate));
+  DCHECK(shared->HasDebugInfo(isolate));
 }
 
 void RedirectActiveFunctions::VisitThread(Isolate* isolate,
                                           ThreadLocalTop* top) {
+  Tagged<DebugInfo> debug_info = shared_->GetDebugInfo(isolate);
+  Tagged<BytecodeArray> original_bytecode =
+      debug_info->OriginalBytecodeArray(isolate);
+  Tagged<BytecodeArray> debug_bytecode =
+      debug_info->DebugBytecodeArray(isolate);
+
   for (JavaScriptStackFrameIterator it(isolate, top); !it.done();
        it.Advance()) {
     JavaScriptFrame* frame = it.frame();
+    // Skip live-edited frames, they'll be restarted from scratch anyway.
+    if (isolate->debug()->ShouldRestartFrame(frame->id())) continue;
     Tagged<JSFunction> function = frame->function();
     if (!frame->is_interpreted()) continue;
     if (function->shared() != shared_) continue;
     InterpretedFrame* interpreted_frame =
         reinterpret_cast<InterpretedFrame*>(frame);
-    Tagged<BytecodeArray> bytecode =
-        mode_ == Mode::kUseDebugBytecode
-            ? shared_->GetDebugInfo(isolate)->DebugBytecodeArray(isolate)
-            : shared_->GetBytecodeArray(isolate);
-    interpreted_frame->PatchBytecodeArray(bytecode);
+
+    if (mode_ == Mode::kUseDebugBytecode) {
+      SBXCHECK_EQ(interpreted_frame->GetBytecodeArray(), original_bytecode);
+      interpreted_frame->PatchBytecodeArray(debug_bytecode);
+    } else {
+      SBXCHECK_EQ(interpreted_frame->GetBytecodeArray(), debug_bytecode);
+      interpreted_frame->PatchBytecodeArray(original_bytecode);
+    }
   }
 }
 

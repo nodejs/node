@@ -1,0 +1,20 @@
+header: libgen.h
+standards:
+  - posix
+macros: []
+types: []
+enums: []
+objects: []
+functions:
+  - name: basename
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: char *
+  - name: dirname
+    standards:
+      - posix
+    return_type: char *
+    arguments:
+      - type: char *

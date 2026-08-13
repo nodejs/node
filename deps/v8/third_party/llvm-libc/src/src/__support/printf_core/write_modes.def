@@ -1,0 +1,12 @@
+//===-- printf write mode definitions ----------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+HANDLE_WRITE_MODE(FILL_BUFF_AND_DROP_OVERFLOW)
+HANDLE_WRITE_MODE(FLUSH_TO_STREAM)
+HANDLE_WRITE_MODE(RESIZE_AND_FILL_BUFF)
+HANDLE_WRITE_MODE(RUNTIME_DISPATCH)

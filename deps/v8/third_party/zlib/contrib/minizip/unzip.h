@@ -1,14 +1,13 @@
 /* unzip.h -- IO for uncompress .zip files using zlib
-   Version 1.1, February 14h, 2010
-   part of the MiniZip project - ( http://www.winimage.com/zLibDll/minizip.html )
+   part of the MiniZip project - ( https://www.winimage.com/zLibDll/minizip.html )
 
-         Copyright (C) 1998-2010 Gilles Vollant (minizip) ( http://www.winimage.com/zLibDll/minizip.html )
+         Copyright (C) 1998-2026 Gilles Vollant (minizip) ( https://www.winimage.com/zLibDll/minizip.html )
 
          Modifications of Unzip for Zip64
          Copyright (C) 2007-2008 Even Rouault
 
          Modifications for Zip64 support on both zip and unzip
-         Copyright (C) 2009-2010 Mathias Svensson ( http://result42.com )
+         Copyright (C) 2009-2010 Mathias Svensson ( https://result42.com )
 
          For more info read MiniZip_info.txt
 
@@ -43,6 +42,8 @@
 #ifndef _unz64_H
 #define _unz64_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -69,6 +70,8 @@ typedef unzFile__ *unzFile;
 #else
 typedef voidp unzFile;
 #endif
+
+extern const char unz_copyright[];
 
 
 #define UNZ_OK                          (0)
@@ -127,6 +130,10 @@ typedef struct unz_file_info64_s
     uLong external_fa;          /* external file attributes        4 bytes */
 
     tm_unz tmu_date;
+
+    /* Info-ZIP Unicode Path Extra Field */
+    char utf8_filename[UINT16_MAX + 1]; /* UTF-8 Filename, null terminated */
+    uLong size_utf8_filename;           /* Length, excluding null terminator */
 } unz_file_info64;
 
 typedef struct unz_file_info_s
@@ -148,6 +155,10 @@ typedef struct unz_file_info_s
     uLong external_fa;          /* external file attributes        4 bytes */
 
     tm_unz tmu_date;
+
+    /* Info-ZIP Unicode Path Extra Field */
+    char utf8_filename[UINT16_MAX + 1]; /* UTF-8 Filename, null terminated */
+    uLong size_utf8_filename;           /* Length, excluding null terminator */
 } unz_file_info;
 
 extern int ZEXPORT unzStringFileNameCompare(const char* fileName1,

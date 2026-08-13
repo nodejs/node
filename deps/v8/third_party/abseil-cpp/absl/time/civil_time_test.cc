@@ -217,32 +217,25 @@ TEST(CivilTime, ImplicitCrossAlignment) {
   EXPECT_EQ(month, year);
 
   // Ensures unsafe conversions are not allowed.
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilMinute>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilHour>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilSecond, absl::CivilDay>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilMonth>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilSecond, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilMinute>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilHour>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilDay>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilSecond, absl::CivilYear>));
 
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMinute, absl::CivilHour>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilMinute, absl::CivilDay>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMinute, absl::CivilMonth>::value));
-  EXPECT_FALSE(
-      (std::is_convertible<absl::CivilMinute, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilHour>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilDay>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMinute, absl::CivilYear>));
 
-  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilDay>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilMonth>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilHour, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilHour, absl::CivilDay>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilHour, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilHour, absl::CivilYear>));
 
-  EXPECT_FALSE((std::is_convertible<absl::CivilDay, absl::CivilMonth>::value));
-  EXPECT_FALSE((std::is_convertible<absl::CivilDay, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilDay, absl::CivilMonth>));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilDay, absl::CivilYear>));
 
-  EXPECT_FALSE((std::is_convertible<absl::CivilMonth, absl::CivilYear>::value));
+  EXPECT_FALSE((std::is_convertible_v<absl::CivilMonth, absl::CivilYear>));
 }
 
 TEST(CivilTime, ExplicitCrossAlignment) {
@@ -756,7 +749,7 @@ TEST(CivilTime, FormatAndParseLenient) {
   EXPECT_EQ("2015", absl::FormatCivilTime(y));
 }
 
-TEST(CivilTime, ParseEdgeCases) {
+TEST(CivilTime, ParseLenientEdgeCases) {
   absl::CivilSecond ss;
   EXPECT_TRUE(
       absl::ParseLenientCivilTime("9223372036854775807-12-31T23:59:59", &ss));
@@ -830,6 +823,50 @@ TEST(CivilTime, ParseEdgeCases) {
   EXPECT_FALSE(absl::ParseLenientCivilTime("2015-02-03-04:05:06", &ss)) << ss;
   EXPECT_FALSE(absl::ParseLenientCivilTime("2015:02:03T04-05-06", &ss)) << ss;
   EXPECT_FALSE(absl::ParseLenientCivilTime("9223372036854775808", &y)) << y;
+}
+
+TEST(CivilTime, ParseEdgeCases) {
+  absl::CivilYear y;
+  absl::CivilMonth m;
+  absl::CivilDay d;
+  absl::CivilSecond ss;
+  EXPECT_TRUE(absl::ParseCivilTime("0", &y)) << y;
+  EXPECT_EQ(absl::CivilYear(0), y);
+  EXPECT_TRUE(absl::ParseCivilTime("0-1", &m)) << m;
+  EXPECT_EQ(absl::CivilMonth(0, 1), m);
+  EXPECT_TRUE(absl::ParseCivilTime(" 2015 ", &y)) << y;
+  EXPECT_EQ(absl::CivilYear(2015), y);
+  EXPECT_TRUE(absl::ParseCivilTime(
+      "000000000000000000000000000000000000000000000000000000000000002015", &y))
+      << y;
+  EXPECT_EQ(absl::CivilYear(2015), y);
+  EXPECT_TRUE(absl::ParseCivilTime(" 2015-6 ", &m)) << m;
+  EXPECT_EQ(absl::CivilMonth(2015, 6), m);
+  EXPECT_TRUE(absl::ParseCivilTime("0002015-6-7", &d)) << d;
+  EXPECT_EQ(absl::CivilDay(2015, 6, 7), d);
+  EXPECT_TRUE(absl::ParseCivilTime("2015-06-07T10:11:12 ", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(2015, 6, 7, 10, 11, 12), ss);
+  EXPECT_TRUE(absl::ParseCivilTime(" 2015-06-07T10:11:1 ", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(2015, 6, 7, 10, 11, 1), ss);
+  EXPECT_TRUE(absl::ParseCivilTime("-01-01", &m)) << m;
+  EXPECT_EQ(absl::CivilMonth(-1, 1), m);
+}
+
+TEST(CivilTime, ParseFieldNormalizationCarriesYear) {
+  // When a field normalizes past the end of the year (e.g. a ":60" leap
+  // second on the last second of December), the carry must be reflected in
+  // the parsed year, so parsing agrees with direct field construction.
+  absl::CivilSecond ss;
+  EXPECT_TRUE(absl::ParseCivilTime("2020-12-31T23:59:60", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(2020, 12, 31, 23, 59, 60), ss);
+  EXPECT_EQ(absl::CivilSecond(2021, 1, 1, 0, 0, 0), ss);
+
+  EXPECT_TRUE(absl::ParseLenientCivilTime("2020-12-31T23:59:60", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(2021, 1, 1, 0, 0, 0), ss);
+
+  // The carry also works for negative years crossing zero.
+  EXPECT_TRUE(absl::ParseCivilTime("-1-12-31T23:59:60", &ss)) << ss;
+  EXPECT_EQ(absl::CivilSecond(0, 1, 1, 0, 0, 0), ss);
 }
 
 TEST(CivilTime, AbslStringify) {

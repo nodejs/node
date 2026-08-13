@@ -9,25 +9,34 @@
 #include "src/logging/runtime-call-stats.h"
 
 #ifdef V8_RUNTIME_CALL_STATS
-#define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Kind, Mode)  \
-  static constexpr PhaseKind kKind = Kind;                      \
-  static const char* phase_name() { return "V8.TF" #Name; }     \
-  static constexpr RuntimeCallCounterId kRuntimeCallCounterId = \
-      RuntimeCallCounterId::kOptimize##Name;                    \
+#define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Kind, Mode,         \
+                                             SynchronizationPointName) \
+  static constexpr PhaseKind kKind = Kind;                             \
+  static const char* phase_name() { return "V8.TF" #Name; }            \
+  static constexpr std::string_view synchronization_point_name() {     \
+    return SynchronizationPointName;                                   \
+  }                                                                    \
+  static constexpr RuntimeCallCounterId kRuntimeCallCounterId =        \
+      RuntimeCallCounterId::kOptimize##Name;                           \
   static constexpr RuntimeCallStats::CounterMode kCounterMode = Mode;
 #else  // V8_RUNTIME_CALL_STATS
-#define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Kind, Mode) \
-  static constexpr PhaseKind kKind = Kind;                     \
-  static const char* phase_name() { return "V8.TF" #Name; }
+#define DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, Kind, Mode,         \
+                                             SynchronizationPointName) \
+  static constexpr PhaseKind kKind = Kind;                             \
+  static const char* phase_name() { return "V8.TF" #Name; }            \
+  static constexpr std::string_view synchronization_point_name() {     \
+    return SynchronizationPointName;                                   \
+  }
 #endif  // V8_RUNTIME_CALL_STATS
 
-#define DECL_PIPELINE_PHASE_CONSTANTS(Name)                        \
-  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, PhaseKind::kTurbofan, \
-                                       RuntimeCallStats::kThreadSpecific)
+#define DECL_PIPELINE_PHASE_CONSTANTS(Name)                               \
+  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, PhaseKind::kTurbofan,        \
+                                       RuntimeCallStats::kThreadSpecific, \
+                                       "Turbofan" #Name)
 
-#define DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(Name)            \
-  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(Name, PhaseKind::kTurbofan, \
-                                       RuntimeCallStats::kExact)
+#define DECL_MAIN_THREAD_PIPELINE_PHASE_CONSTANTS(Name) \
+  DECL_PIPELINE_PHASE_CONSTANTS_HELPER(                 \
+      Name, PhaseKind::kTurbofan, RuntimeCallStats::kExact, "Turbofan" #Name)
 
 namespace v8::internal {
 

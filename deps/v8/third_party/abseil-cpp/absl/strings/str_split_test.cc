@@ -36,6 +36,7 @@
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/node_hash_map.h"
+#include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 
 namespace {
@@ -422,6 +423,9 @@ TEST(Splitter, ConversionOperator) {
   TestConversionOperator<absl::btree_multiset<absl::string_view>>(splitter);
   TestConversionOperator<absl::btree_multiset<std::string>>(splitter);
   TestConversionOperator<std::unordered_set<std::string>>(splitter);
+  TestConversionOperator<
+      std::unordered_set<absl::string_view, absl::Hash<absl::string_view>>>(
+      splitter);
 
   // Tests conversion to map-like objects.
 
@@ -454,6 +458,15 @@ TEST(Splitter, ConversionOperator) {
   TestMapConversionOperator<absl::btree_multimap<std::string, std::string>>(
       splitter);
   TestMapConversionOperator<std::unordered_map<std::string, std::string>>(
+      splitter);
+  TestMapConversionOperator<std::unordered_map<
+      absl::string_view, absl::string_view, absl::Hash<absl::string_view>>>(
+      splitter);
+  TestMapConversionOperator<std::unordered_map<absl::string_view, std::string,
+                                               absl::Hash<absl::string_view>>>(
+      splitter);
+  TestMapConversionOperator<std::unordered_map<std::string, absl::string_view,
+                                               absl::Hash<absl::string_view>>>(
       splitter);
   TestMapConversionOperator<
       absl::node_hash_map<absl::string_view, absl::string_view>>(splitter);

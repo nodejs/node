@@ -1,0 +1,187 @@
+header: sched.h
+standards:
+  - posix
+macros:
+  - macro_name: SCHED_OTHER
+    macro_header: sched-macros.h
+  - macro_name: SCHED_FIFO
+    macro_header: sched-macros.h
+  - macro_name: SCHED_RR
+    macro_header: sched-macros.h
+types:
+  - type_name: struct_timespec
+  - type_name: time_t
+  - type_name: struct_sched_param
+  - type_name: size_t
+  - type_name: cpu_set_t
+  - type_name: pid_t
+enums: []
+objects: []
+functions:
+  - name: __sched_andcpuset
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: size_t
+      - type: cpu_set_t *
+      - type: const cpu_set_t *
+      - type: const cpu_set_t *
+  - name: __sched_clrcpuset
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: int
+      - type: size_t
+      - type: cpu_set_t *
+  - name: __sched_cpualloc
+    standards:
+      - llvm_libc_ext
+    return_type: cpu_set_t *
+    arguments:
+      - type: size_t
+  - name: __sched_cpuequal
+    standards:
+      - llvm_libc_ext
+    return_type: int
+    arguments:
+      - type: size_t
+      - type: const cpu_set_t *
+      - type: const cpu_set_t *
+  - name: __sched_cpufree
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: cpu_set_t *
+  - name: __sched_getcpucount
+    standards:
+      - llvm_libc_ext
+    return_type: int
+    arguments:
+      - type: size_t
+      - type: const cpu_set_t *
+  - name: __sched_getcpuisset
+    standards:
+      - llvm_libc_ext
+    return_type: int
+    arguments:
+      - type: int
+      - type: size_t
+      - type: const cpu_set_t *
+  - name: __sched_orcpuset
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: size_t
+      - type: cpu_set_t *
+      - type: const cpu_set_t *
+      - type: const cpu_set_t *
+  - name: __sched_setcpuset
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: int
+      - type: size_t
+      - type: cpu_set_t *
+  - name: __sched_setcpuzero
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: size_t
+      - type: cpu_set_t *
+  - name: __sched_xorcpuset
+    standards:
+      - llvm_libc_ext
+    return_type: void
+    arguments:
+      - type: size_t
+      - type: cpu_set_t *
+      - type: const cpu_set_t *
+      - type: const cpu_set_t *
+  - name: getcpu
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: unsigned int *
+      - type: unsigned int *
+  - name: sched_get_priority_max
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: sched_get_priority_min
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: sched_getaffinity
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: size_t
+      - type: cpu_set_t *
+  - name: sched_getcpu
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: void
+  - name: sched_getparam
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: struct sched_param *
+  - name: sched_getscheduler
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pid_t
+  - name: sched_rr_get_interval
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: struct timespec *
+  - name: sched_setaffinity
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: size_t
+      - type: const cpu_set_t *
+  - name: sched_setparam
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: const struct sched_param *
+  - name: sched_setscheduler
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: pid_t
+      - type: int
+      - type: const struct sched_param *
+  - name: sched_yield
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: void

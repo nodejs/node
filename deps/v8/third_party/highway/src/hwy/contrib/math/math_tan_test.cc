@@ -31,6 +31,7 @@
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
 #include "hwy/contrib/math/math-inl.h"
+#include "hwy/contrib/math/fast_math-inl.h"
 #include "hwy/tests/test_util-inl.h"
 // clang-format on
 
@@ -135,6 +136,94 @@ HWY_NOINLINE void TestMath(const char* name, T (*fx1)(T),
   fprintf(stderr, "%s: %s max_ulp %g\n", hwy::TypeName(T(), Lanes(d)).c_str(),
           name, static_cast<double>(max_ulp));
   HWY_ASSERT(max_ulp <= max_error_ulp);
+}
+
+template <class T, class D>
+HWY_NOINLINE void TestMathRelative(const char* name, T (*fx1)(T),
+                                   Vec<D> (*fxN)(D, VecArg<Vec<D>>), D d, T min,
+                                   T max, double max_relative_error,
+                                   uint64_t samples = 4000) {
+  if (HWY_MATH_TEST_EXCESS_PRECISION) {
+    static bool once = true;
+    if (once) {
+      once = false;
+      HWY_WARN("Skipping math_test due to GCC issue with excess precision.\n");
+    }
+    return;
+  }
+
+  using UintT = MakeUnsigned<T>;
+
+  const UintT min_bits = BitCastScalar<UintT>(min);
+  const UintT max_bits = BitCastScalar<UintT>(max);
+
+  // If min is negative and max is positive, the range needs to be broken into
+  // two pieces, [+0, max] and [-0, min], otherwise [min, max].
+  int range_count = 1;
+  UintT ranges[2][2] = {{min_bits, max_bits}, {0, 0}};
+  if ((min < 0.0) && (max > 0.0)) {
+    ranges[0][0] = BitCastScalar<UintT>(ConvertScalarTo<T>(+0.0));
+    ranges[0][1] = max_bits;
+    ranges[1][0] = BitCastScalar<UintT>(ConvertScalarTo<T>(-0.0));
+    ranges[1][1] = min_bits;
+    range_count = 2;
+  }
+
+  double max_actual_rel_error = 0.0;
+  double max_error_value = 0.0;
+  double sum_rel_error = 0.0;
+  uint64_t count = 0;
+  // Emulation is slower, so cannot afford as many.
+  const UintT kSamplesPerRange =
+      static_cast<UintT>(AdjustedReps(static_cast<size_t>(samples)));
+  for (int range_index = 0; range_index < range_count; ++range_index) {
+    const UintT start = ranges[range_index][0];
+    const UintT stop = ranges[range_index][1];
+    const UintT step = HWY_MAX(1, ((stop - start) / kSamplesPerRange));
+    for (UintT value_bits = start; value_bits <= stop; value_bits += step) {
+      // For reasons unknown, the HWY_MAX is necessary on RVV, otherwise
+      // value_bits can be less than start, and thus possibly NaN.
+      const T value =
+          BitCastScalar<T>(HWY_MIN(HWY_MAX(start, value_bits), stop));
+      const T actual = GetLane(fxN(d, Set(d, value)));
+      const T expected = fx1(value);
+
+      // Skip small inputs and outputs on armv7, it flushes subnormals to zero.
+#if HWY_TARGET <= HWY_NEON_WITHOUT_AES && HWY_ARCH_ARM_V7
+      if ((std::abs(value) < 1e-37f) || (std::abs(expected) < 1e-37f)) {
+        continue;
+      }
+#endif
+
+      if (std::abs(expected) > 1e-20) {
+        double rel = std::abs(static_cast<double>(actual) -
+                              static_cast<double>(expected)) /
+                     std::abs(static_cast<double>(expected));
+        if (rel > max_actual_rel_error) {
+          max_actual_rel_error = rel;
+          max_error_value = static_cast<double>(value);
+        }
+        sum_rel_error += rel;
+        count++;
+        if (rel > max_relative_error) {
+          fprintf(stderr,
+                  "%s: %s(%f) expected %E actual %E rel %E max rel %E\n",
+                  hwy::TypeName(T(), Lanes(d)).c_str(), name,
+                  static_cast<double>(value), static_cast<double>(expected),
+                  static_cast<double>(actual), rel, max_relative_error);
+        }
+      }
+    }
+  }
+  fprintf(stderr, "%s: %s max_rel_error %E at %E\n",
+          hwy::TypeName(T(), Lanes(d)).c_str(), name, max_actual_rel_error,
+          max_error_value);
+  if (count > 0) {
+    fprintf(stderr, "%s: %s avg_rel_error %E\n",
+            hwy::TypeName(T(), Lanes(d)).c_str(), name,
+            sum_rel_error / static_cast<double>(count));
+  }
+  HWY_ASSERT(max_actual_rel_error <= max_relative_error);
 }
 
 #define DEFINE_MATH_TEST_FUNC(NAME)                     \
@@ -518,6 +607,124 @@ HWY_NOINLINE void TestAllHypot() {
   ForFloat3264Types(ForPartialVectors<TestHypot>());
 }
 
+struct TestFastTanRelative {
+  template <class T, class D>
+  HWY_NOINLINE void operator()(T, D d) {
+    if (sizeof(T) == 4) {
+      // Float: [-89.99, +89.99] deg
+      // 89.99 deg = 1.570621794 rad
+      TestMathRelative<T, D>("FastTan", std::tan, CallFastTan, d,
+                             static_cast<T>(-1.570621794),
+                             static_cast<T>(1.570621794), 0.0035);
+    } else {
+      // Double: [-89.9999999, +89.9999999] deg
+      // 89.9999999 deg = 1.570796325 rad
+      TestMathRelative<T, D>("FastTan", std::tan, CallFastTan, d,
+                             static_cast<T>(-1.570796325),
+                             static_cast<T>(1.570796325), 0.0035);
+    }
+  }
+};
+
+HWY_NOINLINE void TestAllFastTan() {
+  if (HWY_MATH_TEST_EXCESS_PRECISION) return;
+  ForFloat3264Types(ForPartialVectors<TestFastTanRelative>());
+}
+
+struct TestFastAtanRelative {
+  template <class T, class D>
+  HWY_NOINLINE void operator()(T, D d) {
+    if (sizeof(T) == 4) {
+      // Float: [-1e35, +1e35]
+      TestMathRelative<T, D>("FastAtan", std::atan, CallFastAtan, d,
+                             static_cast<T>(-1e35), static_cast<T>(1e35),
+                             0.000035, 1000000);
+      // Float: [0, +1e35]
+      TestMathRelative<T, D>("FastAtanPositive", std::atan,
+                             CallFastAtanPositive, d, static_cast<T>(0),
+                             static_cast<T>(1e35), 0.000035, 1000000);
+    } else {
+      // Double: [-1e305, +1e305]
+      TestMathRelative<T, D>("FastAtan", std::atan, CallFastAtan, d,
+                             static_cast<T>(-1e305), static_cast<T>(1e305),
+                             0.000035, 1000000);
+      // Double: [0, +1e305]
+      TestMathRelative<T, D>("FastAtanPositive", std::atan,
+                             CallFastAtanPositive, d, static_cast<T>(0),
+                             static_cast<T>(1e305), 0.000035, 1000000);
+    }
+  }
+};
+
+HWY_NOINLINE void TestAllFastAtan() {
+  if (HWY_MATH_TEST_EXCESS_PRECISION) return;
+  ForFloat3264Types(ForPartialVectors<TestFastAtanRelative>());
+}
+
+struct TestFastAtan2 {
+  template <typename T, class D>
+  HWY_NOINLINE void operator()(T t, D d) {
+    const size_t N = Lanes(d);
+
+    size_t padded;
+    AlignedFreeUniquePtr<T[]> in_y, in_x, expected;
+    Atan2TestCases(t, d, padded, in_y, in_x, expected);
+
+    // Constants for error checking
+    const T rel_limit = static_cast<T>(0.000035);
+    const T tiny_threshold = static_cast<T>(1e-20);
+    const Vec<D> v_rel_limit = Set(d, rel_limit);
+    const Vec<D> v_tiny_threshold = Set(d, tiny_threshold);
+
+    for (size_t i = 0; i < padded; i += N) {
+      const Vec<D> y = Load(d, &in_y[i]);
+      const Vec<D> x = Load(d, &in_x[i]);
+#if HWY_ARCH_ARM_A64
+      // TODO(b/287462770): inline to work around incorrect SVE codegen
+      const Vec<D> actual = FastAtan2(d, y, x);
+#else
+      const Vec<D> actual = CallFastAtan2(d, y, x);
+#endif
+      const Vec<D> vexpected = Load(d, &expected[i]);
+
+      // 1. Check NaNs match exactly
+      const Mask<D> exp_nan = IsNaN(vexpected);
+      const Mask<D> act_nan = IsNaN(actual);
+      HWY_ASSERT_MASK_EQ(d, exp_nan, act_nan);
+
+      // 2. Calculate Error
+      const Vec<D> abs_exp = Abs(vexpected);
+      const Vec<D> diff = Abs(Sub(actual, vexpected));
+
+      // 3. Determine Tolerance
+      // If abs_exp > 1e-20, tolerance = abs_exp * 8e-8.
+      // Else, tolerance = 8e-8 (effectively treating 'err' as the relative
+      // error metric).
+      const Mask<D> use_relative = Gt(abs_exp, v_tiny_threshold);
+      const Vec<D> tolerance =
+          IfThenElse(use_relative, Mul(abs_exp, v_rel_limit), v_rel_limit);
+
+      // 4. Verify
+      // Pass if it's NaN (checked above) OR if within tolerance
+      const Mask<D> ok = Or(act_nan, Le(diff, tolerance));
+
+      if (!AllTrue(d, ok)) {
+        const size_t mismatch =
+            static_cast<size_t>(FindKnownFirstTrue(d, Not(ok)));
+        fprintf(stderr, "Mismatch for i=%d expected %E actual %E\n",
+                static_cast<int>(i + mismatch), expected[i + mismatch],
+                ExtractLane(actual, mismatch));
+        HWY_ASSERT(0);
+      }
+    }
+  }
+};
+
+HWY_NOINLINE void TestAllFastAtan2() {
+  if (HWY_MATH_TEST_EXCESS_PRECISION) return;
+  ForFloat3264Types(ForPartialVectors<TestFastAtan2>());
+}
+
 }  // namespace
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
@@ -531,6 +738,10 @@ HWY_BEFORE_TEST(HwyMathTanTest);
 HWY_EXPORT_AND_TEST_P(HwyMathTanTest, TestAllAtan);
 HWY_EXPORT_AND_TEST_P(HwyMathTanTest, TestAllAtan2);
 HWY_EXPORT_AND_TEST_P(HwyMathTanTest, TestAllHypot);
+HWY_EXPORT_AND_TEST_P(HwyMathTanTest, TestAllFastTan);
+HWY_EXPORT_AND_TEST_P(HwyMathTanTest, TestAllFastAtan);
+HWY_EXPORT_AND_TEST_P(HwyMathTanTest, TestAllFastAtan2);
+
 HWY_AFTER_TEST();
 }  // namespace
 }  // namespace hwy

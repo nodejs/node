@@ -26,13 +26,13 @@ TEST_F(ReducerTest, HoistAddressForLoads) {
   auto test = CreateFromGraph(2, [](auto& Asm) {
     OpIndex base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
-    __ Load(base, index, LoadOp::Kind::Protected(),
+    __ Load(base, index, LoadOp::Kind::Trapping(),
             MemoryRepresentation::Uint32(), RegisterRepresentation::Word32(),
             0);
-    __ Load(base, index, LoadOp::Kind::Protected(),
+    __ Load(base, index, LoadOp::Kind::Trapping(),
             MemoryRepresentation::Uint32(), RegisterRepresentation::Word32(),
             8);
-    __ Load(base, index, LoadOp::Kind::Protected(),
+    __ Load(base, index, LoadOp::Kind::Trapping(),
             MemoryRepresentation::Uint32(), RegisterRepresentation::Word32(),
             16);
     __ Return(base);
@@ -60,13 +60,13 @@ TEST_F(ReducerTest, HoistAddressForStores) {
     OpIndex base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     auto data = __ HeapConstant(Asm.factory().undefined_value());
-    __ Store(base, index, data, StoreOp::Kind::Protected(),
+    __ Store(base, index, data, StoreOp::Kind::Trapping(),
              MemoryRepresentation::Uint32(), WriteBarrierKind::kNoWriteBarrier,
              0);
-    __ Store(base, index, data, StoreOp::Kind::Protected(),
+    __ Store(base, index, data, StoreOp::Kind::Trapping(),
              MemoryRepresentation::Uint32(), WriteBarrierKind::kNoWriteBarrier,
              8);
-    __ Store(base, index, data, StoreOp::Kind::Protected(),
+    __ Store(base, index, data, StoreOp::Kind::Trapping(),
              MemoryRepresentation::Uint32(), WriteBarrierKind::kNoWriteBarrier,
              16);
     __ Return(base);
@@ -91,13 +91,13 @@ TEST_F(ReducerTest, NoHoistingWithBarriers) {
     OpIndex base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
     OpIndex index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     auto data = __ HeapConstant(Asm.factory().undefined_value());
-    __ Store(base, index, data, LoadOp::Kind::Protected(),
+    __ Store(base, index, data, LoadOp::Kind::Trapping(),
              MemoryRepresentation::Uint32(),
              WriteBarrierKind::kFullWriteBarrier, 0);
-    __ Store(base, index, data, LoadOp::Kind::Protected(),
+    __ Store(base, index, data, LoadOp::Kind::Trapping(),
              MemoryRepresentation::Uint32(),
              WriteBarrierKind::kFullWriteBarrier, 8);
-    __ Store(base, index, data, LoadOp::Kind::Protected(),
+    __ Store(base, index, data, LoadOp::Kind::Trapping(),
              MemoryRepresentation::Uint32(),
              WriteBarrierKind::kFullWriteBarrier, 16);
     __ Return(base);

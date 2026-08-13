@@ -23,8 +23,9 @@ NormalPage* FindPageInNewSpace(const std::vector<Handle<FixedArray>>& handles) {
     // One deref gets the Handle, the second deref gets the FixedArray.
     NormalPage* candidate = NormalPage::FromHeapObject(*handle);
     if (candidate->Chunk()->InNewSpace() &&
-        candidate->heap()->new_space()->IsPromotionCandidate(candidate))
+        candidate->heap()->new_space()->IsPromotionCandidate(candidate)) {
       return candidate;
+    }
   }
   return nullptr;
 }

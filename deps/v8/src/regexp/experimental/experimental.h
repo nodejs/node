@@ -10,6 +10,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 class ExperimentalRegExp final : public AllStatic {
  public:
@@ -17,13 +18,14 @@ class ExperimentalRegExp final : public AllStatic {
   // -------------------------------------------------------------------------
   // Check whether a parsed regexp pattern can be compiled and executed by the
   // EXPERIMENTAL engine.
-  // TODO(mbid, v8:10765): This walks the RegExpTree, but it could also be
+  // TODO(mbid, v8:10765): This walks the Tree, but it could also be
   // checked on the fly in the parser.  Not done currently because walking the
   // AST again is more flexible and less error prone (but less performant).
-  static bool CanBeHandled(RegExpTree* tree, DirectHandle<String> pattern,
-                           RegExpFlags flags, int capture_count);
+  static bool CanBeHandled(Tree* tree, DirectHandle<String> original_source,
+                           Flags flags, int capture_count);
   static void Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
-                         DirectHandle<String> pattern, RegExpFlags flags,
+                         DirectHandle<String> original_source,
+                         DirectHandle<String> escaped_source, Flags flags,
                          int capture_count);
   static bool IsCompiled(DirectHandle<IrRegExpData> re_data, Isolate* isolate);
   V8_WARN_UNUSED_RESULT
@@ -63,6 +65,7 @@ class ExperimentalRegExp final : public AllStatic {
   static constexpr bool kSupportsUnicode = false;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

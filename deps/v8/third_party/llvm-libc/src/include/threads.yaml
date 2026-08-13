@@ -1,0 +1,178 @@
+header: threads.h
+standards:
+  - stdc
+macros:
+  - macro_name: ONCE_FLAG_INIT
+    macro_value: '{0}'
+types:
+  - type_name: once_flag
+  - type_name: __call_once_func_t
+  - type_name: cnd_t
+  - type_name: mtx_t
+  - type_name: thrd_start_t
+  - type_name: thrd_t
+  - type_name: tss_t
+  - type_name: tss_dtor_t
+  - type_name: struct_timespec
+enums:
+  - name: mtx_plain
+    value: null
+  - name: mtx_recursive
+    value: null
+  - name: mtx_timed
+    value: null
+  - name: thrd_timedout
+    value: null
+  - name: thrd_success
+    value: null
+  - name: thrd_busy
+    value: null
+  - name: thrd_error
+    value: null
+  - name: thrd_nomem
+    value: null
+objects: []
+functions:
+  - name: call_once
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: once_flag *
+      - type: __call_once_func_t
+  - name: cnd_broadcast
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: cnd_t *
+  - name: cnd_destroy
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: cnd_t *
+  - name: cnd_init
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: cnd_t *
+  - name: cnd_signal
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: cnd_t *
+  - name: cnd_timedwait
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: cnd_t *__restrict
+      - type: mtx_t *__restrict
+      - type: const struct timespec *__restrict
+  - name: cnd_wait
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: cnd_t *
+      - type: mtx_t *
+  - name: mtx_destroy
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: mtx_t *
+  - name: mtx_init
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: mtx_t *
+      - type: int
+  - name: mtx_lock
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: mtx_t *
+  - name: mtx_trylock
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: mtx_t *
+  - name: mtx_unlock
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: mtx_t *
+  - name: thrd_create
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: thrd_t *
+      - type: thrd_start_t
+      - type: void *
+  - name: thrd_current
+    standards:
+      - stdc
+    return_type: thrd_t
+    arguments:
+      - type: void
+  - name: thrd_detach
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: thrd_t
+  - name: thrd_equal
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: thrd_t
+      - type: thrd_t
+  - name: thrd_exit
+    standards:
+      - stdc
+    return_type: _Noreturn void
+    arguments:
+      - type: int
+  - name: thrd_join
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: thrd_t
+      - type: int *
+  - name: tss_create
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: tss_t *
+      - type: tss_dtor_t
+  - name: tss_delete
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: tss_t
+  - name: tss_get
+    standards:
+      - stdc
+    return_type: void *
+    arguments:
+      - type: tss_t
+  - name: tss_set
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: tss_t
+      - type: void *

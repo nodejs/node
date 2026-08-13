@@ -4,7 +4,7 @@
 
 #if defined(CPPGC_CAGED_HEAP)
 
-#include "src/heap/cppgc/caged-heap.h"
+#include "src/heap/cppgc-internal/caged-heap.h"
 
 #include "include/cppgc/internal/caged-heap-local-data.h"
 #include "src/base/page-allocator.h"

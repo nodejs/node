@@ -93,8 +93,9 @@ Builtin BuiltinsSorter::FindBestPredecessorOf(Builtin callee) {
     }
 
     if (bestProb < kMinEdgeProbabilityThreshold ||
-        bestPred == Builtin::kNoBuiltinId)
+        bestPred == Builtin::kNoBuiltinId) {
       continue;
+    }
 
     Cluster* predCls = builtin_cluster_map_[bestPred];
     Cluster* succCls = builtin_cluster_map_[callee];
@@ -117,8 +118,9 @@ Builtin BuiltinsSorter::FindBestPredecessorOf(Builtin callee) {
     // Don't merge clusters if the new merged density is lower too many times
     // than current cluster, to avoid a huge dropping in cluster density, it
     // will harm locality of builtins.
-    if (predCls->density_ / kMaxDensityDecreaseThreshold > new_density)
+    if (predCls->density_ / kMaxDensityDecreaseThreshold > new_density) {
       continue;
+    }
   }
 
   return bestPred;

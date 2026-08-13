@@ -8,6 +8,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-module-builder.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -29,7 +30,7 @@ class WasmCompilationHintsBuilder {
                            ModuleTypeIndex supertype = kNoSuperType,
                            bool is_final = false) {
     return HeapType::Index(builder_.ForceAddSignature(sig, is_final, supertype),
-                           kNotShared, RefTypeKind::kFunction);
+                           SharedFlag{false}, RefTypeKind::kFunction);
   }
 
   uint8_t DefineFunction(FunctionSig* sig,
@@ -113,7 +114,7 @@ class WasmCompilationHintsBuilder {
   }
 
   const CanonicalSig* LookupCanonicalSigFor(uint32_t function_index) const {
-    auto* module = instance_object_->module();
+    auto* module = instance_object_->trusted_data(isolate_)->module();
     CanonicalTypeIndex sig_id =
         module->canonical_sig_id(module->functions[function_index].sig_index);
     return GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
@@ -131,7 +132,7 @@ class WasmCompilationHintsUnittest : public TestWithIsolateAndZone {};
 
 TEST_F(WasmCompilationHintsUnittest, RecoverCompilationHints) {
   const FlagScope<bool> compilation_hints_scope(
-      &v8_flags.experimental_wasm_compilation_hints, true);
+      &v8_flags.wasm_compilation_hints, true);
   const FlagScope<bool> wasm_generate_compilation_hints_scope(
       &v8_flags.wasm_generate_compilation_hints, true);
   const FlagScope<int> wasm_tiering_budget_scope(&v8_flags.wasm_tiering_budget,
@@ -198,7 +199,8 @@ TEST_F(WasmCompilationHintsUnittest, RecoverCompilationHints) {
                                                base::VectorOf(buffer));
   EXPECT_FALSE(thrower.error());
 
-  const WasmModule* module = maybe_instance.ToHandleChecked()->module();
+  const WasmModule* module =
+      maybe_instance.ToHandleChecked()->trusted_data(isolate())->module();
 
   // Check compilation priorities.
   EXPECT_EQ(size_t{3}, module->compilation_priorities.size());

@@ -133,8 +133,9 @@ constexpr double
     IncrementalMarkingSchedule::kEphemeronPairsFlushingRatioIncrements;
 bool IncrementalMarkingSchedule::ShouldFlushEphemeronPairs() {
   if (GetOverallMarkedBytes() <
-      (ephemeron_pairs_flushing_ratio_target_ * last_estimated_live_bytes_))
+      (ephemeron_pairs_flushing_ratio_target_ * last_estimated_live_bytes_)) {
     return false;
+  }
   ephemeron_pairs_flushing_ratio_target_ +=
       kEphemeronPairsFlushingRatioIncrements;
   return true;
