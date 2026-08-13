@@ -23,7 +23,8 @@ the project's [Developer's Certificate of Origin][] and licensing requirements.
 
 Contributors who choose to submit changes generated with AI must be able to explain
 the value proposition and the implementation of their contributions during the
-review process. Pull requests with AI-generated code that the contributor has not
+review process. Disclosure about the use of AI does not serve as a disclaimer of this
+responsibility. Pull requests with AI-generated code that the contributor has not
 personally understood, tested, and verified waste collaborator time and
 will be subject to closure without additional review. Contributors who
 repeatedly submit such changes, show no understanding of the project or
