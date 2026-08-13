@@ -3,12 +3,13 @@
 // found in the LICENSE file.
 
 #include "include/v8-initialization.h"
+#include "src/base/logging.h"
 #include "test/benchmarks/cpp/benchmark-utils.h"
 #include "third_party/google_benchmark_chrome/src/include/benchmark/benchmark.h"
 
 // Expanded macro BENCHMARK_MAIN() to allow per-process setup.
 int main(int argc, char** argv) {
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  CHECK(v8::V8::InitializeICUDefaultLocation(argv[0]));
   v8::V8::InitializeExternalStartupData(argv[0]);
 
   v8::benchmarking::BenchmarkWithIsolate::InitializeProcess();

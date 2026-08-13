@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Test inlining of a non-trivial type check (i.e. the decoder can't remove it

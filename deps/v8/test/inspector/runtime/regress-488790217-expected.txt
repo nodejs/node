@@ -1,0 +1,396 @@
+Tests that prototype tampering does not affect native getters/setters
+Runtime.getProperties with generatePreview: true
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                get : {
+                    className : Function
+                    description : function () { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                isOwn : true
+                name : shared
+                set : {
+                    className : Function
+                    description : function () { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : owner
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : tail1
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : tail2
+                value : {
+                    description : 3
+                    type : number
+                    value : 3
+                }
+                writable : true
+            }
+        ]
+    }
+}
+Runtime.getProperties with ownProperties: true
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                get : {
+                    className : Function
+                    description : function () { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                isOwn : true
+                name : shared
+                set : {
+                    className : Function
+                    description : function () { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : owner
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : tail1
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : tail2
+                value : {
+                    description : 3
+                    type : number
+                    value : 3
+                }
+                writable : true
+            }
+        ]
+    }
+}
+Runtime.getProperties with accessorPropertiesOnly: false
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                get : {
+                    className : Function
+                    description : function () { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                isOwn : true
+                name : shared
+                set : {
+                    className : Function
+                    description : function () { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : owner
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : tail1
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : tail2
+                value : {
+                    description : 3
+                    type : number
+                    value : 3
+                }
+                writable : true
+            }
+            [4] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : constructor
+                value : {
+                    className : Function
+                    description : function Object() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [5] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : __defineGetter__
+                value : {
+                    className : Function
+                    description : function __defineGetter__() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [6] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : __defineSetter__
+                value : {
+                    className : Function
+                    description : function __defineSetter__() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [7] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : hasOwnProperty
+                value : {
+                    className : Function
+                    description : function hasOwnProperty() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [8] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : __lookupGetter__
+                value : {
+                    className : Function
+                    description : function __lookupGetter__() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [9] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : __lookupSetter__
+                value : {
+                    className : Function
+                    description : function __lookupSetter__() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [10] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : isPrototypeOf
+                value : {
+                    className : Function
+                    description : function isPrototypeOf() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [11] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : propertyIsEnumerable
+                value : {
+                    className : Function
+                    description : function propertyIsEnumerable() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [12] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : toString
+                value : {
+                    className : Function
+                    description : function toString() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [13] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : valueOf
+                value : {
+                    className : Function
+                    description : function valueOf() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [14] : {
+                configurable : true
+                enumerable : false
+                get : {
+                    className : Function
+                    description : function get __proto__() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                isOwn : false
+                name : __proto__
+                set : {
+                    className : Function
+                    description : function set __proto__() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [15] : {
+                configurable : true
+                enumerable : false
+                isOwn : false
+                name : toLocaleString
+                value : {
+                    className : Function
+                    description : function toLocaleString() { [native code] }
+                    objectId : <objectId>
+                    type : function
+                }
+                writable : true
+            }
+            [16] : {
+                configurable : true
+                enumerable : false
+                get : {
+                    type : undefined
+                }
+                isOwn : false
+                name : name
+                set : {
+                    className : Function
+                    description : set(v) {           if (v === 'shared') {             delete __target.owner;             delete __target.tail1;           }         }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+        ]
+    }
+}

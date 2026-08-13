@@ -21,13 +21,13 @@
 
 #include "absl/hash/internal/city.h"
 
-#include <string.h>  // for memcpy and memset
 #include <algorithm>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/unaligned_access.h"
 #include "absl/base/optimization.h"
+#include "absl/numeric/bits.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -68,11 +68,6 @@ static uint32_t fmix(uint32_t h) {
   return h;
 }
 
-static uint32_t Rotate32(uint32_t val, int shift) {
-  // Avoid shifting by 32: doing so yields an undefined result.
-  return shift == 0 ? val : ((val >> shift) | (val << (32 - shift)));
-}
-
 #undef PERMUTE3
 #define PERMUTE3(a, b, c) \
   do {                    \
@@ -83,10 +78,10 @@ static uint32_t Rotate32(uint32_t val, int shift) {
 static uint32_t Mur(uint32_t a, uint32_t h) {
   // Helper from Murmur3 for combining two 32-bit values.
   a *= c1;
-  a = Rotate32(a, 17);
+  a = absl::rotr(a, 17);
   a *= c2;
   h ^= a;
-  h = Rotate32(h, 19);
+  h = absl::rotr(h, 19);
   return h * 5 + 0xe6546b64;
 }
 
@@ -131,44 +126,44 @@ uint32_t CityHash32(const char *s, size_t len) {
   // len > 24
   uint32_t h = static_cast<uint32_t>(len), g = c1 * h, f = g;
 
-  uint32_t a0 = Rotate32(Fetch32(s + len - 4) * c1, 17) * c2;
-  uint32_t a1 = Rotate32(Fetch32(s + len - 8) * c1, 17) * c2;
-  uint32_t a2 = Rotate32(Fetch32(s + len - 16) * c1, 17) * c2;
-  uint32_t a3 = Rotate32(Fetch32(s + len - 12) * c1, 17) * c2;
-  uint32_t a4 = Rotate32(Fetch32(s + len - 20) * c1, 17) * c2;
+  uint32_t a0 = absl::rotr(Fetch32(s + len - 4) * c1, 17) * c2;
+  uint32_t a1 = absl::rotr(Fetch32(s + len - 8) * c1, 17) * c2;
+  uint32_t a2 = absl::rotr(Fetch32(s + len - 16) * c1, 17) * c2;
+  uint32_t a3 = absl::rotr(Fetch32(s + len - 12) * c1, 17) * c2;
+  uint32_t a4 = absl::rotr(Fetch32(s + len - 20) * c1, 17) * c2;
   h ^= a0;
-  h = Rotate32(h, 19);
+  h = absl::rotr(h, 19);
   h = h * 5 + 0xe6546b64;
   h ^= a2;
-  h = Rotate32(h, 19);
+  h = absl::rotr(h, 19);
   h = h * 5 + 0xe6546b64;
   g ^= a1;
-  g = Rotate32(g, 19);
+  g = absl::rotr(g, 19);
   g = g * 5 + 0xe6546b64;
   g ^= a3;
-  g = Rotate32(g, 19);
+  g = absl::rotr(g, 19);
   g = g * 5 + 0xe6546b64;
   f += a4;
-  f = Rotate32(f, 19);
+  f = absl::rotr(f, 19);
   f = f * 5 + 0xe6546b64;
   size_t iters = (len - 1) / 20;
   do {
-    uint32_t b0 = Rotate32(Fetch32(s) * c1, 17) * c2;
+    uint32_t b0 = absl::rotr(Fetch32(s) * c1, 17) * c2;
     uint32_t b1 = Fetch32(s + 4);
-    uint32_t b2 = Rotate32(Fetch32(s + 8) * c1, 17) * c2;
-    uint32_t b3 = Rotate32(Fetch32(s + 12) * c1, 17) * c2;
+    uint32_t b2 = absl::rotr(Fetch32(s + 8) * c1, 17) * c2;
+    uint32_t b3 = absl::rotr(Fetch32(s + 12) * c1, 17) * c2;
     uint32_t b4 = Fetch32(s + 16);
     h ^= b0;
-    h = Rotate32(h, 18);
+    h = absl::rotr(h, 18);
     h = h * 5 + 0xe6546b64;
     f += b1;
-    f = Rotate32(f, 19);
+    f = absl::rotr(f, 19);
     f = f * c1;
     g += b2;
-    g = Rotate32(g, 18);
+    g = absl::rotr(g, 18);
     g = g * 5 + 0xe6546b64;
     h ^= b3 + b1;
-    h = Rotate32(h, 19);
+    h = absl::rotr(h, 19);
     h = h * 5 + 0xe6546b64;
     g ^= b4;
     g = absl::gbswap_32(g) * 5;
@@ -178,24 +173,17 @@ uint32_t CityHash32(const char *s, size_t len) {
     PERMUTE3(f, h, g);
     s += 20;
   } while (--iters != 0);
-  g = Rotate32(g, 11) * c1;
-  g = Rotate32(g, 17) * c1;
-  f = Rotate32(f, 11) * c1;
-  f = Rotate32(f, 17) * c1;
-  h = Rotate32(h + g, 19);
+  g = absl::rotr(g, 11) * c1;
+  g = absl::rotr(g, 17) * c1;
+  f = absl::rotr(f, 11) * c1;
+  f = absl::rotr(f, 17) * c1;
+  h = absl::rotr(h + g, 19);
   h = h * 5 + 0xe6546b64;
-  h = Rotate32(h, 17) * c1;
-  h = Rotate32(h + f, 19);
+  h = absl::rotr(h, 17) * c1;
+  h = absl::rotr(h + f, 19);
   h = h * 5 + 0xe6546b64;
-  h = Rotate32(h, 17) * c1;
+  h = absl::rotr(h, 17) * c1;
   return h;
-}
-
-// Bitwise right rotate.  Normally this will compile to a single
-// instruction, especially if the shift is a manifest constant.
-static uint64_t Rotate(uint64_t val, int shift) {
-  // Avoid shifting by 64: doing so yields an undefined result.
-  return shift == 0 ? val : ((val >> shift) | (val << (64 - shift)));
 }
 
 static uint64_t ShiftMix(uint64_t val) { return val ^ (val >> 47); }
@@ -220,8 +208,8 @@ static uint64_t HashLen0to16(const char *s, size_t len) {
     uint64_t mul = k2 + len * 2;
     uint64_t a = Fetch64(s) + k2;
     uint64_t b = Fetch64(s + len - 8);
-    uint64_t c = Rotate(b, 37) * mul + a;
-    uint64_t d = (Rotate(a, 25) + b) * mul;
+    uint64_t c = absl::rotr(b, 37) * mul + a;
+    uint64_t d = (absl::rotr(a, 25) + b) * mul;
     return HashLen16(c, d, mul);
   }
   if (len >= 4) {
@@ -248,8 +236,8 @@ static uint64_t HashLen17to32(const char *s, size_t len) {
   uint64_t b = Fetch64(s + 8);
   uint64_t c = Fetch64(s + len - 8) * mul;
   uint64_t d = Fetch64(s + len - 16) * k2;
-  return HashLen16(Rotate(a + b, 43) + Rotate(c, 30) + d,
-                   a + Rotate(b + k2, 18) + c, mul);
+  return HashLen16(absl::rotr(a + b, 43) + absl::rotr(c, 30) + d,
+                   a + absl::rotr(b + k2, 18) + c, mul);
 }
 
 // Return a 16-byte hash for 48 bytes.  Quick and dirty.
@@ -257,11 +245,11 @@ static uint64_t HashLen17to32(const char *s, size_t len) {
 static std::pair<uint64_t, uint64_t> WeakHashLen32WithSeeds(
     uint64_t w, uint64_t x, uint64_t y, uint64_t z, uint64_t a, uint64_t b) {
   a += w;
-  b = Rotate(b + a + z, 21);
+  b = absl::rotr(b + a + z, 21);
   uint64_t c = a;
   a += x;
   a += y;
-  b += Rotate(a, 44);
+  b += absl::rotr(a, 44);
   return std::make_pair(a + z, b + c);
 }
 
@@ -284,10 +272,10 @@ static uint64_t HashLen33to64(const char *s, size_t len) {
   uint64_t f = Fetch64(s + 24) * 9;
   uint64_t g = Fetch64(s + len - 8);
   uint64_t h = Fetch64(s + len - 16) * mul;
-  uint64_t u = Rotate(a + g, 43) + (Rotate(b, 30) + c) * 9;
+  uint64_t u = absl::rotr(a + g, 43) + (absl::rotr(b, 30) + c) * 9;
   uint64_t v = ((a + g) ^ d) + f + 1;
   uint64_t w = absl::gbswap_64((u + v) * mul) + h;
-  uint64_t x = Rotate(e + f, 42) + c;
+  uint64_t x = absl::rotr(e + f, 42) + c;
   uint64_t y = (absl::gbswap_64((v + w) * mul) + g) * mul;
   uint64_t z = e + f + c;
   a = absl::gbswap_64((x + z) * mul + y) + b;
@@ -320,11 +308,11 @@ uint64_t CityHash64(const char *s, size_t len) {
   // Decrease len to the nearest multiple of 64, and operate on 64-byte chunks.
   len = (len - 1) & ~static_cast<size_t>(63);
   do {
-    x = Rotate(x + y + v.first + Fetch64(s + 8), 37) * k1;
-    y = Rotate(y + v.second + Fetch64(s + 48), 42) * k1;
+    x = absl::rotr(x + y + v.first + Fetch64(s + 8), 37) * k1;
+    y = absl::rotr(y + v.second + Fetch64(s + 48), 42) * k1;
     x ^= w.second;
     y += v.first + Fetch64(s + 40);
-    z = Rotate(z + w.first, 33) * k1;
+    z = absl::rotr(z + w.first, 33) * k1;
     v = WeakHashLen32WithSeeds(s, v.second * k1, x + w.first);
     w = WeakHashLen32WithSeeds(s + 32, z + w.second, y + Fetch64(s + 16));
     std::swap(z, x);

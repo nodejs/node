@@ -13,7 +13,7 @@ namespace internal {
 
 class Disassembler : public AllStatic {
  public:
-  // Decode instructions in the the interval [begin, end) and print the
+  // Decode instructions in the interval [begin, end) and print the
   // code into os. Returns the number of bytes disassembled or 1 if no
   // instruction could be decoded.
   // Does not abort on unimplemented opcodes, but prints them as 'Unimplemented

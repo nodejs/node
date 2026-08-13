@@ -83,32 +83,43 @@ struct TestLogical {
     HWY_ASSERT_VEC_EQ(d, v0, AndNot(vi, v0));
     HWY_ASSERT_VEC_EQ(d, v0, AndNot(vi, vi));
 
+    // The truth table or x86 TernaryLogic constant can be read from the
+    // expected values, because arguments can be interpreted as 3-bit numbers.
     HWY_ASSERT_VEC_EQ(d, v0, Or3(v0, v0, v0));
-    HWY_ASSERT_VEC_EQ(d, vi, Or3(v0, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, Or3(v0, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, vi, Or3(v0, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, Or3(v0, vi, vi));
     HWY_ASSERT_VEC_EQ(d, vi, Or3(vi, v0, v0));
-    HWY_ASSERT_VEC_EQ(d, vi, Or3(vi, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, Or3(vi, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, vi, Or3(vi, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, Or3(vi, vi, vi));
 
     HWY_ASSERT_VEC_EQ(d, v0, Xor3(v0, v0, v0));
-    HWY_ASSERT_VEC_EQ(d, vi, Xor3(v0, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, Xor3(v0, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, vi, Xor3(v0, vi, v0));
     HWY_ASSERT_VEC_EQ(d, v0, Xor3(v0, vi, vi));
     HWY_ASSERT_VEC_EQ(d, vi, Xor3(vi, v0, v0));
-    HWY_ASSERT_VEC_EQ(d, v0, Xor3(vi, vi, v0));
     HWY_ASSERT_VEC_EQ(d, v0, Xor3(vi, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, v0, Xor3(vi, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, Xor3(vi, vi, vi));
 
     HWY_ASSERT_VEC_EQ(d, v0, OrAnd(v0, v0, v0));
-    HWY_ASSERT_VEC_EQ(d, v0, OrAnd(v0, vi, v0));
     HWY_ASSERT_VEC_EQ(d, v0, OrAnd(v0, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, v0, OrAnd(v0, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, OrAnd(v0, vi, vi));
     HWY_ASSERT_VEC_EQ(d, vi, OrAnd(vi, v0, v0));
-    HWY_ASSERT_VEC_EQ(d, vi, OrAnd(vi, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, OrAnd(vi, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, vi, OrAnd(vi, vi, v0));
     HWY_ASSERT_VEC_EQ(d, vi, OrAnd(vi, vi, vi));
+
+    HWY_ASSERT_VEC_EQ(d, v0, XorAndNot(v0, v0, v0));
+    HWY_ASSERT_VEC_EQ(d, vi, XorAndNot(v0, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, v0, XorAndNot(v0, vi, v0));
+    HWY_ASSERT_VEC_EQ(d, v0, XorAndNot(v0, vi, vi));
+    HWY_ASSERT_VEC_EQ(d, vi, XorAndNot(vi, v0, v0));
+    HWY_ASSERT_VEC_EQ(d, v0, XorAndNot(vi, v0, vi));
+    HWY_ASSERT_VEC_EQ(d, vi, XorAndNot(vi, vi, v0));
+    HWY_ASSERT_VEC_EQ(d, vi, XorAndNot(vi, vi, vi));
   }
 };
 

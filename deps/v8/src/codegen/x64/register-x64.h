@@ -61,10 +61,10 @@ enum RegisterCode {
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
   constexpr bool is_byte_register() const { return code() <= 3; }
-#ifdef V8_ENABLE_APX_F
   // Return the fifth bit of the register code as a 0 or 1.  Used often
   // when constructing the REX2 prefix byte.
   constexpr int bit4() const { return (code() >> 4) & 0x1; }
+#ifdef V8_ENABLE_APX_F
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
   constexpr int high_bit() const { return (code() >> 3) & 0x1; }
@@ -146,6 +146,25 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
   V(xmm14)                  \
   V(xmm15)
 
+#define DOUBLE_REGISTERS_AVX512(V) \
+  DOUBLE_REGISTERS(V)              \
+  V(xmm16)                         \
+  V(xmm17)                         \
+  V(xmm18)                         \
+  V(xmm19)                         \
+  V(xmm20)                         \
+  V(xmm21)                         \
+  V(xmm22)                         \
+  V(xmm23)                         \
+  V(xmm24)                         \
+  V(xmm25)                         \
+  V(xmm26)                         \
+  V(xmm27)                         \
+  V(xmm28)                         \
+  V(xmm29)                         \
+  V(xmm30)                         \
+  V(xmm31)
+
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
 #define SIMD128_REGISTERS DOUBLE_REGISTERS
 
@@ -183,6 +202,25 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
   V(ymm13)               \
   V(ymm14)               \
   V(ymm15)
+
+#define YMM_REGISTERS_AVX512(V) \
+  YMM_REGISTERS(V)              \
+  V(ymm16)                      \
+  V(ymm17)                      \
+  V(ymm18)                      \
+  V(ymm19)                      \
+  V(ymm20)                      \
+  V(ymm21)                      \
+  V(ymm22)                      \
+  V(ymm23)                      \
+  V(ymm24)                      \
+  V(ymm25)                      \
+  V(ymm26)                      \
+  V(ymm27)                      \
+  V(ymm28)                      \
+  V(ymm29)                      \
+  V(ymm30)                      \
+  V(ymm31)
 
 #ifdef V8_TARGET_OS_WIN
 #define C_CALL_CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15

@@ -5,16 +5,17 @@
 #ifndef V8_EXECUTION_ISOLATE_DATA_H_
 #define V8_EXECUTION_ISOLATE_DATA_H_
 
+#include "include/cppgc/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/constants-arch.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/execution/isolate-data-fields.h"
 #include "src/execution/stack-guard.h"
 #include "src/execution/thread-local-top.h"
+#include "src/handles/handle-scope-implementer.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/init/isolate-group.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/cppheap-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
@@ -25,6 +26,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class MicrotaskQueue;
 class TrustedPointerPublishingScope;
 
 namespace wasm {
@@ -93,12 +95,11 @@ class IsolateData final {
 #ifdef V8_COMPRESS_POINTERS
         cage_base_(group->GetPtrComprCageBase()),
 #endif
-        stack_guard_(isolate)
+        stack_guard_(isolate),
+        handle_scope_implementer_()
 #ifdef V8_ENABLE_SANDBOX
         ,
-        trusted_cage_base_(group->GetTrustedPtrComprCageBase()),
-        code_pointer_table_base_address_(
-            group->code_pointer_table()->base_address())
+        trusted_cage_base_(group->GetTrustedPtrComprCageBase())
 #endif
   {
   }
@@ -190,12 +191,24 @@ class IsolateData final {
   void set_continuation_preserved_embedder_data(Tagged<Object> data) {
     continuation_preserved_embedder_data_ = data;
   }
+  MicrotaskQueue* current_microtask_queue() const {
+    return current_microtask_queue_;
+  }
+  void set_current_microtask_queue(MicrotaskQueue* queue) {
+    current_microtask_queue_ = queue;
+  }
   const RootsTable& roots() const { return roots_table_; }
   ExternalReferenceTable* external_reference_table() {
     return &external_reference_table_;
   }
   ThreadLocalTop& thread_local_top() { return thread_local_top_; }
   ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
+  HandleScopeImplementer* handle_scope_implementer() {
+    return &handle_scope_implementer_;
+  }
+  const HandleScopeImplementer* handle_scope_implementer() const {
+    return &handle_scope_implementer_;
+  }
   Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtin_table() { return builtin_table_; }
 #if V8_ENABLE_WEBASSEMBLY
@@ -375,6 +388,7 @@ class IsolateData final {
 
   ThreadLocalTop thread_local_top_;
   HandleScopeData handle_scope_data_;
+  HandleScopeImplementer handle_scope_implementer_;
 
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8-internal.h) constants. The
@@ -395,8 +409,6 @@ class IsolateData final {
   TrustedPointerTable trusted_pointer_table_;
   TrustedPointerTable* shared_trusted_pointer_table_ = nullptr;
   TrustedPointerPublishingScope* trusted_pointer_publishing_scope_ = nullptr;
-
-  const Address code_pointer_table_base_address_;
 #endif  // V8_ENABLE_SANDBOX
 
   JSDispatchTable js_dispatch_table_;
@@ -412,6 +424,13 @@ class IsolateData final {
 
   // This is data that should be preserved on newly created continuations.
   Tagged<Object> continuation_preserved_embedder_data_ = Smi::zero();
+
+  // Cache for EnqueueMicrotask: avoids the NativeContext → EPT →
+  // MicrotaskQueue chain when the same NativeContext is seen repeatedly.
+  // Set lazily by EnqueueMicrotask, cleared at the end of RunMicrotasks.
+  CPPGC_PLUGIN_IGNORE("Cache field, cleared manually")
+  MicrotaskQueue* current_microtask_queue_ = nullptr;
+  Tagged<Object> current_microtask_native_context_ = Smi::zero();
 
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
@@ -448,6 +467,10 @@ class IsolateData final {
   // Counts deopt points if deopt_every_n_times is enabled.
   uint64_t stress_deopt_count_ = 0;
 
+  // Cache of CpuFeatures::SupportedFeatures() for easy access from generated
+  // code.
+  CpuFeatureSet cpu_features_;
+
 #if !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.
   JSDispatchHandle* builtin_dispatch_table() { return builtin_dispatch_table_; }
@@ -463,6 +486,7 @@ class IsolateData final {
 
   V8_INLINE static void AssertPredictableLayout();
 
+  friend class HandleScopeImplementer;
   friend class Isolate;
   friend class Heap;
   FRIEND_TEST(HeapTest, ExternalLimitDefault);

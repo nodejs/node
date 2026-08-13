@@ -5,7 +5,7 @@
 // Enable the validation (turbofan only):
 // Flags: --wasm-assert-types --no-liftoff
 // Type confusion at home:
-// Flags: --experimental-wasm-ref-cast-nop
+// Flags: --wasm-ref-cast-nop
 // CHECK: V8 is running with an unsupported configuration.
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");

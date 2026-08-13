@@ -1,0 +1,12 @@
+add_object_library(
+  clock_gettime
+  SRCS
+    clock_gettime.cpp
+  HDRS
+    ../clock_gettime.h
+  DEPENDS
+    libc.src.__support.common
+    libc.src.__support.error_or
+    libc.hdr.types.struct_timeval
+    libc.hdr.types.struct_timespec
+)

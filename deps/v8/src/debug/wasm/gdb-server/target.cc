@@ -318,7 +318,9 @@ Target::ProcessPacketResult Target::ProcessPacket(Packet* pkt_in,
 
       uint32_t length = static_cast<uint32_t>(len);
       uint8_t buff[Transport::kBufSize];
-      if (wasm_addr.ModuleId() > 0) {
+      if (wasm_addr.Type() == WasmAddressType::Object) {
+        // Object space: a module wire-byte offset. LLDB reads code bytes here,
+        // e.g. to install a breakpoint or to disassemble.
         uint32_t read =
             gdb_server_->GetWasmModuleBytes(wasm_addr, buff, length);
         if (read > 0) {
@@ -327,19 +329,9 @@ Target::ProcessPacketResult Target::ProcessPacket(Packet* pkt_in,
           err = ErrorCode::Failed;
         }
       } else {
-        // When LLDB tries to read memory, it may be for different reasons:
-        // - To set a breakpoint, it reads from the module's code bytes using
-        //   GetWasmModuleBytes, in which case the wasm_addr will have a valid
-        //   module ID in the high 32 bits.
-        // - When inspecting local variables or stack values during stepping,
-        //   LLDB will attempt to read the actual runtime instance memory, but
-        //   the address provided will only contain the offset (module ID will
-        //   be zero/missing).
-        // We can use this distinction: if the module ID is missing
-        // (wasm_addr.ModuleId() == 0), we assume LLDB wants to read from the
-        // runtime instance memory. In this case, we use the only available
-        // loaded module ID (which the GDB server knows) to perform the memory
-        // read.
+        // Memory space: an offset into the module's linear memory (e.g. when
+        // inspecting local variables or stack values). Read the running
+        // instance's memory using the only loaded module.
         uint32_t read = gdb_server_->GetWasmMemory(
             gdb_server_->GetFirstModuleId(), wasm_addr.Offset(), buff, length);
         if (read > 0) {
@@ -528,6 +520,8 @@ Target::ErrorCode Target::ProcessQueryPacket(const Packet* pkt_in,
   // OUT: $xx..xxyy..yyzz..zz (A sequence of uint64_t values represented as
   //                           consecutive 8-bytes blocks).
   std::vector<std::string> toks = StringSplit(str, ":;");
+  if (toks.empty()) return ErrorCode::BadFormat;
+
   if (toks[0] == "WasmCallStack") {
     std::vector<wasm_addr_t> call_stack_pcs = gdb_server_->GetWasmCallStack();
     std::vector<uint64_t> buffer;

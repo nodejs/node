@@ -1,0 +1,72 @@
+header: sys/stat.h
+standards:
+  - posix
+macros:
+  - macro_name: S_IFMT
+    macro_header: sys-stat-macros.h
+types:
+  - type_name: blkcnt_t
+  - type_name: blksize_t
+  - type_name: off_t
+  - type_name: struct_timeval
+  - type_name: gid_t
+  - type_name: struct_stat
+  - type_name: uid_t
+  - type_name: nlink_t
+  - type_name: dev_t
+  - type_name: struct_timespec
+  - type_name: ino_t
+  - type_name: mode_t
+enums: []
+objects: []
+functions:
+  - name: chmod
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: mode_t
+  - name: fchmod
+    return_type: int
+    arguments:
+      - type: int
+      - type: mode_t
+  - name: fchmodat
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: mode_t
+      - type: int
+  - name: fstat
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct stat *
+  - name: lstat
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: struct stat *__restrict
+  - name: mkdir
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: mode_t
+  - name: mkdirat
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: mode_t
+  - name: stat
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: struct stat *__restrict
+  - name: utimensat
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *
+      - type: const struct timespec *
+      - type: int

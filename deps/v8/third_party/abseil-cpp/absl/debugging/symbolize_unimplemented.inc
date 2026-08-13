@@ -14,16 +14,16 @@
 
 #include <cstdint>
 
-#include "absl/base/internal/raw_logging.h"
+#include "absl/debugging/internal/symbolize.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 namespace debugging_internal {
 
-int InstallSymbolDecorator(SymbolDecorator, void*) { return -1; }
-bool RemoveSymbolDecorator(int) { return false; }
-bool RemoveAllSymbolDecorators(void) { return false; }
+SymbolDecorator::Factory* SetSymbolDecoratorFactory(SymbolDecorator::Factory*) {
+  return nullptr;
+}
 bool RegisterFileMappingHint(const void *, const void *, uint64_t, const char *) {
   return false;
 }

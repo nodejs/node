@@ -8,7 +8,7 @@
 #include "include/cppgc/internal/caged-heap-local-data.h"
 #include "include/cppgc/internal/caged-heap.h"
 #include "src/base/logging.h"
-#include "src/heap/cppgc/heap-page.h"
+#include "src/heap/cppgc-internal/heap-page.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

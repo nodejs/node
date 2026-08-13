@@ -450,13 +450,9 @@ class ImplementationVisitor {
  public:
   void GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       const std::string& output_directory);
-  void GenerateVisitorLists(const std::string& output_directory);
   void GenerateBitFields(const std::string& output_directory);
-  void GeneratePrintDefinitions(const std::string& output_directory);
   void GenerateClassDefinitions(const std::string& output_directory);
-  void GenerateBodyDescriptors(const std::string& output_directory);
   void GenerateInstanceTypes(const std::string& output_directory);
-  void GenerateClassVerifiers(const std::string& output_directory);
   void GenerateEnumVerifiers(const std::string& output_directory);
   void GenerateClassDebugReaders(const std::string& output_directory);
   void GenerateExportedMacrosAssembler(const std::string& output_directory);
@@ -803,8 +799,6 @@ class ImplementationVisitor {
       switch (output_type_) {
         case OutputType::kCSA:
           return streams->csa_ccfile;
-        case OutputType::kCC:
-          return streams->class_definition_inline_headerfile_macro_definitions;
         case OutputType::kCCDebug:
           return debug_macros_cc_;
         default:
@@ -818,8 +812,6 @@ class ImplementationVisitor {
       switch (output_type_) {
         case OutputType::kCSA:
           return streams->csa_headerfile;
-        case OutputType::kCC:
-          return streams->class_definition_inline_headerfile_macro_declarations;
         case OutputType::kCCDebug:
           return debug_macros_h_;
         default:

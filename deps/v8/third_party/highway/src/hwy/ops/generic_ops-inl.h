@@ -22,6 +22,7 @@
 // the generic implementation here if native ops are already defined.
 
 #include "hwy/base.h"
+#include "hwy/detect_compiler_arch.h"
 
 // Define detail::Shuffle1230 etc, but only when viewing the current header;
 // normally this is included via highway.h, which includes ops/*.h.
@@ -482,11 +483,11 @@ HWY_API V RotateLeft(V v) {
 }
 
 // ------------------------------ InterleaveWholeLower/InterleaveWholeUpper
-#if (defined(HWY_NATIVE_INTERLEAVE_WHOLE) == defined(HWY_TARGET_TOGGLE))
-#ifdef HWY_NATIVE_INTERLEAVE_WHOLE
-#undef HWY_NATIVE_INTERLEAVE_WHOLE
+#if (defined(HWY_TOGGLE_INTERLEAVE_WHOLE) == defined(HWY_TARGET_TOGGLE))
+#ifdef HWY_TOGGLE_INTERLEAVE_WHOLE
+#undef HWY_TOGGLE_INTERLEAVE_WHOLE
 #else
-#define HWY_NATIVE_INTERLEAVE_WHOLE
+#define HWY_TOGGLE_INTERLEAVE_WHOLE
 #endif
 
 #if HWY_TARGET != HWY_SCALAR || HWY_IDE
@@ -513,7 +514,7 @@ HWY_API VFromD<D> InterleaveWholeUpper(D d, VFromD<D> a, VFromD<D> b) {
 // is implemented in wasm_256-inl.h.
 #endif  // HWY_TARGET != HWY_SCALAR
 
-#endif  // HWY_NATIVE_INTERLEAVE_WHOLE
+#endif  // HWY_TOGGLE_INTERLEAVE_WHOLE
 
 #if HWY_TARGET != HWY_SCALAR || HWY_IDE
 // The InterleaveWholeLower without the optional D parameter is generic for all
@@ -849,6 +850,38 @@ HWY_API MFromD<D> MaskedIsNaN(const M m, const V v) {
   return And(m, IsNaN(v));
 }
 #endif  // HWY_NATIVE_MASKED_COMP
+
+// ------------------------------ Xor3
+
+#if (defined(HWY_NATIVE_XOR3) == defined(HWY_TARGET_TOGGLE))
+#ifdef HWY_NATIVE_XOR3
+#undef HWY_NATIVE_XOR3
+#else
+#define HWY_NATIVE_XOR3
+#endif
+
+template <class V>
+HWY_API V Xor3(V x1, V x2, V x3) {
+  return Xor(x1, Xor(x2, x3));
+}
+
+#endif  // HWY_NATIVE_XOR3
+
+// ------------------------------ XorAndNot
+
+#if (defined(HWY_NATIVE_BCAX) == defined(HWY_TARGET_TOGGLE))
+#ifdef HWY_NATIVE_BCAX
+#undef HWY_NATIVE_BCAX
+#else
+#define HWY_NATIVE_BCAX
+#endif
+
+template <class V>
+HWY_API V XorAndNot(const V x, const V a1, const V a2) {
+  return Xor(x, AndNot(a1, a2));
+}
+
+#endif  // HWY_NATIVE_BCAX
 
 // ------------------------------ IfNegativeThenNegOrUndefIfZero
 
@@ -1295,12 +1328,10 @@ HWY_API VFromD<RebindToSigned<DFromV<V>>> FloorInt(V v) {
 template <class V, HWY_IF_FLOAT_V(V)>
 HWY_API V MulByPow2(V v, VFromD<RebindToSigned<DFromV<V>>> exp) {
   const DFromV<decltype(v)> df;
-  const RebindToUnsigned<decltype(df)> du;
   const RebindToSigned<decltype(df)> di;
 
   using TF = TFromD<decltype(df)>;
   using TI = TFromD<decltype(di)>;
-  using TU = TFromD<decltype(du)>;
 
   using VF = VFromD<decltype(df)>;
   using VI = VFromD<decltype(di)>;
@@ -1322,85 +1353,43 @@ HWY_API V MulByPow2(V v, VFromD<RebindToSigned<DFromV<V>>> exp) {
   using TExpMinMax = TI;
 #endif
 
-#if HWY_TARGET == HWY_EMU128 || HWY_TARGET == HWY_SCALAR
-  using TExpSatSub = TU;
-#elif HWY_TARGET <= HWY_SSE2 || HWY_TARGET == HWY_WASM || \
-    HWY_TARGET == HWY_WASM_EMU256
-  using TExpSatSub = If<(sizeof(TF) == 4), uint8_t, uint16_t>;
-#elif HWY_TARGET_IS_PPC
-  using TExpSatSub = If<(sizeof(TF) >= 4), uint32_t, TU>;
-#else
-  using TExpSatSub = If<(sizeof(TF) == 4), uint8_t, TU>;
-#endif
-
   static_assert(kExpBias <= static_cast<TI>(LimitsMax<TExpMinMax>() / 3),
                 "kExpBias <= LimitsMax<TExpMinMax>() / 3 must be true");
 
   const Repartition<TExpMinMax, decltype(df)> d_exp_min_max;
-  const Repartition<TExpSatSub, decltype(df)> d_sat_exp_sub;
 
-  constexpr int kNumOfExpBits = ExponentBits<TF>();
   constexpr int kNumOfMantBits = MantissaBits<TF>();
 
-  // The sign bit of BitCastScalar<TU>(a[i]) >> kNumOfMantBits can be zeroed out
-  // using SaturatedSub if kZeroOutSignUsingSatSub is true.
-
-  // If kZeroOutSignUsingSatSub is true, then val_for_exp_sub will be bitcasted
-  // to a vector that has a smaller lane size than TU for the SaturatedSub
-  // operation below.
-  constexpr bool kZeroOutSignUsingSatSub =
-      ((sizeof(TExpSatSub) * 8) == static_cast<size_t>(kNumOfExpBits));
-
-  // If kZeroOutSignUsingSatSub is true, then the upper
-  // (sizeof(TU) - sizeof(TExpSatSub)) * 8 bits of kExpDecrBy1Bits will be all
-  // ones and the lower sizeof(TExpSatSub) * 8 bits of kExpDecrBy1Bits will be
-  // equal to 1.
-
-  // Otherwise, if kZeroOutSignUsingSatSub is false, kExpDecrBy1Bits will be
-  // equal to 1.
-  constexpr TU kExpDecrBy1Bits = static_cast<TU>(
-      TU{1} - (static_cast<TU>(kZeroOutSignUsingSatSub) << kNumOfExpBits));
-
-  VF val_for_exp_sub = v;
-  HWY_IF_CONSTEXPR(!kZeroOutSignUsingSatSub) {
-    // If kZeroOutSignUsingSatSub is not true, zero out the sign bit of
-    // val_for_exp_sub[i] using Abs
-    val_for_exp_sub = Abs(val_for_exp_sub);
-  }
-
-  // min_exp1_plus_min_exp2[i] is the smallest exponent such that
-  // min_exp1_plus_min_exp2[i] >= 2 - kExpBias * 2 and
-  // std::ldexp(v[i], min_exp1_plus_min_exp2[i]) is a normal floating-point
-  // number if v[i] is a normal number
-  const VI min_exp1_plus_min_exp2 = BitCast(
-      di,
-      Max(BitCast(
-              d_exp_min_max,
-              Neg(BitCast(
-                  di,
-                  SaturatedSub(
-                      BitCast(d_sat_exp_sub, ShiftRight<kNumOfMantBits>(
-                                                 BitCast(du, val_for_exp_sub))),
-                      BitCast(d_sat_exp_sub, Set(du, kExpDecrBy1Bits)))))),
-          BitCast(d_exp_min_max,
-                  Set(di, static_cast<TI>(2 - kExpBias - kExpBias)))));
+  const VI exp_bias = Set(di, kExpBias);
 
   const VI clamped_exp =
-      Max(Min(exp, Set(di, static_cast<TI>(kExpBias * 3))),
-          Add(min_exp1_plus_min_exp2, Set(di, static_cast<TI>(1 - kExpBias))));
+      Clamp(exp, Set(di, 3 - 3 * kExpBias), Set(di, 3 * kExpBias));
 
-  const VI exp1_plus_exp2 = BitCast(
-      di, Max(Min(BitCast(d_exp_min_max,
-                          Sub(clamped_exp, ShiftRight<2>(clamped_exp))),
-                  BitCast(d_exp_min_max,
-                          Set(di, static_cast<TI>(kExpBias + kExpBias)))),
-              BitCast(d_exp_min_max, min_exp1_plus_min_exp2)));
+  const auto min_scale_factor_exp =
+      BitCast(d_exp_min_max, Set(di, 1 - kExpBias));
+  const auto max_scale_factor_exp = BitCast(d_exp_min_max, exp_bias);
 
-  const VI exp1 = ShiftRight<1>(exp1_plus_exp2);
-  const VI exp2 = Sub(exp1_plus_exp2, exp1);
-  const VI exp3 = Sub(clamped_exp, exp1_plus_exp2);
+  // If clamped_exp[i] < 0, ensure that 1 - kExpBias <= exp1[i] <= 0,
+  // 1 - kExpBias <= exp2[i] <= 0, and 1 - kExpBias <= exp3[i] <= 0 are
+  // true.
 
-  const VI exp_bias = Set(di, kExpBias);
+  // In addition, if clamped_exp[i] < 1 - kExpBias, ensure that
+  // exp3[i] == 1 - kExpBias to ensure results are correctly rounded if the
+  // exact value of |x[i] * factor1[i] * factor2[i] * factor3[i]| is less than
+  // the smallest positive normal value.
+
+  // Otherwise, if clamped_exp[i] >= 0, ensure that 0 <= exp1[i] <= kExpBias,
+  // 0 <= exp2[i] <= kExpBias, and 0 <= exp3[i] <= kExpBias are all true.
+
+  const VI exp3 =
+      BitCast(di, Clamp(BitCast(d_exp_min_max, clamped_exp),
+                        min_scale_factor_exp, max_scale_factor_exp));
+
+  const VI clamped_exp_minus_exp3 = Sub(clamped_exp, exp3);
+  const VI exp2 =
+      BitCast(di, Clamp(BitCast(d_exp_min_max, clamped_exp_minus_exp3),
+                        min_scale_factor_exp, max_scale_factor_exp));
+  const VI exp1 = Sub(clamped_exp_minus_exp3, exp2);
 
   const VF factor1 =
       BitCast(df, ShiftLeft<kNumOfMantBits>(Add(exp1, exp_bias)));
@@ -1408,6 +1397,37 @@ HWY_API V MulByPow2(V v, VFromD<RebindToSigned<DFromV<V>>> exp) {
       BitCast(df, ShiftLeft<kNumOfMantBits>(Add(exp2, exp_bias)));
   const VF factor3 =
       BitCast(df, ShiftLeft<kNumOfMantBits>(Add(exp3, exp_bias)));
+
+  // If exp2[i] < 0, then clamped_exp[i] < 1 - kExpBias and
+  // exp3[i] == 1 - kExpBias will both be true. factor3[i] will be equal to the
+  // smallest positive normal value if exp3[i] == 1 - kExpBias.
+
+  // If exp2[i] >= 0, then exp1[i] >= 0 and factor1[i] * factor2[i] >= 1.
+
+  // If exp2[i] < 0 and the exact value of |v[i] * factor1[i] * factor2[i]| is
+  // less than the smallest positive normal value, then the exact value of
+  // |v[i] * factor1[i] * factor2[i] * factor3[i]| will be much smaller than
+  // half of the smallest positive denormal value (since factor3[i] will be
+  // equal to the smallest positive normal value in this case), resulting in a
+  // correctly rounded result in this case.
+
+  // If kExpBias >= kNumOfMantBits + 3 and exp3[i] == 1 - kExpBias are both
+  // true, then factor3[i] will be small enough such that
+  // v[i] * factor1[i] * factor2[i] * factor3[i] will be correctly rounded,
+  // even if the exact value of |v[i] * factor1[i] * factor2[i]| is smaller than
+  // the smallest positive normal value.
+
+  // kExpBias >= kNumOfMantBits + 3 is true for the F16, F32, and F64
+  // floating-point types.
+
+  // Otherwise, either exp2[i] >= 0, the exact value of
+  // |v[i] * factor1[i] * factor2[i]| is greater than or equal to the smallest
+  // positive normal value, or v[i] is NaN. In these cases,
+  // v[i] * factor1[i] * factor2[i] will either be exact or overflow to
+  // infinity (if clamped_exp[i] > 0 and v[i] is a non-zero finite value),
+  // resulting in a correctly rounded result if the exact value of
+  // |v[i] * factor1[i] * factor2[i] * factor3[i]| is less than the smallest
+  // positive normal value.
 
   return Mul(Mul(Mul(v, factor1), factor2), factor3);
 }
@@ -3172,8 +3192,8 @@ HWY_API VFromD<D> GatherIndexN(D d, const T* HWY_RESTRICT base,
 
 template <class D, typename T = TFromD<D>>
 HWY_API VFromD<D> GatherIndexNOr(VFromD<D> no, D d, const T* HWY_RESTRICT base,
-                               VFromD<RebindToSigned<D>> index,
-                               const size_t max_lanes_to_load) {
+                                 VFromD<RebindToSigned<D>> index,
+                                 const size_t max_lanes_to_load) {
   const RebindToSigned<D> di;
   using TI = TFromD<decltype(di)>;
   static_assert(sizeof(T) == sizeof(TI), "Index/lane size must match");
@@ -3194,8 +3214,8 @@ HWY_API VFromD<D> GatherIndexN(D d, const T* HWY_RESTRICT base,
 }
 template <class D, typename T = TFromD<D>>
 HWY_API VFromD<D> GatherIndexNOr(VFromD<D> no, D d, const T* HWY_RESTRICT base,
-                               VFromD<RebindToSigned<D>> index,
-                               const size_t max_lanes_to_load) {
+                                 VFromD<RebindToSigned<D>> index,
+                                 const size_t max_lanes_to_load) {
   return MaskedGatherIndexOr(no, FirstN(d, max_lanes_to_load), d, base, index);
 }
 #endif  // (defined(HWY_NATIVE_GATHER) == defined(HWY_TARGET_TOGGLE))
@@ -4541,43 +4561,46 @@ HWY_API V CLMulUpper(V a, V b) {
 #define HWY_NATIVE_POPCNT
 #endif
 
-// This overload requires vectors to be at least 16 bytes, which is the case
-// for LMUL >= 2.
-#undef HWY_IF_POPCNT
-#if HWY_TARGET == HWY_RVV
-#define HWY_IF_POPCNT(D) \
-  hwy::EnableIf<D().Pow2() >= 1 && D().MaxLanes() >= 16>* = nullptr
-#else
-// Other targets only have these two overloads which are mutually exclusive, so
-// no further conditions are required.
-#define HWY_IF_POPCNT(D) void* = nullptr
-#endif  // HWY_TARGET == HWY_RVV
-
-template <class V, class D = DFromV<V>, HWY_IF_U8_D(D),
-          HWY_IF_V_SIZE_GT_D(D, 8), HWY_IF_POPCNT(D)>
+template <class V, class D = DFromV<V>, HWY_IF_U8_D(D)>
 HWY_API V PopulationCount(V v) {
   const D d;
-  const V lookup =
-      Dup128VecFromValues(d, 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4);
-  const auto lo = And(v, Set(d, uint8_t{0xF}));
-  const auto hi = ShiftRight<4>(v);
-  return Add(TableLookupBytes(lookup, hi), TableLookupBytes(lookup, lo));
-}
 
-// RVV has a specialization that avoids the Set().
-#if HWY_TARGET != HWY_RVV
-// Slower fallback for capped vectors.
-template <class V, class D = DFromV<V>, HWY_IF_U8_D(D),
-          HWY_IF_V_SIZE_LE_D(D, 8)>
-HWY_API V PopulationCount(V v) {
-  const D d;
+#if HWY_TARGET == HWY_SSE2
+  // TableLookupBytes is slow on SSE2
+
   // See https://arxiv.org/pdf/1611.07612.pdf, Figure 3
   const V k33 = Set(d, uint8_t{0x33});
   v = Sub(v, And(ShiftRight<1>(v), Set(d, uint8_t{0x55})));
   v = Add(And(ShiftRight<2>(v), k33), And(v, k33));
   return And(Add(v, ShiftRight<4>(v)), Set(d, uint8_t{0x0F}));
+#else  // HWY_TARGET != HWY_SSE2
+
+#if HWY_TARGET == HWY_RVV
+  // Need at least LMUL=1 on RVV to ensure that Lanes(d_tbl) is at least 16
+  const ScalableTag<uint8_t, HWY_MAX(HWY_POW2_D(D), 0)> d_tbl;
+#else
+  const FixedTag<uint8_t, HWY_MAX(HWY_MAX_LANES_D(D), 16)> d_tbl;
+#endif
+
+  const auto lookup = Dup128VecFromValues(d_tbl, 0, 1, 1, 2, 1, 2, 2, 3, 1, 2,
+                                          2, 3, 2, 3, 3, 4);
+  const auto lo = And(v, Set(d, uint8_t{0xF}));
+  const auto hi = ShiftRight<4>(v);
+
+#if HWY_TARGET == HWY_RVV
+  // On RVV, use TableLookupLanes to avoid unnecessary overhead
+  const auto hi_popcnt =
+      ResizeBitCast(d, TableLookupLanes(lookup, ResizeBitCast(d_tbl, hi)));
+  const auto lo_popcnt =
+      ResizeBitCast(d, TableLookupLanes(lookup, ResizeBitCast(d_tbl, lo)));
+#else   // HWY_TARGET != HWY_RVV
+  const auto hi_popcnt = TableLookupBytes(lookup, hi);
+  const auto lo_popcnt = TableLookupBytes(lookup, lo);
+#endif  // HWY_TARGET == HWY_RVV
+
+  return Add(hi_popcnt, lo_popcnt);
+#endif  // HWY_TARGET == HWY_SSE2
 }
-#endif  // HWY_TARGET != HWY_RVV
 
 template <class V, class D = DFromV<V>, HWY_IF_U16_D(D)>
 HWY_API V PopulationCount(V v) {
@@ -5339,14 +5362,13 @@ HWY_INLINE V IntDiv(V a, V b) {
 #endif  // HWY_HAVE_FLOAT64
 
 template <size_t kOrigLaneSize, class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V),
-          HWY_IF_T_SIZE_ONE_OF_V(V, ((HWY_TARGET <= HWY_SSE2 ||
-                                      HWY_TARGET == HWY_WASM ||
-                                      HWY_TARGET == HWY_WASM_EMU256 ||
-                                      HWY_TARGET == HWY_LSX ||
-                                      HWY_TARGET == HWY_LASX)
-                                         ? 0
-                                         : (1 << 1)) |
-                                        (1 << 2) | (1 << 4) | (1 << 8))>
+          HWY_IF_T_SIZE_ONE_OF_V(
+              V, ((HWY_TARGET <= HWY_SSE2 || HWY_TARGET == HWY_WASM ||
+                   HWY_TARGET == HWY_WASM_EMU256 || HWY_TARGET == HWY_LSX ||
+                   HWY_TARGET == HWY_LASX)
+                      ? 0
+                      : (1 << 1)) |
+                     (1 << 2) | (1 << 4) | (1 << 8))>
 HWY_INLINE V IntMod(V a, V b) {
   return hwy::HWY_NAMESPACE::NegMulAdd(IntDiv<kOrigLaneSize>(a, b), b, a);
 }
@@ -5545,7 +5567,7 @@ HWY_API VFromD<DF> MulOddAdd(DF df, VBF a, VBF b, VFromD<DF> c) {
 
 // ------------------------------ ReorderWidenMulAccumulate (MulEvenAdd)
 
-// AVX3_SPR/ZEN4, and NEON with bf16 but not(!) SVE override this.
+// AVX3_SPR/ZEN4, NEON with bf16 and SVE override this.
 #if (defined(HWY_NATIVE_REORDER_WIDEN_MUL_ACC_BF16) == \
      defined(HWY_TARGET_TOGGLE))
 #ifdef HWY_NATIVE_REORDER_WIDEN_MUL_ACC_BF16
@@ -5565,6 +5587,13 @@ HWY_API VFromD<DF> ReorderWidenMulAccumulate(DF df, VBF a, VBF b,
   return MulEvenAdd(df, a, b, sum0);
 }
 
+template <class VW, HWY_IF_FLOAT_V(VW)>
+HWY_API VW RearrangeToOddPlusEven(const VW sum0, const VW sum1) {
+  // sum1 contains the odd lanes and sum0 the even, hence their sum is the
+  // desired pairwise sum.
+  return Add(sum0, sum1);
+}
+
 #endif  // HWY_NATIVE_REORDER_WIDEN_MUL_ACC_BF16
 
 // ------------------------------ WidenMulAccumulate
@@ -5576,8 +5605,7 @@ HWY_API VFromD<DF> ReorderWidenMulAccumulate(DF df, VBF a, VBF b,
 #define HWY_NATIVE_WIDEN_MUL_ACCUMULATE
 #endif
 
-template<class D, HWY_IF_INTEGER(TFromD<D>),
-         class DN = RepartitionToNarrow<D>>
+template <class D, HWY_IF_INTEGER(TFromD<D>), class DN = RepartitionToNarrow<D>>
 HWY_API VFromD<D> WidenMulAccumulate(D d, VFromD<DN> mul, VFromD<DN> x,
                                      VFromD<D> low, VFromD<D>& high) {
   high = MulAdd(PromoteUpperTo(d, mul), PromoteUpperTo(d, x), high);
@@ -5956,7 +5984,7 @@ HWY_API size_t CompressBitsStore(V v, const uint8_t* HWY_RESTRICT bits, D d,
   Store(v, d, lanes);
 
   const Simd<T, HWY_MIN(MaxLanes(d), 8), 0> d8;
-  T* HWY_RESTRICT pos = unaligned;
+  T* pos = unaligned;
 
   HWY_ALIGN constexpr T table[2048] = {
       0, 1, 2, 3, 4, 5, 6, 7, /**/ 0, 1, 2, 3, 4, 5, 6, 7,  //
@@ -6088,15 +6116,40 @@ HWY_API size_t CompressBitsStore(V v, const uint8_t* HWY_RESTRICT bits, D d,
       2, 3, 4, 5, 6, 7, 0, 1, /**/ 0, 2, 3, 4, 5, 6, 7, 1,  //
       1, 2, 3, 4, 5, 6, 7, 0, /**/ 0, 1, 2, 3, 4, 5, 6, 7};
 
-  for (size_t i = 0; i < Lanes(d); i += 8) {
-    // Each byte worth of bits is the index of one of 256 8-byte ranges, and its
-    // population count determines how far to advance the write position.
-    const size_t bits8 = bits[i / 8];
-    const auto indices = Load(d8, table + bits8 * 8);
-    const auto compressed = TableLookupBytes(LoadU(d8, lanes + i), indices);
-    StoreU(compressed, d8, pos);
-    pos += PopCount(bits8);
+  size_t i = 0;
+  HWY_LANES_CONSTEXPR size_t N = Lanes(d);
+  constexpr bool kMaybeLt128 =
+      (HWY_TARGET == HWY_SCALAR) || !detail::IsFull(D());
+  // If less than 128 bit, we may not enter the main loop below, and even
+  // the remainder loop might not write anything if bits are not set.
+  // Ensure the output is initialized. GCC seems not to understand this is only
+  // necessary if kMaybeLt128.
+  HWY_IF_CONSTEXPR(kMaybeLt128 || HWY_COMPILER_GCC_ACTUAL) {
+    StoreU(v, d, unaligned);
   }
+  HWY_ASSUME(N >= 8 || kMaybeLt128);
+  if (N >= 8) {
+    for (; i <= N - 8; i += 8) {
+      // Each byte worth of bits is the index of one of 256 8-byte ranges, and
+      // its population count determines how far to advance the write position.
+      const size_t bits8 = bits[i / 8];
+      const auto indices = Load(d8, table + bits8 * 8);
+      const auto compressed = TableLookupBytes(LoadU(d8, lanes + i), indices);
+      StoreU(compressed, d8, pos);
+      pos += PopCount(bits8);
+    }
+  }
+  // Not required if we have full vectors of >= 128 bits, because they are
+  // multiples of 8 bytes. Inefficient loop is mainly required for safely
+  // handling compress_test).
+  HWY_IF_CONSTEXPR(kMaybeLt128) {
+    for (; i < N; ++i) {
+      if (bits[i / 8] & (1u << (i % 8))) {
+        *pos++ = lanes[i];
+      }
+    }
+  }
+
   return static_cast<size_t>(pos - unaligned);
 }
 
@@ -6789,11 +6842,18 @@ HWY_API Vec128<T, 1> Expand(Vec128<T, 1> v, Mask128<T, 1> mask) {
 }
 
 // ------------------------------ LoadExpand
+
+// #2957: clangd warning because x86_128-inl.h defines an overload with this
+// condition, so negate it here.
+#if !(HWY_TARGET <= HWY_AVX3 || HWY_IDE)
+
 template <class D, HWY_IF_V_SIZE_LE_D(D, 16)>
 HWY_API VFromD<D> LoadExpand(MFromD<D> mask, D d,
                              const TFromD<D>* HWY_RESTRICT unaligned) {
   return Expand(LoadU(d, unaligned), mask);
 }
+
+#endif  // !(HWY_TARGET <= HWY_AVX3 || HWY_IDE)
 
 #endif  // HWY_NATIVE_EXPAND
 
@@ -6811,6 +6871,72 @@ HWY_API VFromD<D> TwoTablesLookupLanes(D /*d*/, VFromD<D> a, VFromD<D> b,
   return TwoTablesLookupLanes(a, b, idx);
 }
 #endif
+
+// ------------------------------ Lookup8
+
+template <class D, typename T = TFromD<D>, class VI>
+HWY_INLINE Vec<D> Lookup8(D d, const T* HWY_RESTRICT table, VI indices) {
+  // `di` describes the indices given - same bits per lane, but `d` determines
+  // the actual lane count of the result and also of the table vectors, which
+  // is relevant for adjusting the index values, see below.
+  DFromV<VI> di;
+  static_assert(sizeof(T) == sizeof(TFromD<decltype(di)>),
+                "Index/vector must have same lane size");
+  HWY_IF_CONSTEXPR(HWY_IS_DEBUG_BUILD) {
+    // Asserting Lanes(di) >= 4 not needed since both d and di have the same
+    // number of Lanes()
+    HWY_DASSERT(Lanes(d) >= 4);
+    HWY_DASSERT(AllTrue(di, Lt(indices, Set(di, 8))));
+  }
+
+  HWY_IF_CONSTEXPR(!HWY_HAVE_SCALABLE) {
+    // Fixed-size vectors: we know they are >= 128 bit, so either one or two
+    // tables are sufficient.
+    HWY_IF_CONSTEXPR(MaxLanes(d) >= 8) {
+      const CappedTag<T, 8> d8;
+      // We want to perform one lookup per index, hence cast. This has no
+      // runtime cost; the upper lanes are unused.
+      const Vec<D> t0 = ResizeBitCast(d, Load(d8, table));
+      return TableLookupLanes(t0, IndicesFromVec(d, indices));
+    }
+    HWY_IF_CONSTEXPR(MaxLanes(d) < 8) {
+      // Exactly 4 lanes, because we ensured >= 4 above.
+      const Vec<D> t0 = Load(d, table);
+      const Vec<D> t1 = Load(d, table + 4);
+      return TwoTablesLookupLanes(d, t0, t1, IndicesFromVec(d, indices));
+    }
+  }
+
+  HWY_IF_CONSTEXPR(HWY_HAVE_SCALABLE) {
+    // Scalable: first we must load two halves of the table into two vectors,
+    // regardless of vector size. We always use two-vector lookups to avoid
+    // runtime branching. Note that RVV can have U64x8 even with 128-bit
+    // vectors (LMUL=4), hence we must use the given LMUL, not FixedTag, but we
+    // still want to cap at 4 lanes to avoid overrunning the table.
+    const CappedTag<T, 4, d.Pow2()> d4;
+
+    // We want to use native lookup instructions (more efficient on SVE than two
+    // lookups plus a blend), hence cast. This has no runtime cost. No LoadU
+    // required because + 4 is still aligned relative to `d4`.
+    const Vec<D> t0 = ResizeBitCast(d, Load(d4, table));
+    const Vec<D> t1 = ResizeBitCast(d, Load(d4, table + 4));
+
+    // Now ensure indices for the second half of the table point to the second
+    // vector. Note that SVE2_128 and SVE_256 are handled by the fixed-size case
+    // above. The adjustment factor is 0 for 128-bit SIMD, which can happen with
+    // 128-bit SVE1 hardware, but we do not know that at compile time.
+    using TI = TFromD<decltype(di)>;
+    const VI adjust = Set(di, static_cast<TI>(Lanes(d) - 4));
+#if HWY_TARGET_IS_SVE
+    const Mask<decltype(di)> ge_4 = detail::GeN(indices, 4);
+#else
+    const Mask<decltype(di)> ge_4 = Ge(indices, Set(di, 4));
+#endif
+    indices = MaskedAddOr(indices, ge_4, indices, adjust);
+
+    return TwoTablesLookupLanes(d, t0, t1, IndicesFromVec(d, indices));
+  }
+}
 
 // ------------------------------ Reverse2, Reverse4, Reverse8 (8-bit)
 

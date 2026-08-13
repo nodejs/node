@@ -410,7 +410,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // OrderedHashMap).
   template <typename CollectionType>
   void StoreOrderedHashTableNewEntry(
-      const TNode<CollectionType> table, const TNode<IntPtrT> hash,
+      const TNode<CollectionType> table, TNode<IntPtrT> hash,
       const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy,
       const ApplyAtEntry<CollectionType>& store_at_new_entry);
 
@@ -496,7 +496,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // of OrderedHashTable, it should be OrderedHashMap or OrderedHashSet.
   template <typename CollectionType>
   void FindOrderedHashTableEntry(
-      const TNode<CollectionType> table, const TNode<Uint32T> hash,
+      const TNode<CollectionType> table, TNode<Uint32T> hash,
       const std::function<void(TNode<Object>, Label*, Label*)>& key_compare,
       TVariable<IntPtrT>* entry_start_position, Label* entry_found,
       Label* not_found);

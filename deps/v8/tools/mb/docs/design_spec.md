@@ -138,7 +138,7 @@ So:
    things are fast enough that we can afford to build everything affected by a
    patch, but listing every possible target explicitly would be painful. The
    GYP and GN Ninja generators provide an 'all' target that captures (nearly,
-   see [crbug.com/503241](crbug.com/503241)) everything, but unfortunately
+   see [crbug.com/503241](https://crbug.com/503241)) everything, but unfortunately
    neither GN nor GYP actually represents 'all' as a meta target in the build
    graph, so we will need to write code to handle that specially.
 

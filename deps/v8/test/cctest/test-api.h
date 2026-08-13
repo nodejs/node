@@ -29,9 +29,9 @@ static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
 
   CHECK_EQ(CcTest::isolate(), v8_isolate);
   CHECK_EQ(v8_isolate, return_value.GetIsolate());
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
 
-  Tagged<Object> default_value;
+  Tagged<i::Object> default_value;
   if constexpr (is_int) {
     default_value = Smi::zero();
   } else if constexpr (is_bool) {
@@ -45,7 +45,7 @@ static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
   }
 
   auto CheckValueMap = [=](v8::ReturnValue<T>& return_value) {
-    Tagged<Object> obj = Get(return_value);
+    Tagged<i::Object> obj = Get(return_value);
     if constexpr (is_int) {
       return IsNumber(obj);
     } else if constexpr (is_bool) {
@@ -264,5 +264,23 @@ struct ConvertJSValue<bool> {
     return v8::Just<bool>(value->BooleanValue(CcTest::isolate()));
   }
 };
+
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
+static_assert(kTestConfigTag < V8_EXTERNAL_POINTER_TAG_COUNT);
+
+// Used for wrapping passing raw pointers to Api callbacks.
+static v8::Local<v8::External> MakeData(v8::Isolate* isolate, void* pointer) {
+  return v8::External::New(isolate, pointer, kTestConfigTag);
+}
+
+// Unwraps raw pointer passed to Api callbacks.
+template <typename T, typename TCallbackInfo>
+static T* GetData(const TCallbackInfo& info) {
+  USE(MakeData);
+  return reinterpret_cast<T*>(
+      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
+}
 
 #endif  // V8_TEST_CCTEST_TEST_API_H_

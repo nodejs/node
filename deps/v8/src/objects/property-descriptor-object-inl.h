@@ -16,8 +16,6 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/property-descriptor-object-tq-inl.inc"
-
 int PropertyDescriptorObject::flags() const { return flags_.load().value(); }
 void PropertyDescriptorObject::set_flags(int value) {
   flags_.store(this, Smi::FromInt(value));

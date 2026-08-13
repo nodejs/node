@@ -273,10 +273,10 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     std::string name = std::string(code_event->GetComment());
     if (name.empty()) {
       v8::Local<v8::String> functionName = code_event->GetFunctionName();
-      size_t buffer_size = functionName->Utf8LengthV2(isolate_) + 1;
+      size_t buffer_size = functionName->Utf8Length(isolate_) + 1;
       std::string buffer(buffer_size, 0);
-      functionName->WriteUtf8V2(isolate_, &buffer[0], buffer_size,
-                                String::WriteFlags::kNullTerminate);
+      functionName->WriteUtf8(isolate_, &buffer[0], buffer_size,
+                              String::WriteFlags::kNullTerminate);
       // Sanitize name, removing unwanted \0 resulted from WriteUtf8
       name = std::string(buffer.c_str());
     }
@@ -383,7 +383,7 @@ static void Prop1Getter(v8::Local<v8::Name> property,
 
 static void Prop1Setter(v8::Local<v8::Name> property,
                         v8::Local<v8::Value> value,
-                        const v8::PropertyCallbackInfo<void>& info) {}
+                        const v8::PropertyCallbackInfo<v8::Boolean>& info) {}
 
 static void Prop2Getter(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {}
