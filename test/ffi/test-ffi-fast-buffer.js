@@ -98,6 +98,10 @@ test('fast FFI string buffers survive reentrant callbacks', {
 
 test('optimized buffer signatures preserve pointer-like conversions', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
+  const asPointer = lib.getFunction('pointer_to_usize', {
+    arguments: ['pointer'],
+    return: 'u64',
+  });
   const asBuffer = lib.getFunction('pointer_to_usize', {
     arguments: ['buffer'],
     return: 'u64',
@@ -106,6 +110,10 @@ test('optimized buffer signatures preserve pointer-like conversions', () => {
     arguments: ['arraybuffer'],
     return: 'u64',
   });
+
+  function callPointer(value) {
+    return asPointer(value);
+  }
 
   function callBuffer(value) {
     return asBuffer(value);
@@ -117,17 +125,34 @@ test('optimized buffer signatures preserve pointer-like conversions', () => {
 
   try {
     for (let i = 0; i < 100_000; i++) {
+      assert.strictEqual(callPointer(0n), 0n);
       assert.strictEqual(callBuffer(0n), 0n);
       assert.strictEqual(callArrayBuffer(0n), 0n);
     }
 
-    for (const call of [callBuffer, callArrayBuffer]) {
+    for (const call of [callPointer, callBuffer, callArrayBuffer]) {
       assert.strictEqual(call(null), 0n);
       assert.strictEqual(call(undefined), 0n);
       assert.notStrictEqual(call('ffi'), 0n);
 
       const bytes = Buffer.alloc(1);
       assert.strictEqual(call(bytes), ffi.getRawPointer(bytes));
+
+      const arrayBuffer = new ArrayBuffer(8);
+      const typedArray = new Uint8Array(arrayBuffer);
+      const dataView = new DataView(arrayBuffer);
+      arrayBuffer.transfer();
+
+      assert.throws(() => call(arrayBuffer), {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: 'Argument 0 is a detached ArrayBuffer',
+      });
+      for (const view of [typedArray, dataView]) {
+        assert.throws(() => call(view), {
+          code: 'ERR_INVALID_ARG_VALUE',
+          message: 'Argument 0 is an ArrayBufferView backed by a detached ArrayBuffer',
+        });
+      }
     }
   } finally {
     lib.close();
