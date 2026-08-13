@@ -2134,6 +2134,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
   }
   bool at_boundary = (assertion_type_ == AssertionNode::AT_BOUNDARY);
   if (next_is_word_character == Trace::UNKNOWN) {
+    const RegExpFlags flags = compiler->flags();
     Label before_non_word;
     Label before_word;
     if (trace->characters_preloaded() != 1) {
@@ -2148,6 +2149,7 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
                                         at_boundary ? kIsNonWord : kIsWord));
     assembler->GoTo(&ok);
 
+    compiler->set_flags(flags);
     assembler->Bind(&before_word);
     RETURN_IF_ERROR(BacktrackIfPrevious(compiler, trace,
                                         at_boundary ? kIsWord : kIsNonWord));
