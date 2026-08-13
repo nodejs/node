@@ -288,7 +288,7 @@ inline uint16_t temporal_rs::PlainDateTime::nanosecond() const {
     return result;
 }
 
-inline const temporal_rs::Calendar& temporal_rs::PlainDateTime::calendar() const {
+inline const temporal_rs::Calendar& temporal_rs::PlainDateTime::calendar() const DIPLOMAT_LIFETIME_BOUND {
     auto result = temporal_rs::capi::temporal_rs_PlainDateTime_calendar(this->AsFFI());
     return *temporal_rs::Calendar::FromFFI(result);
 }

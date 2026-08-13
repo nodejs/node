@@ -1,0 +1,10 @@
+---
+source: core/src/ast/logging.rs
+expression: self.buf
+---
+Diplomat error: Diplomat requires impls to be in the same module as their type
+In src/ast/snapshots/span_testing/undefined_type.rs:3:10:
+...impl Undefined {}
+}...
+        ^^^^^^^^^
+Undefined should be defined in the same module.

@@ -43,6 +43,10 @@ should only be used when the compiler supports it.
 
 ## Release Notes
 
+- 1.5.1 (2026-05-22)
+
+  - Refactor the `test_wrappers` test without any shell script.
+
 - 1.5.0 (2025-06-17)
 
   - Add `edition` and `set_edition` to control the Rust edition used in probes.
