@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## What's Changed in v0.2.4
+* ZonedDateTime backward shift spec change by @Manishearth in [#725](https://github.com/boa-dev/temporal/pull/725)
+* Fix ComputeNudgeWindow startEpochNs computation to check full startDateDuration sign by @Manishearth in [#723](https://github.com/boa-dev/temporal/pull/723)
+
+**Full Changelog**: https://github.com/boa-dev/temporal/compare/v0.2.3...v0.2.4
+
 ## What's Changed in v0.2.3
 * Update zoneinfo64 and Diplomat by @Manishearth in [#713](https://github.com/boa-dev/temporal/pull/713)
 * Update icu_calendar to fix `with()` regression by @Manishearth in [#716](https://github.com/boa-dev/temporal/pull/716)

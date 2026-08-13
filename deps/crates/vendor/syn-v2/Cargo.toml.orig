@@ -1,6 +1,6 @@
 [package]
 name = "syn"
-version = "2.0.117"
+version = "2.0.118"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
 categories = ["development-tools::procedural-macro-helpers", "parser-implementations"]
 description = "Parser for Rust source code"
