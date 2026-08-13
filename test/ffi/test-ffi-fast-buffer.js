@@ -80,16 +80,20 @@ test('optimized pointer arguments reject direct SharedArrayBuffers', () => {
   const shared = new SharedArrayBuffer(1);
   const expected = { code: 'ERR_INVALID_ARG_VALUE' };
 
+  function callFirstByte(value) {
+    return firstByte(value);
+  }
+
   try {
-    assert.throws(() => firstByte(shared), expected);
+    assert.throws(() => callFirstByte(shared), expected);
 
-    eval('%PrepareFunctionForOptimization(firstByte)');
-    firstByte(regular);
-    firstByte(regular);
-    eval('%OptimizeFunctionOnNextCall(firstByte)');
-    firstByte(regular);
+    eval('%PrepareFunctionForOptimization(callFirstByte)');
+    callFirstByte(regular);
+    callFirstByte(regular);
+    eval('%OptimizeFunctionOnNextCall(callFirstByte)');
+    callFirstByte(regular);
 
-    assert.throws(() => firstByte(shared), expected);
+    assert.throws(() => callFirstByte(shared), expected);
   } finally {
     lib.close();
   }
