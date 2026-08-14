@@ -1478,6 +1478,7 @@ const { glob } = require('node:fs/promises');
 ### `fsPromises.lchmod(path, mode)`
 
 <!-- YAML
+added: v10.0.0
 deprecated: v10.0.0
 -->
 
@@ -3666,6 +3667,7 @@ glob('**/*.js', (err, matches) => {
 ### `fs.lchmod(path, mode, callback)`
 
 <!-- YAML
+added: v0.5.0
 deprecated: v0.4.7
 changes:
   - version: v18.0.0
@@ -6288,6 +6290,7 @@ console.log(globSync('**/*.js'));
 ### `fs.lchmodSync(path, mode)`
 
 <!-- YAML
+added: v0.5.0
 deprecated: v0.4.7
 -->
 
