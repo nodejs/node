@@ -47,6 +47,8 @@ See [details on our policy on Code of Conduct](./doc/contributing/code-of-conduc
 
 Pull Requests are the way concrete changes are made to the code, documentation,
 dependencies, and tools contained in the `nodejs/node` repository.
+Contributors who are not Collaborators may have no more than 10 pull requests
+open at a time.
 
 * [Dependencies](./doc/contributing/pull-requests.md#dependencies)
 * [Setting up your local environment](./doc/contributing/pull-requests.md#setting-up-your-local-environment)
