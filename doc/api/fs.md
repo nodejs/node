@@ -3668,7 +3668,7 @@ glob('**/*.js', (err, matches) => {
 
 <!-- YAML
 added: v0.5.0
-deprecated: v0.4.7
+deprecated: v0.5.0
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
@@ -6291,7 +6291,7 @@ console.log(globSync('**/*.js'));
 
 <!-- YAML
 added: v0.5.0
-deprecated: v0.4.7
+deprecated: v0.5.0
 -->
 
 > Stability: 0 - Deprecated
