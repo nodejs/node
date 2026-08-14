@@ -675,6 +675,9 @@ console.log(query.get());
 added: v22.5.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62757
+    description: Add the `persistent` option.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/65157
     description: Throw `ERR_INVALID_ARG_VALUE` if `sql` contains no statements.
 -->
@@ -691,8 +694,8 @@ changes:
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
     are ignored. **Default:** inherited from database options or `false`.
   * `persistent` {boolean} If `true`, hints to SQLite that this statement will
-    be reused many times, causing it to use a different memory allocation
-    strategy that reduces heap fragmentation. Corresponds to the
+    be retained for a long time and likely reused many times. SQLite currently
+    responds to this hint by avoiding lookaside memory. Corresponds to the
     [`SQLITE_PREPARE_PERSISTENT`][] flag. **Default:** `false`.
 * Returns: {StatementSync} The prepared statement.
 
