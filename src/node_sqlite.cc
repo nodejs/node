@@ -23,6 +23,7 @@ namespace sqlite {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
@@ -2404,16 +2405,34 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<DatabaseSync> guard(db);
 
   ArrayBufferViewContents<uint8_t> buf(args[0]);
+  if (buf.length() > std::numeric_limits<int>::max()) {
+    THROW_ERR_OUT_OF_RANGE(env, "The changeset is too large.");
+    return;
+  }
+
+  std::unique_ptr<BackingStore> changeset;
+  if (buf.length() > 0) {
+    changeset = ArrayBuffer::NewBackingStore(
+        env->isolate(),
+        buf.length(),
+        BackingStoreInitializationMode::kUninitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+    if (!changeset) {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      return;
+    }
+    std::memcpy(changeset->Data(), buf.data(), buf.length());
+  }
+
   int r;
   {
     CallbackDepthGuard guard(db);
-    r = sqlite3changeset_apply(
-        db->connection_,
-        buf.length(),
-        const_cast<void*>(static_cast<const void*>(buf.data())),
-        context.filterCallback ? xFilter : nullptr,
-        xConflict,
-        static_cast<void*>(&context));
+    r = sqlite3changeset_apply(db->connection_,
+                               static_cast<int>(buf.length()),
+                               changeset ? changeset->Data() : nullptr,
+                               context.filterCallback ? xFilter : nullptr,
+                               xConflict,
+                               static_cast<void*>(&context));
   }
   if (r == SQLITE_OK) {
     args.GetReturnValue().Set(true);

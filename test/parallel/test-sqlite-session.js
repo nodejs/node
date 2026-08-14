@@ -282,6 +282,25 @@ suite('conflict resolution', () => {
       [{ value: 'world' }]);  // unchanged
   });
 
+  test('database.applyChangeset() - changeset detached by onConflict', (t) => {
+    const { database2, changeset } = prepareConflict();
+    const result = database2.applyChangeset(changeset, {
+      onConflict: () => {
+        const transferred = structuredClone(changeset.buffer, {
+          transfer: [changeset.buffer],
+        });
+        new Uint8Array(transferred).fill(0);
+        return constants.SQLITE_CHANGESET_REPLACE;
+      }
+    });
+
+    t.assert.strictEqual(result, true);
+    t.assert.strictEqual(changeset.byteLength, 0);
+    deepStrictEqual(t)(
+      database2.prepare('SELECT * FROM data ORDER BY key').all(),
+      [{ key: 1, value: 'hello' }, { key: 2, value: 'foo' }]);
+  });
+
   test('database.applyChangeset() - SQLITE_CHANGESET_DATA conflict handled with SQLITE_CHANGESET_REPLACE', (t) => {
     const { database2, changeset } = prepareDataConflict();
     let conflictType = null;
@@ -404,6 +423,35 @@ test('filter handler throws', (t) => {
     name: 'Error',
     message: 'Error filtering table data1'
   });
+});
+
+test('database.applyChangeset() - changeset detached by filter', (t) => {
+  const database1 = new DatabaseSync(':memory:');
+  const database2 = new DatabaseSync(':memory:');
+  database1.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
+  database2.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
+
+  const session = database1.createSession();
+  database1.exec('INSERT INTO data VALUES (1), (2), (3)');
+  const changeset = session.changeset();
+
+  const result = database2.applyChangeset(changeset, {
+    filter: () => {
+      const transferred = structuredClone(changeset.buffer, {
+        transfer: [changeset.buffer],
+      });
+      new Uint8Array(transferred).fill(0);
+      return true;
+    }
+  });
+
+  t.assert.strictEqual(result, true);
+  t.assert.strictEqual(changeset.byteLength, 0);
+  deepStrictEqual(t)(database2.prepare('SELECT * FROM data').all(), [
+    { key: 1 },
+    { key: 2 },
+    { key: 3 },
+  ]);
 });
 
 test('database.createSession() - filter changes', (t) => {
