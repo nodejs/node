@@ -170,14 +170,9 @@ using StatementPtr = DeleteFnPtr<sqlite3_stmt, FinalizeStatement>;
 class StatementExecutionHelper {
  public:
   static v8::MaybeLocal<v8::Value> All(Environment* env,
-                                       DatabaseSync* db,
-                                       sqlite3_stmt* stmt,
-                                       bool return_arrays,
-                                       bool use_big_ints);
+                                       StatementSync* statement);
   static v8::MaybeLocal<v8::Object> Run(Environment* env,
-                                        DatabaseSync* db,
-                                        sqlite3_stmt* stmt,
-                                        bool use_big_ints);
+                                        StatementSync* statement);
   static BaseObjectPtr<StatementSyncIterator> Iterate(
       Environment* env, BaseObjectPtr<StatementSync> stmt);
   static v8::MaybeLocal<v8::Value> ColumnToValue(Environment* env,
@@ -188,10 +183,7 @@ class StatementExecutionHelper {
                                                    sqlite3_stmt* stmt,
                                                    const int column);
   static v8::MaybeLocal<v8::Value> Get(Environment* env,
-                                       DatabaseSync* db,
-                                       sqlite3_stmt* stmt,
-                                       bool return_arrays,
-                                       bool use_big_ints);
+                                       StatementSync* statement);
 };
 
 class DatabaseSync : public BaseObject {
