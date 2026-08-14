@@ -15,6 +15,7 @@ import { HeapUtilsBinding } from './internalBinding/heap_utils';
 import { HttpParserBinding } from './internalBinding/http_parser';
 import { ICUBinding } from './internalBinding/icu';
 import { InspectorBinding } from './internalBinding/inspector';
+import { InternalOnlyV8Binding } from './internalBinding/internal_only_v8';
 import { IPCSerdesBinding } from './internalBinding/ipc_serdes';
 import { LocksBinding } from './internalBinding/locks';
 import { MessagingBinding } from './internalBinding/messaging';
@@ -55,6 +56,7 @@ interface InternalBindingMap {
   http_parser: HttpParserBinding;
   icu: ICUBinding;
   inspector: InspectorBinding;
+  internal_only_v8: InternalOnlyV8Binding;
   ipc_serdes: IPCSerdesBinding;
   locks: LocksBinding;
   messaging: MessagingBinding;
