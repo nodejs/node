@@ -326,13 +326,11 @@ participate in module resolution and loading. The [CommonJS
 resolution algorithm][] used by [`require()`][] and
 [`require.resolve()`][] and the [ES modules resolution algorithm][]
 used by `import` and [`import.meta.resolve()`][] are unchanged;
-instead, every file system operation those algorithms perform
-(existence probes, file reads, `package.json` lookups, real-path
-resolution) is dispatched on the path being probed: paths under a
-mount point are served by the owning VFS, and all other paths are
-served by the real file system. Files served from the VFS therefore
-behave as first-class modules: `package.json` is honoured,
-conditional [`"exports"`][] / [`"imports"`][] work, and so on.
+instead, every file system operation those algorithms perform is
+dispatched on the path being probed: paths under a mount point are
+served by the owning VFS, and all other paths are served by the real
+file system. Files served from the VFS therefore behave as
+first-class modules.
 
 Because mounted paths live in a reserved namespace that cannot exist
 on disk, any given path is served either by exactly one VFS or by
@@ -342,14 +340,23 @@ exist in the VFS, resolution fails with `ENOENT` without consulting
 the disk, and a mounted layer never shadows a real directory.
 
 For resolution purposes the mount point behaves as a file system
-root: `package.json` scope lookups (for [`"type"`][],
-[`"exports"`][], [`"imports"`][], and the CommonJS directory
-[`"main"`][]) and [loading from `node_modules` folders][] stop at
-the mount point instead of continuing into the real file system
-([the global folders][], such as `NODE_PATH`, are legacy CommonJS
-behavior and still apply to `require()`). Absolute specifiers may
-cross the boundary in either direction: a module on the real file
-system can `require()` a mounted path, and a virtual module can
+root: `package.json` scope lookups and [loading from `node_modules`
+folders][] stop at the mount point. For example, when
+`${mountPoint}/foo/bar/main.cjs` calls `require('baz')`, the lookup
+goes through:
+
+* `${mountPoint}/foo/bar/node_modules/baz`
+* `${mountPoint}/foo/node_modules/baz`
+* `${mountPoint}/node_modules/baz`
+* If `$NODE_PATH` is set, the folders listed in `$NODE_PATH`
+* `$HOME/.node_modules/baz`
+* `$HOME/.node_libraries/baz`
+* `$PREFIX/lib/node/baz`
+
+The last four entries are [the global folders][], which are legacy
+CommonJS behavior and do not apply to `import`. Absolute specifiers
+may cross the boundary in either direction: a module on the real
+file system can `require()` a mounted path, and a virtual module can
 `require()` a real one.
 
 ```cjs
@@ -403,10 +410,12 @@ under a re-created mount re-reads the file from the newly mounted
 VFS rather than returning a stale module. Modules loaded from other
 VFS instances or from the real file system are unaffected.
 
-Mounting and unmounting do not invalidate ESM modules that are
-already executing. As with any other module-system teardown,
-unmounting a VFS while the import graph below it is still loading is
-the caller's responsibility to avoid.
+Mounting and unmounting do not stop any module execution that is
+already started, or invalidate any objects materialized from VFS
+modules that are already executed. As with modules in the real file
+system, the callers are responsible for avoiding removal or
+invalidation of modules in the virtual file system while they are
+being loaded.
 
 ## Class: `VirtualProvider`
 
@@ -531,10 +540,6 @@ fields use synthetic but stable values:
 [CommonJS resolution algorithm]: modules.md#all-together
 [ES modules resolution algorithm]: esm.md#resolution-algorithm
 [Explicit Resource Management]: https://github.com/tc39/proposal-explicit-resource-management
-[`"exports"`]: packages.md#exports
-[`"imports"`]: packages.md#imports
-[`"main"`]: packages.md#main
-[`"type"`]: packages.md#type
 [`MemoryProvider`]: #class-memoryprovider
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
