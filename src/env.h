@@ -799,6 +799,12 @@ class Environment final : public MemoryRetainer {
   inline bool can_call_into_js() const;
   inline void set_can_call_into_js(bool can_call_into_js);
 
+  // True while RequestInterrupt() callbacks are being invoked from the
+  // v8::Isolate::RequestInterrupt() handler, i.e. potentially at an
+  // arbitrary point during JS execution. Calling into JS must be avoided
+  // in that case.
+  inline bool is_processing_v8_interrupt() const;
+
   // Increase or decrease a counter that manages whether this Environment
   // keeps the event loop alive on its own or not. The counter starts out at 0,
   // meaning it does not, and any positive value will make it keep the event
@@ -1252,6 +1258,7 @@ class Environment final : public MemoryRetainer {
   bool task_queues_async_initialized_ = false;
 
   std::atomic<Environment**> interrupt_data_ {nullptr};
+  bool is_processing_v8_interrupt_ = false;
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
 
