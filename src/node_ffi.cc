@@ -751,7 +751,15 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
 }
 
 void DynamicLibrary::GetPath(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!GetConstructorTemplate(env)->HasInstance(args.This())) {
+    THROW_ERR_INVALID_THIS(env,
+                           "Value of \"this\" must be of type DynamicLibrary");
+    return;
+  }
+
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
+  CHECK_NOT_NULL(lib);
 
   Local<Value> path;
   if (!ToV8Value(lib->env()->context(), lib->path_, args.GetIsolate())
@@ -806,9 +814,16 @@ void DynamicLibrary::GetFunction(const FunctionCallbackInfo<Value>& args) {
 
 void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!GetConstructorTemplate(env)->HasInstance(args.This())) {
+    THROW_ERR_INVALID_THIS(env,
+                           "Value of \"this\" must be of type DynamicLibrary");
+    return;
+  }
+
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
+  CHECK_NOT_NULL(lib);
 
   if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
@@ -955,9 +970,16 @@ void DynamicLibrary::GetSymbol(const FunctionCallbackInfo<Value>& args) {
 
 void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!GetConstructorTemplate(env)->HasInstance(args.This())) {
+    THROW_ERR_INVALID_THIS(env,
+                           "Value of \"this\" must be of type DynamicLibrary");
+    return;
+  }
+
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
+  CHECK_NOT_NULL(lib);
 
   if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);

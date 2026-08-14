@@ -103,6 +103,25 @@ test('DynamicLibrary exposes functions and symbols', () => {
   }
 });
 
+test('DynamicLibrary getters reject incompatible receivers', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+
+  try {
+    const getters = [
+      Object.getOwnPropertyDescriptor(lib, 'path').get,
+      Object.getOwnPropertyDescriptor(lib, 'symbols').get,
+      Object.getOwnPropertyDescriptor(
+        ffi.DynamicLibrary.prototype, 'functions').get,
+    ];
+
+    for (const getter of getters) {
+      assert.throws(() => getter.call({}), { code: 'ERR_INVALID_THIS' });
+    }
+  } finally {
+    lib.close();
+  }
+});
+
 test('DynamicLibrary evaluates function signatures once', () => {
   function makeChangingSignature() {
     const reads = { arguments: 0, return: 0 };
