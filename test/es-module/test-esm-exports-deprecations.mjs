@@ -3,10 +3,9 @@ import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
 let curWarning = 0;
-const expectedWarnings = [
-  'no_exports',
-  'default_index',
-];
+// DEP0151 index lookup and extension searching now throw instead of warning.
+// Slash-pattern deprecations are no longer emitted by test-esm-exports.mjs.
+const expectedWarnings = [];
 
 process.addListener('warning', mustCall((warning) => {
   assert(warning.stack.includes(expectedWarnings[curWarning++]), warning.stack);
