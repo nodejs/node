@@ -1515,7 +1515,9 @@ void Environment::RequestInterruptFromV8() {
       return;
     }
     env->interrupt_data_.store(nullptr);
+    env->is_processing_v8_interrupt_ = true;
     env->RunAndClearInterrupts();
+    env->is_processing_v8_interrupt_ = false;
   }, interrupt_data);
 }
 
