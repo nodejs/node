@@ -440,6 +440,11 @@ wrapper around [`sqlite3_create_function_v2()`][].
 
 <!-- YAML
 added: v24.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65156
+    description: Accessing the invoking database connection from the authorizer
+                 callback now throws.
 -->
 
 * `callback` {Function|null} The authorizer function to set, or `null` to
@@ -464,6 +469,31 @@ The callback must return one of the following constants:
 * `SQLITE_OK` - Allow the operation.
 * `SQLITE_DENY` - Deny the operation (causes an error).
 * `SQLITE_IGNORE` - Ignore the operation (silently skip).
+
+SQLite requires that the authorizer callback not modify the database connection
+that invoked it, which includes preparing and stepping statements. Methods that
+would do so throw an error with code `ERR_INVALID_STATE` while the callback is
+on the stack, including `database.prepare()`, `database.exec()`, the execution
+methods of that connection's statements, iterators, and tag stores, and
+`database.setAuthorizer()` itself. Other connections remain usable.
+
+The callback can also be invoked from within `statement.run()`,
+`statement.get()`, and similar methods, because SQLite may re-prepare a
+statement during execution after a schema change.
+
+Separately, a statement that is currently being executed cannot be reentered.
+Calling `statement.close()` on it would free the virtual machine that is
+running, and re-running it through `statement.run()`, `statement.get()`,
+`statement.all()`, `statement.iterate()`, `iterator.next()`,
+`iterator.return()`, or the equivalent tag store methods would reset that
+virtual machine mid-execution. All of these throw an `ERR_INVALID_STATE` error
+instead. This applies to any callback SQLite invokes during execution, such as a
+user-defined function. Other statements on the connection remain usable.
+
+Operations that touch no SQLite state stay available from the callback:
+`sqlTagStore.clear()`, which only drops cached statements, and `next()` and
+`return()` on an already-drained iterator, which keep returning
+`{ done: true }`.
 
 ```cjs
 const { DatabaseSync, constants } = require('node:sqlite');
