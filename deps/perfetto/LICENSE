@@ -226,6 +226,26 @@ Files: src/trace_processor/perfetto_sql/stdlib/chromium/*, protos/third_party/ch
 
 ------------------
 
+Files: src/trace_processor/perfetto_sql/syntaqlite/syntaqlite_perfetto.{c, h}
+
+   Copyright 2025 The syntaqlite Authors. All rights reserved.
+
+   Machine-generated amalgamation of syntaqlite runtime + Perfetto dialect
+   sources (https://github.com/LalitMaganti/syntaqlite). Portions derive
+   from SQLite's public-domain `parse.y` grammar.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+
+------------------
+
 Files: src/trace_processor/perfetto_sql/preprocessor/preprocessor_grammar.{c, h}
 
 The author disclaims copyright to this source code. In place of a legal notice, here is a blessing:
