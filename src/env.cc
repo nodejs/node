@@ -749,7 +749,8 @@ void Environment::add_refs(int64_t diff) {
 
 uv_buf_t Environment::allocate_managed_buffer(const size_t suggested_size) {
   std::unique_ptr<BackingStore> bs;
-  if (suggested_size == kManagedBufferCacheSize && managed_buffer_cache_ != nullptr) {
+  if (suggested_size == kManagedBufferCacheSize &&
+      managed_buffer_cache_ != nullptr) {
     bs = std::move(managed_buffer_cache_);
   } else {
     bs = ArrayBuffer::NewBackingStore(
