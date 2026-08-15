@@ -15,6 +15,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::DontEnum;
+using v8::EscapableHandleScope;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::IndexedPropertyHandlerConfiguration;
@@ -47,6 +48,7 @@ class RealEnvStore final : public KVStore {
   int32_t Query(const char* key) const override;
   void Delete(Isolate* isolate, Local<String> key) override;
   MaybeLocal<Array> Enumerate(Isolate* isolate) const override;
+  MaybeLocal<Array> Pairs(Isolate* isolate) const override;
 };
 
 class MapKVStore final : public KVStore {
@@ -217,6 +219,62 @@ MaybeLocal<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   }
 
   return Array::New(isolate, env_v.out(), env_v_index);
+}
+
+MaybeLocal<Array> RealEnvStore::Pairs(Isolate* isolate) const {
+  Mutex::ScopedLock lock(per_process::env_var_mutex);
+  uv_env_item_t* items;
+  int count;
+
+  auto cleanup = OnScopeLeave([&]() { uv_os_free_environ(items, count); });
+  CHECK_EQ(uv_os_environ(&items, &count), 0);
+
+  MaybeStackBuffer<Local<Value>, 256> pairs_v(count);
+  int pairs_v_index = 0;
+  std::string pair;
+  for (int i = 0; i < count; i++) {
+#ifdef _WIN32
+    // If the key starts with '=' it is a hidden environment variable.
+    // Enumerate() skips these, so a copy of process.env never had them.
+    if (items[i].name[0] == '=') continue;
+#endif
+    pair.assign(items[i].name);
+    pair += '=';
+    pair += items[i].value;
+    Local<Value> str;
+    if (!ToV8Value(isolate->GetCurrentContext(), pair, isolate).ToLocal(&str)) {
+      return {};
+    }
+    pairs_v[pairs_v_index++] = str;
+  }
+
+  return Array::New(isolate, pairs_v.out(), pairs_v_index);
+}
+
+MaybeLocal<Array> KVStore::Pairs(Isolate* isolate) const {
+  EscapableHandleScope scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Array> keys;
+  if (!Enumerate(isolate).ToLocal(&keys)) return {};
+  uint32_t keys_length = keys->Length();
+  LocalVector<Value> pairs(isolate);
+  pairs.reserve(keys_length);
+  for (uint32_t i = 0; i < keys_length; i++) {
+    Local<Value> key;
+    Local<String> value;
+    if (!keys->Get(context, i).ToLocal(&key)) return {};
+    if (!key->IsString()) continue;
+    // A key that disappeared between Enumerate() and Get() is skipped, like an
+    // undefined value is when copying process.env in JS.
+    if (!Get(isolate, key.As<String>()).ToLocal(&value)) continue;
+    Local<String> pair = String::Concat(
+        isolate,
+        String::Concat(
+            isolate, key.As<String>(), FIXED_ONE_BYTE_STRING(isolate, "=")),
+        value);
+    pairs.push_back(pair);
+  }
+  return scope.Escape(Array::New(isolate, pairs.data(), pairs.size()));
 }
 
 std::shared_ptr<KVStore> KVStore::Clone(Isolate* isolate) const {
