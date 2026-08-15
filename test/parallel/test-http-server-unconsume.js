@@ -4,7 +4,8 @@ const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
-['on', 'addListener', 'prependListener'].forEach((testFn) => {
+const testCases = ['on', 'addListener', 'prependListener'];
+for (const testFn of testCases) {
   let received = '';
 
   const server = http.createServer(function(req, res) {
@@ -30,4 +31,4 @@ const net = require('net');
       }));
     }));
   }));
-});
+};
