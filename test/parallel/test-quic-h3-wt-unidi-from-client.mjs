@@ -50,7 +50,6 @@ for (let i = 0; i < numChunks; i++) {
 }
 
 const serverSessionOpened = Promise.withResolvers();
-const serverSessionRead = Promise.withResolvers();
 
 const readChunks = [];
 let serverSessionStream;
@@ -66,9 +65,9 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
       // Deinstall handlers
       stream.onheaders = undefined;
       stream.onsessionid = undefined;
-      stream.closed.catch((error) => {
+      stream.closed.catch(mustCall((error) => {
         assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
-      })
+      }));
       const sessionid2 = await serverSessionOpened.promise;
       assert.strictEqual(sessionid, sessionid2);
       // Now we get the data
@@ -86,7 +85,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
       serverSessionStream.closed.catch(mustCall((error) => {
         assert.strictEqual(error.errorCode, 200n);
         assert.strictEqual(error.reason, 'all perfect');
-      }))
+      }));
       await serverSessionStream.closeWebtransportSessionStream(200, 'all perfect');
     }, stream.id !== 0n ? 1 : 0); // The second stream is a datastream
   }, 2);
@@ -97,10 +96,10 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 100,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
   onheaders: mustCall(function(headers) {
     try {
@@ -129,10 +128,10 @@ const clientSession = await connect(serverEndpoint.address, {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 1000,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
 });
 
@@ -186,9 +185,9 @@ const clientUnidiStream = await clientSession.createUnidirectionalStream({
   webtransportSession: wtSessionStream // Associate it with the sessionStream
 });
 
-clientUnidiStream.closed.catch((error) => {
-    assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
-});
+clientUnidiStream.closed.catch(mustCall((error) => {
+  assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
+}));
 // Next step send some data
 await serverSessionOpened.promise;
 
