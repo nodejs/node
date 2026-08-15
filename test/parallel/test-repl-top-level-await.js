@@ -51,9 +51,13 @@ const testMe = repl.start({
   prompt: PROMPT,
   stream: putIn,
   terminal: true,
-  useColors: true,
+  // Keep syntax highlighting out of these transcript assertions.
+  // Preview and result colors are enabled after readline is initialized.
+  useColors: false,
   breakEvalOnSigint: true
 });
+testMe.useColors = true;
+testMe.writer.options.colors = true;
 
 function runAndWait(cmds) {
   const promise = putIn.wait();
