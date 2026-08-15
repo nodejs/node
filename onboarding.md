@@ -283,8 +283,8 @@ needs to be pointed out separately during the onboarding.
   including accommodations, transportation, and visa fees (even in case the visa
   is denied) if needed. Check out the [summit](https://github.com/nodejs/summit)
   repository for details.
-* If you are interested in helping to fix coverity reports consider requesting
-  access to the projects coverity project as outlined in [static-analysis][].
+* If you are interested in helping to fix coverity reports, consider requesting
+  access to the project's coverity project as outlined in [static-analysis][].
 * If you are interested in helping out with CI reliability, check out the
   [reliability repository][] and [guide on how to deal with CI flakes][]. When
   fixing a flaky test, it is recommended to run [`node-stress-single-test`][]
