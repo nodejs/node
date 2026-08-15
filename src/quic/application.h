@@ -98,9 +98,11 @@ class Session::Application : public MemoryRetainer {
   virtual bool ReceiveStreamOpen(stream_id id) = 0;
 
   // Session will forward all received stream data immediately on to the
-  // Application. The only additional processing the Session does is to
-  // automatically adjust the session-level flow control window. It is up to
-  // the Application to do the same for the Stream-level flow control.
+  // Application without any additional processing. Every byte delivered here
+  // is charged against both the session-level and the stream-level receive
+  // window, and it is up to the Application to return that credit (see
+  // ReturnConnectionCredit and Stream::ReturnFlowControlCredit) once the
+  // bytes have been consumed or discarded.
   virtual bool ReceiveStreamData(stream_id id,
                                  const uint8_t* data,
                                  size_t datalen,
@@ -265,6 +267,12 @@ class Session::Application : public MemoryRetainer {
     CHECK_NOT_NULL(session_);
     return *session_;
   }
+
+  // Returns the connection-level flow control credit for `datalen` bytes that
+  // were delivered to the Application but discarded without ever reaching a
+  // Stream. Dropping them silently would permanently shrink the session's
+  // shared receive window.
+  void ReturnConnectionCredit(size_t datalen);
 
  private:
   Session* session_ = nullptr;
