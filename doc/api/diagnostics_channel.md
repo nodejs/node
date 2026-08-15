@@ -1954,6 +1954,12 @@ calls with a [`TracingChannel`][] at the JavaScript layer instead.
 
 Publishing is zero-overhead when there are no subscribers.
 
+No event is emitted for a statement that is abandoned mid-iteration and later
+finalized, either explicitly through [`statement.close()`][] or when the
+statement is garbage collected. Subscribers must not close the database or the
+statement, since both are still in use while the event is being delivered; see
+[`database.close()`][] and [`statement.close()`][].
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
@@ -1969,6 +1975,7 @@ Publishing is zero-overhead when there are no subscribers.
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
 [`channel.withStoreScope(data)`]: #channelwithstorescopedata
 [`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
+[`database.close()`]: sqlite.md#databaseclose
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
@@ -1978,6 +1985,7 @@ Publishing is zero-overhead when there are no subscribers.
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
+[`statement.close()`]: sqlite.md#statementclose
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
 [thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables

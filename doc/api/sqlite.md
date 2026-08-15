@@ -313,8 +313,8 @@ added: v22.5.0
 Closes the database connection. An exception is thrown if the database is not
 open. An [`ERR_INVALID_STATE`][] error is thrown if the method is called while
 a statement is executing, such as inside a user-defined function, an aggregate
-function, or an authorizer callback. This method is a wrapper around
-[`sqlite3_close_v2()`][].
+function, an authorizer callback, or a [`'sqlite.db.query'`][] subscriber. This
+method is a wrapper around [`sqlite3_close_v2()`][].
 
 ### `database.loadExtension(path[, entryPoint])`
 
@@ -1124,7 +1124,12 @@ added: REPLACEME
 -->
 
 Finalizes the prepared statement. An exception is thrown if the statement is
-already finalized. This method is a wrapper around [`sqlite3_finalize()`][].
+already finalized. An [`ERR_INVALID_STATE`][] error is thrown if this statement
+is currently executing, which happens when the method is called from a callback
+that the statement itself triggered, such as a user-defined function, an
+aggregate function, or a [`'sqlite.db.query'`][] subscriber. Other statements
+on the same connection can be finalized from such a callback. This method is a
+wrapper around [`sqlite3_finalize()`][].
 
 ### `statement.columns()`
 
@@ -1371,7 +1376,9 @@ added: REPLACEME
 -->
 
 Finalizes the prepared statement. If the prepared statement is already
-finalized, then this is a no-op.
+finalized, then this is a no-op. An [`ERR_INVALID_STATE`][] error is thrown if
+this statement is currently executing, under the same conditions as
+[`statement.close()`][].
 
 ### `statement.stat(counter)`
 
@@ -1938,6 +1945,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
 [`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
+[`statement.close()`]: #statementclose
 [`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
 [`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
 [`statement.stat()`]: #statementstatcounter

@@ -320,6 +320,10 @@ class DatabaseSync : public BaseObject {
                      stmt) != stepping_statements_.end();
   }
 
+  void IncrementTraceSuppressionDepth() { ++trace_suppression_depth_; }
+  void DecrementTraceSuppressionDepth() { --trace_suppression_depth_; }
+  bool AreTraceEventsSuppressed() const { return trace_suppression_depth_ > 0; }
+
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
 
@@ -335,6 +339,7 @@ class DatabaseSync : public BaseObject {
   bool ignore_next_sqlite_error_;
   int callback_depth_ = 0;
   int authorizer_depth_ = 0;
+  int trace_suppression_depth_ = 0;
   std::vector<sqlite3_stmt*> stepping_statements_;
 
   std::set<BackupJob*> backups_;
@@ -513,6 +518,20 @@ class CallbackDepthGuard {
   ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
   CallbackDepthGuard(const CallbackDepthGuard&) = delete;
   CallbackDepthGuard& operator=(const CallbackDepthGuard&) = delete;
+
+ private:
+  DatabaseSync* db_;
+};
+
+class TraceEventSuppressionGuard {
+ public:
+  explicit TraceEventSuppressionGuard(DatabaseSync* db) : db_(db) {
+    db_->IncrementTraceSuppressionDepth();
+  }
+  ~TraceEventSuppressionGuard() { db_->DecrementTraceSuppressionDepth(); }
+  TraceEventSuppressionGuard(const TraceEventSuppressionGuard&) = delete;
+  TraceEventSuppressionGuard& operator=(const TraceEventSuppressionGuard&) =
+      delete;
 
  private:
   DatabaseSync* db_;

@@ -1,12 +1,14 @@
+// Flags: --expose-gc
 'use strict';
 
-const { skipIfSQLiteMissing } = require('../common');
+const { mustCall, skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 
 const assert = require('node:assert');
 const dc = require('node:diagnostics_channel');
 const { DatabaseSync } = require('node:sqlite');
 const { suite, it } = require('node:test');
+const { gcUntil } = require('../common/gc');
 
 suite('sqlite.db.query diagnostics channel', () => {
   it('subscriber receives SQL string for exec() statements', (t) => {
@@ -180,5 +182,56 @@ suite('sqlite.db.query diagnostics channel', () => {
 
     assert.strictEqual(calls.length, 1);
     assert.ok(calls[0].duration >= 0);
+  });
+
+  it('does not publish when an unfinished statement is collected', async (t) => {
+    let calls = 0;
+    const handler = () => calls++;
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    let collected = false;
+    const registry = new FinalizationRegistry(() => { collected = true; });
+
+    (() => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (x INTEGER)');
+      for (let i = 0; i < 10; i++) {
+        db.exec(`INSERT INTO t VALUES (${i})`);
+      }
+
+      const stmt = db.prepare('SELECT x FROM t');
+      registry.register(stmt);
+      stmt.iterate().next(); // Leave the statement unfinished.
+    })();
+
+    calls = 0; // reset after setup
+    await gcUntil('unfinished statement is collected', () => collected);
+
+    assert.strictEqual(calls, 0);
+  });
+
+  it('subscriber cannot close the database or statement', (t) => {
+    using db = new DatabaseSync(':memory:');
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+    using stmt = db.prepare('INSERT INTO t VALUES (?)');
+
+    const handler = mustCall(() => {
+      assert.throws(() => db.close(), { code: 'ERR_INVALID_STATE' });
+      assert.throws(() => stmt.close(), { code: 'ERR_INVALID_STATE' });
+      assert.throws(() => stmt[Symbol.dispose](), {
+        code: 'ERR_INVALID_STATE',
+      });
+    });
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    stmt.run(1);
+
+    dc.unsubscribe('sqlite.db.query', handler);
+    assert.deepStrictEqual(db.prepare('SELECT x FROM t').all(), [
+      { __proto__: null, x: 1 },
+    ]);
   });
 });

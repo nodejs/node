@@ -2794,7 +2794,8 @@ int DatabaseSync::TraceCallback(unsigned int type,
   Environment* env = db->env();
 
   diagnostics_channel::Channel* ch = db->trace_channel_.get();
-  if (ch == nullptr || !ch->HasSubscribers()) {
+  if (ch == nullptr || !ch->HasSubscribers() ||
+      db->AreTraceEventsSuppressed()) {
     return 0;
   }
 
@@ -2836,6 +2837,7 @@ int DatabaseSync::TraceCallback(unsigned int type,
 
   Local<Object> payload = Object::New(isolate, Null(isolate), keys, values, 3);
 
+  CallbackDepthGuard guard(db);
   ch->Publish(env, payload);
 
   return 0;
@@ -2868,6 +2870,7 @@ void StatementSync::Close() {
 }
 
 void StatementSync::Finalize() {
+  TraceEventSuppressionGuard trace_guard(db_.get());
   statement_.reset();
   InvalidateColumnNameCache();
 }
