@@ -65,6 +65,7 @@ test('fast FFI validates integer argument ranges', () => {
     assert.throws(() => callI64(2n ** 63n), expect);
     assert.throws(() => callU64(2n ** 64n), expect);
   } finally {
+    eval('%WaitForBackgroundOptimization()');
     lib.close();
   }
 });
@@ -96,6 +97,7 @@ test('fast FFI validates pointer BigInt ranges', () => {
       }
     }
   } finally {
+    eval('%WaitForBackgroundOptimization()');
     lib.close();
   }
 });
