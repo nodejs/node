@@ -1055,6 +1055,14 @@ class Http3ApplicationImpl final : public Session::Application {
     if (auto stream = session->FindStream(id)) {
       return stream;
     }
+    // A locally-initiated stream can only exist because we created it, so if
+    // we have no record of it the application already destroyed it. Frames the
+    // peer had already put in flight must not bring it back to life -- see
+    // DefaultApplication::ReceiveStreamData for the same guard on the raw
+    // QUIC path.
+    if (!session->is_destroyed() && ngtcp2_conn_is_local_stream(*session, id)) {
+      return {};
+    }
     if (auto stream = session->CreateStream(id)) {
       return stream;
     }
@@ -1193,6 +1201,31 @@ class Http3ApplicationImpl final : public Session::Application {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     auto& session = app.session();
+
+    // If the application destroyed a request stream it initiated, DATA frames
+    // the peer had already sent can still arrive. Ignore that payload rather
+    // than resurrecting the stream or tearing down the connection, but return
+    // its connection-level flow control credit: nghttp3 hands DATA payload to
+    // us uncredited (it is excluded from the framing bytes credited by the
+    // caller), so dropping it silently would permanently shrink the session's
+    // shared receive window.
+    // The is_destroyed() check has to come first: an earlier nghttp3 callback
+    // in this same batch may have destroyed the session (for example because a
+    // JS callback threw), and neither the ngtcp2 connection nor the flow
+    // control helpers below may be touched afterwards.
+    if (!session.is_destroyed() && !session.FindStream(id) &&
+        ngtcp2_conn_is_local_stream(session, id)) {
+      Debug(&session,
+            "HTTP/3 discarding %zu bytes for destroyed local stream %" PRIi64,
+            datalen,
+            id);
+      if (datalen > 0) {
+        Session::SendPendingDataScope send_scope(&session);
+        session.ExtendOffset(datalen);
+      }
+      return NGTCP2_SUCCESS;
+    }
+
     if (auto stream = FindOrCreateStream(conn, &session, id)) [[likely]] {
       stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
       return NGTCP2_SUCCESS;

@@ -1499,12 +1499,29 @@ void Stream::EndWriting() {
   if (!is_pending()) session_->ResumeStream(id());
 }
 
+void Stream::ReturnFlowControlCredit(uint64_t amount, CreditScope scope) {
+  if (amount == 0) return;
+  // The stream may outlive a destroyed session (the JS side can still hold a
+  // reader over the inbound queue), in which case there is no window left to
+  // extend.
+  if (!session_ || session_->is_destroyed()) return;
+  // Extending a window queues MAX_STREAM_DATA / MAX_DATA frames. The scope
+  // ensures they get flushed to the peer. When we are inside an ngtcp2
+  // callback the flush is a no-op (can_send_packets() is false) and the
+  // frames go out with the next scheduled send instead.
+  Session::SendPendingDataScope send_scope(&session());
+  if (scope == CreditScope::STREAM_AND_CONNECTION && !is_pending()) {
+    session().Consume(id(), amount);
+  } else {
+    session().ExtendOffset(amount);
+  }
+}
+
 void Stream::EntryRead(size_t amount) {
   // Called when the JS consumer reads data from the inbound DataQueue.
   // Extend the flow control window so the sender can transmit more.
-  if (session().is_destroyed()) return;
-  Session::SendPendingDataScope send_scope(&session());
-  session().Consume(id(), amount);
+  uncredited_bytes_ -= std::min<uint64_t>(uncredited_bytes_, amount);
+  ReturnFlowControlCredit(amount, CreditScope::STREAM_AND_CONNECTION);
 }
 
 void Stream::BeforePull() {
@@ -1517,14 +1534,24 @@ void Stream::BeforePull() {
 
 void Stream::FlushAccumulation() {
   if (!recv_accumulator_ || recv_accumulator_->available() == 0) return;
+  size_t flushed = recv_accumulator_->available();
   auto entry = recv_accumulator_->Flush(env());
   if (entry) {
-    inbound_->append(std::move(entry));
-    // Notify the reader that data is now available in the DataQueue.
-    // This is the only place we notify — not on every ReceiveData call —
-    // so the reader only wakes up when there is a well-sized entry to
-    // consume.
-    if (reader_) reader_->NotifyPull();
+    auto appended = inbound_->append(std::move(entry));
+    if (appended.value_or(false)) {
+      // Notify the reader that data is now available in the DataQueue.
+      // This is the only place we notify — not on every ReceiveData call —
+      // so the reader only wakes up when there is a well-sized entry to
+      // consume.
+      if (reader_) reader_->NotifyPull();
+    } else {
+      // The queue rejected the entry (it is capped and this data would push
+      // it past the final size) so the bytes have been dropped. They will
+      // never reach a reader, which means EntryRead() will never fire for
+      // them -- return their flow control credit here instead of leaking it.
+      uncredited_bytes_ -= std::min<uint64_t>(uncredited_bytes_, flushed);
+      ReturnFlowControlCredit(flushed, CreditScope::STREAM_AND_CONNECTION);
+    }
   }
   STAT_SET(Stats, bytes_accumulated, 0);
 }
@@ -1652,6 +1679,16 @@ void Stream::Destroy(QuicError error) {
   // the ring buffer memory.
   recv_accumulator_.reset();
 
+  // Any data that was received but never consumed is still holding inbound
+  // flow control credit. Once the backpressure listener is detached below,
+  // EntryRead() will never fire for it again, so return that credit now.
+  // The stream-level window is irrelevant at this point (the stream is going
+  // away) but the connection-level window is shared by the whole session:
+  // leaking it here would permanently shrink the session's receive window
+  // and, over enough streams, deadlock the connection.
+  ReturnFlowControlCredit(uncredited_bytes_, CreditScope::CONNECTION_ONLY);
+  uncredited_bytes_ = 0;
+
   // We reset the inbound here also. However, it's important to note that
   // the JavaScript side could still have a reader on the inbound DataQueue,
   // which may keep that data alive a bit longer.
@@ -1691,6 +1728,15 @@ void Stream::ReceiveData(const uint8_t* data,
   Debug(this, "Receiving %zu bytes of data", len);
   if (state()->read_ended == 1 || len == 0) {
     if (flags.fin) EndReadable();
+    // These bytes are being discarded, but ngtcp2 already charged them
+    // against both receive windows when it delivered them to us. Nothing
+    // downstream will ever consume them, so give the credit back now.
+    // This is reachable, for instance, when HTTP/3 replays DATA payload
+    // that it had buffered for QPACK head-of-line blocking after the
+    // readable side was already shut down.
+    if (len > 0) {
+      ReturnFlowControlCredit(len, CreditScope::STREAM_AND_CONNECTION);
+    }
     return;
   }
 
@@ -1698,6 +1744,11 @@ void Stream::ReceiveData(const uint8_t* data,
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_SET(Stats, max_offset_received, STAT_GET(Stats, bytes_received));
   STAT_RECORD_TIMESTAMP(Stats, received_at);
+
+  // These bytes now hold inbound flow control credit. The credit is returned
+  // incrementally as the JS consumer reads them (EntryRead), and any
+  // remainder is returned when the stream is destroyed.
+  uncredited_bytes_ += len;
 
   // Lazy-allocate the receive accumulation buffer on first data-carrying
   // call. Streams that never receive data (write-only, immediately reset)

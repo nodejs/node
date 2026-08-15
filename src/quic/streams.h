@@ -395,6 +395,26 @@ class Stream final : public AsyncWrap,
   // inbound DataQueue as a single right-sized entry.
   void FlushAccumulation();
 
+  // Which receive windows a flow control credit return applies to.
+  enum class CreditScope : uint8_t {
+    // Extend both the stream-level and the connection-level window. This is
+    // the normal case: the stream is still alive and the peer may send more
+    // data on it.
+    STREAM_AND_CONNECTION,
+    // Extend only the connection-level window. Used when the stream is going
+    // away or has no id yet, where a MAX_STREAM_DATA would be pointless or
+    // impossible, but the connection-level window is shared by the whole
+    // session and must never be leaked.
+    CONNECTION_ONLY,
+  };
+
+  // Returns `amount` bytes of inbound flow control credit to the peer.
+  // Every byte that ngtcp2 delivers to us is charged against both the
+  // stream-level and the connection-level receive windows, and it is the
+  // application's responsibility to give that credit back once those bytes
+  // have either been consumed or discarded.
+  void ReturnFlowControlCredit(uint64_t amount, CreditScope scope);
+
   // Gets a reader for the data received for this stream from the peer,
   BaseObjectPtr<Blob::Reader> get_reader();
 
@@ -457,6 +477,16 @@ class Stream final : public AsyncWrap,
   std::shared_ptr<DataQueue> inbound_;
   BaseObjectWeakPtr<Blob::Reader> reader_;
   std::unique_ptr<RecvAccumulator> recv_accumulator_;
+
+  // Number of received bytes that are still holding inbound flow control
+  // credit -- that is, bytes that ngtcp2 has delivered to us but that have
+  // not yet been handed to the JavaScript consumer (they are sitting in
+  // recv_accumulator_ or in the inbound_ DataQueue). This is incremented
+  // in ReceiveData() and decremented in EntryRead(). Any remainder is
+  // returned to the connection-level window when the stream is destroyed,
+  // otherwise abandoning a stream with unread data would permanently
+  // shrink the session's receive window.
+  uint64_t uncredited_bytes_ = 0;
 
   // If the stream cannot be opened yet, it will be created in a pending state.
   // Once the owning session is able to, it will complete opening of the stream
