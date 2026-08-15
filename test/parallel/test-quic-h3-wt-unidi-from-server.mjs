@@ -50,7 +50,6 @@ for (let i = 0; i < numChunks; i++) {
 }
 
 const serverSessionOpened = Promise.withResolvers();
-const serverSessionRead = Promise.withResolvers();
 
 const readChunks = [];
 let serverSessionStream;
@@ -62,7 +61,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     assert.strictEqual(BigInt(this?.remoteTransportParams?.maxDatagramFrameSize) > 0, true);
   });
   ss.onstream = mustCallAtLeast((stream) => {
-
+    console.log('Does nothing but is required');
   }, 1);
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
@@ -71,10 +70,10 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 100,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
   onheaders: mustCall(async function(headers) {
     try {
@@ -103,9 +102,9 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
       webtransportSession: serverSessionStream // Associate it with the sessionStream
     });
 
-    serverUnidiStream.closed.catch((error) => {
+    serverUnidiStream.closed.catch(mustCall((error) => {
       assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
-    });
+    }));
     // Next step send some data
     await serverSessionOpened.promise;
 
@@ -130,10 +129,10 @@ const clientSession = await connect(serverEndpoint.address, {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 1000,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
 });
 
@@ -160,32 +159,32 @@ clientSession.onstream = mustCall((stream) => {
     console.log('Called onheaders on the client side!');
   });
   stream.onsessionid = mustCallAtLeast(async (sessionid) => {
-      // Deinstall handlers
-      stream.onheaders = undefined;
-      stream.onsessionid = undefined;
-      stream.closed.catch((error) => {
-        assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
-      })
-      const sessionid2 = await serverSessionOpened.promise;
-      assert.strictEqual(sessionid, sessionid2);
-      // Now we get the data
-      for await (const chunks of stream) {
-        readChunks.push(...chunks);
-      }
-      const receivedBytes = readChunks.reduce((accu, curVal) => accu + curVal.byteLength, 0);
+    // Deinstall handlers
+    stream.onheaders = undefined;
+    stream.onsessionid = undefined;
+    stream.closed.catch(mustCall((error) => {
+      assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
+    }));
+    const sessionid2 = await serverSessionOpened.promise;
+    assert.strictEqual(sessionid, sessionid2);
+    // Now we get the data
+    for await (const chunks of stream) {
+      readChunks.push(...chunks);
+    }
+    const receivedBytes = readChunks.reduce((accu, curVal) => accu + curVal.byteLength, 0);
 
-      assert.strictEqual(receivedBytes, byteLength);
-      let receivedChecksum = 0;
-      for (const chunk of readChunks) {
-        receivedChecksum = (receivedChecksum + checksum(chunk)) | 0;
-      }
-      assert.strictEqual(receivedChecksum, expectedChecksum);
-      wtSessionStream.closed.catch(mustCall((error) => {
-        assert.strictEqual(error.errorCode, 200n);
-        assert.strictEqual(error.reason, 'all perfect');
-      }))
-      await wtSessionStream.closeWebtransportSessionStream(200, 'all perfect');
-    }, stream.id !== 0n ? 1 : 0); // The second stream is a datastream
+    assert.strictEqual(receivedBytes, byteLength);
+    let receivedChecksum = 0;
+    for (const chunk of readChunks) {
+      receivedChecksum = (receivedChecksum + checksum(chunk)) | 0;
+    }
+    assert.strictEqual(receivedChecksum, expectedChecksum);
+    wtSessionStream.closed.catch(mustCall((error) => {
+      assert.strictEqual(error.errorCode, 200n);
+      assert.strictEqual(error.reason, 'all perfect');
+    }));
+    await wtSessionStream.closeWebtransportSessionStream(200, 'all perfect');
+  }, stream.id !== 0n ? 1 : 0); // The second stream is a datastream
 });
 
 await clientSession.opened;
@@ -205,7 +204,6 @@ wtSessionStream.sendHeaders({
 }, {
   webtransport: true // Tell nghttp3 to treat the stream as a WT session stream
 });
-
 
 
 try {
