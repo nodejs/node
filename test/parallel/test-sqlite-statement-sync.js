@@ -2,17 +2,8 @@
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
-const tmpdir = require('../common/tmpdir');
-const { join } = require('node:path');
 const { DatabaseSync, StatementSync } = require('node:sqlite');
 const { suite, test } = require('node:test');
-let cnt = 0;
-
-tmpdir.refresh();
-
-function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
-}
 
 suite('StatementSync() constructor', () => {
   test('StatementSync cannot be constructed directly', (t) => {
@@ -27,8 +18,7 @@ suite('StatementSync() constructor', () => {
 
 suite('StatementSync.prototype.get()', () => {
   test('executes a query and returns undefined on no results', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.strictEqual(stmt.get(), undefined);
     stmt = db.prepare('SELECT * FROM storage');
@@ -36,8 +26,7 @@ suite('StatementSync.prototype.get()', () => {
   });
 
   test('executes a query and returns the first result', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.strictEqual(stmt.get(), undefined);
     stmt = db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
@@ -48,8 +37,7 @@ suite('StatementSync.prototype.get()', () => {
   });
 
   test('executes a query that returns special columns', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const stmt = db.prepare('SELECT 1 as __proto__, 2 as constructor, 3 as toString');
     t.assert.deepStrictEqual(stmt.get(), { __proto__: null, ['__proto__']: 1, constructor: 2, toString: 3 });
   });
@@ -76,19 +64,51 @@ suite('StatementSync.prototype.get()', () => {
       __proto__: null, key: 'key1', val: 'val1',
     });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.get();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('surfaces a deferred SQLite error from reset() even though a row was already built', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      PRAGMA foreign_keys = ON;
+      PRAGMA defer_foreign_keys = ON;
+      CREATE TABLE parent(id INTEGER PRIMARY KEY);
+      CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id));
+    `);
+    // The FK check is deferred until the implicit transaction commits, which
+    // happens inside reset() here because RETURNING leaves the statement's
+    // VDBE running after the row is produced.
+    const stmt = db.prepare(
+      'INSERT INTO child (parent_id) VALUES (999) RETURNING id'
+    );
+    t.assert.throws(() => {
+      stmt.get();
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /FOREIGN KEY constraint failed/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.all()', () => {
   test('executes a query and returns an empty array on no results', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.deepStrictEqual(stmt.all(), []);
   });
 
   test('executes a query and returns all results', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.deepStrictEqual(stmt.run(), { changes: 0, lastInsertRowid: 0 });
     stmt = db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
@@ -129,12 +149,42 @@ suite('StatementSync.prototype.all()', () => {
       { __proto__: null, key: 'key1', val: 'val1' },
     ]);
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.all();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('surfaces a deferred SQLite error from reset() even though the array was already built', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      PRAGMA foreign_keys = ON;
+      PRAGMA defer_foreign_keys = ON;
+      CREATE TABLE parent(id INTEGER PRIMARY KEY);
+      CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id));
+    `);
+    const stmt = db.prepare(
+      'INSERT INTO child (parent_id) VALUES (999) RETURNING id'
+    );
+    t.assert.throws(() => {
+      stmt.all();
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /FOREIGN KEY constraint failed/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.iterate()', () => {
   test('executes a query and returns an empty iterator on no results', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     const iter = stmt.iterate();
     t.assert.strictEqual(iter instanceof globalThis.Iterator, true);
@@ -143,8 +193,7 @@ suite('StatementSync.prototype.iterate()', () => {
   });
 
   test('executes a query and returns all results', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     let stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
     t.assert.deepStrictEqual(stmt.run(), { changes: 0, lastInsertRowid: 0 });
     stmt = db.prepare('INSERT INTO storage (key, val) VALUES (?, ?)');
@@ -295,12 +344,58 @@ suite('StatementSync.prototype.iterate()', () => {
     stmt2.get();
     it.next();
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.iterate();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('does not replay results after the iterator is naturally exhausted', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE test(key TEXT);
+      INSERT INTO test (key) VALUES ('key1');
+    `);
+    const it = db.prepare('SELECT * FROM test').iterate();
+    t.assert.deepStrictEqual(it.next(), {
+      __proto__: null, done: false, value: { __proto__: null, key: 'key1' },
+    });
+    t.assert.deepStrictEqual(
+      it.next(), { __proto__: null, done: true, value: null });
+    // Calling next() again on an exhausted iterator must keep reporting
+    // done, not silently reset the statement and replay from row 1.
+    t.assert.deepStrictEqual(
+      it.next(), { __proto__: null, done: true, value: null });
+  });
+
+  test('propagates a pending exception when the loop body throws mid-iteration', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE test(key TEXT);
+      INSERT INTO test (key) VALUES ('key1');
+      INSERT INTO test (key) VALUES ('key2');
+    `);
+    const stmt = db.prepare('SELECT * FROM test');
+    const userError = new Error('boom');
+    t.assert.throws(() => {
+      // eslint-disable-next-line no-unused-vars
+      for (const row of stmt.iterate()) {
+        throw userError;
+      }
+    }, (err) => err === userError);
+  });
 });
 
 suite('StatementSync.prototype.run()', () => {
   test('executes a query and returns change metadata', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE storage(key TEXT, val TEXT);
       INSERT INTO storage (key, val) VALUES ('foo', 'bar');
@@ -311,8 +406,7 @@ suite('StatementSync.prototype.run()', () => {
   });
 
   test('SQLite throws when trying to bind too many parameters', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -329,8 +423,7 @@ suite('StatementSync.prototype.run()', () => {
   });
 
   test('SQLite defaults to NULL for unbound parameters', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
@@ -366,8 +459,7 @@ suite('StatementSync.prototype.run()', () => {
   });
 
   test('SQLite defaults unbound ?NNN parameters', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
@@ -385,8 +477,7 @@ suite('StatementSync.prototype.run()', () => {
   });
 
   test('binds ?NNN params by position', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER NOT NULL) STRICT;'
     );
@@ -394,12 +485,23 @@ suite('StatementSync.prototype.run()', () => {
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?1, ?2)');
     t.assert.deepStrictEqual(stmt.run(1, 2), { changes: 1, lastInsertRowid: 1 });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.run();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.sourceSQL', () => {
   test('equals input SQL', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -408,12 +510,21 @@ suite('StatementSync.prototype.sourceSQL', () => {
     const stmt = db.prepare(sql);
     t.assert.strictEqual(stmt.sourceSQL, sql);
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => stmt.sourceSQL, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.expandedSQL', () => {
   test('equals expanded SQL', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -427,12 +538,227 @@ suite('StatementSync.prototype.expandedSQL', () => {
     );
     t.assert.strictEqual(stmt.expandedSQL, expanded);
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => stmt.expandedSQL, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
+
+suite('StatementSync.prototype.stat()', () => {
+  const counters = [
+    'fullscanStep', 'sort', 'autoindex', 'vmStep', 'reprepare',
+    'run', 'memused',
+  ];
+
+  // 'filterMiss' and 'filterHit' map to SQLITE_STMTSTATUS_FILTER_MISS and
+  // SQLITE_STMTSTATUS_FILTER_HIT, which were added in SQLite 3.38.0. Builds
+  // using an older shared SQLite do not expose them.
+  const [major, minor] = process.versions.sqlite.split('.').map(Number);
+  const hasFilterCounters = major > 3 || (major === 3 && minor >= 38);
+
+  if (hasFilterCounters) {
+    counters.push('filterMiss', 'filterHit');
+  }
+
+  test('returns a number for every valid counter', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const stmt = db.prepare('SELECT * FROM data');
+    for (const counter of counters) {
+      t.assert.strictEqual(typeof stmt.stat(counter), 'number');
+    }
+  });
+
+  test('counts virtual machine steps and runs after execution', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    for (let i = 1; i <= 5; i++) {
+      insert.run(i, `val-${i}`);
+    }
+    const stmt = db.prepare('SELECT * FROM data');
+    t.assert.strictEqual(stmt.stat('run'), 0);
+    t.assert.strictEqual(stmt.stat('vmStep'), 0);
+    stmt.all();
+    t.assert.strictEqual(stmt.stat('run'), 1);
+    t.assert.ok(stmt.stat('vmStep') > 0);
+    t.assert.ok(stmt.stat('memused') > 0);
+  });
+
+  test('detects full table scans', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    for (let i = 1; i <= 10; i++) {
+      insert.run(i, `val-${i}`);
+    }
+
+    // Filtering on a non-indexed column forces a full table scan.
+    const scan = db.prepare('SELECT * FROM data WHERE val = ?');
+    scan.all('val-5');
+    t.assert.ok(scan.stat('fullscanStep') > 0);
+
+    // Filtering on the primary key uses the index; no full scan occurs.
+    const indexed = db.prepare('SELECT * FROM data WHERE key = ?');
+    indexed.all(5);
+    t.assert.strictEqual(indexed.stat('fullscanStep'), 0);
+  });
+
+  test('reading a counter does not reset it', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const stmt = db.prepare('SELECT * FROM data');
+    stmt.all();
+    const first = stmt.stat('run');
+    t.assert.strictEqual(stmt.stat('run'), first);
+  });
+
+  test('throws if the counter argument is not a string', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    t.assert.throws(() => stmt.stat(), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "counter" argument must be a string/,
+    });
+    t.assert.throws(() => stmt.stat(42), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "counter" argument must be a string/,
+    });
+  });
+
+  test('throws if the counter name is unknown', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    t.assert.throws(() => stmt.stat('nope'), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /The "counter" argument is not a valid statistic name/,
+    });
+  });
+
+  test('throws if the statement is finalized', (t) => {
+    const db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    db.close();
+    t.assert.throws(() => stmt.stat('run'), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
+
+suite('StatementSync.prototype.resetStats()', () => {
+  test('returns undefined', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    t.assert.strictEqual(stmt.resetStats(), undefined);
+  });
+
+  // The column name cache is keyed on the reprepare counter, which
+  // resetStats() zeroes. A later re-prepare must not be able to make the
+  // counter match the cached generation again and reuse stale names.
+  test('invalidates cached iterator column names', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(a); INSERT INTO data VALUES (1)');
+    const stmt = db.prepare('SELECT * FROM data');
+
+    db.exec('ALTER TABLE data RENAME COLUMN a TO b');
+    stmt.iterate().toArray();
+    stmt.resetStats();
+    db.exec('ALTER TABLE data RENAME COLUMN b TO c');
+
+    t.assert.deepStrictEqual(stmt.iterate().toArray(), [
+      { __proto__: null, c: 1 },
+    ]);
+  });
+
+  test('invalidates the cache when the column count grows', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t(a); INSERT INTO t VALUES (1)');
+    const stmt = db.prepare('SELECT * FROM t');
+
+    db.exec('ALTER TABLE t ADD COLUMN b DEFAULT 2');
+    stmt.iterate().toArray();
+    stmt.resetStats();
+    db.exec('ALTER TABLE t ADD COLUMN c DEFAULT 3');
+
+    t.assert.deepStrictEqual(stmt.iterate().toArray(), [
+      { __proto__: null, a: 1, b: 2, c: 3 },
+    ]);
+  });
+
+  test('does not reset memused', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE t(a); INSERT INTO t VALUES (1),(2),(3)');
+    const stmt = db.prepare('SELECT * FROM t ORDER BY a');
+    stmt.all();
+
+    // The memused counter reports current memory usage rather than an
+    // accumulated total, so SQLite ignores the reset flag for it.
+    const before = stmt.stat('memused');
+    t.assert.ok(before > 0);
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('memused'), before);
+  });
+
+  test('clears every counter', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const insert = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
+    for (let i = 1; i <= 5; i++) {
+      insert.run(i, `val-${i}`);
+    }
+
+    // Force a full table scan so more than one counter is non-zero.
+    const stmt = db.prepare('SELECT * FROM data WHERE val = ?');
+    stmt.all('val-3');
+    t.assert.ok(stmt.stat('run') > 0);
+    t.assert.ok(stmt.stat('vmStep') > 0);
+    t.assert.ok(stmt.stat('fullscanStep') > 0);
+
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('run'), 0);
+    t.assert.strictEqual(stmt.stat('vmStep'), 0);
+    t.assert.strictEqual(stmt.stat('fullscanStep'), 0);
+  });
+
+  test('counters accumulate again after a reset', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;');
+    const stmt = db.prepare('SELECT * FROM data');
+    stmt.all();
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('run'), 0);
+    stmt.all();
+    t.assert.strictEqual(stmt.stat('run'), 1);
+  });
+
+  test('is a no-op when no counters have been incremented', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    stmt.resetStats();
+    t.assert.strictEqual(stmt.stat('run'), 0);
+  });
+
+  test('throws if the statement is finalized', (t) => {
+    const db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('SELECT 1');
+    db.close();
+    t.assert.throws(() => stmt.resetStats(), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.setReadBigInts()', () => {
   test('BigInts support can be toggled', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
       INSERT INTO data (key, val) VALUES (1, 42);
@@ -464,8 +790,7 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE types(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -480,8 +805,7 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
   });
 
   test('BigInt is required for reading large integers', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
     t.assert.throws(() => {
       bad.get();
@@ -496,12 +820,23 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
       [`${Number.MAX_SAFE_INTEGER} + 1`]: 2n ** 53n,
     });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.setReadBigInts(true);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.setReturnArrays()', () => {
   test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -514,12 +849,23 @@ suite('StatementSync.prototype.setReturnArrays()', () => {
       message: /The "returnArrays" argument must be a boolean/,
     });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.setReturnArrays(true);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('StatementSync.prototype.get() with array output', () => {
   test('returns array row when setReturnArrays is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -538,8 +884,7 @@ suite('StatementSync.prototype.get() with array output', () => {
 
   test('returns array rows with BigInts when both flags are set', (t) => {
     const expected = [1n, 9007199254740992n];
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE big_data(id INTEGER, big_num INTEGER);
       INSERT INTO big_data VALUES (1, 9007199254740992);
@@ -557,8 +902,7 @@ suite('StatementSync.prototype.get() with array output', () => {
 
 suite('StatementSync.prototype.all() with array output', () => {
   test('returns array rows when setReturnArrays is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -598,8 +942,7 @@ suite('StatementSync.prototype.all() with array output', () => {
       9,
       'text3',
     ];
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE wide_table(
         col1 INTEGER, col2 TEXT, col3 REAL, col4 BLOB, col5 INTEGER,
@@ -623,8 +966,7 @@ suite('StatementSync.prototype.all() with array output', () => {
 
 suite('StatementSync.prototype.iterate() with array output', () => {
   test('iterates array rows when setReturnArrays is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -692,8 +1034,7 @@ suite('StatementSync.prototype.iterate() with array output', () => {
 
 suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
   test('bare named parameter support can be toggled', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -718,8 +1059,7 @@ suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -732,12 +1072,23 @@ suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
       message: /The "allowBareNamedParameters" argument must be a boolean/,
     });
   });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.setAllowBareNamedParameters(true);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
 });
 
 suite('options.readBigInts', () => {
   test('BigInts are returned when input is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
       INSERT INTO data (key, val) VALUES (1, 42);
@@ -749,8 +1100,7 @@ suite('options.readBigInts', () => {
   });
 
   test('numbers are returned when input is false', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
       INSERT INTO data (key, val) VALUES (1, 42);
@@ -762,8 +1112,7 @@ suite('options.readBigInts', () => {
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -777,8 +1126,7 @@ suite('options.readBigInts', () => {
   });
 
   test('setReadBigInts can override prepare option', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
       INSERT INTO data (key, val) VALUES (1, 42);
@@ -794,8 +1142,7 @@ suite('options.readBigInts', () => {
 
 suite('options.returnArrays', () => {
   test('arrays are returned when input is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -810,8 +1157,7 @@ suite('options.returnArrays', () => {
   });
 
   test('objects are returned when input is false', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -826,8 +1172,7 @@ suite('options.returnArrays', () => {
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;'
     );
@@ -841,8 +1186,7 @@ suite('options.returnArrays', () => {
   });
 
   test('setReturnArrays can override prepare option', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -859,8 +1203,7 @@ suite('options.returnArrays', () => {
   });
 
   test('all() returns arrays when input is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -879,8 +1222,7 @@ suite('options.returnArrays', () => {
   });
 
   test('iterate() returns arrays when input is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(`
       CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
       INSERT INTO data (key, val) VALUES (1, 'one');
@@ -901,8 +1243,7 @@ suite('options.returnArrays', () => {
 
 suite('options.allowBareNamedParameters', () => {
   test('bare named parameters are allowed when input is true', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -918,8 +1259,7 @@ suite('options.allowBareNamedParameters', () => {
   });
 
   test('bare named parameters throw when input is false', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -937,8 +1277,7 @@ suite('options.allowBareNamedParameters', () => {
   });
 
   test('throws when input is not a boolean', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -955,8 +1294,7 @@ suite('options.allowBareNamedParameters', () => {
   });
 
   test('setAllowBareNamedParameters can override prepare option', (t) => {
-    const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
+    using db = new DatabaseSync(':memory:');
     const setup = db.exec(
       'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
     );
@@ -976,5 +1314,112 @@ suite('options.allowBareNamedParameters', () => {
       stmt.run({ k: 2, v: 4 }),
       { changes: 1, lastInsertRowid: 2 },
     );
+  });
+});
+
+
+suite('StatementSync.prototype.close()', () => {
+  test('finalizes an open statement', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    const stmt = db.prepare('SELECT * FROM storage');
+    t.assert.strictEqual(stmt.close(), undefined);
+    t.assert.throws(() => stmt.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('throws if the statement is already finalized', (t) => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt.close();
+    t.assert.throws(() => {
+      stmt.close();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+});
+
+suite('StatementSync.prototype[Symbol.dispose]()', () => {
+  test('finalizes an open statement', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    const stmt = db.prepare('SELECT * FROM storage');
+    stmt[Symbol.dispose]();
+    t.assert.throws(() => stmt.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('does not throw on an already-finalized statement', () => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt[Symbol.dispose]();
+    stmt[Symbol.dispose]();
+  });
+
+  test('works with a using declaration', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE storage(key TEXT, val TEXT)');
+    let captured;
+    {
+      using stmt = db.prepare('SELECT * FROM storage');
+      captured = stmt;
+      t.assert.deepStrictEqual(stmt.all(), []);
+    }
+    t.assert.throws(() => captured.get(), {
+      code: 'ERR_INVALID_STATE',
+      message: /statement has been finalized/,
+    });
+  });
+
+  test('closing the database after dispose does not double-finalize', () => {
+    using db = new DatabaseSync(':memory:');
+    const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
+    stmt[Symbol.dispose]();
+    db.close();
+  });
+});
+
+suite('options.persistent', () => {
+  test('statement executes correctly when persistent is true', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    using stmt = db.prepare('SELECT val FROM data', { persistent: true });
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42 });
+  });
+
+  test('statement executes correctly when persistent is false', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    using stmt = db.prepare('SELECT val FROM data', { persistent: false });
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42 });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    using db = new DatabaseSync(':memory:');
+    t.assert.throws(() => {
+      db.prepare('SELECT 1', { persistent: 'yes' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.persistent" argument must be a boolean/,
+    });
+  });
+
+  test('can be combined with other options', (t) => {
+    using db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    using stmt = db.prepare(
+      'SELECT val FROM data',
+      { persistent: true, readBigInts: true }
+    );
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42n });
   });
 });

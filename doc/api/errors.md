@@ -768,12 +768,6 @@ An operation outside the bounds of a `Buffer` was attempted.
 An attempt has been made to create a `Buffer` larger than the maximum allowed
 size.
 
-<a id="ERR_CANNOT_WATCH_SIGINT"></a>
-
-### `ERR_CANNOT_WATCH_SIGINT`
-
-Node.js was unable to watch for the `SIGINT` signal.
-
 <a id="ERR_CHILD_CLOSED_BEFORE_REPLY"></a>
 
 ### `ERR_CHILD_CLOSED_BEFORE_REPLY`
@@ -1514,7 +1508,7 @@ New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 
 ### `ERR_HTTP2_HEADERS_AFTER_RESPOND`
 
-An additional headers was specified after an HTTP/2 response was initiated.
+Additional headers were specified after an HTTP/2 response was initiated.
 
 <a id="ERR_HTTP2_HEADERS_SENT"></a>
 
@@ -2143,13 +2137,6 @@ An invalid `options.protocol` was passed to `http.request()`.
 
 Both `breakEvalOnSigint` and `eval` options were set in the [`REPL`][] config,
 which is not supported.
-
-<a id="ERR_INVALID_REPL_INPUT"></a>
-
-### `ERR_INVALID_REPL_INPUT`
-
-The input may not be used in the [`REPL`][]. The conditions under which this
-error is used are described in the [`REPL`][] documentation.
 
 <a id="ERR_INVALID_RETURN_PROPERTY"></a>
 
@@ -2830,7 +2817,7 @@ changes:
     description: Added the `requireStack` and `topLevelAwaitLocations` properties.
 -->
 
-When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
+When trying to `require()` an [ES Module][], the module turns out to be asynchronous.
 That is, it contains top-level await.
 
 When uncaught, the flag `--experimental-print-required-tla` prints
@@ -2852,7 +2839,7 @@ This error has the following additional non-enumerable properties:
 
 ### `ERR_REQUIRE_CYCLE_MODULE`
 
-When trying to `require()` a [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
+When trying to `require()` an [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
 participates in an immediate cycle.
 This is not allowed because ES Modules cannot be evaluated while they are
 already being evaluated.
@@ -3441,7 +3428,7 @@ import 'package-name'; // supported
 added: v22.6.0
 -->
 
-Type stripping is not supported for files descendent of a `node_modules` directory.
+Type stripping is not supported for files descendant of a `node_modules` directory.
 
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 
@@ -3582,6 +3569,14 @@ added: v18.1.0
 The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 `WebAssembly.instantiateStreaming` is not a valid WebAssembly response.
 
+<a id="ERR_WORKER_HANDLE_NOT_TRANSFERABLE"></a>
+
+### `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`
+
+An attempt was made to transfer a `net.Socket` or `net.Server` to another thread
+via a `worker_threads` `postMessage()` call while it was not in a transferable
+state, for example because it had already started reading or had buffered data.
+
 <a id="ERR_WORKER_INIT_FAILED"></a>
 
 ### `ERR_WORKER_INIT_FAILED`
@@ -3673,6 +3668,58 @@ All attempts at serializing an uncaught exception from a worker thread failed.
 ### `ERR_WORKER_UNSUPPORTED_OPERATION`
 
 The requested functionality is not supported in worker threads.
+
+<a id="ERR_ZIP_ARCHIVE_TOO_LARGE"></a>
+
+### `ERR_ZIP_ARCHIVE_TOO_LARGE`
+
+An archive-level structure exceeds a limit: the archive comment exceeds the
+65,535-byte encoded length that the ZIP format allows, or the archive's
+central directory is too large to buffer in memory.
+
+<a id="ERR_ZIP_ENTRY_CORRUPT"></a>
+
+### `ERR_ZIP_ENTRY_CORRUPT`
+
+A ZIP archive entry failed CRC-32 verification, or produced more or fewer
+bytes than its declared uncompressed size, while being read.
+
+<a id="ERR_ZIP_ENTRY_NOT_FOUND"></a>
+
+### `ERR_ZIP_ENTRY_NOT_FOUND`
+
+A named entry was requested from a [`ZipFile`][] or [`ZipBuffer`][] that does
+not contain an entry with that name.
+
+<a id="ERR_ZIP_ENTRY_TOO_LARGE"></a>
+
+### `ERR_ZIP_ENTRY_TOO_LARGE`
+
+A ZIP archive entry's declared size exceeds the configured limit, or a
+provided entry name or comment exceeds the 65,535-byte encoded length that
+the ZIP format allows.
+
+<a id="ERR_ZIP_INVALID_ARCHIVE"></a>
+
+### `ERR_ZIP_INVALID_ARCHIVE`
+
+Data that was expected to be a ZIP archive, or a structure within one, is
+missing, out of bounds, or otherwise inconsistent with the ZIP format.
+
+<a id="ERR_ZIP_NOT_WRITABLE"></a>
+
+### `ERR_ZIP_NOT_WRITABLE`
+
+A mutating method (such as `zipFile.addEntry()` or `zipFile.delete()`) was
+called on a [`ZipFile`][] that was not opened with `{ writable: true }`.
+
+<a id="ERR_ZIP_UNSUPPORTED_FEATURE"></a>
+
+### `ERR_ZIP_UNSUPPORTED_FEATURE`
+
+A ZIP archive uses a feature outside of what this implementation supports,
+such as entry encryption, an unsupported compression method, or a multi-disk
+archive.
 
 <a id="ERR_ZLIB_INITIALIZATION_FAILED"></a>
 
@@ -4617,6 +4664,8 @@ An error occurred trying to allocate memory. This should never happen.
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
 [`Writable`]: stream.md#class-streamwritable
+[`ZipBuffer`]: zlib.md#class-zlibzipbuffer
+[`ZipFile`]: zlib.md#class-zlibzipfile
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag
 [`crypto.getDiffieHellman()`]: crypto.md#cryptogetdiffiehellmangroupname

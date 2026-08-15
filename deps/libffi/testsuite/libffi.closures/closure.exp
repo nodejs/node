@@ -36,7 +36,7 @@ if { [string match $compiler_vendor "microsoft"] } {
 set tlist [lsort [glob -nocomplain -- $srcdir/$subdir/*.c]]
 
 if { [libffi_feature_test "#if FFI_CLOSURES"] } {
-    run-many-tests $tlist ""
+    run-many-tests $tlist $additional_options
 } else {
     foreach test $tlist {
 	unsupported "$test"

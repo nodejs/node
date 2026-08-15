@@ -66,9 +66,8 @@ class SeaSerializer : public BlobSerializer<SeaSerializer> {
       : BlobSerializer<SeaSerializer>(
             per_process::enabled_debug_list.enabled(DebugCategory::SEA)) {}
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   size_t Write(const T& data);
 };
 
@@ -150,9 +149,8 @@ class SeaDeserializer : public BlobDeserializer<SeaDeserializer> {
       : BlobDeserializer<SeaDeserializer>(
             per_process::enabled_debug_list.enabled(DebugCategory::SEA), v) {}
 
-  template <typename T,
-            std::enable_if_t<!std::is_same<T, std::string>::value>* = nullptr,
-            std::enable_if_t<!std::is_arithmetic<T>::value>* = nullptr>
+  template <typename T>
+    requires(!std::is_arithmetic_v<T> && !std::same_as<T, std::string>)
   T Read();
 };
 
@@ -283,7 +281,9 @@ void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
-std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
+std::tuple<int, char**> FixupArgsForSEA(int argc,
+                                        char** argv,
+                                        std::vector<std::string>* errors) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
   if (IsSingleExecutable()) {
@@ -303,8 +303,10 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
       for (int i = 1; i < argc; ++i) {
         if (strncmp(argv[i], "--node-options=", 15) == 0) {
           std::string node_options = argv[i] + 15;
-          std::vector<std::string> errors;
-          cli_extension_args = ParseNodeOptionsEnvVar(node_options, &errors);
+          cli_extension_args = ParseNodeOptionsEnvVar(node_options, errors);
+          if (!errors->empty()) {
+            return {argc, argv};
+          }
           // Remove this argument by shifting the rest
           for (int j = i; j < argc - 1; ++j) {
             argv[j] = argv[j + 1];
@@ -321,10 +323,11 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
                      cli_extension_args.size() + 2);
     new_argv.emplace_back(argv[0]);
 
+    exec_argv_storage.reserve(sea_resource.exec_argv.size() +
+                              cli_extension_args.size());
+
     // Insert exec argv from SEA config
     if (!sea_resource.exec_argv.empty()) {
-      exec_argv_storage.reserve(sea_resource.exec_argv.size() +
-                                cli_extension_args.size());
       for (const auto& arg : sea_resource.exec_argv) {
         exec_argv_storage.emplace_back(arg);
         new_argv.emplace_back(exec_argv_storage.back().data());
@@ -535,6 +538,14 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
         return std::nullopt;
       }
     }
+  }
+
+  if (!document.at_end()) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: %s\n",
+            config_path,
+            simdjson::error_message(simdjson::TRAILING_CONTENT));
+    return std::nullopt;
   }
 
   if (static_cast<bool>(result.flags & SeaFlags::kUseSnapshot) &&
@@ -829,7 +840,7 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   if (sea_resource.assets.empty()) {
     return;
   }
-  auto it = sea_resource.assets.find(*key);
+  auto it = sea_resource.assets.find(std::string_view(*key, key.length()));
   if (it == sea_resource.assets.end()) {
     return;
   }

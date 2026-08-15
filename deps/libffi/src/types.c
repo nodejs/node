@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   types.c - Copyright (c) 1996, 1998, 2024, 2025  Red Hat, Inc.
+   types.c - Copyright (c) 1996, 1998, 2024, 2025, 2026  Red Hat, Inc.
 
    Predefined ffi_types needed by libffi.
 

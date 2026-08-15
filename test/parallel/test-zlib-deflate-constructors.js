@@ -5,12 +5,18 @@ require('../common');
 const zlib = require('zlib');
 const assert = require('assert');
 
-// Work with and without `new` keyword
-assert.ok(zlib.Deflate() instanceof zlib.Deflate);
+// Require the `new` keyword (DEP0184 End-of-Life)
 assert.ok(new zlib.Deflate() instanceof zlib.Deflate);
-
-assert.ok(zlib.DeflateRaw() instanceof zlib.DeflateRaw);
 assert.ok(new zlib.DeflateRaw() instanceof zlib.DeflateRaw);
+
+assert.throws(() => zlib.Deflate(), {
+  name: 'TypeError',
+  message: /Class constructor Deflate cannot be invoked without 'new'/,
+});
+assert.throws(() => zlib.DeflateRaw(), {
+  name: 'TypeError',
+  message: /Class constructor DeflateRaw cannot be invoked without 'new'/,
+});
 
 // Throws if `options.chunkSize` is invalid
 assert.throws(

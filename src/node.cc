@@ -1168,6 +1168,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   if (!(flags & ProcessInitializationFlags::kNoInitOpenSSL)) {
 #if HAVE_OPENSSL
 #ifndef OPENSSL_IS_BORINGSSL
+#if OPENSSL_VERSION_MAJOR >= 3
     auto GetOpenSSLErrorString = []() -> std::string {
       std::string ret;
       ERR_print_errors_cb(
@@ -1183,7 +1184,6 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 
     // In the case of FIPS builds we should make sure
     // the random source is properly initialized first.
-#if OPENSSL_VERSION_MAJOR >= 3
     // Call OPENSSL_init_crypto to initialize OPENSSL_INIT_LOAD_CONFIG to
     // avoid the default behavior where errors raised during the parsing of the
     // OpenSSL configuration file are not propagated and cannot be detected.
@@ -1244,12 +1244,10 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       OPENSSL_init();
     }
 #endif
-    if (!crypto::ProcessFipsOptions()) {
+    if (auto fips_error = crypto::ProcessFipsOptions()) {
       result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
-      result->errors_.emplace_back(
-          "OpenSSL error when trying to enable FIPS:\n" +
-          GetOpenSSLErrorString());
+      result->errors_.emplace_back(std::move(*fips_error));
       return result;
     }
 
@@ -1633,7 +1631,14 @@ static ExitCode StartInternal(int argc, char** argv) {
 
 int Start(int argc, char** argv) {
 #ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv);
+  std::vector<std::string> errors;
+  std::tie(argc, argv) = sea::FixupArgsForSEA(argc, argv, &errors);
+  if (!errors.empty()) {
+    for (const std::string& error : errors) {
+      FPrintF(stderr, "%s: %s\n", argv[0], error);
+    }
+    return static_cast<int>(ExitCode::kInvalidCommandLineArgument);
+  }
 #endif
   return static_cast<int>(StartInternal(argc, argv));
 }

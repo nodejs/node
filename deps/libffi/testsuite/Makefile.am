@@ -13,11 +13,17 @@ EXTRA_DIST = config/default.exp emscripten/build.sh emscripten/conftest.py \
 	libffi.bhaible/alignof.h libffi.bhaible/bhaible.exp libffi.bhaible/test-call.c \
 	libffi.bhaible/test-callback.c libffi.bhaible/testcases.c libffi.call/align_mixed.c \
 	libffi.call/align_stdcall.c libffi.call/bpo_38748.c libffi.call/call.exp \
+	libffi.call/closure_thiscall_fastcall_pop.c \
 	libffi.call/err_bad_typedef.c libffi.call/ffitest.h libffi.call/float.c \
 	libffi.call/float1.c libffi.call/float2.c libffi.call/float3.c \
-	libffi.call/float4.c libffi.call/float_va.c libffi.call/many.c \
-	libffi.call/many2.c libffi.call/many_double.c libffi.call/many_mixed.c \
+	libffi.call/float4.c libffi.call/float_va.c libffi.call/i128-1.c \
+	libffi.call/large_struct_by_value.c libffi.call/many.c \
+	libffi.call/many2.c libffi.call/many_double.c \
+	libffi.call/many_large_structs.c libffi.call/many_mixed.c \
+	libffi.call/many_small_structs.c \
 	libffi.call/negint.c libffi.call/offsets.c libffi.call/overread.c \
+	libffi.call/plan.c libffi.call/plan_mixed.c libffi.call/plan_spill.c \
+	libffi.call/plan_struct.c libffi.call/plan_size.c libffi.call/plan_var.c \
 	libffi.call/pr1172638.c libffi.call/promotion.c libffi.call/pyobjc_tc.c libffi.call/return_dbl.c \
 	libffi.call/return_dbl1.c libffi.call/return_dbl2.c libffi.call/return_fl.c \
 	libffi.call/return_fl1.c libffi.call/return_fl2.c libffi.call/return_fl3.c \
@@ -77,7 +83,7 @@ EXTRA_DIST = config/default.exp emscripten/build.sh emscripten/conftest.py \
 	libffi.complex/cls_complex_va_double.c libffi.complex/cls_complex_va_float.c libffi.complex/cls_complex_va_longdouble.c \
 	libffi.complex/complex.exp libffi.complex/complex.inc libffi.complex/complex_defs_double.inc \
 	libffi.complex/complex_defs_float.inc libffi.complex/complex_defs_longdouble.inc libffi.complex/complex_double.c \
-	libffi.complex/complex_float.c libffi.complex/complex_int.c libffi.complex/complex_longdouble.c \
+	libffi.complex/complex_float.c libffi.complex/complex_i128.c libffi.complex/complex_int.c libffi.complex/complex_longdouble.c \
 	libffi.complex/ffitest.h libffi.complex/many_complex.inc libffi.complex/many_complex_double.c \
 	libffi.complex/many_complex_float.c libffi.complex/many_complex_longdouble.c libffi.complex/return_complex.inc \
 	libffi.complex/return_complex1.inc libffi.complex/return_complex1_double.c libffi.complex/return_complex1_float.c \
@@ -86,4 +92,10 @@ EXTRA_DIST = config/default.exp emscripten/build.sh emscripten/conftest.py \
 	libffi.complex/return_complex_float.c libffi.complex/return_complex_longdouble.c libffi.go/aa-direct.c \
 	libffi.go/closure1.c libffi.go/ffitest.h libffi.go/go.exp \
 	libffi.go/static-chain.h Makefile.am Makefile.in \
-	libffi.threads/ffitest.h libffi.threads/threads.exp libffi.threads/tsan.c
+	libffi.threads/ffitest.h libffi.threads/threads.exp libffi.threads/tsan.c \
+	libffi.vector/vector.exp libffi.vector/ffitest.h libffi.vector/vector.h \
+	libffi.vector/vector_float32x4.c libffi.vector/vector_float32x2.c \
+	libffi.vector/vector_double2.c libffi.vector/vector_int32x4.c \
+	libffi.vector/vector_args_spill.c libffi.vector/vector_vec3.c \
+	libffi.vector/vector_double4.c libffi.vector/vector_hva.c \
+	libffi.vector/cls_vector.c libffi.vector/vector_validate.c

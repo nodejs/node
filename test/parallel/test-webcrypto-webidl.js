@@ -119,6 +119,104 @@ function assertJsonWebKey(actual, expected) {
   }
 }
 
+// [EnforceRange] integer dictionary members
+{
+  const kOctetMax = 2 ** 8 - 1;
+  const kUnsignedShortMax = 2 ** 16 - 1;
+  const kUnsignedLongMax = 2 ** 32 - 1;
+  const empty = Buffer.alloc(0);
+  const rsaKeyGen = {
+    name: 'RSA-PSS',
+    modulusLength: 2048,
+    publicExponent: new Uint8Array([1, 0, 1]),
+  };
+  const aesKeyParams = { name: 'AES-GCM', length: 128 };
+  const hmacKeyParams = {
+    name: 'HMAC',
+    hash: 'SHA-256',
+    length: 128,
+  };
+  const kmacKeyParams = { name: 'KMAC128', length: 128 };
+  const cases = [
+    ['RsaKeyGenParams', rsaKeyGen,
+     { modulusLength: kUnsignedLongMax }],
+    ['RsaHashedKeyGenParams', { ...rsaKeyGen, hash: 'SHA-256' },
+     { modulusLength: kUnsignedLongMax }],
+    ['AesKeyGenParams', aesKeyParams,
+     { length: kUnsignedShortMax }],
+    ['RsaPssParams', { name: 'RSA-PSS', saltLength: 20 },
+     { saltLength: kUnsignedLongMax }],
+    ['HmacKeyGenParams', hmacKeyParams,
+     { length: kUnsignedLongMax }],
+    ['HmacImportParams', hmacKeyParams,
+     { length: kUnsignedLongMax }],
+    ['CShakeParams', { name: 'cSHAKE128', outputLength: 256 },
+     { outputLength: kUnsignedLongMax }],
+    ['Pbkdf2Params', {
+      name: 'PBKDF2',
+      salt: empty,
+      iterations: 1,
+      hash: 'SHA-256',
+    }, { iterations: kUnsignedLongMax }],
+    ['AesDerivedKeyParams', aesKeyParams,
+     { length: kUnsignedShortMax }],
+    ['AeadParams', {
+      name: 'AES-GCM',
+      iv: Buffer.alloc(12),
+      tagLength: 128,
+    }, { tagLength: kOctetMax }],
+    ['AesCtrParams', {
+      name: 'AES-CTR',
+      counter: Buffer.alloc(16),
+      length: 128,
+    }, { length: kOctetMax }],
+    ['Argon2Params', {
+      name: 'Argon2id',
+      nonce: Buffer.alloc(8),
+      parallelism: 1,
+      memory: 8,
+      passes: 1,
+      version: 0x13,
+    }, {
+      parallelism: kUnsignedLongMax,
+      memory: kUnsignedLongMax,
+      passes: kUnsignedLongMax,
+      version: kOctetMax,
+    }],
+    ['KmacKeyGenParams', kmacKeyParams,
+     { length: kUnsignedLongMax }],
+    ['KmacImportParams', kmacKeyParams,
+     { length: kUnsignedLongMax }],
+    ['KmacParams', { name: 'KMAC128', outputLength: 256 },
+     { outputLength: kUnsignedLongMax }],
+    ['KangarooTwelveParams', { name: 'KT128', outputLength: 256 },
+     { outputLength: kUnsignedLongMax }],
+    ['TurboShakeParams', {
+      name: 'TurboSHAKE128',
+      outputLength: 256,
+      domainSeparation: 0x1f,
+    }, {
+      outputLength: kUnsignedLongMax,
+      domainSeparation: kOctetMax,
+    }],
+  ];
+
+  for (const [dictionary, base, members] of cases) {
+    const converter = converters[dictionary];
+    assertIdlDictionary(converter(base, opts), base);
+
+    for (const [member, max] of Object.entries(members)) {
+      assert.throws(
+        () => converter({ ...base, [member]: -1 }, opts), {
+          name: 'TypeError',
+          code: 'ERR_OUT_OF_RANGE',
+          message: `${prefix}: ${member} in ${context} is outside ` +
+                   `the expected range of 0 to ${max}.`,
+        });
+    }
+  }
+}
+
 // DOMString
 {
   assert.strictEqual(converters.DOMString(1), '1');

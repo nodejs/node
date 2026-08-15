@@ -7,10 +7,14 @@ import startCLI from '../common/debugger.js';
 
 import assert from 'assert';
 
-const cli = startCLI([fixtures.path('debugger', 'three-lines.js')]);
+const env = {
+  ...process.env,
+  NODE_INSPECT_RESUME_ON_START: '1',
+};
+const cli = startCLI(
+  [fixtures.path('debugger', 'alive.js')], [], { env });
 
 try {
-  await cli.waitForInitialBreak();
   await cli.waitForPrompt();
   await cli.command('exec a = function func() {}; a;');
   assert.match(cli.output, /\[Function: func\]/);

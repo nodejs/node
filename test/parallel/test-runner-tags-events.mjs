@@ -83,13 +83,29 @@ describe('tag-bearing event payloads', { concurrency: false }, () => {
   });
 
   it('test:pass fires only for selected tagged tests when filtered', async () => {
-    // isolation='none' so the parent applies the filter directly. Under
-    // 'process', the FileTest wrapper (which has no tags) would itself be
-    // filtered out by the include filter - same wart as --test-name-pattern.
     const stream = run({ files: [fixture], testTagFilters: ['db'], isolation: 'none' });
     stream.on('test:fail', common.mustNotCall());
     // 3 db-tagged tests pass + the db suite itself.
     stream.on('test:pass', common.mustCall(4));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('filtering under process isolation runs the file and filters inside it', async () => {
+    // The FileTest wrapper has no tags and must not be filtered out itself;
+    // the filter is re-emitted to the child process and applied there.
+    const stream = run({ files: [fixture], testTagFilters: ['db'], isolation: 'process' });
+    stream.on('test:fail', common.mustNotCall());
+    // 3 db-tagged tests pass + the db suite itself.
+    stream.on('test:pass', common.mustCall(4));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('process isolation forwards --experimental-test-tag-filter to children', async () => {
+    const stream = run({ files: [fixture], testTagFilters: ['not nonexistent'] });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(13));
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });

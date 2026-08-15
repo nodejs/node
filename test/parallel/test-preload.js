@@ -1,6 +1,9 @@
 'use strict';
 
 const common = require('../common');
+
+common.skipIfInspectorDisabled();
+
 const fixtures = require('../common/fixtures');
 // Refs: https://github.com/nodejs/node/pull/2253
 if (common.isSunOS)

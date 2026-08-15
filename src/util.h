@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "node.h"
+#include "node_concepts.h"
 #include "node_exit_code.h"
 
 #include <climits>
@@ -40,6 +41,7 @@
 
 #include <array>
 #include <bit>
+#include <concepts>
 #include <filesystem>
 #include <limits>
 #include <memory>
@@ -99,7 +101,7 @@ inline char* Calloc(size_t n);
 inline char* UncheckedMalloc(size_t n);
 inline char* UncheckedCalloc(size_t n);
 
-template <typename T>
+template <std::integral T>
 inline T MultiplyWithOverflowCheck(T a, T b);
 
 namespace per_process {
@@ -126,6 +128,9 @@ void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
 void DumpNativeBacktrace(FILE* fp);
 void DumpJavaScriptBacktrace(FILE* fp);
 
+// Returns the currently installed abort handler which is never null.
+AbortHandler GetAbortHandler();
+
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
 #define ABORT_NO_BACKTRACE() _exit(static_cast<int>(node::ExitCode::kAbort))
@@ -138,13 +143,12 @@ void DumpJavaScriptBacktrace(FILE* fp);
 // when generating code for them the compiler can choose not to
 // maintain the frame pointers or link registers that are necessary for
 // correct backtracing.
-// `ABORT` must be a macro and not a [[noreturn]] function to make sure the
-// backtrace is correct.
-#define ABORT()                                                                \
+// `ABORT` and `ABORT_WITH_DETAILS` must be a macro and not a [[noreturn]]
+// function to make sure the backtrace is correct.
+#define ABORT() ABORT_WITH_DETAILS(__FILE__ ":" STRINGIFY(__LINE__), nullptr)
+#define ABORT_WITH_DETAILS(location, message)                                  \
   do {                                                                         \
-    node::DumpNativeBacktrace(stderr);                                         \
-    node::DumpJavaScriptBacktrace(stderr);                                     \
-    fflush(stderr);                                                            \
+    node::GetAbortHandler()(location, message);                                \
     ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 
@@ -366,12 +370,12 @@ inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);
-template <typename T>
+template <std::ranges::range T>
 inline std::string ToLower(const T& in);
 
 // toupper() is locale-sensitive.  Use ToUpper() instead.
 inline char ToUpper(char c);
-template <typename T>
+template <std::ranges::range T>
 inline std::string ToUpper(const T& in);
 
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
@@ -389,14 +393,6 @@ template <typename T, size_t N>
 constexpr size_t strsize(const T (&)[N]) {
   return N - 1;
 }
-
-// A type that has a valid std::char_traits specialization, as required by
-// std::basic_string and std::basic_string_view.
-template <typename T>
-concept standard_char_type =
-    std::is_same_v<T, char> || std::is_same_v<T, wchar_t> ||
-    std::is_same_v<T, char8_t> || std::is_same_v<T, char16_t> ||
-    std::is_same_v<T, char32_t>;
 
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
@@ -511,11 +507,11 @@ class MaybeStackBuffer {
       free(buf_);
   }
 
-  template <standard_char_type U = T>
+  template <StandardCharType U = T>
   inline std::basic_string<U> ToString() const {
     return {out(), length()};
   }
-  template <standard_char_type U = T>
+  template <StandardCharType U = T>
   inline std::basic_string_view<U> ToStringView() const {
     return {out(), length()};
   }
@@ -534,6 +530,7 @@ class MaybeStackBuffer {
 // or for small data, a copy of it. This object's lifetime is bound to the
 // original ArrayBufferView's lifetime.
 template <typename T, size_t kStackStorageSize = 64>
+  requires(sizeof(T) == 1)
 class ArrayBufferViewContents {
  public:
   ArrayBufferViewContents() = default;
@@ -610,7 +607,7 @@ class BufferValue : public MaybeStackBuffer<char> {
 // silence a compiler warning about that.
 template <typename T> inline void USE(T&&) {}
 
-template <typename Fn>
+template <std::invocable Fn>
 struct OnScopeLeaveImpl {
   Fn fn_;
   bool active_;
@@ -630,7 +627,7 @@ struct OnScopeLeaveImpl {
 // auto on_scope_leave = OnScopeLeave([&] {
 //   // ... run some code ...
 // });
-template <typename Fn>
+template <std::invocable Fn>
 inline MUST_USE_RESULT OnScopeLeaveImpl<Fn> OnScopeLeave(Fn&& fn) {
   return OnScopeLeaveImpl<Fn>{std::move(fn)};
 }
@@ -676,11 +673,6 @@ struct MallocedBuffer {
   MallocedBuffer& operator=(const MallocedBuffer&) = delete;
 };
 
-// Test whether some value can be called with ().
-template <typename T>
-concept is_callable =
-    std::is_function<T>::value || requires { &T::operator(); };
-
 template <typename T, void (*function)(T*)>
 struct FunctionDeleter {
   void operator()(T* pointer) const { function(pointer); }
@@ -710,8 +702,7 @@ inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            v8_inspector::StringView str,
                                            v8::Isolate* isolate);
-template <typename T, typename test_for_number =
-    typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
+template <NumericValue T>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const T& number,
                                            v8::Isolate* isolate = nullptr);
@@ -918,6 +909,12 @@ void SetFastMethodNoSideEffect(v8::Local<v8::Context> context,
 void SetFastMethodNoSideEffect(
     v8::Isolate* isolate,
     v8::Local<v8::Template> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods);
+void SetFastMethodNoSideEffect(
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Object> that,
     const std::string_view name,
     v8::FunctionCallback slow_callback,
     const v8::MemorySpan<const v8::CFunction>& methods);

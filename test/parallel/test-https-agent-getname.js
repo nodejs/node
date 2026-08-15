@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const https = require('https');
+const fixtures = require('../common/fixtures');
 
 const agent = new https.Agent();
 
@@ -52,3 +53,46 @@ assert.strictEqual(
     '::secureProtocol:c,r,l:false:ecdhCurve:dhparam:0:sessionIdContext:' +
     '"sigalgs":privateKeyIdentifier:privateKeyEngine'
 );
+
+{
+  const baseOptions = {
+    host: '0.0.0.0',
+    port: 443,
+  };
+
+  const agent1 = fixtures.readKey('agent1.pfx');
+  const agent6 = fixtures.readKey('agent6.pfx');
+
+  assert.notStrictEqual(
+    agent.getName({
+      ...baseOptions,
+      pfx: [{ buf: agent1, passphrase: 'sample' }],
+    }),
+    agent.getName({
+      ...baseOptions,
+      pfx: [{ buf: agent6, passphrase: 'sample' }],
+    })
+  );
+
+  assert.notStrictEqual(
+    agent.getName({
+      ...baseOptions,
+      pfx: [{ buf: agent1, passphrase: 'sample' }],
+    }),
+    agent.getName({
+      ...baseOptions,
+      pfx: [{ buf: agent1, passphrase: 'different' }],
+    })
+  );
+
+  assert.notStrictEqual(
+    agent.getName({
+      ...baseOptions,
+      pfx: [{ __proto__: { buf: agent1, passphrase: 'sample' } }],
+    }),
+    agent.getName({
+      ...baseOptions,
+      pfx: [{ __proto__: { buf: agent6, passphrase: 'sample' } }],
+    })
+  );
+}

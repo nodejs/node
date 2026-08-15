@@ -8,6 +8,7 @@
 #include "v8.h"
 
 using node::BufferValue;
+using node::NormalizeFileURLOrPath;
 using node::PathResolve;
 using node::ToNamespacedPath;
 
@@ -93,3 +94,26 @@ TEST_F(PathTest, ToNamespacedPath) {
   EXPECT_EQ(data.ToStringView(), "hello world");  // Input should not be mutated
 #endif
 }
+
+#ifdef _WIN32
+TEST_F(PathTest, NormalizeShortFileURLPath) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoBrowserGlobals};
+  v8::TryCatch try_catch(isolate_);
+
+  EXPECT_EQ(NormalizeFileURLOrPath(*env, "file:///"), "");
+  ASSERT_TRUE(try_catch.HasCaught());
+
+  v8::Local<v8::Value> exception = try_catch.Exception();
+  ASSERT_TRUE(exception->IsObject());
+  v8::Local<v8::Value> code;
+  ASSERT_TRUE(exception.As<v8::Object>()
+                  ->Get((*env)->context(),
+                        v8::String::NewFromUtf8Literal(isolate_, "code"))
+                  .ToLocal(&code));
+  ASSERT_TRUE(code->IsString());
+  node::Utf8Value code_value(isolate_, code);
+  EXPECT_EQ(code_value.ToStringView(), "ERR_INVALID_FILE_URL_PATH");
+}
+#endif

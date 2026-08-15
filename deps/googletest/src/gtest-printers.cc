@@ -515,13 +515,13 @@ bool IsValidUTF8(const char* str, size_t length) {
 void ConditionalPrintAsText(const char* str, size_t length, ostream* os) {
   if (!ContainsUnprintableControlCodes(str, length) &&
       IsValidUTF8(str, length)) {
-    *os << "\n    As Text: \"" << ::std::string_view(str, length) << "\"";
+    *os << "\n    As Text: \"" << std::string_view(str, length) << "\"";
   }
 }
 
 }  // anonymous namespace
 
-void PrintStringTo(::std::string_view s, ostream* os) {
+void PrintStringTo(std::string_view s, ostream* os) {
   if (PrintCharsAsStringTo(s.data(), s.size(), os) == kHexEscape) {
     if (GTEST_FLAG_GET(print_utf8)) {
       ConditionalPrintAsText(s.data(), s.size(), os);

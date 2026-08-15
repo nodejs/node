@@ -284,7 +284,7 @@ class ClearErrorOnReturn final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(ClearErrorOnReturn)
   NCRYPTO_DISALLOW_NEW_DELETE()
 
-  int peekError();
+  unsigned long peekError();  // NOLINT(runtime/int)
 
  private:
   CryptoErrorList* errors_;
@@ -302,7 +302,7 @@ class MarkPopErrorOnReturn final {
   NCRYPTO_DISALLOW_COPY_AND_MOVE(MarkPopErrorOnReturn)
   NCRYPTO_DISALLOW_NEW_DELETE()
 
-  int peekError();
+  unsigned long peekError();  // NOLINT(runtime/int)
 
  private:
   CryptoErrorList* errors_;
@@ -315,9 +315,11 @@ struct Result final {
   const bool has_value;
   T value;
   std::optional<E> error = std::nullopt;
-  std::optional<int> openssl_error = std::nullopt;
+  // NOLINTNEXTLINE(runtime/int) -- matches ERR_peek_error()
+  std::optional<unsigned long> openssl_error = std::nullopt;
   Result(T&& value) : has_value(true), value(std::move(value)) {}
-  Result(E&& error, std::optional<int> openssl_error = std::nullopt)
+  // NOLINTNEXTLINE(runtime/int) -- matches ERR_peek_error()
+  Result(E&& error, std::optional<unsigned long> openssl_error = std::nullopt)
       : has_value(false),
         error(std::move(error)),
         openssl_error(std::move(openssl_error)) {}
@@ -506,6 +508,7 @@ class Cipher final {
   struct CipherParams {
     int padding;
     Digest digest;
+    Digest mgf1_digest;
     const Buffer<const void> label;
   };
 
@@ -639,14 +642,15 @@ class Rsa final {
  private:
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   bool rsa_ = false;
+  bool rsa_pss_ = false;
   DeleteFnPtr<BIGNUM, BN_free> n_;
   DeleteFnPtr<BIGNUM, BN_free> e_;
-  DeleteFnPtr<BIGNUM, BN_free> d_;
-  DeleteFnPtr<BIGNUM, BN_free> p_;
-  DeleteFnPtr<BIGNUM, BN_free> q_;
-  DeleteFnPtr<BIGNUM, BN_free> dp_;
-  DeleteFnPtr<BIGNUM, BN_free> dq_;
-  DeleteFnPtr<BIGNUM, BN_free> qi_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> d_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> p_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> q_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> dp_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> dq_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> qi_;
   std::optional<PssParams> pss_params_;
 #else
   OSSL3_CONST RSA* rsa_;
@@ -1045,6 +1049,7 @@ class EVPKeyPointer final {
     RAW_PUBLIC,
     RAW_PRIVATE,
     RAW_SEED,
+    STORE,
   };
 
   enum class PKParseError { NOT_RECOGNIZED, NEED_PASSPHRASE, FAILED };
@@ -1077,6 +1082,12 @@ class EVPKeyPointer final {
     PrivateKeyEncodingConfig& operator=(const PrivateKeyEncodingConfig&);
   };
 
+  struct StorePrivateKeyConfig {
+    std::string_view uri;
+    std::optional<std::string_view> properties = std::nullopt;
+    std::optional<Buffer<const char>> passphrase = std::nullopt;
+  };
+
   static ParseKeyResult TryParsePublicKey(
       const PublicKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
@@ -1087,6 +1098,14 @@ class EVPKeyPointer final {
   static ParseKeyResult TryParsePrivateKey(
       const PrivateKeyEncodingConfig& config,
       const Buffer<const unsigned char>& buffer);
+
+  // Loads a private key through an OpenSSL STORE loader using the configured
+  // URI (e.g. "file:", a provider-backed scheme such as "pkcs11:"). The
+  // optional passphrase is used as the PIN/passphrase for encrypted or
+  // token-protected keys.
+  // Returns NOT_RECOGNIZED when no private key is found at the URI.
+  static ParseKeyResult TryLoadPrivateKeyFromStore(
+      const StorePrivateKeyConfig& config);
 
   EVPKeyPointer() = default;
   explicit EVPKeyPointer(EVP_PKEY* pkey);
@@ -1634,7 +1653,7 @@ class ECKeyPointer final {
 #if NCRYPTO_USE_OPENSSL3_PROVIDER
   DeleteFnPtr<EC_GROUP, EC_GROUP_free> group_;
   DeleteFnPtr<EC_POINT, EC_POINT_free> pub_;
-  DeleteFnPtr<BIGNUM, BN_free> priv_;
+  DeleteFnPtr<BIGNUM, BN_clear_free> priv_;
 #else
   DeleteFnPtr<EC_KEY, EC_KEY_free> key_;
 #endif
@@ -1680,6 +1699,9 @@ class EVPMDCtxPointer final {
   DataPointer sign(const Buffer<const unsigned char>& buf) const;
   bool verify(const Buffer<const unsigned char>& buf,
               const Buffer<const unsigned char>& sig) const;
+  // Unlike verify(), preserves EVP_DigestVerify()'s three-way result.
+  int verifyOneShot(const Buffer<const unsigned char>& buf,
+                    const Buffer<const unsigned char>& sig) const;
 
   const EVP_MD* getDigest() const;
   size_t getDigestSize() const;

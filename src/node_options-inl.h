@@ -31,17 +31,19 @@ namespace options_parser {
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
-                                       bool Options::*field,
+                                       bool (*getter)(Options*),
+                                       void (*setter)(Options*, bool),
                                        OptionEnvvarSettings env_setting,
                                        bool default_is_true,
                                        OptionNamespaces namespace_id) {
-  options_.emplace(name,
-                   OptionInfo{kBoolean,
-                              std::make_shared<SimpleOptionField<bool>>(field),
-                              env_setting,
-                              help_text,
-                              default_is_true,
-                              NamespaceEnumToString(namespace_id)});
+  options_.emplace(
+      name,
+      OptionInfo{kBoolean,
+                 std::make_shared<BitFieldOptionField>(getter, setter),
+                 env_setting,
+                 help_text,
+                 default_is_true,
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -205,6 +207,13 @@ auto OptionsParser<Options>::Convert(
   struct AdaptedField : BaseOptionField {
     void* LookupImpl(Options* options) const override {
       return original->LookupImpl((options->*get_child)());
+    }
+
+    bool GetBool(Options* options) const override {
+      return original->GetBool((options->*get_child)());
+    }
+    void SetBool(Options* options, bool value) override {
+      original->SetBool((options->*get_child)(), value);
     }
 
     AdaptedField(
@@ -432,8 +441,8 @@ void OptionsParser<Options>::Parse(
                               if (value.type == kV8Option) {
                                 v8_args->push_back(value.name);
                               } else {
-                                *value.target_field->template Lookup<bool>(
-                                    options) = value.target_value;
+                                value.target_field->SetBool(options,
+                                                            value.target_value);
                               }
                             });
     }
@@ -479,7 +488,7 @@ void OptionsParser<Options>::Parse(
 
     switch (info.type) {
       case kBoolean:
-        *Lookup<bool>(info.field, options) = !is_negation;
+        info.field->SetBool(options, !is_negation);
         break;
       case kInteger: {
         // Special case to pass --stack-trace-limit down to V8.

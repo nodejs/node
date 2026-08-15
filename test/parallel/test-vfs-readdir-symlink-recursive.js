@@ -105,3 +105,28 @@ assert.ok(
   assert.ok(dirents.some((d) => d.name === 'sub' && d.isDirectory()));
   assert.ok(dirents.some((d) => d.name === 'lnk' && d.isSymbolicLink()));
 }
+
+// Recursive readdir on a deeply nested tree must not exhaust the call stack.
+// The iterative traversal introduced in this fix handles arbitrarily deep trees
+// without recursion, so this should complete without a RangeError.
+{
+  const DEPTH = 1000;
+  const v = vfs.create();
+
+  // Build /deep/0/1/2/.../999/leaf.txt
+  const path = `/deep/${Array.from({ length: DEPTH }, (_, i) => i).join('/')}`;
+  v.mkdirSync(path, { recursive: true });
+  v.writeFileSync(`${path}/leaf.txt`, 'deep');
+
+  const entries = v.readdirSync('/deep', { recursive: true });
+
+  // Every intermediate directory and the leaf file must appear.
+  assert.strictEqual(entries.length, DEPTH + 1);
+
+  // Build the expected relative path to the leaf file.
+  const expectedLeaf = Array.from({ length: DEPTH }, (_, i) => i).join('/') + '/leaf.txt';
+  assert.ok(
+    entries.includes(expectedLeaf),
+    `Expected '${expectedLeaf}' in deep-tree entries`,
+  );
+}

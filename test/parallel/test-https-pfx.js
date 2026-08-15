@@ -29,6 +29,8 @@ const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const https = require('https');
+const { hasFIPS } = require('../common/crypto');
+const fips3 = hasFIPS(3);
 
 const pfx = fixtures.readKey('rsa_cert.pfx');
 
@@ -42,10 +44,23 @@ const options = {
   rejectUnauthorized: false
 };
 
+if (fips3) {
+  assert.throws(() => https.createServer(options), {
+    code: 'ERR_CRYPTO_UNSUPPORTED_OPERATION',
+  });
+
+  if (!hasFIPS(3, 5)) {
+    return;
+  }
+
+  options.pfx = fixtures.readKey('agent1-fips.pfx');
+  options.passphrase = 'password';
+}
+
 const server = https.createServer(options, common.mustCallAtLeast((req, res) => {
-  assert.strictEqual(req.socket.authorized, false); // not a client cert
-  assert.strictEqual(req.socket.authorizationError,
-                     'DEPTH_ZERO_SELF_SIGNED_CERT');
+  assert.strictEqual(req.socket.authorized, fips3);
+  assert.strictEqual(req.socket.authorizationError, fips3 ?
+    null : 'DEPTH_ZERO_SELF_SIGNED_CERT');
   res.writeHead(200);
   res.end('OK');
 }));

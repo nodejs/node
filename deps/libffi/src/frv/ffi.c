@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   ffi.c - Copyright (C) 2004  Anthony Green
+   ffi.c - Copyright (C) 2004, 2026  Anthony Green
    Copyright (C) 2007  Free Software Foundation, Inc.
 	   Copyright (C) 2008  Red Hat, Inc.
    

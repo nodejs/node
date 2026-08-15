@@ -206,7 +206,7 @@ void New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-#ifndef OPENSSL_IS_BORINGSSL
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
   if (BN_num_bits(bn_p.get()) >= 512 && BN_cmp(bn_g.get(), bn_p.get()) >= 0) {
     PutDhError(DH_R_BAD_GENERATOR);
     return ThrowCryptoError(env, ERR_get_error(), "Invalid generator");
@@ -337,6 +337,10 @@ void ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto dp = dh.computeSecret(key);
+  if (!dp) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "Failed to compute shared secret");
+  }
 
   Local<Value> buffer;
   if (DataPointerToBuffer(env, std::move(dp)).ToLocal(&buffer)) {
@@ -354,8 +358,8 @@ void SetPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (!buf.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "buf is too big");
   BignumPointer num(buf.data(), buf.size());
-  CHECK(num);
-  CHECK(dh.setPublicKey(std::move(num)));
+  if (!num || !dh.setPublicKey(std::move(num)))
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid public key");
 }
 
 void SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
@@ -368,8 +372,8 @@ void SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
   if (!buf.CheckSizeInt32()) [[unlikely]]
     return THROW_ERR_OUT_OF_RANGE(env, "buf is too big");
   BignumPointer num(buf.data(), buf.size());
-  CHECK(num);
-  CHECK(dh.setPrivateKey(std::move(num)));
+  if (!num || !dh.setPrivateKey(std::move(num)))
+    return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid private key");
 }
 
 void Check(const FunctionCallbackInfo<Value>& args) {

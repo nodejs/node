@@ -162,12 +162,12 @@ In order to minimize the different number of tools and versions
 used to build WASM components and to document and ensure future
 availability, the project builds and maintains a common
 [wasm-builder](https://github.com/nodejs/wasm-builder) container
-that should be use to build WASM components in Node.js
+that should be used to build WASM components in Node.js
 dependencies.
 
 The container provides a durable copy of the versions of the tools
 used for a specific build which are under the control of the Node.js
-project. In addition, the tools and verions are documented through metadata
+project. In addition, the tools and versions are documented through metadata
 within the container in the `/home/node/metadata directory`.
 
 The available tools can be found by looking at the current version of the

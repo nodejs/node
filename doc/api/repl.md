@@ -170,39 +170,6 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 > fs.createReadStream('./some/file');
 ```
 
-#### Global uncaught exceptions
-
-<!-- YAML
-changes:
-  - version: v12.3.0
-    pr-url: https://github.com/nodejs/node/pull/27151
-    description: The `'uncaughtException'` event is from now on triggered if the
-                 repl is used as standalone program.
--->
-
-The REPL uses the [`domain`][] module to catch all uncaught exceptions for that
-REPL session.
-
-This use of the [`domain`][] module in the REPL has these side effects:
-
-* Uncaught exceptions only emit the [`'uncaughtException'`][] event in the
-  standalone REPL. Adding a listener for this event in a REPL within
-  another Node.js program results in [`ERR_INVALID_REPL_INPUT`][].
-
-  ```js
-  const r = repl.start();
-
-  r.write('process.on("uncaughtException", () => console.log("Foobar"));\n');
-  // Output stream includes:
-  //   TypeError [ERR_INVALID_REPL_INPUT]: Listeners for `uncaughtException`
-  //   cannot be used in the REPL
-
-  r.close();
-  ```
-
-* Trying to use [`process.setUncaughtExceptionCaptureCallback()`][] throws
-  an [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`][] error.
-
 #### Assignment of the `_` (underscore) variable
 
 <!-- YAML
@@ -242,6 +209,14 @@ Uncaught Error: foo
 
 #### `await` keyword
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64034
+    description: The `--experimental-repl-await` flag was removed. Top-level
+                 `await` is always enabled and can no longer be disabled.
+-->
+
 Support for the `await` keyword is enabled at the top level.
 
 ```console
@@ -257,24 +232,14 @@ undefined
 undefined
 ```
 
-One known limitation of using the `await` keyword in the REPL is that
-it will invalidate the lexical scoping of the `const` keywords.
+### Error handling
 
-For example:
-
-```console
-> const m = await Promise.resolve(123)
-undefined
-> m
-123
-> m = await Promise.resolve(234)
-234
-// redeclaring the constant does error
-> const m = await Promise.resolve(345)
-Uncaught SyntaxError: Identifier 'm' has already been declared
-```
-
-[`--no-experimental-repl-await`][] shall disable top-level await in REPL.
+By default, uncaught exceptions in the REPL are printed to the output stream
+(as with `Uncaught Error: REPL await` above). `uncaughtException` listeners
+can be added freely in both standalone and nested REPLs. The `handleError`
+option of [`repl.start()`][] can customize this behavior, including
+forwarding exceptions to [`'uncaughtException'`][] by returning
+`'unhandled'`.
 
 ### Reverse-i-search
 
@@ -468,6 +433,9 @@ const options = { useColors: true };
 const firstInstance = repl.start(options);
 const secondInstance = new repl.REPLServer(options);
 ```
+
+Calling `repl.REPLServer()` without the `new` keyword throws a `TypeError`
+(see [DEP0185][]).
 
 ### Event: `'exit'`
 
@@ -1171,18 +1139,14 @@ avoiding open network interfaces.
 
 Original code from <https://gist.github.com/TooTallNate/2053342>.
 
+[DEP0185]: deprecations.md#dep0185-instantiating-noderepl-classes-without-new
 [TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.md#event-uncaughtexception
-[`--no-experimental-repl-await`]: cli.md#--no-experimental-repl-await
-[`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#err_domain_cannot_set_uncaught_exception_capture
-[`ERR_INVALID_REPL_INPUT`]: errors.md#err_invalid_repl_input
 [`curl()`]: https://curl.haxx.se/docs/manpage.html
-[`domain`]: domain.md
 [`module.builtinModules`]: module.md#modulebuiltinmodules
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
-[`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
 [`repl.ReplServer`]: #class-replserver
 [`repl.start()`]: #replstartoptions

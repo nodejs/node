@@ -30,6 +30,7 @@ namespace node {
 using ncrypto::DataPointer;
 using ncrypto::EVPMDCtxPointer;
 using ncrypto::MarkPopErrorOnReturn;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -43,8 +44,11 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::Nothing;
+using v8::Null;
 using v8::Object;
+using v8::String;
 using v8::Uint32;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace crypto {
@@ -54,7 +58,7 @@ Hash::Hash(Environment* env, Local<Object> wrap) : BaseObject(env, wrap) {
 
 void Hash::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("mdctx", mdctx_ ? kSizeOf_EVP_MD_CTX : 0);
-  tracker->TrackFieldWithSize("md", digest_ ? md_len_ : 0);
+  tracker->TraitTrackInline(digest_, "md");
 }
 
 #if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
@@ -195,12 +199,12 @@ void Hash::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
   values.reserve(size);
   for (auto& [alias, id] : env->alias_to_md_id_map) {
     names.push_back(OneByteString(isolate, alias));
-    values.push_back(v8::Uint32::New(isolate, id));
+    values.push_back(Uint32::New(isolate, id));
   }
 #else
   CHECK(env->alias_to_md_id_map.empty());
 #endif
-  Local<Value> prototype = v8::Null(isolate);
+  Local<Value> prototype = Null(isolate);
   Local<Object> result =
       Object::New(isolate, prototype, names.data(), values.data(), size);
   args.GetReturnValue().Set(result);
@@ -233,7 +237,7 @@ const EVP_MD* GetDigestImplementation(Environment* env,
     if (algorithm_cache.As<Object>()
             ->Set(isolate->GetCurrentContext(),
                   algorithm,
-                  v8::Int32::New(isolate, result.cache_id))
+                  Int32::New(isolate, result.cache_id))
             .IsNothing()) {
       return nullptr;
     }
@@ -333,11 +337,13 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
 
   if (output_length == 0) {
     if (output_enc == BUFFER) {
-      Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
-      args.GetReturnValue().Set(
-          Buffer::New(isolate, ab, 0, 0).ToLocalChecked());
+      Local<Uint8Array> u8;
+      if (Buffer::New(isolate, ArrayBuffer::New(isolate, 0), 0, 0)
+              .ToLocal(&u8)) {
+        args.GetReturnValue().Set(u8);
+      }
     } else {
-      args.GetReturnValue().Set(v8::String::Empty(isolate));
+      args.GetReturnValue().Set(String::Empty(isolate));
     }
     return;
   }
@@ -537,10 +543,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 HashConfig::HashConfig(HashConfig&& other) noexcept
-    : mode(other.mode),
-      in(std::move(other.in)),
-      digest(other.digest),
-      length(other.length) {}
+    : in(std::move(other.in)), digest(other.digest), length(other.length) {}
 
 HashConfig& HashConfig::operator=(HashConfig&& other) noexcept {
   if (&other == this) return *this;
@@ -549,8 +552,7 @@ HashConfig& HashConfig::operator=(HashConfig&& other) noexcept {
 }
 
 void HashConfig::MemoryInfo(MemoryTracker* tracker) const {
-  // If the Job is sync, then the HashConfig does not own the data.
-  if (IsCryptoJobAsync(mode)) tracker->TrackFieldWithSize("in", in.size());
+  tracker->TraitTrackInline(in, "in");
 }
 
 MaybeLocal<Value> HashTraits::EncodeOutput(Environment* env,
@@ -565,8 +567,6 @@ Maybe<void> HashTraits::AdditionalConfig(
     unsigned int offset,
     HashConfig* params) {
   Environment* env = Environment::GetCurrent(args);
-
-  params->mode = mode;
 
   CHECK(args[offset]->IsString());  // Hash algorithm
   Utf8Value digest(env->isolate(), args[offset]);
@@ -796,8 +796,7 @@ bool DigestUpdateBytepad(ncrypto::EVPMDCtxPointer* ctx,
 }  // namespace
 
 CShakeConfig::CShakeConfig(CShakeConfig&& other) noexcept
-    : mode(other.mode),
-      in(std::move(other.in)),
+    : in(std::move(other.in)),
       function_name(std::move(other.function_name)),
       customization(std::move(other.customization)),
       variant(other.variant),
@@ -810,12 +809,9 @@ CShakeConfig& CShakeConfig::operator=(CShakeConfig&& other) noexcept {
 }
 
 void CShakeConfig::MemoryInfo(MemoryTracker* tracker) const {
-  // If the Job is sync, then the CShakeConfig does not own the data.
-  if (IsCryptoJobAsync(mode)) {
-    tracker->TrackFieldWithSize("in", in.size());
-    tracker->TrackFieldWithSize("function_name", function_name.size());
-    tracker->TrackFieldWithSize("customization", customization.size());
-  }
+  tracker->TraitTrackInline(in, "in");
+  tracker->TraitTrackInline(function_name, "function_name");
+  tracker->TraitTrackInline(customization, "customization");
 }
 
 MaybeLocal<Value> CShakeTraits::EncodeOutput(Environment* env,
@@ -831,7 +827,10 @@ Maybe<void> CShakeTraits::AdditionalConfig(
     CShakeConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
-  params->mode = mode;
+  if (IsFipsEnabled()) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return Nothing<void>();
+  }
 
   CHECK(args[offset]->IsString());  // Algorithm name
   Utf8Value algorithm_name(env->isolate(), args[offset]);

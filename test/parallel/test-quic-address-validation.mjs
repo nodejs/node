@@ -9,9 +9,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,15 +16,15 @@ if (!hasQuic) {
 const { listen, connect, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const endpoint = new QuicEndpoint({ validateAddress: true });
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   const info = await serverSession.opened;
   // The handshake should complete despite the Retry flow.
-  strictEqual(info.protocol, 'quic-test');
+  assert.strictEqual(info.protocol, 'quic-test');
   serverSession.close();
 }), {
   endpoint,
@@ -42,7 +39,7 @@ const clientSession = await connect(serverEndpoint.address, {
 });
 
 const info = await clientSession.opened;
-strictEqual(info.protocol, 'quic-test');
+assert.strictEqual(info.protocol, 'quic-test');
 
 // The serverEndpoint must be closed after we wait for the clientSession to close.
 await clientSession.closed;

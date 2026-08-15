@@ -1,4 +1,5 @@
 #include "tracing/node_trace_writer.h"
+#include "tracing/trace_event_helper.h"
 
 #include "util-inl.h"
 
@@ -60,25 +61,11 @@ NodeTraceWriter::~NodeTraceWriter() {
   }
 }
 
-void replace_substring(std::string* target,
-                       const std::string& search,
-                       const std::string& insert) {
-  size_t pos = target->find(search);
-  for (; pos != std::string::npos; pos = target->find(search, pos)) {
-    target->replace(pos, search.size(), insert);
-    pos += insert.size();
-  }
-}
-
 void NodeTraceWriter::OpenNewFileForStreaming() {
   ++file_num_;
   uv_fs_t req;
 
-  // Evaluate a JS-style template string, it accepts the values ${pid} and
-  // ${rotation}
-  std::string filepath(log_file_pattern_);
-  replace_substring(&filepath, "${pid}", std::to_string(uv_os_getpid()));
-  replace_substring(&filepath, "${rotation}", std::to_string(file_num_));
+  std::string filepath = GetTraceFilePath(log_file_pattern_, file_num_);
 
   if (fd_ != -1) {
     CHECK_EQ(uv_fs_close(nullptr, &req, fd_, nullptr), 0);

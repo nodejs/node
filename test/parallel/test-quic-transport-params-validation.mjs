@@ -10,10 +10,6 @@ import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { readKey } = fixtures;
-
-const { rejects, ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -21,8 +17,8 @@ if (!hasQuic) {
 const { listen } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 const sni = { '*': { keys: [key], certs: [cert] } };
 const alpn = ['quic-test'];
 
@@ -43,13 +39,13 @@ for (const param of [
   'ackDelayExponent',
   'maxAckDelay',
 ]) {
-  await rejects(tryListen({
+  await assert.rejects(tryListen({
     transportParams: { [param]: 'invalid' },
   }), {
     code: 'ERR_INVALID_ARG_VALUE',
   }, `${param} should reject string value`);
 
-  await rejects(tryListen({
+  await assert.rejects(tryListen({
     transportParams: { [param]: -1 },
   }), {
     code: 'ERR_INVALID_ARG_VALUE',
@@ -72,5 +68,5 @@ const ep = await tryListen({
     maxDatagramFrameSize: 1200,
   },
 });
-ok(ep);
+assert.ok(ep);
 await ep.close();

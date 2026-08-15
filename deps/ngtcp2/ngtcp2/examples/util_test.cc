@@ -51,6 +51,7 @@ const MunitTest tests[]{
   munit_void_test(test_util_decode_hex),
   munit_void_test(test_util_is_hex_string),
   munit_void_test(test_util_split_str),
+  munit_void_test(test_util_format_app_error_code),
   munit_test_end(),
 };
 } // namespace
@@ -620,6 +621,11 @@ void test_util_split_str() {
     (std::vector{""sv, "alpha"sv, ""sv, ""sv, "bravo"sv, "charlie"sv, ""sv,
                  ""sv} == (util::split_str(" alpha   bravo charlie  "sv, ' ') |
                            std::ranges::to<std::vector>())));
+}
+
+void test_util_format_app_error_code() {
+  assert_stdstring_equal("(no error)", util::format_app_error_code({}));
+  assert_stdstring_equal("0xfe01", util::format_app_error_code(0xfe01));
 }
 
 } // namespace ngtcp2

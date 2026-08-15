@@ -443,8 +443,12 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
   Utf8Value new_value(isolate, args[2].As<String>());
 
   std::string_view new_value_view = new_value.ToStringView();
+  // A serialized URL is not always reparsable: the IDNA encoder can emit a
+  // host label that the decoder rejects. Fail the update instead of crashing.
   auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
-  CHECK(out);
+  if (!out) {
+    return args.GetReturnValue().Set(false);
+  }
 
   bool result{true};
 
@@ -659,6 +663,12 @@ std::optional<std::string> FileURLToPath(Environment* env,
     // already taken care of that for us. Note that this only
     // causes IDNs with an appropriate `xn--` prefix to be decoded.
     return "\\\\" + ada::idna::to_unicode(hostname) + decoded_pathname;
+  }
+
+  if (decoded_pathname.size() < 3) {
+    THROW_ERR_INVALID_FILE_URL_PATH(env->isolate(),
+                                    "File URL path must be absolute");
+    return std::nullopt;
   }
 
   char letter = decoded_pathname[1] | 0x20;

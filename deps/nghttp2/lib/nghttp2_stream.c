@@ -36,38 +36,25 @@ void nghttp2_stream_init(nghttp2_stream *stream, int32_t stream_id,
                          int32_t remote_initial_window_size,
                          int32_t local_initial_window_size,
                          void *stream_user_data) {
-  stream->stream_id = stream_id;
-  stream->flags = flags;
-  stream->state = initial_state;
-  stream->shut_flags = NGHTTP2_SHUT_NONE;
-  stream->stream_user_data = stream_user_data;
-  stream->item = NULL;
-  stream->remote_window_size = remote_initial_window_size;
-  stream->local_window_size = local_initial_window_size;
-  stream->recv_window_size = 0;
-  stream->consumed_size = 0;
-  stream->recv_reduction = 0;
-  stream->window_update_queued = 0;
-
-  stream->closed_next = NULL;
-
-  stream->http_flags = NGHTTP2_HTTP_FLAG_NONE;
-  stream->content_length = -1;
-  stream->recv_content_length = 0;
-  stream->status_code = -1;
-
-  stream->queued = 0;
-  stream->cycle = 0;
-  stream->pending_penalty = 0;
-  stream->seq = 0;
-  stream->last_writelen = 0;
-
-  stream->extpri = stream->http_extpri = NGHTTP2_EXTPRI_DEFAULT_URGENCY;
+  *stream = (nghttp2_stream){
+    .state = initial_state,
+    .content_length = -1,
+    .stream_user_data = stream_user_data,
+    .stream_id = stream_id,
+    .remote_window_size = remote_initial_window_size,
+    .local_window_size = local_initial_window_size,
+    .status_code = -1,
+    .http_flags = NGHTTP2_HTTP_FLAG_NONE,
+    .flags = flags,
+    .shut_flags = NGHTTP2_SHUT_NONE,
+    .extpri = NGHTTP2_EXTPRI_DEFAULT_URGENCY,
+    .http_extpri = NGHTTP2_EXTPRI_DEFAULT_URGENCY,
+  };
 }
 
 void nghttp2_stream_free(nghttp2_stream *stream) { (void)stream; }
 
-void nghttp2_stream_shutdown(nghttp2_stream *stream, nghttp2_shut_flag flag) {
+void nghttp2_stream_shutdown(nghttp2_stream *stream, uint8_t flag) {
   stream->shut_flags = (uint8_t)(stream->shut_flags | flag);
 }
 

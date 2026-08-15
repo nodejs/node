@@ -32,7 +32,7 @@ async function testBasicBroadcast() {
 }
 
 async function testMultipleWrites() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 10 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
 
   const consumer = bc.push();
 
@@ -74,22 +74,22 @@ async function testConsumerCount() {
 // =============================================================================
 
 async function testWriteSync() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 2 });
+  const kChunk = new Uint8Array(16384);
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
-  assert.strictEqual(writer.writeSync('a'), true);
-  assert.strictEqual(writer.writeSync('b'), true);
-  // Buffer full (highWaterMark=2, strict policy)
-  assert.strictEqual(writer.writeSync('c'), false);
+  assert.strictEqual(writer.writeSync(kChunk), true);
+  // Buffer full (16384 >= budget), strict policy rejects
+  assert.strictEqual(writer.writeSync(kChunk), false);
 
   writer.endSync();
 
   const data = await text(consumer);
-  assert.strictEqual(data, 'ab');
+  assert.strictEqual(data.length, 16384);
 }
 
 async function testWritevSync() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 10 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
   assert.strictEqual(writer.writevSync(['hello', ' ', 'world']), true);
@@ -109,6 +109,22 @@ async function testWriterEnd() {
 
   const data = await text(consumer);
   assert.strictEqual(data, 'data');
+}
+
+async function testWriterEndWithPreAbortedSignal() {
+  const { writer, broadcast: bc } = broadcast();
+  const consumer = bc.push();
+  const reason = new Error('end aborted');
+
+  await assert.rejects(
+    writer.end({ signal: AbortSignal.abort(reason) }),
+    (error) => error === reason,
+  );
+
+  // A rejected end must leave the writer open.
+  await writer.write('data');
+  assert.strictEqual(await writer.end(), 4);
+  assert.strictEqual(await text(consumer), 'data');
 }
 
 async function testWriterFail() {
@@ -244,20 +260,20 @@ async function testWriterFailIdempotent() {
   }, { message: 'fail!' });
 }
 
-// cancel() with falsy reason (0, "", false) should still treat as error
 async function testCancelWithFalsyReason() {
-  const { broadcast: bc } = broadcast();
-  const consumer = bc.push();
-  const resultPromise = text(consumer).catch((err) => err);
-  await new Promise((resolve) => setImmediate(resolve));
-  bc.cancel(0);
-  const result = await resultPromise;
-  assert.strictEqual(result, 0);
+  for (const reason of [0, '', false, null]) {
+    const { broadcast: bc } = broadcast();
+    const iterator = bc.push()[Symbol.asyncIterator]();
+
+    bc.cancel(reason);
+
+    await assert.rejects(iterator.next(), (error) => error === reason);
+  }
 }
 
 // Late-joining consumer should read from oldest buffered entry
 async function testLateJoinerSeesBufferedData() {
-  const { writer, broadcast: bc } = broadcast({ highWaterMark: 16 });
+  const { writer, broadcast: bc } = broadcast({ budget: 16384 });
 
   // Write data before any consumer joins
   writer.writeSync('before-join');
@@ -308,6 +324,7 @@ Promise.all([
   testWriteSync(),
   testWritevSync(),
   testWriterEnd(),
+  testWriterEndWithPreAbortedSignal(),
   testWriterFail(),
   testCancelWithoutReason(),
   testCancelWithReason(),

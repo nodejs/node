@@ -1,9 +1,14 @@
 import { URL } from 'node:url'
+import { SessionOptions } from 'node:http2'
 import Dispatcher from './dispatcher'
 import buildConnector from './connector'
 import TClientStats from './client-stats'
 
 type ClientConnectOptions<TOpaque = null> = Omit<Dispatcher.ConnectOptions<TOpaque>, 'origin'>
+
+// TODO: Pendings
+// 1. Reflect this on Client instantiation
+// 2. Client H2 should use this namespaced options instead.
 
 /**
  * A basic HTTP/1.1 client, mapped on top a single TCP/TLS connection. Pipelining is disabled by default.
@@ -33,7 +38,7 @@ export declare namespace Client {
   export interface Options {
     /** The maximum length of request headers in bytes. Default: Node.js' `--max-http-header-size` or `16384` (16KiB). */
     maxHeaderSize?: number;
-    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
+    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). HTTP/1.1 parser timeouts are not guaranteed to fire with exact millisecond precision: delays up to 1000ms use native timers, while larger delays use lower-overhead fast timers with a target resolution around 500ms. */
     headersTimeout?: number;
     /** @deprecated unsupported socketTimeout, use headersTimeout & bodyTimeout instead */
     socketTimeout?: never;
@@ -41,7 +46,7 @@ export declare namespace Client {
     requestTimeout?: never;
     /** The timeout for establishing a socket connection, in milliseconds. Use `0` to disable it entirely. Default: `10e3` milliseconds (10s). */
     connectTimeout?: number;
-    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). */
+    /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use `0` to disable it entirely. Default: `300e3` milliseconds (300s). HTTP/1.1 parser timeouts are not guaranteed to fire with exact millisecond precision: delays up to 1000ms use native timers, while larger delays use lower-overhead fast timers with a target resolution around 500ms. */
     bodyTimeout?: number;
     /** @deprecated unsupported idleTimeout, use keepAliveTimeout instead */
     idleTimeout?: never;
@@ -87,23 +92,31 @@ export declare namespace Client {
     /**
      * @description Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
      * @default 100
+     * @deprecated Use h2Options.maxConcurrentStreams instead
      */
     maxConcurrentStreams?: number;
     /**
      * @description Sets the HTTP/2 stream-level flow-control window size (SETTINGS_INITIAL_WINDOW_SIZE).
      * @default 262144
+     * @deprecated Use h2Options.settings.initialWindowSize instead
      */
     initialWindowSize?: number;
     /**
      * @description Sets the HTTP/2 connection-level flow-control window size (ClientHttp2Session.setLocalWindowSize).
      * @default 524288
+     * @deprecated Use h2Options.connectionWindowSize instead
      */
     connectionWindowSize?: number;
     /**
      * @description Time interval between PING frames dispatch
      * @default 60000
+     * @deprecated Use h2Options.connectionWindowSize instead
      */
     pingInterval?: number;
+    /**
+     * @description HTTP/2 configuration options
+     */
+    h2Options?: Client.H2Options;
   }
   export interface SocketInfo {
     localAddress?: string
@@ -128,6 +141,33 @@ export declare namespace Client {
      * @default 134217728 (128 MB)
      */
     maxPayloadSize?: number;
+  }
+
+  export interface H2Options extends Omit<SessionOptions, keyof buildConnector.BuildOptions> {
+    /**
+     * @description Sets the HTTP/2 connection-level flow-control window size (ClientHttp2Session.setLocalWindowSize).
+     * @default 524288
+     */
+    connectionWindowSize?: number;
+    /**
+     * @description Time interval between PING frames dispatch
+     * @default 60000
+     */
+    pingInterval?: number;
+    /**
+     * @description Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
+     * @default 100
+    */
+    maxConcurrentStreams?: number;
+    /**
+     * @description Enable support for H2C (plain text)
+     * @default false
+     */
+    useH2c?: boolean;
+    /**
+     * @description SETTINGS frame object. Default to 'node:http2' defaults
+     */
+    settings?: Omit<SessionOptions['settings'], 'enablePush' | 'maxConcurrentStreams' | 'enableConnectProtocol'>
   }
 }
 

@@ -9,9 +9,6 @@ import { hasQuic, skip, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { rejects } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -19,15 +16,15 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 
-const key = createPrivateKey(readKey('agent1-key.pem'));
-const cert = readKey('agent1-cert.pem');
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
 
 const serverEndpoint = await listen(mustNotCall(), {
   sni: { '*': { keys: [key], certs: [cert] } },
 });
 
 // Bogus ticket data (random bytes) is rejected at the format level.
-await rejects(
+await assert.rejects(
   connect(serverEndpoint.address, {
     servername: 'localhost',
     verifyPeer: 'manual',

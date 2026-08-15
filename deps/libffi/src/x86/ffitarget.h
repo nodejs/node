@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------*-C-*-
-   ffitarget.h - Copyright (c) 2012, 2014, 2018  Anthony Green
+   ffitarget.h - Copyright (c) 2012, 2014, 2018, 2026  Anthony Green
                  Copyright (c) 1996-2003, 2010  Red Hat, Inc.
                  Copyright (C) 2008  Free Software Foundation, Inc.
 
@@ -56,6 +56,13 @@
 
 #ifdef X86_64
 #define FFI_TARGET_HAS_INT128
+#endif
+
+/* The System V x86-64 psABI passes 8- and 16-byte vectors in SSE registers;
+   this is implemented by the ffi64.c (FFI_UNIX64) backend only.  32-bit x86
+   and the Windows x86-64 backend (ffiw64.c) do not marshal vectors.  */
+#if defined(X86_64) && !defined(X86_WIN64)
+#define FFI_TARGET_HAS_VECTOR_TYPE
 #endif
 
 /* ---- Generic type definitions ----------------------------------------- */
@@ -137,6 +144,18 @@ typedef enum ffi_abi {
 #define FFI_TYPE_SMALL_STRUCT_2B (FFI_TYPE_LAST + 2)
 #define FFI_TYPE_SMALL_STRUCT_4B (FFI_TYPE_LAST + 3)
 #define FFI_TYPE_MS_STRUCT       (FFI_TYPE_LAST + 4)
+
+/* Tripwire: the win64.S / win64_intel.S return-value jump tables use one
+   8-byte slot per code value and place the FFI_TYPE_SMALL_STRUCT_* pseudo-types
+   (which are FFI_TYPE_LAST-relative) immediately after the generic FFI_TYPE_*
+   codes.  Adding a new generic type bumps FFI_TYPE_LAST, shifts those codes,
+   and opens a gap in the tables that silently misaligns small-struct returns.
+   When this fires: add a matching E() slot for the new type in both win64.S
+   and win64_intel.S, then bump FFI_X86_TYPE_LAST to match.  */
+#define FFI_X86_TYPE_LAST FFI_TYPE_VECTOR
+#if FFI_TYPE_LAST != FFI_X86_TYPE_LAST
+# error "new FFI_TYPE_* added: sync the win64.S/win64_intel.S jump tables and bump FFI_X86_TYPE_LAST"
+#endif
 
 #if defined (X86_64) || defined(X86_WIN64) \
     || (defined (__x86_64__) && defined (X86_DARWIN))

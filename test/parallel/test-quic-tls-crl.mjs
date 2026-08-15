@@ -10,9 +10,6 @@ import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { ok, strictEqual } = assert;
-const { readKey } = fixtures;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -20,11 +17,11 @@ if (!hasQuic) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const ca2Cert = readKey('ca2-cert.pem');
-const ca2Crl = readKey('ca2-crl.pem');
-const ca2CrlAgent3 = readKey('ca2-crl-agent3.pem');
-const agent3Key = createPrivateKey(readKey('agent3-key.pem'));
-const agent3Cert = readKey('agent3-cert.pem');
+const ca2Cert = fixtures.readKey('ca2-cert.pem');
+const ca2Crl = fixtures.readKey('ca2-crl.pem');
+const ca2CrlAgent3 = fixtures.readKey('ca2-crl-agent3.pem');
+const agent3Key = createPrivateKey(fixtures.readKey('agent3-key.pem'));
+const agent3Cert = fixtures.readKey('agent3-cert.pem');
 
 // --- Non-revoked: agent3 with original CRL (doesn't list agent3) ---
 {
@@ -45,9 +42,9 @@ const agent3Cert = readKey('agent3-cert.pem');
 
   // Should succeed — agent3 is NOT in the original CRL.
   const info = await clientSession.opened;
-  strictEqual(clientSession.destroyed, false);
+  assert.strictEqual(clientSession.destroyed, false);
   // No revocation error.
-  ok(!info.validationErrorReason ||
+  assert.ok(!info.validationErrorReason ||
      !info.validationErrorReason.includes('revoked'));
   await clientSession.close();
   await serverEndpoint.close();
@@ -74,7 +71,7 @@ const agent3Cert = readKey('agent3-cert.pem');
   // reports "certificate revoked". This verifies the CRL is loaded
   // and checked.
   const info = await clientSession.opened;
-  strictEqual(info.validationErrorReason, 'certificate revoked');
+  assert.strictEqual(info.validationErrorReason, 'certificate revoked');
   await clientSession.close();
   await serverEndpoint.close();
 }

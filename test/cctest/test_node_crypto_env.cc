@@ -1,11 +1,14 @@
 #include <ncrypto.h>
 #include "crypto/crypto_bio.h"
+#include "crypto/crypto_keys.h"
+#include "crypto/crypto_rsa.h"
 #include "gtest/gtest.h"
 #include "node_options.h"
 #include "node_test_fixture.h"
 #include "openssl/err.h"
 
 using v8::Local;
+using v8::Object;
 using v8::String;
 
 /*
@@ -31,3 +34,27 @@ TEST_F(NodeCryptoEnv, LoadBIO) {
   ASSERT_EQ(ERR_peek_error(), 0UL) << "There should not have left "
                                       "any errors on the OpenSSL error stack\n";
 }
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+TEST_F(NodeCryptoEnv, ExportIncompleteRsaPrivateKeyAsJwk) {
+  v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv};
+
+  ncrypto::Rsa rsa;
+  auto n = ncrypto::BignumPointer::New();
+  auto e = ncrypto::BignumPointer::New();
+  ASSERT_TRUE(n.setWord(3233));
+  ASSERT_TRUE(e.setWord(17));
+  ASSERT_TRUE(rsa.setPublicKey(std::move(n), std::move(e)));
+
+  auto pkey = ncrypto::EVPKeyPointer::NewRSA(rsa);
+  ASSERT_TRUE(pkey);
+  auto key = node::crypto::KeyObjectData::CreateAsymmetric(
+      node::crypto::kKeyTypePrivate, std::move(pkey));
+
+  v8::TryCatch try_catch(isolate_);
+  EXPECT_FALSE(node::crypto::ExportJWKRsaKey(*env, key, Object::New(isolate_)));
+  EXPECT_TRUE(try_catch.HasCaught());
+}
+#endif

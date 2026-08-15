@@ -121,6 +121,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
   int i;
   int size;
   ffi_type **arg;
+  void **avalue_copy = NULL;
 
   /* Calculate size to allocate on stack */
 
@@ -135,13 +136,21 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
         size += 8;
 
       /* If we have any large structure arguments, make a copy so we are passing
-         by value.  */
+         by value.  The pointer array is cloned first: the caller owns
+         avalue[] and may reuse it for another call, so it must not be
+         modified.  */
       {
         ffi_type *at = cif->arg_types[i];
         int size = at->size;
         if (at->type == FFI_TYPE_STRUCT) /* && size > 4) All struct args? */
           {
             char *argcopy = alloca (size);
+            if (avalue_copy == NULL)
+              {
+                avalue_copy = alloca (cif->nargs * sizeof (void *));
+                memcpy (avalue_copy, avalue, cif->nargs * sizeof (void *));
+                avalue = avalue_copy;
+              }
             memcpy (argcopy, avalue[i], size);
             avalue[i] = argcopy;
           }

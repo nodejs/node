@@ -15,7 +15,7 @@ COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 commit_queue_failed() {
   pr=$1
 
-  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}"
+  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
   # shellcheck disable=SC2154
   cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -31,29 +31,25 @@ commit_queue_failed() {
 git config --local user.email "github-bot@iojs.org"
 git config --local user.name "Node.js GitHub Bot"
 
+SHOULD_ABORT=
+
 for pr in "$@"; do
   gh pr view "$pr" --json labels --jq ".labels" > labels.json
-  # Skip PR if CI was requested
-  if jq -e 'map(.name) | index("request-ci")' < labels.json; then
-    echo "pr ${pr} skipped, waiting for CI to start"
-    continue
-  fi
-
-  # Skip PR if CI is still running
-  if gh pr checks "$pr" | grep -q "\spending\s"; then
-    echo "pr ${pr} skipped, CI still running"
-    continue
-  fi
-
-  # Delete the commit queue label
-  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL"
-
+  
   if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
   elif jq -e 'map(.name) | index("commit-queue-rebase")' < labels.json; then
     MULTIPLE_COMMIT_POLICY=""
   else
     MULTIPLE_COMMIT_POLICY="--oneCommitMax"
+  fi
+
+  if [ -n "$SHOULD_ABORT" ]; then
+    # If `git node land --abort` fails, we're in unknown state. Better to stop
+    # the script here, current PR was removed from the queue so it shouldn't
+    # interfere again in the future.
+    git node land --abort --yes
+    SHOULD_ABORT=
   fi
 
   git node land --autorebase --yes $MULTIPLE_COMMIT_POLICY "$pr" >output 2>&1 || echo "Failed to land #${pr}"
@@ -64,10 +60,8 @@ for pr in "$@"; do
   # if the "Landed in..." message was not on the output we assume land failed
   if ! grep -q '. Post "Landed in .*/pull/'"${pr}" output; then
     commit_queue_failed "$pr"
-    # If `git node land --abort` fails, we're in unknown state. Better to stop
-    # the script here, current PR was removed from the queue so it shouldn't
-    # interfere again in the future.
-    git node land --abort --yes
+    # Using a variable as there's no point in aborting if there are no PRs left in the queue.
+    SHOULD_ABORT=1
     continue
   fi
 
@@ -106,6 +100,9 @@ for pr in "$@"; do
   gh pr comment "$pr" --body "Landed in $commits"
 
   [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh pr close "$pr"
+
+  # Delete the commit queue label (but ignore errors, it's no big deal if a closed PR still has the label)
+  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL" || true
 done
 
 rm -f labels.json

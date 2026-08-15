@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.23.2">22.23.2</a><br/>
 <a href="#22.23.1">22.23.1</a><br/>
 <a href="#22.23.0">22.23.0</a><br/>
 <a href="#22.22.3">22.22.3</a><br/>
@@ -76,6 +77,42 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.23.2"></a>
+
+## 2026-07-29, Version 22.23.2 'Jod' (LTS), @marco-ippolito
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2026-56846) http2: retain header memory in session accounting (Matteo Collina) – High
+* (CVE-2026-56848) http2: defer rst stream while in scope (Matteo Collina) – High
+* (CVE-2026-58043) permission: avoid granting radix split nodes (RafaelGSS) – High
+* (CVE-2026-56850) https: distinguish PFX object-array agent keys (RafaelGSS) – Medium
+* (CVE-2026-58040) https: bind identity checks to session reuse (Matteo Collina) – Medium
+* (CVE-2026-58042) dns: handle large resolveAny address replies (RafaelGSS) – Medium
+* (CVE-2026-58045) zlib: throw on out-of-bounds write buffers (RafaelGSS) – Medium
+* (CVE-2026-56847) permission: enforce fs write permission for trace events (RafaelGSS) – Low
+* (CVE-2026-58039) permission: check final report output path (RafaelGSS) – Low
+* (CVE-2026-58044) http: reject requests exceeding max header count (Matteo Collina) – Low
+* deps: update llhttp to 9.4.3 (Paolo Insogna)
+* deps: update undici to 6.28.0 (Node.js GitHub Bot)
+
+### Commits
+
+* \[[`4b12ac38a1`](https://github.com/nodejs/node/commit/4b12ac38a1)] - **deps**: update llhttp to 9.4.3 (Paolo Insogna) [nodejs-private/node-private#935](https://github.com/nodejs-private/node-private/pull/935)
+* \[[`3fd0aa51d0`](https://github.com/nodejs/node/commit/3fd0aa51d0)] - **deps**: update undici to 6.28.0 (Node.js GitHub Bot) [#64714](https://github.com/nodejs/node/pull/64714)
+* \[[`22efc051a3`](https://github.com/nodejs/node/commit/22efc051a3)] - **(CVE-2026-58042)** **dns**: handle large resolveAny address replies (RafaelGSS) [nodejs-private/node-private#929](https://github.com/nodejs-private/node-private/pull/929)
+* \[[`c8525ac3a6`](https://github.com/nodejs/node/commit/c8525ac3a6)] - **(CVE-2026-58044)** **http**: reject requests exceeding max header count (Matteo Collina) [nodejs-private/node-private#932](https://github.com/nodejs-private/node-private/pull/932)
+* \[[`daa6d25e3d`](https://github.com/nodejs/node/commit/daa6d25e3d)] - **(CVE-2026-56848)** **http2**: defer rst stream while in scope (Matteo Collina) [nodejs-private/node-private#921](https://github.com/nodejs-private/node-private/pull/921)
+* \[[`f14d78b9e0`](https://github.com/nodejs/node/commit/f14d78b9e0)] - **(CVE-2026-56846)** **http2**: retain header memory in session accounting (Matteo Collina) [#63752](https://github.com/nodejs/node/pull/63752)
+* \[[`51123159fe`](https://github.com/nodejs/node/commit/51123159fe)] - **(CVE-2026-58040)** **https**: bind identity checks to session reuse (Matteo Collina) [nodejs-private/node-private#934](https://github.com/nodejs-private/node-private/pull/934)
+* \[[`acaf4266b2`](https://github.com/nodejs/node/commit/acaf4266b2)] - **(CVE-2026-56850)** **https**: distinguish PFX object-array agent keys (RafaelGSS) [nodejs-private/node-private#930](https://github.com/nodejs-private/node-private/pull/930)
+* \[[`440329f624`](https://github.com/nodejs/node/commit/440329f624)] - **(CVE-2026-58043)** **permission**: avoid granting radix split nodes (RafaelGSS) [nodejs-private/node-private#911](https://github.com/nodejs-private/node-private/pull/911)
+* \[[`ed18b9cc07`](https://github.com/nodejs/node/commit/ed18b9cc07)] - **(CVE-2026-58039)** **permission**: check final report output path (RafaelGSS) [nodejs-private/node-private#926](https://github.com/nodejs-private/node-private/pull/926)
+* \[[`0566c3cccd`](https://github.com/nodejs/node/commit/0566c3cccd)] - **(CVE-2026-56847)** **permission**: enforce fs write permission for trace events (RafaelGSS) [nodejs-private/node-private#927](https://github.com/nodejs-private/node-private/pull/927)
+* \[[`0d072480c3`](https://github.com/nodejs/node/commit/0d072480c3)] - **(CVE-2026-58045)** **zlib**: throw on out-of-bounds write buffers (RafaelGSS) [nodejs-private/node-private#931](https://github.com/nodejs-private/node-private/pull/931)
 
 <a id="22.23.1"></a>
 

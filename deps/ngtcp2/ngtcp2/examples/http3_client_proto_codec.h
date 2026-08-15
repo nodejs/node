@@ -31,6 +31,7 @@
 
 #include <vector>
 #include <expected>
+#include <optional>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -59,8 +60,9 @@ public:
 
   void early_data_rejected();
 
-  std::expected<void, Error> on_stream_close(int64_t stream_id,
-                                             uint64_t app_error_code);
+  std::expected<void, Error>
+  on_stream_close(int64_t stream_id, std::optional<uint64_t> rx_app_error_code,
+                  std::optional<uint64_t> tx_app_error_code);
 
   std::expected<void, Error> on_stream_reset(int64_t stream_id);
 
@@ -89,7 +91,9 @@ public:
   static constexpr auto no_error = NGHTTP3_H3_NO_ERROR;
 
 private:
-  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
+  void http_stream_close(int64_t stream_id,
+                         std::optional<uint64_t> rx_app_error_code,
+                         std::optional<uint64_t> tx_app_error_code);
 
   Client *client_;
   ngtcp2_conn *conn_;
