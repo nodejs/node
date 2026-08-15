@@ -42,11 +42,11 @@
 
 #define NGHTTP3_QPACK_INT_MAX ((1ULL << 62) - 1)
 
-/* NGHTTP3_QPACK_MAX_NAMELEN is the maximum (compressed) length of
-   header name this library can decode. */
+/* NGHTTP3_QPACK_MAX_NAMELEN is the maximum (estimated uncompressed)
+   length of header name this library can decode. */
 #define NGHTTP3_QPACK_MAX_NAMELEN 256
-/* NGHTTP3_QPACK_MAX_VALUELEN is the maximum (compressed) length of
-   header value this library can decode. */
+/* NGHTTP3_QPACK_MAX_VALUELEN is the maximum (estimated uncompressed)
+   length of header value this library can decode. */
 #define NGHTTP3_QPACK_MAX_VALUELEN 65536
 /* NGHTTP3_QPACK_MAX_ENCODERLEN is the maximum encoder stream length
    that a decoder accepts without completely processing a single field
