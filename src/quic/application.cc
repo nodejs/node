@@ -254,6 +254,12 @@ void Session::Application::ReceiveStreamReset(Stream* stream,
   stream->ReceiveStreamReset(final_size, std::move(error));
 }
 
+void Session::Application::ReturnConnectionCredit(size_t datalen) {
+  if (datalen == 0 || session().is_destroyed()) return;
+  Session::SendPendingDataScope send_scope(&session());
+  session().ExtendOffset(datalen);
+}
+
 // ============================================================================
 // The DefaultApplication is the default implementation of Session::Application
 // that is used for all unrecognized ALPN identifiers.
@@ -316,6 +322,22 @@ class DefaultApplication final : public Session::Application {
                          void* stream_user_data) override {
     BaseObjectPtr<Stream> stream;
     if (stream_user_data == nullptr) {
+      // A locally-initiated stream only exists because we created it, so a
+      // missing Stream means we already destroyed it. Data the peer had put in
+      // flight must not resurrect it as a bogus "incoming" stream. Discard it
+      // and return its credit instead. The is_destroyed() check must come
+      // first: an earlier callback in this same ngtcp2 batch may have
+      // destroyed the session, after which none of this may be touched.
+      if (!session().is_destroyed() &&
+          ngtcp2_conn_is_local_stream(session(), id)) {
+        Debug(&session(),
+              "Discarding %zu bytes for destroyed local stream %" PRIi64,
+              datalen,
+              id);
+        ReturnConnectionCredit(datalen);
+        return true;
+      }
+
       // This is the first time we're seeing this stream. Implicitly create it.
       stream = session().CreateStream(id);
       if (!stream || session().is_destroyed()) [[unlikely]] {
@@ -324,9 +346,11 @@ class DefaultApplication final : public Session::Application {
         return false;
       }
 
-      // The stream was created, but was immediately destroyed because there's
-      // no onstream handler.
+      // The stream was created but immediately destroyed, either because there
+      // is no onstream handler or because the handler destroyed it. Nothing
+      // will consume the data, so discard it and return its credit.
       if (stream->is_destroyed()) [[unlikely]] {
+        ReturnConnectionCredit(datalen);
         return true;
       }
     } else {
