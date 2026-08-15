@@ -18,7 +18,9 @@ interfacer.stderr.setEncoding('utf-8');
 const onData = (data) => {
   data = (buffer + data).split('\n');
   buffer = data.pop();
-  data.forEach((line) => interfacer.emit('line', line));
+  for (const line of data) {
+    interfacer.emit('line', line);
+  }
 };
 interfacer.stdout.on('data', onData);
 interfacer.stderr.on('data', onData);
