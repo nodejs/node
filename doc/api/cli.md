@@ -3729,6 +3729,15 @@ Enable the [module compile cache][] for the Node.js instance. See the documentat
 When set to 1, the [module compile cache][]  can be reused across different directory
 locations as long as the module layout relative to the cache directory remains the same.
 
+### `NODE_COMPILE_CACHE_READONLY=1`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to 1, the [module compile cache][] only reads existing entries from
+its directory: nothing is written to it and it is not created if missing.
+
 ### `NODE_DEBUG=module[,…]`
 
 <!-- YAML

@@ -1862,6 +1862,10 @@ module compile cache for details.
 When set to 1, the module compile cache  can be reused across different directory
 locations as long as the module layout relative to the cache directory remains the same.
 .
+.It Ev NODE_COMPILE_CACHE_READONLY Ar 1
+When set to 1, the module compile cache only reads existing entries from
+its directory: nothing is written to it and it is not created if missing.
+.
 .It Ev NODE_DEBUG Ar module[,…]
 \fB','\fR-separated list of core modules that should print debug information.
 .
