@@ -88,10 +88,10 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 1000,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
   onheaders: mustCall(function(headers) {
     try {
@@ -125,10 +125,10 @@ const clientSession = await connect(serverEndpoint.address, {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 1000,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
 });
 
