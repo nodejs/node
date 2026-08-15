@@ -141,6 +141,14 @@ class Session::Application : public MemoryRetainer {
     // By default do nothing.
   }
 
+  // Called when the Session determines that the flow control window for the
+  // session has been expanded. Not all Application types will require
+  // this notification so the default is to do nothing.
+  virtual void ExtendMaxData(uint64_t max_data) {
+    Debug(session_, "Application extending max data");
+    // By default do nothing.
+  }
+
   // Different Applications may wish to set some application data in the
   // session ticket (e.g. http/3 would set server settings in the application
   // data). The first byte written MUST be the Application::Type enum value.
