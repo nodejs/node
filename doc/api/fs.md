@@ -1191,6 +1191,8 @@ changes:
    description: No longer experimental.
 -->
 
+* Returns: {Promise}
+
 Calls `filehandle.close()` and returns a promise that fulfills when the
 filehandle is closed.
 
@@ -7348,6 +7350,8 @@ changes:
    description: No longer experimental.
 -->
 
+* Returns: {Promise}
+
 Calls `dir.close()` if the directory handle is open, and returns a promise that
 fulfills when disposal is complete.
 
@@ -8413,6 +8417,7 @@ of bytes written is passed as the first argument to the event handler.
     * `writeBufferLen` {number}
     * `remainingBufferLen`: {number}
   * `sync`: {boolean} Perform writes synchronously.
+* Returns: {fs.Utf8Stream}
 
 #### `utf8Stream.append`
 
