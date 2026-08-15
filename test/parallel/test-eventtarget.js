@@ -419,6 +419,20 @@ let asyncTest = Promise.resolve();
   target.removeEventListener('foo', a, { capture: false });
   target.dispatchEvent(new Event('foo'));
 }
+
+{
+  const target = new EventTarget();
+  const a = common.mustCall(3);
+
+  target.addEventListener('foo', a, true);
+  target.addEventListener('foo', a, false);
+
+  target.dispatchEvent(new Event('foo'));
+  target.removeEventListener('foo', a, true);
+  target.dispatchEvent(new Event('foo'));
+  target.removeEventListener('foo', a, false);
+  target.dispatchEvent(new Event('foo'));
+}
 {
   const target = new EventTarget();
   assert.strictEqual(target.toString(), '[object EventTarget]');
