@@ -378,6 +378,16 @@ class Http3ApplicationImpl final : public Session::Application {
     nghttp3_conn_unblock_stream(*this, stream->id());
   }
 
+  void ExtendMaxData(uint64_t max_data) override {
+    Debug(&session(),
+          "HTTP/3 application extending max data to %" PRIu64,
+          max_data);
+    for (auto& [id, stream] : session().streams()) {
+      stream->UpdateWriteDesiredSize();  // the stream might be blocked on js side
+      // is unblock stream also required?
+    }
+  }
+
   void CollectSessionTicketAppData(
       SessionTicket::AppData* app_data) const override {
     uint8_t buf[kSessionTicketAppDataSize];

@@ -419,7 +419,7 @@ class DefaultApplication final : public Session::Application {
   void BlockStream(stream_id id) override {
     if (auto stream = session().FindStream(id)) [[likely]] {
       // Remove the stream from the send queue. It will be re-scheduled
-      // via ExtendMaxStreamData when the peer grants more flow control.
+      // via ExtendMax(Stream)Data when the peer grants more flow control.
       // Without this, SendPendingData would repeatedly pop and retry
       // the same blocked stream in an infinite loop.
       stream->Unschedule();
@@ -433,6 +433,15 @@ class DefaultApplication final : public Session::Application {
     DCHECK_NOT_NULL(stream);
     stream->Schedule(&stream_queue_);
   }
+
+  void ExtendMaxData(uint64_t max_data) override {
+    // The peer granted more flow control for session. Re-schedule
+    // all streams so SendPendingData will resume writing.
+    for (auto& [id, stream] : session().streams()) {
+      stream->Schedule(&stream_queue_);
+    }
+  }
+  
 
   bool StreamCommit(Session::StreamData* stream_data, size_t datalen) override {
     DCHECK_NOT_NULL(stream_data);
