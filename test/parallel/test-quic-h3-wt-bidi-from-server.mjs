@@ -61,8 +61,8 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
   });
   ss.onstream = mustCall((stream) => {
     stream.onsessionid = mustNotCall(async (sessionid) => {
-     console.log('No client initiated stream expected!');
-    }); 
+      console.log('No client initiated stream expected!');
+    });
   });
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
@@ -71,10 +71,10 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 1000,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
   onheaders: mustCall(async function(headers) {
     try {
@@ -105,10 +105,8 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
     });
     // Now we can echo all data.
     const writer = serverBidiStream.writer;
-    let echoedData = 0;
     for await (const chunks of serverBidiStream) {
       for (const chunk of chunks) {
-        echoedData += chunk.byteLength
         while (!writer.writeSync(chunk)) {
           // Flow controlled — wait for drain before retrying.
           const drainable = writer[dp]();
@@ -128,10 +126,10 @@ const clientSession = await connect(serverEndpoint.address, {
     enableDatagrams: true,
     enableWebtransport: true
   },
-  transportParams: { 
+  transportParams: {
     maxDatagramFrameSize: 1000,
-    initialMaxStreamsBidi: 100, // default value according to spec
-    initialMaxStreamsUni: 100, // especially important as limit default is 0
+    initialMaxStreamsBidi: 100, // Default value according to spec
+    initialMaxStreamsUni: 100, // Especially important as limit default is 0
   },
 });
 
@@ -190,11 +188,7 @@ wtSessionStream.sendHeaders({
 
 const readFromStream = mustCallAtLeast(async (stream) => {
   const readChunks = [];
-  let readdata = 0;
   for await (const chunks of stream) {
-     for (const chunk of chunks) {
-      readdata += chunk.byteLength;
-     }
     readChunks.push(...chunks);
   }
   const receivedBytes = readChunks.reduce((accu, curVal) => accu + curVal.byteLength, 0);
@@ -210,10 +204,8 @@ const readFromStream = mustCallAtLeast(async (stream) => {
 
 const writeToStream = mustCallAtLeast(async (stream) => {
   const w = stream.writer;
-  let writtenData = 0;
   for (let i = 0; i < numChunks; i++) {
     const chunk = buildChunk(i);
-    writtenData += chunk.byteLength;
     while (!w.writeSync(chunk)) {
       // Flow controlled — wait for drain before retrying.
       const drainable = w[dp]();
