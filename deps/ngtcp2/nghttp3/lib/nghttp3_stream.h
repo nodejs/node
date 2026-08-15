@@ -42,8 +42,9 @@
 #define NGHTTP3_STREAM_MIN_CHUNK_SIZE 256
 
 /* NGHTTP3_MIN_UNSENT_BYTES is the minimum unsent bytes which is large
-   enough to fill outgoing single QUIC packet. */
-#define NGHTTP3_MIN_UNSENT_BYTES 4096
+   enough to fill outgoing single QUIC packet or TLS record in case of
+   QMux (Cut 2 bytes for QMux record length). */
+#define NGHTTP3_MIN_UNSENT_BYTES 16382
 
 /* NGHTTP3_STREAM_MIN_WRITELEN is the minimum length of write to cause
    the stream to reschedule. */

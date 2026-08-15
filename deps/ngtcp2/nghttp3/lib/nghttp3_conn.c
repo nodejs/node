@@ -1340,7 +1340,7 @@ nghttp3_ssize nghttp3_conn_read_control(nghttp3_conn *conn,
         for (; conn->rx.originlen_offset < sizeof(conn->rx.originlen) &&
                (size_t)nread < len;
              ++conn->rx.originlen_offset, ++nread) {
-          conn->rx.originlen <<= 8;
+          conn->rx.originlen *= 256;
           conn->rx.originlen += *p++;
         }
 
@@ -3086,7 +3086,7 @@ void nghttp3_conn_block_stream(nghttp3_conn *conn, int64_t stream_id) {
   stream->flags |= NGHTTP3_STREAM_FLAG_FC_BLOCKED;
   stream->unscheduled_nwrite = 0;
 
-  if (nghttp3_client_stream_bidi(stream->node.id)) {
+  if (nghttp3_stream_schedulable(stream)) {
     nghttp3_conn_unschedule_stream(conn, stream);
   }
 }
@@ -3101,7 +3101,7 @@ void nghttp3_conn_shutdown_stream_write(nghttp3_conn *conn, int64_t stream_id) {
   stream->flags |= NGHTTP3_STREAM_FLAG_SHUT_WR;
   stream->unscheduled_nwrite = 0;
 
-  if (nghttp3_client_stream_bidi(stream->node.id)) {
+  if (nghttp3_stream_schedulable(stream)) {
     nghttp3_conn_unschedule_stream(conn, stream);
   }
 }

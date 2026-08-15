@@ -226,21 +226,20 @@ static int ksl_split_node(nghttp3_ksl *ksl, nghttp3_ksl_blk *blk, size_t i) {
  *     Out of memory.
  */
 static int ksl_split_root(nghttp3_ksl *ksl) {
-  nghttp3_ksl_blk *rblk = NULL, *lblk, *nroot = NULL;
+  nghttp3_ksl_blk *rblk, *lblk, *nroot;
+
+  nroot = ksl_blk_objalloc_new(ksl);
+  if (nroot == NULL) {
+    return NGHTTP3_ERR_NOMEM;
+  }
 
   rblk = ksl_split_blk(ksl, ksl->root);
   if (rblk == NULL) {
+    ksl_blk_objalloc_del(ksl, nroot);
     return NGHTTP3_ERR_NOMEM;
   }
 
   lblk = ksl->root;
-
-  nroot = ksl_blk_objalloc_new(ksl);
-
-  if (nroot == NULL) {
-    ksl_blk_objalloc_del(ksl, rblk);
-    return NGHTTP3_ERR_NOMEM;
-  }
 
   nroot->next = nroot->prev = NULL;
   nroot->n = 2;
