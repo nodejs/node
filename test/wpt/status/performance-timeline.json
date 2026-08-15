@@ -20,7 +20,12 @@
     "skip": "This is not a test file."
   },
   "webtiming-resolution.any.js": {
-    "skip": "flaky"
+    "fail": {
+      "note": "performance.now() has a finer resolution than the 5 microseconds expected by the test on fast hardware",
+      "flaky": [
+        "Verifies the resolution of performance.now() is at least 5 microseconds."
+      ]
+    }
   },
   "not-restored-reasons/performance-navigation-timing-attributes.tentative.window.js": {
     "skip": "Depends on HTML WPT"

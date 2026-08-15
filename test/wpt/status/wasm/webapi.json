@@ -12,12 +12,9 @@
     "skip": "WPTRunner does not support fetch()"
   },
   "idlharness.any.js": {
-    "skip": "not configured"
+    "skip": "interfaces/wasm-web-api.idl is not included in the fixtures"
   },
   "status.any.js": {
     "skip": "WPTRunner does not support fetch()"
-  },
-  "instantiateStreaming-bad-imports.any.js": {
-    "skip": "Flaky on ARM with V8 >= 11.2"
   }
 }

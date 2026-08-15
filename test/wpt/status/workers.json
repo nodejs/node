@@ -1,10 +1,4 @@
 {
-  "SharedWorker-MessageEvent-source.any.js": {
-    "skip": "SharedWorker is not implemented"
-  },
-  "SharedWorker-replace-EventHandler.any.js": {
-    "skip": "SharedWorker is not implemented"
-  },
   "Worker-location.sub.any.js": {
     "skip": "Server substitution (.sub) is not supported"
   },
@@ -30,18 +24,31 @@
   "dedicated-worker-in-data-url-context.window.js": {
     "skip": "Needs a document to create iframes"
   },
-  "examples/onconnect.any.js": {
-    "skip": "SharedWorker is not implemented"
-  },
   "importscripts_mime.any.js": {
-    "skip": "Needs a WPT server to serve scripts with arbitrary MIME types"
+    "fail": {
+      "note": "Needs a WPT server; the allowed-MIME-type subtests cannot load their .py helper script",
+      "expected": [
+        "importScripts() requires scripty MIME types: text/javascript is allowed.",
+        "importScripts() requires scripty MIME types: application/javascript is allowed.",
+        "importScripts() requires scripty MIME types: text/ecmascript is allowed.",
+        "importScripts() requires scripty MIME types: text/javascript; charset=utf-8 is allowed.",
+        "importScripts() requires scripty MIME types: text/javascript;charset=utf-8 is allowed.",
+        "importScripts() requires scripty MIME types: text/javascript;bla;bla is allowed."
+      ]
+    }
   },
   "importscripts_mime_local.any.js": {
     "note": "crypto.randomUUID() is used to generate blob URL identifiers",
     "requires": ["crypto"]
   },
   "interfaces/WorkerUtils/importScripts/catch.sub.any.js": {
-    "skip": "Needs a WPT server; tests cross-origin importScripts()"
+    "fail": {
+      "note": "Needs a WPT server; tests cross-origin importScripts()",
+      "expected": [
+        "Cross-origin syntax error",
+        "Cross-origin throw"
+      ]
+    }
   },
   "interfaces/WorkerUtils/importScripts/blob-url.worker.js": {
     "note": "crypto.randomUUID() is used to generate blob URL identifiers",
@@ -81,16 +88,60 @@
     }
   },
   "modules/shared-worker-import-blob-url.window.js": {
-    "skip": "SharedWorker is not implemented"
+    "fail": {
+      "note": "SharedWorker is not implemented",
+      "expected": [
+        "Static import.",
+        "Static import (cross-origin).",
+        "Static import (redirect).",
+        "Nested static import.",
+        "Static import and then dynamic import.",
+        "Dynamic import.",
+        "Nested dynamic import.",
+        "Dynamic import and then static import.",
+        "eval(import())."
+      ]
+    }
   },
   "modules/shared-worker-import-data-url.window.js": {
-    "skip": "SharedWorker is not implemented"
+    "fail": {
+      "note": "SharedWorker is not implemented",
+      "expected": [
+        "Static import.",
+        "Static import (cross-origin).",
+        "Static import (redirect).",
+        "Nested static import.",
+        "Static import and then dynamic import.",
+        "Dynamic import.",
+        "Nested dynamic import.",
+        "Dynamic import and then static import.",
+        "eval(import())."
+      ]
+    }
   },
   "modules/shared-worker-import.window.js": {
-    "skip": "SharedWorker is not implemented"
+    "fail": {
+      "note": "SharedWorker is not implemented",
+      "expected": [
+        "Static import.",
+        "Static import (cross-origin).",
+        "Static import (redirect).",
+        "Nested static import.",
+        "Static import and then dynamic import.",
+        "Dynamic import.",
+        "Nested dynamic import.",
+        "Dynamic import and then static import.",
+        "eval(import())."
+      ]
+    }
   },
   "nested_worker_sync_xhr.worker.js": {
-    "skip": "XMLHttpRequest is not implemented"
+    "fail": {
+      "note": "XMLHttpRequest is not implemented",
+      "expected": [
+        "Nested worker that issues a sync XHR"
+      ]
+    }
   },
   "same-site-cookies/first-party.all.tentative.https.window.js": {
     "skip": "Needs a document and an https WPT server"
@@ -143,17 +194,25 @@
       ]
     }
   },
-  "semantics/interface-objects/003.any.js": {
-    "skip": "SharedWorker is not implemented"
-  },
-  "semantics/interface-objects/004.any.js": {
-    "skip": "SharedWorker is not implemented"
-  },
   "shared-worker-from-blob-url.window.js": {
-    "skip": "SharedWorker is not implemented"
+    "fail": {
+      "note": "SharedWorker is not implemented",
+      "expected": [
+        "Creating a shared worker from a blob URL works.",
+        "Creating a shared worker from a blob URL works immediately before revoking.",
+        "Connecting to a shared worker on a revoked blob URL works.",
+        "Blob URLs should not resolve relative to document base URL."
+      ]
+    }
   },
   "shared-worker-in-data-url-context.window.js": {
-    "skip": "SharedWorker is not implemented"
+    "fail": {
+      "note": "SharedWorker is not implemented",
+      "expected": [
+        "Create a shared worker in a data url frame",
+        "Create a data url shared worker in a data url frame"
+      ]
+    }
   },
   "worker-performance.worker.js": {
     "fail": {
@@ -165,6 +224,11 @@
     }
   },
   "WorkerGlobalScope_requestAnimationFrame.worker.js": {
-    "skip": "requestAnimationFrame is not implemented in workers"
+    "fail": {
+      "note": "requestAnimationFrame is not implemented in workers",
+      "expected": [
+        "WorkerGlobalScope_requestAnimationFrame"
+      ]
+    }
   }
 }

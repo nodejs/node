@@ -1,12 +1,28 @@
 {
   "event_constructor.window.js": {
-    "skip": "StorageEvent is currently unimplemented."
+    "fail": {
+      "note": "StorageEvent is not implemented",
+      "expected": [
+        "StorageEvent constructor called as normal function",
+        "constructor with no arguments",
+        "constructor with just type argument",
+        "constructor with sensible type argument and members",
+        "constructor with null type argument and members",
+        "constructor with undefined type argument and members"
+      ]
+    }
   },
   "event_initstorageevent.window.js": {
-    "skip": "StorageEvent is currently unimplemented."
-  },
-  "localstorage-cross-origin-iframe.tentative.https.window.js": {
-    "skip": "iframes are not supported in Node.js."
+    "fail": {
+      "note": "StorageEvent is not implemented",
+      "expected": [
+        "initStorageEvent with 0 arguments",
+        "initStorageEvent with 1 argument",
+        "initStorageEvent with 8 sensible arguments",
+        "initStorageEvent with 8 null arguments",
+        "initStorageEvent with 8 undefined arguments"
+      ]
+    }
   },
   "localstorage-cross-origin-iframe.https.window.js": {
     "skip": "iframes are not supported in Node.js."

@@ -19,22 +19,26 @@
   },
   "iso-2022-jp-decoder.any.js": {
     "requires": ["full-icu"],
-    "skip": "iso-2022-jp decoder state handling bug: https://encoding.spec.whatwg.org/#iso-2022-jp-decoder"
+    "fail": {
+      "note": "iso-2022-jp decoder state handling bug: https://encoding.spec.whatwg.org/#iso-2022-jp-decoder",
+      "expected": [
+        "iso-2022-jp decoder: Error ESC",
+        "iso-2022-jp decoder: Katakana ESC, SO / SI",
+        "iso-2022-jp decoder: character, error ESC #2"
+      ]
+    }
   },
   "textdecoder-byte-order-marks.any.js": {
     "requires": ["small-icu"]
   },
   "textdecoder-fatal-single-byte.any.js": {
-    "requires": ["full-icu"],
-    "skip": "The iso-8859-16 encoding is not supported"
+    "requires": ["full-icu"]
   },
   "textdecoder-labels.any.js": {
-    "requires": ["full-icu"],
-    "skip": "The iso-8859-16 encoding is not supported"
+    "requires": ["full-icu"]
   },
   "textencoder-constructor-non-utf.any.js": {
-    "requires": ["full-icu"],
-    "skip": "The iso-8859-16 encoding is not supported"
+    "requires": ["full-icu"]
   },
   "idlharness.any.js": {
     "requires": ["small-icu"]
@@ -76,18 +80,19 @@
     "requires": ["small-icu"]
   },
   "legacy-mb-schinese/gbk/gbk-decoder.any.js": {
-    "requires": ["full-icu"],
-    "skip": "The gbk encoding is not supported"
+    "requires": ["full-icu"]
   },
   "legacy-mb-schinese/gb18030/gb18030-decoder.any.js": {
-    "requires": ["full-icu"],
-    "skip": "The gb18030 encoding is not supported"
+    "requires": ["full-icu"]
   },
   "textdecoder-arguments.any.js": {
     "requires": ["small-icu"]
   },
-  "single-byte-decoder.window.js": {
+  "single-byte-decoder.window.js?document": {
     "skip": "document is not defined"
+  },
+  "single-byte-decoder.window.js?XMLHttpRequest": {
+    "skip": "XMLHttpRequest is not defined"
   },
   "textdecoder-eof.any.js": {
     "requires": ["small-icu"]

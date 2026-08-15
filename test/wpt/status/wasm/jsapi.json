@@ -1,12 +1,29 @@
 {
   "esm-integration/global-exports-live-bindings.tentative.any.js": {
-    "skip": "Live bindings unsupported pending V8 WebAssemblyModuleRecord"
+    "fail": {
+      "note": "Live bindings unsupported pending V8 WebAssemblyModuleRecord",
+      "expected": [
+        "Local mutable global exports should be live bindings",
+        "Dep module mutable global exports should be live bindings"
+      ]
+    }
   },
   "esm-integration/namespace-instance.tentative.any.js": {
-    "skip": "pending https://github.com/nodejs/node/pull/59024"
+    "fail": {
+      "note": "pending https://github.com/nodejs/node/pull/59024",
+      "expected": [
+        "WebAssembly.namespaceInstance() should return the underlying instance with shared state",
+        "WebAssembly.namespaceInstance() should work correctly with multiple modules"
+      ]
+    }
   },
   "esm-integration/v128-tdz.tentative.any.js": {
-    "skip": "v128 undefined Wasm bindings not yet supported in V8"
+    "fail": {
+      "note": "v128 undefined Wasm bindings not yet supported in V8",
+      "expected": [
+        "v128 global exports should cause TDZ errors"
+      ]
+    }
   },
   "global/value-get-set.any.js": {
     "fail": {
@@ -16,39 +33,132 @@
     }
   },
   "exception/getArg.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "Getting out-of-range argument"
+      ]
+    }
   },
   "function/call.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "test calling function",
+        "test constructing function"
+      ]
+    }
   },
   "function/constructor.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "name",
+        "length",
+        "Too few arguments",
+        "Calling",
+        "construct with JS function",
+        "fail with missing results",
+        "fail with missing parameters",
+        "fail with non-string parameters & results",
+        "fail with non-existent parameter and result type",
+        "fail with non-function object",
+        "fail to construct with non-callable object"
+      ]
+    }
   },
   "function/table.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "Test insertion into table"
+      ]
+    }
   },
   "function/type.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "Check empty results and parameters",
+        "Check all types"
+      ]
+    }
   },
   "global/type.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "i32, mutable",
+        "i32, immutable",
+        "i64, mutable",
+        "i64, immutable",
+        "f32, mutable",
+        "f32, immutable",
+        "f64, mutable",
+        "f64, immutable",
+        "externref, mutable",
+        "externref, immutable",
+        "funcref, mutable",
+        "funcref, immutable",
+        "key ordering"
+      ]
+    }
   },
   "idlharness.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "skip": "interfaces/wasm-js-api.idl is not included in the fixtures"
   },
   "memory/constructor-types.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "Initializing with both initial and minimum",
+        "Zero minimum",
+        "Non-zero minimum"
+      ]
+    }
   },
   "memory/type.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "Zero initial, no maximum",
+        "Non-zero initial, no maximum",
+        "Zero maximum",
+        "None-zero maximum",
+        "non-shared memory",
+        "shared memory"
+      ]
+    }
   },
   "table/constructor-types.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "Initializing with both initial and minimum",
+        "Zero minimum",
+        "Non-zero minimum"
+      ]
+    }
   },
   "table/type.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "Zero initial, no maximum",
+        "Non-zero initial, no maximum",
+        "Zero maximum",
+        "Non-zero maximum"
+      ]
+    }
   },
   "tag/type.tentative.any.js": {
-    "skip": "track - still tentative / unsupported"
+    "fail": {
+      "note": "track - still tentative / unsupported",
+      "expected": [
+        "[]",
+        "[i32 i64]",
+        "[i32 i64 f32 f64]"
+      ]
+    }
   }
 }

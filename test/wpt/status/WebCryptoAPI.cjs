@@ -200,6 +200,13 @@ module.exports = {
     'skip': 'Not relevant in Node.js context',
   },
   'historical.any.js': {
-    'skip': 'Not relevant in Node.js context',
+    'fail': {
+      'note': 'The Web Crypto API is exposed regardless of secure context',
+      'expected': [
+        'Non-secure context window does not have access to crypto.subtle',
+        'Non-secure context window does not have access to SubtleCrypto',
+        'Non-secure context window does not have access to CryptoKey',
+      ],
+    },
   },
 };
