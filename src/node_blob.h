@@ -82,7 +82,7 @@ class Blob : public BaseObject {
                                         BaseObjectPtr<Blob> blob);
     static void Pull(const v8::FunctionCallbackInfo<v8::Value>& args);
     static void SetWakeup(const v8::FunctionCallbackInfo<v8::Value>& args);
-    void NotifyPull(bool fin = false);
+    void NotifyPull();
 
     explicit Reader(Environment* env,
                     v8::Local<v8::Object> obj,
