@@ -2354,11 +2354,11 @@ typedef int (*nghttp3_recv_settings2)(nghttp3_conn *conn,
  * invoked when a stream identified by |stream_id| is closed.  If
  * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET` is set in
  * |flags|, |rx_app_error_code| is the QUIC application error code
- * received from the remote endpoint.  If
+ * that shut down the receiving side of the stream.  If
  * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET` is set in
  * |flags|, |tx_app_error_code| is the QUIC application error code
- * sent to the remote endpoint.  No application code means that
- * direction of stream is closed without any error.
+ * that shut down the sending side of the stream.  No application code
+ * means that direction of stream is closed without any error.
  *
  * This callback should be used with `nghttp3_conn_close_stream2`.  If
  * `nghttp3_conn_close_stream` is used, the app_error_code is set to
@@ -3086,11 +3086,11 @@ NGHTTP3_EXTERN int nghttp3_conn_close_stream(nghttp3_conn *conn,
  * `nghttp3_conn_close_stream2` tells the library that a stream
  * identified by |stream_id| has been closed.  If
  * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_RX_APP_ERROR_CODE_SET` is set in
- * |flags|, |rx_app_error_code| is QUIC application error received
- * from the remote endpoint.  Similarly,
+ * |flags|, |rx_app_error_code| is the QUIC application error code
+ * that shut down the receiving side of the stream.  Similarly,
  * :macro:`NGHTTP3_STREAM_CLOSE_FLAG_TX_APP_ERROR_CODE_SET` is set in
- * |flags|, |tx_app_error_code| is QUIC application error sent to the
- * remote endpoint.
+ * |flags|, |tx_app_error_code| is the QUIC application error code
+ * that shut down the sending side of the stream.
  *
  * For stream close callback, prefer
  * :member:`nghttp3_callbacks.stream_close2` to
