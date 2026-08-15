@@ -174,14 +174,35 @@ class DataQueueImpl final : public DataQueue,
     backpressure_listeners_.erase(listener);
   }
 
+  // Both notifications below can re-enter this DataQueue: a listener may end
+  // up calling into JavaScript, which can destroy the owner of a listener and
+  // so mutate backpressure_listeners_ (or drop the last reference to this
+  // queue) while we are iterating. Hold a reference, iterate a snapshot, and
+  // re-check membership so a listener removed mid-notification is not called.
   void NotifyBackpressure(size_t amount) {
     if (idempotent_) return;
-    for (auto& listener : backpressure_listeners_) listener->EntryRead(amount);
+    if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
+    std::vector<BackpressureListener*> listeners(
+        backpressure_listeners_.begin(), backpressure_listeners_.end());
+    for (auto* listener : listeners) {
+      if (backpressure_listeners_.contains(listener)) {
+        listener->EntryRead(amount);
+      }
+    }
   }
 
   void NotifyBeforePull() {
     if (idempotent_) return;
-    for (auto& listener : backpressure_listeners_) listener->BeforePull();
+    if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
+    std::vector<BackpressureListener*> listeners(
+        backpressure_listeners_.begin(), backpressure_listeners_.end());
+    for (auto* listener : listeners) {
+      if (backpressure_listeners_.contains(listener)) {
+        listener->BeforePull();
+      }
+    }
   }
 
   bool HasBackpressureListeners() const noexcept {
