@@ -32,7 +32,9 @@ import sqlite from 'node:sqlite';
 const sqlite = require('node:sqlite');
 ```
 
-This module is only available under the `node:` scheme.
+This module is only available under the `node:` scheme. SQL trace events can
+be observed via the [`diagnostics_channel`][] module. See
+[`'sqlite.db.query'`][] for details.
 
 The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
@@ -311,8 +313,8 @@ added: v22.5.0
 Closes the database connection. An exception is thrown if the database is not
 open. An [`ERR_INVALID_STATE`][] error is thrown if the method is called while
 a statement is executing, such as inside a user-defined function, an aggregate
-function, or an authorizer callback. This method is a wrapper around
-[`sqlite3_close_v2()`][].
+function, an authorizer callback, or a [`'sqlite.db.query'`][] subscriber. This
+method is a wrapper around [`sqlite3_close_v2()`][].
 
 ### `database.loadExtension(path[, entryPoint])`
 
@@ -1122,7 +1124,12 @@ added: REPLACEME
 -->
 
 Finalizes the prepared statement. An exception is thrown if the statement is
-already finalized. This method is a wrapper around [`sqlite3_finalize()`][].
+already finalized. An [`ERR_INVALID_STATE`][] error is thrown if this statement
+is currently executing, which happens when the method is called from a callback
+that the statement itself triggered, such as a user-defined function, an
+aggregate function, or a [`'sqlite.db.query'`][] subscriber. Other statements
+on the same connection can be finalized from such a callback. This method is a
+wrapper around [`sqlite3_finalize()`][].
 
 ### `statement.columns()`
 
@@ -1369,7 +1376,9 @@ added: REPLACEME
 -->
 
 Finalizes the prepared statement. If the prepared statement is already
-finalized, then this is a no-op.
+finalized, then this is a no-op. An [`ERR_INVALID_STATE`][] error is thrown if
+this statement is currently executing, under the same conditions as
+[`statement.close()`][].
 
 ### `statement.stat(counter)`
 
@@ -1890,6 +1899,7 @@ callback function to indicate what type of operation is being authorized.
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
+[`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
@@ -1903,6 +1913,7 @@ callback function to indicate what type of operation is being authorized.
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
+[`diagnostics_channel`]: diagnostics_channel.md
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
@@ -1934,6 +1945,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
 [`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
+[`statement.close()`]: #statementclose
 [`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
 [`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
 [`statement.stat()`]: #statementstatcounter
