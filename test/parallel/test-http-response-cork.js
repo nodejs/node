@@ -6,10 +6,11 @@ const assert = require('assert');
 const server = http.createServer(common.mustCallAtLeast((req, res) => {
   let corked = false;
   const originalWrite = res.socket.write;
-  res.socket.write = common.mustCall((...args) => {
+  // Chunked res.end() may flush headers + body + terminator in one write.
+  res.socket.write = common.mustCallAtLeast((...args) => {
     assert.strictEqual(corked, false);
     return originalWrite.call(res.socket, ...args);
-  }, 5);
+  }, 1);
   corked = true;
   res.cork();
   assert.strictEqual(res.writableCorked, res.socket.writableCorked);

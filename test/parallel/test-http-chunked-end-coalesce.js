@@ -62,11 +62,18 @@ const server = http.createServer(common.mustCallAtLeast((req, res) => {
       res.writeHead(200, { 'CONTENT-LENGTH': '2' });
       res.end('hi');
       break;
+    case '/latin1-header':
+      res.writeHead(200, [
+        'content-disposition',
+        Buffer.from('bår').toString('binary'),
+      ]);
+      res.end('ok');
+      break;
     default:
       res.writeHead(404);
       res.end();
   }
-}, 5));
+}, 6));
 
 server.listen(0, common.mustCall(async () => {
   const port = server.address().port;
@@ -93,6 +100,15 @@ server.listen(0, common.mustCall(async () => {
   const lengthText = lengthRaw.toString('latin1');
   assert.match(lengthText, /CONTENT-LENGTH: 2\r\n/);
   assert.ok(lengthText.endsWith('\r\n\r\nhi'));
+
+  const latin1Raw = await rawRequest(port, '/latin1-header');
+  const latin1Text = latin1Raw.toString('latin1');
+  const expectedLatin1 = Buffer.from('bår').toString('latin1');
+  assert.ok(
+    latin1Text.includes(`content-disposition: ${expectedLatin1}\r\n`),
+    latin1Text,
+  );
+  assertChunkedBody(latin1Raw, 'ok');
 
   server.close();
 }));
