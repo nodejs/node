@@ -42,6 +42,7 @@ class Worker : public AsyncWrap {
 
   // Run the worker. This is only called from the worker thread.
   void Run();
+  bool UseWorkerContextSnapshot() const;
 
   // Forcibly exit the thread with a specified exit code. This may be called
   // from any thread. `error_code` and `error_message` can be used to create
