@@ -1272,6 +1272,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
   const EnvironmentOptionsParser& eop) {
+  AddOption("--worker-snapshot",
+            "start worker threads from the bootstrapped context in the "
+            "built-in startup snapshot",
+            BOOL_FIELD(worker_snapshot),
+            kAllowedInEnvvar,
+            true);
   AddOption("--track-heap-objects",
             "track heap object allocations for heap snapshots",
             BOOL_FIELD(track_heap_objects),
