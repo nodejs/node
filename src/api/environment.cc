@@ -433,6 +433,11 @@ Environment* CreateEnvironment(
 
   const bool use_snapshot = context.IsEmpty();
   const EnvSerializeInfo* env_snapshot_info = nullptr;
+  // A worker thread (its IsolateData knows its Worker) deserializes the same
+  // bootstrapped principal context the main thread uses and then has the
+  // worker-side bootstrap switches applied on top of it (they are written as
+  // overrides of the main-thread setup).
+  const bool for_worker = isolate_data->worker_context() != nullptr;
   if (use_snapshot) {
     CHECK_NOT_NULL(isolate_data->snapshot_data());
     env_snapshot_info = &isolate_data->snapshot_data()->env_info;
@@ -469,11 +474,30 @@ Environment* CreateEnvironment(
       FreeEnvironment(env);
       return nullptr;
     }
-    SetIsolateErrorHandlers(isolate, {});
+    if (!for_worker) SetIsolateErrorHandlers(isolate, {});
   }
 
   Context::Scope context_scope(context);
   env->InitializeMainContext(context, env_snapshot_info);
+
+  if (use_snapshot && for_worker) {
+    // The deserialized context went through is_main_thread /
+    // does_own_process_state when the snapshot was built; the worker-side
+    // switches redefine exactly those pieces (stdio getters, signal wiring,
+    // process.abort/chdir/umask/..., debug helpers).
+    if (env->principal_realm()
+            ->ExecuteBootstrapper(
+                "internal/bootstrap/switches/is_not_main_thread")
+            .IsEmpty() ||
+        (!env->owns_process_state() &&
+         env->principal_realm()
+             ->ExecuteBootstrapper(
+                 "internal/bootstrap/switches/does_not_own_process_state")
+             .IsEmpty())) {
+      FreeEnvironment(env);
+      return nullptr;
+    }
+  }
 
 #if HAVE_INSPECTOR
   if (env->should_create_inspector()) {
