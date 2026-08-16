@@ -233,6 +233,11 @@ enum Flags : uint32_t {
   kNoInitializeCppgc = 1 << 13,
   // Initialize the process for predictable snapshot generation.
   kGeneratePredictableSnapshot = 1 << 14,
+  // Do not serialize a code cache for builtins that had to be compiled without
+  // one. By default such caches are kept so that worker threads created later
+  // start faster; an embedder that supplies its own cache (SetBuiltinCodeCache)
+  // or never creates workers only pays for the serialization.
+  kNoHarvestBuiltinCodeCache = 1 << 15,
 
   // Emulate the behavior of InitializeNodeWithArgs() when passing
   // a flags argument to the InitializeOncePerProcess() replacement
@@ -677,6 +682,36 @@ struct SnapshotConfig {
 struct InspectorParentHandle {
   virtual ~InspectorParentHandle() = default;
 };
+
+// A V8 code cache for one of Node.js's built-in JavaScript modules.
+struct BuiltinCodeCacheEntry {
+  std::string id;       // e.g. "internal/bootstrap/node"
+  const uint8_t* data;  // must stay valid for the rest of the process
+  size_t length;
+};
+struct OwnedBuiltinCodeCacheEntry {
+  std::string id;
+  std::vector<uint8_t> data;
+};
+
+// Contexts and Environments created from Node.js's built-in snapshot get the
+// builtins' code cache from that snapshot. An embedder that bootstraps them
+// from scratch (its own isolate/context, no EmbedderSnapshotData) can supply a
+// cache built ahead of time with GenerateBuiltinCodeCache() against the same
+// kind of isolate (same V8 version, flags and read-only snapshot): every
+// Environment created afterwards, and the loader for the per-context scripts
+// run by NewContext(), start with these entries. Entries a snapshot provides
+// still apply. Call before creating contexts/Environments; may be called
+// again to replace the set for later ones.
+NODE_EXTERN void SetBuiltinCodeCache(
+    const std::vector<BuiltinCodeCacheEntry>& entries);
+
+// Compiles every built-in module in `context` (which must have been created
+// with node::NewContext() in the kind of isolate the cache is for) and returns
+// their code caches, e.g. for a build step that embeds them and passes them to
+// SetBuiltinCodeCache() at runtime. Returns an empty vector on failure.
+NODE_EXTERN std::vector<OwnedBuiltinCodeCacheEntry> GenerateBuiltinCodeCache(
+    v8::Local<v8::Context> context);
 
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are

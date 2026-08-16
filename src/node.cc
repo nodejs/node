@@ -1286,6 +1286,10 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     cppgc::InitializeProcess(allocator);
   }
 
+  if (flags & ProcessInitializationFlags::kNoHarvestBuiltinCodeCache) {
+    builtins::BuiltinLoader::SetHarvestCodeCache(false);
+  }
+
   if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
     V8::Initialize();
 

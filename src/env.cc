@@ -871,7 +871,10 @@ Environment::Environment(IsolateData* isolate_data,
     CHECK_NOT_NULL(isolate_data->worker_context());
     builtin_loader()->CopySourceAndCodeCacheReferenceFrom(
         isolate_data->worker_context()->env()->builtin_loader());
-  } else if (isolate_data->snapshot_data() != nullptr) {
+  } else {
+    builtin_loader()->SeedFromProcessCodeCache();
+  }
+  if (is_main_thread() && isolate_data->snapshot_data() != nullptr) {
     // ... otherwise, if a snapshot was provided, use its code cache.
     size_t cache_size = isolate_data->snapshot_data()->code_cache.size();
     per_process::Debug(DebugCategory::CODE_CACHE,

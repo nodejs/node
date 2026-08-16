@@ -125,7 +125,23 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
       v8::Local<v8::Context> context,
       const std::vector<std::string>& lazy_builtins,
       std::vector<CodeCacheInfo>* out);
+  // Adds the given code cache entries, replacing existing entries with the
+  // same id. Can be called more than once (e.g. with the snapshot's code cache
+  // and then with caches an embedder built for further builtin ids).
   void RefreshCodeCache(const std::vector<CodeCacheInfo>& in);
+
+  // Process-wide entries every BuiltinLoader created afterwards starts with
+  // (each Environment's and the per-context script loader): lets embedders
+  // whose contexts are not deserialized from a snapshot still compile the
+  // builtins with a cache. See node::SetBuiltinCodeCache().
+  static void SetProcessCodeCache(std::vector<CodeCacheInfo> entries);
+  // Whether builtins compiled without a cache serialize one for later
+  // consumers (worker threads copy it). See
+  // ProcessInitializationFlags::kNoHarvestBuiltinCodeCache.
+  static void SetHarvestCodeCache(bool on);
+  // For loaders that do not inherit another loader's cache: start from the
+  // process-wide entries and harvest setting. Workers inherit their parent's.
+  void SeedFromProcessCodeCache();
 
   void CopySourceAndCodeCacheReferenceFrom(const BuiltinLoader* other);
 
@@ -217,6 +233,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   // avoid bloating the binary size). At runtime any additional compilation is
   // done lazily.
   bool should_eager_compile_ = false;
+  bool harvest_code_cache_ = true;
   std::unordered_set<std::string> to_eager_compile_;
 
   struct BuiltinCodeCache {

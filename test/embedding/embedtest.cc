@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include <assert.h>
+#include <cstring>
 #include "cppgc/platform.h"
 #include "executable_wrapper.h"
 #include "node.h"
@@ -24,6 +25,57 @@ using v8::MaybeLocal;
 using v8::V8;
 using v8::Value;
 
+// Builtin code cache file used by --builtin-code-cache[-create]:
+// u32 count, then per entry: u32 id length, id bytes, u32 data length, data.
+static std::vector<char> code_cache_file;  // backs the entries for the process
+
+static void LoadBuiltinCodeCache(const std::string& path) {
+  FILE* fp = fopen(path.c_str(), "rb");
+  assert(fp != nullptr);
+  fseek(fp, 0, SEEK_END);
+  code_cache_file.resize(ftell(fp));
+  fseek(fp, 0, SEEK_SET);
+  size_t r = fread(code_cache_file.data(), 1, code_cache_file.size(), fp);
+  assert(r == code_cache_file.size());
+  fclose(fp);
+  const char* p = code_cache_file.data();
+  auto u32 = [&p]() {
+    uint32_t v;
+    memcpy(&v, p, 4);
+    p += 4;
+    return v;
+  };
+  std::vector<node::BuiltinCodeCacheEntry> entries(u32());
+  for (node::BuiltinCodeCacheEntry& e : entries) {
+    uint32_t idlen = u32();
+    e.id.assign(p, idlen);
+    p += idlen;
+    e.length = u32();
+    e.data = reinterpret_cast<const uint8_t*>(p);
+    p += e.length;
+  }
+  node::SetBuiltinCodeCache(entries);
+}
+
+static int WriteBuiltinCodeCache(v8::Local<v8::Context> context,
+                                 const std::string& path) {
+  std::vector<node::OwnedBuiltinCodeCacheEntry> entries =
+      node::GenerateBuiltinCodeCache(context);
+  if (entries.empty()) return 1;
+  FILE* fp = fopen(path.c_str(), "wb");
+  assert(fp != nullptr);
+  auto u32 = [fp](uint32_t v) { fwrite(&v, 4, 1, fp); };
+  u32(static_cast<uint32_t>(entries.size()));
+  for (const node::OwnedBuiltinCodeCacheEntry& e : entries) {
+    u32(static_cast<uint32_t>(e.id.size()));
+    fwrite(e.id.data(), 1, e.id.size(), fp);
+    u32(static_cast<uint32_t>(e.data.size()));
+    fwrite(e.data.data(), 1, e.data.size(), fp);
+  }
+  fclose(fp);
+  return 0;
+}
+
 static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& args,
                            const std::vector<std::string>& exec_args);
@@ -33,19 +85,24 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
   node::FixupMain(argc, raw_argv, &argv);
 
   std::vector<std::string> args(argv, argv + argc);
+  uint32_t flags =
+      node::ProcessInitializationFlags::kNoInitializeV8 |
+      node::ProcessInitializationFlags::kNoInitializeNodeV8Platform |
+      // This is used to test NODE_REPL_EXTERNAL_MODULE is disabled with
+      // kDisableNodeOptionsEnv. If other tests need NODE_OPTIONS
+      // support in the future, split this configuration out as a
+      // command line option.
+      node::ProcessInitializationFlags::kDisableNodeOptionsEnv |
+      node::ProcessInitializationFlags::kNoInitializeCppgc;
+  auto it =
+      std::find(args.begin(), args.end(), "--no-harvest-builtin-code-cache");
+  if (it != args.end()) {
+    args.erase(it);
+    flags |= node::ProcessInitializationFlags::kNoHarvestBuiltinCodeCache;
+  }
   std::shared_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
-          args,
-          {
-              node::ProcessInitializationFlags::kNoInitializeV8,
-              node::ProcessInitializationFlags::kNoInitializeNodeV8Platform,
-              // This is used to test NODE_REPL_EXTERNAL_MODULE is disabled with
-              // kDisableNodeOptionsEnv. If other tests need NODE_OPTIONS
-              // support in the future, split this configuration out as a
-              // command line option.
-              node::ProcessInitializationFlags::kDisableNodeOptionsEnv,
-              node::ProcessInitializationFlags::kNoInitializeCppgc,
-          });
+          args, static_cast<node::ProcessInitializationFlags::Flags>(flags));
 
   for (const std::string& error : result->errors())
     fprintf(stderr, "%s: %s\n", args[0].c_str(), error.c_str());
@@ -95,6 +152,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   bool snapshot_as_file = false;
   std::optional<node::SnapshotConfig> snapshot_config;
   std::string snapshot_blob_path;
+  std::string code_cache_out_path;
   for (size_t i = 0; i < args.size(); ++i) {
     const std::string& arg = args[i];
     if (arg == "--embedder-snapshot-create") {
@@ -111,6 +169,14 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     } else if (arg == "--embedder-snapshot-blob") {
       assert(i + 1 < args.size());
       snapshot_blob_path = args[i + 1];
+      i++;
+    } else if (arg == "--builtin-code-cache-create") {
+      assert(i + 1 < args.size());
+      code_cache_out_path = args[i + 1];
+      i++;
+    } else if (arg == "--builtin-code-cache") {
+      assert(i + 1 < args.size());
+      LoadBuiltinCodeCache(args[i + 1]);
       i++;
     } else {
       filtered_args.push_back(arg);
@@ -182,6 +248,10 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
     Context::Scope context_scope(setup->context());
+
+    if (!code_cache_out_path.empty()) {
+      return WriteBuiltinCodeCache(setup->context(), code_cache_out_path);
+    }
 
     MaybeLocal<Value> loadenv_ret;
     if (snapshot) {  // Deserializing snapshot
