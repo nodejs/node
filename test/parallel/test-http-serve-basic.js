@@ -28,6 +28,8 @@ assert.strictEqual(typeof http.getRemoteMetadata, 'function');
     client.on('data', (chunk) => data += chunk);
     client.on('end', common.mustCall(() => {
       assert.match(data, /HTTP\/1\.1 200/);
+      assert.match(data, /content-length: 11/i);
+      assert.doesNotMatch(data, /transfer-encoding/i);
       assert.match(data, /Hello World/);
       server.close();
     }));
@@ -238,6 +240,29 @@ assert.strictEqual(typeof http.getRemoteMetadata, 'function');
     client.on('data', (chunk) => data += chunk);
     client.on('end', common.mustCall(() => {
       assert.match(data, /POST received/);
+      server.close();
+    }));
+  }));
+}
+
+// Test HEAD responses omit body bytes while retaining the representation length.
+{
+  const server = http.serve({}, common.mustCall(() => {
+    return new Response('HEAD body');
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    const client = net.createConnection(server.address().port, common.mustCall(() => {
+      client.write('HEAD / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n');
+    }));
+
+    let data = '';
+    client.setEncoding('utf8');
+    client.on('data', (chunk) => data += chunk);
+    client.on('end', common.mustCall(() => {
+      const { 0: head, 1: body } = data.split('\r\n\r\n');
+      assert.match(head, /content-length: 9/i);
+      assert.strictEqual(body, '');
       server.close();
     }));
   }));
