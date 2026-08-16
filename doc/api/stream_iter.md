@@ -431,14 +431,16 @@ the write. Use [`ondrain()`][] to wait for capacity rather than polling.
     the pending `end()` call; it does not fail the writer itself.
 * Returns: {Promise} Fulfills with the total number of bytes written.
 
-Signal that no more data will be written.
+Signals that no more data will be written and waits for buffered data to drain.
 
 #### `writer.endSync()`
 
-* Returns: {number} Total bytes written, or `-1` if the writer is not open.
+* Returns: {number} Total bytes written, or `-1` if ending cannot complete
+  synchronously.
 
-Synchronous variant of `writer.end()`. Returns `-1` if the writer is already
-closed or errored. Can be used as a try-fallback pattern:
+Synchronous variant of `writer.end()`. A return value of `-1` means closing has
+started but requires asynchronous draining. Use the try-fallback pattern to
+await completion:
 
 ```cjs
 const result = writer.endSync();
