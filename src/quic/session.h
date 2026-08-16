@@ -535,6 +535,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   size_t max_packet_size() const;
   void set_priority_supported(bool on = true);
 
+  // Check whether flow control permits opening another stream
+  bool CanImmediatelyOpenStream(Direction direction);
+
   // Open a new locally-initialized stream with the specified directionality.
   // If the session is not yet in a state where the stream can be openen --
   // such as when the handshake is not yet sufficiently far along and ORTT

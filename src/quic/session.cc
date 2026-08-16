@@ -1168,17 +1168,24 @@ struct Session::Impl final : public MemoryRetainer {
     }
 
     DCHECK(args[0]->IsUint32());
+    DCHECK(args[1]->IsBoolean());
+
+    auto direction = FromV8Value<Direction>(args[0]);
+    if (!args[1].As<v8::Boolean>()->Value() && false) { // This is waitUntilAvailable
+      if (!session->CanImmediatelyOpenStream(direction)) {
+        return THROW_ERR_INVALID_STATE(env, "No new stream available within flow control");
+      }
+    }
 
     // GetDataQueueFromSource handles type validation.
     std::shared_ptr<DataQueue> data_source;
-    if (!Stream::GetDataQueueFromSource(env, args[1]).To(&data_source))
+    if (!Stream::GetDataQueueFromSource(env, args[2]).To(&data_source))
         [[unlikely]] {
       return THROW_ERR_INVALID_ARG_VALUE(env, "Invalid data source");
     }
 
     session->impl_->handshake_deferred_ = false;
     SendPendingDataScope send_scope(session);
-    auto direction = FromV8Value<Direction>(args[0]);
     Local<Object> stream;
     if (session->OpenStream(direction, std::move(data_source)).ToLocal(&stream))
         [[likely]] {
@@ -3209,6 +3216,14 @@ BaseObjectPtr<Stream> Session::CreateStream(
   return {};
 }
 
+bool Session::CanImmediatelyOpenStream(Direction direction) {
+  if (direction == Direction::BIDIRECTIONAL) {
+    return max_local_streams_bidi() > 0;
+  } else {
+    return max_local_streams_uni() > 0;
+  }
+}
+
 MaybeLocal<Object> Session::OpenStream(Direction direction,
                                        std::shared_ptr<DataQueue> data_source) {
   // If can_create_streams() returns false, we are not able to open a stream
@@ -3519,13 +3534,12 @@ void Session::SetApplicationError(error_code app_error_code) {
 
 uint64_t Session::max_local_streams_uni() const {
   DCHECK(!is_destroyed());
-  return ngtcp2_conn_get_streams_uni_left(*this);
+  return ngtcp2_conn_get_streams_uni_left2(*this);
 }
 
 uint64_t Session::max_local_streams_bidi() const {
   DCHECK(!is_destroyed());
-  return ngtcp2_conn_get_local_transport_params(*this)
-      ->initial_max_streams_bidi;
+  return  ngtcp2_conn_get_streams_bidi_left2(*this);
 }
 
 void Session::set_wrapped() {
