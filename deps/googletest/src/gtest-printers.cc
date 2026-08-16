@@ -50,6 +50,7 @@
 #include <iomanip>
 #include <ios>
 #include <ostream>  // NOLINT
+#include <string>
 #include <string_view>
 #include <type_traits>
 
@@ -422,6 +423,28 @@ void UniversalPrintArray(const wchar_t* begin, size_t len, ostream* os) {
 
 namespace {
 
+template <typename Char>
+size_t GetLength(const Char* s) {
+  return std::char_traits<Char>::length(s);
+}
+
+#if !GTEST_HAS_STD_WSTRING
+
+// If GTEST_HAS_STD_WSTRING is unset because the standard library has disabled
+// wide character support, std::char_traits<wchar_t> won't be defined, which
+// will cause a compile error, even if user code never actually could print a
+// wide cstring. In that case, instead use `wcslen` directly.
+//
+// If `libc` _also_ lacks wide character support, this (and a bunch of other
+// calls to wc functions) will fail to link, but only if user code actually
+// uses them.
+template <>
+size_t GetLength<wchar_t>(const wchar_t* s) {
+  return wcslen(s);
+}
+
+#endif  // GTEST_HAS_STD_WSTRING
+
 // Prints a null-terminated C-style string to the ostream.
 template <typename Char>
 void PrintCStringTo(const Char* s, ostream* os) {
@@ -429,7 +452,7 @@ void PrintCStringTo(const Char* s, ostream* os) {
     *os << "NULL";
   } else {
     *os << ImplicitCast_<const void*>(s) << " pointing to ";
-    PrintCharsAsStringTo(s, std::char_traits<Char>::length(s), os);
+    PrintCharsAsStringTo(s, GetLength(s), os);
   }
 }
 
