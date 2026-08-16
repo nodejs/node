@@ -118,7 +118,6 @@ class BindingData : public BaseObject {
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
-  v8::Global<v8::Function> native_headers_ctor;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("parser_buffer", parser_buffer);
@@ -127,160 +126,204 @@ class BindingData : public BaseObject {
   SET_MEMORY_INFO_NAME(BindingData)
 };
 
-// Owns header name/value bytes in C++. JS strings are created only when
-// rawHeaders / headers / get() actually need them.
-class NativeHttpHeaders : public BaseObject {
- public:
-  NativeHttpHeaders(Environment* env, Local<Object> object)
-      : BaseObject(env, object) {
-    MakeWeak();
-    buf_.reserve(512);
-    entries_.reserve(16);
-  }
+// Packed incoming headers: magic + count + flags + (nlen, vlen, name, value)*
+// Kept as a Buffer so JS strings are created only when rawHeaders / headers
+// are actually read. Avoids a native BaseObject per request.
+constexpr uint32_t kNativeHeadersMagic = 0x5244484E;  // 'NHDR'
+constexpr uint32_t kNativeHeaderFlagHost = 1 << 0;
+constexpr uint32_t kNativeHeaderFlagExpect = 1 << 1;
+constexpr uint32_t kNativeHeaderFlagContentLength = 1 << 2;
+constexpr uint32_t kNativeHeaderFlagTransferEncoding = 1 << 3;
+constexpr uint32_t kNativeHeaderFlagTE = 1 << 4;
+constexpr size_t kNativeHeadersPrefix = 12;
 
-  static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    new NativeHttpHeaders(env, args.This());
-  }
+inline void WriteU32(char* p, uint32_t v) {
+  memcpy(p, &v, sizeof(v));
+}
 
-  void Add(const char* name, size_t nlen, const char* value, size_t vlen) {
-    Entry e;
-    e.name_off = static_cast<uint32_t>(buf_.size());
-    e.name_len = static_cast<uint32_t>(nlen);
-    if (nlen != 0)
-      buf_.insert(buf_.end(), name, name + nlen);
-    e.value_off = static_cast<uint32_t>(buf_.size());
-    e.value_len = static_cast<uint32_t>(vlen);
-    if (vlen != 0)
-      buf_.insert(buf_.end(), value, value + vlen);
-    entries_.push_back(e);
-  }
-
-  size_t pair_count() const { return entries_.size(); }
-
-  static void Has(const FunctionCallbackInfo<Value>& args) {
-    NativeHttpHeaders* self;
-    ASSIGN_OR_RETURN_UNWRAP(&self, args.This());
-    if (args.Length() < 1 || !args[0]->IsString()) {
-      args.GetReturnValue().Set(false);
-      return;
-    }
-    Utf8Value name(args.GetIsolate(), args[0]);
-    args.GetReturnValue().Set(self->HasHeader(*name, name.length()));
-  }
-
-  static void Get(const FunctionCallbackInfo<Value>& args) {
-    NativeHttpHeaders* self;
-    ASSIGN_OR_RETURN_UNWRAP(&self, args.This());
-    if (args.Length() < 1 || !args[0]->IsString()) {
-      args.GetReturnValue().SetUndefined();
-      return;
-    }
-    Utf8Value name(args.GetIsolate(), args[0]);
-    args.GetReturnValue().Set(self->GetHeader(name.length() == 0 ? nullptr : *name,
-                                              name.length()));
-  }
-
-  static void ToArray(const FunctionCallbackInfo<Value>& args) {
-    NativeHttpHeaders* self;
-    ASSIGN_OR_RETURN_UNWRAP(&self, args.This());
-    size_t max_elements = self->entries_.size() * 2;
-    if (args.Length() > 0 && args[0]->IsUint32()) {
-      max_elements = std::min(
-          max_elements,
-          static_cast<size_t>(args[0].As<Uint32>()->Value()));
-    }
-    args.GetReturnValue().Set(self->ToJSArray(max_elements));
-  }
-
-  bool HasHeader(const char* name, size_t nlen) const {
-    for (const Entry& e : entries_) {
-      if (HeaderNameEquals(e, name, nlen))
-        return true;
-    }
+inline bool ReadU32(const char* p, const char* end, uint32_t* out) {
+  if (p + sizeof(uint32_t) > end)
     return false;
-  }
+  memcpy(out, p, sizeof(uint32_t));
+  return true;
+}
 
-  Local<Value> GetHeader(const char* name, size_t nlen) const {
-    Isolate* isolate = env()->isolate();
-    if (name == nullptr)
-      return Undefined(isolate);
-    std::string joined;
-    bool found = false;
-    for (const Entry& e : entries_) {
-      if (!HeaderNameEquals(e, name, nlen))
-        continue;
+inline bool HeaderNameEquals(const char* a, size_t alen,
+                             const char* b, size_t blen) {
+  if (alen != blen)
+    return false;
+  for (size_t i = 0; i < alen; i++) {
+    unsigned char ca = static_cast<unsigned char>(a[i]);
+    unsigned char cb = static_cast<unsigned char>(b[i]);
+    if (ca >= 'A' && ca <= 'Z')
+      ca = static_cast<unsigned char>(ca + 32);
+    if (cb >= 'A' && cb <= 'Z')
+      cb = static_cast<unsigned char>(cb + 32);
+    if (ca != cb)
+      return false;
+  }
+  return true;
+}
+
+bool GetPackedHeaders(Local<Value> value,
+                      const char** data,
+                      size_t* size,
+                      uint32_t* count) {
+  if (!Buffer::HasInstance(value))
+    return false;
+  Local<Object> obj = value.As<Object>();
+  const char* p = Buffer::Data(obj);
+  const size_t n = Buffer::Length(obj);
+  if (n < kNativeHeadersPrefix)
+    return false;
+  uint32_t magic;
+  memcpy(&magic, p, sizeof(magic));
+  if (magic != kNativeHeadersMagic)
+    return false;
+  memcpy(count, p + 4, sizeof(uint32_t));
+  *data = p;
+  *size = n;
+  return true;
+}
+
+uint32_t KnownHeaderFlag(const char* name, size_t nlen) {
+  if (HeaderNameEquals(name, nlen, "host", 4))
+    return kNativeHeaderFlagHost;
+  if (HeaderNameEquals(name, nlen, "expect", 6))
+    return kNativeHeaderFlagExpect;
+  if (HeaderNameEquals(name, nlen, "content-length", 14))
+    return kNativeHeaderFlagContentLength;
+  if (HeaderNameEquals(name, nlen, "transfer-encoding", 17))
+    return kNativeHeaderFlagTransferEncoding;
+  if (HeaderNameEquals(name, nlen, "te", 2))
+    return kNativeHeaderFlagTE;
+  return 0;
+}
+
+void NativeHeadersHas(const FunctionCallbackInfo<Value>& args) {
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 2 ||
+      !args[1]->IsString() ||
+      !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().Set(false);
+    return;
+  }
+  Utf8Value name(args.GetIsolate(), args[1]);
+  const char* want = *name;
+  const size_t nlen = name.length();
+  const char* p = data + kNativeHeadersPrefix;
+  const char* end = data + size;
+  for (uint32_t i = 0; i < count; i++) {
+    uint32_t enlen, evlen;
+    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen))
+      break;
+    p += 8;
+    if (p + enlen + evlen > end)
+      break;
+    if (HeaderNameEquals(p, enlen, want, nlen)) {
+      args.GetReturnValue().Set(true);
+      return;
+    }
+    p += enlen + evlen;
+  }
+  args.GetReturnValue().Set(false);
+}
+
+void NativeHeadersGet(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 2 ||
+      !args[1]->IsString() ||
+      !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  Utf8Value name(isolate, args[1]);
+  const char* want = *name;
+  const size_t nlen = name.length();
+  const char* p = data + kNativeHeadersPrefix;
+  const char* end = data + size;
+  std::string joined;
+  bool found = false;
+  for (uint32_t i = 0; i < count; i++) {
+    uint32_t enlen, evlen;
+    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen))
+      break;
+    p += 8;
+    if (p + enlen + evlen > end)
+      break;
+    if (HeaderNameEquals(p, enlen, want, nlen)) {
       if (found)
         joined.append(", ");
-      joined.append(buf_.data() + e.value_off, e.value_len);
+      joined.append(p + enlen, evlen);
       found = true;
     }
-    if (!found)
-      return Undefined(isolate);
-    return OneByteString(isolate, joined.data(), joined.size());
+    p += enlen + evlen;
   }
+  if (!found) {
+    args.GetReturnValue().SetUndefined();
+    return;
+  }
+  args.GetReturnValue().Set(OneByteString(isolate, joined.data(), joined.size()));
+}
 
-  Local<Array> ToJSArray(size_t max_elements) const {
-    Isolate* isolate = env()->isolate();
-    const size_t n = std::min(entries_.size() * 2, max_elements);
-    LocalVector<Value> out(isolate);
-    out.reserve(n);
-    for (size_t i = 0; i < n; i += 2) {
-      const Entry& e = entries_[i / 2];
-      out.push_back(e.name_len == 0
-                        ? String::Empty(isolate)
-                        : OneByteString(isolate,
-                                        buf_.data() + e.name_off,
-                                        e.name_len));
-      if (i + 1 >= n)
-        break;
-      out.push_back(e.value_len == 0
-                        ? String::Empty(isolate)
-                        : OneByteString(isolate,
-                                        buf_.data() + e.value_off,
-                                        e.value_len));
+void NativeHeadersToArray(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 1 ||
+      !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().Set(Array::New(isolate, 0));
+    return;
+  }
+  size_t max_elements = static_cast<size_t>(count) * 2;
+  if (args.Length() > 1 && args[1]->IsUint32()) {
+    max_elements = std::min(
+        max_elements,
+        static_cast<size_t>(args[1].As<Uint32>()->Value()));
+  }
+  const char* p = data + kNativeHeadersPrefix;
+  const char* end = data + size;
+  LocalVector<Value> out(isolate);
+  out.reserve(max_elements);
+  for (uint32_t i = 0; i < count && out.size() < max_elements; i++) {
+    uint32_t enlen, evlen;
+    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen))
+      break;
+    p += 8;
+    if (p + enlen + evlen > end)
+      break;
+    out.push_back(enlen == 0
+                      ? String::Empty(isolate)
+                      : OneByteString(isolate, p, enlen));
+    if (out.size() >= max_elements) {
+      p += enlen + evlen;
+      break;
     }
-    return Array::New(isolate, out.data(), out.size());
+    out.push_back(evlen == 0
+                      ? String::Empty(isolate)
+                      : OneByteString(isolate, p + enlen, evlen));
+    p += enlen + evlen;
   }
+  args.GetReturnValue().Set(Array::New(isolate, out.data(), out.size()));
+}
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("buf", buf_);
-    tracker->TrackFieldWithSize("entries",
-                                entries_.capacity() * sizeof(Entry));
+void NativeHeadersByteLength(const FunctionCallbackInfo<Value>& args) {
+  const char* data;
+  size_t size;
+  uint32_t count;
+  if (args.Length() < 1 ||
+      !GetPackedHeaders(args[0], &data, &size, &count)) {
+    args.GetReturnValue().Set(0);
+    return;
   }
-  SET_MEMORY_INFO_NAME(NativeHttpHeaders)
-  SET_SELF_SIZE(NativeHttpHeaders)
-
- private:
-  struct Entry {
-    uint32_t name_off;
-    uint32_t name_len;
-    uint32_t value_off;
-    uint32_t value_len;
-  };
-
-  bool HeaderNameEquals(const Entry& e,
-                        const char* name,
-                        size_t nlen) const {
-    if (e.name_len != nlen)
-      return false;
-    const char* a = buf_.data() + e.name_off;
-    for (size_t i = 0; i < nlen; i++) {
-      unsigned char ca = static_cast<unsigned char>(a[i]);
-      unsigned char cb = static_cast<unsigned char>(name[i]);
-      if (ca >= 'A' && ca <= 'Z')
-        ca = static_cast<unsigned char>(ca + 32);
-      if (cb >= 'A' && cb <= 'Z')
-        cb = static_cast<unsigned char>(cb + 32);
-      if (ca != cb)
-        return false;
-    }
-    return true;
-  }
-
-  std::vector<char> buf_;
-  std::vector<Entry> entries_;
-};
+  args.GetReturnValue().Set(static_cast<uint32_t>(count * 2));
+}
 
 class Parser;
 
@@ -1125,52 +1168,46 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   Local<Value> CreateNativeHeaders() {
-    Isolate* isolate = env()->isolate();
-    Local<Context> context = env()->context();
-    Local<Function> ctor;
-    if (!binding_data_->native_headers_ctor.IsEmpty()) {
-      ctor = binding_data_->native_headers_ctor.Get(isolate);
-    } else {
-      Local<Value> ctor_v;
-      if (!binding_data_->object()
-               ->Get(context,
-                     FIXED_ONE_BYTE_STRING(isolate, "NativeHttpHeaders"))
-               .ToLocal(&ctor_v) ||
-          !ctor_v->IsFunction()) {
-        return CreateHeaders();
-      }
-      ctor = ctor_v.As<Function>();
-      binding_data_->native_headers_ctor.Reset(isolate, ctor);
-    }
-
-    Local<Object> obj;
-    if (!ctor->NewInstance(context, 0, nullptr).ToLocal(&obj)) {
-      got_exception_ = true;
-      return Local<Value>();
-    }
-
-    NativeHttpHeaders* list;
-    ASSIGN_OR_RETURN_UNWRAP(&list, obj, Local<Value>());
-    for (size_t i = 0; i < num_values_; ++i) {
+    auto trimmed_vlen = [this](size_t i) {
       size_t vlen = values_[i].size_;
       const char* v = values_[i].str_;
       while (vlen > 0 && v != nullptr && IsOWS(v[vlen - 1]))
         vlen--;
-      list->Add(fields_[i].str_ == nullptr ? "" : fields_[i].str_,
-                fields_[i].size_,
-                v == nullptr ? "" : v,
-                vlen);
-    }
+      return vlen;
+    };
 
-    if (obj->Set(context,
-                 FIXED_ONE_BYTE_STRING(isolate, "length"),
-                 Integer::NewFromUnsigned(
-                     isolate, static_cast<uint32_t>(list->pair_count() * 2)))
-            .IsNothing()) {
+    size_t size = kNativeHeadersPrefix;
+    for (size_t i = 0; i < num_values_; ++i)
+      size += 8 + fields_[i].size_ + trimmed_vlen(i);
+
+    Local<Object> buf;
+    if (!Buffer::New(env()->isolate(), size).ToLocal(&buf)) {
       got_exception_ = true;
       return Local<Value>();
     }
-    return obj;
+
+    char* p = Buffer::Data(buf);
+    uint32_t flags = 0;
+    WriteU32(p, kNativeHeadersMagic);
+    WriteU32(p + 4, static_cast<uint32_t>(num_values_));
+    p += kNativeHeadersPrefix;
+    for (size_t i = 0; i < num_values_; ++i) {
+      const uint32_t nlen = static_cast<uint32_t>(fields_[i].size_);
+      const uint32_t vlen = static_cast<uint32_t>(trimmed_vlen(i));
+      const char* name = fields_[i].str_ == nullptr ? "" : fields_[i].str_;
+      flags |= KnownHeaderFlag(name, nlen);
+      WriteU32(p, nlen);
+      WriteU32(p + 4, vlen);
+      p += 8;
+      if (nlen != 0)
+        memcpy(p, name, nlen);
+      p += nlen;
+      if (vlen != 0 && values_[i].str_ != nullptr)
+        memcpy(p, values_[i].str_, vlen);
+      p += vlen;
+    }
+    WriteU32(Buffer::Data(buf) + 8, flags);
+    return buf;
   }
 
 
@@ -1629,15 +1666,10 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);
 
-  Local<FunctionTemplate> nh =
-      NewFunctionTemplate(isolate, NativeHttpHeaders::New);
-  nh->InstanceTemplate()->SetInternalFieldCount(
-      NativeHttpHeaders::kInternalFieldCount);
-  nh->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "NativeHttpHeaders"));
-  SetProtoMethod(isolate, nh, "has", NativeHttpHeaders::Has);
-  SetProtoMethod(isolate, nh, "get", NativeHttpHeaders::Get);
-  SetProtoMethod(isolate, nh, "toArray", NativeHttpHeaders::ToArray);
-  SetConstructorFunction(isolate, target, "NativeHttpHeaders", nh);
+  SetMethod(isolate, target, "nativeHeadersHas", NativeHeadersHas);
+  SetMethod(isolate, target, "nativeHeadersGet", NativeHeadersGet);
+  SetMethod(isolate, target, "nativeHeadersToArray", NativeHeadersToArray);
+  SetMethod(isolate, target, "nativeHeadersByteLength", NativeHeadersByteLength);
 
   Local<FunctionTemplate> c =
       NewFunctionTemplate(isolate, ConnectionsList::New);
@@ -1706,10 +1738,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::Unconsume);
   registry->Register(Parser::GetCurrentBuffer);
   registry->Register(Parser::SetSkipBody);
-  registry->Register(NativeHttpHeaders::New);
-  registry->Register(NativeHttpHeaders::Has);
-  registry->Register(NativeHttpHeaders::Get);
-  registry->Register(NativeHttpHeaders::ToArray);
+  registry->Register(NativeHeadersHas);
+  registry->Register(NativeHeadersGet);
+  registry->Register(NativeHeadersToArray);
+  registry->Register(NativeHeadersByteLength);
   registry->Register(ConnectionsList::New);
   registry->Register(ConnectionsList::All);
   registry->Register(ConnectionsList::Idle);

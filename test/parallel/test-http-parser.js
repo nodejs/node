@@ -23,7 +23,7 @@
 const { mustCall, mustNotCall, mustCallAtLeast } = require('../common');
 const assert = require('assert');
 
-const { methods, HTTPParser } = require('_http_common');
+const { methods, HTTPParser, unpackHeaderList } = require('_http_common');
 const { REQUEST, RESPONSE } = HTTPParser;
 
 const kOnHeaders = HTTPParser.kOnHeaders | 0;
@@ -31,15 +31,10 @@ const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
 const kOnBody = HTTPParser.kOnBody | 0;
 const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
-// Fast-path kOnHeadersComplete now passes NativeHttpHeaders (C++-backed)
-// instead of a JS string array. Materialize only when the test inspects them.
+// Fast-path kOnHeadersComplete now passes a packed Buffer instead of a JS
+// string array. Materialize only when the test inspects them.
 function headerList(headers, fallback) {
-  if (headers != null &&
-      typeof headers.toArray === 'function' &&
-      !Array.isArray(headers)) {
-    return headers.toArray();
-  }
-  return headers || fallback || [];
+  return unpackHeaderList(headers, fallback);
 }
 
 // The purpose of this test is not to check HTTP compliance but to test the
