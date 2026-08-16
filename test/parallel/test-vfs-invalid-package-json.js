@@ -65,10 +65,12 @@ const vfs = require('node:vfs');
   myVfs.mkdirSync('/outer2/inner', { recursive: true });
   myVfs.writeFileSync('/outer2/package.json', '{ bad }');
   myVfs.writeFileSync('/outer2/inner/mod.js', 'export const x = 1;');
-  const mountPoint = myVfs.mount();
+  myVfs.mount();
 
-  await assert.rejects(() => import(`${mountPoint}/outer2/inner/mod.js`),
-                       { code: 'ERR_INVALID_PACKAGE_CONFIG' });
+  await assert.rejects(
+    () => import(`${myVfs.mountPointURL}/outer2/inner/mod.js`),
+    { code: 'ERR_INVALID_PACKAGE_CONFIG' },
+  );
 
   myVfs.unmount();
 })().then(common.mustCall());
