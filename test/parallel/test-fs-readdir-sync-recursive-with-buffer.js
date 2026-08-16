@@ -2,6 +2,7 @@
 
 // Refs: https://github.com/nodejs/node/issues/58892
 
+require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
