@@ -440,7 +440,6 @@ class DefaultApplication final : public Session::Application {
       stream->Schedule(&stream_queue_);
     }
   }
-  
 
   bool StreamCommit(Session::StreamData* stream_data, size_t datalen) override {
     DCHECK_NOT_NULL(stream_data);
