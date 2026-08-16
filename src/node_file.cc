@@ -4142,7 +4142,7 @@ static void ReadFileBuffer(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_END(fstat);
     if (r == 0) {
       const uv_stat_t* s = static_cast<const uv_stat_t*>(req.ptr);
-      if (S_ISREG(s->st_mode) && s->st_size >= 0) {
+      if (S_ISREG(s->st_mode)) {
         if (s->st_size > kIoMaxLength) {
           uv_fs_req_cleanup(&req);
           std::string msg = "File size (" +
@@ -4183,8 +4183,11 @@ static void ReadFileBuffer(const FunctionCallbackInfo<Value>& args) {
 
     if (offset < static_cast<size_t>(size)) {
       // Truncate logical length without reallocating when the file shrank.
-      args.GetReturnValue().Set(
-          Buffer::Copy(isolate, data, offset).ToLocalChecked());
+      Local<Object> truncated;
+      if (!Buffer::Copy(isolate, data, offset).ToLocal(&truncated)) {
+        return;
+      }
+      args.GetReturnValue().Set(truncated);
       return;
     }
     args.GetReturnValue().Set(buf_obj);
