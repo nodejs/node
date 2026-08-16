@@ -12561,7 +12561,9 @@ var require_response = __commonJS({
       Response,
       cloneResponse,
       fromInnerResponse,
-      getResponseState
+      getResponseState,
+      setResponseState,
+      setResponseHeaders
     };
   }
 });
@@ -13347,6 +13349,9 @@ var require_request2 = __commonJS({
       cloneRequest,
       getRequestDispatcher,
       getRequestState,
+      setRequestState,
+      setRequestHeaders,
+      setRequestSignal,
       removeRequestAbortListener
     };
   }
@@ -18572,6 +18577,25 @@ module.exports.FormData = require_formdata().FormData;
 module.exports.Headers = require_headers().Headers;
 module.exports.Response = require_response().Response;
 module.exports.Request = require_request2().Request;
+// Exposed only through Node.js' internal Undici bundle for HTTP server use.
+// This is the single boundary through which Node.js core may reach fetch
+// internals; keep it in sync with lib/internal/http_serve_classes.js.
+module.exports.serverKit = Object.freeze({
+  kConstruct: require_symbols().kConstruct,
+  HeadersList: require_headers().HeadersList,
+  fillHeaders: require_headers().fill,
+  getHeadersList: require_headers().getHeadersList,
+  setHeadersList: require_headers().setHeadersList,
+  getHeadersGuard: require_headers().getHeadersGuard,
+  setHeadersGuard: require_headers().setHeadersGuard,
+  getRequestState: require_request2().getRequestState,
+  setRequestState: require_request2().setRequestState,
+  setRequestHeaders: require_request2().setRequestHeaders,
+  setRequestSignal: require_request2().setRequestSignal,
+  getResponseState: require_response().getResponseState,
+  setResponseState: require_response().setResponseState,
+  setResponseHeaders: require_response().setResponseHeaders
+});
 var { CloseEvent, ErrorEvent, MessageEvent, createFastMessageEvent } = require_events();
 module.exports.WebSocket = require_websocket().WebSocket;
 module.exports.CloseEvent = CloseEvent;
