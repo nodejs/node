@@ -1,4 +1,6 @@
 #include "node_builtins.h"
+#include <atomic>
+#include <cstring>
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "module_wrap.h"
@@ -12,7 +14,6 @@
 #include "v8-value.h"
 
 namespace node {
-namespace builtins {
 
 using loader::HostDefinedOptions;
 using v8::Boolean;
@@ -43,6 +44,16 @@ using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
+
+namespace builtins {
+
+namespace {
+std::atomic<bool> harvest_code_cache{true};
+}  // namespace
+
+void BuiltinLoader::SetHarvestCodeCache(bool on) {
+  harvest_code_cache = on;
+}
 
 BuiltinLoader::BuiltinLoader()
     : config_(GetConfig()), code_cache_(std::make_shared<BuiltinCodeCache>()) {
@@ -422,6 +433,7 @@ MaybeLocal<Data> BuiltinLoader::LookupAndCompile(
   }
 
   if (result == Result::kWithoutCache && optional_realm != nullptr &&
+      harvest_code_cache &&
       !optional_realm->env()->isolate_data()->is_building_snapshot()) {
     // We failed to accept this cache, maybe because it was rejected, maybe
     // because it wasn't present. Either way, we'll attempt to replace this
@@ -593,12 +605,13 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
 
 void BuiltinLoader::RefreshCodeCache(const std::vector<CodeCacheInfo>& in) {
   RwLock::ScopedLock lock(code_cache_->mutex);
-  code_cache_->map.reserve(in.size());
-  DCHECK(code_cache_->map.empty());
+  // May be called more than once, e.g. first with the code cache carried by
+  // the snapshot and then by an embedder with caches it built for additional
+  // (or the same) builtin ids against this isolate: merge, and let the entry
+  // supplied last win for an id present in both.
+  code_cache_->map.reserve(code_cache_->map.size() + in.size());
   for (auto const& [id, data] : in) {
-    auto result = code_cache_->map.emplace(id, data);
-    USE(result.second);
-    DCHECK(result.second);
+    code_cache_->map.insert_or_assign(id, data);
   }
   code_cache_->has_code_cache = true;
 }
@@ -918,6 +931,76 @@ void BuiltinLoader::RegisterExternalReferences(
 }
 
 }  // namespace builtins
+
+struct EmbedderBuiltinCodeCache::Impl {
+  std::vector<builtins::CodeCacheInfo> entries;
+};
+
+EmbedderBuiltinCodeCache::EmbedderBuiltinCodeCache(std::vector<Entry> entries)
+    : impl_(std::make_unique<Impl>()) {
+  impl_->entries.reserve(entries.size());
+  for (Entry& e : entries) {
+    impl_->entries.push_back(
+        {std::move(e.id),
+         builtins::BuiltinCodeCacheData(
+             std::shared_ptr<ScriptCompiler::CachedData>(std::move(e.data)))});
+  }
+}
+
+EmbedderBuiltinCodeCache::~EmbedderBuiltinCodeCache() = default;
+
+ScriptCompiler::CachedData::CompatibilityCheckResult
+EmbedderBuiltinCodeCache::CompatibilityCheck(Isolate* isolate) const {
+  for (const builtins::CodeCacheInfo& info : impl_->entries) {
+    ScriptCompiler::CachedData probe(
+        info.data.data,
+        static_cast<int>(info.data.length),
+        ScriptCompiler::CachedData::BufferNotOwned);
+    auto result = probe.CompatibilityCheck(isolate);
+    if (result != ScriptCompiler::CachedData::kSuccess) return result;
+  }
+  return ScriptCompiler::CachedData::kSuccess;
+}
+
+std::vector<EmbedderBuiltinCodeCache::Entry> EmbedderBuiltinCodeCache::Generate(
+    Local<Context> context) {
+  std::vector<Entry> out;
+  builtins::BuiltinLoader loader;
+  loader.SetEagerCompile();
+  std::vector<builtins::CodeCacheInfo> infos;
+  if (!loader.CompileAllBuiltinsAndCopyCodeCache(context, {}, &infos)) {
+    return out;
+  }
+  out.reserve(infos.size());
+  for (const builtins::CodeCacheInfo& info : infos) {
+    uint8_t* copy = new uint8_t[info.data.length];
+    memcpy(copy, info.data.data, info.data.length);
+    out.push_back({info.id,
+                   std::make_unique<ScriptCompiler::CachedData>(
+                       copy,
+                       static_cast<int>(info.data.length),
+                       ScriptCompiler::CachedData::BufferOwned)});
+  }
+  return out;
+}
+
+ScriptCompiler::CachedData::CompatibilityCheckResult SetBuiltinCodeCache(
+    IsolateData* isolate_data, const EmbedderBuiltinCodeCache* cache) {
+  if (cache == nullptr) {
+    isolate_data->set_builtin_code_cache({});
+    return ScriptCompiler::CachedData::kSuccess;
+  }
+  auto check = cache->CompatibilityCheck(isolate_data->isolate());
+  if (check == ScriptCompiler::CachedData::kSuccess) {
+    isolate_data->set_builtin_code_cache(cache->impl_->entries);
+  } else {
+    per_process::Debug(DebugCategory::CODE_CACHE,
+                       "EmbedderBuiltinCodeCache rejected: %d\n",
+                       static_cast<int>(check));
+  }
+  return check;
+}
+
 }  // namespace node
 
 NODE_BINDING_PER_ISOLATE_INIT(

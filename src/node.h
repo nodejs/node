@@ -234,6 +234,11 @@ enum Flags : uint32_t {
   kNoInitializeCppgc = 1 << 13,
   // Initialize the process for predictable snapshot generation.
   kGeneratePredictableSnapshot = 1 << 14,
+  // Do not serialize a code cache for builtins that had to be compiled without
+  // one. By default such caches are kept so that worker threads created later
+  // start faster; an embedder that supplies an EmbedderBuiltinCodeCache or
+  // never creates workers only pays for the serialization.
+  kNoHarvestBuiltinCodeCache = 1 << 15,
 
   // Emulate the behavior of InitializeNodeWithArgs() when passing
   // a flags argument to the InitializeOncePerProcess() replacement
@@ -678,6 +683,43 @@ struct SnapshotConfig {
 struct InspectorParentHandle {
   virtual ~InspectorParentHandle() = default;
 };
+
+// Code cache for the built-in JavaScript of Environments that are bootstrapped
+// rather than deserialized from a snapshot; see SetBuiltinCodeCache().
+class NODE_EXTERN EmbedderBuiltinCodeCache {
+ public:
+  struct Entry {
+    std::string id;  // e.g. "internal/bootstrap/node"
+    std::unique_ptr<v8::ScriptCompiler::CachedData> data;
+  };
+  explicit EmbedderBuiltinCodeCache(std::vector<Entry> entries);
+  ~EmbedderBuiltinCodeCache();
+
+  // Compiles every built-in module in `context`, which must come from
+  // NewContext(), and returns their code caches; empty on failure.
+  static std::vector<Entry> Generate(v8::Local<v8::Context> context);
+
+  v8::ScriptCompiler::CachedData::CompatibilityCheckResult CompatibilityCheck(
+      v8::Isolate* isolate) const;
+
+  EmbedderBuiltinCodeCache(const EmbedderBuiltinCodeCache&) = delete;
+  EmbedderBuiltinCodeCache& operator=(const EmbedderBuiltinCodeCache&) = delete;
+
+  struct Impl;
+
+ private:
+  std::unique_ptr<Impl> impl_;
+  friend NODE_EXTERN v8::ScriptCompiler::CachedData::CompatibilityCheckResult
+  SetBuiltinCodeCache(IsolateData*, const EmbedderBuiltinCodeCache*);
+};
+
+// Environments created from `isolate_data` afterwards start with `cache`'s
+// entries (they share its buffers; `cache` itself may be freed after the call);
+// nullptr clears it. Returns the result of `cache->CompatibilityCheck()` and
+// leaves `isolate_data` unchanged unless that is kSuccess.
+NODE_EXTERN v8::ScriptCompiler::CachedData::CompatibilityCheckResult
+SetBuiltinCodeCache(IsolateData* isolate_data,
+                    const EmbedderBuiltinCodeCache* cache);
 
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
