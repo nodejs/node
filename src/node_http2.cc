@@ -2041,6 +2041,8 @@ uint8_t Http2Session::SendPendingData() {
 
   CHECK(outgoing_buffers_.empty());
   CHECK(outgoing_storage_.empty());
+  // Avoid repeated reallocs while gathering nghttp2_session_mem_send chunks.
+  outgoing_storage_.reserve(16384);
 
   // Part One: Gather data from nghttp2
 
