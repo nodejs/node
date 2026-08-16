@@ -1517,11 +1517,15 @@ void Stream::ReturnFlowControlCredit(uint64_t amount, CreditScope scope) {
   }
 }
 
+void Stream::CreditConsumedBytes(uint64_t amount) {
+  uncredited_bytes_ -= std::min(uncredited_bytes_, amount);
+  ReturnFlowControlCredit(amount, CreditScope::STREAM_AND_CONNECTION);
+}
+
 void Stream::EntryRead(size_t amount) {
   // Called when the JS consumer reads data from the inbound DataQueue.
   // Extend the flow control window so the sender can transmit more.
-  uncredited_bytes_ -= std::min<uint64_t>(uncredited_bytes_, amount);
-  ReturnFlowControlCredit(amount, CreditScope::STREAM_AND_CONNECTION);
+  CreditConsumedBytes(amount);
 }
 
 void Stream::BeforePull() {
@@ -1536,24 +1540,21 @@ void Stream::FlushAccumulation() {
   if (!recv_accumulator_ || recv_accumulator_->available() == 0) return;
   size_t flushed = recv_accumulator_->available();
   auto entry = recv_accumulator_->Flush(env());
-  if (entry) {
-    auto appended = inbound_->append(std::move(entry));
-    if (appended.value_or(false)) {
-      // Notify the reader that data is now available in the DataQueue.
-      // This is the only place we notify — not on every ReceiveData call —
-      // so the reader only wakes up when there is a well-sized entry to
-      // consume.
-      if (reader_) reader_->NotifyPull();
-    } else {
-      // The queue rejected the entry (it is capped and this data would push
-      // it past the final size) so the bytes have been dropped. They will
-      // never reach a reader, which means EntryRead() will never fire for
-      // them -- return their flow control credit here instead of leaking it.
-      uncredited_bytes_ -= std::min<uint64_t>(uncredited_bytes_, flushed);
-      ReturnFlowControlCredit(flushed, CreditScope::STREAM_AND_CONNECTION);
-    }
-  }
+  // Flush() always drains the accumulator, so the stat is reset either way.
   STAT_SET(Stats, bytes_accumulated, 0);
+  if (entry && inbound_->append(std::move(entry)).value_or(false)) {
+    // Notify the reader that data is now available in the DataQueue.
+    // This is the only place we notify — not on every ReceiveData call —
+    // so the reader only wakes up when there is a well-sized entry to
+    // consume.
+    if (reader_) reader_->NotifyPull();
+    return;
+  }
+  // The bytes did not make it into the queue (it is capped and this data
+  // would push it past the final size), so they will never reach a reader
+  // and EntryRead() will never fire for them. Return their credit here
+  // instead of leaking it.
+  CreditConsumedBytes(flushed);
 }
 
 int Stream::DoPull(bob::Next<ngtcp2_vec> next,

@@ -415,6 +415,11 @@ class Stream final : public AsyncWrap,
   // have either been consumed or discarded.
   void ReturnFlowControlCredit(uint64_t amount, CreditScope scope);
 
+  // Drops `amount` bytes from uncredited_bytes_ (saturating at zero) and
+  // returns their credit to both receive windows. Used when bytes leave our
+  // custody, either read by the consumer or dropped before reaching one.
+  void CreditConsumedBytes(uint64_t amount);
+
   // Gets a reader for the data received for this stream from the peer,
   BaseObjectPtr<Blob::Reader> get_reader();
 
@@ -478,14 +483,13 @@ class Stream final : public AsyncWrap,
   BaseObjectWeakPtr<Blob::Reader> reader_;
   std::unique_ptr<RecvAccumulator> recv_accumulator_;
 
-  // Number of received bytes that are still holding inbound flow control
-  // credit -- that is, bytes that ngtcp2 has delivered to us but that have
-  // not yet been handed to the JavaScript consumer (they are sitting in
-  // recv_accumulator_ or in the inbound_ DataQueue). This is incremented
-  // in ReceiveData() and decremented in EntryRead(). Any remainder is
-  // returned to the connection-level window when the stream is destroyed,
-  // otherwise abandoning a stream with unread data would permanently
-  // shrink the session's receive window.
+  // Number of bytes delivered to ReceiveData() that have not yet been handed
+  // to the JavaScript consumer and so still hold inbound flow control credit.
+  // Any remainder is returned to the connection-level window when the stream
+  // is destroyed, otherwise abandoning a stream with unread data would
+  // permanently shrink the session's receive window. Data still buffered
+  // inside nghttp3 is deliberately not counted here: nghttp3 returns that
+  // credit itself through its deferred_consume callback.
   uint64_t uncredited_bytes_ = 0;
 
   // If the stream cannot be opened yet, it will be created in a pending state.

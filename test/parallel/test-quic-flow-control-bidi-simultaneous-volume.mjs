@@ -16,6 +16,10 @@
 // A bug that credits the wrong direction, or that lets one direction's
 // accounting interfere with the other's, shows up here but not in the
 // one-direction-at-a-time tests.
+//
+// This exercises the raw QUIC application: the test helpers negotiate the
+// 'quic-test' ALPN, not HTTP/3. See test-quic-h3-flow-control-volume.mjs for
+// the HTTP/3 equivalent.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';

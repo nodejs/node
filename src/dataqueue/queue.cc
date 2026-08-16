@@ -177,13 +177,16 @@ class DataQueueImpl final : public DataQueue,
   // Both notifications can re-enter this DataQueue. A listener may, for
   // instance, extend a QUIC flow control window, which flushes packets, which
   // can call into JavaScript and end up destroying the stream that owns the
-  // listener -- removing it from backpressure_listeners_ while we are still
-  // iterating. Iterate over a snapshot so that mutation is safe, and re-check
-  // membership before each call so a listener removed earlier in the same
-  // notification is not invoked after the fact.
+  // listener -- dropping its reference to this queue and removing itself from
+  // backpressure_listeners_ while we are still iterating. Hold a reference so
+  // this instance cannot be freed underneath us, iterate over a snapshot so
+  // that mutation is safe, and re-check membership before each call so a
+  // listener removed earlier in the same notification is not invoked after
+  // the fact.
   void NotifyBackpressure(size_t amount) {
     if (idempotent_) return;
     if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
     std::vector<BackpressureListener*> listeners(
         backpressure_listeners_.begin(), backpressure_listeners_.end());
     for (auto* listener : listeners) {
@@ -196,6 +199,7 @@ class DataQueueImpl final : public DataQueue,
   void NotifyBeforePull() {
     if (idempotent_) return;
     if (backpressure_listeners_.empty()) return;
+    auto self = shared_from_this();
     std::vector<BackpressureListener*> listeners(
         backpressure_listeners_.begin(), backpressure_listeners_.end());
     for (auto* listener : listeners) {

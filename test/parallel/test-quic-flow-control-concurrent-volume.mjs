@@ -13,6 +13,10 @@
 // per-stream bugs that cancel out on a single stream become visible when
 // several streams draw on the same pool, and any net under-crediting
 // deadlocks every stream at once rather than just slowing one down.
+//
+// This exercises the raw QUIC application: the test helpers negotiate the
+// 'quic-test' ALPN, not HTTP/3. See test-quic-h3-flow-control-volume.mjs for
+// the HTTP/3 equivalent.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
