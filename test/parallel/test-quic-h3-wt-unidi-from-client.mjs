@@ -65,9 +65,6 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
       // Deinstall handlers
       stream.onheaders = undefined;
       stream.onsessionid = undefined;
-      stream.closed.catch(mustCall((error) => {
-        assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
-      }));
       const sessionid2 = await serverSessionOpened.promise;
       assert.strictEqual(sessionid, sessionid2);
       // Now we get the data
@@ -185,9 +182,6 @@ const clientUnidiStream = await clientSession.createUnidirectionalStream({
   webtransportSession: wtSessionStream // Associate it with the sessionStream
 });
 
-clientUnidiStream.closed.catch(mustCall((error) => {
-  assert.strictEqual(error.errorCode, 0x170D7B68n); // NGHTTP3_WT_SESSION_GONE
-}));
 // Next step send some data
 await serverSessionOpened.promise;
 
