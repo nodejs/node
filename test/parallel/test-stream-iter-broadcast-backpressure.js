@@ -135,15 +135,99 @@ async function testStrictBackpressureOverflow() {
   });
 }
 
+async function testEndDrainsPendingWrite() {
+  const chunk1 = new Uint8Array(16384).fill(65); // 'A'
+  const chunk2 = Uint8Array.of(66); // 'B'
+  const { writer, broadcast: bc } = broadcast({
+    budget: 16384,
+    backpressure: 'unbounded',
+  });
+  const iter = bc.push()[Symbol.asyncIterator]();
+
+  await writer.write(chunk1);
+  const pendingWrite = writer.write(chunk2);
+  const endPromise = writer.end();
+
+  assert.strictEqual(writer.canWrite, null);
+  assert.strictEqual(writer.writeSync('late'), false);
+  await assert.rejects(writer.write('late'), {
+    code: 'ERR_INVALID_STATE',
+  });
+
+  const first = await iter.next();
+  assert.strictEqual(first.done, false);
+  assert.strictEqual(first.value[0][0], 65);
+  await pendingWrite;
+
+  const second = await iter.next();
+  assert.strictEqual(second.done, false);
+  assert.strictEqual(second.value[0][0], 66);
+
+  let endResolved = false;
+  endPromise.then(common.mustCall(() => { endResolved = true; }));
+  await new Promise(setImmediate);
+  assert.strictEqual(endResolved, false);
+
+  assert.strictEqual((await iter.next()).done, true);
+  assert.strictEqual(await endPromise, 16385);
+}
+
+async function testEndSyncDrainsPendingWrite() {
+  const chunk1 = new Uint8Array(16384).fill(65); // 'A'
+  const chunk2 = Uint8Array.of(66); // 'B'
+  const { writer, broadcast: bc } = broadcast({
+    budget: 16384,
+    backpressure: 'unbounded',
+  });
+  const iter = bc.push()[Symbol.asyncIterator]();
+
+  await writer.write(chunk1);
+  const pendingWrite = writer.write(chunk2);
+  assert.strictEqual(writer.endSync(), -1);
+  const endPromise = writer.end();
+
+  assert.strictEqual((await iter.next()).value[0][0], 65);
+  await pendingWrite;
+  assert.strictEqual((await iter.next()).value[0][0], 66);
+  assert.strictEqual((await iter.next()).done, true);
+  assert.strictEqual(await endPromise, 16385);
+  assert.strictEqual(writer.endSync(), 16385);
+}
+
+async function testAbortedPendingWriteAllowsEnd() {
+  const ac = new AbortController();
+  const reason = new Error('write aborted');
+  const { writer, broadcast: bc } = broadcast({
+    budget: 16384,
+    backpressure: 'unbounded',
+  });
+  const iter = bc.push()[Symbol.asyncIterator]();
+
+  await writer.write(new Uint8Array(16384));
+  const pendingWrite = writer.write('blocked', { signal: ac.signal });
+  const writeRejected = assert.rejects(
+    pendingWrite,
+    (error) => error === reason,
+  );
+  const endPromise = writer.end();
+
+  ac.abort(reason);
+  await writeRejected;
+  assert.strictEqual((await iter.next()).done, false);
+  assert.strictEqual((await iter.next()).done, true);
+  assert.strictEqual(await endPromise, 16384);
+}
+
 // Writev async path
 async function testWritevAsync() {
   const { writer, broadcast: bc } = broadcast({ budget: 16384 });
   const consumer = bc.push();
 
   await writer.writev(['hello', ' ', 'world']);
+  const dataPromise = text(consumer);
   await writer.end();
 
-  const data = await text(consumer);
+  const data = await dataPromise;
   assert.strictEqual(data, 'hello world');
 }
 
@@ -167,15 +251,19 @@ async function testZeroByteWrites() {
   assert.strictEqual(entries, 0);
 }
 
-// endSync returns the total byte count
+// endSync falls back to end() when consumers still need to drain.
 async function testEndSyncReturnValue() {
   const { writer, broadcast: bc } = broadcast({ budget: 16384 });
-  bc.push(); // Need a consumer to write to
+  const consumer = bc.push();
 
   writer.writeSync('hello'); // 5 bytes
   writer.writeSync(' world'); // 6 bytes
-  const total = writer.endSync();
-  assert.strictEqual(total, 11);
+  assert.strictEqual(writer.endSync(), -1);
+
+  const dataPromise = text(consumer);
+  assert.strictEqual(await writer.end(), 11);
+  assert.strictEqual(await dataPromise, 'hello world');
+  assert.strictEqual(writer.endSync(), 11);
 }
 
 Promise.all([
@@ -184,6 +272,9 @@ Promise.all([
   testBlockBackpressure(),
   testBlockBackpressureContent(),
   testStrictBackpressureOverflow(),
+  testEndDrainsPendingWrite(),
+  testEndSyncDrainsPendingWrite(),
+  testAbortedPendingWriteAllowsEnd(),
   testWritevAsync(),
   testZeroByteWrites(),
   testEndSyncReturnValue(),
