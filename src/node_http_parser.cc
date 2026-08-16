@@ -22,6 +22,7 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "util.h"
+#include "util-inl.h"
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
@@ -31,8 +32,10 @@
 #include "stream_base-inl.h"
 #include "v8.h"
 
+#include <algorithm>
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
+#include <string>
 
 
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
@@ -115,12 +118,168 @@ class BindingData : public BaseObject {
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
+  v8::Global<v8::Function> native_headers_ctor;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("parser_buffer", parser_buffer);
   }
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
+};
+
+// Owns header name/value bytes in C++. JS strings are created only when
+// rawHeaders / headers / get() actually need them.
+class NativeHttpHeaders : public BaseObject {
+ public:
+  NativeHttpHeaders(Environment* env, Local<Object> object)
+      : BaseObject(env, object) {
+    MakeWeak();
+    buf_.reserve(512);
+    entries_.reserve(16);
+  }
+
+  static void New(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    new NativeHttpHeaders(env, args.This());
+  }
+
+  void Add(const char* name, size_t nlen, const char* value, size_t vlen) {
+    Entry e;
+    e.name_off = static_cast<uint32_t>(buf_.size());
+    e.name_len = static_cast<uint32_t>(nlen);
+    if (nlen != 0)
+      buf_.insert(buf_.end(), name, name + nlen);
+    e.value_off = static_cast<uint32_t>(buf_.size());
+    e.value_len = static_cast<uint32_t>(vlen);
+    if (vlen != 0)
+      buf_.insert(buf_.end(), value, value + vlen);
+    entries_.push_back(e);
+  }
+
+  size_t pair_count() const { return entries_.size(); }
+
+  static void Has(const FunctionCallbackInfo<Value>& args) {
+    NativeHttpHeaders* self;
+    ASSIGN_OR_RETURN_UNWRAP(&self, args.This());
+    if (args.Length() < 1 || !args[0]->IsString()) {
+      args.GetReturnValue().Set(false);
+      return;
+    }
+    Utf8Value name(args.GetIsolate(), args[0]);
+    args.GetReturnValue().Set(self->HasHeader(*name, name.length()));
+  }
+
+  static void Get(const FunctionCallbackInfo<Value>& args) {
+    NativeHttpHeaders* self;
+    ASSIGN_OR_RETURN_UNWRAP(&self, args.This());
+    if (args.Length() < 1 || !args[0]->IsString()) {
+      args.GetReturnValue().SetUndefined();
+      return;
+    }
+    Utf8Value name(args.GetIsolate(), args[0]);
+    args.GetReturnValue().Set(self->GetHeader(name.length() == 0 ? nullptr : *name,
+                                              name.length()));
+  }
+
+  static void ToArray(const FunctionCallbackInfo<Value>& args) {
+    NativeHttpHeaders* self;
+    ASSIGN_OR_RETURN_UNWRAP(&self, args.This());
+    size_t max_elements = self->entries_.size() * 2;
+    if (args.Length() > 0 && args[0]->IsUint32()) {
+      max_elements = std::min(
+          max_elements,
+          static_cast<size_t>(args[0].As<Uint32>()->Value()));
+    }
+    args.GetReturnValue().Set(self->ToJSArray(max_elements));
+  }
+
+  bool HasHeader(const char* name, size_t nlen) const {
+    for (const Entry& e : entries_) {
+      if (HeaderNameEquals(e, name, nlen))
+        return true;
+    }
+    return false;
+  }
+
+  Local<Value> GetHeader(const char* name, size_t nlen) const {
+    Isolate* isolate = env()->isolate();
+    if (name == nullptr)
+      return Undefined(isolate);
+    std::string joined;
+    bool found = false;
+    for (const Entry& e : entries_) {
+      if (!HeaderNameEquals(e, name, nlen))
+        continue;
+      if (found)
+        joined.append(", ");
+      joined.append(buf_.data() + e.value_off, e.value_len);
+      found = true;
+    }
+    if (!found)
+      return Undefined(isolate);
+    return OneByteString(isolate, joined.data(), joined.size());
+  }
+
+  Local<Array> ToJSArray(size_t max_elements) const {
+    Isolate* isolate = env()->isolate();
+    const size_t n = std::min(entries_.size() * 2, max_elements);
+    LocalVector<Value> out(isolate);
+    out.reserve(n);
+    for (size_t i = 0; i < n; i += 2) {
+      const Entry& e = entries_[i / 2];
+      out.push_back(e.name_len == 0
+                        ? String::Empty(isolate)
+                        : OneByteString(isolate,
+                                        buf_.data() + e.name_off,
+                                        e.name_len));
+      if (i + 1 >= n)
+        break;
+      out.push_back(e.value_len == 0
+                        ? String::Empty(isolate)
+                        : OneByteString(isolate,
+                                        buf_.data() + e.value_off,
+                                        e.value_len));
+    }
+    return Array::New(isolate, out.data(), out.size());
+  }
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackField("buf", buf_);
+    tracker->TrackFieldWithSize("entries",
+                                entries_.capacity() * sizeof(Entry));
+  }
+  SET_MEMORY_INFO_NAME(NativeHttpHeaders)
+  SET_SELF_SIZE(NativeHttpHeaders)
+
+ private:
+  struct Entry {
+    uint32_t name_off;
+    uint32_t name_len;
+    uint32_t value_off;
+    uint32_t value_len;
+  };
+
+  bool HeaderNameEquals(const Entry& e,
+                        const char* name,
+                        size_t nlen) const {
+    if (e.name_len != nlen)
+      return false;
+    const char* a = buf_.data() + e.name_off;
+    for (size_t i = 0; i < nlen; i++) {
+      unsigned char ca = static_cast<unsigned char>(a[i]);
+      unsigned char cb = static_cast<unsigned char>(name[i]);
+      if (ca >= 'A' && ca <= 'Z')
+        ca = static_cast<unsigned char>(ca + 32);
+      if (cb >= 'A' && cb <= 'Z')
+        cb = static_cast<unsigned char>(cb + 32);
+      if (ca != cb)
+        return false;
+    }
+    return true;
+  }
+
+  std::vector<char> buf_;
+  std::vector<Entry> entries_;
 };
 
 class Parser;
@@ -317,6 +476,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     num_fields_ = num_values_ = 0;
     headers_completed_ = false;
+    skip_body_ = false;
     chunk_extensions_nread_ = 0;
     received_data_ = true;
     last_message_start_ = uv_hrtime();
@@ -456,8 +616,11 @@ class Parser : public AsyncWrap, public StreamListener {
       // Slow case, flush remaining headers.
       Flush();
     } else {
-      // Fast case, pass headers and URL to JS land.
-      argv[A_HEADERS] = CreateHeaders();
+      // Keep header bytes in C++. JS materializes strings only if it
+      // reads rawHeaders / headers.
+      argv[A_HEADERS] = CreateNativeHeaders();
+      if (argv[A_HEADERS].IsEmpty())
+        return -1;
       if (parser_.type == HTTP_REQUEST)
         argv[A_URL] = url_.ToString(env());
     }
@@ -514,7 +677,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int on_body(const char* at, size_t length) {
-    if (length == 0)
+    if (length == 0 || skip_body_)
       return 0;
 
     Environment* env = this->env();
@@ -788,6 +951,12 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
+  static void SetSkipBody(const FunctionCallbackInfo<Value>& args) {
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    parser->skip_body_ = args.Length() > 0 && args[0]->IsTrue();
+  }
+
   static void GetCurrentBuffer(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -955,6 +1124,55 @@ class Parser : public AsyncWrap, public StreamListener {
     return Array::New(env()->isolate(), headers_v, num_values_ * 2);
   }
 
+  Local<Value> CreateNativeHeaders() {
+    Isolate* isolate = env()->isolate();
+    Local<Context> context = env()->context();
+    Local<Function> ctor;
+    if (!binding_data_->native_headers_ctor.IsEmpty()) {
+      ctor = binding_data_->native_headers_ctor.Get(isolate);
+    } else {
+      Local<Value> ctor_v;
+      if (!binding_data_->object()
+               ->Get(context,
+                     FIXED_ONE_BYTE_STRING(isolate, "NativeHttpHeaders"))
+               .ToLocal(&ctor_v) ||
+          !ctor_v->IsFunction()) {
+        return CreateHeaders();
+      }
+      ctor = ctor_v.As<Function>();
+      binding_data_->native_headers_ctor.Reset(isolate, ctor);
+    }
+
+    Local<Object> obj;
+    if (!ctor->NewInstance(context, 0, nullptr).ToLocal(&obj)) {
+      got_exception_ = true;
+      return Local<Value>();
+    }
+
+    NativeHttpHeaders* list;
+    ASSIGN_OR_RETURN_UNWRAP(&list, obj, Local<Value>());
+    for (size_t i = 0; i < num_values_; ++i) {
+      size_t vlen = values_[i].size_;
+      const char* v = values_[i].str_;
+      while (vlen > 0 && v != nullptr && IsOWS(v[vlen - 1]))
+        vlen--;
+      list->Add(fields_[i].str_ == nullptr ? "" : fields_[i].str_,
+                fields_[i].size_,
+                v == nullptr ? "" : v,
+                vlen);
+    }
+
+    if (obj->Set(context,
+                 FIXED_ONE_BYTE_STRING(isolate, "length"),
+                 Integer::NewFromUnsigned(
+                     isolate, static_cast<uint32_t>(list->pair_count() * 2)))
+            .IsNothing()) {
+      got_exception_ = true;
+      return Local<Value>();
+    }
+    return obj;
+  }
+
 
   // spill headers and request path to JS land
   void Flush() {
@@ -1032,6 +1250,7 @@ class Parser : public AsyncWrap, public StreamListener {
     got_exception_ = false;
     is_being_freed_ = false;
     headers_completed_ = false;
+    skip_body_ = false;
     max_http_header_size_ = max_http_header_size;
     header_pairs_ = 0;
   }
@@ -1108,6 +1327,7 @@ class Parser : public AsyncWrap, public StreamListener {
   size_t current_buffer_len_;
   const char* current_buffer_data_;
   bool headers_completed_ = false;
+  bool skip_body_ = false;
   size_t header_pairs_ = 0;
   bool pending_pause_ = false;
   bool received_data_ = false;
@@ -1405,8 +1625,19 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethod(isolate, t, "consume", Parser::Consume);
   SetProtoMethod(isolate, t, "unconsume", Parser::Unconsume);
   SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
+  SetProtoMethod(isolate, t, "setSkipBody", Parser::SetSkipBody);
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);
+
+  Local<FunctionTemplate> nh =
+      NewFunctionTemplate(isolate, NativeHttpHeaders::New);
+  nh->InstanceTemplate()->SetInternalFieldCount(
+      NativeHttpHeaders::kInternalFieldCount);
+  nh->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "NativeHttpHeaders"));
+  SetProtoMethod(isolate, nh, "has", NativeHttpHeaders::Has);
+  SetProtoMethod(isolate, nh, "get", NativeHttpHeaders::Get);
+  SetProtoMethod(isolate, nh, "toArray", NativeHttpHeaders::ToArray);
+  SetConstructorFunction(isolate, target, "NativeHttpHeaders", nh);
 
   Local<FunctionTemplate> c =
       NewFunctionTemplate(isolate, ConnectionsList::New);
@@ -1474,6 +1705,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::Consume);
   registry->Register(Parser::Unconsume);
   registry->Register(Parser::GetCurrentBuffer);
+  registry->Register(Parser::SetSkipBody);
+  registry->Register(NativeHttpHeaders::New);
+  registry->Register(NativeHttpHeaders::Has);
+  registry->Register(NativeHttpHeaders::Get);
+  registry->Register(NativeHttpHeaders::ToArray);
   registry->Register(ConnectionsList::New);
   registry->Register(ConnectionsList::All);
   registry->Register(ConnectionsList::Idle);
