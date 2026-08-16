@@ -1449,15 +1449,15 @@ binary: $(BINARYTAR) ## Build release binary tarballs.
 # Note: this is strictly for release builds on release machines only.
 binary-upload: binary
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
-	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
-	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz
-	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz"
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.gz.done"
+	chmod 664 $(BINARYNAME).tar.gz
+	scp -p $(BINARYNAME).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz
+	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz"
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.gz.done"
 ifeq ($(XZ), 1)
-	chmod 664 $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
-	scp -p $(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz
-	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz"
-	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-$(OSTYPE)-$(ARCH).tar.xz.done"
+	chmod 664 $(BINARYNAME).tar.xz
+	scp -p $(BINARYNAME).tar.xz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz
+	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz"
+	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(BINARYNAME).tar.xz.done"
 endif
 
 .PHONY: bench-all
