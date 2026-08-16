@@ -1,6 +1,7 @@
 #include "libplatform/libplatform.h"
 #include "node_buffer.h"
 #include "node_internals.h"
+#include "node_realm-inl.h"
 #include "node_url.h"
 #include "util.h"
 
@@ -867,6 +868,41 @@ TEST_F(EnvironmentTest, RequestInterruptAtExit) {
   EXPECT_TRUE(interrupted);
 
   context->Exit();
+}
+
+TEST_F(EnvironmentTest, EmbedderBuiltinCodeCache) {
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = node::NewContext(isolate_);
+  v8::Context::Scope context_scope(context);
+
+  std::vector<node::EmbedderBuiltinCodeCache::Entry> entries =
+      node::EmbedderBuiltinCodeCache::Generate(context);
+  ASSERT_GT(entries.size(), 100u);
+  {
+    node::EmbedderBuiltinCodeCache cache(std::move(entries));
+    EXPECT_EQ(node::SetBuiltinCodeCache(isolate_data_, &cache),
+              v8::ScriptCompiler::CachedData::kSuccess);
+  }
+  std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)> env(
+      node::CreateEnvironment(isolate_data_, context, {}, {}),
+      node::FreeEnvironment);
+  node::Realm* realm = env->principal_realm();
+  EXPECT_EQ(realm->builtins_with_cache.count("internal/bootstrap/node"), 1u);
+  for (const std::string& id : realm->builtins_without_cache) {
+    EXPECT_EQ(id.rfind("internal/per_context/", 0), 0u) << id;
+  }
+
+  uint8_t* bytes = new uint8_t[64]();
+  std::vector<node::EmbedderBuiltinCodeCache::Entry> bad;
+  bad.push_back({"internal/bootstrap/node",
+                 std::make_unique<v8::ScriptCompiler::CachedData>(
+                     bytes, 64, v8::ScriptCompiler::CachedData::BufferOwned)});
+  node::EmbedderBuiltinCodeCache bad_cache(std::move(bad));
+  EXPECT_NE(node::SetBuiltinCodeCache(isolate_data_, &bad_cache),
+            v8::ScriptCompiler::CachedData::kSuccess);
+  EXPECT_FALSE(isolate_data_->builtin_code_cache().empty());
+  node::SetBuiltinCodeCache(isolate_data_, nullptr);
+  EXPECT_TRUE(isolate_data_->builtin_code_cache().empty());
 }
 
 TEST_F(EnvironmentTest, EmbedderPreload) {
