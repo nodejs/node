@@ -1563,14 +1563,6 @@ changes:
 
 Enable experimental WebAssembly System Interface (WASI) support.
 
-### `--experimental-web-worker`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Enable experimental support for the Web Worker API.
-
 ### `--experimental-worker-inspection`
 
 <!-- YAML
@@ -2168,6 +2160,20 @@ changes:
 > Stability: 1.2 - Release candidate.
 
 Disable [`Web Storage`][] support.
+
+### `--no-experimental-web-worker`
+
+<!-- YAML
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65323
+    description: This feature is now enabled by default.
+-->
+
+> Stability: 1.1 - Active Development
+
+Disable support for the Web Worker API.
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -3898,7 +3904,6 @@ one is included in the list below.
 * `--experimental-vfs`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
-* `--experimental-web-worker`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -3931,6 +3936,7 @@ one is included in the list below.
 * `--no-experimental-strip-types`
 * `--no-experimental-websocket`
 * `--no-experimental-webstorage`
+* `--no-experimental-web-worker`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`

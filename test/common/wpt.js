@@ -836,11 +836,7 @@ class WPTRunner {
     this.resource = new ResourceLoader(path);
     this.concurrency = concurrency;
 
-    // Since we need to prepare the Web Worker APIs
-    // in the harness that runs on all WPT workers,
-    // we enable the API globally. This has no practical
-    // effect on the non-web-worker tests, however.
-    this.flags = ['--experimental-web-worker'];
+    this.flags = [];
     this.globalThisInitScripts = [];
     this.initScript = null;
 

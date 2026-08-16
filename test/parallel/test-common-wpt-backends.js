@@ -16,7 +16,7 @@ const queueProbe = process.env.NODE_TEST_WPT_QUEUE_PROBE === '1';
 
 const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
 const specPath = fixtures.path('wpt-backends-spec.js');
-const execArgv = ['--experimental-web-worker'];
+const execArgv = [];
 
 function payload(throws) {
   return {
