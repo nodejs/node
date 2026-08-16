@@ -1,6 +1,6 @@
 {
   pkgs ? import ./pkgs.nix {
-    config.permittedInsecurePackages = [ "openssl-1.1.1w" ];
+    config.permittedInsecurePackages = [ ];
   },
 }:
 
@@ -11,7 +11,6 @@
   # Other OpenSSL variants we want to test for:
   inherit (pkgs)
     boringssl
-    openssl_1_1
     openssl_3
     openssl_3_6
     openssl_4_0
