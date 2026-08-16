@@ -168,6 +168,13 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
   inline const SnapshotData* snapshot_data() const;
+  // See node::SetBuiltinCodeCache().
+  const std::vector<builtins::CodeCacheInfo>& builtin_code_cache() const {
+    return builtin_code_cache_;
+  }
+  void set_builtin_code_cache(std::vector<builtins::CodeCacheInfo> entries) {
+    builtin_code_cache_ = std::move(entries);
+  }
   inline std::shared_ptr<PerIsolateOptions> options();
 
   inline NodeArrayBufferAllocator* node_allocator() const;
@@ -257,6 +264,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   MultiIsolatePlatform* platform_;
 
   const SnapshotData* snapshot_data_;
+  std::vector<builtins::CodeCacheInfo> builtin_code_cache_;
   std::optional<SnapshotConfig> snapshot_config_;
 
   std::shared_ptr<PerIsolateOptions> options_;

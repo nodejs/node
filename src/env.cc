@@ -909,6 +909,9 @@ Environment::Environment(IsolateData* isolate_data,
           isolate_data->snapshot_data()->code_cache);
     }
   }
+  if (is_main_thread() && !isolate_data->builtin_code_cache().empty()) {
+    builtin_loader()->RefreshCodeCache(isolate_data->builtin_code_cache());
+  }
 
   // Compile builtins eagerly when building the snapshot so that inner functions
   // of essential builtins that are loaded in the snapshot can have faster first
