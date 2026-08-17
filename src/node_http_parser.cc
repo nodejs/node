@@ -22,7 +22,6 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "util.h"
-#include "util-inl.h"
 
 #include "async_wrap-inl.h"
 #include "env-inl.h"
@@ -36,7 +35,6 @@
 #include <cstdlib>  // free()
 #include <cstring>  // strdup(), strchr()
 #include <string>
-
 
 // This is a binding to llhttp (https://github.com/nodejs/llhttp)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -142,25 +140,22 @@ inline void WriteU32(char* p, uint32_t v) {
 }
 
 inline bool ReadU32(const char* p, const char* end, uint32_t* out) {
-  if (p + sizeof(uint32_t) > end)
-    return false;
+  if (p + sizeof(uint32_t) > end) return false;
   memcpy(out, p, sizeof(uint32_t));
   return true;
 }
 
-inline bool HeaderNameEquals(const char* a, size_t alen,
-                             const char* b, size_t blen) {
-  if (alen != blen)
-    return false;
+inline bool HeaderNameEquals(const char* a,
+                             size_t alen,
+                             const char* b,
+                             size_t blen) {
+  if (alen != blen) return false;
   for (size_t i = 0; i < alen; i++) {
     unsigned char ca = static_cast<unsigned char>(a[i]);
     unsigned char cb = static_cast<unsigned char>(b[i]);
-    if (ca >= 'A' && ca <= 'Z')
-      ca = static_cast<unsigned char>(ca + 32);
-    if (cb >= 'A' && cb <= 'Z')
-      cb = static_cast<unsigned char>(cb + 32);
-    if (ca != cb)
-      return false;
+    if (ca >= 'A' && ca <= 'Z') ca = static_cast<unsigned char>(ca + 32);
+    if (cb >= 'A' && cb <= 'Z') cb = static_cast<unsigned char>(cb + 32);
+    if (ca != cb) return false;
   }
   return true;
 }
@@ -169,17 +164,14 @@ bool GetPackedHeaders(Local<Value> value,
                       const char** data,
                       size_t* size,
                       uint32_t* count) {
-  if (!Buffer::HasInstance(value))
-    return false;
+  if (!Buffer::HasInstance(value)) return false;
   Local<Object> obj = value.As<Object>();
   const char* p = Buffer::Data(obj);
   const size_t n = Buffer::Length(obj);
-  if (n < kNativeHeadersPrefix)
-    return false;
+  if (n < kNativeHeadersPrefix) return false;
   uint32_t magic;
   memcpy(&magic, p, sizeof(magic));
-  if (magic != kNativeHeadersMagic)
-    return false;
+  if (magic != kNativeHeadersMagic) return false;
   memcpy(count, p + 4, sizeof(uint32_t));
   *data = p;
   *size = n;
@@ -187,16 +179,13 @@ bool GetPackedHeaders(Local<Value> value,
 }
 
 uint32_t KnownHeaderFlag(const char* name, size_t nlen) {
-  if (HeaderNameEquals(name, nlen, "host", 4))
-    return kNativeHeaderFlagHost;
-  if (HeaderNameEquals(name, nlen, "expect", 6))
-    return kNativeHeaderFlagExpect;
+  if (HeaderNameEquals(name, nlen, "host", 4)) return kNativeHeaderFlagHost;
+  if (HeaderNameEquals(name, nlen, "expect", 6)) return kNativeHeaderFlagExpect;
   if (HeaderNameEquals(name, nlen, "content-length", 14))
     return kNativeHeaderFlagContentLength;
   if (HeaderNameEquals(name, nlen, "transfer-encoding", 17))
     return kNativeHeaderFlagTransferEncoding;
-  if (HeaderNameEquals(name, nlen, "te", 2))
-    return kNativeHeaderFlagTE;
+  if (HeaderNameEquals(name, nlen, "te", 2)) return kNativeHeaderFlagTE;
   return 0;
 }
 
@@ -204,8 +193,7 @@ void NativeHeadersHas(const FunctionCallbackInfo<Value>& args) {
   const char* data;
   size_t size;
   uint32_t count;
-  if (args.Length() < 2 ||
-      !args[1]->IsString() ||
+  if (args.Length() < 2 || !args[1]->IsString() ||
       !GetPackedHeaders(args[0], &data, &size, &count)) {
     args.GetReturnValue().Set(false);
     return;
@@ -217,11 +205,9 @@ void NativeHeadersHas(const FunctionCallbackInfo<Value>& args) {
   const char* end = data + size;
   for (uint32_t i = 0; i < count; i++) {
     uint32_t enlen, evlen;
-    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen))
-      break;
+    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen)) break;
     p += 8;
-    if (p + enlen + evlen > end)
-      break;
+    if (p + enlen + evlen > end) break;
     if (HeaderNameEquals(p, enlen, want, nlen)) {
       args.GetReturnValue().Set(true);
       return;
@@ -236,8 +222,7 @@ void NativeHeadersGet(const FunctionCallbackInfo<Value>& args) {
   const char* data;
   size_t size;
   uint32_t count;
-  if (args.Length() < 2 ||
-      !args[1]->IsString() ||
+  if (args.Length() < 2 || !args[1]->IsString() ||
       !GetPackedHeaders(args[0], &data, &size, &count)) {
     args.GetReturnValue().SetUndefined();
     return;
@@ -251,14 +236,11 @@ void NativeHeadersGet(const FunctionCallbackInfo<Value>& args) {
   bool found = false;
   for (uint32_t i = 0; i < count; i++) {
     uint32_t enlen, evlen;
-    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen))
-      break;
+    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen)) break;
     p += 8;
-    if (p + enlen + evlen > end)
-      break;
+    if (p + enlen + evlen > end) break;
     if (HeaderNameEquals(p, enlen, want, nlen)) {
-      if (found)
-        joined.append(", ");
+      if (found) joined.append(", ");
       joined.append(p + enlen, evlen);
       found = true;
     }
@@ -268,7 +250,8 @@ void NativeHeadersGet(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().SetUndefined();
     return;
   }
-  args.GetReturnValue().Set(OneByteString(isolate, joined.data(), joined.size()));
+  args.GetReturnValue().Set(
+      OneByteString(isolate, joined.data(), joined.size()));
 }
 
 void NativeHeadersToArray(const FunctionCallbackInfo<Value>& args) {
@@ -276,16 +259,14 @@ void NativeHeadersToArray(const FunctionCallbackInfo<Value>& args) {
   const char* data;
   size_t size;
   uint32_t count;
-  if (args.Length() < 1 ||
-      !GetPackedHeaders(args[0], &data, &size, &count)) {
+  if (args.Length() < 1 || !GetPackedHeaders(args[0], &data, &size, &count)) {
     args.GetReturnValue().Set(Array::New(isolate, 0));
     return;
   }
   size_t max_elements = static_cast<size_t>(count) * 2;
   if (args.Length() > 1 && args[1]->IsUint32()) {
-    max_elements = std::min(
-        max_elements,
-        static_cast<size_t>(args[1].As<Uint32>()->Value()));
+    max_elements = std::min(max_elements,
+                            static_cast<size_t>(args[1].As<Uint32>()->Value()));
   }
   const char* p = data + kNativeHeadersPrefix;
   const char* end = data + size;
@@ -293,21 +274,17 @@ void NativeHeadersToArray(const FunctionCallbackInfo<Value>& args) {
   out.reserve(max_elements);
   for (uint32_t i = 0; i < count && out.size() < max_elements; i++) {
     uint32_t enlen, evlen;
-    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen))
-      break;
+    if (!ReadU32(p, end, &enlen) || !ReadU32(p + 4, end, &evlen)) break;
     p += 8;
-    if (p + enlen + evlen > end)
-      break;
-    out.push_back(enlen == 0
-                      ? String::Empty(isolate)
-                      : OneByteString(isolate, p, enlen));
+    if (p + enlen + evlen > end) break;
+    out.push_back(enlen == 0 ? String::Empty(isolate)
+                             : OneByteString(isolate, p, enlen));
     if (out.size() >= max_elements) {
       p += enlen + evlen;
       break;
     }
-    out.push_back(evlen == 0
-                      ? String::Empty(isolate)
-                      : OneByteString(isolate, p + enlen, evlen));
+    out.push_back(evlen == 0 ? String::Empty(isolate)
+                             : OneByteString(isolate, p + enlen, evlen));
     p += enlen + evlen;
   }
   args.GetReturnValue().Set(Array::New(isolate, out.data(), out.size()));
@@ -317,8 +294,7 @@ void NativeHeadersByteLength(const FunctionCallbackInfo<Value>& args) {
   const char* data;
   size_t size;
   uint32_t count;
-  if (args.Length() < 1 ||
-      !GetPackedHeaders(args[0], &data, &size, &count)) {
+  if (args.Length() < 1 || !GetPackedHeaders(args[0], &data, &size, &count)) {
     args.GetReturnValue().Set(0);
     return;
   }
@@ -662,8 +638,7 @@ class Parser : public AsyncWrap, public StreamListener {
       // Keep header bytes in C++. JS materializes strings only if it
       // reads rawHeaders / headers.
       argv[A_HEADERS] = CreateNativeHeaders();
-      if (argv[A_HEADERS].IsEmpty())
-        return -1;
+      if (argv[A_HEADERS].IsEmpty()) return -1;
       if (parser_.type == HTTP_REQUEST)
         argv[A_URL] = url_.ToString(env());
     }
@@ -720,8 +695,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
 
   int on_body(const char* at, size_t length) {
-    if (length == 0 || skip_body_)
-      return 0;
+    if (length == 0 || skip_body_) return 0;
 
     Environment* env = this->env();
     HandleScope handle_scope(env->isolate());
@@ -993,7 +967,6 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->stream_->RemoveStreamListener(parser);
   }
 
-
   static void SetSkipBody(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -1171,8 +1144,7 @@ class Parser : public AsyncWrap, public StreamListener {
     auto trimmed_vlen = [this](size_t i) {
       size_t vlen = values_[i].size_;
       const char* v = values_[i].str_;
-      while (vlen > 0 && v != nullptr && IsOWS(v[vlen - 1]))
-        vlen--;
+      while (vlen > 0 && v != nullptr && IsOWS(v[vlen - 1])) vlen--;
       return vlen;
     };
 
@@ -1199,8 +1171,7 @@ class Parser : public AsyncWrap, public StreamListener {
       WriteU32(p, nlen);
       WriteU32(p + 4, vlen);
       p += 8;
-      if (nlen != 0)
-        memcpy(p, name, nlen);
+      if (nlen != 0) memcpy(p, name, nlen);
       p += nlen;
       if (vlen != 0 && values_[i].str_ != nullptr)
         memcpy(p, values_[i].str_, vlen);
@@ -1209,7 +1180,6 @@ class Parser : public AsyncWrap, public StreamListener {
     WriteU32(Buffer::Data(buf) + 8, flags);
     return buf;
   }
-
 
   // spill headers and request path to JS land
   void Flush() {
@@ -1669,7 +1639,8 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "nativeHeadersHas", NativeHeadersHas);
   SetMethod(isolate, target, "nativeHeadersGet", NativeHeadersGet);
   SetMethod(isolate, target, "nativeHeadersToArray", NativeHeadersToArray);
-  SetMethod(isolate, target, "nativeHeadersByteLength", NativeHeadersByteLength);
+  SetMethod(
+      isolate, target, "nativeHeadersByteLength", NativeHeadersByteLength);
 
   Local<FunctionTemplate> c =
       NewFunctionTemplate(isolate, ConnectionsList::New);
