@@ -47,10 +47,10 @@ constexpr uint64_t kCookieWindowNs = 30ull * 1000 * 1000 * 1000;
 
 DTLSContext::DTLSContext(Environment* env,
                          Local<Object> wrap,
-                         SSL_CTX* ctx,
+                         ncrypto::SSLCtxPointer ctx,
                          bool is_server)
     : BaseObject(env, wrap),
-      ctx_(ctx),
+      ctx_(std::move(ctx)),
       is_server_(is_server),
       cookie_secret_(kCookieSecretLen) {
   MakeWeak();
@@ -137,22 +137,22 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
     method = DTLS_client_method();
   }
 
-  SSL_CTX* ctx = SSL_CTX_new(method);
-  if (ctx == nullptr) {
+  ncrypto::SSLCtxPointer ctx(SSL_CTX_new(method));
+  if (!ctx) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
                                              "Failed to create DTLS SSL_CTX");
   }
 
   // Default to DTLS 1.2 only. DTLS 1.0 (based on TLS 1.1) is deprecated
   // by RFC 8996 and lacks AEAD cipher suites.
-  SSL_CTX_set_min_proto_version(ctx, DTLS1_2_VERSION);
-  SSL_CTX_set_max_proto_version(ctx, DTLS1_2_VERSION);
+  SSL_CTX_set_min_proto_version(ctx.get(), DTLS1_2_VERSION);
+  SSL_CTX_set_max_proto_version(ctx.get(), DTLS1_2_VERSION);
 
   // Disable OpenSSL's MTU querying (we manage MTU manually).
-  SSL_CTX_set_options(ctx, SSL_OP_NO_QUERY_MTU);
+  SSL_CTX_set_options(ctx.get(), SSL_OP_NO_QUERY_MTU);
 
   // Enable all workarounds for maximum compatibility.
-  SSL_CTX_set_options(ctx, SSL_OP_ALL);
+  SSL_CTX_set_options(ctx.get(), SSL_OP_ALL);
 
   if (is_server) {
     // NOTE: SSL_OP_COOKIE_EXCHANGE must NOT be set on the context.
@@ -162,11 +162,11 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
 
     // Enable session caching for session resumption.
     SSL_CTX_set_session_cache_mode(
-        ctx, SSL_SESS_CACHE_SERVER | SSL_SESS_CACHE_NO_AUTO_CLEAR);
+        ctx.get(), SSL_SESS_CACHE_SERVER | SSL_SESS_CACHE_NO_AUTO_CLEAR);
   } else {
     // Client session caching for resumption.
     SSL_CTX_set_session_cache_mode(
-        ctx, SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
+        ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
   }
 
   // NOTE: We do NOT call SSL_CTX_set_default_verify_paths() here.
@@ -174,7 +174,7 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
   // those are loaded (via addCACert). Otherwise, system default CAs are
   // loaded via loadDefaultCAs(). This matches Node.js TLS behavior.
 
-  new DTLSContext(env, args.This(), ctx, is_server);
+  new DTLSContext(env, args.This(), std::move(ctx), is_server);
 }
 
 void DTLSContext::SetCert(const FunctionCallbackInfo<Value>& args) {

@@ -31,7 +31,7 @@ class DTLSContext final : public BaseObject {
 
   DTLSContext(Environment* env,
               v8::Local<v8::Object> wrap,
-              SSL_CTX* ctx,
+              ncrypto::SSLCtxPointer ctx,
               bool is_server);
 
   SSL_CTX* ssl_ctx() const { return ctx_.get(); }
