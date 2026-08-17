@@ -55,7 +55,5 @@ for (const method of ['GET, HEAD']) {
   });
 
   res.assignSocket(writable);
-  res.end('hello', common.mustCall((err) => {
-    assert.ifError(err);
-  }));
+  res.end('hello', common.mustSucceed());
 }

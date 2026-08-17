@@ -215,11 +215,11 @@ server.listen(0, common.mustSucceed(async () => {
       });
       const chunks = [];
       client.on('data', (c) => chunks.push(c));
-      client.on('end', () => {
+      client.on('end', common.mustCall(() => {
         const raw = Buffer.concat(chunks).toString('latin1');
         assert.match(raw, /^HTTP\/1\.1 400 /);
         resolve();
-      });
+      }));
       client.on('error', reject);
     });
   } finally {
