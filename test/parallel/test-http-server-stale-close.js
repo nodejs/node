@@ -35,7 +35,7 @@ if (process.env.NODE_TEST_FORK_PORT) {
   req.write('BAM');
   req.end();
 } else {
-  const server = http.createServer(common.mustCallAtLeast((req, res) => {
+  const server = http.createServer(common.mustCall((req, res) => {
     res.writeHead(200, { 'Content-Length': '42' });
     req.pipe(res);
     assert.strictEqual(req.destroyed, false);
@@ -45,9 +45,13 @@ if (process.env.NODE_TEST_FORK_PORT) {
       res.end();
     }));
   }));
-  server.listen(0, function() {
-    fork(__filename, {
+  server.listen(0, common.mustCall(function() {
+    const cp = fork(__filename, {
+      stdio: 'inherit',
       env: { ...process.env, NODE_TEST_FORK_PORT: this.address().port }
     });
-  });
+    cp.once('exit', common.mustCall((code) => {
+      assert.strictEqual(code, 0);
+    }));
+  }));
 }
