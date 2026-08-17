@@ -2,6 +2,9 @@
   "name": "doc",
   "private": true,
   "dependencies": {
-    "@node-core/doc-kit": "1.4.1"
+    "@doc-kit/cli": "1.0.1",
+    "@doc-kit/generator-react": "0.2.0",
+    "@node-core/doc-kit": "2.0.1",
+    "@node-core/doc-kit-legacy": "1.0.1"
   }
 }
