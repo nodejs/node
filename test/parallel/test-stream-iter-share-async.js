@@ -226,6 +226,17 @@ async function testSharePullAbortSignalRejectsPendingNext() {
   shared.cancel();
 }
 
+async function testSharePullPreAbortedSignalDoesNotAddConsumer() {
+  const reason = new Error('already aborted');
+  const signal = AbortSignal.abort(reason);
+  const shared = share(from('data'));
+  const iter = shared.pull({ signal })[Symbol.asyncIterator]();
+
+  assert.strictEqual(shared.consumerCount, 0);
+  await assert.rejects(iter.next(), (error) => error === reason);
+  assert.strictEqual(shared.consumerCount, 0);
+}
+
 async function testShareAlreadyAborted() {
   const shared = share(from('data'), { signal: AbortSignal.abort() });
   const consumer = shared.pull();
@@ -372,6 +383,7 @@ Promise.all([
   testShareAbortSignal(),
   testShareAbortSignalWhileSourcePullPending(),
   testSharePullAbortSignalRejectsPendingNext(),
+  testSharePullPreAbortedSignalDoesNotAddConsumer(),
   testShareAlreadyAborted(),
   testShareSourceError(),
   testShareLateJoiningConsumer(),

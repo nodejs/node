@@ -203,6 +203,17 @@ async function testPushAbortSignalRejectsPendingNext() {
   await rejected;
 }
 
+async function testPushPreAbortedSignalDoesNotAddConsumer() {
+  const reason = new Error('already aborted');
+  const signal = AbortSignal.abort(reason);
+  const { broadcast: bc } = broadcast();
+  const iter = bc.push({ signal })[Symbol.asyncIterator]();
+
+  assert.strictEqual(bc.consumerCount, 0);
+  await assert.rejects(iter.next(), (error) => error === reason);
+  assert.strictEqual(bc.consumerCount, 0);
+}
+
 // =============================================================================
 // Writer fail detaches consumers
 // =============================================================================
@@ -331,6 +342,7 @@ Promise.all([
   testCancelWithFalsyReason(),
   testPendingNextSettlesAfterReturn(),
   testPushAbortSignalRejectsPendingNext(),
+  testPushPreAbortedSignalDoesNotAddConsumer(),
   testFailDetachesConsumers(),
   testWriterFailIdempotent(),
   testLateJoinerSeesBufferedData(),
