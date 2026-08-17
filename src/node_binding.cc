@@ -99,6 +99,7 @@
   V(wasi)                                                                      \
   V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
+  V(webstreams)                                                                \
   V(worker)                                                                    \
   V(zlib)
 

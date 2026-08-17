@@ -38,6 +38,7 @@ import { UtilBinding } from './internalBinding/util';
 import { UVBinding } from './internalBinding/uv';
 import { WASIBinding } from './internalBinding/wasi';
 import { WatchdogBinding } from './internalBinding/watchdog';
+import { WebstreamsBinding } from './internalBinding/webstreams';
 import { WorkerBinding } from './internalBinding/worker';
 import { ZlibBinding } from './internalBinding/zlib';
 
@@ -82,6 +83,7 @@ interface InternalBindingMap {
   uv: UVBinding;
   wasi: WASIBinding;
   watchdog: WatchdogBinding;
+  webstreams: WebstreamsBinding;
   worker: WorkerBinding;
   zlib: ZlibBinding;
 }
