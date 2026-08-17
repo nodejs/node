@@ -185,7 +185,7 @@ class ModuleWrap : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetInitializeImportMetaObjectCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::MaybeLocal<v8::Value> SyntheticModuleEvaluationStepsCallback(
+  static v8::MaybeLocal<v8::Promise> SyntheticModuleEvaluationStepsCallback(
       v8::Local<v8::Context> context, v8::Local<v8::Module> module);
   static void SetSyntheticExport(
       const v8::FunctionCallbackInfo<v8::Value>& args);
