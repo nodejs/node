@@ -2,7 +2,7 @@ declare namespace InternalSignalWrapBinding {
   class Signal {
     constructor();
     onsignal?: (signum: number) => void;
-    start(signum: number): number;
+    start(signum: number): number | undefined;
     stop(): number;
     close(callback?: () => void): void;
     hasRef(): boolean;
