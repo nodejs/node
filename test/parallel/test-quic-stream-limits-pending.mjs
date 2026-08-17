@@ -54,26 +54,24 @@ const s1 = await clientSession.createBidirectionalStream({
   waitUntilAvailable: true
 });
 
-// eslint-disable-next-line node-core/must-call-assert
-s1.opened.then(() => {
-  opened++;
-});
-
 let s2
-// Second stream is created but queued as pending because the
-try {
-  // Second stream should not open, but throw.
-  await clientSession.createBidirectionalStream({
-    body: encoder.encode('stream 2'),
-    waitUntilAvailable: false,
-  });
-  // eslint-disable-next-line node-core/must-call-assert
-  s2.opened.then(() => {
-    opened++;
-  });
-} catch (error) {
-  assert.strictEqual(error.code, 'ERR_INVALID_STATE');
-}
+await assert.rejects(
+  async () => {
+    // Second stream should not open, but throw.
+    s2 = await clientSession.createBidirectionalStream({
+      body: encoder.encode('stream 2'),
+      waitUntilAvailable: false,
+    });
+    // eslint-disable-next-line node-core/must-call-assert
+    s2.opened.then(() => {
+      opened++;
+    });
+  },
+  {
+    name: 'Error',
+    message: 'No new stream available within flow control',
+  },
+);
 
 // Third stream is created but queued as pending because the
 // server only allows 1 concurrent bidi stream.
@@ -112,8 +110,7 @@ const s4 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 4'),
   waitUntilAvailable: false
 });
-await s4.closed;
-await allDone.promise;
+await Promise.all([s4.closed, allDone.promise]);
 
 await clientSession.close();
 await serverEndpoint.close();
