@@ -491,57 +491,50 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   // state machine has been prepared by DTLSv1_listen() to continue the
   // handshake from TLS_ST_SR_CLNT_HELLO, so Cycle() -> SSL_do_handshake()
   // immediately produces the ServerHello flight.
-  SSL* tmp_ssl = SSL_new(server_context_->ssl_ctx());
-  if (tmp_ssl == nullptr) return;
+  ncrypto::SSLPointer ssl(SSL_new(server_context_->ssl_ctx()));
+  if (!ssl) return;
 
-  BIO* in = BIO_new(BIO_s_mem());
-  BIO* out = BIO_new(BIO_s_mem());
-  if (in == nullptr || out == nullptr) {
-    BIO_free(in);
-    BIO_free(out);
-    SSL_free(tmp_ssl);
-    return;
-  }
+  auto in = ncrypto::BIOPointer::NewMem();
+  auto out = ncrypto::BIOPointer::NewMem();
+  if (!in || !out) return;
 
-  BIO_set_mem_eof_return(in, -1);
-  BIO_set_mem_eof_return(out, -1);
-  SSL_set_bio(tmp_ssl, in, out);
-  SSL_set_accept_state(tmp_ssl);
-  SSL_set_options(tmp_ssl, SSL_OP_NO_QUERY_MTU | SSL_OP_COOKIE_EXCHANGE);
-  SSL_set_mtu(tmp_ssl, mtu_);
+  BIO_set_mem_eof_return(in.get(), -1);
+  BIO_set_mem_eof_return(out.get(), -1);
+  // SSL_set_bio takes ownership of both BIOs.
+  BIO* in_raw = in.release();
+  BIO* out_raw = out.release();
+  SSL_set_bio(ssl.get(), in_raw, out_raw);
+  SSL_set_accept_state(ssl.get());
+  SSL_set_options(ssl.get(), SSL_OP_NO_QUERY_MTU | SSL_OP_COOKIE_EXCHANGE);
+  SSL_set_mtu(ssl.get(), mtu_);
 
   // Set peer address on context for the cookie callbacks.
   server_context_->set_cookie_peer(remote);
 
-  BIO_write(in, data, len);
+  BIO_write(in_raw, data, len);
 
-  BIO_ADDR* peer = BIO_ADDR_new();
-  int ret = DTLSv1_listen(tmp_ssl, peer);
-  BIO_ADDR_free(peer);
+  DeleteFnPtr<BIO_ADDR, BIO_ADDR_free> peer(BIO_ADDR_new());
+  int ret = DTLSv1_listen(ssl.get(), peer.get());
 
   if (ret == 0) {
     // Send HelloVerifyRequest.
     uint8_t resp_buf[65536];
     int resp_len;
-    while ((resp_len = BIO_read(out, resp_buf, sizeof(resp_buf))) > 0) {
+    while ((resp_len = BIO_read(out_raw, resp_buf, sizeof(resp_buf))) > 0) {
       SendTo(remote, resp_buf, resp_len);
     }
-    SSL_free(tmp_ssl);
     return;
   }
 
   if (ret < 0) {
-    SSL_free(tmp_ssl);
     return;  // Error — drop packet.
   }
 
   // Cookie verified. Hand the SSL (which has already completed cookie
   // exchange and consumed the ClientHello) to a DTLSSession. Calling
   // Cycle() will drive SSL_do_handshake to produce the ServerHello.
-  ncrypto::SSLPointer ssl(tmp_ssl);
-
-  auto session =
-      DTLSSession::CreateFromSSL(env(), this, std::move(ssl), in, out, remote);
+  auto session = DTLSSession::CreateFromSSL(
+      env(), this, std::move(ssl), in_raw, out_raw, remote);
 
   if (!session) return;
 
