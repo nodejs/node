@@ -1302,8 +1302,8 @@ added: v23.8.0
     writing more. **Default:** `65536` (64 KB).
   * `waitUntilAvailable` {boolean} When true the promise will wait until flow
     control will allow to open the stream. If set to false, the function
-    will fail synchronously, if flow control will not allow to open the stream
-    immediately.
+    will return a rejected promise, if flow control will not allow to 
+    open the stream immediately.
     **Default:** `false`
   * `onheaders` {Function} Callback for received initial response headers.
     Called with `(headers)`.

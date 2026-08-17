@@ -1174,7 +1174,7 @@ struct Session::Impl final : public MemoryRetainer {
       // This is waitUntilAvailable
       if (!session->CanImmediatelyOpenStream(direction)) {
         return THROW_ERR_INVALID_STATE(
-          env, "No new stream available within flow control");
+            env, "No new stream available within flow control");
       }
     }
 
@@ -3529,7 +3529,7 @@ uint64_t Session::max_local_streams_uni() const {
 
 uint64_t Session::max_local_streams_bidi() const {
   DCHECK(!is_destroyed());
-  return  ngtcp2_conn_get_streams_bidi_left2(*this);
+  return ngtcp2_conn_get_streams_bidi_left2(*this);
 }
 
 void Session::set_wrapped() {
