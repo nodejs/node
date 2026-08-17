@@ -35,6 +35,7 @@ import { URLPatternBinding } from "./internalBinding/url_pattern";
 import { UtilBinding } from './internalBinding/util';
 import { UVBinding } from './internalBinding/uv';
 import { WASIBinding } from './internalBinding/wasi';
+import { WatchdogBinding } from './internalBinding/watchdog';
 import { WorkerBinding } from './internalBinding/worker';
 import { ZlibBinding } from './internalBinding/zlib';
 
@@ -76,6 +77,7 @@ interface InternalBindingMap {
   util: UtilBinding;
   uv: UVBinding;
   wasi: WASIBinding;
+  watchdog: WatchdogBinding;
   worker: WorkerBinding;
   zlib: ZlibBinding;
 }
