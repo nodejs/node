@@ -1082,7 +1082,10 @@ void ChannelWrap::StartTimer() {
   int timeout = timeout_;
   if (timeout <= 0 || timeout > 1000) timeout = 1000;
   uv_update_time(env()->event_loop());
-  uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
+  // This is called earlier than ares_calc_query_timeout, usually by a few tens
+  // of microseconds but could be longer. An additional allowance of 1 ms helps
+  // reduce the chance of missing a timeout.
+  uv_timer_start(timer_handle_, AresTimeout, timeout + 1, timeout);
 }
 
 void ChannelWrap::CloseTimer() {
