@@ -340,6 +340,34 @@ const util = require('util');
 }
 
 {
+  // addAddresses() and addCIDRs() must throw the same errors for non-array
+  // input regardless of how the checks are implemented internally.
+  const blockList = new BlockList();
+  for (const [value, received] of [
+    ['x', "type string ('x')"],
+    [123, 'type number (123)'],
+    [{}, 'an instance of Object'],
+    [null, 'null'],
+    [undefined, 'undefined'],
+    [1n, 'type bigint (1n)'],
+    [true, 'type boolean (true)'],
+  ]) {
+    assert.throws(() => blockList.addAddresses(value), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "addresses" argument must be an instance of Array. ' +
+               `Received ${received}`,
+    });
+    assert.throws(() => blockList.addCIDRs(value), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "cidrs" argument must be an instance of Array. ' +
+               `Received ${received}`,
+    });
+  }
+}
+
+{
   // Test addAddresses() batch insert.
   const blockList = new BlockList();
   blockList.addAddresses(['1.1.1.1', '2.2.2.2', '3.3.3.3']);
