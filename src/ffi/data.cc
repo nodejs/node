@@ -16,7 +16,6 @@ using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BigInt;
-using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
@@ -24,7 +23,6 @@ using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
-using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Nothing;
 using v8::Number;
@@ -312,7 +310,6 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
   }
 
   T converted;
-  Local<Context> context = env->context();
 
   if constexpr (std::is_same_v<T, int8_t>) {
     int64_t validated;
@@ -400,15 +397,16 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       return;
     }
   } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
-    MaybeLocal<Number> number = value->ToNumber(context);
-    Local<Number> number_local;
-
-    if (!number.ToLocal(&number_local)) {
-      THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a number");
+    if (!value->IsNumber()) {
+      if constexpr (std::is_same_v<T, float>) {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a float");
+      } else {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a double");
+      }
       return;
     }
 
-    converted = static_cast<T>(number_local->Value());
+    converted = static_cast<T>(value.As<Number>()->Value());
   } else {
     UNREACHABLE();
   }
