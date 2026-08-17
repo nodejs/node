@@ -1203,6 +1203,20 @@ parser.add_argument('--v8-enable-hugepage',
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
 
+parser.add_argument('--v8-enable-wasm-gdb-remote-debugging',
+    action='store_true',
+    dest='v8_enable_wasm_gdb_remote_debugging',
+    default=None,
+    help='Enable V8 WebAssembly debugging via the GDB-remote protocol. ' +
+         'Enabled by default on Linux, macOS, and Windows when WebAssembly ' +
+         'is enabled.')
+
+parser.add_argument('--v8-disable-wasm-gdb-remote-debugging',
+    action='store_false',
+    dest='v8_enable_wasm_gdb_remote_debugging',
+    default=None,
+    help='Disable V8 WebAssembly debugging via the GDB-remote protocol.')
+
 maglev_enabled_by_default_help = f"(Maglev is enabled by default on {','.join(maglev_enabled_architectures)})"
 
 parser.add_argument('--v8-disable-maglev',
@@ -2179,6 +2193,18 @@ def configure_v8(o, configs):
   set_configuration_variable(configs, 'v8_enable_v8_checks', release=0, debug=1)
 
   o['variables']['v8_enable_webassembly'] = 0 if options.v8_lite_mode else 1
+  if all(opt in sys.argv for opt in [
+      '--v8-enable-wasm-gdb-remote-debugging',
+      '--v8-disable-wasm-gdb-remote-debugging',
+  ]):
+    raise Exception(
+        'Only one of the --v8-enable-wasm-gdb-remote-debugging or '
+        '--v8-disable-wasm-gdb-remote-debugging options can be specified at a time.')
+  wasm_gdb = options.v8_enable_wasm_gdb_remote_debugging
+  if wasm_gdb is None:
+    wasm_gdb = (o['variables']['v8_enable_webassembly'] and
+                flavor in ('linux', 'mac', 'win'))
+  o['variables']['v8_enable_wasm_gdb_remote_debugging'] = B(wasm_gdb)
   o['variables']['v8_enable_javascript_promise_hooks'] = 1
   o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   is_gdbjit_supported_arch = (
