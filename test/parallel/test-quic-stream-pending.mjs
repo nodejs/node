@@ -35,6 +35,7 @@ const clientSession = await connect(serverEndpoint.address);
 // completed yet. The stream should be created in a pending state.
 const stream = await clientSession.createBidirectionalStream({
   body: encoder.encode('pending stream'),
+  waitUntilAvailable: true,
 });
 
 // The stream should initially be pending (no ID assigned yet).

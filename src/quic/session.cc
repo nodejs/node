@@ -1170,9 +1170,11 @@ struct Session::Impl final : public MemoryRetainer {
     DCHECK(args[1]->IsBoolean());
 
     auto direction = FromV8Value<Direction>(args[0]);
-    if (!args[1].As<v8::Boolean>()->Value() && false) { // This is waitUntilAvailable
+    if (!args[1].As<v8::Boolean>()->Value()) {
+      // This is waitUntilAvailable
       if (!session->CanImmediatelyOpenStream(direction)) {
-        return THROW_ERR_INVALID_STATE(env, "No new stream available within flow control");
+        return THROW_ERR_INVALID_STATE(
+          env, "No new stream available within flow control");
       }
     }
 
