@@ -105,6 +105,24 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
   principal->AddBindingData<BindingData>(target);
 }
 
+inline MaybeLocal<Value> IntegerToValue(Isolate* isolate,
+                                        sqlite3_int64 value,
+                                        bool use_big_ints) {
+  if (use_big_ints) {
+    return BigInt::New(isolate, value);
+  }
+
+  if (value < -kMaxSafeJsInteger || value > kMaxSafeJsInteger) {
+    THROW_ERR_OUT_OF_RANGE(
+        isolate,
+        "Value is too large to be represented as a JavaScript number: %" PRId64,
+        value);
+    return MaybeLocal<Value>();
+  }
+
+  return Number::New(isolate, value);
+}
+
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
   do {                                                                         \
     int r_ = (expr);                                                           \
@@ -159,16 +177,7 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
     switch (sqlite3_##from##_type(__VA_ARGS__)) {                              \
       case SQLITE_INTEGER: {                                                   \
         sqlite3_int64 val = sqlite3_##from##_int64(__VA_ARGS__);               \
-        if ((use_big_int_args)) {                                              \
-          (result) = BigInt::New((isolate), val);                              \
-        } else if (std::abs(val) <= kMaxSafeJsInteger) {                       \
-          (result) = Number::New((isolate), val);                              \
-        } else {                                                               \
-          THROW_ERR_OUT_OF_RANGE((isolate),                                    \
-                                 "Value is too large to be represented as a "  \
-                                 "JavaScript number: %" PRId64,                \
-                                 val);                                         \
-        }                                                                      \
+        (result) = IntegerToValue((isolate), val, (use_big_int_args));         \
         break;                                                                 \
       }                                                                        \
       case SQLITE_FLOAT: {                                                     \
@@ -3251,12 +3260,10 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   Local<Value> last_insert_rowid_val;
   Local<Value> changes_val;
 
-  if (use_big_ints) {
-    last_insert_rowid_val = BigInt::New(isolate, last_insert_rowid);
-    changes_val = BigInt::New(isolate, changes);
-  } else {
-    last_insert_rowid_val = Number::New(isolate, last_insert_rowid);
-    changes_val = Number::New(isolate, changes);
+  if (!IntegerToValue(isolate, last_insert_rowid, use_big_ints)
+           .ToLocal(&last_insert_rowid_val) ||
+      !IntegerToValue(isolate, changes, use_big_ints).ToLocal(&changes_val)) {
+    return MaybeLocal<Object>();
   }
 
   auto run_result_template = env->sqlite_run_result_template();
