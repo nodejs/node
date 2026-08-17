@@ -1081,6 +1081,7 @@ void ChannelWrap::StartTimer() {
   }
   int timeout = timeout_;
   if (timeout <= 0 || timeout > 1000) timeout = 1000;
+  uv_update_time(env()->event_loop());
   uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
 }
 
