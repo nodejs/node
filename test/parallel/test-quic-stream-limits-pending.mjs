@@ -49,7 +49,6 @@ await clientSession.opened;
 // First stream opens immediately (within the limit).
 const s1 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
-  waitUntilAvailable: true
 });
 
 await assert.rejects(
@@ -70,7 +69,6 @@ await assert.rejects(
 // server only allows 1 concurrent bidi stream.
 const s3 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 3'),
-  waitUntilAvailable: true
 });
 
 // s3 should be pending until s1 closes and the server grants

@@ -1304,7 +1304,7 @@ added: v23.8.0
     control will allow to open the stream. If set to false, the function
     will return a rejected promise, if flow control will not allow to 
     open the stream immediately.
-    **Default:** `false`
+    **Default:** `true`
   * `onheaders` {Function} Callback for received initial response headers.
     Called with `(headers)`.
   * `ontrailers` {Function} Callback for received trailing headers.
