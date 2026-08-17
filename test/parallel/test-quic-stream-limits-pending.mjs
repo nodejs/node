@@ -51,7 +51,6 @@ let opened = 0;
 // First stream opens immediately (within the limit).
 const s1 = await clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
-  waitUntilAvailable: true
 });
 
 let s2

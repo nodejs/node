@@ -63,7 +63,6 @@ const decoder = new TextDecoder();
     // Priority set at creation time.
     priority: 'high',
     incremental: true,
-    waitUntilAvailable: true,
     onheaders: mustCall(function(headers) {
       assert.strictEqual(headers[':status'], 200);
     }),
