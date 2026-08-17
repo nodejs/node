@@ -221,7 +221,7 @@ inline cppgc::AllocationHandle& Environment::cppgc_allocation_handle() const {
 
 inline v8::ExternalMemoryAccounter* Environment::external_memory_accounter()
     const {
-  return external_memory_accounter_;
+  return external_memory_accounter_.get();
 }
 
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
