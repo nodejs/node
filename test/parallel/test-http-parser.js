@@ -23,7 +23,9 @@
 const { mustCall, mustNotCall, mustCallAtLeast } = require('../common');
 const assert = require('assert');
 
-const { methods, HTTPParser, unpackHeaderList } = require('_http_common');
+const { methods, HTTPParser } = require('_http_common');
+const { nativeHeadersToArray } = require('internal/test/binding')
+  .internalBinding('http_parser');
 const { REQUEST, RESPONSE } = HTTPParser;
 
 const kOnHeaders = HTTPParser.kOnHeaders | 0;
@@ -34,7 +36,20 @@ const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 // Fast-path kOnHeadersComplete now passes a packed Buffer instead of a JS
 // string array. Materialize only when the test inspects them.
 function headerList(headers, fallback) {
-  return unpackHeaderList(headers, fallback);
+  if (headers != null && !Array.isArray(headers))
+    return nativeHeadersToArray(headers);
+  return headers || fallback || [];
+}
+
+function assertPackedLittleEndian(headers) {
+  if (headers == null || Array.isArray(headers))
+    return;
+  // Magic is the LE encoding of ASCII 'NHDR' on every architecture.
+  assert.strictEqual(headers[0], 0x4e);
+  assert.strictEqual(headers[1], 0x48);
+  assert.strictEqual(headers[2], 0x44);
+  assert.strictEqual(headers[3], 0x52);
+  assert.strictEqual(headers.readUInt32LE(0), HTTPParser.kNativeHeadersMagic);
 }
 
 // The purpose of this test is not to check HTTP compliance but to test the
@@ -87,6 +102,7 @@ function expectBody(expected) {
     assert.strictEqual(versionMinor, 1);
     assert.strictEqual(method, methods.indexOf('GET'));
     assert.strictEqual(url || parser.url, '/hello');
+    assertPackedLittleEndian(headers);
   });
 
   const parser = newParser(REQUEST);
