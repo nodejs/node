@@ -171,21 +171,21 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
   ncrypto::SSLPointer ssl(ssl_raw);
 
   // Create memory BIOs for encrypted data I/O.
-  BIO* enc_in = BIO_new(BIO_s_mem());
-  BIO* enc_out = BIO_new(BIO_s_mem());
-  if (enc_in == nullptr || enc_out == nullptr) {
-    BIO_free(enc_in);
-    BIO_free(enc_out);
+  auto enc_in = ncrypto::BIOPointer::NewMem();
+  auto enc_out = ncrypto::BIOPointer::NewMem();
+  if (!enc_in || !enc_out) {
     THROW_ERR_CRYPTO_OPERATION_FAILED(env, "BIO_new failed");
     return {};
   }
 
   // Make the BIOs non-blocking.
-  BIO_set_mem_eof_return(enc_in, -1);
-  BIO_set_mem_eof_return(enc_out, -1);
+  BIO_set_mem_eof_return(enc_in.get(), -1);
+  BIO_set_mem_eof_return(enc_out.get(), -1);
 
   // Associate BIOs with the SSL object. SSL_set_bio takes ownership.
-  SSL_set_bio(ssl.get(), enc_in, enc_out);
+  BIO* enc_in_raw = enc_in.release();
+  BIO* enc_out_raw = enc_out.release();
+  SSL_set_bio(ssl.get(), enc_in_raw, enc_out_raw);
 
   // Set the MTU (since we use SSL_OP_NO_QUERY_MTU).
   SSL_set_mtu(ssl.get(), endpoint->mtu());
@@ -241,8 +241,14 @@ BaseObjectPtr<DTLSSession> DTLSSession::Create(Environment* env,
     return {};
   }
 
-  auto session = MakeBaseObject<DTLSSession>(
-      env, obj, endpoint, std::move(ssl), enc_in, enc_out, remote, is_server);
+  auto session = MakeBaseObject<DTLSSession>(env,
+                                             obj,
+                                             endpoint,
+                                             std::move(ssl),
+                                             enc_in_raw,
+                                             enc_out_raw,
+                                             remote,
+                                             is_server);
 
   return session;
 }
@@ -650,10 +656,10 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
   if (peer_cert == nullptr) return;
 
   // Return the PEM-encoded certificate.
-  BIO* bio = BIO_new(BIO_s_mem());
-  if (PEM_write_bio_X509(bio, peer_cert)) {
+  auto bio = ncrypto::BIOPointer::NewMem();
+  if (PEM_write_bio_X509(bio.get(), peer_cert)) {
     char* data;
-    long len = BIO_get_mem_data(bio, &data);  // NOLINT(runtime/int)
+    long len = BIO_get_mem_data(bio.get(), &data);  // NOLINT(runtime/int)
     if (len > 0) {
       args.GetReturnValue().Set(
           String::NewFromUtf8(
@@ -661,7 +667,6 @@ void DTLSSession::GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
               .ToLocalChecked());
     }
   }
-  BIO_free(bio);
 }
 
 void DTLSSession::GetALPNProtocol(const FunctionCallbackInfo<Value>& args) {

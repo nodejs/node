@@ -60,7 +60,6 @@ class ExternString: public ResourceType {
   ~ExternString() override {
     free(const_cast<TypeName*>(data_));
     external_memory_accounter_->Decrease(isolate(), byte_length());
-    delete external_memory_accounter_;
   }
 
   const TypeName* data() const override {
@@ -126,7 +125,7 @@ class ExternString: public ResourceType {
  private:
   ExternString(Isolate* isolate, const TypeName* data, size_t length)
       : isolate_(isolate),
-        external_memory_accounter_(new ExternalMemoryAccounter()),
+        external_memory_accounter_(std::make_unique<ExternalMemoryAccounter>()),
         data_(data),
         length_(length) {
     external_memory_accounter_->Increase(isolate, byte_length());
@@ -140,7 +139,7 @@ class ExternString: public ResourceType {
                                              size_t length);
 
   Isolate* isolate_;
-  ExternalMemoryAccounter* external_memory_accounter_;
+  std::unique_ptr<ExternalMemoryAccounter> external_memory_accounter_;
   const TypeName* data_;
   size_t length_;
 };
