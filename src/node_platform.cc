@@ -261,18 +261,19 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
   threads_.push_back(delayed_task_scheduler_->Start());
 
   for (int i = 0; i < thread_pool_size; i++) {
-    PlatformWorkerData* worker_data =
-        new PlatformWorkerData{&pending_worker_tasks_,
-                               &platform_workers_mutex,
-                               &platform_workers_ready,
-                               &pending_platform_workers,
-                               i,
-                               debug_log_level_};
+    auto worker_data = std::make_unique<PlatformWorkerData>(
+        PlatformWorkerData{&pending_worker_tasks_,
+                           &platform_workers_mutex,
+                           &platform_workers_ready,
+                           &pending_platform_workers,
+                           i,
+                           debug_log_level_});
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };
-    if (uv_thread_create(t.get(), PlatformWorkerThread,
-                         worker_data) != 0) {
+    if (uv_thread_create(t.get(), PlatformWorkerThread, worker_data.get()) !=
+        0) {
       break;
     }
+    worker_data.release();
     threads_.push_back(std::move(t));
   }
 
