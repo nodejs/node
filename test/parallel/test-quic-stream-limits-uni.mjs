@@ -49,6 +49,7 @@ s1.opened.then(() => {
 // Second uni stream is pending (limit = 1).
 const s2 = await clientSession.createUnidirectionalStream({
   body: encoder.encode('uni 2'),
+  waitUntilAvailable: true,
 });
 
 // eslint-disable-next-line node-core/must-call-assert
