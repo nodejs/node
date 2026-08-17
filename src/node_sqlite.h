@@ -323,7 +323,10 @@ class DatabaseSync : public BaseObject {
   DatabaseOpenConfiguration open_config_;
   bool allow_load_extension_;
   bool enable_load_extension_;
-  sqlite3* connection_;
+  struct ConnectionDeleter {
+    void operator()(sqlite3* db) const { sqlite3_close_v2(db); }
+  };
+  std::unique_ptr<sqlite3, ConnectionDeleter> connection_;
   bool ignore_next_sqlite_error_;
   int callback_depth_ = 0;
   int authorizer_depth_ = 0;
@@ -452,7 +455,10 @@ class Session : public BaseObject {
 
  private:
   void Delete();
-  sqlite3_session* session_;
+  struct SessionDeleter {
+    void operator()(sqlite3_session* s) const { sqlite3session_delete(s); }
+  };
+  std::unique_ptr<sqlite3_session, SessionDeleter> session_;
   BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
   bool is_generating_changeset_ = false;
 

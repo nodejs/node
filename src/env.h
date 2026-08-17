@@ -1112,7 +1112,7 @@ class Environment final : public MemoryRetainer {
 
   std::list<binding::DLib> loaded_addons_;
   v8::Isolate* const isolate_;
-  v8::ExternalMemoryAccounter* const external_memory_accounter_;
+  const std::unique_ptr<v8::ExternalMemoryAccounter> external_memory_accounter_;
   IsolateData* const isolate_data_;
 
   bool env_handle_initialized_ = false;

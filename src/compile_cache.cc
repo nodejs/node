@@ -177,7 +177,7 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
   size_t offset = headers_buf.len;
   size_t capacity = 4096;  // Initial buffer capacity
   size_t total_read = 0;
-  uint8_t* buffer = new uint8_t[capacity];
+  auto buffer = std::make_unique<uint8_t[]>(capacity);
 
   while (true) {
     // If there is not enough space to read more data, do a simple
@@ -185,20 +185,19 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     // the underlying buffer to be delete[]-able).
     if (total_read == capacity) {
       size_t new_capacity = capacity * 2;
-      auto* new_buffer = new uint8_t[new_capacity];
-      memcpy(new_buffer, buffer, capacity);
-      delete[] buffer;
-      buffer = new_buffer;
+      auto new_buffer = std::make_unique<uint8_t[]>(new_capacity);
+      memcpy(new_buffer.get(), buffer.get(), capacity);
+      buffer = std::move(new_buffer);
       capacity = new_capacity;
     }
 
-    uv_buf_t iov = uv_buf_init(reinterpret_cast<char*>(buffer + total_read),
-                               capacity - total_read);
+    uv_buf_t iov =
+        uv_buf_init(reinterpret_cast<char*>(buffer.get() + total_read),
+                    capacity - total_read);
     int bytes_read =
         uv_fs_read(nullptr, &req, file, &iov, 1, offset + total_read, nullptr);
     if (req.result < 0) {  // Error.
       // req will be cleaned up by scope leave.
-      delete[] buffer;
       Debug(" %s\n", uv_strerror(req.result));
       return;
     }
@@ -216,7 +215,8 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
           total_read);
     return;
   }
-  uint32_t cache_hash = GetHash(reinterpret_cast<char*>(buffer), total_read);
+  uint32_t cache_hash =
+      GetHash(reinterpret_cast<char*>(buffer.get()), total_read);
   if (headers[kCacheHashOffset] != cache_hash) {
     Debug("cache hash mismatch: expected %d, actual %d\n",
           headers[kCacheHashOffset],
@@ -225,7 +225,7 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
   }
 
   entry->cache.reset(new ScriptCompiler::CachedData(
-      buffer, total_read, ScriptCompiler::CachedData::BufferOwned));
+      buffer.release(), total_read, ScriptCompiler::CachedData::BufferOwned));
   Debug(" success, size=%d\n", total_read);
 }
 
