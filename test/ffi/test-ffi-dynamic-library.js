@@ -67,6 +67,27 @@ test('dlopen resolves functions from definitions', () => {
   }
 });
 
+test('FFI functions are not constructible', () => {
+  const { lib, functions } = ffi.dlopen(libraryPath, {
+    add_i32: fixtureSymbols.add_i32,
+    multiply_f64: fixtureSymbols.multiply_f64,
+  });
+
+  try {
+    assert.strictEqual(Object.hasOwn(functions.add_i32, 'prototype'), false);
+    assert.strictEqual(
+      Object.hasOwn(functions.multiply_f64, 'prototype'), false);
+    assert.throws(
+      () => Reflect.construct(functions.add_i32, [20, 22]),
+      TypeError);
+    assert.throws(
+      () => Reflect.construct(functions.multiply_f64, [6, 7]),
+      TypeError);
+  } finally {
+    lib.close();
+  }
+});
+
 test('DynamicLibrary exposes functions and symbols', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
 
