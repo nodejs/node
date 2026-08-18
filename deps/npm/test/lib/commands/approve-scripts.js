@@ -627,7 +627,7 @@ t.test('forbidden semver range in package.json#allowScripts is dropped with a wa
   })
   await mock.npm.exec('approve-scripts', [])
 
-  const warnings = mock.logs.warn.byTitle('allow-scripts')
+  const warnings = mock.logs.warn.byTitle('install-scripts')
   t.ok(
     warnings.some(m => /semver ranges/.test(m) && /canvas@\^0\.33\.0/.test(m)),
     'resolver emits warning about forbidden range'

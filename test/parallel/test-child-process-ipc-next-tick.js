@@ -32,8 +32,8 @@ if (process.argv[2] === 'child') {
 
   child.on('message', common.mustCall((msg) => {
     assert.strictEqual(msg, 'ready');
-    values.forEach((value) => {
+    for (const value of values) {
       child.send(value);
-    });
+    };
   }));
 }

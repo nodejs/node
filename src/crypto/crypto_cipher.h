@@ -106,6 +106,7 @@ class PublicKeyCipher {
                      const ncrypto::EVPKeyPointer& pkey,
                      int padding,
                      const ncrypto::Digest& digest,
+                     const ncrypto::Digest& mgf1_digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
                      std::unique_ptr<v8::BackingStore>* out);
@@ -268,9 +269,8 @@ class CipherJob final : public CryptoJob<CipherTraits> {
 
   SET_SELF_SIZE(CipherJob)
   void MemoryInfo(MemoryTracker* tracker) const override {
-    if (IsCryptoJobAsync(CryptoJob<CipherTraits>::mode()))
-      tracker->TrackFieldWithSize("in", in_.size());
-    tracker->TrackFieldWithSize("out", out_.size());
+    tracker->TraitTrackInline(in_, "in");
+    tracker->TraitTrackInline(out_, "out");
     CryptoJob<CipherTraits>::MemoryInfo(tracker);
   }
 

@@ -4001,33 +4001,93 @@
   {
     "input": "http://a.b.c.xn--pokxncvks",
     "base": null,
-    "failure": true
+    "href": "http://a.b.c.xn--pokxncvks/",
+    "origin": "http://a.b.c.xn--pokxncvks",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "a.b.c.xn--pokxncvks",
+    "hostname": "a.b.c.xn--pokxncvks",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   {
     "input": "http://10.0.0.xn--pokxncvks",
     "base": null,
-    "failure": true
+    "href": "http://10.0.0.xn--pokxncvks/",
+    "origin": "http://10.0.0.xn--pokxncvks",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "10.0.0.xn--pokxncvks",
+    "hostname": "10.0.0.xn--pokxncvks",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   "IDNA labels should be matched case-insensitively",
   {
     "input": "http://a.b.c.XN--pokxncvks",
     "base": null,
-    "failure": true
+    "href": "http://a.b.c.xn--pokxncvks/",
+    "origin": "http://a.b.c.xn--pokxncvks",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "a.b.c.xn--pokxncvks",
+    "hostname": "a.b.c.xn--pokxncvks",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   {
     "input": "http://a.b.c.Xn--pokxncvks",
     "base": null,
-    "failure": true
+    "href": "http://a.b.c.xn--pokxncvks/",
+    "origin": "http://a.b.c.xn--pokxncvks",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "a.b.c.xn--pokxncvks",
+    "hostname": "a.b.c.xn--pokxncvks",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   {
     "input": "http://10.0.0.XN--pokxncvks",
     "base": null,
-    "failure": true
+    "href": "http://10.0.0.xn--pokxncvks/",
+    "origin": "http://10.0.0.xn--pokxncvks",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "10.0.0.xn--pokxncvks",
+    "hostname": "10.0.0.xn--pokxncvks",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   {
     "input": "http://10.0.0.xN--pokxncvks",
     "base": null,
-    "failure": true
+    "href": "http://10.0.0.xn--pokxncvks/",
+    "origin": "http://10.0.0.xn--pokxncvks",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "10.0.0.xn--pokxncvks",
+    "hostname": "10.0.0.xn--pokxncvks",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   "Test name prepping, fullwidth input should be converted to ASCII and NOT IDN-ized. This is 'Go' in fullwidth UTF-8/UTF-16.",
   {
@@ -4310,6 +4370,52 @@
     "hostname": "example.com",
     "port": "",
     "pathname": "/bar",
+    "search": "",
+    "hash": ""
+  },
+  "Astral code point followed by a trailing character in the userinfo",
+  {
+    "input": "http://😀x@host/",
+    "base": null,
+    "href": "http://%F0%9F%98%80x@host/",
+    "origin": "http://host",
+    "protocol": "http:",
+    "username": "%F0%9F%98%80x",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "http://a:😀x@host/",
+    "base": null,
+    "href": "http://a:%F0%9F%98%80x@host/",
+    "origin": "http://host",
+    "protocol": "http:",
+    "username": "a",
+    "password": "%F0%9F%98%80x",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "http://😀@host/",
+    "base": null,
+    "href": "http://%F0%9F%98%80@host/",
+    "origin": "http://host",
+    "protocol": "http:",
+    "username": "%F0%9F%98%80",
+    "password": "",
+    "host": "host",
+    "hostname": "host",
+    "port": "",
+    "pathname": "/",
     "search": "",
     "hash": ""
   },
@@ -8752,7 +8858,16 @@
   {
     "input": "file://xn--/p",
     "base": null,
-    "failure": true
+    "href": "file://xn--/p",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "xn--",
+    "hostname": "xn--",
+    "port": "",
+    "pathname": "/p",
+    "search": "",
+    "hash": ""
   },
   "https://bugzilla.mozilla.org/show_bug.cgi?id=1647058",
   {
@@ -9498,7 +9613,17 @@
   {
     "input": "https://xn--/",
     "base": null,
-    "failure": true
+    "href": "https://xn--/",
+    "origin": "https://xn--",
+    "protocol": "https:",
+    "username": "",
+    "password": "",
+    "host": "xn--",
+    "hostname": "xn--",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
   },
   "Non-special schemes that some implementations might incorrectly treat as special",
   {

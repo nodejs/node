@@ -1,0 +1,63 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<script>
+
+// Tests that a {Dedicated,Shared}Worker keeps running even if its script
+// evaluation results in an abrupt completion. This corresponds to the "run a
+// worker" algorithm disregarding the return value of "run the {classic,module}
+// script" in its step 24:
+//
+// "If script is a classic script, then run the classic script script.
+// Otherwise, it is a module script; run the module script script."
+
+promise_test(async t => {
+  const worker = new Worker("support/abrupt-completion.js");
+
+  await new Promise(resolve => {
+    worker.onerror = e => {
+      assert_not_equals(e.message.search("uncaught-exception"), -1,
+                        "Correct uncaught exception thrown by worker");
+
+      // Suppress the exception.
+      e.preventDefault();
+
+      resolve();
+    }
+  });
+
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+
+    channel.port1.onmessage = e => {
+      assert_equals(e.data, "handler-before-throw", "Correct message handler.");
+      resolve();
+    };
+
+    worker.postMessage("", [channel.port2]);
+  });
+}, "DedicatedWorker should correctly handle abrupt completion");
+
+promise_test(async t => {
+  const worker = new SharedWorker("support/abrupt-completion.js");
+
+  // Per spec, runtime errors in shared workers do not propagate to
+  // SharedWorker.onerror (only parse errors do).
+  worker.onerror = t.unreached_func(
+      'onerror should not fire for runtime errors in shared workers');
+
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+
+    channel.port1.onmessage = e => {
+      assert_equals(e.data, "handler-before-throw", "Correct message handler.");
+      resolve();
+    };
+
+    worker.port.postMessage("", [channel.port2]);
+  });
+}, "SharedWorker should correctly handle abrupt completion");
+
+</script>

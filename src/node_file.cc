@@ -153,10 +153,16 @@ static const char* get_fs_func_name_by_type(uv_fs_type req_type) {
   if (GET_TRACE_ENABLED)                                                       \
     TRACE_EVENT_BEGIN(                                                         \
         TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall), ##__VA_ARGS__);
+#ifdef V8_USE_PERFETTO
+#define FS_SYNC_TRACE_END(syscall, ...)                                        \
+  if (GET_TRACE_ENABLED)                                                       \
+    TRACE_EVENT_END(TRACING_CATEGORY_NODE2(fs, sync), ##__VA_ARGS__);
+#else
 #define FS_SYNC_TRACE_END(syscall, ...)                                        \
   if (GET_TRACE_ENABLED)                                                       \
     TRACE_EVENT_END(                                                           \
         TRACING_CATEGORY_NODE2(fs, sync), TRACE_NAME(syscall), ##__VA_ARGS__);
+#endif
 
 #define FS_ASYNC_TRACE_BEGIN0(fs_type, id)                                     \
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(TRACING_CATEGORY_NODE2(fs, async),         \
@@ -3734,6 +3740,12 @@ std::vector<std::string> normalizePathToArray(
     const std::filesystem::path& path) {
   std::vector<std::string> parts;
   std::filesystem::path absPath = std::filesystem::absolute(path);
+#ifdef _WIN32
+  auto wstr = absPath.wstring();
+  if (wstr.starts_with(L"\\\\?\\")) {
+    absPath = std::filesystem::path(wstr.substr(4));
+  }
+#endif
   for (const auto& part : absPath) {
     if (!part.empty()) parts.push_back(part.string());
   }
@@ -3872,6 +3884,12 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
           }
           auto symlink_target_absolute = std::filesystem::weakly_canonical(
               std::filesystem::absolute(src / symlink_target));
+#ifdef _WIN32
+          auto wstr = symlink_target_absolute.wstring();
+          if (wstr.starts_with(L"\\\\?\\")) {
+            symlink_target_absolute = std::filesystem::path(wstr.substr(4));
+          }
+#endif
           if (dir_entry.is_directory()) {
             std::filesystem::create_directory_symlink(
                 symlink_target_absolute, dest_file_path, error);
@@ -3895,7 +3913,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
         std::filesystem::copy_file(
             dir_entry.path(), dest_file_path, file_copy_opts, error);
         if (error) {
-          if (error.value() == EEXIST) {
+          if (error == std::errc::file_exists) {
             THROW_ERR_FS_CP_EEXIST(isolate,
                                    "[ERR_FS_CP_EEXIST]: Target already exists: "
                                    "cp returned EEXIST (%s already exists)",
@@ -4186,6 +4204,33 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
   return info;
 }
 
+#ifdef _WIN32
+static void HandleToFd(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsBigInt());
+
+  int flags = 0;
+  if (args[1]->IsNumber()) {
+    flags = args[1].As<Int32>()->Value();
+  }
+
+  bool lossless;
+  int64_t handle = args[0].As<BigInt>()->Int64Value(&lossless);
+  if (!lossless) {
+    return THROW_ERR_OUT_OF_RANGE(env,
+                                  "windowsHandle does not fit into 64 bits");
+  }
+  intptr_t value = static_cast<intptr_t>(handle);
+
+  int fd = _open_osfhandle(value, flags);
+  if (fd == -1) {
+    return env->ThrowErrnoException(errno, "_open_osfhandle");
+  }
+  args.GetReturnValue().Set(fd);
+}
+#endif  // _WIN32
+
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -4251,6 +4296,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "lutimes", LUTimes);
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
+
+#ifdef _WIN32
+  SetMethod(isolate, target, "handleToFd", HandleToFd);
+#endif
 
   SetMethod(isolate, target, "cpSyncCheckPaths", CpSyncCheckPaths);
   SetMethod(isolate, target, "cpSyncOverrideFile", CpSyncOverrideFile);
@@ -4379,6 +4428,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LUTimes);
 
   registry->Register(Mkdtemp);
+#ifdef _WIN32
+  registry->Register(HandleToFd);
+#endif
   registry->Register(NewFSReqCallback);
 
   registry->Register(FileHandle::New);

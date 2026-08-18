@@ -32,7 +32,9 @@ import sqlite from 'node:sqlite';
 const sqlite = require('node:sqlite');
 ```
 
-This module is only available under the `node:` scheme.
+This module is only available under the `node:` scheme. SQL trace events can
+be observed via the [`diagnostics_channel`][] module. See
+[`'sqlite.db.query'`][] for details.
 
 The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
@@ -53,11 +55,14 @@ const insert = database.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 // Execute the prepared statement with bound values.
 insert.run(1, 'hello');
 insert.run(2, 'world');
+// Finalize the prepared statement once it is no longer needed.
+insert.close();
 // Create a prepared statement to read data from the database.
 const query = database.prepare('SELECT * FROM data ORDER BY key');
 // Execute the prepared statement and log the result set.
 console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
+query.close();
 ```
 
 ```cjs
@@ -76,11 +81,14 @@ const insert = database.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 // Execute the prepared statement with bound values.
 insert.run(1, 'hello');
 insert.run(2, 'world');
+// Finalize the prepared statement once it is no longer needed.
+insert.close();
 // Create a prepared statement to read data from the database.
 const query = database.prepare('SELECT * FROM data ORDER BY key');
 // Execute the prepared statement and log the result set.
 console.log(query.all());
 // Prints: [ { key: 1, value: 'hello' }, { key: 2, value: 'world' } ]
+query.close();
 ```
 
 ## Type conversion between JavaScript and SQLite
@@ -91,13 +99,19 @@ more data types than SQLite, only a subset of JavaScript types are supported.
 Attempting to write an unsupported data type to SQLite will result in an
 exception.
 
-| Storage class | JavaScript to SQLite       | SQLite to JavaScript                  |
-| ------------- | -------------------------- | ------------------------------------- |
-| `NULL`        | {null}                     | {null}                                |
-| `INTEGER`     | {number} or {bigint}       | {number} or {bigint} _(configurable)_ |
-| `REAL`        | {number}                   | {number}                              |
-| `TEXT`        | {string}                   | {string}                              |
-| `BLOB`        | {TypedArray} or {DataView} | {Uint8Array}                          |
+| Storage class | JavaScript to SQLite                                            | SQLite to JavaScript                  |
+| ------------- | --------------------------------------------------------------- | ------------------------------------- |
+| `NULL`        | {null}                                                          | {null}                                |
+| `INTEGER`     | {number}, {bigint}, or {boolean}                                | {number} or {bigint} _(configurable)_ |
+| `REAL`        | {number}                                                        | {number}                              |
+| `TEXT`        | {string}                                                        | {string}                              |
+| `BLOB`        | {TypedArray}, {DataView}, {ArrayBuffer}, or {SharedArrayBuffer} | {Uint8Array}                          |
+
+Booleans are written as the `INTEGER` values `1` and `0`. Like any other
+`INTEGER` value, they are read back as {number} by default, or as {bigint}
+values (`1n` and `0n`) when reading BigInts is enabled. Writing a {bigint} that
+does not fit in a signed 64-bit integer throws an `ERR_INVALID_ARG_VALUE`
+error.
 
 APIs that read values from SQLite have a configuration option that determines
 whether `INTEGER` values are converted to `number` or `bigint` in JavaScript,
@@ -264,7 +278,8 @@ db.aggregate('sumint', {
   step: (acc, value) => acc + value,
 });
 
-db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+using query = db.prepare('SELECT sumint(y) as total FROM t3');
+query.get(); // { total: 21 }
 ```
 
 ```mjs
@@ -285,7 +300,8 @@ db.aggregate('sumint', {
   step: (acc, value) => acc + value,
 });
 
-db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+using query = db.prepare('SELECT sumint(y) as total FROM t3');
+query.get(); // { total: 21 }
 ```
 
 ### `database.close()`
@@ -295,7 +311,10 @@ added: v22.5.0
 -->
 
 Closes the database connection. An exception is thrown if the database is not
-open. This method is a wrapper around [`sqlite3_close_v2()`][].
+open. An [`ERR_INVALID_STATE`][] error is thrown if the method is called while
+a statement is executing, such as inside a user-defined function, an aggregate
+function, an authorizer callback, or a [`'sqlite.db.query'`][] subscriber. This
+method is a wrapper around [`sqlite3_close_v2()`][].
 
 ### `database.loadExtension(path[, entryPoint])`
 
@@ -425,6 +444,11 @@ wrapper around [`sqlite3_create_function_v2()`][].
 
 <!-- YAML
 added: v24.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65156
+    description: Accessing the invoking database connection from the authorizer
+                 callback now throws.
 -->
 
 * `callback` {Function|null} The authorizer function to set, or `null` to
@@ -450,6 +474,31 @@ The callback must return one of the following constants:
 * `SQLITE_DENY` - Deny the operation (causes an error).
 * `SQLITE_IGNORE` - Ignore the operation (silently skip).
 
+SQLite requires that the authorizer callback not modify the database connection
+that invoked it, which includes preparing and stepping statements. Methods that
+would do so throw an error with code `ERR_INVALID_STATE` while the callback is
+on the stack, including `database.prepare()`, `database.exec()`, the execution
+methods of that connection's statements, iterators, and tag stores, and
+`database.setAuthorizer()` itself. Other connections remain usable.
+
+The callback can also be invoked from within `statement.run()`,
+`statement.get()`, and similar methods, because SQLite may re-prepare a
+statement during execution after a schema change.
+
+Separately, a statement that is currently being executed cannot be reentered.
+Calling `statement.close()` on it would free the virtual machine that is
+running, and re-running it through `statement.run()`, `statement.get()`,
+`statement.all()`, `statement.iterate()`, `iterator.next()`,
+`iterator.return()`, or the equivalent tag store methods would reset that
+virtual machine mid-execution. All of these throw an `ERR_INVALID_STATE` error
+instead. This applies to any callback SQLite invokes during execution, such as a
+user-defined function. Other statements on the connection remain usable.
+
+Operations that touch no SQLite state stay available from the callback:
+`sqlTagStore.clear()`, which only drops cached statements, and `next()` and
+`return()` on an already-drained iterator, which keep returning
+`{ done: true }`.
+
 ```cjs
 const { DatabaseSync, constants } = require('node:sqlite');
 const db = new DatabaseSync(':memory:');
@@ -463,7 +512,8 @@ db.setAuthorizer((actionCode) => {
 });
 
 // This will work
-db.prepare('SELECT 1').get();
+using query = db.prepare('SELECT 1');
+query.get();
 
 // This will throw an error due to authorization denial
 try {
@@ -486,7 +536,8 @@ db.setAuthorizer((actionCode) => {
 });
 
 // This will work
-db.prepare('SELECT 1').get();
+using query = db.prepare('SELECT 1');
+query.get();
 
 // This will throw an error due to authorization denial
 try {
@@ -613,8 +664,10 @@ added:
 Loads a serialized database into this connection, replacing the current
 database. The deserialized database is writable. Existing prepared statements
 are finalized before deserialization is attempted, even if the operation
-subsequently fails. This method is a wrapper around
-[`sqlite3_deserialize()`][].
+subsequently fails. An [`ERR_INVALID_STATE`][] error is thrown if the method is
+called while a database callback is on the stack, for example a user-defined
+function, an aggregate function, an authorizer, or a changeset filter or conflict
+handler. This method is a wrapper around [`sqlite3_deserialize()`][].
 
 ```mjs
 import { DatabaseSync } from 'node:sqlite';
@@ -627,7 +680,8 @@ original.close();
 
 const clone = new DatabaseSync(':memory:');
 clone.deserialize(buffer);
-console.log(clone.prepare('SELECT value FROM t').get());
+using query = clone.prepare('SELECT value FROM t');
+console.log(query.get());
 // Prints: { value: 'hello' }
 ```
 
@@ -642,7 +696,8 @@ original.close();
 
 const clone = new DatabaseSync(':memory:');
 clone.deserialize(buffer);
-console.log(clone.prepare('SELECT value FROM t').get());
+using query = clone.prepare('SELECT value FROM t');
+console.log(query.get());
 // Prints: { value: 'hello' }
 ```
 
@@ -650,6 +705,13 @@ console.log(clone.prepare('SELECT value FROM t').get());
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62757
+    description: Add the `persistent` option.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65157
+    description: Throw `ERR_INVALID_ARG_VALUE` if `sql` contains no statements.
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
@@ -663,10 +725,14 @@ added: v22.5.0
     database options or `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
     are ignored. **Default:** inherited from database options or `false`.
+  * `persistent` {boolean} If `true`, hints to SQLite that this statement will
+    be retained for a long time and likely reused many times. SQLite currently
+    responds to this hint by avoiding lookaside memory. Corresponds to the
+    [`SQLITE_PREPARE_PERSISTENT`][] flag. **Default:** `false`.
 * Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
-around [`sqlite3_prepare_v2()`][].
+around [`sqlite3_prepare_v3()`][].
 
 ### `database.createTagStore([maxSize])`
 
@@ -699,7 +765,8 @@ sqlTagStore.get`SELECT ${value}`;
 is equivalent to:
 
 ```js
-db.prepare('SELECT ?').get(value);
+using statement = db.prepare('SELECT ?');
+statement.get(value);
 ```
 
 However, in the first example, the tag store will cache the underlying prepared
@@ -819,6 +886,7 @@ added:
 -->
 
 * `changeset` {Uint8Array} A binary changeset or patchset.
+
 * `options` {Object} The configuration options for how the changes will be applied.
   * `filter` {Function} for each table affected by at least
     one change in the changeset, the `filter` callback is invoked with the
@@ -847,6 +915,7 @@ added:
     applying the changeset is aborted and the database is rolled back.
 
     **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
+
 * Returns: {boolean} Whether the changeset was applied successfully without being aborted.
 
 An exception is thrown if the database is not
@@ -863,7 +932,7 @@ targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
 const session = sourceDb.createSession();
 
-const insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+using insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 insert.run(1, 'hello');
 insert.run(2, 'world');
 
@@ -883,7 +952,7 @@ targetDb.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
 
 const session = sourceDb.createSession();
 
-const insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+using insert = sourceDb.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
 insert.run(1, 'hello');
 insert.run(2, 'world');
 
@@ -972,11 +1041,61 @@ times with different bound values. Parameters also offer protection against
 [SQL injection][] attacks. For these reasons, prepared statements are preferred
 over hand-crafted SQL strings when handling user input.
 
+### Binding parameters
+
+The `all()`, `get()`, `iterate()`, and `run()` methods bind their arguments to
+the parameters of the prepared statement before executing it. Parameters are
+either anonymous or named.
+
+Anonymous parameters are written as `?` in SQL and are bound in order from the
+arguments passed to the method. The `?NNN` form assigns SQLite parameter index
+`NNN` to a placeholder. Avoid mixing numbered and named parameters because they
+share parameter indexes.
+
+```js
+db.prepare('SELECT ? AS a, ? AS b').get('x', 42);
+// { a: 'x', b: 42 }
+db.prepare('SELECT ?2 AS a, ?1 AS b').get('first', 'second');
+// { a: 'second', b: 'first' }
+```
+
+Named parameters begin with one of the prefix characters `$`, `:`, or `@` in
+SQL. They are bound from an object passed as the first argument. Repeating a
+name in the SQL binds the same value to every occurrence.
+
+```js
+db.prepare('SELECT $a AS a, $b AS b').get({ $a: 1, $b: 2 });
+// { a: 1, b: 2 }
+db.prepare('SELECT :a AS a').get({ ':a': 1 });
+// { a: 1 }
+db.prepare('SELECT @a AS a').get({ '@a': 1 });
+// { a: 1 }
+db.prepare('SELECT $k AS a, $k AS b').get({ k: 7 });
+// { a: 7, b: 7 }
+```
+
+The last example omits the prefix character from the object key. Bare names are
+allowed by default; see [`statement.setAllowBareNamedParameters()`][] for their
+caveats.
+
+Binding a key that does not name a parameter of the statement throws an
+`ERR_INVALID_STATE` error unless unknown named parameters are ignored. See
+[`statement.setAllowUnknownNamedParameters()`][].
+
+See [Type conversion between JavaScript and SQLite][] for the values that can be
+bound. Binding any other value throws an `ERR_INVALID_ARG_TYPE` error.
+
 ### `statement.all([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -986,8 +1105,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Array} An array of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
   object correspond to the column names and values of the row.
@@ -995,7 +1114,22 @@ changes:
 This method executes a prepared statement and returns all results as an array of
 objects. If the prepared statement does not return any results, this method
 returns an empty array. The prepared statement [parameters are bound][] using
-the values in `namedParameters` and `anonymousParameters`.
+the values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
+
+### `statement.close()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Finalizes the prepared statement. An exception is thrown if the statement is
+already finalized. An [`ERR_INVALID_STATE`][] error is thrown if this statement
+is currently executing, which happens when the method is called from a callback
+that the statement itself triggered, such as a user-defined function, an
+aggregate function, or a [`'sqlite.db.query'`][] subscriber. Other statements
+on the same connection can be finalized from such a callback. This method is a
+wrapper around [`sqlite3_finalize()`][].
 
 ### `statement.columns()`
 
@@ -1007,7 +1141,6 @@ added:
 
 * Returns: {Array} An array of objects. Each object corresponds to a column
   in the prepared statement, and contains the following properties:
-
   * `column` {string|null} The unaliased name of the column in the origin
     table, or `null` if the column is the result of an expression or subquery.
     This property is the result of [`sqlite3_column_origin_name()`][].
@@ -1045,6 +1178,12 @@ execution of this prepared statement. This property is a wrapper around
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -1054,8 +1193,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Object|undefined} An object corresponding to the first row returned
   by executing the prepared statement. The keys and values of the object
   correspond to the column names and values of the row. If no rows were returned
@@ -1064,7 +1203,8 @@ changes:
 This method executes a prepared statement and returns the first result as an
 object. If the prepared statement does not return any results, this method
 returns `undefined`. The prepared statement [parameters are bound][] using the
-values in `namedParameters` and `anonymousParameters`.
+values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
 
 ### `statement.iterate([namedParameters][, ...anonymousParameters])`
 
@@ -1073,6 +1213,12 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -1082,8 +1228,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Iterator} An iterable iterator of objects. Each object corresponds to a row
   returned by executing the prepared statement. The keys and values of each
   object correspond to the column names and values of the row.
@@ -1091,13 +1237,32 @@ changes:
 This method executes a prepared statement and returns an iterator of
 objects. If the prepared statement does not return any results, this method
 returns an empty iterator. The prepared statement [parameters are bound][] using
-the values in `namedParameters` and `anonymousParameters`.
+the values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
+
+### `statement.resetStats()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Resets every counter reported by [`statement.stat()`][] back to zero, except
+`memused`, which reports current memory usage and cannot be reset. This
+method is a wrapper around [`sqlite3_stmt_status()`][] and is useful for
+measuring a specific workload without the counts accumulated by earlier
+executions of the same prepared statement.
 
 ### `statement.run([namedParameters][, ...anonymousParameters])`
 
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
   - version:
     - v23.7.0
     - v22.14.0
@@ -1107,8 +1272,8 @@ changes:
 
 * `namedParameters` {Object} An optional object used to bind named parameters.
   The keys of this object are used to configure the mapping.
-* `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
-  more values to bind to anonymous parameters.
+* `...anonymousParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
+  Zero or more values to bind to anonymous parameters.
 * Returns: {Object}
   * `changes` {number|bigint} The number of rows modified, inserted, or deleted
     by the most recently completed `INSERT`, `UPDATE`, or `DELETE` statement.
@@ -1122,7 +1287,8 @@ changes:
 
 This method executes a prepared statement and returns an object summarizing the
 resulting changes. The prepared statement [parameters are bound][] using the
-values in `namedParameters` and `anonymousParameters`.
+values in `namedParameters` and `anonymousParameters`. See
+[Binding parameters][].
 
 ### `statement.setAllowBareNamedParameters(enabled)`
 
@@ -1133,14 +1299,15 @@ added: v22.5.0
 * `enabled` {boolean} Enables or disables support for binding named parameters
   without the prefix character.
 
-The names of SQLite parameters begin with a prefix character. By default,
-`node:sqlite` requires that this prefix character is present when binding
-parameters. However, with the exception of dollar sign character, these
-prefix characters also require extra quoting when used in object keys.
+The names of SQLite parameters begin with a prefix character. However, with the
+exception of the dollar sign character, these prefix characters also require
+extra quoting when used in object keys.
 
-To improve ergonomics, this method can be used to also allow bare named
-parameters, which do not require the prefix character in JavaScript code. There
-are several caveats to be aware of when enabling bare named parameters:
+To improve ergonomics, `node:sqlite` allows bare named parameters, which do not
+require the prefix character in JavaScript code, by default. This method can be
+used to disable that behavior, requiring the prefix character when binding.
+There are several caveats to be aware of when bare named parameters are
+allowed:
 
 * The prefix character is still required in SQL.
 * The prefix character is still allowed in JavaScript. In fact, prefixed names
@@ -1202,6 +1369,54 @@ added: v22.5.0
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
 
+### `statement[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Finalizes the prepared statement. If the prepared statement is already
+finalized, then this is a no-op. An [`ERR_INVALID_STATE`][] error is thrown if
+this statement is currently executing, under the same conditions as
+[`statement.close()`][].
+
+### `statement.stat(counter)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `counter` {string} The name of the counter to read. One of:
+
+  * `'fullscanStep'` The number of times SQLite has stepped forward in a table
+    as part of a full table scan.
+  * `'sort'` The number of sort operations that have occurred.
+  * `'autoindex'` The number of rows inserted into transient indices that were
+    created automatically to help joins run faster.
+  * `'vmStep'` The number of virtual machine operations executed by the
+    prepared statement.
+  * `'reprepare'` The number of times the statement has been automatically
+    reprepared due to schema changes or changes to bound parameters.
+  * `'run'` The number of execution cycles started by the prepared statement.
+  * `'filterMiss'` The number of times the Bloom filter returned a result that
+    required the join step to be processed as normal.
+  * `'filterHit'` The number of times a join step was bypassed because a Bloom
+    filter returned not-found.
+  * `'memused'` The approximate number of bytes of heap memory used to store
+    the prepared statement.
+
+* Returns: {number} The current value of the requested counter.
+
+Returns one of the runtime counters that SQLite tracks for this prepared
+statement. This method is a wrapper around [`sqlite3_stmt_status()`][] and does
+not reset the counter. Asserting that a statement does not perform a full table
+scan (`statement.stat('fullscanStep') === 0`) is a useful check to guard
+against degenerate performance.
+
+The `'filterMiss'` and `'filterHit'` counters require SQLite 3.38.0 or later.
+Builds linked against an older SQLite with `--shared-sqlite` do not expose them,
+and passing either name throws `ERR_INVALID_ARG_VALUE`.
+
 ## Class: `SQLTagStore`
 
 <!-- YAML
@@ -1225,11 +1440,18 @@ class execute synchronously.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Array} An array of objects representing the rows returned by the query.
 
@@ -1243,11 +1465,18 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Object | undefined} An object representing the first row returned by
   the query, or `undefined` if no rows are returned.
@@ -1261,11 +1490,18 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Iterator} An iterator that yields objects representing the rows returned by the query.
 
@@ -1278,11 +1514,18 @@ called directly.
 
 <!-- YAML
 added: v24.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62001
+    description: Add support for boolean values in bound parameters.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62061
+    description: Add support for `ArrayBuffer` and `SharedArrayBuffer` objects in bound parameters.
 -->
 
 * `stringElements` {string\[]} Template literal elements containing the SQL
   query.
-* `...boundParameters` {null|number|bigint|string|Buffer|TypedArray|DataView}
+* `...boundParameters` {null|number|bigint|boolean|string|Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer}
   Parameter values to be bound to placeholders in the template string.
 * Returns: {Object} An object containing information about the execution, including `changes` and `lastInsertRowid`.
 
@@ -1356,7 +1599,7 @@ changes:
     database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
   * `target` {string} Name of the target database. This can be `'main'` (the default primary database) or any other
     database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
-  * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
+  * `rate` {integer} Positive number of pages to be transmitted in each batch of the backup. **Default:** `100`.
   * `progress` {Function} An optional callback function that will be called after each backup step. The argument passed
     to this callback is an {Object} with `remainingPages` and `totalPages` properties, describing the current progress
     of the backup operation.
@@ -1441,11 +1684,11 @@ conflict resolution handler passed to [`database.applyChangeset()`][]. See also
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_CONSTRAINT</code></td>
-    <td>If foreign key handling is enabled, and applying a changeset leaves the database in a state containing foreign key violations, the conflict handler is invoked with this constant exactly once before the changeset is committed. If the conflict handler returns <code>SQLITE_CHANGESET_OMIT</code>, the changes, including those that caused the foreign key constraint violation, are committed. Or, if it returns <code>SQLITE_CHANGESET_ABORT</code>, the changeset is rolled back.</td>
+    <td>If any other constraint violation occurs while applying a change (i.e. a UNIQUE, CHECK or NOT NULL constraint), the conflict handler is invoked with this constant.</td>
   </tr>
   <tr>
     <td><code>SQLITE_CHANGESET_FOREIGN_KEY</code></td>
-    <td>If any other constraint violation occurs while applying a change (i.e. a UNIQUE, CHECK or NOT NULL constraint), the conflict handler is invoked with this constant.</td>
+    <td>If foreign key handling is enabled, and applying a changeset leaves the database in a state containing foreign key violations, the conflict handler is invoked with this constant exactly once before the changeset is committed. If the conflict handler returns <code>SQLITE_CHANGESET_OMIT</code>, the changes, including those that caused the foreign key constraint violation, are committed. Or, if it returns <code>SQLITE_CHANGESET_ABORT</code>, the changeset is rolled back.</td>
   </tr>
 </table>
 
@@ -1648,6 +1891,7 @@ callback function to indicate what type of operation is being authorized.
   </tr>
 </table>
 
+[Binding parameters]: #binding-parameters
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
@@ -1655,17 +1899,21 @@ callback function to indicate what type of operation is being authorized.
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
+[`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
+[`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
+[`SQLITE_PREPARE_PERSISTENT`]: https://sqlite.org/c3ref/c_prepare_dont_log.html#sqlitepreparepersistent
 [`SQLTagStore`]: #class-sqltagstore
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
+[`diagnostics_channel`]: diagnostics_channel.md
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
@@ -1682,19 +1930,25 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_deserialize()`]: https://sqlite.org/c3ref/deserialize.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_finalize()`]: https://www.sqlite.org/c3ref/finalize.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
-[`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
+[`sqlite3_prepare_v3()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_serialize()`]: https://sqlite.org/c3ref/serialize.html
 [`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_stmt_status()`]: https://www.sqlite.org/c3ref/stmt_status.html
 [`sqlite3changeset_apply()`]: https://www.sqlite.org/session/sqlite3changeset_apply.html
 [`sqlite3session_attach()`]: https://www.sqlite.org/session/sqlite3session_attach.html
 [`sqlite3session_changeset()`]: https://www.sqlite.org/session/sqlite3session_changeset.html
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
 [`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
+[`statement.close()`]: #statementclose
+[`statement.setAllowBareNamedParameters()`]: #statementsetallowbarenamedparametersenabled
+[`statement.setAllowUnknownNamedParameters()`]: #statementsetallowunknownnamedparametersenabled
+[`statement.stat()`]: #statementstatcounter
 [busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html

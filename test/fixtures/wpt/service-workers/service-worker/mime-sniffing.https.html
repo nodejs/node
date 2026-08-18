@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Service Worker: MIME sniffing</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+promise_test(t => {
+    const SCOPE = 'resources/blank.html?mime-sniffing';
+    const SCRIPT = 'resources/mime-sniffing-worker.js';
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(registration => {
+          add_completion_callback(() => registration.unregister());
+          return wait_for_state(t, registration.installing, 'activated');
+        })
+      .then(_ => with_iframe(SCOPE))
+      .then(frame => {
+          add_completion_callback(() => frame.remove());
+          assert_equals(frame.contentWindow.document.body.innerText, 'test');
+          const h1 = frame.contentWindow.document.getElementById('testid');
+          assert_equals(h1.innerText,'test');
+        });
+  }, 'The response from service worker should be correctly MIME siniffed.');
+</script>

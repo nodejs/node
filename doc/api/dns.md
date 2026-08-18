@@ -867,6 +867,10 @@ treated separately.
 
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64268
+    description: Reverse lookups no longer consult hosts files.
 -->
 
 * `ip` {string}
@@ -1113,8 +1117,7 @@ changes:
     IPv4 addresses are placed before IPv6 addresses.
     This option will be deprecated in favor of `order`. When both are specified,
     `order` has higher precedence. New code should only use `order`.
-    **Default:** currently `false` (addresses are reordered) but this is
-    expected to change in the not too distant future. Default value is
+    **Default:** `true` (addresses are not reordered). Default value is
     configurable using [`dns.setDefaultResultOrder()`][] or
     [`--dns-result-order`][].
 

@@ -6,7 +6,7 @@ let tls // include tls conditionally since it is not always available
 const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError } = require('../core/errors')
 const { Socks5Client, STATES } = require('../core/socks5-client')
-const { kDispatch, kClose, kDestroy } = require('../core/symbols')
+const { kBusy, kConnected, kDispatch, kClose, kDestroy } = require('../core/symbols')
 const Pool = require('./pool')
 const buildConnector = require('../core/connect')
 const { debuglog } = require('node:util')
@@ -226,6 +226,20 @@ class Socks5ProxyAgent extends DispatcherBase {
           }
         })
         this[kPools].set(originKey, pool)
+
+        const closePoolIfUnused = () => {
+          if (this[kPools].get(originKey) !== pool || pool[kConnected] > 0 || pool[kBusy]) {
+            return
+          }
+
+          this[kPools].delete(originKey)
+          if (!pool.destroyed) {
+            pool.close()
+          }
+        }
+
+        pool.on('disconnect', closePoolIfUnused)
+        pool.on('connectionError', closePoolIfUnused)
       }
 
       // Dispatch the request through the per-origin pool

@@ -10,8 +10,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok, rejects, strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -26,11 +24,11 @@ const transportParams = { maxIdleTimeout: 1 };
 // The SuppressedError is thrown via process.nextTick, so it appears
 // as an uncaught exception.
 process.on('uncaughtException', mustCall((err) => {
-  ok(err instanceof SuppressedError);
+  assert.ok(err instanceof SuppressedError);
   // .error is the onerror failure
-  strictEqual(err.error, onerrorError);
+  assert.strictEqual(err.error, onerrorError);
   // .suppressed is the original error that triggered destroy
-  strictEqual(err.suppressed, originalError);
+  assert.strictEqual(err.suppressed, originalError);
 }));
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
@@ -49,5 +47,5 @@ clientSession.onerror = mustCall(() => {
 clientSession.destroy(originalError);
 
 // Closed rejects with the original error (not the SuppressedError).
-await rejects(clientSession.closed, originalError);
+await assert.rejects(clientSession.closed, originalError);
 await serverEndpoint.close();

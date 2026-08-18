@@ -257,7 +257,7 @@ useful.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In rare case (e.g.
+If binding fails, an `'error'` event is generated. In rare cases (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 Example of a UDP server listening on port 41234:
@@ -350,7 +350,7 @@ is called.
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
 
-If binding fails, an `'error'` event is generated. In rare case (e.g.
+If binding fails, an `'error'` event is generated. In rare cases (e.g.,
 attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 An example socket listening on an exclusive port is shown below.
@@ -366,7 +366,9 @@ socket.bind({
 ### `socket.bindSync([options])`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.19.0
 -->
 
 * `options` {Object}
@@ -450,7 +452,9 @@ the `callback` is called or, failing this, an `'error'` event is emitted.
 ### `socket.connectSync(port[, address])`
 
 <!-- YAML
-added: v26.4.0
+added:
+ - v26.4.0
+ - v24.19.0
 -->
 
 * `port` {integer}
@@ -592,7 +596,7 @@ to exclude the socket from the reference counting that keeps the Node.js
 process active. The `socket.ref()` method adds the socket back to the reference
 counting and restores the default behavior.
 
-Calling `socket.ref()` multiples times will have no additional effect.
+Calling `socket.ref()` multiple times will have no additional effect.
 
 The `socket.ref()` method returns a reference to the socket so calls can be
 chained.
@@ -741,7 +745,7 @@ client.send([buf1, buf2], 41234, (err) => {
 });
 ```
 
-Sending multiple buffers might be faster or slower depending on the
+Sending multiple buffers might be faster or slower, depending on the
 application and operating system. Run benchmarks to
 determine the optimal strategy on a case-by-case basis. Generally speaking,
 however, sending multiple buffers is faster.
@@ -883,7 +887,7 @@ socket.bind(1234, () => {
 A call on a socket that is not ready to send or no longer open may throw a _Not
 running_ [`Error`][].
 
-If `multicastInterface` can not be parsed into an IP then an _EINVAL_
+If `multicastInterface` cannot be parsed into an IP then an _EINVAL_
 [`System Error`][] is thrown.
 
 On IPv4, if `multicastInterface` is a valid address but does not match any

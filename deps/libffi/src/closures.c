@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------------
-   closures.c - Copyright (c) 2019, 2022 Anthony Green
+   closures.c - Copyright (c) 2019, 2022, 2026 Anthony Green
                 Copyright (c) 2007, 2009, 2010 Red Hat, Inc.
                 Copyright (C) 2007, 2009, 2010 Free Software Foundation, Inc
                 Copyright (c) 2011 Plausible Labs Cooperative, Inc.

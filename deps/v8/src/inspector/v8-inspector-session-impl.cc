@@ -224,6 +224,7 @@ void V8InspectorSessionImpl::discardInjectedScripts() {
                               [&sessionId](InspectedContext* context) {
                                 context->discardInjectedScript(sessionId);
                               });
+  m_inspector->promiseHandlerTracker().makeWeakForSession(sessionId);
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
@@ -260,6 +261,10 @@ void V8InspectorSessionImpl::releaseObjectGroup(const String16& objectGroup) {
         InjectedScript* injectedScript = context->getInjectedScript(sessionId);
         if (injectedScript) injectedScript->releaseObjectGroup(objectGroup);
       });
+  if (!objectGroup.isEmpty()) {
+    m_inspector->promiseHandlerTracker().makeWeakForObjectGroup(m_sessionId,
+                                                                objectGroup);
+  }
 }
 
 bool V8InspectorSessionImpl::unwrapObject(

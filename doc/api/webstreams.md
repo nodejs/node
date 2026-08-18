@@ -109,7 +109,9 @@ For more details refer to the relevant documentation:
 ### `ReadableStreamTee(stream[, cloneForBranch2])`
 
 <!-- YAML
-added: v26.5.0
+added:
+ - v26.5.0
+ - v24.19.0
 -->
 
 > Stability: 1 - Experimental

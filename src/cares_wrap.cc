@@ -187,12 +187,12 @@ Local<Array> AddrTTLToArray(
     Environment* env,
     const T* addrttls,
     size_t naddrttls) {
-  MaybeStackBuffer<Local<Value>, 8> ttls(naddrttls);
+  MaybeStackBuffer<Value, 8> ttls(env->isolate(), naddrttls);
   for (size_t i = 0; i < naddrttls; i++) {
     ttls[i] = Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl);
   }
 
-  return Array::New(env->isolate(), ttls.out(), naddrttls);
+  return ttls.ToArray();
 }
 
 // Parse the CSV produced by ares_get_servers_csv() back into (ip, port)
@@ -247,6 +247,23 @@ std::vector<std::pair<std::string, int>> ParseServersCsv(const char* csv) {
     servers.emplace_back(std::move(host), port);
   }
   return servers;
+}
+
+int GetAnswerCountForTTLBuffer(const unsigned char* buf, int len) {
+  static constexpr int kDNSAnswerCountOffset = 6;
+  static constexpr int kAresDefaultTTLBufferLength = 256;
+  if (len <= kDNSAnswerCountOffset + 1) {
+    return kAresDefaultTTLBufferLength;
+  }
+
+  const int answer_count = (static_cast<int>(buf[kDNSAnswerCountOffset]) << 8) |
+                           static_cast<int>(buf[kDNSAnswerCountOffset + 1]);
+  return answer_count == 0 ? 1 : answer_count;
+}
+
+template <typename T>
+std::vector<T> MakeAddrTTLBuffer(const unsigned char* buf, int len) {
+  return std::vector<T>(GetAnswerCountForTTLBuffer(buf, len));
 }
 
 Maybe<int> ParseGeneralReply(Environment* env,
@@ -627,6 +644,7 @@ Maybe<int> ParseTxtReply(Environment* env,
     // Each TXT record is a chunk consisting of one or more character-strings.
     LocalVector<Value> chunks(env->isolate());
     size_t str_count = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
+    chunks.reserve(str_count);
     for (size_t j = 0; j < str_count; j++) {
       size_t str_len = 0;
       const unsigned char* str =
@@ -1020,6 +1038,8 @@ void ChannelWrap::Setup() {
   options.timeout = timeout_;
   options.tries = tries_;
   options.qcache_max_ttl = 0;
+  // Resolver APIs always perform DNS queries and must not consult hosts files.
+  options.lookups = const_cast<char*>("b");
 
   int r;
   if (!library_inited_) {
@@ -1033,7 +1053,7 @@ void ChannelWrap::Setup() {
 
   /* We do the call to ares_init_option for caller. */
   int optmask = ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB |
-                ARES_OPT_TRIES | ARES_OPT_QUERY_CACHE;
+                ARES_OPT_TRIES | ARES_OPT_QUERY_CACHE | ARES_OPT_LOOKUPS;
 
   if (max_timeout_ > 0) {
     options.maxtimeout = max_timeout_;
@@ -1215,11 +1235,12 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
   int type, status, old_count;
 
   /* Parse A records or CNAME records */
-  ares_addrttl addrttls[256];
-  int naddrttls = arraysize(addrttls);
+  std::vector<ares_addrttl> addrttls =
+      MakeAddrTTLBuffer<ares_addrttl>(buf, len);
+  int naddrttls = static_cast<int>(addrttls.size());
 
   type = ns_t_cname_or_a;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls.data(), &naddrttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1292,11 +1313,13 @@ Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
   }
 
   /* Parse AAAA records */
-  ares_addr6ttl addr6ttls[256];
-  int naddr6ttls = arraysize(addr6ttls);
+  std::vector<ares_addr6ttl> addr6ttls =
+      MakeAddrTTLBuffer<ares_addr6ttl>(buf, len);
+  int naddr6ttls = static_cast<int>(addr6ttls.size());
 
   type = ns_t_aaaa;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addr6ttls, &naddr6ttls)
+  if (!ParseGeneralReply(
+           env, buf, len, &type, ret, addr6ttls.data(), &naddr6ttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1484,12 +1507,13 @@ Maybe<int> ATraits::Parse(QueryAWrap* wrap,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  ares_addrttl addrttls[256];
-  int naddrttls = arraysize(addrttls), status;
+  std::vector<ares_addrttl> addrttls =
+      MakeAddrTTLBuffer<ares_addrttl>(buf, len);
+  int naddrttls = static_cast<int>(addrttls.size()), status;
   Local<Array> ret = Array::New(env->isolate());
 
   int type = ns_t_a;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls.data(), &naddrttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1497,7 +1521,8 @@ Maybe<int> ATraits::Parse(QueryAWrap* wrap,
     return Just<int>(status);
   }
 
-  Local<Array> ttls = AddrTTLToArray<ares_addrttl>(env, addrttls, naddrttls);
+  Local<Array> ttls =
+      AddrTTLToArray<ares_addrttl>(env, addrttls.data(), naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
   return Just<int>(ARES_SUCCESS);
@@ -1516,12 +1541,13 @@ Maybe<int> AaaaTraits::Parse(QueryAaaaWrap* wrap,
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  ares_addr6ttl addrttls[256];
-  int naddrttls = arraysize(addrttls), status;
+  std::vector<ares_addr6ttl> addrttls =
+      MakeAddrTTLBuffer<ares_addr6ttl>(buf, len);
+  int naddrttls = static_cast<int>(addrttls.size()), status;
   Local<Array> ret = Array::New(env->isolate());
 
   int type = ns_t_aaaa;
-  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls.data(), &naddrttls)
            .To(&status)) {
     return Nothing<int>();
   }
@@ -1529,7 +1555,8 @@ Maybe<int> AaaaTraits::Parse(QueryAaaaWrap* wrap,
     return Just<int>(status);
   }
 
-  Local<Array> ttls = AddrTTLToArray<ares_addr6ttl>(env, addrttls, naddrttls);
+  Local<Array> ttls =
+      AddrTTLToArray<ares_addr6ttl>(env, addrttls.data(), naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
   return Just<int>(ARES_SUCCESS);
@@ -2230,15 +2257,9 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
 
   uint32_t len = arr->Length();
 
-  if (len == 0) {
-    int rv = ares_set_servers(channel->cares_channel(), nullptr);
-    return args.GetReturnValue().Set(rv);
-  }
-
-  std::vector<ares_addr_port_node> servers(len);
-  ares_addr_port_node* last = nullptr;
-
-  int err;
+  // An empty list clears all configured servers. ares_set_servers_ports_csv()
+  // treats an empty string as "blank all servers".
+  std::string csv;
 
   for (uint32_t i = 0; i < len; i++) {
     Local<Value> val;
@@ -2255,45 +2276,35 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
     if (!elm->Get(env->context(), 1).ToLocal(&ipValue)) return;
     if (!elm->Get(env->context(), 2).ToLocal(&portValue)) return;
 
-    CHECK(familyValue->Int32Value(env->context()).FromJust());
+    CHECK(familyValue->IsInt32());
     CHECK(ipValue->IsString());
-    CHECK(portValue->Int32Value(env->context()).FromJust());
+    CHECK(portValue->IsInt32());
 
-    int fam = familyValue->Int32Value(env->context()).FromJust();
+    int32_t fam = familyValue.As<Int32>()->Value();
     node::Utf8Value ip(env->isolate(), ipValue);
-    int port = portValue->Int32Value(env->context()).FromJust();
+    int32_t port = portValue.As<Int32>()->Value();
 
-    ares_addr_port_node* cur = &servers[i];
+    if (!csv.empty()) csv += ',';
 
-    cur->tcp_port = cur->udp_port = port;
+    // Incoming CSV format expected by c-ares: host[:port][,host[:port]]...
+    // IPv6 addresses must be wrapped in square brackets.
     switch (fam) {
       case 4:
-        cur->family = AF_INET;
-        err = uv_inet_pton(AF_INET, *ip, &cur->addr);
+        csv += *ip;
         break;
       case 6:
-        cur->family = AF_INET6;
-        err = uv_inet_pton(AF_INET6, *ip, &cur->addr);
+        csv += '[';
+        csv += *ip;
+        csv += ']';
         break;
       default:
         UNREACHABLE("Bad address family");
     }
-
-    if (err)
-      break;
-
-    cur->next = nullptr;
-
-    if (last != nullptr)
-      last->next = cur;
-
-    last = cur;
+    csv += ':';
+    csv += std::to_string(port);
   }
 
-  if (err == 0)
-    err = ares_set_servers_ports(channel->cares_channel(), servers.data());
-  else
-    err = ARES_EBADSTR;
+  int err = ares_set_servers_ports_csv(channel->cares_channel(), csv.c_str());
 
   if (err == ARES_SUCCESS)
     channel->set_is_servers_default(false);

@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <concepts>
 #include <functional>
 #include <queue>
 #include <type_traits>
@@ -20,12 +21,8 @@ class NodePlatform;
 class IsolateData;
 class PerIsolatePlatformData;
 
-template <typename, typename = void>
-struct has_priority : std::false_type {};
-
 template <typename T>
-struct has_priority<T, std::void_t<decltype(std::declval<T>().priority)>>
-    : std::true_type {};
+concept has_priority = requires(T t) { t.priority; };
 
 template <class T>
 class TaskQueue {
@@ -35,7 +32,7 @@ class TaskQueue {
   struct EntryCompare {
     bool operator()(const std::unique_ptr<T>& a,
                     const std::unique_ptr<T>& b) const {
-      if constexpr (has_priority<T>::value) {
+      if constexpr (has_priority<T>) {
         return a->priority < b->priority;
       } else {
         return false;

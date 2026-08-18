@@ -278,33 +278,44 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
                                           const uint8_t *key) {
   ngtcp2_crypto_boringssl_cipher *hp_cipher = cipher->native_handle;
   ngtcp2_crypto_boringssl_cipher_ctx *ctx;
-  int rv;
-  (void)rv;
+  int rv = 0;
 
   ctx = malloc(sizeof(*ctx));
   if (ctx == NULL) {
     return -1;
   }
 
-  ctx->type = hp_cipher->type;
-  cipher_ctx->native_handle = ctx;
-
   switch (hp_cipher->type) {
   case NGTCP2_CRYPTO_BORINGSSL_CIPHER_TYPE_AES_128:
-    rv = AES_set_encrypt_key(key, 128, &ctx->aes_key);
-    assert(0 == rv);
-    return 0;
+    if (AES_set_encrypt_key(key, 128, &ctx->aes_key) != 0) {
+      rv = -1;
+    }
+
+    break;
   case NGTCP2_CRYPTO_BORINGSSL_CIPHER_TYPE_AES_256:
-    rv = AES_set_encrypt_key(key, 256, &ctx->aes_key);
-    assert(0 == rv);
-    return 0;
+    if (AES_set_encrypt_key(key, 256, &ctx->aes_key) != 0) {
+      rv = -1;
+    }
+
+    break;
   case NGTCP2_CRYPTO_BORINGSSL_CIPHER_TYPE_CHACHA20:
     memcpy(ctx->key, key, sizeof(ctx->key));
-    return 0;
+    break;
   default:
     assert(0);
     abort();
   };
+
+  if (rv != 0) {
+    free(ctx);
+
+    return rv;
+  }
+
+  ctx->type = hp_cipher->type;
+  cipher_ctx->native_handle = ctx;
+
+  return 0;
 }
 
 void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx) {

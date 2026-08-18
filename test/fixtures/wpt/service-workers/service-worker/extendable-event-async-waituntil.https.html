@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="resources/testharness-helpers.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<script>
+
+function sync_message(worker, message, transfer) {
+  let wait = new Promise((res, rej) => {
+    navigator.serviceWorker.addEventListener('message', function(e) {
+        if (e.data === 'ACK') {
+          res();
+        } else {
+          rej();
+        }
+      });
+    });
+  worker.postMessage(message, transfer);
+  return wait;
+}
+
+function runTest(test, step, testBody) {
+  var scope = './resources/' + step;
+  var script = 'resources/extendable-event-async-waituntil.js?' + scope;
+  return service_worker_unregister_and_register(test, script, scope)
+    .then(function(registration) {
+        test.add_cleanup(function() {
+            return service_worker_unregister(test, scope);
+          });
+
+        let worker = registration.installing;
+        var channel = new MessageChannel();
+        var saw_message = new Promise(function(resolve) {
+          channel.port1.onmessage = function(e) { resolve(e.data); }
+        });
+
+        return wait_for_state(test, worker, 'activated')
+          .then(function() {
+              return sync_message(worker, { step: 'init', port: channel.port2 },
+                [channel.port2]);
+            })
+          .then(function() { return testBody(worker); })
+          .then(function() { return saw_message; })
+          .then(function(output) {
+              assert_equals(output.result, output.expected);
+            })
+          .then(function() { return sync_message(worker, { step: 'done' }); });
+      });
+}
+
+function msg_event_test(scope, test) {
+  var testBody = function(worker) {
+    return sync_message(worker, { step: scope });
+  };
+  return runTest(test, scope, testBody);
+}
+
+promise_test(msg_event_test.bind(this, 'no-current-extension-different-task'),
+  'Test calling waitUntil in a task at the end of the event handler without an existing extension throws');
+
+promise_test(msg_event_test.bind(this, 'no-current-extension-different-microtask'),
+  'Test calling waitUntil in a microtask at the end of the event handler without an existing extension suceeds');
+
+promise_test(msg_event_test.bind(this, 'current-extension-different-task'),
+  'Test calling waitUntil in a different task an existing extension succeeds');
+
+promise_test(msg_event_test.bind(this, 'during-event-dispatch-current-extension-expired-same-microtask-turn'),
+  'Test calling waitUntil at the end of an existing extension promise handler succeeds (event is still being dispatched)');
+
+promise_test(msg_event_test.bind(this, 'during-event-dispatch-current-extension-expired-same-microtask-turn-extra'),
+  'Test calling waitUntil in a microtask at the end of an existing extension promise handler succeeds (event is still being dispatched)');
+
+promise_test(msg_event_test.bind(this, 'after-event-dispatch-current-extension-expired-same-microtask-turn'),
+  'Test calling waitUntil in an existing extension promise handler succeeds (event is not being dispatched)');
+
+promise_test(msg_event_test.bind(this, 'after-event-dispatch-current-extension-expired-same-microtask-turn-extra'),
+  'Test calling waitUntil in a microtask at the end of an existing extension promise handler throws (event is not being dispatched)');
+
+promise_test(msg_event_test.bind(this, 'current-extension-expired-different-task'),
+  'Test calling waitUntil after the current extension expired in a different task fails');
+
+promise_test(msg_event_test.bind(this, 'script-extendable-event'),
+  'Test calling waitUntil on a script constructed ExtendableEvent throws exception');
+
+promise_test(function(t) {
+    var testBody = function(worker) {
+      return with_iframe('./resources/pending-respondwith-async-waituntil');
+    }
+    return runTest(t, 'pending-respondwith-async-waituntil', testBody);
+  }, 'Test calling waitUntil asynchronously with pending respondWith promise.');
+
+promise_test(function(t) {
+    var testBody = function(worker) {
+      return with_iframe('./resources/during-event-dispatch-respondwith-microtask-sync-waituntil');
+    }
+    return runTest(t, 'during-event-dispatch-respondwith-microtask-sync-waituntil', testBody);
+  }, 'Test calling waitUntil synchronously inside microtask of respondWith promise (event is being dispatched).');
+
+promise_test(function(t) {
+    var testBody = function(worker) {
+      return with_iframe('./resources/during-event-dispatch-respondwith-microtask-async-waituntil');
+    }
+    return runTest(t, 'during-event-dispatch-respondwith-microtask-async-waituntil', testBody);
+  }, 'Test calling waitUntil asynchronously inside microtask of respondWith promise (event is being dispatched).');
+
+promise_test(function(t) {
+    var testBody = function(worker) {
+      return with_iframe('./resources/after-event-dispatch-respondwith-microtask-sync-waituntil');
+    }
+    return runTest(t, 'after-event-dispatch-respondwith-microtask-sync-waituntil', testBody);
+  }, 'Test calling waitUntil synchronously inside microtask of respondWith promise (event is not being dispatched).');
+
+promise_test(function(t) {
+    var testBody = function(worker) {
+      return with_iframe('./resources/after-event-dispatch-respondwith-microtask-async-waituntil');
+    }
+    return runTest(t, 'after-event-dispatch-respondwith-microtask-async-waituntil', testBody);
+  }, 'Test calling waitUntil asynchronously inside microtask of respondWith promise (event is not being dispatched).');
+</script>

@@ -1,0 +1,71 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+
+promise_test(function(t) {
+  var frame;
+  var resource = 'simple.txt';
+
+  var worker;
+  var scope = 'resources/';
+  var script = 'resources/claim-worker.js';
+
+  return Promise.resolve()
+    // Create the test iframe with a shared worker.
+    .then(() => with_iframe('resources/claim-shared-worker-fetch-iframe.html'))
+    .then(f => frame = f)
+
+    // Check the controller and test with fetch in the shared worker.
+    .then(() => assert_equals(frame.contentWindow.navigator.controller,
+                              undefined,
+                              'Should have no controller.'))
+    .then(() => frame.contentWindow.fetch_in_shared_worker(resource))
+    .then(response_text => assert_equals(response_text,
+                                         'a simple text file\n',
+                                         'fetch() should not be intercepted.'))
+    // Register a service worker.
+    .then(() => service_worker_unregister_and_register(t, script, scope))
+    .then(r => {
+        t.add_cleanup(() => service_worker_unregister(t, scope));
+
+        worker = r.installing;
+
+        return wait_for_state(t, worker, 'activated')
+      })
+    // Let the service worker claim the iframe and the shared worker.
+    .then(() => {
+      var channel = new MessageChannel();
+      var saw_message = new Promise(function(resolve) {
+        channel.port1.onmessage = t.step_func(function(e) {
+          assert_equals(e.data, 'PASS',
+                        'Worker call to claim() should fulfill.');
+          resolve();
+        });
+      });
+      worker.postMessage({port: channel.port2}, [channel.port2]);
+      return saw_message;
+    })
+
+    // Check the controller and test with fetch in the shared worker.
+    .then(() => frame.contentWindow.navigator.serviceWorker.getRegistration(scope))
+    .then(r => assert_equals(frame.contentWindow.navigator.serviceWorker.controller,
+                             r.active,
+                             'Test iframe should be claimed.'))
+    // TODO(horo): Check the SharedWorker's navigator.seviceWorker.controller.
+    .then(() => frame.contentWindow.fetch_in_shared_worker(resource))
+    .then(response_text =>
+          assert_equals(response_text,
+                        'Intercepted!',
+                        'fetch() in the shared worker should be intercepted.'))
+
+    // Cleanup this testcase.
+    .then(() => frame.remove());
+}, 'fetch() in SharedWorker should be intercepted after the client is claimed.')
+
+</script>
+</body>

@@ -27,8 +27,14 @@ const {
     bigIntArrayToUnsignedInt(new Uint8Array([1, 0, 1])),
     65537);
   assert.strictEqual(
-    bigIntArrayToUnsignedInt(new Uint8Array([1, 0, 0, 0, 0])),
-    undefined);
+    bigIntArrayToUnsignedInt(new Uint8Array([0, 0, 1, 0, 1])),
+    65537);
+  assert.throws(
+    () => bigIntArrayToUnsignedInt(new Uint8Array([1, 0, 0, 0, 0])),
+    {
+      name: 'OperationError',
+      message: 'algorithm.publicExponent must fit in an unsigned 32-bit integer',
+    });
 }
 
 {

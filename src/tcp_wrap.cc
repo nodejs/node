@@ -43,6 +43,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <sys/socket.h>
+#include <unistd.h>  // dup(), close()
 #endif
 
 namespace node {
@@ -377,6 +378,100 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   if (err == 0) wrap->set_fd(fd);
 
   args.GetReturnValue().Set(err);
+}
+
+BaseObject::TransferMode TCPWrap::GetTransferMode() const {
+  // Only a live handle that is not already being torn down can be transferred.
+  // Higher-level guards (no buffered reads, no pending writes) are enforced by
+  // the JS net.Socket/net.Server layer before a handle reaches here.
+  if (!HandleWrap::IsAlive(this) || IsHandleClosing())
+    return TransferMode::kDisallowCloneAndTransfer;
+  return TransferMode::kTransferable;
+}
+
+std::unique_ptr<worker::TransferData> TCPWrap::TransferForMessaging() {
+  CHECK_NE(GetTransferMode(), TransferMode::kDisallowCloneAndTransfer);
+
+  uv_os_fd_t fd;
+  if (uv_fileno(reinterpret_cast<uv_handle_t*>(&handle_), &fd) != 0) return {};
+
+#ifdef _WIN32
+  // A socket that is already associated with an IOCP cannot be associated with
+  // another one. Create a same-process duplicate that is not associated with
+  // any IOCP yet; uv_tcp_open() will associate it with the receiving loop.
+  WSAPROTOCOL_INFOW protocol_info;
+  uv_os_sock_t source_socket = reinterpret_cast<uv_os_sock_t>(fd);
+  if (WSADuplicateSocketW(
+          source_socket, GetCurrentProcessId(), &protocol_info) != 0) {
+    return {};
+  }
+  uv_os_sock_t duplicate = WSASocketW(FROM_PROTOCOL_INFO,
+                                      FROM_PROTOCOL_INFO,
+                                      FROM_PROTOCOL_INFO,
+                                      &protocol_info,
+                                      0,
+                                      WSA_FLAG_OVERLAPPED);
+  if (duplicate == static_cast<uv_os_sock_t>(-1)) return {};
+#else
+  // Unix threads share the descriptor table, so dup() creates an independent
+  // reference to the same socket for the receiving event loop.
+  uv_os_sock_t duplicate = dup(fd);
+  if (duplicate < 0) return {};
+#endif
+
+  SocketType type =
+      provider_type() == ProviderType::PROVIDER_TCPSERVERWRAP ? SERVER : SOCKET;
+
+  // Stop watching the original socket and tear down the source handle. The
+  // duplicate keeps the underlying socket alive until the destination adopts
+  // it, or until TransferData is destroyed if the message is not delivered.
+  Close();
+
+  return std::make_unique<TransferData>(duplicate, type);
+}
+
+TCPWrap::TransferData::~TransferData() {
+#ifdef _WIN32
+  if (socket_ != static_cast<uv_os_sock_t>(-1))
+    CHECK_EQ(0, closesocket(socket_));
+#else
+  if (socket_ >= 0) {
+    uv_fs_t req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &req, socket_, nullptr));
+    uv_fs_req_cleanup(&req);
+  }
+#endif
+}
+
+BaseObjectPtr<BaseObject> TCPWrap::TransferData::Deserialize(
+    Environment* env,
+    Local<Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  // Construct a fresh TCPWrap in the receiving Environment. We cannot use
+  // TCPWrap::Instantiate() here because it requires a parent AsyncWrap to
+  // establish the async_hooks trigger id, and a deserialized handle has none.
+  if (env->tcp_constructor_template().IsEmpty()) return {};
+  Local<Function> constructor;
+  if (!env->tcp_constructor_template()->GetFunction(context).ToLocal(
+          &constructor)) {
+    return {};
+  }
+  Local<Value> type_arg = Int32::New(env->isolate(), type_);
+  Local<Object> obj;
+  if (!constructor->NewInstance(context, 1, &type_arg).ToLocal(&obj)) return {};
+
+  TCPWrap* wrap = BaseObject::Unwrap<TCPWrap>(obj);
+  if (wrap == nullptr) return {};
+
+  if (uv_tcp_open(&wrap->handle_, socket_) != 0) return {};
+
+#ifdef _WIN32
+  socket_ = static_cast<uv_os_sock_t>(-1);
+#else
+  wrap->set_fd(socket_);
+  socket_ = -1;
+#endif
+  return BaseObjectPtr<BaseObject>(wrap);
 }
 
 template <typename T>

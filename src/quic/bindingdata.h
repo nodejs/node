@@ -61,6 +61,7 @@ class SessionManager;
   V(stream_drain, StreamDrain)                                                 \
   V(stream_headers, StreamHeaders)                                             \
   V(stream_reset, StreamReset)                                                 \
+  V(stream_stop_sending, StreamStopSending)                                    \
   V(stream_trailers, StreamTrailers)
 
 // The various JS strings the implementation uses.
@@ -77,6 +78,7 @@ class SessionManager;
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
   V(cc_algorithm, "cc")                                                        \
+  V(certificate_compression, "certificateCompression")                         \
   V(certs, "certs")                                                            \
   V(code, "code")                                                              \
   V(ciphers, "ciphers")                                                        \

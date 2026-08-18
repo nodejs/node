@@ -475,13 +475,15 @@ bool ExportJWKEcKey(Environment* env,
     THROW_ERR_CRYPTO_INVALID_JWK(env, "Invalid JWK EC key");
     return false;
   }
+  // A provider-backed key need not expose its public point.
+  if (ec.getPublicKey() == nullptr) return false;
 
   const auto pub = ec.getPublicKey();
   const auto group = ec.getGroup();
 
   int degree_bits = EC_GROUP_get_degree(group);
   int degree_bytes =
-    (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
+      (degree_bits / CHAR_BIT) + (7 + (degree_bits % CHAR_BIT)) / 8;
 
   auto x = BignumPointer::New();
   auto y = BignumPointer::New();
@@ -518,16 +520,16 @@ bool ExportJWKEcKey(Environment* env,
   const int nid = EC_GROUP_get_curve_name(group);
   switch (nid) {
     case NID_X9_62_prime256v1:
-      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "P-256");
+      crv_name = env->p256_string();
       break;
     case NID_secp256k1:
-      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "secp256k1");
+      crv_name = env->secp256k1_string();
       break;
     case NID_secp384r1:
-      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "P-384");
+      crv_name = env->p384_string();
       break;
     case NID_secp521r1:
-      crv_name = FIXED_ONE_BYTE_STRING(env->isolate(), "P-521");
+      crv_name = env->p521_string();
       break;
     default: {
       THROW_ERR_CRYPTO_JWK_UNSUPPORTED_CURVE(
@@ -543,6 +545,7 @@ bool ExportJWKEcKey(Environment* env,
 
   if (key.GetKeyType() == kKeyTypePrivate) {
     auto pvt = ec.getPrivateKey();
+    if (pvt == nullptr) return false;
     return SetEncodedValue(env, target, env->jwk_d_string(), pvt, degree_bytes)
         .IsJust();
   }

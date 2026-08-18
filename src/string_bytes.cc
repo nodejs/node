@@ -310,9 +310,37 @@ size_t StringBytes::Write(Isolate* isolate,
             input_view.length(),
             buf,
             buflen);
-      } else {
+      } else if (input_view.length() <= 32) {
+        // V8 is as fast for tiny strings (same threshold TextEncoder uses).
         nbytes = str->WriteUtf8V2(
             isolate, buf, buflen, String::WriteFlags::kReplaceInvalidUtf8);
+      } else {
+        // Use simdutf for two-byte strings as well whenever the UTF-8 form
+        // is guaranteed to fit; truncating writes (which must stop at a
+        // character boundary) keep going through V8 so that their output
+        // stays byte-for-byte identical.
+        const char16_t* data =
+            reinterpret_cast<const char16_t*>(input_view.data16());
+        const size_t length = input_view.length();
+        MaybeStackBuffer<char16_t, 1024> well_formed;
+        if (!simdutf::validate_utf16(data, length)) {
+          // Unpaired surrogates: encode a copy in which each of them has been
+          // replaced with U+FFFD, which is what kReplaceInvalidUtf8 produces.
+          well_formed.AllocateSufficientStorage(length);
+          simdutf::to_well_formed_utf16(data, length, well_formed.out());
+          data = well_formed.out();
+        }
+        // A UTF-16 code unit never expands to more than 3 UTF-8 bytes, so
+        // 3 * length is what StorageSize() hands most callers; only compute
+        // the exact length when the buffer is smaller than that.
+        if (buflen >= 3 * length ||
+            buflen >= simdutf::utf8_length_from_utf16(data, length)) {
+          nbytes = simdutf::convert_utf16_to_utf8(data, length, buf);
+        } else {
+          // Does not fit: let V8 truncate at a character boundary.
+          nbytes = str->WriteUtf8V2(
+              isolate, buf, buflen, String::WriteFlags::kReplaceInvalidUtf8);
+        }
       }
       break;
 
@@ -472,7 +500,6 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       break;
 
     case HEX:
-      CHECK(view.length() % 2 == 0 && "invalid hex string length");
       data_size = view.length() / 2;
       break;
 

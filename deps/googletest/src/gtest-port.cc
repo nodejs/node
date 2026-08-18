@@ -1069,7 +1069,7 @@ GTestLog::~GTestLog() {
 
 // Disable Microsoft deprecation warnings for POSIX functions called from
 // this class (creat, dup, dup2, and close)
-GTEST_DISABLE_MSC_DEPRECATED_PUSH_()
+GTEST_DISABLE_DEPRECATED_PUSH_()
 
 namespace {
 
@@ -1095,10 +1095,12 @@ class CapturedStream {
                                             0,  // Generate unique file name.
                                             temp_file_path);
     GTEST_CHECK_(success != 0)
-        << "Unable to create a temporary file in " << temp_dir_path;
+        << "Failed to create temporary file in " << temp_dir_path
+        << " with error " << ::GetLastError();
     const int captured_fd = creat(temp_file_path, _S_IREAD | _S_IWRITE);
     GTEST_CHECK_(captured_fd != -1)
-        << "Unable to open temporary file " << temp_file_path;
+        << "Failed to open temporary file " << temp_file_path << " with error "
+        << ::GetLastError();
     filename_ = temp_file_path;
 #else
     // There's no guarantee that a test has write access to the current
@@ -1200,7 +1202,7 @@ class CapturedStream {
   CapturedStream& operator=(const CapturedStream&) = delete;
 };
 
-GTEST_DISABLE_MSC_DEPRECATED_POP_()
+GTEST_DISABLE_DEPRECATED_POP_()
 
 static CapturedStream* g_captured_stderr = nullptr;
 static CapturedStream* g_captured_stdout = nullptr;

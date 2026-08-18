@@ -128,6 +128,8 @@ void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
   }
 
   ++pv->round;
+  pv->round = ngtcp2_min(pv->round, 10);
+
   pv->probe_pkt_left = NGTCP2_PV_NUM_PROBE_PKT;
 }
 

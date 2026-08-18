@@ -206,6 +206,7 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   const ncrypto::Rsa::CipherParams nparams{
       .padding = params.padding,
       .digest = params.digest,
+      .mgf1_digest = params.digest,
       .label = params.label,
   };
 
@@ -219,14 +220,12 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
 }  // namespace
 
 RSACipherConfig::RSACipherConfig(RSACipherConfig&& other) noexcept
-    : mode(other.mode),
-      label(std::move(other.label)),
+    : label(std::move(other.label)),
       padding(other.padding),
       digest(other.digest) {}
 
 void RSACipherConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (IsCryptoJobAsync(mode))
-    tracker->TrackFieldWithSize("label", label.size());
+  tracker->TraitTrackInline(label, "label");
 }
 
 Maybe<void> RSACipherTraits::AdditionalConfig(
@@ -237,7 +236,6 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
     RSACipherConfig* params) {
   Environment* env = Environment::GetCurrent(args);
 
-  params->mode = mode;
   params->padding = RSA_PKCS1_OAEP_PADDING;
 
   CHECK(args[offset]->IsUint32());
@@ -315,6 +313,13 @@ bool ExportJWKRsaKey(Environment* env,
 
   if (key.GetKeyType() == kKeyTypePrivate) {
     auto pvt_key = rsa.getPrivateKey();
+    if (pub_key.d == nullptr || pvt_key.p == nullptr || pvt_key.q == nullptr ||
+        pvt_key.dp == nullptr || pvt_key.dq == nullptr ||
+        pvt_key.qi == nullptr) {
+      THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                        "Failed to export RSA private key");
+      return false;
+    }
     if (SetEncodedValue(env, target, env->jwk_d_string(), pub_key.d)
             .IsNothing() ||
         SetEncodedValue(env, target, env->jwk_p_string(), pvt_key.p)

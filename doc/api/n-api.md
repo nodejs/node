@@ -4329,7 +4329,7 @@ napi_status napi_strict_equals(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API represents the invocation of the Strict Equality algorithm as
-defined in [Section IsStrctEqual][] of the ECMAScript Language Specification.
+defined in [Section IsStrictlyEqual][] of the ECMAScript Language Specification.
 
 ### `napi_detach_arraybuffer`
 
@@ -4636,7 +4636,7 @@ They can be one or more of the following bit flags:
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
 * `napi_default_method`: Like a method in a JS class, the property is
-  configurable and writeable, but not enumerable.
+  configurable and writable, but not enumerable.
 * `napi_default_jsproperty`: Like a property set via assignment in JavaScript,
   the property is writable, enumerable, and configurable.
 
@@ -6986,7 +6986,7 @@ the add-on's file name during loading.
 [Section DefineOwnProperty]: https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
 [Section Function objects]: https://tc39.es/ecma262/#sec-function-objects
 [Section IsArray]: https://tc39.es/ecma262/#sec-isarray
-[Section IsStrctEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
+[Section IsStrictlyEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
 [Section Promise objects]: https://tc39.es/ecma262/#sec-promise-objects
 [Section SharedArrayBuffer objects]: https://tc39.es/ecma262/#sec-sharedarraybuffer-objects
 [Section ToBoolean]: https://tc39.es/ecma262/#sec-toboolean

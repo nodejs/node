@@ -23,6 +23,8 @@
 const common = require('../common');
 const assert = require('assert');
 
+common.skipIfInspectorDisabled();
+
 switch (process.argv[2]) {
   case 'child':
     return child();

@@ -16,6 +16,7 @@
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/i18n/i18n_constants.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -307,24 +308,62 @@ bool ZipReader::OpenEntry() {
   DCHECK(path_in_zip[info.size_filename] == '\0');
   entry_.path_in_original_encoding = path_in_zip.data();
 
+    const char* const configured_encoding =
+      encoding_.empty() ? base::kCodepageUTF8 : encoding_.c_str();
+  const char* entry_path_encoding = configured_encoding;
+  bool physical_path_is_directory = false;
+  bool physical_path_is_unsafe = false;
+
+  // If an Info-ZIP Unicode Path Extra Field is present, the physical Central
+  // Directory path is about to be overridden. Decode and normalize it now into
+  // `entry_.physical_path` so consumers (e.g. Safe Browsing) can still see the
+  // name that other tools (e.g. Windows Explorer) would use for extraction.
   if (info.size_utf8_filename > 0) {
+    std::u16string physical_path_in_utf16;
+    if (!base::CodepageToUTF16(entry_.path_in_original_encoding,
+                               configured_encoding,
+                               base::OnStringConversionError::SUBSTITUTE,
+                               &physical_path_in_utf16)) {
+      LOG(ERROR) << "Cannot convert path from encoding " << configured_encoding;
+      return false;
+    }
+    // Normalize() stores the normalized result in entry_.path; copy it before
+    // applying the Unicode Path Extra Field below.
+    Normalize(physical_path_in_utf16);
+    entry_.physical_path = entry_.path;
+    physical_path_is_directory = entry_.is_directory;
+    physical_path_is_unsafe = entry_.is_unsafe;
+
     // Use the Info-ZIP Unicode Path Extra Field if present.
     DCHECK(info.utf8_filename[info.size_utf8_filename] == '\0');
     entry_.path_in_original_encoding = info.utf8_filename;
+    entry_path_encoding = base::kCodepageUTF8;
   }
 
   // Convert path from original encoding to Unicode.
   std::u16string path_in_utf16;
-  const char* const encoding = encoding_.empty() ? "UTF-8" : encoding_.c_str();
-  if (!base::CodepageToUTF16(entry_.path_in_original_encoding, encoding,
+  if (!base::CodepageToUTF16(entry_.path_in_original_encoding,
+                             entry_path_encoding,
                              base::OnStringConversionError::SUBSTITUTE,
                              &path_in_utf16)) {
-    LOG(ERROR) << "Cannot convert path from encoding " << encoding;
+    LOG(ERROR) << "Cannot convert path from encoding " << entry_path_encoding;
     return false;
   }
 
   // Normalize path.
   Normalize(path_in_utf16);
+
+  if (info.size_utf8_filename > 0) {
+    // Treat an entry as a directory only if both names are directories;
+    // otherwise callers that analyze file entries should inspect it as a file.
+    entry_.is_directory = entry_.is_directory && physical_path_is_directory;
+    // Treat an entry as unsafe if either name is unsafe.
+    entry_.is_unsafe = entry_.is_unsafe || physical_path_is_unsafe;
+  } else {
+    // In the common case (no Unicode Path Extra Field) the physical path
+    // matches the effective path.
+    entry_.physical_path = entry_.path;
+  }
 
   entry_.original_size = info.uncompressed_size;
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<title> ErrorEvent and Worker.dispatchEvent() </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+async_test(function(t) {
+  var event = "error";
+  var filename = './support/ErrorEvent.js';
+  var message = 'Hello Worker';
+  var lineno = 5;
+  var colno = 6;
+  var error = new Error("test");
+  var worker = new Worker(filename);
+  worker.addEventListener(event, t.step_func_done(function(e) {
+    assert_equals(e.type, event, 'type');
+    assert_equals(e.message, message, 'message');
+    assert_equals(e.filename, filename, 'filename');
+    assert_equals(e.lineno, lineno, 'lineno');
+    assert_equals(e.colno, colno, 'colno');
+    assert_equals(e.error, error, 'error');
+  }), true);
+  var e = new ErrorEvent(event, {bubbles:true, cancelable:true, message:message, filename:filename, lineno:lineno, colno:colno, error:error});
+  worker.dispatchEvent(e);
+});
+
+test(function() {
+  var e = new ErrorEvent("error");
+  assert_false("initErrorEvent" in e, "should not be supported");
+}, "initErrorEvent");
+
+test(function() {
+  assert_throws_js(
+    TypeError,
+    () => ErrorEvent(''),
+    "Calling ErrorEvent constructor without 'new' must throw"
+  );
+}, "ErrorEvent constructor called as normal function");
+</script>

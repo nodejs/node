@@ -27,7 +27,7 @@ const http = require('http');
 const expected = 'Post Body For Test';
 const expectedStatusCode = 200;
 
-const server = http.Server(common.mustCallAtLeast(function(req, res) {
+const server = new http.Server(common.mustCallAtLeast(function(req, res) {
   let result = '';
 
   req.setEncoding('utf8');

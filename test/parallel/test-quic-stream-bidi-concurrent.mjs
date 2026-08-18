@@ -9,8 +9,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -34,8 +32,8 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     const text = decoder.decode(received);
 
     // Verify it's one of the expected messages.
-    ok(messages.includes(text),
-       `Unexpected message: ${text}`);
+    assert.ok(messages.includes(text),
+              `Unexpected message: ${text}`);
 
     stream.writer.endSync();
     await stream.closed;

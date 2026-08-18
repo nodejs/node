@@ -8,8 +8,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { ok } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -47,9 +45,9 @@ let batchCount = 0;
 let totalChunks = 0;
 for await (const batch of stream) {
   batchCount++;
-  ok(Array.isArray(batch), 'Each iteration step yields an array');
+  assert.ok(Array.isArray(batch), 'Each iteration step yields an array');
   for (const chunk of batch) {
-    ok(chunk instanceof Uint8Array, 'Each item is a Uint8Array');
+    assert.ok(chunk instanceof Uint8Array, 'Each item is a Uint8Array');
     totalChunks++;
   }
 }
@@ -58,8 +56,8 @@ for await (const batch of stream) {
 // (On very slow machines, each chunk might arrive separately, so we
 // can't assert batchCount < totalChunks strictly. But totalChunks
 // should be > 0.)
-ok(totalChunks > 0, 'Should have received chunks');
-ok(batchCount > 0, 'Should have received batches');
+assert.ok(totalChunks > 0, 'Should have received chunks');
+assert.ok(batchCount > 0, 'Should have received batches');
 
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();

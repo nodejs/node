@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>URLPattern regexp groups work without a script context (detached frame)</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+// These tests exercise URLPattern objects whose associated document/global
+// object has gone away (the owning frame is detached). This means URLPattern
+// is being used without a valid JavaScript context.
+function withDetachedPatternConstructor(t) {
+  return new Promise(resolve => {
+    const frame = document.createElement("iframe");
+    frame.srcdoc = "";
+    frame.onload = () => {
+      const FrameURLPattern = frame.contentWindow.URLPattern;
+      frame.remove();
+      resolve(FrameURLPattern);
+    };
+    document.body.appendChild(frame);
+    t.add_cleanup(() => frame.remove());
+  });
+}
+
+promise_test(async t => {
+  const FrameURLPattern = await withDetachedPatternConstructor(t);
+  const pattern = new FrameURLPattern({ pathname: "/books/:id(\\d+)" });
+
+  assert_true(pattern.hasRegExpGroups, "pattern should report regexp groups");
+
+  const result = pattern.exec("https://example.com/books/123");
+  assert_not_equals(result, null, "regexp pattern should match");
+  assert_equals(result.pathname.input, "/books/123");
+  assert_equals(result.pathname.groups.id, "123");
+}, "Named regexp group matches after the owning frame is detached");
+
+promise_test(async t => {
+  const FrameURLPattern = await withDetachedPatternConstructor(t);
+  const pattern = new FrameURLPattern({ pathname: "/books/:id(\\d+)" });
+
+  assert_equals(pattern.exec("https://example.com/books/abc"), null,
+    "input that violates the regexp constraint should not match");
+}, "Non-matching regexp input returns null after the owning frame is detached");
+
+promise_test(async t => {
+  const FrameURLPattern = await withDetachedPatternConstructor(t);
+  // Anonymous regexp group, exercised through test() rather than exec().
+  const pattern = new FrameURLPattern({ pathname: "/(foo|bar)" });
+
+  assert_true(pattern.test("https://example.com/foo"),
+    "anonymous regexp alternation should match after detach");
+  assert_false(pattern.test("https://example.com/baz"),
+    "anonymous regexp alternation should reject non-matching input after detach");
+}, "Anonymous regexp group via test() after the owning frame is detached");
+
+promise_test(async t => {
+  const FrameURLPattern = await withDetachedPatternConstructor(t);
+  // Regexp groups across several components at once.
+  const pattern = new FrameURLPattern({
+    hostname: ":sub(.*)\\.example\\.com",
+    pathname: "/v:version(\\d+)/:rest*",
+  });
+
+  const result = pattern.exec("https://api.example.com/v2/users/42");
+  assert_not_equals(result, null, "multi-component regexp pattern should match after detach");
+  assert_equals(result.hostname.groups.sub, "api");
+  assert_equals(result.pathname.groups.version, "2");
+  assert_equals(result.pathname.groups.rest, "users/42");
+}, "Regexp groups across multiple components after the owning frame is detached");
+</script>
+</body>

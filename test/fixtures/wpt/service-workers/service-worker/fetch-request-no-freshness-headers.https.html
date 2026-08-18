@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>Service Worker: the headers of FetchEvent shouldn't contain freshness headers</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/test-helpers.sub.js?pipe=sub"></script>
+<script>
+promise_test(function(t) {
+    var SCOPE = 'resources/fetch-request-no-freshness-headers-iframe.html';
+    var SCRIPT = 'resources/fetch-request-no-freshness-headers-worker.js';
+    var worker;
+    return service_worker_unregister_and_register(t, SCRIPT, SCOPE)
+      .then(function(registration) {
+          t.add_cleanup(function() {
+              return service_worker_unregister(t, SCOPE);
+            });
+
+          worker = registration.installing;
+          return wait_for_state(t, worker, 'activated');
+        })
+      .then(function() { return with_iframe(SCOPE); })
+      .then(function(frame) {
+          return new Promise(function(resolve) {
+              frame.onload = function() {
+                  resolve(frame);
+                };
+              frame.contentWindow.location.reload();
+            });
+        })
+      .then(function(frame) {
+          return new Promise(function(resolve) {
+              var channel = new MessageChannel();
+              channel.port1.onmessage = t.step_func(function(msg) {
+                  frame.remove();
+                  resolve(msg);
+                });
+              worker.postMessage(
+                {port: channel.port2}, [channel.port2]);
+            });
+        })
+      .then(function(msg) {
+          var freshness_headers = {
+            'if-none-match': true,
+            'if-modified-since': true
+          };
+          msg.data.requests.forEach(function(request) {
+              request.headers.forEach(function(header) {
+                  assert_false(
+                      !!freshness_headers[header[0]],
+                      header[0] + ' header must not be set in the ' +
+                      'FetchEvent\'s request. (url = ' + request.url + ')');
+                });
+            })
+        });
+  }, 'The headers of FetchEvent shouldn\'t contain freshness headers.');
+</script>

@@ -156,6 +156,7 @@ signatures as their [`node:fs`][] counterparts:
 * `linkSync(existingPath, newPath)`
 * `chmodSync(path, mode)`
 * `chownSync(path, uid, gid)`
+* `lchownSync(path, uid, gid)`
 * `utimesSync(path, atime, mtime)`
 * `lutimesSync(path, atime, mtime)`
 * `mkdtempSync(prefix)`
@@ -319,6 +320,6 @@ fields use synthetic but stable values:
 [`RealFSProvider`]: #class-realfsprovider
 [`VirtualFileSystem`]: #class-virtualfilesystem
 [`VirtualProvider`]: #class-virtualprovider
-[`fs.BigIntStats`]: fs.md#class-fsbigintstats
+[`fs.BigIntStats`]: fs.md#class-fsstats
 [`fs.Stats`]: fs.md#class-fsstats
 [`node:fs`]: fs.md

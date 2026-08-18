@@ -201,7 +201,7 @@ MaybeLocal<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
   auto cleanup = OnScopeLeave([&]() { uv_os_free_environ(items, count); });
   CHECK_EQ(uv_os_environ(&items, &count), 0);
 
-  MaybeStackBuffer<Local<Value>, 256> env_v(count);
+  MaybeStackBuffer<Value, 256> env_v(isolate, count);
   int env_v_index = 0;
   for (int i = 0; i < count; i++) {
 #ifdef _WIN32
@@ -216,7 +216,10 @@ MaybeLocal<Array> RealEnvStore::Enumerate(Isolate* isolate) const {
     env_v[env_v_index++] = str;
   }
 
-  return Array::New(isolate, env_v.out(), env_v_index);
+  // We're possibly not filling the entire buffer.
+  CHECK_LE(env_v_index, count);
+  env_v.SetLength(env_v_index);
+  return env_v.ToArray();
 }
 
 std::shared_ptr<KVStore> KVStore::Clone(Isolate* isolate) const {

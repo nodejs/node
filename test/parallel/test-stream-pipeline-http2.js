@@ -27,10 +27,12 @@ const http2 = require('http2');
       client.close();
     }));
 
-    let cnt = 10;
+    let received = 0;
     req.on('data', (data) => {
-      cnt--;
-      if (cnt === 0) rs.destroy();
+      received += data.length;
+      // Bound the data that flows before teardown - bytes per data event vary
+      // by platform, and letting this run longer hangs on macOS.
+      if (received >= 32 * 1024) rs.destroy();
     });
   }));
 }

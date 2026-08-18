@@ -7,8 +7,6 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual } = assert;
-
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -24,7 +22,7 @@ const { bytes } = await import('stream/iter');
   const serverEndpoint = await listen(mustCall((serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
       const received = await bytes(stream);
-      strictEqual(
+      assert.strictEqual(
         new TextDecoder().decode(received),
         'nested promise',
       );

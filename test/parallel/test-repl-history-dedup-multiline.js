@@ -6,6 +6,8 @@ if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
 }
 
+common.skipIfInspectorDisabled();
+
 const assert = require('assert');
 const readline = require('readline');
 const { EventEmitter } = require('events');

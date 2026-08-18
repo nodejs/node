@@ -154,6 +154,14 @@ test('ffi exports expected API surface', () => {
   assert.strictEqual(typeof ffi.types, 'object');
 });
 
+test('ffi.suffix matches the current platform', () => {
+  const ffi = require('node:ffi');
+  const expected = process.platform === 'win32' ? 'dll' :
+    process.platform === 'darwin' ? 'dylib' : 'so';
+
+  assert.strictEqual(ffi.suffix, expected);
+});
+
 test('ffi.types exports canonical type constants', () => {
   const ffi = require('node:ffi');
   const expected = {

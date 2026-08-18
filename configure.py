@@ -1107,7 +1107,7 @@ parser.add_argument('--enable-static',
     action='store_true',
     dest='enable_static',
     default=None,
-    help='build as static library')
+    help=argparse.SUPPRESS) # Deprecated
 
 parser.add_argument('--no-browser-globals',
     action='store_true',
@@ -1122,6 +1122,12 @@ parser.add_argument('--without-inspector',
     dest='without_inspector',
     default=None,
     help='disable the V8 inspector protocol')
+
+parser.add_argument('--with-perfetto',
+    action='store_true',
+    dest='with_perfetto',
+    default=None,
+    help='enable perfetto support')
 
 parser.add_argument('--shared',
     action='store_true',
@@ -1517,7 +1523,7 @@ def get_openssl_version(o):
 
     return version_number
 
-  except (OSError, ValueError, subprocess.SubprocessError) as e:
+  except (OSError, TypeError, ValueError, subprocess.SubprocessError) as e:
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
 
@@ -2075,9 +2081,6 @@ def configure_node(o):
   if options.v8_options:
     o['variables']['node_v8_options'] = options.v8_options.replace('"', '\\"')
 
-  if options.enable_static:
-    o['variables']['node_target_type'] = 'static_library'
-
   o['variables']['node_debug_lib'] = b(options.node_debug_lib)
 
   if options.debug_nghttp2:
@@ -2120,10 +2123,13 @@ def configure_node(o):
   else:
     o['variables']['coverage'] = 'false'
 
+  if options.enable_static and options.shared:
+    error('--enable-static must not be set with --shared')
+  if options.enable_static:
+    warn('--enable-static is deprecated and libnode.a is always produced')
+
   if options.shared:
     o['variables']['node_target_type'] = 'shared_library'
-  elif options.enable_static:
-    o['variables']['node_target_type'] = 'static_library'
   else:
     o['variables']['node_target_type'] = 'executable'
 
@@ -2223,6 +2229,7 @@ def configure_v8(o, configs):
         options.v8_disable_temporal_support = True
   o['variables']['v8_enable_temporal_support'] = 0 if options.v8_disable_temporal_support else 1
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
+  o['variables']['v8_use_perfetto'] = 1 if options.with_perfetto else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0

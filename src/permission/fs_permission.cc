@@ -1,15 +1,12 @@
 #include "fs_permission.h"
-#include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env.h"
 #include "path.h"
-#include "v8.h"
 
 #include <fcntl.h>
-#include <limits.h>
-#include <stdlib.h>
 #include <algorithm>
-#include <filesystem>
+#include <climits>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -39,10 +36,8 @@ void FreeRecursivelyNode(
     return;
   }
 
-  if (node->children.size()) {
-    for (auto& c : node->children) {
-      FreeRecursivelyNode(c.second);
-    }
+  for (auto& [label, child] : node->children) {
+    FreeRecursivelyNode(child);
   }
 
   delete node->wildcard_child;
@@ -52,7 +47,7 @@ void FreeRecursivelyNode(
 bool is_tree_granted(
     node::Environment* env,
     const node::permission::FSPermission::RadixTree* granted_tree,
-    const std::string_view& param) {
+    std::string_view param) {
   std::string resolved_param = node::PathResolve(env, {param});
 #ifdef _WIN32
   // Remove leading "\\?\" from UNC path
@@ -106,7 +101,7 @@ void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
         node::DebugCategory::PERMISSION_MODEL, "%s%s\n", indent, node->prefix);
   }
 
-  if (node->children.size() > 0) {
+  if (!node->children.empty()) {
     size_t count = 0;
     size_t total = node->children.size();
 
@@ -120,10 +115,10 @@ void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
       }
     }
 
-    for (const auto& pair : node->children) {
+    for (const auto& [label, child] : node->children) {
       count++;
       bool child_is_last = (count == total);
-      PrintTree(pair.second, depth + 1, next_branch_prefix, child_is_last);
+      PrintTree(child, depth + 1, next_branch_prefix, child_is_last);
     }
   }
 }
@@ -137,7 +132,7 @@ namespace permission {
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
 void FSPermission::Apply(Environment* env,
-                         const std::vector<std::string>& allow,
+                         std::span<const std::string> allow,
                          PermissionScope scope) {
   for (const std::string& res : allow) {
     if (res == "*") {
@@ -156,7 +151,7 @@ void FSPermission::Apply(Environment* env,
 
 void FSPermission::Drop(Environment* env,
                         PermissionScope scope,
-                        const std::string_view& param) {
+                        std::string_view param) {
   if (param.empty()) {
     // Drop all access for this scope
     if (scope == PermissionScope::kFileSystemRead ||
@@ -250,7 +245,7 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
 
 bool FSPermission::is_granted(Environment* env,
                               PermissionScope perm,
-                              const std::string_view& param = "") const {
+                              std::string_view param = "") const {
   switch (perm) {
     case PermissionScope::kFileSystem:
       return allow_all_in_ && allow_all_out_;
@@ -278,8 +273,8 @@ FSPermission::RadixTree::~RadixTree() {
 }
 
 void FSPermission::RadixTree::Clear() {
-  for (auto& c : root_node_->children) {
-    FreeRecursivelyNode(c.second);
+  for (auto& [label, child] : root_node_->children) {
+    FreeRecursivelyNode(child);
   }
   root_node_->children.clear();
   delete root_node_->wildcard_child;
@@ -287,22 +282,21 @@ void FSPermission::RadixTree::Clear() {
   root_node_->is_leaf = false;
 }
 
-bool FSPermission::RadixTree::Lookup(const std::string_view& s,
+bool FSPermission::RadixTree::Lookup(std::string_view s,
                                      bool when_empty_return) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
   if (current_node->children.empty()) {
     return when_empty_return;
   }
   size_t parent_node_prefix_len = current_node->prefix.length();
-  const std::string path(s);
-  auto path_len = path.length();
+  auto path_len = s.length();
 
   while (true) {
     if (parent_node_prefix_len == path_len && current_node->IsEndNode()) {
       return true;
     }
 
-    auto node = current_node->NextNode(path, parent_node_prefix_len);
+    auto node = current_node->NextNode(s, parent_node_prefix_len);
     if (node == nullptr) {
       return false;
     }

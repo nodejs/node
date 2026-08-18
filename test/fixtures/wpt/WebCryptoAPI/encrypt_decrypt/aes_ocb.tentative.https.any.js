@@ -1,5 +1,6 @@
 // META: title=WebCryptoAPI: encrypt() Using AES-OCB w/ 120-bit iv
 // META: script=../util/helpers.js
+// META: script=aes_common_fixtures.js
 // META: script=aes_ocb_fixtures.js
 // META: script=aes_ocb_vectors.js
 // META: script=aes.js

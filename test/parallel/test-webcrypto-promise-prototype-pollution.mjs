@@ -24,7 +24,21 @@ if (!common.hasCrypto) common.skip('missing crypto');
 
 const require = createRequire(import.meta.url);
 const { kSupportedAlgorithms } = require('internal/crypto/util');
+const { getFips } = require('node:crypto');
+const { hasFIPS } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
+const fips3 = hasFIPS(3);
+const fips35 = hasFIPS(3, 5);
+const fips4 = hasFIPS(4);
+const fips35UnavailableKeyGeneration = new Set([
+  'X25519',
+  'X448',
+]);
+const fips3UnavailableDerivation = new Set([
+  'Argon2d',
+  'Argon2i',
+  'Argon2id',
+]);
 
 Promise.prototype.then = common.mustNotCall('Promise.prototype.then');
 
@@ -333,7 +347,7 @@ function algorithm(name, params = {}) {
 
 function rsaAlgorithm(name) {
   return algorithm(name, {
-    modulusLength: 1024,
+    modulusLength: getFips() === 1 ? 2048 : 1024,
     publicExponent: new Uint8Array([1, 0, 1]),
     hash: 'SHA-256',
   });
@@ -877,8 +891,8 @@ for (const name of ['HKDF', 'PBKDF2']) {
       }) :
       algorithm(name, {
         hash: 'SHA-256',
-        salt: new Uint8Array(8),
-        iterations: 1,
+        salt: new Uint8Array(fips4 ? 16 : 8),
+        iterations: fips4 ? 1000 : 1,
       }),
   }));
 }
@@ -982,7 +996,8 @@ const keyLengthTargets = {
 function getSupportedAlgorithmOperations() {
   const algorithms = new Map();
   for (const operation of Object.keys(kSupportedAlgorithms)) {
-    if (operation === 'get key length')
+    if (operation === 'get key length' ||
+        operation === 'get shared key length')
       continue;
     for (const name of Object.keys(kSupportedAlgorithms[operation])) {
       if (!algorithms.has(name))
@@ -1015,6 +1030,7 @@ const operationOrder = [
 const coveredOperations = new Set([
   ...operationOrder,
   'get key length',
+  'get shared key length',
 ]);
 
 for (const operation of Object.keys(kSupportedAlgorithms)) {
@@ -1023,12 +1039,39 @@ for (const operation of Object.keys(kSupportedAlgorithms)) {
     `missing prototype pollution operation coverage for ${operation}`);
 }
 
+const sharedKeyLengthAlgorithms =
+  Object.keys(kSupportedAlgorithms['get shared key length'] ?? {});
+assert.deepStrictEqual(
+  sharedKeyLengthAlgorithms,
+  Object.keys(kSupportedAlgorithms.encapsulate ?? {}));
+assert.deepStrictEqual(
+  sharedKeyLengthAlgorithms,
+  Object.keys(kSupportedAlgorithms.decapsulate ?? {}));
+
 const supportedAlgorithms = getSupportedAlgorithmOperations();
 for (const [name, operations] of supportedAlgorithms) {
   const fixture = fixtures.get(name);
   assert(fixture, `missing prototype pollution fixture for ${name}`);
 
   const ctx = { __proto__: null };
+  if (fips3 && fips3UnavailableDerivation.has(name)) {
+    await fixture.importKey(ctx);
+    await assert.rejects(
+      fixture.deriveBits(ctx),
+      (err) => err.name === 'OperationError' &&
+               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+    continue;
+  }
+  if ((fips3 && name === 'ChaCha20-Poly1305') ||
+      (fips35 && fips35UnavailableKeyGeneration.has(name))) {
+    const expected = name === 'ChaCha20-Poly1305' ?
+      { name: 'NotSupportedError' } :
+      (err) => err.name === 'OperationError' &&
+               err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED';
+    await assert.rejects(fixture.generateKey(ctx), expected);
+    continue;
+  }
+
   for (const operation of operationOrder) {
     if (!operations.has(operation))
       continue;
@@ -1036,7 +1079,17 @@ for (const [name, operations] of supportedAlgorithms) {
       typeof fixture[operation],
       'function',
       `missing prototype pollution coverage for ${name} ${operation}`);
-    await fixture[operation](ctx);
+    if (fips3 && name === 'AES-OCB' &&
+        (operation === 'encrypt' || operation === 'decrypt')) {
+      if (operation === 'decrypt')
+        ctx.ciphertext = new Uint8Array();
+      await assert.rejects(
+        fixture[operation](ctx),
+        (err) => err.name === 'OperationError' &&
+                 err.cause?.code === 'ERR_OSSL_EVP_UNSUPPORTED');
+    } else {
+      await fixture[operation](ctx);
+    }
   }
 
   if (typeof fixture.getPublicKey === 'function' &&
@@ -1074,17 +1127,22 @@ for (const name of getKeyLengthAlgorithms) {
     continue;
   }
 
-  await assertCryptoKeyResult(`get key length ${name}`, () =>
+  const deriveKey = () => assertCryptoKeyResult(`get key length ${name}`, () =>
     subtle.deriveKey(
       algorithm('PBKDF2', {
         hash: 'SHA-256',
-        salt: new Uint8Array(8),
-        iterations: 1,
+        salt: new Uint8Array(fips4 ? 16 : 8),
+        iterations: fips4 ? 1000 : 1,
       }),
       pbkdf2Key,
       target.algorithm,
       true,
       target.usages));
+  if (fips3 && name === 'ChaCha20-Poly1305') {
+    await assert.rejects(deriveKey(), { name: 'NotSupportedError' });
+  } else {
+    await deriveKey();
+  }
 }
 
 // Keep one explicit unwrapKey('jwk') negative case: the parsed object must not

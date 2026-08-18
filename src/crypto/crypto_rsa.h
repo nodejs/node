@@ -53,7 +53,6 @@ struct RsaKeyGenTraits final {
 using RSAKeyPairGenJob = KeyGenJob<KeyPairGenTraits<RsaKeyGenTraits>>;
 
 struct RSACipherConfig final : public MemoryRetainer {
-  CryptoJobMode mode = kCryptoJobAsync;
   ByteSource label;
   int padding = 0;
   ncrypto::Digest digest;

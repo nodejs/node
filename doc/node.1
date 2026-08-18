@@ -126,8 +126,8 @@ starting Node.js. The \fBnode:ffi\fR module also requires the
 \fB--experimental-ffi\fR flag and is only available in builds with FFI support.
 Example:
 .Bd -literal
-const { DynamicLibrary } = require('node:ffi');
-const lib = new DynamicLibrary('mylib.so');
+const { DynamicLibrary, suffix } = require('node:ffi');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 .Ed
 .Bd -literal
 $ node --permission --experimental-ffi index.js
@@ -221,6 +221,17 @@ Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --a
   code: 'ERR_ACCESS_DENIED',
 }
 .Ed
+.
+.It Fl -allow-openssl-store
+When using the Permission Model, the process will not be able to use
+OpenSSL STORE loaders by default, for example to load a private key from a
+\fB<URL>\fR passed to \fBcrypto.createPrivateKey()\fR. Attempts to do so will throw
+an \fBERR_ACCESS_DENIED\fR unless the user explicitly passes the
+\fB--allow-openssl-store\fR flag. This permission can be dropped at runtime via
+\fBpermission.drop()\fR.
+This flag grants broad authority to configured OpenSSL STORE loaders. A loader
+may access files, devices, tokens, or the network. Access performed by a loader
+is not constrained by the \fBfs.read\fR, \fBfs.write\fR, or \fBnet\fR permission scopes.
 .
 .It Fl -allow-wasi
 When using the Permission Model, the process will not be capable of creating
@@ -502,8 +513,9 @@ The default is \fBverbatim\fR and \fBdns.setDefaultResultOrder()\fR have higher
 priority than \fB--dns-result-order\fR.
 .
 .It Fl -enable-fips
-Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
-against FIPS-compatible OpenSSL.)
+Enable FIPS mode at startup. With OpenSSL 3, a configured provider named
+\fBfips\fR must be available and initialize successfully. With OpenSSL 1.1.1,
+Node.js must be built against a FIPS-capable OpenSSL.
 .
 .It Fl -enable-source-maps
 Enable Source Map support for stack traces.
@@ -802,14 +814,18 @@ collecting code coverage from tests for more details.
 Enable module mocking in the test runner.
 This feature requires \fB--allow-worker\fR if used with the Permission Model.
 .
-.It Fl -experimental-test-tag-filter Ns = Ns Ar <tag>
-Run only tests whose tag set contains \fB<tag>\fR. Tests declare tags via the
-\fBtags\fR option on \fBtest()\fR, \fBit()\fR, \fBsuite()\fR, or \fBdescribe()\fR; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
-The flag may be specified more than once; tests must contain \fBevery\fR
-filter value to run. See Test tags for details on declaring and
-inheriting tags.
+.It Fl -experimental-test-tag-filter Ns = Ns Ar '<expr>'
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the \fBtags\fR option on \fBtest()\fR, \fBit()\fR, \fBsuite()\fR, or
+\fBdescribe()\fR. Tags inherit from suites to nested tests by union.
+The expression supports boolean operators (\fBand\fR/\fB&&\fR, \fBor\fR/\fB||\fR,
+\fBnot\fR/\fB!\fR), parentheses for grouping, and \fB*\fR wildcards inside identifiers.
+Standard precedence applies: \fBnot\fR binds tighter than \fBand\fR, which binds
+tighter than \fBor\fR. See Test tags for the full grammar and behavior.
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 .
 .It Fl -experimental-vfs
 Enable the experimental \fBnode:vfs\fR module.
@@ -820,23 +836,18 @@ Enable experimental ES Module support in the \fBnode:vm\fR module.
 .It Fl -experimental-wasi-unstable-preview1
 Enable experimental WebAssembly System Interface (WASI) support.
 .
+.It Fl -experimental-web-worker
+Enable experimental support for the Web Worker API.
+.
 .It Fl -experimental-worker-inspection
 Enable experimental support for the worker inspection with Chrome DevTools.
-.
-.It Fl -expose-gc
-This flag will expose the gc extension from V8.
-.Bd -literal
-if (globalThis.gc) {
-  globalThis.gc();
-}
-.Ed
 .
 .It Fl -force-context-aware
 Disable loading native addons that are not context-aware.
 .
 .It Fl -force-fips
-Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
-(Same requirements as \fB--enable-fips\fR.)
+Enable FIPS mode at startup and prevent it from being disabled from script
+code. The same OpenSSL requirements as \fB--enable-fips\fR apply.
 .
 .It Fl -force-node-api-uncaught-exceptions-policy
 Enforces \fBuncaughtException\fR event on Node-API asynchronous callbacks.
@@ -1093,9 +1104,6 @@ Disable using syntax detection to determine module type.
 .It Fl -no-experimental-global-navigator
 Disable exposition of Navigator API on the global scope.
 .
-.It Fl -no-experimental-repl-await
-Use this flag to disable top-level await in REPL.
-.
 .It Fl -no-experimental-require-module
 Legacy alias for \fB--no-require-module\fR.
 .
@@ -1139,9 +1147,10 @@ Enable extra debug checks for memory leaks in Node.js internals. This is
 usually only useful for developers debugging Node.js itself.
 .
 .It Fl -openssl-config Ns = Ns Ar file
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built
-against FIPS-enabled OpenSSL.
+Load an OpenSSL configuration file on startup. The file can activate an
+OpenSSL 3 FIPS provider or configure a FIPS-capable OpenSSL 1.1.1 build. See
+FIPS mode.
+This option takes precedence over the \fBOPENSSL_CONF\fR environment variable.
 .
 .It Fl -openssl-legacy-provider
 Enable OpenSSL 3.0 legacy provider. For more information please see
@@ -1169,6 +1178,7 @@ developers may leverage to detect deprecated API usage.
 .It Fl -permission
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
+
 .Bl -bullet
 .It
 File System - manageable through
@@ -1185,12 +1195,24 @@ WASI - manageable through \fB--allow-wasi\fR flag
 Addons - manageable through \fB--allow-addons\fR flag
 .It
 FFI - manageable through \fB--allow-ffi\fR flag
+.It
+OpenSSL STORE loaders - manageable through \fB--allow-openssl-store\fR flag
 .El
 .
 .It Fl -permission-audit
-Enable audit only for the permission model. When enabled, permission checks
-are performed but access is not denied. Instead, a warning is emitted for
-each permission violation via diagnostics channel.
+Enable audit mode for the permission model. When enabled, permission checks
+are performed but access is \fBnot\fR denied — no \fBERR_ACCESS_DENIED\fR error is
+thrown. Instead, each permission violation is published through the
+\fBnode:diagnostics_channel\fR module, and execution continues normally.
+This flag does not require \fB--permission\fR to be specified. The
+\fB--allow-*\fR flags are not needed in audit mode, since no
+access is denied.
+Audit mode is useful for discovering what permissions your application
+requires before deploying with \fB--permission\fR. See the
+Permission Model documentation for the list of diagnostics channel names
+and the message format.
+If both \fB--permission\fR and \fB--permission-audit\fR are specified,
+\fB--permission\fR takes precedence and the Permission Model runs in enforce mode.
 .
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and
@@ -1402,6 +1424,13 @@ both absolute and relative file paths.
 This option may be specified multiple times to include multiple glob patterns.
 If both \fB--test-coverage-exclude\fR and \fB--test-coverage-include\fR are provided,
 files must meet \fBboth\fR criteria to be included in the coverage report.
+.
+.It Fl -test-coverage-include-all
+Includes source files that were never loaded by the test run in the coverage
+report, where they are reported as having zero coverage.
+Candidate files are searched for in the current working directory, and are
+subject to the same \fB--test-coverage-include\fR and \fB--test-coverage-exclude\fR
+filtering as the rest of the report.
 .
 .It Fl -test-coverage-lines Ns = Ns Ar threshold
 Require a minimum percent of covered lines. If code coverage does not reach
@@ -1914,6 +1943,8 @@ one is included in the list below.
 .It
 \fB--allow-net\fR
 .It
+\fB--allow-openssl-store\fR
+.It
 \fB--allow-wasi\fR
 .It
 \fB--allow-worker\fR
@@ -1976,6 +2007,8 @@ one is included in the list below.
 .It
 \fB--experimental-quic\fR
 .It
+\fB--experimental-repl-await\fR
+.It
 \fB--experimental-require-module\fR
 .It
 \fB--experimental-shadow-realm\fR
@@ -1993,6 +2026,8 @@ one is included in the list below.
 \fB--experimental-vm-modules\fR
 .It
 \fB--experimental-wasi-unstable-preview1\fR
+.It
+\fB--experimental-web-worker\fR
 .It
 \fB--force-context-aware\fR
 .It
@@ -2049,8 +2084,6 @@ one is included in the list below.
 \fB--no-deprecation\fR
 .It
 \fB--no-experimental-global-navigator\fR
-.It
-\fB--no-experimental-repl-await\fR
 .It
 \fB--no-experimental-sqlite\fR
 .It
@@ -2129,6 +2162,8 @@ one is included in the list below.
 \fB--test-coverage-exclude\fR
 .It
 \fB--test-coverage-functions\fR
+.It
+\fB--test-coverage-include-all\fR
 .It
 \fB--test-coverage-include\fR
 .It
@@ -2349,9 +2384,8 @@ propagation.
 environment variable is arbitrary.
 .
 .It Ev OPENSSL_CONF Ar file
-Load an OpenSSL configuration file on startup. Among other uses, this can be
-used to enable FIPS-compliant crypto if Node.js is built with
-\fB./configure --openssl-fips\fR.
+Load an OpenSSL configuration file on startup. The file can be used as part of
+a FIPS mode configuration.
 If the \fB--openssl-config\fR command-line option is used, the environment
 variable is ignored.
 .

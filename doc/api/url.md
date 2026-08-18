@@ -830,6 +830,7 @@ console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
 
 * `input` {string | Object} A URL or URL parts
 * `baseURL` {string | undefined} A base URL string
+* Returns {boolean}
 
 Input can be a string or an object providing the individual URL parts. The
 object members can be any of `protocol`, `username`, `password`, `hostname`,
@@ -1741,6 +1742,7 @@ changes:
 
 * `urlObject` {Object} A URL object (as returned by `url.parse()` or
   constructed otherwise).
+* Returns: {string}
 
 The `url.format()` method returns a formatted URL string derived from
 `urlObject`.
@@ -1836,6 +1838,7 @@ changes:
 
 * `urlString` {string} A string that will be passed to `url.parse()` and then
   formatted.
+* Returns: {string}
 
 `url.format(urlString)` is shorthand for `url.format(url.parse(urlString))`.
 

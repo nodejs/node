@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8"/>
+<meta name="timeout" content="long">
+<title>Service Worker: Partitioned Cookies 3P Iframe</title>
+<script src="/resources/testharness.js"></script>
+<script src="shared-worker-partitioned-cookies-helper.js"></script>
+</head>
+
+<body>
+<script>
+
+promise_test(async () => {
+  const worker = new SharedWorker('./shared-worker-echo-cookies.js');
+  const next_message = worker_message_generator(worker);
+
+  worker.port.postMessage({type: 'test_message'});
+  const msg1 = await next_message();
+  assert_true(msg1.ok, 'Message passing');
+
+  worker.port.postMessage({type: 'echo_cookies_http'});
+  const msg2 = await next_message();
+  assert_true(msg2.ok, 'Get cookies');
+  assert_false(
+      msg2.cookies.includes('__Host-partitioned'),
+      'Cannot access partitioned cookie via HTTP');
+  assert_true(
+      msg2.cookies.includes('unpartitioned'),
+      'Can access unpartitioned cookie via HTTP');
+
+  worker.port.postMessage({type: 'echo_cookies_import'});
+  const msg3 = await next_message();
+  assert_true(msg3.ok, 'Get cookies');
+  assert_false(
+      msg3.cookies.includes('__Host-partitioned'),
+      'Cannot access partitioned cookie via importScripts');
+  assert_true(
+      msg3.cookies.includes('unpartitioned'),
+      'Can access unpartitioned cookie via importScripts');
+});
+
+</script>
+</body>

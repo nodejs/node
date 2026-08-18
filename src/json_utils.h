@@ -3,6 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_concepts.h"
+
 #include <iomanip>
 #include <limits>
 #include <ostream>
@@ -132,9 +134,7 @@ class JSONWriter {
   };
 
  private:
-  template <typename T,
-            typename test_for_number = typename std::
-                enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
+  template <NumericValue T>
   inline void write_value(T number) {
     if constexpr (std::is_same<T, bool>::value)
       out_ << (number ? "true" : "false");

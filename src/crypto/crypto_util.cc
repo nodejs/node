@@ -56,6 +56,24 @@ using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
 
+void MemoryRetainerTraits<crypto::ByteSource>::MemoryInfo(
+    MemoryTracker* tracker, const crypto::ByteSource& value) {
+  // Foreign ByteSources do not own the memory that they reference.
+  if (value.allocated_data_ != nullptr) {
+    tracker->TrackFieldWithSize("data", value.size_);
+  }
+}
+
+const char* MemoryRetainerTraits<crypto::ByteSource>::MemoryInfoName(
+    const crypto::ByteSource& value) {
+  return "ByteSource";
+}
+
+size_t MemoryRetainerTraits<crypto::ByteSource>::SelfSize(
+    const crypto::ByteSource& value) {
+  return sizeof(value);
+}
+
 namespace crypto {
 
 int PasswordCallback(char* buf, int size, int rwflag, void* u) {
@@ -81,20 +99,36 @@ int NoPasswordCallback(char* buf, int size, int rwflag, void* u) {
   return 0;
 }
 
-bool ProcessFipsOptions() {
-  /* Override FIPS settings in configuration file, if needed. */
-  if (per_process::cli_options->enable_fips_crypto ||
-      per_process::cli_options->force_fips_crypto) {
+std::optional<std::string> ProcessFipsOptions() {
+  const bool enable_fips = per_process::cli_options->enable_fips_crypto;
+  const bool force_fips = per_process::cli_options->force_fips_crypto;
+  if (!enable_fips && !force_fips) return std::nullopt;
+
 #if OPENSSL_VERSION_MAJOR >= 3
-    if (!ncrypto::testFipsEnabled()) return false;
-    return ncrypto::setFipsEnabled(true, nullptr);
-#else
-    // TODO(@jasnell): Remove this ifdef branch when openssl 1.1.1 is
-    // no longer supported.
-    if (FIPS_mode() == 0) return FIPS_mode_set(1);
-#endif
+  // Whether FIPS-approved implementations are reachable is decided by the
+  // OpenSSL configuration, not by Node.js. Refuse to start rather than
+  // restrict the default property query to a provider that is not there,
+  // which would leave every operation failing as unsupported.
+  if (!ncrypto::testFipsEnabled()) {
+    const std::string option = force_fips ? "--force-fips" : "--enable-fips";
+    return option + " requires an active OpenSSL provider named \"fips\". "
+                    "FIPS mode is configured through OpenSSL; see "
+                    "https://nodejs.org/api/crypto.html#fips-mode";
   }
-  return true;
+#endif
+
+  CryptoErrorList errors{CryptoErrorList::Option::NONE};
+  if (!ncrypto::setFipsEnabled(true, &errors)) {
+    std::string error = "OpenSSL error when trying to enable FIPS";
+    if (!errors.empty()) error += ':';
+    for (const auto& openssl_error : errors) {
+      error += '\n';
+      error += openssl_error;
+    }
+    return error;
+  }
+
+  return std::nullopt;
 }
 
 bool InitCryptoOnce(Isolate* isolate) {
@@ -111,6 +145,11 @@ bool InitCryptoOnce(Isolate* isolate) {
 // Protect accesses to FIPS state with a mutex. This should potentially
 // be part of a larger mutex for global OpenSSL state.
 static Mutex fips_mutex;
+
+bool IsFipsEnabled() {
+  Mutex::ScopedLock fips_lock(fips_mutex);
+  return ncrypto::isFipsEnabled();
+}
 
 void InitCryptoOnce() {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
@@ -189,8 +228,7 @@ void InitCryptoOnce() {
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  Mutex::ScopedLock fips_lock(fips_mutex);
-  args.GetReturnValue().Set(ncrypto::isFipsEnabled() ? 1 : 0);
+  args.GetReturnValue().Set(IsFipsEnabled() ? 1 : 0);
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
@@ -249,7 +287,7 @@ MaybeLocal<Value> cryptoErrorListToException(Environment* env,
   // If there are no errors, it is likely a bug but we will return
   // an error anyway.
   if (errors.empty()) {
-    return Exception::Error(FIXED_ONE_BYTE_STRING(env->isolate(), "Ok"));
+    return Exception::Error(env->ok_string());
   }
 
   // The last error in the list is the one that will be used as the
@@ -760,13 +798,9 @@ MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
   CHECK(domexception_ctor->IsFunction());
 
   Local<Object> options = Object::New(isolate);
-  if (options
-          ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "name"),
-                FIXED_ONE_BYTE_STRING(isolate, "OperationError"))
+  if (options->Set(context, env->name_string(), env->operationerror_string())
           .IsNothing() ||
-      options->Set(context, FIXED_ONE_BYTE_STRING(isolate, "cause"), cause)
-          .IsNothing()) {
+      options->Set(context, env->cause_string(), cause).IsNothing()) {
     return {};
   }
 

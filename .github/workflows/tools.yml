@@ -35,6 +35,7 @@ on:
           - nghttp2
           - nghttp3
           - ngtcp2
+          - perfetto
           - postject
           - root-certificates
           - simdjson
@@ -237,6 +238,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: perfetto
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-perfetto.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: postject
             subsystem: deps,test
             label: test
@@ -315,13 +324,13 @@ jobs:
         if: |
           (matrix.id == 'icu' || matrix.id == 'inspector_protocol') &&
           (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
       - name: Set up Nix
         if: matrix.id == 'nixpkgs-unstable' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3  # v31.10.6
+        uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
       - run: ${{ matrix.run }}
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         env:
@@ -336,7 +345,7 @@ jobs:
         # no-op if the base branch is already up-to-date.
         with:
           token: ${{ secrets.GH_USER_TOKEN }}
-          branch: actions/${{ github.ref_name == 'main' || format('{0}/', github.ref_name) }}tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
+          branch: actions/${{ github.ref_name != 'main' && format('{0}/', github.ref_name) || '' }}tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
           delete-branch: true
           commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}

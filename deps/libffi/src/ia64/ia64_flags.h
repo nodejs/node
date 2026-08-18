@@ -38,3 +38,14 @@
 #define FFI_IA64_TYPE_HFA_FLOAT		(FFI_TYPE_LAST + 2)
 #define FFI_IA64_TYPE_HFA_DOUBLE	(FFI_TYPE_LAST + 3)
 #define FFI_IA64_TYPE_HFA_LDOUBLE	(FFI_TYPE_LAST + 4)
+
+/* Tripwire: the .Lst_table / .Lld_table return-value jump tables in unix.S place
+   the FFI_IA64_TYPE_* pseudo-types (which are FFI_TYPE_LAST-relative) immediately
+   after the generic FFI_TYPE_* codes.  Adding a new generic type bumps
+   FFI_TYPE_LAST, shifts those codes, and desyncs the tables -- silently
+   misdispatching small-struct/HFA returns.  When this fires: add a matching slot
+   for the new type to both tables in unix.S, then bump FFI_IA64_TYPE_LAST.  */
+#define FFI_IA64_TYPE_LAST FFI_TYPE_VECTOR
+#if FFI_TYPE_LAST != FFI_IA64_TYPE_LAST
+# error "new FFI_TYPE_* added: sync the unix.S jump tables and bump FFI_IA64_TYPE_LAST"
+#endif

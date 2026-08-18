@@ -184,8 +184,10 @@ class V8_EXPORT_PRIVATE JumpTableAssembler {
 #if V8_TARGET_ARCH_X64
 #ifdef V8_ENABLE_CET_IBT
   static constexpr int kJumpTableSlotSize = 16;
+  static constexpr int kJumpTableSlotEntryMarkerSize = 8;
 #else  // V8_ENABLE_CET_IBT
   static constexpr int kJumpTableSlotSize = 8;
+  static constexpr int kJumpTableSlotEntryMarkerSize = 0;
 #endif
   static constexpr int kJumpTableLineSize = kJumpTableSlotSize;
   static constexpr int kFarJumpTableSlotSize = 16;

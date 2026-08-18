@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<body>
+<script>
+const worker = 'resources/fetch-event-test-worker.js';
+
+promise_test(async (t) => {
+  const scope = 'resources/simple.html?isReloadNavigation';
+
+  const reg = await service_worker_unregister_and_register(t, worker, scope);
+  await wait_for_state(t, reg.installing, 'activated');
+  const frame = await with_iframe(scope);
+  assert_equals(frame.contentDocument.body.textContent,
+                'method = GET, isReloadNavigation = false');
+  await new Promise((resolve) => {
+    frame.addEventListener('load', resolve);
+    frame.contentDocument.body.innerText =
+      'Reload this frame manually!';
+  });
+  assert_equals(frame.contentDocument.body.textContent,
+      'method = GET, isReloadNavigation = true');
+  frame.remove();
+  await reg.unregister();
+}, 'FetchEvent#request.isReloadNavigation is true for manual reload.');
+
+</script>
+</body>
+</html>

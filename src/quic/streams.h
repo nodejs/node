@@ -417,6 +417,9 @@ class Stream final : public AsyncWrap,
   // Notifies the JavaScript side that the stream has been reset.
   void EmitReset(const QuicError& error);
 
+  // Notifies the JavaScript side that the peer asked it to stop sending.
+  void EmitStopSending(const QuicError& error);
+
   // Notifies the JavaScript side that the application is ready to receive
   // trailing headers. Any trailing headers must be sent immediately, and
   // synchronously when this callback is triggered.

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script>
+function fetch_url(url) {
+  return new Promise(function(resolve, reject) {
+      var request = new XMLHttpRequest();
+      request.addEventListener('load', function(event) {
+          if (request.status == 200)
+            resolve(request.response);
+          else
+            reject(new Error('fetch_url: ' + request.statusText + " : " + url));
+        });
+      request.addEventListener('error', function(event) {
+          reject(new Error('fetch_url encountered an error: ' + url));
+        });
+      request.addEventListener('abort', function(event) {
+          reject(new Error('fetch_url was aborted: ' + url));
+        });
+      request.open('GET', url);
+      request.send();
+    });
+}
+</script>

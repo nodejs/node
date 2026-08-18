@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/test-helpers.sub.js"></script>
+<meta charset="utf-8">
+<title>canvas tainting when written twice</title>
+<script>
+function loadImage(doc, url) {
+  return new Promise((resolve, reject) => {
+    const image = doc.createElement('img');
+    image.onload = () => { resolve(image); }
+    image.onerror = () => { reject('failed to load: ' + url); };
+    image.src = url;
+  });
+}
+
+// Tests that a canvas is tainted after it's written to with both a clear image
+// and opaque image from the same URL. A bad implementation might cache the
+// info of the clear image and assume the opaque image is also clear because
+// it's from the same URL. See https://crbug.com/907047 for details.
+promise_test(async (t) => {
+  // Set up a service worker and a controlled iframe.
+  const script = 'resources/fetch-canvas-tainting-double-write-worker.js';
+  const scope = 'resources/fetch-canvas-tainting-double-write-iframe.html';
+  const registration = await service_worker_unregister_and_register(
+      t, script, scope);
+  t.add_cleanup(() => registration.unregister());
+  await wait_for_state(t, registration.installing, 'activated');
+  const iframe = await with_iframe(scope);
+  t.add_cleanup(() => iframe.remove());
+
+  // Load the same cross-origin image URL through the controlled iframe and
+  // this uncontrolled frame. The service worker responds with a same-origin
+  // image for the controlled iframe, so it is cleartext.
+  const imagePath = base_path() + 'resources/fetch-access-control.py?PNGIMAGE';
+  const imageUrl = get_host_info()['HTTPS_REMOTE_ORIGIN'] + imagePath;
+  const clearImage = await loadImage(iframe.contentDocument, imageUrl);
+  const opaqueImage = await loadImage(document, imageUrl);
+
+  // Set up a canvas for testing tainting.
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = clearImage.width;
+  canvas.height = clearImage.height;
+
+  // The clear image and the opaque image have the same src URL. But...
+
+  // ... the clear image doesn't taint the canvas.
+  context.drawImage(clearImage, 0, 0);
+  assert_true(canvas.toDataURL().length > 0);
+
+  // ... the opaque image taints the canvas.
+  context.drawImage(opaqueImage, 0, 0);
+  assert_throws_dom('SecurityError', () => { canvas.toDataURL(); });
+}, 'canvas is tainted after writing both a non-opaque image and an opaque image from the same URL');
+</script>

@@ -6,10 +6,10 @@ if (!common.hasCrypto) {
 
 const {
   hasOpenSSL,
-  hasOpenSSL3,
+  hasFIPS,
 } = require('../common/crypto');
 
-if (!hasOpenSSL3) {
+if (!hasOpenSSL(3)) {
   common.skip('missing crypto, or OpenSSL version lower than 3');
 }
 
@@ -96,57 +96,83 @@ if (hasOpenSSL(4, 0)) {
   expectedTLSAlertError = 'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE';
 }
 
-// Have shared ciphers.
-test(U, 'AES256-SHA', 'AES256-SHA');
-test('AES256-SHA', U, 'AES256-SHA');
+if (hasFIPS(3)) {
+  const tls12Cipher = 'ECDHE-RSA-AES256-GCM-SHA384';
 
-test(U, 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
-test('TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
-test('TLS_AES_256_GCM_SHA384:!TLS_CHACHA20_POLY1305_SHA256', U, 'TLS_AES_256_GCM_SHA384');
+  // FIPS-approved TLS 1.2 and TLS 1.3 cipher suites work.
+  test(U, tls12Cipher, tls12Cipher);
+  test(tls12Cipher, U, tls12Cipher);
+  test(U, 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+  test('TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
 
-// Do not have shared ciphers.
-test('TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
-     U, expectedTLSAlertError, 'ERR_SSL_NO_SHARED_CIPHER');
+  // The FIPS provider rejects ChaCha20-Poly1305.
+  test('TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
+       U, expectedTLSAlertError, 'ERR_SSL_NO_CIPHERS_AVAILABLE');
 
-test('AES256-SHA', 'AES256-SHA256', U, expectedTLSAlertError,
-     'ERR_SSL_NO_SHARED_CIPHER');
-test('AES256-SHA:TLS_AES_256_GCM_SHA384',
-     'TLS_CHACHA20_POLY1305_SHA256:AES256-SHA256',
-     U, expectedTLSAlertError, 'ERR_SSL_NO_SHARED_CIPHER');
+  // Invalid cipher values are still validated before provider selection.
+  test(9, tls12Cipher, U, 'ERR_INVALID_ARG_TYPE', U);
+  test(tls12Cipher, 9, U, U, 'ERR_INVALID_ARG_TYPE');
+  test(':', tls12Cipher, U, 'ERR_INVALID_ARG_VALUE', U);
+  test(tls12Cipher, ':', U, U, 'ERR_INVALID_ARG_VALUE');
 
-// Cipher order ignored, TLS1.3 chosen before TLS1.2.
-test('AES256-SHA:TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
-test(U, 'AES256-SHA:TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+  // Empty and null values continue to select the defaults.
+  test('TLS_AES_256_GCM_SHA384', '', 'TLS_AES_256_GCM_SHA384');
+  test('', 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+  test(null, 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+  test('TLS_AES_256_GCM_SHA384', null, 'TLS_AES_256_GCM_SHA384');
+} else {
+  // Have shared ciphers.
+  test(U, 'AES256-SHA', 'AES256-SHA');
+  test('AES256-SHA', U, 'AES256-SHA');
 
-// Cipher order ignored, TLS1.3 before TLS1.2 and
-// cipher suites are not disabled if TLS ciphers are set only
-// TODO: maybe these tests should be reworked so maxVersion clamping
-// is done explicitly and not implicitly in the test() function
-test('AES256-SHA', U, 'TLS_AES_256_GCM_SHA384', U, U, { maxVersion: 'TLSv1.3' });
-test(U, 'AES256-SHA', 'TLS_AES_256_GCM_SHA384', U, U, { maxVersion: 'TLSv1.3' });
+  test(U, 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+  test('TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
+  test('TLS_AES_256_GCM_SHA384:!TLS_CHACHA20_POLY1305_SHA256', U, 'TLS_AES_256_GCM_SHA384');
 
-// TLS_AES_128_CCM_8_SHA256 & TLS_AES_128_CCM_SHA256 are not enabled by
-// default, but work.
-// However, for OpenSSL32 AES_128 is not enabled due to the
-// default security level
-if (!hasOpenSSL(3, 2)) {
-  test('TLS_AES_128_CCM_8_SHA256', U,
-       U, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_NO_SHARED_CIPHER');
+  // Do not have shared ciphers.
+  test('TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',
+       U, expectedTLSAlertError, 'ERR_SSL_NO_SHARED_CIPHER');
 
-  test('TLS_AES_128_CCM_8_SHA256', 'TLS_AES_128_CCM_8_SHA256',
-       'TLS_AES_128_CCM_8_SHA256');
+  test('AES256-SHA', 'AES256-SHA256', U, expectedTLSAlertError,
+       'ERR_SSL_NO_SHARED_CIPHER');
+  test('AES256-SHA:TLS_AES_256_GCM_SHA384',
+       'TLS_CHACHA20_POLY1305_SHA256:AES256-SHA256',
+       U, expectedTLSAlertError, 'ERR_SSL_NO_SHARED_CIPHER');
+
+  // Cipher order ignored, TLS1.3 chosen before TLS1.2.
+  test('AES256-SHA:TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
+  test(U, 'AES256-SHA:TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+
+  // Cipher order ignored, TLS1.3 before TLS1.2 and
+  // cipher suites are not disabled if TLS ciphers are set only
+  // TODO: maybe these tests should be reworked so maxVersion clamping
+  // is done explicitly and not implicitly in the test() function
+  test('AES256-SHA', U, 'TLS_AES_256_GCM_SHA384', U, U, { maxVersion: 'TLSv1.3' });
+  test(U, 'AES256-SHA', 'TLS_AES_256_GCM_SHA384', U, U, { maxVersion: 'TLSv1.3' });
+
+  // TLS_AES_128_CCM_8_SHA256 & TLS_AES_128_CCM_SHA256 are not enabled by
+  // default, but work.
+  // However, for OpenSSL32 AES_128 is not enabled due to the
+  // default security level
+  if (!hasOpenSSL(3, 2)) {
+    test('TLS_AES_128_CCM_8_SHA256', U,
+         U, 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_NO_SHARED_CIPHER');
+
+    test('TLS_AES_128_CCM_8_SHA256', 'TLS_AES_128_CCM_8_SHA256',
+         'TLS_AES_128_CCM_8_SHA256');
+  }
+
+  // Invalid cipher values
+  test(9, 'AES256-SHA', U, 'ERR_INVALID_ARG_TYPE', U);
+  test('AES256-SHA', 9, U, U, 'ERR_INVALID_ARG_TYPE');
+  test(':', 'AES256-SHA', U, 'ERR_INVALID_ARG_VALUE', U);
+  test('AES256-SHA', ':', U, U, 'ERR_INVALID_ARG_VALUE');
+
+  // Using '' is synonymous for "use default ciphers"
+  test('TLS_AES_256_GCM_SHA384', '', 'TLS_AES_256_GCM_SHA384');
+  test('', 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
+
+  // Using null should be treated the same as undefined.
+  test(null, 'AES256-SHA', 'AES256-SHA');
+  test('AES256-SHA', null, 'AES256-SHA');
 }
-
-// Invalid cipher values
-test(9, 'AES256-SHA', U, 'ERR_INVALID_ARG_TYPE', U);
-test('AES256-SHA', 9, U, U, 'ERR_INVALID_ARG_TYPE');
-test(':', 'AES256-SHA', U, 'ERR_INVALID_ARG_VALUE', U);
-test('AES256-SHA', ':', U, U, 'ERR_INVALID_ARG_VALUE');
-
-// Using '' is synonymous for "use default ciphers"
-test('TLS_AES_256_GCM_SHA384', '', 'TLS_AES_256_GCM_SHA384');
-test('', 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
-
-// Using null should be treated the same as undefined.
-test(null, 'AES256-SHA', 'AES256-SHA');
-test('AES256-SHA', null, 'AES256-SHA');

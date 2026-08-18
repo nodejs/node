@@ -62,16 +62,17 @@ FFI signatures use string type names.
 Supported type names:
 
 * `void`
+* `char`
 * `i8`, `int8`
-* `u8`, `uint8`, `bool`, `char`
+* `u8`, `uint8`, `bool`
 * `i16`, `int16`
 * `u16`, `uint16`
 * `i32`, `int32`
 * `u32`, `uint32`
 * `i64`, `int64`
 * `u64`, `uint64`
-* `f32`, `float`
-* `f64`, `double`
+* `f32`, `float`, `float32`
+* `f64`, `double`, `float64`
 * `pointer`, `ptr`
 * `string`, `str`
 * `buffer`
@@ -125,13 +126,26 @@ raw pointer `bigint` values. For pointer-like parameters, `null`, `undefined`,
 strings, `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are
 converted on the JavaScript side before calling the optimized native wrapper.
 
-Optimized Fast FFI calls support at most 8 function arguments, but the exact
-limit depends on the architecture and on the argument types, because each
-argument must fit in the registers used by the platform trampoline. Integer
-and pointer arguments are limited to 7 on AArch64 and to 6 on x86-64, while
-floating-point arguments can use up to 8 on both. Functions that exceed these
-limits, including any function with more than 8 arguments, use the generic FFI
-call path instead.
+Optimized Fast FFI calls fall back to the generic FFI call path when a
+function's arguments or return type do not fit the platform-specific fast
+trampoline. Fast FFI calls support at most 8 total arguments, and the
+register and argument limits differ per architecture:
+
+| Architecture               | Max integer/pointer args                  | Max floating-point args | Buffer-shaped args | Buffer-shaped + FP together | Narrow (8/16-bit) return |
+| -------------------------- | ----------------------------------------- | ----------------------- | ------------------ | --------------------------- | ------------------------ |
+| AArch64                    | 7 (6 when a buffer-shaped arg is present) | 8                       | Supported          | Not supported               | Supported                |
+| x86-64, Linux/macOS (SysV) | 6 (4 when a buffer-shaped arg is present) | 8                       | Supported          | Not supported               | Supported                |
+| x86-64, Windows (Win64)    | 3 (total arguments also capped at 3)      | 3                       | Not supported      | N/A                         | Supported                |
+| s390x                      | 4                                         | 4                       | Not supported      | N/A                         | Not supported            |
+| PPC64LE                    | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+| LoongArch64                | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+| RISC-V (64-bit)            | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+
+PPC64BE has no fast-call trampoline and always uses the generic call path.
+"Buffer-shaped args" means `Buffer`, typed array, `DataView`, or `ArrayBuffer`
+values passed as pointer-like arguments. Functions whose argument or return
+types exceed the limits for the current platform use the generic FFI call
+path instead.
 
 ## Signature objects
 
@@ -202,10 +216,10 @@ so it can be used with the [`using`][] declaration. Disposing the returned
 object closes the library handle.
 
 ```mjs
-import { dlopen } from 'node:ffi';
+import { dlopen, suffix } from 'node:ffi';
 
 {
-  using handle = dlopen('./mylib.so', {
+  using handle = dlopen(`./mylib.${suffix}`, {
     add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
   });
   console.log(handle.functions.add_i32(20, 22));
@@ -213,9 +227,9 @@ import { dlopen } from 'node:ffi';
 ```
 
 ```mjs
-import { dlopen } from 'node:ffi';
+import { dlopen, suffix } from 'node:ffi';
 
-const { lib, functions } = dlopen('./mylib.so', {
+const { lib, functions } = dlopen(`./mylib.${suffix}`, {
   add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
   string_length: { arguments: ['pointer'], return: 'u64' },
 });
@@ -224,9 +238,9 @@ console.log(functions.add_i32(20, 22));
 ```
 
 ```cjs
-const { dlopen } = require('node:ffi');
+const { dlopen, suffix } = require('node:ffi');
 
-const { lib, functions } = dlopen('./mylib.so', {
+const { lib, functions } = dlopen(`./mylib.${suffix}`, {
   add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
   string_length: { arguments: ['pointer'], return: 'u64' },
 });
@@ -278,9 +292,9 @@ Loads the dynamic library without resolving any functions eagerly.
 On Windows passing `null` is not supported.
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 ```
 
 ### `library.path`
@@ -310,10 +324,10 @@ library instance can be managed with the [`using`][] declaration. Leaving the
 enclosing scope invokes `library.close()` automatically.
 
 ```mjs
-import { DynamicLibrary } from 'node:ffi';
+import { DynamicLibrary, suffix } from 'node:ffi';
 
 {
-  using lib = new DynamicLibrary('./mylib.so');
+  using lib = new DynamicLibrary(`./mylib.${suffix}`);
   // Use `lib` here; `lib.close()` is called when the block exits.
 }
 ```
@@ -362,12 +376,13 @@ The returned function has a `.pointer` property containing the native function
 address as a `bigint`.
 
 If the same symbol has already been resolved, requesting it again with a
-different signature throws.
+different signature throws. Requesting it again with the same signature returns
+the same function, as does reading it from [`library.functions`][].
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 const add = lib.getFunction('add_i32', {
   arguments: ['i32', 'i32'],
   return: 'i32',
@@ -415,9 +430,9 @@ The return value is the callback pointer address as a `bigint`. It can be
 passed to native functions expecting a callback pointer.
 
 ```cjs
-const { DynamicLibrary } = require('node:ffi');
+const { DynamicLibrary, suffix } = require('node:ffi');
 
-const lib = new DynamicLibrary('./mylib.so');
+const lib = new DynamicLibrary(`./mylib.${suffix}`);
 
 const callback = lib.registerCallback(
   { arguments: ['i32'], return: 'i32' },
@@ -459,6 +474,10 @@ memory.
 
 Keeps the callback strongly referenced by JavaScript.
 
+Throws `ERR_INVALID_ARG_VALUE` if the callback function has already been
+garbage collected after a previous `library.unrefCallback(pointer)` call, since
+a collected function cannot be referenced again.
+
 ### `library.unrefCallback(pointer)`
 
 * `pointer` {bigint}
@@ -468,6 +487,9 @@ Allows the callback to become weakly referenced by JavaScript.
 If the callback function is later garbage collected, subsequent native
 invocations become a no-op. Non-void return values are zero-initialized before
 returning to native code.
+
+Throws `ERR_INVALID_ARG_VALUE` if the callback function has already been
+garbage collected.
 
 ## Calling native functions
 
@@ -706,7 +728,7 @@ available storage. This function does not allocate memory on its own.
 added: v26.1.0
 -->
 
-* `source` {Buffer|ArrayBuffer|ArrayBufferView}
+* `source` {Buffer|ArrayBuffer|SharedArrayBuffer|ArrayBufferView}
 * Returns: {bigint}
 
 Returns the raw memory address of JavaScript-managed byte storage.
@@ -718,7 +740,7 @@ Using stale pointers can cause memory corruption or process crashes.
 ## `ffi.getCurrentEventLoop()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.6.0
 -->
 
 * Returns: {bigint}
@@ -758,5 +780,6 @@ and keep callback and pointer lifetimes explicit on the native side.
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
+[`library.functions`]: #libraryfunctions
 [`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations
 [type names]: #type-names

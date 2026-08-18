@@ -1208,6 +1208,8 @@ In particular, the significant differences to `JSON` are:
   * {KeyObject}s,
   * {MessagePort}s,
   * {net.BlockList}s,
+  * {net.Server}s (TCP only, when listed in `transferList`),
+  * {net.Socket}s (TCP only, when listed in `transferList`),
   * {net.SocketAddress}es,
   * {X509Certificate}s.
 
@@ -1235,12 +1237,19 @@ circularData.foo = circularData;
 port2.postMessage(circularData);
 ```
 
-`transferList` may be a list of {ArrayBuffer}, [`MessagePort`][], and
-[`FileHandle`][] objects.
+`transferList` may be a list of {ArrayBuffer}, [`MessagePort`][],
+[`FileHandle`][], {net.Server}, and {net.Socket} objects.
 After transferring, they are not usable on the sending side of the channel
-anymore (even if they are not contained in `value`). Unlike with
-[child processes][], transferring handles such as network sockets is currently
-not supported.
+anymore (even if they are not contained in `value`).
+
+Transferring a {net.Server} moves its listening socket — together with any
+pending connections in the accept queue — to the receiving thread's event loop.
+Transferring a {net.Socket} moves a single connection; the socket must be a
+freshly accepted or created TCP connection that has not yet started reading and
+has no buffered data, otherwise `postMessage()` throws
+`ERR_WORKER_HANDLE_NOT_TRANSFERABLE`. This makes it possible to accept
+connections on one thread and distribute them across a pool of worker threads.
+Only TCP handles are supported.
 
 If `value` contains {SharedArrayBuffer} instances, those are accessible
 from either thread. They cannot be listed in `transferList`.
@@ -1827,8 +1836,8 @@ is done within the event loop. So the event loop utilization is
 immediately available once the worker's script begins execution.
 
 An `idle` time that does not increase does not indicate that the worker is
-stuck in bootstrap. The following examples shows how the worker's entire
-lifetime never accumulates any `idle` time, but is still be able to process
+stuck in bootstrap. The following example shows how the worker's entire
+lifetime never accumulates any `idle` time, but is still able to process
 messages.
 
 ```mjs
@@ -2225,7 +2234,7 @@ thread spawned will spawn another until the application crashes.
 [`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
 [`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`AsyncResource`]: async_hooks.md#class-asyncresource
-[`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
+[`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize-alignment
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#err_missing_message_port_in_transfer_list
 [`ERR_WORKER_MESSAGING_ERRORED`]: errors.md#err_worker_messaging_errored
 [`ERR_WORKER_MESSAGING_FAILED`]: errors.md#err_worker_messaging_failed
@@ -2276,7 +2285,6 @@ thread spawned will spawn another until the application crashes.
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
-[child processes]: child_process.md
 [contextified]: vm.md#what-does-it-mean-to-contextify-an-object
 [locks.request()]: #locksrequestname-options-callback
 [v8.serdes]: v8.md#serialization-api
