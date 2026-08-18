@@ -305,7 +305,11 @@ unidirectional (data flows in only one direction). The `quic` module provides
 separate APIs for creating each kind:
 [`session.createBidirectionalStream()`][] and
 [`session.createUnidirectionalStream()`][]. Streams initiated by a remote
-peer are delivered via the [`session.onstream`][] callback.
+peer are delivered via the [`session.onstream`][] callback. When the
+negotiated application protocol supports the stream-level callbacks (e.g.
+HTTP/3) and any of them are configured, incoming streams can instead be
+consumed entirely through those callbacks (such as `onheaders`) and
+registering `onstream` is optional.
 
 There are two ways to write data to a stream:
 
@@ -409,7 +413,9 @@ A typical client session progresses through these stages:
 
 On the server side, call [`quic.listen()`][] with a callback. The callback
 fires for each incoming session after the TLS handshake begins. Incoming
-streams arrive via the [`session.onstream`][] callback.
+streams arrive via the [`session.onstream`][] callback, or, for HTTP/3
+sessions with stream-level callbacks configured, directly through those
+callbacks (see the [minimal HTTP/3 server][] example).
 
 [`session.destroy()`][] is available for immediate teardown — all open streams
 are destroyed and the session is closed without waiting for them to finish.
@@ -1109,6 +1115,13 @@ added: v23.8.0
 * Type: {quic.OnStreamCallback}
 
 The callback to invoke when a new stream is initiated by a remote peer. Read/write.
+
+If no `onstream` callback is set and the stream has no other consumer, an
+incoming stream is destroyed on arrival and a warning is emitted. Stream-level
+callbacks (such as `onheaders`) count as a consumer when the negotiated
+application protocol supports them (e.g. HTTP/3), so an HTTP/3 server that
+handles requests entirely through those callbacks does not need to set
+`onstream`.
 
 ### `session.ondatagram`
 
@@ -4008,7 +4021,9 @@ import { listen } from 'node:quic';
 const encoder = new TextEncoder();
 
 const endpoint = await listen((session) => {
-  // The session.onstream callback fires for each new client-initiated stream.
+  // The session.onstream callback fires for each new client-initiated
+  // stream. It is optional here: with `onheaders` configured below,
+  // request streams are consumed through the stream-level callbacks.
 }, {
   sni: { '*': { keys: [defaultKey], certs: [defaultCert] } },
   // ALPN defaults to 'h3'.
@@ -4642,5 +4657,6 @@ throughput issues caused by flow control.
 [`stream.writer`]: #streamwriter
 [`writer.fail()`]: #streamwriter
 [`writer.fail(reason)`]: #streamwriter
+[minimal HTTP/3 server]: #minimal-http3-server
 [qlog]: https://datatracker.ietf.org/doc/draft-ietf-quic-qlog-main-schema/
 [qvis]: https://qvis.quictools.info/
