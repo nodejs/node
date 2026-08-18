@@ -73,7 +73,15 @@ async function collect(backend, throws) {
     },
   });
 
-  await handle.finished;
+  const watchdog = setTimeout(
+    common.mustNotCall(`The ${backend} WPT backend did not finish`),
+    common.platformTimeout(10_000),
+  );
+  try {
+    await handle.finished;
+  } finally {
+    clearTimeout(watchdog);
+  }
   return events;
 }
 
