@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const cp = require('child_process');
 const os = require('os');
 const path = require('path');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 
 
 if (process.argv[2] === 'child') {
@@ -22,9 +22,7 @@ if (process.argv[2] === 'child') {
   else
     delete process.env.HOME;
 
-  const child = cp.spawnSync(process.execPath, [__filename, 'child'], {
+  spawnSyncAndExitWithoutError(process.execPath, [__filename, 'child'], {
     env: process.env
   });
-
-  assert.strictEqual(child.status, 0);
 }
