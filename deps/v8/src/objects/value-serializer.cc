@@ -2301,13 +2301,6 @@ MaybeDirectHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     break;
       TYPED_ARRAYS_BASE(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-    case ArrayBufferViewTag::kFloat16Array: {
-      if (i::v8_flags.js_float16array) {
-        external_array_type = kExternalFloat16Array;
-        element_size = sizeof(uint16_t);
-      }
-      break;
-    }
   }
   if (element_size == 0 || byte_offset % element_size != 0 ||
       byte_length % element_size != 0) {

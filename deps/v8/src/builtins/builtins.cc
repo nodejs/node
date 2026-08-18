@@ -863,12 +863,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
           v8_flags.js_explicit_resource_management);
 
-    // --js-float16array
-    case Builtin::kMathF16round:
-    case Builtin::kDataViewPrototypeGetFloat16:
-    case Builtin::kDataViewPrototypeSetFloat16:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_float16array);
-
     // --js-base-64
     case Builtin::kUint8ArrayFromBase64:
     case Builtin::kUint8ArrayFromHex:
