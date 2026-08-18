@@ -322,20 +322,16 @@ size_t StringBytes::Write(Isolate* isolate,
         const char16_t* data =
             reinterpret_cast<const char16_t*>(input_view.data16());
         const size_t length = input_view.length();
-        MaybeStackBuffer<char16_t, 1024> well_formed;
-        if (!simdutf::validate_utf16(data, length)) {
-          // Unpaired surrogates: encode a copy in which each of them has been
-          // replaced with U+FFFD, which is what kReplaceInvalidUtf8 produces.
-          well_formed.AllocateSufficientStorage(length);
-          simdutf::to_well_formed_utf16(data, length, well_formed.out());
-          data = well_formed.out();
-        }
         // A UTF-16 code unit never expands to more than 3 UTF-8 bytes, so
         // 3 * length is what StorageSize() hands most callers; only compute
         // the exact length when the buffer is smaller than that.
         if (buflen >= 3 * length ||
-            buflen >= simdutf::utf8_length_from_utf16(data, length)) {
-          nbytes = simdutf::convert_utf16_to_utf8(data, length, buf);
+            buflen >=
+                simdutf::utf8_length_from_utf16_with_replacement(data, length)
+                    .count) {
+          // Unpaired surrogates become U+FFFD, matching kReplaceInvalidUtf8.
+          nbytes = simdutf::convert_utf16_to_utf8_with_replacement(
+              data, length, buf);
         } else {
           // Does not fit: let V8 truncate at a character boundary.
           nbytes = str->WriteUtf8V2(
