@@ -537,21 +537,36 @@ static bool WorkerConfiguredPermission(const EnvironmentOptions* w) {
   return false;
 }
 
+// True only for exact flag names or "flag=value". Does not match a longer
+// distinct option that merely shares a prefix (e.g. --allow-fs-read-extra).
+static bool IsExactPermissionFlag(const std::string& arg, const char* name) {
+  const size_t n = std::char_traits<char>::length(name);
+  if (arg.size() < n) {
+    return false;
+  }
+  if (arg.compare(0, n, name) != 0) {
+    return false;
+  }
+  return arg.size() == n || arg[n] == '=';
+}
+
 static bool IsPermissionArg(const std::string& arg) {
-  return arg == "--permission" || arg == "--permission-audit" ||
-         arg.rfind("--allow-fs-read", 0) == 0 ||
-         arg.rfind("--allow-fs-write", 0) == 0 ||
-         arg.rfind("--allow-addons", 0) == 0 ||
-         arg.rfind("--allow-inspector", 0) == 0 ||
-         arg.rfind("--allow-child-process", 0) == 0 ||
-         arg.rfind("--allow-net", 0) == 0 ||
-         arg.rfind("--allow-wasi", 0) == 0 ||
-         arg.rfind("--allow-ffi", 0) == 0 ||
-         arg.rfind("--allow-openssl-store", 0) == 0 ||
-         arg.rfind("--allow-worker", 0) == 0;
+  return IsExactPermissionFlag(arg, "--permission") ||
+         IsExactPermissionFlag(arg, "--permission-audit") ||
+         IsExactPermissionFlag(arg, "--allow-fs-read") ||
+         IsExactPermissionFlag(arg, "--allow-fs-write") ||
+         IsExactPermissionFlag(arg, "--allow-addons") ||
+         IsExactPermissionFlag(arg, "--allow-inspector") ||
+         IsExactPermissionFlag(arg, "--allow-child-process") ||
+         IsExactPermissionFlag(arg, "--allow-net") ||
+         IsExactPermissionFlag(arg, "--allow-wasi") ||
+         IsExactPermissionFlag(arg, "--allow-ffi") ||
+         IsExactPermissionFlag(arg, "--allow-openssl-store") ||
+         IsExactPermissionFlag(arg, "--allow-worker");
 }
 
 // Flags that may take a separate following argv token (space form).
+// Only the bare form (no =value) may be followed by a separate path token.
 static bool PermissionArgTakesNext(const std::string& arg) {
   return arg == "--allow-fs-read" || arg == "--allow-fs-write";
 }
@@ -567,7 +582,8 @@ static void StripPermissionArgs(std::vector<std::string>* argv) {
     if (IsPermissionArg(a)) {
       if (PermissionArgTakesNext(a) && i + 1 < argv->size()) {
         const std::string& next = (*argv)[i + 1];
-        // Skip path token if it is not another flag.
+        // Bare --allow-fs-read/--allow-fs-write may be followed by a path
+        // token (space-separated CLI form). Only skip one non-flag token.
         if (!next.empty() && next[0] != '-') {
           i++;
         }
