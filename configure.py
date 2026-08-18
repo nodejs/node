@@ -884,13 +884,13 @@ parser.add_argument('--use-largepages',
     action='store_true',
     dest='node_use_large_pages',
     default=None,
-    help='This option has no effect. --use-largepages is now a runtime option.')
+    help='This option is no longer supported and a no-op.')
 
 parser.add_argument('--use-largepages-script-lld',
     action='store_true',
     dest='node_use_large_pages_script_lld',
     default=None,
-    help='This option has no effect. --use-largepages is now a runtime option.')
+    help='This option is no longer supported and a no-op.')
 
 parser.add_argument('--use-section-ordering-file',
     action='store',
@@ -2047,10 +2047,8 @@ def configure_node(o):
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
-         have no effect during build time. Support for mapping to large pages is
-         now a runtime option of Node.js. Run `node --use-largepages` or add
-         `--use-largepages` to the `NODE_OPTIONS` environment variable once
-         Node.js is built to enable mapping to large pages.''')
+         have no effect. Mapping the Node.js static code to large pages is
+         no longer supported.''')
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']

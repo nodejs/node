@@ -223,7 +223,8 @@ enum Flags : uint32_t {
   kNoParseGlobalDebugVariables = 1 << 9,
   // Do not adjust OS resource limits for this process.
   kNoAdjustResourceLimits = 1 << 10,
-  // Do not map code segments into large pages for this process.
+  // Legacy flag for not mapping code segments into large pages for this
+  // process. The feature is no longer supported so this is just a no-op.
   kNoUseLargePages = 1 << 11,
   // Skip printing output for --help, --version, --v8-options.
   kNoPrintHelpOrVersionOutput = 1 << 12,
