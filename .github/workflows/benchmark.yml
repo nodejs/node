@@ -220,7 +220,7 @@ jobs:
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
             --pure \
-            -E '(import <nixpkgs> {}).mkShell { buildInputs = import ./tools/nix/benchmarkTools.nix { withHttpBenchmarkDeps = false; }; }' \
+            -E '(import <nixpkgs> {}).mkShellNoCC { buildInputs = import ./tools/nix/benchmarkTools.nix { withHttpBenchmarkDeps = false; }; }' \
             --run '
                 export LC_ALL=C.UTF-8
                 echo "> [!WARNING] "
