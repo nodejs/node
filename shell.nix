@@ -29,6 +29,7 @@
         withSQLite
         withFFI
         withSSL
+        withPerfetto
         withTemporal
         ;
     }
@@ -52,6 +53,7 @@ let
   useSharedAda = builtins.hasAttr "ada" sharedLibDeps;
   useSharedOpenSSL = builtins.hasAttr "openssl" sharedLibDeps;
 
+  useSharedPerfetto = builtins.hasAttr "perfetto" sharedLibDeps;
   useSharedTemporal = builtins.hasAttr "temporal_capi" sharedLibDeps;
   needsRustCompiler = withTemporal && !useSharedTemporal;
 
@@ -65,6 +67,7 @@ let
     pkgs.lib.optional useSharedICU icu
     ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) sharedLibDeps.abseil
     ++ pkgs.lib.optional (builtins.hasAttr "highway" sharedLibDeps) sharedLibDeps.highway
+    ++ pkgs.lib.optional (withPerfetto && useSharedPerfetto) sharedLibDeps.perfetto
     ++ pkgs.lib.optional (withTemporal && useSharedTemporal) sharedLibDeps.temporal_capi;
 
   # Put here only the configure flags that affect the V8 build
@@ -79,6 +82,7 @@ let
   ]
   ++ pkgs.lib.optional (builtins.hasAttr "abseil" sharedLibDeps) "--shared-abseil"
   ++ pkgs.lib.optional (builtins.hasAttr "highway" sharedLibDeps) "--shared-highway"
+  ++ pkgs.lib.optional (withPerfetto && useSharedPerfetto) "--shared-perfetto"
   ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
   ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in

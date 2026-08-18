@@ -5,6 +5,7 @@
   withSQLite ? true,
   withSSL ? true,
   withFFI ? true,
+  withPerfetto ? false,
   withTemporal ? false,
 }:
 {
@@ -52,6 +53,13 @@
 // (pkgs.lib.optionalAttrs withSSL ({
   inherit (import ./openssl-matrix.nix { inherit pkgs; }) openssl;
 }))
+// (pkgs.lib.optionalAttrs withPerfetto {
+  perfetto =
+    (pkgs.callPackage (builtins.fetchurl {
+      url = "https://github.com/NixOS/nixpkgs/raw/c19db427a1fdfc7591c0b0baeb4665dcef2c61da/pkgs/by-name/pe/perfetto/package.nix";
+      sha256 = "0wc4p96kwxpqr8g2a6lmlfjsffrm3dc824m7hiy0q21r2papc0ik";
+    }) { }).sdk;
+})
 // (pkgs.lib.optionalAttrs withTemporal {
   inherit (pkgs) temporal_capi;
 })
