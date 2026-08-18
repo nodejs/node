@@ -7,13 +7,15 @@ const {
   ReadableStream,
   WritableStream,
 } = require('node:stream/web');
-const { internalBinding } = require('internal/test/binding');
 const {
-  isNonThenable,
   cloneAsUint8Array,
-} = internalBinding('webstreams');
+  isNonThenable,
+  kState,
+} = require('internal/webstreams/util');
+const {
+  kControllerErrorFunction,
+} = require('internal/streams/utils');
 
-// The native helpers must be the ones the JS implementation actually calls.
 assert.strictEqual(typeof isNonThenable, 'function');
 assert.strictEqual(typeof cloneAsUint8Array, 'function');
 
@@ -39,8 +41,35 @@ assert.strictEqual(isNonThenable(new Proxy(() => {}, {})), false);
 }
 
 {
-  assert.throws(() => cloneAsUint8Array(1), {
-    code: 'ERR_INVALID_ARG_TYPE',
+  const view = new DataView(new ArrayBuffer(4));
+  new Uint8Array(view.buffer).set([9, 8, 7, 6]);
+  const cloned = cloneAsUint8Array(view);
+  assert.ok(cloned instanceof Uint8Array);
+  assert.deepStrictEqual([...cloned], [9, 8, 7, 6]);
+}
+
+{
+  const cloned = cloneAsUint8Array(new Uint8Array());
+  assert.ok(cloned instanceof Uint8Array);
+  assert.strictEqual(cloned.byteLength, 0);
+}
+
+{
+  const buf = Buffer.alloc(16);
+  buf[4] = 7;
+  buf[5] = 8;
+  const sliced = buf.subarray(4, 8);
+  const cloned = cloneAsUint8Array(sliced);
+  assert.deepStrictEqual([...cloned], [7, 8, 0, 0]);
+  assert.strictEqual(cloned.buffer.byteLength, 4);
+}
+
+{
+  const ab = new ArrayBuffer(8);
+  const view = new Uint8Array(ab);
+  ab.transfer();
+  assert.throws(() => cloneAsUint8Array(view), {
+    name: 'TypeError',
   });
 }
 
@@ -71,7 +100,7 @@ assert.strictEqual(isNonThenable(new Proxy(() => {}, {})), false);
   }
 })().then(common.mustCall());
 
-// Public API: pipeTo with a sync sink — the optimized write drain path.
+// Public API: pipeTo with a sync sink.
 (async () => {
   const expected = [];
   const received = [];
@@ -94,7 +123,8 @@ assert.strictEqual(isNonThenable(new Proxy(() => {}, {})), false);
 
 // Spec path: each pull is separated by a microtask. Start schedules one
 // pull; further pulls wait for that fulfillment and do not run in the
-// same turn.
+// same turn. Nested queueMicrotask checks encode that exact schedule
+// and will fail if an unrelated change shifts pull timing.
 {
   let calls = 0;
   new ReadableStream({
@@ -234,4 +264,44 @@ assert.strictEqual(isNonThenable(new Proxy(() => {}, {})), false);
   ws.abort(err);
   assert.strictEqual(ctrl.signal.aborted, true);
   assert.strictEqual(ctrl.signal.reason, err);
+}
+
+{
+  // writer.ready and writer.closed are distinct spec slots, and two
+  // writers must not share a process-wide resolved promise.
+  const a = new WritableStream().getWriter();
+  const b = new WritableStream().getWriter();
+  assert.notStrictEqual(a.ready, b.ready);
+  assert.notStrictEqual(a.closed, b.closed);
+  assert.notStrictEqual(a.ready, a.closed);
+}
+
+(async () => {
+  const ws = new WritableStream();
+  await ws.close();
+  const writer = ws.getWriter();
+  assert.notStrictEqual(writer.ready, writer.closed);
+  await Promise.all([writer.ready, writer.closed]);
+})().then(common.mustCall());
+
+{
+  // stream.cancel() must not return a process-shared resolved promise.
+  const a = new ReadableStream();
+  const b = new ReadableStream();
+  const pa = a.cancel();
+  const pb = b.cancel();
+  assert.notStrictEqual(pa, pb);
+  pa.then(common.mustCall());
+  pb.then(common.mustCall());
+}
+
+{
+  // Erroring an empty stream via interop must not allocate a controller,
+  // and a later cancel() must not allocate one either.
+  const rs = new ReadableStream();
+  const err = new Error('empty-error');
+  rs[kControllerErrorFunction](err);
+  assert.strictEqual(rs[kState].controller, undefined);
+  assert.rejects(rs.cancel(), err).then(common.mustCall());
+  assert.strictEqual(rs[kState].controller, undefined);
 }
