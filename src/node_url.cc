@@ -688,7 +688,7 @@ std::optional<std::string> FileURLToPath(Environment* env,
   if (hostname.size() > 0) {
     THROW_ERR_INVALID_FILE_URL_HOST(
         env->isolate(),
-        "File URL host must be \"localhost\" or empty on ",
+        "File URL host must be \"localhost\" or empty on %s",
         std::string(per_process::metadata.platform));
     return std::nullopt;
   }

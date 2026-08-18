@@ -10,6 +10,7 @@ const {
   UV_ENOENT,
   UV_EEXIST
 } = internalBinding('uv');
+const { pathToFileURL } = require('url');
 const src = fixtures.path('a.js');
 const dest = tmpdir.resolve('copyfile.out');
 const {
@@ -54,6 +55,22 @@ verify(src, dest);
 // Verify that files are overwritten with default flags.
 fs.copyFileSync(src, dest, 0);
 verify(src, dest);
+
+// Verify Buffer and file: URL paths.
+{
+  const destBuf = tmpdir.resolve('copyfile.buffer');
+  fs.copyFileSync(Buffer.from(src), Buffer.from(destBuf));
+  verify(src, destBuf);
+
+  const destUrl = tmpdir.resolve('copyfile.url');
+  fs.copyFileSync(pathToFileURL(src), pathToFileURL(destUrl));
+  verify(src, destUrl);
+
+  const destU8 = tmpdir.resolve('copyfile.uint8');
+  fs.copyFileSync(new Uint8Array(Buffer.from(src)),
+                  new Uint8Array(Buffer.from(destU8)));
+  verify(src, destU8);
+}
 
 // Verify that UV_FS_COPYFILE_FICLONE can be used.
 fs.unlinkSync(dest);
@@ -141,6 +158,43 @@ assert.throws(() => {
     }
   );
 });
+
+assert.throws(() => {
+  fs.copyFileSync(new URL('http://example.com/a'), dest);
+}, {
+  code: 'ERR_INVALID_URL_SCHEME',
+  name: 'TypeError',
+  message: 'The URL must be of scheme file',
+});
+
+if (common.isWindows) {
+  ['%2f', '%2F', '%5c', '%5C'].forEach((i) => {
+    assert.throws(
+      () => fs.copyFileSync(new URL(`file:///c:/tmp/${i}`), dest),
+      {
+        code: 'ERR_INVALID_FILE_URL_PATH',
+        name: 'TypeError',
+      }
+    );
+  });
+} else {
+  ['%2f', '%2F'].forEach((i) => {
+    assert.throws(
+      () => fs.copyFileSync(new URL(`file:///c:/tmp/${i}`), dest),
+      {
+        code: 'ERR_INVALID_FILE_URL_PATH',
+        name: 'TypeError',
+      }
+    );
+  });
+  assert.throws(
+    () => fs.copyFileSync(new URL('file://hostname/a/b/c'), dest),
+    {
+      code: 'ERR_INVALID_FILE_URL_HOST',
+      name: 'TypeError',
+    }
+  );
+}
 
 assert.throws(() => {
   fs.copyFileSync(src, dest, 'r');
