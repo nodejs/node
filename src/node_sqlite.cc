@@ -3182,10 +3182,11 @@ Maybe<void> ExtractRowValues(Environment* env,
 }
 
 MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
-                                                DatabaseSync* db,
-                                                sqlite3_stmt* stmt,
-                                                bool return_arrays,
-                                                bool use_big_ints) {
+                                                StatementSync* statement) {
+  DatabaseSync* db = statement->db_.get();
+  sqlite3_stmt* stmt = statement->statement_.get();
+  const bool return_arrays = statement->return_arrays_;
+  const bool use_big_ints = statement->use_big_ints_;
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   int r;
@@ -3211,13 +3212,10 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
       rows.emplace_back(row_array);
     } else {
       if (row_keys.size() == 0) {
-        row_keys.reserve(num_cols);
-        for (int i = 0; i < num_cols; ++i) {
-          Local<Name> key;
-          if (!ColumnNameToName(env, stmt, i).ToLocal(&key)) {
-            return MaybeLocal<Value>();
-          }
-          row_keys.emplace_back(key);
+        // Reuses the statement's internalized column names instead of
+        // re-interning them on every call.
+        if (!statement->GetCachedColumnNames(&row_keys)) {
+          return MaybeLocal<Value>();
         }
       }
       DCHECK_EQ(row_keys.size(), row_values.size());
@@ -3232,9 +3230,10 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
 }
 
 MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
-                                                 DatabaseSync* db,
-                                                 sqlite3_stmt* stmt,
-                                                 bool use_big_ints) {
+                                                 StatementSync* statement) {
+  DatabaseSync* db = statement->db_.get();
+  sqlite3_stmt* stmt = statement->statement_.get();
+  const bool use_big_ints = statement->use_big_ints_;
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   // Declared before the reset below so that it outlives it: sqlite3_reset()
@@ -3319,10 +3318,11 @@ BaseObjectPtr<StatementSyncIterator> StatementExecutionHelper::Iterate(
 }
 
 MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
-                                                DatabaseSync* db,
-                                                sqlite3_stmt* stmt,
-                                                bool return_arrays,
-                                                bool use_big_ints) {
+                                                StatementSync* statement) {
+  DatabaseSync* db = statement->db_.get();
+  sqlite3_stmt* stmt = statement->statement_.get();
+  const bool return_arrays = statement->return_arrays_;
+  const bool use_big_ints = statement->use_big_ints_;
   Isolate* isolate = env->isolate();
   EscapableHandleScope scope(isolate);
   // Declared before the reset below so that it outlives it: sqlite3_reset()
@@ -3360,13 +3360,10 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
     result = Array::New(isolate, row_values.data(), row_values.size());
   } else {
     LocalVector<Name> keys(isolate);
-    keys.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Name> key;
-      if (!ColumnNameToName(env, stmt, i).ToLocal(&key)) {
-        return MaybeLocal<Value>();
-      }
-      keys.emplace_back(key);
+    // Reuses the statement's internalized column names instead of
+    // re-interning them on every call.
+    if (!statement->GetCachedColumnNames(&keys)) {
+      return MaybeLocal<Value>();
     }
 
     DCHECK_EQ(keys.size(), row_values.size());
@@ -3399,12 +3396,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     if (needs_reset) sqlite3_reset(stmt->statement_.get());
   });
   Local<Value> result;
-  if (StatementExecutionHelper::All(env,
-                                    stmt->db_.get(),
-                                    stmt->statement_.get(),
-                                    stmt->return_arrays_,
-                                    stmt->use_big_ints_)
-          .ToLocal(&result)) {
+  if (StatementExecutionHelper::All(env, stmt).ToLocal(&result)) {
     RESET_AND_CHECK(
         isolate, stmt->db_.get(), stmt->statement_.get(), needs_reset, void());
     args.GetReturnValue().Set(result);
@@ -3452,12 +3444,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
-  if (StatementExecutionHelper::Get(env,
-                                    stmt->db_.get(),
-                                    stmt->statement_.get(),
-                                    stmt->return_arrays_,
-                                    stmt->use_big_ints_)
-          .ToLocal(&result)) {
+  if (StatementExecutionHelper::Get(env, stmt).ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
 }
@@ -3478,9 +3465,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> result;
-  if (StatementExecutionHelper::Run(
-          env, stmt->db_.get(), stmt->statement_.get(), stmt->use_big_ints_)
-          .ToLocal(&result)) {
+  if (StatementExecutionHelper::Run(env, stmt).ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
 }
@@ -3821,9 +3806,7 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> result;
-  if (StatementExecutionHelper::Run(
-          env, stmt->db_.get(), stmt->statement_.get(), stmt->use_big_ints_)
-          .ToLocal(&result)) {
+  if (StatementExecutionHelper::Run(env, stmt.get()).ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
 }
@@ -3881,12 +3864,7 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
-  if (StatementExecutionHelper::Get(env,
-                                    stmt->db_.get(),
-                                    stmt->statement_.get(),
-                                    stmt->return_arrays_,
-                                    stmt->use_big_ints_)
-          .ToLocal(&result)) {
+  if (StatementExecutionHelper::Get(env, stmt.get()).ToLocal(&result)) {
     args.GetReturnValue().Set(result);
   }
 }
@@ -3918,12 +3896,7 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     if (needs_reset) sqlite3_reset(stmt->statement_.get());
   });
   Local<Value> result;
-  if (StatementExecutionHelper::All(env,
-                                    stmt->db_.get(),
-                                    stmt->statement_.get(),
-                                    stmt->return_arrays_,
-                                    stmt->use_big_ints_)
-          .ToLocal(&result)) {
+  if (StatementExecutionHelper::All(env, stmt.get()).ToLocal(&result)) {
     RESET_AND_CHECK(
         isolate, stmt->db_.get(), stmt->statement_.get(), needs_reset, void());
     args.GetReturnValue().Set(result);
