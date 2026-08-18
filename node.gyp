@@ -28,6 +28,7 @@
     'node_shared_nbytes%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_shared_openssl%': 'false',
+    'node_shared_perfetto%': 'false',
     'node_shared_sqlite%': 'false',
     'node_shared_ffi%': 'false',
     'node_shared_temporal_capi%': 'false',
@@ -942,8 +943,12 @@
           'sources': [
             '<@(node_tracing_perfetto_sources)',
           ],
-          'dependencies': [
-            'deps/perfetto/perfetto.gyp:perfetto_sdk',
+          'conditions': [
+            ['node_shared_perfetto=="false"', {
+              'dependencies': [
+                'deps/perfetto/perfetto.gyp:perfetto_sdk',
+              ],
+            }],
           ],
         }, {
           'sources': [
@@ -1401,7 +1406,7 @@
         }, {
           'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
-        [ 'v8_use_perfetto==1', {
+        [ 'v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],
@@ -1731,7 +1736,7 @@
             'NODE_USE_NODE_CODE_CACHE=1',
           ],
         }],
-        [ 'v8_use_perfetto==1', {
+        [ 'v8_use_perfetto==1 and node_shared_perfetto=="false"', {
           'dependencies': [
             'deps/perfetto/perfetto.gyp:perfetto_sdk',
           ],

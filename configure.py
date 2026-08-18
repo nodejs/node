@@ -546,6 +546,29 @@ shared_optgroup.add_argument('--shared-openssl-libpath',
     dest='shared_openssl_libpath',
     help='a directory to search for the shared OpenSSL DLLs')
 
+shared_optgroup.add_argument('--shared-perfetto',
+    action='store_true',
+    dest='shared_perfetto',
+    default=None,
+    help='link to a shared perfetto SDK instead of the one in deps/perfetto '
+         '(requires --with-perfetto)')
+
+shared_optgroup.add_argument('--shared-perfetto-includes',
+    action='store',
+    dest='shared_perfetto_includes',
+    help='directory containing perfetto header files')
+
+shared_optgroup.add_argument('--shared-perfetto-libname',
+    action='store',
+    dest='shared_perfetto_libname',
+    default='perfetto',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-perfetto-libpath',
+    action='store',
+    dest='shared_perfetto_libpath',
+    help='a directory to search for the shared perfetto DLL')
+
 shared_optgroup.add_argument('--shared-uvwasi',
     action='store_true',
     dest='shared_uvwasi',
@@ -2362,6 +2385,15 @@ def configure_lief(o):
 
   configure_library('lief', o, pkgname='LIEF')
 
+def configure_perfetto(o):
+  if not options.with_perfetto:
+    if options.shared_perfetto:
+      error('--shared-perfetto requires --with-perfetto')
+    o['variables']['node_shared_perfetto'] = b(False)
+    return
+
+  configure_library('perfetto', o)
+
 def configure_sqlite(o):
   o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
   if options.without_sqlite:
@@ -2937,6 +2969,7 @@ configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_lief(output);
+configure_perfetto(output);
 configure_sqlite(output);
 configure_ffi(output);
 configure_library('temporal_capi', output)
