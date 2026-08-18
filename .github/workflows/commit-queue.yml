@@ -97,6 +97,11 @@ jobs:
           curl -fsSLo "$readme" "https://github.com/${GITHUB_REPOSITORY}/raw/${GITHUB_SHA}/README.md"
 
           numbers=
+          needs_policy=
+          has_multiple_commits_without_policy() {
+            gh pr view "$1" --json commits,labels --jq \
+              '((.commits | length) > 1) and (([.labels[].name] | index("commit-queue-squash")) == null) and (([.labels[].name] | index("commit-queue-rebase")) == null)'
+          }
           # shellcheck disable=SC2086
           for pr in $CANDIDATES; do
             metadata="${RUNNER_TEMP}/metadata-${pr}.json"
@@ -137,6 +142,11 @@ jobs:
             }
 
             if [ "$metadata_status" -eq 0 ]; then
+              if [ "$(has_multiple_commits_without_policy "$pr")" = "true" ]; then
+                echo "pr ${pr} skipped, multiple commits require commit-queue-squash or commit-queue-rebase"
+                needs_policy="$needs_policy $pr"
+                continue
+              fi
               echo "pr ${pr} is ready for the commit queue"
               numbers="$numbers $pr"
               continue
@@ -154,10 +164,30 @@ jobs:
           done
 
           numbers=$(echo "$numbers" | xargs)
+          needs_policy=$(echo "$needs_policy" | xargs)
           echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
+          echo "needs_policy=$needs_policy" >> "$GITHUB_OUTPUT"
         env:
           CANDIDATES: ${{ needs.get_candidate_prs.outputs.candidates }}
           GH_TOKEN: ${{ github.token }}
+
+      - name: Request multiple-commit policy labels
+        if: steps.get_mergeable_prs.outputs.needs_policy != ''
+        run: |
+          comment='Commit Queue skipped this pull request because it has more than one commit. Add the `commit-queue-squash` label to land it as one commit, or `commit-queue-rebase` to land the commits separately. The `commit-queue` label was left in place.'
+          # shellcheck disable=SC2086
+          for pr in $NEEDS_POLICY; do
+            comments=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${pr}/comments" \
+              --jq '.[] | select(.user.login=="nodejs-github-bot") | .body')
+            if printf '%s\n' "$comments" | grep -q 'commit-queue-squash' &&
+               printf '%s\n' "$comments" | grep -q 'commit-queue-rebase'; then
+              continue
+            fi
+            gh pr comment "$pr" --body "$comment"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          NEEDS_POLICY: ${{ steps.get_mergeable_prs.outputs.needs_policy }}
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         if: steps.get_mergeable_prs.outputs.numbers != ''

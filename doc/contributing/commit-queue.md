@@ -7,9 +7,10 @@ Commit Queue is a feature for the project which simplifies the
 landing process by automating it via GitHub Actions. With it, collaborators can
 queue pull requests for landing by adding the `commit-queue` label to a PR. The
 selector checks readiness with `@node-core/utils`. If the pull request is only
-blocked on a deferrable condition, currently wait time, the queue leaves the
-label in place and retries later. Other failures continue to the existing
-landing and failure-reporting path.
+blocked on a deferrable condition, currently wait time or a missing
+multiple-commit policy label, the queue leaves the label in place and retries
+later. Other failures continue to the existing landing and failure-reporting
+path.
 
 This document gives an overview of how the Commit Queue works, as well as
 implementation details, reasoning for design choices, and current limitations.
@@ -35,14 +36,18 @@ From a high-level, the Commit Queue works as follows:
    2. If the metadata check exits with a deferrable readiness code, meaning
       the PR is only blocked on wait time, keep the `commit-queue` label and
       skip this PR until a later queue run
-   3. Run `git node land` for ready PRs and PRs with hard or mixed readiness
+   3. If a ready PR has more than one commit and neither `commit-queue-squash`
+      nor `commit-queue-rebase` is set, keep the `commit-queue` label, leave a
+      comment asking for one of those labels, and skip this PR until a later
+      queue run
+   4. Run `git node land` for ready PRs and PRs with hard or mixed readiness
       failures, keeping the `commit-queue` label in place during the attempt
-   4. If it fails:
+   5. If it fails:
       1. Replace the `commit-queue` label with the `commit-queue-failed` label
       2. Leave a comment on the PR with the output from `git node land`
       3. Abort the `git node land` session. If the abort succeeds, continue to
          the next PR; otherwise, stop the queue in an unknown state
-   5. If it succeeds:
+   6. If it succeeds:
       1. Push or merge the changes into nodejs/node
       2. Leave a comment on the PR with `Landed in ...`
       3. Close the PR
@@ -54,6 +59,9 @@ first one, add the `commit-queue-squash` label.
 To make the Commit Queue land a pull request containing several commits, add the
 `commit-queue-rebase` label. When using this option, make sure
 that all commits are self-contained, meaning every commit should pass all tests.
+A pull request with more than one commit must have one of those labels. Without
+it, the queue keeps the `commit-queue` label and comments once instead of
+marking the pull request as `commit-queue-failed`.
 
 ## Current limitations
 
@@ -111,8 +119,10 @@ the workflow commit's README without checking out the repository and runs
 fetch, or merge the PR. The filter consumes the structured metadata result
 and its exit code instead of matching human-readable output:
 
-* exit code `0`: the PR is ready and is passed to
-  [`commit-queue.sh`](../../tools/actions/commit-queue.sh)
+* exit code `0`: the PR is ready. If it has more than one commit and neither
+  `commit-queue-squash` nor `commit-queue-rebase` is set, the filter keeps the
+  `commit-queue` label, comments once, and retries later. Otherwise it is
+  passed to [`commit-queue.sh`](../../tools/actions/commit-queue.sh)
 * exit codes `20`-`29`: the PR is not ready for a deferrable metadata reason,
   currently wait time, so it keeps the `commit-queue` label and is retried
   later
@@ -143,19 +153,24 @@ failure path.
    a pull request with commit-queue set.
 
 The script iterates over the pull requests. For each PR, it uses GitHub CLI to
-fetch the labels and select the multiple-commit policy, then runs
-`git node land`, forwarding stdout and stderr to a file. It does not perform a
-separate CI preflight; `git node land` performs the current readiness and CI
-validation.
+fetch the labels and commit count and select the multiple-commit policy. If the
+PR has more than one commit and neither `commit-queue-squash` nor
+`commit-queue-rebase` is set, the script keeps the `commit-queue` label,
+comments once asking for one of those labels, and continues to the next PR.
+Otherwise it runs `git node land`, forwarding stdout and stderr to a file. It
+does not perform a separate CI preflight; `git node land` performs the current
+readiness and CI validation.
 
 The script keeps the `commit-queue` label in place while `git node land` is
-running. PRs that are only blocked on wait time should have already been
-filtered by the metadata check. A hard or mixed readiness failure is passed
-through so `git node land` can produce the failure output. If the landing
-attempt fails for that or any other reason, the job replaces the
-`commit-queue` label with `commit-queue-failed`, leaves a comment with the
-output, and then aborts the landing session. If the abort fails, the queue
-stops instead of continuing in an unknown state.
+running. PRs that are only blocked on wait time or a missing multiple-commit
+policy label should have already been filtered. A hard or mixed readiness
+failure is passed through so `git node land` can produce the failure output.
+If `git node land` still refuses to finish because a multiple-commit policy
+label is missing, the script keeps the `commit-queue` label instead of marking
+the PR as failed. If the landing attempt fails for any other reason, the job
+replaces the `commit-queue` label with `commit-queue-failed`, leaves a comment
+with the output, and then aborts the landing session. If the abort fails, the
+queue stops instead of continuing in an unknown state.
 
 Fast-tracked PRs use the metadata check before checkout and the landing script.
 If the fast-track request has not yet received enough collaborator thumbs-up,

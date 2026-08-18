@@ -27,6 +27,27 @@ commit_queue_failed() {
   rm output
 }
 
+MULTIPLE_COMMIT_POLICY_COMMENT="Commit Queue skipped this pull request because it has more than one commit. Add the \`commit-queue-squash\` label to land it as one commit, or \`commit-queue-rebase\` to land the commits separately. The \`commit-queue\` label was left in place."
+
+already_requested_multiple_commit_policy() {
+  pr=$1
+  comments=$(gh api --paginate "repos/${OWNER}/${REPOSITORY}/issues/${pr}/comments" \
+    --jq '.[] | select(.user.login=="nodejs-github-bot") | .body')
+
+  printf '%s\n' "$comments" | grep -q 'commit-queue-squash' &&
+    printf '%s\n' "$comments" | grep -q 'commit-queue-rebase'
+}
+
+request_multiple_commit_policy() {
+  pr=$1
+
+  echo "pr ${pr} skipped, multiple commits require commit-queue-squash or commit-queue-rebase"
+  if already_requested_multiple_commit_policy "$pr"; then
+    return
+  fi
+  gh pr comment "$pr" --body "${MULTIPLE_COMMIT_POLICY_COMMENT}"
+}
+
 # TODO(mmarchini): should this be set with whoever added the label for each PR?
 git config --local user.email "github-bot@iojs.org"
 git config --local user.name "Node.js GitHub Bot"
@@ -34,14 +55,20 @@ git config --local user.name "Node.js GitHub Bot"
 SHOULD_ABORT=
 
 for pr in "$@"; do
-  gh pr view "$pr" --json labels --jq ".labels" > labels.json
-  
-  if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
+  gh pr view "$pr" --json labels,commits > pr.json
+
+  if jq -e '.labels | map(.name) | index("commit-queue-squash")' < pr.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
-  elif jq -e 'map(.name) | index("commit-queue-rebase")' < labels.json; then
+  elif jq -e '.labels | map(.name) | index("commit-queue-rebase")' < pr.json; then
     MULTIPLE_COMMIT_POLICY=""
   else
     MULTIPLE_COMMIT_POLICY="--oneCommitMax"
+  fi
+
+  if [ "$MULTIPLE_COMMIT_POLICY" = "--oneCommitMax" ] &&
+     [ "$(jq '.commits | length' < pr.json)" -gt 1 ]; then
+    request_multiple_commit_policy "$pr"
+    continue
   fi
 
   if [ -n "$SHOULD_ABORT" ]; then
@@ -59,6 +86,13 @@ for pr in "$@"; do
   # TODO(mmarchini): workaround for ncu not returning the expected status code,
   # if the "Landed in..." message was not on the output we assume land failed
   if ! grep -q '. Post "Landed in .*/pull/'"${pr}" output; then
+    # git node land --oneCommitMax refuses to finish after a successful
+    # autorebase when the PR has multiple commits and no squash/rebase label.
+    if grep -q 'commit-queue-squash' output && grep -q 'commit-queue-rebase' output; then
+      request_multiple_commit_policy "$pr"
+      SHOULD_ABORT=1
+      continue
+    fi
     commit_queue_failed "$pr"
     # Using a variable as there's no point in aborting if there are no PRs left in the queue.
     SHOULD_ABORT=1
@@ -105,4 +139,4 @@ for pr in "$@"; do
   gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL" || true
 done
 
-rm -f labels.json
+rm -f pr.json
