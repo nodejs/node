@@ -126,13 +126,26 @@ raw pointer `bigint` values. For pointer-like parameters, `null`, `undefined`,
 strings, `Buffer`, typed array, `DataView`, and `ArrayBuffer` values are
 converted on the JavaScript side before calling the optimized native wrapper.
 
-Optimized Fast FFI calls support at most 8 function arguments, but the exact
-limit depends on the architecture and on the argument types, because each
-argument must fit in the registers used by the platform trampoline. Integer
-and pointer arguments are limited to 7 on AArch64 and to 6 on x86-64, while
-floating-point arguments can use up to 8 on both. Functions that exceed these
-limits, including any function with more than 8 arguments, use the generic FFI
-call path instead.
+Optimized Fast FFI calls fall back to the generic FFI call path when a
+function's arguments or return type do not fit the platform-specific fast
+trampoline. Fast FFI calls support at most 8 total arguments, and the
+register and argument limits differ per architecture:
+
+| Architecture               | Max integer/pointer args                  | Max floating-point args | Buffer-shaped args | Buffer-shaped + FP together | Narrow (8/16-bit) return |
+| -------------------------- | ----------------------------------------- | ----------------------- | ------------------ | --------------------------- | ------------------------ |
+| AArch64                    | 7 (6 when a buffer-shaped arg is present) | 8                       | Supported          | Not supported               | Supported                |
+| x86-64, Linux/macOS (SysV) | 6 (4 when a buffer-shaped arg is present) | 8                       | Supported          | Not supported               | Supported                |
+| x86-64, Windows (Win64)    | 3 (total arguments also capped at 3)      | 3                       | Not supported      | N/A                         | Supported                |
+| s390x                      | 4                                         | 4                       | Not supported      | N/A                         | Not supported            |
+| PPC64LE                    | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+| LoongArch64                | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+| RISC-V (64-bit)            | 7                                         | 8                       | Not supported      | N/A                         | Not supported            |
+
+PPC64BE has no fast-call trampoline and always uses the generic call path.
+"Buffer-shaped args" means `Buffer`, typed array, `DataView`, or `ArrayBuffer`
+values passed as pointer-like arguments. Functions whose argument or return
+types exceed the limits for the current platform use the generic FFI call
+path instead.
 
 ## Signature objects
 
