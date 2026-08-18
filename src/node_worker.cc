@@ -504,6 +504,113 @@ Worker::~Worker() {
   Debug(this, "Worker %llu destroyed", thread_id_.id);
 }
 
+
+// When the parent has --permission enabled, explicit Worker execArgv (including
+// []) must not yield a wider grant set than the parent. Enforcement is on the
+// C++ side after options are parsed so NODE_OPTIONS and repeated --allow-* are
+// already reflected in EnvironmentOptions (no JS process.execArgv copying).
+//
+// If the worker did not configure Permission Model flags at all, treat requested
+// grants as unrestricted under the model so the intersection equals the parent
+// grant set. If the worker did configure permission flags, intersect with parent.
+
+static bool WorkerConfiguredPermission(const EnvironmentOptions* w) {
+  if (w->permission || w->permission_audit) return true;
+  if (!w->allow_fs_read.empty() || !w->allow_fs_write.empty()) return true;
+  if (w->allow_addons || w->allow_inspector || w->allow_child_process ||
+      w->allow_net || w->allow_wasi || w->allow_ffi || w->allow_openssl_store ||
+      w->allow_worker_threads) {
+    return true;
+  }
+  return false;
+}
+
+static bool PathGrantedByParentList(const std::vector<std::string>& parent_paths,
+                                    const std::string& requested) {
+  if (parent_paths.empty()) return false;
+  for (const std::string& p : parent_paths) {
+    if (p == "*" || p == requested) return true;
+    if (p.empty() || requested.size() < p.size()) continue;
+    if (requested.compare(0, p.size(), p) != 0) continue;
+    if (requested.size() == p.size()) return true;
+    if (p.back() == '/' || requested[p.size()] == '/') return true;
+  }
+  return false;
+}
+
+static void IntersectPathList(std::vector<std::string>* worker,
+                              const std::vector<std::string>& parent) {
+  if (worker == nullptr || worker->empty()) return;
+  std::vector<std::string> out;
+  out.reserve(worker->size());
+  for (const std::string& wpath : *worker) {
+    if (wpath == "*") {
+      for (const std::string& p : parent) {
+        if (p == "*") {
+          out.push_back(wpath);
+          break;
+        }
+      }
+      continue;
+    }
+    if (PathGrantedByParentList(parent, wpath)) out.push_back(wpath);
+  }
+  *worker = std::move(out);
+}
+
+static void CopyParentPermissionGrants(EnvironmentOptions* w,
+                                       const EnvironmentOptions* parent) {
+  w->permission = parent->permission;
+  w->permission_audit = parent->permission_audit;
+  w->allow_addons = parent->allow_addons;
+  w->allow_inspector = parent->allow_inspector;
+  w->allow_child_process = parent->allow_child_process;
+  w->allow_net = parent->allow_net;
+  w->allow_wasi = parent->allow_wasi;
+  w->allow_ffi = parent->allow_ffi;
+  w->allow_openssl_store = parent->allow_openssl_store;
+  w->allow_worker_threads = parent->allow_worker_threads;
+  w->allow_fs_read = parent->allow_fs_read;
+  w->allow_fs_write = parent->allow_fs_write;
+}
+
+static void IntersectPermissionGrants(EnvironmentOptions* w,
+                                      const EnvironmentOptions* parent) {
+  w->permission = true;
+  w->permission_audit = w->permission_audit || parent->permission_audit;
+
+  w->allow_addons = w->allow_addons && parent->allow_addons;
+  w->allow_inspector = w->allow_inspector && parent->allow_inspector;
+  w->allow_child_process = w->allow_child_process && parent->allow_child_process;
+  w->allow_net = w->allow_net && parent->allow_net;
+  w->allow_wasi = w->allow_wasi && parent->allow_wasi;
+  w->allow_ffi = w->allow_ffi && parent->allow_ffi;
+  w->allow_openssl_store = w->allow_openssl_store && parent->allow_openssl_store;
+  w->allow_worker_threads =
+      w->allow_worker_threads && parent->allow_worker_threads;
+
+  IntersectPathList(&w->allow_fs_read, parent->allow_fs_read);
+  IntersectPathList(&w->allow_fs_write, parent->allow_fs_write);
+}
+
+static void ClampWorkerPermissionToParent(Environment* env,
+                                          PerIsolateOptions* worker_opts) {
+  if (worker_opts == nullptr || !env->permission()->enabled()) return;
+
+  EnvironmentOptions* parent =
+      env->isolate_data()->options()->get_per_env_options();
+  EnvironmentOptions* w = worker_opts->get_per_env_options();
+  if (parent == nullptr || w == nullptr) return;
+
+  if (!WorkerConfiguredPermission(w)) {
+    CopyParentPermissionGrants(w, parent);
+    w->permission = true;
+    return;
+  }
+
+  IntersectPermissionGrants(w, parent);
+}
+
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -688,6 +795,10 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   // essential to load user codes and must not be blocked by the inspector
   // for internal scripts.
   // Still, `--inspect-node` can break on the first line of internal scripts.
+  if (env->permission()->enabled() && per_isolate_opts) {
+    ClampWorkerPermissionToParent(env, per_isolate_opts.get());
+  }
+
   if (is_internal) {
     per_isolate_opts->per_env->get_debug_options()
         ->DisableWaitOrBreakFirstLine();
