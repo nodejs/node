@@ -92,10 +92,7 @@ class V8CoverageConnection : public V8ProfilerConnection {
 
   std::string GetDirectory() const override;
   std::string GetFilename() const override;
-  std::optional<std::string_view> GetProfile(
-      simdjson::ondemand::object* result) override;
   void WriteProfile(simdjson::ondemand::object* result) override;
-  void WriteSourceMapCache();
   void TakeCoverage();
   void StopCoverage();
 

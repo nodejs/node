@@ -20,13 +20,13 @@ namespace node {
 namespace profiler {
 
 using errors::TryCatchScope;
+using v8::Array;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -254,6 +254,105 @@ void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object* result) {
   WriteResult(env_, path.c_str(), profile);
 }
 
+// Whether a coverage entry for this script URL can appear in the test
+// runner's coverage report at all. The report only considers file: URLs, and
+// skips node_modules unless include globs (which only the test runner process
+// knows about) could add them back.
+static bool ShouldKeepScriptUrl(std::string_view url,
+                                bool exclude_node_modules) {
+  if (!url.starts_with("file:")) {
+    return false;
+  }
+  if (exclude_node_modules &&
+      url.find("/node_modules/") != std::string_view::npos) {
+    return false;
+  }
+  return true;
+}
+
+// Rebuild `profile` (a serialized Profiler.takePreciseCoverage result) with
+// the scripts that can never appear in the coverage report removed, so that
+// they are neither written to disk nor read and parsed again by the report
+// generator. The raw JSON of the kept entries is copied verbatim; only the
+// "result" array is rewritten. `profile` must be backed by a buffer with at
+// least simdjson::SIMDJSON_PADDING readable bytes past its end.
+// Returns false if the profile could not be processed; `out` must be
+// discarded in that case.
+static bool FilterCoverageProfile(std::string_view profile,
+                                  bool exclude_node_modules,
+                                  std::string* out) {
+  simdjson::ondemand::parser parser;
+  simdjson::ondemand::parser script_parser;
+  simdjson::ondemand::document doc;
+  simdjson::ondemand::object top;
+  if (parser
+          .iterate(profile.data(),
+                   profile.size(),
+                   profile.size() + simdjson::SIMDJSON_PADDING)
+          .get(doc) ||
+      doc.get_object().get(top)) {
+    return false;
+  }
+
+  out->reserve(profile.size() / 4);
+  *out += '{';
+  bool first_field = true;
+  for (auto field_result : top) {
+    simdjson::ondemand::field field;
+    if (std::move(field_result).get(field)) {
+      return false;
+    }
+    std::string_view key = field.escaped_key();
+    if (!first_field) *out += ',';
+    first_field = false;
+    *out += '"';
+    *out += key;
+    *out += "\":";
+    if (key == "result") {
+      simdjson::ondemand::array scripts;
+      if (field.value().get_array().get(scripts)) {
+        return false;
+      }
+      *out += '[';
+      bool first_script = true;
+      for (auto script : scripts) {
+        std::string_view raw;
+        if (script.raw_json().get(raw)) {
+          return false;
+        }
+        // Peek at the script's URL by re-parsing the raw slice; the slice
+        // points into the padded message buffer, so over-reading
+        // SIMDJSON_PADDING bytes is safe.
+        simdjson::ondemand::document script_doc;
+        std::string_view url;
+        if (script_parser
+                .iterate(raw.data(),
+                         raw.size(),
+                         raw.size() + simdjson::SIMDJSON_PADDING)
+                .get(script_doc) ||
+            script_doc["url"].get_string().get(url)) {
+          return false;
+        }
+        if (!ShouldKeepScriptUrl(url, exclude_node_modules)) {
+          continue;
+        }
+        if (!first_script) *out += ',';
+        first_script = false;
+        *out += raw;
+      }
+      *out += ']';
+    } else {
+      std::string_view raw;
+      if (field.value().raw_json().get(raw)) {
+        return false;
+      }
+      *out += raw;
+    }
+  }
+  *out += '}';
+  return true;
+}
+
 void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
   Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
@@ -271,14 +370,49 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
   Local<Context> context = env_->context();
   Context::Scope context_scope(context);
 
-  // Generate the profile output from the subclass.
-  auto profile_opt = GetProfile(result);
-  if (!profile_opt.has_value()) {
+  std::string_view profile;
+  if (result->raw_json().get(profile)) {
+    fprintf(stderr, "Cannot get raw string of the %s profile\n", type());
     return;
   }
-  std::string_view profile = profile_opt.value();
 
-  // append source-map cache information to coverage object:
+  // When the profile is written into a directory owned by the test runner
+  // (advertised through this env var handshake so that it also reaches the
+  // test child processes writing into the same directory), drop the scripts
+  // its report is guaranteed to discard - node:* internals, which usually
+  // dominate the profile, and node_modules unless include globs may add them
+  // back - before serialization, instead of writing, re-reading and
+  // re-parsing them. User-provided NODE_V8_COVERAGE directories always
+  // receive the full profile.
+  bool filter = false;
+  bool exclude_node_modules = false;
+  {
+    std::optional<std::string> filter_dir =
+        env_->env_vars()->Get("NODE_TEST_COVERAGE_FILTER_DIR");
+    if (filter_dir.has_value() && !filter_dir->empty() &&
+        *filter_dir == env_->coverage_directory()) {
+      filter = true;
+      exclude_node_modules =
+          env_->env_vars()
+              ->Get("NODE_TEST_COVERAGE_EXCLUDE_NODE_MODULES")
+              .has_value();
+    }
+  }
+
+  std::string filtered_profile;
+  if (filter) {
+    if (FilterCoverageProfile(profile, exclude_node_modules,
+                              &filtered_profile)) {
+      profile = filtered_profile;
+    } else {
+      // Fall back to the full profile; the report filters it again anyway.
+      fprintf(stderr,
+              "Failed to filter %s profile, writing it in full\n",
+              type());
+    }
+  }
+
+  // Gather source-map cache information to append to the coverage object.
   Local<Value> source_map_cache_v;
   {
     TryCatchScope try_catch(env());
@@ -309,56 +443,57 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
 
   // Only insert source map cache when there's source map data at all.
   if (!source_map_cache_v->IsUndefined()) {
-    // It would be more performant to just find the last } and insert the source
-    // map cache in front of it, but source map cache is still experimental
-    // anyway so just re-parse it with V8 for now.
-    Local<String> profile_str;
-    if (!v8::String::NewFromUtf8(isolate,
-                                 profile.data(),
-                                 v8::NewStringType::kNormal,
-                                 profile.length())
-             .ToLocal(&profile_str)) {
-      fprintf(stderr, "Failed to re-parse %s profile as UTF8\n", type());
+    // Apply the same filter to the source map cache: entries for scripts
+    // that were dropped above can never be looked up by the report. The
+    // getter builds a fresh object on every call, so it is safe to prune.
+    if (filter && source_map_cache_v->IsObject()) {
+      Local<Object> cache_obj = source_map_cache_v.As<Object>();
+      Local<Array> names;
+      if (cache_obj->GetOwnPropertyNames(context).ToLocal(&names)) {
+        for (uint32_t i = 0; i < names->Length(); i++) {
+          Local<Value> cache_key;
+          if (!names->Get(context, i).ToLocal(&cache_key)) {
+            break;
+          }
+          Utf8Value key_utf8(isolate, cache_key);
+          if (!ShouldKeepScriptUrl(key_utf8.ToStringView(),
+                                   exclude_node_modules)) {
+            if (cache_obj->Delete(context, cache_key).IsNothing()) {
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Serialize only the source map cache and splice it in front of the
+    // profile's closing brace, instead of round-tripping the entire profile
+    // through V8's JSON parser and serializer.
+    Local<String> cache_json;
+    if (!v8::JSON::Stringify(context, source_map_cache_v)
+             .ToLocal(&cache_json)) {
+      fprintf(stderr, "Failed to stringify %s source map cache\n", type());
       return;
     }
-    Local<Value> profile_value;
-    if (!v8::JSON::Parse(context, profile_str).ToLocal(&profile_value) ||
-        !profile_value->IsObject()) {
-      fprintf(stderr, "Failed to re-parse %s profile from JSON\n", type());
+    Utf8Value cache_utf8(isolate, cache_json);
+    size_t end = profile.find_last_of('}');
+    if (end == std::string_view::npos) {
+      fprintf(stderr, "Malformed %s profile result\n", type());
       return;
     }
-    if (profile_value.As<Object>()
-            ->Set(context,
-                  FIXED_ONE_BYTE_STRING(isolate, "source-map-cache"),
-                  source_map_cache_v)
-            .IsNothing()) {
-      fprintf(stderr,
-              "Failed to insert source map cache into %s profile\n",
-              type());
-      return;
-    }
-    Local<String> result_s;
-    if (!v8::JSON::Stringify(context, profile_value).ToLocal(&result_s)) {
-      fprintf(stderr, "Failed to stringify %s profile result\n", type());
-      return;
-    }
-    Utf8Value result_utf8(isolate, result_s);
-    WriteResult(env_, path.c_str(), result_utf8.ToStringView());
+    std::string_view head = profile.substr(0, end);
+    std::string output;
+    output.reserve(head.length() + cache_utf8.length() + 32);
+    output += head;
+    // `head` is the profile object minus its closing brace; it always
+    // contains at least the "result" field, so a separating comma is needed.
+    output += ",\"source-map-cache\":";
+    output += cache_utf8.ToStringView();
+    output += '}';
+    WriteResult(env_, path.c_str(), output);
   } else {
     WriteResult(env_, path.c_str(), profile);
   }
-}
-
-std::optional<std::string_view> V8CoverageConnection::GetProfile(
-    simdjson::ondemand::object* result) {
-  std::string_view profile_raw;
-  if (result->raw_json().get(profile_raw)) {
-    fprintf(stderr,
-            "Cannot get raw string of the 'profile' field from %s profile\n",
-            type());
-    return std::nullopt;
-  }
-  return profile_raw;
 }
 
 std::string V8CoverageConnection::GetDirectory() const {
