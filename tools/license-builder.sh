@@ -120,10 +120,6 @@ addlicense "gtest" "deps/googletest" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/nghttp2/COPYING")"
 addlicense "nghttp2" "deps/nghttp2" "$licenseText"
 
-# large_pages
-licenseText="$(sed -e '/SPDX-License-Identifier/,$d' -e 's/^\/\///' "${rootdir}/src/large_pages/node_large_page.h")"
-addlicense "large_pages" "src/large_pages" "$licenseText"
-
 # deep_freeze
 licenseText="$(sed -e '/SPDX-License-Identifier/,$d' -e 's/^\/\///' "${rootdir}/lib/internal/freeze_intrinsics.js")"
 addlicense "caja" "lib/internal/freeze_intrinsics.js" "$licenseText"

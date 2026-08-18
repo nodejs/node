@@ -1513,10 +1513,9 @@ PerProcessOptionsParser::PerProcessOptionsParser(
 
 #endif  // OPENSSL_VERSION_MAJOR
   AddOption("--use-largepages",
-            "Map the Node.js static code to large pages. Options are "
-            "'off' (the default value, meaning do not map), "
-            "'on' (map and ignore failure, reporting it to stderr), "
-            "or 'silent' (map and silently ignore failure)",
+            "This option is no longer supported and a no-op. It still accepts"
+            " these values for compatibility: 'off' (default), 'on' (report a "
+            "warning to stderr), or 'silent' (same as 'off').",
             &PerProcessOptions::use_largepages,
             kAllowedInEnvvar);
 
