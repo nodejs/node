@@ -82,6 +82,11 @@ function packHeaders(pairs, flags = 0) {
   assert.deepStrictEqual(nativeHeadersToArray(packed, 2), ['Host', 'example.com']);
   assert.strictEqual(nativeHeadersByteLength(packed), 8);
 
+  const emptyName = packHeaders(['', 'value', 'X-Empty', '']);
+  assert.deepStrictEqual(nativeHeadersToArray(emptyName), ['', 'value', 'X-Empty', '']);
+  assert.strictEqual(nativeHeadersGet(emptyName, 'x-empty'), '');
+  assert.strictEqual(nativeHeadersHas(emptyName, ''), true);
+
   const truncated = packed.subarray(0, 14);
   assert.strictEqual(nativeHeadersHas(truncated, 'host'), false);
   assert.deepStrictEqual(nativeHeadersToArray(truncated), []);
@@ -116,6 +121,13 @@ const server = http.createServer(common.mustCallAtLeast((req, res) => {
       const after = Object.getOwnPropertyDescriptor(req, 'rawHeaders');
       assert.strictEqual(after.writable, true);
       assert.strictEqual(typeof after.get, 'undefined');
+      // Fallback scans after the packed buffer is gone.
+      assert.strictEqual(req._hasHeader('host'), true);
+      assert.strictEqual(req._hasHeader('x-test'), true);
+      assert.strictEqual(req._hasHeader('x-missing'), false);
+      assert.strictEqual(req._getHeader('x-test'), 'one, two');
+      assert.strictEqual(req._getHeader('x-missing'), undefined);
+      assert.strictEqual(req._hasBodyHeaders(), false);
       res.end('ok');
       break;
     }
@@ -135,7 +147,9 @@ const server = http.createServer(common.mustCallAtLeast((req, res) => {
       assert.strictEqual(req._hasHeader('transfer-encoding'), true);
       req.resume();
       req.on('end', common.mustCall(() => {
+        assert.ok(req.rawHeaders.some((h) => h.toLowerCase() === 'transfer-encoding'));
         assert.strictEqual(req._hasBodyHeaders(), true);
+        assert.strictEqual(req._hasHeader('transfer-encoding'), true);
         res.end('ok');
       }));
       break;
@@ -143,10 +157,16 @@ const server = http.createServer(common.mustCallAtLeast((req, res) => {
     case '/te': {
       assert.strictEqual(req._hasHeader('te'), true);
       assert.strictEqual(req._getHeader('te'), 'trailers');
+      assert.ok(req.rawHeaders.some((h) => h.toLowerCase() === 'te'));
+      assert.strictEqual(req._hasHeader('te'), true);
+      assert.strictEqual(req._getHeader('te'), 'trailers');
       res.end('ok');
       break;
     }
     case '/expect': {
+      assert.strictEqual(req._hasHeader('expect'), true);
+      assert.strictEqual(req._getHeader('expect'), '100-continue');
+      assert.ok(req.rawHeaders.some((h) => h.toLowerCase() === 'expect'));
       assert.strictEqual(req._hasHeader('expect'), true);
       assert.strictEqual(req._getHeader('expect'), '100-continue');
       res.end('ok');
