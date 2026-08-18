@@ -1184,6 +1184,8 @@ changes:
    description: No longer experimental.
 -->
 
+* Returns: {Promise}
+
 Calls `filehandle.close()` and returns a promise that fulfills when the
 filehandle is closed.
 
@@ -7316,6 +7318,8 @@ changes:
    pr-url: https://github.com/nodejs/node/pull/58467
    description: No longer experimental.
 -->
+
+* Returns: {Promise}
 
 Calls `dir.close()` if the directory handle is open, and returns a promise that
 fulfills when disposal is complete.
