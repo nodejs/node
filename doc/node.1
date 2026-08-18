@@ -1694,19 +1694,17 @@ This is equivalent to setting the \fBNODE_USE_ENV_PROXY=1\fR environment variabl
 When both are set, \fB--use-env-proxy\fR takes precedence.
 .
 .It Fl -use-largepages Ns = Ns Ar mode
-Re-map the Node.js static code to large memory pages at startup. If supported on
-the target system, this will cause the Node.js static code to be moved onto 2
-MiB pages instead of 4 KiB pages.
-The following values are valid for \fBmode\fR:
+This option is no longer supported and a no-op. It used to re-map the Node.js
+static code to large memory pages at startup.
+It still accepts the following values for compatibility:
 .Bl -bullet
 .It
 \fBoff\fR: No mapping will be attempted. This is the default.
 .It
-\fBon\fR: If supported by the OS, mapping will be attempted. Failure to map will
-be ignored and a message will be printed to standard error.
+\fBon\fR: No mapping will be attempted and a message will be printed to
+standard error stating it's no longer supported.
 .It
-\fBsilent\fR: If supported by the OS, mapping will be attempted. Failure to map
-will be ignored and will not be reported.
+\fBsilent\fR: Same as \fBoff\fR.
 .El
 .
 .It Fl -use-system-ca
