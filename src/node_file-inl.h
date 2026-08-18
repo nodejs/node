@@ -220,6 +220,7 @@ FSReqPromise<AliasedBufferT>::FSReqPromise(BindingData* binding_data,
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
   finished_ = true;
+  PublishFSOpCompletionEvent(this, FSOperationChannel::kError, "error", reject);
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
   v8::Local<v8::Value> value;
@@ -238,6 +239,8 @@ void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Resolve(v8::Local<v8::Value> value) {
   finished_ = true;
+  PublishFSOpCompletionEvent(this, FSOperationChannel::kAsyncEnd, "result",
+                             value);
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
   v8::Local<v8::Value> val;
@@ -303,6 +306,7 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
         result =
             FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
       }
+      result->set_is_promise(true);
     }
   }
   if (result != nullptr) {
@@ -320,6 +324,15 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
                          Func fn, Args... fn_args) {
   CHECK_NOT_NULL(req_wrap);
   req_wrap->Init(syscall, dest, len, enc);
+  BindingData* binding = req_wrap->binding_data();
+  const char* api = req_wrap->is_promise() ? "promise" : "callback";
+  std::string dest_str;
+  if (binding != nullptr) {
+    if (req_wrap->data() != nullptr) dest_str = req_wrap->data();
+    PublishFSOperationEvent(binding, env, FSOperationChannel::kStart, syscall,
+                            api, std::string(), dest_str, -1, nullptr,
+                            v8::Local<v8::Value>());
+  }
   int err = req_wrap->Dispatch(fn, fn_args..., after);
   if (err < 0) {
     uv_fs_t* uv_req = req_wrap->req();
@@ -327,6 +340,16 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
     uv_req->path = nullptr;
     after(uv_req);  // after may delete req_wrap if there is an error
     req_wrap = nullptr;
+  } else if (binding != nullptr) {
+    std::string path;
+    if (req_wrap->req()->path != nullptr) path = req_wrap->req()->path;
+    int fd = -1;
+    if (OperationUsesFd(req_wrap->req()->fs_type)) fd = req_wrap->req()->file;
+    req_wrap->set_op_path(path);
+    req_wrap->set_fd(fd);
+    PublishFSOperationEvent(binding, env, FSOperationChannel::kEnd, syscall,
+                            api, path, dest_str, fd, nullptr,
+                            v8::Local<v8::Value>());
   }
   return req_wrap;
 }
@@ -381,7 +404,43 @@ int SyncCallAndThrowIf(Predicate should_throw,
                        Func fn,
                        Args... args) {
   env->PrintSyncTrace();
+  BindingData* binding = Realm::GetBindingData<BindingData>(env->context());
+  std::string path;
+  std::string dest;
+  if (binding != nullptr) {
+    if (req_wrap->path_p != nullptr) path = req_wrap->path_p;
+    if (req_wrap->dest_p != nullptr) dest = req_wrap->dest_p;
+    PublishFSOperationEvent(binding, env, FSOperationChannel::kStart,
+                            req_wrap->syscall_p, "sync", path, dest, -1,
+                            nullptr, v8::Local<v8::Value>());
+  }
   int result = fn(nullptr, &(req_wrap->req), args..., nullptr);
+  if (binding != nullptr) {
+    int fd = -1;
+    if (OperationUsesFd(req_wrap->req.fs_type)) fd = req_wrap->req.file;
+    if (should_throw(result)) {
+      v8::Local<v8::Value> error = UVException(env->isolate(),
+                                               result,
+                                               req_wrap->syscall_p,
+                                               nullptr,
+                                               req_wrap->path_p,
+                                               req_wrap->dest_p);
+      PublishFSOperationEvent(binding, env, FSOperationChannel::kError,
+                              req_wrap->syscall_p, "sync", path, dest, fd,
+                              "error", error);
+    } else {
+      PublishFSOperationEvent(binding,
+                              env,
+                              FSOperationChannel::kEnd,
+                              req_wrap->syscall_p,
+                              "sync",
+                              path,
+                              dest,
+                              fd,
+                              "result",
+                              v8::Integer::New(env->isolate(), result));
+    }
+  }
   if (should_throw(result)) {
     env->ThrowUVException(result,
                           req_wrap->syscall_p,

@@ -87,6 +87,121 @@ using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
+// Built-in tracing channel names for filesystem operations, one per
+// FSOperationChannel in node_file.h.
+const char* const kFSOperationChannelNames[kNumFSOperationChannels] = {
+    "tracing:fs.operation:start",
+    "tracing:fs.operation:end",
+    "tracing:fs.operation:asyncStart",
+    "tracing:fs.operation:asyncEnd",
+    "tracing:fs.operation:error",
+};
+
+void PublishFSOperationEvent(BindingData* binding,
+                             Environment* env,
+                             FSOperationChannel channel,
+                             const char* operation,
+                             const char* api,
+                             const std::string& path,
+                             const std::string& dest,
+                             int fd,
+                             const char* value_key,
+                             Local<Value> value) {
+  const size_t index = static_cast<size_t>(channel);
+  CHECK_LT(index, kNumFSOperationChannels);
+  diagnostics_channel::Channel* ch = binding->fs_op_channels_[index];
+  if (ch == nullptr) {
+    ch = diagnostics_channel::Channel::Get(
+        env, kFSOperationChannelNames[index]);
+    binding->fs_op_channels_[index] = ch;
+  }
+  if (ch == nullptr || !ch->HasSubscribers()) {
+    return;
+  }
+
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env->context();
+  Local<Object> obj = Object::New(isolate);
+  obj->Set(context,
+           env->operation_string(),
+           String::NewFromUtf8(isolate, operation).ToLocalChecked())
+      .Check();
+  obj->Set(context, env->api_string(),
+           String::NewFromUtf8(isolate, api).ToLocalChecked())
+      .Check();
+  if (!path.empty()) {
+    obj->Set(context,
+             env->path_string(),
+             String::NewFromUtf8(isolate,
+                                 path.data(),
+                                 v8::NewStringType::kNormal,
+                                 static_cast<int>(path.size()))
+                 .ToLocalChecked())
+        .Check();
+  }
+  if (!dest.empty()) {
+    obj->Set(context,
+             env->dest_string(),
+             String::NewFromUtf8(isolate,
+                                 dest.data(),
+                                 v8::NewStringType::kNormal,
+                                 static_cast<int>(dest.size()))
+                 .ToLocalChecked())
+        .Check();
+  }
+  if (fd != -1) {
+    obj->Set(context, env->fd_string(), Integer::New(isolate, fd)).Check();
+  }
+  if (value_key != nullptr && !value.IsEmpty()) {
+    obj->Set(context, OneByteString(isolate, value_key), value).Check();
+  }
+  ch->Publish(env, obj);
+}
+
+void PublishFSOpCompletionEvent(FSReqBase* req_wrap,
+                                FSOperationChannel channel,
+                                const char* value_key,
+                                Local<Value> value) {
+  BindingData* binding = req_wrap->binding_data();
+  if (binding == nullptr) return;
+  const char* api = req_wrap->is_promise() ? "promise" : "callback";
+  std::string dest;
+  if (req_wrap->data() != nullptr) dest = req_wrap->data();
+  PublishFSOperationEvent(binding,
+                          req_wrap->env(),
+                          channel,
+                          req_wrap->syscall(),
+                          api,
+                          req_wrap->op_path(),
+                          dest,
+                          req_wrap->fd(),
+                          value_key,
+                          value);
+}
+
+// Returns true if the libuv fs request type operates on an existing file
+// descriptor (as opposed to taking a path). These are the request types whose
+// `file` field holds the input descriptor.
+bool OperationUsesFd(uv_fs_type fs_type) {
+  switch (fs_type) {
+    case UV_FS_CLOSE:
+    case UV_FS_READ:
+    case UV_FS_WRITE:
+    case UV_FS_FSTAT:
+    case UV_FS_FTRUNCATE:
+    case UV_FS_FDATASYNC:
+    case UV_FS_FSYNC:
+    case UV_FS_FUTIME:
+    case UV_FS_FCHMOD:
+    case UV_FS_FCHOWN:
+    case UV_FS_SENDFILE:
+      return true;
+    default:
+      return false;
+  }
+}
+
 #ifndef S_ISDIR
 #define S_ISDIR(mode) (((mode)&S_IFMT) == S_IFDIR)
 #endif
@@ -221,6 +336,7 @@ FSReqBase::~FSReqBase() = default;
 
 void FSReqBase::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("continuation_data", continuation_data_);
+  tracker->TrackField("op_path", op_path_);
 }
 
 // The FileHandle object wraps a file descriptor and will close it on garbage
@@ -728,6 +844,7 @@ int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
 }
 
 void FSReqCallback::Reject(Local<Value> reject) {
+  PublishFSOpCompletionEvent(this, FSOperationChannel::kError, "error", reject);
   MakeCallback(env()->oncomplete_string(), 1, &reject);
 }
 
@@ -740,6 +857,8 @@ void FSReqCallback::ResolveStatFs(const uv_statfs_t* stat) {
 }
 
 void FSReqCallback::Resolve(Local<Value> value) {
+  PublishFSOpCompletionEvent(this, FSOperationChannel::kAsyncEnd, "result",
+                             value);
   Local<Value> argv[2]{Null(env()->isolate()), value};
   MakeCallback(env()->oncomplete_string(),
                value->IsUndefined() ? 1 : arraysize(argv),
@@ -762,6 +881,10 @@ FSReqAfterScope::FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req)
       handle_scope_(wrap->env()->isolate()),
       context_scope_(wrap->env()->context()) {
   CHECK_EQ(wrap_->req(), req);
+  // The async work for the operation has completed; the continuation window
+  // begins here.
+  PublishFSOpCompletionEvent(wrap, FSOperationChannel::kAsyncStart, nullptr,
+                             Local<Value>());
 }
 
 FSReqAfterScope::~FSReqAfterScope() {
