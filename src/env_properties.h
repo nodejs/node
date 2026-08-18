@@ -87,6 +87,7 @@
   V(allow_bare_named_params_string, "allowBareNamedParameters")                \
   V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
   V(alpn_callback_string, "ALPNCallback")                                      \
+  V(api_string, "api")                                                         \
   V(args_string, "args")                                                       \
   V(arguments_string, "arguments")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
