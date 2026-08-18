@@ -1173,15 +1173,12 @@ class [[nodiscard]] UniversalTersePrinter<const wchar_t*> {
     }
   }
 };
-#endif
 
 template <>
-class [[nodiscard]] UniversalTersePrinter<wchar_t*> {
- public:
-  static void Print(wchar_t* str, ::std::ostream* os) {
-    UniversalTersePrinter<const wchar_t*>::Print(str, os);
-  }
-};
+class [[nodiscard]] UniversalTersePrinter<wchar_t*>
+    : public UniversalTersePrinter<const wchar_t*> {};
+
+#endif  // GTEST_HAS_STD_WSTRING
 
 template <typename T>
 void UniversalTersePrint(const T& value, ::std::ostream* os) {

@@ -500,22 +500,71 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #endif  // defined(_MSC_VER) || defined(__BORLANDC__)
 #endif  // GTEST_HAS_EXCEPTIONS
 
-#ifndef GTEST_HAS_STD_WSTRING
-// The user didn't tell us whether ::std::wstring is available, so we need
-// to figure it out.
-// Cygwin 1.7 and below doesn't support ::std::wstring.
-// Solaris' libc++ doesn't support it either.  Android has
-// no support for it at least as recent as Froyo (2.2).
-#if (!(defined(GTEST_OS_LINUX_ANDROID) || defined(GTEST_OS_CYGWIN) || \
-       defined(GTEST_OS_SOLARIS) || defined(GTEST_OS_HAIKU) ||        \
-       defined(GTEST_OS_ESP32) || defined(GTEST_OS_ESP8266) ||        \
-       defined(GTEST_OS_XTENSA) || defined(GTEST_OS_QURT) ||          \
-       defined(GTEST_OS_NXP_QN9090) || defined(GTEST_OS_NRF52)))
-#define GTEST_HAS_STD_WSTRING 1
+// 1. Calculate default GTEST_HAS_STD_WSTRING values based on STL capabilities.
+#if defined(_MSVC_STL_VERSION)
+// Microsoft's STL implementation always supports ::std::wstring.
+#define GTEST_HAS_STD_WSTRING_DEFAULT 1
+
+#elif defined(_LIBCPP_VERSION)
+// Modern libc++ always defines _LIBCPP_HAS_WIDE_CHARACTERS; its value
+// determines whether wide characters are supported.
+// Older libc++ omits a definition for _LIBCPP_HAS_NO_WIDE_CHARACTERS when wide
+// characters are supported.
+#if (defined(_LIBCPP_HAS_WIDE_CHARACTERS) && !_LIBCPP_HAS_WIDE_CHARACTERS) || \
+    defined(_LIBCPP_HAS_NO_WIDE_CHARACTERS)
+#define GTEST_HAS_STD_WSTRING_DEFAULT 0
 #else
-#define GTEST_HAS_STD_WSTRING 0
+#define GTEST_HAS_STD_WSTRING_DEFAULT 1
 #endif
-#endif  // GTEST_HAS_STD_WSTRING
+
+#elif defined(__GLIBCXX__)
+#if defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_WCHAR_T
+#define GTEST_HAS_STD_WSTRING_DEFAULT 1
+#else
+#define GTEST_HAS_STD_WSTRING_DEFAULT 0
+#endif
+
+#else
+// Unknown standard library implementation; fall back looking at the OS.
+//
+// Always let the user override the defaults in this case; they might have more
+// information about what's supported than we do.
+#if defined(GTEST_OS_LINUX_ANDROID)
+// Android started supporting std::wstring with API Level 21 (Lollipop).
+#define GTEST_HAS_STD_WSTRING_DEFAULT (__ANDROID_API__ >= 21)
+// The following platforms are known not to support ::std::wstring; assume it's
+// supported on all others.
+//
+// Cygwin 1.7 and below doesn't support ::std::wstring.
+// Solaris' libc++ doesn't support it either.
+#elif defined(GTEST_OS_CYGWIN) || defined(GTEST_OS_SOLARIS) || \
+    defined(GTEST_OS_HAIKU) || defined(GTEST_OS_ESP32) ||      \
+    defined(GTEST_OS_ESP8266) || defined(GTEST_OS_XTENSA) ||   \
+    defined(GTEST_OS_QURT) || defined(GTEST_OS_NXP_QN9090) ||  \
+    defined(GTEST_OS_NRF52)
+#define GTEST_HAS_STD_WSTRING_DEFAULT 0
+#else
+#define GTEST_HAS_STD_WSTRING_DEFAULT 1
+#endif
+#endif
+
+// 2. Validate explicit user overrides (if user passed -DGTEST_HAS_*=1) against
+//    what the standard library implementation tells us it supports.
+#if defined(GTEST_HAS_STD_WSTRING) && GTEST_HAS_STD_WSTRING
+#if defined(_LIBCPP_VERSION) &&                                                \
+    ((defined(_LIBCPP_HAS_WIDE_CHARACTERS) && !_LIBCPP_HAS_WIDE_CHARACTERS) || \
+     defined(_LIBCPP_HAS_NO_WIDE_CHARACTERS))
+#error Cannot explicitly enable GTEST_HAS_STD_WSTRING without libc++ wide character support.
+#elif defined(__GLIBCXX__) && \
+    !(defined(_GLIBCXX_USE_WCHAR_T) && _GLIBCXX_USE_WCHAR_T)
+#error Cannot explicitly enable GTEST_HAS_STD_WSTRING without libstdc++ wide character support.
+#endif
+#endif
+
+// 3. Set final values if not explicitly overridden by user
+#if !defined(GTEST_HAS_STD_WSTRING)
+#define GTEST_HAS_STD_WSTRING GTEST_HAS_STD_WSTRING_DEFAULT
+#endif
 
 #ifndef GTEST_HAS_FILE_SYSTEM
 // Most platforms support a file system.
