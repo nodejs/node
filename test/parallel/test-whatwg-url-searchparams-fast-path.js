@@ -96,6 +96,17 @@ const assert = require('assert');
 }
 
 {
+  // Fake percent-encoding must not be UTF-8-decoded into U+FFFD.
+  const params = new URLSearchParams('foo=%©ar&baz=%A©uux&xyzzy=%©ud');
+  assert.deepStrictEqual([...params], [
+    ['foo', '%©ar'],
+    ['baz', '%A©uux'],
+    ['xyzzy', '%©ud'],
+  ]);
+  assert.strictEqual(params.toString(), 'foo=%25%C2%A9ar&baz=%25A%C2%A9uux&xyzzy=%25%C2%A9ud');
+}
+
+{
   const url = new URL('https://example.org/?foo=bar');
   const params = url.searchParams;
   assert.strictEqual(params.toString(), 'foo=bar');
