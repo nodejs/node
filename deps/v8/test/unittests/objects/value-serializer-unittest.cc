@@ -48,7 +48,6 @@ class ValueSerializerTest : public TestWithIsolate {
 
  protected:
   ValueSerializerTest() {
-    FLAG_SCOPE(js_float16array);
     Local<Context> serialization_context = Context::New(isolate());
     Local<Context> deserialization_context = Context::New(isolate());
     serialization_context_.Reset(isolate(), serialization_context);
@@ -2083,7 +2082,6 @@ TEST_F(ValueSerializerTestWithArrayBufferTransfer,
 }
 
 TEST_F(ValueSerializerTest, RoundTripTypedArray) {
-  FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
@@ -2133,7 +2131,6 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
-  FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
   // TODO(v8:11111): Use API functions for testing is_length_tracking and
@@ -2158,7 +2155,6 @@ TEST_F(ValueSerializerTest, RoundTripRabBackedLengthTrackingTypedArray) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripRabBackedNonLengthTrackingTypedArray) {
-  FLAG_SCOPE(js_float16array);
   // Check that the right type comes out the other side for every kind of typed
   // array.
   // TODO(v8:11111): Use API functions for testing is_length_tracking and

@@ -3741,14 +3741,6 @@ bool Value::IsTypedArray() const {
 TYPED_ARRAYS_BASE(VALUE_IS_TYPED_ARRAY)
 #undef VALUE_IS_TYPED_ARRAY
 
-bool Value::IsFloat16Array() const {
-  auto obj = *Utils::OpenDirectHandle(this);
-  return i::IsJSTypedArray(obj) &&
-         i::Cast<i::JSTypedArray>(obj)->type() == i::kExternalFloat16Array &&
-         Utils::ApiCheck(i::v8_flags.js_float16array, "Value::IsFloat16Array",
-                         "Float16Array is not supported");
-}
-
 bool Value::IsDataView() const {
   auto obj = *Utils::OpenDirectHandle(this);
   return IsJSDataView(obj) || IsJSRabGsabDataView(obj);
@@ -4291,16 +4283,6 @@ void v8::TypedArray::CheckCast(Value* that) {
 
 TYPED_ARRAYS_BASE(CHECK_TYPED_ARRAY_CAST)
 #undef CHECK_TYPED_ARRAY_CAST
-
-void v8::Float16Array::CheckCast(Value* that) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::Cast",
-                  "Float16Array is not supported");
-  auto obj = *Utils::OpenDirectHandle(that);
-  Utils::ApiCheck(
-      i::IsJSTypedArray(obj) &&
-          i::Cast<i::JSTypedArray>(obj)->type() == i::kExternalFloat16Array,
-      "v8::Float16Array::Cast()", "Value is not a Float16Array");
-}
 
 void v8::DataView::CheckCast(Value* that) {
   auto obj = *Utils::OpenDirectHandle(that);
@@ -9346,44 +9328,6 @@ static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
 
 TYPED_ARRAYS_BASE(TYPED_ARRAY_NEW)
 #undef TYPED_ARRAY_NEW
-
-Local<Float16Array> Float16Array::New(Local<ArrayBuffer> array_buffer,
-                                      size_t byte_offset, size_t length) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
-                  "Float16Array is not supported");
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Float16Array_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  if (!Utils::ApiCheck(
-          length <= kMaxLength,
-          "v8::Float16Array::New(Local<ArrayBuffer>, size_t, size_t)",
-          "length exceeds max allowed value")) {
-    return {};
-  }
-  auto buffer = Utils::OpenDirectHandle(*array_buffer);
-  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
-      i::kExternalFloat16Array, buffer, byte_offset, length);
-  return Utils::ToLocalFloat16Array(obj);
-}
-Local<Float16Array> Float16Array::New(
-    Local<SharedArrayBuffer> shared_array_buffer, size_t byte_offset,
-    size_t length) {
-  Utils::ApiCheck(i::v8_flags.js_float16array, "v8::Float16Array::New",
-                  "Float16Array is not supported");
-  i::Isolate* i_isolate = i::Isolate::Current();
-  ApiRuntimeCallStatsScope rcs_scope(i_isolate, RCCId::kAPI_Float16Array_New);
-  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
-  if (!Utils::ApiCheck(
-          length <= kMaxLength,
-          "v8::Float16Array::New(Local<SharedArrayBuffer>, size_t, size_t)",
-          "length exceeds max allowed value")) {
-    return {};
-  }
-  auto buffer = Utils::OpenDirectHandle(*shared_array_buffer);
-  i::DirectHandle<i::JSTypedArray> obj = i_isolate->factory()->NewJSTypedArray(
-      i::kExternalFloat16Array, buffer, byte_offset, length);
-  return Utils::ToLocalFloat16Array(obj);
-}
 
 // TODO(v8:11111): Support creating length tracking DataViews via the API.
 Local<DataView> DataView::New(Local<ArrayBuffer> array_buffer,
