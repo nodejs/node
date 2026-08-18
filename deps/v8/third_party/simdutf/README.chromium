@@ -2,8 +2,8 @@ Name: simdutf unicode transcoder
 Short Name: simdutf
 URL: https://github.com/simdutf/simdutf
 Update Mechanism: Manual
-Revision: da645ece
-Version: 7.7.0
+Revision: 2d4e249d
+Version: 9.1.0
 License: MIT
 License File: LICENSE
 Shipped: yes
