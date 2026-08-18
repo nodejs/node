@@ -141,7 +141,7 @@ jobs:
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
             --run '
-                make -j4 V=1
+                make build-ci -j4 V=1
             '
 
       - name: Run benchmark
