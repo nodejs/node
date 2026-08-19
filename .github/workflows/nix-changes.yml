@@ -11,12 +11,12 @@ on:
       - v[0-9]+.x
     paths:
       - '**.nix'
-      - tools/nix/list-requesites.sh
+      - tools/nix/list-requisites.sh
       - .github/workflows/nix-changes.yml
   pull_request:
     paths:
       - '**.nix'
-      - tools/nix/list-requesites.sh
+      - tools/nix/list-requisites.sh
       - .github/workflows/nix-changes.yml
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -50,7 +50,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
           sparse-checkout: |
-            ./tools/nix/list-requesites.sh
+            ./tools/nix/list-requisites.sh
             '*.nix'
           sparse-checkout-cone-mode: false
 
@@ -64,12 +64,14 @@ jobs:
           name: nodejs
 
       - name: Compute requisites after change
-        run: ./tools/nix/list-requesites.sh > requisites-${{ matrix.system }}-after.list
+        run: ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-after.list
 
       - name: Compute requisites before change
         run: |
           git reset HEAD^ --hard
-          ./tools/nix/list-requesites.sh > requisites-${{ matrix.system }}-before.list
+          # TODO(aduh95): remove this once list-requisites.sh has reached `main`
+          [ -f tools/nix/list-requisites.sh ] || git checkout FETCH_HEAD -- tools/nix/list-requisites.sh
+          ./tools/nix/list-requisites.sh > requisites-${{ matrix.system }}-before.list
 
       - name: Output diff
         run: |
