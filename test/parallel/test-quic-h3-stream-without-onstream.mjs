@@ -130,12 +130,83 @@ function failOnConsumerWarning(warning) {
   await serverEndpoint.close();
 }
 
-// --- Stream callbacks that do not expose the stream are not a consumer ---
-// Only `onheaders` is invoked for every incoming h3 request stream.
-// `ontrailers` and `oninfo` are conditional and `onwanttrailers` is
-// outbound-only, so a session registering only those callbacks has no way
-// to observe an incoming stream and it must be destroyed with the warning.
-for (const callbackName of ['ontrailers', 'oninfo', 'onwanttrailers']) {
+// Session-level stream callbacks, classified by whether the application is
+// guaranteed to hand every incoming stream to that callback. `onheaders` is
+// invoked for every incoming h3 request stream; the others are conditional
+// (`ontrailers`, `oninfo`) or outbound-only (`onwanttrailers`) and do not
+// expose the stream, so registering only those is not a consumer.
+const kConsumerCallbacks = ['onheaders'];
+const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
+
+// --- Every session-level stream callback is classified ---
+// Guard: discover the callbacks the session attaches to an incoming stream
+// and assert each one is classified above, so a newly added stream callback
+// trips this test until someone puts it in the right list (and, if it is a
+// consumer, accepts it in QuicSession#hasStreamConsumer).
+{
+  // QuicStream is not exported; obtain its prototype from a stream instance,
+  // then offer every `on*` accessor to listen() and see which ones the
+  // session actually attaches to a received stream.
+  const bootstrap = await listen(mustCall((session) => {
+    session.onerror = () => {};
+  }), { sni: { '*': { keys: [key], certs: [cert] } }, onstream: () => {} });
+  const bootSession = await connect(bootstrap.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+  });
+  await bootSession.opened;
+  const probeStream = await bootSession.createBidirectionalStream();
+  probeStream.onerror = () => {};
+  const candidates = Object.getOwnPropertyNames(Object.getPrototypeOf(probeStream))
+    .filter((name) => name.startsWith('on'));
+  await bootSession.close();
+  await bootstrap.close();
+
+  const probes = { __proto__: null };
+  for (const name of candidates) probes[name] = () => {};
+
+  const applied = Promise.withResolvers();
+  const serverEndpoint = await listen(mustCall((session) => {
+    session.onerror = () => {};
+  }), {
+    __proto__: null,
+    ...probes,
+    sni: { '*': { keys: [key], certs: [cert] } },
+    onstream: mustCall((stream) => {
+      applied.resolve(candidates.filter((n) => typeof stream[n] === 'function'));
+    }),
+  });
+
+  const clientSession = await connect(serverEndpoint.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+  });
+  await clientSession.opened;
+  const stream = await clientSession.createBidirectionalStream({
+    headers: {
+      ':method': 'GET',
+      ':path': '/test',
+      ':scheme': 'https',
+      ':authority': 'localhost',
+    },
+  });
+  stream.onerror = () => {};
+
+  assert.deepStrictEqual(
+    (await applied.promise).sort(),
+    [...kConsumerCallbacks, ...kNonConsumerCallbacks].sort(),
+    'A session-level stream callback was added: classify it in ' +
+    'kConsumerCallbacks (and accept it in QuicSession#hasStreamConsumer) ' +
+    'or kNonConsumerCallbacks.');
+
+  await clientSession.close();
+  await serverEndpoint.close();
+}
+
+// --- Callbacks that do not expose the stream are not a consumer ---
+// A session registering only a non-consumer callback has no way to observe
+// an incoming stream, so it must be destroyed with the warning.
+for (const callbackName of kNonConsumerCallbacks) {
   const warned = Promise.withResolvers();
   process.on('warning', function onWarning(warning) {
     if (warning.message === kWarning) {
