@@ -9,17 +9,7 @@ OPTIONAL_FLAGS=$(nix-instantiate \
       (builtins.attrNames (builtins.functionArgs (import ./shell.nix)))
   ' | jq -r 'map("--arg \(.) true") | join(" ")')
 
-PIPEFAIL="$(mktemp)"
-
-cleanup () {
-  EXIT_CODE=$?
-  rm "$PIPEFAIL"
-  exit $EXIT_CODE
-}
-
-trap cleanup INT TERM EXIT
-
-{
+DRV=$(
   # shellcheck disable=SC2086
   nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
     $OPTIONAL_FLAGS \
@@ -58,13 +48,10 @@ trap cleanup INT TERM EXIT
             builtins.functionArgs sharedLibDepsFn
           )
         )
-      )' || echo > "$PIPEFAIL"
-} | {
-  xargs nix-store --query --references || echo > "$PIPEFAIL"
-} | {
-  xargs nix-store --realise || echo > "$PIPEFAIL"
-} | {
-  xargs nix-store --query --requisites || echo > "$PIPEFAIL"
-} | {
-  sort -k1.45 || echo > "$PIPEFAIL"
-} && [ ! -s "$PIPEFAIL" ]
+      )'
+)
+REFS=$(nix-store --query --references "$DRV")
+STORE_PATHS=$(echo "$REFS" | xargs nix-store --realise)
+REQUISITES=$(echo "$STORE_PATHS" | xargs nix-store --query --requisites)
+
+echo "$REQUISITES" | sort -k1.45

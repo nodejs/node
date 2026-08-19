@@ -11,12 +11,12 @@ on:
       - v[0-9]+.x
     paths:
       - '**.nix'
-      - tools/nix/list-requisites.sh
+      - tools/nix/**
       - .github/workflows/nix-changes.yml
   pull_request:
     paths:
       - '**.nix'
-      - tools/nix/list-requisites.sh
+      - tools/nix/**
       - .github/workflows/nix-changes.yml
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -50,8 +50,8 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
           sparse-checkout: |
-            *.nix
-            tools/nix/list-requisites.sh
+            shell.nix
+            tools/nix/
           sparse-checkout-cone-mode: false
 
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
