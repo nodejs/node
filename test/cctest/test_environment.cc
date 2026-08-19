@@ -28,6 +28,12 @@ static void at_exit_callback_ordered2(void* arg);
 static void at_exit_js(void* arg);
 static std::string cb_1_arg;  // NOLINT(runtime/string)
 
+struct SelfRemovingCleanupHookState {
+  v8::Isolate* isolate;
+  bool ran = false;
+};
+static void self_removing_cleanup_hook(void* arg);
+
 class EnvironmentTest : public EnvironmentTestFixture {
  private:
   void TearDown() override {
@@ -289,6 +295,26 @@ TEST_F(EnvironmentTest, AtExitRunsJS) {
   EXPECT_TRUE(called_at_exit_js);
 }
 
+// A cleanup hook that removes itself while the environment cleanup queue is
+// being drained must not cause a use-after-free. Since #63642 this is the
+// ordinary teardown path for every node::ObjectWrap still alive at exit.
+// The use-after-free is silent in ordinary builds; it is caught by the
+// ASan/Valgrind CI, which is also how the original assertion (#63923)
+// surfaced. Regression test for https://github.com/nodejs/node/issues/65195.
+TEST_F(EnvironmentTest, RemoveEnvironmentCleanupHookDuringCleanup) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  SelfRemovingCleanupHookState state{isolate_};
+  {
+    Env env{handle_scope, argv};
+    node::AddEnvironmentCleanupHook(
+        isolate_, self_removing_cleanup_hook, &state);
+    // Destroying `env` runs FreeEnvironment() -> RunCleanup(), which drains
+    // the cleanup queue and invokes CleanupHookThunkRun() for the hook above.
+  }
+  EXPECT_TRUE(state.ran);
+}
+
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
@@ -370,6 +396,19 @@ static void at_exit_js(void* arg) {
   EXPECT_FALSE(obj.IsEmpty());  // Assert VM is still alive.
   EXPECT_TRUE(obj->IsObject());
   called_at_exit_js = true;
+}
+
+// Mirrors what node::ObjectWrap does since
+// https://github.com/nodejs/node/pull/63642: the destructor removes the
+// object's own environment cleanup hook. When that runs while the cleanup
+// queue is being drained, CleanupHookThunkRun() must not read the
+// CleanupHookThunk after invoking the hook -- the hook has already erased and
+// freed it. See https://github.com/nodejs/node/issues/65195.
+static void self_removing_cleanup_hook(void* arg) {
+  auto* state = static_cast<SelfRemovingCleanupHookState*>(arg);
+  state->ran = true;
+  node::RemoveEnvironmentCleanupHook(
+      state->isolate, self_removing_cleanup_hook, state);
 }
 
 TEST_F(EnvironmentTest, SetImmediateCleanup) {
