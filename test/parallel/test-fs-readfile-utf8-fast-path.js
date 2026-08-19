@@ -100,4 +100,12 @@ describe('fs.readFileSync utf8 simdutf dispatch', () => {
     const buf = Buffer.from([0x41, 0xE4, 0xB8]);
     expectMatches(writeFile('truncated-multibyte.txt', buf), buf);
   });
+
+  it('accepts case-insensitive utf8 encoding aliases', () => {
+    const p = writeFile('encoding-alias.txt', Buffer.from('hello'));
+    for (const encoding of ['utf8', 'utf-8', 'UTF8', 'UTF-8', 'Utf8', 'uTf-8']) {
+      assert.strictEqual(fs.readFileSync(p, encoding), 'hello');
+      assert.strictEqual(fs.readFileSync(p, { encoding }), 'hello');
+    }
+  });
 });
