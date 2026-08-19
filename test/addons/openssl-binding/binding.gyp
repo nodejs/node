@@ -12,6 +12,9 @@
                 'aix_variant_name': '<!(uname -s)',
               },
               'conditions': [
+                [ '"<(aix_variant_name)"=="OS400"', { # OS400 (IBM i): no sources, skip link
+                  'type': 'none',
+                }],
                 [ '"<(aix_variant_name)"!="OS400"', { # Not `OS400`(IBM i)
                   'sources': ['binding.cc'],
                   'include_dirs': ['../../../deps/openssl/openssl/include'],
