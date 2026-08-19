@@ -2397,11 +2397,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  // Keep the database alive during sqlite3changeset_apply(), which may
-  // call conflict or filter callbacks that trigger JavaScript execution.
-  // If the JavaScript callback drops all references to the database,
-  // the DatabaseSync could otherwise be garbage-collected while the
-  // callback is still executing, causing a use-after-free.
+  // Keep the database alive in case a callback drops all references to it,
+  // which could otherwise let it be garbage-collected mid-callback.
   BaseObjectPtr<DatabaseSync> guard(db);
 
   ArrayBufferViewContents<uint8_t> buf(args[0]);
@@ -2410,8 +2407,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // A callback may detach/modify the input buffer mid-apply, so copy it.
+  // With no callbacks, no JS runs during sqlite3changeset_apply(), so no
+  // copy is needed.
   std::unique_ptr<BackingStore> changeset;
-  if (buf.length() > 0) {
+  if (buf.length() > 0 &&
+      (context.filterCallback || context.conflictCallback)) {
     changeset = ArrayBuffer::NewBackingStore(
         env->isolate(),
         buf.length(),
@@ -2427,12 +2428,14 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
   int r;
   {
     CallbackDepthGuard guard(db);
-    r = sqlite3changeset_apply(db->connection_,
-                               static_cast<int>(buf.length()),
-                               changeset ? changeset->Data() : nullptr,
-                               context.filterCallback ? xFilter : nullptr,
-                               xConflict,
-                               static_cast<void*>(&context));
+    r = sqlite3changeset_apply(
+        db->connection_,
+        static_cast<int>(buf.length()),
+        changeset ? changeset->Data()
+                  : const_cast<void*>(static_cast<const void*>(buf.data())),
+        context.filterCallback ? xFilter : nullptr,
+        xConflict,
+        static_cast<void*>(&context));
   }
   if (r == SQLITE_OK) {
     args.GetReturnValue().Set(true);
