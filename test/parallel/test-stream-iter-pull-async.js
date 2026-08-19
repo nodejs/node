@@ -295,6 +295,23 @@ async function testPullStatelessTransformFlushError() {
   }, { message: 'async flush boom' });
 }
 
+// An abort during an async flush must not be swallowed when the flush resolves
+// to null and therefore produces no final batch.
+async function testPullSignalAbortDuringAsyncFlush() {
+  const ac = new AbortController();
+  const reason = new Error('aborted during flush');
+  const transform = async (chunks) => {
+    if (chunks !== null) return chunks;
+    ac.abort(reason);
+    return null;
+  };
+
+  await assert.rejects(
+    () => text(pull(from('x'), transform, { signal: ac.signal })),
+    (error) => error === reason,
+  );
+}
+
 // Pull with a sync iterable source (not async)
 async function testPullWithSyncSource() {
   function* gen() {
@@ -409,6 +426,7 @@ async function testTransformOptionsNotShared() {
     testPullStatelessTransformFlush(),
     testPullConsecutiveStatelessTransformFlush(),
     testPullStatelessTransformFlushError(),
+    testPullSignalAbortDuringAsyncFlush(),
     testPullWithSyncSource(),
     testPullStringSource(),
     testTransformReturnsSingleUint8Array(),
