@@ -1452,15 +1452,15 @@ added: v0.1.90
 * `error` {Object}
 * Returns: {net.Socket}
 
-Ensures that no more I/O activity happens on this socket.
+Ensures that no more I/O activity happens on the current connection.
 Destroys the stream and closes the connection.
 
 See [`writable.destroy()`][] for further details.
 
 ### `socket.destroyed`
 
-* Type: {boolean} Indicates if the connection is destroyed or not. Once a
-  connection is destroyed no further data can be transferred using it.
+* Type: {boolean} Indicates if the connection is destroyed or not. No further
+  data can be transferred using a destroyed connection.
 
 See [`writable.destroyed`][] for further details.
 
