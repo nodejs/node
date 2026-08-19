@@ -838,10 +838,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kErrorIsError:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_error_iserror);
 
-    // --js-regexp-escape
-    case Builtin::kRegExpEscape:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_regexp_escape);
-
     // --js-explicit-resource-management
     case Builtin::kSuppressedErrorConstructor:
     case Builtin::kDisposableStackConstructor:

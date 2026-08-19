@@ -3320,6 +3320,9 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
       INSTALL_CAPTURE_GETTER(8);
       INSTALL_CAPTURE_GETTER(9);
 #undef INSTALL_CAPTURE_GETTER
+
+      SimpleInstallFunction(isolate_, regexp_fun, "escape",
+                            Builtin::kRegExpEscape, 1, kAdapt);
     }
     SetConstructorInstanceType(isolate_, regexp_fun,
                                JS_REG_EXP_CONSTRUCTOR_TYPE);
@@ -5897,14 +5900,7 @@ void Genesis::InitializeGlobal_js_float16array() {
                                    Context::FLOAT16_ARRAY_FUN_INDEX);
 }
 
-void Genesis::InitializeGlobal_js_regexp_escape() {
-  if (!v8_flags.js_regexp_escape) return;
 
-  DirectHandle<JSFunction> regexp_fun(native_context()->regexp_function(),
-                                      isolate());
-  SimpleInstallFunction(isolate(), regexp_fun, "escape", Builtin::kRegExpEscape,
-                        1, kAdapt);
-}
 
 void Genesis::InitializeGlobal_js_defer_import_eval() {}
 
