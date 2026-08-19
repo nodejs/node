@@ -112,6 +112,7 @@
     "transferList")                                                            \
   V(clone_untransferable_str, "Found invalid value in transferList.")          \
   V(code_string, "code")                                                       \
+  V(column_string, "column")                                                   \
   V(config_string, "config")                                                   \
   V(constants_string, "constants")                                             \
   V(crypto_dh_string, "dh")                                                    \
@@ -144,6 +145,7 @@
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
   V(database_string, "database")                                               \
+  V(db_name_string, "dbName")                                                  \
   V(default_is_true_string, "defaultIsTrue")                                   \
   V(defensive_string, "defensive")                                             \
   V(deserialize_info_string, "deserializeInfo")                                \
@@ -270,6 +272,7 @@
   V(node_string, "node")                                                       \
   V(object_string, "Object")                                                   \
   V(ocsp_request_string, "OCSPRequest")                                        \
+  V(offset_string, "offset")                                                   \
   V(ok_string, "ok")                                                           \
   V(oncertcb_string, "oncertcb")                                               \
   V(onchange_string, "onchange")                                               \
@@ -318,6 +321,7 @@
   V(port1_string, "port1")                                                     \
   V(port2_string, "port2")                                                     \
   V(port_string, "port")                                                       \
+  V(position_string, "position")                                               \
   V(primordials_string, "primordials")                                         \
   V(process_string, "process")                                                 \
   V(progress_string, "progress")                                               \
@@ -330,6 +334,7 @@
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
   V(read_bigints_string, "readBigInts")                                        \
+  V(read_only_string, "readOnly")                                              \
   V(reason_string, "reason")                                                   \
   V(remaining_pages_string, "remainingPages")                                  \
   V(rename_string, "rename")                                                   \
@@ -343,6 +348,7 @@
   V(result_string, "result")                                                   \
   V(return_arrays_string, "returnArrays")                                      \
   V(return_string, "return")                                                   \
+  V(row_string, "row")                                                         \
   V(salt_length_string, "saltLength")                                          \
   V(secp256k1_string, "secp256k1")                                             \
   V(search_string, "search")                                                   \
@@ -474,6 +480,7 @@
   V(socketaddress_constructor_template, v8::FunctionTemplate)                  \
   V(space_stats_template, v8::DictionaryTemplate)                              \
   V(sqlite_column_template, v8::DictionaryTemplate)                            \
+  V(sqlite_blob_handle_constructor_template, v8::FunctionTemplate)             \
   V(sqlite_limits_template, v8::ObjectTemplate)                                \
   V(sqlite_run_result_template, v8::DictionaryTemplate)                        \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \

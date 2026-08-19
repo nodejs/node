@@ -314,7 +314,10 @@ Closes the database connection. An exception is thrown if the database is not
 open. An [`ERR_INVALID_STATE`][] error is thrown if the method is called while
 a statement is executing, such as inside a user-defined function, an aggregate
 function, an authorizer callback, or a [`'sqlite.db.query'`][] subscriber. This
-method is a wrapper around [`sqlite3_close_v2()`][].
+method is a wrapper around [`sqlite3_close_v2()`][]. Outstanding
+[`BlobHandle`][]s are closed before the connection. If closing one reports a
+deferred commit error, every handle and the connection are still closed, and
+the exception is propagated to the caller.
 
 ### `database.loadExtension(path[, entryPoint])`
 
@@ -877,6 +880,98 @@ added:
 
 Creates and attaches a session to the database. This method is a wrapper around [`sqlite3session_create()`][] and [`sqlite3session_attach()`][].
 
+### `database.openBlob(options)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object} The configuration options for the blob handle.
+  * `table` {string} The name of the table containing the value.
+  * `column` {string} The name of the column containing the value.
+  * `row` {number|bigint} The `ROWID` of the row containing the value.
+  * `readOnly` {boolean} If `true`, the handle is opened for reading only.
+    **Default:** `false`.
+  * `dbName` {string} Name of the database containing the table. This is
+    useful when multiple databases have been added using
+    [`ATTACH DATABASE`][]. **Default:** `'main'`.
+* Returns: {BlobHandle} A handle to the value.
+
+Opens a handle for incremental reading and writing of a single BLOB or TEXT
+value, without materializing the whole value in memory. This method is a
+wrapper around [`sqlite3_blob_open()`][].
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { DatabaseSync } from 'node:sqlite';
+
+const database = new DatabaseSync(':memory:');
+database.exec('CREATE TABLE files (name TEXT, data BLOB)');
+
+// The value must already be the right size. zeroblob(N) reserves N bytes.
+const { lastInsertRowid } = database
+  .prepare('INSERT INTO files (name, data) VALUES (?, zeroblob(?))')
+  .run('greeting.txt', 11);
+
+using blob = database.openBlob({
+  table: 'files',
+  column: 'data',
+  row: lastInsertRowid,
+});
+
+blob.write(Buffer.from('hello'), { position: 0 });
+blob.write(Buffer.from(' world'), { position: 5 });
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+const { DatabaseSync } = require('node:sqlite');
+
+const database = new DatabaseSync(':memory:');
+database.exec('CREATE TABLE files (name TEXT, data BLOB)');
+
+const { lastInsertRowid } = database
+  .prepare('INSERT INTO files (name, data) VALUES (?, zeroblob(?))')
+  .run('greeting.txt', 11);
+
+const blob = database.openBlob({
+  table: 'files',
+  column: 'data',
+  row: lastInsertRowid,
+});
+
+try {
+  blob.write(Buffer.from('hello'), { position: 0 });
+  blob.write(Buffer.from(' world'), { position: 5 });
+} finally {
+  blob.close();
+}
+```
+
+SQLite places several restrictions on the values a handle can be opened on.
+An exception is thrown if any of them is not met:
+
+* The table must have a `ROWID`. Views and `WITHOUT ROWID` tables cannot be
+  used.
+* Virtual tables cannot be used.
+* A table containing any generated columns cannot be used, even when the
+  handle is opened on a different, non-generated column.
+* The row must exist and the column must hold a BLOB or TEXT value.
+* A column that is part of an index, `PRIMARY KEY`, or `UNIQUE` constraint can
+  only be opened with `readOnly` set to `true`.
+* When foreign key constraints are enabled, a column that is part of a child
+  key definition can also only be opened with `readOnly` set to `true`.
+
+While a handle opened for writing is open, SQLite keeps the current
+transaction open. In autocommit mode the transaction is committed when the
+last such handle is closed, which is why [`blobHandle.close()`][] can report an
+error that an earlier write did not.
+
+Writes through a handle change raw bytes directly; they are not SQL `UPDATE`
+statements. They do not run triggers or enforce column constraints such as
+`CHECK`, and they can leave a TEXT value containing invalid UTF-8. Applications
+are responsible for preserving those invariants.
+
 ### `database.applyChangeset(changeset[, options])`
 
 <!-- YAML
@@ -974,7 +1069,160 @@ changes:
 -->
 
 Closes the database connection. If the database connection is already closed
-then this is a no-op.
+then this is a no-op. Otherwise, errors are reported under the same conditions
+as [`database.close()`][].
+
+## Class: `BlobHandle`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A handle to a single BLOB or TEXT value, returned by
+[`database.openBlob()`][]. It reads and writes ranges of bytes in place,
+allowing a value larger than the memory available to the process to be
+processed a chunk at a time.
+
+A handle cannot change the size of the value it points at. The row must
+already hold a value of the intended size, typically created with SQLite's
+`zeroblob(N)` function or by an `UPDATE`.
+
+A handle expires if any column of the row it points at is modified. Until a
+read or write detects the expiration, `blobHandle.byteLength` continues to
+report the size of the original value. An otherwise-valid read or write then
+throws an error whose `errcode` is `SQLITE_ABORT` and aborts the handle. Its
+`byteLength` then reports `0`, and subsequent reads, writes, and attempts to
+[`blobHandle.reopen()`][] throw `SQLITE_ABORT`. Closing it still succeeds. A
+successful `reopen()` before the failed read or write can make the handle
+usable again.
+
+```mjs
+import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
+
+const database = new DatabaseSync('files.db');
+using blob = database.openBlob({
+  table: 'files',
+  column: 'data',
+  row: 1,
+  readOnly: true,
+});
+
+// Hash the value 64 KiB at a time, never holding more than one chunk.
+const hash = createHash('sha256');
+const chunk = Buffer.alloc(65536);
+
+for (let position = 0; position < blob.byteLength; position += chunk.length) {
+  const bytesRead = blob.read(chunk, {
+    position,
+    length: Math.min(chunk.length, blob.byteLength - position),
+  });
+  hash.update(chunk.subarray(0, bytesRead));
+}
+
+console.log(hash.digest('hex'));
+```
+
+### `blobHandle.byteLength`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number} The size of the value in bytes.
+
+The reported size is updated after [`blobHandle.reopen()`][] succeeds. It
+reports `0` after a failed read or write detects that the row has changed, or
+after SQLite fails to reopen the handle on another row. This property is a
+wrapper around [`sqlite3_blob_bytes()`][].
+
+### `blobHandle.read(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView} The buffer to read into.
+* `options` {Object}
+  * `offset` {number|bigint} The location in `buffer` to start writing at.
+    **Default:** `0`.
+  * `length` {number|bigint} The number of bytes to read. **Default:**
+    `buffer.byteLength - offset`.
+  * `position` {number|bigint} The location in the value to start reading from.
+    **Default:** `0`.
+* Returns: {number} The number of bytes read.
+
+Reads a range of bytes from the value into `buffer`. This method is a wrapper
+around [`sqlite3_blob_read()`][].
+
+SQLite's incremental reads are all-or-nothing: unlike
+[`filehandle.read()`][], there is no short read at the end of the value. A
+request for a range that extends past `blobHandle.byteLength` throws
+`ERR_OUT_OF_RANGE` and reads nothing, so the return value is always equal to
+the number of bytes requested. It is returned for symmetry with the other read
+APIs.
+
+### `blobHandle.write(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView} The buffer to write from.
+* `options` {Object}
+  * `offset` {number|bigint} The location in `buffer` to start reading from.
+    **Default:** `0`.
+  * `length` {number|bigint} The number of bytes to write. **Default:**
+    `buffer.byteLength - offset`.
+  * `position` {number|bigint} The location in the value to start writing at.
+    **Default:** `0`.
+* Returns: {number} The number of bytes written.
+
+Writes a range of bytes from `buffer` into the value. This method is a wrapper
+around [`sqlite3_blob_write()`][].
+
+A write cannot grow or shrink the value, and cannot extend past
+`blobHandle.byteLength`; such a request throws `ERR_OUT_OF_RANGE`. An exception
+is also thrown if the handle was opened with `readOnly` set to `true`.
+
+### `blobHandle.reopen(row)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `row` {number|bigint} The `ROWID` of the row to move to.
+
+Moves the handle to the same column of a different row of the same table.
+This is faster than closing the handle and opening a new one. This method is a
+wrapper around [`sqlite3_blob_reopen()`][].
+
+`blobHandle.byteLength` reflects the new row once the move succeeds. If SQLite
+cannot reopen the handle on the requested row after the argument is validated,
+SQLite aborts the handle and `blobHandle.byteLength` reports `0`. Reads, writes,
+and further attempts to reopen it throw `SQLITE_ABORT`, while closing it still
+succeeds.
+
+### `blobHandle.close()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes the handle. An exception is thrown if the database or the handle is not
+open, or if SQLite reports an error while flushing a previous write. The handle
+is released in either case. This method is a wrapper around
+[`sqlite3_blob_close()`][].
+
+### `blobHandle[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes the handle. If the handle is already closed, does nothing. Otherwise,
+errors are reported under the same conditions as [`blobHandle.close()`][].
 
 ## Class: `Session`
 
@@ -1902,6 +2150,7 @@ callback function to indicate what type of operation is being authorized.
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
+[`BlobHandle`]: #class-blobhandle
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
@@ -1910,14 +2159,25 @@ callback function to indicate what type of operation is being authorized.
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
 [`SQLITE_PREPARE_PERSISTENT`]: https://sqlite.org/c3ref/c_prepare_dont_log.html#sqlitepreparepersistent
 [`SQLTagStore`]: #class-sqltagstore
+[`blobHandle.close()`]: #blobhandleclose
+[`blobHandle.reopen()`]: #blobhandlereopenrow
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
+[`database.close()`]: #databaseclose
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
+[`database.openBlob()`]: #databaseopenbloboptions
 [`database.serialize()`]: #databaseserializedbname
 [`database.setAuthorizer()`]: #databasesetauthorizercallback
 [`diagnostics_channel`]: diagnostics_channel.md
+[`filehandle.read()`]: fs.md#filehandlereadbuffer-offset-length-position
 [`sqlite3_backup_finish()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupfinish
 [`sqlite3_backup_init()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupinit
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
+[`sqlite3_blob_bytes()`]: https://www.sqlite.org/c3ref/blob_bytes.html
+[`sqlite3_blob_close()`]: https://www.sqlite.org/c3ref/blob_close.html
+[`sqlite3_blob_open()`]: https://www.sqlite.org/c3ref/blob_open.html
+[`sqlite3_blob_read()`]: https://www.sqlite.org/c3ref/blob_read.html
+[`sqlite3_blob_reopen()`]: https://www.sqlite.org/c3ref/blob_reopen.html
+[`sqlite3_blob_write()`]: https://www.sqlite.org/c3ref/blob_write.html
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
 [`sqlite3_column_database_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
