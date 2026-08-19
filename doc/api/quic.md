@@ -307,9 +307,9 @@ separate APIs for creating each kind:
 [`session.createUnidirectionalStream()`][]. Streams initiated by a remote
 peer are delivered via the [`session.onstream`][] callback. When the
 negotiated application protocol supports the stream-level callbacks (e.g.
-HTTP/3) and any of them are configured, incoming streams can instead be
-consumed entirely through those callbacks (such as `onheaders`) and
-registering `onstream` is optional.
+HTTP/3) and an `onheaders` callback is configured, incoming streams can
+instead be consumed entirely through it and registering `onstream` is
+optional.
 
 There are two ways to write data to a stream:
 
@@ -414,8 +414,8 @@ A typical client session progresses through these stages:
 On the server side, call [`quic.listen()`][] with a callback. The callback
 fires for each incoming session after the TLS handshake begins. Incoming
 streams arrive via the [`session.onstream`][] callback, or, for HTTP/3
-sessions with stream-level callbacks configured, directly through those
-callbacks (see the [minimal HTTP/3 server][] example).
+sessions with an `onheaders` callback configured, directly through that
+callback (see the [minimal HTTP/3 server][] example).
 
 [`session.destroy()`][] is available for immediate teardown — all open streams
 are destroyed and the session is closed without waiting for them to finish.
@@ -1117,11 +1117,13 @@ added: v23.8.0
 The callback to invoke when a new stream is initiated by a remote peer. Read/write.
 
 If no `onstream` callback is set and the stream has no other consumer, an
-incoming stream is destroyed on arrival and a warning is emitted. Stream-level
-callbacks (such as `onheaders`) count as a consumer when the negotiated
-application protocol supports them (e.g. HTTP/3), so an HTTP/3 server that
-handles requests entirely through those callbacks does not need to set
-`onstream`.
+incoming stream is destroyed on arrival and a warning is emitted. An
+`onheaders` callback counts as a consumer when the negotiated application
+protocol supports it (e.g. HTTP/3), because it is invoked for every incoming
+request stream. Other stream-level callbacks (`ontrailers`, `oninfo`,
+`onwanttrailers`) do not, since they are conditional or outbound-only and
+would leave the stream unobservable. An HTTP/3 server that handles requests
+entirely through `onheaders` does not need to set `onstream`.
 
 ### `session.ondatagram`
 
@@ -4023,7 +4025,7 @@ const encoder = new TextEncoder();
 const endpoint = await listen((session) => {
   // The session.onstream callback fires for each new client-initiated
   // stream. It is optional here: with `onheaders` configured below,
-  // request streams are consumed through the stream-level callbacks.
+  // request streams are consumed through that callback.
 }, {
   sni: { '*': { keys: [defaultKey], certs: [defaultCert] } },
   // ALPN defaults to 'h3'.

@@ -11,7 +11,7 @@
 // streams (and emits a warning), so unconsumed streams cannot
 // accumulate and hold flow control credit.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
@@ -124,6 +124,48 @@ function failOnConsumerWarning(warning) {
 
   const stream = await clientSession.createUnidirectionalStream();
   stream.writer.writeSync('x');
+
+  await warned.promise;
+  await clientSession.close();
+  await serverEndpoint.close();
+}
+
+// --- Stream callbacks that do not expose the stream are not a consumer ---
+// Only `onheaders` is invoked for every incoming h3 request stream.
+// `ontrailers` and `oninfo` are conditional and `onwanttrailers` is
+// outbound-only, so a session registering only those callbacks has no way
+// to observe an incoming stream and it must be destroyed with the warning.
+for (const callbackName of ['ontrailers', 'oninfo', 'onwanttrailers']) {
+  const warned = Promise.withResolvers();
+  process.on('warning', function onWarning(warning) {
+    if (warning.message === kWarning) {
+      process.off('warning', onWarning);
+      warned.resolve();
+    }
+  });
+
+  const serverEndpoint = await listen(mustCall((serverSession) => {
+    serverSession.onerror = () => {};
+  }), {
+    sni: { '*': { keys: [key], certs: [cert] } },
+    [callbackName]: mustNotCall(),
+  });
+
+  const clientSession = await connect(serverEndpoint.address, {
+    servername: 'localhost',
+    verifyPeer: 'manual',
+  });
+  await clientSession.opened;
+
+  const stream = await clientSession.createBidirectionalStream({
+    headers: {
+      ':method': 'GET',
+      ':path': '/test',
+      ':scheme': 'https',
+      ':authority': 'localhost',
+    },
+  });
+  stream.onerror = () => {};
 
   await warned.promise;
   await clientSession.close();
