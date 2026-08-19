@@ -50,7 +50,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
           sparse-checkout: |
-            ./tools/nix/list-requisites.sh
+            tools/nix/list-requisites.sh
             '*.nix'
           sparse-checkout-cone-mode: false
 
