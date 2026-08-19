@@ -107,6 +107,9 @@
     # Enable compiler warnings when using V8_DEPRECATED apis.
     'v8_deprecation_warnings%': 0,
 
+    # Check that JavaScript execution is disallowed in V8 API interrupts.
+    'v8_disallow_js_in_api_interrupts_is_checked%': 0,
+
     # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
     'v8_imminent_deprecation_warnings%': 0,
 
@@ -416,6 +419,9 @@
       }],
       ['v8_deprecation_warnings==1', {
         'defines': ['V8_DEPRECATION_WARNINGS',],
+      }],
+      ['v8_disallow_js_in_api_interrupts_is_checked==1', {
+        'defines': ['V8_DISALLOW_JS_IN_API_INTERRUPTS_IS_CHECKED',],
       }],
       ['v8_imminent_deprecation_warnings==1', {
         'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
