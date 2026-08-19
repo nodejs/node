@@ -1466,6 +1466,11 @@ class MaglevFrameTranslationBuilder {
     return kNotDuplicated;
   }
 
+  int CreateUnduplicatableId() {
+    object_ids_.push_back(kNotDuplicated);
+    return kNotDuplicated;
+  }
+
   void BuildHeapNumber(Float64 number) {
     DirectHandle<Object> value =
         local_isolate_->factory()->NewHeapNumberFromBits<AllocationType::kOld>(
@@ -1535,11 +1540,16 @@ class MaglevFrameTranslationBuilder {
   void BuildVirtualObject(const VirtualObject* object,
                           const InputLocation*& input_location,
                           const VirtualObjectList& virtual_objects) {
-    if (object->type() == VirtualObject::kHeapNumber) {
-      return BuildHeapNumber(object->number());
-    }
+    DCHECK_NOT_NULL(object->allocation());
+    // HeapNumbers may be mutable object fields; each materialization must
+    // create a fresh box, so they are never deduplicated.
+    // TODO(victorgomes): Constrain which objects may contain mutable
+    // HeapNumbers. Immutable HeapNumbers can be stored as a literal object
+    // instead of a captured object.
     int dup_id =
-        GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
+        object->type() == VirtualObject::kHeapNumber
+            ? CreateUnduplicatableId()
+            : GetDuplicatedId(reinterpret_cast<intptr_t>(object->allocation()));
     if (dup_id != kNotDuplicated) {
       translation_array_builder_->DuplicateObject(dup_id);
       object->ForEachNestedRuntimeInput(virtual_objects,
@@ -1699,7 +1709,7 @@ class MaglevFrameTranslationBuilder {
   IdentityMap<int, base::DefaultAllocationPolicy>* protected_deopt_literals_;
   IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals_;
 
-  static const int kNotDuplicated = -1;
+  static constexpr int kNotDuplicated = -1;
   std::vector<intptr_t> object_ids_;
 };
 
