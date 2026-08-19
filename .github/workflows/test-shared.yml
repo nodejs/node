@@ -41,7 +41,7 @@ on:
       - test/internet/**
       - tools/**
       - '!tools/gyp/**'
-      - '!tools/nix/**'
+      - '!tools/nix/**.nix'
       - '!tools/v8/**'
       - '!tools/v8_gypfiles/**'
       - typings/**
@@ -93,7 +93,7 @@ on:
       - test/internet/**
       - tools/**
       - '!tools/gyp/**'
-      - '!tools/nix/**'
+      - '!tools/nix/**.nix'
       - '!tools/v8/**'
       - '!tools/v8_gypfiles/**'
       - typings/**
