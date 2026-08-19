@@ -2,14 +2,19 @@
 
 set -ex
 
-OPTIONAL_FLAGS=$(nix-instantiate \
-  --eval --strict --json -E '
-    builtins.filter
-      (n: builtins.match "with[A-Z].+" n != null)
-      (builtins.attrNames (builtins.functionArgs (import ./shell.nix)))
-  ' | jq -r 'map("--arg \(.) true") | join(" ")')
+BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
+
+OPTIONAL_FLAGS=$(nix-instantiate -I "nixpkgs=$BASE_DIR/tools/nix/pkgs.nix" --eval --strict --raw -E "
+  (import <nixpkgs> {}).lib.concatMapStrings
+    (n: ''--arg \${n} true '')
+    (builtins.filter
+      (n: builtins.match ''with[A-Z].+'' n != null)
+      (builtins.attrNames (builtins.functionArgs (import $BASE_DIR/shell.nix))))
+  "
+)
 
 DRV=$(
+  cd "$BASE_DIR"
   # shellcheck disable=SC2086
   nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
     $OPTIONAL_FLAGS \
@@ -54,4 +59,4 @@ REFS=$(nix-store --query --references "$DRV")
 STORE_PATHS=$(echo "$REFS" | xargs nix-store --realise)
 REQUISITES=$(echo "$STORE_PATHS" | xargs nix-store --query --requisites)
 
-echo "$REQUISITES" | sort -k1.45
+echo "$REQUISITES" | sort -k1.45 | uniq
