@@ -18,7 +18,12 @@ hooks.enable();
 fs.readFile(__filename, common.mustCall(onread));
 
 function onread() {
+  // fs.readFile() of a small file is a single request (open + fstat + read +
+  // close in one thread pool round trip); larger files continue with one
+  // request per chunk. Either way each request is an FSREQCALLBACK triggered
+  // by the previous one (or by the top-level for the first).
   const as = hooks.activitiesOfTypes('FSREQCALLBACK');
+  assert.ok(as.length >= 1);
   let lastParent = 1;
   for (let i = 0; i < as.length; i++) {
     const a = as[i];
@@ -27,17 +32,15 @@ function onread() {
     assert.strictEqual(a.triggerAsyncId, lastParent);
     lastParent = a.uid;
   }
-  checkInvocations(as[0], { init: 1, before: 1, after: 1, destroy: 1 },
-                   'reqwrap[0]: while in onread callback');
-  checkInvocations(as[1], { init: 1, before: 1, after: 1, destroy: 1 },
-                   'reqwrap[1]: while in onread callback');
-  checkInvocations(as[2], { init: 1, before: 1, after: 1, destroy: 1 },
-                   'reqwrap[2]: while in onread callback');
+  for (let i = 0; i < as.length - 1; i++) {
+    checkInvocations(as[i], { init: 1, before: 1, after: 1, destroy: 1 },
+                     `reqwrap[${i}]: while in onread callback`);
+  }
 
   // This callback is called from within the last fs req callback therefore
   // the last req is still going and after/destroy haven't been called yet
-  checkInvocations(as[3], { init: 1, before: 1 },
-                   'reqwrap[3]: while in onread callback');
+  checkInvocations(as[as.length - 1], { init: 1, before: 1 },
+                   `reqwrap[${as.length - 1}]: while in onread callback`);
   tick(2);
 }
 

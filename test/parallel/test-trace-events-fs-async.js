@@ -91,7 +91,9 @@ function fdatasync() {
 function fstat() {
   const fs = require('fs');
   fs.writeFileSync('fs8.txt', '123', 'utf8');
-  fs.readFile('fs8.txt', () => {
+  const fd = fs.openSync('fs8.txt', 'r');
+  fs.fstat(fd, () => {
+    fs.closeSync(fd);
     fs.unlinkSync('fs8.txt');
   });
 }
