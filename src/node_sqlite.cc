@@ -4299,6 +4299,10 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
       env, session->session_ == nullptr, "session is not open");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, session->database_.get());
 
+  session->is_generating_changeset_ = true;
+  auto changeset_guard =
+      OnScopeLeave([&] { session->is_generating_changeset_ = false; });
+
   int nChangeset;
   void* pChangeset;
   int r = sqliteChangesetFunc(session->session_, &nChangeset, &pChangeset);
@@ -4324,6 +4328,8 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
       env, !session->database_->IsOpen(), "database is not open");
   THROW_AND_RETURN_ON_BAD_STATE(
       env, session->session_ == nullptr, "session is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, session->is_generating_changeset_, "session is currently in use");
 
   session->Delete();
 }

@@ -1013,7 +1013,8 @@ wrapper around [`sqlite3session_patchset()`][].
 
 ### `session.close()`
 
-Closes the session. An exception is thrown if the database or the session is not open. This method is a
+Closes the session. An exception is thrown if the database or the session is not open,
+or if the session is currently generating a changeset or patchset. This method is a
 wrapper around [`sqlite3session_delete()`][].
 
 ### `session[Symbol.dispose]()`

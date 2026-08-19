@@ -458,6 +458,7 @@ class Session : public BaseObject {
   void Delete();
   sqlite3_session* session_;
   BaseObjectPtr<DatabaseSync> database_;  // The Parent Database
+  bool is_generating_changeset_ = false;
 
   friend class DatabaseSync;
 };
