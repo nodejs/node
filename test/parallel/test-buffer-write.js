@@ -127,3 +127,17 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_BUFFER_OUT_OF_BOUNDS',
 }));
+
+for (const method of ['asciiWrite', 'latin1Write', 'utf8Write']) {
+  let calls = 0;
+  const offset = {
+    valueOf() {
+      calls++;
+      return 2;
+    },
+  };
+  assert.throws(() => Buffer.alloc(1)[method]('ww', offset, 1), common.expectsError({
+    code: 'ERR_BUFFER_OUT_OF_BOUNDS',
+  }));
+  assert.strictEqual(calls, 1);
+}
