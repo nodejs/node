@@ -55,16 +55,6 @@ let
   useSharedTemporal = builtins.hasAttr "temporal_capi" sharedLibDeps;
   needsRustCompiler = withTemporal && !useSharedTemporal;
 
-  usePkcs11 = pkcs11 != false && pkcs11 != null;
-  pkcs11Fixture =
-    if pkcs11 == true then
-      import ./tools/nix/pkcs11.nix {
-        inherit pkgs;
-        inherit (sharedLibDeps) openssl;
-      }
-    else
-      pkcs11;
-
   nativeBuildInputs =
     pkgs.nodejs-slim_latest.nativeBuildInputs
     ++ pkgs.lib.optionals needsRustCompiler [
@@ -88,35 +78,35 @@ let
   ++ pkgs.lib.optional (withTemporal && useSharedTemporal) "--shared-temporal_capi"
   ++ pkgs.lib.optional withPerfetto "--with-perfetto";
 in
-pkgs.mkShell (
-  {
-    inherit nativeBuildInputs;
+pkgs.mkShell {
+  inherit nativeBuildInputs;
 
-    buildInputs =
-      builtins.attrValues sharedLibDeps
-      ++ buildInputs
-      ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) (
-        if useSeparateDerivationForV8 == true then
-          let
-            sharedLibsToMock = pkgs.callPackage ./tools/nix/non-v8-deps-mock.nix { };
-          in
-          pkgs.callPackage ./tools/nix/v8.nix {
-            inherit nativeBuildInputs icu;
+  buildInputs =
+    builtins.attrValues sharedLibDeps
+    ++ buildInputs
+    ++ pkgs.lib.optional (useSeparateDerivationForV8 != false) (
+      if useSeparateDerivationForV8 == true then
+        let
+          sharedLibsToMock = pkgs.callPackage ./tools/nix/non-v8-deps-mock.nix { };
+        in
+        pkgs.callPackage ./tools/nix/v8.nix {
+          inherit nativeBuildInputs icu;
 
-            configureFlags = configureFlags ++ sharedLibsToMock.configureFlags ++ [ "--ninja" ];
-            buildInputs = buildInputs ++ [ sharedLibsToMock ];
-          }
-        else
-          useSeparateDerivationForV8
-      );
+          configureFlags = configureFlags ++ sharedLibsToMock.configureFlags ++ [ "--ninja" ];
+          buildInputs = buildInputs ++ [ sharedLibsToMock ];
+        }
+      else
+        useSeparateDerivationForV8
+    );
 
-    packages = devTools ++ benchmarkTools ++ pkgs.lib.optional (ccache != null) ccache;
+  packages = devTools ++ benchmarkTools ++ pkgs.lib.optional (ccache != null) ccache;
 
-    shellHook = pkgs.lib.optionalString (ccache != null) ''
-      export CC="${pkgs.lib.getExe ccache} $CC"
-      export CXX="${pkgs.lib.getExe ccache} $CXX"
-    '';
+  shellHook = pkgs.lib.optionalString (ccache != null) ''
+    export CC="${pkgs.lib.getExe ccache} $CC"
+    export CXX="${pkgs.lib.getExe ccache} $CXX"
+  '';
 
+  env = {
     BUILD_WITH = if (ninja != null) then "ninja" else "make";
     NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
     CONFIG_FLAGS = builtins.toString (
@@ -154,9 +144,22 @@ pkgs.mkShell (
   // pkgs.lib.optionalAttrs (!withSQLite) {
     NOSQLITE = "1";
   }
-  // pkgs.lib.optionalAttrs usePkcs11 {
-    NODE_TEST_PKCS11_OPENSSL_CONF = "${pkcs11Fixture.opensslConf}";
-    NODE_TEST_PKCS11_PIN = pkcs11Fixture.softhsmDir.pin;
-    NODE_TEST_PKCS11_SOFTHSM_DIR = "${pkcs11Fixture.softhsmDir}";
-  }
-)
+  // pkgs.lib.optionalAttrs (pkcs11 != false && pkcs11 != null) (
+    let
+      pkcs11' =
+        if pkcs11 == true then
+          import ./tools/nix/pkcs11.nix {
+            inherit pkgs;
+            # Building pkcs11-provider without a shared OpenSSL is not supported.
+            inherit (sharedLibDeps) openssl;
+          }
+        else
+          pkcs11;
+    in
+    {
+      NODE_TEST_PKCS11_OPENSSL_CONF = pkcs11'.opensslConf;
+      NODE_TEST_PKCS11_PIN = pkcs11'.softhsmDir.pin;
+      NODE_TEST_PKCS11_SOFTHSM_DIR = pkcs11'.softhsmDir;
+    }
+  );
+}
