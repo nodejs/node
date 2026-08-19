@@ -10,11 +10,9 @@
 #include <cppgc/platform.h>
 #include <cppgc/visitor.h>
 
-class Wrappable : public v8::Object::Wrappable {
+class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
  public:
-  void Trace(cppgc::Visitor* visitor) const override {
-    v8::Object::Wrappable::Trace(visitor);
-  }
+  void Trace(cppgc::Visitor* visitor) const {}
 };
 
 int main(int argc, char* argv[]) {
