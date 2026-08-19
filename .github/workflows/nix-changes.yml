@@ -11,10 +11,12 @@ on:
       - v[0-9]+.x
     paths:
       - '**.nix'
+      - tools/nix/list-requesites.sh
       - .github/workflows/nix-changes.yml
   pull_request:
     paths:
       - '**.nix'
+      - tools/nix/list-requesites.sh
       - .github/workflows/nix-changes.yml
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -47,7 +49,9 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-          sparse-checkout: '*.nix'
+          sparse-checkout: |
+            ./tools/nix/list-requesites.sh
+            '*.nix'
           sparse-checkout-cone-mode: false
 
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
@@ -60,39 +64,12 @@ jobs:
           name: nodejs
 
       - name: Compute requisites after change
-        shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
-        run: |
-          nix-store --query --references "$(
-            nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
-              --arg devTools "
-                (import ./tools/nix/devTools.nix {})
-                ++ builtins.attrValues (
-                  { inherit (import <nixpkgs> {}) nixfmt-tree sccache; }
-                  // import ./tools/nix/openssl-matrix.nix {}
-                  // import ./tools/nix/pkcs11.nix {}
-                )")" \
-          | xargs nix-store --realise \
-          | xargs nix-store --query --requisites \
-          | sort -k1.45 \
-          > requisites-${{ matrix.system }}-after.list
+        run: ./tools/nix/list-requesites.sh > requisites-${{ matrix.system }}-after.list
 
       - name: Compute requisites before change
-        shell: bash  # See https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference, we want the pipefail option.
         run: |
           git reset HEAD^ --hard
-          nix-store --query --references "$(
-            nix-instantiate -I "nixpkgs=./tools/nix/pkgs.nix" shell.nix \
-              --arg devTools "
-                (import ./tools/nix/devTools.nix {})
-                ++ builtins.attrValues (
-                  { inherit (import <nixpkgs> {}) nixfmt-tree sccache; }
-                  // import ./tools/nix/openssl-matrix.nix {}
-                  // import ./tools/nix/pkcs11.nix {}
-                )")" \
-          | xargs nix-store --realise \
-          | xargs nix-store --query --requisites \
-          | sort -k1.45 \
-          > requisites-${{ matrix.system }}-before.list
+          ./tools/nix/list-requesites.sh > requisites-${{ matrix.system }}-before.list
 
       - name: Output diff
         run: |
