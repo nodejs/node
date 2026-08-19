@@ -4563,7 +4563,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [conditional exports]: packages.md#conditional-exports
 [context-aware]: addons.md#context-aware-addons
 [debugger]: debugger.md
-[debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
+[debugging security implications]: https://nodejs.org/learn/getting-started/debugging#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
 [dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
