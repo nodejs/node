@@ -187,9 +187,6 @@ class StatementExecutionHelper {
                                                  sqlite3_stmt* stmt,
                                                  const int column,
                                                  bool use_big_ints);
-  static v8::MaybeLocal<v8::Name> ColumnNameToName(Environment* env,
-                                                   sqlite3_stmt* stmt,
-                                                   const int column);
   static v8::MaybeLocal<v8::Value> Get(Environment* env,
                                        StatementSync* statement);
 };
