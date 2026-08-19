@@ -248,9 +248,10 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
   constexpr uintptr_t kInvalidBuffer = std::numeric_limits<uintptr_t>::max();
   v8::Isolate* isolate = options != nullptr ? options->isolate : nullptr;
 
-  // Accept only memory-backed JS values in the native helper. Other pointer
-  // conversions, including strings, stay in the JS wrapper so their temporary
-  // lifetime is explicit.
+  // Accept only the memory-backed JS values supported by ToFFIArgument in the
+  // native helper. Other pointer conversions, including strings and direct
+  // SharedArrayBuffers, stay in the JS wrapper so validation and temporary
+  // lifetimes match the generic path.
   if (value->IsArrayBufferView()) {
     v8::Local<v8::ArrayBufferView> view = value.As<v8::ArrayBufferView>();
     if (view->Buffer()->WasDetached()) {
@@ -279,9 +280,6 @@ extern "C" uintptr_t node_ffi_fast_buffer_data(v8::Local<v8::Value> value,
       }
       return kInvalidBuffer;
     }
-    return PointerFromValue(value);
-  }
-  if (value->IsSharedArrayBuffer()) {
     return PointerFromValue(value);
   }
 
