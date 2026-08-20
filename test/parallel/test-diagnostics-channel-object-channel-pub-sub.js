@@ -44,3 +44,5 @@ assert.ok(!channel.unsubscribe(subscriber));
 assert.throws(() => {
   channel.subscribe(null);
 }, { code: 'ERR_INVALID_ARG_TYPE' });
+assert.ok(!channel.hasSubscribers);
+assert.ok(!dc.hasSubscribers('test'));
