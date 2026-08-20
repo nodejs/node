@@ -21,8 +21,6 @@ The implementation is in `commit-queue.yml` and `commit-queue.sh`.
 
 ## Current limitations
 
-The Commit Queue feature is still in early stages, and as such it might not
-work for more complex pull requests. These are the currently known limitations
 These are the currently known limitations of the commit queue:
 
 1. All commits in a pull request must either be following commit message
