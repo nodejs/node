@@ -31,7 +31,8 @@ commit_queue_failed() {
   gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
   last_output_line=$(awk 'NF { line = $0 } END { sub(/^[[:space:]]*/, "", line); print line }' output)
-  missing_policy_message="ℹ  Add \`commit-queue-squash\` label to land the PR as one commit, or \`commit-queue-rebase\` to land as separate commits."
+  # shellcheck disable=SC2016
+  missing_policy_message='ℹ  Add `commit-queue-squash` label to land the PR as one commit, or `commit-queue-rebase` to land as separate commits.'
   if [ "$last_output_line" = "$missing_policy_message" ]; then
     failure_body='This pull request has multiple commits, but no landing policy was selected.
 
@@ -50,7 +51,6 @@ Add https://github.com/nodejs/node/labels/commit-queue-squash to land it as one 
   fi
 
   raw_output=$(cat output)
-  full_output=$(escape_code_block_or_line "$raw_output")
 
   body="### Commit Queue failed
 
@@ -61,7 +61,7 @@ The pull request was removed from the Commit Queue and labeled https://github.co
 <details>
 <summary>Full Commit Queue output</summary>
 
-$full_output
+$(escape_code_block_or_line "$raw_output")
 </details>
 
 [View workflow run]($cqurl)"
