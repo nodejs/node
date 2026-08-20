@@ -107,10 +107,8 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
   } catch (err) {
     if (process.features.openssl_is_boringssl) {
       assert.strictEqual(err.name, 'DataError');
-      // It should really only be ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED
-      // but BoringSSL is inconsistent between handling ML-KEM and ML-DSA
-      // Fixed in https://github.com/google/boringssl/commit/94c4c7f9e0eeeff72ea1ac6abf1aed5bd2a82c0c
-      assert.match(err.cause.code, /ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM|ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED/);
+      assert.strictEqual(err.cause.code,
+                         'ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED');
       common.printSkipMessage('Skipping unsupported private key format test');
       return;
     }
