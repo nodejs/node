@@ -14,6 +14,8 @@
   * [Specifying CPU Cores for Benchmarks with run.js](#specifying-cpu-cores-for-benchmarks-with-runjs)
   * [Filtering benchmarks](#filtering-benchmarks)
   * [Comparing Node.js versions](#comparing-nodejs-versions)
+    * [Using `--analyze` (no external tools needed)](#using---analyze-no-external-tools-needed)
+    * [Using R scripts or node-benchmark-compare](#using-r-scripts-or-node-benchmark-compare)
   * [Comparing parameters](#comparing-parameters)
   * [Running benchmarks on the CI](#running-benchmarks-on-the-ci)
 * [Creating a benchmark](#creating-a-benchmark)
@@ -69,18 +71,27 @@ node benchmark/http2/simple.js benchmarker=h2load
 
 ### Benchmark analysis requirements
 
-To analyze the results statistically, you can use either the
-[node-benchmark-compare][] tool or the R script `benchmark/compare.R`.
+To analyze the results statistically, there are three options:
 
-[node-benchmark-compare][] is a Node.js script that can be installed with
-`npm install -g node-benchmark-compare`.
+* **`--analyze` flag** (built-in, no dependencies): Pass `--analyze` to
+  `benchmark/compare.js` to perform Welch's t-test directly after the
+  benchmarks complete. This uses the histogram API's statistical testing
+  methods and requires no external tools.
+* **R scripts** (`benchmark/compare.R`, `benchmark/bar.R`): Perform the same
+  Welch's t-test analysis as `--analyze`, with the additional ability to
+  generate plots. Requires R with the `ggplot2` and `plyr` packages.
+* **[node-benchmark-compare][]** (legacy): A Node.js script that can be
+  installed with `npm install -g node-benchmark-compare`. It reads the CSV
+  output of `benchmark/compare.js`. Predates the built-in `--analyze` flag
+  and is no longer necessary for most workflows.
 
-To draw comparison plots when analyzing the results, `R` must be installed.
-Use one of the available package managers or download it from
-<https://www.r-project.org/>.
+For most use cases, `--analyze` is the simplest option since it requires
+nothing beyond Node.js itself.
 
-The R packages `ggplot2` and `plyr` are also used and can be installed using
-the R REPL.
+To install R for plot generation, use one of the available package managers or
+download it from <https://www.r-project.org/>.
+
+The R packages `ggplot2` and `plyr` can be installed using the R REPL.
 
 ```console
 $ R
@@ -399,16 +410,38 @@ module, you can use the `--filter` option:_
                                 repeated)
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
-
-    Examples:
-    --set CPUSET=0            Runs benchmarks on CPU core 0.
-    --set CPUSET=0-2          Specifies that benchmarks should run on CPU cores 0 to 2.
-
-  Note: The CPUSET format should match the specifications of the 'taskset' command
+  --analyze                     perform statistical analysis inline (no R needed)
+  --scale    1000               rate multiplier for --analyze precision
+  --max-regression  N           exit with code 1 if any significant regression
+                                exceeds N% (implies --analyze)
 ```
 
-For analyzing the benchmark results, use [node-benchmark-compare][] or the R
-scripts:
+#### Using `--analyze` (no external tools needed)
+
+The simplest way to get statistical results is to pass `--analyze`:
+
+```bash
+node benchmark/compare.js --old ./node-main --new ./node-pr-5134 --analyze string_decoder
+```
+
+This runs the benchmarks and prints the analysis directly:
+
+```console
+                                                                                             confidence   improvement   accuracy (*)    (**)   (***)
+string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=128 encoding='ascii'            ***            -3.76 %   ±1.36%  ±1.82%  ±2.40%
+string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=128 encoding='utf8'              **            -0.81 %   ±0.53%  ±0.71%  ±0.93%
+...
+```
+
+The `--analyze` mode uses the histogram API's `welchTest()` method to perform
+the same Welch's t-test that the R script uses. Benchmark rates are scaled to
+integers for the histogram (controlled by `--scale`, default 1000). With the
+default settings, results are identical to the R script at two decimal places.
+
+#### Using R scripts or node-benchmark-compare
+
+Alternatively, save the CSV output and analyze it separately using
+[node-benchmark-compare][] or the R scripts:
 
 * `benchmark/compare.R`
 * `benchmark/bar.R`
@@ -423,6 +456,10 @@ $ node-benchmark-compare compare-pr-5134.csv # or cat compare-pr-5134.csv | Rscr
  string_decoder/string-decoder.js n=2500000 chunkLen=16 inLen=32 encoding='base64-ascii'            ***     -1.57 %       ±0.83%  ±1.11%  ±1.46%
 ...
 ```
+
+The R approach is still useful when you need to generate plots (box plots via
+`compare.R --plot`, scatter plots via `scatter.R --plot`) or when you want to
+analyze previously saved CSV files.
 
 In the output, _improvement_ is the relative improvement of the new version,
 hopefully this is positive. _confidence_ tells if there is enough
