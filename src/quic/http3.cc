@@ -202,6 +202,8 @@ class Http3ApplicationImpl final : public Session::Application {
 
   bool SupportsHeaders() const override { return true; }
 
+  bool SupportsStreamCallbacks() const override { return true; }
+
   bool is_started() const override { return started_; }
 
   bool Start() override {
