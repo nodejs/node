@@ -987,6 +987,7 @@ suite('BlobHandle deferred commit', () => {
     }, {
       code: 'ERR_SQLITE_ERROR',
       errcode: 5,
+      errstr: 'database is locked',
       message: /database is locked/,
     });
     // The handle is released even though the close reported an error.
@@ -1013,7 +1014,11 @@ suite('BlobHandle deferred commit', () => {
     blob.write(Buffer.from([1, 2, 3, 4]));
     t.assert.throws(() => {
       writer.close();
-    }, { code: 'ERR_SQLITE_ERROR', errcode: 5 });
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      errcode: 5,
+      errstr: 'database is locked',
+    });
     t.assert.throws(() => {
       blob.read(Buffer.alloc(4));
     }, { code: 'ERR_INVALID_STATE' });

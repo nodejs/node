@@ -355,16 +355,8 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
 }
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
-  const char* errstr = sqlite3_errstr(errcode);
-
-  Environment* env = Environment::GetCurrent(isolate);
   Local<Object> error;
-  if (CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
-      error
-          ->Set(isolate->GetCurrentContext(),
-                env->errcode_string(),
-                Integer::New(isolate, errcode))
-          .IsJust()) {
+  if (CreateSQLiteError(isolate, errcode).ToLocal(&error)) {
     isolate->ThrowException(error);
   }
 }
