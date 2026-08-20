@@ -2565,6 +2565,41 @@ object just created has been garbage collected.
 JavaScript `ArrayBuffer`s are described in
 [Section ArrayBuffer objects][] of the ECMAScript Language Specification.
 
+#### `node_api_create_external_sharedarraybuffer`
+
+<!-- YAML
+added: v22.23.3
+-->
+
+```c
+napi_status
+node_api_create_external_sharedarraybuffer(napi_env env,
+                                           void* external_data,
+                                           size_t byte_length,
+                                           node_api_noenv_finalize finalize_cb,
+                                           void* finalize_hint,
+                                           napi_value* result)
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] external_data`: Pointer to the underlying byte buffer of the
+  `SharedArrayBuffer`.
+* `[in] byte_length`: The length in bytes of the underlying buffer.
+* `[in] finalize_cb`: Optional callback to call when the `SharedArrayBuffer` is
+  being collected. Called on an arbitrary thread. Because a `SharedArrayBuffer`
+  can outlive the environment it's created in, the callback does not receive a
+  reference to `env`.
+* `[in] finalize_hint`: Optional hint to pass to the finalize callback during
+  collection.
+* `[out] result`: A `napi_value` representing a JavaScript `SharedArrayBuffer`.
+
+Returns `napi_ok` if the API succeeded.
+
+Create a `SharedArrayBuffer` with externally managed memory.
+
+See the entry on [`napi_create_external_arraybuffer`][] for runtime
+compatibility.
+
 #### `napi_create_external_buffer`
 
 <!-- YAML
@@ -2699,6 +2734,10 @@ Language Specification.
 <!-- YAML
 added: v8.0.0
 napiVersion: 1
+changes:
+  - version: v22.23.3
+    pr-url: https://github.com/nodejs/node/pull/62710
+    description: Added support for `SharedArrayBuffer`.
 -->
 
 ```c
@@ -2713,21 +2752,25 @@ napi_status napi_create_typedarray(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] type`: Scalar datatype of the elements within the `TypedArray`.
 * `[in] length`: Number of elements in the `TypedArray`.
-* `[in] arraybuffer`: `ArrayBuffer` underlying the typed array.
-* `[in] byte_offset`: The byte offset within the `ArrayBuffer` from which to
-  start projecting the `TypedArray`.
+* `[in] arraybuffer`: `ArrayBuffer` or `SharedArrayBuffer` underlying the
+  typed array.
+* `[in] byte_offset`: The byte offset within the `ArrayBuffer` or
+  `SharedArrayBuffer` from which to start projecting the `TypedArray`.
 * `[out] result`: A `napi_value` representing a JavaScript `TypedArray`.
 
 Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `TypedArray` object over an existing
-`ArrayBuffer`. `TypedArray` objects provide an array-like view over an
-underlying data buffer where each element has the same underlying binary scalar
-datatype.
+`ArrayBuffer` or `SharedArrayBuffer`. `TypedArray` objects provide an
+array-like view over an underlying data buffer where each element has the same
+underlying binary scalar datatype.
 
-It's required that `(length * size_of_element) + byte_offset` should
-be <= the size in bytes of the array passed in. If not, a `RangeError` exception
-is raised.
+It is required that `(length * size_of_element) + byte_offset` is less than or
+equal to the size in bytes of the `ArrayBuffer` or `SharedArrayBuffer` passed
+in. If not, a `RangeError` exception is raised.
+
+For element sizes greater than 1, `byte_offset` is required to be a multiple
+of the element size. If not, a `RangeError` exception is raised.
 
 JavaScript `TypedArray` objects are described in
 [Section TypedArray objects][] of the ECMAScript Language Specification.
@@ -3404,7 +3447,8 @@ napi_status napi_get_typedarray_info(napi_env env,
   the `byte_offset` value so that it points to the first element in the
   `TypedArray`. If the length of the array is `0`, this may be `NULL` or
   any other pointer value.
-* `[out] arraybuffer`: The `ArrayBuffer` underlying the `TypedArray`.
+* `[out] arraybuffer`: The `ArrayBuffer` or `SharedArrayBuffer` underlying the
+  `TypedArray`.
 * `[out] byte_offset`: The byte offset within the underlying native array
   at which the first element of the arrays is located. The value for the data
   parameter has already been adjusted so that data points to the first element
