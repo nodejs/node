@@ -10,12 +10,41 @@ COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
 cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
+escape_html() {
+  sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+
 commit_queue_failed() {
   pr=$1
+  reported_failure=${2:-}
 
   gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
-  body="<details><summary>Commit Queue failed</summary><pre>$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' output)</pre><a href='$cqurl'>$cqurl</a></details>"
+  if grep -Fq "Add \`commit-queue-squash\` label" output; then
+    failure_body='<p>This pull request has multiple commits, but no landing policy was selected.</p>
+<p>Add <code>commit-queue-squash</code> to land it as one commit, or
+<code>commit-queue-rebase</code> to land the commits separately.</p>'
+  else
+    if [ -z "$reported_failure" ]; then
+      reported_failure=$(grep -e '✘' -e '⚠' output | tail -n 10)
+    fi
+    if [ -z "$reported_failure" ]; then
+      reported_failure=$(tail -n 10 output)
+    fi
+    if [ -z "$reported_failure" ]; then
+      reported_failure='No failure reason was reported.'
+    fi
+    failure_body="<p><code>$(printf '%s\n' "$reported_failure" |
+      escape_html | sed '$!s/$/<br>/')</code></p>"
+  fi
+
+  body="<h3>Commit Queue failed</h3>
+$failure_body
+<p>The pull request was removed from the Commit Queue and labeled
+<code>commit-queue-failed</code>. After resolving the failure, remove that
+label and add <code>commit-queue</code> to retry.</p>
+<details><summary>Full Commit Queue output</summary><pre>$(escape_html < output)</pre></details>
+<p><a href='$cqurl'>View workflow run</a></p>"
   echo "$body"
 
   gh -R "$GITHUB_REPOSITORY" pr comment "$pr" --body "$body"
@@ -63,7 +92,8 @@ for pr in "$@"; do
     commits="${start_sha}...${end_sha}"
 
     if ! git push $UPSTREAM $DEFAULT_BRANCH >> output 2>&1; then
-      commit_queue_failed "$pr"
+      commit_queue_failed "$pr" \
+        "Failed to push the landed commits to ${UPSTREAM}/${DEFAULT_BRANCH}."
       continue
     fi
   else
@@ -80,9 +110,10 @@ for pr in "$@"; do
         --arg head "${commit_head}" \
         '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' |\
       gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${pr}/merge" --input -\
-        --jq 'if .merged then .sha else halt_error end'
+        --jq 'if .merged then .sha else halt_error end' 2>> output
     )"; then
-      commit_queue_failed "$pr"
+      commit_queue_failed "$pr" \
+        'GitHub failed to squash and merge this pull request.'
       continue
     fi
   fi
