@@ -1278,6 +1278,12 @@ register('./my-hooks.mjs', {
 });
 ```
 
+A hook can send messages to the thread that registered it at any time, as
+above. It must not wait for a reply while it is running: resolution and loading
+are synchronous from the perspective of the thread that triggered them, so that
+thread is blocked until the hook settles and cannot answer in the meantime.
+Awaiting a reply inside a `resolve` or `load` hook deadlocks both threads.
+
 #### Asynchronous hooks accepted by `module.register()`
 
 <!-- YAML
