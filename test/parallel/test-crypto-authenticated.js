@@ -227,6 +227,9 @@ for (const test of TEST_CASES) {
       continue;
     }
 
+    // OpenSSL 3.5 added support for zero-length SIV messages.
+    const supportsEmptyPlaintext = hasOpenSSL(3, 5);
+
     for (const authTagLength of [1, 15, 17]) {
       assert.throws(() => {
         crypto.createCipheriv(algo, key, iv, { authTagLength });
@@ -245,7 +248,7 @@ for (const test of TEST_CASES) {
       assert.throws(() => {
         cipher.setAAD(Buffer.alloc(0));
       }, errMessages.state);
-      cipher.update(Buffer.alloc(0));
+      cipher.update(Buffer.alloc(1));
       cipher.final();
     }
 
@@ -304,7 +307,7 @@ for (const test of TEST_CASES) {
       }, errMessages.state);
     }
 
-    {
+    if (supportsEmptyPlaintext) {
       const cipher = crypto.createCipheriv(algo, key, iv);
       const ciphertext = Buffer.concat([
         cipher.update(Buffer.alloc(0)),
@@ -325,7 +328,7 @@ for (const test of TEST_CASES) {
       }, errMessages.state);
     }
 
-    {
+    if (supportsEmptyPlaintext) {
       const cipher = crypto.createCipheriv(algo, key, iv);
       const ciphertext = Buffer.concat([
         cipher.update(Buffer.alloc(0)),

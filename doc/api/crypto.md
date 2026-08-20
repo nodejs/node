@@ -6745,6 +6745,8 @@ certain restrictions when using the cipher API:
 * `AES-SIV` ciphers do not use an initialization vector. Pass `null` or a
   zero-length `iv` to [`crypto.createCipheriv()`][] or
   [`crypto.createDecipheriv()`][].
+* `AES-SIV` and `AES-GCM-SIV` support zero-length plaintext only with OpenSSL
+  3.5 or later.
 * `AES-SIV` does not have a separate nonce or IV parameter. RFC 5297 defines
   `AES-SIV` over an ordered list of associated-data inputs. Each `setAAD()`
   call supplies one input in that list. If a protocol uses a nonce with
