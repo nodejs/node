@@ -1511,6 +1511,14 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
   }
   return stack.ss_sp;
 #else
+// For most libcs, pthread_getattr_np() returns the the stack reserved
+// limit on the main thread, but musl only returns the current high-water
+// mark at the time of the call. There's no macro to detect musl, so
+// let the caller do a fallback in cases where the libc is not one that
+// is known to work.
+#if V8_OS_LINUX && !V8_LIBC_GLIBC && !V8_LIBC_BIONIC && !V8_LIBC_UCLIBC
+  if (syscall(__NR_gettid) == getpid()) return nullptr;
+#endif
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
   if (error) {
