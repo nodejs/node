@@ -12,6 +12,16 @@ namespace {
 // The [^+@!?*[(] character class these shapes end in.
 constexpr PatternView kExtChars = u"+@!?*[(";
 
+// Serialize() writes node kinds into a UTF-16 string alongside the '(',
+// ')' and '|' it uses for structure. Offsetting the kinds into the Private
+// Use Area keeps the two apart, and class bounds are split into halves
+// because a code point does not fit in one unit.
+//
+// (The "Private Use Area" is explained in glob_parser.cc's BraceSentinels)
+constexpr char16_t kSerializedKindBase = 0xE000;
+constexpr int kCodeUnitBits = 16;
+constexpr uint32_t kCodeUnitMask = 0xFFFF;
+
 // Index of the first unit that is not `c`, or the end.
 size_t SkipRun(PatternView s, char16_t c, size_t from = 0) {
   const size_t end = s.find_first_not_of(c, from);
@@ -539,7 +549,9 @@ class SegmentLowering {
       result.bad_syntax = result.bad_syntax || lp.bad_syntax;
       seq.push_back(lp.node);
     }
-    // start guards (only when the first part is a string)
+    // A segment beginning with '.' is matched only by a
+    // pattern segment beginning with a literal '.', and '.' and '..' are
+    // never matched by a wildcard.
     bool start_no_dot = false;
     bool start_no_traversal = false;
     if (node->IsStart() && !node->parts->empty() &&
@@ -614,7 +626,8 @@ class SegmentLowering {
   // comparison
   void Serialize(uint32_t id, PatternString* out) const {
     const RxNode& n = out_->nodes[id];
-    out->push_back(static_cast<char16_t>(0xE000 + static_cast<int>(n.kind)));
+    out->push_back(
+        static_cast<char16_t>(kSerializedKindBase + static_cast<int>(n.kind)));
     out->push_back(static_cast<char16_t>(
         u'0' + (n.star_no_empty ? 1 : 0) + (n.star_no_dot ? 2 : 0) +
         (n.assert_no_dot ? 4 : 0) + (n.assert_no_traversal ? 8 : 0)));
@@ -623,10 +636,10 @@ class SegmentLowering {
     } else if (n.kind == RxNode::Kind::kClass) {
       for (const CharSet* set : {&n.klass.positive, &n.klass.negative}) {
         for (const CharSet::Range& r : set->ranges()) {
-          out->push_back(static_cast<char16_t>(r.lo & 0xFFFF));
-          out->push_back(static_cast<char16_t>(r.lo >> 16));
-          out->push_back(static_cast<char16_t>(r.hi & 0xFFFF));
-          out->push_back(static_cast<char16_t>(r.hi >> 16));
+          out->push_back(static_cast<char16_t>(r.lo & kCodeUnitMask));
+          out->push_back(static_cast<char16_t>(r.lo >> kCodeUnitBits));
+          out->push_back(static_cast<char16_t>(r.hi & kCodeUnitMask));
+          out->push_back(static_cast<char16_t>(r.hi >> kCodeUnitBits));
         }
         out->push_back(u'|');
       }
@@ -708,6 +721,13 @@ class SegmentLowering {
     };
 
     if (node->type == '!') {
+      // A negated extglob is a guard plus a `[^/]*?` consume, which is what
+      // a regular expression can express. That makes it less permissive than
+      // bash when something greedy follows: `!(a)*` does not match 'ab',
+      // because the guard cannot take 'ab' and leave the `*` empty.
+      //
+      // That being said, in a future major update, we can potentially
+      // change this behavior for less RegExp-compat and more Bash-compat.
       merge_flags(alts);
       RxNode n;
       n.kind = RxNode::Kind::kNeg;

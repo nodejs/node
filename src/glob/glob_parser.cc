@@ -3,12 +3,18 @@
 #include <algorithm>
 #include <bitset>
 #include <cstddef>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <unordered_set>
 
 #include "simdutf.h"
+#include "util.h"
 
 namespace node::glob {
+
+// U+FFFD, substituted for each byte of an ill-formed UTF-8 sequence.
+constexpr char16_t kReplacementCharacter = 0xFFFD;
 
 void Utf8ToUtf16(std::string_view utf8, PatternString* out) {
   PatternString& o = *out;
@@ -34,7 +40,7 @@ void Utf8ToUtf16(std::string_view utf8, PatternString* out) {
     // On failure `count` is where in the input the error is.
     written += simdutf::convert_valid_utf8_to_utf16le(
         rest.data(), status.count, o.data() + written);
-    o[written++] = 0xFFFD;
+    o[written++] = kReplacementCharacter;
     read += status.count + 1;
   }
   o.resize(written);
@@ -121,40 +127,71 @@ Balanced BalancedBraces(PatternView str) {
   return out;
 }
 
-// Stand-ins for a literal '{' and '}' while braces are expanded. Chosen
-// per call from the noncharacter block so a pattern that itself contains
-// noncharacters is never corrupted (the JS library salted its sentinels
-// randomly for the same reason).
+// Sentinels are drawn from this unicode block because its code points
+// are permanently unassigned, so no meaningful pattern contains one.
+//
+// One may want to salt its sentinels randomly for the same reason,
+// but we just hardcode these values for simplicity. The value themselves
+// does not matter as much as the unicode character it represents does
+// not exist.
+constexpr char16_t kNoncharacterFirst = 0xFDD0;
+constexpr char16_t kNoncharacterLast = 0xFDEF;
+constexpr uint32_t kNoncharacterCount =
+    kNoncharacterLast - kNoncharacterFirst + 1;
+static_assert(kNoncharacterCount <= std::numeric_limits<uint32_t>::digits,
+              "the noncharacter block must fit in the `used` bitmask");
+
+constexpr size_t kCodeUnitCount =
+    size_t{std::numeric_limits<char16_t>::max()} + 1;
+
+// Stand-ins for a literal '{' and '}' while braces are expanded.
 struct BraceSentinels {
-  char16_t open = 0xFDD0;
-  char16_t close = 0xFDD1;
+  char16_t open = kNoncharacterFirst;
+  char16_t close = kNoncharacterFirst + 1;
 };
 
-BraceSentinels ChooseSentinels(PatternView pattern) {
+// Returns nullopt when the pattern already contains every unit a sentinel
+// could be drawn from, which leaves no way to mark a literal brace.
+//
+// Otherwise, returns a sentinel that does not exist in the source regex.
+// Prefers unassigned unicode points for speed.
+//
+// A normal (or any, for that matter) user should never encounter that case.
+std::optional<BraceSentinels> ChooseSentinels(PatternView pattern) {
   uint32_t used = 0;
   for (const char16_t c : pattern) {
-    if (c >= 0xFDD0 && c <= 0xFDEF) used |= uint32_t{1} << (c - 0xFDD0);
+    if (c >= kNoncharacterFirst && c <= kNoncharacterLast) {
+      used |= uint32_t{1} << (c - kNoncharacterFirst);
+    }
   }
   BraceSentinels esc;
   char16_t* slots[] = {&esc.open, &esc.close};
+  const size_t slot_count = arraysize(slots);
   size_t next = 0;
-  for (uint32_t bit = 0; bit < 32 && next < 2; bit++) {
+  for (uint32_t bit = 0; bit < kNoncharacterCount && next < slot_count; bit++) {
     if ((used & (uint32_t{1} << bit)) == 0) {
-      *slots[next++] = static_cast<char16_t>(0xFDD0 + bit);
+      *slots[next++] = static_cast<char16_t>(kNoncharacterFirst + bit);
     }
   }
-  if (next == 2) return esc;
-  // The pattern uses nearly the whole noncharacter block; take any two
-  // absent units instead. Only a pattern containing every unit — longer
-  // than the pattern cap allows being distinct — could still collide.
-  auto present = std::make_unique<std::bitset<65536>>();
+  if (next == slot_count) return esc;
+  // The pattern uses nearly the whole noncharacter block; take any two absent
+  // units instead. Only units >= 0x80 qualify: sequence expansion synthesises
+  // ASCII digits, '-' and letters that the pattern itself need not contain,
+  // and one of those would be un-escaped back into a brace at the end.
+  //
+  // That leaves a pool of exactly kCodeUnitCount - 0x80 (65408) units, which
+  // is *smaller* than kMaxPatternLength (65536), so a pattern that spells out
+  // every one of them does fit under the length cap and does exhaust the pool.
+  // Sooner than silently rewriting one of its literals into a brace, give up.
+  auto present = std::make_unique<std::bitset<kCodeUnitCount>>();
   for (const char16_t c : pattern) present->set(c);
   next = 0;
-  for (uint32_t unit = 0x80; unit <= 0xFFFF && next < 2; unit++) {
+  for (size_t unit = 0x80; unit < kCodeUnitCount && next < slot_count; unit++) {
     if (!present->test(unit)) {
       *slots[next++] = static_cast<char16_t>(unit);
     }
   }
+  if (next < slot_count) return std::nullopt;
   return esc;
 }
 
@@ -208,7 +245,8 @@ int64_t Numeric(PatternView s) {
     const bool neg = s.starts_with(u'-');
     for (size_t i = neg ? 1 : 0; i < s.size(); i++) {
       v = v * 10 + (s[i] - u'0');
-      if (v > 0x7FFFFFFF) break;  // sequences this large are capped anyway
+      // Sequences this large are capped by kBraceExpansionMax anyway.
+      if (v > std::numeric_limits<int32_t>::max()) break;
     }
     return neg ? -v : v;
   }
@@ -303,54 +341,59 @@ std::vector<PatternString> ExpandSequence(PatternView body,
   return out;
 }
 
+// str.split(',')
+std::vector<PatternString> SplitOnCommas(PatternView str) {
+  std::vector<PatternString> out;
+  size_t start = 0;
+  while (true) {
+    const size_t pos = str.find(u',', start);
+    if (pos == PatternView::npos) {
+      out.emplace_back(str.substr(start));
+      return out;
+    }
+    out.emplace_back(str.substr(start, pos - start));
+    start = pos + 1;
+  }
+}
+
+// Appends `next` to `out`, joining across the seam: the JS original grows one
+// list by writing the head of the tail onto its own last element.
+void MergeParts(std::vector<PatternString>* out,
+                std::vector<PatternString>&& next) {
+  if (out->empty()) {
+    *out = std::move(next);
+    return;
+  }
+  out->back() += next.front();
+  out->insert(out->end(),
+              std::make_move_iterator(next.begin() + 1),
+              std::make_move_iterator(next.end()));
+}
+
+// Splits a brace body on its top-level commas, keeping nested `{...}` groups
+// whole.
 std::vector<PatternString> ParseCommaParts(PatternView str) {
   if (str.empty()) return {PatternString()};
   std::vector<PatternString> parts;
-  const Balanced m = BalancedBraces(str);
-  if (!m.found) {
-    // str.split(',')
-    size_t start = 0;
-    while (true) {
-      const size_t pos = str.find(u',', start);
-      if (pos == PatternView::npos) {
-        parts.emplace_back(str.substr(start));
-        return parts;
-      }
-      parts.emplace_back(str.substr(start, pos - start));
-      start = pos + 1;
+  while (true) {
+    const Balanced m = BalancedBraces(str);
+    if (!m.found) {
+      MergeParts(&parts, SplitOnCommas(str));
+      return parts;
     }
+    const PatternView pre = str.substr(0, m.start);
+    const PatternView body = str.substr(m.start + 1, m.end - m.start - 1);
+    const PatternView post = str.substr(m.end + 1);
+    // p = pre.split(','); p[last] += '{' + body + '}'
+    std::vector<PatternString> p = SplitOnCommas(pre);
+    p.back() += u'{';
+    p.back() += body;
+    p.back() += u'}';
+    MergeParts(&parts, std::move(p));
+    // ParseCommaParts('') is [''], which the JS original discards.
+    if (post.empty()) return parts;
+    str = post;
   }
-  const PatternString pre(str.substr(0, m.start));
-  const PatternString body(str.substr(m.start + 1, m.end - m.start - 1));
-  const PatternString post(str.substr(m.end + 1));
-  // p = pre.split(','); p[last] += '{' + body + '}'
-  std::vector<PatternString> p;
-  {
-    size_t start = 0;
-    while (true) {
-      const size_t pos = pre.find(u',', start);
-      if (pos == PatternString::npos) {
-        p.emplace_back(pre.substr(start));
-        break;
-      }
-      p.emplace_back(pre.substr(start, pos - start));
-      start = pos + 1;
-    }
-  }
-  p.back() += u'{';
-  p.back() += body;
-  p.back() += u'}';
-  std::vector<PatternString> post_parts = ParseCommaParts(post);
-  if (!post.empty()) {
-    p.back() += post_parts.front();
-    p.insert(p.end(),
-             std::make_move_iterator(post_parts.begin() + 1),
-             std::make_move_iterator(post_parts.end()));
-  }
-  parts.insert(parts.end(),
-               std::make_move_iterator(p.begin()),
-               std::make_move_iterator(p.end()));
-  return parts;
 }
 
 // /,(?!,).*\}/: a comma not followed by a comma, later followed by a '}'
@@ -377,13 +420,22 @@ PatternString Embrace(PatternView s) {
   return out;
 }
 
+// `depth` counts the enclosing brace groups; `*too_deep` is latched once one
+// nests past kMaxNestingDepth, and the caller turns that into a compile error.
 std::vector<PatternString> ExpandInner(PatternString str,
                                        bool is_top,
-                                       const BraceSentinels& esc) {
+                                       const BraceSentinels& esc,
+                                       int depth,
+                                       bool* too_deep) {
+  if (depth > kMaxNestingDepth) {
+    *too_deep = true;
+    return {std::move(str)};
+  }
   std::vector<PatternString> acc{PatternString()};
   bool drop_empties = false;
   bool first_group = true;
   while (true) {
+    if (*too_deep) return acc;
     const Balanced m = BalancedBraces(str);
     if (!m.found) {
       return Combine(acc, str, {PatternString()}, drop_empties);
@@ -435,7 +487,8 @@ std::vector<PatternString> ExpandInner(PatternString str,
     } else {
       std::vector<PatternString> n = ParseCommaParts(body);
       if (n.size() == 1) {
-        std::vector<PatternString> inner = ExpandInner(n[0], false, esc);
+        std::vector<PatternString> inner =
+            ExpandInner(n[0], false, esc, depth + 1, too_deep);
         n.clear();
         for (PatternString& e : inner) n.push_back(Embrace(e));
         if (n.size() == 1) {
@@ -453,7 +506,8 @@ std::vector<PatternString> ExpandInner(PatternString str,
       size_t values_length = 0;
       bool done = false;
       for (size_t j = 0; j < n.size() && !done; j++) {
-        std::vector<PatternString> expanded = ExpandInner(n[j], false, esc);
+        std::vector<PatternString> expanded =
+            ExpandInner(n[j], false, esc, depth + 1, too_deep);
         for (PatternString& v : expanded) {
           if (drops_empties && v.empty()) continue;
           if (values.size() >= kBraceExpansionMax ||
@@ -475,15 +529,31 @@ std::vector<PatternString> ExpandInner(PatternString str,
 
 }  // namespace
 
-std::vector<PatternString> BraceExpand(PatternView pattern) {
+std::vector<PatternString> BraceExpand(PatternView pattern,
+                                       CompileError* error) {
   if (pattern.empty()) return {};
-  const BraceSentinels esc = ChooseSentinels(pattern);
+  const std::optional<BraceSentinels> chosen = ChooseSentinels(pattern);
+  if (!chosen.has_value()) {
+    // Only a pattern long enough to name every unit >= 0x80 gets here.
+    // As mentioned earlier in this file, this should never occur unless
+    // a user has created a very odd glob specifically meant to trigger
+    // this codepath.
+    *error = CompileError::kPatternTooLong;
+    return {};
+  }
+  const BraceSentinels esc = *chosen;
   PatternString str(pattern);
   if (str.starts_with(u"{}")) {
     str[0] = esc.open;
     str[1] = esc.close;
   }
-  std::vector<PatternString> out = ExpandInner(std::move(str), true, esc);
+  bool too_deep = false;
+  std::vector<PatternString> out =
+      ExpandInner(std::move(str), true, esc, 0, &too_deep);
+  if (too_deep) {
+    *error = CompileError::kPatternTooDeep;
+    return {};
+  }
   for (PatternString& s : out) {
     for (char16_t& c : s) {
       if (c == esc.open)
@@ -795,6 +865,7 @@ struct ParseCtx {
   std::vector<std::unique_ptr<SegmentNode>> arena;
   std::vector<SegmentNode*> negs;
   bool filled_negs = false;
+  bool too_deep = false;
 };
 
 SegmentNode* NewNode(char type, SegmentNode* parent, ParseCtx* ctx) {
@@ -836,11 +907,13 @@ SegmentNode* CloneNode(const SegmentNode* src,
 }
 
 // #parseAST(str, ast, pos, opt, extDepth)
+// The added argument, depth, is used to make sure we aren't too deep
 size_t ParseAstInner(PatternView str,
                      SegmentNode* ast,
                      size_t pos,
                      ParseCtx* ctx,
-                     int ext_depth) {
+                     int ext_depth,
+                     int depth) {
   bool escaping = false;
   bool in_brace = false;
   size_t brace_start = 0;
@@ -874,11 +947,16 @@ size_t ParseAstInner(PatternView str,
                               str[i] == u'(' &&
                               ext_depth <= kMaxExtglobRecursion;
       if (do_recurse) {
+        if (depth >= kMaxNestingDepth) {
+          ctx->too_deep = true;
+          return i;
+        }
         PushText(ast, std::move(acc));
         acc.clear();
         SegmentNode* ext = NewNode(static_cast<char>(c), ast, ctx);
-        i = ParseAstInner(str, ext, i, ctx, ext_depth + 1);
+        i = ParseAstInner(str, ext, i, ctx, ext_depth + 1, depth + 1);
         PushChild(ast, ext);
+        if (ctx->too_deep) return i;
         continue;
       }
       acc.push_back(c);
@@ -918,12 +996,17 @@ size_t ParseAstInner(PatternView str,
                             str[i] == u'(' &&
                             (ext_depth <= kMaxExtglobRecursion || adoptable);
     if (do_recurse) {
+      if (depth >= kMaxNestingDepth) {
+        ctx->too_deep = true;
+        return i;
+      }
       const int depth_add = adoptable ? 0 : 1;
       PushText(part, std::move(acc));
       acc.clear();
       SegmentNode* ext = NewNode(static_cast<char>(c), part, ctx);
       PushChild(part, ext);
-      i = ParseAstInner(str, ext, i, ctx, ext_depth + depth_add);
+      i = ParseAstInner(str, ext, i, ctx, ext_depth + depth_add, depth + 1);
+      if (ctx->too_deep) return i;
       continue;
     }
     if (c == u'|') {
@@ -1010,6 +1093,13 @@ void Usurp(SegmentNode* self) {
   self->empty_ext = false;
 }
 
+// Flattening repeats because one adopt or usurp can expose the next, and
+// every step removes a node, so it converges quickly.
+//
+// Should we infinitely recurse, which should never happen, a failsafe
+// of ten passes is set below
+constexpr int kMaxFlattenPasses = 10;
+
 void Flatten(SegmentNode* node, ParseCtx* ctx) {
   if (!node->is_extglob()) {
     for (const auto& p : *node->parts) {
@@ -1036,7 +1126,7 @@ void Flatten(SegmentNode* node, ParseCtx* ctx) {
         Usurp(node);
       }
     }
-  } while (!done && ++iterations < 10);
+  } while (!done && ++iterations < kMaxFlattenPasses);
 }
 
 void FillNegs(ParseCtx* ctx) {
@@ -1109,10 +1199,14 @@ PatternString SegmentNode::ToString() const {
   return out;
 }
 
-SegmentTree ParseSegmentAst(PatternView part) {
+SegmentTree ParseSegmentAst(PatternView part, CompileError* error) {
   ParseCtx ctx;
   SegmentNode* root = NewNode(0, nullptr, &ctx);
-  ParseAstInner(part, root, 0, &ctx, 0);
+  ParseAstInner(part, root, 0, &ctx, 0, 0);
+  if (ctx.too_deep) {
+    *error = CompileError::kPatternTooDeep;
+    return SegmentTree();
+  }
   Flatten(root, &ctx);
   FillNegs(&ctx);
   SegmentTree tree;
@@ -1143,7 +1237,8 @@ ParseResult ParsePattern(PatternView raw, const CompileFlags& flags) {
     result.error = CompileError::kPatternTooLong;
     return result;
   }
-  // windowsPathsNoEscape: every backslash becomes a slash, on all platforms.
+  // windowsPathsNoEscape: every backslash becomes a slash, on all platforms,
+  // so a pattern produced by path.join() on Windows still works.
   PatternString pattern(raw);
   for (char16_t& c : pattern) {
     if (c == u'\\') c = u'/';
@@ -1153,7 +1248,8 @@ ParseResult ParsePattern(PatternView raw, const CompileFlags& flags) {
     return result;
   }
   // globSet = [...new Set(braceExpand(pattern))]
-  std::vector<PatternString> glob_set = BraceExpand(pattern);
+  std::vector<PatternString> glob_set = BraceExpand(pattern, &result.error);
+  if (result.error != CompileError::kNone) return result;
   {
     std::vector<PatternString> deduped;
     // The views point into `deduped`, which never reallocates.
@@ -1176,6 +1272,9 @@ ParseResult ParsePattern(PatternView raw, const CompileFlags& flags) {
   // windowsNoMagicRoot = isWindows && nocase
   const bool windows_no_magic_root = flags.windows && flags.nocase;
 
+  // '//server/share/' splits into ['', '', 'server', 'share'].
+  constexpr size_t kUncRootParts = 4;
+
   auto magic_at = [](const std::vector<PatternString>& s, size_t i) {
     return i < s.size() ? HasGlobMagic(s[i]) : false;
   };
@@ -1190,7 +1289,7 @@ ParseResult ParsePattern(PatternView raw, const CompileFlags& flags) {
       const bool is_drive =
           !s.empty() && StartsWithWindowsDrive(PatternView(s[0]));
       if (is_unc) {
-        literal_prefix = std::min<size_t>(4, s.size());
+        literal_prefix = std::min(kUncRootParts, s.size());
       } else if (is_drive) {
         literal_prefix = 1;
       }
@@ -1204,11 +1303,14 @@ ParseResult ParsePattern(PatternView raw, const CompileFlags& flags) {
           result.error = CompileError::kPatternTooLong;
           return result;
         }
+        // Only a segment that is exactly `**` is a globstar. Elsewhere the
+        // extra stars are redundant with `*`, so `a/**b` compiles as `a/*b`.
         if (s[i] == u"**") {
           part.kind = PathPart::Kind::kGlobstar;
         } else {
           part.kind = PathPart::Kind::kSegment;
-          part.segment = ParseSegmentAst(s[i]);
+          part.segment = ParseSegmentAst(s[i], &result.error);
+          if (result.error != CompileError::kNone) return result;
         }
       } else {
         // Forced-literal Windows root part: matched with '===' semantics
@@ -1219,7 +1321,7 @@ ParseResult ParsePattern(PatternView raw, const CompileFlags& flags) {
     }
     // The UNC '?' restore quirk: //?/c:/... keeps its '?' literal even when
     // the root was not literalized wholesale.
-    if (row.parts.size() >= 4 && row.parts[0].source.empty() &&
+    if (row.parts.size() >= kUncRootParts && row.parts[0].source.empty() &&
         row.parts[1].source.empty() && row.parts[2].source == u"?" &&
         IsWindowsDrive(PatternView(row.parts[3].source))) {
       row.parts[2].segment = SegmentTree();  // literal '?'

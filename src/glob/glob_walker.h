@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "glob/glob_program.h"
@@ -20,11 +21,11 @@ class ExcludeFilter {
  public:
   virtual ~ExcludeFilter() = default;
   // A path relative to the walk's cwd.
-  virtual bool ExcludesPath(const std::string& path) = 0;
+  virtual bool ExcludesPath(std::string_view path) = 0;
   // A directory entry: its name, the absolute path of the directory holding
   // it, and its uv_dirent_type_t.
-  virtual bool ExcludesEntry(const std::string& name,
-                             const std::string& parent_path,
+  virtual bool ExcludesEntry(std::string_view name,
+                             std::string_view parent_path,
                              int type) = 0;
   // Set once a call has thrown. The walk stops and the exception is left
   // for the caller to propagate.

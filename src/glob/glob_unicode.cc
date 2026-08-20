@@ -144,7 +144,7 @@ bool CharSet::Contains(uint32_t cp) const {
 }
 
 uint32_t Canonicalize(uint32_t cp, bool fold) {
-  if (cp < 128) return AsciiUpper(cp);
+  if (cp <= kMaxAsciiCodePoint) return AsciiUpper(cp);
 #ifdef NODE_HAVE_I18N_SUPPORT
   if (fold) {
     return static_cast<uint32_t>(
@@ -153,7 +153,9 @@ uint32_t Canonicalize(uint32_t cp, bool fold) {
   const uint32_t upper =
       static_cast<uint32_t>(u_toupper(static_cast<UChar32>(cp)));
 
-  return upper < 128 ? cp : upper;
+  // A non-ASCII character whose uppercase mapping is ASCII must
+  // not fold into it
+  return upper <= kMaxAsciiCodePoint ? cp : upper;
 #else
   return cp;
 #endif  // NODE_HAVE_I18N_SUPPORT
@@ -163,8 +165,12 @@ void AppendLowered(const std::u16string& text, std::u16string* out) {
 #ifdef NODE_HAVE_I18N_SUPPORT
   const int32_t length = static_cast<int32_t>(text.size());
   const size_t offset = out->size();
-  // The lowercase mapping can lengthen the string (U+0130 for one) [although,
-  // this isn't common afaik]
+  // Lowercasing can lengthen a strings (oddly, see U+0130) so
+  // reserve a little slack.
+  //
+  // Should a pattern for whatever reason contain a number of these
+  // odd expansions, the U_BUFFER_OVERFLOW_ERROR case below will handle
+  // them using a slower path.
   out->resize(offset + text.size() + 8);
   UErrorCode status = U_ZERO_ERROR;
   int32_t written = u_strToLower(reinterpret_cast<UChar*>(out->data() + offset),

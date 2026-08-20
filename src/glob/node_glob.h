@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "async_wrap.h"
 #include "glob/glob_program.h"
@@ -22,16 +23,16 @@ class JsExcludeFilter final : public ExcludeFilter {
  public:
   JsExcludeFilter(Environment* env, v8::Local<v8::Function> callback);
 
-  bool ExcludesPath(const std::string& path) override;
-  bool ExcludesEntry(const std::string& name,
-                     const std::string& parent_path,
+  bool ExcludesPath(std::string_view path) override;
+  bool ExcludesEntry(std::string_view name,
+                     std::string_view parent_path,
                      int type) override;
   bool failed() const override { return failed_; }
 
  private:
   bool Call(bool entry,
-            const std::string& first,
-            const std::string& second,
+            std::string_view first,
+            std::string_view second,
             int type);
 
   Environment* env_;
@@ -92,6 +93,8 @@ class BindingData : public SnapshotableObject {
     CompileError error = CompileError::kNone;
   };
 
+  // A compiled pattern is large, so we limit the size
+  // of the cache.
   static constexpr size_t kMaxCacheEntries = 256;
 
   // Compiled patterns, keyed by the pattern text + flag
@@ -110,6 +113,11 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
               const std::vector<CompiledPatternPtr>& excludes,
               std::unique_ptr<JsExcludeFilter> filter);
 
+  // How many results an iterator pull returns at a time.
+  // See the explanation in this header's .cc file for
+  // more information.
+  static constexpr size_t kBatchSize = 256;
+
   static void Next(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Cancel(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -122,9 +130,6 @@ class GlobRequest : public AsyncWrap, public ThreadPoolWork {
   SET_SELF_SIZE(GlobRequest)
 
  private:
-  // How many results an iterator pull returns at a time.
-  static constexpr size_t kBatchSize = 256;
-
   static void Pull(const v8::FunctionCallbackInfo<v8::Value>& args, bool drain);
   v8::MaybeLocal<v8::Value> Settle();
 

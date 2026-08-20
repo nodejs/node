@@ -475,8 +475,12 @@ class ScanPool : public LifoPool<ScanPool> {
  private:
   friend class LifoPool<ScanPool>;
 
-  // Bounds how many finished, unconsumed listings may be held in memory
-  // when scanning runs ahead of the sequencer.
+  // Scanning runs ahead of the sequencer, so finished listings pile up.
+  // High enough that the pool never starves waiting for the sequencer,
+  // low enough that a huge tree cannot be held in memory all at once.
+  //
+  // This value can be changed as needed without it being considered a
+  // breaking change, although it should be fine as it currently stands.
   static constexpr size_t kMaxReadyVisits = 1024;
 
   bool HasRunnableJob() const {
@@ -534,7 +538,7 @@ class WalkerState {
   // Runs one visit of the free walk; called from pool threads and from
   // the sequencer when it takes an unstarted visit.
   void FreeScan(FreeVisit* visit) {
-    FreeCtx ctx{this, visit};
+    FreeCtx ctx{this, visit, {}};
     VisitDirectory(ctx, visit->rel, visit->pattern);
     pool_.SubmitAll(visit->children);
   }

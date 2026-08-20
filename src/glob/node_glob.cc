@@ -16,15 +16,28 @@
 
 namespace node::glob {
 
+using v8::Array;
+using v8::Boolean;
+using v8::CFunction;
 using v8::Context;
+using v8::Exception;
+using v8::FastApiCallbackOptions;
+using v8::FastOneByteString;
+using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Isolate;
 using v8::Local;
-using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::Promise;
 using v8::SnapshotCreator;
 using v8::String;
+using v8::Uint32;
+using v8::Undefined;
 using v8::Value;
 
 namespace {
@@ -70,44 +83,52 @@ void BuildCacheKey(PatternView pattern,
   key->append(pattern);
 }
 
-// Patterns that do not compile throw, try a different pattern [:-(]
-void ThrowCompileError(v8::Isolate* isolate, CompileError error) {
-  const char* message = error == CompileError::kPatternTooLong
-                            ? "pattern is too long"
-                            : "invalid generated regular expression";
+// Patterns that do not compile throw, try a different pattern
+void ThrowCompileError(Isolate* isolate, CompileError error) {
+  const bool bad_regexp = error == CompileError::kInvalidRegExp;
+  const char* message;
+  switch (error) {
+    case CompileError::kPatternTooDeep:
+      message = "pattern nests too deeply";
+      break;
+    case CompileError::kInvalidRegExp:
+      message = "invalid generated regular expression";
+      break;
+    default:
+      message = "pattern is too long";
+      break;
+  }
   Local<String> text;
   if (!String::NewFromUtf8(isolate, message).ToLocal(&text)) return;
-  isolate->ThrowException(error == CompileError::kPatternTooLong
-                              ? v8::Exception::TypeError(text)
-                              : v8::Exception::SyntaxError(text));
+  isolate->ThrowException(bad_regexp ? Exception::SyntaxError(text)
+                                     : Exception::TypeError(text));
 }
 
-// Builds [paths array, types array|undefined] for a batch of result.
+constexpr size_t kMarshalStackEntries = GlobRequest::kBatchSize;
+
+// Builds [paths array, types array|undefined] for a batch of results.
 bool MarshalEntries(Environment* env,
                     const std::vector<WalkEntry>& entries,
                     bool with_types,
-                    Local<v8::Array>* paths_out,
+                    Local<Array>* paths_out,
                     Local<Value>* types_out) {
-  v8::Isolate* isolate = env->isolate();
+  Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  LocalVector<Value> paths(isolate);
-  paths.reserve(entries.size());
-  for (const WalkEntry& entry : entries) {
-    Local<Value> path;
-    if (!ToV8Value(context, entry.path, isolate).ToLocal(&path)) {
+  MaybeStackBuffer<Value, kMarshalStackEntries> paths(isolate, entries.size());
+  for (size_t i = 0; i < entries.size(); i++) {
+    if (!ToV8Value(context, entries[i].path, isolate).ToLocal(&paths[i])) {
       return false;
     }
-    paths.push_back(path);
   }
-  *paths_out = v8::Array::New(isolate, paths.data(), paths.size());
-  *types_out = v8::Undefined(isolate);
+  *paths_out = paths.ToArray();
+  *types_out = Undefined(isolate);
   if (with_types) {
-    LocalVector<Value> types(isolate);
-    types.reserve(entries.size());
-    for (const WalkEntry& entry : entries) {
-      types.push_back(v8::Integer::New(isolate, entry.type));
+    MaybeStackBuffer<Value, kMarshalStackEntries> types(isolate,
+                                                        entries.size());
+    for (size_t i = 0; i < entries.size(); i++) {
+      types[i] = Integer::New(isolate, entries[i].type);
     }
-    *types_out = v8::Array::New(isolate, types.data(), types.size());
+    *types_out = types.ToArray();
   }
   return true;
 }
@@ -156,7 +177,7 @@ void BindingData::Deserialize(Local<Context> context,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
   Realm* realm = Realm::GetCurrent(context);
-  v8::HandleScope scope(realm->isolate());
+  HandleScope scope(realm->isolate());
   BindingData* binding = realm->AddBindingData<BindingData>(holder, info);
   CHECK_NOT_NULL(binding);
 }
@@ -197,7 +218,7 @@ CompiledPatternPtr BindingData::Lookup(PatternView pattern,
 void BindingData::MatchesGlob(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding = realm->GetBindingData<BindingData>();
-  v8::Isolate* isolate = realm->isolate();
+  Isolate* isolate = realm->isolate();
 
   CHECK_EQ(args.Length(), 3);
   CHECK(args[0]->IsString());  // path
@@ -205,7 +226,7 @@ void BindingData::MatchesGlob(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());  // packed flags
 
   const CompileFlags flags =
-      UnpackFlags(args[2].As<v8::Uint32>()->Value() | kHostMatchFlags);
+      UnpackFlags(args[2].As<Uint32>()->Value() | kHostMatchFlags);
 
   TwoByteValue pattern(isolate, args[1]);
   CompileError error = CompileError::kNone;
@@ -225,7 +246,7 @@ void BindingData::MatchesGlob(const FunctionCallbackInfo<Value>& args) {
 void BindingData::HasMagic(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding = realm->GetBindingData<BindingData>();
-  v8::Isolate* isolate = realm->isolate();
+  Isolate* isolate = realm->isolate();
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsString());
@@ -254,12 +275,12 @@ void BindingData::HasMagic(const FunctionCallbackInfo<Value>& args) {
 // Both strings are one-byte and the pattern is normally
 // already compiled, so the whole call is a hash lookup plus the match.
 bool BindingData::FastMatchesGlob(Local<Value> receiver,
-                                  const v8::FastOneByteString& path,
-                                  const v8::FastOneByteString& pattern,
+                                  const FastOneByteString& path,
+                                  const FastOneByteString& pattern,
                                   uint32_t packed,
-                                  v8::FastApiCallbackOptions& options) {
+                                  FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("glob.matchesGlob");
-  v8::Isolate* isolate = options.isolate;
+  Isolate* isolate = options.isolate;
   Realm* realm = Realm::GetCurrent(isolate->GetCurrentContext());
   BindingData* binding = realm->GetBindingData<BindingData>();
 
@@ -273,7 +294,7 @@ bool BindingData::FastMatchesGlob(Local<Value> receiver,
   const CompiledPatternPtr compiled =
       binding->Lookup(PatternView(widened.out(), units), flags, &error);
   if (compiled == nullptr) {
-    v8::HandleScope scope(isolate);
+    HandleScope scope(isolate);
     ThrowCompileError(isolate, error);
     return false;
   }
@@ -282,8 +303,7 @@ bool BindingData::FastMatchesGlob(Local<Value> receiver,
                                   static_cast<size_t>(path.length)));
 }
 
-v8::CFunction BindingData::fast_matches_glob_(
-    v8::CFunction::Make(FastMatchesGlob));
+CFunction BindingData::fast_matches_glob_(CFunction::Make(FastMatchesGlob));
 
 // Reads (cwd, includePatterns[], excludePatterns[], flags, excludeFn) and
 // compiles the patterns.
@@ -293,7 +313,7 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
                                     std::vector<CompiledPatternPtr>* excludes,
                                     std::unique_ptr<JsExcludeFilter>* filter) {
   Realm* realm = Realm::GetCurrent(args);
-  v8::Isolate* isolate = realm->isolate();
+  Isolate* isolate = realm->isolate();
   Local<Context> context = realm->context();
 
   CHECK_EQ(args.Length(), 5);
@@ -303,14 +323,14 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
   CHECK(args[3]->IsUint32());                              // packed flags
   CHECK(args[4]->IsFunction() || args[4]->IsUndefined());  // exclude callback
 
-  const uint32_t packed = args[3].As<v8::Uint32>()->Value() | kHostWalkFlags;
+  const uint32_t packed = args[3].As<Uint32>()->Value() | kHostWalkFlags;
   const CompileFlags flags = UnpackFlags(packed);
 
   options->follow_symlinks = (packed & kFlagFollowSymlinks) != 0;
   options->with_file_types = (packed & kFlagWithFileTypes) != 0;
   if (args[4]->IsFunction()) {
-    *filter = std::make_unique<JsExcludeFilter>(realm->env(),
-                                                args[4].As<v8::Function>());
+    *filter =
+        std::make_unique<JsExcludeFilter>(realm->env(), args[4].As<Function>());
     options->exclude_filter = filter->get();
   }
   {
@@ -319,8 +339,10 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
   }
 
   for (int which = 0; which < 2; which++) {
-    Local<v8::Array> list = args[1 + which].As<v8::Array>();
+    std::vector<CompiledPatternPtr>* out = which == 0 ? includes : excludes;
+    Local<Array> list = args[1 + which].As<Array>();
     const uint32_t length = list->Length();
+    out->reserve(length);
     for (uint32_t i = 0; i < length; i++) {
       Local<Value> value;
       if (!list->Get(context, i).ToLocal(&value)) return false;
@@ -333,7 +355,7 @@ bool BindingData::ReadWalkArguments(const FunctionCallbackInfo<Value>& args,
         ThrowCompileError(isolate, error);
         return false;
       }
-      (which == 0 ? includes : excludes)->push_back(compiled);
+      out->push_back(std::move(compiled));
     }
   }
   return true;
@@ -344,8 +366,7 @@ void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Environment* env = realm->env();
   BindingData* binding = realm->GetBindingData<BindingData>();
-  v8::Isolate* isolate = realm->isolate();
-  Local<Context> context = realm->context();
+  Isolate* isolate = realm->isolate();
 
   WalkOptions options;
   std::vector<CompiledPatternPtr> includes;
@@ -361,7 +382,7 @@ void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
   // An exclude callback that threw leaves its exception pending.
   if (filter != nullptr && filter->failed()) return;
 
-  Local<v8::Array> paths;
+  Local<Array> paths;
   Local<Value> types;
   if (!MarshalEntries(env, entries, options.with_file_types, &paths, &types)) {
     return;
@@ -371,32 +392,33 @@ void BindingData::GlobSync(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<Value> pair[] = {paths, types};
-  args.GetReturnValue().Set(v8::Array::New(isolate, pair, 2));
+  args.GetReturnValue().Set(Array::New(isolate, pair, arraysize(pair)));
 }
 
 // Calls the user's `exclude`
-JsExcludeFilter::JsExcludeFilter(Environment* env, Local<v8::Function> callback)
+JsExcludeFilter::JsExcludeFilter(Environment* env, Local<Function> callback)
     : env_(env), callback_(env->isolate(), callback) {}
 
 bool JsExcludeFilter::Call(bool entry,
-                           const std::string& first,
-                           const std::string& second,
+                           std::string_view first,
+                           std::string_view second,
                            int type) {
   if (failed_) return false;
-  v8::Isolate* isolate = env_->isolate();
-  v8::HandleScope scope(isolate);
+  Isolate* isolate = env_->isolate();
+  HandleScope scope(isolate);
   Local<Context> context = env_->context();
+  // (isEntry, name-or-path, parentPath, type), see #excludeAdapter().
   Local<Value> argv[4];
   if (!ToV8Value(context, first, isolate).ToLocal(&argv[1]) ||
       !ToV8Value(context, second, isolate).ToLocal(&argv[2])) {
     failed_ = true;
     return false;
   }
-  argv[0] = v8::Boolean::New(isolate, entry);
-  argv[3] = v8::Integer::New(isolate, type);
+  argv[0] = Boolean::New(isolate, entry);
+  argv[3] = Integer::New(isolate, type);
   Local<Value> result;
   if (!callback_.Get(isolate)
-           ->Call(context, v8::Undefined(isolate), 4, argv)
+           ->Call(context, Undefined(isolate), arraysize(argv), argv)
            .ToLocal(&result)) {
     failed_ = true;
     return false;
@@ -404,12 +426,12 @@ bool JsExcludeFilter::Call(bool entry,
   return result->BooleanValue(isolate);
 }
 
-bool JsExcludeFilter::ExcludesPath(const std::string& path) {
-  return Call(false, path, std::string(), 0);
+bool JsExcludeFilter::ExcludesPath(std::string_view path) {
+  return Call(false, path, std::string_view(), 0);
 }
 
-bool JsExcludeFilter::ExcludesEntry(const std::string& name,
-                                    const std::string& parent_path,
+bool JsExcludeFilter::ExcludesEntry(std::string_view name,
+                                    std::string_view parent_path,
                                     int type) {
   return Call(true, name, parent_path, type);
 }
@@ -443,18 +465,18 @@ void GlobRequest::DoThreadPoolWork() {
 }
 
 // Builds [paths, types|undefined, done]
-v8::MaybeLocal<v8::Value> GlobRequest::Settle() {
+MaybeLocal<Value> GlobRequest::Settle() {
   Environment* env = AsyncWrap::env();
-  v8::Isolate* isolate = env->isolate();
+  Isolate* isolate = env->isolate();
 
-  Local<v8::Array> paths;
+  Local<Array> paths;
   Local<Value> types;
   if (!MarshalEntries(env, batch_, with_file_types_, &paths, &types)) {
-    return v8::MaybeLocal<v8::Value>();
+    return MaybeLocal<Value>();
   }
   batch_.clear();
-  Local<Value> result[] = {paths, types, v8::Boolean::New(isolate, done_)};
-  return v8::Array::New(isolate, result, 3);
+  Local<Value> result[] = {paths, types, Boolean::New(isolate, done_)};
+  return Array::New(isolate, result, arraysize(result));
 }
 
 void GlobRequest::AfterThreadPoolWork(int status) {
@@ -479,11 +501,11 @@ void GlobRequest::AfterThreadPoolWork(int status) {
   // A finished walk keeps no threads waiting for garbage collection.
   if (done_) walk_.Stop();
   Environment* env = AsyncWrap::env();
-  v8::HandleScope scope(env->isolate());
+  HandleScope scope(env->isolate());
   Local<Context> context = env->context();
   Context::Scope context_scope(context);
   InternalCallbackScope callback_scope(this);
-  Local<v8::Promise::Resolver> resolver = resolver_.Get(env->isolate());
+  Local<Promise::Resolver> resolver = resolver_.Get(env->isolate());
   resolver_.Reset();
   // The request is idle again, so it may be collected with its handle.
   MakeWeak();
@@ -507,7 +529,7 @@ void GlobRequest::Pull(const FunctionCallbackInfo<Value>& args, bool drain) {
   GlobRequest* request;
   ASSIGN_OR_RETURN_UNWRAP(&request, args.This());
   Environment* env = request->AsyncWrap::env();
-  v8::Isolate* isolate = env->isolate();
+  Isolate* isolate = env->isolate();
 
   // Reachable through the async_hooks resource object, so misuse (a
   // second pull, or a pull from inside an exclude callback) must throw,
@@ -518,8 +540,8 @@ void GlobRequest::Pull(const FunctionCallbackInfo<Value>& args, bool drain) {
   }
   request->drain_ = drain;
 
-  Local<v8::Promise::Resolver> resolver;
-  if (!v8::Promise::Resolver::New(env->context()).ToLocal(&resolver)) return;
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) return;
   args.GetReturnValue().Set(resolver->GetPromise());
 
   if (request->cancelled_ || request->done_) {
@@ -579,15 +601,14 @@ void BindingData::GlobStart(const FunctionCallbackInfo<Value>& args) {
 
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
-  v8::Isolate* isolate = isolate_data->isolate();
+  Isolate* isolate = isolate_data->isolate();
   SetFastMethodNoSideEffect(
       isolate, target, "matchesGlob", MatchesGlob, &fast_matches_glob_);
   SetMethodNoSideEffect(isolate, target, "hasMagic", HasMagic);
   SetMethod(isolate, target, "globSync", GlobSync);
   SetMethod(isolate, target, "globStart", GlobStart);
 
-  Local<v8::FunctionTemplate> glob_request =
-      NewFunctionTemplate(isolate, nullptr);
+  Local<FunctionTemplate> glob_request = NewFunctionTemplate(isolate, nullptr);
   glob_request->InstanceTemplate()->SetInternalFieldCount(
       AsyncWrap::kInternalFieldCount);
   glob_request->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));

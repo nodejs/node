@@ -10,6 +10,7 @@
 
 namespace node::glob {
 
+// UTF-16, because that is how patterns arrive from V8
 using PatternString = std::u16string;
 using PatternView = std::u16string_view;
 
@@ -44,15 +45,29 @@ bool IsWindowsDrive(std::basic_string_view<Char> s) {
   return s.size() == 2 && StartsWithWindowsDrive(s);
 }
 
+// Caps on what one pattern may cost, inherited from minimatch
 inline constexpr size_t kMaxPatternLength = 64 * 1024;
+// Nesting depth for extglobs like `*(a|@(b|c))`
 inline constexpr int kMaxExtglobRecursion = 2;
+// Non-adjacent `**` parts one match may recurse through
 inline constexpr int kMaxGlobstarRecursion = 200;
+// How far, in number of braces, braces may expand
 inline constexpr size_t kBraceExpansionMax = 100'000;
+// How far, in length, braces may expand
 inline constexpr size_t kBraceExpansionMaxLength = 4'000'000;
+// Braces and extglobs are parsed by recursing once per level of nesting, so
+// nesting deep enough to exhaust the C stack has to be refused up front:
+// `@(` and `{,` cost two or three code units per level, which leaves room for
+// thousands of levels under kMaxPatternLength. Minimatch has no such cap and
+// simply throws RangeError once V8's stack runs out. Real patterns nest a
+// handful of levels, and 256 keeps the parser under ~150 KB of stack even on
+// the smallest worker thread stacks.
+inline constexpr int kMaxNestingDepth = 256;
 
 enum class CompileError {
   kNone,
   kPatternTooLong,
+  kPatternTooDeep,
   kInvalidRegExp,
 };
 

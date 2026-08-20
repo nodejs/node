@@ -9,7 +9,9 @@
 
 namespace node::glob {
 
-std::vector<PatternString> BraceExpand(PatternView pattern);
+// Sets *error and returns {} for a pattern that cannot be expanded.
+std::vector<PatternString> BraceExpand(PatternView pattern,
+                                       CompileError* error);
 
 // Minimatch#slashSplit
 template <typename Char, typename Emit>
@@ -48,7 +50,7 @@ extern template void LevelTwoFileOptimize<char8_t>(
     std::vector<std::basic_string<char8_t>>*, const CompileFlags&);
 
 // AST.#parseAST + #flatten + #fillNegs
-SegmentTree ParseSegmentAst(PatternView part);
+SegmentTree ParseSegmentAst(PatternView part, CompileError* error);
 
 bool HasGlobMagic(PatternView s);
 

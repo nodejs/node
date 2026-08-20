@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <limits>
 #include <ranges>
 #include <span>
 
@@ -13,18 +14,25 @@ namespace node::glob {
 
 namespace {
 
-// A set of match positions within one segment.
+// The set of positions in the subject a segment's program can currently be
+// at. Carrying every position at once is what makes matching linear in
+// (positions x nodes) instead of backtracking, so a pattern like
+// `*(a|aa)*(a|aa)b` costs the same as any other.
 class PosSet {
  public:
   void Init(size_t positions) {
-    nwords_ = (positions + 63) / 64;
+    nwords_ = (positions + kBitsPerWord - 1) / kBitsPerWord;
     if (nwords_ > kInlineWords)
       heap_.assign(nwords_, 0);
     else
       std::fill_n(inline_, nwords_, 0);
   }
-  void Set(size_t i) { words()[i >> 6] |= uint64_t{1} << (i & 63); }
-  bool Test(size_t i) const { return (words()[i >> 6] >> (i & 63)) & 1; }
+  void Set(size_t i) {
+    words()[i >> kWordShift] |= uint64_t{1} << (i & kBitInWordMask);
+  }
+  bool Test(size_t i) const {
+    return (words()[i >> kWordShift] >> (i & kBitInWordMask)) & 1;
+  }
   bool Empty() const {
     return std::ranges::all_of(words(), [](uint64_t v) { return v == 0; });
   }
@@ -34,7 +42,7 @@ class PosSet {
     for (size_t w = 0; w < nwords_; w++) {
       uint64_t word = ws[w];
       while (word != 0) {
-        f(w * 64 + std::countr_zero(word));
+        f(w * kBitsPerWord + std::countr_zero(word));
         word &= word - 1;
       }
     }
@@ -46,7 +54,12 @@ class PosSet {
   }
 
  private:
-  static constexpr size_t kInlineWords = 4;  // 256 positions
+  static constexpr size_t kBitsPerWord = std::numeric_limits<uint64_t>::digits;
+  static constexpr size_t kWordShift = std::countr_zero(kBitsPerWord);
+  static constexpr size_t kBitInWordMask = kBitsPerWord - 1;
+  // Four words hold 256 positions, one more than the longest name the
+  // common filesystems allow, so only a synthetic subject reaches the heap.
+  static constexpr size_t kInlineWords = 4;
 
   std::span<uint64_t> words() {
     return {nwords_ <= kInlineWords ? inline_ : heap_.data(), nwords_};
@@ -306,7 +319,7 @@ bool EndsWith(std::basic_string_view<Char> s, PatternView suffix) {
 template <typename Char>
 bool EndsWithLowered(std::basic_string_view<Char> f, PatternView lowered_ext) {
   const bool ascii = std::ranges::all_of(
-      f, [](Char c) { return static_cast<uint32_t>(c) < 0x80; });
+      f, [](Char c) { return static_cast<uint32_t>(c) <= kMaxAsciiCodePoint; });
   if (ascii) {
     return f.size() >= lowered_ext.size() &&
            std::ranges::equal(lowered_ext,
@@ -446,6 +459,8 @@ class PathMatcher {
 
  private:
   using RowParts = std::vector<PartMatcher>;
+  // Path depth held without allocating. Deeper paths still work; they just
+  // grow the buffer, and they are rare enough not to matter.
   static constexpr size_t kInlineParts = 32;
 
   // Minimatch#slashSplit

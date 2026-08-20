@@ -9,12 +9,16 @@
 
 namespace node::glob {
 
+// The last code point whose case mapping is pure ASCII arithmetic; above it
+// case folding needs ICU (see Canonicalize).
+inline constexpr uint32_t kMaxAsciiCodePoint = 0x7F;
+
 // Avoiding util.h's ASCII + Locale work saves time, so this
 // is a simple reimplementation.
-inline uint32_t AsciiLower(uint32_t c) {
+inline constexpr uint32_t AsciiLower(uint32_t c) {
   return (c >= 'A' && c <= 'Z') ? c + 32 : c;
 }
-inline uint32_t AsciiUpper(uint32_t c) {
+inline constexpr uint32_t AsciiUpper(uint32_t c) {
   return (c >= 'a' && c <= 'z') ? c - 32 : c;
 }
 
