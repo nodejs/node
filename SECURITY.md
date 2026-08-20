@@ -124,12 +124,12 @@ This policy recognizes that experimental platforms may not compile, may not
 pass the test suite, and do not have the same level of testing and support
 infrastructure as Tier 1 and Tier 2 platforms.
 
-### Experimental features behind compile-time flags and V8 flags
+### Experimental features behind compile-time flags, experimental runtime flags, and V8 flags
 
 Node.js includes certain experimental features that are only available when
-Node.js is compiled with specific flags. These features are intended for
-development, debugging, or testing purposes and are not enabled in official
-releases.
+Node.js is compiled with specific flags or that are only enabled with experimental
+runtime flags. These features are intended for development, debugging, or testing
+purposes and are not enabled or supported in official releases.
 
 Node.js may also expose V8 features that are controlled by V8 command-line flags
 (e.g., `--js-staging`, `--max_old_space_size`). These flags
@@ -137,8 +137,30 @@ enable or modify V8-level JavaScript engine behavior that is not part of the
 ECMAScript specification that Node.js implements and is not part of the
 Node.js documented API surface.
 
+#### Runtime gated experimental features
+
+Experimental features behind runtime flags can fall into one of three
+[categories](https://github.com/nodejs/node/blob/main/doc/api/documentation.md?rgh-link-date=2026-08-21T20%3A28%3A33.000Z#stability-index):
+
+* 1.0 - Early development.
+* 1.1 - Active development.
+* 1.2 - Release candidate.
+
+Security vulnerabilities that only affect experimental features in either the
+1.0 or 1.1 stages, and that are gated with an `--experimental-*` runtime flag
+requiring explicit opt-in by the user to enable, will **not** be accepted as
+valid security issues unless the vulnerability can be exploited in a way that
+impacts the security of a stable feature when the associated `--experimental-*`
+flag is **not enabled**.
+
+Security vulnerabilities that affect experimental features in the 1.2 stage are
+acceptable as valid security issues.
+
+#### Compile-time gated experimental features and V8 flags
+
 * Security vulnerabilities that only affect features behind compile-time flags
-  or V8 flags will **not** be accepted as valid security issues.
+  or V8 flags _that are not enabled by default_ will **not** be accepted as valid
+  security issues.
 * Any issues with these features will be treated as normal bugs.
 * No CVEs will be issued for issues that only affect compile-time flag or V8 flag features.
 * Bug bounty rewards are not available for compile-time flag or V8 flag feature issues.
@@ -524,6 +546,15 @@ The following are **not** vulnerabilities in Node.js:
   vulnerability. Applications that rely on the Permission Model must not grant
   `--allow-worker` to code they do not trust.
 
+#### QUIC and HTTP/3
+
+The experimental QUIC and HTTP/3 implementation in Node.js is a complex new
+protocol stack and API that is still under active development and should not be
+used for production workloads. Reports that only affect QUIC or HTTP/3 are not
+considered Node.js vulnerabilities at this time. It is expected that the QUIC
+and HTTP/3 implementation will continue to evolve, and security issues will be
+addressed as the implementation matures.
+
 #### Virtual File System (`node:vfs`)
 
 The experimental [Virtual File System](https://nodejs.org/api/vfs.html)
@@ -559,12 +590,6 @@ the `link` value is an application-level misuse of the API, not a Node.js
 vulnerability. Node.js validates the structure of Early Hints per the HTTP spec
 but does not sanitize free-form application data passed to it; that is the
 application's responsibility.
-
-## Assessing experimental features reports
-
-Experimental features are eligible for security reports just like any other
-stable feature of Node.js. They may also receive the same severity score that a
-stable feature would.
 
 ## Receiving security updates
 
