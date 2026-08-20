@@ -6970,7 +6970,7 @@ the add-on's file name during loading.
 [ECMAScript Language Specification]: https://tc39.es/ecma262/
 [Error handling]: #error-handling
 [GCC]: https://gcc.gnu.org
-[GYP]: https://gyp.gsrc.io
+[GYP]: https://chromium.googlesource.com/external/gyp/+/refs/heads/md-pages/index.md
 [GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
 [LLVM]: https://llvm.org
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
