@@ -10,8 +10,26 @@ COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
 cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
-escape_html() {
-  sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+fence_code_block() {
+  fence='```'
+  while case $1 in *"$fence"*) ;; *) false ;; esac; do
+    fence=$fence'`'
+  done
+  printf '%s\n%s\n%s\n' "$fence" "$1" "$fence"
+}
+
+format_diagnostics() {
+  awk '
+    function code_span(line, fence) {
+      fence = "`"
+      while (index(line, fence) != 0)
+        fence = fence "`"
+      return fence " " line " " fence
+    }
+    NR > 1 { printf "  \n" }
+    { printf "%s", code_span($0) }
+    END { if (NR > 0) printf "\n" }
+  '
 }
 
 commit_queue_failed() {
@@ -20,10 +38,12 @@ commit_queue_failed() {
 
   gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
-  if grep -Fq "Add \`commit-queue-squash\` label" output; then
-    failure_body='<p>This pull request has multiple commits, but no landing policy was selected.</p>
-<p>Add <code>commit-queue-squash</code> to land it as one commit, or
-<code>commit-queue-rebase</code> to land the commits separately.</p>'
+  last_output_line=$(awk 'NF { line = $0 } END { sub(/^[[:space:]]*/, "", line); print line }' output)
+  missing_policy_message="ℹ  Add \`commit-queue-squash\` label to land the PR as one commit, or \`commit-queue-rebase\` to land as separate commits."
+  if [ "$last_output_line" = "$missing_policy_message" ]; then
+    failure_body='This pull request has multiple commits, but no landing policy was selected.
+
+Add https://github.com/nodejs/node/labels/commit-queue-squash to land it as one commit, or https://github.com/nodejs/node/labels/commit-queue-rebase to land the commits separately.'
   else
     if [ -z "$reported_failure" ]; then
       reported_failure=$(grep -e '✘' -e '⚠' output | tail -n 10)
@@ -34,17 +54,25 @@ commit_queue_failed() {
     if [ -z "$reported_failure" ]; then
       reported_failure='No failure reason was reported.'
     fi
-    failure_body="<p><code>$(printf '%s\n' "$reported_failure" |
-      escape_html | sed '$!s/$/<br>/')</code></p>"
+    failure_body=$(printf '%s\n' "$reported_failure" | format_diagnostics)
   fi
 
-  body="<h3>Commit Queue failed</h3>
+  raw_output=$(cat output)
+  full_output=$(fence_code_block "$raw_output")
+
+  body="### Commit Queue failed
+
 $failure_body
-<p>The pull request was removed from the Commit Queue and labeled
-<code>commit-queue-failed</code>. After resolving the failure, remove that
-label and add <code>commit-queue</code> to retry.</p>
-<details><summary>Full Commit Queue output</summary><pre>$(escape_html < output)</pre></details>
-<p><a href='$cqurl'>View workflow run</a></p>"
+
+The pull request was removed from the Commit Queue and labeled https://github.com/nodejs/node/labels/commit-queue-failed. After resolving the failure, remove that label and add https://github.com/nodejs/node/labels/commit-queue to retry.
+
+<details>
+<summary>Full Commit Queue output</summary>
+
+$full_output
+</details>
+
+[View workflow run]($cqurl)"
   echo "$body"
 
   gh -R "$GITHUB_REPOSITORY" pr comment "$pr" --body "$body"
