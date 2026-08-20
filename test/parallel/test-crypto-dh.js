@@ -91,9 +91,7 @@ const {
   {
     assert.throws(() => {
       dh3.computeSecret('');
-    }, { message: process.features.openssl_is_boringssl ?
-      'Supplied key is invalid' :
-      'Supplied key is too small' });
+    }, { message: 'Supplied key is too small' });
   }
 }
 

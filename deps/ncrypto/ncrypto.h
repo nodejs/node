@@ -1230,9 +1230,9 @@ class DHPointer final {
     UNABLE_TO_CHECK_GENERATOR = 0x04,
     NOT_SUITABLE_GENERATOR = 0x08,
     Q_NOT_PRIME = 0x10,
-#ifndef OPENSSL_IS_BORINGSSL
-    // Boringssl does not define the DH_CHECK_INVALID_[Q or J]_VALUE
     INVALID_Q = 0x20,
+#ifndef OPENSSL_IS_BORINGSSL
+    // BoringSSL does not define DH_CHECK_INVALID_J_VALUE.
     INVALID_J = 0x40,
     MODULUS_TOO_SMALL = 0x80,
     MODULUS_TOO_LARGE = 0x100,
@@ -1243,14 +1243,9 @@ class DHPointer final {
 
   enum class CheckPublicKeyResult {
     NONE,
-#ifndef OPENSSL_IS_BORINGSSL
-    // Boringssl does not define DH_R_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
-    TOO_SMALL = DH_R_CHECK_PUBKEY_TOO_SMALL,
-    TOO_LARGE = DH_R_CHECK_PUBKEY_TOO_LARGE,
-    INVALID = DH_R_CHECK_PUBKEY_INVALID,
-#else
-    INVALID = DH_R_INVALID_PUBKEY,
-#endif
+    TOO_SMALL,
+    TOO_LARGE,
+    INVALID,
     CHECK_FAILED = 512,
   };
   // Check to see if the given public key is suitable for this DH instance.
