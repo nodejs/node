@@ -239,24 +239,26 @@ counter tracks how many packets have been dropped by the filter.
 
 ### Applications
 
-Every `QuicSession` is associated with a single application protocol, negotiated
-via ALPN during the TLS handshake. The `quic` module is designed to be
-application-agnostic in general but includes built-in support for HTTP/3 as a
-specific application protocol. When using HTTP/3, the `quic` module provides
-additional APIs for handling HTTP/3-specific features such as headers, trailers,
-and prioritization. For other application protocols, users can implement their
-own message framing and multiplexing on top of the core QUIC transport features.
+All QUIC sessions are associated with a single application protocol, negotiated
+via ALPN during the TLS handshake. The `quic` module is an application-agnostic
+transport on which application protocols can be implemented.
 
-When initiating a TLS handshake, the client will include a list of supported
-ALPN protocols in the `ClientHello`. The server selects one of these protocols
-(if any) and includes it in the `ServerHello`. The negotiated protocol determines
-how the `QuicSession` and `QuicStream` APIs behave. For example, when the `h3`
-protocol is negotiated for HTTP/3, the `QuicSession` and `QuicStream` will support
-HTTP/3-specific features.
+HTTP/3 support is provided separately by the [HTTP/3][] API of this module,
+which provides HTTP/3 features on top of a `QuicSession`. Other application
+protocols can be implemented with their own message framing and multiplexing on
+top of the core QUIC transport features.
 
-Currently, the `quic` module only supports HTTP/3 as a built-in application protocol.
-All other protocols must be implemented by the user on top of the provided JavaScript
-API.
+To select a protocol, when connecting via QUIC, the client will send a list of
+supported protocols via ALPN. The server selects one of these protocols, if it
+accepts one, and confirms that to the client to complete connection setup.
+The negotiated protocol is exposed as `session.alpnProtocol`, which can be used
+to select the right application protocol to use: either your own implementation,
+or activating the built-in HTTP/3 protocol on the session with
+`new Http3Session(quicSession)`.
+
+Alternatively, if you use [`connectHttp3()`][] and [`listenHttp3()`][]
+directly, the server or client will be preconfigured for the HTTP/3 application
+protocol, and will automatically handle this for you.
 
 ### Configuration
 
@@ -344,11 +346,9 @@ compatible with `node:stream/iter` utilities such as `Stream.bytes()`,
 In addition to streams, QUIC supports unreliable datagrams ([RFC 9221][]) for
 use cases that require low-latency, best-effort messaging.
 
-Datagram support is enabled at two levels. At the QUIC transport level, both
-peers must advertise a non-zero [`maxDatagramFrameSize`][] transport parameter
-during the handshake. For HTTP/3 sessions, both peers must additionally set
-[`application.enableDatagrams`][] to `true`, which exchanges the
-`SETTINGS_H3_DATAGRAM` setting on the HTTP/3 control stream.
+Datagram support is enabled at the QUIC transport level: both peers must
+advertise a non-zero [`maxDatagramFrameSize`][] transport parameter during the
+handshake.
 
 A datagram is sent with a single call to [`session.sendDatagram()`][]. Each
 datagram must fit within a single QUIC packet — datagrams cannot be
@@ -408,8 +408,9 @@ A typical client session progresses through these stages:
    (also available as `session.closed`) resolves when teardown is complete.
 
 On the server side, call [`quic.listen()`][] with a callback. The callback
-fires for each incoming session after the TLS handshake begins. Incoming
-streams arrive via the [`session.onstream`][] callback.
+fires for each incoming session, once the TLS handshake client hello has
+been processed. Incoming streams arrive via the [`session.onstream`][] callback.
+`session.opened` can be used to wait for the TLS handshake to fully complete.
 
 [`session.destroy()`][] is available for immediate teardown — all open streams
 are destroyed and the session is closed without waiting for them to finish.
@@ -927,20 +928,6 @@ added: v23.8.0
 
 A `QuicSession` represents the local side of a QUIC connection.
 
-### `session.applicationOptions`
-
-<!-- YAML
-added: v26.3.0
--->
-
-* Type: {quic.ApplicationOptions}
-
-The current application-level options for this session. These include settings
-that are specific to the negotiated application protocol (e.g. HTTP/3) and may
-be negotiated separately from the transport parameters. Read only.
-You can use the callback [`session.onapplication`][] to be informed, when settings
-from the remote arrive.
-
 ### `session.close([options])`
 
 <!-- YAML
@@ -1072,16 +1059,6 @@ added: v23.8.0
 The endpoint that created this session. Returns `null` if the session
 has been destroyed. Read only.
 
-### `session.onapplication`
-
-<!-- YAML
-added: v26.4.0
--->
-
-* Type: {quic.OnApplicationCallback}
-
-The callback to invoke when new application options, e.g. HTTP/3 settings arrived.
-
 ### `session.onerror`
 
 <!-- YAML
@@ -1199,43 +1176,6 @@ The callback to invoke when a NEW\_TOKEN token is received from the server.
 The token can be passed as the `token` option on a future connection to
 the same server to skip address validation. Read/write.
 
-### `session.onorigin`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {quic.OnOriginCallback}
-
-The callback to invoke when an ORIGIN frame (RFC 9412) is received from
-the server, indicating which origins the server is authoritative for.
-Read/write.
-
-### `session.ongoaway`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Function}
-
-The callback to invoke when the peer sends an HTTP/3 GOAWAY frame,
-indicating it is initiating a graceful shutdown. The callback receives
-`(lastStreamId)` where `lastStreamId` is a `{bigint}`:
-
-* When `lastStreamId` is `-1n`, the peer sent a shutdown notice (intent
-  to close) without specifying a stream boundary. All existing streams
-  may still be processed.
-* When `lastStreamId` is `>= 0n`, it is the highest stream ID the peer
-  may have processed. Streams with IDs above this value were NOT
-  processed and can be safely retried on a new connection.
-
-After GOAWAY is received, `session.createBidirectionalStream()` will
-throw `ERR_INVALID_STATE`. Existing streams continue until they
-complete or the session closes.
-
-This callback is only relevant for HTTP/3 sessions. Read/write.
-
 ### `session.onkeylog`
 
 <!-- YAML
@@ -1286,37 +1226,15 @@ added: v23.8.0
     The outbound body source. See [`stream.setBody()`][] for details on
     supported types. When omitted, the stream's outgoing side remains
     writable with no body queued; no FIN is sent immediately.
-  * `headers` {Object} Initial request or response headers to send. Only
-    used when the session supports headers (e.g. HTTP/3). If `body` is not
-    specified and `headers` is provided, the stream is treated as
-    headers-only (terminal).
-  * `priority` {string} The priority level of the stream. One of `'high'`,
-    `'default'`, or `'low'`. **Default:** `'default'`.
-  * `incremental` {boolean} When `true`, data from this stream may be
-    interleaved with data from other streams of the same priority level.
-    When `false`, the stream should be completed before same-priority peers.
-    **Default:** `false`.
   * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
-  * `onheaders` {Function} Callback for received initial response headers.
-    Called with `(headers)`.
-  * `ontrailers` {Function} Callback for received trailing headers.
-    Called with `(trailers)`.
-  * `oninfo` {Function} Callback for received informational (1xx) headers.
-    Called with `(headers)`.
-  * `onwanttrailers` {Function} Callback when trailers should be sent.
-    Called with no arguments; use [`stream.sendTrailers()`][] within the
-    callback.
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new bidirectional stream. If the `body` option is not specified,
 the stream's outgoing side remains writable and no FIN is sent
-immediately. The `priority` and `incremental`
-options are only used when the session supports priority (e.g. HTTP/3).
-The `headers`, `onheaders`, `ontrailers`, `oninfo`, and `onwanttrailers`
-options are only used when the session supports headers (e.g. HTTP/3).
+immediately.
 
 ### `session.createUnidirectionalStream([options])`
 
@@ -1330,30 +1248,15 @@ added: v23.8.0
     The outbound body source. See [`stream.setBody()`][] for details on
     supported types. When omitted, the stream's outgoing side remains
     writable with no body queued; no FIN is sent immediately.
-  * `headers` {Object} Initial request headers to send.
-  * `priority` {string} The priority level of the stream. One of `'high'`,
-    `'default'`, or `'low'`. **Default:** `'default'`.
-  * `incremental` {boolean} When `true`, data from this stream may be
-    interleaved with data from other streams of the same priority level.
-    When `false`, the stream should be completed before same-priority peers.
-    **Default:** `false`.
   * `budget` {number} The maximum number of bytes that the writer
     will buffer before `writeSync()` returns `false`. When the buffered
     data exceeds this limit, the caller should wait for drain before
     writing more. **Default:** `65536` (64 KB).
-  * `onheaders` {Function} Callback for received initial response headers.
-    Called with `(headers)`.
-  * `ontrailers` {Function} Callback for received trailing headers.
-    Called with `(trailers)`.
-  * `oninfo` {Function} Callback for received informational (1xx) headers.
-    Called with `(headers)`.
-  * `onwanttrailers` {Function} Callback when trailers should be sent.
 * Returns: {Promise} for a {quic.QuicStream}
 
 Open a new unidirectional stream. If the `body` option is not specified,
 the stream's outgoing side remains writable and no FIN is sent
-immediately. The `priority` and `incremental`
-options are only used when the session supports priority (e.g. HTTP/3).
+immediately.
 
 ### `session.path`
 
@@ -1409,12 +1312,6 @@ inherently unreliable).
 
 If the datagram payload is zero-length (empty string after encoding, detached
 buffer, or zero-length view), `0n` is returned and no datagram is sent.
-
-For HTTP/3 sessions, the peer must advertise `SETTINGS_H3_DATAGRAM=1`
-(via `application: { enableDatagrams: true }`) for datagrams to be sent.
-If the peer's setting is `0`, `sendDatagram()` returns `0n` (per RFC 9297
-§3, an endpoint MUST NOT send HTTP Datagrams unless the peer indicated
-support).
 
 Datagrams cannot be fragmented — each must fit within a single QUIC packet.
 The maximum datagram size is determined by the peer's
@@ -2104,176 +2001,6 @@ writable side).
 The callback receives a Node.js error whose `errorCode` (`bigint`)
 property carries the application error code from the wire frame. Read/write.
 
-### `stream.headers`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Object|undefined}
-
-The buffered initial headers received on this stream, or `undefined` if the
-application does not support headers or no headers have been received yet.
-For server-side streams, this contains the request headers (e.g., `:method`,
-`:path`, `:scheme`). For client-side streams, this contains the response
-headers (e.g., `:status`).
-
-Header names are lowercase strings. Multi-value headers are represented as
-arrays. The object has `__proto__: null`.
-
-### `stream.onheaders`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Function}
-
-The callback to invoke when initial headers are received on the stream. The
-callback receives `(headers)` where `headers` is an object (same format as
-`stream.headers`). For HTTP/3, this delivers request pseudo-headers on the
-server side and response headers on the client side. Throws
-`ERR_INVALID_STATE` if set on a session that does not support headers.
-Read/write.
-
-### `stream.ontrailers`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Function}
-
-The callback to invoke when trailing headers are received from the peer.
-The callback receives `(trailers)` where `trailers` is an object in the
-same format as `stream.headers`. Throws `ERR_INVALID_STATE` if set on a
-session that does not support headers. Read/write.
-
-### `stream.oninfo`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Function}
-
-The callback to invoke when informational (1xx) headers are received from
-the server. The callback receives `(headers)` where `headers` is an object
-in the same format as `stream.headers`. Informational headers are sent
-before the final response (e.g., 103 Early Hints). Throws
-`ERR_INVALID_STATE` if set on a session that does not support headers.
-Read/write.
-
-### `stream.onwanttrailers`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Function}
-
-The callback to invoke when the application is ready for trailing headers
-to be sent. This is called synchronously — the user must call
-[`stream.sendTrailers()`][] within this callback. Throws
-`ERR_INVALID_STATE` if set on a session that does not support headers.
-Read/write.
-
-### `stream.pendingTrailers`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Object|undefined}
-
-Set trailing headers to be sent automatically when the application requests
-them. This is an alternative to the [`stream.onwanttrailers`][] callback
-for cases where the trailers are known before the body completes. Throws
-`ERR_INVALID_STATE` if set on a session that does not support headers.
-Read/write.
-
-### `stream.sendHeaders(headers[, options])`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* `headers` {Object} Header object with string keys and string or
-  string-array values. Pseudo-headers (`:method`, `:path`, etc.) must
-  appear before regular headers.
-* `options` {Object}
-  * `terminal` {boolean} If `true`, the stream is closed for sending
-    after the headers (no body will follow). **Default:** `false`.
-* Returns: {boolean}
-
-Sends initial or response headers on the stream. For client-side streams,
-this sends request headers. For server-side streams, this sends response
-headers. Throws `ERR_INVALID_STATE` if the session does not support headers.
-
-### `stream.sendInformationalHeaders(headers)`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* `headers` {Object} Header object. Must include `:status` with a 1xx
-  value (e.g., `{ ':status': '103', 'link': '</style.css>; rel=preload' }`).
-* Returns: {boolean}
-
-Sends informational (1xx) response headers. Server only. Throws
-`ERR_INVALID_STATE` if the session does not support headers.
-
-### `stream.sendTrailers(headers)`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* `headers` {Object} Trailing header object. Pseudo-headers must not be
-  included in trailers.
-* Returns: {boolean}
-
-Sends trailing headers on the stream. Must be called synchronously during
-the [`stream.onwanttrailers`][] callback, or set ahead of time via
-[`stream.pendingTrailers`][]. Throws `ERR_INVALID_STATE` if the session
-does not support headers.
-
-### `stream.priority`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {Object|null}
-  * `level` {string} One of `'high'`, `'default'`, or `'low'`.
-  * `incremental` {boolean} Whether the stream data should be interleaved
-    with other streams of the same priority level.
-
-The current priority of the stream. Returns `null` if the session does not
-support priority (e.g. non-HTTP/3) or if the stream has been destroyed.
-Read only. Use [`stream.setPriority()`][] to change the priority.
-
-On client-side HTTP/3 sessions, the value reflects what was set via
-[`stream.setPriority()`][]. On server-side HTTP/3 sessions, the value
-reflects the peer's requested priority (e.g., from `PRIORITY_UPDATE` frames).
-
-### `stream.setPriority([options])`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* `options` {Object}
-  * `level` {string} The priority level. One of `'high'`, `'default'`, or
-    `'low'`. **Default:** `'default'`.
-  * `incremental` {boolean} When `true`, data from this stream may be
-    interleaved with data from other streams of the same priority level.
-    **Default:** `false`.
-
-Sets the priority of the stream. Throws `ERR_INVALID_STATE` if the session
-does not support priority (e.g. non-HTTP/3). Has no effect if the stream
-has been destroyed.
-
 ### `stream[Symbol.asyncIterator]()`
 
 <!-- YAML
@@ -2538,71 +2265,580 @@ added: v23.8.0
 
 * Type: {bigint}
 
-## Types
+## HTTP/3
 
-### type: `ApplicationOptions`
+The HTTP/3 API allows you to send & receive HTTP/3 requests and responses,
+building on top of the QUIC transport in this same module.
+
+Each connection is an {Http3Session}, wrapping a [`QuicSession`][], and
+each request/response exchange is an {Http3Stream}, wrapping a
+[`QuicStream`][].
+
+Servers call [`listenHttp3()`][] to create an endpoint, from which sessions will
+be emitted for incoming connections. Clients call [`connectHttp3()`][] to create
+a session with a remote server.
+
+Transport-level configuration (TLS certificates, SNI, address validation,
+flow control, and so on) is identical to the rest of the QUIC API. QUIC
+options not managed by the HTTP/3 layer can be passed straight through to
+the underlying endpoint, session, or stream.
+
+HTTP/3 requests are always client-initiated. A server session receives request
+streams via its `onstream` callback and cannot itself call `request()`.
+
+### HTTP/3 example
+
+Server:
+
+```mjs
+import { listenHttp3 } from 'node:quic';
+
+const endpoint = await listenHttp3((session) => {
+  session.onstream = (stream) => {
+    stream.onheaders = (headers) => {
+      // headers[':method'], headers[':path'], headers[':authority'] ...
+      stream.sendHeaders({ ':status': '200', 'content-type': 'text/plain' });
+      const w = stream.writer;
+      w.writeSync('hello h3');
+      w.endSync();
+    };
+  };
+}, {
+  sni: { '*': { keys: [key], certs: [cert] } },
+});
+```
+
+Client:
+
+```mjs
+import { connectHttp3 } from 'node:quic';
+import { bytes } from 'stream/iter';
+
+const session = await connectHttp3(endpoint.address, { servername: 'localhost' });
+await session.opened;
+
+const stream = await session.request({
+  ':method': 'GET',
+  ':path': '/hello',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
+  onheaders: (headers) => { /* headers[':status'] === 200 */ },
+});
+
+const body = new TextDecoder().decode(await bytes(stream));
+// body === 'hello h3'
+
+await session.close();
+```
+
+## `quic.connectHttp3(address[, options])`
 
 <!-- YAML
-added: v26.3.0
+added: REPLACEME
+-->
+
+* `address` {string|net.SocketAddress} The server address. See [`quic.connect()`][].
+* `options` {Object} HTTP/3 options. Other [`quic.connect()`][] session options
+  may also be provided and will be passed through to the underlying QUIC session.
+  * `settings` {Http3Settings} Local HTTP/3 SETTINGS to advertise to the peer.
+  * `ongoaway` {quic.OnGoawayCallback} The session's initial `ongoaway` callback.
+  * `onorigin` {quic.OnOriginCallback} The session's initial `onorigin` callback.
+  * `onsettings` {quic.OnSettingsCallback} The session's initial `onsettings` callback.
+* Returns: {Promise} Fulfilled with an {Http3Session}.
+
+Opens a client connection to an HTTP/3 server. The ALPN identifier is fixed to
+`h3`. Await [`http3session.opened`][] before sending requests: the TLS handshake —
+including certificate validation — completes asynchronously, and any handshake
+or connection failure is reported through `opened` rather than by `connect()`.
+
+## `quic.listenHttp3(onsession[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `onsession` {quic.OnHttp3SessionCallback} Invoked with each new {Http3Session}.
+* `options` {Object} The same HTTP/3 options as [`connectHttp3()`][], plus any
+  [`quic.listen()`][] option (for example `sni`), passed through to the
+  endpoint.
+* Returns: {Promise} Fulfilled with the listening {quic.QuicEndpoint}.
+
+Creates a server endpoint that negotiates the `h3` ALPN identifier and invokes
+`onsession` for each incoming connection.
+
+## Class: `Http3Session`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An `Http3Session` wraps a {quic.QuicSession} with HTTP/3 semantics. Servers receive
+one through the [`listenHttp3()`][] callback; clients create one with [`connectHttp3()`][].
+Alternatively, you can call the constructor directly on a QuicSession if it's not
+already active.
+
+### `new Http3Session(session[, callbacks])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `session` {quic.QuicSession} The raw transport session to wrap.
+* `callbacks` {Object}
+  * `ongoaway` {quic.OnGoawayCallback} The initial `ongoaway` callback.
+  * `onorigin` {quic.OnOriginCallback} The initial `onorigin` callback.
+  * `onsettings` {quic.OnSettingsCallback} The initial `onsettings` callback.
+
+Attaches HTTP/3 to an existing `node:quic` session.
+
+The HTTP/3 session must be attached before any streams are created locally, and
+before the QUIC session becomes active and begins emitting events. For servers
+that means synchronously inside a server's `onsession` callback, or for clients
+before the handshake completes. Throws `ERR_INVALID_STATE` if the QUIC session
+is already attached, already active, or already has streams.
+
+### `http3session.request(headers[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object} The request pseudo-headers (`:method`, `:path`,
+  `:scheme`, `:authority`) and regular headers. When omitted, headers can be
+  sent later with `sendHeaders()`.
+* `options` {Object} Any {quic.QuicStream} option (for example `body`) may also be
+  given and is passed through.
+  * `priority` {string} Initial priority level: `'high'`, `'default'`, or
+    `'low'`. **Default:** `'default'`.
+  * `incremental` {boolean} Whether the stream may be served incrementally.
+    **Default:** `false`.
+  * `onheaders` {quic.OnHeadersCallback} The new stream's `onheaders` callback.
+  * `oninfo` {quic.OnInfoCallback} The new stream's `oninfo` callback.
+  * `ontrailers` {quic.OnTrailersCallback} The new stream's `ontrailers` callback.
+  * `onwanttrailers` {quic.OnWantTrailersCallback} The new stream's `onwanttrailers`
+    callback.
+  * `onreset` {quic.OnResetCallback} The new stream's `onreset` callback.
+  * `onerror` {quic.OnErrorCallback} The new stream's `onerror` callback.
+* Returns: {Promise} Fulfilled with an {Http3Stream}.
+
+Opens a request stream. Client only — throws `ERR_INVALID_STATE` on a server
+session. The per-stream callbacks are passed here so they are attached before
+any event can be delivered on the new stream.
+
+### `http3session.close([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+* Returns: {Promise}
+
+Gracefully closes the session, delegating to the underlying QUIC session.
+
+### `http3session.destroy([error[, options]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {Error}
+* `options` {Object}
+
+Immediately destroys the session and all of its streams.
+
+### `http3session.settings`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Http3Settings|null}
+
+The effective HTTP/3 settings for the session: the locally configured values
+plus any updates received in the peer's SETTINGS frame. Returns `null` once the
+session is destroyed. Read only.
+
+### `http3session.opened`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise}
+
+Resolves with the handshake details once the TLS handshake completes, or
+rejects if the session fails to open. Read only.
+
+### `http3session.closed`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise}
+
+Resolves when the session has fully closed, or rejects if it ends with an
+error. Read only.
+
+### `http3session.servername`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|undefined}
+
+The SNI servername of the session, or `undefined` if none was negotiated.
+Read only.
+
+### `http3session.alpnProtocol`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|undefined}
+
+The negotiated ALPN protocol (`'h3'`), or `undefined` before negotiation
+completes. Read only.
+
+### `http3session.session`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.QuicSession}
+
+The underlying transport session. Read only.
+
+### `http3session.onstream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnHttp3StreamCallback}
+
+Server callback invoked with each incoming request stream. Read/write.
+
+### `http3session.ongoaway`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnGoawayCallback}
+
+Invoked when the peer sends an HTTP/3 GOAWAY frame. Read/write.
+
+### `http3session.onorigin`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnOriginCallback}
+
+Invoked when the peer sends an HTTP/3 ORIGIN frame (RFC 9412). Read/write.
+
+### `http3session.onsettings`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnSettingsCallback}
+
+Invoked when the peer's SETTINGS frame is received, which may be after the
+session opens. The current values are also available synchronously via
+`http3session.settings`. Read/write.
+
+### `http3session.onerror`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnErrorCallback}
+
+Invoked when the session encounters an error. Read/write.
+
+## Class: `Http3Stream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An `Http3Stream` represents a single HTTP/3 request/response exchange, wrapping
+a {quic.QuicStream}. It is async-iterable: `for await (const chunk of stream)` (or
+the `stream/iter` `bytes()` helper) reads the inbound body.
+
+### `http3stream.sendHeaders(headers[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object} The header block to send — a server's response headers or
+  a client's request headers.
+* `options` {Object}
+  * `terminal` {boolean} When `true`, the header block is the final frame and
+    no body follows. **Default:** `false`.
+* Returns: {boolean} `true` if the headers were scheduled to be sent.
+
+Sends the initial request or response header block.
+
+### `http3stream.sendInformationalHeaders(headers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object}
+* Returns: {boolean} `true` if the headers were scheduled to be sent.
+
+Sends an informational (1xx) response header block. Server only.
+
+### `http3stream.sendTrailers(headers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `headers` {Object}
+* Returns: {boolean} `true` if the trailers were scheduled to be sent.
+
+Sends a trailing header block. Must be called synchronously from the
+`onwanttrailers` callback.
+
+### `http3stream.setPriority([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `level` {string} `'high'`, `'default'`, or `'low'`. **Default:**
+    `'default'`.
+  * `incremental` {boolean} Whether the stream may be served incrementally.
+    **Default:** `false`.
+
+Updates the stream priority. Before the request is submitted the priority is
+carried in the initial header block; afterwards it is signaled with a
+PRIORITY\_UPDATE frame.
+
+### `http3stream.stopSending([code])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `code` {bigint|number} The application error code sent to the peer.
+  **Default:** `0n`.
+
+Asks the peer to stop sending data on this stream, delegating to the underlying
+QUIC stream.
+
+### `http3stream.resetStream([code])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `code` {bigint|number} The application error code sent to the peer.
+  **Default:** `0n`.
+
+Tells the peer this end will send no more data on this stream, delegating to
+the underlying QUIC stream.
+
+### `http3stream.destroy([error[, options]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {Error}
+* `options` {Object}
+
+Immediately destroys the stream.
+
+### `http3stream[Symbol.asyncIterator]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Iterates the inbound body bytes, ending at the stream FIN. Equivalent to
+iterating the underlying [`QuicStream`][].
+
+### `http3stream.writer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {QuicStreamWriter}
+
+The outbound body writer (`write`, `writeSync`, `end`, `endSync`). Read only.
+
+### `http3stream.headers`
+
+<!-- YAML
+added: REPLACEME
 -->
 
 * Type: {Object}
 
-The application specific options.
+The most recently received header block, or `undefined` before any headers
+arrive. Read only.
 
-#### `applicationOptions.maxHeaderPairs`
+### `http3stream.priority`
 
-* Type: {bigint|number}
+<!-- YAML
+added: REPLACEME
+-->
 
-Maximum number of header name-value pairs accepted per header block.
-Headers beyond this limit are silently dropped. **Default:** `128`
+* Type: {Object|null}
 
-#### `applicationOptions.maxHeaderLength`
+The stream's priority as `{ level, incremental }` — on a client the requested
+value, on a server the peer's requested priority. `null` once the stream is
+destroyed. Read only.
 
-* Type: {bigint|number}
+### `http3stream.id`
 
-Maximum total byte length of all header names and values combined per header
-block. Headers that would push the total over this limit are silently
-dropped. **Default:** `8192`
+<!-- YAML
+added: REPLACEME
+-->
 
-#### `applicationOptions.maxFieldSectionSize`
+* Type: {bigint}
 
-* Type: {bigint|number}
+The QUIC stream id. Read only.
 
-Maximum size of a compressed header field section (QPACK). `0` means
-unlimited. **Default:** `0`
+### `http3stream.direction`
 
-#### `applicationOptions.qpackMaxDTableCapacity`
+<!-- YAML
+added: REPLACEME
+-->
 
-* Type: {bigint|number}
+* Type: {string}
 
-QPACK dynamic table capacity in bytes. Set to `0` to disable the dynamic
-table. **Default:** `4096`
+`'bidi'` or `'uni'`. Read only.
 
-#### `applicationOptions.qpackEncoderMaxDTableCapacity`
+### `http3stream.early`
 
-* Type: {bigint|number}
-
-QPACK encoder maximum dynamic table capacity. **Default:** `4096`
-
-#### `applicationOptions.qpackBlockedStreams`
-
-* Type: {bigint|number}
-
-Maximum number of streams that can e blocked waiting for QPACK dynamic table
-updates. **Default:** `100`
-
-#### `applicationOptions.enableConnectProtocol`
+<!-- YAML
+added: REPLACEME
+-->
 
 * Type: {boolean}
 
-Enable the extended CONNECT protocol (RFC 9220). **Default:** `false`
+`true` if the stream's data arrived as 0-RTT early data. Read only.
 
-#### `applicationOptions.enableDatagrams`
+### `http3stream.closed`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Promise}
+
+Resolves when the stream has closed. Read only.
+
+### `http3stream.destroyed`
+
+<!-- YAML
+added: REPLACEME
+-->
 
 * Type: {boolean}
 
-Enable HTTP/3 datagrams (RFC 9297). **Default:** `false`
+`true` once the stream has been destroyed. Read only.
+
+### `http3stream.session`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Http3Session}
+
+The session that owns this stream. Read only.
+
+### `http3stream.stream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.QuicStream}
+
+The underlying QUIC stream. Read only.
+
+### `http3stream.onheaders`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnHeadersCallback}
+
+Invoked when the initial response/request header block is received. Read/write.
+
+### `http3stream.oninfo`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnInfoCallback}
+
+Invoked when an informational (1xx) header block is received. Read/write.
+
+### `http3stream.ontrailers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnTrailersCallback}
+
+Invoked when a trailing header block is received. Read/write.
+
+### `http3stream.onwanttrailers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnWantTrailersCallback}
+
+Invoked when trailers may be sent. Setting it keeps the stream open after the
+body; send trailers synchronously with `sendTrailers()`. Read/write.
+
+### `http3stream.onreset`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnResetCallback}
+
+Invoked when the peer aborts the stream with a `RESET_STREAM` frame. Read/write.
+
+### `http3stream.onerror`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.OnErrorCallback}
+
+Invoked when the stream encounters an error. Read/write.
+
+## Types
 
 ### Type: `EndpointOptions`
 
@@ -2934,7 +3170,11 @@ added:
 
 * Type: {string} (client) | {string\[]} (server)
 
-The ALPN (Application-Layer Protocol Negotiation) identifier(s).
+The ALPN (Application-Layer Protocol Negotiation) identifier(s). This option is
+**required**: `node:quic` is transport-only and assumes no application protocol,
+so a session created without an ALPN is rejected with an `ERR_MISSING_OPTION`
+error. Consumers that layer a protocol on top set it themselves (for example
+[`connectHttp3()`][] negotiates `'h3'`).
 
 For **client** sessions, this is a single string specifying the protocol
 the client wants to use (e.g. `'h3'`).
@@ -2944,34 +3184,10 @@ order that the server supports (e.g. `['h3', 'h3-29']`). During the TLS
 handshake, the server selects the first protocol from its list that the
 client also supports.
 
-The negotiated ALPN determines which Application implementation is used
-for the session. `'h3'` and `'h3-*'` variants select the HTTP/3
-application; all other values select the default application.
-
-Default: `'h3'`
-
-#### `sessionOptions.application`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* Type: {quic.ApplicationOptions}
-
-Application-specific options.
-
-```mjs
-const { listen } = await import('node:quic');
-
-await listen((session) => { /* ... */ }, {
-  application: {
-    maxHeaderPairs: 64,
-    qpackMaxDTableCapacity: 8192,
-    enableDatagrams: true,
-  },
-  // ... other session options
-});
-```
+The negotiated identifier is exposed as `session.alpnProtocol`. This can be
+read to confirm which application protocol to use in the session. See the
+Applications section for more information about enabling HTTP/3 when the
+`h3` ALPN protocol is configured.
 
 #### `sessionOptions.ca`
 
@@ -3647,6 +3863,27 @@ of the session and is provided for informational purposes only when
 available in the `session.localTransportParams` and
 `session.remoteTransportParams` properties.
 
+### Type: `Http3Settings`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `maxFieldSectionSize` {number} Maximum size, in bytes, of a header field
+  section the endpoint will accept.
+* `qpackMaxDtableCapacity` {number} Maximum QPACK dynamic table capacity.
+  **Default:** `4096`.
+* `qpackEncoderMaxDtableCapacity` {number} Maximum QPACK encoder dynamic table
+  capacity. **Default:** `4096`.
+* `qpackBlockedStreams` {number} Maximum number of streams that may be blocked
+  waiting for QPACK state. **Default:** `100`.
+* `enableConnectProtocol` {boolean} Whether the Extended CONNECT protocol
+  (RFC 9220) is enabled. **Default:** `true`.
+
+The HTTP/3 SETTINGS for a session (RFC 9114). Advertised to the peer via the
+`settings` option, and read back — merged with the peer's values — through
+[`http3session.settings`][].
+
 ## Callbacks
 
 ### Callback error handling
@@ -3656,13 +3893,12 @@ functions. If a callback throws synchronously or returns a promise that
 rejects, the error is caught and the owning session or stream is destroyed
 with that error:
 
-* Stream callbacks (`onblocked`, `onreset`, `onstopsending`, `onheaders`,
-  `ontrailers`, `oninfo`, `onwanttrailers`): the stream is destroyed.
-* Session callbacks (`onapplication`, `onstream`, `ondatagram`,
-  `ondatagramstatus`, `onpathvalidation`, `onsessionticket`,
-  `onnewtoken`, `onversionnegotiation`, `onorigin`, `ongoaway`,
-  `onhandshake`, `onkeylog`, `onqlog`): the session is destroyed along
-  with all of its streams.
+* Stream callbacks (`onblocked`, `onreset`, `onstopsending`): the stream is
+  destroyed.
+* Session callbacks (`onstream`, `ondatagram`, `ondatagramstatus`,
+  `onpathvalidation`, `onsessionticket`, `onnewtoken`,
+  `onversionnegotiation`, `onhandshake`, `onkeylog`, `onqlog`): the session
+  is destroyed along with all of its streams.
 
 Before destruction, the optional [`session.onerror`][] or
 [`stream.onerror`][] callback is invoked (if set), giving the application a
@@ -3719,19 +3955,6 @@ added: v23.8.0
   datagram was sent but the network lost it. `'abandoned'` means the
   datagram was never sent on the wire (dropped due to queue overflow,
   send attempt limit exceeded, or frame size rejection).
-
-### Callback: `OnApplicationCallback`
-
-<!-- YAML
-added: v23.8.0
--->
-
-* `this` {quic.QuicSession}
-* `applicationoption` {quic.QuicSession}
-
-The callback function that is invoked when application options change.
-E.g. for http/3 settings are included in applications options and
-may arrive after the connection is established.
 
 ### Callback: `OnPathValidationCallback`
 
@@ -3810,15 +4033,6 @@ added: v26.2.0
 * `token` {Buffer} The NEW\_TOKEN token data.
 * `address` {SocketAddress} The remote address the token is associated with.
 
-### Callback: `OnOriginCallback`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* `this` {quic.QuicSession}
-* `origins` {string\[]} The list of origins the server is authoritative for.
-
 ### Callback: `OnKeylogCallback`
 
 <!-- YAML
@@ -3867,198 +4081,115 @@ added: v23.8.0
 * `this` {quic.QuicStream}
 * `error` {any}
 
+### Callback: `OnHttp3SessionCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `session` {Http3Session}
+
+Invoked by [`listenHttp3()`][] for each new server session.
+
+### Callback: `OnHttp3StreamCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {Http3Stream}
+
+Invoked with each incoming request stream (server side).
+
+### Callback: `OnGoawayCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `lastStreamId` {bigint}
+
+Invoked when the peer sends an HTTP/3 GOAWAY frame.
+
+### Callback: `OnOriginCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `origins` {string\[]}
+
+Invoked when the peer sends an HTTP/3 ORIGIN frame (RFC 9412).
+
+### Callback: `OnSettingsCallback`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `settings` {Http3Settings}
+
+Invoked when the peer's SETTINGS frame is received.
+
 ### Callback: `OnHeadersCallback`
 
 <!-- YAML
-added: v26.2.0
+added: REPLACEME
 -->
 
-* `this` {quic.QuicStream}
-* `headers` {Object} Header object with lowercase string keys and
-  string or string-array values.
+* `headers` {Object}
 
-Called when initial request or response headers are received. For HTTP/3,
-this delivers request pseudo-headers on the server and response headers
-on the client.
-
-### Callback: `OnTrailersCallback`
-
-<!-- YAML
-added: v26.2.0
--->
-
-* `this` {quic.QuicStream}
-* `trailers` {Object} Trailing header object.
-
-Called when trailing headers are received from the peer.
+Invoked when a response or request header block is received. For incoming
+headers, the `:status` pseudo-header is converted to a `number`, matching
+HTTP/2 behavior.
 
 ### Callback: `OnInfoCallback`
 
 <!-- YAML
-added: v26.2.0
+added: REPLACEME
 -->
 
-* `this` {quic.QuicStream}
-* `headers` {Object} Informational header object.
+* `headers` {Object}
 
-Called when informational (1xx) headers are received from the server
-(e.g., 103 Early Hints).
+Invoked when an informational (1xx) header block is received.
 
-## HTTP/3 support
+### Callback: `OnTrailersCallback`
 
 <!-- YAML
-added: v26.2.0
+added: REPLACEME
 -->
 
-When the negotiated ALPN identifier is `'h3'` (or one of the `'h3-*'`
-draft variants), the QUIC session runs the HTTP/3 application backed
-by `nghttp3`. `'h3'` is the default ALPN for `quic.connect()` and
-`quic.listen()`, so HTTP/3 is what you get unless you select a
-different ALPN explicitly.
+* `headers` {Object}
 
-Selecting the HTTP/3 application enables a number of stream- and
-session-level capabilities that are not available to non-HTTP/3
-applications:
+Invoked when a trailing header block is received.
 
-* **Headers and trailers** — request and response header blocks
-  (including pseudo-headers such as `:method`, `:path`, `:scheme`,
-  `:authority`, and `:status`), trailing headers, and informational
-  (`1xx`) responses. See [`stream.sendHeaders()`][],
-  [`stream.sendTrailers()`][], and
-  [`stream.sendInformationalHeaders()`][].
-* **Stream priority (RFC 9218)** — per-stream urgency and
-  incremental flags. See [`stream.priority`][] and
-  [`stream.setPriority()`][].
-* **HTTP/3 datagrams (RFC 9297)** — unreliable application-layer
-  datagrams. The peer must advertise `SETTINGS_H3_DATAGRAM=1`, which
-  is enabled by setting [`application.enableDatagrams`][] to `true`
-  on both peers. See [`session.sendDatagram()`][] and
-  [`session.ondatagram`][].
-* **ORIGIN frame (RFC 9412)** — servers automatically advertise the
-  hostnames in their [`sessionOptions.sni`][] map (entries with
-  `authoritative: true`); clients receive the list via
-  [`session.onorigin`][].
-* **GOAWAY** — graceful shutdown. The server emits `GOAWAY` as part
-  of [`session.close()`][]; the client observes it via
-  [`session.ongoaway`][] and stops opening new bidirectional streams.
-* **Extended CONNECT settings (RFC 9220)** — the
-  `SETTINGS_ENABLE_CONNECT_PROTOCOL` setting can be enabled via
-  [`application.enableConnectProtocol`][]. The setting is exchanged
-  but the application is responsible for handling the `:protocol`
-  pseudo-header and any payload framing on top.
-* **QPACK tuning** — dynamic-table size and blocked-streams limits
-  via [`application.qpackMaxDTableCapacity`][] and friends.
+### Callback: `OnWantTrailersCallback`
 
-### Minimal HTTP/3 client
+<!-- YAML
+added: REPLACEME
+-->
 
-```mjs
-import { connect } from 'node:quic';
-import process from 'node:process';
+Invoked with no arguments when trailers may be sent.
 
-const session = await connect('example.com:443', {
-  // ALPN defaults to 'h3'.
-  servername: 'example.com',
-});
-await session.opened;
+### Callback: `OnResetCallback`
 
-const stream = await session.createBidirectionalStream({
-  headers: {
-    ':method': 'GET',
-    ':path': '/',
-    ':scheme': 'https',
-    ':authority': 'example.com',
-  },
-  onheaders(headers) {
-    console.log('status:', headers[':status']);
-  },
-});
+<!-- YAML
+added: REPLACEME
+-->
 
-const decoder = new TextDecoder();
-for await (const chunks of stream) {
-  for (const chunk of chunks) {
-    process.stdout.write(decoder.decode(chunk, { stream: true }));
-  }
-}
+* `error` {Error}
 
-await session.close();
-```
+Invoked when the peer aborts the stream with a `RESET_STREAM` frame.
 
-A few things to note:
+### Callback: `OnErrorCallback`
 
-* `session.createBidirectionalStream({ headers })` automatically
-  marks the HEADERS frame as terminal when no `body` is provided —
-  the request is `HEADERS` followed by `END_STREAM`.
-* The `onheaders` callback receives the response pseudo-headers and
-  regular headers in a single object with lowercase string keys.
-  For incoming headers, the `:status` pseudo-header is converted to
-  a `number`, matching HTTP/2 behavior. After the callback returns,
-  the same object is also accessible via [`stream.headers`][].
-* Reading `for await (const chunks of stream)` consumes the response
-  body. Each iteration yields a `Uint8Array[]` batch of chunks.
-* HTTP semantic helpers (URL parsing, method/status validation,
-  redirects, content negotiation, and so on) are intentionally not
-  built in. The caller is responsible for any HTTP-level handling
-  beyond the wire framing.
+<!-- YAML
+added: REPLACEME
+-->
 
-### Minimal HTTP/3 server
+* `error` {Error}
 
-```mjs
-import { listen } from 'node:quic';
-
-const encoder = new TextEncoder();
-
-const endpoint = await listen((session) => {
-  // The session.onstream callback fires for each new client-initiated stream.
-}, {
-  sni: { '*': { keys: [defaultKey], certs: [defaultCert] } },
-  // ALPN defaults to 'h3'.
-  onheaders(headers) {
-    // `this` is the QuicStream. Pseudo-headers are available on the
-    // request header block (`:method`, `:path`, `:scheme`,
-    // `:authority`).
-    if (headers[':path'] === '/health') {
-      this.sendHeaders({ ':status': '200', 'content-type': 'text/plain' });
-      const w = this.writer;
-      w.writeSync(encoder.encode('ok\n'));
-      w.endSync();
-    } else {
-      this.sendHeaders({ ':status': '404' }, { terminal: true });
-    }
-  },
-});
-
-console.log('listening on', endpoint.address);
-```
-
-Server-side notes:
-
-* Setting `onheaders` at the [`listen()`][`quic.listen()`] level
-  applies it to every incoming stream (it is wired up before
-  `onstream` fires). Setting it inside `onstream` is too late for
-  HTTP/3, where the request HEADERS frame is the first thing that
-  arrives on the stream.
-* `this.sendHeaders(headers, { terminal: true })` marks the
-  response HEADERS frame as terminal (no body follows).
-* For body responses, send headers first, then write to
-  `this.writer` and call `endSync()` to send the body and close the
-  stream cleanly.
-
-### What is not implemented
-
-* **Server push** — `PUSH_PROMISE` and the related push-stream
-  machinery are not implemented and are not on the near-term
-  roadmap. Server push has limited deployment in practice, and most
-  use cases are better served by Early Hints (`103`) or by direct
-  fetches from the client.
-* **WebTransport / extended-CONNECT helpers** — the
-  `SETTINGS_ENABLE_CONNECT_PROTOCOL` setting can be negotiated but
-  there is no built-in support for the `:protocol` pseudo-header,
-  WebTransport datagram demultiplexing, or capsule framing.
-* **Higher-level HTTP semantics** — there is no built-in
-  request/response router, URL parsing, content-encoding
-  negotiation, body-type coercion, redirect following, or
-  cookie handling. These are deliberately left to higher-level
-  libraries built on top of `node:quic`.
+Invoked when the session or stream encounters an error.
 
 ## Performance measurement
 
@@ -4214,10 +4345,11 @@ Published when an endpoint's busy state changes.
 added: v23.8.0
 -->
 
-* `applicationoptions` {quic.ApplicationOptions} Current application options.
+* `applicationoptions` {Object} Current application options.
 * `session` {quic.QuicSession}
 
-Published when a locally-initiated stream is opened.
+Published when the peer's application settings are received (for HTTP/3, its
+SETTINGS frame).
 
 ### Channel: `quic.session.created.client`
 
@@ -4547,6 +4679,7 @@ throughput issues caused by flow control.
 [Aborting a stream]: #aborting-a-stream
 [Callback error handling]: #callback-error-handling
 [Certificate size and handshake performance]: #certificate-size-and-handshake-performance
+[HTTP/3]: #http3
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
 [Permission Model]: permissions.md#permission-model
@@ -4573,10 +4706,10 @@ throughput issues caused by flow control.
 [`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
 [`QuicEndpoint`]: #class-quicendpoint
 [`QuicError`]: #class-quicerror
-[`application.enableConnectProtocol`]: #sessionoptionsapplication
-[`application.enableDatagrams`]: #sessionoptionsapplication
-[`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`QuicSession`]: #class-quicsession
+[`QuicStream`]: #class-quicstream
 [`certificateCompression`]: #sessionoptionscertificatecompression
+[`connectHttp3()`]: #quicconnecthttp3address-options
 [`crypto.X509Certificate`]: crypto.md#class-x509certificate
 [`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
@@ -4595,6 +4728,9 @@ throughput issues caused by flow control.
 [`endpointOptions.versionNegotiationRate`]: #endpointoptionsversionnegotiationrate
 [`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
+[`http3session.opened`]: #http3sessionopened
+[`http3session.settings`]: #http3sessionsettings
+[`listenHttp3()`]: #quiclistenhttp3onsession-options
 [`maxDatagramFrameSize`]: #transportparamsmaxdatagramframesize
 [`net.BlockList`]: net.md#class-netblocklist
 [`quic.connect()`]: #quicconnectaddress-options
@@ -4604,15 +4740,11 @@ throughput issues caused by flow control.
 [`session.createUnidirectionalStream()`]: #sessioncreateunidirectionalstreamoptions
 [`session.destroy()`]: #sessiondestroyerror-options
 [`session.maxPendingDatagrams`]: #sessionmaxpendingdatagrams
-[`session.onapplication`]: #sessiononapplication
-[`session.ondatagram`]: #sessionondatagram
 [`session.ondatagramstatus`]: #sessionondatagramstatus
 [`session.onearlyrejected`]: #sessiononearlyrejected
 [`session.onerror`]: #sessiononerror
-[`session.ongoaway`]: #sessionongoaway
 [`session.onkeylog`]: #sessiononkeylog
 [`session.onnewtoken`]: #sessiononnewtoken
-[`session.onorigin`]: #sessiononorigin
 [`session.onqlog`]: #sessiononqlog
 [`session.onsessionticket`]: #sessiononsessionticket
 [`session.onstream`]: #sessiononstream
@@ -4627,17 +4759,9 @@ throughput issues caused by flow control.
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
 [`sessionOptions.token`]: #sessionoptionstoken-client-only
 [`stream.destroy()`]: #streamdestroyerror-options
-[`stream.headers`]: #streamheaders
 [`stream.onerror`]: #streamonerror
-[`stream.onwanttrailers`]: #streamonwanttrailers
-[`stream.pendingTrailers`]: #streampendingtrailers
-[`stream.priority`]: #streampriority
 [`stream.resetStream()`]: #streamresetstreamcode
-[`stream.sendHeaders()`]: #streamsendheadersheaders-options
-[`stream.sendInformationalHeaders()`]: #streamsendinformationalheadersheaders
-[`stream.sendTrailers()`]: #streamsendtrailersheaders
 [`stream.setBody()`]: #streamsetbodybody
-[`stream.setPriority()`]: #streamsetpriorityoptions
 [`stream.stopSending()`]: #streamstopsendingcode
 [`stream.writer`]: #streamwriter
 [`writer.fail()`]: #streamwriter

@@ -7,11 +7,13 @@
 #include <env.h>
 #include <memory_tracker.h>
 #include <ngtcp2/ngtcp2.h>
-#include <node_http_common.h>
 #include <node_sockaddr.h>
 #include <timer_wrap.h>
 #include <util.h>
+#include <functional>
+#include <memory>
 #include <optional>
+#include <utility>
 #include "bindingdata.h"
 #include "cid.h"
 #include "data.h"
@@ -58,49 +60,8 @@ class Endpoint;
 class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
  public:
   SessionTicket::AppData::Source& ticket_app_data_source() { return *this; }
-  // For simplicity, we use the same Application::Options struct for all
-  // Application types. This may change in the future. Not all of the options
-  // are going to be relevant for all Application types.
-  struct Application_Options final : public MemoryRetainer {
-    // The maximum number of header pairs permitted for a Stream.
-    // Only relevant if the selected application supports headers.
-    uint64_t max_header_pairs = DEFAULT_MAX_HEADER_LIST_PAIRS;
 
-    // The maximum total number of header bytes (including header
-    // name and value) permitted for a Stream.
-    // Only relevant if the selected application supports headers.
-    uint64_t max_header_length = DEFAULT_MAX_HEADER_LENGTH;
-
-    // HTTP/3 specific options.
-    // The maximum header section size advertised to the peer in SETTINGS.
-    // Defaults to match max_header_length so the SETTINGS frame accurately
-    // reflects the enforcement limit. A value of 0 would incorrectly tell
-    // the peer not to send any headers at all.
-    uint64_t max_field_section_size = DEFAULT_MAX_HEADER_LENGTH;
-    uint64_t qpack_max_dtable_capacity = 4096;
-    uint64_t qpack_encoder_max_dtable_capacity = 4096;
-    uint64_t qpack_blocked_streams = 100;
-
-    bool enable_connect_protocol = true;
-    bool enable_datagrams = true;
-
-    operator const nghttp3_settings() const;
-
-    SET_NO_MEMORY_INFO()
-    SET_MEMORY_INFO_NAME(Application::Options)
-    SET_SELF_SIZE(Options)
-
-    static v8::Maybe<Application_Options> From(Environment* env,
-                                               v8::Local<v8::Value> value);
-
-    std::string ToString() const;
-
-    v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
-
-    static const Application_Options kDefault;
-  };
-
-  // An Application implements the ALPN-protocol specific semantics on behalf
+  // An Application implements the protocol-specific semantics on behalf
   // of a QUIC Session.
   class Application;
 
@@ -123,17 +84,15 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     std::string ToString() const;
   };
 
-  // Decode the first ALPN protocol name from wire format (length-prefixed).
-  static std::string_view DecodeAlpn(std::string_view wire);
-
-  // Select the Application implementation based on the negotiated ALPN.
-  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
-  // to DefaultApplication. Sets the application_type state field.
-  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+  // Select the Application implementation: the factory registered under
+  // options.application when set (see application.h), otherwise nullptr.
+  // With no application requested the session runs the native raw-stream
+  // path and no Application is ever installed.
+  std::unique_ptr<Application> SelectApplication();
 
   // Install the Application on the session. Called at construction for
-  // clients (ALPN known upfront) or from OnSelectAlpn for servers
-  // (ALPN negotiated during handshake). Must be called before any
+  // clients or from OnSelectAlpn for servers (later in the handshake,
+  // after session-ticket decryption). Must be called before any
   // application data is received.
   void SetApplication(std::unique_ptr<Application> app);
   // Controls which datagram to drop when the pending datagram queue is full.
@@ -170,9 +129,17 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // so that it cannot be garbage collected.
     BaseObjectPtr<BaseObject> cid_factory_ref;
 
-    // Application-specific options (used for HTTP/3 if the negotiated
-    // ALPN selects Http3ApplicationImpl).
-    Application_Options application_options = Application_Options::kDefault;
+    // The name of the protocol application to install on the session
+    // (see application.h). Set only by internal consumer layers (e.g.
+    // the HTTP/3 JS layer); empty means the session runs the native raw-stream
+    // path with no application installed.
+    std::string application;
+
+    // The application-specific settings supplied by the consumer layer
+    // alongside the application name, pre-parsed by the registered
+    // application factory's parse hook at option-processing time.
+    // Opaque to the QUIC core; only the application's own hooks read it.
+    std::shared_ptr<void> application_settings;
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
@@ -359,6 +326,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   TLSSession& tls_session() const;
   bool has_application() const;
   Application& application() const;
+
+  bool has_streams() const;
+
+  // True once the session has started delivering events to JS, which we use
+  // as a gate for attaching an Application - it has to happen before this.
+  bool is_active() const { return active_; }
   const Config& config() const;
   const Options& options() const;
   const SocketAddress& remote_address() const;
@@ -430,6 +403,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                   const SocketAddress& remote_address,
                   const PacketInfo& pkt_info = PacketInfo(),
                   uint64_t ts = 0);
+
+  uint64_t rx_packet_ts() const { return rx_packet_ts_; }
 
   // Called by BindingData's flush callback to trigger SendPendingData
   // on this session. Encapsulates the application() access so that
@@ -512,6 +487,37 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void ShutdownStream(stream_id id, QuicError error = QuicError());
   void ShutdownStreamWrite(stream_id id, QuicError code = QuicError());
 
+  // The application data-plane dispatchers. Each routes to the installed
+  // Application when one exists; otherwise the session's native
+  // raw-stream implementation runs (the session schedules streams on its
+  // own send queue and pulls their data directly).
+  int GetStreamData(StreamData* data);
+  bool StreamCommit(StreamData* data, size_t datalen);
+  bool AcknowledgeStreamData(stream_id id, size_t datalen);
+  bool ReceiveStreamOpen(stream_id id);
+  bool ReceiveStreamData(stream_id id,
+                         const uint8_t* data,
+                         size_t datalen,
+                         const Stream::ReceiveDataFlags& flags,
+                         void* stream_user_data);
+  // Native-path scheduling: puts the stream on the session's send queue.
+  void ScheduleStream(stream_id id);
+
+  // True when the send pump may run: a session that requested a protocol
+  // application must not send until that application has been installed
+  // (for servers this happens during ALPN processing of the first
+  // flight); a session with no application requested is always ready.
+  bool can_send_pending_data() const;
+
+  // True when the installed application manages stream FIN itself (e.g.
+  // HTTP/3 via nghttp3); always false when no application is installed.
+  bool stream_fin_managed_by_application() const;
+
+  // The application-level "internal error" wire code in effect for this
+  // session (application-supplied once installed, the raw QUIC default
+  // otherwise). Mirrors the session state slot read by the JS side.
+  error_code internal_error_code() const;
+
   // Use the configured CID::Factory to generate a new CID.
   CID new_cid(size_t len = CID::kMaxLength) const;
 
@@ -520,7 +526,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   bool is_destroyed_or_closing() const;
   size_t max_packet_size() const;
-  void set_priority_supported(bool on = true);
 
   // Open a new locally-initialized stream with the specified directionality.
   // If the session is not yet in a state where the stream can be openen --
@@ -629,6 +634,19 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     return true;
   }
 
+  // Runs fn now, or queues it for replay if emits are currently being
+  // deferred (must_defer_emits()) before the session is ready.
+  template <typename F>
+  void DeferOrRun(F&& fn) {
+    if (must_defer_emits()) {
+      QueueDeferredEmit(std::forward<F>(fn));
+    } else {
+      fn();
+    }
+  }
+
+  bool has_origin_listener() const;
+
   enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all
     // currently opened streams to be closed. An attempt will be made to
@@ -674,17 +692,15 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // JavaScript callouts
 
   void EmitClose(const QuicError& error = QuicError());
-  void EmitGoaway(stream_id last_stream_id);
 
   // Sets the max datagram payload size in the shared state. Used by
-  // Http3ApplicationImpl to block datagram sends when the peer's
+  // Http3Application to block datagram sends when the peer's
   // SETTINGS_H3_DATAGRAM=0 (RFC 9297 §3).
   void set_max_datagram_size(uint16_t size);
   void EmitDatagram(Store&& datagram, DatagramReceivedFlags flag);
   void EmitDatagramStatus(datagram_id id, DatagramStatus status);
   void EmitHandshakeComplete();
   void EmitKeylog(const char* line);
-  void EmitOrigins(std::vector<std::string>&& origins);
 
   struct ValidatedPath {
     std::shared_ptr<SocketAddress> local;
@@ -703,7 +719,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
                               size_t nsv);
-  void EmitApplication();
   void DatagramStatus(datagram_id datagramId, DatagramStatus status);
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
@@ -744,7 +759,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   };
   Flags flags_;
 
+  uint64_t rx_packet_ts_ = 0;
+
   bool hello_processed_ = false;
+
+  bool active_ = false;
 
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
@@ -752,8 +771,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   friend struct NgHttp3CallbackScope;
   friend class Application;
   friend class BindingData;
-  friend class DefaultApplication;
-  friend class Http3ApplicationImpl;
+  friend class Http3Application;
   friend class Endpoint;
   friend class SessionManager;
   friend class Stream;

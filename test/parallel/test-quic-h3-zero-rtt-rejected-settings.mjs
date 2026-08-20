@@ -3,13 +3,12 @@
 // Test: H3 0-RTT rejected when server reduces application settings.
 // 0-RTT rejected when max_field_section_size decreased
 // 0-RTT rejected when enable_connect_protocol disabled
-// 0-RTT rejected when enable_datagrams disabled
 // Each test creates two endpoints with the same key/cert/tokenSecret.
 // The first endpoint issues a ticket with generous H3 settings. The
 // second endpoint has reduced settings, causing the H3 session ticket
 // app data validation to reject 0-RTT.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
@@ -17,7 +16,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listenHttp3: listen, connectHttp3: connect } = await import('node:quic');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -35,29 +34,29 @@ async function getTicket(endpointOptions) {
 
   const ep = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync('ok');
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
     });
   }), {
     sni,
     ...endpointOptions,
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync('ok');
-      this.writer.endSync();
-    }),
   });
 
   const cs = await connect(ep.address, {
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
-    onsessionticket: mustCall((ticket) => {
+    onsessionticket: mustCallAtLeast((ticket) => {
       assert.ok(Buffer.isBuffer(ticket));
       savedTicket = ticket;
       gotTicket.resolve();
-    }, 2),
-    onnewtoken: mustCall((token) => {
+    }),
+    onnewtoken: mustCallAtLeast((token) => {
       assert.ok(Buffer.isBuffer(token));
       savedToken = token;
       gotToken.resolve();
@@ -66,14 +65,13 @@ async function getTicket(endpointOptions) {
   await cs.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
 
-  const s = await cs.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/ticket',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const s = await cs.request({
+    ':method': 'GET',
+    ':path': '/ticket',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });
@@ -111,13 +109,11 @@ async function attemptRejected0RTT(endpointOptions, ticket, token) {
   // or datagram is sent. When 0-RTT is rejected, the stream is
   // destroyed by EarlyDataRejected — its closed promise rejects
   // with an application error.
-  const s = await cs.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/rejected',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const s = await cs.request({
+    ':method': 'GET',
+    ':path': '/rejected',
+    ':scheme': 'https',
+    ':authority': 'localhost',
   });
   await assert.rejects(s.closed, {
     code: 'ERR_QUIC_APPLICATION_ERROR',
@@ -137,27 +133,13 @@ const tokenSecret = randomBytes(16);
 {
   const { ticket, token } = await getTicket({
     endpoint: { tokenSecret },
-    application: { enableConnectProtocol: true },
+    settings: { enableConnectProtocol: true },
   });
 
   await attemptRejected0RTT({
     endpoint: { tokenSecret },
     // EnableConnectProtocol reduced from true to false.
-    application: { enableConnectProtocol: false },
-  }, ticket, token);
-}
-
-// enable_datagrams disabled.
-{
-  const { ticket, token } = await getTicket({
-    endpoint: { tokenSecret },
-    application: { enableDatagrams: true },
-  });
-
-  await attemptRejected0RTT({
-    endpoint: { tokenSecret },
-    // EnableDatagrams reduced from true to false.
-    application: { enableDatagrams: false },
+    settings: { enableConnectProtocol: false },
   }, ticket, token);
 }
 
@@ -165,12 +147,12 @@ const tokenSecret = randomBytes(16);
 {
   const { ticket, token } = await getTicket({
     endpoint: { tokenSecret },
-    application: { maxFieldSectionSize: 10000 },
+    settings: { maxFieldSectionSize: 10000 },
   });
 
   await attemptRejected0RTT({
     endpoint: { tokenSecret },
     // MaxFieldSectionSize reduced from 10000 to 100.
-    application: { maxFieldSectionSize: 100 },
+    settings: { maxFieldSectionSize: 100 },
   }, ticket, token);
 }

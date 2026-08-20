@@ -1,0 +1,84 @@
+// Flags: --experimental-quic --experimental-stream-iter --no-warnings
+
+// A request/response round-trip through http3.connect/listen, exercising
+// onstream delivery (wrapped streams), request(), header events,
+// and bodies in both directions.
+
+import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import assert from 'node:assert';
+import * as fixtures from '../common/fixtures.mjs';
+
+if (!hasQuic) {
+  skip('QUIC is not enabled');
+}
+
+const { connectHttp3: connect, listenHttp3: listen, Http3Session, Http3Stream } = await import('node:quic');
+const { createPrivateKey } = await import('node:crypto');
+const { bytes } = await import('stream/iter');
+
+const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const cert = fixtures.readKey('agent1-cert.pem');
+
+const decoder = new TextDecoder();
+const encoder = new TextEncoder();
+
+const serverDone = Promise.withResolvers();
+
+const serverEndpoint = await listen(mustCall((session) => {
+  assert.ok(session instanceof Http3Session);
+  // HTTP/3 requests are client-initiated only: a server session cannot
+  // open a request stream.
+  assert.rejects(session.request(), { code: 'ERR_INVALID_STATE' })
+    .then(mustCall());
+  session.onstream = mustCall((stream) => {
+    assert.ok(stream instanceof Http3Stream);
+    stream.onheaders = mustCall((headers) => {
+      assert.strictEqual(headers[':path'], '/hello');
+      assert.strictEqual(headers[':method'], 'GET');
+      stream.sendHeaders({
+        ':status': '200',
+        'content-type': 'text/plain',
+      });
+      const w = stream.writer;
+      w.writeSync('hello h3');
+      w.endSync();
+    });
+    stream.closed.then(mustCall(() => {
+      session.close();
+      serverDone.resolve();
+    }));
+  });
+}), {
+  sni: { '*': { keys: [key], certs: [cert] } },
+});
+
+const clientSession = await connect(serverEndpoint.address, {
+  servername: 'localhost',
+  verifyPeer: 'manual',
+});
+assert.ok(clientSession instanceof Http3Session);
+const info = await clientSession.opened;
+assert.strictEqual(info.protocol, 'h3');
+
+const responseHeaders = Promise.withResolvers();
+const stream = await clientSession.request({
+  ':method': 'GET',
+  ':path': '/hello',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
+  body: encoder.encode(''),
+  onheaders: mustCall((headers) => {
+    assert.strictEqual(headers[':status'], 200);
+    responseHeaders.resolve();
+  }),
+});
+assert.ok(stream instanceof Http3Stream);
+
+const body = decoder.decode(await bytes(stream));
+assert.strictEqual(body, 'hello h3');
+await responseHeaders.promise;
+
+await serverDone.promise;
+await clientSession.closed;
+await serverEndpoint.close();

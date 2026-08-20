@@ -435,7 +435,10 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // Ref() causes a listening Endpoint to keep the event loop active.
   JS_METHOD(Ref);
 
-  void Receive(const uint8_t* data, size_t len, const SocketAddress& from);
+  void Receive(const uint8_t* data,
+               size_t len,
+               const SocketAddress& from,
+               uint64_t now);
 
   AliasedStruct<Stats> stats_;
   AliasedStruct<State> state_;
