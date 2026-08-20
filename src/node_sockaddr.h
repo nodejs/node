@@ -16,6 +16,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace node {
@@ -68,6 +69,9 @@ class SocketAddress : public MemoryRetainer {
                   SocketAddress* addr);
 
   static bool New(const char* host, uint32_t port, SocketAddress* addr);
+
+  // Returns true if parsing input as an "ip[:port]" socket address succeeded.
+  static bool Parse(std::string_view input, SocketAddress* addr);
 
   // Returns the port for an IPv4 or IPv6 address.
   inline static int GetPort(const sockaddr* addr);
@@ -173,6 +177,7 @@ class SocketAddressBase : public BaseObject {
       Environment* env, std::shared_ptr<SocketAddress> address);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Parse(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Detail(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LegacyDetail(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetFlowLabel(const v8::FunctionCallbackInfo<v8::Value>& args);
