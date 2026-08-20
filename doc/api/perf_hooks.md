@@ -1639,6 +1639,34 @@ added:
 
 Returns a {RecordableHistogram}.
 
+## `perf_hooks.importHistogram(data)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `data` {Uint8Array} A CBOR-encoded histogram previously produced by
+  [`histogram.export()`][].
+* Returns: {RecordableHistogram}
+
+Reconstructs a histogram from a CBOR-encoded `Uint8Array`. The returned
+histogram is a full {RecordableHistogram} with all bucket data, configuration,
+and EWMA state restored. New values can be recorded into it.
+
+```js
+const { createHistogram, importHistogram } = require('node:perf_hooks');
+
+const h = createHistogram();
+for (let i = 1; i <= 1000; i++) h.record(i);
+
+// Serialize and reconstruct
+const data = h.export();
+const h2 = importHistogram(data);
+
+console.log(h2.count);          // 1000
+console.log(h2.percentile(99)); // Same as h.percentile(99)
+```
+
 ## `perf_hooks.eventLoopUtilization([utilization1[, utilization2]])`
 
 <!-- YAML
@@ -1968,6 +1996,43 @@ added:
 
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
+
+### `histogram.export()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Uint8Array}
+
+Serializes the histogram to a [CBOR][]-encoded (RFC 8949) `Uint8Array`
+suitable for transmission or persistent storage. The encoding uses a
+delta-encoded sparse representation of the bucket counts, so the output size
+scales with the number of distinct recorded values rather than the total
+bucket count.
+
+The output includes all histogram configuration, bucket data, and EWMA
+state (when enabled). It can be reconstructed into a new histogram using
+[`perf_hooks.importHistogram()`][].
+
+The CBOR payload is a map with integer keys:
+
+| Key | Type    | Field                                         |
+| --- | ------- | --------------------------------------------- |
+| 0   | uint    | Format version (currently 1)                  |
+| 1   | uint    | Lowest discernible value                      |
+| 2   | uint    | Highest trackable value                       |
+| 3   | uint    | Significant figures                           |
+| 4   | uint    | Total count                                   |
+| 5   | uint    | Min value                                     |
+| 6   | uint    | Max value                                     |
+| 7   | uint    | Normalizing index offset                      |
+| 8   | float64 | Conversion ratio                              |
+| 9   | uint    | Counts array length                           |
+| 10  | array   | Delta-encoded sparse counts `[delta, c, ...]` |
+| 11  | map     | EWMA state (omitted when disabled)            |
+
+Any standard CBOR decoder can parse the output.
 
 ### `histogram.ewmaMean`
 
@@ -2844,6 +2909,7 @@ dns.promises.resolve('localhost');
 ```
 
 [Async Hooks]: async_hooks.md
+[CBOR]: https://www.rfc-editor.org/rfc/rfc8949
 [Cliff's delta]: https://en.wikipedia.org/wiki/Effect_size#Cliff's_delta
 [Cohen's d]: https://en.wikipedia.org/wiki/Effect_size#Cohen's_d
 [Fetch Response Body Info]: https://fetch.spec.whatwg.org/#response-body-info
@@ -2858,7 +2924,9 @@ dns.promises.resolve('localhost');
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
+[`histogram.export()`]: #histogramexport
 [`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
+[`perf_hooks.importHistogram()`]: #perf_hooksimporthistogramdata
 [`perf_hooks.monitorEventLoopDelay()`]: #perf_hooksmonitoreventloopdelayoptions
 [`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
 [`process.hrtime()`]: process.md#processhrtimetime
