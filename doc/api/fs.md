@@ -2227,7 +2227,7 @@ added:
     queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
     warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
   * `ignore` {string|RegExp|Function|Array} Pattern(s) to ignore. Strings are
-    glob patterns (using [`minimatch`][]), RegExp patterns are tested against
+    glob patterns, RegExp patterns are tested against
     the filename, and functions receive the filename and return `true` to
     ignore. **Default:** `undefined`.
 * Returns: {AsyncIterator} of objects with the properties:
@@ -5300,7 +5300,7 @@ changes:
   * `throwIfNoEntry` {boolean} Indicates whether an exception should be thrown when the
     path does not exist. **Default:** `true`.
   * `ignore` {string|RegExp|Function|Array} Pattern(s) to ignore. Strings are
-    glob patterns (using [`minimatch`][]), RegExp patterns are tested against
+    glob patterns, RegExp patterns are tested against
     the filename, and functions receive the filename and return `true` to
     ignore. **Default:** `undefined`.
 * `listener` {Function|undefined} **Default:** `undefined`
@@ -9437,7 +9437,6 @@ the file contents.
 [`fsPromises.utimes()`]: #fspromisesutimespath-atime-mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
-[`minimatch`]: https://github.com/isaacs/minimatch
 [`node:stream/iter`]: stream_iter.md
 [`statfs.bsize`]: #statfsbsize
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode

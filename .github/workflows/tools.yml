@@ -29,7 +29,6 @@ on:
           - libffi
           - libuv
           - llhttp
-          - minimatch
           - nbytes
           - nixpkgs-unstable
           - nghttp2
@@ -184,14 +183,6 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-llhttp.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: minimatch
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-minimatch.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
