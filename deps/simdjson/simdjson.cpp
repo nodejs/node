@@ -1,4 +1,4 @@
-/* auto-generated on 2026-07-30 16:20:13 -0400. version 4.6.6 Do not edit! */
+/* auto-generated on 2026-08-14 12:14:27 -0400. version 4.6.7 Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -15228,6 +15228,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -21620,6 +21623,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -28007,6 +28013,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -34665,6 +34674,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -41885,6 +41897,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -48136,6 +48151,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -54291,6 +54309,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -60865,6 +60886,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
@@ -64733,6 +64757,9 @@ simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_
     const uint8_t *p = value;
     if (*p == '-') p++;
     while (numberparsing::is_digit(*p)) p++;
+    // The digit run must be terminated by a structural or whitespace character; otherwise the
+    // token is malformed (e.g. "123456789123456789123x").
+    if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
     size_t len = size_t(p - value);
     tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::BIGINT);
     uint8_t *dst = current_string_buf_loc + sizeof(uint32_t);
