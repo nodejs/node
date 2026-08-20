@@ -319,12 +319,10 @@ void ComputeSecret(const FunctionCallbackInfo<Value>& args) {
     case DHPointer::CheckPublicKeyResult::CHECK_FAILED:
       return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env,
                                               "Unspecified validation error");
-#ifndef OPENSSL_IS_BORINGSSL
     case DHPointer::CheckPublicKeyResult::TOO_SMALL:
       return THROW_ERR_CRYPTO_INVALID_KEYLEN(env, "Supplied key is too small");
     case DHPointer::CheckPublicKeyResult::TOO_LARGE:
       return THROW_ERR_CRYPTO_INVALID_KEYLEN(env, "Supplied key is too large");
-#endif
     case DHPointer::CheckPublicKeyResult::INVALID:
       return THROW_ERR_CRYPTO_INVALID_KEYTYPE(env, "Supplied key is invalid");
     case DHPointer::CheckPublicKeyResult::NONE:

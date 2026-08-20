@@ -35,32 +35,32 @@ if (!process.features.openssl_is_boringssl) {
   assert.strictEqual(
     crypto.createDiffieHellman(notSafePrime, Buffer.from([2])).verifyError,
     DH_CHECK_P_NOT_SAFE_PRIME);
-
-  const group = crypto.getDiffieHellman('modp14');
-  const alice = crypto.createDiffieHellman(
-    group.getPrime(), group.getGenerator());
-  alice.generateKeys();
-  const groupPrime = BigInt(`0x${group.getPrime('hex')}`);
-  assert.throws(
-    () => alice.computeSecret(Buffer.from([1])),
-    {
-      code: 'ERR_CRYPTO_INVALID_KEYLEN',
-      message: 'Supplied key is too small'
-    });
-  assert.throws(
-    () => alice.computeSecret(group.getPrime()),
-    {
-      code: 'ERR_CRYPTO_INVALID_KEYLEN',
-      message: 'Supplied key is too large'
-    });
-  assert.throws(
-    () => alice.computeSecret(
-      Buffer.from((groupPrime - 1n).toString(16), 'hex')),
-    {
-      code: 'ERR_CRYPTO_INVALID_KEYLEN',
-      message: 'Supplied key is too large'
-    });
 }
+
+const group = crypto.getDiffieHellman('modp14');
+const alice = crypto.createDiffieHellman(
+  group.getPrime(), group.getGenerator());
+alice.generateKeys();
+const groupPrime = BigInt(`0x${group.getPrime('hex')}`);
+assert.throws(
+  () => alice.computeSecret(Buffer.from([1])),
+  {
+    code: 'ERR_CRYPTO_INVALID_KEYLEN',
+    message: 'Supplied key is too small'
+  });
+assert.throws(
+  () => alice.computeSecret(group.getPrime()),
+  {
+    code: 'ERR_CRYPTO_INVALID_KEYLEN',
+    message: 'Supplied key is too large'
+  });
+assert.throws(
+  () => alice.computeSecret(
+    Buffer.from((groupPrime - 1n).toString(16), 'hex')),
+  {
+    code: 'ERR_CRYPTO_INVALID_KEYLEN',
+    message: 'Supplied key is too large'
+  });
 
 // Confirm DH_check() results are exposed for optional examination.
 const bad_dh = process.features.openssl_is_boringssl ?

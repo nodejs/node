@@ -2252,14 +2252,11 @@ DHPointer::CheckPublicKeyResult DHPointer::checkPublicKey(
   if (DH_check_pub_key(dh_.get(), pub_key.get(), &codes) != 1) {
     return DHPointer::CheckPublicKeyResult::CHECK_FAILED;
   }
-#ifndef OPENSSL_IS_BORINGSSL
-  // Boringssl does not define DH_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
   if (codes & DH_CHECK_PUBKEY_TOO_SMALL) {
     return DHPointer::CheckPublicKeyResult::TOO_SMALL;
   } else if (codes & DH_CHECK_PUBKEY_TOO_LARGE) {
     return DHPointer::CheckPublicKeyResult::TOO_LARGE;
   }
-#endif
   if (codes != 0) {
     return DHPointer::CheckPublicKeyResult::INVALID;
   }
@@ -4309,6 +4306,13 @@ std::optional<std::string_view> SSLPointer::getNegotiatedGroup() const {
   const char* group = SSL_get0_group_name(get());
   if (group == nullptr) return std::nullopt;
   return group;
+#elif defined(OPENSSL_IS_BORINGSSL)
+  if (!ssl_) return std::nullopt;
+  const int nid = SSL_get_negotiated_group(get());
+  if (nid == NID_undef) return std::nullopt;
+  const char* group = OBJ_nid2sn(nid);
+  if (group == nullptr) return std::nullopt;
+  return group;
 #else
   return std::nullopt;
 #endif
@@ -4333,19 +4337,17 @@ std::optional<std::string_view> SSLPointer::getCipherVersion() const {
 }
 
 std::optional<int> SSLPointer::getSecurityLevel() {
-#ifndef OPENSSL_IS_BORINGSSL
   auto ctx = SSLCtxPointer::New();
   if (!ctx) return std::nullopt;
 
+#ifdef OPENSSL_IS_BORINGSSL
+  return SSL_CTX_get_security_level(ctx.get());
+#else
   auto ssl = SSLPointer::New(ctx);
   if (!ssl) return std::nullopt;
 
   return SSL_get_security_level(ssl);
-#else
-  // OPENSSL_TLS_SECURITY_LEVEL is not defined in BoringSSL
-  // so assume it is the default OPENSSL_TLS_SECURITY_LEVEL value.
-  return 1;
-#endif  // OPENSSL_IS_BORINGSSL
+#endif
 }
 
 SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}
