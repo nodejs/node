@@ -11,12 +11,14 @@
 #include "node_profiling.h"
 #include "node_snapshot_builder.h"
 #include "permission/permission.h"
+#include "path.h"
 #include "util-inl.h"
 #include "v8-cppgc.h"
 #include "v8-profiler.h"
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using node::kAllowedInEnvvar;
@@ -509,25 +511,23 @@ Worker::~Worker() {
 
 
 
+
 // SEMVER-MAJOR: Permission-Model ceiling for Worker explicit execArgv.
 //
-// Breaking change when the parent process has the Permission Model enabled:
-// a Worker constructed with explicit execArgv (including []) must not obtain
-// a wider permission-related grant set than the parent.
+// When the parent has the Permission Model enabled, a Worker with explicit
+// execArgv (including []) must not obtain wider permission-related grants
+// than the parent.
 //
-// Previous behavior allowed execArgv: [] (and other explicit argv shapes) to
-// parse a fresh PerIsolateOptions without the parent's permission grants,
-// which could disable the model for the worker and escalate capabilities.
-//
-// New behavior (options only; no exec_argv rewrite; no JS copying):
-// - Worker did not configure permission flags → apply the parent's
-//   permission-related grants (same ceiling as the parent).
-// - Worker configured permission flags → boolean --allow-* are AND-ed with
-//   the parent; fs allow-lists: empty worker list keeps the parent list;
-//   non-empty list keeps only entries covered by a parent entry (exact or
-//   separator-aware prefix). Worker "*" is dropped unless the parent has "*".
-// Runtime FSPermission remains authoritative for real filesystem checks.
-// Non-permission execArgv flags remain under the caller's control.
+// - Unconfigured worker permission flags → apply parent permission grants.
+// - Configured flags → AND boolean allows with parent; fs lists:
+//   * If worker has permission/permission_audit and an empty fs list, keep
+//     empty (explicit model on with no path grants = no path grants).
+//   * If worker only toggled non-fs allow booleans and fs list is empty, keep
+//     the parent fs list (do not invent a wider set; same ceiling as parent).
+//   * Non-empty worker fs list → keep entries covered by a parent entry
+//     (PathResolve when possible, then separator-aware prefix / equality).
+//   * Worker "*" dropped unless parent has "*".
+// Options only (no exec_argv rewrite). Runtime FSPermission still enforces IO.
 
 static bool WorkerConfiguredPermission(const EnvironmentOptions* w) {
   if (w->permission || w->permission_audit) {
@@ -573,15 +573,27 @@ static void NormalizePathForCompare(std::string* s) {
 #endif
 }
 
-static bool PathCoveredByParentEntry(const std::string& parent_raw,
+static std::string ResolveForCompare(Environment* env, const std::string& in) {
+  if (in.empty() || in == "*") {
+    return in;
+  }
+  std::string resolved =
+      PathResolve(env, std::vector<std::string_view>{std::string_view(in)});
+  if (resolved.empty()) {
+    resolved = in;
+  }
+  NormalizePathForCompare(&resolved);
+  return resolved;
+}
+
+static bool PathCoveredByParentEntry(Environment* env,
+                                     const std::string& parent_raw,
                                      const std::string& requested_raw) {
   if (parent_raw == "*") {
     return true;
   }
-  std::string parent = parent_raw;
-  std::string requested = requested_raw;
-  NormalizePathForCompare(&parent);
-  NormalizePathForCompare(&requested);
+  const std::string parent = ResolveForCompare(env, parent_raw);
+  const std::string requested = ResolveForCompare(env, requested_raw);
   if (parent.empty()) {
     return false;
   }
@@ -608,14 +620,19 @@ static bool ParentListHasWildcard(const std::vector<std::string>& parent) {
 }
 
 static void FilterPathListToParentSubset(
+    Environment* env,
+    EnvironmentOptions* w,
     std::vector<std::string>* worker,
     const std::vector<std::string>& parent) {
   if (worker == nullptr) {
     return;
   }
-  // Empty worker fs list → keep parent list (partial permission flags must not
-  // clear the parent's fs ceiling).
   if (worker->empty()) {
+    // Explicit --permission / --permission-audit with no path grants → no
+    // path grants. Otherwise (only non-fs allow booleans) keep parent fs list.
+    if (w->permission || w->permission_audit) {
+      return;
+    }
     *worker = parent;
     return;
   }
@@ -629,7 +646,7 @@ static void FilterPathListToParentSubset(
       continue;
     }
     for (const std::string& p : parent) {
-      if (PathCoveredByParentEntry(p, wpath)) {
+      if (PathCoveredByParentEntry(env, p, wpath)) {
         out.push_back(wpath);
         break;
       }
@@ -638,7 +655,8 @@ static void FilterPathListToParentSubset(
   *worker = std::move(out);
 }
 
-static void IntersectPermissionGrants(EnvironmentOptions* w,
+static void IntersectPermissionGrants(Environment* env,
+                                      EnvironmentOptions* w,
                                       const EnvironmentOptions* parent) {
   w->permission = true;
   w->permission_audit = w->permission_audit || parent->permission_audit;
@@ -653,8 +671,9 @@ static void IntersectPermissionGrants(EnvironmentOptions* w,
       w->allow_openssl_store && parent->allow_openssl_store;
   w->allow_worker_threads =
       w->allow_worker_threads && parent->allow_worker_threads;
-  FilterPathListToParentSubset(&w->allow_fs_read, parent->allow_fs_read);
-  FilterPathListToParentSubset(&w->allow_fs_write, parent->allow_fs_write);
+  FilterPathListToParentSubset(env, w, &w->allow_fs_read, parent->allow_fs_read);
+  FilterPathListToParentSubset(
+      env, w, &w->allow_fs_write, parent->allow_fs_write);
 }
 
 static void ClampWorkerPermissionToParent(Environment* env,
@@ -671,7 +690,7 @@ static void ClampWorkerPermissionToParent(Environment* env,
   if (!WorkerConfiguredPermission(w)) {
     ApplyParentPermissionCeiling(w, parent);
   } else {
-    IntersectPermissionGrants(w, parent);
+    IntersectPermissionGrants(env, w, parent);
   }
 }
 
@@ -859,6 +878,7 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   // essential to load user codes and must not be blocked by the inspector
   // for internal scripts.
   // Still, `--inspect-node` can break on the first line of internal scripts.
+
 
 
 

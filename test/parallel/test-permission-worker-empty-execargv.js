@@ -1,8 +1,5 @@
 'use strict';
 
-// SEMVER-MAJOR: Worker explicit execArgv must not exceed parent Permission
-// Model grants when the parent has --permission enabled.
-
 const common = require('../common');
 const { isMainThread } = require('worker_threads');
 
@@ -100,14 +97,12 @@ function assertOk(msg) {
 }
 
 try {
-  // Default Worker
   {
     const r = runWorkerCase(workerRead(deniedFile), '');
     assert.strictEqual(r.status, 0, r.stderr);
     assertAccessDenied(parseLastJsonLine(r.stdout));
   }
 
-  // execArgv: [] — must not drop parent ceiling
   {
     const denied = runWorkerCase(workerRead(deniedFile), 'execArgv: [],');
     assert.strictEqual(denied.status, 0, denied.stderr);
@@ -122,7 +117,6 @@ try {
     assertOk(parseLastJsonLine(nested.stdout));
   }
 
-  // Non-permission flags only
   {
     const denied = runWorkerCase(
       workerRead(deniedFile),
@@ -139,7 +133,7 @@ try {
     assertOk(parseLastJsonLine(allowed.stdout));
   }
 
-  // Partial permission flags must not clear parent fs grants
+  // --permission --allow-worker with no allow-fs-read → no fs grants (empty list)
   {
     const frag = `execArgv: ${JSON.stringify([
       '--permission',
@@ -151,10 +145,9 @@ try {
 
     const allowed = runWorkerCase(workerRead(allowedFile), frag);
     assert.strictEqual(allowed.status, 0, allowed.stderr);
-    assertOk(parseLastJsonLine(allowed.stdout));
+    assertAccessDenied(parseLastJsonLine(allowed.stdout));
   }
 
-  // Cannot escalate with *
   {
     const frag = `execArgv: ${JSON.stringify([
       '--permission',
@@ -166,7 +159,6 @@ try {
     assertAccessDenied(parseLastJsonLine(r.stdout));
   }
 
-  // Cannot add path outside parent list
   {
     const frag = `execArgv: ${JSON.stringify([
       '--permission',
@@ -179,7 +171,6 @@ try {
     assertAccessDenied(parseLastJsonLine(r.stdout));
   }
 
-  // Child path under parent allow dir when explicitly listed
   {
     const frag = `execArgv: ${JSON.stringify([
       '--permission',
