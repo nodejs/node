@@ -3649,10 +3649,11 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(isolate, args[0]);
-  static constexpr const char* const suffix = "XXXXXX";
-  const auto length = tmpl.length();
-  tmpl.AllocateSufficientStorage(length + strlen(suffix));
-  snprintf(tmpl.out() + length, tmpl.length(), "%s", suffix);
+  const auto prefix_length = tmpl.length();
+  static constexpr std::string_view suffix = "XXXXXX";
+  tmpl.AllocateSufficientStorage(prefix_length + suffix.size() + 1);
+  memcpy(tmpl.out() + prefix_length, suffix.data(), suffix.size());
+  tmpl.SetLengthAndZeroTerminate(prefix_length + suffix.size());
 
   CHECK_NOT_NULL(*tmpl);
 
