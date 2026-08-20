@@ -1345,9 +1345,6 @@ class SSLPointer final {
   bool setSession(const SSLSessionPointer& session);
   bool setSniContext(const SSLCtxPointer& ctx) const;
 
-  const char* getClientHelloAlpn() const;
-  const char* getClientHelloServerName() const;
-
   std::optional<const std::string_view> getServerName() const;
   X509View getCertificate() const;
   EVPKeyPointer getPeerTempKey() const;

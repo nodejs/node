@@ -396,15 +396,7 @@ std::optional<std::string> CryptoErrorList::pop_front() {
 
 // ============================================================================
 DataPointer DataPointer::Alloc(size_t len) {
-#ifdef OPENSSL_IS_BORINGSSL
-  // Boringssl does not implement OPENSSL_zalloc
-  auto ptr = OPENSSL_malloc(len);
-  if (ptr == nullptr) return {};
-  memset(ptr, 0, len);
-  return DataPointer(ptr, len);
-#else
   return DataPointer(OPENSSL_zalloc(len), len);
-#endif
 }
 
 DataPointer DataPointer::SecureAlloc(size_t len) {
@@ -427,18 +419,11 @@ DataPointer DataPointer::SecureAlloc(size_t len) {
 }
 
 size_t DataPointer::GetSecureHeapUsed() {
-#ifndef OPENSSL_IS_BORINGSSL
   return CRYPTO_secure_malloc_initialized() ? CRYPTO_secure_used() : 0;
-#else
-  // BoringSSL does not have the secure heap and therefore
-  // will always return 0.
-  return 0;
-#endif
 }
 
 DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(size_t amount,
                                                                  size_t min) {
-#ifndef OPENSSL_IS_BORINGSSL
   switch (CRYPTO_secure_malloc_init(amount, min)) {
     case 0:
       return InitSecureHeapResult::FAILED;
@@ -449,10 +434,6 @@ DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(size_t amount,
     default:
       return InitSecureHeapResult::FAILED;
   }
-#else
-  // BoringSSL does not actually support the secure heap
-  return InitSecureHeapResult::FAILED;
-#endif
 }
 
 DataPointer DataPointer::Copy(const Buffer<const void>& buffer) {
@@ -580,12 +561,7 @@ BignumPointer BignumPointer::New() {
 }
 
 BignumPointer BignumPointer::NewSecure() {
-#ifdef OPENSSL_IS_BORINGSSL
-  // Boringssl does not implement BN_secure_new.
-  return New();
-#else
   return BignumPointer(BN_secure_new());
-#endif
 }
 
 BignumPointer& BignumPointer::operator=(BignumPointer&& other) noexcept {
@@ -4286,59 +4262,6 @@ std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
   }
 
   return std::nullopt;
-}
-
-const char* SSLPointer::getClientHelloAlpn() const {
-  if (ssl_ == nullptr) return {};
-#ifndef OPENSSL_IS_BORINGSSL
-  const unsigned char* buf;
-  size_t len;
-  size_t rem;
-
-  if (!SSL_client_hello_get0_ext(
-          get(),
-          TLSEXT_TYPE_application_layer_protocol_negotiation,
-          &buf,
-          &rem) ||
-      rem < 2) {
-    return {};
-  }
-
-  len = (buf[0] << 8) | buf[1];
-  if (len + 2 != rem) return {};
-  return reinterpret_cast<const char*>(buf + 3);
-#else
-  // Boringssl doesn't have a public API for this.
-  return {};
-#endif
-}
-
-const char* SSLPointer::getClientHelloServerName() const {
-  if (ssl_ == nullptr) return {};
-#ifndef OPENSSL_IS_BORINGSSL
-  const unsigned char* buf;
-  size_t len;
-  size_t rem;
-
-  if (!SSL_client_hello_get0_ext(get(), TLSEXT_TYPE_server_name, &buf, &rem) ||
-      rem <= 2) {
-    return {};
-  }
-
-  len = (*buf << 8) | *(buf + 1);
-  if (len + 2 != rem) return {};
-  rem = len;
-
-  if (rem == 0 || *(buf + 2) != TLSEXT_NAMETYPE_host_name) return {};
-  rem--;
-  if (rem <= 2) return {};
-  len = (*(buf + 3) << 8) | *(buf + 4);
-  if (len + 2 > rem) return {};
-  return reinterpret_cast<const char*>(buf + 5);
-#else
-  // Boringssl doesn't have a public API for this.
-  return {};
-#endif
 }
 
 std::optional<const std::string_view> SSLPointer::GetServerName(
