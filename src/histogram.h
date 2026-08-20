@@ -30,6 +30,10 @@ class Histogram : public MemoryRetainer {
     int64_t lowest = 1;
     int64_t highest = std::numeric_limits<int64_t>::max();
     int figures = kDefaultHistogramFigures;
+    double half_life = 0;   // EWMA half-life in number of samples (0 = off)
+    int64_t threshold = 0;  // SLO threshold (0 = off). When set with
+                            // half_life, tracks EWMA error rate for values
+                            // exceeding this threshold.
   };
 
   explicit Histogram(const Options& options);
@@ -41,6 +45,9 @@ class Histogram : public MemoryRetainer {
   inline int64_t Max() const;
   inline double Mean() const;
   inline double Stddev() const;
+  inline double EwmaMean() const;
+  inline double EwmaStddev() const;
+  inline double EwmaErrorRate() const;
   inline int64_t Percentile(double percentile) const;
   inline size_t Exceeds() const;
   inline size_t Count() const;
@@ -67,6 +74,35 @@ class Histogram : public MemoryRetainer {
                      int64_t* values,
                      size_t length) const;
 
+  // Statistical hypothesis testing
+  struct WelchTestResult {
+    double t_statistic;
+    double degrees_of_freedom;
+    double p_value;
+    double ci_lower;
+    double ci_upper;
+  };
+
+  struct MannWhitneyResult {
+    double u_statistic;
+    double z_score;
+    double p_value;
+  };
+
+  struct PercentileCIResult {
+    int64_t value;
+    int64_t lower;
+    int64_t upper;
+  };
+
+  WelchTestResult WelchTest(const Histogram& other,
+                            double confidence = 0.95) const;
+  MannWhitneyResult MannWhitneyTest(const Histogram& other) const;
+  double CohensD(const Histogram& other) const;
+  double CliffsD(const Histogram& other) const;
+  PercentileCIResult PercentileCI(double percentile,
+                                  double confidence = 0.95) const;
+
   inline bool RecordCorrected(int64_t value, int64_t expected_interval);
 
   template <typename Iterator>
@@ -82,10 +118,23 @@ class Histogram : public MemoryRetainer {
   SET_SELF_SIZE(Histogram)
 
  private:
+  inline void UpdateEwma(double value);
+
   using HistogramPointer = DeleteFnPtr<hdr_histogram, hdr_close>;
   HistogramPointer histogram_;
   uint64_t prev_ = 0;
   size_t exceeds_ = 0;
+
+  // EWMA state (active when ewma_alpha_ > 0)
+  double ewma_alpha_ = 0;
+  double ewma_mean_ = 0;
+  double ewma_variance_ = 0;
+  bool ewma_initialized_ = false;
+
+  // SLO error rate EWMA (active when threshold_ > 0 and ewma_alpha_ > 0)
+  int64_t threshold_ = 0;
+  double ewma_error_rate_ = 0;
+
   RwLock mutex_;
 };
 
@@ -131,6 +180,15 @@ class HistogramImpl {
   static void GetPercentilesAt(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetLinearBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetLogBuckets(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetWelchTest(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMannWhitneyTest(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCohensD(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCliffsD(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentileCI(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetEwmaMean(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetEwmaStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetEwmaErrorRate(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void FastReset(v8::Local<v8::Value> receiver);
   static double FastGetCount(v8::Local<v8::Value> receiver);
@@ -146,6 +204,9 @@ class HistogramImpl {
   static double FastGetCdf(v8::Local<v8::Value> receiver, const int64_t value);
   static double FastGetCountAt(v8::Local<v8::Value> receiver,
                                const int64_t value);
+  static double FastGetEwmaMean(v8::Local<v8::Value> receiver);
+  static double FastGetEwmaStddev(v8::Local<v8::Value> receiver);
+  static double FastGetEwmaErrorRate(v8::Local<v8::Value> receiver);
 
   static void AddMethods(v8::Isolate* isolate,
                          v8::Local<v8::FunctionTemplate> tmpl);
@@ -169,6 +230,9 @@ class HistogramImpl {
   static v8::CFunction fast_get_kurtosis_;
   static v8::CFunction fast_get_cdf_;
   static v8::CFunction fast_get_count_at_;
+  static v8::CFunction fast_get_ewma_mean_;
+  static v8::CFunction fast_get_ewma_stddev_;
+  static v8::CFunction fast_get_ewma_error_rate_;
 };
 
 class HistogramBase final : public BaseObject, public HistogramImpl {
