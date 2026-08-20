@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include "v8.h"
 
+struct ZSTD_DCtx_s;
+
 namespace node {
 class Environment;
 
@@ -36,9 +38,11 @@ struct CompileCacheEntry {
   bool refreshed = false;
   bool persisted = false;
 
-  // Copy the cache into a new store for V8 to consume. Caller takes
-  // ownership.
-  v8::ScriptCompiler::CachedData* CopyCache() const;
+  // Wrap the cache into a non-owning CachedData for V8 to consume.
+  // The caller takes ownership of the returned wrapper object, while
+  // the underlying buffer remains owned by this entry and must outlive
+  // the consumption of the wrapper.
+  v8::ScriptCompiler::CachedData* WrapCache() const;
   const char* type_name() const;
 };
 
@@ -65,6 +69,7 @@ enum class EnableOption : uint8_t { DEFAULT, PORTABLE };
 class CompileCacheHandler {
  public:
   explicit CompileCacheHandler(Environment* env);
+  ~CompileCacheHandler();
   CompileCacheEnableResult Enable(Environment* env,
                                   const std::string& dir,
                                   EnableOption option = EnableOption::DEFAULT);
@@ -99,7 +104,9 @@ class CompileCacheHandler {
   static constexpr size_t kCacheSizeOffset = 2;
   static constexpr size_t kCodeHashOffset = 3;
   static constexpr size_t kCacheHashOffset = 4;
-  static constexpr size_t kHeaderCount = 5;
+  static constexpr size_t kCacheRawSizeOffset = 5;
+  static constexpr size_t kHeaderCount = 6;
+  static constexpr size_t kHeaderSize = kHeaderCount * sizeof(uint32_t);
 
   v8::Isolate* isolate_ = nullptr;
   bool is_debug_ = false;
@@ -109,6 +116,9 @@ class CompileCacheHandler {
   EnableOption portable_ = EnableOption::DEFAULT;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
       compiler_cache_store_;
+  // Lazily created zstd decompression context, reused across cache reads
+  // to avoid recreating its workspace for every file.
+  ZSTD_DCtx_s* zstd_dctx_ = nullptr;
 };
 }  // namespace node
 

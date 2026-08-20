@@ -1,4 +1,6 @@
 #include "compile_cache.h"
+#include <array>
+#include <memory>
 #include <string>
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -8,6 +10,11 @@
 #include "path.h"
 #include "util.h"
 #include "zlib.h"
+#include "zstd.h"
+// kCompileCacheZstdDict + kCompileCacheZstdDictSize come from the header
+// generated at build time by the GYP action (from src/compile_cache_zstd.dict).
+// The include directory (SHARED_INTERMEDIATE_DIR) is added by node.gyp.
+#include "compile_cache_zstd_dict.h"
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
 #include <unistd.h>  // getuid
@@ -25,6 +32,29 @@ using v8::ScriptCompiler;
 using v8::String;
 
 namespace {
+// The compile-cache zstd dictionary is immutable and embedded in the binary,
+// so the prepared CDict/DDict are created once and shared across all handlers
+// (and all Environments/Workers) instead of per handler. They live for the
+// lifetime of the process. Returns nullptr if preparation fails, in which
+// case callers fall back to plain (dictionary-less) zstd.
+ZSTD_CDict* GetCompileCacheCDict() {
+  static ZSTD_CDict* cdict =
+      ZSTD_createCDict(kCompileCacheZstdDict, kCompileCacheZstdDictSize, 1);
+  return cdict;
+}
+
+ZSTD_DDict* GetCompileCacheDDict() {
+  static ZSTD_DDict* ddict =
+      ZSTD_createDDict(kCompileCacheZstdDict, kCompileCacheZstdDictSize);
+  return ddict;
+}
+
+// The dictionary only helps small/medium caches; for larger inputs zstd's own
+// adaptive model dominates and the dictionary never wins, so we skip the
+// (otherwise wasted) second compression above this raw size. Decompression is
+// unaffected: a single DDict decodes both dict-assisted and plain frames.
+constexpr uint32_t kCompileCacheDictMaxRawSize = 256 * 1024;
+
 std::string Uint32ToHex(uint32_t crc) {
   std::string str;
   str.reserve(8);
@@ -75,18 +105,21 @@ inline void CompileCacheHandler::Debug(const char* format,
   }
 }
 
-ScriptCompiler::CachedData* CompileCacheEntry::CopyCache() const {
+ScriptCompiler::CachedData* CompileCacheEntry::WrapCache() const {
   DCHECK_NOT_NULL(cache);
-  int cache_size = cache->length;
-  uint8_t* data = new uint8_t[cache_size];
-  memcpy(data, cache->data, cache_size);
+  // The returned CachedData does not own the buffer - it's a view into
+  // the buffer owned by this entry, which outlives the synchronous
+  // consumption of the cache during compilation, so no copy is necessary.
   return new ScriptCompiler::CachedData(
-      data, cache_size, ScriptCompiler::CachedData::BufferOwned);
+      cache->data, cache->length, ScriptCompiler::CachedData::BufferNotOwned);
 }
 
 // Used for identifying and verifying a file is a compile cache file.
 // See comments in CompileCacheHandler::Persist().
-constexpr uint32_t kCacheMagicNumber = 0x8adfdbb2;
+// The last byte is bumped whenever the format of the cache file changes
+// so that files in an older format are discarded as cache misses and
+// then overwritten with the new format.
+constexpr uint32_t kCacheMagicNumber = 0x8adfdbb3;
 
 const char* CompileCacheEntry::type_name() const {
   switch (type) {
@@ -124,10 +157,21 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     uv_fs_req_cleanup(&close_req);
   });
 
+  // Get the file size upfront so that the cache can be read with a single
+  // exactly-sized read, and truncated or trailing data can be detected
+  // without additional read attempts.
+  int err = uv_fs_fstat(nullptr, &req, file, nullptr);
+  if (err < 0) {
+    Debug("fstat failed, %s\n", uv_strerror(err));
+    return;
+  }
+  uint64_t file_size = req.statbuf.st_size;
+  uv_fs_req_cleanup(&req);
+
   // Read the headers.
-  std::vector<uint32_t> headers(kHeaderCount);
-  uv_buf_t headers_buf = uv_buf_init(reinterpret_cast<char*>(headers.data()),
-                                     kHeaderCount * sizeof(uint32_t));
+  std::array<uint32_t, kHeaderCount> headers;
+  uv_buf_t headers_buf =
+      uv_buf_init(reinterpret_cast<char*>(headers.data()), kHeaderSize);
   const int r = uv_fs_read(nullptr, &req, file, &headers_buf, 1, 0, nullptr);
   if (r != static_cast<int>(headers_buf.len)) {
     Debug("reading header failed, bytes read %d", r);
@@ -137,13 +181,15 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     Debug("\n");
     return;
   }
+  uv_fs_req_cleanup(&req);
 
-  Debug("[%d %d %d %d %d]...",
+  Debug("[%d %d %d %d %d %d]...",
         headers[kMagicNumberOffset],
         headers[kCodeSizeOffset],
         headers[kCacheSizeOffset],
         headers[kCodeHashOffset],
-        headers[kCacheHashOffset]);
+        headers[kCacheHashOffset],
+        headers[kCacheRawSizeOffset]);
 
   if (headers[kMagicNumberOffset] != kCacheMagicNumber) {
     Debug("magic number mismatch: expected %d, actual %d\n",
@@ -166,50 +212,56 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     return;
   }
 
-  // Read the cache, grow the buffer exponentially whenever it fills up.
-  size_t offset = headers_buf.len;
-  size_t capacity = 4096;  // Initial buffer capacity
+  uint32_t cache_size = headers[kCacheSizeOffset];
+  uint32_t raw_size = headers[kCacheRawSizeOffset];
+
+  // Check the cache size. The headers were read successfully, so
+  // file_size >= kHeaderSize here. The file must contain exactly the
+  // headers followed by cache_size bytes of cache content.
+  if (file_size - kHeaderSize != cache_size) {
+    Debug("cache size mismatch: expected %d, actual %d\n",
+          cache_size,
+          file_size - kHeaderSize);
+    return;
+  }
+
+  // The cache content is stored uncompressed when cache_size == raw_size,
+  // and zstd-compressed when cache_size < raw_size (see
+  // CompileCacheHandler::Persist()). Anything else is invalid.
+  if (cache_size > raw_size) {
+    Debug(
+        "invalid cache size %d > uncompressed size %d\n", cache_size, raw_size);
+    return;
+  }
+
+  // Read the cache content in one go with an exactly-sized buffer,
+  // looping only in case of short reads.
+  std::unique_ptr<uint8_t[]> disk_data(new uint8_t[cache_size]);
   size_t total_read = 0;
-  uint8_t* buffer = new uint8_t[capacity];
-
-  while (true) {
-    // If there is not enough space to read more data, do a simple
-    // realloc here (we don't actually realloc because V8 requires
-    // the underlying buffer to be delete[]-able).
-    if (total_read == capacity) {
-      size_t new_capacity = capacity * 2;
-      auto* new_buffer = new uint8_t[new_capacity];
-      memcpy(new_buffer, buffer, capacity);
-      delete[] buffer;
-      buffer = new_buffer;
-      capacity = new_capacity;
-    }
-
-    uv_buf_t iov = uv_buf_init(reinterpret_cast<char*>(buffer + total_read),
-                               capacity - total_read);
-    int bytes_read =
-        uv_fs_read(nullptr, &req, file, &iov, 1, offset + total_read, nullptr);
+  while (total_read < cache_size) {
+    uv_buf_t iov =
+        uv_buf_init(reinterpret_cast<char*>(disk_data.get() + total_read),
+                    cache_size - total_read);
+    int bytes_read = uv_fs_read(
+        nullptr, &req, file, &iov, 1, kHeaderSize + total_read, nullptr);
     if (req.result < 0) {  // Error.
       // req will be cleaned up by scope leave.
-      delete[] buffer;
       Debug(" %s\n", uv_strerror(req.result));
       return;
     }
     uv_fs_req_cleanup(&req);
-    if (bytes_read <= 0) {
-      break;
+    if (bytes_read == 0) {  // Unexpected EOF - the file shrank under us.
+      Debug("cache size mismatch: expected %d, actual %d\n",
+            cache_size,
+            total_read);
+      return;
     }
     total_read += bytes_read;
   }
 
-  // Check the cache size and hash.
-  if (headers[kCacheSizeOffset] != total_read) {
-    Debug("cache size mismatch: expected %d, actual %d\n",
-          headers[kCacheSizeOffset],
-          total_read);
-    return;
-  }
-  uint32_t cache_hash = GetHash(reinterpret_cast<char*>(buffer), total_read);
+  // Check the cache hash of the on-disk content before decompressing.
+  uint32_t cache_hash =
+      GetHash(reinterpret_cast<char*>(disk_data.get()), cache_size);
   if (headers[kCacheHashOffset] != cache_hash) {
     Debug("cache hash mismatch: expected %d, actual %d\n",
           headers[kCacheHashOffset],
@@ -217,9 +269,58 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     return;
   }
 
-  entry->cache.reset(new ScriptCompiler::CachedData(
-      buffer, total_read, ScriptCompiler::CachedData::BufferOwned));
-  Debug(" success, size=%d\n", total_read);
+  if (cache_size == raw_size) {
+    // Stored uncompressed - hand the buffer to V8 directly.
+    entry->cache.reset(new ScriptCompiler::CachedData(
+        disk_data.release(),
+        raw_size,
+        ScriptCompiler::CachedData::BufferOwned));
+  } else {
+    // Cross-check the content size embedded in the zstd frame before
+    // allocating, in case the headers are corrupted.
+    unsigned long long content_size =  // NOLINT(runtime/int)
+        ZSTD_getFrameContentSize(disk_data.get(), cache_size);
+    if (content_size != raw_size) {
+      Debug("uncompressed size mismatch: expected %d, actual %d\n",
+            raw_size,
+            content_size);
+      return;
+    }
+    // Lazily create the decompression context on first use and reuse it
+    // for subsequent reads - recreating its workspace for every file
+    // costs more than the decompression itself for small caches.
+    if (zstd_dctx_ == nullptr && (zstd_dctx_ = ZSTD_createDCtx()) == nullptr) {
+      Debug("failed to create zstd context\n");
+      return;
+    }
+    // Decompress directly into the buffer handed to V8. The embedded
+    // dictionary is referenced via a shared, prepared DDict; plain frames
+    // (which carry no dictID) decompress correctly with it as well.
+    std::unique_ptr<uint8_t[]> raw_data(new uint8_t[raw_size]);
+    ZSTD_DDict* ddict = GetCompileCacheDDict();
+    size_t decompressed_size;
+    if (ddict != nullptr) {
+      decompressed_size = ZSTD_decompress_usingDDict(
+          zstd_dctx_, raw_data.get(), raw_size, disk_data.get(), cache_size,
+          ddict);
+    } else {
+      decompressed_size = ZSTD_decompressDCtx(
+          zstd_dctx_, raw_data.get(), raw_size, disk_data.get(), cache_size);
+    }
+    if (ZSTD_isError(decompressed_size)) {
+      Debug("decompression failed: %s\n", ZSTD_getErrorName(decompressed_size));
+      return;
+    }
+    if (decompressed_size != raw_size) {
+      Debug("decompressed size mismatch: expected %d, actual %d\n",
+            raw_size,
+            decompressed_size);
+      return;
+    }
+    entry->cache.reset(new ScriptCompiler::CachedData(
+        raw_data.release(), raw_size, ScriptCompiler::CachedData::BufferOwned));
+  }
+  Debug(" success, size=%d\n", raw_size);
 }
 
 static std::string GetRelativePath(std::string_view path,
@@ -280,11 +381,18 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
     return loaded->second.get();
   }
 
-  // If the code hash mismatches, the code has changed, discard the stale entry
-  // and create a new one.
-  auto emplaced =
-      compiler_cache_store_.emplace(key, std::make_unique<CompileCacheEntry>());
-  auto* result = emplaced.first->second.get();
+  // If the code hash mismatches, the code has changed, reset the stale
+  // entry in place. Otherwise insert a new one.
+  CompileCacheEntry* result;
+  if (loaded != compiler_cache_store_.end()) {
+    result = loaded->second.get();
+    result->refreshed = false;
+    result->persisted = false;
+  } else {
+    result = compiler_cache_store_
+                 .emplace(key, std::make_unique<CompileCacheEntry>())
+                 .first->second.get();
+  }
 
   result->code_hash = code_hash;
   result->code_size = code_utf8.length();
@@ -391,6 +499,16 @@ void CompileCacheHandler::Persist() {
   // finished. In that case, the off-thread writes should finish long
   // before any attempt of flushing is made so the method would then only
   // incur a negligible overhead from thread synchronization.
+
+  // The compression context is created lazily when there is anything to
+  // compress and reused for all the entries in this invocation.
+  ZSTD_CCtx* cctx = nullptr;
+  auto cleanup_cctx = OnScopeLeave([&cctx]() {
+    if (cctx != nullptr) {
+      ZSTD_freeCCtx(cctx);
+    }
+  });
+
   for (auto& pair : compiler_cache_store_) {
     auto* entry = pair.second.get();
     const char* type_name = entry->type_name();
@@ -418,18 +536,71 @@ void CompileCacheHandler::Persist() {
 
     DCHECK_EQ(entry->cache->buffer_policy,
               ScriptCompiler::CachedData::BufferOwned);
-    char* cache_ptr =
+    char* raw_ptr =
         reinterpret_cast<char*>(const_cast<uint8_t*>(entry->cache->data));
-    uint32_t cache_size = static_cast<uint32_t>(entry->cache->length);
+    uint32_t raw_size = static_cast<uint32_t>(entry->cache->length);
+
+    // Compress the cache with zstd to reduce the size on disk. Compression
+    // level 1 prioritizes speed - persistence usually happens on process
+    // shutdown and should add as little overhead as possible. If the data
+    // is not compressible, store it uncompressed, which is indicated by
+    // the cache size being equal to the uncompressed size in the headers.
+    //
+    // We also try the embedded trained dictionary and keep whichever frame is
+    // smaller (still subject to the "only store if < raw" policy). The
+    // dictionary mainly helps the small/medium caches that dominate real
+    // compile cache usage; for inputs where plain zstd already wins we keep
+    // the plain frame.
+    char* cache_ptr = raw_ptr;
+    uint32_t cache_size = raw_size;
+    std::unique_ptr<uint8_t[]> compressed;
+    std::unique_ptr<uint8_t[]> compressed_dict;
+    if (cctx != nullptr || (cctx = ZSTD_createCCtx()) != nullptr) {
+      size_t compressed_bound = ZSTD_compressBound(raw_size);
+      compressed.reset(new uint8_t[compressed_bound]);
+      size_t compressed_size = ZSTD_compressCCtx(
+          cctx, compressed.get(), compressed_bound, raw_ptr, raw_size, 1);
+      char* best_ptr = reinterpret_cast<char*>(compressed.get());
+      // Only attempt the dictionary for small/medium entries (see
+      // kCompileCacheDictMaxRawSize); for large blobs it never wins and the
+      // extra compression would be wasted work.
+      ZSTD_CDict* cdict = raw_size <= kCompileCacheDictMaxRawSize
+                              ? GetCompileCacheCDict()
+                              : nullptr;
+      if (cdict != nullptr) {
+        // Compress into a separate buffer so the selected frame's bytes and
+        // size always stay in sync (the plain buffer is left untouched).
+        compressed_dict.reset(new uint8_t[compressed_bound]);
+        size_t dict_size = ZSTD_compress_usingCDict(
+            cctx, compressed_dict.get(), compressed_bound, raw_ptr, raw_size,
+            cdict);
+        if (!ZSTD_isError(dict_size) &&
+            (ZSTD_isError(compressed_size) || dict_size < compressed_size)) {
+          compressed_size = dict_size;
+          best_ptr = reinterpret_cast<char*>(compressed_dict.get());
+        }
+      }
+      if (!ZSTD_isError(compressed_size) && compressed_size < raw_size) {
+        cache_ptr = best_ptr;
+        cache_size = static_cast<uint32_t>(compressed_size);
+      }
+    }
+    Debug("[compile cache] compressed cache for %s %s: %d -> %d bytes\n",
+          type_name,
+          entry->source_filename,
+          raw_size,
+          cache_size);
+
     uint32_t cache_hash = GetHash(cache_ptr, cache_size);
 
     // Generating headers.
-    std::vector<uint32_t> headers(kHeaderCount);
+    std::array<uint32_t, kHeaderCount> headers;
     headers[kMagicNumberOffset] = kCacheMagicNumber;
     headers[kCodeSizeOffset] = entry->code_size;
     headers[kCacheSizeOffset] = cache_size;
     headers[kCodeHashOffset] = entry->code_hash;
     headers[kCacheHashOffset] = cache_hash;
+    headers[kCacheRawSizeOffset] = raw_size;
 
     // Generate the temporary filename.
     // The temporary file should be placed in a location like:
@@ -459,7 +630,7 @@ void CompileCacheHandler::Persist() {
     Debug(" -> %s\n", mkstemp_req.path);
     Debug("[compile cache] writing cache for %s %s to temporary file %s [%d "
           "%d %d "
-          "%d %d]...",
+          "%d %d %d]...",
           type_name,
           entry->source_filename,
           mkstemp_req.path,
@@ -467,12 +638,13 @@ void CompileCacheHandler::Persist() {
           headers[kCodeSizeOffset],
           headers[kCacheSizeOffset],
           headers[kCodeHashOffset],
-          headers[kCacheHashOffset]);
+          headers[kCacheHashOffset],
+          headers[kCacheRawSizeOffset]);
 
     // Write to the temporary file.
-    uv_buf_t headers_buf = uv_buf_init(reinterpret_cast<char*>(headers.data()),
-                                       headers.size() * sizeof(uint32_t));
-    uv_buf_t data_buf = uv_buf_init(cache_ptr, entry->cache->length);
+    uv_buf_t headers_buf =
+        uv_buf_init(reinterpret_cast<char*>(headers.data()), kHeaderSize);
+    uv_buf_t data_buf = uv_buf_init(cache_ptr, cache_size);
     uv_buf_t bufs[] = {headers_buf, data_buf};
 
     uv_fs_t write_req;
@@ -528,6 +700,12 @@ CompileCacheHandler::CompileCacheHandler(Environment* env)
     : isolate_(env->isolate()),
       is_debug_(
           env->enabled_debug_list()->enabled(DebugCategory::COMPILE_CACHE)) {}
+
+CompileCacheHandler::~CompileCacheHandler() {
+  if (zstd_dctx_ != nullptr) {
+    ZSTD_freeDCtx(zstd_dctx_);
+  }
+}
 
 // Directory structure:
 // - Compile cache directory (from NODE_COMPILE_CACHE)
