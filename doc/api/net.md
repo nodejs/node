@@ -438,6 +438,12 @@ added:
 added:
   - v23.4.0
   - v22.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Input is now parsed strictly. URL syntax and legacy IPv4
+                 formats such as octal, hexadecimal and shorthand notation
+                 are no longer accepted.
 -->
 
 * `input` {string} An input string containing an IP address and optional port,
@@ -445,12 +451,28 @@ added:
 * Returns: {net.SocketAddress} Returns a `SocketAddress` if parsing was successful.
   Otherwise returns `undefined`.
 
-The address portion of `input` must be a valid IPv4 or IPv6 address as
-recognized by the [WHATWG URL host parser][], and `input` may contain only
-hexadecimal digits, `x`, `.`, `:`, `[`, and `]`. Anything else returns
-`undefined`, including host names such as `example.com`, other URL components
-such as `user@1.2.3.4` or `1.2.3.4/foo`, whitespace, control characters,
-percent-encoding, and non-ASCII characters.
+The entire input must match one of the following forms:
+
+```text
+socket-address      = ipv4-socket-address / ipv6-socket-address
+ipv4-socket-address = ipv4-address [ ":" port ]
+ipv6-socket-address = "[" ipv6-address [ "%" scope-id ] "]" [ ":" port ]
+
+ipv4-address        = octet 3( "." octet )
+octet               = 1*3DIGIT    ; no leading zeros; value <= 255
+ipv6-address        = RFC 4291 textual form: groups of 1*4HEXDIG (leading
+                      zeros allowed, case-insensitive), "::" compression, and
+                      an optional trailing embedded ipv4-address
+port                = 1*DIGIT     ; leading zeros allowed; value <= 65535
+scope-id            = 1*DIGIT     ; leading zeros allowed; value <= 4294967295
+```
+
+Anything else returns `undefined`, including URL components such as userinfo,
+paths, queries and fragments, surrounding whitespace, host names, non-ASCII
+digits, and the legacy IPv4 notations that permit octal (`0177.0.0.1`),
+hexadecimal (`0x7f.0.0.1`), integer (`2130706433`) and shorthand (`127.1`)
+addresses. An IPv6 zone id must be numeric; interface names such as
+`%eth0` are not accepted.
 
 ## Class: `net.Server`
 
@@ -2592,7 +2614,6 @@ console.log('listening on', server.address().port);
 [RFC 8305]: https://www.rfc-editor.org/rfc/rfc8305.txt
 [Readable Stream]: stream.md#class-streamreadable
 [Transferring TCP handles to other threads]: #transferring-tcp-handles-to-other-threads
-[WHATWG URL host parser]: https://url.spec.whatwg.org/#host-parsing
 [`'close'`]: #event-close
 [`'connect'`]: #event-connect
 [`'connection'`]: #event-connection
