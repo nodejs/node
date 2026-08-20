@@ -27,22 +27,6 @@ concept has_priority = requires(T t) { t.priority; };
 template <class T>
 class TaskQueue {
  public:
-  // If the entry type has a priority member, order the priority queue by
-  // that - higher priority first. Otherwise, maintain insertion order.
-  struct EntryCompare {
-    bool operator()(const std::unique_ptr<T>& a,
-                    const std::unique_ptr<T>& b) const {
-      if constexpr (has_priority<T>) {
-        return a->priority < b->priority;
-      } else {
-        return false;
-      }
-    }
-  };
-
-  using PriorityQueue = std::priority_queue<std::unique_ptr<T>,
-                                            std::vector<std::unique_ptr<T>>,
-                                            EntryCompare>;
   class Locked {
    public:
     void Push(std::unique_ptr<T> task, bool outstanding = false);
@@ -51,7 +35,8 @@ class TaskQueue {
     void NotifyOfOutstandingCompletion();
     void BlockingDrain();
     void Stop();
-    PriorityQueue PopAll();
+    // All queued tasks, in the order Pop() would have returned them.
+    std::vector<std::unique_ptr<T>> PopAll();
 
    private:
     friend class TaskQueue;
@@ -67,11 +52,33 @@ class TaskQueue {
   Locked Lock() { return Locked(this); }
 
  private:
+  struct Item {
+    std::unique_ptr<T> task;
+    uint64_t sequence;
+  };
+  // Higher priority first if the entry type has one; posting order otherwise
+  // and among equal priorities (a sequence number breaks the tie).
+  struct ItemCompare {
+    bool operator()(const Item& a, const Item& b) const {
+      if constexpr (has_priority<T>) {
+        if (a.task->priority != b.task->priority) {
+          return a.task->priority < b.task->priority;
+        }
+      }
+      return a.sequence > b.sequence;
+    }
+  };
+  using PriorityQueue =
+      std::priority_queue<Item, std::vector<Item>, ItemCompare>;
+
+  std::unique_ptr<T> PopTask();
+
   Mutex lock_;
   ConditionVariable tasks_available_;
   ConditionVariable outstanding_tasks_drained_;
   int outstanding_tasks_;
   bool stopped_;
+  uint64_t next_sequence_ = 0;
   PriorityQueue task_queue_;
 };
 
