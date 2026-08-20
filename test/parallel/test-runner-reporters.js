@@ -207,7 +207,7 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.match(timestamp, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
     assert.ok(!Number.isNaN(Date.parse(timestamp)), `expected a valid date, got ${timestamp}`);
     assert.match(fileContents, /<testcase .*name="failing".*>\s*<failure .*type="testCodeFailure".*message="error".*>/);
-    assert.match(fileContents, /<testcase .*name="ok".*classname="test".*\/>/);
+    assert.match(fileContents, /<testcase .*name="ok".*classname="nested".*\/>/);
     assert.match(fileContents, /<testcase .*name="top level".*classname="test".*\/>/);
   });
 });
