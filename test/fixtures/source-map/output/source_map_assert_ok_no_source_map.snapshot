@@ -1,0 +1,20 @@
+node:internal/assert/utils:<line>
+  throw error;
+  ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(false)
+
+    at Object.<anonymous> (<project-root>/test/fixtures/source-map/output/source_map_assert_ok_no_source_map.cjs:10:8)
+    at <node-internal-frames>
+    at <node-internal-frames> {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js <node-version>
