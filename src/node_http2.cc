@@ -1485,15 +1485,6 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
     }
   } while (len != 0);
 
-  // If we are currently waiting for a write operation to finish, we should
-  // tell nghttp2 that we want to wait before we process more input data.
-  if (session->is_write_in_progress()) {
-    CHECK(session->is_reading_stopped());
-    session->set_receive_paused();
-    Debug(session, "receive paused");
-    return NGHTTP2_ERR_PAUSE;
-  }
-
   return 0;
 }
 
@@ -1942,7 +1933,7 @@ void Http2Session::MaybeStopReading() {
   if (is_reading_stopped() || is_closing()) return;
   int want_read = nghttp2_session_want_read(session_.get());
   Debug(this, "wants read? %d", want_read);
-  if (want_read == 0 || is_write_in_progress()) {
+  if (want_read == 0) {
     set_reading_stopped();
     stream_->ReadStop();
   }
