@@ -5,6 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const {
+  createHash,
   getCiphers,
   getCipherInfo,
 } = require('crypto');
@@ -16,6 +17,12 @@ const ciphers = getCiphers();
 
 assert.strictEqual(getCipherInfo(-1), undefined);
 assert.strictEqual(getCipherInfo('cipher that does not exist'), undefined);
+if (!process.features.openssl_is_boringssl) {
+  // A failed provider fetch must not contaminate the OpenSSL error queue.
+  assert.throws(() => createHash('sha256', { outputLength: 28 }), {
+    code: 'ERR_OSSL_EVP_NOT_XOF_OR_INVALID_LENGTH',
+  });
+}
 
 for (const cipher of ciphers) {
   const info = getCipherInfo(cipher);

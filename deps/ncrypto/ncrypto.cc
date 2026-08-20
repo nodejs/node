@@ -4522,6 +4522,7 @@ const Cipher Cipher::FromName(const char* name) {
   if (cipher != nullptr) return Cipher(cipher);
 
 #if OPENSSL_WITH_AES_SIV || OPENSSL_WITH_AES_GCM_SIV
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   DeleteFnPtr<EVP_CIPHER, EVP_CIPHER_free> fetched(
       EVP_CIPHER_fetch(nullptr, name, nullptr));
   if (fetched == nullptr) return Cipher();

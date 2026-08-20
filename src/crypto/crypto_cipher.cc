@@ -227,7 +227,8 @@ CipherBase::CipherBase(Environment* env, Local<Object> wrap, CipherKind kind)
       auth_tag_state_(kAuthTagUnknown),
       auth_tag_len_(kNoAuthTagLength),
       pending_auth_failed_(false),
-      has_siv_update_(false) {
+      has_siv_update_(false),
+      siv_aad_components_(0) {
   MakeWeak();
 }
 
@@ -561,6 +562,11 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(false);
   }
 
+  if ((cipher->ctx_.isSivMode() || cipher->ctx_.isGcmSivMode()) &&
+      cipher->has_siv_update_) {
+    return args.GetReturnValue().Set(false);
+  }
+
   ArrayBufferOrViewContents<char> auth_tag(args[0]);
   if (!auth_tag.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "buffer is too big");
@@ -591,6 +597,9 @@ bool CipherBase::SetAAD(
     int plaintext_len) {
   if (!ctx_ || !IsAuthenticatedMode())
     return false;
+  const bool is_siv = ctx_.isSivMode();
+  if ((is_siv || ctx_.isGcmSivMode()) && has_siv_update_) return false;
+  if (is_siv && siv_aad_components_ >= kMaxSivAADComponents) return false;
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int outlen;
@@ -622,7 +631,9 @@ bool CipherBase::SetAAD(
       .data = data.data(),
       .len = data.size(),
   };
-  return ctx_.update(buffer, nullptr, &outlen);
+  const bool success = ctx_.update(buffer, nullptr, &outlen);
+  if (success && is_siv) siv_aad_components_++;
+  return success;
 }
 
 void CipherBase::SetAAD(const FunctionCallbackInfo<Value>& args) {
@@ -762,6 +773,10 @@ void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
 
 bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
   if (!ctx_) return false;
+  if ((ctx_.isSivMode() || ctx_.isGcmSivMode()) && !has_siv_update_) {
+    ctx_.reset();
+    return false;
+  }
 
   *out = ArrayBuffer::NewBackingStore(
       env()->isolate(),

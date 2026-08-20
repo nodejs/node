@@ -79,6 +79,7 @@ for (const test of TEST_CASES) {
       plaintextLength: Buffer.from(test.plain, inputEncoding).length
     };
   }
+  const aads = test.aads ?? (test.aad === undefined ? [] : [test.aad]);
 
   {
     const encrypt = crypto.createCipheriv(test.algo,
@@ -86,8 +87,9 @@ for (const test of TEST_CASES) {
                                           Buffer.from(test.iv, 'hex'),
                                           options);
 
-    if (test.aad)
-      encrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
+    for (const aad of aads) {
+      encrypt.setAAD(Buffer.from(aad, 'hex'), aadOptions);
+    }
 
     let hex = encrypt.update(test.plain, inputEncoding, 'hex');
     hex += encrypt.final('hex');
@@ -114,8 +116,9 @@ for (const test of TEST_CASES) {
                                               Buffer.from(test.iv, 'hex'),
                                               options);
       decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
-      if (test.aad)
-        decrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
+      for (const aad of aads) {
+        decrypt.setAAD(Buffer.from(aad, 'hex'), aadOptions);
+      }
 
       const outputEncoding = test.plainIsHex ? 'hex' : 'ascii';
 
@@ -234,12 +237,108 @@ for (const test of TEST_CASES) {
       }, errMessages.authTagLength);
     }
 
+    if (algo === 'aes-128-siv') {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      for (let i = 0; i < 126; i++) {
+        cipher.setAAD(Buffer.alloc(0));
+      }
+      assert.throws(() => {
+        cipher.setAAD(Buffer.alloc(0));
+      }, errMessages.state);
+      cipher.update(Buffer.alloc(0));
+      cipher.final();
+    }
+
     {
       const cipher = crypto.createCipheriv(algo, key, iv);
       cipher.update('a');
       assert.throws(() => {
         cipher.update('b');
       }, /Trying to add data in unsupported state/);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = cipher.update('authenticated plaintext');
+      assert.throws(() => {
+        cipher.setAAD(Buffer.from('too late'));
+      }, errMessages.state);
+      cipher.final();
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(cipher.getAuthTag());
+      const plaintext = decipher.update(ciphertext);
+      assert.throws(() => {
+        decipher.setAAD(Buffer.from('too late'));
+      }, errMessages.state);
+      assert.strictEqual(
+        Buffer.concat([plaintext, decipher.final()]).toString(),
+        'authenticated plaintext');
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = cipher.update('authenticated plaintext');
+      cipher.final();
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.update(ciphertext);
+      assert.throws(() => {
+        decipher.setAuthTag(cipher.getAuthTag());
+      }, errMessages.state);
+      assert.throws(() => {
+        decipher.final();
+      }, errMessages.auth);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      assert.throws(() => {
+        cipher.final();
+      }, errMessages.auth);
+      assert.throws(() => {
+        cipher.update('too late');
+      }, errMessages.state);
+      assert.throws(() => {
+        cipher.final();
+      }, errMessages.state);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.alloc(0)),
+        cipher.final(),
+      ]);
+      assert.strictEqual(ciphertext.length, 0);
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(cipher.getAuthTag());
+      assert.throws(() => {
+        decipher.final();
+      }, errMessages.auth);
+      assert.throws(() => {
+        decipher.update(Buffer.alloc(0));
+      }, errMessages.state);
+      assert.throws(() => {
+        decipher.final();
+      }, errMessages.state);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.alloc(0)),
+        cipher.final(),
+      ]);
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(cipher.getAuthTag());
+      const plaintext = Buffer.concat([
+        decipher.update(ciphertext),
+        decipher.final(),
+      ]);
+      assert.strictEqual(plaintext.length, 0);
     }
 
     {

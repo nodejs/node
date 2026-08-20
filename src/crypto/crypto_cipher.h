@@ -43,6 +43,7 @@ class CipherBase : public BaseObject {
     kAuthTagComputed,
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
+  static constexpr unsigned int kMaxSivAADComponents = 126;
 
   void CommonInit(const char* cipher_type,
                   const ncrypto::Cipher& cipher,
@@ -87,6 +88,7 @@ class CipherBase : public BaseObject {
   char auth_tag_[ncrypto::Cipher::MAX_AUTH_TAG_LENGTH];
   bool pending_auth_failed_;
   bool has_siv_update_;
+  unsigned int siv_aad_components_;
   int max_message_size_;
 };
 

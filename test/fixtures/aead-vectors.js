@@ -10,6 +10,27 @@ module.exports = [
     ct: '40c02b9690c4dc04daef7f6afe5c',
     tag: '85632d07c6e8f37f950acd320a2ecc93', tampered: false },
 
+  // RFC 5297, Appendix A.2
+  { algo: 'aes-128-siv',
+    key: '7f7e7d7c7b7a79787776757473727170' +
+         '404142434445464748494a4b4c4d4e4f',
+    iv: '',
+    plain: '7468697320697320736f6d6520706c61' +
+           '696e7465787420746f20656e63727970' +
+           '74207573696e67205349562d414553',
+    plainIsHex: true,
+    aads: [
+      '00112233445566778899aabbccddeeff' +
+      'deaddadadeaddadaffeeddccbbaa9988' +
+      '7766554433221100',
+      '102030405060708090a0',
+      '09f911029d74e35bd84156c5635688c0',
+    ],
+    ct: 'cb900f2fddbe404326601965c889bf17' +
+        'dba77ceb094fa663b7a3f748ba8af829' +
+        'ea64ad544a272e9c485b62a3fd5c0d',
+    tag: '7bdb6e3b432667eb06f4d14bff2fbd0f', tampered: false },
+
   // RFC 8452, Appendix C.1
   { algo: 'aes-128-gcm-siv',
     key: '36864200e0eaf5284d884a0e77d31646',

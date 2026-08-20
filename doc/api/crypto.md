@@ -6749,7 +6749,7 @@ certain restrictions when using the cipher API:
   `AES-SIV` over an ordered list of associated-data inputs. Each `setAAD()`
   call supplies one input in that list. If a protocol uses a nonce with
   `AES-SIV`, call `setAAD(nonce)` after the other associated-data inputs and
-  before `update()`.
+  before `update()`. At most 126 associated-data inputs may be supplied.
 * `AES-GCM-SIV` ciphers require a 12-byte initialization vector.
 * When decrypting, the authentication tag must be set via `setAuthTag()` before
   calling `update()`.
