@@ -1233,6 +1233,7 @@ class DHPointer final {
     Q_NOT_PRIME = 0x10,
     INVALID_Q = 0x20,
 #ifndef OPENSSL_IS_BORINGSSL
+    // BoringSSL does not define DH_CHECK_INVALID_J_VALUE.
     INVALID_J = 0x40,
     MODULUS_TOO_SMALL = 0x80,
     MODULUS_TOO_LARGE = 0x100,
