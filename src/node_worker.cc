@@ -11,7 +11,6 @@
 #include "node_profiling.h"
 #include "node_snapshot_builder.h"
 #include "permission/permission.h"
-#include "path.h"
 #include "util-inl.h"
 #include "v8-cppgc.h"
 #include "v8-profiler.h"
@@ -509,18 +508,26 @@ Worker::~Worker() {
 
 
 
-// Permission Model clamp for Worker explicit execArgv (including []).
+
+// SEMVER-MAJOR: Permission-Model ceiling for Worker explicit execArgv.
 //
-// When the parent has --permission enabled, the worker must not receive a
-// wider permission-related grant set than the parent. Implemented in C++ after
-// options parse so NODE_OPTIONS and repeated --allow-* are already in
-// EnvironmentOptions (no JS process.execArgv copying).
+// Breaking change when the parent process has the Permission Model enabled:
+// a Worker constructed with explicit execArgv (including []) must not obtain
+// a wider permission-related grant set than the parent.
 //
-// - Worker did not configure permission flags → effective grants = parent
-// - Worker configured permission flags → intersect with parent
-// - Non-permission execArgv preserved; permission argv rewritten
-// - Path lists: normalize via PathResolve when possible; case-insensitive
-//   prefix match on Windows; runtime FSPermission remains authoritative
+// Previous behavior allowed execArgv: [] (and other explicit argv shapes) to
+// parse a fresh PerIsolateOptions without the parent's permission grants,
+// which could disable the model for the worker and escalate capabilities.
+//
+// New behavior (options only; no exec_argv rewrite; no JS copying):
+// - Worker did not configure permission flags → apply the parent's
+//   permission-related grants (same ceiling as the parent).
+// - Worker configured permission flags → boolean --allow-* are AND-ed with
+//   the parent; fs allow-lists: empty worker list keeps the parent list;
+//   non-empty list keeps only entries covered by a parent entry (exact or
+//   separator-aware prefix). Worker "*" is dropped unless the parent has "*".
+// Runtime FSPermission remains authoritative for real filesystem checks.
+// Non-permission execArgv flags remain under the caller's control.
 
 static bool WorkerConfiguredPermission(const EnvironmentOptions* w) {
   if (w->permission || w->permission_audit) {
@@ -529,203 +536,13 @@ static bool WorkerConfiguredPermission(const EnvironmentOptions* w) {
   if (!w->allow_fs_read.empty() || !w->allow_fs_write.empty()) {
     return true;
   }
-  if (w->allow_addons || w->allow_inspector || w->allow_child_process ||
-      w->allow_net || w->allow_wasi || w->allow_ffi || w->allow_openssl_store ||
-      w->allow_worker_threads) {
-    return true;
-  }
-  return false;
+  return w->allow_addons || w->allow_inspector || w->allow_child_process ||
+         w->allow_net || w->allow_wasi || w->allow_ffi ||
+         w->allow_openssl_store || w->allow_worker_threads;
 }
 
-// True only for exact flag names or "flag=value". Does not match a longer
-// distinct option that merely shares a prefix (e.g. --allow-fs-read-extra).
-static bool IsExactPermissionFlag(const std::string& arg, const char* name) {
-  const size_t n = std::char_traits<char>::length(name);
-  if (arg.size() < n) {
-    return false;
-  }
-  if (arg.compare(0, n, name) != 0) {
-    return false;
-  }
-  return arg.size() == n || arg[n] == '=';
-}
-
-static bool IsPermissionArg(const std::string& arg) {
-  return IsExactPermissionFlag(arg, "--permission") ||
-         IsExactPermissionFlag(arg, "--permission-audit") ||
-         IsExactPermissionFlag(arg, "--allow-fs-read") ||
-         IsExactPermissionFlag(arg, "--allow-fs-write") ||
-         IsExactPermissionFlag(arg, "--allow-addons") ||
-         IsExactPermissionFlag(arg, "--allow-inspector") ||
-         IsExactPermissionFlag(arg, "--allow-child-process") ||
-         IsExactPermissionFlag(arg, "--allow-net") ||
-         IsExactPermissionFlag(arg, "--allow-wasi") ||
-         IsExactPermissionFlag(arg, "--allow-ffi") ||
-         IsExactPermissionFlag(arg, "--allow-openssl-store") ||
-         IsExactPermissionFlag(arg, "--allow-worker");
-}
-
-// Flags that may take a separate following argv token (space form).
-// Only the bare form (no =value) may be followed by a separate path token.
-static bool PermissionArgTakesNext(const std::string& arg) {
-  return arg == "--allow-fs-read" || arg == "--allow-fs-write";
-}
-
-static void StripPermissionArgs(std::vector<std::string>* argv) {
-  if (argv == nullptr) {
-    return;
-  }
-  std::vector<std::string> out;
-  out.reserve(argv->size());
-  for (size_t i = 0; i < argv->size(); i++) {
-    const std::string& a = (*argv)[i];
-    if (IsPermissionArg(a)) {
-      if (PermissionArgTakesNext(a) && i + 1 < argv->size()) {
-        const std::string& next = (*argv)[i + 1];
-        // Bare --allow-fs-read/--allow-fs-write may be followed by a path
-        // token (space-separated CLI form). Only skip one non-flag token.
-        if (!next.empty() && next[0] != '-') {
-          i++;
-        }
-      }
-      continue;
-    }
-    out.push_back(a);
-  }
-  *argv = std::move(out);
-}
-
-static void AppendPermissionArgsFromOptions(std::vector<std::string>* argv,
-                                            const EnvironmentOptions* o) {
-  if (argv == nullptr || o == nullptr || !o->permission) {
-    return;
-  }
-  argv->push_back("--permission");
-  if (o->permission_audit) {
-    argv->push_back("--permission-audit");
-  }
-  for (const std::string& p : o->allow_fs_read) {
-    argv->push_back("--allow-fs-read=" + p);
-  }
-  for (const std::string& p : o->allow_fs_write) {
-    argv->push_back("--allow-fs-write=" + p);
-  }
-  if (o->allow_addons) argv->push_back("--allow-addons");
-  if (o->allow_inspector) argv->push_back("--allow-inspector");
-  if (o->allow_child_process) argv->push_back("--allow-child-process");
-  if (o->allow_net) argv->push_back("--allow-net");
-  if (o->allow_wasi) argv->push_back("--allow-wasi");
-  if (o->allow_ffi) argv->push_back("--allow-ffi");
-  if (o->allow_openssl_store) argv->push_back("--allow-openssl-store");
-  if (o->allow_worker_threads) argv->push_back("--allow-worker");
-}
-
-static void StripTrailingSeparators(std::string* s) {
-  while (s->size() > 1 && (s->back() == '/' || s->back() == '\\')) {
-    s->pop_back();
-  }
-}
-
-static std::string NormalizeListPath(Environment* env, const std::string& in) {
-  if (in.empty() || in == "*") {
-    return in;
-  }
-  // PathResolve handles relative segments using the environment cwd when
-  // possible. If resolution fails for any reason, fall back to the original.
-  std::string resolved = PathResolve(env, std::vector<std::string_view>{in});
-  if (resolved.empty()) {
-    resolved = in;
-  }
-  StripTrailingSeparators(&resolved);
-#ifdef _WIN32
-  for (char& c : resolved) {
-    if (c >= 'A' && c <= 'Z') {
-      c = static_cast<char>(c - 'A' + 'a');
-    }
-    if (c == '/') {
-      c = '\\';
-    }
-  }
-#endif
-  return resolved;
-}
-
-static bool PathPrefixGranted(const std::string& parent,
-                              const std::string& requested) {
-  if (parent == "*" || parent == requested) {
-    return true;
-  }
-  if (parent.empty() || requested.size() < parent.size()) {
-    return false;
-  }
-#ifdef _WIN32
-  // Case-insensitive prefix compare for Windows path grants.
-  for (size_t i = 0; i < parent.size(); i++) {
-    char a = parent[i];
-    char b = requested[i];
-    if (a >= 'A' && a <= 'Z') a = static_cast<char>(a - 'A' + 'a');
-    if (b >= 'A' && b <= 'Z') b = static_cast<char>(b - 'A' + 'a');
-    if (a == '/') a = '\\';
-    if (b == '/') b = '\\';
-    if (a != b) {
-      return false;
-    }
-  }
-#else
-  if (requested.compare(0, parent.size(), parent) != 0) {
-    return false;
-  }
-#endif
-  if (requested.size() == parent.size()) {
-    return true;
-  }
-  const char next = requested[parent.size()];
-  return next == '/' || next == '\\';
-}
-
-static bool PathGrantedByParentList(Environment* env,
-                                    const std::vector<std::string>& parent_paths,
-                                    const std::string& requested) {
-  if (parent_paths.empty()) {
-    return false;
-  }
-  const std::string req = NormalizeListPath(env, requested);
-  for (const std::string& raw_p : parent_paths) {
-    const std::string p = NormalizeListPath(env, raw_p);
-    if (PathPrefixGranted(p, req)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-static void IntersectPathList(Environment* env,
-                              std::vector<std::string>* worker,
-                              const std::vector<std::string>& parent) {
-  if (worker == nullptr || worker->empty()) {
-    return;
-  }
-  std::vector<std::string> out;
-  out.reserve(worker->size());
-  for (const std::string& wpath : *worker) {
-    if (wpath == "*") {
-      for (const std::string& p : parent) {
-        if (p == "*") {
-          out.push_back(wpath);
-          break;
-        }
-      }
-      continue;
-    }
-    if (PathGrantedByParentList(env, parent, wpath)) {
-      out.push_back(wpath);
-    }
-  }
-  *worker = std::move(out);
-}
-
-static void CopyParentPermissionGrants(EnvironmentOptions* w,
-                                       const EnvironmentOptions* parent) {
+static void ApplyParentPermissionCeiling(EnvironmentOptions* w,
+                                         const EnvironmentOptions* parent) {
   w->permission = true;
   w->permission_audit = parent->permission_audit;
   w->allow_addons = parent->allow_addons;
@@ -740,27 +557,108 @@ static void CopyParentPermissionGrants(EnvironmentOptions* w,
   w->allow_fs_write = parent->allow_fs_write;
 }
 
-static void IntersectPermissionGrants(Environment* env,
-                                      EnvironmentOptions* w,
+static void NormalizePathForCompare(std::string* s) {
+  while (s->size() > 1 && (s->back() == '/' || s->back() == '\\')) {
+    s->pop_back();
+  }
+#ifdef _WIN32
+  for (char& c : *s) {
+    if (c >= 'A' && c <= 'Z') {
+      c = static_cast<char>(c - 'A' + 'a');
+    }
+    if (c == '/') {
+      c = '\\';
+    }
+  }
+#endif
+}
+
+static bool PathCoveredByParentEntry(const std::string& parent_raw,
+                                     const std::string& requested_raw) {
+  if (parent_raw == "*") {
+    return true;
+  }
+  std::string parent = parent_raw;
+  std::string requested = requested_raw;
+  NormalizePathForCompare(&parent);
+  NormalizePathForCompare(&requested);
+  if (parent.empty()) {
+    return false;
+  }
+  if (requested == parent) {
+    return true;
+  }
+  if (requested.size() <= parent.size()) {
+    return false;
+  }
+  if (requested.compare(0, parent.size(), parent) != 0) {
+    return false;
+  }
+  const char next = requested[parent.size()];
+  return next == '/' || next == '\\';
+}
+
+static bool ParentListHasWildcard(const std::vector<std::string>& parent) {
+  for (const std::string& p : parent) {
+    if (p == "*") {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void FilterPathListToParentSubset(
+    std::vector<std::string>* worker,
+    const std::vector<std::string>& parent) {
+  if (worker == nullptr) {
+    return;
+  }
+  // Empty worker fs list → keep parent list (partial permission flags must not
+  // clear the parent's fs ceiling).
+  if (worker->empty()) {
+    *worker = parent;
+    return;
+  }
+  if (ParentListHasWildcard(parent)) {
+    return;
+  }
+  std::vector<std::string> out;
+  out.reserve(worker->size());
+  for (const std::string& wpath : *worker) {
+    if (wpath == "*") {
+      continue;
+    }
+    for (const std::string& p : parent) {
+      if (PathCoveredByParentEntry(p, wpath)) {
+        out.push_back(wpath);
+        break;
+      }
+    }
+  }
+  *worker = std::move(out);
+}
+
+static void IntersectPermissionGrants(EnvironmentOptions* w,
                                       const EnvironmentOptions* parent) {
   w->permission = true;
   w->permission_audit = w->permission_audit || parent->permission_audit;
   w->allow_addons = w->allow_addons && parent->allow_addons;
   w->allow_inspector = w->allow_inspector && parent->allow_inspector;
-  w->allow_child_process = w->allow_child_process && parent->allow_child_process;
+  w->allow_child_process =
+      w->allow_child_process && parent->allow_child_process;
   w->allow_net = w->allow_net && parent->allow_net;
   w->allow_wasi = w->allow_wasi && parent->allow_wasi;
   w->allow_ffi = w->allow_ffi && parent->allow_ffi;
-  w->allow_openssl_store = w->allow_openssl_store && parent->allow_openssl_store;
+  w->allow_openssl_store =
+      w->allow_openssl_store && parent->allow_openssl_store;
   w->allow_worker_threads =
       w->allow_worker_threads && parent->allow_worker_threads;
-  IntersectPathList(env, &w->allow_fs_read, parent->allow_fs_read);
-  IntersectPathList(env, &w->allow_fs_write, parent->allow_fs_write);
+  FilterPathListToParentSubset(&w->allow_fs_read, parent->allow_fs_read);
+  FilterPathListToParentSubset(&w->allow_fs_write, parent->allow_fs_write);
 }
 
 static void ClampWorkerPermissionToParent(Environment* env,
-                                          PerIsolateOptions* worker_opts,
-                                          std::vector<std::string>* exec_argv) {
+                                          PerIsolateOptions* worker_opts) {
   if (worker_opts == nullptr || !env->permission()->enabled()) {
     return;
   }
@@ -770,16 +668,10 @@ static void ClampWorkerPermissionToParent(Environment* env,
   if (parent == nullptr || w == nullptr) {
     return;
   }
-
   if (!WorkerConfiguredPermission(w)) {
-    CopyParentPermissionGrants(w, parent);
+    ApplyParentPermissionCeiling(w, parent);
   } else {
-    IntersectPermissionGrants(env, w, parent);
-  }
-
-  if (exec_argv != nullptr) {
-    StripPermissionArgs(exec_argv);
-    AppendPermissionArgsFromOptions(exec_argv, w);
+    IntersectPermissionGrants(w, parent);
   }
 }
 
@@ -970,9 +862,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
 
 
+
   if (env->permission()->enabled() && per_isolate_opts) {
-    ClampWorkerPermissionToParent(env, per_isolate_opts.get(),
-                                  &exec_argv_out);
+    ClampWorkerPermissionToParent(env, per_isolate_opts.get());
   }
 
   if (is_internal) {
