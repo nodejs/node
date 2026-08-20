@@ -1880,6 +1880,37 @@ invoked.
 added: v11.10.0
 -->
 
+### `histogram.burnRate(sloTarget)`
+
+<!-- YAML
+added: v26.8.0
+-->
+
+* `sloTarget` {number} The SLO target as a fraction between 0 and 1
+  (exclusive). For example, `0.999` for a 99.9% SLO.
+* Returns: {number}
+
+Returns the SLO burn rate: `ewmaErrorRate / (1 - sloTarget)`. A burn rate
+of 1 means the error budget will be exactly exhausted over the SLO window.
+A burn rate greater than 1 means it is being consumed faster than allowed.
+Requires the histogram to have been created with both `halfLife` and
+`threshold` options.
+
+```js
+const { createHistogram } = require('node:perf_hooks');
+
+// Track latency with a 200ms SLO threshold, half-life of 100 samples
+const h = createHistogram({ halfLife: 100, threshold: 200_000_000 });
+
+// ... record latency values ...
+
+// Check burn rate against a 99.9% SLO
+const rate = h.burnRate(0.999);
+if (rate > 1) {
+  console.log(`SLO burn rate: ${rate.toFixed(2)}x — error budget depleting`);
+}
+```
+
 ### `histogram.count`
 
 <!-- YAML
@@ -2070,37 +2101,6 @@ The EWMA-smoothed probability of a recorded value exceeding the configured
 `threshold`. Only active when the histogram was created with both `halfLife`
 and `threshold` options. Returns `0` when not enabled or no values have been
 recorded.
-
-### `histogram.burnRate(sloTarget)`
-
-<!-- YAML
-added: v26.8.0
--->
-
-* `sloTarget` {number} The SLO target as a fraction between 0 and 1
-  (exclusive). For example, `0.999` for a 99.9% SLO.
-* Returns: {number}
-
-Returns the SLO burn rate: `ewmaErrorRate / (1 - sloTarget)`. A burn rate
-of 1 means the error budget will be exactly exhausted over the SLO window.
-A burn rate greater than 1 means it is being consumed faster than allowed.
-Requires the histogram to have been created with both `halfLife` and
-`threshold` options.
-
-```js
-const { createHistogram } = require('node:perf_hooks');
-
-// Track latency with a 200ms SLO threshold, half-life of 100 samples
-const h = createHistogram({ halfLife: 100, threshold: 200_000_000 });
-
-// ... record latency values ...
-
-// Check burn rate against a 99.9% SLO
-const rate = h.burnRate(0.999);
-if (rate > 1) {
-  console.log(`SLO burn rate: ${rate.toFixed(2)}x — error budget depleting`);
-}
-```
 
 ### `histogram.ksTest(other)`
 
