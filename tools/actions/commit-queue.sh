@@ -2,39 +2,31 @@
 
 set -xe
 
-OWNER=$1
-REPOSITORY=$2
-shift 2
-
 UPSTREAM=origin
 DEFAULT_BRANCH=main
 
 COMMIT_QUEUE_LABEL="commit-queue"
 COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
+cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
+
 commit_queue_failed() {
   pr=$1
 
-  gh pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
+  gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --add-label "${COMMIT_QUEUE_FAILED_LABEL}" --remove-label "${COMMIT_QUEUE_LABEL}"
 
-  # shellcheck disable=SC2154
-  cqurl="${GITHUB_SERVER_URL}/${OWNER}/${REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
   body="<details><summary>Commit Queue failed</summary><pre>$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' output)</pre><a href='$cqurl'>$cqurl</a></details>"
   echo "$body"
 
-  gh pr comment "$pr" --body "$body"
+  gh -R "$GITHUB_REPOSITORY" pr comment "$pr" --body "$body"
 
   rm output
 }
 
-# TODO(mmarchini): should this be set with whoever added the label for each PR?
-git config --local user.email "github-bot@iojs.org"
-git config --local user.name "Node.js GitHub Bot"
-
 SHOULD_ABORT=
 
 for pr in "$@"; do
-  gh pr view "$pr" --json labels --jq ".labels" > labels.json
+  gh -R "$GITHUB_REPOSITORY" pr view "$pr" --json labels --jq ".labels" > labels.json
   
   if jq -e 'map(.name) | index("commit-queue-squash")' < labels.json; then
     MULTIPLE_COMMIT_POLICY="--fixupAll"
@@ -87,7 +79,7 @@ for pr in "$@"; do
         --arg body "${commit_body}" \
         --arg head "${commit_head}" \
         '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' |\
-      gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input -\
+      gh api -X PUT "repos/${GITHUB_REPOSITORY}/pulls/${pr}/merge" --input -\
         --jq 'if .merged then .sha else halt_error end'
     )"; then
       commit_queue_failed "$pr"
@@ -97,12 +89,12 @@ for pr in "$@"; do
 
   rm output
 
-  gh pr comment "$pr" --body "Landed in $commits"
+  gh -R "$GITHUB_REPOSITORY" pr comment "$pr" --body "Landed in $commits"
 
-  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh pr close "$pr"
+  [ -z "$MULTIPLE_COMMIT_POLICY" ] && gh -R "$GITHUB_REPOSITORY" pr close "$pr"
 
   # Delete the commit queue label (but ignore errors, it's no big deal if a closed PR still has the label)
-  gh pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL" || true
+  gh -R "$GITHUB_REPOSITORY" pr edit "$pr" --remove-label "$COMMIT_QUEUE_LABEL" || true
 done
 
 rm -f labels.json
