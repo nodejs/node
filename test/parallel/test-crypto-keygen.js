@@ -376,25 +376,20 @@ const isBoringSSL = process.features.openssl_is_boringssl;
   }
 
   // Test invalid exponents. (caught by OpenSSL)
+  let invalidExponentError = /bad e value/;
+  if (isBoringSSL) {
+    invalidExponentError = /BAD_E_VALUE/;
+  } else if (hasOpenSSL3) {
+    invalidExponentError = /exponent/;
+  }
   for (const publicExponent of [1, 1 + 0x10001]) {
-    if (isBoringSSL) {
-      assert.throws(() => generateKeyPair('rsa', {
-        modulusLength: 4096,
-        publicExponent
-      }, common.mustNotCall()), {
-        name: 'RangeError',
-        code: 'ERR_OUT_OF_RANGE',
-        message: 'publicExponent is invalid',
-      });
-    } else {
-      generateKeyPair('rsa', {
-        modulusLength: 4096,
-        publicExponent
-      }, common.mustCall((err) => {
-        assert.strictEqual(err.name, 'Error');
-        assert.match(err.message, hasOpenSSL3 ? /exponent/ : /bad e value/);
-      }));
-    }
+    generateKeyPair('rsa', {
+      modulusLength: 4096,
+      publicExponent
+    }, common.mustCall((err) => {
+      assert.strictEqual(err.name, 'Error');
+      assert.match(err.message, invalidExponentError);
+    }));
   }
 }
 

@@ -15,4 +15,8 @@ const assert = require('assert');
 // This test simply validates that we can get some value for the secLevel
 // when needed by tests.
 const secLevel = require('internal/crypto/util').getOpenSSLSecLevel();
-assert.ok(secLevel >= 0 && secLevel <= 5);
+if (process.features.openssl_is_boringssl) {
+  assert.strictEqual(secLevel, 0);
+} else {
+  assert.ok(secLevel >= 0 && secLevel <= 5);
+}
