@@ -10,26 +10,18 @@ COMMIT_QUEUE_FAILED_LABEL="commit-queue-failed"
 
 cqurl="${GITHUB_SERVER_URL:?}/${GITHUB_REPOSITORY:?}/actions/runs/${GITHUB_RUN_ID:?}"
 
-fence_code_block() {
-  fence='```'
+escape_code_block_or_line() {
+  case $1 in
+    *"
+"*|'') fence='```' sep='
+' ;;
+    *[![:space:]]*) fence='`' sep=' ' ;;
+    *) fence='`' sep='' ;;
+  esac
   while case $1 in *"$fence"*) ;; *) false ;; esac; do
     fence=$fence'`'
   done
-  printf '%s\n%s\n%s\n' "$fence" "$1" "$fence"
-}
-
-format_diagnostics() {
-  awk '
-    function code_span(line, fence) {
-      fence = "`"
-      while (index(line, fence) != 0)
-        fence = fence "`"
-      return fence " " line " " fence
-    }
-    NR > 1 { printf "  \n" }
-    { printf "%s", code_span($0) }
-    END { if (NR > 0) printf "\n" }
-  '
+  printf '%s%s%s%s%s\n' "$fence" "$sep" "$1" "$sep" "$fence"
 }
 
 commit_queue_failed() {
@@ -54,11 +46,11 @@ Add https://github.com/nodejs/node/labels/commit-queue-squash to land it as one 
     if [ -z "$reported_failure" ]; then
       reported_failure='No failure reason was reported.'
     fi
-    failure_body=$(printf '%s\n' "$reported_failure" | format_diagnostics)
+    failure_body=$(escape_code_block_or_line "$reported_failure")
   fi
 
   raw_output=$(cat output)
-  full_output=$(fence_code_block "$raw_output")
+  full_output=$(escape_code_block_or_line "$raw_output")
 
   body="### Commit Queue failed
 
