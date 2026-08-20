@@ -29,9 +29,9 @@ const rawGetFunctionUnpatched = ffiBinding.DynamicLibrary.prototype.getFunction;
 const ffi = require('node:ffi');
 const { libraryPath } = require('./ffi-test-common');
 
-test('numeric-only i32 function uses SB path', () => {
+test('numeric-only int32 function uses SB path', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
+    add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
   });
   try {
     assert.strictEqual(functions.add_i32(20, 22), 42);
@@ -43,12 +43,12 @@ test('numeric-only i32 function uses SB path', () => {
   }
 });
 
-test('i8/u8/i16/u16 round-trip', () => {
+test('int8/uint8/int16/uint16 round-trip', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_i8: { return: 'i8', arguments: ['i8', 'i8'] },
-    add_u8: { return: 'u8', arguments: ['u8', 'u8'] },
-    add_i16: { return: 'i16', arguments: ['i16', 'i16'] },
-    add_u16: { return: 'u16', arguments: ['u16', 'u16'] },
+    add_i8: { return: 'int8', arguments: ['int8', 'int8'] },
+    add_u8: { return: 'uint8', arguments: ['uint8', 'uint8'] },
+    add_i16: { return: 'int16', arguments: ['int16', 'int16'] },
+    add_u16: { return: 'uint16', arguments: ['uint16', 'uint16'] },
   });
   try {
     assert.strictEqual(functions.add_i8(10, 20), 30);
@@ -60,10 +60,10 @@ test('i8/u8/i16/u16 round-trip', () => {
   }
 });
 
-test('f32/f64 round-trip', () => {
+test('float32/float64 round-trip', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_f32: { return: 'f32', arguments: ['f32', 'f32'] },
-    add_f64: { return: 'f64', arguments: ['f64', 'f64'] },
+    add_f32: { return: 'float32', arguments: ['float32', 'float32'] },
+    add_f64: { return: 'float64', arguments: ['float64', 'float64'] },
   });
   try {
     // 1.25 and 2.75 are exactly representable in float32, so the sum is exact.
@@ -74,10 +74,10 @@ test('f32/f64 round-trip', () => {
   }
 });
 
-test('i64/u64 BigInt round-trip', () => {
+test('int64/uint64 BigInt round-trip', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_i64: { return: 'i64', arguments: ['i64', 'i64'] },
-    add_u64: { return: 'u64', arguments: ['u64', 'u64'] },
+    add_i64: { return: 'int64', arguments: ['int64', 'int64'] },
+    add_u64: { return: 'uint64', arguments: ['uint64', 'uint64'] },
   });
   try {
     assert.strictEqual(functions.add_i64(10n, 20n), 30n);
@@ -89,7 +89,7 @@ test('i64/u64 BigInt round-trip', () => {
 
 test('zero-arg function', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    char_is_signed: { return: 'i32', arguments: [] },
+    char_is_signed: { return: 'int32', arguments: [] },
   });
   try {
     const result = functions.char_is_signed();
@@ -102,7 +102,7 @@ test('zero-arg function', () => {
 
 test('6-arg numeric function', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    sum_6_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32'] },
+    sum_6_i32: { return: 'int32', arguments: ['int32', 'int32', 'int32', 'int32', 'int32', 'int32'] },
   });
   try {
     assert.strictEqual(functions.sum_6_i32(1, 2, 3, 4, 5, 6), 21);
@@ -114,7 +114,7 @@ test('6-arg numeric function', () => {
 test('pointer args: fast path (BigInt/null) and slow-path fallback (Buffer/ArrayBuffer)', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     identity_pointer: { return: 'pointer', arguments: ['pointer'] },
-    pointer_to_usize: { return: 'u64', arguments: ['pointer'] },
+    pointer_to_usize: { return: 'uint64', arguments: ['pointer'] },
   });
   try {
     assert.strictEqual(functions.identity_pointer(0n), 0n);
@@ -138,8 +138,8 @@ test('pointer args: fast path (BigInt/null) and slow-path fallback (Buffer/Array
 
 test('string pointer uses shared-buffer pointer conversion', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    string_length: { return: 'u64', arguments: ['pointer'] },
-    safe_strlen: { return: 'i32', arguments: ['string'] },
+    string_length: { return: 'uint64', arguments: ['pointer'] },
+    safe_strlen: { return: 'int32', arguments: ['string'] },
   });
   try {
     assert.strictEqual(functions.string_length('hello'), 5n);
@@ -170,14 +170,14 @@ test('reentrancy across two FFI symbols', () => {
   // A JS callback invoked by one FFI function reenters a different FFI
   // function. Each has its own ArrayBuffer; neither may clobber the other.
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    call_int_callback: { return: 'i32', arguments: ['pointer', 'i32'] },
-    add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
+    call_int_callback: { return: 'int32', arguments: ['pointer', 'int32'] },
+    add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
   });
 
   let callDepth = 0;
   let innerResult = -1;
   const callback = lib.registerCallback(
-    { return: 'i32', arguments: ['i32'] },
+    { return: 'int32', arguments: ['int32'] },
     (x) => {
       callDepth++;
       if (callDepth === 1) innerResult = functions.add_i32(x, 100);
@@ -197,7 +197,7 @@ test('reentrancy across two FFI symbols', () => {
 
 test('arity mismatch throws ERR_INVALID_ARG_VALUE', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
+    add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
   });
   try {
     assert.throws(() => functions.add_i32(1), {
@@ -216,8 +216,8 @@ test('arity mismatch throws ERR_INVALID_ARG_VALUE', () => {
 test('arity 7+ uses the generic rest-params branch', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     sum_7_i32: {
-      return: 'i32',
-      arguments: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32'],
+      return: 'int32',
+      arguments: ['int32', 'int32', 'int32', 'int32', 'int32', 'int32', 'int32'],
     },
   });
   try {
@@ -233,7 +233,7 @@ test('arity 7+ uses the generic rest-params branch', () => {
 
 test('wrappers preserve name/length/pointer and the functions accessor returns wrappers', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
+    add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
     identity_pointer: { return: 'pointer', arguments: ['pointer'] },
   });
   try {
@@ -254,14 +254,14 @@ test('wrappers preserve name/length/pointer and the functions accessor returns w
   }
 });
 
-test('integer boundaries for i8/u8/i16/u16/i32/u32', () => {
+test('integer boundaries for int8/uint8/int16/uint16/int32/uint32', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_i8: { return: 'i8', arguments: ['i8', 'i8'] },
-    add_u8: { return: 'u8', arguments: ['u8', 'u8'] },
-    add_i16: { return: 'i16', arguments: ['i16', 'i16'] },
-    add_u16: { return: 'u16', arguments: ['u16', 'u16'] },
-    add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
-    add_u32: { return: 'u32', arguments: ['u32', 'u32'] },
+    add_i8: { return: 'int8', arguments: ['int8', 'int8'] },
+    add_u8: { return: 'uint8', arguments: ['uint8', 'uint8'] },
+    add_i16: { return: 'int16', arguments: ['int16', 'int16'] },
+    add_u16: { return: 'uint16', arguments: ['uint16', 'uint16'] },
+    add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
+    add_u32: { return: 'uint32', arguments: ['uint32', 'uint32'] },
   });
 
   try {
@@ -300,10 +300,10 @@ test('integer boundaries for i8/u8/i16/u16/i32/u32', () => {
   }
 });
 
-test('i64/u64 BigInt boundaries and Number/BigInt type mismatches', () => {
+test('int64/uint64 BigInt boundaries and Number/BigInt type mismatches', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_i64: { return: 'i64', arguments: ['i64', 'i64'] },
-    add_u64: { return: 'u64', arguments: ['u64', 'u64'] },
+    add_i64: { return: 'int64', arguments: ['int64', 'int64'] },
+    add_u64: { return: 'uint64', arguments: ['uint64', 'uint64'] },
   });
 
   try {
@@ -331,7 +331,7 @@ test('i64/u64 BigInt boundaries and Number/BigInt type mismatches', () => {
 
 test('char type picks signed/unsigned range based on host ABI', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    char_is_signed: { return: 'i32', arguments: [] },
+    char_is_signed: { return: 'int32', arguments: [] },
     identity_char: { return: 'char', arguments: ['char'] },
   });
 
@@ -361,7 +361,7 @@ test('SB metadata is Symbol-keyed, attribute-hardened, and not leaked onto the w
   const rawLib = new ffiBinding.DynamicLibrary(libraryPath);
   try {
     const rawFn = rawGetFunctionUnpatched.call(
-      rawLib, 'add_i32', { return: 'i32', arguments: ['i32', 'i32'] });
+      rawLib, 'add_i32', { return: 'int32', arguments: ['int32', 'int32'] });
 
     for (const [name, sym] of [
       ['kFastArguments', kFastArguments],
@@ -394,7 +394,7 @@ test('SB metadata is Symbol-keyed, attribute-hardened, and not leaked onto the w
       // Fast string signatures carry parameter metadata so the JS wrapper can
       // perform string-to-pointer conversion, but still do not carry SB state.
       const rawStringFn = rawGetFunctionUnpatched.call(
-        rawLib, 'safe_strlen', { return: 'u64', arguments: ['string'] });
+        rawLib, 'safe_strlen', { return: 'uint64', arguments: ['string'] });
       const paramsDesc = Object.getOwnPropertyDescriptor(rawStringFn, kFastArguments);
       assert.ok(paramsDesc !== undefined, 'kFastArguments missing on Fast string function');
       assert.strictEqual(paramsDesc.enumerable, false);
@@ -427,7 +427,7 @@ test('SB metadata is Symbol-keyed, attribute-hardened, and not leaked onto the w
 
     // Internals must not be forwarded by `inheritMetadata`.
     const { lib, functions } = ffi.dlopen(libraryPath, {
-      add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
+      add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
     });
     try {
       assert.strictEqual(functions.add_i32[kSbSharedBuffer], undefined);
@@ -464,15 +464,15 @@ test('self-recursive reentrancy: a single function\'s ArrayBuffer survives a nes
   // call can reuse the same buffer without clobbering the outer frame.
   const { lib, functions } = ffi.dlopen(libraryPath, {
     call_binary_int_callback: {
-      return: 'i32',
-      arguments: ['function', 'i32', 'i32'],
+      return: 'int32',
+      arguments: ['function', 'int32', 'int32'],
     },
   });
 
   try {
     let depth = 0;
     const callback = lib.registerCallback(
-      { return: 'i32', arguments: ['i32', 'i32'] },
+      { return: 'int32', arguments: ['int32', 'int32'] },
       common.mustCall((a, b) => {
         depth++;
         if (depth === 1) {
@@ -497,7 +497,7 @@ test('void-return 0-arg wrapper branch', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     reset_counter: { return: 'void', arguments: [] },
     increment_counter: { return: 'void', arguments: [] },
-    get_counter: { return: 'i32', arguments: [] },
+    get_counter: { return: 'int32', arguments: [] },
   });
   try {
     assert.strictEqual(functions.reset_counter(), undefined);
@@ -522,26 +522,26 @@ test('void-return wrapper at every specialized arity observes side effects', () 
   // at every arity the ladder specializes (1..6) plus the 7+ rest-params
   // fallback.
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    store_i32: { return: 'void', arguments: ['i32'] },
-    store_sum_2_i32: { return: 'void', arguments: ['i32', 'i32'] },
-    store_sum_3_i32: { return: 'void', arguments: ['i32', 'i32', 'i32'] },
+    store_i32: { return: 'void', arguments: ['int32'] },
+    store_sum_2_i32: { return: 'void', arguments: ['int32', 'int32'] },
+    store_sum_3_i32: { return: 'void', arguments: ['int32', 'int32', 'int32'] },
     store_sum_4_i32: {
       return: 'void',
-      arguments: ['i32', 'i32', 'i32', 'i32'],
+      arguments: ['int32', 'int32', 'int32', 'int32'],
     },
     store_sum_5_i32: {
       return: 'void',
-      arguments: ['i32', 'i32', 'i32', 'i32', 'i32'],
+      arguments: ['int32', 'int32', 'int32', 'int32', 'int32'],
     },
     store_sum_6_i32: {
       return: 'void',
-      arguments: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32'],
+      arguments: ['int32', 'int32', 'int32', 'int32', 'int32', 'int32'],
     },
     store_sum_8_i32: {
       return: 'void',
-      arguments: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32'],
+      arguments: ['int32', 'int32', 'int32', 'int32', 'int32', 'int32', 'int32', 'int32'],
     },
-    get_scratch: { return: 'i32', arguments: [] },
+    get_scratch: { return: 'int32', arguments: [] },
   });
   try {
     // Powers-of-two summands detect a dropped or duplicated slot at each
@@ -624,17 +624,17 @@ test('value-return wrapper arity mismatch hits every specialized branch', () => 
   // value-return closures for arities 1..6 so each specialization's
   // argument-count guard runs at least once.
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    logical_not: { return: 'i32', arguments: ['i32'] },
-    add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
-    sum_3_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32'] },
-    sum_4_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32', 'i32'] },
+    logical_not: { return: 'int32', arguments: ['int32'] },
+    add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
+    sum_3_i32: { return: 'int32', arguments: ['int32', 'int32', 'int32'] },
+    sum_4_i32: { return: 'int32', arguments: ['int32', 'int32', 'int32', 'int32'] },
     sum_five_i32: {
-      return: 'i32',
-      arguments: ['i32', 'i32', 'i32', 'i32', 'i32'],
+      return: 'int32',
+      arguments: ['int32', 'int32', 'int32', 'int32', 'int32'],
     },
     sum_6_i32: {
-      return: 'i32',
-      arguments: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32'],
+      return: 'int32',
+      arguments: ['int32', 'int32', 'int32', 'int32', 'int32', 'int32'],
     },
   });
   try {
@@ -695,10 +695,10 @@ test('pointer-dispatch wrapper rejects wrong-arity calls', () => {
 
 test('mid-arity wrappers (1, 3, 4, 5)', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    logical_not: { return: 'i32', arguments: ['i32'] },
-    sum_3_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32'] },
-    sum_4_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32', 'i32'] },
-    sum_five_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32', 'i32', 'i32'] },
+    logical_not: { return: 'int32', arguments: ['int32'] },
+    sum_3_i32: { return: 'int32', arguments: ['int32', 'int32', 'int32'] },
+    sum_4_i32: { return: 'int32', arguments: ['int32', 'int32', 'int32', 'int32'] },
+    sum_five_i32: { return: 'int32', arguments: ['int32', 'int32', 'int32', 'int32', 'int32'] },
   });
   try {
     assert.strictEqual(functions.logical_not(0), 1);
@@ -715,8 +715,8 @@ test('mid-arity wrappers (1, 3, 4, 5)', () => {
 
 test('float specials: NaN, ±Infinity, -0 round-trip bit-exact', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    add_f64: { return: 'f64', arguments: ['f64', 'f64'] },
-    multiply_f64: { return: 'f64', arguments: ['f64', 'f64'] },
+    add_f64: { return: 'float64', arguments: ['float64', 'float64'] },
+    multiply_f64: { return: 'float64', arguments: ['float64', 'float64'] },
   });
   try {
     assert.ok(Number.isNaN(functions.add_f64(NaN, 1.0)));
@@ -730,7 +730,7 @@ test('float specials: NaN, ±Infinity, -0 round-trip bit-exact', () => {
 
 test('arity-7+ branch still runs per-arg validation', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    sum_7_i32: { return: 'i32', arguments: ['i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32'] },
+    sum_7_i32: { return: 'int32', arguments: ['int32', 'int32', 'int32', 'int32', 'int32', 'int32', 'int32'] },
   });
   try {
     assert.throws(
@@ -742,11 +742,11 @@ test('arity-7+ branch still runs per-arg validation', () => {
   }
 });
 
-test('mixed-kind signature (i32, f32, f64, u32) dispatches the right writer per slot', () => {
+test('mixed-kind signature (int32, float32, float64, uint32) dispatches the right writer per slot', () => {
   // Four distinct `sbTypeInfo.kind` values (int, float, float, int) — a
   // wiring bug that reused one writer across slots would surface here.
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    mixed_operation: { arguments: ['i32', 'f32', 'f64', 'u32'], return: 'f64' },
+    mixed_operation: { arguments: ['int32', 'float32', 'float64', 'uint32'], return: 'float64' },
   });
 
   try {
@@ -754,9 +754,9 @@ test('mixed-kind signature (i32, f32, f64, u32) dispatches the right writer per 
     assert.strictEqual(functions.mixed_operation(-1, 0.25, 0.75, 0), 0);
 
     const expect = { code: 'ERR_INVALID_ARG_VALUE' };
-    // -1 on u32 slot: distinguishes u32 writer from i32 (i32 accepts -1).
+    // -1 on uint32 slot: distinguishes uint32 writer from int32 (int32 accepts -1).
     assert.throws(() => functions.mixed_operation(0, 0.0, 0.0, -1), expect);
-    // 2^31 on i32 slot: distinguishes i32 writer from u32 (u32 accepts it).
+    // 2^31 on int32 slot: distinguishes int32 writer from uint32 (uint32 accepts it).
     assert.throws(() => functions.mixed_operation(2147483648, 0.0, 0.0, 0), expect);
     // Float slots reject BigInt / string (the int/float writers both gate on `typeof`).
     assert.throws(() => functions.mixed_operation(0, 1n, 0.0, 0), expect);
@@ -774,11 +774,11 @@ test('lib.getFunctions() with no arguments wraps every cached function', () => {
   // the early-return path in `wrapWithSharedBuffer` alongside the wrapped
   // branch.
   const { lib } = ffi.dlopen(libraryPath, {
-    add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
-    add_f64: { return: 'f64', arguments: ['f64', 'f64'] },
-    mixed_operation: { arguments: ['i32', 'f32', 'f64', 'u32'], return: 'f64' },
+    add_i32: { return: 'int32', arguments: ['int32', 'int32'] },
+    add_f64: { return: 'float64', arguments: ['float64', 'float64'] },
+    mixed_operation: { arguments: ['int32', 'float32', 'float64', 'uint32'], return: 'float64' },
     identity_pointer: { return: 'pointer', arguments: ['pointer'] },
-    string_length: { return: 'u64', arguments: ['string'] },
+    string_length: { return: 'uint64', arguments: ['string'] },
   });
 
   try {
@@ -815,17 +815,17 @@ test('lib.getFunctions() with no arguments wraps every cached function', () => {
 
 test('mixed pointer + numeric signature uses the pointer-dispatch wrapper', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    call_int_callback: { return: 'i32', arguments: ['pointer', 'i32'] },
+    call_int_callback: { return: 'int32', arguments: ['pointer', 'int32'] },
   });
 
   try {
     const cb = lib.registerCallback(
-      { return: 'i32', arguments: ['i32'] },
+      { return: 'int32', arguments: ['int32'] },
       (x) => x * 2,
     );
     try {
       assert.strictEqual(functions.call_int_callback(cb, 7), 14);
-      // Negative i32 must land in the numeric writer (not the pointer writer,
+      // Negative int32 must land in the numeric writer (not the pointer writer,
       // which would reject a negative BigInt).
       assert.strictEqual(functions.call_int_callback(cb, -5), -10);
     } finally {

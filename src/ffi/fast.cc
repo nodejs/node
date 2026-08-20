@@ -19,9 +19,6 @@ using v8::FastApiCallbackOptions;
 
 bool IsTypeName(std::string_view type,
                 std::initializer_list<std::string_view> names) {
-  // Signature parsing accepts several public aliases for the same ABI type.
-  // The fast path normalizes them by checking the original type name against
-  // each alias set before selecting a FastFFIType.
   for (std::string_view name : names) {
     if (type == name) {
       return true;
@@ -36,34 +33,31 @@ bool FastScalarTypeFromName(std::string_view type, FastFFIType* out) {
   // JavaScript wrappers handle strings and object-to-pointer conversions.
   if (type == "void") {
     *out = FastFFIType::kVoid;
-  } else if (type == "bool") {
-    *out = FastFFIType::kUint8;
-  } else if (IsTypeName(type, {"i8", "int8"})) {
+  } else if (type == "int8") {
     *out = FastFFIType::kInt8;
-  } else if (IsTypeName(type, {"u8", "uint8"})) {
+  } else if (type == "uint8") {
     *out = FastFFIType::kUint8;
   } else if (type == "char") {
     *out = CHAR_MIN < 0 ? FastFFIType::kInt8 : FastFFIType::kUint8;
-  } else if (IsTypeName(type, {"i16", "int16"})) {
+  } else if (type == "int16") {
     *out = FastFFIType::kInt16;
-  } else if (IsTypeName(type, {"u16", "uint16"})) {
+  } else if (type == "uint16") {
     *out = FastFFIType::kUint16;
-  } else if (IsTypeName(type, {"i32", "int32"})) {
+  } else if (type == "int32") {
     *out = FastFFIType::kInt32;
-  } else if (IsTypeName(type, {"u32", "uint32"})) {
+  } else if (type == "uint32") {
     *out = FastFFIType::kUint32;
-  } else if (IsTypeName(type, {"i64", "int64"})) {
+  } else if (type == "int64") {
     *out = FastFFIType::kInt64;
-  } else if (IsTypeName(type, {"u64", "uint64"})) {
+  } else if (type == "uint64") {
     *out = FastFFIType::kUint64;
-  } else if (IsTypeName(type, {"f32", "float", "float32"})) {
+  } else if (type == "float32") {
     *out = FastFFIType::kFloat32;
-  } else if (IsTypeName(type, {"f64", "double", "float64"})) {
+  } else if (type == "float64") {
     *out = FastFFIType::kFloat64;
   } else if (IsTypeName(type, {"buffer", "arraybuffer"})) {
     *out = FastFFIType::kPointer;
-  } else if (IsTypeName(type,
-                        {"pointer", "ptr", "string", "str", "function"})) {
+  } else if (IsTypeName(type, {"pointer", "string", "function"})) {
     *out = FastFFIType::kPointer;
   } else {
     return false;
@@ -150,8 +144,7 @@ bool SignatureNeedsRawPointerConversions(const FFIFunction& fn) {
   // a signature contains them, JS wraps the fast function to perform the
   // conversion before V8 enters the CFunction trampoline.
   for (const std::string& name : fn.arg_type_names) {
-    if (name == "buffer" || name == "arraybuffer" || name == "string" ||
-        name == "str") {
+    if (name == "buffer" || name == "arraybuffer" || name == "string") {
       return true;
     }
   }
@@ -162,11 +155,9 @@ bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn) {
   // V8 widens narrow integers to 32 bits and truncates BigInts to 64 bits for
   // Fast API calls. These types need a JS range check before the trampoline.
   for (const std::string& name : fn.arg_type_names) {
-    if (name == "bool" || name == "char" || name == "i8" || name == "int8" ||
-        name == "u8" || name == "uint8" || name == "i16" || name == "int16" ||
-        name == "u16" || name == "uint16" || name == "i32" || name == "int32" ||
-        name == "u32" || name == "uint32" || name == "i64" || name == "int64" ||
-        name == "u64" || name == "uint64") {
+    if (name == "char" || name == "int8" || name == "uint8" ||
+        name == "int16" || name == "uint16" || name == "int32" ||
+        name == "uint32" || name == "int64" || name == "uint64") {
       return true;
     }
   }
@@ -174,9 +165,9 @@ bool SignatureNeedsFastIntegerValidation(const FFIFunction& fn) {
 }
 
 bool IsPointerTypeName(const std::string& name) {
-  // `pointer`, `ptr`, and `function` all use the same uintptr ABI slot; only
+  // `pointer` and `function` use the same uintptr ABI slot; only
   // the public type spelling differs.
-  return name == "pointer" || name == "ptr" || name == "function";
+  return name == "pointer" || name == "function";
 }
 
 bool IsBufferTypeName(const std::string& name) {

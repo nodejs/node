@@ -19,19 +19,19 @@ test('fast FFI accepts buffer and arraybuffer arguments natively', () => {
   const functions = {
     first_byte_buffer: lib.getFunction('first_byte', {
       arguments: ['buffer'],
-      return: 'u8',
+      return: 'uint8',
     }),
     first_byte_arraybuffer: lib.getFunction('first_byte', {
       arguments: ['arraybuffer'],
-      return: 'u8',
+      return: 'uint8',
     }),
     pointer_to_usize: lib.getFunction('pointer_to_usize', {
       arguments: ['pointer'],
-      return: 'u64',
+      return: 'uint64',
     }),
     sum_buffer: {
-      arguments: ['buffer', 'u64'],
-      return: 'u64',
+      arguments: ['buffer', 'uint64'],
+      return: 'uint64',
     },
   };
   functions.sum_buffer = lib.getFunction('sum_buffer', functions.sum_buffer);
@@ -58,7 +58,7 @@ test('fast FFI accepts buffer and arraybuffer arguments natively', () => {
 
 test('fast FFI buffer arguments reject invalid values', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    first_byte: { arguments: ['buffer'], return: 'u8' },
+    first_byte: { arguments: ['buffer'], return: 'uint8' },
   });
 
   try {
@@ -74,7 +74,7 @@ test('optimized pointer arguments reject direct SharedArrayBuffers', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   const firstByte = lib.getFunction('first_byte', {
     arguments: ['pointer'],
-    return: 'u8',
+    return: 'uint8',
   });
   const regular = new ArrayBuffer(1);
   const shared = new SharedArrayBuffer(1);
@@ -104,10 +104,10 @@ test('fast FFI string buffers survive reentrant callbacks', {
   skip: common.isSunOS,
 }, () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    safe_strlen: { arguments: ['string'], return: 'i32' },
+    safe_strlen: { arguments: ['string'], return: 'int32' },
     string_survives_callback: {
       arguments: ['string', 'pointer'],
-      return: 'i32',
+      return: 'int32',
     },
   });
   let nestedLength;
@@ -128,8 +128,8 @@ test('fast FFI string buffers survive reentrant callbacks', {
 test('fast FFI refreshes cached temporary string buffers', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   const overwriteString = lib.getFunction('overwrite_string', {
-    arguments: ['string', 'i32', 'u64'],
-    return: 'u8',
+    arguments: ['string', 'int32', 'uint64'],
+    return: 'uint8',
   });
 
   try {
@@ -147,15 +147,15 @@ test('optimized buffer signatures preserve pointer-like conversions', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   const asPointer = lib.getFunction('pointer_to_usize', {
     arguments: ['pointer'],
-    return: 'u64',
+    return: 'uint64',
   });
   const asBuffer = lib.getFunction('pointer_to_usize', {
     arguments: ['buffer'],
-    return: 'u64',
+    return: 'uint64',
   });
   const asArrayBuffer = lib.getFunction('pointer_to_usize', {
     arguments: ['arraybuffer'],
-    return: 'u64',
+    return: 'uint64',
   });
 
   function callPointer(value) {
@@ -208,8 +208,8 @@ test('optimized buffer signatures preserve pointer-like conversions', () => {
 
 test('multi-argument buffer signatures accept pointer BigInts', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
-    sum_buffer: { arguments: ['buffer', 'u64'], return: 'u64' },
-    fill_buffer: { arguments: ['arraybuffer', 'u64', 'u32'], return: 'void' },
+    sum_buffer: { arguments: ['buffer', 'uint64'], return: 'uint64' },
+    fill_buffer: { arguments: ['arraybuffer', 'uint64', 'uint32'], return: 'void' },
   });
 
   try {

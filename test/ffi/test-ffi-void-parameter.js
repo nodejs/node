@@ -16,12 +16,12 @@ const lib = new ffi.DynamicLibrary(libraryPath);
 
 try {
   assert.throws(() => {
-    lib.getFunction('add_i32', { return: 'i32', arguments: ['void'] });
+    lib.getFunction('add_i32', { return: 'int32', arguments: ['void'] });
   }, { code: 'ERR_INVALID_ARG_VALUE' });
 
   assert.throws(() => {
     lib.getFunctions({
-      add_i32: { return: 'i32', arguments: ['void'] },
+      add_i32: { return: 'int32', arguments: ['void'] },
     });
   }, { code: 'ERR_INVALID_ARG_VALUE' });
 } finally {

@@ -73,15 +73,14 @@ test('fast FFI validates integer argument ranges', () => {
 test('fast FFI validates pointer BigInt ranges', () => {
   const lib = new ffi.DynamicLibrary(libraryPath);
   try {
-    for (const type of ['pointer', 'ptr', 'string', 'str',
-                        'buffer', 'arraybuffer']) {
+    for (const type of ['pointer', 'string', 'buffer', 'arraybuffer']) {
       const identityPointer = lib.getFunction('identity_pointer', {
         arguments: [type],
         return: 'pointer',
       });
       const sumBuffer = lib.getFunction('sum_buffer', {
-        arguments: [type, 'u64'],
-        return: 'u64',
+        arguments: [type, 'uint64'],
+        return: 'uint64',
       });
       function callSingle(value) { return identityPointer(value); }
 
