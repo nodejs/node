@@ -136,6 +136,7 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
   V(HEADERS_SUPPORTED, headers_supported, uint8_t)                             \
+  V(STREAM_CALLBACKS_SUPPORTED, stream_callbacks_supported, uint8_t)           \
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(APPLICATION_TYPE, application_type, uint8_t)                               \
   V(NO_ERROR_CODE, no_error_code, error_code)                                  \
@@ -2649,6 +2650,10 @@ void Session::SetApplication(std::unique_ptr<Application> app) {
   impl_->state()->headers_supported = static_cast<uint8_t>(
       app->SupportsHeaders() ? HeadersSupportState::SUPPORTED
                              : HeadersSupportState::UNSUPPORTED);
+  impl_->state()->stream_callbacks_supported =
+      static_cast<uint8_t>(app->SupportsStreamCallbacks()
+                               ? StreamCallbacksSupportState::SUPPORTED
+                               : StreamCallbacksSupportState::UNSUPPORTED);
   // Surface the application's "no error" and "internal error" codes via
   // session state so that JS-side code (e.g. the stream writer's fail()
   // path) can resolve the right wire code for the negotiated ALPN
