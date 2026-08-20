@@ -210,6 +210,11 @@ class Session::Application : public MemoryRetainer {
   // do not support headers should return false (the default).
   virtual bool SupportsHeaders() const { return false; }
 
+  // True if this application dispatches the session-level stream
+  // callbacks (onheaders et al) for incoming streams when they are
+  // registered on the session.
+  virtual bool SupportsStreamCallbacks() const { return false; }
+
   // Initiates application-level graceful shutdown signaling (e.g.,
   // HTTP/3 GOAWAY). Called when Session::Close(GRACEFUL) is invoked.
   virtual void BeginShutdown() {}

@@ -328,6 +328,12 @@ enum class HeadersSupportState : uint8_t {
   UNSUPPORTED,
 };
 
+enum class StreamCallbacksSupportState : uint8_t {
+  UNKNOWN,
+  SUPPORTED,
+  UNSUPPORTED,
+};
+
 enum class PathValidationResult : uint8_t {
   SUCCESS = NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
   FAILURE = NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
