@@ -172,6 +172,10 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGHTTP3_H3_INTERNAL_ERROR;
   }
 
+  error_code GetRequestRejectedCode() const override {
+    return NGHTTP3_H3_REQUEST_REJECTED;
+  }
+
   void EarlyDataRejected() override {
     // When 0-RTT is rejected, destroy the nghttp3 connection and all
     // open streams — ngtcp2 has discarded their internal state.
