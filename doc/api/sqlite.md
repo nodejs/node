@@ -1120,7 +1120,7 @@ Finalizes the prepared statement. An exception is thrown if the statement is
 already finalized. An [`ERR_INVALID_STATE`][] error is thrown if this statement
 is currently executing, which happens when the method is called from a callback
 that the statement itself triggered, such as a user-defined function, an
-aggregate function, or a [`'sqlite.db.query'`][] subscriber. Other statements
+aggregate function, or a [`'sqlite.db.query'`][] subscriber. Idle statements
 on the same connection can be finalized from such a callback. This method is a
 wrapper around [`sqlite3_finalize()`][].
 

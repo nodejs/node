@@ -397,10 +397,8 @@ suite('authorizer callback reentrancy', () => {
     assert.deepStrictEqual(runInAuthorizer(db, cases), allRejected(cases));
   });
 
-  // Only the statement being stepped is unsafe to finalize. Other statements
-  // on the connection have their own virtual machines, so finalizing them from
-  // a callback is allowed.
-  it('allows finalizing a statement that is not being executed', () => {
+  // An idle statement has no virtual-machine state or locks to release.
+  it('allows finalizing an idle statement', () => {
     const db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE t (x INTEGER)');
     db.exec('INSERT INTO t VALUES (1)');
@@ -415,6 +413,43 @@ suite('authorizer callback reentrancy', () => {
       close: 'did not throw',
       dispose: 'did not throw',
     });
+  });
+
+  // A paused iterator is busy and may hold locks between sqlite3_step() calls.
+  it('rejects finalizing another active statement', () => {
+    for (const method of ['close', 'dispose']) {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (x INTEGER)');
+      db.exec('INSERT INTO t VALUES (1), (2), (3)');
+      const stmt = db.prepare('SELECT x FROM t');
+      const iter = stmt.iterate();
+      iter.next();
+      let outcome = 'authorizer callback did not run';
+
+      db.setAuthorizer((actionCode) => {
+        if (actionCode === constants.SQLITE_DROP_TABLE) {
+          try {
+            if (method === 'close') {
+              stmt.close();
+            } else {
+              stmt[Symbol.dispose]();
+            }
+            outcome = 'did not throw';
+          } catch (err) {
+            outcome = `${err.code}: ${err.message}`;
+          }
+        }
+        return constants.SQLITE_OK;
+      });
+
+      assert.throws(() => db.exec('DROP TABLE t'), {
+        code: 'ERR_SQLITE_ERROR',
+        message: 'database table is locked',
+      });
+      assert.strictEqual(outcome, expectedError);
+      db.setAuthorizer(null);
+      iter.return();
+    }
   });
 
   // Disposal is idempotent, so a statement that is already finalized must stay
