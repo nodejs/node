@@ -641,6 +641,18 @@ class ArrayBufferViewContents {
   bool was_detached_ = false;
 };
 
+// Creates a BackingStore with the contents of |data|. |deleter| runs once V8
+// no longer needs |data|: on release of the store when it can reference
+// |data| directly, or before this returns when V8 requires backing stores
+// inside its sandbox and |data| was copied. Returns nullptr if that copy
+// could not be allocated; |deleter| has run in that case too.
+std::unique_ptr<v8::BackingStore> AdoptIntoBackingStore(
+    v8::Isolate* isolate,
+    void* data,
+    size_t byte_length,
+    v8::BackingStore::DeleterCallback deleter,
+    void* deleter_data);
+
 class Utf8Value : public MaybeStackBuffer<char> {
  public:
   explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);

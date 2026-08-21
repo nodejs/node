@@ -878,11 +878,13 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   }
   // We cast away the constness here, the JS land should ensure that
   // the data is not mutated.
-  std::unique_ptr<v8::BackingStore> store = ArrayBuffer::NewBackingStore(
+  std::unique_ptr<v8::BackingStore> store = AdoptIntoBackingStore(
+      args.GetIsolate(),
       const_cast<char*>(it->second.data()),
       it->second.size(),
       [](void*, size_t, void*) {},
       nullptr);
+  CHECK(store);
   Local<ArrayBuffer> ab = ArrayBuffer::New(args.GetIsolate(), std::move(store));
   args.GetReturnValue().Set(ab);
 }

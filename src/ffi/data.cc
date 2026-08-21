@@ -533,6 +533,17 @@ void ToString(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(out);
 }
 
+// Foreign memory lies outside the V8 sandbox and cannot back an ArrayBuffer.
+static bool ZeroCopyUnavailable(Environment* env) {
+#ifdef V8_ENABLE_SANDBOX
+  THROW_ERR_OPERATION_FAILED(
+      env, "Zero-copy views are not available when the V8 sandbox is enabled");
+  return true;
+#else
+  return false;
+#endif
+}
+
 void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -578,9 +589,12 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  bool copy = args.Length() < 3 || args[2]->IsUndefined() ||
+              args[2]->BooleanValue(isolate);
+  if (!copy && ZeroCopyUnavailable(env)) return;
+
   Local<Object> buf;
-  if (args.Length() < 3 || args[2]->IsUndefined() ||
-      args[2]->BooleanValue(isolate)) {
+  if (copy) {
     if (!Buffer::Copy(env, reinterpret_cast<char*>(ptr), len).ToLocal(&buf)) {
       return;
     }
@@ -640,10 +654,12 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<ArrayBuffer> ab;
+  bool copy = args.Length() < 3 || args[2]->IsUndefined() ||
+              args[2]->BooleanValue(isolate);
+  if (!copy && ZeroCopyUnavailable(env)) return;
 
-  if (args.Length() < 3 || args[2]->IsUndefined() ||
-      args[2]->BooleanValue(isolate)) {
+  Local<ArrayBuffer> ab;
+  if (copy) {
     std::unique_ptr<BackingStore> store =
         ArrayBuffer::NewBackingStore(isolate, len);
     memcpy(store->Data(), reinterpret_cast<void*>(ptr), len);

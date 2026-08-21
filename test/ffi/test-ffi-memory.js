@@ -76,7 +76,9 @@ test('ffi supports unaligned memory access', () => {
   }));
 });
 
-test('ffi toBuffer supports copy and zero-copy views', () => {
+const zeroCopy = { skip: common.hasV8Sandbox && 'zero-copy views are unavailable with the V8 sandbox' };
+
+test('ffi toBuffer supports copy and zero-copy views', zeroCopy, () => {
   withAllocations(common.mustCall((alloc) => {
     const ptr = alloc(8);
     ffi.exportBuffer(Buffer.from([1, 2, 3, 4]), ptr, 4);
@@ -98,7 +100,7 @@ test('ffi toBuffer supports copy and zero-copy views', () => {
   }));
 });
 
-test('ffi toArrayBuffer supports copy and zero-copy views', () => {
+test('ffi toArrayBuffer supports copy and zero-copy views', zeroCopy, () => {
   withAllocations(common.mustCall((alloc) => {
     const ptr = alloc(4);
     ffi.exportBuffer(Buffer.from([10, 20, 30, 40]), ptr, 4);
@@ -117,6 +119,16 @@ test('ffi toArrayBuffer supports copy and zero-copy views', () => {
     copiedFromUndefined[1] = 55;
     assert.deepStrictEqual([...copiedFromUndefined], [10, 55, 99, 40]);
     assert.deepStrictEqual([...ffi.toBuffer(ptr, 4)], [10, 20, 99, 40]);
+  }));
+});
+
+test('ffi zero-copy views throw with the V8 sandbox', { skip: !common.hasV8Sandbox }, () => {
+  withAllocations(common.mustCall((alloc) => {
+    const ptr = alloc(4);
+    ffi.exportBuffer(Buffer.from([1, 2, 3, 4]), ptr, 4);
+    assert.deepStrictEqual([...ffi.toBuffer(ptr, 4)], [1, 2, 3, 4]);
+    assert.throws(() => ffi.toBuffer(ptr, 4, false), { code: 'ERR_OPERATION_FAILED' });
+    assert.throws(() => ffi.toArrayBuffer(ptr, 4, false), { code: 'ERR_OPERATION_FAILED' });
   }));
 });
 

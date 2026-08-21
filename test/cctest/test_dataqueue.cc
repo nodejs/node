@@ -10,12 +10,27 @@ using node::DataQueue;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 
+// Backing stores must lie inside V8's sandbox when it is enabled, so copy
+// the test data into memory from the default allocator rather than wrap it.
+static std::shared_ptr<BackingStore> MakeStore(const char* data) {
+  static ArrayBuffer::Allocator* const allocator =
+      ArrayBuffer::Allocator::NewDefaultAllocator();
+  size_t len = strlen(data);
+  void* copy = allocator->AllocateUninitialized(len);
+  CHECK_NOT_NULL(copy);
+  memcpy(copy, data, len);
+  return ArrayBuffer::NewBackingStore(
+      copy,
+      len,
+      [](void* p, size_t n, void*) { allocator->Free(p, n); },
+      nullptr);
+}
+
 TEST(DataQueue, InMemoryEntry) {
   char buffer[] = "hello world";
   size_t len = strlen(buffer);
 
-  std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-      &buffer, len, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store = MakeStore(buffer);
 
   // We can create an InMemoryEntry from a v8::BackingStore.
   std::unique_ptr<DataQueue::Entry> entry =
@@ -87,11 +102,9 @@ TEST(DataQueue, IdempotentDataQueue) {
   size_t len2 = strlen(buffer2);
   size_t len3 = strlen(buffer3);
 
-  std::shared_ptr<BackingStore> store1 = ArrayBuffer::NewBackingStore(
-      &buffer1, len1, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store1 = MakeStore(buffer1);
 
-  std::shared_ptr<BackingStore> store2 = ArrayBuffer::NewBackingStore(
-      &buffer2, len2, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store2 = MakeStore(buffer2);
 
   std::vector<std::unique_ptr<DataQueue::Entry>> list;
   list.push_back(
@@ -124,8 +137,7 @@ TEST(DataQueue, IdempotentDataQueue) {
   // The size is known to be the sum of the in memory-entries.
   CHECK_EQ(data_queue->size().value(), len1 + len2);
 
-  std::shared_ptr<BackingStore> store3 = ArrayBuffer::NewBackingStore(
-      &buffer3, len3, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store3 = MakeStore(buffer3);
 
   // Trying to append a new entry does not crash, but returns std::nullopt.
   CHECK(!data_queue
@@ -416,14 +428,11 @@ TEST(DataQueue, NonIdempotentDataQueue) {
   size_t len2 = strlen(buffer2);
   size_t len3 = strlen(buffer3);
 
-  std::shared_ptr<BackingStore> store1 = ArrayBuffer::NewBackingStore(
-      &buffer1, len1, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store1 = MakeStore(buffer1);
 
-  std::shared_ptr<BackingStore> store2 = ArrayBuffer::NewBackingStore(
-      &buffer2, len2, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store2 = MakeStore(buffer2);
 
-  std::shared_ptr<BackingStore> store3 = ArrayBuffer::NewBackingStore(
-      &buffer3, len3, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store3 = MakeStore(buffer3);
 
   // We can create an non-idempotent DataQueue from a list of entries.
   std::shared_ptr<DataQueue> data_queue = DataQueue::Create();
@@ -550,11 +559,9 @@ TEST(DataQueue, DataQueueEntry) {
   size_t len1 = strlen(buffer1);
   size_t len2 = strlen(buffer2);
 
-  std::shared_ptr<BackingStore> store1 = ArrayBuffer::NewBackingStore(
-      &buffer1, len1, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store1 = MakeStore(buffer1);
 
-  std::shared_ptr<BackingStore> store2 = ArrayBuffer::NewBackingStore(
-      &buffer2, len2, [](void*, size_t, void*) {}, nullptr);
+  std::shared_ptr<BackingStore> store2 = MakeStore(buffer2);
 
   std::vector<std::unique_ptr<DataQueue::Entry>> list;
   list.push_back(
