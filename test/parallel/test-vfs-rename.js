@@ -58,3 +58,28 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.existsSync('/a/b/c'), false);
   assert.strictEqual(myVfs.readFileSync('/a/file.txt', 'utf8'), 'data');
 }
+
+// Renaming a directory onto a non-empty directory throws ENOTEMPTY
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/src');
+  myVfs.writeFileSync('/src/a.txt', 'a');
+  myVfs.mkdirSync('/dst');
+  myVfs.writeFileSync('/dst/keep.txt', 'keep');
+
+  assert.throws(() => myVfs.renameSync('/src', '/dst'), { code: 'ENOTEMPTY' });
+  assert.strictEqual(myVfs.readFileSync('/dst/keep.txt', 'utf8'), 'keep');
+  assert.strictEqual(myVfs.readFileSync('/src/a.txt', 'utf8'), 'a');
+}
+
+// Renaming a directory onto an empty directory succeeds
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/src');
+  myVfs.writeFileSync('/src/a.txt', 'a');
+  myVfs.mkdirSync('/dst');
+
+  myVfs.renameSync('/src', '/dst');
+  assert.strictEqual(myVfs.existsSync('/src'), false);
+  assert.strictEqual(myVfs.readFileSync('/dst/a.txt', 'utf8'), 'a');
+}
