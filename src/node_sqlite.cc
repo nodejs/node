@@ -169,6 +169,16 @@ inline MaybeLocal<Value> IntegerToValue(Isolate* isolate,
           sqlite3_stmt_busy((stmt)->statement_.get()),                         \
       "database cannot be accessed from an authorizer callback")
 
+// SQLite's session module reaches back into JavaScript from inside the
+// pre-update hook, while it is still walking the connection's session list and
+// reading the table it found there. Deleting a session frees memory that walk
+// is still using, so no callback may close one.
+#define THROW_AND_RETURN_IF_SESSION_IN_CALLBACK(env, session)                  \
+  THROW_AND_RETURN_ON_BAD_STATE(                                               \
+      (env),                                                                   \
+      (session)->database_->IsInCallback(),                                    \
+      "session cannot be closed while in a callback")
+
 // A statement's virtual machine cannot be reentered while sqlite3_step() is
 // running it. Finalizing it frees the VM outright, and re-running it resets the
 // VM mid-execution; both are use-after-free rather than merely a contract
@@ -4346,6 +4356,7 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
       env, session->session_ == nullptr, "session is not open");
   THROW_AND_RETURN_ON_BAD_STATE(
       env, session->is_generating_changeset_, "session is currently in use");
+  THROW_AND_RETURN_IF_SESSION_IN_CALLBACK(env, session);
 
   session->Delete();
 }
@@ -4359,6 +4370,7 @@ void Session::Dispose(const FunctionCallbackInfo<Value>& args) {
   }
   THROW_AND_RETURN_ON_BAD_STATE(
       env, session->is_generating_changeset_, "session is currently in use");
+  THROW_AND_RETURN_IF_SESSION_IN_CALLBACK(env, session);
 
   session->Delete();
 }
