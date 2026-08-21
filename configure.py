@@ -872,7 +872,7 @@ parser.add_argument('--experimental-pointer-compression-shared-cage',
     action='store_true',
     dest='pointer_compression_shared_cage',
     default=None,
-    help='[Experimental] Use V8 pointer compression with shared cage (requires --experimental-enable-pointer-compression)')
+    help='[Experimental] Use V8 pointer compression with a shared cage and enable the V8 sandbox (requires --experimental-enable-pointer-compression)')
 
 parser.add_argument('--v8-options',
     action='store',
@@ -2214,16 +2214,10 @@ def configure_v8(o, configs):
                                          flavor not in ('aix', 'os400', 'zos') and
                                          o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
-  # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
-  # We currently have many backing stores tied to pointers from C++ land that are not
-  # even necessarily dynamic (e.g. in static storage) for fast communication between JS and C++.
-  # Until we manage to get rid of all those, v8_enable_sandbox cannot be used.
-  # Note that enabling pointer compression without enabling sandbox is unsupported by V8,
-  # so this can be broken at any time.
-  o['variables']['v8_enable_sandbox'] = 0
-  # We set v8_enable_pointer_compression_shared_cage to 0 always, even when
-  # pointer compression is enabled so that we don't accidentally enable shared
-  # cage mode when pointer compression is on.
+  # Like V8's own default, the sandbox goes with the shared pointer compression
+  # cage. Multi-cage builds give every IsolateGroup its own sandbox, which the
+  # array buffer allocator does not know about yet.
+  o['variables']['v8_enable_sandbox'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
