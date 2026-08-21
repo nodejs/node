@@ -15,7 +15,7 @@ int64_t GenAndRunTest(Func test_generator) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired{true});
   test_generator(assm);
   assm.jr(ra);
 
@@ -31,7 +31,7 @@ int64_t GenAndRunTest(Func test_generator) {
 }
 
 Handle<Code> AssembleCodeImpl(Isolate* isolate, Func assemble) {
-  MacroAssembler assm(isolate, CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, CodeObjectRequired{true});
 
   assemble(assm);
   assm.jr(ra);

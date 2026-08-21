@@ -12,8 +12,9 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/embedder-data-array.h"
+#include "src/objects/heap-object-field-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-objects-inl.h"
-#include "src/objects/objects-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/isolate.h"
 
@@ -65,9 +66,10 @@ void EmbedderDataSlot::store_tagged(Tagged<EmbedderDataArray> array,
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
 #endif
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
-  ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
-      .Relaxed_Store(value);
-  WRITE_BARRIER(array, slot_offset + kTaggedPayloadOffset, value);
+  Address tagged_addr = FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset);
+  ObjectSlot(tagged_addr).Relaxed_Store(value);
+  WriteBarrier::ForValue(&*array, MaybeObjectSlot(tagged_addr), value,
+                         UPDATE_WRITE_BARRIER);
 #ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(array, slot_offset + kRawPayloadOffset))

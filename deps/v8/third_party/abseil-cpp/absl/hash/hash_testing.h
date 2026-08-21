@@ -20,6 +20,8 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -130,7 +132,7 @@ ABSL_NAMESPACE_BEGIN
 //   }
 //   friend bool operator==(Bad4 x, Bad4 y) {
 //    // Compare two ranges for equality. C++14 code can instead use std::equal.
-//     return absl::equal(x.p, x.p + x.size, y.p, y.p + y.size);
+//     return std::equal(x.p, x.p + x.size, y.p, y.p + y.size);
 //   }
 // };
 //
@@ -193,9 +195,9 @@ testing::AssertionResult VerifyTypeImplementsAbslHashCorrectly(
     const V& value;
     size_t index;
     std::string ToString() const {
-      return absl::visit(PrintVisitor{index}, value);
+      return std::visit(PrintVisitor{index}, value);
     }
-    SpyHashState expand() const { return absl::visit(ExpandVisitor{}, value); }
+    SpyHashState expand() const { return std::visit(ExpandVisitor{}, value); }
   };
 
   using EqClass = std::vector<Info>;
@@ -206,7 +208,7 @@ testing::AssertionResult VerifyTypeImplementsAbslHashCorrectly(
   for (const auto& value : values) {
     EqClass* c = nullptr;
     for (auto& eqclass : classes) {
-      if (absl::visit(EqVisitor<Eq>{equals}, value, eqclass[0].value)) {
+      if (std::visit(EqVisitor<Eq>{equals}, value, eqclass[0].value)) {
         c = &eqclass;
         break;
       }
@@ -280,7 +282,7 @@ testing::AssertionResult VerifyTypeImplementsAbslHashCorrectly(
 
 template <typename... T>
 struct TypeSet {
-  template <typename U, bool = disjunction<std::is_same<T, U>...>::value>
+  template <typename U, bool = std::disjunction_v<std::is_same<T, U>...>>
   struct Insert {
     using type = TypeSet<U, T...>;
   };
@@ -300,11 +302,11 @@ struct MakeTypeSet<T, Ts...> : MakeTypeSet<Ts...>::template Insert<T>::type {};
 
 template <typename... T>
 using VariantForTypes = typename MakeTypeSet<
-    const typename std::decay<T>::type*...>::template apply<absl::variant>;
+    const std::decay_t<T>*...>::template apply<std::variant>;
 
 template <typename Container>
 struct ContainerAsVector {
-  using V = absl::variant<const typename Container::value_type*>;
+  using V = std::variant<const typename Container::value_type*>;
   using Out = std::vector<V>;
 
   static Out Do(const Container& values) {
@@ -320,12 +322,12 @@ struct ContainerAsVector<std::tuple<T...>> {
   using Out = std::vector<V>;
 
   template <size_t... I>
-  static Out DoImpl(const std::tuple<T...>& tuple, absl::index_sequence<I...>) {
+  static Out DoImpl(const std::tuple<T...>& tuple, std::index_sequence<I...>) {
     return Out{&std::get<I>(tuple)...};
   }
 
   static Out Do(const std::tuple<T...>& values) {
-    return DoImpl(values, absl::index_sequence_for<T...>());
+    return DoImpl(values, std::index_sequence_for<T...>());
   }
 };
 

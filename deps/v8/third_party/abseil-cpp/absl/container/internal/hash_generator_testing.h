@@ -47,7 +47,7 @@ template <class Container, class = void>
 struct IsMap : std::false_type {};
 
 template <class Map>
-struct IsMap<Map, absl::void_t<typename Map::mapped_type>> : std::true_type {};
+struct IsMap<Map, std::void_t<typename Map::mapped_type>> : std::true_type {};
 
 }  // namespace generator_internal
 
@@ -69,7 +69,7 @@ template <class T, class E = void>
 struct Generator;
 
 template <class T>
-struct Generator<T, typename std::enable_if<std::is_integral<T>::value>::type> {
+struct Generator<T, std::enable_if_t<std::is_integral_v<T>>> {
   T operator()() const { return dist(gen); }
   mutable absl::InsecureBitGen gen;
   mutable std::uniform_int_distribution<T> dist;
@@ -79,18 +79,14 @@ template <>
 struct Generator<Enum> {
   Enum operator()() const { return static_cast<Enum>(dist(gen)); }
   mutable absl::InsecureBitGen gen;
-  mutable std::uniform_int_distribution<
-      typename std::underlying_type<Enum>::type>
-      dist;
+  mutable std::uniform_int_distribution<std::underlying_type_t<Enum>> dist;
 };
 
 template <>
 struct Generator<EnumClass> {
   EnumClass operator()() const { return static_cast<EnumClass>(dist(gen)); }
   mutable absl::InsecureBitGen gen;
-  mutable std::uniform_int_distribution<
-      typename std::underlying_type<EnumClass>::type>
-      dist;
+  mutable std::uniform_int_distribution<std::underlying_type_t<EnumClass>> dist;
 };
 
 template <>
@@ -113,38 +109,38 @@ struct Generator<NonStandardLayout> {
 template <class K, class V>
 struct Generator<std::pair<K, V>> {
   std::pair<K, V> operator()() const {
-    return std::pair<K, V>(Generator<typename std::decay<K>::type>()(),
-                           Generator<typename std::decay<V>::type>()());
+    return std::pair<K, V>(Generator<std::decay_t<K>>()(),
+                           Generator<std::decay_t<V>>()());
   }
 };
 
 template <class... Ts>
 struct Generator<std::tuple<Ts...>> {
   std::tuple<Ts...> operator()() const {
-    return std::tuple<Ts...>(Generator<typename std::decay<Ts>::type>()()...);
+    return std::tuple<Ts...>(Generator<std::decay_t<Ts>>()()...);
   }
 };
 
 template <class T>
 struct Generator<std::unique_ptr<T>> {
   std::unique_ptr<T> operator()() const {
-    return absl::make_unique<T>(Generator<T>()());
+    return std::make_unique<T>(Generator<T>()());
   }
 };
 
 template <class U>
-struct Generator<U, absl::void_t<decltype(std::declval<U&>().key()),
-                                 decltype(std::declval<U&>().value())>>
-    : Generator<std::pair<
-          typename std::decay<decltype(std::declval<U&>().key())>::type,
-          typename std::decay<decltype(std::declval<U&>().value())>::type>> {};
+struct Generator<U, std::void_t<decltype(std::declval<U&>().key()),
+                                decltype(std::declval<U&>().value())>>
+    : Generator<std::pair<std::decay_t<decltype(std::declval<U&>().key())>,
+                          std::decay_t<decltype(std::declval<U&>().value())>>> {
+};
 
 template <class Container>
 using GeneratedType =
-    decltype(std::declval<const Generator<typename std::conditional<
-                 generator_internal::IsMap<Container>::value,
-                 typename Container::value_type,
-                 typename Container::key_type>::type>&>()());
+    decltype(std::declval<const Generator<
+                 std::conditional_t<generator_internal::IsMap<Container>::value,
+                                    typename Container::value_type,
+                                    typename Container::key_type>>&>()());
 
 // Naive wrapper that performs a linear search of previous values.
 // Beware this is O(SQR), which is reasonable for smaller kMaxValues.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-compilation-hints --trace-wasm-inlining
+// Flags: --wasm-compilation-hints --trace-wasm-inlining
 // Flags: --allow-natives-syntax --no-liftoff --wasm-lazy-compilation
 
 // We need --wasm-lazy-compilation because otherwise we compile all functions

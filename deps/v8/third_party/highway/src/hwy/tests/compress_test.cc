@@ -57,7 +57,7 @@ void CheckStored(D d, DI di, const char* op, size_t expected_pos,
       Print(di, "mask", Load(di, mask_lanes.get()), 0, N);
       Print(d, "in", Load(d, in.get()), 0, N);
       Print(d, "expect", Load(d, expected.get()), 0, num_to_check);
-      Print(d, "actual", Load(d, actual_u), 0, num_to_check);
+      Print(d, "actual", LoadU(d, actual_u), 0, num_to_check);
       HWY_ASSERT(false);
     }
   }
@@ -72,7 +72,7 @@ struct TestCompress {
     using TU = MakeUnsigned<T>;
     const Rebind<TI, D> di;
     const size_t N = Lanes(d);
-    const size_t bits_size = RoundUpTo((N + 7) / 8, 8);
+    const size_t bits_size = RoundUpTo(DivCeil(N, size_t{8}), size_t{8});
 
     for (int frac : {0, 2, 3}) {
       // For CompressStore
@@ -101,6 +101,7 @@ struct TestCompress {
           }
           garbage[i] = static_cast<TU>(Random64(&rng));
         }
+        HWY_ASSERT(expected_pos <= N);
         size_t num_to_check;
         if (CompressIsPartition<T>::value) {
           // For non-native Compress, also check that mask=false lanes were
@@ -145,7 +146,7 @@ struct TestCompress {
                     in_lanes, mask_lanes, expected, actual_u, __LINE__);
 
         // CompressBlendedStore
-        memcpy(actual_u, garbage.get(), N * sizeof(T));
+        CopyBytes(garbage.get(), actual_u, N * sizeof(T));
         const size_t size2 = CompressBlendedStore(in, mask, d, actual_u);
         // expected_pos instead of num_to_check because this op only writes
         // the mask=true lanes.
@@ -157,7 +158,7 @@ struct TestCompress {
 #if HWY_COMPILER_MSVC && HWY_TARGET == HWY_AVX2
           // TODO(eustas): re-enable when compiler is fixed
 #else
-          HWY_ASSERT_EQ(garbage[i], reinterpret_cast<TU*>(actual_u)[i]);
+          HWY_ASSERT_EQ(garbage[i], HWY_RCAST_ALIGNED(const TU*, actual_u)[i]);
 #endif
         }
 
@@ -177,7 +178,7 @@ struct TestCompress {
                     expected_pos, in_lanes, mask_lanes, expected, actual_u,
                     __LINE__);
       }  // rep
-    }    // frac
+    }  // frac
   }      // operator()
 };
 
@@ -210,12 +211,15 @@ struct TestCompressBlocks {
       for (size_t i = 0; i < N; i += 2) {
         in_lanes[i] = RandomFiniteValue<T>(&rng);
         in_lanes[i + 1] = RandomFiniteValue<T>(&rng);
-        mask_lanes[i + 1] = mask_lanes[i] = TI{(Random32(&rng) & 8) ? 1 : 0};
+        mask_lanes[i] = TI{(Random32(&rng) & 8) ? 1 : 0};
+        mask_lanes[i + 1] = mask_lanes[i];
         if (mask_lanes[i] > 0) {
           expected[expected_pos++] = in_lanes[i];
           expected[expected_pos++] = in_lanes[i + 1];
         }
       }
+      HWY_ASSERT(expected_pos <= N);
+
       size_t num_to_check;
       if (CompressIsPartition<T>::value) {
         // For non-native Compress, also check that mask=false lanes were
@@ -782,7 +786,7 @@ void PrintCompressNot64x2Tables() {
   printf("\n");
 }
 
-HWY_NOINLINE void PrintTables() {
+HWY_MAYBE_UNUSED HWY_NOINLINE void PrintTables() {
   // Only print once.
 #if HWY_TARGET == HWY_STATIC_TARGET
   PrintCompress32x8Tables();

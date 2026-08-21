@@ -15,7 +15,6 @@ main0.addBody([
     kExprF32SConvertI64,
     kExprF64ConvertF32,
 ]);
-let kBuiltins = { builtins: ['js-string', 'text-decoder', 'text-encoder'] };
-const wasmInstance = builder.instantiate({}, kBuiltins);
+const wasmInstance = builder.instantiate();
 let f = wasmInstance.exports.main;
 assertEquals(f(), -2684354560);

@@ -14,8 +14,8 @@ const kArrayPrototypeValues: constexpr BuiltinsName
 const kSetPrototypeValues: constexpr BuiltinsName
     generates 'Builtin::kSetPrototypeValues';
 
-extern builtin IterableToList(implicit context: Context)(JSAny,
-                              JSAny): JSArray;
+extern builtin IterableToList(implicit context: Context)(JSAny, JSAny):
+    JSArray;
 
 macro CanCopyElementsFastNumber(source: JSArray): bool {
   const map: Map = source.map;
@@ -26,7 +26,7 @@ macro CanCopyElementsFastNumber(source: JSArray): bool {
 }
 
 // %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
-// https://tc39.github.io/ecma262/#sec-%typedarray%.from
+// https://tc39.es/ecma262/#sec-%typedarray%.from
 transitioning javascript builtin TypedArrayFrom(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): JSTypedArray {

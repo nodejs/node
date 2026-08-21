@@ -91,7 +91,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
     // space or filler objects in large pages. A few cctests violate this now.
     Tagged<HeapObject> obj(
         static_cast<const LargePage*>(chunk_metadata)->GetObject());
-    MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
+    MapWord map_word = obj->map_word(kRelaxedLoad);
     return (!ConcreteVisitor::FilterLargeObject(obj, map_word) ||
             InstanceTypeChecker::IsFreeSpaceOrFiller(map_word.ToMap()))
                ? kNullAddress
@@ -109,15 +109,20 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   MarkingBitmap* bitmap = const_cast<MarkingBitmap*>(page->marking_bitmap());
   while (true) {
     Tagged<HeapObject> obj(HeapObject::FromAddress(base_ptr));
-    MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
+    MapWord map_word = obj->map_word(kRelaxedLoad);
     if (!ConcreteVisitor::FilterNormalObject(obj, map_word, bitmap)) {
       return kNullAddress;
     }
-    const int size = obj->SizeFromMap(map_word.ToMap());
+    Tagged<Map> map = map_word.ToMap();
+    // If the following check ever fails, this most probably means that the page
+    // is not iterable and that we have missed some `Heap::MakeHeapIterable`
+    // before invoking CSS.
+    DCHECK(Is<Map>(map));
+    const int size = obj->SizeFromMap(map);
     DCHECK_LT(0, size);
     if (maybe_inner_ptr < base_ptr + size) {
       ConcreteVisitor::HandleObjectFound(obj, size, bitmap);
-      return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
+      return IsFreeSpaceOrFiller(obj) ? kNullAddress : base_ptr;
     }
     base_ptr += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
     DCHECK_LT(base_ptr, page->area_end());

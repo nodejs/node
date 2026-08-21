@@ -22,6 +22,7 @@
 #include "src/inspector/v8-deep-serializer.h"
 #include "src/inspector/v8-inspector-impl.h"
 #include "src/inspector/v8-serialization-duplicate-tracker.h"
+#include "src/inspector/v8-value-utils.h"
 
 namespace v8_inspector {
 
@@ -50,8 +51,9 @@ Response arrayToProtocolValue(v8::Local<v8::Context> context,
   uint32_t length = array->Length();
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> value;
-    if (!array->Get(context, i).ToLocal(&value))
+    if (!array->Get(context, i).ToLocal(&value)) {
       return Response::InternalError();
+    }
     std::unique_ptr<protocol::Value> element;
     Response response = toProtocolValue(context, value, maxDepth - 1, &element);
     if (!response.IsSuccess()) return response;
@@ -67,25 +69,30 @@ Response objectToProtocolValue(
   std::unique_ptr<protocol::DictionaryValue> jsonObject =
       protocol::DictionaryValue::create();
   v8::Local<v8::Array> propertyNames;
-  if (!object->GetOwnPropertyNames(context).ToLocal(&propertyNames))
+  if (!object->GetOwnPropertyNames(context).ToLocal(&propertyNames)) {
     return Response::InternalError();
+  }
   uint32_t length = propertyNames->Length();
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> name;
-    if (!propertyNames->Get(context, i).ToLocal(&name))
+    if (!propertyNames->Get(context, i).ToLocal(&name)) {
       return Response::InternalError();
+    }
     if (name->IsString()) {
       v8::Maybe<bool> hasRealNamedProperty =
           object->HasRealNamedProperty(context, name.As<v8::String>());
       // Don't access properties with interceptors.
-      if (hasRealNamedProperty.IsNothing() || !hasRealNamedProperty.FromJust())
+      if (hasRealNamedProperty.IsNothing() ||
+          !hasRealNamedProperty.FromJust()) {
         continue;
+      }
     }
     v8::Local<v8::String> propertyName;
     if (!name->ToString(context).ToLocal(&propertyName)) continue;
     v8::Local<v8::Value> property;
-    if (!object->Get(context, name).ToLocal(&property))
+    if (!object->Get(context, name).ToLocal(&property)) {
       return Response::InternalError();
+    }
     if (property->IsUndefined()) continue;
     std::unique_ptr<protocol::Value> propertyValue;
     Response response =
@@ -116,8 +123,9 @@ std::unique_ptr<protocol::FundamentalValue> toProtocolValue(
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
                          std::unique_ptr<protocol::Value>* result) {
-  if (maxDepth <= 0)
+  if (maxDepth <= 0) {
     return Response::ServerError("Object reference chain is too long");
+  }
 
   if (value->IsNull() || value->IsUndefined()) {
     *result = protocol::Value::null();
@@ -182,7 +190,8 @@ V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
   V8InspectorImpl* inspector = static_cast<V8InspectorImpl*>(
       v8::debug::GetInspector(v8::Isolate::GetCurrent()));
   int contextId = InspectedContext::contextId(context);
-  InspectedContext* inspectedContext = inspector->getContext(contextId);
+  std::shared_ptr<InspectedContext> inspectedContext =
+      inspector->getContext(contextId);
   if (!inspectedContext) return V8InternalValueType::kNone;
   return inspectedContext->getInternalType(value.As<v8::Object>());
 }
@@ -250,10 +259,12 @@ String16 descriptionForRegExp(v8::Isolate* isolate,
   return description.toString();
 }
 
-v8::Local<v8::Function> deepBoundFunction(v8::Local<v8::Function> function) {
-  while (function->GetBoundFunction()->IsFunction())
-    function = function->GetBoundFunction().As<v8::Function>();
-  return function;
+bool isBuiltinGetter(v8::Local<v8::Function> function) {
+  // A bound function may forward to user code via its bound receiver or
+  // bound arguments even when the underlying target is a builtin, so it is
+  // never treated as a plain builtin getter.
+  if (function->GetBoundFunction()->IsFunction()) return false;
+  return function->ScriptId() == v8::UnboundScript::kNoScriptId;
 }
 
 v8::MaybeLocal<v8::Value> getErrorProperty(v8::Local<v8::Context> context,
@@ -283,12 +294,9 @@ v8::MaybeLocal<v8::Value> getErrorProperty(v8::Local<v8::Context> context,
     return object->Get(context, name);
   }
 
-  if (getDescriptor->IsFunction()) {
-    v8::Local<v8::Function> function = getDescriptor.As<v8::Function>();
-    if (deepBoundFunction(function)->ScriptId() !=
-        v8::UnboundScript::kNoScriptId) {
-      return v8::MaybeLocal<v8::Value>();
-    }
+  if (getDescriptor->IsFunction() &&
+      !isBuiltinGetter(getDescriptor.As<v8::Function>())) {
+    return v8::MaybeLocal<v8::Value>();
   }
 
   return object->Get(context, name);
@@ -531,8 +539,9 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
             .setOverflow(false)
             .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
             .build();
-    if (value->IsNull())
+    if (value->IsNull()) {
       (*preview)->setSubtype(RemoteObject::SubtypeEnum::Null);
+    }
   }
 
   void buildPropertyPreview(
@@ -545,8 +554,9 @@ class PrimitiveValueMirror final : public ValueMirrorBase {
                        descriptionForPrimitiveType(context, value), kMiddle))
                    .setType(m_type)
                    .build();
-    if (value->IsNull())
+    if (value->IsNull()) {
       (*preview)->setSubtype(RemoteObject::SubtypeEnum::Null);
+    }
   }
 
   Response buildDeepSerializedValue(
@@ -1269,10 +1279,11 @@ class ObjectMirror final : public ValueMirrorBase {
     if (embedderDeepSerializedResult) {
       // Embedder-implemented serialization.
 
-      if (!embedderDeepSerializedResult->isSuccess)
+      if (!embedderDeepSerializedResult->isSuccess) {
         return Response::ServerError(
             toString16(embedderDeepSerializedResult->errorMessage->string())
                 .utf8());
+      }
 
       (*result)->setString(
           "type",
@@ -1396,19 +1407,17 @@ class ObjectMirror final : public ValueMirrorBase {
 };
 
 void nativeGetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Local<v8::Object> data = info.Data().As<v8::Object>();
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Value> name;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "name"))
-           .ToLocal(&name)) {
-    return;
-  }
   v8::Local<v8::Value> object;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "object"))
-           .ToLocal(&object) ||
-      !object->IsObject()) {
-    return;
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    if (!data->Get(context, 0).ToLocal(&name)) return;
+    if (!data->Get(context, 1).ToLocal(&object) || !object->IsObject()) return;
   }
   v8::Local<v8::Value> value;
   if (!object.As<v8::Object>()->Get(context, name).ToLocal(&value)) return;
@@ -1421,13 +1430,9 @@ std::unique_ptr<ValueMirror> createNativeGetter(v8::Local<v8::Context> context,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
-  v8::Local<v8::Object> data = v8::Object::New(isolate);
-  if (data->Set(context, toV8String(isolate, "name"), name).IsNothing()) {
-    return nullptr;
-  }
-  if (data->Set(context, toV8String(isolate, "object"), object).IsNothing()) {
-    return nullptr;
-  }
+  v8::Local<v8::Array> data = v8::Array::New(isolate, 2);
+  if (createDataProperty(context, data, 0, name).IsNothing()) return nullptr;
+  if (createDataProperty(context, data, 1, object).IsNothing()) return nullptr;
 
   v8::Local<v8::Function> function;
   if (!v8::Function::New(context, nativeGetterCallback, data, 0,
@@ -1440,19 +1445,17 @@ std::unique_ptr<ValueMirror> createNativeGetter(v8::Local<v8::Context> context,
 
 void nativeSetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (info.Length() < 1) return;
-  v8::Local<v8::Object> data = info.Data().As<v8::Object>();
   v8::Isolate* isolate = info.GetIsolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Value> name;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "name"))
-           .ToLocal(&name)) {
-    return;
-  }
   v8::Local<v8::Value> object;
-  if (!data->GetRealNamedProperty(context, toV8String(isolate, "object"))
-           .ToLocal(&object) ||
-      !object->IsObject()) {
-    return;
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+    v8::Local<v8::Array> data = info.Data().As<v8::Array>();
+    if (!data->Get(context, 0).ToLocal(&name)) return;
+    if (!data->Get(context, 1).ToLocal(&object) || !object->IsObject()) return;
   }
   if (!object.As<v8::Object>()->Set(context, name, info[0]).IsNothing()) return;
 }
@@ -1463,13 +1466,9 @@ std::unique_ptr<ValueMirror> createNativeSetter(v8::Local<v8::Context> context,
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
-  v8::Local<v8::Object> data = v8::Object::New(isolate);
-  if (data->Set(context, toV8String(isolate, "name"), name).IsNothing()) {
-    return nullptr;
-  }
-  if (data->Set(context, toV8String(isolate, "object"), object).IsNothing()) {
-    return nullptr;
-  }
+  v8::Local<v8::Array> data = v8::Array::New(isolate, 2);
+  if (createDataProperty(context, data, 0, name).IsNothing()) return nullptr;
+  if (createDataProperty(context, data, 1, object).IsNothing()) return nullptr;
 
   v8::Local<v8::Function> function;
   if (!v8::Function::New(context, nativeSetterCallback, data, 1,
@@ -1591,7 +1590,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     bool configurable = false;
 
     bool isAccessorProperty = false;
-    bool isSideEffectFreeGetter = false;
     v8::TryCatch tryCatchAttributes(isolate);
     if (!iterator->attributes().To(&attributes)) {
       exceptionMirror =
@@ -1608,7 +1606,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
         enumerable = !(attributes & v8::PropertyAttribute::DontEnum);
         configurable = !(attributes & v8::PropertyAttribute::DontDelete);
         isAccessorProperty = getterMirror || setterMirror;
-        isSideEffectFreeGetter = true;
       } else {
         v8::TryCatch tryCatchDescriptor(isolate);
         v8::debug::PropertyDescriptor descriptor;
@@ -1635,11 +1632,9 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
           }
           isAccessorProperty = getterMirror || setterMirror;
           if (name != "__proto__" && !getterFunction.IsEmpty() &&
-              deepBoundFunction(getterFunction)->ScriptId() ==
-                  v8::UnboundScript::kNoScriptId &&
+              isBuiltinGetter(getterFunction) &&
               !doesAttributeHaveObservableSideEffectOnGet(context, object,
                                                           v8Name)) {
-            isSideEffectFreeGetter = true;
             v8::TryCatch tryCatchFunction(isolate);
             v8::Local<v8::Value> value;
             if (object->Get(context, v8Name).ToLocal(&value)) {
@@ -1657,15 +1652,6 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
       }
     }
     if (accessorPropertiesOnly && !isAccessorProperty) continue;
-    if (accessorPropertiesOnly && isAccessorProperty && !isOwn &&
-        isSideEffectFreeGetter) {
-      v8::Local<v8::Value> currentValue;
-      if (object->Get(context, v8Name).ToLocal(&currentValue)) {
-        if (!currentValue->ToBoolean(isolate)->Value()) {
-          continue;
-        }
-      }
-    }
     auto mirror = PropertyMirror{name,
                                  writable,
                                  configurable,
@@ -1757,8 +1743,9 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
   int filter =
       static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateAccessors) |
       static_cast<int>(v8::debug::PrivateMemberFilter::kPrivateFields);
-  if (!v8::debug::GetPrivateMembers(context, object, filter, &names, &values))
+  if (!v8::debug::GetPrivateMembers(context, object, filter, &names, &values)) {
     return mirrors;
+  }
 
   size_t len = values.size();
   for (size_t i = 0; i < len; i++) {

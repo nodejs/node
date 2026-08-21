@@ -40,29 +40,51 @@ std::vector<std::string> V8_EXPORT_PRIVATE StringSplit(const std::string& instr,
 std::string Mem2Hex(const uint8_t* mem, size_t count);
 std::string Mem2Hex(const std::string& str);
 
-// For LLDB debugging, an address in a Wasm module code space is represented
-// with 64 bits, where the first 32 bits identify the module id:
-// +--------------------+--------------------+
-// |     module_id      |       offset       |
-// +--------------------+--------------------+
-//  <----- 32 bit -----> <----- 32 bit ----->
+// For LLDB debugging, the separate 32-bit WebAssembly address spaces (code and
+// linear memory) are encoded into a single 64-bit virtual address. This matches
+// the encoding used by LLDB's own wasm_addr_t, so that code and memory occupy
+// distinct address spaces (selected by the top two bits) instead of
+// overlapping:
+// +----------+---------------------+--------------------+
+// |   type   |      module_id      |       offset       |
+// +----------+---------------------+--------------------+
+//  <- 2 bit -> <----- 30 bit -----> <----- 32 bit ----->
+// 'type' is Object for code (a module wire-byte offset) and Memory for an
+// offset into a module's linear memory.
+enum class WasmAddressType : uint8_t {
+  Memory = 0x00,
+  Object = 0x01,
+  Invalid = 0x03
+};
+
 class wasm_addr_t {
  public:
+  // Addresses built by the stub (module bases, PCs, breakpoints) are code
+  // addresses, i.e. module wire-byte offsets in the Object space.
   wasm_addr_t(uint32_t module_id, uint32_t offset)
-      : module_id_(module_id), offset_(offset) {}
+      : offset_(offset),
+        module_id_(module_id & 0x3fffffff),
+        type_(static_cast<uint32_t>(WasmAddressType::Object)) {}
   explicit wasm_addr_t(uint64_t address)
-      : module_id_(address >> 32), offset_(address & 0xffffffff) {}
+      : offset_(static_cast<uint32_t>(address & 0xffffffff)),
+        module_id_(static_cast<uint32_t>((address >> 32) & 0x3fffffff)),
+        type_(static_cast<uint32_t>((address >> 62) & 0x3)) {}
 
   inline uint32_t ModuleId() const { return module_id_; }
   inline uint32_t Offset() const { return offset_; }
+  inline WasmAddressType Type() const {
+    return static_cast<WasmAddressType>(type_);
+  }
 
   inline operator uint64_t() const {
-    return static_cast<uint64_t>(module_id_) << 32 | offset_;
+    return (static_cast<uint64_t>(type_) << 62) |
+           (static_cast<uint64_t>(module_id_) << 32) | offset_;
   }
 
  private:
-  uint32_t module_id_;
   uint32_t offset_;
+  uint32_t module_id_ : 30;
+  uint32_t type_ : 2;
 };
 
 }  // namespace gdb_server

@@ -233,7 +233,7 @@ ast_enum_of_structs! {
         /// A tuple expression: `(a, b, c, d)`.
         Tuple(ExprTuple),
 
-        /// A unary operation: `!x`, `*x`.
+        /// A unary operation: `!x`, `*x`, `-x`.
         Unary(ExprUnary),
 
         /// An unsafe block: `unsafe { ... }`.
@@ -674,7 +674,7 @@ ast_struct! {
 }
 
 ast_struct! {
-    /// A unary operation: `!x`, `*x`.
+    /// A unary operation: `!x`, `*x`, `-x`.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "full", feature = "derive"))))]
     pub struct ExprUnary {
         pub attrs: Vec<Attribute>,

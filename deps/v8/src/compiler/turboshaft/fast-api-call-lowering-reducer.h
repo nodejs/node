@@ -6,9 +6,11 @@
 #define V8_COMPILER_TURBOSHAFT_FAST_API_CALL_LOWERING_REDUCER_H_
 
 #include "include/v8-fast-api-calls.h"
+#include "src/base/logging.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -25,8 +27,8 @@ class FastApiCallLoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
   OpIndex REDUCE(FastApiCall)(
-      V<FrameState> frame_state, V<Object> data_argument, V<Context> context,
-      base::Vector<const OpIndex> arguments,
+      V<LazyFrameState> frame_state, V<Object> data_argument,
+      V<Context> context, base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
     __ data() -> set_graph_has_lowered_fast_api_calls();
@@ -46,8 +48,8 @@ class FastApiCallLoweringReducer : public Next {
 
     base::SmallVector<OpIndex, 16> args;
     for (int i = 0; i < c_arg_count; ++i) {
-        CTypeInfo type = c_signature->ArgumentInfo(i);
-        args.push_back(AdaptFastCallArgument(arguments[i], type, handle_error));
+      CTypeInfo type = c_signature->ArgumentInfo(i);
+      args.push_back(AdaptFastCallArgument(arguments[i], type, handle_error));
     }
 
     // While adapting the arguments, we might have noticed an inconsistency that
@@ -93,10 +95,15 @@ class FastApiCallLoweringReducer : public Next {
       }
 
       // Build the actual call.
+      // For Wasm Fast API Call wrappers, we don't have a frame state, and
+      // avoid the need for it by calling the WasmPropagateException builtin
+      // below.
       const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
-          Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get(),
-                                            CallDescriptor::kNeedsFrameState),
-          CanThrow::kYes, LazyDeoptOnThrow::kNo, __ graph_zone());
+          Linkage::GetSimplifiedCDescriptor(
+              __ graph_zone(), builder.Get(),
+              frame_state.valid() ? CallDescriptor::kNeedsFrameState
+                                  : CallDescriptor::kNoFlags),
+          CanThrow{true}, LazyDeoptOnThrow{false}, __ graph_zone());
       OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
                                            context, base::VectorOf(args));
 
@@ -105,18 +112,32 @@ class FastApiCallLoweringReducer : public Next {
       V<Object> exception =
           __ Load(__ IsolateField(IsolateFieldId::kException),
                   LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr());
-      GOTO_IF_NOT(LIKELY(__ TaggedEqual(
-                      exception,
-                      __ HeapConstant(isolate_->factory()->the_hole_value()))),
-                  trigger_exception);
+      GOTO_IF_NOT(
+          LIKELY(__ TaggedEqual(
+              exception, __ template LoadRoot<RootIndex::kTheHoleValue>())),
+          trigger_exception);
 
       V<Any> fast_call_result = ConvertReturnValue(c_signature, c_call_result);
       __ SetVariable(result, fast_call_result);
 
       GOTO(done, FastApiCallOp::kSuccessValue);
       BIND(trigger_exception);
-      __ template CallRuntime<typename runtime::PropagateException>(
-          frame_state, context, {}, LazyDeoptOnThrow::kNo);
+      if (frame_state.valid()) {
+        __ template CallRuntime<typename runtime::PropagateException>(
+            frame_state, context, {}, LazyDeoptOnThrow{false});
+      } else {
+#if V8_ENABLE_WEBASSEMBLY
+        using Desc = deprecated::BuiltinCallDescriptor::WasmPropagateException;
+        OpIndex propagate_exception_builtin =
+            __ SmiConstant(Smi::FromInt(static_cast<int>(Desc::kFunction)));
+        __ Call(
+            propagate_exception_builtin, OpIndex::Invalid(), {},
+            Desc::Create(StubCallMode::kCallBuiltinPointer, __ graph_zone()),
+            Desc::kEffects);
+#else
+        UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+      }
 
       __ Unreachable();
     }
@@ -175,7 +196,29 @@ class FastApiCallLoweringReducer : public Next {
           return __ AdaptLocalArgument(argument);
         }
         case CTypeInfo::Type::kFloat32: {
-          return __ TruncateFloat64ToFloat32(argument);
+          // When Wasm performs a Fast API Call, it'll provide a float32 value.
+          // Only JavaScript needs a truncation here.
+          if (__ Get(argument).outputs_rep()[0] ==
+              RegisterRepresentation::Float32()) {
+            if (flags &
+                static_cast<uint8_t>(CTypeInfo::Flags::kIsRestrictedBit)) {
+              GOTO_IF_NOT(__ Float32IsFinite(argument), handle_error);
+            }
+            return argument;
+          }
+          V<Float32> result = __ TruncateFloat64ToFloat32(argument);
+          if (flags &
+              static_cast<uint8_t>(CTypeInfo::Flags::kIsRestrictedBit)) {
+            GOTO_IF_NOT(__ Float32IsFinite(result), handle_error);
+          }
+          return result;
+        }
+        case CTypeInfo::Type::kFloat64: {
+          if (flags &
+              static_cast<uint8_t>(CTypeInfo::Flags::kIsRestrictedBit)) {
+            GOTO_IF_NOT(__ Float64IsFinite(argument), handle_error);
+          }
+          return argument;
         }
         case CTypeInfo::Type::kPointer: {
           // Check that the value is a HeapObject.
@@ -184,13 +227,14 @@ class FastApiCallLoweringReducer : public Next {
 
           // Check if the value is null.
           GOTO_IF(UNLIKELY(__ TaggedEqual(
-                      argument, __ HeapConstant(factory_->null_value()))),
+                      argument, __ template LoadRoot<RootIndex::kNullValue>())),
                   done, 0);
 
           // Check that the value is a JSExternalObject.
-          GOTO_IF_NOT(__ TaggedEqual(__ LoadMapField(argument),
-                                     __ HeapConstant(factory_->external_map())),
-                      handle_error);
+          GOTO_IF_NOT(
+              __ TaggedEqual(__ LoadMapField(argument),
+                             __ template LoadRoot<RootIndex::kExternalMap>()),
+              handle_error);
 
           GOTO(done, __ template LoadField<WordPtr>(
                          V<HeapObject>::Cast(argument),
@@ -294,7 +338,7 @@ class FastApiCallLoweringReducer : public Next {
   V<Any> DefaultReturnValue(const CFunctionInfo* c_signature) {
     switch (c_signature->ReturnInfo().GetType()) {
       case CTypeInfo::Type::kVoid:
-        return __ HeapConstant(factory_->undefined_value());
+        return __ template LoadRoot<RootIndex::kUndefinedValue>();
       case CTypeInfo::Type::kBool:
       case CTypeInfo::Type::kInt32:
       case CTypeInfo::Type::kUint32:
@@ -314,7 +358,7 @@ class FastApiCallLoweringReducer : public Next {
       case CTypeInfo::Type::kFloat64:
         return __ Float64Constant(0);
       case CTypeInfo::Type::kPointer:
-        return __ HeapConstant(factory_->undefined_value());
+        return __ template LoadRoot<RootIndex::kUndefinedValue>();
       case CTypeInfo::Type::kAny:
       case CTypeInfo::Type::kSeqOneByteString:
       case CTypeInfo::Type::kV8Value:
@@ -322,12 +366,13 @@ class FastApiCallLoweringReducer : public Next {
       case CTypeInfo::Type::kUint8:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   V<Any> ConvertReturnValue(const CFunctionInfo* c_signature, OpIndex result) {
     switch (c_signature->ReturnInfo().GetType()) {
       case CTypeInfo::Type::kVoid:
-        return __ HeapConstant(factory_->undefined_value());
+        return __ template LoadRoot<RootIndex::kUndefinedValue>();
       case CTypeInfo::Type::kBool:
         static_assert(sizeof(bool) == 1, "unsupported bool size");
         return __ Word32BitwiseAnd(result, 0xFF);
@@ -364,6 +409,7 @@ class FastApiCallLoweringReducer : public Next {
       case CTypeInfo::Type::kUint8:
         UNREACHABLE();
     }
+    UNREACHABLE();
   }
 
   V<HeapObject> BuildAllocateJSExternalObject(V<WordPtr> pointer) {
@@ -371,14 +417,14 @@ class FastApiCallLoweringReducer : public Next {
 
     // Check if the pointer is a null pointer.
     GOTO_IF(__ WordPtrEqual(pointer, 0), done,
-            __ HeapConstant(factory_->null_value()));
+            __ template LoadRoot<RootIndex::kNullValue>());
 
     Uninitialized<HeapObject> external = __ Allocate(
-        JSExternalObject::kHeaderSize, AllocationType::kYoung, kTaggedAligned);
+        sizeof(JSExternalObject), AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(external, AccessBuilder::ForMap(),
-                       __ HeapConstant(factory_->external_map()));
+                       __ template LoadRoot<RootIndex::kExternalMap>());
     V<FixedArray> empty_fixed_array =
-        __ HeapConstant(factory_->empty_fixed_array());
+        __ template LoadRoot<RootIndex::kEmptyFixedArray>();
     __ InitializeField(external, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        empty_fixed_array);
     __ InitializeField(external, AccessBuilder::ForJSObjectElements(),
@@ -400,8 +446,8 @@ class FastApiCallLoweringReducer : public Next {
     OpIndex handle = __ Call(
         allocate_and_initialize_young_external_pointer_table_entry,
         {isolate_ptr, pointer},
-        TSCallDescriptor::Create(call_descriptor, CanThrow::kNo,
-                                 LazyDeoptOnThrow::kNo, __ graph_zone()));
+        TSCallDescriptor::Create(call_descriptor, CanThrow{false},
+                                 LazyDeoptOnThrow{false}, __ graph_zone()));
     __ InitializeField(
         external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else
@@ -415,13 +461,12 @@ class FastApiCallLoweringReducer : public Next {
   }
 
   OpIndex WrapFastCall(const TSCallDescriptor* descriptor, OpIndex callee,
-                       V<FrameState> frame_state, V<Context> context,
+                       V<LazyFrameState> frame_state, V<Context> context,
                        base::Vector<const OpIndex> arguments) {
     // CPU profiler support.
     OpIndex target_address =
         __ IsolateField(IsolateFieldId::kFastApiCallTarget);
-    __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
-                    MemoryRepresentation::UintPtr());
+    __ StoreOffHeap(target_address, callee, MemoryRepresentation::UintPtr());
 
     OpIndex context_address = __ IsolateField(IsolateFieldId::kContext);
 
@@ -444,9 +489,6 @@ class FastApiCallLoweringReducer : public Next {
 
     return result;
   }
-
-  Isolate* isolate_ = __ data() -> isolate();
-  Factory* factory_ = isolate_->factory();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

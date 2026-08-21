@@ -1,0 +1,69 @@
+add_header_library(
+  perfect_hash_map
+  HDRS
+    perfect_hash_map.h
+  DEPENDS
+    libc.hdr.types.size_t
+    libc.hdr.types.wint_t
+    libc.src.__support.CPP.array
+    libc.src.__support.CPP.expected
+    libc.src.__support.CPP.optional
+    libc.src.__support.CPP.span
+    libc.src.__support.CPP.string
+    libc.src.__support.CPP.tuple
+    libc.src.__support.CPP.type_traits
+    libc.src.__support.OSUtil.osutil
+    libc.src.__support.macros.config
+    libc.src.__support.math.ceil
+    libc.src.__support.math.log
+    libc.src.__support.uint128
+)
+
+add_header_library(
+  lower_to_upper
+  HDRS
+    lower_to_upper.h
+  DEPENDS
+    .perfect_hash_map
+)
+
+add_header_library(
+  upper_to_lower
+  HDRS
+    upper_to_lower.h
+  DEPENDS
+    .perfect_hash_map
+)
+
+add_object_library(
+  wctype_classification_utils
+  HDRS
+    wctype_classification_utils.h
+  SRCS
+    wctype_classification_utils.cpp
+  DEPENDS
+    libc.hdr.types.wchar_t
+    libc.hdr.stdint_proxy
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    libc.src.__support.CPP.limits
+    libc.src.__support.libc_assert
+)
+
+add_object_library(
+  wctype_conversion_utils
+  HDRS
+    wctype_conversion_utils.h
+  SRCS
+    wctype_conversion_utils.cpp
+  COMPILE_OPTIONS
+    "-DLIBC_ENABLE_CONSTEXPR=1"
+  DEPENDS
+    libc.hdr.types.wchar_t
+    libc.hdr.types.wint_t
+    libc.src.__support.macros.attributes
+    libc.src.__support.macros.config
+    .lower_to_upper
+    .upper_to_lower
+)
+

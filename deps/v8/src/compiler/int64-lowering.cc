@@ -327,7 +327,7 @@ void Int64Lowering::LowerNode(Node* node) {
       DCHECK_EQ(1, node->InputCount());
       int param_count = static_cast<int>(signature()->parameter_count());
       // Only exchange the node if the parameter count actually changed. We do
-      // not even have to do the default lowering because the the start node,
+      // not even have to do the default lowering because the start node,
       // the only input of a parameter node, only changes if the parameter count
       // changes.
       if (GetParameterCountAfterLowering(signature()) != param_count) {

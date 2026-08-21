@@ -6,6 +6,7 @@
 #define V8_BASE_FLAGS_H_
 
 #include <cstddef>
+#include <initializer_list>
 
 #include "src/base/compiler-specific.h"
 
@@ -31,68 +32,65 @@ class Flags final {
   constexpr Flags() : mask_(0) {}
   constexpr Flags(flag_type flag)  // NOLINT(runtime/explicit)
       : mask_(static_cast<mask_type>(flag)) {}
+  // NOLINTNEXTLINE
+  constexpr Flags(std::initializer_list<flag_type> flags) : Flags() {
+    for (flag_type flag : flags) {
+      mask_ |= static_cast<mask_type>(flag);
+    }
+  }
   constexpr explicit Flags(mask_type mask)
       : mask_(static_cast<mask_type>(mask)) {}
 
+  constexpr bool operator==(const Flags& flags) const = default;
+  constexpr bool operator!=(const Flags& flags) const = default;
   constexpr bool operator==(flag_type flag) const {
     return mask_ == static_cast<mask_type>(flag);
   }
 
-  Flags& operator&=(const Flags& flags) {
-    mask_ &= flags.mask_;
-    return *this;
-  }
-  Flags& operator|=(const Flags& flags) {
-    mask_ |= flags.mask_;
-    return *this;
-  }
-  Flags& operator^=(const Flags& flags) {
-    mask_ ^= flags.mask_;
-    return *this;
-  }
-
-  constexpr Flags operator&(const Flags& flags) const {
-    return Flags(mask_ & flags.mask_);
-  }
-  constexpr Flags operator|(const Flags& flags) const {
-    return Flags(mask_ | flags.mask_);
-  }
-  constexpr Flags operator^(const Flags& flags) const {
-    return Flags(mask_ ^ flags.mask_);
-  }
-
-  Flags& operator&=(flag_type flag) { return operator&=(Flags(flag)); }
-  Flags& operator|=(flag_type flag) { return operator|=(Flags(flag)); }
-  Flags& operator^=(flag_type flag) { return operator^=(Flags(flag)); }
-
   // Sets or clears given flag.
-  Flags& set(flag_type flag, bool value) {
-    if (value) return operator|=(Flags(flag));
-    return operator&=(~Flags(flag));
+  Flags& set(flag_type flag, bool value) { return set(Flags(flag), value); }
+  // Sets or clears given flags.
+  Flags& set(const Flags& flags, bool value) {
+    if (value) return *this |= flags;
+    return *this &= ~flags;
   }
 
-  constexpr Flags operator&(flag_type flag) const {
-    return operator&(Flags(flag));
-  }
-  constexpr Flags operator|(flag_type flag) const {
-    return operator|(Flags(flag));
-  }
-  constexpr Flags operator^(flag_type flag) const {
-    return operator^(Flags(flag));
-  }
-
-  constexpr Flags operator~() const { return Flags(~mask_); }
-
-  constexpr operator mask_type() const { return mask_; }
-  constexpr bool operator!() const { return !mask_; }
-
-  constexpr bool contains(const Flags& flags) const {
+  constexpr bool contains(Flags flags) const {
     return (mask_ & flags.mask_) == flags.mask_;
   }
 
-  Flags without(flag_type flag) const { return *this & (~Flags(flag)); }
+  Flags with(Flags flags) const { return *this | flags; }
+  Flags without(Flags flags) const { return *this & ~flags; }
 
-  friend size_t hash_value(const Flags& flags) { return flags.mask_; }
+  friend size_t hash_value(Flags flags) { return flags.mask_; }
+
+#define DEFINE_BITWISE_OPERATOR(OP)                                        \
+  friend constexpr Flags operator OP(const Flags& flags1,                  \
+                                     const Flags& flags2) {                \
+    return Flags(flags1.mask_ OP flags2.mask_);                            \
+  }                                                                        \
+  friend constexpr Flags operator OP(const Flags& flags, flag_type flag) { \
+    return flags OP Flags(flag);                                           \
+  }                                                                        \
+  friend constexpr Flags operator OP(flag_type flag, const Flags& flags) { \
+    return Flags(flag) OP flags;                                           \
+  }                                                                        \
+  Flags& operator OP##=(const Flags & flags) {                             \
+    mask_ OP## = flags.mask_;                                              \
+    return *this;                                                          \
+  }                                                                        \
+  Flags& operator OP##=(flag_type flag) { return *this OP## = Flags(flag); }
+
+  DEFINE_BITWISE_OPERATOR(&)
+  DEFINE_BITWISE_OPERATOR(|)
+  DEFINE_BITWISE_OPERATOR(^)
+#undef DEFINE_BITWISE_OPERATOR
+
+  constexpr Flags operator~() const { return Flags(~mask_); }
+
+  // NOLINTNEXTLINE
+  constexpr operator mask_type() const { return mask_; }
+  constexpr bool operator!() const { return !mask_; }
 
  private:
   BitfieldStorageT mask_;
@@ -103,29 +101,17 @@ class Flags final {
       Type::flag_type lhs, Type::flag_type rhs) {                        \
     return Type(lhs) & rhs;                                              \
   }                                                                      \
-  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator&( \
-      Type::flag_type lhs, const Type& rhs) {                            \
-    return rhs & lhs;                                                    \
-  }                                                                      \
   V8_ALLOW_UNUSED inline void operator&(Type::flag_type lhs,             \
                                         Type::mask_type rhs) {}          \
   V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator|( \
       Type::flag_type lhs, Type::flag_type rhs) {                        \
     return Type(lhs) | rhs;                                              \
   }                                                                      \
-  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator|( \
-      Type::flag_type lhs, const Type& rhs) {                            \
-    return rhs | lhs;                                                    \
-  }                                                                      \
   V8_ALLOW_UNUSED inline void operator|(Type::flag_type lhs,             \
                                         Type::mask_type rhs) {}          \
   V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator^( \
       Type::flag_type lhs, Type::flag_type rhs) {                        \
     return Type(lhs) ^ rhs;                                              \
-  }                                                                      \
-  V8_ALLOW_UNUSED V8_WARN_UNUSED_RESULT inline constexpr Type operator^( \
-      Type::flag_type lhs, const Type& rhs) {                            \
-    return rhs ^ lhs;                                                    \
   }                                                                      \
   V8_ALLOW_UNUSED inline void operator^(Type::flag_type lhs,             \
                                         Type::mask_type rhs) {}          \

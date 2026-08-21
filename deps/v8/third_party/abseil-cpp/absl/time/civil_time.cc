@@ -55,13 +55,20 @@ bool ParseYearAnd(string_view fmt, string_view s, CivilT* c) {
   const civil_year_t y =
       std::strtoll(np, &endp, 10);  // NOLINT(runtime/deprecated_fn)
   if (endp == np || errno == ERANGE) return false;
-  const std::string norm = StrCat(NormalizeYear(y), endp);
+  const civil_year_t normalized_year = NormalizeYear(y);
+  const std::string norm = StrCat(normalized_year, endp);
 
   const TimeZone utc = UTCTimeZone();
   Time t;
   if (ParseTime(StrCat("%Y", fmt), norm, utc, &t, nullptr)) {
     const auto cs = ToCivilSecond(t, utc);
-    *c = CivilT(y, cs.month(), cs.day(), cs.hour(), cs.minute(), cs.second());
+    // Field normalization while parsing (e.g. a ":60" leap second or an
+    // end-of-year rollover) can carry into the year. The other fields are taken
+    // from `cs`, so the same carry must be applied to the original year;
+    // otherwise the reconstructed value would use the wrong (un-carried) year.
+    const civil_year_t year = y + (cs.year() - normalized_year);
+    *c =
+        CivilT(year, cs.month(), cs.day(), cs.hour(), cs.minute(), cs.second());
     return true;
   }
 

@@ -1,0 +1,50 @@
+header: cpio.h
+standards:
+  - posix
+macros:
+  - macro_name: C_IRUSR
+    macro_value: "000400"
+  - macro_name: C_IWUSR
+    macro_value: "000200"
+  - macro_name: C_IXUSR
+    macro_value: "000100"
+  - macro_name: C_IRGRP
+    macro_value: "000040"
+  - macro_name: C_IWGRP
+    macro_value: "000020"
+  - macro_name: C_IXGRP
+    macro_value: "000010"
+  - macro_name: C_IROTH
+    macro_value: "000004"
+  - macro_name: C_IWOTH
+    macro_value: "000002"
+  - macro_name: C_IXOTH
+    macro_value: "000001"
+  - macro_name: C_ISUID
+    macro_value: "004000"
+  - macro_name: C_ISGID
+    macro_value: "002000"
+  - macro_name: C_ISVTX
+    macro_value: "001000"
+  - macro_name: C_ISDIR
+    macro_value: "040000"
+  - macro_name: C_ISFIFO
+    macro_value: "010000"
+  - macro_name: C_ISREG
+    macro_value: "0100000"
+  - macro_name: C_ISBLK
+    macro_value: "060000"
+  - macro_name: C_ISCHR
+    macro_value: "020000"
+  - macro_name: C_ISCTG
+    macro_value: "0110000"
+  - macro_name: C_ISLNK
+    macro_value: "0120000"
+  - macro_name: C_ISSOCK
+    macro_value: "0140000"
+  - macro_name: MAGIC
+    macro_value: '"070707"'
+types: []
+enums: []
+objects: []
+functions: []

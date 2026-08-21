@@ -9,8 +9,8 @@
 #include "include/cppgc/internal/name-trait.h"
 #include "include/v8-cppgc.h"
 #include "src/handles/traced-handles.h"
+#include "src/heap/cppgc-internal/marking-verifier.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state-inl.h"
-#include "src/heap/cppgc/marking-verifier.h"
 
 namespace v8 {
 namespace internal {

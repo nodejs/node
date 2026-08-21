@@ -37,14 +37,21 @@ concept IsValueNodeT = std::is_base_of_v<ValueNode, T>;
 class PropagateTruncationProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
 
   template <IsValueNodeT NodeT>
   ProcessResult Process(NodeT* node) {
-    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+    if constexpr (NodeT::kProperties.has_eager_deopt_info()) {
+      // Note that we don't know yet if the framestates of CheckpointedJumps
+      // will eventually be used or not. We have to assume that it might
+      // eventually be used, in which case it must prevent truncations of its
+      // inputs (which is why we check `has_eager_deopt_info` rather than
+      // `can_eager_deopt` in the condition above).
       node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {
         UnsetCanTruncateToInt32ForDeoptFrameInput(node);
       });
@@ -59,10 +66,19 @@ class PropagateTruncationProcessor {
       return ProcessResult::kContinue;
     }
 
-    // TODO(marja): Here we'd like to propagate can_truncate_to_int32 upwards so
-    // that all inputs of truncation-compatible Int32(Add|Subtract)WithOverflow
-    // can also truncate. But for that to be safe, we need better range analysis
-    // to make sure we don't go beyond the safe int range.
+    // Int32-representation inputs hold integral values, so wrapping composes
+    // exactly through int32 add/subtract: a truncatable result makes the
+    // inputs truncatable too. This includes the WithOverflow variants, since
+    // TruncationProcessor overwrites truncatable ones with the plain
+    // operation.
+    if constexpr (std::is_same_v<NodeT, Int32Add> ||
+                  std::is_same_v<NodeT, Int32Subtract> ||
+                  std::is_same_v<NodeT, Int32AddWithOverflow> ||
+                  std::is_same_v<NodeT, Int32SubtractWithOverflow>) {
+      if (node->can_truncate_to_int32()) {
+        return ProcessResult::kContinue;
+      }
+    }
 
     // TODO(marja): We can add a limited version of that, to support cases where
     // one of the operands is a constant and thus we can be sure the result
@@ -90,7 +106,7 @@ class PropagateTruncationProcessor {
   ProcessResult Process(NodeT* node) {
     // Non value nodes does not need to be truncated, but we should
     // propagate that we do not want to truncate its inputs.
-    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+    if constexpr (NodeT::kProperties.has_eager_deopt_info()) {
       node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {
         UnsetCanTruncateToInt32ForDeoptFrameInput(node);
       });
@@ -189,7 +205,7 @@ class TruncationProcessor {
   explicit TruncationProcessor(Graph* graph) : reducer_(this, graph) {}
 
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block);
+  BlockProcessResult PostProcessBasicBlock(BasicBlock* block);
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
   void PostPhiProcessing() {}
   void PostProcessGraph(Graph* graph) {}
@@ -237,6 +253,14 @@ class TruncationProcessor {
   PROCESS_INT32_ARITHMETIC_OPERATION_WITH_OVERFLOW(Int32AddWithOverflow)
   PROCESS_INT32_ARITHMETIC_OPERATION_WITH_OVERFLOW(Int32SubtractWithOverflow)
 #undef PROCESS_INT32_ARITHMETIC_OPERATION_WITH_OVERFLOW
+
+  ProcessResult Process(Int32MultiplyWithOverflow* node,
+                        const ProcessingState& state) {
+    PreProcessNode(node, state);
+    ProcessInt32MultiplyWithOverflow(node);
+    PostProcessNode(node);
+    return ProcessResult::kContinue;
+  }
 
 #define PROCESS_INT32_BITWISE_BINARY_OPERATION(Op)                       \
   ProcessResult Process(Op* node, const ProcessingState& state) {        \
@@ -297,6 +321,12 @@ class TruncationProcessor {
 
   ProcessResult ProcessTruncatedConversion(ValueNode* node);
 
+  bool IsUnsafeIntConstant(ValueNode* node, int index) {
+    ValueNode* input = node->input_node(index);
+    return IsConstantNode(input->opcode()) &&
+           !input->GetStaticRange().IsSafeInt();
+  }
+
   bool IsSafeIntInputOrPhi(ValueNode* node, int index) {
     ValueNode* input = node->input_node(index);
     if (input->Is<Phi>()) return true;
@@ -305,7 +335,8 @@ class TruncationProcessor {
   }
 
   void ProcessFloat64SpeculateSafeAdd(Float64SpeculateSafeAdd* node) {
-    if (!node->can_truncate_to_int32()) {
+    if (!node->can_truncate_to_int32() || IsUnsafeIntConstant(node, 0) ||
+        IsUnsafeIntConstant(node, 1)) {
       // Don't truncate this node.
       node->OverwriteWith<Float64Add>();
       return;
@@ -371,12 +402,56 @@ class TruncationProcessor {
                                      << " to Int32Subtract");
       node->OverwriteWith(Opcode::kInt32Subtract);
     }
-    // TODO(marja): To support Int32MultiplyWithOverflow and
-    // Int32DivideWithOverflow, we need to be able to reason about ranges.
-    //
-    // TODO(marja): We can add a limited version of that, to support cases where
-    // one of the operands is a constant and thus we can be sure the result
-    // stays in the safe range.
+    // TODO(marja): To support Int32DivideWithOverflow, we need to be able to
+    // reason about ranges.
+  }
+
+  // Refined int32 bound of a value from its defining bit operation, intersected
+  // with the value's static range; falls back to the static range alone when
+  // the defining operation tells us nothing better.
+  static Range RefinedInputRange(ValueNode* node) {
+    node = node->UnwrapIdentities();
+    Range refined = Range::All();
+    switch (node->opcode()) {
+      case Opcode::kInt32BitwiseAnd:
+        for (int i = 0; i < 2; ++i) {
+          if (auto mask = node->TryGetInt32ConstantInput(i);
+              mask && *mask >= 0) {
+            refined = Range(0, *mask);
+            break;
+          }
+        }
+        break;
+      case Opcode::kInt32ShiftRight:
+        if (auto shift = node->TryGetInt32ConstantInput(1)) {
+          int32_t s = *shift & 0x1f;
+          refined = Range(int64_t{INT32_MIN} >> s, int64_t{INT32_MAX} >> s);
+        }
+        break;
+      case Opcode::kInt32ShiftRightLogical:
+        if (auto shift = node->TryGetInt32ConstantInput(1)) {
+          int32_t s = *shift & 0x1f;
+          refined = Range(0, int64_t{UINT32_MAX} >> s);
+        }
+        break;
+      default:
+        break;
+    }
+    return Range::Intersect(refined, node->GetStaticRange());
+  }
+
+  // The product provably fits the safe-integer range, so the wrapping Int32
+  // multiply matches Number multiplication followed by ToInt32 (which is how a
+  // truncatable result is consumed, also erasing the minus-zero distinction).
+  // Above 2^53 the two diverge, since the Number product would round.
+  void ProcessInt32MultiplyWithOverflow(Int32MultiplyWithOverflow* node) {
+    if (!node->can_truncate_to_int32()) return;
+    Range product = Range::Mul(RefinedInputRange(node->input_node(0)),
+                               RefinedInputRange(node->input_node(1)));
+    if (!product.IsSafeInt()) return;
+    TRACE_TRUNCATION("truncating " << PrintNodeBrief{node}
+                                   << " to Int32Multiply");
+    node->OverwriteWith(Opcode::kInt32Multiply);
   }
 
   template <typename NodeT>
