@@ -59,9 +59,12 @@ ManagedX509::ManagedX509(const ManagedX509& that) {
 }
 
 ManagedX509& ManagedX509::operator=(const ManagedX509& that) {
-  cert_.reset(that.get());
-  if (cert_) [[likely]]
-    X509_up_ref(cert_.get());
+  if (this == &that) return *this;
+
+  X509* cert = that.get();
+  if (cert) [[likely]]
+    X509_up_ref(cert);
+  cert_.reset(cert);
   return *this;
 }
 
