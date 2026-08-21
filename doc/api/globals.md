@@ -334,10 +334,13 @@ added: v0.0.1
 
 <!-- YAML
 added: v23.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65284
+    description: No longer disableable with the `--no-experimental-websocket` CLI flag.
 -->
 
-A browser-compatible implementation of {CloseEvent}. Disable this API
-with the [`--no-experimental-websocket`][] CLI flag.
+A browser-compatible implementation of {CloseEvent}.
 
 ## Class: `CompressionStream`
 
@@ -1299,6 +1302,9 @@ added:
   - v21.0.0
   - v20.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/65284
+    description: No longer disableable with the `--no-experimental-websocket` CLI flag.
   - version: v22.4.0
     pr-url: https://github.com/nodejs/node/pull/53352
     description: No longer experimental.
@@ -1307,8 +1313,7 @@ changes:
     description: No longer behind `--experimental-websocket` CLI flag.
 -->
 
-A browser-compatible implementation of {WebSocket}. Disable this API
-with the [`--no-experimental-websocket`][] CLI flag.
+A browser-compatible implementation of {WebSocket}.
 
 ## Class: `Worker`
 
@@ -1462,7 +1467,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`--experimental-web-worker`]: cli.md#--experimental-web-worker
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
-[`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
 [`--no-experimental-webstorage`]: cli.md#--no-experimental-webstorage
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
 [`CompressionStream`]: webstreams.md#class-compressionstream
