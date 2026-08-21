@@ -4356,6 +4356,8 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
       env, session->session_ == nullptr, "session is not open");
   THROW_AND_RETURN_ON_BAD_STATE(
       env, session->is_generating_changeset_, "session is currently in use");
+  // Checked last: changeset generation runs the authorizer, so both conditions
+  // hold in that case and the more specific message above has to win.
   THROW_AND_RETURN_IF_SESSION_IN_CALLBACK(env, session);
 
   session->Delete();

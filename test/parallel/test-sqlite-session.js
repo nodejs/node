@@ -753,6 +753,35 @@ suite('session.close() - from a callback', () => {
     });
   }
 
+  // Rejecting disposal has a cost: a `using` declaration inside a callback
+  // demotes the block's own error to SuppressedError. Accepted for symmetry
+  // with StatementSync's disposal, which throws for a busy statement the same
+  // way. Pinned here so the trade-off is visible rather than surprising.
+  it('demotes a callback error when disposal is rejected', (t) => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
+    let caught;
+
+    database.function('f', (x) => {
+      try {
+        using session = database.createSession();
+        t.assert.ok(session);
+        throw new Error('callback error');
+      } catch (err) {
+        caught = err;
+      }
+      return x;
+    });
+
+    database.exec('SELECT f(1)');
+    t.assert.ok(caught instanceof SuppressedError);
+    t.assert.strictEqual(caught.suppressed.message, 'callback error');
+    t.assert.strictEqual(
+      caught.error.message,
+      'session cannot be closed while in a callback',
+    );
+  });
+
   it('leaves an already closed session disposable from a callback', (t) => {
     const database = new DatabaseSync(':memory:');
     database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
