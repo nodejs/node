@@ -759,13 +759,6 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     return ExitCode::kInvalidCommandLineArgument2;
   }
 
-  // TODO(aduh95): remove this when the harmony-import-attributes flag
-  // is removed in V8.
-  if (std::ranges::find(v8_args, "--no-harmony-import-attributes") ==
-      v8_args.end()) {
-    v8_args.emplace_back("--harmony-import-attributes");
-  }
-
   if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
            .empty()) {
     v8_args.emplace_back(
