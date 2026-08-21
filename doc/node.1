@@ -1858,8 +1858,9 @@ Enable the module compile cache for the Node.js instance. See the documentation 
 module compile cache for details.
 .
 .It Ev NODE_COMPILE_CACHE_PORTABLE Ar 1
-When set to 1, the module compile cache  can be reused across different directory
-locations as long as the module layout relative to the cache directory remains the same.
+When set to 1, the module compile cache can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
 .
 .It Ev NODE_DEBUG Ar module[,…]
 \fB','\fR-separated list of core modules that should print debug information.

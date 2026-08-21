@@ -3704,8 +3704,9 @@ Enable the [module compile cache][] for the Node.js instance. See the documentat
 
 ### `NODE_COMPILE_CACHE_PORTABLE=1`
 
-When set to 1, the [module compile cache][]  can be reused across different directory
-locations as long as the module layout relative to the cache directory remains the same.
+When set to 1, the [module compile cache][] can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same,
+and by any user (the cache subdirectory is not suffixed with the creating user's uid).
 
 ### `NODE_DEBUG=module[,…]`
 
