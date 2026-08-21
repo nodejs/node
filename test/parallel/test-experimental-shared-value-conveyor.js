@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { spawnSync } = require('child_process');
 const { Worker, parentPort } = require('worker_threads');
+const { spawnSyncAndAssert } = require('../common/child_process');
 
 if (process.env.TEST_CHILD_PROCESS === '1') {
   // Do not use isMainThread so that this test itself can be run inside a Worker.
@@ -29,10 +29,10 @@ if (process.env.TEST_CHILD_PROCESS === '1') {
 
   const args = ['--harmony-struct', __filename];
   const options = { env: { TEST_CHILD_PROCESS: '1', ...process.env } };
-  const child = spawnSync(process.execPath, args, options);
 
-  assert.strictEqual(child.stderr.toString().trim(), '');
-  assert.strictEqual(child.stdout.toString().trim(), '');
-  assert.strictEqual(child.status, 0);
-  assert.strictEqual(child.signal, null);
+  spawnSyncAndAssert(process.execPath, args, options, {
+    stdout: '',
+    stderr: '',
+    trim: true
+  });
 }
