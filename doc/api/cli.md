@@ -4278,8 +4278,15 @@ added: v6.11.0
 Load an OpenSSL configuration file on startup. The file can be used as part of
 a [FIPS mode][] configuration.
 
+If the variable is set to an empty value, Node.js starts without loading any
+OpenSSL configuration file. This is a way past a default configuration file
+that exists but cannot be read, for example when `/etc/ssl` is not accessible
+to the user Node.js runs as, which is otherwise fatal at startup. No
+configuration is applied in that case, including any [FIPS mode][] setup the
+file would have performed.
+
 If the [`--openssl-config`][] command-line option is used, the environment
-variable is ignored.
+variable is ignored, and an empty value has no effect.
 
 ### `SSL_CERT_DIR=dir`
 
