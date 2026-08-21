@@ -14,9 +14,12 @@
 #endif
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <climits>
 #include <cstring>
+#include <mutex>
 #include <string_view>
+#include <unordered_map>
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/core_names.h>
 #include <openssl/params.h>
@@ -4482,11 +4485,52 @@ bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
 // ============================================================================
 
 const Cipher Cipher::FromName(const char* name) {
-  return Cipher(EVP_get_cipherbyname(name));
+  if (const EVP_CIPHER* cipher = EVP_get_cipherbyname(name)) {
+    return Cipher(cipher);
+  }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // Ciphers such as SM4-GCM only exist as fetchable provider algorithms.
+  // Cipher does not own what it points at, so the fetched reference is kept
+  // for the lifetime of the process instead of being freed.
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  static std::mutex fetched_mutex;
+  static auto& fetched_ciphers =
+      *new std::unordered_map<std::string, const EVP_CIPHER*>();
+
+  // A fetch is resolved against the library context's default properties,
+  // which setFipsEnabled() changes at runtime. Key on that state as well so
+  // that a cipher fetched before the switch cannot outlive it.
+  std::string key(EVP_default_properties_is_fips_enabled(nullptr) ? "fips:"
+                                                                  : "");
+  key.append(name);
+  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
+
+  std::lock_guard<std::mutex> lock(fetched_mutex);
+  if (auto it = fetched_ciphers.find(key); it != fetched_ciphers.end()) {
+    return Cipher(it->second);
+  }
+  if (const EVP_CIPHER* fetched = EVP_CIPHER_fetch(nullptr, name, nullptr)) {
+    fetched_ciphers[key] = fetched;
+    return Cipher(fetched);
+  }
+#endif
+  return Cipher();
 }
 
 const Cipher Cipher::FromNid(int nid) {
-  return Cipher(EVP_get_cipherbynid(nid));
+  if (const EVP_CIPHER* cipher = EVP_get_cipherbynid(nid)) {
+    return Cipher(cipher);
+  }
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // May be a provider-only cipher; resolving by name falls back to a fetch.
+  if (const char* name = OBJ_nid2sn(nid)) {
+    return FromName(name);
+  }
+#endif
+  return Cipher();
 }
 
 const Cipher Cipher::FromCtx(const CipherCtxPointer& ctx) {
@@ -4572,7 +4616,18 @@ int Cipher::getBlockSize() const {
 
 int Cipher::getNid() const {
   if (!cipher_) return 0;
-  return EVP_CIPHER_nid(cipher_);
+  int nid = EVP_CIPHER_nid(cipher_);
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  if (nid == NID_undef) {
+    // Provider-only ciphers inherit a nid from the legacy implementation they
+    // do not have, so recover it from the algorithm name.
+    if (const char* name = EVP_CIPHER_get0_name(cipher_)) {
+      nid = OBJ_sn2nid(name);
+      if (nid == NID_undef) nid = OBJ_ln2nid(name);
+    }
+  }
+#endif
+  return nid;
 }
 
 std::string_view Cipher::getModeLabel() const {
@@ -6244,6 +6299,22 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
       array_push_back<EVP_CIPHER>,
 #endif
       &context);
+
+#if NCRYPTO_USE_OPENSSL3_PROVIDER
+  // EVP_CIPHER_do_all_sorted() walks the legacy name table, so provider-only
+  // algorithms have to be probed for by name.
+  static constexpr const char* kProviderOnlyCiphers[] = {
+      "sm4-gcm",
+      "sm4-ccm",
+      "sm4-xts",
+  };
+  for (const char* name : kProviderOnlyCiphers) {
+    if (EVP_CIPHER* fetched = EVP_CIPHER_fetch(nullptr, name, nullptr)) {
+      EVP_CIPHER_free(fetched);
+      context.cb(name);
+    }
+  }
+#endif
 #endif
 }
 
