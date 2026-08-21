@@ -3909,6 +3909,26 @@ assert.strictEqual(
       '}'
   );
 
+  class CircularPrototype {}
+  const circularPrototype = new CircularPrototype();
+  CircularPrototype.prototype.self = circularPrototype;
+  assert.strictEqual(
+    inspect(circularPrototype, { showHidden: true }),
+    '<ref *1> CircularPrototype { self: [Circular *1] }'
+  );
+
+  class CircularPrototypeGetter {
+    get self() {
+      return this;
+    }
+  }
+  const circularPrototypeGetter = new CircularPrototypeGetter();
+  assert.strictEqual(
+    inspect(circularPrototypeGetter, { getters: true, showHidden: true }),
+    '<ref *1> CircularPrototypeGetter { ' +
+      '[self]: [Getter] [Circular *1] }'
+  );
+
   assert.match(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
     new RegExp('^' + RegExp.escape(
