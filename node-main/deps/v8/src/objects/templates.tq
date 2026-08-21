@@ -1,0 +1,123 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+bitfield struct TemplateInfoFlags extends uint31 {
+  is_cacheable: bool: 1 bit;
+  should_promote_to_read_only: bool: 1 bit;
+  serial_number: uint32: 29 bit;
+}
+
+@abstract
+extern class TemplateInfo extends HeapObject {
+  template_info_flags: SmiTagged<TemplateInfoFlags>;
+}
+
+@abstract
+extern class TemplateInfoWithProperties extends TemplateInfo {
+  number_of_properties: Smi;
+  property_list: ArrayList|Undefined;
+  property_accessors: ArrayList|Undefined;
+}
+
+extern class FunctionTemplateRareData extends Struct {
+  // See DECL_RARE_ACCESSORS in FunctionTemplateInfo.
+  prototype_template: ObjectTemplateInfo|Undefined;
+  prototype_provider_template: FunctionTemplateInfo|Undefined;
+  parent_template: FunctionTemplateInfo|Undefined;
+  named_property_handler: InterceptorInfo|Undefined;
+  indexed_property_handler: InterceptorInfo|Undefined;
+  instance_template: ObjectTemplateInfo|Undefined;
+  instance_call_handler: FunctionTemplateInfo|Undefined;
+  access_check_info: AccessCheckInfo|Undefined;
+  c_function_overloads: FixedArray;
+}
+
+bitfield struct FunctionTemplateInfoFlags extends uint32 {
+  // True in case this FunctionTemplateInfo object is used as a call handler
+  // for callable ObjectTemplateInfo.
+  is_object_template_call_handler: bool: 1 bit;
+  has_side_effects: bool: 1 bit;
+  undetectable: bool: 1 bit;
+  needs_access_check: bool: 1 bit;
+  read_only_prototype: bool: 1 bit;
+  remove_prototype: bool: 1 bit;
+  accept_any_receiver: bool: 1 bit;
+  published: bool: 1 bit;
+  // Allowed receiver ranges are used for instance type checking to check
+  // whether the receiver calling the associated JSFunction is a compatible
+  // receiver.
+  allowed_receiver_instance_type_range_start: InstanceType: 12 bit;
+  allowed_receiver_instance_type_range_end: InstanceType: 12 bit;
+}
+
+@generateUniqueMap
+extern class FunctionTemplateInfo extends TemplateInfoWithProperties {
+  class_name: String|Undefined;
+  // Experimental exception preprocessing Api (https://crbug.com/328104148).
+  // This value is provided as contextual information for embedder
+  // exception preprocessing.
+  interface_name: String|Undefined;
+  // If the signature is a FunctionTemplateInfo it is used to check whether the
+  // receiver calling the associated JSFunction is a compatible receiver, i.e.
+  // it is an instance of the signature FunctionTemplateInfo or any of the
+  // receiver's prototypes are.
+  signature: FunctionTemplateInfo|Undefined;
+  // If any of the setters declared by DECL_RARE_ACCESSORS are used then a
+  // FunctionTemplateRareData will be stored here. Until then this contains
+  // undefined.
+  @cppAcquireLoad
+  @cppReleaseStore
+  rare_data: FunctionTemplateRareData|Undefined;
+  shared_function_info: SharedFunctionInfo|Undefined;
+  // Either the_hole or a private symbol. Used to cache the result on
+  // the receiver under the the cached_property_name when this
+  // FunctionTemplateInfo is used as a getter.
+  cached_property_name: Object;
+
+  // A data value passed to the callback C function. This field is initialized
+  // with |the_hole_value| until the callback is initialized.
+  // This field is used as a synchronization point for accessing |callback_data|
+  // and |maybe_redirected_callback| from background compilation thread, thus
+  // Acquire/Release semantics.
+  @cppAcquireLoad @cppReleaseStore callback_data: Object;
+
+  // Internal field to store a flag bitfield.
+  flag: FunctionTemplateInfoFlags;
+  // "length" property of the final JSFunction.
+  length: int16;
+  // This will be set as the instance type of the objects that are created from
+  // this FunctionTemplateInfo.
+  instance_type: InstanceType;
+
+  // Experimental exception preprocessing Api (https://crbug.com/328104148).
+  // Provides information on the type of FunctionTemplate for embedder
+  // exception preprocessing.
+  exception_context: uint32;
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
+  // A callback invoked when calling an instance of this FunctionTemplateInfo.
+  // For simulator builds this field contains the address of the trampoline
+  // callable from generated code and for native builds - the address of
+  // the callback C function.
+  maybe_redirected_callback: ExternalPointer;
+}
+
+bitfield struct ObjectTemplateInfoFlags extends uint31 {
+  is_immutable_prototype: bool: 1 bit;
+  is_code_kind: bool: 1 bit;
+  embedder_field_count: int32: 28 bit;
+}
+
+@generateUniqueMap
+extern class ObjectTemplateInfo extends TemplateInfoWithProperties {
+  constructor: FunctionTemplateInfo|Undefined;
+  data: SmiTagged<ObjectTemplateInfoFlags>;
+}
+
+@generateBodyDescriptor
+extern class DictionaryTemplateInfo extends TemplateInfo {
+  property_names: FixedArray;
+}

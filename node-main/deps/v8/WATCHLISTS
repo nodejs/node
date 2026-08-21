@@ -1,0 +1,186 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Watchlist Rules
+# Refer: http://dev.chromium.org/developers/contributing-code/watchlists
+
+# IMPORTANT: The regular expression filepath is tested against each path using
+# re.search, so it is not usually necessary to add .*.
+
+{
+  'WATCHLIST_DEFINITIONS': {
+    'api': {
+      'filepath': 'include/',
+    },
+    'snapshot': {
+      'filepath': 'src/snapshot/',
+    },
+    'devtools': {
+      'filepath': 'src/debug/' \
+                  '|src/inspector/' \
+                  '|src/profiler/' \
+                  '|src/libsampler/' \
+                  '|src/tracing/' \
+                  '|include/js_protocol.pdl' \
+                  '|include/v8-inspector*\.h',
+    },
+    'baseline': {
+      'filepath': 'src/baseline/',
+    },
+    'flags': {
+      'filepath': 'src/flags/flag-definitions.h',
+    },
+    'heap_changes': {
+      'filepath': 'src/heap/',
+    },
+    'arm': {
+      'filepath': '/arm/',
+    },
+    'merges': {
+      'filepath': '.',
+    },
+    'wasm': {
+      'filepath': 'src/wasm/' \
+                  '|src/compiler/wasm',
+    },
+    'value_serializer': {
+      'filepath': 'src/value-serializer',
+    },
+    'maglev': {
+      'filepath': 'src/maglev/',
+    },
+    'compiler': {
+      'filepath': 'src/compiler',
+    },
+    'parser': {
+      'filepath': 'src/ast/' \
+                  '|src/parsing/',
+    },
+    'tracing': {
+      'filepath': 'src/tracing/',
+    },
+    'ieee754': {
+      'filepath': 'src/base/ieee754\.(cc|h)' \
+                  '|src/base/overflowing-math.h' \
+                  '|LICENSE.fdlibm',
+    },
+    'regexp': {
+      'filepath': 'src/.*regexp',
+    },
+    'bazel': {
+      'filepath': 'BUILD.gn' \
+                  '|BUILD.bazel' \
+                  '|WORKSPACE' \
+                  '|bazel/',
+    },
+    'cppgc': {
+      'filepath': 'src/heap/cppgc/' \
+                  '|src/heap/cppgc-js/' \
+                  '|include/cppgc/' \
+                  '|test/unittests/heap/cppgc/' \
+                  '|test/unittests/heap/cppgc-js/',
+    },
+    'trap-handler': {
+      'filepath': 'src/trap-handler/',
+    },
+  },
+
+  'WATCHLISTS': {
+    'maglev': [
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
+      'victorgomes+watch@chromium.org',
+    ],
+    'compiler': [
+      'dmercadier+watch@chromium.org',
+    ],
+    'snapshot': [
+      'jgruber+watch@chromium.org',
+    ],
+    'devtools': [
+      'devtools-reviews+v8@chromium.org',
+    ],
+    'baseline': [
+      'leszeks+watch@chromium.org',
+      'verwaest+watch@chromium.org',
+    ],
+    'flags': [
+      'v8-flag-updates@chromium.org',
+    ],
+    'heap_changes': [
+      'hpayer@chromium.org',
+      'mlippautz+watch@chromium.org',
+    ],
+    'arm': [
+      'v8-mips-ports@googlegroups.com',
+      'v8-ppc-ports@googlegroups.com',
+      'v8-risc-v-ports@chromium.org',
+    ],
+    'merges': [
+      # Only enabled on branches created with tools/release/create_release.py
+      'v8-merges@googlegroups.com',
+    ],
+    'wasm': [
+      'wasm-v8@google.com',
+    ],
+    'value_serializer': [
+      'jbroman+watch@chromium.org',
+    ],
+    'parser': [
+      'marja+watch@chromium.org',
+    ],
+    'tracing': [
+      'alph+watch@chromium.org',
+      'lpy+v8tracing@chromium.org',
+      'fmeawad@chromium.org',
+      'cbruni+watch@chromium.org',
+    ],
+    'ieee754': [
+      'rtoy+watch@chromium.org',
+      'hongchan+watch@chromium.org',
+    ],
+    'regexp': [
+      'jgruber+watch@chromium.org',
+      'pthier+watch@chromium.org',
+    ],
+    'bazel': [
+      'victorgomes+watch@chromium.org',
+    ],
+    'api': [
+      'cbruni+watch@chromium.org',
+    ],
+    'cppgc': [
+      'oilpan-reviews+v8@chromium.org',
+    ],
+    'trap-handler': [
+      'ahaas@chromium.org',
+      'clemensb@chromium.org',
+      'mark@chromium.org',
+      'mseaborn@chromium.org',
+    ],
+  },
+}

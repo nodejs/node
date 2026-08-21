@@ -1,0 +1,88 @@
+// Copyright 2021 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string {
+
+struct StringMatchFunctor {
+  macro FnSymbol(): Symbol {
+    return MatchSymbolConstant();
+  }
+  macro CanCallFast(implicit context: Context)(
+                       maybeRegExp: HeapObject): bool {
+    return regexp::IsFastRegExpForMatch(maybeRegExp);
+  }
+  transitioning macro CallFast(
+      implicit context: Context)(regexp: FastJSRegExp, string: String): JSAny {
+    return regexp::RegExpMatchFast(regexp, string);
+  }
+}
+
+struct StringSearchFunctor {
+  macro FnSymbol(): Symbol {
+    return SearchSymbolConstant();
+  }
+  macro CanCallFast(implicit context: Context)(
+                       maybeRegExp: HeapObject): bool {
+    return regexp::IsFastRegExpForSearch(maybeRegExp);
+  }
+  transitioning macro CallFast(
+      implicit context: Context)(regexp: FastJSRegExp, string: String): JSAny {
+    return regexp::RegExpSearchFast(regexp, string);
+  }
+}
+
+transitioning macro StringMatchSearch<F: type>(
+    implicit context: NativeContext, receiver: JSAny)(regexp: JSAny,
+    functor: F, methodName: constexpr string): JSAny {
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  RequireObjectCoercible(receiver, methodName);
+
+  try {
+    // 3. Let string be ? ToString(O).
+    const string = Cast<String>(receiver) otherwise Slow;
+    const heapRegexp = Cast<HeapObject>(regexp) otherwise Slow;
+    if (!functor.CanCallFast(heapRegexp)) goto Slow;
+
+    return functor.CallFast(UnsafeCast<FastJSRegExp>(heapRegexp), string);
+  } label Slow deferred {
+    // 2. If regexp is neither undefined nor null, then
+    if (regexp != Undefined && regexp != Null) {
+      try {
+        // a. Let fn be ? GetMethod(regexp, @@match/@@search).
+        // b. If fn is not undefined, then
+        const fn = GetMethod(regexp, functor.FnSymbol())
+            otherwise FnSymbolIsNullOrUndefined;
+        //   i. Return ? Call(fn, regexp, « O »).
+        return Call(context, fn, regexp, receiver);
+      } label FnSymbolIsNullOrUndefined {}
+    }
+
+    // 3. Let string be ? ToString(O).
+    const string = ToString_Inline(receiver);
+
+    // 4. Let rx be ? RegExpCreate(regexp, undefined).
+    const rx = regexp::RegExpCreate(context, regexp, kEmptyString);
+
+    // 5. Return ? Invoke(rx, @@match/@@search, « string »).
+    const fn = GetProperty(rx, functor.FnSymbol());
+    return Call(context, fn, rx, string);
+  }
+}
+
+// https://tc39.es/ecma262/#sec-string.prototype.match
+transitioning javascript builtin StringPrototypeMatch(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    regexp: JSAny): JSAny {
+  return StringMatchSearch(
+      regexp, StringMatchFunctor{}, 'String.prototype.match');
+}
+
+// https://tc39.es/ecma262/#sec-string.prototype.search
+transitioning javascript builtin StringPrototypeSearch(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    regexp: JSAny): JSAny {
+  return StringMatchSearch(
+      regexp, StringSearchFunctor{}, 'String.prototype.search');
+}
+}

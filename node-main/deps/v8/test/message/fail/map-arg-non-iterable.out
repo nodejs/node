@@ -1,0 +1,6 @@
+*%(basename)s:5: TypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))
+new Map(1);
+^
+TypeError: number 1 is not iterable (cannot read property Symbol(Symbol.iterator))
+    at new Map (<anonymous>)
+    at *%(basename)s:5:1

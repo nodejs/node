@@ -1,0 +1,2816 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+test that comparison operators work correctly.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS return ("a"=="b"); is false
+PASS if (("a"=="b")) return true; return false; is false
+PASS var k = 0; while (("a"=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"=="b"); ) if (k++) return true; return false; is false
+PASS return ("a"!="b"); is true
+PASS if (("a"!="b")) return true; return false; is true
+PASS var k = 0; while (("a"!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b"); ) if (k++) return true; return false; is true
+PASS return ("a"==="b"); is false
+PASS if (("a"==="b")) return true; return false; is false
+PASS var k = 0; while (("a"==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"==="b"); ) if (k++) return true; return false; is false
+PASS return ("a"!=="b"); is true
+PASS if (("a"!=="b")) return true; return false; is true
+PASS var k = 0; while (("a"!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b"); ) if (k++) return true; return false; is true
+PASS return ("a"=="b") || 1; is true
+PASS if (("a"=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!="b") || 1; is true
+PASS if (("a"!="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="b") || 1; is true
+PASS if (("a"==="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=="b") || 1; is true
+PASS if (("a"!=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"=="b") && 1; is false
+PASS if (("a"=="b") && 1) return true; return false; is false
+PASS var k = 0; while (("a"=="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"=="b") && 1; ) if (k++) return true; return false; is false
+PASS return ("a"!="b") && 1; is true
+PASS if (("a"!="b") && 1) return true; return false; is true
+PASS var k = 0; while (("a"!="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b") && 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="b") && 1; is false
+PASS if (("a"==="b") && 1) return true; return false; is false
+PASS var k = 0; while (("a"==="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"==="b") && 1; ) if (k++) return true; return false; is false
+PASS return ("a"!=="b") && 1; is true
+PASS if (("a"!=="b") && 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b") && 1; ) if (k++) return true; return false; is true
+PASS return ("a"=="b") || 1; is true
+PASS if (("a"=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!="b") || 1; is true
+PASS if (("a"!="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="b") || 1; is true
+PASS if (("a"==="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=="b") || 1; is true
+PASS if (("a"!=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("a"=="b"); is true
+PASS if (1 || ("a"=="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"=="b"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!="b"); is true
+PASS if (1 || ("a"!="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!="b"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"==="b"); is true
+PASS if (1 || ("a"==="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"==="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"==="b"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!=="b"); is true
+PASS if (1 || ("a"!=="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!=="b"); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"=="b"); is false
+PASS if (1 && ("a"=="b")) return true; return false; is false
+PASS var k = 0; while (1 && ("a"=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"=="b"); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"!="b"); is true
+PASS if (1 && ("a"!="b")) return true; return false; is true
+PASS var k = 0; while (1 && ("a"!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"!="b"); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"==="b"); is false
+PASS if (1 && ("a"==="b")) return true; return false; is false
+PASS var k = 0; while (1 && ("a"==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"==="b"); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"!=="b"); is true
+PASS if (1 && ("a"!=="b")) return true; return false; is true
+PASS var k = 0; while (1 && ("a"!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"!=="b"); ) if (k++) return true; return false; is true
+PASS return ("a"=="a"); is true
+PASS if (("a"=="a")) return true; return false; is true
+PASS var k = 0; while (("a"=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="a"); ) if (k++) return true; return false; is true
+PASS return ("a"!="a"); is false
+PASS if (("a"!="a")) return true; return false; is false
+PASS var k = 0; while (("a"!="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!="a"); ) if (k++) return true; return false; is false
+PASS return ("a"==="a"); is true
+PASS if (("a"==="a")) return true; return false; is true
+PASS var k = 0; while (("a"==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="a"); ) if (k++) return true; return false; is true
+PASS return ("a"!=="a"); is false
+PASS if (("a"!=="a")) return true; return false; is false
+PASS var k = 0; while (("a"!=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!=="a"); ) if (k++) return true; return false; is false
+PASS return ("a"=="a") || 1; is true
+PASS if (("a"=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!="a") || 1; is true
+PASS if (("a"!="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="a") || 1; is true
+PASS if (("a"==="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=="a") || 1; is true
+PASS if (("a"!=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"=="a") && 1; is true
+PASS if (("a"=="a") && 1) return true; return false; is true
+PASS var k = 0; while (("a"=="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="a") && 1; ) if (k++) return true; return false; is true
+PASS return ("a"!="a") && 1; is false
+PASS if (("a"!="a") && 1) return true; return false; is false
+PASS var k = 0; while (("a"!="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!="a") && 1; ) if (k++) return true; return false; is false
+PASS return ("a"==="a") && 1; is true
+PASS if (("a"==="a") && 1) return true; return false; is true
+PASS var k = 0; while (("a"==="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="a") && 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=="a") && 1; is false
+PASS if (("a"!=="a") && 1) return true; return false; is false
+PASS var k = 0; while (("a"!=="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!=="a") && 1; ) if (k++) return true; return false; is false
+PASS return ("a"=="a") || 1; is true
+PASS if (("a"=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!="a") || 1; is true
+PASS if (("a"!="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="a") || 1; is true
+PASS if (("a"==="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=="a") || 1; is true
+PASS if (("a"!=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("a"=="a"); is true
+PASS if (1 || ("a"=="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"=="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!="a"); is true
+PASS if (1 || ("a"!="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"==="a"); is true
+PASS if (1 || ("a"==="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"==="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!=="a"); is true
+PASS if (1 || ("a"!=="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"=="a"); is true
+PASS if (1 && ("a"=="a")) return true; return false; is true
+PASS var k = 0; while (1 && ("a"=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"!="a"); is false
+PASS if (1 && ("a"!="a")) return true; return false; is false
+PASS var k = 0; while (1 && ("a"!="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"!="a"); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"==="a"); is true
+PASS if (1 && ("a"==="a")) return true; return false; is true
+PASS var k = 0; while (1 && ("a"==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"==="a"); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"!=="a"); is false
+PASS if (1 && ("a"!=="a")) return true; return false; is false
+PASS var k = 0; while (1 && ("a"!=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"!=="a"); ) if (k++) return true; return false; is false
+PASS return ("b"=="a"); is false
+PASS if (("b"=="a")) return true; return false; is false
+PASS var k = 0; while (("b"=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"=="a"); ) if (k++) return true; return false; is false
+PASS return ("b"!="a"); is true
+PASS if (("b"!="a")) return true; return false; is true
+PASS var k = 0; while (("b"!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a"); ) if (k++) return true; return false; is true
+PASS return ("b"==="a"); is false
+PASS if (("b"==="a")) return true; return false; is false
+PASS var k = 0; while (("b"==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==="a"); ) if (k++) return true; return false; is false
+PASS return ("b"!=="a"); is true
+PASS if (("b"!=="a")) return true; return false; is true
+PASS var k = 0; while (("b"!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a"); ) if (k++) return true; return false; is true
+PASS return ("b"=="a") || 1; is true
+PASS if (("b"=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!="a") || 1; is true
+PASS if (("b"!="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"==="a") || 1; is true
+PASS if (("b"==="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=="a") || 1; is true
+PASS if (("b"!=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"=="a") && 1; is false
+PASS if (("b"=="a") && 1) return true; return false; is false
+PASS var k = 0; while (("b"=="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"=="a") && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!="a") && 1; is true
+PASS if (("b"!="a") && 1) return true; return false; is true
+PASS var k = 0; while (("b"!="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a") && 1; ) if (k++) return true; return false; is true
+PASS return ("b"==="a") && 1; is false
+PASS if (("b"==="a") && 1) return true; return false; is false
+PASS var k = 0; while (("b"==="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==="a") && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!=="a") && 1; is true
+PASS if (("b"!=="a") && 1) return true; return false; is true
+PASS var k = 0; while (("b"!=="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a") && 1; ) if (k++) return true; return false; is true
+PASS return ("b"=="a") || 1; is true
+PASS if (("b"=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!="a") || 1; is true
+PASS if (("b"!="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"==="a") || 1; is true
+PASS if (("b"==="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=="a") || 1; is true
+PASS if (("b"!=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("b"=="a"); is true
+PASS if (1 || ("b"=="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"=="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!="a"); is true
+PASS if (1 || ("b"!="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"==="a"); is true
+PASS if (1 || ("b"==="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"==="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!=="a"); is true
+PASS if (1 || ("b"!=="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"=="a"); is false
+PASS if (1 && ("b"=="a")) return true; return false; is false
+PASS var k = 0; while (1 && ("b"=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"=="a"); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!="a"); is true
+PASS if (1 && ("b"!="a")) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!="a"); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"==="a"); is false
+PASS if (1 && ("b"==="a")) return true; return false; is false
+PASS var k = 0; while (1 && ("b"==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"==="a"); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!=="a"); is true
+PASS if (1 && ("b"!=="a")) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!=="a"); ) if (k++) return true; return false; is true
+PASS return (letterA=="b"); is false
+PASS if ((letterA=="b")) return true; return false; is false
+PASS var k = 0; while ((letterA=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA=="b"); ) if (k++) return true; return false; is false
+PASS return (letterA!="b"); is true
+PASS if ((letterA!="b")) return true; return false; is true
+PASS var k = 0; while ((letterA!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b"); ) if (k++) return true; return false; is true
+PASS return (letterA==="b"); is false
+PASS if ((letterA==="b")) return true; return false; is false
+PASS var k = 0; while ((letterA==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA==="b"); ) if (k++) return true; return false; is false
+PASS return (letterA!=="b"); is true
+PASS if ((letterA!=="b")) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b"); ) if (k++) return true; return false; is true
+PASS return (letterA=="b") || 1; is true
+PASS if ((letterA=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="b") || 1; is true
+PASS if ((letterA!="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="b") || 1; is true
+PASS if ((letterA==="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="b") || 1; is true
+PASS if ((letterA!=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA=="b") && 1; is false
+PASS if ((letterA=="b") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA=="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA=="b") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA!="b") && 1; is true
+PASS if ((letterA!="b") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="b") && 1; is false
+PASS if ((letterA==="b") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA==="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA==="b") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA!=="b") && 1; is true
+PASS if ((letterA!=="b") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA=="b") || 1; is true
+PASS if ((letterA=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="b") || 1; is true
+PASS if ((letterA!="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="b") || 1; is true
+PASS if ((letterA==="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="b") || 1; is true
+PASS if ((letterA!=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (letterA=="b"); is true
+PASS if (1 || (letterA=="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA=="b"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!="b"); is true
+PASS if (1 || (letterA!="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!="b"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA==="b"); is true
+PASS if (1 || (letterA==="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA==="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA==="b"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!=="b"); is true
+PASS if (1 || (letterA!=="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!=="b"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA=="b"); is false
+PASS if (1 && (letterA=="b")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA=="b"); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA!="b"); is true
+PASS if (1 && (letterA!="b")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA!="b"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA==="b"); is false
+PASS if (1 && (letterA==="b")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA==="b"); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA!=="b"); is true
+PASS if (1 && (letterA!=="b")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA!=="b"); ) if (k++) return true; return false; is true
+PASS return (letterA=="a"); is true
+PASS if ((letterA=="a")) return true; return false; is true
+PASS var k = 0; while ((letterA=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a"); ) if (k++) return true; return false; is true
+PASS return (letterA!="a"); is false
+PASS if ((letterA!="a")) return true; return false; is false
+PASS var k = 0; while ((letterA!="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!="a"); ) if (k++) return true; return false; is false
+PASS return (letterA==="a"); is true
+PASS if ((letterA==="a")) return true; return false; is true
+PASS var k = 0; while ((letterA==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a"); ) if (k++) return true; return false; is true
+PASS return (letterA!=="a"); is false
+PASS if ((letterA!=="a")) return true; return false; is false
+PASS var k = 0; while ((letterA!=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=="a"); ) if (k++) return true; return false; is false
+PASS return (letterA=="a") || 1; is true
+PASS if ((letterA=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="a") || 1; is true
+PASS if ((letterA!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="a") || 1; is true
+PASS if ((letterA==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="a") || 1; is true
+PASS if ((letterA!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA=="a") && 1; is true
+PASS if ((letterA=="a") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="a") && 1; is false
+PASS if ((letterA!="a") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!="a") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA==="a") && 1; is true
+PASS if ((letterA==="a") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="a") && 1; is false
+PASS if ((letterA!=="a") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!=="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=="a") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA=="a") || 1; is true
+PASS if ((letterA=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="a") || 1; is true
+PASS if ((letterA!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="a") || 1; is true
+PASS if ((letterA==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="a") || 1; is true
+PASS if ((letterA!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (letterA=="a"); is true
+PASS if (1 || (letterA=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA=="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!="a"); is true
+PASS if (1 || (letterA!="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA==="a"); is true
+PASS if (1 || (letterA==="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA==="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!=="a"); is true
+PASS if (1 || (letterA!=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA=="a"); is true
+PASS if (1 && (letterA=="a")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!="a"); is false
+PASS if (1 && (letterA!="a")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!="a"); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA==="a"); is true
+PASS if (1 && (letterA==="a")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA==="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!=="a"); is false
+PASS if (1 && (letterA!=="a")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!=="a"); ) if (k++) return true; return false; is false
+PASS return ("b"=="a"); is false
+PASS if (("b"=="a")) return true; return false; is false
+PASS var k = 0; while (("b"=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"=="a"); ) if (k++) return true; return false; is false
+PASS return ("b"!="a"); is true
+PASS if (("b"!="a")) return true; return false; is true
+PASS var k = 0; while (("b"!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a"); ) if (k++) return true; return false; is true
+PASS return ("b"==="a"); is false
+PASS if (("b"==="a")) return true; return false; is false
+PASS var k = 0; while (("b"==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==="a"); ) if (k++) return true; return false; is false
+PASS return ("b"!=="a"); is true
+PASS if (("b"!=="a")) return true; return false; is true
+PASS var k = 0; while (("b"!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a"); ) if (k++) return true; return false; is true
+PASS return ("b"=="a") || 1; is true
+PASS if (("b"=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!="a") || 1; is true
+PASS if (("b"!="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"==="a") || 1; is true
+PASS if (("b"==="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=="a") || 1; is true
+PASS if (("b"!=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"=="a") && 1; is false
+PASS if (("b"=="a") && 1) return true; return false; is false
+PASS var k = 0; while (("b"=="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"=="a") && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!="a") && 1; is true
+PASS if (("b"!="a") && 1) return true; return false; is true
+PASS var k = 0; while (("b"!="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a") && 1; ) if (k++) return true; return false; is true
+PASS return ("b"==="a") && 1; is false
+PASS if (("b"==="a") && 1) return true; return false; is false
+PASS var k = 0; while (("b"==="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==="a") && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!=="a") && 1; is true
+PASS if (("b"!=="a") && 1) return true; return false; is true
+PASS var k = 0; while (("b"!=="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a") && 1; ) if (k++) return true; return false; is true
+PASS return ("b"=="a") || 1; is true
+PASS if (("b"=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"=="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!="a") || 1; is true
+PASS if (("b"!="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"==="a") || 1; is true
+PASS if (("b"==="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==="a") || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=="a") || 1; is true
+PASS if (("b"!=="a") || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("b"=="a"); is true
+PASS if (1 || ("b"=="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"=="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!="a"); is true
+PASS if (1 || ("b"!="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"==="a"); is true
+PASS if (1 || ("b"==="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"==="a"); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!=="a"); is true
+PASS if (1 || ("b"!=="a")) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"=="a"); is false
+PASS if (1 && ("b"=="a")) return true; return false; is false
+PASS var k = 0; while (1 && ("b"=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"=="a"); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!="a"); is true
+PASS if (1 && ("b"!="a")) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!="a"); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"==="a"); is false
+PASS if (1 && ("b"==="a")) return true; return false; is false
+PASS var k = 0; while (1 && ("b"==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"==="a"); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!=="a"); is true
+PASS if (1 && ("b"!=="a")) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!=="a"); ) if (k++) return true; return false; is true
+PASS return (letterA=="b"); is false
+PASS if ((letterA=="b")) return true; return false; is false
+PASS var k = 0; while ((letterA=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA=="b"); ) if (k++) return true; return false; is false
+PASS return (letterA!="b"); is true
+PASS if ((letterA!="b")) return true; return false; is true
+PASS var k = 0; while ((letterA!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b"); ) if (k++) return true; return false; is true
+PASS return (letterA==="b"); is false
+PASS if ((letterA==="b")) return true; return false; is false
+PASS var k = 0; while ((letterA==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA==="b"); ) if (k++) return true; return false; is false
+PASS return (letterA!=="b"); is true
+PASS if ((letterA!=="b")) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b"); ) if (k++) return true; return false; is true
+PASS return (letterA=="b") || 1; is true
+PASS if ((letterA=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="b") || 1; is true
+PASS if ((letterA!="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="b") || 1; is true
+PASS if ((letterA==="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="b") || 1; is true
+PASS if ((letterA!=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA=="b") && 1; is false
+PASS if ((letterA=="b") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA=="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA=="b") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA!="b") && 1; is true
+PASS if ((letterA!="b") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="b") && 1; is false
+PASS if ((letterA==="b") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA==="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA==="b") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA!=="b") && 1; is true
+PASS if ((letterA!=="b") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA=="b") || 1; is true
+PASS if ((letterA=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="b") || 1; is true
+PASS if ((letterA!="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="b") || 1; is true
+PASS if ((letterA==="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="b") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="b") || 1; is true
+PASS if ((letterA!=="b") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (letterA=="b"); is true
+PASS if (1 || (letterA=="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA=="b"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!="b"); is true
+PASS if (1 || (letterA!="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!="b"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA==="b"); is true
+PASS if (1 || (letterA==="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA==="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA==="b"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!=="b"); is true
+PASS if (1 || (letterA!=="b")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!=="b"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA=="b"); is false
+PASS if (1 && (letterA=="b")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA=="b"); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA!="b"); is true
+PASS if (1 && (letterA!="b")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA!="b"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA==="b"); is false
+PASS if (1 && (letterA==="b")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA==="b"); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA!=="b"); is true
+PASS if (1 && (letterA!=="b")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA!=="b"); ) if (k++) return true; return false; is true
+PASS return (letterA==letterA); is true
+PASS if ((letterA==letterA)) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA); ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA); is false
+PASS if ((letterA!=letterA)) return true; return false; is false
+PASS var k = 0; while ((letterA!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=letterA); ) if (k++) return true; return false; is false
+PASS return (letterA===letterA); is true
+PASS if ((letterA===letterA)) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA); ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA); is false
+PASS if ((letterA!==letterA)) return true; return false; is false
+PASS var k = 0; while ((letterA!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!==letterA); ) if (k++) return true; return false; is false
+PASS return (letterA==letterA) || 1; is true
+PASS if ((letterA==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA) || 1; is true
+PASS if ((letterA!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA===letterA) || 1; is true
+PASS if ((letterA===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA) || 1; is true
+PASS if ((letterA!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==letterA) && 1; is true
+PASS if ((letterA==letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA) && 1; is false
+PASS if ((letterA!=letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!=letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (letterA===letterA) && 1; is true
+PASS if ((letterA===letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA) && 1; is false
+PASS if ((letterA!==letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (letterA==letterA) || 1; is true
+PASS if ((letterA==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA) || 1; is true
+PASS if ((letterA!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA===letterA) || 1; is true
+PASS if ((letterA===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA) || 1; is true
+PASS if ((letterA!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (letterA==letterA); is true
+PASS if (1 || (letterA==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!=letterA); is true
+PASS if (1 || (letterA!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA===letterA); is true
+PASS if (1 || (letterA===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!==letterA); is true
+PASS if (1 || (letterA!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA==letterA); is true
+PASS if (1 && (letterA==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (letterA==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!=letterA); is false
+PASS if (1 && (letterA!=letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!=letterA); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA===letterA); is true
+PASS if (1 && (letterA===letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (letterA===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA===letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!==letterA); is false
+PASS if (1 && (letterA!==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!==letterA); ) if (k++) return true; return false; is false
+PASS return ("b"==letterA); is false
+PASS if (("b"==letterA)) return true; return false; is false
+PASS var k = 0; while (("b"==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==letterA); ) if (k++) return true; return false; is false
+PASS return ("b"!=letterA); is true
+PASS if (("b"!=letterA)) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA); ) if (k++) return true; return false; is true
+PASS return ("b"===letterA); is false
+PASS if (("b"===letterA)) return true; return false; is false
+PASS var k = 0; while (("b"===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"===letterA); ) if (k++) return true; return false; is false
+PASS return ("b"!==letterA); is true
+PASS if (("b"!==letterA)) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA); ) if (k++) return true; return false; is true
+PASS return ("b"==letterA) || 1; is true
+PASS if (("b"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=letterA) || 1; is true
+PASS if (("b"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"===letterA) || 1; is true
+PASS if (("b"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!==letterA) || 1; is true
+PASS if (("b"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"==letterA) && 1; is false
+PASS if (("b"==letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("b"==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!=letterA) && 1; is true
+PASS if (("b"!=letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("b"===letterA) && 1; is false
+PASS if (("b"===letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("b"===letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"===letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!==letterA) && 1; is true
+PASS if (("b"!==letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("b"==letterA) || 1; is true
+PASS if (("b"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=letterA) || 1; is true
+PASS if (("b"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"===letterA) || 1; is true
+PASS if (("b"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!==letterA) || 1; is true
+PASS if (("b"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("b"==letterA); is true
+PASS if (1 || ("b"==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!=letterA); is true
+PASS if (1 || ("b"!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"===letterA); is true
+PASS if (1 || ("b"===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!==letterA); is true
+PASS if (1 || ("b"!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"==letterA); is false
+PASS if (1 && ("b"==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("b"==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"==letterA); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!=letterA); is true
+PASS if (1 && ("b"!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"===letterA); is false
+PASS if (1 && ("b"===letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("b"===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"===letterA); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!==letterA); is true
+PASS if (1 && ("b"!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!==letterA); ) if (k++) return true; return false; is true
+PASS return ("a"=="b"); is false
+PASS if (("a"=="b")) return true; return false; is false
+PASS var k = 0; while (("a"=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"=="b"); ) if (k++) return true; return false; is false
+PASS return ("a"!="b"); is true
+PASS if (("a"!="b")) return true; return false; is true
+PASS var k = 0; while (("a"!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b"); ) if (k++) return true; return false; is true
+PASS return ("a"==="b"); is false
+PASS if (("a"==="b")) return true; return false; is false
+PASS var k = 0; while (("a"==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"==="b"); ) if (k++) return true; return false; is false
+PASS return ("a"!=="b"); is true
+PASS if (("a"!=="b")) return true; return false; is true
+PASS var k = 0; while (("a"!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b"); ) if (k++) return true; return false; is true
+PASS return ("a"=="b") || 1; is true
+PASS if (("a"=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!="b") || 1; is true
+PASS if (("a"!="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="b") || 1; is true
+PASS if (("a"==="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=="b") || 1; is true
+PASS if (("a"!=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"=="b") && 1; is false
+PASS if (("a"=="b") && 1) return true; return false; is false
+PASS var k = 0; while (("a"=="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"=="b") && 1; ) if (k++) return true; return false; is false
+PASS return ("a"!="b") && 1; is true
+PASS if (("a"!="b") && 1) return true; return false; is true
+PASS var k = 0; while (("a"!="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b") && 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="b") && 1; is false
+PASS if (("a"==="b") && 1) return true; return false; is false
+PASS var k = 0; while (("a"==="b") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"==="b") && 1; ) if (k++) return true; return false; is false
+PASS return ("a"!=="b") && 1; is true
+PASS if (("a"!=="b") && 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="b") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b") && 1; ) if (k++) return true; return false; is true
+PASS return ("a"=="b") || 1; is true
+PASS if (("a"=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"=="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!="b") || 1; is true
+PASS if (("a"!="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==="b") || 1; is true
+PASS if (("a"==="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"==="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==="b") || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=="b") || 1; is true
+PASS if (("a"!=="b") || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=="b") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=="b") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("a"=="b"); is true
+PASS if (1 || ("a"=="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"=="b"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!="b"); is true
+PASS if (1 || ("a"!="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!="b"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"==="b"); is true
+PASS if (1 || ("a"==="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"==="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"==="b"); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!=="b"); is true
+PASS if (1 || ("a"!=="b")) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!=="b"); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"=="b"); is false
+PASS if (1 && ("a"=="b")) return true; return false; is false
+PASS var k = 0; while (1 && ("a"=="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"=="b"); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"!="b"); is true
+PASS if (1 && ("a"!="b")) return true; return false; is true
+PASS var k = 0; while (1 && ("a"!="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"!="b"); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"==="b"); is false
+PASS if (1 && ("a"==="b")) return true; return false; is false
+PASS var k = 0; while (1 && ("a"==="b")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"==="b"); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"!=="b"); is true
+PASS if (1 && ("a"!=="b")) return true; return false; is true
+PASS var k = 0; while (1 && ("a"!=="b")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"!=="b"); ) if (k++) return true; return false; is true
+PASS return ("a"==letterA); is true
+PASS if (("a"==letterA)) return true; return false; is true
+PASS var k = 0; while (("a"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA); ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA); is false
+PASS if (("a"!=letterA)) return true; return false; is false
+PASS var k = 0; while (("a"!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!=letterA); ) if (k++) return true; return false; is false
+PASS return ("a"===letterA); is true
+PASS if (("a"===letterA)) return true; return false; is true
+PASS var k = 0; while (("a"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA); ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA); is false
+PASS if (("a"!==letterA)) return true; return false; is false
+PASS var k = 0; while (("a"!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!==letterA); ) if (k++) return true; return false; is false
+PASS return ("a"==letterA) || 1; is true
+PASS if (("a"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA) || 1; is true
+PASS if (("a"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"===letterA) || 1; is true
+PASS if (("a"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA) || 1; is true
+PASS if (("a"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==letterA) && 1; is true
+PASS if (("a"==letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("a"==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA) && 1; is false
+PASS if (("a"!=letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("a"!=letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!=letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("a"===letterA) && 1; is true
+PASS if (("a"===letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("a"===letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA) && 1; is false
+PASS if (("a"!==letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("a"!==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("a"==letterA) || 1; is true
+PASS if (("a"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA) || 1; is true
+PASS if (("a"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"===letterA) || 1; is true
+PASS if (("a"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA) || 1; is true
+PASS if (("a"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("a"==letterA); is true
+PASS if (1 || ("a"==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!=letterA); is true
+PASS if (1 || ("a"!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"===letterA); is true
+PASS if (1 || ("a"===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!==letterA); is true
+PASS if (1 || ("a"!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"==letterA); is true
+PASS if (1 && ("a"==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("a"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"!=letterA); is false
+PASS if (1 && ("a"!=letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("a"!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"!=letterA); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"===letterA); is true
+PASS if (1 && ("a"===letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("a"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"===letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"!==letterA); is false
+PASS if (1 && ("a"!==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("a"!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"!==letterA); ) if (k++) return true; return false; is false
+PASS return ("b"==letterA); is false
+PASS if (("b"==letterA)) return true; return false; is false
+PASS var k = 0; while (("b"==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==letterA); ) if (k++) return true; return false; is false
+PASS return ("b"!=letterA); is true
+PASS if (("b"!=letterA)) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA); ) if (k++) return true; return false; is true
+PASS return ("b"===letterA); is false
+PASS if (("b"===letterA)) return true; return false; is false
+PASS var k = 0; while (("b"===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"===letterA); ) if (k++) return true; return false; is false
+PASS return ("b"!==letterA); is true
+PASS if (("b"!==letterA)) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA); ) if (k++) return true; return false; is true
+PASS return ("b"==letterA) || 1; is true
+PASS if (("b"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=letterA) || 1; is true
+PASS if (("b"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"===letterA) || 1; is true
+PASS if (("b"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!==letterA) || 1; is true
+PASS if (("b"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"==letterA) && 1; is false
+PASS if (("b"==letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("b"==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!=letterA) && 1; is true
+PASS if (("b"!=letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("b"===letterA) && 1; is false
+PASS if (("b"===letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("b"===letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("b"===letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("b"!==letterA) && 1; is true
+PASS if (("b"!==letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("b"==letterA) || 1; is true
+PASS if (("b"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!=letterA) || 1; is true
+PASS if (("b"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"===letterA) || 1; is true
+PASS if (("b"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("b"!==letterA) || 1; is true
+PASS if (("b"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("b"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("b"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("b"==letterA); is true
+PASS if (1 || ("b"==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!=letterA); is true
+PASS if (1 || ("b"!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"===letterA); is true
+PASS if (1 || ("b"===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("b"!==letterA); is true
+PASS if (1 || ("b"!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("b"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("b"!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"==letterA); is false
+PASS if (1 && ("b"==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("b"==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"==letterA); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!=letterA); is true
+PASS if (1 && ("b"!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("b"===letterA); is false
+PASS if (1 && ("b"===letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("b"===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("b"===letterA); ) if (k++) return true; return false; is false
+PASS return 1 && ("b"!==letterA); is true
+PASS if (1 && ("b"!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("b"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("b"!==letterA); ) if (k++) return true; return false; is true
+PASS return ("a"==0); is false
+PASS if (("a"==0)) return true; return false; is false
+PASS var k = 0; while (("a"==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"==0); ) if (k++) return true; return false; is false
+PASS return ("a"!=0); is true
+PASS if (("a"!=0)) return true; return false; is true
+PASS var k = 0; while (("a"!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=0); ) if (k++) return true; return false; is true
+PASS return ("a"===0); is false
+PASS if (("a"===0)) return true; return false; is false
+PASS var k = 0; while (("a"===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"===0); ) if (k++) return true; return false; is false
+PASS return ("a"!==0); is true
+PASS if (("a"!==0)) return true; return false; is true
+PASS var k = 0; while (("a"!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==0); ) if (k++) return true; return false; is true
+PASS return ("a"==0) || 1; is true
+PASS if (("a"==0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==0) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=0) || 1; is true
+PASS if (("a"!=0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=0) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"===0) || 1; is true
+PASS if (("a"===0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===0) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==0) || 1; is true
+PASS if (("a"!==0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==0) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==0) && 1; is false
+PASS if (("a"==0) && 1) return true; return false; is false
+PASS var k = 0; while (("a"==0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"==0) && 1; ) if (k++) return true; return false; is false
+PASS return ("a"!=0) && 1; is true
+PASS if (("a"!=0) && 1) return true; return false; is true
+PASS var k = 0; while (("a"!=0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=0) && 1; ) if (k++) return true; return false; is true
+PASS return ("a"===0) && 1; is false
+PASS if (("a"===0) && 1) return true; return false; is false
+PASS var k = 0; while (("a"===0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"===0) && 1; ) if (k++) return true; return false; is false
+PASS return ("a"!==0) && 1; is true
+PASS if (("a"!==0) && 1) return true; return false; is true
+PASS var k = 0; while (("a"!==0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==0) && 1; ) if (k++) return true; return false; is true
+PASS return ("a"==0) || 1; is true
+PASS if (("a"==0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==0) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=0) || 1; is true
+PASS if (("a"!=0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=0) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"===0) || 1; is true
+PASS if (("a"===0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===0) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==0) || 1; is true
+PASS if (("a"!==0) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==0) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("a"==0); is true
+PASS if (1 || ("a"==0)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"==0); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!=0); is true
+PASS if (1 || ("a"!=0)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!=0); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"===0); is true
+PASS if (1 || ("a"===0)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"===0); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!==0); is true
+PASS if (1 || ("a"!==0)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!==0); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"==0); is false
+PASS if (1 && ("a"==0)) return true; return false; is false
+PASS var k = 0; while (1 && ("a"==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"==0); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"!=0); is true
+PASS if (1 && ("a"!=0)) return true; return false; is true
+PASS var k = 0; while (1 && ("a"!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"!=0); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"===0); is false
+PASS if (1 && ("a"===0)) return true; return false; is false
+PASS var k = 0; while (1 && ("a"===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"===0); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"!==0); is true
+PASS if (1 && ("a"!==0)) return true; return false; is true
+PASS var k = 0; while (1 && ("a"!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"!==0); ) if (k++) return true; return false; is true
+PASS return (0=="a"); is false
+PASS if ((0=="a")) return true; return false; is false
+PASS var k = 0; while ((0=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0=="a"); ) if (k++) return true; return false; is false
+PASS return (0!="a"); is true
+PASS if ((0!="a")) return true; return false; is true
+PASS var k = 0; while ((0!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a"); ) if (k++) return true; return false; is true
+PASS return (0==="a"); is false
+PASS if ((0==="a")) return true; return false; is false
+PASS var k = 0; while ((0==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==="a"); ) if (k++) return true; return false; is false
+PASS return (0!=="a"); is true
+PASS if ((0!=="a")) return true; return false; is true
+PASS var k = 0; while ((0!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a"); ) if (k++) return true; return false; is true
+PASS return (0=="a") || 1; is true
+PASS if ((0=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!="a") || 1; is true
+PASS if ((0!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0==="a") || 1; is true
+PASS if ((0==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!=="a") || 1; is true
+PASS if ((0!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0=="a") && 1; is false
+PASS if ((0=="a") && 1) return true; return false; is false
+PASS var k = 0; while ((0=="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0=="a") && 1; ) if (k++) return true; return false; is false
+PASS return (0!="a") && 1; is true
+PASS if ((0!="a") && 1) return true; return false; is true
+PASS var k = 0; while ((0!="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a") && 1; ) if (k++) return true; return false; is true
+PASS return (0==="a") && 1; is false
+PASS if ((0==="a") && 1) return true; return false; is false
+PASS var k = 0; while ((0==="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==="a") && 1; ) if (k++) return true; return false; is false
+PASS return (0!=="a") && 1; is true
+PASS if ((0!=="a") && 1) return true; return false; is true
+PASS var k = 0; while ((0!=="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a") && 1; ) if (k++) return true; return false; is true
+PASS return (0=="a") || 1; is true
+PASS if ((0=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!="a") || 1; is true
+PASS if ((0!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0==="a") || 1; is true
+PASS if ((0==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!=="a") || 1; is true
+PASS if ((0!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (0=="a"); is true
+PASS if (1 || (0=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0=="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (0!="a"); is true
+PASS if (1 || (0!="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (0==="a"); is true
+PASS if (1 || (0==="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0==="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (0!=="a"); is true
+PASS if (1 || (0!=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (0=="a"); is false
+PASS if (1 && (0=="a")) return true; return false; is false
+PASS var k = 0; while (1 && (0=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0=="a"); ) if (k++) return true; return false; is false
+PASS return 1 && (0!="a"); is true
+PASS if (1 && (0!="a")) return true; return false; is true
+PASS var k = 0; while (1 && (0!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (0==="a"); is false
+PASS if (1 && (0==="a")) return true; return false; is false
+PASS var k = 0; while (1 && (0==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0==="a"); ) if (k++) return true; return false; is false
+PASS return 1 && (0!=="a"); is true
+PASS if (1 && (0!=="a")) return true; return false; is true
+PASS var k = 0; while (1 && (0!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!=="a"); ) if (k++) return true; return false; is true
+PASS return (letterA==0); is false
+PASS if ((letterA==0)) return true; return false; is false
+PASS var k = 0; while ((letterA==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA==0); ) if (k++) return true; return false; is false
+PASS return (letterA!=0); is true
+PASS if ((letterA!=0)) return true; return false; is true
+PASS var k = 0; while ((letterA!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=0); ) if (k++) return true; return false; is true
+PASS return (letterA===0); is false
+PASS if ((letterA===0)) return true; return false; is false
+PASS var k = 0; while ((letterA===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA===0); ) if (k++) return true; return false; is false
+PASS return (letterA!==0); is true
+PASS if ((letterA!==0)) return true; return false; is true
+PASS var k = 0; while ((letterA!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==0); ) if (k++) return true; return false; is true
+PASS return (letterA==0) || 1; is true
+PASS if ((letterA==0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==0) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=0) || 1; is true
+PASS if ((letterA!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA===0) || 1; is true
+PASS if ((letterA===0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===0) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==0) || 1; is true
+PASS if ((letterA!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==0) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==0) && 1; is false
+PASS if ((letterA==0) && 1) return true; return false; is false
+PASS var k = 0; while ((letterA==0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA==0) && 1; ) if (k++) return true; return false; is false
+PASS return (letterA!=0) && 1; is true
+PASS if ((letterA!=0) && 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=0) && 1; ) if (k++) return true; return false; is true
+PASS return (letterA===0) && 1; is false
+PASS if ((letterA===0) && 1) return true; return false; is false
+PASS var k = 0; while ((letterA===0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA===0) && 1; ) if (k++) return true; return false; is false
+PASS return (letterA!==0) && 1; is true
+PASS if ((letterA!==0) && 1) return true; return false; is true
+PASS var k = 0; while ((letterA!==0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==0) && 1; ) if (k++) return true; return false; is true
+PASS return (letterA==0) || 1; is true
+PASS if ((letterA==0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==0) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=0) || 1; is true
+PASS if ((letterA!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA===0) || 1; is true
+PASS if ((letterA===0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===0) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==0) || 1; is true
+PASS if ((letterA!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==0) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (letterA==0); is true
+PASS if (1 || (letterA==0)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA==0); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!=0); is true
+PASS if (1 || (letterA!=0)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!=0); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA===0); is true
+PASS if (1 || (letterA===0)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA===0); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!==0); is true
+PASS if (1 || (letterA!==0)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!==0); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA==0); is false
+PASS if (1 && (letterA==0)) return true; return false; is false
+PASS var k = 0; while (1 && (letterA==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA==0); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA!=0); is true
+PASS if (1 && (letterA!=0)) return true; return false; is true
+PASS var k = 0; while (1 && (letterA!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA!=0); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA===0); is false
+PASS if (1 && (letterA===0)) return true; return false; is false
+PASS var k = 0; while (1 && (letterA===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA===0); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA!==0); is true
+PASS if (1 && (letterA!==0)) return true; return false; is true
+PASS var k = 0; while (1 && (letterA!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA!==0); ) if (k++) return true; return false; is true
+PASS return (letterA=="a"); is true
+PASS if ((letterA=="a")) return true; return false; is true
+PASS var k = 0; while ((letterA=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a"); ) if (k++) return true; return false; is true
+PASS return (letterA!="a"); is false
+PASS if ((letterA!="a")) return true; return false; is false
+PASS var k = 0; while ((letterA!="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!="a"); ) if (k++) return true; return false; is false
+PASS return (letterA==="a"); is true
+PASS if ((letterA==="a")) return true; return false; is true
+PASS var k = 0; while ((letterA==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a"); ) if (k++) return true; return false; is true
+PASS return (letterA!=="a"); is false
+PASS if ((letterA!=="a")) return true; return false; is false
+PASS var k = 0; while ((letterA!=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=="a"); ) if (k++) return true; return false; is false
+PASS return (letterA=="a") || 1; is true
+PASS if ((letterA=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="a") || 1; is true
+PASS if ((letterA!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="a") || 1; is true
+PASS if ((letterA==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="a") || 1; is true
+PASS if ((letterA!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA=="a") && 1; is true
+PASS if ((letterA=="a") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="a") && 1; is false
+PASS if ((letterA!="a") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!="a") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA==="a") && 1; is true
+PASS if ((letterA==="a") && 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a") && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="a") && 1; is false
+PASS if ((letterA!=="a") && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!=="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=="a") && 1; ) if (k++) return true; return false; is false
+PASS return (letterA=="a") || 1; is true
+PASS if ((letterA=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!="a") || 1; is true
+PASS if ((letterA!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==="a") || 1; is true
+PASS if ((letterA==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=="a") || 1; is true
+PASS if ((letterA!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (letterA=="a"); is true
+PASS if (1 || (letterA=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA=="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!="a"); is true
+PASS if (1 || (letterA!="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA==="a"); is true
+PASS if (1 || (letterA==="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA==="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!=="a"); is true
+PASS if (1 || (letterA!=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA=="a"); is true
+PASS if (1 && (letterA=="a")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!="a"); is false
+PASS if (1 && (letterA!="a")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!="a"); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA==="a"); is true
+PASS if (1 && (letterA==="a")) return true; return false; is true
+PASS var k = 0; while (1 && (letterA==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA==="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!=="a"); is false
+PASS if (1 && (letterA!=="a")) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!=="a"); ) if (k++) return true; return false; is false
+PASS return (0=="a"); is false
+PASS if ((0=="a")) return true; return false; is false
+PASS var k = 0; while ((0=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0=="a"); ) if (k++) return true; return false; is false
+PASS return (0!="a"); is true
+PASS if ((0!="a")) return true; return false; is true
+PASS var k = 0; while ((0!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a"); ) if (k++) return true; return false; is true
+PASS return (0==="a"); is false
+PASS if ((0==="a")) return true; return false; is false
+PASS var k = 0; while ((0==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==="a"); ) if (k++) return true; return false; is false
+PASS return (0!=="a"); is true
+PASS if ((0!=="a")) return true; return false; is true
+PASS var k = 0; while ((0!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a"); ) if (k++) return true; return false; is true
+PASS return (0=="a") || 1; is true
+PASS if ((0=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!="a") || 1; is true
+PASS if ((0!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0==="a") || 1; is true
+PASS if ((0==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!=="a") || 1; is true
+PASS if ((0!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0=="a") && 1; is false
+PASS if ((0=="a") && 1) return true; return false; is false
+PASS var k = 0; while ((0=="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0=="a") && 1; ) if (k++) return true; return false; is false
+PASS return (0!="a") && 1; is true
+PASS if ((0!="a") && 1) return true; return false; is true
+PASS var k = 0; while ((0!="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a") && 1; ) if (k++) return true; return false; is true
+PASS return (0==="a") && 1; is false
+PASS if ((0==="a") && 1) return true; return false; is false
+PASS var k = 0; while ((0==="a") && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==="a") && 1; ) if (k++) return true; return false; is false
+PASS return (0!=="a") && 1; is true
+PASS if ((0!=="a") && 1) return true; return false; is true
+PASS var k = 0; while ((0!=="a") && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a") && 1; ) if (k++) return true; return false; is true
+PASS return (0=="a") || 1; is true
+PASS if ((0=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0=="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!="a") || 1; is true
+PASS if ((0!="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0==="a") || 1; is true
+PASS if ((0==="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0==="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==="a") || 1; ) if (k++) return true; return false; is true
+PASS return (0!=="a") || 1; is true
+PASS if ((0!=="a") || 1) return true; return false; is true
+PASS var k = 0; while ((0!=="a") || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=="a") || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (0=="a"); is true
+PASS if (1 || (0=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0=="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (0!="a"); is true
+PASS if (1 || (0!="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (0==="a"); is true
+PASS if (1 || (0==="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0==="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0==="a"); ) if (k++) return true; return false; is true
+PASS return 1 || (0!=="a"); is true
+PASS if (1 || (0!=="a")) return true; return false; is true
+PASS var k = 0; while (1 || (0!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!=="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (0=="a"); is false
+PASS if (1 && (0=="a")) return true; return false; is false
+PASS var k = 0; while (1 && (0=="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0=="a"); ) if (k++) return true; return false; is false
+PASS return 1 && (0!="a"); is true
+PASS if (1 && (0!="a")) return true; return false; is true
+PASS var k = 0; while (1 && (0!="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!="a"); ) if (k++) return true; return false; is true
+PASS return 1 && (0==="a"); is false
+PASS if (1 && (0==="a")) return true; return false; is false
+PASS var k = 0; while (1 && (0==="a")) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0==="a"); ) if (k++) return true; return false; is false
+PASS return 1 && (0!=="a"); is true
+PASS if (1 && (0!=="a")) return true; return false; is true
+PASS var k = 0; while (1 && (0!=="a")) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!=="a"); ) if (k++) return true; return false; is true
+PASS return (letterA==letterA); is true
+PASS if ((letterA==letterA)) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA); ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA); is false
+PASS if ((letterA!=letterA)) return true; return false; is false
+PASS var k = 0; while ((letterA!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=letterA); ) if (k++) return true; return false; is false
+PASS return (letterA===letterA); is true
+PASS if ((letterA===letterA)) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA); ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA); is false
+PASS if ((letterA!==letterA)) return true; return false; is false
+PASS var k = 0; while ((letterA!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!==letterA); ) if (k++) return true; return false; is false
+PASS return (letterA==letterA) || 1; is true
+PASS if ((letterA==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA) || 1; is true
+PASS if ((letterA!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA===letterA) || 1; is true
+PASS if ((letterA===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA) || 1; is true
+PASS if ((letterA!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA==letterA) && 1; is true
+PASS if ((letterA==letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA) && 1; is false
+PASS if ((letterA!=letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!=letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!=letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (letterA===letterA) && 1; is true
+PASS if ((letterA===letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA) && 1; is false
+PASS if ((letterA!==letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((letterA!==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (letterA!==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (letterA==letterA) || 1; is true
+PASS if ((letterA==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!=letterA) || 1; is true
+PASS if ((letterA!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA===letterA) || 1; is true
+PASS if ((letterA===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (letterA!==letterA) || 1; is true
+PASS if ((letterA!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((letterA!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (letterA!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (letterA==letterA); is true
+PASS if (1 || (letterA==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!=letterA); is true
+PASS if (1 || (letterA!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA===letterA); is true
+PASS if (1 || (letterA===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (letterA!==letterA); is true
+PASS if (1 || (letterA!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (letterA!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (letterA!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA==letterA); is true
+PASS if (1 && (letterA==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (letterA==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!=letterA); is false
+PASS if (1 && (letterA!=letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!=letterA); ) if (k++) return true; return false; is false
+PASS return 1 && (letterA===letterA); is true
+PASS if (1 && (letterA===letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (letterA===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (letterA===letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (letterA!==letterA); is false
+PASS if (1 && (letterA!==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (letterA!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (letterA!==letterA); ) if (k++) return true; return false; is false
+PASS return (0==letterA); is false
+PASS if ((0==letterA)) return true; return false; is false
+PASS var k = 0; while ((0==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==letterA); ) if (k++) return true; return false; is false
+PASS return (0!=letterA); is true
+PASS if ((0!=letterA)) return true; return false; is true
+PASS var k = 0; while ((0!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA); ) if (k++) return true; return false; is true
+PASS return (0===letterA); is false
+PASS if ((0===letterA)) return true; return false; is false
+PASS var k = 0; while ((0===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===letterA); ) if (k++) return true; return false; is false
+PASS return (0!==letterA); is true
+PASS if ((0!==letterA)) return true; return false; is true
+PASS var k = 0; while ((0!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA); ) if (k++) return true; return false; is true
+PASS return (0==letterA) || 1; is true
+PASS if ((0==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=letterA) || 1; is true
+PASS if ((0!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0===letterA) || 1; is true
+PASS if ((0===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==letterA) || 1; is true
+PASS if ((0!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0==letterA) && 1; is false
+PASS if ((0==letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((0==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (0!=letterA) && 1; is true
+PASS if ((0!=letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((0!=letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (0===letterA) && 1; is false
+PASS if ((0===letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((0===letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (0!==letterA) && 1; is true
+PASS if ((0!==letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((0!==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (0==letterA) || 1; is true
+PASS if ((0==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=letterA) || 1; is true
+PASS if ((0!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0===letterA) || 1; is true
+PASS if ((0===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==letterA) || 1; is true
+PASS if ((0!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (0==letterA); is true
+PASS if (1 || (0==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (0!=letterA); is true
+PASS if (1 || (0!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (0===letterA); is true
+PASS if (1 || (0===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (0!==letterA); is true
+PASS if (1 || (0!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (0==letterA); is false
+PASS if (1 && (0==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (0==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0==letterA); ) if (k++) return true; return false; is false
+PASS return 1 && (0!=letterA); is true
+PASS if (1 && (0!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (0!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (0===letterA); is false
+PASS if (1 && (0===letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (0===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0===letterA); ) if (k++) return true; return false; is false
+PASS return 1 && (0!==letterA); is true
+PASS if (1 && (0!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (0!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!==letterA); ) if (k++) return true; return false; is true
+PASS return ("a"==letterA); is true
+PASS if (("a"==letterA)) return true; return false; is true
+PASS var k = 0; while (("a"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA); ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA); is false
+PASS if (("a"!=letterA)) return true; return false; is false
+PASS var k = 0; while (("a"!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!=letterA); ) if (k++) return true; return false; is false
+PASS return ("a"===letterA); is true
+PASS if (("a"===letterA)) return true; return false; is true
+PASS var k = 0; while (("a"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA); ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA); is false
+PASS if (("a"!==letterA)) return true; return false; is false
+PASS var k = 0; while (("a"!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!==letterA); ) if (k++) return true; return false; is false
+PASS return ("a"==letterA) || 1; is true
+PASS if (("a"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA) || 1; is true
+PASS if (("a"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"===letterA) || 1; is true
+PASS if (("a"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA) || 1; is true
+PASS if (("a"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"==letterA) && 1; is true
+PASS if (("a"==letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("a"==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA) && 1; is false
+PASS if (("a"!=letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("a"!=letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!=letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("a"===letterA) && 1; is true
+PASS if (("a"===letterA) && 1) return true; return false; is true
+PASS var k = 0; while (("a"===letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA) && 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA) && 1; is false
+PASS if (("a"!==letterA) && 1) return true; return false; is false
+PASS var k = 0; while (("a"!==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; ("a"!==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return ("a"==letterA) || 1; is true
+PASS if (("a"==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!=letterA) || 1; is true
+PASS if (("a"!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"===letterA) || 1; is true
+PASS if (("a"===letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return ("a"!==letterA) || 1; is true
+PASS if (("a"!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while (("a"!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; ("a"!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || ("a"==letterA); is true
+PASS if (1 || ("a"==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!=letterA); is true
+PASS if (1 || ("a"!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"===letterA); is true
+PASS if (1 || ("a"===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || ("a"!==letterA); is true
+PASS if (1 || ("a"!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || ("a"!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || ("a"!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"==letterA); is true
+PASS if (1 && ("a"==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("a"==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"!=letterA); is false
+PASS if (1 && ("a"!=letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("a"!=letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"!=letterA); ) if (k++) return true; return false; is false
+PASS return 1 && ("a"===letterA); is true
+PASS if (1 && ("a"===letterA)) return true; return false; is true
+PASS var k = 0; while (1 && ("a"===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && ("a"===letterA); ) if (k++) return true; return false; is true
+PASS return 1 && ("a"!==letterA); is false
+PASS if (1 && ("a"!==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && ("a"!==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && ("a"!==letterA); ) if (k++) return true; return false; is false
+PASS return (0==letterA); is false
+PASS if ((0==letterA)) return true; return false; is false
+PASS var k = 0; while ((0==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==letterA); ) if (k++) return true; return false; is false
+PASS return (0!=letterA); is true
+PASS if ((0!=letterA)) return true; return false; is true
+PASS var k = 0; while ((0!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA); ) if (k++) return true; return false; is true
+PASS return (0===letterA); is false
+PASS if ((0===letterA)) return true; return false; is false
+PASS var k = 0; while ((0===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===letterA); ) if (k++) return true; return false; is false
+PASS return (0!==letterA); is true
+PASS if ((0!==letterA)) return true; return false; is true
+PASS var k = 0; while ((0!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA); ) if (k++) return true; return false; is true
+PASS return (0==letterA) || 1; is true
+PASS if ((0==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=letterA) || 1; is true
+PASS if ((0!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0===letterA) || 1; is true
+PASS if ((0===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==letterA) || 1; is true
+PASS if ((0!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0==letterA) && 1; is false
+PASS if ((0==letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((0==letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (0!=letterA) && 1; is true
+PASS if ((0!=letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((0!=letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (0===letterA) && 1; is false
+PASS if ((0===letterA) && 1) return true; return false; is false
+PASS var k = 0; while ((0===letterA) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===letterA) && 1; ) if (k++) return true; return false; is false
+PASS return (0!==letterA) && 1; is true
+PASS if ((0!==letterA) && 1) return true; return false; is true
+PASS var k = 0; while ((0!==letterA) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA) && 1; ) if (k++) return true; return false; is true
+PASS return (0==letterA) || 1; is true
+PASS if ((0==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=letterA) || 1; is true
+PASS if ((0!=letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0===letterA) || 1; is true
+PASS if ((0===letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0===letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===letterA) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==letterA) || 1; is true
+PASS if ((0!==letterA) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==letterA) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==letterA) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (0==letterA); is true
+PASS if (1 || (0==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0==letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (0!=letterA); is true
+PASS if (1 || (0!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (0===letterA); is true
+PASS if (1 || (0===letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0===letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0===letterA); ) if (k++) return true; return false; is true
+PASS return 1 || (0!==letterA); is true
+PASS if (1 || (0!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 || (0!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!==letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (0==letterA); is false
+PASS if (1 && (0==letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (0==letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0==letterA); ) if (k++) return true; return false; is false
+PASS return 1 && (0!=letterA); is true
+PASS if (1 && (0!=letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (0!=letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!=letterA); ) if (k++) return true; return false; is true
+PASS return 1 && (0===letterA); is false
+PASS if (1 && (0===letterA)) return true; return false; is false
+PASS var k = 0; while (1 && (0===letterA)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0===letterA); ) if (k++) return true; return false; is false
+PASS return 1 && (0!==letterA); is true
+PASS if (1 && (0!==letterA)) return true; return false; is true
+PASS var k = 0; while (1 && (0!==letterA)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!==letterA); ) if (k++) return true; return false; is true
+PASS return (0==1); is false
+PASS if ((0==1)) return true; return false; is false
+PASS var k = 0; while ((0==1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==1); ) if (k++) return true; return false; is false
+PASS return (0!=1); is true
+PASS if ((0!=1)) return true; return false; is true
+PASS var k = 0; while ((0!=1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=1); ) if (k++) return true; return false; is true
+PASS return (0===1); is false
+PASS if ((0===1)) return true; return false; is false
+PASS var k = 0; while ((0===1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===1); ) if (k++) return true; return false; is false
+PASS return (0!==1); is true
+PASS if ((0!==1)) return true; return false; is true
+PASS var k = 0; while ((0!==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==1); ) if (k++) return true; return false; is true
+PASS return (0==1) || 1; is true
+PASS if ((0==1) || 1) return true; return false; is true
+PASS var k = 0; while ((0==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==1) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=1) || 1; is true
+PASS if ((0!=1) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=1) || 1; ) if (k++) return true; return false; is true
+PASS return (0===1) || 1; is true
+PASS if ((0===1) || 1) return true; return false; is true
+PASS var k = 0; while ((0===1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===1) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==1) || 1; is true
+PASS if ((0!==1) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==1) || 1; ) if (k++) return true; return false; is true
+PASS return (0==1) && 1; is false
+PASS if ((0==1) && 1) return true; return false; is false
+PASS var k = 0; while ((0==1) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==1) && 1; ) if (k++) return true; return false; is false
+PASS return (0!=1) && 1; is true
+PASS if ((0!=1) && 1) return true; return false; is true
+PASS var k = 0; while ((0!=1) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=1) && 1; ) if (k++) return true; return false; is true
+PASS return (0===1) && 1; is false
+PASS if ((0===1) && 1) return true; return false; is false
+PASS var k = 0; while ((0===1) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===1) && 1; ) if (k++) return true; return false; is false
+PASS return (0!==1) && 1; is true
+PASS if ((0!==1) && 1) return true; return false; is true
+PASS var k = 0; while ((0!==1) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==1) && 1; ) if (k++) return true; return false; is true
+PASS return (0==1) || 1; is true
+PASS if ((0==1) || 1) return true; return false; is true
+PASS var k = 0; while ((0==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==1) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=1) || 1; is true
+PASS if ((0!=1) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=1) || 1; ) if (k++) return true; return false; is true
+PASS return (0===1) || 1; is true
+PASS if ((0===1) || 1) return true; return false; is true
+PASS var k = 0; while ((0===1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===1) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==1) || 1; is true
+PASS if ((0!==1) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==1) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (0==1); is true
+PASS if (1 || (0==1)) return true; return false; is true
+PASS var k = 0; while (1 || (0==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0==1); ) if (k++) return true; return false; is true
+PASS return 1 || (0!=1); is true
+PASS if (1 || (0!=1)) return true; return false; is true
+PASS var k = 0; while (1 || (0!=1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!=1); ) if (k++) return true; return false; is true
+PASS return 1 || (0===1); is true
+PASS if (1 || (0===1)) return true; return false; is true
+PASS var k = 0; while (1 || (0===1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0===1); ) if (k++) return true; return false; is true
+PASS return 1 || (0!==1); is true
+PASS if (1 || (0!==1)) return true; return false; is true
+PASS var k = 0; while (1 || (0!==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!==1); ) if (k++) return true; return false; is true
+PASS return 1 && (0==1); is false
+PASS if (1 && (0==1)) return true; return false; is false
+PASS var k = 0; while (1 && (0==1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0==1); ) if (k++) return true; return false; is false
+PASS return 1 && (0!=1); is true
+PASS if (1 && (0!=1)) return true; return false; is true
+PASS var k = 0; while (1 && (0!=1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!=1); ) if (k++) return true; return false; is true
+PASS return 1 && (0===1); is false
+PASS if (1 && (0===1)) return true; return false; is false
+PASS var k = 0; while (1 && (0===1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0===1); ) if (k++) return true; return false; is false
+PASS return 1 && (0!==1); is true
+PASS if (1 && (0!==1)) return true; return false; is true
+PASS var k = 0; while (1 && (0!==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!==1); ) if (k++) return true; return false; is true
+PASS return (0==0); is true
+PASS if ((0==0)) return true; return false; is true
+PASS var k = 0; while ((0==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==0); ) if (k++) return true; return false; is true
+PASS return (0!=0); is false
+PASS if ((0!=0)) return true; return false; is false
+PASS var k = 0; while ((0!=0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0!=0); ) if (k++) return true; return false; is false
+PASS return (0===0); is true
+PASS if ((0===0)) return true; return false; is true
+PASS var k = 0; while ((0===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===0); ) if (k++) return true; return false; is true
+PASS return (0!==0); is false
+PASS if ((0!==0)) return true; return false; is false
+PASS var k = 0; while ((0!==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0!==0); ) if (k++) return true; return false; is false
+PASS return (0==0) || 1; is true
+PASS if ((0==0) || 1) return true; return false; is true
+PASS var k = 0; while ((0==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==0) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=0) || 1; is true
+PASS if ((0!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (0===0) || 1; is true
+PASS if ((0===0) || 1) return true; return false; is true
+PASS var k = 0; while ((0===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===0) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==0) || 1; is true
+PASS if ((0!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==0) || 1; ) if (k++) return true; return false; is true
+PASS return (0==0) && 1; is true
+PASS if ((0==0) && 1) return true; return false; is true
+PASS var k = 0; while ((0==0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==0) && 1; ) if (k++) return true; return false; is true
+PASS return (0!=0) && 1; is false
+PASS if ((0!=0) && 1) return true; return false; is false
+PASS var k = 0; while ((0!=0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0!=0) && 1; ) if (k++) return true; return false; is false
+PASS return (0===0) && 1; is true
+PASS if ((0===0) && 1) return true; return false; is true
+PASS var k = 0; while ((0===0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===0) && 1; ) if (k++) return true; return false; is true
+PASS return (0!==0) && 1; is false
+PASS if ((0!==0) && 1) return true; return false; is false
+PASS var k = 0; while ((0!==0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0!==0) && 1; ) if (k++) return true; return false; is false
+PASS return (0==0) || 1; is true
+PASS if ((0==0) || 1) return true; return false; is true
+PASS var k = 0; while ((0==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==0) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=0) || 1; is true
+PASS if ((0!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (0===0) || 1; is true
+PASS if ((0===0) || 1) return true; return false; is true
+PASS var k = 0; while ((0===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===0) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==0) || 1; is true
+PASS if ((0!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==0) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (0==0); is true
+PASS if (1 || (0==0)) return true; return false; is true
+PASS var k = 0; while (1 || (0==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0==0); ) if (k++) return true; return false; is true
+PASS return 1 || (0!=0); is true
+PASS if (1 || (0!=0)) return true; return false; is true
+PASS var k = 0; while (1 || (0!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!=0); ) if (k++) return true; return false; is true
+PASS return 1 || (0===0); is true
+PASS if (1 || (0===0)) return true; return false; is true
+PASS var k = 0; while (1 || (0===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0===0); ) if (k++) return true; return false; is true
+PASS return 1 || (0!==0); is true
+PASS if (1 || (0!==0)) return true; return false; is true
+PASS var k = 0; while (1 || (0!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!==0); ) if (k++) return true; return false; is true
+PASS return 1 && (0==0); is true
+PASS if (1 && (0==0)) return true; return false; is true
+PASS var k = 0; while (1 && (0==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0==0); ) if (k++) return true; return false; is true
+PASS return 1 && (0!=0); is false
+PASS if (1 && (0!=0)) return true; return false; is false
+PASS var k = 0; while (1 && (0!=0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0!=0); ) if (k++) return true; return false; is false
+PASS return 1 && (0===0); is true
+PASS if (1 && (0===0)) return true; return false; is true
+PASS var k = 0; while (1 && (0===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0===0); ) if (k++) return true; return false; is true
+PASS return 1 && (0!==0); is false
+PASS if (1 && (0!==0)) return true; return false; is false
+PASS var k = 0; while (1 && (0!==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0!==0); ) if (k++) return true; return false; is false
+PASS return (1==0); is false
+PASS if ((1==0)) return true; return false; is false
+PASS var k = 0; while ((1==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1==0); ) if (k++) return true; return false; is false
+PASS return (1!=0); is true
+PASS if ((1!=0)) return true; return false; is true
+PASS var k = 0; while ((1!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=0); ) if (k++) return true; return false; is true
+PASS return (1===0); is false
+PASS if ((1===0)) return true; return false; is false
+PASS var k = 0; while ((1===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1===0); ) if (k++) return true; return false; is false
+PASS return (1!==0); is true
+PASS if ((1!==0)) return true; return false; is true
+PASS var k = 0; while ((1!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==0); ) if (k++) return true; return false; is true
+PASS return (1==0) || 1; is true
+PASS if ((1==0) || 1) return true; return false; is true
+PASS var k = 0; while ((1==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1==0) || 1; ) if (k++) return true; return false; is true
+PASS return (1!=0) || 1; is true
+PASS if ((1!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((1!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (1===0) || 1; is true
+PASS if ((1===0) || 1) return true; return false; is true
+PASS var k = 0; while ((1===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1===0) || 1; ) if (k++) return true; return false; is true
+PASS return (1!==0) || 1; is true
+PASS if ((1!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((1!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==0) || 1; ) if (k++) return true; return false; is true
+PASS return (1==0) && 1; is false
+PASS if ((1==0) && 1) return true; return false; is false
+PASS var k = 0; while ((1==0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1==0) && 1; ) if (k++) return true; return false; is false
+PASS return (1!=0) && 1; is true
+PASS if ((1!=0) && 1) return true; return false; is true
+PASS var k = 0; while ((1!=0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=0) && 1; ) if (k++) return true; return false; is true
+PASS return (1===0) && 1; is false
+PASS if ((1===0) && 1) return true; return false; is false
+PASS var k = 0; while ((1===0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1===0) && 1; ) if (k++) return true; return false; is false
+PASS return (1!==0) && 1; is true
+PASS if ((1!==0) && 1) return true; return false; is true
+PASS var k = 0; while ((1!==0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==0) && 1; ) if (k++) return true; return false; is true
+PASS return (1==0) || 1; is true
+PASS if ((1==0) || 1) return true; return false; is true
+PASS var k = 0; while ((1==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1==0) || 1; ) if (k++) return true; return false; is true
+PASS return (1!=0) || 1; is true
+PASS if ((1!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((1!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (1===0) || 1; is true
+PASS if ((1===0) || 1) return true; return false; is true
+PASS var k = 0; while ((1===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1===0) || 1; ) if (k++) return true; return false; is true
+PASS return (1!==0) || 1; is true
+PASS if ((1!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((1!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==0) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (1==0); is true
+PASS if (1 || (1==0)) return true; return false; is true
+PASS var k = 0; while (1 || (1==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1==0); ) if (k++) return true; return false; is true
+PASS return 1 || (1!=0); is true
+PASS if (1 || (1!=0)) return true; return false; is true
+PASS var k = 0; while (1 || (1!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1!=0); ) if (k++) return true; return false; is true
+PASS return 1 || (1===0); is true
+PASS if (1 || (1===0)) return true; return false; is true
+PASS var k = 0; while (1 || (1===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1===0); ) if (k++) return true; return false; is true
+PASS return 1 || (1!==0); is true
+PASS if (1 || (1!==0)) return true; return false; is true
+PASS var k = 0; while (1 || (1!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1!==0); ) if (k++) return true; return false; is true
+PASS return 1 && (1==0); is false
+PASS if (1 && (1==0)) return true; return false; is false
+PASS var k = 0; while (1 && (1==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (1==0); ) if (k++) return true; return false; is false
+PASS return 1 && (1!=0); is true
+PASS if (1 && (1!=0)) return true; return false; is true
+PASS var k = 0; while (1 && (1!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (1!=0); ) if (k++) return true; return false; is true
+PASS return 1 && (1===0); is false
+PASS if (1 && (1===0)) return true; return false; is false
+PASS var k = 0; while (1 && (1===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (1===0); ) if (k++) return true; return false; is false
+PASS return 1 && (1!==0); is true
+PASS if (1 && (1!==0)) return true; return false; is true
+PASS var k = 0; while (1 && (1!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (1!==0); ) if (k++) return true; return false; is true
+PASS return (Zero==1); is false
+PASS if ((Zero==1)) return true; return false; is false
+PASS var k = 0; while ((Zero==1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero==1); ) if (k++) return true; return false; is false
+PASS return (Zero!=1); is true
+PASS if ((Zero!=1)) return true; return false; is true
+PASS var k = 0; while ((Zero!=1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!=1); ) if (k++) return true; return false; is true
+PASS return (Zero===1); is false
+PASS if ((Zero===1)) return true; return false; is false
+PASS var k = 0; while ((Zero===1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero===1); ) if (k++) return true; return false; is false
+PASS return (Zero!==1); is true
+PASS if ((Zero!==1)) return true; return false; is true
+PASS var k = 0; while ((Zero!==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!==1); ) if (k++) return true; return false; is true
+PASS return (Zero==1) || 1; is true
+PASS if ((Zero==1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero==1) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!=1) || 1; is true
+PASS if ((Zero!=1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!=1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!=1) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero===1) || 1; is true
+PASS if ((Zero===1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero===1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero===1) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!==1) || 1; is true
+PASS if ((Zero!==1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!==1) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero==1) && 1; is false
+PASS if ((Zero==1) && 1) return true; return false; is false
+PASS var k = 0; while ((Zero==1) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero==1) && 1; ) if (k++) return true; return false; is false
+PASS return (Zero!=1) && 1; is true
+PASS if ((Zero!=1) && 1) return true; return false; is true
+PASS var k = 0; while ((Zero!=1) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!=1) && 1; ) if (k++) return true; return false; is true
+PASS return (Zero===1) && 1; is false
+PASS if ((Zero===1) && 1) return true; return false; is false
+PASS var k = 0; while ((Zero===1) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero===1) && 1; ) if (k++) return true; return false; is false
+PASS return (Zero!==1) && 1; is true
+PASS if ((Zero!==1) && 1) return true; return false; is true
+PASS var k = 0; while ((Zero!==1) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!==1) && 1; ) if (k++) return true; return false; is true
+PASS return (Zero==1) || 1; is true
+PASS if ((Zero==1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero==1) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!=1) || 1; is true
+PASS if ((Zero!=1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!=1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!=1) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero===1) || 1; is true
+PASS if ((Zero===1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero===1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero===1) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!==1) || 1; is true
+PASS if ((Zero!==1) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!==1) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!==1) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (Zero==1); is true
+PASS if (1 || (Zero==1)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero==1); ) if (k++) return true; return false; is true
+PASS return 1 || (Zero!=1); is true
+PASS if (1 || (Zero!=1)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero!=1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero!=1); ) if (k++) return true; return false; is true
+PASS return 1 || (Zero===1); is true
+PASS if (1 || (Zero===1)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero===1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero===1); ) if (k++) return true; return false; is true
+PASS return 1 || (Zero!==1); is true
+PASS if (1 || (Zero!==1)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero!==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero!==1); ) if (k++) return true; return false; is true
+PASS return 1 && (Zero==1); is false
+PASS if (1 && (Zero==1)) return true; return false; is false
+PASS var k = 0; while (1 && (Zero==1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (Zero==1); ) if (k++) return true; return false; is false
+PASS return 1 && (Zero!=1); is true
+PASS if (1 && (Zero!=1)) return true; return false; is true
+PASS var k = 0; while (1 && (Zero!=1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (Zero!=1); ) if (k++) return true; return false; is true
+PASS return 1 && (Zero===1); is false
+PASS if (1 && (Zero===1)) return true; return false; is false
+PASS var k = 0; while (1 && (Zero===1)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (Zero===1); ) if (k++) return true; return false; is false
+PASS return 1 && (Zero!==1); is true
+PASS if (1 && (Zero!==1)) return true; return false; is true
+PASS var k = 0; while (1 && (Zero!==1)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (Zero!==1); ) if (k++) return true; return false; is true
+PASS return (Zero==0); is true
+PASS if ((Zero==0)) return true; return false; is true
+PASS var k = 0; while ((Zero==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero==0); ) if (k++) return true; return false; is true
+PASS return (Zero!=0); is false
+PASS if ((Zero!=0)) return true; return false; is false
+PASS var k = 0; while ((Zero!=0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero!=0); ) if (k++) return true; return false; is false
+PASS return (Zero===0); is true
+PASS if ((Zero===0)) return true; return false; is true
+PASS var k = 0; while ((Zero===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero===0); ) if (k++) return true; return false; is true
+PASS return (Zero!==0); is false
+PASS if ((Zero!==0)) return true; return false; is false
+PASS var k = 0; while ((Zero!==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero!==0); ) if (k++) return true; return false; is false
+PASS return (Zero==0) || 1; is true
+PASS if ((Zero==0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero==0) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!=0) || 1; is true
+PASS if ((Zero!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero===0) || 1; is true
+PASS if ((Zero===0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero===0) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!==0) || 1; is true
+PASS if ((Zero!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!==0) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero==0) && 1; is true
+PASS if ((Zero==0) && 1) return true; return false; is true
+PASS var k = 0; while ((Zero==0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero==0) && 1; ) if (k++) return true; return false; is true
+PASS return (Zero!=0) && 1; is false
+PASS if ((Zero!=0) && 1) return true; return false; is false
+PASS var k = 0; while ((Zero!=0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero!=0) && 1; ) if (k++) return true; return false; is false
+PASS return (Zero===0) && 1; is true
+PASS if ((Zero===0) && 1) return true; return false; is true
+PASS var k = 0; while ((Zero===0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero===0) && 1; ) if (k++) return true; return false; is true
+PASS return (Zero!==0) && 1; is false
+PASS if ((Zero!==0) && 1) return true; return false; is false
+PASS var k = 0; while ((Zero!==0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (Zero!==0) && 1; ) if (k++) return true; return false; is false
+PASS return (Zero==0) || 1; is true
+PASS if ((Zero==0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero==0) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!=0) || 1; is true
+PASS if ((Zero!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero===0) || 1; is true
+PASS if ((Zero===0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero===0) || 1; ) if (k++) return true; return false; is true
+PASS return (Zero!==0) || 1; is true
+PASS if ((Zero!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((Zero!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (Zero!==0) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (Zero==0); is true
+PASS if (1 || (Zero==0)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero==0); ) if (k++) return true; return false; is true
+PASS return 1 || (Zero!=0); is true
+PASS if (1 || (Zero!=0)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero!=0); ) if (k++) return true; return false; is true
+PASS return 1 || (Zero===0); is true
+PASS if (1 || (Zero===0)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero===0); ) if (k++) return true; return false; is true
+PASS return 1 || (Zero!==0); is true
+PASS if (1 || (Zero!==0)) return true; return false; is true
+PASS var k = 0; while (1 || (Zero!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (Zero!==0); ) if (k++) return true; return false; is true
+PASS return 1 && (Zero==0); is true
+PASS if (1 && (Zero==0)) return true; return false; is true
+PASS var k = 0; while (1 && (Zero==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (Zero==0); ) if (k++) return true; return false; is true
+PASS return 1 && (Zero!=0); is false
+PASS if (1 && (Zero!=0)) return true; return false; is false
+PASS var k = 0; while (1 && (Zero!=0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (Zero!=0); ) if (k++) return true; return false; is false
+PASS return 1 && (Zero===0); is true
+PASS if (1 && (Zero===0)) return true; return false; is true
+PASS var k = 0; while (1 && (Zero===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (Zero===0); ) if (k++) return true; return false; is true
+PASS return 1 && (Zero!==0); is false
+PASS if (1 && (Zero!==0)) return true; return false; is false
+PASS var k = 0; while (1 && (Zero!==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (Zero!==0); ) if (k++) return true; return false; is false
+PASS return (1==Zero); is false
+PASS if ((1==Zero)) return true; return false; is false
+PASS var k = 0; while ((1==Zero)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1==Zero); ) if (k++) return true; return false; is false
+PASS return (1!=Zero); is true
+PASS if ((1!=Zero)) return true; return false; is true
+PASS var k = 0; while ((1!=Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=Zero); ) if (k++) return true; return false; is true
+PASS return (1===Zero); is false
+PASS if ((1===Zero)) return true; return false; is false
+PASS var k = 0; while ((1===Zero)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1===Zero); ) if (k++) return true; return false; is false
+PASS return (1!==Zero); is true
+PASS if ((1!==Zero)) return true; return false; is true
+PASS var k = 0; while ((1!==Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==Zero); ) if (k++) return true; return false; is true
+PASS return (1==Zero) || 1; is true
+PASS if ((1==Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1==Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1==Zero) || 1; ) if (k++) return true; return false; is true
+PASS return (1!=Zero) || 1; is true
+PASS if ((1!=Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1!=Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=Zero) || 1; ) if (k++) return true; return false; is true
+PASS return (1===Zero) || 1; is true
+PASS if ((1===Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1===Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1===Zero) || 1; ) if (k++) return true; return false; is true
+PASS return (1!==Zero) || 1; is true
+PASS if ((1!==Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1!==Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==Zero) || 1; ) if (k++) return true; return false; is true
+PASS return (1==Zero) && 1; is false
+PASS if ((1==Zero) && 1) return true; return false; is false
+PASS var k = 0; while ((1==Zero) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1==Zero) && 1; ) if (k++) return true; return false; is false
+PASS return (1!=Zero) && 1; is true
+PASS if ((1!=Zero) && 1) return true; return false; is true
+PASS var k = 0; while ((1!=Zero) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=Zero) && 1; ) if (k++) return true; return false; is true
+PASS return (1===Zero) && 1; is false
+PASS if ((1===Zero) && 1) return true; return false; is false
+PASS var k = 0; while ((1===Zero) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (1===Zero) && 1; ) if (k++) return true; return false; is false
+PASS return (1!==Zero) && 1; is true
+PASS if ((1!==Zero) && 1) return true; return false; is true
+PASS var k = 0; while ((1!==Zero) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==Zero) && 1; ) if (k++) return true; return false; is true
+PASS return (1==Zero) || 1; is true
+PASS if ((1==Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1==Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1==Zero) || 1; ) if (k++) return true; return false; is true
+PASS return (1!=Zero) || 1; is true
+PASS if ((1!=Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1!=Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!=Zero) || 1; ) if (k++) return true; return false; is true
+PASS return (1===Zero) || 1; is true
+PASS if ((1===Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1===Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1===Zero) || 1; ) if (k++) return true; return false; is true
+PASS return (1!==Zero) || 1; is true
+PASS if ((1!==Zero) || 1) return true; return false; is true
+PASS var k = 0; while ((1!==Zero) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (1!==Zero) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (1==Zero); is true
+PASS if (1 || (1==Zero)) return true; return false; is true
+PASS var k = 0; while (1 || (1==Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1==Zero); ) if (k++) return true; return false; is true
+PASS return 1 || (1!=Zero); is true
+PASS if (1 || (1!=Zero)) return true; return false; is true
+PASS var k = 0; while (1 || (1!=Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1!=Zero); ) if (k++) return true; return false; is true
+PASS return 1 || (1===Zero); is true
+PASS if (1 || (1===Zero)) return true; return false; is true
+PASS var k = 0; while (1 || (1===Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1===Zero); ) if (k++) return true; return false; is true
+PASS return 1 || (1!==Zero); is true
+PASS if (1 || (1!==Zero)) return true; return false; is true
+PASS var k = 0; while (1 || (1!==Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (1!==Zero); ) if (k++) return true; return false; is true
+PASS return 1 && (1==Zero); is false
+PASS if (1 && (1==Zero)) return true; return false; is false
+PASS var k = 0; while (1 && (1==Zero)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (1==Zero); ) if (k++) return true; return false; is false
+PASS return 1 && (1!=Zero); is true
+PASS if (1 && (1!=Zero)) return true; return false; is true
+PASS var k = 0; while (1 && (1!=Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (1!=Zero); ) if (k++) return true; return false; is true
+PASS return 1 && (1===Zero); is false
+PASS if (1 && (1===Zero)) return true; return false; is false
+PASS var k = 0; while (1 && (1===Zero)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (1===Zero); ) if (k++) return true; return false; is false
+PASS return 1 && (1!==Zero); is true
+PASS if (1 && (1!==Zero)) return true; return false; is true
+PASS var k = 0; while (1 && (1!==Zero)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (1!==Zero); ) if (k++) return true; return false; is true
+PASS return (0==One); is false
+PASS if ((0==One)) return true; return false; is false
+PASS var k = 0; while ((0==One)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==One); ) if (k++) return true; return false; is false
+PASS return (0!=One); is true
+PASS if ((0!=One)) return true; return false; is true
+PASS var k = 0; while ((0!=One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=One); ) if (k++) return true; return false; is true
+PASS return (0===One); is false
+PASS if ((0===One)) return true; return false; is false
+PASS var k = 0; while ((0===One)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===One); ) if (k++) return true; return false; is false
+PASS return (0!==One); is true
+PASS if ((0!==One)) return true; return false; is true
+PASS var k = 0; while ((0!==One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==One); ) if (k++) return true; return false; is true
+PASS return (0==One) || 1; is true
+PASS if ((0==One) || 1) return true; return false; is true
+PASS var k = 0; while ((0==One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==One) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=One) || 1; is true
+PASS if ((0!=One) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=One) || 1; ) if (k++) return true; return false; is true
+PASS return (0===One) || 1; is true
+PASS if ((0===One) || 1) return true; return false; is true
+PASS var k = 0; while ((0===One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===One) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==One) || 1; is true
+PASS if ((0!==One) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==One) || 1; ) if (k++) return true; return false; is true
+PASS return (0==One) && 1; is false
+PASS if ((0==One) && 1) return true; return false; is false
+PASS var k = 0; while ((0==One) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0==One) && 1; ) if (k++) return true; return false; is false
+PASS return (0!=One) && 1; is true
+PASS if ((0!=One) && 1) return true; return false; is true
+PASS var k = 0; while ((0!=One) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=One) && 1; ) if (k++) return true; return false; is true
+PASS return (0===One) && 1; is false
+PASS if ((0===One) && 1) return true; return false; is false
+PASS var k = 0; while ((0===One) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (0===One) && 1; ) if (k++) return true; return false; is false
+PASS return (0!==One) && 1; is true
+PASS if ((0!==One) && 1) return true; return false; is true
+PASS var k = 0; while ((0!==One) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==One) && 1; ) if (k++) return true; return false; is true
+PASS return (0==One) || 1; is true
+PASS if ((0==One) || 1) return true; return false; is true
+PASS var k = 0; while ((0==One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0==One) || 1; ) if (k++) return true; return false; is true
+PASS return (0!=One) || 1; is true
+PASS if ((0!=One) || 1) return true; return false; is true
+PASS var k = 0; while ((0!=One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!=One) || 1; ) if (k++) return true; return false; is true
+PASS return (0===One) || 1; is true
+PASS if ((0===One) || 1) return true; return false; is true
+PASS var k = 0; while ((0===One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0===One) || 1; ) if (k++) return true; return false; is true
+PASS return (0!==One) || 1; is true
+PASS if ((0!==One) || 1) return true; return false; is true
+PASS var k = 0; while ((0!==One) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (0!==One) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (0==One); is true
+PASS if (1 || (0==One)) return true; return false; is true
+PASS var k = 0; while (1 || (0==One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0==One); ) if (k++) return true; return false; is true
+PASS return 1 || (0!=One); is true
+PASS if (1 || (0!=One)) return true; return false; is true
+PASS var k = 0; while (1 || (0!=One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!=One); ) if (k++) return true; return false; is true
+PASS return 1 || (0===One); is true
+PASS if (1 || (0===One)) return true; return false; is true
+PASS var k = 0; while (1 || (0===One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0===One); ) if (k++) return true; return false; is true
+PASS return 1 || (0!==One); is true
+PASS if (1 || (0!==One)) return true; return false; is true
+PASS var k = 0; while (1 || (0!==One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (0!==One); ) if (k++) return true; return false; is true
+PASS return 1 && (0==One); is false
+PASS if (1 && (0==One)) return true; return false; is false
+PASS var k = 0; while (1 && (0==One)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0==One); ) if (k++) return true; return false; is false
+PASS return 1 && (0!=One); is true
+PASS if (1 && (0!=One)) return true; return false; is true
+PASS var k = 0; while (1 && (0!=One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!=One); ) if (k++) return true; return false; is true
+PASS return 1 && (0===One); is false
+PASS if (1 && (0===One)) return true; return false; is false
+PASS var k = 0; while (1 && (0===One)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (0===One); ) if (k++) return true; return false; is false
+PASS return 1 && (0!==One); is true
+PASS if (1 && (0!==One)) return true; return false; is true
+PASS var k = 0; while (1 && (0!==One)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (0!==One); ) if (k++) return true; return false; is true
+PASS return (One==0); is false
+PASS if ((One==0)) return true; return false; is false
+PASS var k = 0; while ((One==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (One==0); ) if (k++) return true; return false; is false
+PASS return (One!=0); is true
+PASS if ((One!=0)) return true; return false; is true
+PASS var k = 0; while ((One!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!=0); ) if (k++) return true; return false; is true
+PASS return (One===0); is false
+PASS if ((One===0)) return true; return false; is false
+PASS var k = 0; while ((One===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; (One===0); ) if (k++) return true; return false; is false
+PASS return (One!==0); is true
+PASS if ((One!==0)) return true; return false; is true
+PASS var k = 0; while ((One!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!==0); ) if (k++) return true; return false; is true
+PASS return (One==0) || 1; is true
+PASS if ((One==0) || 1) return true; return false; is true
+PASS var k = 0; while ((One==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One==0) || 1; ) if (k++) return true; return false; is true
+PASS return (One!=0) || 1; is true
+PASS if ((One!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((One!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (One===0) || 1; is true
+PASS if ((One===0) || 1) return true; return false; is true
+PASS var k = 0; while ((One===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One===0) || 1; ) if (k++) return true; return false; is true
+PASS return (One!==0) || 1; is true
+PASS if ((One!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((One!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!==0) || 1; ) if (k++) return true; return false; is true
+PASS return (One==0) && 1; is false
+PASS if ((One==0) && 1) return true; return false; is false
+PASS var k = 0; while ((One==0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (One==0) && 1; ) if (k++) return true; return false; is false
+PASS return (One!=0) && 1; is true
+PASS if ((One!=0) && 1) return true; return false; is true
+PASS var k = 0; while ((One!=0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!=0) && 1; ) if (k++) return true; return false; is true
+PASS return (One===0) && 1; is false
+PASS if ((One===0) && 1) return true; return false; is false
+PASS var k = 0; while ((One===0) && 1) if (k++) return true; return false; is false
+PASS var k = 0; for (; (One===0) && 1; ) if (k++) return true; return false; is false
+PASS return (One!==0) && 1; is true
+PASS if ((One!==0) && 1) return true; return false; is true
+PASS var k = 0; while ((One!==0) && 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!==0) && 1; ) if (k++) return true; return false; is true
+PASS return (One==0) || 1; is true
+PASS if ((One==0) || 1) return true; return false; is true
+PASS var k = 0; while ((One==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One==0) || 1; ) if (k++) return true; return false; is true
+PASS return (One!=0) || 1; is true
+PASS if ((One!=0) || 1) return true; return false; is true
+PASS var k = 0; while ((One!=0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!=0) || 1; ) if (k++) return true; return false; is true
+PASS return (One===0) || 1; is true
+PASS if ((One===0) || 1) return true; return false; is true
+PASS var k = 0; while ((One===0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One===0) || 1; ) if (k++) return true; return false; is true
+PASS return (One!==0) || 1; is true
+PASS if ((One!==0) || 1) return true; return false; is true
+PASS var k = 0; while ((One!==0) || 1) if (k++) return true; return false; is true
+PASS var k = 0; for (; (One!==0) || 1; ) if (k++) return true; return false; is true
+PASS return 1 || (One==0); is true
+PASS if (1 || (One==0)) return true; return false; is true
+PASS var k = 0; while (1 || (One==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (One==0); ) if (k++) return true; return false; is true
+PASS return 1 || (One!=0); is true
+PASS if (1 || (One!=0)) return true; return false; is true
+PASS var k = 0; while (1 || (One!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (One!=0); ) if (k++) return true; return false; is true
+PASS return 1 || (One===0); is true
+PASS if (1 || (One===0)) return true; return false; is true
+PASS var k = 0; while (1 || (One===0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (One===0); ) if (k++) return true; return false; is true
+PASS return 1 || (One!==0); is true
+PASS if (1 || (One!==0)) return true; return false; is true
+PASS var k = 0; while (1 || (One!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 || (One!==0); ) if (k++) return true; return false; is true
+PASS return 1 && (One==0); is false
+PASS if (1 && (One==0)) return true; return false; is false
+PASS var k = 0; while (1 && (One==0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (One==0); ) if (k++) return true; return false; is false
+PASS return 1 && (One!=0); is true
+PASS if (1 && (One!=0)) return true; return false; is true
+PASS var k = 0; while (1 && (One!=0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (One!=0); ) if (k++) return true; return false; is true
+PASS return 1 && (One===0); is false
+PASS if (1 && (One===0)) return true; return false; is false
+PASS var k = 0; while (1 && (One===0)) if (k++) return true; return false; is false
+PASS var k = 0; for (; 1 && (One===0); ) if (k++) return true; return false; is false
+PASS return 1 && (One!==0); is true
+PASS if (1 && (One!==0)) return true; return false; is true
+PASS var k = 0; while (1 && (One!==0)) if (k++) return true; return false; is true
+PASS var k = 0; for (; 1 && (One!==0); ) if (k++) return true; return false; is true
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

@@ -1,0 +1,20 @@
+prefix sea
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$system==macos && $arch==x64]
+# https://github.com/nodejs/node/issues/59553
+test-single-executable-application*: SKIP
+
+[$system==linux && $arch==ppc64]
+# https://github.com/nodejs/node/issues/59561
+test-single-executable-application*: SKIP
+
+[$system==win32]
+# https://github.com/nodejs/node/issues/49630
+test-single-executable-application-snapshot: PASS, FLAKY
+test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY

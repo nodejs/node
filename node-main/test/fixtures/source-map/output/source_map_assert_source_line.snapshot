@@ -1,0 +1,20 @@
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(false)
+
+    at Object.<anonymous> (*/test/fixtures/source-map/output/source_map_assert_source_line.ts:11:3)
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

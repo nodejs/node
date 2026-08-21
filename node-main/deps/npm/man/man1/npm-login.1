@@ -1,0 +1,97 @@
+.TH "NPM-LOGIN" "1" "October 2025" "NPM@11.6.2" ""
+.SH "NAME"
+\fBnpm-login\fR - Login to a registry user account
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm login
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Verify a user in the specified registry, and save the credentials to the \fB.npmrc\fR file. If no registry is specified, the default registry will be used (see npm help config).
+.P
+When you run \fBnpm login\fR, the CLI automatically generates a legacy token of \fBpublish\fR type. For more information, see \fBAbout legacy tokens\fR \fI\(la/about-access-tokens#about-legacy-tokens\(ra\fR.
+.P
+When using \fBlegacy\fR for your \fBauth-type\fR, the username and password, are read in from prompts.
+.P
+To reset your password, go to \fI\(lahttps://www.npmjs.com/forgot\(ra\fR
+.P
+To change your email address, go to \fI\(lahttps://www.npmjs.com/email-edit\(ra\fR
+.P
+You may use this command multiple times with the same user account to authorize on a new machine. When authenticating on a new machine, the username, password and email address must all match with your existing record.
+.SS "Configuration"
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBscope\fR"
+.RS 0
+.IP \(bu 4
+Default: the scope of the current project, if any, or ""
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+Associate an operation with a scope for a scoped registry.
+.P
+Useful when logging in to or out of a private registry:
+.P
+.RS 2
+.nf
+# log in, linking the scope to the custom registry
+npm login --scope=@mycorp --registry=https://registry.mycorp.com
+
+# log out, removing the link and the auth token
+npm logout --scope=@mycorp
+.fi
+.RE
+.P
+This will cause \fB@mycorp\fR to be mapped to the registry for future installation of packages specified according to the pattern \fB@mycorp/package\fR.
+.P
+This will also cause \fBnpm init\fR to create a scoped package.
+.P
+.RS 2
+.nf
+# accept all defaults, and create a package named "@foo/whatever",
+# instead of just named "whatever"
+npm init --scope=@foo --yes
+.fi
+.RE
+.SS "\fBauth-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "web"
+.IP \(bu 4
+Type: "legacy" or "web"
+.RE 0
+
+.P
+What authentication strategy to use with \fBlogin\fR. Note that if an \fBotp\fR config is given, this value will always be set to \fBlegacy\fR.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help registry
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.IP \(bu 4
+npm help owner
+.IP \(bu 4
+npm help whoami
+.IP \(bu 4
+npm help token
+.IP \(bu 4
+npm help profile
+.RE 0

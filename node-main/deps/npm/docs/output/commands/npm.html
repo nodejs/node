@@ -1,0 +1,278 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>npm</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+header.title .version {
+    font-size: 0.8em;
+    color: #666666;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="----npm----1162">
+    <span>npm</span>
+    <span class="version">@11.6.2</span>
+</h1>
+<span class="description">javascript package manager</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#version">Version</a></li><li><a href="#description">Description</a></li><li><a href="#important">Important</a></li><li><a href="#introduction">Introduction</a></li><li><a href="#dependencies">Dependencies</a></li><li><a href="#directories">Directories</a></li><li><a href="#developer-usage">Developer Usage</a></li><ul><li><a href="#configuration">Configuration</a></li></ul><li><a href="#contributions">Contributions</a></li><li><a href="#bugs">Bugs</a></li><li><a href="#feature-requests">Feature Requests</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<pre><code class="language-bash">npm
+</code></pre>
+<p>Note: This command is unaware of workspaces.</p>
+<h3 id="version">Version</h3>
+<p>11.6.2</p>
+<h3 id="description">Description</h3>
+<p>npm is the package manager for the Node JavaScript platform.
+It puts modules in place so that node can find them, and manages dependency conflicts intelligently.</p>
+<p>It is extremely configurable to support a variety of use cases.
+Most commonly, you use it to publish, discover, install, and develop node programs.</p>
+<p>Run <code>npm help</code> to get a list of available commands.</p>
+<h3 id="important">Important</h3>
+<p>npm comes preconfigured to use npm's public registry at <a href="https://registry.npmjs.org">https://registry.npmjs.org</a> by default.
+Use of the npm public registry is subject to terms of use available at <a href="https://docs.npmjs.com/policies/terms">https://docs.npmjs.com/policies/terms</a>.</p>
+<p>You can configure npm to use any compatible registry you like, and even run your own registry.
+Use of someone else's registry is governed by their terms of use.</p>
+<h3 id="introduction">Introduction</h3>
+<p>You probably got npm because you want to install stuff.</p>
+<p>The very first thing you will most likely want to run in any node program is <code>npm install</code> to install its dependencies.</p>
+<p>You can also run <code>npm install blerg</code> to install the latest version of "blerg".  Check out <a href="../commands/npm-install.html"><code>npm install</code></a> for more info.
+It can do a lot of stuff.</p>
+<p>Use the <code>npm search</code> command to show everything that's available in the public registry.
+Use <code>npm ls</code> to show everything you've installed.</p>
+<h3 id="dependencies">Dependencies</h3>
+<p>If a package lists a dependency using a git URL, npm will install that dependency using the <a href="https://github.com/git-guides/install-git"><code>git</code></a> command and will generate an error if it is not installed.</p>
+<p>If one of the packages npm tries to install is a native node module and requires compiling of C++ Code, npm will use <a href="https://github.com/nodejs/node-gyp">node-gyp</a> for that task.
+For a Unix system, <a href="https://github.com/nodejs/node-gyp">node-gyp</a> needs Python, make and a buildchain like GCC. On Windows, Python and Microsoft Visual Studio C++ are needed.
+For more information visit <a href="https://github.com/nodejs/node-gyp">the node-gyp repository</a> and the <a href="https://github.com/nodejs/node-gyp/wiki">node-gyp Wiki</a>.</p>
+<h3 id="directories">Directories</h3>
+<p>See <a href="../configuring-npm/folders.html"><code>folders</code></a> to learn about where npm puts stuff.</p>
+<p>In particular, npm has two modes of operation:</p>
+<ul>
+<li>local mode:
+npm installs packages into the current project directory, which defaults to the current working directory.
+Packages install to <code>./node_modules</code>, and bins to <code>./node_modules/.bin</code>.</li>
+<li>global mode:
+npm installs packages into the install prefix at <code>$npm_config_prefix/lib/node_modules</code> and bins to <code>$npm_config_prefix/bin</code>.</li>
+</ul>
+<p>Local mode is the default.
+Use <code>-g</code> or <code>--global</code> on any command to run in global mode instead.</p>
+<h3 id="developer-usage">Developer Usage</h3>
+<p>If you're using npm to develop and publish your code, check out the following help topics:</p>
+<ul>
+<li>json:
+Make a package.json file.
+See <a href="../configuring-npm/package-json.html"><code>package.json</code></a>.</li>
+<li>link:
+Links your current working code into Node's path, so that you don't have to reinstall every time you make a change.
+Use <a href="../commands/npm-link.html"><code>npm link</code></a> to do this.</li>
+<li>install:
+It's a good idea to install things if you don't need the symbolic link.
+Especially, installing other peoples code from the registry is done via <a href="../commands/npm-install.html"><code>npm install</code></a></li>
+<li>adduser:
+Create an account or log in.
+When you do this, npm will store credentials in the user config file.</li>
+<li>publish:
+Use the <a href="../commands/npm-publish.html"><code>npm publish</code></a> command to upload your code to the registry.</li>
+</ul>
+<h4 id="configuration">Configuration</h4>
+<p>npm is extremely configurable.
+It reads its configuration options from 5 places.</p>
+<ul>
+<li>Command line switches:
+Set a config with <code>--key val</code>.
+All keys take a value, even if they are booleans (the config parser doesn't know what the options are at the time of parsing).
+If you do not provide a value (<code>--key</code>) then the option is set to boolean <code>true</code>.</li>
+<li>Environment Variables:
+Set any config by prefixing the name in an environment variable with <code>npm_config_</code>.
+For example, <code>export npm_config_key=val</code>.</li>
+<li>User Configs:
+The file at <code>$HOME/.npmrc</code> is an ini-formatted list of configs.
+If present, it is parsed.
+If the <code>userconfig</code> option is set in the cli or env, that file will be used instead.</li>
+<li>Global Configs:
+The file found at <code>./etc/npmrc</code> (relative to the global prefix will be parsed if it is found.
+See <a href="../commands/npm-prefix.html"><code>npm prefix</code></a> for more info on the global prefix.
+If the <code>globalconfig</code> option is set in the cli, env, or user config, then that file is parsed instead.</li>
+<li>Defaults:
+npm's default configuration options are defined in <code>lib/utils/config/definitions.js</code>.
+These must not be changed.</li>
+</ul>
+<p>See <a href="../using-npm/config.html"><code>config</code></a> for much, much, more information.</p>
+<h3 id="contributions">Contributions</h3>
+<p>Patches welcome!</p>
+<p>If you would like to help, but don't know what to work on, read the <a href="https://github.com/npm/cli/blob/latest/CONTRIBUTING.md">contributing guidelines</a> and check the issues list.</p>
+<h3 id="bugs">Bugs</h3>
+<p>When you find issues, please report them:
+<a href="https://github.com/npm/cli/issues">https://github.com/npm/cli/issues</a></p>
+<p>Please be sure to follow the template and bug reporting guidelines.</p>
+<h3 id="feature-requests">Feature Requests</h3>
+<p>Discuss new feature ideas on our discussion forum:</p>
+<ul>
+<li><a href="https://github.com/orgs/community/discussions/categories/npm">https://github.com/orgs/community/discussions/categories/npm</a></li>
+</ul>
+<p>Or suggest formal RFC proposals:</p>
+<ul>
+<li><a href="https://github.com/npm/rfcs">https://github.com/npm/rfcs</a></li>
+</ul>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../commands/npm-help.html">npm help</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../configuring-npm/npmrc.html">npmrc</a></li>
+<li><a href="../commands/npm-config.html">npm config</a></li>
+<li><a href="../commands/npm-install.html">npm install</a></li>
+<li><a href="../commands/npm-prefix.html">npm prefix</a></li>
+<li><a href="../commands/npm-publish.html">npm publish</a></li>
+</ul></div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/commands/npm.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

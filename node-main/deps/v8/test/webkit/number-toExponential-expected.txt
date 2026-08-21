@@ -1,0 +1,60 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+PASS (0.0).toExponential(4) is "0.0000e+0"
+PASS (-0.0).toExponential(4) is "0.0000e+0"
+PASS (0.0).toExponential() is "0e+0"
+PASS (-0.0).toExponential() is "0e+0"
+PASS (123.456).toExponential() is "1.23456e+2"
+PASS (123.456).toExponential(0) is "1e+2"
+PASS (123.456).toExponential(null) is "1e+2"
+PASS (123.456).toExponential(false) is "1e+2"
+PASS (123.456).toExponential('foo') is "1e+2"
+PASS (123.456).toExponential(nan) is "1e+2"
+PASS (123.456).toExponential(1) is "1.2e+2"
+PASS (123.456).toExponential(true) is "1.2e+2"
+PASS (123.456).toExponential('1') is "1.2e+2"
+PASS (123.456).toExponential(2) is "1.23e+2"
+PASS (123.456).toExponential(2.9) is "1.23e+2"
+PASS (123.456).toExponential(3) is "1.235e+2"
+PASS (123.456).toExponential(5) is "1.23456e+2"
+PASS (123.456).toExponential(6) is "1.234560e+2"
+PASS (123.456).toExponential(20) is "1.23456000000000003070e+2"
+FAIL (123.456).toExponential(21) should throw an exception. Was 1.234560000000000030695e+2.
+FAIL (123.456).toExponential(100) should throw an exception. Was 1.2345600000000000306954461848363280296325683593750000000000000000000000000000000000000000000000000000e+2.
+PASS (123.456).toExponential(101) threw exception RangeError: toExponential() argument must be between 0 and 100.
+PASS (123.456).toExponential(-1) threw exception RangeError: toExponential() argument must be between 0 and 100.
+PASS (1234.567).toExponential(posInf) threw exception RangeError: toExponential() argument must be between 0 and 100.
+PASS (1234.567).toExponential(negInf) threw exception RangeError: toExponential() argument must be between 0 and 100.
+PASS posInf.toExponential() is "Infinity"
+PASS negInf.toExponential() is "-Infinity"
+PASS nan.toExponential() is "NaN"
+PASS (0.01).toExponential() is "1e-2"
+PASS (0.1).toExponential() is "1e-1"
+PASS (0.9).toExponential() is "9e-1"
+PASS (0.9999).toExponential() is "9.999e-1"
+PASS (0.9999).toExponential(2) is "1.00e+0"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

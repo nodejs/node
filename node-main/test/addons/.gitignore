@@ -1,0 +1,8 @@
+.buildstamp
+.docbuildstamp
+Makefile
+*.Makefile
+*.mk
+gyp-mac-tool
+/*/build
+/esm/node_modules/*/build

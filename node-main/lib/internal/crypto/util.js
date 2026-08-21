@@ -1,0 +1,831 @@
+'use strict';
+
+const {
+  ArrayBufferIsView,
+  ArrayBufferPrototypeGetByteLength,
+  ArrayPrototypeIncludes,
+  ArrayPrototypePush,
+  BigInt,
+  DataViewPrototypeGetBuffer,
+  DataViewPrototypeGetByteLength,
+  DataViewPrototypeGetByteOffset,
+  FunctionPrototypeBind,
+  Number,
+  ObjectDefineProperty,
+  ObjectEntries,
+  ObjectKeys,
+  ObjectPrototypeHasOwnProperty,
+  Promise,
+  StringPrototypeToUpperCase,
+  Symbol,
+  TypedArrayPrototypeGetBuffer,
+  TypedArrayPrototypeGetByteLength,
+  TypedArrayPrototypeGetByteOffset,
+  TypedArrayPrototypeSlice,
+  Uint8Array,
+} = primordials;
+
+const {
+  getCiphers: _getCiphers,
+  getCurves: _getCurves,
+  getHashes: _getHashes,
+  setEngine: _setEngine,
+  secureHeapUsed: _secureHeapUsed,
+  getCachedAliases,
+  getOpenSSLSecLevelCrypto: getOpenSSLSecLevel,
+  EVP_PKEY_ML_DSA_44,
+  EVP_PKEY_ML_DSA_65,
+  EVP_PKEY_ML_DSA_87,
+  EVP_PKEY_ML_KEM_512,
+  EVP_PKEY_ML_KEM_768,
+  EVP_PKEY_ML_KEM_1024,
+  kKeyVariantAES_OCB_128: hasAesOcbMode,
+  Argon2Job,
+  KmacJob,
+} = internalBinding('crypto');
+
+const { getOptionValue } = require('internal/options');
+
+const {
+  crypto: {
+    ENGINE_METHOD_ALL,
+  },
+} = internalBinding('constants');
+
+const normalizeHashName = require('internal/crypto/hashnames');
+
+const {
+  codes: {
+    ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED,
+    ERR_CRYPTO_ENGINE_UNKNOWN,
+    ERR_INVALID_ARG_TYPE,
+  },
+  hideStackFrames,
+} = require('internal/errors');
+
+const {
+  validateArray,
+  validateNumber,
+  validateString,
+} = require('internal/validators');
+
+const { Buffer } = require('buffer');
+
+const {
+  cachedResult,
+  emitExperimentalWarning,
+  filterDuplicateStrings,
+  lazyDOMException,
+} = require('internal/util');
+
+const {
+  namespace: {
+    isBuildingSnapshot,
+    addSerializeCallback,
+  },
+} = require('internal/v8/startup_snapshot');
+
+const {
+  isDataView,
+  isArrayBufferView,
+  isAnyArrayBuffer,
+} = require('internal/util/types');
+
+const kHandle = Symbol('kHandle');
+const kKeyObject = Symbol('kKeyObject');
+
+// This is here because many functions accepted binary strings without
+// any explicit encoding in older versions of node, and we don't want
+// to break them unnecessarily.
+function toBuf(val, encoding) {
+  if (typeof val === 'string') {
+    if (encoding === 'buffer')
+      encoding = 'utf8';
+    return Buffer.from(val, encoding);
+  }
+  return val;
+}
+
+let _hashCache;
+function getHashCache() {
+  if (_hashCache === undefined) {
+    _hashCache = getCachedAliases();
+    if (isBuildingSnapshot()) {
+      // For dynamic linking, clear the map.
+      addSerializeCallback(() => { _hashCache = undefined; });
+    }
+  }
+  return _hashCache;
+}
+
+function getCachedHashId(algorithm) {
+  const result = getHashCache()[algorithm];
+  return result === undefined ? -1 : result;
+}
+
+const getCiphers = cachedResult(() => filterDuplicateStrings(_getCiphers()));
+const getHashes = cachedResult(() => filterDuplicateStrings(_getHashes()));
+const getCurves = cachedResult(() => filterDuplicateStrings(_getCurves()));
+
+function setEngine(id, flags) {
+  validateString(id, 'id');
+  if (flags)
+    validateNumber(flags, 'flags');
+  flags = flags >>> 0;
+
+  // Use provided engine for everything by default
+  if (flags === 0)
+    flags = ENGINE_METHOD_ALL;
+
+  if (typeof _setEngine !== 'function')
+    throw new ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED();
+  if (!_setEngine(id, flags))
+    throw new ERR_CRYPTO_ENGINE_UNKNOWN(id);
+}
+
+const getArrayBufferOrView = hideStackFrames((buffer, name, encoding) => {
+  if (isAnyArrayBuffer(buffer))
+    return buffer;
+  if (typeof buffer === 'string') {
+    if (encoding === 'buffer')
+      encoding = 'utf8';
+    return Buffer.from(buffer, encoding);
+  }
+  if (!isArrayBufferView(buffer)) {
+    throw new ERR_INVALID_ARG_TYPE.HideStackFramesError(
+      name,
+      [
+        'string',
+        'ArrayBuffer',
+        'Buffer',
+        'TypedArray',
+        'DataView',
+      ],
+      buffer,
+    );
+  }
+  return buffer;
+});
+
+// The maximum buffer size that we'll support in the WebCrypto impl
+const kMaxBufferLength = (2 ** 31) - 1;
+
+// The EC named curves that we currently support via the Web Crypto API.
+const kNamedCurveAliases = {
+  'P-256': 'prime256v1',
+  'P-384': 'secp384r1',
+  'P-521': 'secp521r1',
+};
+
+// Algorithm definitions organized by algorithm name
+const kAlgorithmDefinitions = {
+  'AES-CBC': {
+    'generateKey': 'AesKeyGenParams',
+    'exportKey': null,
+    'importKey': null,
+    'encrypt': 'AesCbcParams',
+    'decrypt': 'AesCbcParams',
+    'get key length': 'AesDerivedKeyParams',
+  },
+  'AES-CTR': {
+    'generateKey': 'AesKeyGenParams',
+    'exportKey': null,
+    'importKey': null,
+    'encrypt': 'AesCtrParams',
+    'decrypt': 'AesCtrParams',
+    'get key length': 'AesDerivedKeyParams',
+  },
+  'AES-GCM': {
+    'generateKey': 'AesKeyGenParams',
+    'exportKey': null,
+    'importKey': null,
+    'encrypt': 'AeadParams',
+    'decrypt': 'AeadParams',
+    'get key length': 'AesDerivedKeyParams',
+  },
+  'AES-KW': {
+    'generateKey': 'AesKeyGenParams',
+    'exportKey': null,
+    'importKey': null,
+    'get key length': 'AesDerivedKeyParams',
+    'wrapKey': null,
+    'unwrapKey': null,
+  },
+  'AES-OCB': {
+    'generateKey': 'AesKeyGenParams',
+    'exportKey': null,
+    'importKey': null,
+    'encrypt': 'AeadParams',
+    'decrypt': 'AeadParams',
+    'get key length': 'AesDerivedKeyParams',
+  },
+  'Argon2d': {
+    'deriveBits': 'Argon2Params',
+    'get key length': null,
+    'importKey': null,
+  },
+  'Argon2i': {
+    'deriveBits': 'Argon2Params',
+    'get key length': null,
+    'importKey': null,
+  },
+  'Argon2id': {
+    'deriveBits': 'Argon2Params',
+    'get key length': null,
+    'importKey': null,
+  },
+  'ChaCha20-Poly1305': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'encrypt': 'AeadParams',
+    'decrypt': 'AeadParams',
+    'get key length': null,
+  },
+  'cSHAKE128': { 'digest': 'CShakeParams' },
+  'cSHAKE256': { 'digest': 'CShakeParams' },
+  'ECDH': {
+    'generateKey': 'EcKeyGenParams',
+    'exportKey': null,
+    'importKey': 'EcKeyImportParams',
+    'deriveBits': 'EcdhKeyDeriveParams',
+  },
+  'ECDSA': {
+    'generateKey': 'EcKeyGenParams',
+    'exportKey': null,
+    'importKey': 'EcKeyImportParams',
+    'sign': 'EcdsaParams',
+    'verify': 'EcdsaParams',
+  },
+  'Ed25519': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'sign': null,
+    'verify': null,
+  },
+  'Ed448': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'sign': 'ContextParams',
+    'verify': 'ContextParams',
+  },
+  'HKDF': {
+    'importKey': null,
+    'deriveBits': 'HkdfParams',
+    'get key length': null,
+  },
+  'HMAC': {
+    'generateKey': 'HmacKeyGenParams',
+    'exportKey': null,
+    'importKey': 'HmacImportParams',
+    'sign': null,
+    'verify': null,
+    'get key length': 'HmacImportParams',
+  },
+  'KMAC128': {
+    'generateKey': 'KmacKeyGenParams',
+    'exportKey': null,
+    'importKey': 'KmacImportParams',
+    'sign': 'KmacParams',
+    'verify': 'KmacParams',
+    'get key length': 'KmacImportParams',
+  },
+  'KMAC256': {
+    'generateKey': 'KmacKeyGenParams',
+    'exportKey': null,
+    'importKey': 'KmacImportParams',
+    'sign': 'KmacParams',
+    'verify': 'KmacParams',
+    'get key length': 'KmacImportParams',
+  },
+  'ML-DSA-44': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'sign': 'ContextParams',
+    'verify': 'ContextParams',
+  },
+  'ML-DSA-65': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'sign': 'ContextParams',
+    'verify': 'ContextParams',
+  },
+  'ML-DSA-87': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'sign': 'ContextParams',
+    'verify': 'ContextParams',
+  },
+  'ML-KEM-512': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'encapsulate': null,
+    'decapsulate': null,
+  },
+  'ML-KEM-768': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'encapsulate': null,
+    'decapsulate': null,
+  },
+  'ML-KEM-1024': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'encapsulate': null,
+    'decapsulate': null,
+  },
+  'PBKDF2': {
+    'importKey': null,
+    'deriveBits': 'Pbkdf2Params',
+    'get key length': null,
+  },
+  'RSA-OAEP': {
+    'generateKey': 'RsaHashedKeyGenParams',
+    'exportKey': null,
+    'importKey': 'RsaHashedImportParams',
+    'encrypt': 'RsaOaepParams',
+    'decrypt': 'RsaOaepParams',
+  },
+  'RSA-PSS': {
+    'generateKey': 'RsaHashedKeyGenParams',
+    'exportKey': null,
+    'importKey': 'RsaHashedImportParams',
+    'sign': 'RsaPssParams',
+    'verify': 'RsaPssParams',
+  },
+  'RSASSA-PKCS1-v1_5': {
+    'generateKey': 'RsaHashedKeyGenParams',
+    'exportKey': null,
+    'importKey': 'RsaHashedImportParams',
+    'sign': null,
+    'verify': null,
+  },
+  'SHA-1': { 'digest': null },
+  'SHA-256': { 'digest': null },
+  'SHA-384': { 'digest': null },
+  'SHA-512': { 'digest': null },
+  'SHA3-256': { 'digest': null },
+  'SHA3-384': { 'digest': null },
+  'SHA3-512': { 'digest': null },
+  'X25519': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'deriveBits': 'EcdhKeyDeriveParams',
+  },
+  'X448': {
+    'generateKey': null,
+    'exportKey': null,
+    'importKey': null,
+    'deriveBits': 'EcdhKeyDeriveParams',
+  },
+};
+
+// Conditionally supported algorithms
+const conditionalAlgorithms = {
+  'AES-KW': !process.features.openssl_is_boringssl,
+  'AES-OCB': !!hasAesOcbMode,
+  'Argon2d': !!Argon2Job,
+  'Argon2i': !!Argon2Job,
+  'Argon2id': !!Argon2Job,
+  'ChaCha20-Poly1305': !process.features.openssl_is_boringssl ||
+    ArrayPrototypeIncludes(getCiphers(), 'chacha20-poly1305'),
+  'cSHAKE128': !process.features.openssl_is_boringssl ||
+    ArrayPrototypeIncludes(getHashes(), 'shake128'),
+  'cSHAKE256': !process.features.openssl_is_boringssl ||
+    ArrayPrototypeIncludes(getHashes(), 'shake256'),
+  'Ed448': !process.features.openssl_is_boringssl,
+  'KMAC128': !!KmacJob,
+  'KMAC256': !!KmacJob,
+  'ML-DSA-44': !!EVP_PKEY_ML_DSA_44,
+  'ML-DSA-65': !!EVP_PKEY_ML_DSA_65,
+  'ML-DSA-87': !!EVP_PKEY_ML_DSA_87,
+  'ML-KEM-512': !!EVP_PKEY_ML_KEM_512,
+  'ML-KEM-768': !!EVP_PKEY_ML_KEM_768,
+  'ML-KEM-1024': !!EVP_PKEY_ML_KEM_1024,
+  'SHA3-256': !process.features.openssl_is_boringssl ||
+    ArrayPrototypeIncludes(getHashes(), 'sha3-256'),
+  'SHA3-384': !process.features.openssl_is_boringssl ||
+    ArrayPrototypeIncludes(getHashes(), 'sha3-384'),
+  'SHA3-512': !process.features.openssl_is_boringssl ||
+    ArrayPrototypeIncludes(getHashes(), 'sha3-512'),
+  'X448': !process.features.openssl_is_boringssl,
+};
+
+// Experimental algorithms
+const experimentalAlgorithms = [
+  'AES-OCB',
+  'Argon2d',
+  'Argon2i',
+  'Argon2id',
+  'ChaCha20-Poly1305',
+  'cSHAKE128',
+  'cSHAKE256',
+  'Ed448',
+  'KMAC128',
+  'KMAC256',
+  'ML-DSA-44',
+  'ML-DSA-65',
+  'ML-DSA-87',
+  'ML-KEM-512',
+  'ML-KEM-768',
+  'ML-KEM-1024',
+  'SHA3-256',
+  'SHA3-384',
+  'SHA3-512',
+  'X448',
+];
+
+// Transform the algorithm definitions into the operation-keyed structure
+function createSupportedAlgorithms(algorithmDefs) {
+  const result = {};
+
+  for (const { 0: algorithmName, 1: operations } of ObjectEntries(algorithmDefs)) {
+    // Skip algorithms that are conditionally not supported
+    if (ObjectPrototypeHasOwnProperty(conditionalAlgorithms, algorithmName) &&
+        !conditionalAlgorithms[algorithmName]) {
+      continue;
+    }
+
+    for (const { 0: operation, 1: dict } of ObjectEntries(operations)) {
+      result[operation] ||= {};
+
+      // Add experimental warnings for experimental algorithms
+      if (ArrayPrototypeIncludes(experimentalAlgorithms, algorithmName)) {
+        ObjectDefineProperty(result[operation], algorithmName, {
+          get() {
+            emitExperimentalWarning(`The ${algorithmName} Web Crypto API algorithm`);
+            return dict;
+          },
+          __proto__: null,
+          enumerable: true,
+        });
+      } else {
+        result[operation][algorithmName] = dict;
+      }
+    }
+  }
+
+  return result;
+}
+
+const kSupportedAlgorithms = createSupportedAlgorithms(kAlgorithmDefinitions);
+
+const simpleAlgorithmDictionaries = {
+  AeadParams: { iv: 'BufferSource', additionalData: 'BufferSource' },
+  // publicExponent is not strictly a BufferSource but it is a Uint8Array that we normalize
+  // this way
+  RsaHashedKeyGenParams: { hash: 'HashAlgorithmIdentifier', publicExponent: 'BufferSource' },
+  EcKeyGenParams: {},
+  HmacKeyGenParams: { hash: 'HashAlgorithmIdentifier' },
+  RsaPssParams: {},
+  EcdsaParams: { hash: 'HashAlgorithmIdentifier' },
+  HmacImportParams: { hash: 'HashAlgorithmIdentifier' },
+  HkdfParams: {
+    hash: 'HashAlgorithmIdentifier',
+    salt: 'BufferSource',
+    info: 'BufferSource',
+  },
+  ContextParams: { context: 'BufferSource' },
+  Pbkdf2Params: { hash: 'HashAlgorithmIdentifier', salt: 'BufferSource' },
+  RsaOaepParams: { label: 'BufferSource' },
+  RsaHashedImportParams: { hash: 'HashAlgorithmIdentifier' },
+  EcKeyImportParams: {},
+  CShakeParams: {
+    functionName: 'BufferSource',
+    customization: 'BufferSource',
+  },
+  Argon2Params: {
+    associatedData: 'BufferSource',
+    nonce: 'BufferSource',
+    secretValue: 'BufferSource',
+  },
+  KmacParams: {
+    customization: 'BufferSource',
+  },
+};
+
+function validateMaxBufferLength(data, name) {
+  if (data.byteLength > kMaxBufferLength) {
+    throw lazyDOMException(
+      `${name} must be less than ${kMaxBufferLength + 1} bits`,
+      'OperationError');
+  }
+}
+
+let webidl;
+
+// https://w3c.github.io/webcrypto/#algorithm-normalization-normalize-an-algorithm
+// adapted for Node.js from Deno's implementation
+// https://github.com/denoland/deno/blob/v1.29.1/ext/crypto/00_crypto.js#L195
+function normalizeAlgorithm(algorithm, op) {
+  if (typeof algorithm === 'string')
+    return normalizeAlgorithm({ name: algorithm }, op);
+
+  webidl ??= require('internal/crypto/webidl');
+
+  // 1.
+  const registeredAlgorithms = kSupportedAlgorithms[op];
+  // 2. 3.
+  const initialAlg = webidl.converters.Algorithm(algorithm, {
+    prefix: 'Failed to normalize algorithm',
+    context: 'passed algorithm',
+  });
+  // 4.
+  let algName = initialAlg.name;
+
+  // 5.
+  let desiredType;
+  for (const key in registeredAlgorithms) {
+    if (!ObjectPrototypeHasOwnProperty(registeredAlgorithms, key)) {
+      continue;
+    }
+    if (
+      StringPrototypeToUpperCase(key) === StringPrototypeToUpperCase(algName)
+    ) {
+      algName = key;
+      desiredType = registeredAlgorithms[key];
+    }
+  }
+  if (desiredType === undefined)
+    throw lazyDOMException('Unrecognized algorithm name', 'NotSupportedError');
+
+  // Fast path everything below if the registered dictionary is null
+  if (desiredType === null)
+    return { name: algName };
+
+  // 6.
+  const normalizedAlgorithm = webidl.converters[desiredType](algorithm, {
+    prefix: 'Failed to normalize algorithm',
+    context: 'passed algorithm',
+  });
+  // 7.
+  normalizedAlgorithm.name = algName;
+
+  // 9.
+  const dict = simpleAlgorithmDictionaries[desiredType];
+  // 10.
+  const dictKeys = dict ? ObjectKeys(dict) : [];
+  for (let i = 0; i < dictKeys.length; i++) {
+    const member = dictKeys[i];
+    if (!ObjectPrototypeHasOwnProperty(dict, member))
+      continue;
+    const idlType = dict[member];
+    const idlValue = normalizedAlgorithm[member];
+    // 3.
+    if (idlType === 'BufferSource' && idlValue) {
+      const isView = ArrayBufferIsView(idlValue);
+      normalizedAlgorithm[member] = TypedArrayPrototypeSlice(
+        new Uint8Array(
+          isView ? getDataViewOrTypedArrayBuffer(idlValue) : idlValue,
+          isView ? getDataViewOrTypedArrayByteOffset(idlValue) : 0,
+          isView ? getDataViewOrTypedArrayByteLength(idlValue) : ArrayBufferPrototypeGetByteLength(idlValue),
+        ),
+      );
+    } else if (idlType === 'HashAlgorithmIdentifier') {
+      normalizedAlgorithm[member] = normalizeAlgorithm(idlValue, 'digest');
+    } else if (idlType === 'AlgorithmIdentifier') {
+      // This extension point is not used by any supported algorithm (yet?)
+      throw lazyDOMException('Not implemented.', 'NotSupportedError');
+    }
+  }
+
+  return normalizedAlgorithm;
+}
+
+function getDataViewOrTypedArrayBuffer(V) {
+  return isDataView(V) ?
+    DataViewPrototypeGetBuffer(V) : TypedArrayPrototypeGetBuffer(V);
+}
+
+function getDataViewOrTypedArrayByteOffset(V) {
+  return isDataView(V) ?
+    DataViewPrototypeGetByteOffset(V) : TypedArrayPrototypeGetByteOffset(V);
+}
+
+function getDataViewOrTypedArrayByteLength(V) {
+  return isDataView(V) ?
+    DataViewPrototypeGetByteLength(V) : TypedArrayPrototypeGetByteLength(V);
+}
+
+function hasAnyNotIn(set, checks) {
+  for (const s of set)
+    if (!ArrayPrototypeIncludes(checks, s))
+      return true;
+  return false;
+}
+
+const validateByteSource = hideStackFrames((val, name) => {
+  val = toBuf(val);
+
+  if (isAnyArrayBuffer(val) || isArrayBufferView(val))
+    return val;
+
+  throw new ERR_INVALID_ARG_TYPE.HideStackFramesError(
+    name,
+    [
+      'string',
+      'ArrayBuffer',
+      'TypedArray',
+      'DataView',
+      'Buffer',
+    ],
+    val);
+});
+
+function onDone(resolve, reject, err, result) {
+  if (err) {
+    return reject(lazyDOMException(
+      'The operation failed for an operation-specific reason',
+      { name: 'OperationError', cause: err }));
+  }
+  resolve(result);
+}
+
+function jobPromise(getJob) {
+  return new Promise((resolve, reject) => {
+    try {
+      const job = getJob();
+      job.ondone = FunctionPrototypeBind(onDone, job, resolve, reject);
+      job.run();
+    } catch (err) {
+      onDone(resolve, reject, err);
+    }
+  });
+}
+
+// In WebCrypto, the publicExponent option in RSA is represented as a
+// WebIDL "BigInteger"... that is, a Uint8Array that allows an arbitrary
+// number of leading zero bits. Our conventional APIs for reading
+// an unsigned int from a Buffer are not adequate. The implementation
+// here is adapted from the chromium implementation here:
+// https://github.com/chromium/chromium/blob/HEAD/third_party/blink/public/platform/web_crypto_algorithm_params.h, but ported to JavaScript
+// Returns undefined if the conversion was unsuccessful.
+function bigIntArrayToUnsignedInt(input) {
+  let result = 0;
+
+  for (let n = 0; n < input.length; ++n) {
+    const n_reversed = input.length - n - 1;
+    if (n_reversed >= 4 && input[n])
+      return;  // Too large
+    result |= input[n] << 8 * n_reversed;
+  }
+
+  return result;
+}
+
+function bigIntArrayToUnsignedBigInt(input) {
+  let result = 0n;
+
+  for (let n = 0; n < input.length; ++n) {
+    const n_reversed = input.length - n - 1;
+    result |= BigInt(input[n]) << 8n * BigInt(n_reversed);
+  }
+
+  return result;
+}
+
+function getStringOption(options, key) {
+  let value;
+  if (options && (value = options[key]) != null)
+    validateString(value, `options.${key}`);
+  return value;
+}
+
+function getUsagesUnion(usageSet, ...usages) {
+  const newset = [];
+  for (let n = 0; n < usages.length; n++) {
+    if (usageSet.has(usages[n]))
+      ArrayPrototypePush(newset, usages[n]);
+  }
+  return newset;
+}
+
+function getBlockSize(name) {
+  switch (name) {
+    case 'SHA-1':
+      // Fall through
+    case 'SHA-256':
+      return 512;
+    case 'SHA-384':
+      // Fall through
+    case 'SHA-512':
+      return 1024;
+    case 'SHA3-256':
+      // Fall through
+    case 'SHA3-384':
+      // Fall through
+    case 'SHA3-512':
+      // This interaction is not defined for now.
+      // https://github.com/WICG/webcrypto-modern-algos/issues/23
+      throw lazyDOMException('Explicit algorithm length member is required', 'NotSupportedError');
+  }
+}
+
+function getDigestSizeInBytes(name) {
+  switch (name) {
+    case 'SHA-1':
+      return 20;
+    case 'SHA-256': // Fall through
+    case 'SHA3-256':
+      return 32;
+    case 'SHA-384': // Fall through
+    case 'SHA3-384':
+      return 48;
+    case 'SHA-512': // Fall through
+    case 'SHA3-512':
+      return 64;
+  }
+}
+
+const kKeyOps = {
+  sign: 1,
+  verify: 2,
+  encrypt: 3,
+  decrypt: 4,
+  wrapKey: 5,
+  unwrapKey: 6,
+  deriveKey: 7,
+  deriveBits: 8,
+};
+
+function validateKeyOps(keyOps, usagesSet) {
+  if (keyOps === undefined) return;
+  validateArray(keyOps, 'keyData.key_ops');
+  let flags = 0;
+  for (let n = 0; n < keyOps.length; n++) {
+    const op = keyOps[n];
+    const op_flag = kKeyOps[op];
+    // Skipping unknown key ops
+    if (op_flag === undefined)
+      continue;
+    // Have we seen it already? if so, error
+    if (flags & (1 << op_flag))
+      throw lazyDOMException('Duplicate key operation', 'DataError');
+    flags |= (1 << op_flag);
+
+    // TODO(@jasnell): RFC7517 section 4.3 strong recommends validating
+    // key usage combinations. Specifically, it says that unrelated key
+    // ops SHOULD NOT be used together. We're not yet validating that here.
+  }
+
+  if (usagesSet !== undefined) {
+    for (const use of usagesSet) {
+      if (!ArrayPrototypeIncludes(keyOps, use)) {
+        throw lazyDOMException(
+          'Key operations and usage mismatch',
+          'DataError');
+      }
+    }
+  }
+}
+
+function secureHeapUsed() {
+  const val = _secureHeapUsed();
+  if (val === undefined)
+    return { total: 0, used: 0, utilization: 0, min: 0 };
+  const used = Number(_secureHeapUsed());
+  const total = Number(getOptionValue('--secure-heap'));
+  const min = Number(getOptionValue('--secure-heap-min'));
+  const utilization = used / total;
+  return { total, used, utilization, min };
+}
+
+module.exports = {
+  getArrayBufferOrView,
+  getCiphers,
+  getCurves,
+  getDataViewOrTypedArrayBuffer,
+  getHashes,
+  kHandle,
+  kKeyObject,
+  setEngine,
+  toBuf,
+
+  kNamedCurveAliases,
+  normalizeAlgorithm,
+  normalizeHashName,
+  hasAnyNotIn,
+  validateByteSource,
+  validateKeyOps,
+  jobPromise,
+  validateMaxBufferLength,
+  bigIntArrayToUnsignedBigInt,
+  bigIntArrayToUnsignedInt,
+  getBlockSize,
+  getDigestSizeInBytes,
+  getStringOption,
+  getUsagesUnion,
+  secureHeapUsed,
+  getCachedHashId,
+  getHashCache,
+  getOpenSSLSecLevel,
+};

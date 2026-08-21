@@ -1,0 +1,4 @@
+*%(basename)s:8: SyntaxError: Unexpected identifier '#x'
+    const { #x: x } = this;
+            ^^
+SyntaxError: Unexpected identifier '#x'

@@ -1,0 +1,35 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-regexp-gen.h'
+
+namespace regexp {
+
+// ES#sec-regexp.prototype.test
+// RegExp.prototype.test ( S )
+transitioning javascript builtin RegExpPrototypeTest(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    string: JSAny): JSAny {
+  const methodName: constexpr string = 'RegExp.prototype.test';
+  const receiver = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
+  const str: String = ToString_Inline(string);
+  if (IsFastRegExpPermissive(receiver)) {
+    RegExpPrototypeExecBodyWithoutResultFast(
+        UnsafeCast<JSRegExp>(receiver), str)
+        otherwise return False;
+    return True;
+  }
+  const matchIndices = RegExpExec(receiver, str);
+  return SelectBooleanConstant(matchIndices != Null);
+}
+
+transitioning builtin RegExpPrototypeTestFast(
+    implicit context: Context)(receiver: JSRegExp, string: String): Object {
+  RegExpPrototypeExecBodyWithoutResultFast(receiver, string)
+      otherwise return False;
+  return True;
+}
+}

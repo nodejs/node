@@ -1,0 +1,24 @@
+Check that setScriptSource completes correctly when an exception is thrown.
+
+Running test: testIncorrectScriptId
+{
+    error : {
+        code : -32000
+        message : No script with given id found
+    }
+    id : <messageId>
+}
+
+Running test: testSourceWithSyntaxError
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 11
+            exceptionId : <exceptionId>
+            lineNumber : 1
+            text : Uncaught SyntaxError: Invalid or unexpected token
+        }
+        status : CompileError
+    }
+}

@@ -1,0 +1,3 @@
+Tests side-effect-free evaluation with coverage enabled
+Paused on 'debugger;'
+f() returns 1
