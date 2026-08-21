@@ -1014,8 +1014,11 @@ wrapper around [`sqlite3session_patchset()`][].
 ### `session.close()`
 
 Closes the session. An exception is thrown if the database or the session is not open,
-or if the session is currently generating a changeset or patchset. This method is a
-wrapper around [`sqlite3session_delete()`][].
+or if the session is currently generating a changeset or patchset. An
+[`ERR_INVALID_STATE`][] error is thrown if the method is called from a callback that
+SQLite invoked, such as an authorizer callback, a user-defined function, or a
+[`'sqlite.db.query'`][] subscriber, because SQLite may still be using the session.
+This method is a wrapper around [`sqlite3session_delete()`][].
 
 ### `session[Symbol.dispose]()`
 
@@ -1025,7 +1028,8 @@ added: v24.9.0
 
 Closes the session. If the session is already closed, then this is a no-op. An
 [`ERR_INVALID_STATE`][] error is thrown if the session is currently generating
-a changeset or patchset, under the same conditions as [`session.close()`][].
+a changeset or patchset, or if the method is called from a callback that SQLite
+invoked, under the same conditions as [`session.close()`][].
 
 ## Class: `StatementSync`
 
