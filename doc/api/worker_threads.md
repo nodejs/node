@@ -1654,10 +1654,15 @@ changes:
     items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
     See [`port.postMessage()`][] for more information.
   * `resourceLimits` {Object} An optional set of resource limits for the new JS
-    engine instance. Reaching these limits leads to termination of the `Worker`
-    instance. These limits only affect the JS engine, and no external data,
-    including no `ArrayBuffer`s. Even if these limits are set, the process may
-    still abort if it encounters a global out-of-memory situation.
+    engine instance. Reaching these limits usually terminates the `Worker`
+    instance and emits [`ERR_WORKER_OUT_OF_MEMORY`][] on the `'error'` event.
+    This is best-effort and not guaranteed. Node.js terminates the worker when
+    V8 reports that the heap is close to its limit. A single allocation that is
+    large enough to exceed the limit in one step aborts the whole process
+    instead, including the main thread. Do not rely on `resourceLimits` as an
+    isolation boundary. These limits only affect the JS engine, and no external
+    data, including no `ArrayBuffer`s. Even if these limits are set, the process
+    may still abort if it encounters a global out-of-memory situation.
     * `maxOldGenerationSizeMb` {number} The maximum size of the main heap in
       MB. If the command-line argument [`--max-old-space-size`][] is set, it
       overrides this setting.
@@ -2241,6 +2246,7 @@ thread spawned will spawn another until the application crashes.
 [`ERR_WORKER_MESSAGING_SAME_THREAD`]: errors.md#err_worker_messaging_same_thread
 [`ERR_WORKER_MESSAGING_TIMEOUT`]: errors.md#err_worker_messaging_timeout
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#err_worker_not_running
+[`ERR_WORKER_OUT_OF_MEMORY`]: errors.md#err_worker_out_of_memory
 [`FileHandle`]: fs.md#class-filehandle
 [`MessagePort`]: #class-messageport
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/JavaScript_interface/Module
