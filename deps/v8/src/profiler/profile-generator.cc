@@ -646,7 +646,8 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
                          bool update_stats, base::TimeDelta sampling_interval,
                          StateTag state_tag,
                          EmbedderStateTag embedder_state_tag,
-                         const std::optional<uint64_t> trace_id) {
+                         const std::optional<uint64_t> trace_id,
+                         void* sample_context) {
   if (!CheckSubsample(sampling_interval)) return;
   ProfileNode* top_frame_node =
       top_down_.AddPathFromEnd(path, src_pos, update_stats, options_.mode());
@@ -659,7 +660,7 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
 
   if (should_record_sample) {
     samples_.push_back({top_frame_node, timestamp, src_pos, state_tag,
-                        embedder_state_tag, trace_id});
+                        embedder_state_tag, trace_id, sample_context});
   } else if (is_buffer_full && delegate_ != nullptr) {
     const auto task_runner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
         reinterpret_cast<v8::Isolate*>(profiler_->isolate()));
@@ -1230,7 +1231,7 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
     LineAndColumn src_pos, bool update_stats, base::TimeDelta sampling_interval,
     StateTag state, EmbedderStateTag embedder_state_tag,
     Address native_context_address, Address embedder_native_context_address,
-    const std::optional<uint64_t> trace_id) {
+    const std::optional<uint64_t> trace_id, void* sample_context) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
@@ -1254,7 +1255,7 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
         timestamp, accepts_context ? path : empty_path, src_pos, update_stats,
         sampling_interval, state,
         accepts_embedder_context ? embedder_state_tag : EmbedderStateTag::EMPTY,
-        trace_id);
+        trace_id, sample_context);
   }
 }
 

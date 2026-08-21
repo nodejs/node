@@ -57,9 +57,15 @@ class CpuSampler : public sampler::Sampler {
     }
     // Every bailout up until here resulted in a dropped sample. From now on,
     // the sample is created in the buffer.
+
+    void* sample_context = nullptr;
+    if (auto extractor = processor_->sample_context_extractor()) {
+      sample_context = extractor(reinterpret_cast<v8::Isolate*>(isolate));
+    }
     sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame,
                  /* update_stats */ true,
-                 /* use_simulator_reg_state */ true, processor_->period());
+                 /* use_simulator_reg_state */ true, processor_->period(),
+                 /* trace_id */ std::nullopt, sample_context);
     if (is_counting_samples_ && !sample->timestamp.IsNull()) {
       if (sample->state == JS) ++js_sample_count_;
       if (sample->state == EXTERNAL) ++external_sample_count_;
@@ -250,7 +256,7 @@ void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
       tick_sample.state, tick_sample.embedder_state,
       reinterpret_cast<Address>(tick_sample.context),
       reinterpret_cast<Address>(tick_sample.embedder_context),
-      tick_sample.trace_id_);
+      tick_sample.trace_id_, tick_sample.sample_context_);
 }
 
 ProfilerEventsProcessor::SampleProcessingResult
@@ -656,6 +662,10 @@ CpuProfilingResult CpuProfiler::StartProfiling(
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     AdjustSamplingInterval();
     StartProcessorIfNotStarted();
+    auto sample_context_extractor = options.sample_context_extractor();
+    if (sample_context_extractor != nullptr) {
+      processor_->set_sample_context_extractor(sample_context_extractor);
+    }
 
     // Collect script rundown at the start of profiling if trace category is
     // turned on
