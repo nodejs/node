@@ -407,6 +407,14 @@ to the cache directory remains the same. This would be done on a best-effort bas
 Node.js cannot compute the location of a module relative to the cache directory, the module
 will not be cached.
 
+A portable cache is also not split by user: on platforms with uids the
+cache subdirectory of a non-portable cache is suffixed with the uid of the
+user who created it, so it is only found by that user, while a portable
+cache uses the same subdirectory for every user. This lets a cache generated
+once (for example at build time, then shipped read-only with an application)
+be read by whoever runs the code; a user who cannot write to the directory
+still reads it, and a failed write only means the module is compiled again.
+
 There are two ways to enable the portable mode:
 
 1. Using the portable option in [`module.enableCompileCache()`][]:
