@@ -34,6 +34,7 @@ const {
   verify,
 } = require('crypto');
 const tmpdir = require('../common/tmpdir');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 
 const { subtle } = globalThis.crypto;
 const kData = Buffer.from(
@@ -65,7 +66,7 @@ function softhsmOptions() {
 
 function runInChild() {
   const { cwd, env } = softhsmOptions();
-  const child = spawnSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     `--openssl-config=${kOpenSSLConfig}`,
     __filename,
   ], {
@@ -73,7 +74,6 @@ function runInChild() {
     env: { ...process.env, ...env, NODE_TEST_PKCS11_CHILD: '1' },
     stdio: 'inherit',
   });
-  assert.strictEqual(child.status, 0);
 }
 
 function privateKeyUrl(label) {
