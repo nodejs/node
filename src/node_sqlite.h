@@ -295,9 +295,9 @@ class DatabaseSync : public BaseObject {
   // SQLite reaches back into JavaScript from inside its pre-update hook, while
   // it is still walking this connection's session list. Session objects are
   // weak, so a garbage collection during such a callback could collect one and
-  // free memory SQLite is still using. Appends a strong reference to every
+  // free memory SQLite is still using. Returns a strong reference to every
   // attached session so that a callback can hold them for its duration.
-  void PinSessions(std::vector<BaseObjectPtr<Session>>* pinned) const;
+  std::vector<BaseObjectPtr<Session>> PinSessions() const;
 
   // SQLite forbids an authorizer callback from doing anything that modifies
   // the database connection that invoked it, which includes preparing and
@@ -520,9 +520,9 @@ class SQLTagStore : public BaseObject {
 // below are what keep a garbage collection during that window safe.
 class CallbackDepthGuard {
  public:
-  explicit CallbackDepthGuard(DatabaseSync* db) : db_(db) {
+  explicit CallbackDepthGuard(DatabaseSync* db)
+      : db_(db), pinned_sessions_(db->PinSessions()) {
     db_->IncrementCallbackDepth();
-    db_->PinSessions(&pinned_sessions_);
   }
   ~CallbackDepthGuard() { db_->DecrementCallbackDepth(); }
   CallbackDepthGuard(const CallbackDepthGuard&) = delete;

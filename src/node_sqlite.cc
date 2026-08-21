@@ -1024,13 +1024,13 @@ void DatabaseSync::RemoveBackup(BackupJob* job) {
   backups_.erase(job);
 }
 
-void DatabaseSync::PinSessions(
-    std::vector<BaseObjectPtr<Session>>* pinned) const {
-  if (sessions_.empty()) return;
-  pinned->reserve(sessions_.size());
+std::vector<BaseObjectPtr<Session>> DatabaseSync::PinSessions() const {
+  std::vector<BaseObjectPtr<Session>> pinned;
+  pinned.reserve(sessions_.size());
   for (Session* session : sessions_) {
-    pinned->emplace_back(session);
+    pinned.emplace_back(session);
   }
+  return pinned;
 }
 
 void DatabaseSync::DeleteSessions() {
