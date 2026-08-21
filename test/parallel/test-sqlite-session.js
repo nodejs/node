@@ -723,6 +723,34 @@ suite('session.close() - from a callback', () => {
       t.assert.notStrictEqual(session.changeset().length, 0);
       session.close();
     });
+
+    // Deliberately broader than the crash: the pre-update hook is not on the
+    // stack here, so this close is safe today. Node cannot tell whether SQLite
+    // is inside that hook, so every callback is rejected. This pins the
+    // trade-off rather than leaving it to be discovered as a regression.
+    it(`rejects ${method} from a user-defined function`, (t) => {
+      const database = new DatabaseSync(':memory:');
+      database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
+      const session = database.createSession();
+      let outcome = 'callback did not run';
+
+      database.function('f', (x) => {
+        try {
+          closeSession(session);
+          outcome = 'did not throw';
+        } catch (err) {
+          outcome = `${err.code}: ${err.message}`;
+        }
+        return x;
+      });
+
+      database.exec('SELECT f(1)');
+      t.assert.strictEqual(outcome, expectedError);
+
+      // Still closable once the callback is off the stack.
+      session.close();
+      t.assert.throws(() => session.close(), { message: 'session is not open' });
+    });
   }
 
   it('leaves an already closed session disposable from a callback', (t) => {
