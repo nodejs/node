@@ -351,7 +351,7 @@ class ProcessWrap : public HandleWrap {
     }
 #ifdef _WIN32
     if (signal != SIGKILL && signal != SIGTERM && signal != SIGINT &&
-        signal != SIGQUIT && signal != 0) {
+        signal != SIGQUIT && signal != 0 && signal != SIGWINCH) {
       signal = SIGKILL;
     }
 #endif
