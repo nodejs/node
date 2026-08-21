@@ -299,9 +299,8 @@ class DatabaseSync : public BaseObject {
   void DecrementAuthorizerDepth() { --authorizer_depth_; }
   bool IsInAuthorizerCallback() const { return authorizer_depth_ > 0; }
 
-  // Finalizing a statement frees its virtual machine, so a callback that
-  // SQLite invokes from inside sqlite3_step() must not finalize the statement
-  // being stepped. Other statements on the connection are safe to finalize.
+  // A callback must not finalize the statement being stepped. Other statements
+  // are safe unless they are busy during an authorizer callback.
   void PushSteppingStatement(sqlite3_stmt* stmt) {
     stepping_statements_.push_back(stmt);
   }

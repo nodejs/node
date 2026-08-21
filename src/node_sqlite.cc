@@ -160,6 +160,15 @@ inline MaybeLocal<Value> IntegerToValue(Isolate* isolate,
       (db)->IsInAuthorizerCallback(),                                          \
       "database cannot be accessed from an authorizer callback")
 
+// Finalizing a busy statement from an authorizer can release its locks and
+// change the outer statement's outcome.
+#define THROW_AND_RETURN_IF_BUSY_IN_AUTHORIZER(env, stmt)                      \
+  THROW_AND_RETURN_ON_BAD_STATE(                                               \
+      (env),                                                                   \
+      (stmt)->db_->IsInAuthorizerCallback() &&                                 \
+          sqlite3_stmt_busy((stmt)->statement_.get()),                         \
+      "database cannot be accessed from an authorizer callback")
+
 // A statement's virtual machine cannot be reentered while sqlite3_step() is
 // running it. Finalizing it frees the VM outright, and re-running it resets the
 // VM mid-execution; both are use-after-free rather than merely a contract
@@ -2915,6 +2924,7 @@ void StatementSync::Close(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  THROW_AND_RETURN_IF_BUSY_IN_AUTHORIZER(env, stmt);
   stmt->Close();
 }
 
@@ -2928,6 +2938,7 @@ void StatementSync::Dispose(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  THROW_AND_RETURN_IF_BUSY_IN_AUTHORIZER(env, stmt);
   stmt->Close();
 }
 
