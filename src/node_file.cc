@@ -2464,9 +2464,10 @@ static bool ContainsNul(const BufferValue& path) {
          std::memchr(path.out(), '\0', path.length()) != nullptr;
 }
 
-// C++ equivalent of getValidatedPath(value, propName): accepts string,
-// Uint8Array/Buffer, or WHATWG URL, rejects embedded NUL bytes, and converts
-// file: URLs to paths. Returns an empty MaybeLocal and throws on failure.
+// C++ equivalent of getValidatedPath(value, propName), used by CopyFile for
+// the sync, callback, and promises paths. Accepts string, Uint8Array/Buffer,
+// or WHATWG URL, rejects embedded NUL bytes, and converts file: URLs to
+// paths. Returns an empty MaybeLocal and throws on failure.
 static MaybeLocal<Value> GetValidatedPath(Environment* env,
                                           Local<Value> input,
                                           const char* prop_name) {
@@ -2536,13 +2537,15 @@ static MaybeLocal<Value> GetValidatedPath(Environment* env,
   return MaybeLocal<Value>();
 }
 
-// Full C++ implementation of fs.copyFileSync(): path validation, mode
-// validation, permission checks, and the copy itself.
-static void CopyFileSync(const FunctionCallbackInfo<Value>& args) {
+// Shared by the sync, callback, and promises copyFile paths. Path validation
+// (string / Uint8Array / file: URL, NUL checks) happens here so JS callers
+// can pass the original arguments through.
+static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  CHECK_GE(args.Length(), 2);  // src, dest[, mode]
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);  // src, dest, flags[, req]
 
   Local<Value> src_val;
   if (!GetValidatedPath(env, args[0], "src").ToLocal(&src_val)) {
@@ -2575,45 +2578,12 @@ static void CopyFileSync(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Value> mode = args.Length() > 2 ? args[2] : Undefined(isolate);
-  int flags;
-  if (!GetValidFileMode(env, mode, UV_FS_COPYFILE).To(&flags)) {
-    return;
-  }
-
-  ToNamespacedPath(env, &src);
-  ToNamespacedPath(env, &dest);
-
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
-
-  FSReqWrapSync req_wrap_sync("copyfile", *src, *dest);
-  FS_SYNC_TRACE_BEGIN(copyfile);
-  SyncCallAndThrowOnError(
-      env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, flags);
-  FS_SYNC_TRACE_END(copyfile);
-}
-
-static void CopyFile(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-
-  const int argc = args.Length();
-  CHECK_GE(argc, 3);  // src, dest, flags
-
   int flags;
   if (!GetValidFileMode(env, args[2], UV_FS_COPYFILE).To(&flags)) {
     return;
   }
 
-  BufferValue src(isolate, args[0]);
-  CHECK_NOT_NULL(*src);
   ToNamespacedPath(env, &src);
-
-  BufferValue dest(isolate, args[1]);
-  CHECK_NOT_NULL(*dest);
   ToNamespacedPath(env, &dest);
 
   if (argc > 3) {  // copyFile(src, dest, flags, req)
@@ -4409,7 +4379,6 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeFileUtf8", WriteFileUtf8);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
-  SetMethod(isolate, target, "copyFileSync", CopyFileSync);
 
   SetMethod(isolate, target, "chmod", Chmod);
   SetMethod(isolate, target, "fchmod", FChmod);
@@ -4538,7 +4507,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteFileUtf8);
   registry->Register(RealPath);
   registry->Register(CopyFile);
-  registry->Register(CopyFileSync);
 
   registry->Register(CpSyncCheckPaths);
   registry->Register(CpSyncOverrideFile);

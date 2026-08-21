@@ -167,6 +167,14 @@ assert.throws(() => {
   message: 'The URL must be of scheme file',
 });
 
+assert.throws(() => {
+  fs.copyFile(new URL('http://example.com/a'), dest, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_URL_SCHEME',
+  name: 'TypeError',
+  message: 'The URL must be of scheme file',
+});
+
 if (common.isWindows) {
   ['%2f', '%2F', '%5c', '%5C'].forEach((i) => {
     assert.throws(
