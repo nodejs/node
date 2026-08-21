@@ -2034,27 +2034,17 @@ void DatabaseSync::Serialize(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // V8 sandbox forbids external backing stores so allocate inside the
-  // sandbox and copy. Without sandbox wrap the output directly using
-  // sqlite3_free as the destructor to avoid the copy.
-#ifdef V8_ENABLE_SANDBOX
-  auto free_data = OnScopeLeave([&] { sqlite3_free(data); });
-  auto store = ArrayBuffer::NewBackingStore(
+  auto store = AdoptIntoBackingStore(
       env->isolate(),
+      data,
       size,
-      BackingStoreInitializationMode::kUninitialized,
-      BackingStoreOnFailureMode::kReturnNull);
+      [](void* ptr, size_t, void*) { sqlite3_free(ptr); },
+      nullptr);
   if (!store) {
     THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return;
   }
-  memcpy(store->Data(), data, size);
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(store));
-#else
-  auto store = ArrayBuffer::NewBackingStore(
-      data, size, [](void* ptr, size_t, void*) { sqlite3_free(ptr); }, nullptr);
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(store));
-#endif
 
   args.GetReturnValue().Set(Uint8Array::New(ab, 0, size));
 }
