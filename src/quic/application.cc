@@ -311,6 +311,34 @@ class DefaultApplication final : public Session::Application {
                          void* stream_user_data) override {
     BaseObjectPtr<Stream> stream;
     if (stream_user_data == nullptr) {
+      // A locally-initiated stream can only ever come into existence because
+      // we created it, so a missing Stream means we already destroyed it.
+      // Data the peer had already put in flight must not resurrect it:
+      // re-creating it here would hand the application a bogus "incoming"
+      // stream for a stream it just destroyed, and would do so again for
+      // every frame still in flight.
+      //
+      // Discard the data instead, but return the connection-level flow
+      // control credit for it. ngtcp2 has delivered these bytes to us, so we
+      // own their credit; dropping them silently would shrink the session's
+      // shared receive window for good.
+      // Note the is_destroyed() check has to come first: a prior callback in
+      // this same ngtcp2 batch may have destroyed the session, and neither the
+      // ngtcp2 connection nor the flow control helpers below may be touched
+      // once that has happened.
+      if (!session().is_destroyed() &&
+          ngtcp2_conn_is_local_stream(session(), id)) {
+        Debug(&session(),
+              "Discarding %zu bytes for destroyed local stream %" PRIi64,
+              datalen,
+              id);
+        if (datalen > 0) {
+          Session::SendPendingDataScope send_scope(&session());
+          session().ExtendOffset(datalen);
+        }
+        return true;
+      }
+
       // This is the first time we're seeing this stream. Implicitly create it.
       stream = session().CreateStream(id);
       if (!stream || session().is_destroyed()) [[unlikely]] {
