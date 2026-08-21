@@ -6944,7 +6944,7 @@ node_api_get_module_file_name(node_api_basic_env env, const char** result);
 `result` may be an empty string if the add-on loading process fails to establish
 the add-on's file name during loading.
 
-[ABI Stability]: https://nodejs.org/en/docs/guides/abi-stability/
+[ABI Stability]: https://nodejs.org/learn/modules/abi-stability
 [AppVeyor]: https://www.appveyor.com
 [C++ Addons]: addons.md
 [CMake]: https://cmake.org

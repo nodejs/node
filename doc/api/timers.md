@@ -600,7 +600,7 @@ being developed as a standard Web Platform API.
 Calling `timersPromises.scheduler.yield()` is equivalent to calling
 `timersPromises.setImmediate()` with no arguments.
 
-[Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#setimmediate-vs-settimeout
+[Event Loop]: https://nodejs.org/learn/asynchronous-work/event-loop-timers-and-nexttick#setimmediate-vs-settimeout
 [Scheduling APIs]: https://github.com/WICG/scheduling-apis
 [`AbortController`]: globals.md#class-abortcontroller
 [`TypeError`]: errors.md#class-typeerror
