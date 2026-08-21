@@ -1442,7 +1442,7 @@ void ModuleWrap::SetInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback);
 }
 
-MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
+MaybeLocal<Promise> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
     Local<Context> context, Local<Module> module) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
@@ -1466,16 +1466,16 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
     CHECK(!try_catch.Message().IsEmpty());
     CHECK(!try_catch.Exception().IsEmpty());
     try_catch.ReThrow();
-    return MaybeLocal<Value>();
+    return MaybeLocal<Promise>();
   }
 
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
-    return MaybeLocal<Value>();
+    return MaybeLocal<Promise>();
   }
 
   if (resolver->Resolve(context, Undefined(isolate)).IsNothing()) {
-    return MaybeLocal<Value>();
+    return MaybeLocal<Promise>();
   }
   return resolver->GetPromise();
 }

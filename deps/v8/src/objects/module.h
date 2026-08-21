@@ -74,7 +74,7 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
       const UserResolveCallbacks& callbacks);
 
   // Implementation of spec operation ModuleEvaluation.
-  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object> Evaluate(
+  static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
       Isolate* isolate, Handle<Module> module);
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is

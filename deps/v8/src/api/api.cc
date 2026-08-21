@@ -2398,7 +2398,7 @@ Maybe<bool> Module::InstantiateModule(Local<Context> context,
   return Just(true);
 }
 
-MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
+MaybeLocal<Promise> Module::Evaluate(Local<Context> context) {
   auto i_isolate = i::Isolate::Current();
   TRACE_EVENT_CALL_STATS_SCOPED(i_isolate, "v8", "V8.Execute");
   EnterV8Scope<InternalEscapableScope> api_scope{i_isolate, context,
@@ -2435,6 +2435,33 @@ Local<Module> Module::CreateSyntheticModule(
       i::DirectHandle<i::Module>(i_isolate->factory()->NewSyntheticModule(
           i_module_name, i_export_names, evaluation_steps)));
 }
+
+START_ALLOW_USE_DEPRECATED()
+Local<Module> Module::CreateSyntheticModule(
+    Isolate* v8_isolate, Local<String> module_name,
+    const MemorySpan<const Local<String>>& export_names,
+    v8::Module::LegacySyntheticModuleEvaluationSteps evaluation_steps) {
+  // TODO(https://crbug.com/545375591): Remove once
+  // LegacySyntheticModuleEvaluationSteps is gone.
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+  // Cast from 'v8::MaybeLocal<v8::Value> (*)(v8::Local<v8::Context>,
+  // v8::Local<v8::Module>)' to 'v8::MaybeLocal<v8::Promise>
+  // (*)(v8::Local<v8::Context>, v8::Local<v8::Module>)'. Both return types are
+  // pointer-sized, trivially copyable handle wrappers, so they share the same
+  // representation. SyntheticModule::Evaluate() checks at runtime that the
+  // returned value really is a Promise.
+  auto promise_returning_steps =
+      reinterpret_cast<SyntheticModuleEvaluationSteps>(evaluation_steps);
+#if (__GNUC__ >= 8) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+  return CreateSyntheticModule(v8_isolate, module_name, export_names,
+                               promise_returning_steps);
+}
+END_ALLOW_USE_DEPRECATED()
 
 Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,
                                              Local<String> export_name,

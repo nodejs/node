@@ -24701,33 +24701,52 @@ TEST(CodeCache) {
   isolate2->Dispose();
 }
 
-v8::MaybeLocal<Value> UnexpectedSyntheticModuleEvaluationStepsCallback(
+v8::MaybeLocal<Promise> UnexpectedSyntheticModuleEvaluationStepsCallback(
     Local<Context> context, Local<Module> module) {
   CHECK_WITH_MSG(false, "Unexpected call to synthetic module re callback");
 }
 
 static int synthetic_module_callback_count;
 
-v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallback(
+v8::MaybeLocal<Promise> SyntheticModuleEvaluationStepsCallback(
     Local<Context> context, Local<Module> module) {
   synthetic_module_callback_count++;
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(CcTest::isolate()));
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, v8::Undefined(CcTest::isolate())).Check();
+  return resolver->GetPromise();
 }
 
-v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackFail(
+v8::MaybeLocal<Promise> SyntheticModuleEvaluationStepsCallbackFail(
     Local<Context> context, Local<Module> module) {
   synthetic_module_callback_count++;
   CcTest::isolate()->ThrowException(
       v8_str("SyntheticModuleEvaluationStepsCallbackFail exception"));
-  return v8::MaybeLocal<Value>();
+  return v8::MaybeLocal<Promise>();
 }
 
-v8::MaybeLocal<Value> SyntheticModuleEvaluationStepsCallbackSetExport(
+// Deprecated version of the evaluation steps, returning a MaybeLocal<Value>
+// that holds a Promise.
+// TODO(https://crbug.com/545375591): Remove together with
+// v8::Module::LegacySyntheticModuleEvaluationSteps.
+v8::MaybeLocal<Value> LegacySyntheticModuleEvaluationStepsCallback(
+    Local<Context> context, Local<Module> module) {
+  synthetic_module_callback_count++;
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, v8::Undefined(CcTest::isolate())).Check();
+  return resolver->GetPromise();
+}
+
+v8::MaybeLocal<Promise> SyntheticModuleEvaluationStepsCallbackSetExport(
     Local<Context> context, Local<Module> module) {
   Maybe<bool> set_export_result = module->SetSyntheticModuleExport(
       CcTest::isolate(), v8_str("test_export"), v8_num(42));
   CHECK(set_export_result.FromJust());
-  return v8::Undefined(reinterpret_cast<v8::Isolate*>(CcTest::isolate()));
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, v8::Undefined(CcTest::isolate())).Check();
+  return resolver->GetPromise();
 }
 
 namespace {
@@ -25058,7 +25077,44 @@ TEST(SyntheticModuleEvaluationStepsNoThrow) {
       context, export_names, SyntheticModuleEvaluationStepsCallback);
   CHECK_EQ(synthetic_module_callback_count, 0);
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  CHECK(completion_value->IsUndefined());
+  CHECK(completion_value->IsPromise());
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
+  CHECK_EQ(synthetic_module_callback_count, 1);
+  CHECK_EQ(module->GetStatus(), Module::kEvaluated);
+}
+
+// Covers the deprecated evaluation steps version, where the returned Promise is
+// only checked at runtime.
+// TODO(https://crbug.com/545375591): Remove together with
+// v8::Module::LegacySyntheticModuleEvaluationSteps.
+TEST(SyntheticModuleEvaluationStepsLegacyCallback) {
+  synthetic_module_callback_count = 0;
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  auto export_names = std::to_array<Local<v8::String>>({v8_str("default")});
+
+  START_ALLOW_USE_DEPRECATED()
+  Local<Module> module = v8::Module::CreateSyntheticModule(
+      isolate,
+      v8_str("SyntheticModuleEvaluationStepsLegacyCallback-"
+             "TestSyntheticModule"),
+      export_names, LegacySyntheticModuleEvaluationStepsCallback);
+  END_ALLOW_USE_DEPRECATED()
+  module->InstantiateModule(context, UnexpectedModuleResolveCallback)
+      .ToChecked();
+
+  CHECK_EQ(synthetic_module_callback_count, 0);
+  Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
+  CHECK(completion_value->IsPromise());
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
   CHECK_EQ(synthetic_module_callback_count, 1);
   CHECK_EQ(module->GetStatus(), Module::kEvaluated);
 }
@@ -25116,7 +25172,10 @@ TEST(SyntheticModuleEvaluationStepsSetExport) {
   CHECK(IsUndefined(test_export_cell->value()));
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
-  CHECK(completion_value->IsUndefined());
+  CHECK(completion_value->IsPromise());
+  Local<v8::Promise> promise(Local<v8::Promise>::Cast(completion_value));
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+  CHECK(promise->Result()->IsUndefined());
   CHECK_EQ(42, i::Object::NumberValue(test_export_cell->value()));
   CHECK_EQ(module->GetStatus(), Module::kEvaluated);
 }
@@ -27084,7 +27143,7 @@ MaybeLocal<Module> CheckResolveModuleWithImportSource(
 
   return v8::Module::CreateSyntheticModule(
       isolate, v8_str("my-mod"), {},
-      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Value> {
+      [](Local<Context> context, Local<Module> module) -> MaybeLocal<Promise> {
         // Do nothing.
         Local<v8::Promise::Resolver> resolver =
             v8::Promise::Resolver::New(context).ToLocalChecked();
