@@ -3396,6 +3396,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
   Isolate* isolate = env->isolate();
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3423,6 +3424,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3448,6 +3450,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3469,6 +3472,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_IF_IN_AUTHORIZER(env, stmt->db_.get());
   THROW_AND_RETURN_IF_STEPPING(env, stmt);
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
