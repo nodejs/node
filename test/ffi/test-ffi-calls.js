@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc --allow-natives-syntax
+// Flags: --expose-gc --allow-natives-syntax
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
@@ -313,7 +313,6 @@ test('ffi division helpers behave as expected', () => {
 
 function assertInvalidCallbackReturnAborts(returnExpression) {
   const { stderr, status, signal } = spawnSync(process.execPath, [
-    '--experimental-ffi',
     '-e',
     `'use strict';
 const ffi = require('node:ffi');
@@ -336,7 +335,6 @@ stderr: ${stderr}`);
 
 function assertInvalidCallbackBehaviorAborts(callbackBody, message) {
   const { stderr, status, signal } = spawnSync(process.execPath, [
-    '--experimental-ffi',
     '-e',
     `'use strict';
 const ffi = require('node:ffi');
@@ -366,7 +364,6 @@ const { functions } = ffi.dlopen(libraryPath, fixtureSymbols);
 functions.call_int_callback(workerData, 21);
 `;
   const { stderr, status, signal } = spawnSync(process.execPath, [
-    '--experimental-ffi',
     '-e',
     `'use strict';
 const { Worker } = require('node:worker_threads');

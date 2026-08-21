@@ -1,4 +1,4 @@
-// Flags: --experimental-ffi --expose-gc --allow-natives-syntax
+// Flags: --expose-gc --allow-natives-syntax
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
